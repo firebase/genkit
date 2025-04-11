@@ -19,7 +19,6 @@ package genkit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -29,13 +28,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/action"
-	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -250,26 +247,9 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 		w.Header().Set("x-genkit-version", "go/"+internal.Version)
 
 		if err = h(w, r); err != nil {
-			var traceID string
-			statusCode := http.StatusInternalServerError
-			if herr, ok := err.(*base.HTTPError); ok {
-				traceID = herr.TraceID
-				statusCode = herr.Code
-			}
-
-			genkitErr := &ai.GenkitError{
-				Message: err.Error(),
-				Details: struct {
-					TraceID string `json:"traceId"`
-					Stack   string `json:"stack"`
-				}{
-					TraceID: traceID,
-					Stack:   "", // TODO: Propagate stack trace from local error.
-				},
-			}
-
-			w.WriteHeader(statusCode)
-			writeJSON(ctx, w, genkitErr)
+			errorResponse := core.GetReflectionJSON(err)
+			w.WriteHeader(errorResponse.Code)
+			writeJSON(ctx, w, errorResponse)
 		}
 	}
 }
@@ -287,7 +267,10 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		}
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return &core.GenkitError{
+				Message: err.Error(),
+				Status:  core.FAILED_PRECONDITION,
+			}
 		}
 
 		stream, err := parseBoolQueryParam(r, "stream")
@@ -322,22 +305,9 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		resp, err := runAction(ctx, reg, body.Key, body.Input, cb, contextMap)
 		if err != nil {
 			if stream {
-				var traceID string
-				if herr, ok := err.(*base.HTTPError); ok {
-					traceID = herr.TraceID
-				}
-
-				genkitErr := &ai.GenkitError{
-					Message: err.Error(),
-					Data: &ai.GenkitErrorData{
-						GenkitErrorMessage: err.Error(),
-						GenkitErrorDetails: &ai.GenkitErrorDetails{
-							TraceID: traceID,
-						},
-					},
-				}
-
+				genkitErr := core.GetReflectionJSON(err)
 				errorJSON, _ := json.Marshal(genkitErr)
+				fmt.Printf("%v", string(errorJSON))
 				_, writeErr := fmt.Fprintf(w, "%s\n\n", errorJSON)
 				if writeErr != nil {
 					return writeErr
@@ -364,7 +334,10 @@ func handleNotify(reg *registry.Registry) func(w http.ResponseWriter, r *http.Re
 
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return &core.GenkitError{
+				Message: err.Error(),
+				Status:  core.INVALID_ARGUMENT,
+			}
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {
@@ -408,7 +381,10 @@ type telemetry struct {
 func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
-		return nil, &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
+		return nil, &core.GenkitError{
+			Message: fmt.Sprintf("no action with key %q", key),
+			Status:  core.NOT_FOUND,
+		}
 	}
 	if runtimeContext != nil {
 		ctx = core.WithActionContext(ctx, runtimeContext)
@@ -421,12 +397,10 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
-		var herr *base.HTTPError
-		if errors.As(err, &herr) {
-			herr.TraceID = traceID
-			return nil, herr
+		return nil, &core.GenkitError{
+			Message: err.Error(),
+			Status:  core.INVALID_ARGUMENT,
 		}
-		return nil, &base.HTTPError{Code: http.StatusInternalServerError, Err: err, TraceID: traceID}
 	}
 
 	return &runActionResponse{

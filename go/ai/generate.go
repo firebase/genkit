@@ -153,7 +153,10 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 // It returns an error if the model was not defined.
 func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	if modelName == "" {
-		return nil, errors.New("ai.LookupModelByName: model not specified")
+		return nil, &core.GenkitError{
+			Message: "ai.LookupModelByName: model not specified",
+			Status:  core.INVALID_ARGUMENT,
+		}
 	}
 
 	provider, name, found := strings.Cut(modelName, "/")
@@ -165,9 +168,16 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	model := LookupModel(r, provider, name)
 	if model == nil {
 		if provider == "" {
-			return nil, fmt.Errorf("ai.LookupModelByName: no model named %q", name)
+			return nil, &core.GenkitError{
+				Message: fmt.Sprintf("ai.LookupModelByName: no model named %q", name),
+				Status:  core.NOT_FOUND,
+			}
+
 		}
-		return nil, fmt.Errorf("ai.LookupModelByName: no model named %q for provider %q", name, provider)
+		return nil, &core.GenkitError{
+			Message: fmt.Sprintf("ai.LookupModelByName: no model named %q for provider %q", name, provider),
+			Status:  core.NOT_FOUND,
+		}
 	}
 
 	return model, nil
@@ -180,7 +190,10 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			opts.Model = defaultModel
 		}
 		if opts.Model == "" {
-			return nil, errors.New("ai.GenerateWithRequest: model is required")
+			return nil, &core.GenkitError{
+				Message: "ai.GenerateWithRequest: model is required",
+				Status:  core.INVALID_ARGUMENT,
+			}
 		}
 	}
 
@@ -193,12 +206,18 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
 		if _, ok := toolDefMap[t]; ok {
-			return nil, fmt.Errorf("ai.GenerateWithRequest: duplicate tool found: %q", t)
+			return nil, &core.GenkitError{
+				Message: fmt.Sprintf("ai.GenerateWithRequest: duplicate tool found: %q", t),
+				Status:  core.ALREADY_EXISTS,
+			}
 		}
 
 		tool := LookupTool(r, t)
 		if tool == nil {
-			return nil, fmt.Errorf("ai.GenerateWithRequest: tool not found: %q", t)
+			return nil, &core.GenkitError{
+				Message: fmt.Sprintf("ai.GenerateWithRequest: tool not found: %q", t),
+				Status:  core.NOT_FOUND,
+			}
 		}
 
 		toolDefMap[t] = tool.Definition()
@@ -210,7 +229,10 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 	maxTurns := opts.MaxTurns
 	if maxTurns < 0 {
-		return nil, fmt.Errorf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns)
+		return nil, &core.GenkitError{
+			Message: fmt.Sprintf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns),
+			Status:  core.ABORTED,
+		}
 	}
 	if maxTurns == 0 {
 		maxTurns = 5 // Default max turns.
@@ -291,7 +313,10 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		}
 
 		if currentTurn+1 > maxTurns {
-			return nil, fmt.Errorf("exceeded maximum tool call iterations (%d)", maxTurns)
+			return nil, &core.GenkitError{
+				Message: fmt.Sprintf("exceeded maximum tool call iterations (%d)", maxTurns),
+				Status:  core.ABORTED,
+			}
 		}
 
 		newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
@@ -318,7 +343,10 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
 		if err := opt.applyGenerate(genOpts); err != nil {
-			return nil, fmt.Errorf("ai.Generate: error applying options: %w", err)
+			return nil, &core.GenkitError{
+				Message: fmt.Sprintf("ai.Generate: error applying options: %v", err),
+				Status:  core.INVALID_ARGUMENT,
+			}
 		}
 	}
 
@@ -421,7 +449,10 @@ func (m *model) Name() string {
 // Generate applies the [Action] to provided request.
 func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
-		return nil, errors.New("Model.Generate: generate called on a nil model; check that all models are defined")
+		return nil, &core.GenkitError{
+			Message: "Model.Generate: generate called on a nil model; check that all models are defined",
+			Status:  core.ABORTED,
+		}
 	}
 
 	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)

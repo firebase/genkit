@@ -29,7 +29,6 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
-	"github.com/firebase/genkit/go/internal/base"
 )
 
 type HandlerOption interface {
@@ -90,9 +89,9 @@ func wrapHandler(h func(http.ResponseWriter, *http.Request) error) http.HandlerF
 		}()
 
 		if err = h(w, r); err != nil {
-			var herr *base.HTTPError
+			var herr *core.GenkitError
 			if errors.As(err, &herr) {
-				http.Error(w, herr.Error(), herr.Code)
+				http.Error(w, herr.Error(), core.HTTPStatusCode(herr.Status))
 			} else {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -113,7 +112,10 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 		if r.Body != nil && r.ContentLength > 0 {
 			defer r.Body.Close()
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+				return &core.GenkitError{
+					Message: err.Error(),
+					Status:  core.INVALID_ARGUMENT,
+				}
 			}
 		}
 
@@ -154,7 +156,10 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 				})
 				if err != nil {
 					logger.FromContext(ctx).Error("error providing action context from request", "err", err)
-					return &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
+					return &core.GenkitError{
+						Message: err.Error(),
+						Status:  core.UNAUTHENTICATED,
+					}
 				}
 
 				if existing := core.FromContext(ctx); existing != nil {
@@ -191,7 +196,10 @@ func parseBoolQueryParam(r *http.Request, name string) (bool, error) {
 		var err error
 		b, err = strconv.ParseBool(s)
 		if err != nil {
-			return false, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return false, &core.GenkitError{
+				Message: err.Error(),
+				Status:  core.INVALID_ARGUMENT,
+			}
 		}
 	}
 	return b, nil
