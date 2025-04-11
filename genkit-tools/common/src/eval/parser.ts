@@ -45,6 +45,7 @@ export function enrichResultsWithScoring(
           evaluator,
           score: s.score,
           scoreId: s.id,
+          status: s.status,
           rationale: s.details?.reasoning,
           error: s.error,
           traceId: scoredSample.traceId,
@@ -67,8 +68,12 @@ export function extractMetricsMetadata(evaluatorActions: Action[]) {
   const metadata: Record<string, any> = {};
   for (const action of evaluatorActions) {
     metadata[action.name] = {
-      displayName: action.metadata![EVALUATOR_METADATA_KEY_DISPLAY_NAME],
-      definition: action.metadata![EVALUATOR_METADATA_KEY_DEFINITION],
+      displayName: (action.metadata!.evaluator as any)[
+        EVALUATOR_METADATA_KEY_DISPLAY_NAME
+      ],
+      definition: (action.metadata!.evaluator as any)[
+        EVALUATOR_METADATA_KEY_DEFINITION
+      ],
     };
   }
   return metadata;

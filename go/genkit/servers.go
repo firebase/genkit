@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package genkit
@@ -19,10 +32,21 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-type HandlerOption = func(params *handlerParams)
+type HandlerOption interface {
+	apply(params *handlerParams)
+}
 
+// handlerParams are the parameters for an action HTTP handler.
 type handlerParams struct {
-	ContextProviders []core.ContextProvider
+	ContextProviders []core.ContextProvider // Providers for action context that may be used during runtime.
+}
+
+// apply applies the options to the handler params.
+func (p *handlerParams) apply(params *handlerParams) {
+	if params.ContextProviders != nil {
+		panic("genkit.WithContextProviders: cannot set ContextProviders more than once")
+	}
+	params.ContextProviders = p.ContextProviders
 }
 
 // requestID is a unique ID for each request.
@@ -31,20 +55,22 @@ var requestID atomic.Int64
 // WithContextProviders adds providers for action context that may be used during runtime.
 // They are called in the order added and may overwrite previous context.
 func WithContextProviders(ctxProviders ...core.ContextProvider) HandlerOption {
-	return func(params *handlerParams) {
-		if params.ContextProviders != nil {
-			panic("genkit.WithContextProviders: cannot set ContextProviders more than once")
-		}
-		params.ContextProviders = ctxProviders
-	}
+	return &handlerParams{ContextProviders: ctxProviders}
 }
 
 // Handler returns an HTTP handler function that serves the action with the provided options.
+//
+// Example:
+//
+//	genkit.Handler(g, genkit.WithContextProviders(func(ctx context.Context, req core.RequestData) (core.ActionContext, error) {
+//		return core.ActionContext{"myKey": "myValue"}, nil
+//	}))
 func Handler(a core.Action, opts ...HandlerOption) http.HandlerFunc {
 	params := &handlerParams{}
 	for _, opt := range opts {
-		opt(params)
+		opt.apply(params)
 	}
+
 	return wrapHandler(handler(a, params))
 }
 

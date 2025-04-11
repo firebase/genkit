@@ -134,4 +134,4 @@ This project is licensed under the Apache License, Version 2.0. See the [LICENSE
 
 This sample provides a basic demonstration of using Vertex AI plugins with Genkit for document indexing and retrieval. It can be extended and adapted to suit more complex use cases and integrations with other data sources and services.
 
-For more information, please refer to the official [Firebase Genkit documentation](https://firebase.google.com/docs/genkit).
+For more information, please refer to the official [Genkit documentation](https://firebase.google.com/docs/genkit).

@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -10,6 +23,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 type imageURLInput struct {
@@ -22,11 +36,11 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 {{media url=imageUrl}}`
 	readMenuPrompt, err := genkit.DefinePrompt(
 		g, "s05_readMenu",
-		ai.WithPromptText(text),
+		ai.WithPrompt(text),
 		ai.WithModel(model),
 		ai.WithInputType(imageURLInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.1,
 		}),
 	)
@@ -36,7 +50,7 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 
 	textMenuPrompt, err := genkit.DefinePrompt(
 		g, "s05_textMenu",
-		ai.WithPromptText(`
+		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general.
@@ -50,7 +64,7 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(textMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.3,
 		}),
 	)

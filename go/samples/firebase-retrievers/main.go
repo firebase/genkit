@@ -164,17 +164,17 @@ func (e *MockEmbedder) Name() string {
 }
 
 func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
-	var embeddings []*ai.DocumentEmbedding
+	var embeddings []*ai.Embedding
 
 	// Generate a simple uniform embedding for each document
-	for _, doc := range req.Documents {
+	for _, doc := range req.Input {
 		// Example: Use the length of the document text to generate embeddings
 		embedding := []float32{
 			float32(len(doc.Content[0].Text)) * 0.1, // Scale based on text length
 			0.5,                                     // Static value
 			0.3,                                     // Static value
 		}
-		embeddings = append(embeddings, &ai.DocumentEmbedding{Embedding: embedding})
+		embeddings = append(embeddings, &ai.Embedding{Embedding: embedding})
 	}
 	return &ai.EmbedResponse{Embeddings: embeddings}, nil
 }

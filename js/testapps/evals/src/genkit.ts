@@ -28,6 +28,7 @@ import {
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai/evaluation';
 import { genkit } from 'genkit';
+import { EvalStatusEnum } from 'genkit/evaluator';
 import { langchain } from 'genkitx-langchain';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
@@ -57,10 +58,17 @@ export const ai = genkit({
   plugins: [
     googleAI(),
     genkitEval({
-      judge: gemini15Pro,
-      judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      metrics: [GenkitMetric.MALICIOUSNESS],
-      embedder: textEmbeddingGecko001,
+      metrics: [
+        {
+          type: GenkitMetric.MALICIOUSNESS,
+          judge: gemini15Pro,
+          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+          statusOverrideFn: ({ score: Score }) => {
+            // Always set to fail to test override
+            return EvalStatusEnum.FAIL;
+          },
+        },
+      ],
     }),
     vertexAI({
       location: 'us-central1',

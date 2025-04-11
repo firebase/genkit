@@ -3,8 +3,9 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-"""Testing utils/helpers for genkit.ai."""
+"""Testing utils/helpers for genkit.blocks."""
 
+from genkit.ai import Genkit
 from genkit.codec import dump_json
 from genkit.core.action import ActionRunContext
 from genkit.core.typing import (
@@ -15,7 +16,6 @@ from genkit.core.typing import (
     Role,
     TextPart,
 )
-from genkit.veneer.veneer import Genkit
 
 
 class ProgrammableModel:
@@ -100,8 +100,7 @@ class EchoModel:
         merged_txt = ''
         for m in request.messages:
             merged_txt += f' {m.role}: ' + ','.join(
-                dump_json(p.root.text) if p.root.text is not None else '""'
-                for p in m.content
+                dump_json(p.root.text) if p.root.text is not None else '""' for p in m.content
             )
         echo_resp = f'[ECHO]{merged_txt}'
         if request.config:
@@ -112,9 +111,7 @@ class EchoModel:
             echo_resp += f' tool_choice={request.tool_choice}'
         if request.output and dump_json(request.output) != '{}':
             echo_resp += f' output={dump_json(request.output)}'
-        return GenerateResponse(
-            message=Message(role=Role.MODEL, content=[TextPart(text=echo_resp)])
-        )
+        return GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text=echo_resp)]))
 
 
 def define_echo_model(ai: Genkit, name: str = 'echoModel'):

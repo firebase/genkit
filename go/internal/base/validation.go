@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package base
@@ -64,4 +77,23 @@ func ValidateRaw(dataBytes json.RawMessage, schemaBytes json.RawMessage) error {
 	}
 
 	return nil
+}
+
+// ValidateIsJSONArray will validate if the schema represents a JSON array.
+func ValidateIsJSONArray(schema map[string]any) bool {
+	if sType, ok := schema["type"]; !ok || sType != "array" {
+		return false
+	}
+
+	if _, ok := schema["items"]; !ok {
+		return false
+	}
+
+	return true
+}
+
+// Validates if the given string is a valid JSON string
+func ValidJSON(s string) bool {
+	var js json.RawMessage
+	return json.Unmarshal([]byte(s), &js) == nil
 }

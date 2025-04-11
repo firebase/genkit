@@ -413,6 +413,14 @@
         "$ref": "#/$defs/EvalFnResponse"
       }
     },
+    "EvalStatusEnum": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "PASS",
+        "FAIL"
+      ]
+    },
     "Score": {
       "type": "object",
       "properties": {
@@ -427,6 +435,9 @@
             "boolean"
           ]
         },
+        "status": {
+          "$ref": "#/$defs/EvalStatusEnum"
+        },
         "error": {
           "type": "string"
         },
@@ -440,6 +451,46 @@
           "additionalProperties": true
         }
       },
+      "additionalProperties": false
+    },
+    "GenkitError": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "stack": {
+          "type": "string"
+        },
+        "details": {},
+        "data": {
+          "type": "object",
+          "properties": {
+            "genkitErrorMessage": {
+              "type": "string"
+            },
+            "genkitErrorDetails": {
+              "type": "object",
+              "properties": {
+                "stack": {
+                  "type": "string"
+                },
+                "traceId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "traceId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "message"
+      ],
       "additionalProperties": false
     },
     "CandidateError": {
@@ -803,6 +854,10 @@
         "label": {
           "type": "string"
         },
+        "configSchema": {
+          "type": "object",
+          "additionalProperties": {}
+        },
         "supports": {
           "type": "object",
           "properties": {
@@ -956,9 +1011,6 @@
         },
         "constrained": {
           "type": "boolean"
-        },
-        "instructions": {
-          "type": "string"
         },
         "contentType": {
           "type": "string"

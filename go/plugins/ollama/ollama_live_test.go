@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ollama_test
@@ -34,16 +47,15 @@ func TestLive(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress}
+
 	// Initialize the Ollama plugin
-	err = ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
-		ServerAddress: *serverAddress,
-	})
-	if err != nil {
+	if err = o.Init(ctx, g); err != nil {
 		t.Fatalf("failed to initialize Ollama plugin: %s", err)
 	}
 
 	// Define the model
-	ollamaPlugin.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
+	o.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
 
 	// Use the Ollama model
 	m := ollamaPlugin.Model(g, *modelName)
@@ -55,7 +67,7 @@ func TestLive(t *testing.T) {
 	resp, err := genkit.Generate(ctx, g,
 		ai.WithModel(m),
 		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
-		ai.WithPromptText("I'm hungry, what should I eat?"),
+		ai.WithPrompt("I'm hungry, what should I eat?"),
 	)
 	if err != nil {
 		t.Fatalf("failed to generate response: %s", err)

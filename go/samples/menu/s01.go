@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -10,7 +23,7 @@ import (
 
 func setup01(g *genkit.Genkit, m ai.Model) error {
 	_, err := genkit.DefinePrompt(g, "s01_vanillaPrompt",
-		ai.WithPromptText(`
+		ai.WithPrompt(`
 You are acting as a helpful AI assistant named "Walt" that can answer
 questions about the food available on the menu at Walt's Burgers.
 Customer says: {{question}}`),
@@ -22,7 +35,7 @@ Customer says: {{question}}`),
 	}
 
 	_, err = genkit.DefinePrompt(g, "s01_staticMenuDotPrompt",
-		ai.WithPromptText(`
+		ai.WithPrompt(`
 You are acting as a helpful AI assistant named "Walt" that can answer
 questions about the food available on the menu at Walt's Burgers.
 Here is today's menu:

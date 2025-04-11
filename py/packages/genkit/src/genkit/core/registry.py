@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Registry for managing Genkit resources and actions.
@@ -20,15 +33,11 @@ from typing import Any
 
 from genkit.core.action import (
     Action,
-    ActionKind,
     create_action_key,
     parse_action_key,
     parse_plugin_name_from_action_name,
 )
-
-type ActionName = str
-
-type ActionResolver = Callable[[ActionKind, str], None]
+from genkit.core.action.types import ActionKind, ActionName, ActionResolver
 
 # An action store is a nested dictionary mapping ActionKind to a dictionary of
 # action names and their corresponding Action instances.
@@ -43,7 +52,7 @@ type ActionResolver = Callable[[ActionKind, str], None]
 #     },
 # }
 # ```
-type ActionStore = dict[ActionKind, dict[ActionName, Action]]
+ActionStore = dict[ActionKind, dict[ActionName, Action]]
 
 
 class Registry:
@@ -73,9 +82,7 @@ class Registry:
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
-    def register_action_resolver(
-        self, plugin_name: str, resolver: ActionResolver
-    ):
+    def register_action_resolver(self, plugin_name: str, resolver: ActionResolver):
         """Registers an ActionResolver function for a given plugin.
 
         Args:
@@ -95,6 +102,7 @@ class Registry:
         kind: ActionKind,
         name: str,
         fn: Callable,
+        metadata_fn: Callable | None = None,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
         span_metadata: dict[str, str] | None = None,
@@ -108,6 +116,8 @@ class Registry:
             kind: The type of action being registered (e.g., TOOL, MODEL).
             name: A unique name for the action within its kind.
             fn: The function to be called when the action is executed.
+            metadata_fn: The function to be used to infer metadata (e.g.
+                schemas).
             description: Optional human-readable description of the action.
             metadata: Optional dictionary of metadata about the action.
             span_metadata: Optional dictionary of tracing span metadata.
@@ -119,6 +129,7 @@ class Registry:
             kind=kind,
             name=name,
             fn=fn,
+            metadata_fn=metadata_fn,
             description=description,
             metadata=metadata,
             span_metadata=span_metadata,
@@ -172,8 +183,12 @@ class Registry:
         kind, name = parse_action_key(key)
         return self.lookup_action(kind, name)
 
-    def list_serializable_actions(self) -> dict[str, Action] | None:
+    def list_serializable_actions(self, allowed_kinds: set[ActionKind] | None = None) -> dict[str, Action] | None:
         """Enlist all the actions into a dictionary.
+
+        Args:
+            allowed_kinds: The types of actions to list. If None, all actions
+            are listed.
 
         Returns:
             A dictionary of serializable Actions.
@@ -181,6 +196,8 @@ class Registry:
         with self._lock:
             actions = {}
             for kind in self._entries:
+                if allowed_kinds is not None and kind not in allowed_kinds:
+                    continue
                 for name in self._entries[kind]:
                     action = self.lookup_action(kind, name)
                     if action is not None:
@@ -217,10 +234,7 @@ class Registry:
                 self._value_by_kind_and_name[kind] = {}
 
             if name in self._value_by_kind_and_name[kind]:
-                raise ValueError(
-                    f'value for kind "{kind}" '
-                    f'and name "{name}" is already registered'
-                )
+                raise ValueError(f'value for kind "{kind}" and name "{name}" is already registered')
 
             self._value_by_kind_and_name[kind][name] = value
 

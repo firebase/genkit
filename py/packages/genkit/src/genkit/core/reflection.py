@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Development API for inspecting and interacting with Genkit.
@@ -6,6 +19,23 @@
 This module provides a reflection API server for inspection and interaction
 during development. It exposes endpoints for health checks, action discovery,
 and action execution.
+
+## Caveats
+
+The reflection API server predates the flows server implementation and differs
+in the protocol it uses to interface with the Dev UI. The streaming protocol
+uses unadorned JSON per streamed chunk. This may change in the future to use
+Server-Sent Events (SSE).
+
+## Key endpoints
+
+    | Method | Path                | Handler               |
+    |--------|---------------------|-----------------------|
+    | GET    | /api/__health       | Health check          |
+    | GET    | /api/actions        | List actions          |
+    | POST   | /api/__quitquitquit | Trigger shutdown      |
+    | POST   | /api/notify         | Handle notification   |
+    | POST   | /api/runAction      | Run action (streaming)|
 """
 
 from __future__ import annotations
@@ -25,15 +55,16 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import Route
 
+from genkit.aio.loop import run_async
 from genkit.codec import dump_dict, dump_json
 from genkit.core.action import Action
 from genkit.core.constants import DEFAULT_GENKIT_VERSION
-from genkit.core.error import get_callable_json
+from genkit.core.error import get_reflection_json
 from genkit.core.registry import Registry
+from genkit.web.manager.signals import terminate_all_servers
 from genkit.web.requests import (
     is_streaming_requested,
 )
-from genkit.web.servers.signals import terminate_all_servers
 from genkit.web.typing import (
     Application,
     LifespanHandler,
@@ -42,7 +73,12 @@ from genkit.web.typing import (
 logger = structlog.get_logger(__name__)
 
 
-def make_reflection_server(registry: Registry, encoding='utf-8'):
+def make_reflection_server(
+    registry: Registry,
+    loop: asyncio.AbstractEventLoop,
+    encoding='utf-8',
+    quiet=True,
+):
     """Create and return a ReflectionServer class with the given registry.
 
     Args:
@@ -59,6 +95,13 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
         This handler provides endpoints for inspecting and interacting with
         registered Genkit actions during development.
         """
+
+        def log_message(self, format, *args):
+            if not quiet:
+                message = format % args
+                logger.debug(
+                    f'{self.address_string()} - - [{self.log_date_time_string()}] {message.translate(self._control_char_table)}'
+                )
 
         def do_GET(self) -> None:  # noqa: N802
             """Handle GET requests to the reflection API.
@@ -129,13 +172,16 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                     self.end_headers()
 
                     try:
-                        output = asyncio.run(
-                            action.arun_raw(
+
+                        async def run_fn():
+                            return await action.arun_raw(
                                 raw_input=payload['input'],
                                 on_chunk=send_chunk,
                                 context=context,
                             )
-                        )
+
+                        output = run_async(loop, run_fn)
+
                         self.wfile.write(
                             bytes(
                                 json.dumps({
@@ -149,29 +195,23 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                         # Since we're streaming, the headers have already been
                         # sent as a 200 OK, but we must indicate an error
                         # regardless.
-                        error_response = get_callable_json(e).model_dump(
-                            by_alias=True
-                        )
-                        logger.error(
-                            'Error streaming action', error=error_response
-                        )
-                        self.wfile.write(
-                            bytes(
-                                json.dumps({'error': error_response}), encoding
-                            )
-                        )
+                        error_response = get_reflection_json(e).model_dump(by_alias=True)
+                        logger.error('Error streaming action', error=error_response)
+                        if 'message' in error_response:
+                            logger.error(error_response['message'])
+                        if 'details' in error_response and 'stack' in error_response['details']:
+                            logger.error(error_response['details']['stack'])
+                        self.wfile.write(bytes(json.dumps({'error': error_response}), encoding))
                 else:
                     try:
-                        output = asyncio.run(
-                            action.arun_raw(
-                                raw_input=payload['input'], context=context
-                            )
-                        )
+
+                        async def run_fn():
+                            return await action.arun_raw(raw_input=payload['input'], context=context)
+
+                        output = run_async(loop, run_fn)
 
                         self.send_response(200)
-                        self.send_header(
-                            'x-genkit-version', DEFAULT_GENKIT_VERSION
-                        )
+                        self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
                         self.send_header('content-type', 'application/json')
                         self.end_headers()
 
@@ -187,22 +227,18 @@ def make_reflection_server(registry: Registry, encoding='utf-8'):
                     except Exception as e:
                         # We aren't streaming here so send a JSON-encoded 500
                         # internal server error response.
-                        error_response = get_callable_json(e).model_dump(
-                            by_alias=True
-                        )
-                        logger.error(
-                            'Error running action', error=error_response
-                        )
+                        error_response = get_reflection_json(e).model_dump(by_alias=True)
+                        logger.error(f'Error running action {action.name}')
+                        if 'message' in error_response:
+                            logger.error(error_response['message'])
+                        if 'details' in error_response and 'stack' in error_response['details']:
+                            logger.error(error_response['details']['stack'])
 
                         self.send_response(500)
-                        self.send_header(
-                            'x-genkit-version', DEFAULT_GENKIT_VERSION
-                        )
+                        self.send_header('x-genkit-version', DEFAULT_GENKIT_VERSION)
                         self.send_header('content-type', 'application/json')
                         self.end_headers()
-                        self.wfile.write(
-                            bytes(json.dumps(error_response), encoding)
-                        )
+                        self.wfile.write(bytes(json.dumps(error_response), encoding))
 
     return ReflectionServer
 
@@ -216,14 +252,22 @@ def create_reflection_asgi_app(
 ) -> Application:
     """Create and return a ASGI application for the Genkit reflection API.
 
+    Caveats:
+
+        The reflection API server predates the flows server implementation and
+        differs in the protocol it uses to interface with the Dev UI. The
+        streaming protocol uses unadorned JSON per streamed chunk. This may
+        change in the future to use Server-Sent Events (SSE).
+
     Key endpoints:
 
-        | Method | Path           | Handler               |
-        |--------|----------------|-----------------------|
-        | GET    | /api/__health  | Health check          |
-        | GET    | /api/actions   | List actions          |
-        | POST   | /api/runAction | Run action (streaming)|
-        | POST   | /api/notify    | Handle notification   |
+        | Method | Path                | Handler               |
+        |--------|---------------------|-----------------------|
+        | GET    | /api/__health       | Health check          |
+        | GET    | /api/actions        | List actions          |
+        | POST   | /api/__quitquitquit | Trigger shutdown      |
+        | POST   | /api/notify         | Handle notification   |
+        | POST   | /api/runAction      | Run action (streaming)|
 
     Args:
         registry: The registry to use for the reflection server.
@@ -239,7 +283,7 @@ def create_reflection_asgi_app(
         An ASGI application configured with the given registry.
     """
 
-    async def health_check(request: Request) -> JSONResponse:
+    async def handle_health_check(request: Request) -> JSONResponse:
         """Handle health check requests.
 
         Args:
@@ -250,7 +294,7 @@ def create_reflection_asgi_app(
         """
         return JSONResponse(content={'status': 'OK'})
 
-    async def terminate(request: Request) -> JSONResponse:
+    async def handle_terminate(request: Request) -> JSONResponse:
         """Handle the quit endpoint.
 
         Args:
@@ -263,7 +307,7 @@ def create_reflection_asgi_app(
         terminate_all_servers()
         return JSONResponse(content={'status': 'OK'})
 
-    async def list_actions(request: Request) -> JSONResponse:
+    async def handle_list_actions(request: Request) -> JSONResponse:
         """Handle the request for listing available actions.
 
         Args:
@@ -293,7 +337,7 @@ def create_reflection_asgi_app(
             headers={'x-genkit-version': version},
         )
 
-    async def run_action(
+    async def handle_run_action(
         request: Request,
     ) -> JSONResponse | StreamingResponse:
         """Handle the runAction endpoint for executing registered actions.
@@ -345,7 +389,7 @@ def create_reflection_asgi_app(
             events.
         """
 
-        async def sse_generator() -> AsyncGenerator[str, None]:
+        async def stream_generator() -> AsyncGenerator[str, None]:
             """Server-Sent Events Generator for streaming JSON chunks.
 
             Since we generate a stream of event objects, and the headers will
@@ -371,16 +415,22 @@ def create_reflection_asgi_app(
                 yield f'{json.dumps(final_response)}\n'
 
             except Exception as e:
-                error_response = get_callable_json(e).model_dump(by_alias=True)
-                await logger.aerror(
+                error_response = get_reflection_json(e).model_dump(by_alias=True)
+                logger.error(
                     'Error streaming action',
                     error=error_response,
                 )
                 yield f'{json.dumps(error_response)}\n'
 
         return StreamingResponse(
-            sse_generator(),
-            media_type='text/event-stream',
+            stream_generator(),
+            # TODO: Should this be set to event-stream in the future?
+            # media_type='text/event-stream',
+            #
+            # Apparently, the Genkit dev server uses
+            # an older protocol that uses JSON chunks rather
+            # than event streams.
+            media_type='application/json',
             headers={'x-genkit-version': version},
         )
 
@@ -402,9 +452,7 @@ def create_reflection_asgi_app(
             A JSONResponse with the action result or error.
         """
         try:
-            output = await action.arun_raw(
-                raw_input=payload['input'], context=context
-            )
+            output = await action.arun_raw(raw_input=payload['input'], context=context)
             response = {
                 'result': dump_dict(output.response),
                 'telemetry': {'traceId': output.trace_id},
@@ -415,8 +463,8 @@ def create_reflection_asgi_app(
                 headers={'x-genkit-version': version},
             )
         except Exception as e:
-            error_response = get_callable_json(e).model_dump(by_alias=True)
-            await logger.aerror('Error executing action', error=error_response)
+            error_response = get_reflection_json(e).model_dump(by_alias=True)
+            logger.error('Error executing action', error=error_response)
             return JSONResponse(
                 content=error_response,
                 status_code=500,
@@ -424,11 +472,11 @@ def create_reflection_asgi_app(
 
     return Starlette(
         routes=[
-            Route('/api/__health', health_check, methods=['GET']),
-            Route('/api/__quitquitquit', terminate, methods=['POST']),
-            Route('/api/actions', list_actions, methods=['GET']),
+            Route('/api/__health', handle_health_check, methods=['GET']),
+            Route('/api/__quitquitquit', handle_terminate, methods=['POST']),
+            Route('/api/actions', handle_list_actions, methods=['GET']),
             Route('/api/notify', handle_notify, methods=['POST']),
-            Route('/api/runAction', run_action, methods=['POST']),
+            Route('/api/runAction', handle_run_action, methods=['POST']),
         ],
         middleware=[
             Middleware(

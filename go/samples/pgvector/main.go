@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // This program shows how to use Postgres's pgvector extension with Genkit.
@@ -25,7 +38,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	_ "github.com/lib/pq"
 	pgv "github.com/pgvector/pgvector-go"
 )
@@ -39,7 +52,9 @@ var (
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,13 +71,10 @@ func run(g *genkit.Genkit) error {
 		return errors.New("need -apikey")
 	}
 	ctx := context.Background()
-	if err := googleai.Init(ctx, g, &googleai.Config{APIKey: *apiKey}); err != nil {
-		return err
-	}
 	const embedderName = "embedding-001"
-	embedder := googleai.Embedder(g, embedderName)
+	embedder := googlegenai.GoogleAIEmbedder(g, embedderName)
 	if embedder == nil {
-		return fmt.Errorf("embedder %s is not known to the googleai plugin", embedderName)
+		return fmt.Errorf("embedder %s is not known to the googlegenai plugin", embedderName)
 	}
 
 	db, err := sql.Open("postgres", *connString)
@@ -88,8 +100,8 @@ func run(g *genkit.Genkit) error {
 
 	genkit.DefineFlow(g, "askQuestion", func(ctx context.Context, in input) (string, error) {
 		res, err := ai.Retrieve(ctx, retriever,
-			ai.WithRetrieverOpts(in.Show),
-			ai.WithRetrieverText(in.Question))
+			ai.WithConfig(in.Show),
+			ai.WithTextDocs(in.Question))
 		if err != nil {
 			return "", err
 		}
@@ -110,7 +122,7 @@ const provider = "pgvector"
 // [START retr]
 func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Query))
+		eres, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Query))
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +174,7 @@ func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexe
 			WHERE show_id = $1 AND season_number = $2 AND episode_id = $3
 		`
 	return genkit.DefineIndexer(g, provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
-		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Documents...))
+		res, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Documents...))
 		if err != nil {
 			return err
 		}
@@ -213,5 +225,5 @@ func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) erro
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	return ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...))
+	return ai.Index(ctx, indexer, ai.WithDocs(docs...))
 }

@@ -130,10 +130,13 @@ export type EvalInput = z.infer<typeof EvalInputSchema>;
 export const EvalInputDatasetSchema = z.array(EvalInputSchema);
 export type EvalInputDataset = z.infer<typeof EvalInputDatasetSchema>;
 
+const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
+
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
   scoreId: z.string().optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
+  status: EvalStatusEnumSchema.optional(),
   rationale: z.string().optional(),
   error: z.string().optional(),
   traceId: z.string().optional(),
@@ -210,6 +213,12 @@ export interface EvalStore {
    * @param query (optional) filter criteria for the result list
    */
   list(query?: ListEvalKeysRequest): Promise<ListEvalKeysResponse>;
+
+  /**
+   * Delete EvalRun by ID
+   * @param evalRunId the ID of the EvalRun
+   */
+  delete(evalRunId: string): Promise<void>;
 }
 
 export const DatasetSchemaSchema = z.object({

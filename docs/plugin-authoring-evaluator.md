@@ -1,6 +1,6 @@
 # Writing a Genkit Evaluator
 
-You can extend Firebase Genkit to support custom evaluation, using either
+You can extend Genkit to support custom evaluation, using either
 an LLM as a judge, or by programmatic (heuristic) evaluation.
 
 ## Evaluator definition

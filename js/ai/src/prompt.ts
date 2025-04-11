@@ -536,7 +536,7 @@ async function renderMessages<
           Message.parseData(m)
         ) as DpMessage[],
       });
-      messages.push(...rendered.messages);
+      messages.push(...(rendered.messages as MessageData[]));
     } else {
       messages.push(...options.messages);
     }

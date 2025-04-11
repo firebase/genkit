@@ -68,6 +68,9 @@ import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
+/**
+ * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
+ */
 const SafetySettingsSchema = z.object({
   category: z.enum([
     'HARM_CATEGORY_UNSPECIFIED',
@@ -75,6 +78,7 @@ const SafetySettingsSchema = z.object({
     'HARM_CATEGORY_SEXUALLY_EXPLICIT',
     'HARM_CATEGORY_HARASSMENT',
     'HARM_CATEGORY_DANGEROUS_CONTENT',
+    'HARM_CATEGORY_CIVIC_INTEGRITY',
   ]),
   threshold: z.enum([
     'BLOCK_LOW_AND_ABOVE',
@@ -85,22 +89,49 @@ const SafetySettingsSchema = z.object({
 });
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  /** When supplied, override the plugin-configured API key and use this instead. */
-  apiKey: z.string().optional(),
-  safetySettings: z.array(SafetySettingsSchema).optional(),
-  codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
-  contextCache: z.boolean().optional(),
+  apiKey: z
+    .string()
+    .describe('Overrides the plugin-configured API key, if specified.')
+    .optional(),
+  safetySettings: z
+    .array(SafetySettingsSchema)
+    .describe(
+      'Adjust how likely you are to see responses that could be harmful. ' +
+        'Content is blocked based on the probability that it is harmful.'
+    )
+    .optional(),
+  codeExecution: z
+    .union([z.boolean(), z.object({}).strict()])
+    .describe('Enables the model to generate and run code.')
+    .optional(),
+  contextCache: z
+    .boolean()
+    .describe(
+      'Context caching allows you to save and reuse precomputed input ' +
+        'tokens that you wish to use repeatedly.'
+    )
+    .optional(),
   functionCallingConfig: z
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
     })
+    .describe(
+      'Controls how the model uses the provided tools (function declarations). ' +
+        'With AUTO (Default) mode, the model decides whether to generate a ' +
+        'natural language response or suggest a function call based on the ' +
+        'prompt and context. With ANY, the model is constrained to always ' +
+        'predict a function call and guarantee function schema adherence. ' +
+        'With NONE, the model is prohibited from making function calls.'
+    )
     .optional(),
-  /**
-   * Specify what modalities should be used in response. Only supported in
-   * 'gemini-2.0-flash-exp' model at present.
-   **/
-  responseModalities: z.array(z.enum(['TEXT', 'IMAGE', 'AUDIO'])).optional(),
+  responseModalities: z
+    .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
+    .describe(
+      'The modalities to be used in response. Only supported for ' +
+        "'gemini-2.0-flash-exp' model at present."
+    )
+    .optional(),
 });
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
@@ -250,6 +281,40 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25ProExp0325 = modelRef({
+  name: 'googleai/gemini-2.5-pro-exp-03-25',
+  info: {
+    label: 'Google AI - Gemini 2.5 Pro Exp 03-25',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25ProPreview0325 = modelRef({
+  name: 'googleai/gemini-2.5-pro-preview-03-25',
+  info: {
+    label: 'Google AI - Gemini 2.5 Pro Preview 03-25',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': gemini10Pro,
 };
@@ -262,6 +327,8 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-flash-lite': gemini20FlashLite,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
   'gemini-2.0-flash-exp': gemini20FlashExp,
+  'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
+  'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({

@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package base
@@ -11,6 +24,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strings"
 
 	"github.com/invopop/jsonschema"
 )
@@ -109,4 +123,34 @@ func ExtractJSONFromMarkdown(md string) string {
 		return md
 	}
 	return matches[2]
+}
+
+// GetJsonObjectLines splits a string by newlines, trims whitespace from each line,
+// and returns a slice containing only the lines that start with '{'.
+func GetJsonObjectLines(text string) []string {
+	jsonText := ExtractJSONFromMarkdown(text)
+
+	// Handle both actual "\n" newline strings, as well as newline bytes
+	jsonText = strings.ReplaceAll(jsonText, "\n", `\n`)
+
+	// Split the input string into lines based on the newline character.
+	lines := strings.Split(jsonText, `\n`)
+
+	var result []string
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		// Trim leading and trailing whitespace from the current line.
+		trimmedLine := strings.TrimSpace(line)
+		// Check if the trimmed line starts with the character '{'.
+		if strings.HasPrefix(trimmedLine, "{") {
+			// If it does, append the trimmed line to our result slice.
+			result = append(result, trimmedLine)
+		}
+	}
+
+	// Return the slice containing the filtered and trimmed lines.
+	return result
 }

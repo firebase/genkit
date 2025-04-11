@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Asyncio helpers for asynchronous communication and data flow control."""
@@ -7,12 +20,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from typing import TypeVar
+from typing import Generic, TypeVar
+
+from ._compat import wait_for
 
 T = TypeVar('T')
 
 
-class Channel[T]:
+class Channel(Generic[T]):
     """An asynchronous channel for sending and receiving values.
 
     This class provides an asynchronous queue-like interface, allowing values to
@@ -98,12 +113,13 @@ class Channel[T]:
             # Wait for the pop task with a timeout, raise TimeoutError if a
             # timeout is specified and is exceeded and automatically cancel the
             # pending task.
-            return await asyncio.wait_for(pop_task, timeout=self._timeout)
+            return await wait_for(pop_task, timeout=self._timeout)
 
         try:
             # Wait for either the pop task or the close future to complete.  A
             # timeout is added to prevent indefinite blocking, unless
             # specifically set to None.
+            # NOTE: asyncio.wait does not cancel tasks on timeout by default.
             finished, pending = await asyncio.wait(
                 [pop_task, self._close_future],
                 return_when=asyncio.FIRST_COMPLETED,
@@ -131,7 +147,7 @@ class Channel[T]:
         # Wait for the pop task with a timeout, raise TimeoutError if a timeout
         # is specified and is exceeded and automatically cancel the pending
         # task.
-        return await asyncio.wait_for(pop_task, timeout=self._timeout)
+        return await wait_for(pop_task, timeout=self._timeout)
 
     def send(self, value: T) -> None:
         """Sends a value into the channel.
@@ -168,9 +184,7 @@ class Channel[T]:
 
         self._close_future = asyncio.ensure_future(future)
         if self._close_future is not None:
-            self._close_future.add_done_callback(
-                lambda v: self.closed.set_result(v.result())
-            )
+            self._close_future.add_done_callback(lambda v: self.closed.set_result(v.result()))
 
     async def _pop(self) -> T:
         """Asynchronously retrieves a value from the internal queue.

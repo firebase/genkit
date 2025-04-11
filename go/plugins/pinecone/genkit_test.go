@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package pinecone
@@ -67,7 +80,7 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 
-	if err := Init(ctx, *testAPIKey); err != nil {
+	if err := (&Pinecone{APIKey: *testAPIKey}).Init(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 	cfg := Config{
@@ -88,7 +101,7 @@ func TestGenkit(t *testing.T) {
 	}
 
 	t.Logf("index flag = %q, indexData.Host = %q", *testIndex, indexData.Host)
-	err = ai.Index(ctx, indexer, ai.WithIndexerOpts(indexerOptions), ai.WithIndexerDocs(d1, d2, d3))
+	err = ai.Index(ctx, indexer, ai.WithConfig(indexerOptions), ai.WithDocs(d1, d2, d3))
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -121,8 +134,8 @@ func TestGenkit(t *testing.T) {
 		Namespace: namespace,
 	}
 	retrieverResp, err := ai.Retrieve(ctx, retriever,
-		ai.WithRetrieverDoc(d1),
-		ai.WithRetrieverOpts(retrieverOptions))
+		ai.WithDocs(d1),
+		ai.WithConfig(retrieverOptions))
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}

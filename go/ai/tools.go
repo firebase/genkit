@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -15,8 +28,6 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-const provider = "local"
-
 // ToolRef is a reference to a tool.
 type ToolRef interface {
 	Name() string
@@ -28,16 +39,13 @@ type ToolName string
 
 // Name returns the name of the tool.
 func (t ToolName) Name() string {
-	return string(t)
+	return (string)(t)
 }
 
 // A ToolDef is an implementation of a single tool.
-type ToolDef[In, Out any] struct {
-	action *core.ActionDef[In, Out, struct{}]
-}
+type ToolDef[In, Out any] core.ActionDef[In, Out, struct{}]
 
-// tool is genericless version of ToolDef. It's required to make
-// LookupTool possible.
+// tool is genericless version of ToolDef. It's required to make [LookupTool] possible.
 type tool struct {
 	// action is the underlying internal action. It's needed for the descriptor.
 	action action.Action
@@ -70,13 +78,15 @@ type InterruptOptions struct {
 // ToolContext provides context and utility functions for tool execution.
 type ToolContext struct {
 	context.Context
+	// Interrupt is a function that can be used to interrupt the tool execution.
+	// Interrupting tool execution returns the control to the caller with the
+	// total model response so far.
 	Interrupt func(opts *InterruptOptions) error
 }
 
 // DefineTool defines a tool function with interrupt capability
 func DefineTool[In, Out any](r *registry.Registry, name, description string,
-	fn func(ctx *ToolContext, input In) (Out, error)) *ToolDef[In, Out] {
-
+	fn func(ctx *ToolContext, input In) (Out, error)) Tool {
 	metadata := make(map[string]any)
 	metadata["type"] = "tool"
 	metadata["name"] = name
@@ -94,25 +104,24 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 		return fn(toolCtx, input)
 	}
 
-	toolAction := core.DefineAction(r, provider, name, atype.Tool, metadata, wrappedFn)
-	return &ToolDef[In, Out]{
-		action: toolAction,
-	}
+	toolAction := core.DefineAction(r, "", name, atype.Tool, metadata, wrappedFn)
+
+	return &tool{action: toolAction}
 }
 
 // Name returns the name of the tool.
-func (ta *ToolDef[In, Out]) Name() string {
+func (ta *tool) Name() string {
 	return ta.Definition().Name
 }
 
 // Name returns the name of the tool.
-func (t *tool) Name() string {
+func (t *ToolDef[In, Out]) Name() string {
 	return t.Definition().Name
 }
 
 // Definition returns [ToolDefinition] for for this tool.
-func (ta *ToolDef[In, Out]) Definition() *ToolDefinition {
-	return definition(ta.action.Desc())
+func (t *ToolDef[In, Out]) Definition() *ToolDefinition {
+	return definition((*core.ActionDef[In, Out, struct{}])(t).Desc())
 }
 
 // Definition returns [ToolDefinition] for for this tool.
@@ -136,15 +145,14 @@ func definition(desc action.Desc) *ToolDefinition {
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
-func (ta *tool) RunRaw(ctx context.Context, input any) (any, error) {
-	return runAction(ctx, ta.Definition(), ta.action, input)
-
+func (t *tool) RunRaw(ctx context.Context, input any) (any, error) {
+	return runAction(ctx, t.Definition(), t.action, input)
 }
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
-func (ta *ToolDef[In, Out]) RunRaw(ctx context.Context, input any) (any, error) {
-	return runAction(ctx, ta.Definition(), ta.action, input)
+func (t *ToolDef[In, Out]) RunRaw(ctx context.Context, input any) (any, error) {
+	return runAction(ctx, t.Definition(), (*core.ActionDef[In, Out, struct{}])(t), input)
 }
 
 // runAction runs the given action with the provided raw input and returns the output in raw format.
@@ -168,7 +176,11 @@ func runAction(ctx context.Context, def *ToolDefinition, action core.Action, inp
 
 // LookupTool looks up the tool in the registry by provided name and returns it.
 func LookupTool(r *registry.Registry, name string) Tool {
-	action := r.LookupAction(fmt.Sprintf("/%s/%s/%s", atype.Tool, provider, name))
+	if name == "" {
+		return nil
+	}
+
+	action := r.LookupAction(fmt.Sprintf("/%s/%s", atype.Tool, name))
 	if action == nil {
 		return nil
 	}

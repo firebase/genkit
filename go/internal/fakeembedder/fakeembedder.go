@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // Package fakeembedder provides a fake implementation of
@@ -34,12 +47,12 @@ func (e *Embedder) Register(d *ai.Document, vals []float32) {
 
 func (e *Embedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 	res := &ai.EmbedResponse{}
-	for _, doc := range req.Documents {
+	for _, doc := range req.Input {
 		vals, ok := e.registry[doc]
 		if !ok {
 			return nil, errors.New("fake embedder called with unregistered document")
 		}
-		res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: vals})
+		res.Embeddings = append(res.Embeddings, &ai.Embedding{Embedding: vals})
 	}
 	return res, nil
 }

@@ -15,7 +15,7 @@
  */
 
 import * as assert from 'assert';
-import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
 
 /**
  * Deep equality evaluator -- tests output equality against the reference.
@@ -32,11 +32,13 @@ export async function deepEqual(dataPoint: BaseEvalDataPoint): Promise<Score> {
     assert.deepStrictEqual(dataPoint.output, dataPoint.reference);
     return {
       score: true,
+      status: EvalStatusEnum.PASS,
     };
   } catch (e) {
     return {
       score: false,
       details: { reasoning: `${e instanceof Error ? e.message : e}` },
+      status: EvalStatusEnum.FAIL,
     };
   }
 }

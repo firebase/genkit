@@ -2,14 +2,14 @@
 
 !!! note
 
-    If you're a user of Firebase Genkit and landed here,
+    If you're a user of Genkit and landed here,
     this is engineering documentation that someone contributing
     to Genkit would use, not necessarily only use it.
 
     For more information about how to get started with using
-    Firebase Genkit, please see: [User Guide](.)
+    Genkit, please see: [User Guide](.)
 
-Firebase Genkit models a generative AI framework allowing application developers
+Genkit models a generative AI framework allowing application developers
 to work with abstractions to allow the use of pluggable implementations of the
 various elements of generative AI. It has SDKs for JavaScript, Go, and Python.
 
@@ -19,22 +19,33 @@ various elements of generative AI. It has SDKs for JavaScript, Go, and Python.
 
 ```d2
 genkit: {
-  veneer: Veneer API
-  ai: AI Components {
-    prompt: Prompt
-    flow: Flow
-    model: Model
+  ai: {
+    style: {fill: "#E0F7FA"}
+    Veneer API
   }
-  core: Core Foundations {
-    actions: Actions
-    registry: Registry
-    reflection_server: Reflection Server
+  blocks: {
+    style: {fill: "#FFF3E0"}
+    AI Components: {
+      prompt: Prompt
+      model: Model
+      embedder: Embedder
+      retriever: Retriever
+    }
   }
-  plugins: Plugins {
+  core: {
+    style: {fill: "#E8F5E9"}
+    Core Foundations: {
+      flow: Flow
+      actions: Actions
+      registry: Registry
+      reflection_server: Reflection Server
+    }
+  }
+  plugins: {
+    style: {fill: "#FCE4EC"}
     chroma
     pinecone
-    vertex_ai
-    google_ai
+    google_genai
     google_cloud
     openai
     firebase
@@ -43,6 +54,7 @@ genkit: {
 }
 
 lib: {
+  style: {fill: "#EDE7F6"}
   handlebars
   dotprompt
   pydantic
@@ -52,22 +64,21 @@ lib: {
   opentelemetry
 }
 
-genkit.ai -> genkit.core
-genkit.ai -> lib.dotprompt
+genkit.blocks -> genkit.core
+genkit.blocks -> lib.dotprompt
 genkit.core -> lib.asgiref
 genkit.core -> lib.opentelemetry
 genkit.core -> lib.pydantic
 genkit.core -> lib.starlette
-genkit.plugins.chroma -> genkit.veneer
-genkit.plugins.firebase -> genkit.veneer
-genkit.plugins.google_ai -> genkit.veneer
-genkit.plugins.google_cloud -> genkit.veneer
-genkit.plugins.ollama -> genkit.veneer
-genkit.plugins.pinecone -> genkit.veneer
-genkit.plugins.vertex_ai -> genkit.veneer
-genkit.veneer -> genkit.ai
-genkit.veneer -> genkit.core
-genkit.veneer -> lib.uvicorn
+genkit.plugins.chroma -> genkit.ai
+genkit.plugins.firebase -> genkit.ai
+genkit.plugins.google_cloud -> genkit.ai
+genkit.plugins.google_genai -> genkit.ai
+genkit.plugins.ollama -> genkit.ai
+genkit.plugins.pinecone -> genkit.ai
+genkit.ai -> genkit.blocks
+genkit.ai -> genkit.core
+genkit.ai -> lib.uvicorn
 lib.dotprompt -> lib.handlebars
 ```
 
@@ -167,8 +178,8 @@ membership, and loaded for execution.
     FlowState contains a history of FlowExecutions.
 
 Most components of Genkit such as tools, agents, prompts, models, retrievers,
-embedders, evaluators, rerankers, and indexers are _framework-defined_ actions.
-A **flow** is a _user-defined action_.
+embedders, evaluators, rerankers, and indexers are *framework-defined* actions.
+A **flow** is a *user-defined action*.
 
 **OpenTelemetry** integration is baked into each action.
 
@@ -191,7 +202,6 @@ A **flow** is a _user-defined action_.
 TODO
 
 ## System Architecture Diagram
-
 
 ```d2
 vars: {

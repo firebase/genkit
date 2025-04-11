@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 // This program can be manually tested like so:
@@ -30,7 +43,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/server"
 )
 
@@ -85,18 +98,17 @@ type testAllCoffeeFlowsOutput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithDefaultModel("googleai/gemini-2.0-flash"))
+	g, err := genkit.Init(ctx,
+		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+	)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
 
-	if err := googleai.Init(context.Background(), g, nil); err != nil {
-		log.Fatal(err)
-	}
-
-	m := googleai.Model(g, "gemini-2.0-flash")
+	m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash")
 	simpleGreetingPrompt, err := genkit.DefinePrompt(g, "simpleGreeting2",
-		ai.WithPromptText(simpleGreetingPromptTemplate),
+		ai.WithPrompt(simpleGreetingPromptTemplate),
 		ai.WithModel(m),
 		ai.WithInputType(simpleGreetingInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
@@ -123,7 +135,7 @@ func main() {
 	})
 
 	greetingWithHistoryPrompt, err := genkit.DefinePrompt(g, "greetingWithHistory",
-		ai.WithPromptText(greetingWithHistoryPromptTemplate),
+		ai.WithPrompt(greetingWithHistoryPromptTemplate),
 		ai.WithModel(m),
 		ai.WithInputType(customerTimeAndHistoryInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
@@ -143,7 +155,7 @@ func main() {
 	})
 
 	simpleStructuredGreetingPrompt, err := genkit.DefinePrompt(g, "simpleStructuredGreeting",
-		ai.WithPromptText(simpleStructuredGreetingPromptTemplate),
+		ai.WithPrompt(simpleStructuredGreetingPromptTemplate),
 		ai.WithModel(m),
 		ai.WithInputType(simpleGreetingInput{}),
 		ai.WithOutputType(simpleGreetingOutput{}),

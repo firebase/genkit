@@ -19,7 +19,7 @@ import type {
   CallToolResult,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
-import { Genkit, z } from 'genkit';
+import { Genkit, JSONSchema7, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import type { McpClientOptions } from '../index.js';
 
@@ -56,7 +56,7 @@ function registerTool(
     {
       name: `${params.name}/${tool.name}`,
       description: tool.description || '',
-      inputJsonSchema: tool.inputSchema.properties,
+      inputJsonSchema: tool.inputSchema as JSONSchema7,
       outputSchema: z.any(),
     },
     async (args) => {

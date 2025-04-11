@@ -1,4 +1,17 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Utility functions for extracting JSON data from text and markdown."""
@@ -31,8 +44,7 @@ def parse_partial_json(json_string: str) -> Any:
 
 
 def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
-    """
-    Extracts JSON from a string with lenient parsing.
+    """Extracts JSON from a string with lenient parsing.
 
     This function attempts to extract a valid JSON object or array from a
     string, even if the string contains extraneous characters or minor
@@ -51,7 +63,7 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
 
     Raises:
         ValueError: If `throw_on_bad_json` is True and no valid JSON
-            can be extracted.
+            can be extracted, or if parsing an incomplete structure fails.
 
     Examples:
         >>> extract_json('  { "key" : "value" }  ')
@@ -66,6 +78,9 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
         >>> extract_json('invalid json', throw_on_bad_json=False)
         None
     """
+    if text.strip() == '':
+        return None
+
     opening_char = None
     closing_char = None
     start_pos = None
@@ -114,9 +129,7 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
         except:
             # If parsing fails, throw an error
             if throw_on_bad_json:
-                raise ValueError(
-                    f'Invalid JSON extracted from model output: {text}'
-                )
+                raise ValueError(f'Invalid JSON extracted from model output: {text}')
             return None
 
     if throw_on_bad_json:
@@ -125,7 +138,13 @@ def extract_json(text: str, throw_on_bad_json: bool = True) -> Any:
 
 
 class ExtractItemsResult:
-    """Result of array item extraction."""
+    """Holds the result of extracting items from a text array.
+
+    Attributes:
+        items: A list of the extracted JSON objects.
+        cursor: The index in the original text immediately after the last
+                processed character.
+    """
 
     def __init__(self, items: list, cursor: int):
         self.items = items
@@ -133,8 +152,7 @@ class ExtractItemsResult:
 
 
 def extract_items(text: str, cursor: int = 0) -> ExtractItemsResult:
-    """
-    Extracts complete JSON objects from the first array found in the text.
+    """Extracts complete JSON objects from the first array found in the text.
 
     This function searches for the first JSON array within the input string,
     starting from an optional cursor position. It extracts complete JSON

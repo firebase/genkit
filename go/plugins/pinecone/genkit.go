@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package pinecone
@@ -29,20 +42,22 @@ const provider = "pinecone"
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-var state struct {
-	mu      sync.Mutex
-	initted bool
-	client  *client
+type Pinecone struct {
+	APIKey string // API key to use for Pinecone requests.
+
+	client  *client    // Client for the Pinecone service.
+	mu      sync.Mutex // Mutex to control access.
+	initted bool       // Whether the plugin has been initialized.
 }
 
 // Init initializes the Pinecone plugin.
 // If apiKey is the empty string, it is read from the PINECONE_API_KEY
 // environment variable.
-func Init(ctx context.Context, apiKey string) (err error) {
+func (p *Pinecone) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	// Init initializes the Pinecone plugin.
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.initted {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.initted {
 		panic("pinecone.Init already called")
 	}
 	defer func() {
@@ -51,30 +66,31 @@ func Init(ctx context.Context, apiKey string) (err error) {
 		}
 	}()
 
-	client, err := newClient(ctx, apiKey)
+	client, err := newClient(ctx, p.APIKey)
 	if err != nil {
 		return err
 	}
-	state.client = client
-	state.initted = true
+	p.client = client
+	p.initted = true
 	return nil
 }
 
 // Config provides configuration options for [DefineIndexer] and [DefineRetriever].
 type Config struct {
-	// The index ID to use.
-	IndexID string
-	// Embedder to use. Required.
-	Embedder        ai.Embedder
-	EmbedderOptions any
-	// The metadata key to use to store document text
-	// in Pinecone; the default is "_content".
-	TextKey string
+	IndexID         string      // The index ID to use.
+	Embedder        ai.Embedder // Embedder to use. Required.
+	EmbedderOptions any         // Options to pass to the embedder.
+	TextKey         string      // Metadata key to use to store document text in Pinecone; the default is "_content".
 }
 
 // DefineIndexer defines an Indexer with the given configuration.
 func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Indexer, error) {
-	ds, err := newDocStore(ctx, cfg)
+	p := genkit.LookupPlugin(g, provider).(*Pinecone)
+	if p == nil {
+		return nil, errors.New("pinecone plugin not found; did you call genkit.Init with the pinecone plugin?")
+	}
+
+	ds, err := p.newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +99,12 @@ func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Indexe
 
 // DefineRetriever defines a Retriever with the given configuration.
 func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Retriever, error) {
-	ds, err := newDocStore(ctx, cfg)
+	p := genkit.LookupPlugin(g, provider).(*Pinecone)
+	if p == nil {
+		return nil, errors.New("pinecone plugin not found; did you call genkit.Init with the pinecone plugin?")
+	}
+
+	ds, err := p.newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -92,18 +113,18 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Retr
 
 // IsDefinedIndexer reports whether the named [Indexer] is defined by this plugin.
 func IsDefinedIndexer(g *genkit.Genkit, name string) bool {
-	return genkit.IsDefinedIndexer(g, provider, name)
+	return genkit.LookupIndexer(g, provider, name) != nil
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
 func IsDefinedRetriever(g *genkit.Genkit, name string) bool {
-	return genkit.IsDefinedRetriever(g, provider, name)
+	return genkit.LookupRetriever(g, provider, name) != nil
 }
 
-func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (p *Pinecone) newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.initted {
 		panic("pinecone.Init not called")
 	}
 	if cfg.IndexID == "" {
@@ -113,11 +134,11 @@ func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
 		return nil, errors.New("Embedder required")
 	}
 	// TODO: cache these calls so we don't make them twice for the indexer and retriever.
-	indexData, err := state.client.indexData(ctx, cfg.IndexID)
+	indexData, err := p.client.indexData(ctx, cfg.IndexID)
 	if err != nil {
 		return nil, err
 	}
-	index, err := state.client.index(ctx, indexData.Host)
+	index, err := p.client.index(ctx, indexData.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -186,8 +207,8 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	// Use the embedder to convert each Document into a vector.
 	vecs := make([]vector, 0, len(req.Documents))
 	ereq := &ai.EmbedRequest{
-		Documents: req.Documents,
-		Options:   ds.embedderOptions,
+		Input:   req.Documents,
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
@@ -282,8 +303,8 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Query},
-		Options:   ds.embedderOptions,
+		Input:   []*ai.Document{req.Query},
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {

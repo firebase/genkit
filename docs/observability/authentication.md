@@ -24,7 +24,7 @@ Click to learn more about how to [enable and disable APIs](https://support.googl
 
 ## User Authentication {: #user-authentication }
 
-To export telemetry from your local development environment to Firebase Genkit
+To export telemetry from your local development environment to Genkit
 Monitoring, you will need to authenticate yourself with Google Cloud.
 
 The easiest way to authenticate as yourself is using the gcloud CLI, which will

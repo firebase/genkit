@@ -1,15 +1,34 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 """Vertex AI embedding plugin."""
 
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from typing import Any
 
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
-from genkit.ai.document import Document
-from genkit.core.typing import Embedding, EmbedRequest, EmbedResponse
+from genkit.blocks.document import Document
+from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 
 class EmbeddingModels(StrEnum):
@@ -99,17 +118,9 @@ class Embedder:
 
         del options[self.TASK_KEY]
 
-        inputs = [
-            TextEmbeddingInput(Document.from_document_data(doc).text(), task)
-            for doc in request.input
-        ]
-        vertexai_embeddings = self.embedding_model.get_embeddings(
-            inputs, **options
-        )
-        embeddings = [
-            Embedding(embedding=embedding.values)
-            for embedding in vertexai_embeddings
-        ]
+        inputs = [TextEmbeddingInput(Document.from_document_data(doc).text(), task) for doc in request.input]
+        vertexai_embeddings = self.embedding_model.get_embeddings(inputs, **options)
+        embeddings = [Embedding(embedding=embedding.values) for embedding in vertexai_embeddings]
 
         return EmbedResponse(embeddings=embeddings)
 

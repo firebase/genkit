@@ -1,4 +1,17 @@
 // Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -11,7 +24,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 // duneQuestionInput is a question about Dune.
@@ -22,15 +35,11 @@ type duneQuestionInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithDefaultModel("googleai/gemini-1.5-flash"))
+	g, err := genkit.Init(ctx,
+		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+	)
 	if err != nil {
-		log.Fatal(err)
-	}
-	// Initialize the Google AI plugin. When you pass nil for the
-	// Config parameter, the Google AI plugin will get the API key from the
-	// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
-	// practice.
-	if err := googleai.Init(ctx, g, nil); err != nil {
 		log.Fatal(err)
 	}
 
@@ -49,14 +58,14 @@ func main() {
 		}
 
 		// generate a request with a large text content to be cached
-		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
+		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.7,
 			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPromptText(prompt),
+			ai.WithPrompt(prompt),
 		)
 		if err != nil {
 			return "", nil
@@ -64,12 +73,12 @@ func main() {
 
 		// use previous messages to keep the conversation going and keep
 		// asking questions related to the large content that was cached
-		resp, err = genkit.Generate(ctx, g, ai.WithConfig(&ai.GenerationCommonConfig{
+		resp, err = genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.7,
 			Version:     "gemini-1.5-flash-001",
 		}),
 			ai.WithMessages(resp.History()...),
-			ai.WithPromptText("now rewrite the previous summary and make it look like a pirate wrote it"),
+			ai.WithPrompt("now rewrite the previous summary and make it look like a pirate wrote it"),
 		)
 		if err != nil {
 			return "", nil

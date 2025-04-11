@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package rag
@@ -10,8 +23,8 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/firebase/genkit/go/plugins/vertexai"
 
 	// "github.com/ledongthuc/pdf"
 	// "github.com/tmc/langchaingo/textsplitter"
@@ -28,7 +41,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = vertexai.Init(ctx, g, &vertexai.Config{})
+	err = (&googlegenai.VertexAI{}).Init(ctx, g)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +54,7 @@ func main() {
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder(g, "text-embedding-004"),
+			Embedder: googlegenai.VertexAIEmbedder(g, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -87,7 +100,7 @@ func main() {
 			}
 
 			// Add chunks to the index.
-			err = ai.Index(ctx, menuPDFIndexer, ai.WithIndexerDocs(docs...))
+			err = ai.Index(ctx, menuPDFIndexer, ai.WithDocs(docs...))
 			return nil, err
 		},
 	)
@@ -131,7 +144,7 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	err = vertexai.Init(ctx, g, &vertexai.Config{})
+	err = (&googlegenai.VertexAI{}).Init(ctx, g)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,13 +153,13 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	model := vertexai.Model(g, "gemini-1.5-flash")
+	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 
 	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder(g, "text-embedding-004"),
+			Embedder: googlegenai.VertexAIEmbedder(g, "text-embedding-004"),
 		},
 	)
 	if err != nil {
@@ -198,7 +211,7 @@ func customret() {
 		g,
 		"menuQA",
 		localvec.Config{
-			Embedder: vertexai.Embedder(g, "text-embedding-004"),
+			Embedder: googlegenai.VertexAIEmbedder(g, "text-embedding-004"),
 		},
 	)
 

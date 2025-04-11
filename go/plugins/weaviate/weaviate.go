@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package weaviate
@@ -28,22 +41,8 @@ const textKey = "text"
 // The metadata key to hold document metadata.
 const metadataKey = "metadata"
 
-// state holds the current plugin state.
-var state struct {
-	mu          sync.Mutex
-	initialized bool
-	client      *weaviate.Client
-}
-
-// getClient returns the client stored in the state.
-func getClient() *weaviate.Client {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	return state.client
-}
-
-// ClientConfig passes configuration options to the plugin.
-type ClientConfig struct {
+// Weaviate passes configuration options to the plugin.
+type Weaviate struct {
 	// The hostname:port to use to contact the Weaviate database.
 	// If not set, the default is read from the WEAVIATE_URL environment variable.
 	Addr string
@@ -54,38 +53,54 @@ type ClientConfig struct {
 	// The API key to use with the Weaviate database.
 	// If not set, the default is read from the WEAVIATE_API_KEY environment variable.
 	APIKey string
+
+	client  *weaviate.Client // Client for the Weaviate database.
+	mu      sync.Mutex       // Mutex to control access.
+	initted bool             // Whether the plugin has been initialized.
+}
+
+// Name returns the name of the plugin.
+func (w *Weaviate) Name() string {
+	return provider
 }
 
 // Init initializes the Weaviate plugin.
-// The cfg argument may be nil to use the defaults.
-// This returns the [*weaviate.Client] in case it is useful,
-// but many users will be able to use just [DefineIndexerAndRetriever].
-func Init(ctx context.Context, cfg *ClientConfig) (*weaviate.Client, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.initialized {
-		panic("weaviate.Init already called")
+func (w *Weaviate) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+	if w == nil {
+		w = &Weaviate{}
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("weaviate.Init: %w", err)
+		}
+	}()
+
+	if w.initted {
+		return errors.New("plugin already initialized")
 	}
 
 	var host string
-	if cfg != nil {
-		host = cfg.Addr
+	if w.Addr != "" {
+		host = w.Addr
 	}
 	if host == "" {
 		host = os.Getenv("WEAVIATE_URL")
 	}
 
 	var scheme string
-	if cfg != nil {
-		scheme = cfg.Scheme
+	if w.Scheme != "" {
+		scheme = w.Scheme
 	}
 	if scheme == "" {
 		scheme = "https"
 	}
 
 	var apiKey string
-	if cfg != nil {
-		apiKey = cfg.APIKey
+	if w.APIKey != "" {
+		apiKey = w.APIKey
 	}
 	if apiKey == "" {
 		apiKey = os.Getenv("WEAVIATE_API_KEY")
@@ -99,21 +114,21 @@ func Init(ctx context.Context, cfg *ClientConfig) (*weaviate.Client, error) {
 
 	client, err := weaviate.NewClient(config)
 	if err != nil {
-		return nil, fmt.Errorf("weaviate initialization failed: %v", err)
+		return fmt.Errorf("initialization failed: %v", err)
 	}
 
 	live, err := client.Misc().LiveChecker().Do(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("weaviate initialization failed: %v", err)
+		return fmt.Errorf("initialization failed: %v", err)
 	}
 	if !live {
-		return nil, errors.New("weaviate instance not alive")
+		return errors.New("weaviate instance not alive")
 	}
 
-	state.client = client
-	state.initialized = true
+	w.client = client
+	w.initted = true
 
-	return client, nil
+	return nil
 }
 
 // ClassConfig holds configuration options for an indexer/retriever pair.
@@ -131,8 +146,7 @@ type ClassConfig struct {
 
 // DefineIndexerAndRetriever defines an [ai.Indexer] and [ai.Retriever]
 // that use the same class.
-// The name uniquely identifies the Indexer and Retriever
-// in the registry.
+// The name uniquely identifies the Indexer and Retriever in the registry.
 func DefineIndexerAndRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig) (ai.Indexer, ai.Retriever, error) {
 	if cfg.Embedder == nil {
 		return nil, nil, errors.New("weaviate: Embedder required")
@@ -141,7 +155,12 @@ func DefineIndexerAndRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassC
 		return nil, nil, errors.New("weaviate: class required")
 	}
 
-	ds, err := newDocStore(ctx, &cfg)
+	w := genkit.LookupPlugin(g, provider).(*Weaviate)
+	if w == nil {
+		return nil, nil, errors.New("weaviate plugin not found; did you call genkit.Init with the weaviate plugin?")
+	}
+
+	ds, err := w.newDocStore(ctx, &cfg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -152,20 +171,20 @@ func DefineIndexerAndRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassC
 
 // docStore defines an Indexer and a Retriever.
 type docStore struct {
+	client          *weaviate.Client
 	class           string
 	embedder        ai.Embedder
 	embedderOptions any
 }
 
 // newDocStore creates a docStore.
-func newDocStore(ctx context.Context, cfg *ClassConfig) (*docStore, error) {
-	client := getClient()
-	if client == nil {
+func (w *Weaviate) newDocStore(ctx context.Context, cfg *ClassConfig) (*docStore, error) {
+	if w.client == nil {
 		return nil, errors.New("weaviate.Init not called")
 	}
 
 	// Create the class if it doesn't already exist.
-	exists, err := client.Schema().ClassExistenceChecker().WithClassName(cfg.Class).Do(ctx)
+	exists, err := w.client.Schema().ClassExistenceChecker().WithClassName(cfg.Class).Do(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("weaviate class check failed for %q: %v", cfg.Class, err)
 	}
@@ -175,13 +194,14 @@ func newDocStore(ctx context.Context, cfg *ClassConfig) (*docStore, error) {
 			Vectorizer: "none",
 		}
 
-		err := client.Schema().ClassCreator().WithClass(cls).Do(ctx)
+		err := w.client.Schema().ClassCreator().WithClass(cls).Do(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create weaviate class %q: %v", cfg.Class, err)
 		}
 	}
 
 	ds := &docStore{
+		client:          w.client,
 		class:           cfg.Class,
 		embedder:        cfg.Embedder,
 		embedderOptions: cfg.EmbedderOptions,
@@ -207,8 +227,8 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 
 	// Use the embedder to convert each Document into a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: req.Documents,
-		Options:   ds.embedderOptions,
+		Input:   req.Documents,
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
@@ -239,7 +259,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		objects = append(objects, obj)
 	}
 
-	_, err = getClient().Batch().ObjectsBatcher().WithObjects(objects...).Do(ctx)
+	_, err = ds.client.Batch().ObjectsBatcher().WithObjects(objects...).Do(ctx)
 	if err != nil {
 		return fmt.Errorf("weaviate insert failed: %v", err)
 	}
@@ -274,15 +294,15 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 
 	// Use the embedder to convert the document to a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Query},
-		Options:   ds.embedderOptions,
+		Input:   []*ai.Document{req.Query},
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("weaviate retrieve embedding failed: %v", err)
 	}
 
-	gql := getClient().GraphQL()
+	gql := ds.client.GraphQL()
 	fields := []graphql.Field{
 		{Name: textKey},
 	}

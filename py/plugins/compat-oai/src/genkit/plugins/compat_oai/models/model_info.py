@@ -1,12 +1,24 @@
 # Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # SPDX-License-Identifier: Apache-2.0
 
 
-"""
-OpenAI Compatible Models for Genkit.
-"""
+"""OpenAI Compatible Models for Genkit."""
 
-from genkit.core.typing import (
+from genkit.plugins.compat_oai.typing import SupportedOutputFormat
+from genkit.types import (
     ModelInfo,
     Supports,
 )
@@ -17,6 +29,7 @@ GPT_4_TURBO = 'gpt-4-turbo'
 GPT_4O = 'gpt-4o'
 GPT_4O_MINI = 'gpt-4o-mini'
 O1_MINI = 'o1-mini'
+
 
 SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
     GPT_3_5_TURBO: ModelInfo(
@@ -30,6 +43,7 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
             media=False,
             tools=True,
             systemRole=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),
     GPT_4O: ModelInfo(
@@ -44,6 +58,11 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
             media=False,
             tools=True,
             systemRole=True,
+            output=[
+                SupportedOutputFormat.JSON_MODE,
+                SupportedOutputFormat.STRUCTURED_OUTPUTS,
+                SupportedOutputFormat.TEXT,
+            ],
         ),
     ),
     GPT_4O_MINI: ModelInfo(
@@ -56,6 +75,11 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
             media=False,
             tools=True,
             systemRole=True,
+            output=[
+                SupportedOutputFormat.JSON_MODE,
+                SupportedOutputFormat.STRUCTURED_OUTPUTS,
+                SupportedOutputFormat.TEXT,
+            ],
         ),
     ),
     O1_MINI: ModelInfo(
@@ -68,6 +92,7 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
             media=False,
             tools=True,
             systemRole=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),
     GPT_4: ModelInfo(
@@ -81,6 +106,7 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
             media=False,
             tools=True,
             systemRole=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),
     GPT_4_TURBO: ModelInfo(
@@ -94,6 +120,7 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
             media=False,
             tools=True,
             systemRole=True,
+            output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
         ),
     ),
 }

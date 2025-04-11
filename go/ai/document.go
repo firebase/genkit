@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ai
@@ -8,14 +21,6 @@ import (
 	"fmt"
 
 	"gopkg.in/yaml.v3"
-)
-
-type OutputFormat string
-
-const (
-	OutputFormatText  OutputFormat = "text"
-	OutputFormatJSON  OutputFormat = "json"
-	OutputFormatMedia OutputFormat = "media"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -35,6 +40,7 @@ type Part struct {
 	Text         string         `json:"text,omitempty"`         // valid for kind∈{text,blob}
 	ToolRequest  *ToolRequest   `json:"toolRequest,omitempty"`  // valid for kind==partToolRequest
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty"` // valid for kind==partToolResponse
+	Custom       map[string]any `json:"custom,omitempty"`       // valid for plugin-specific custom parts
 	Metadata     map[string]any `json:"metadata,omitempty"`     // valid for all kinds
 }
 
@@ -46,6 +52,7 @@ const (
 	PartData
 	PartToolRequest
 	PartToolResponse
+	PartCustom
 )
 
 // NewTextPart returns a Part containing text.
@@ -82,6 +89,11 @@ func NewToolResponsePart(r *ToolResponse) *Part {
 	return &Part{Kind: PartToolResponse, ToolResponse: r}
 }
 
+// NewCustomPart returns a Part containing custom plugin-specific data.
+func NewCustomPart(customData map[string]any) *Part {
+	return &Part{Kind: PartCustom, Custom: customData}
+}
+
 // IsText reports whether the [Part] contains plain text.
 func (p *Part) IsText() bool {
 	return p.Kind == PartText
@@ -105,6 +117,11 @@ func (p *Part) IsToolRequest() bool {
 // IsToolResponse reports whether the [Part] contains the result of running a tool.
 func (p *Part) IsToolResponse() bool {
 	return p.Kind == PartToolResponse
+}
+
+// IsCustom reports whether the [Part] contains custom plugin-specific data.
+func (p *Part) IsCustom() bool {
+	return p.Kind == PartCustom
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
@@ -146,6 +163,12 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 			Metadata:     p.Metadata,
 		}
 		return json.Marshal(v)
+	case PartCustom:
+		v := customPart{
+			Custom:   p.Custom,
+			Metadata: p.Metadata,
+		}
+		return json.Marshal(v)
 	default:
 		return nil, fmt.Errorf("invalid part kind %v", p.Kind)
 	}
@@ -157,6 +180,7 @@ type partSchema struct {
 	Data         string         `json:"data,omitempty" yaml:"data,omitempty"`
 	ToolRequest  *ToolRequest   `json:"toolRequest,omitempty" yaml:"toolRequest,omitempty"`
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
+	Custom       map[string]any `json:"custom,omitempty" yaml:"custom,omitempty"`
 	Metadata     map[string]any `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
@@ -173,6 +197,9 @@ func (p *Part) unmarshalPartFromSchema(s partSchema) {
 	case s.ToolResponse != nil:
 		p.Kind = PartToolResponse
 		p.ToolResponse = s.ToolResponse
+	case s.Custom != nil:
+		p.Kind = PartCustom
+		p.Custom = s.Custom
 	default:
 		p.Kind = PartText
 		p.Text = s.Text

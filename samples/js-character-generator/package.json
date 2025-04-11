@@ -1,7 +1,7 @@
 {
   "name": "js-character-generator",
   "version": "0.1.0",
-  "description": "A simple Firebase Genkit app to generate fantasy characters",
+  "description": "A simple Genkit app to generate fantasy characters",
   "main": "index.js",
   "scripts": {
     "build": "npx tsc",

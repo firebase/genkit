@@ -21,7 +21,7 @@ import {
   FirebaseUserEngagementSchema,
   FirebaseUserFeedbackEnum,
   collectUserEngagement,
-} from '../src/user_engagement';
+} from '../src/user-engagement';
 
 jest.mock('genkit/tracing');
 

@@ -1,10 +1,10 @@
 # Generating content
 
-Firebase Genkit provides an easy interface for generating content with LLMs.
+Genkit provides an easy interface for generating content with LLMs.
 
 ## Models
 
-Models in Firebase Genkit are libraries and abstractions that provide access to
+Models in Genkit are libraries and abstractions that provide access to
 various Google and non-Google LLMs.
 
 Models are fully instrumented for observability and come with tooling

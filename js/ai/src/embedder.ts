@@ -16,6 +16,7 @@
 
 import { Action, defineAction, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
 /**
@@ -115,6 +116,11 @@ export function defineEmbedder<
       metadata: {
         type: 'embedder',
         info: options.info,
+        embedder: {
+          customOptions: options.configSchema
+            ? toJsonSchema({ schema: options.configSchema })
+            : undefined,
+        },
       },
     },
     (i) =>

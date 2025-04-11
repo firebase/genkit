@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ollama
@@ -20,9 +33,9 @@ type EmbedOptions struct {
 }
 
 type ollamaEmbedRequest struct {
-	Model   string                 `json:"model"`
-	Input   interface{}            `json:"input"` // todo: using interface{} to handle both string and []string, figure out better solution
-	Options map[string]interface{} `json:"options,omitempty"`
+	Model   string         `json:"model"`
+	Input   any            `json:"input"` // todo: using any to handle both string and []string, figure out better solution
+	Options map[string]any `json:"options,omitempty"`
 }
 
 type ollamaEmbedResponse struct {
@@ -42,7 +55,7 @@ func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai
 		return nil, fmt.Errorf("invalid server address: address cannot be empty")
 	}
 
-	ollamaReq := newOllamaEmbedRequest(options.Model, req.Documents)
+	ollamaReq := newOllamaEmbedRequest(options.Model, req.Input)
 
 	jsonData, err := json.Marshal(ollamaReq)
 	if err != nil {
@@ -97,10 +110,10 @@ func newOllamaEmbedRequest(model string, documents []*ai.Document) ollamaEmbedRe
 
 func newEmbedResponse(embeddings [][]float32) *ai.EmbedResponse {
 	resp := &ai.EmbedResponse{
-		Embeddings: make([]*ai.DocumentEmbedding, len(embeddings)),
+		Embeddings: make([]*ai.Embedding, len(embeddings)),
 	}
 	for i, embedding := range embeddings {
-		resp.Embeddings[i] = &ai.DocumentEmbedding{Embedding: embedding}
+		resp.Embeddings[i] = &ai.Embedding{Embedding: embedding}
 	}
 	return resp
 }
@@ -115,10 +128,10 @@ func concatenateText(doc *ai.Document) string {
 }
 
 // DefineEmbedder defines an embedder with a given server address.
-func DefineEmbedder(g *genkit.Genkit, serverAddress string, model string) ai.Embedder {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (o *Ollama) DefineEmbedder(g *genkit.Genkit, serverAddress string, model string) ai.Embedder {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if !o.initted {
 		panic("ollama.Init not called")
 	}
 	return genkit.DefineEmbedder(g, provider, serverAddress, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
@@ -134,8 +147,7 @@ func DefineEmbedder(g *genkit.Genkit, serverAddress string, model string) ai.Emb
 
 // IsDefinedEmbedder reports whether the embedder with the given server address is defined by this plugin.
 func IsDefinedEmbedder(g *genkit.Genkit, serverAddress string) bool {
-	isDefined := genkit.IsDefinedEmbedder(g, provider, serverAddress)
-	return isDefined
+	return genkit.LookupEmbedder(g, provider, serverAddress) != nil
 }
 
 // Embedder returns the [ai.Embedder] with the given server address.

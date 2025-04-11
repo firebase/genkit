@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package main
@@ -9,12 +22,13 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
 func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
 	ragDataMenuPrompt, err := genkit.DefinePrompt(g, "s04_ragDataMenu",
-		ai.WithPromptText(`
+		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general.
@@ -32,7 +46,7 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(dataMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.3,
 		}),
 	)
@@ -54,7 +68,7 @@ Answer this customer's question:
 				}
 				docs = append(docs, ai.DocumentFromText(s, metadata))
 			}
-			if err := ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...)); err != nil {
+			if err := ai.Index(ctx, indexer, ai.WithDocs(docs...)); err != nil {
 				return nil, err
 			}
 
@@ -68,8 +82,8 @@ Answer this customer's question:
 	genkit.DefineFlow(g, "s04_ragMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := ai.Retrieve(ctx, retriever,
-				ai.WithRetrieverText(input.Question),
-				ai.WithRetrieverOpts(&localvec.RetrieverOptions{
+				ai.WithTextDocs(input.Question),
+				ai.WithConfig(&localvec.RetrieverOptions{
 					K: 3,
 				}))
 			if err != nil {

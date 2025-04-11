@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package ollama
@@ -34,16 +47,10 @@ var (
 	}
 )
 
-var state struct {
-	serverAddress string
-	initted       bool
-	mu            sync.Mutex
-}
-
-func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai.Model {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
+func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai.Model {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if !o.initted {
 		panic("ollama.Init not called")
 	}
 	var mi ai.ModelInfo
@@ -65,13 +72,13 @@ func DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai
 		Supports: mi.Supports,
 		Versions: []string{},
 	}
-	gen := &generator{model: model, serverAddress: state.serverAddress}
+	gen := &generator{model: model, serverAddress: o.ServerAddress}
 	return genkit.DefineModel(g, provider, model.Name, meta, gen.generate)
 }
 
 // IsDefinedModel reports whether a model is defined.
 func IsDefinedModel(g *genkit.Genkit, name string) bool {
-	return genkit.IsDefinedModel(g, provider, name)
+	return genkit.LookupModel(g, provider, name) != nil
 }
 
 // Model returns the [ai.Model] with the given name.
@@ -141,26 +148,31 @@ type ollamaModelResponse struct {
 	Response  string `json:"response"`
 }
 
-// Config provides configuration options for the Init function.
-type Config struct {
-	// Server Address of oLLama.
-	ServerAddress string
+// Ollama provides configuration options for the Init function.
+type Ollama struct {
+	ServerAddress string // Server address of oLLama.
+
+	mu      sync.Mutex // Mutex to control access.
+	initted bool       // Whether the plugin has been initialized.
+}
+
+func (o *Ollama) Name() string {
+	return provider
 }
 
 // Init initializes the plugin.
 // Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
 // After downloading a model, call [DefineModel] to use it.
-func Init(ctx context.Context, cfg *Config) (err error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.initted {
+func (o *Ollama) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.initted {
 		panic("ollama.Init already called")
 	}
-	if cfg == nil || cfg.ServerAddress == "" {
+	if o == nil || o.ServerAddress == "" {
 		return errors.New("ollama: need ServerAddress")
 	}
-	state.serverAddress = cfg.ServerAddress
-	state.initted = true
+	o.initted = true
 	return nil
 }
 

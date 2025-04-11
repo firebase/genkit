@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package genkit
@@ -6,6 +19,7 @@ package genkit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -15,6 +29,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
@@ -211,10 +226,52 @@ func serveMux(r *registry.Registry) *http.ServeMux {
 	mux.HandleFunc("GET /api/__health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /api/actions", wrapHandler(handleListActions(r)))
-	mux.HandleFunc("POST /api/runAction", wrapHandler(handleRunAction(r)))
-	mux.HandleFunc("POST /api/notify", wrapHandler(handleNotify(r)))
+	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(r)))
+	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(r)))
+	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify(r)))
 	return mux
+}
+
+// wrapReflectionHandler wraps an HTTP handler function with common logging and error handling.
+func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger.FromContext(ctx).Debug("request start", "method", r.Method, "path", r.URL.Path)
+
+		var err error
+		defer func() {
+			if err != nil {
+				logger.FromContext(ctx).Error("request end", "err", err)
+			} else {
+				logger.FromContext(ctx).Debug("request end")
+			}
+		}()
+
+		w.Header().Set("x-genkit-version", "go/"+internal.Version)
+
+		if err = h(w, r); err != nil {
+			var traceID string
+			statusCode := http.StatusInternalServerError
+			if herr, ok := err.(*base.HTTPError); ok {
+				traceID = herr.TraceID
+				statusCode = herr.Code
+			}
+
+			genkitErr := &ai.GenkitError{
+				Message: err.Error(),
+				Details: struct {
+					TraceID string `json:"traceId"`
+					Stack   string `json:"stack"`
+				}{
+					TraceID: traceID,
+					Stack:   "", // TODO: Propagate stack trace from local error.
+				},
+			}
+
+			w.WriteHeader(statusCode)
+			writeJSON(ctx, w, genkitErr)
+		}
+	}
 }
 
 // handleRunAction looks up an action by name in the registry, runs it with the
@@ -264,6 +321,32 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 
 		resp, err := runAction(ctx, reg, body.Key, body.Input, cb, contextMap)
 		if err != nil {
+			if stream {
+				var traceID string
+				if herr, ok := err.(*base.HTTPError); ok {
+					traceID = herr.TraceID
+				}
+
+				genkitErr := &ai.GenkitError{
+					Message: err.Error(),
+					Data: &ai.GenkitErrorData{
+						GenkitErrorMessage: err.Error(),
+						GenkitErrorDetails: &ai.GenkitErrorDetails{
+							TraceID: traceID,
+						},
+					},
+				}
+
+				errorJSON, _ := json.Marshal(genkitErr)
+				_, writeErr := fmt.Fprintf(w, "%s\n\n", errorJSON)
+				if writeErr != nil {
+					return writeErr
+				}
+				if f, ok := w.(http.Flusher); ok {
+					f.Flush()
+				}
+				return nil
+			}
 			return err
 		}
 
@@ -338,7 +421,12 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
-		return nil, err
+		var herr *base.HTTPError
+		if errors.As(err, &herr) {
+			herr.TraceID = traceID
+			return nil, herr
+		}
+		return nil, &base.HTTPError{Code: http.StatusInternalServerError, Err: err, TraceID: traceID}
 	}
 
 	return &runActionResponse{
@@ -349,6 +437,8 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 
 // writeJSON writes a JSON-marshaled value to the response writer.
 func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
+	w.Header().Set("Content-Type", "application/json")
+
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err

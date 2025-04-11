@@ -1,4 +1,17 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 // SPDX-License-Identifier: Apache-2.0
 
 package snippets
@@ -13,14 +26,16 @@ import (
 	// [START import]
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 	// [END import]
 )
 
 // Globals for simplification only.
 // Bad style: don't do this.
-var ctx = context.Background()
-var gemini15pro ai.Model
+var (
+	ctx         = context.Background()
+	gemini15pro ai.Model
+)
 
 func m1() error {
 	ctx := context.Background()
@@ -33,17 +48,17 @@ func m1() error {
 	// Default to the value of GCLOUD_PROJECT for the project,
 	// and "us-central1" for the location.
 	// To specify these values directly, pass a vertexai.Config value to Init.
-	if err := vertexai.Init(ctx, g, nil); err != nil {
+	if err := (&googlegenai.VertexAI{}).Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
 	// [START model]
-	model := vertexai.Model(g, "gemini-1.5-flash")
+	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 	// [END model]
 
 	// [START call]
-	responseText, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithPromptText("Tell me a joke."))
+	responseText, err := genkit.GenerateText(ctx, g, ai.WithModel(model), ai.WithPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -58,12 +73,12 @@ func opts() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.Model(g, "gemini-1.5-flash")
+	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 
 	// [START options]
 	response, err := genkit.Generate(ctx, g,
 		ai.WithModel(model),
-		ai.WithPromptText("Tell me a joke about dogs."),
+		ai.WithPrompt("Tell me a joke about dogs."),
 		ai.WithConfig(&ai.GenerationCommonConfig{
 			Temperature:     1.67,
 			StopSequences:   []string{"cat"},
@@ -87,7 +102,7 @@ func streaming() error {
 	// [START streaming]
 	response, err := genkit.Generate(ctx, g,
 		ai.WithModel(gemini15pro),
-		ai.WithPromptText("Tell a long story about robots and ninjas."),
+		ai.WithPrompt("Tell a long story about robots and ninjas."),
 		// stream callback
 		ai.WithStreaming(
 			func(ctx context.Context, grc *ai.ModelResponseChunk) error {
@@ -151,7 +166,7 @@ func tools() error {
 
 	response, err := genkit.Generate(ctx, g,
 		ai.WithModel(gemini15pro),
-		ai.WithPromptText("Tell me a joke."),
+		ai.WithPrompt("Tell me a joke."),
 		ai.WithTools(myJokeTool))
 	// [END tools]
 	_ = response

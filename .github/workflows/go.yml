@@ -1,4 +1,4 @@
-# Copyright 2024 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,22 +11,34 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
 
 name: Go tests and checks
 
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - "go/**"
+      - "genkit-tools/**"
+      - ".github/workflows/go.yml"
+
 
 jobs:
   tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.23.x', '1.24.x']
     steps:
-      - uses: actions/checkout@main
-      
+      - name: Checkout Repo
+        uses: actions/checkout@main
+
       - name: Set up Node
         uses: actions/setup-node@main
         with:
           node-version: '18'
-          
+
       - name: Enable corepack
         run: corepack enable
 
@@ -34,17 +46,17 @@ jobs:
         run: |
           pnpm install
           cd genkit-tools && pnpm install
-          
+
       - name: Generate JSON Schema from Zod
         run: npm --prefix genkit-tools run export:schemas
-          
+
       - name: Set up Go
         uses: actions/setup-go@main
         with:
-          go-version: '1.22.x'
-          
-      - name: Generate Go code from schema
-        run: cd go/core && go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json ai
-      
+          go-version: ${{ matrix.go-version }}
+
+      - name: Check if generated code is up to date
+        run: bash .github/workflows/scripts/check-generated-go.sh
+
       - name: Run tests
         run: go test -C go -v ./...
