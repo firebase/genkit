@@ -256,9 +256,7 @@ export class Index {
     const indexData = {
       id: traceData.traceId,
     } as Record<string, string | number>;
-    if (rootSpan?.attributes?.['genkit:type']) {
-      indexData['type'] = `${rootSpan.attributes['genkit:type']}`;
-    }
+    indexData['type'] = `${rootSpan?.attributes?.['genkit:type'] ?? 'UNKNOWN'}`;
     if (rootSpan?.startTime) {
       indexData['start'] = rootSpan.startTime;
     }

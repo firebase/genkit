@@ -425,6 +425,57 @@ describe('index', () => {
     );
   });
 
+  it('can filter out unknown types', () => {
+    const spanA = span(TRACE_ID_1, SPAN_A, 100, 100);
+    spanA.displayName = 'flowA';
+    spanA.attributes['genkit:type'] = 'banana';
+
+    const spanB = span(TRACE_ID_2, SPAN_B, 200, 200);
+    spanB.displayName = 'flowB';
+    spanB.attributes['genkit:type'] = undefined;
+
+    const spanC = span(TRACE_ID_3, SPAN_C, 200, 200);
+    spanC.displayName = 'flowC';
+    spanC.attributes['genkit:type'] = undefined;
+
+    index.add({
+      traceId: TRACE_ID_1,
+      spans: {
+        [SPAN_A]: spanA,
+      },
+    } as TraceData);
+    index.add({
+      traceId: TRACE_ID_2,
+      spans: {
+        [SPAN_B]: spanB,
+      },
+    } as TraceData);
+    index.add({
+      traceId: TRACE_ID_3,
+      spans: {
+        [SPAN_C]: spanC,
+      },
+    } as TraceData);
+
+    assert.deepStrictEqual(
+      index.search({
+        limit: 5,
+        filter: {
+          neq: { type: 'UNKNOWN' },
+        },
+      }).data,
+      [
+        {
+          id: TRACE_ID_1,
+          type: 'banana',
+          name: 'flowA',
+          start: 1,
+          end: 2,
+        },
+      ]
+    );
+  });
+
   it('should paginate search', () => {
     for (let i = 0; i < 20; i++) {
       const traceId = 'trace_' + i;
