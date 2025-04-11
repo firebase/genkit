@@ -199,22 +199,16 @@ func TestFirestoreRetriever(t *testing.T) {
 			t.Fatalf("Generated embedding is empty for document %s", doc.ID)
 		}
 
-		// Convert to []float64
-		embedding64 := make([]float64, len(embedding))
-		for i, val := range embedding {
-			embedding64[i] = float64(val)
-		}
-
 		// Store in Firestore
 		_, err = client.Collection(*testCollection).Doc(doc.ID).Set(ctx, map[string]interface{}{
 			"text":           doc.Text,
 			"metadata":       doc.Data["metadata"],
-			*testVectorField: firestore.Vector64(embedding64),
+			*testVectorField: firestore.Vector32(embedding),
 		})
 		if err != nil {
 			t.Fatalf("Failed to insert document %s: %v", doc.ID, err)
 		}
-		t.Logf("Inserted document: %s with embedding: %v", doc.ID, embedding64)
+		t.Logf("Inserted document: %s with embedding: %v", doc.ID, embedding)
 	}
 
 	// Define retriever options
@@ -228,7 +222,6 @@ func TestFirestoreRetriever(t *testing.T) {
 		ContentField:    "text",
 		Limit:           2,
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
-		VectorType:      Vector64,
 	}
 
 	// Define the retriever

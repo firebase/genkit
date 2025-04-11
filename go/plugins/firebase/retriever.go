@@ -29,9 +29,7 @@ type VectorType int
 // Firestore collection environment variable key name
 const firestoreCollection = "FIRESTORE_COLLECTION"
 
-const (
-	Vector64 VectorType = iota // Vector64 is the only supported vector type
-)
+// TODO: in retriever options add field that controls the 32/64
 
 // RetrieverOptions struct for retriever configuration
 type RetrieverOptions struct {
@@ -44,7 +42,6 @@ type RetrieverOptions struct {
 	ContentField    string                    // Field name for storing content
 	Limit           int                       // Limit on the number of results
 	DistanceMeasure firestore.DistanceMeasure // Distance measure for vector similarity
-	VectorType      VectorType                // Type of vector (e.g., Vector64)
 }
 
 // Convert a Firestore document snapshot to a Genkit Document object.
@@ -76,20 +73,9 @@ func convertToDoc(docSnapshots []*firestore.DocumentSnapshot, contentField strin
 	return documents
 }
 
-// ConvertEmbeddingToFloat64 Convert a slice of float32 to a slice of float64
-func ConvertEmbeddingToFloat64(queryEmbedding []float32) []float64 {
-	queryEmbedding64 := make([]float64, len(queryEmbedding))
-	for i, val := range queryEmbedding {
-		queryEmbedding64[i] = float64(val)
-	}
-	return queryEmbedding64
-}
-
 // defineFirestoreRetriever defines and registers a retriever for Firestore.
 func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *firestore.Client) (ai.Retriever, error) {
-	if cfg.VectorType != Vector64 {
-		return nil, fmt.Errorf("defineFirestoreRetriever: only Vector64 is supported")
-	}
+
 	if client == nil {
 		return nil, fmt.Errorf("defineFirestoreRetriever: Firestore client is not provided")
 	}
@@ -125,7 +111,7 @@ func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *fi
 		// Perform the FindNearest query
 		vectorQuery := client.Collection(collection).FindNearest(
 			cfg.VectorField,
-			firestore.Vector64(ConvertEmbeddingToFloat64(queryEmbedding)),
+			firestore.Vector32(queryEmbedding),
 			cfg.Limit,
 			cfg.DistanceMeasure,
 			nil,

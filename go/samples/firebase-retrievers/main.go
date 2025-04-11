@@ -70,7 +70,6 @@ func main() {
 		MetadataFields:  []string{"metadata"},
 		Limit:           10,
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
-		VectorType:      firebase.Vector64,
 	}
 
 	retriever, err := firebase.DefineRetriever(ctx, g, retrieverOptions)
@@ -110,7 +109,7 @@ func main() {
 
 			_, err = firestoreClient.Collection(collectionName).Doc(docID).Set(ctx, map[string]interface{}{
 				"text":      filmText,
-				"embedding": firestore.Vector64(firebase.ConvertEmbeddingToFloat64(queryEmbedding)),
+				"embedding": firestore.Vector32(queryEmbedding),
 				"metadata":  fmt.Sprintf("metadata for doc %d", i+1),
 			})
 			if err != nil {
