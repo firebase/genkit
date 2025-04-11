@@ -21,7 +21,6 @@ import (
 	"os"
 
 	"cloud.google.com/go/firestore"
-	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/firebase"
@@ -41,31 +40,17 @@ func main() {
 		log.Fatal("Environment variable FIRESTORE_COLLECTION is not set")
 	}
 
-	g, err := genkit.Init(ctx)
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{}))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Mock embedder
 	embedder := &MockEmbedder{}
-	// Initialize firebase app
-	conf := &firebasev4.Config{ProjectID: projectID}
-	firebaseApp, err := firebasev4.NewApp(ctx, conf)
-	if err != nil {
-		log.Fatalf("Error initializing Firebase App: %v", err)
-	}
-
-	// Initialize Firestore client
-	firestoreClient, err := firebaseApp.Firestore(ctx)
-	if err != nil {
-		log.Fatalf("Error creating Firestore client: %v", err)
-	}
-	defer firestoreClient.Close()
 
 	// Firestore Retriever Configuration
 	retrieverOptions := firebase.RetrieverOptions{
 		Name:            "example-retriever",
-		Collection:      collectionName,
 		Embedder:        embedder,
 		VectorField:     "embedding",
 		ContentField:    "text",
@@ -75,14 +60,12 @@ func main() {
 		VectorType:      firebase.Vector64,
 	}
 
-	f := &firebase.Firebase{
-		App:           firebaseApp,
-		RetrieverOpts: retrieverOptions,
-	}
-
-	// Initialize Firebase plugin
-	if err := f.Init(ctx, g); err != nil {
-		log.Fatalf("Error initializing Firebase: %v", err)
+	// Firestore Indexer Configuration
+	indexerOptions := firebase.IndexOptions{
+		Name:       "example-indexer",
+		Collection: collectionName,
+		Embedder:   embedder,
+		VectorType: firebase.Vector64,
 	}
 
 	// Famous films text
@@ -101,37 +84,36 @@ func main() {
 
 	// Define the index flow: Insert 10 documents about famous films
 	genkit.DefineFlow(g, "flow-index-documents", func(ctx context.Context, _ struct{}) (string, error) {
-		for i, filmText := range films {
-			docID := fmt.Sprintf("doc-%d", i+1)
-			embedding := []float64{float64(i+1) * 0.1, float64(i+1) * 0.2, float64(i+1) * 0.3}
-
-			_, err := firestoreClient.Collection(collectionName).Doc(docID).Set(ctx, map[string]interface{}{
-				"text":      filmText,
-				"embedding": firestore.Vector64(embedding),
-				"metadata":  fmt.Sprintf("metadata for doc %d", i+1),
-			})
-			if err != nil {
-				return "", fmt.Errorf("failed to index document %d: %w", i+1, err)
-			}
-			log.Printf("Indexed document %d with text: %s", i+1, filmText)
+		indexer, err := firebase.DefineIndexer(ctx, g, indexerOptions)
+		var documents []*ai.Document
+		for _, filmText := range films {
+			documents = append(documents, ai.DocumentFromText(filmText, nil))
 		}
-		return "10 film documents indexed successfully", nil
-	})
+		indexReq := &ai.IndexerRequest{
+			Documents: documents,
+		}
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
 
-	//// Define Firestore Retriever
-	//retriever, err := firebase.DefineFirestoreRetriever(g, retrieverOptions)
-	if err != nil {
-		log.Fatalf("Error defining Firestore retriever: %v", err)
-	}
+		err = indexer.Index(ctx, indexReq)
+
+		return "10 film documents indexed successfully", err
+	})
 
 	// Define the retrieval flow: Retrieve documents based on user query
 	genkit.DefineFlow(g, "flow-retrieve-documents", func(ctx context.Context, query string) (string, error) {
+		retriever, err := firebase.DefineRetriever(ctx, g, retrieverOptions)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+
 		// Perform Firestore retrieval based on user input
 		req := &ai.RetrieverRequest{
 			Query: ai.DocumentFromText(query, nil),
 		}
 		log.Println("Starting retrieval with query:", query)
-		retriever, _ := f.Retriever()
+	
 		resp, err := retriever.Retrieve(ctx, req)
 		if err != nil {
 			return "", fmt.Errorf("retriever error: %w", err)

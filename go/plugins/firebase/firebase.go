@@ -18,8 +18,10 @@ package firebase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 
 	firebasev4 "firebase.google.com/go/v4"
@@ -27,20 +29,22 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 )
 
-// The provider used in the registry.
-const provider = "firebase"
+// Firebase plugin for Genkit, providing integration with Firebase services.
+// This plugin allows users to define retrievers and indexers for Firebase Firestore.
+const provider = "firebase"                // Identifier for the Firebase plugin.
+const projectIdEnv = "FIREBASE_PROJECT_ID" // Environment variable for the Firebase project ID.
 
 var appState struct {
 	app *firebasev4.App // Holds the Firebase app instance
 }
 
-// FireStore passes configuration options to the plugin.
+// Firebase FireStore passes configuration options to the plugin.
 type Firebase struct {
-	App           *firebasev4.App
-	RetrieverOpts RetrieverOptions
-	retriever     ai.Retriever
-	mu            sync.Mutex // Mutex to control access.
-	initted       bool       // Whether the plugin has been initialized.
+	ProjectId string          // Firebase project ID.
+	app       *firebasev4.App // Firebase app instance.
+	retriever ai.Retriever    // AI retriever instance.
+	mu        sync.Mutex      // Mutex to control concurrent access.
+	initted   bool            // Tracks whether the plugin has been initialized.
 }
 
 // Name returns the name of the plugin.
@@ -48,60 +52,109 @@ func (f *Firebase) Name() string {
 	return provider
 }
 
-// Init initializes the Firebase plugin..
+// Init initializes the Firebase plugin.
 func (f *Firebase) Init(ctx context.Context, g *genkit.Genkit) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.Lock()         // Lock to ensure thread-safe initialization.
+	defer f.mu.Unlock() // Unlock when the function exits.
 
+	// Resolve the Firebase project ID.
+	projectId, err := resolveProjectId(f.ProjectId)
+	if err != nil {
+		return err // Return error if project ID resolution fails.
+	}
+
+	// Check if the plugin is already initialized.
 	if f.initted {
 		return fmt.Errorf("firebase.Init: plugin already initialized")
 	}
 
-	if f.App == nil {
-		return fmt.Errorf("firebase.Init: no Firebase app provided")
-	}
-	appState.app = f.App
-
-	// Initialize Firestore client
-	firestoreClient, err := f.App.Firestore(ctx)
+	// Configure and initialize the Firebase app.
+	firebaseApp, err := firebasev4.NewApp(ctx, &firebasev4.Config{ProjectID: projectId})
 	if err != nil {
-		log.Fatalf("Error creating Firestore client: %v", err)
+		log.Fatalf("Error initializing Firebase App: %v", err) // Log and exit on failure.
 	}
-
-	retriever, err := DefineFirestoreRetriever(g, f.RetrieverOpts, firestoreClient)
-	if err != nil {
-		return fmt.Errorf("firebase.Init: failed to initialize retriever %s: %v", f.RetrieverOpts.Name, err)
-	}
-	f.retriever = retriever
-	f.initted = true
+	f.app = firebaseApp        // Cache the Firebase app instance.
+	appState.app = firebaseApp // Set the global app state.
+	f.initted = true           // Mark the plugin as initialized.
 	return nil
+}
+
+// DefineRetriever defines a Retriever with the given configuration.
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg RetrieverOptions) (ai.Retriever, error) {
+	// Lookup the Firebase plugin from the registry.
+	f := genkit.LookupPlugin(g, provider).(*Firebase)
+	if f == nil {
+		return nil, errors.New("firebase plugin not found; did you call firebase.Init with the firebase plugin")
+	}
+
+	// Initialize Firestore client.
+	firestoreClient, err := f.app.Firestore(ctx)
+	if err != nil {
+		log.Fatalf("Error creating Firestore client: %v", err) // Log and exit on failure.
+	}
+
+	// Define a Firestore retriever using the client.
+	retriever, err := DefineFirestoreRetriever(g, cfg, firestoreClient)
+	if err != nil {
+		return nil, fmt.Errorf("DefineRetriever: failed to initialize retriever %s: %v", cfg.Name, err)
+	}
+	f.retriever = retriever // Cache the retriever instance.
+	return retriever, nil
+}
+
+// DefineIndexer defines an Indexer with the given configuration.
+func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg IndexOptions) (ai.Indexer, error) {
+	// Lookup the Firebase plugin from the registry.
+	f := genkit.LookupPlugin(g, provider).(*Firebase)
+	if f == nil {
+		return nil, errors.New("firebase plugin not found; did you call firebase.Init with the firebase plugin")
+	}
+
+	// Initialize Firestore client.
+	firestoreClient, err := f.app.Firestore(ctx)
+	if err != nil {
+		log.Fatalf("Error creating Firestore client: %v", err) // Log and exit on failure.
+	}
+
+	// Define a Firestore indexer using the client.
+	indexer, err := DefineFirestoreIndexer(g, cfg, firestoreClient)
+	if err != nil {
+		return nil, fmt.Errorf("DefineIndexer: failed to initialize indexer %s: %v", cfg.Name, err)
+	}
+	return indexer, nil
 }
 
 // App returns the cached Firebase app.
 func App(ctx context.Context) (*firebasev4.App, error) {
-
+	// Check if the Firebase app is initialized.
 	if appState.app == nil {
 		return nil, fmt.Errorf("firebase.App: Firebase app not initialized. Call Init first")
 	}
-	return appState.app, nil
+	return appState.app, nil // Return the cached app instance.
 }
 
 // UnInit clears the initialized plugin state.
 func (f *Firebase) UnInit() {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	f.mu.Lock()         // Lock to ensure thread-safe uninitialization.
+	defer f.mu.Unlock() // Unlock when the function exits.
+
+	// Clear the plugin state.
 	f.initted = false
 	appState.app = nil
-	f.App = nil
+	f.app = nil
 }
 
-// Retriever returns retriever created in firestore object
-func (f *Firebase) Retriever() (ai.Retriever, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	if !f.initted {
-		return nil, fmt.Errorf("firebase.Retrievers: Plugin not initialized. Call Init first")
+// resolveProjectId reads the projectId from the environment if necessary.
+func resolveProjectId(projectId string) (string, error) {
+	// Return the provided project ID if it's not empty.
+	if projectId != "" {
+		return projectId, nil
 	}
-	return f.retriever, nil
+
+	// Otherwise, read the project ID from the environment variable.
+	projectId = os.Getenv(projectIdEnv)
+	if projectId == "" {
+		return "", fmt.Errorf("firebase project id not set; try setting %s", projectIdEnv)
+	}
+	return projectId, nil
 }
