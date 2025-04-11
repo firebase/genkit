@@ -23,6 +23,7 @@ members = [
     "genkit-plugin-ollama",
     "genkit-plugin-vertex-ai",
     "genkit-workspace",
+    "google-genai-code-execution",
     "google-genai-context-caching",
     "google-genai-hello",
     "google-genai-image",
@@ -1426,6 +1427,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/17/b9/fae20a998946f811d81b14b4e2da41d0d7779c3e63dedf4538c16832fa56/google_genai-1.9.0.tar.gz", hash = "sha256:eda833dcef2e3b9a05bff96ff4e0066740988199bcee0b2480cfce9909b18a26", size = 151602 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/12/3a5a11589a0b967b371c773d35cc54c75f2f44259d3d767b826d708b6377/google_genai-1.9.0-py3-none-any.whl", hash = "sha256:2140f72e6e5b89d8105fa70ae551c699b5e39492ca5f95053e1f7e99ecbdbd35", size = 149646 },
+]
+
+[[package]]
+name = "google-genai-code-execution"
+version = "0.1.0"
+source = { editable = "samples/google-genai-code-execution" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]

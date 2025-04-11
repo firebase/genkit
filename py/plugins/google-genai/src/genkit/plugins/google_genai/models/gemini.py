@@ -178,7 +178,7 @@ from genkit.types import (
 
 
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
-    pass
+    code_execution: bool | dict | None = None
 
 
 GEMINI_1_0_PRO = ModelInfo(
@@ -825,6 +825,7 @@ class GeminiModel:
             Google Ai request config or None.
         """
         cfg = None
+        tools = []
 
         if request.config:
             request_config = request.config
@@ -838,6 +839,8 @@ class GeminiModel:
                 )
             elif isinstance(request_config, GeminiConfigSchema):
                 cfg = request_config
+                if request_config.code_execution:
+                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
                 cfg = genai_types.GenerateContentConfig(**request_config)
 
@@ -855,7 +858,9 @@ class GeminiModel:
             if not cfg:
                 cfg = genai_types.GenerateContentConfig()
 
-            tools = self._get_tools(request)
+            tools.extend(self._get_tools(request))
+
+        if tools:
             cfg.tools = tools
 
         system_messages = list(filter(lambda m: m.role == Role.SYSTEM, request.messages))

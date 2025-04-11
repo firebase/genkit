@@ -114,16 +114,20 @@ class PartConverter:
                 )
             )
         if part.executable_code:
-            return {
-                cls.EXECUTABLE_CODE: {
-                    cls.LANGUAGE: part.executable_code.language,
-                    cls.CODE: part.executable_code.code,
+            return CustomPart(
+                custom={
+                    cls.EXECUTABLE_CODE: {
+                        cls.LANGUAGE: part.executable_code.language,
+                        cls.CODE: part.executable_code.code,
+                    }
                 }
-            }
+            )
         if part.code_execution_result:
-            return {
-                cls.CODE_EXECUTION_RESULT: {
-                    cls.OUTCOME: part.code_execution_result.outcome,
-                    cls.OUTPUT: part.code_execution_result.output,
+            return CustomPart(
+                custom={
+                    cls.CODE_EXECUTION_RESULT: {
+                        cls.OUTCOME: part.code_execution_result.outcome,
+                        cls.OUTPUT: part.code_execution_result.output,
+                    }
                 }
-            }
+            )
