@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -28,34 +29,53 @@ Same as that in retriever_test.go
 */
 func TestInit(t *testing.T) {
 	t.Parallel()
-	f := &Firebase{
-		ProjectId: "test-id",
-	}
+
 	ctx := context.Background()
 	g, err := genkit.Init(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	firebaseApp, _ := firebasev4.NewApp(ctx, nil)
+
 	tests := []struct {
 		name          string
 		expectedError string
+		projectId     string
+		app           *firebasev4.App
 	}{
-
 		{
-			name:          "Successful initialization",
+			name:          "Successful initialization with project id",
 			expectedError: "",
+			projectId:     "test-app",
+			app:           nil,
 		},
 		{
-			name:          "Reinitialise Plugin",
-			expectedError: "firebase.Init: plugin already initialized", // Expecting an error when no app is passed
-
+			name:          "Successful initialization with app",
+			expectedError: "",
+			projectId:     "",
+			app:           firebaseApp,
+		},
+		{
+			name:          "Initialise Plugin without app and project-id",
+			expectedError: "firebase.Init: provide projectId or firebase app", // Expecting an error when no app/projectId is passed
+			projectId:     "",
+			app:           nil,
+		},
+		{
+			name:          "Initialise Plugin with both app and project-id",
+			expectedError: "firebase.Init: provide either projectId or firebase app not both", // Expecting an error when no app/projectId is passed
+			projectId:     "test-app",
+			app:           firebaseApp,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
+			f := &Firebase{
+				ProjectId: tt.projectId,
+				App:       tt.app,
+			}
 			err = f.Init(ctx, g)
 
 			if tt.expectedError != "" {

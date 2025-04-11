@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"cloud.google.com/go/firestore"
+	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/firebase"
@@ -40,7 +41,18 @@ func main() {
 		log.Fatal("Environment variable FIRESTORE_COLLECTION is not set")
 	}
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{}))
+	// Firebase app configuration and initialization
+	firebaseApp, err := firebasev4.NewApp(ctx, &firebasev4.Config{ProjectID: projectID})
+	if err != nil {
+		log.Fatalf("Error initializing Firebase app: %v", err)
+	}
+
+	// take instance of firestore client
+	firestoreClient, err := firebaseApp.Firestore(ctx)
+	if err != nil {
+		log.Fatalf("Error initializing Firestore client: %v", err)
+	}
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{App: firebaseApp}))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,14 +72,6 @@ func main() {
 		VectorType:      firebase.Vector64,
 	}
 
-	// Firestore Indexer Configuration
-	indexerOptions := firebase.IndexOptions{
-		Name:       "example-indexer",
-		Collection: collectionName,
-		Embedder:   embedder,
-		VectorType: firebase.Vector64,
-	}
-
 	// Famous films text
 	films := []string{
 		"The Godfather is a 1972 crime film directed by Francis Ford Coppola.",
@@ -84,21 +88,21 @@ func main() {
 
 	// Define the index flow: Insert 10 documents about famous films
 	genkit.DefineFlow(g, "flow-index-documents", func(ctx context.Context, _ struct{}) (string, error) {
-		indexer, err := firebase.DefineIndexer(ctx, g, indexerOptions)
-		var documents []*ai.Document
-		for _, filmText := range films {
-			documents = append(documents, ai.DocumentFromText(filmText, nil))
-		}
-		indexReq := &ai.IndexerRequest{
-			Documents: documents,
-		}
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
+		for i, filmText := range films {
+			docID := fmt.Sprintf("doc-%d", i+1)
+			embedding := []float64{float64(i+1) * 0.1, float64(i+1) * 0.2, float64(i+1) * 0.3}
 
-		err = indexer.Index(ctx, indexReq)
-
-		return "10 film documents indexed successfully", err
+			_, err := firestoreClient.Collection(collectionName).Doc(docID).Set(ctx, map[string]interface{}{
+				"text":      filmText,
+				"embedding": firestore.Vector64(embedding),
+				"metadata":  fmt.Sprintf("metadata for doc %d", i+1),
+			})
+			if err != nil {
+				return "", fmt.Errorf("failed to index document %d: %w", i+1, err)
+			}
+			log.Printf("Indexed document %d with text: %s", i+1, filmText)
+		}
+		return "10 film documents indexed successfully", nil
 	})
 
 	// Define the retrieval flow: Retrieve documents based on user query
@@ -113,7 +117,7 @@ func main() {
 			Query: ai.DocumentFromText(query, nil),
 		}
 		log.Println("Starting retrieval with query:", query)
-	
+
 		resp, err := retriever.Retrieve(ctx, req)
 		if err != nil {
 			return "", fmt.Errorf("retriever error: %w", err)

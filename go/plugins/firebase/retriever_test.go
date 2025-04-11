@@ -28,7 +28,7 @@ import (
 
 var (
 	testProjectID   = flag.String("test-project-id", "", "GCP Project ID to use for tests")
-	testCollection  = flag.String("test-collection", "testR2", "Firestore collection to use for tests")
+	testCollection  = flag.String("test-collection", "samplecollection", "Firestore collection to use for tests")
 	testVectorField = flag.String("test-vector-field", "embedding", "Field name for vector embeddings")
 )
 
@@ -168,9 +168,9 @@ func TestFirestoreRetriever(t *testing.T) {
 		Text string
 		Data map[string]interface{}
 	}{
-		{"doc1", "This is document one", map[string]interface{}{"metadata": "meta1", "id": "doc1"}},
-		{"doc2", "This is document two", map[string]interface{}{"metadata": "meta2", "id": "doc2"}},
-		{"doc3", "This is document three", map[string]interface{}{"metadata": "meta3", "id": "doc3"}},
+		{"doc1", "This is document one", map[string]interface{}{"metadata": "meta1"}},
+		{"doc2", "This is document two", map[string]interface{}{"metadata": "meta2"}},
+		{"doc3", "This is document three", map[string]interface{}{"metadata": "meta3"}},
 	}
 
 	// Expected document text content in order of relevance for the query
@@ -178,27 +178,43 @@ func TestFirestoreRetriever(t *testing.T) {
 		"This is document one",
 		"This is document two",
 	}
-	var documents []*ai.Document
+
 	for _, doc := range testDocs {
-		documents = append(documents, ai.DocumentFromText(doc.Text, doc.Data))
-	}
-	indexReq := &ai.IndexerRequest{
-		Documents: documents,
-	}
+		// Create an ai.Document
+		aiDoc := ai.DocumentFromText(doc.Text, doc.Data)
 
-	// Firestore Indexer Configuration
-	indexerOptions := IndexOptions{
-		Name:       "example-indexer",
-		Collection: *testCollection,
-		Embedder:   embedder,
-		VectorType: Vector64,
-	}
+		// Generate embedding
+		embedRequest := &ai.EmbedRequest{Input: []*ai.Document{aiDoc}}
+		embedResponse, err := embedder.Embed(ctx, embedRequest)
+		if err != nil {
+			t.Fatalf("Failed to generate embedding for document %s: %v", doc.ID, err)
+		}
 
-	// Define indexer
-	indexer, err := DefineFirestoreIndexer(g, indexerOptions, client)
-	err = indexer.Index(ctx, indexReq)
-	if err != nil {
-		t.Fatalf("Failed to generate embedding for document %v", err)
+		if len(embedResponse.Embeddings) == 0 {
+			t.Fatalf("No embeddings returned for document %s", doc.ID)
+		}
+
+		embedding := embedResponse.Embeddings[0].Embedding
+		if len(embedding) == 0 {
+			t.Fatalf("Generated embedding is empty for document %s", doc.ID)
+		}
+
+		// Convert to []float64
+		embedding64 := make([]float64, len(embedding))
+		for i, val := range embedding {
+			embedding64[i] = float64(val)
+		}
+
+		// Store in Firestore
+		_, err = client.Collection(*testCollection).Doc(doc.ID).Set(ctx, map[string]interface{}{
+			"text":           doc.Text,
+			"metadata":       doc.Data["metadata"],
+			*testVectorField: firestore.Vector64(embedding64),
+		})
+		if err != nil {
+			t.Fatalf("Failed to insert document %s: %v", doc.ID, err)
+		}
+		t.Logf("Inserted document: %s with embedding: %v", doc.ID, embedding64)
 	}
 
 	// Define retriever options

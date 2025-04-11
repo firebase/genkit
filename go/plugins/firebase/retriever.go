@@ -16,8 +16,6 @@ package firebase
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -47,15 +45,6 @@ type RetrieverOptions struct {
 	Limit           int                       // Limit on the number of results
 	DistanceMeasure firestore.DistanceMeasure // Distance measure for vector similarity
 	VectorType      VectorType                // Type of vector (e.g., Vector64)
-}
-
-// IndexOptions struct for indexer configuration
-type IndexOptions struct {
-	VectorType      VectorType  // Type of vector (e.g., Vector64)
-	Name            string      // Name of the indexer
-	Embedder        ai.Embedder // Embedder instance for generating embeddings
-	EmbedderOptions any         // Options to pass to the embedder
-	Collection      string      // Firestore collection name
 }
 
 // Convert a Firestore document snapshot to a Genkit Document object.
@@ -155,80 +144,6 @@ func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *fi
 
 	// Register the retriever in Genkit
 	return genkit.DefineRetriever(g, provider, cfg.Name, Retrieve), nil
-}
-
-// DefineFirestoreIndexer defines an indexer for Firestore
-func DefineFirestoreIndexer(g *genkit.Genkit, cfg IndexOptions, client *firestore.Client) (ai.Indexer, error) {
-	if cfg.VectorType != Vector64 {
-		return nil, fmt.Errorf("DefineFirestoreIndexer: only Vector64 is supported")
-	}
-	if client == nil {
-		return nil, fmt.Errorf("DefineFirestoreIndexer: Firestore client is not provided")
-	}
-
-	// Resolve the Firestore collection name
-	collection, err := resolveFirestoreCollection(cfg.Collection)
-	if err != nil {
-		return nil, err
-	}
-
-	// Define the indexer function
-	Index := func(ctx context.Context, req *ai.IndexerRequest) error {
-		if len(req.Documents) == 0 {
-			return fmt.Errorf("DefineFirestoreIndexer: Provide documents to index")
-		}
-
-		// Generate embeddings for the documents
-		embedRequest := &ai.EmbedRequest{
-			Input:   req.Documents,
-			Options: cfg.EmbedderOptions,
-		}
-		embedResponse, err := cfg.Embedder.Embed(ctx, embedRequest)
-		if err != nil {
-			return fmt.Errorf("DefineFirestoreIndexer: Embedding failed: %v", err)
-		}
-
-		if len(embedResponse.Embeddings) == 0 {
-			return fmt.Errorf("DefineFirestoreIndexer: No embeddings returned")
-		}
-
-		// Index each document in Firestore
-		for i, docEmbed := range embedResponse.Embeddings {
-			doc := req.Documents[i]
-			id, err := docID(doc)
-			if err != nil {
-				return err
-			}
-
-			_, err = client.Collection(collection).Doc(id).Set(ctx, map[string]interface{}{
-				"text":      doc.Content[0].Text,
-				"embedding": firestore.Vector64(convertToFloat64(docEmbed.Embedding)),
-				"metadata":  doc.Metadata,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to index document %d: %w", i+1, err)
-			}
-		}
-
-		return nil
-	}
-
-	// Register the indexer in Genkit
-	return genkit.DefineIndexer(g, provider, cfg.Name, Index), nil
-}
-
-// docID generates a unique ID for a document based on its content and metadata
-func docID(doc *ai.Document) (string, error) {
-	if doc.Metadata != nil {
-		if id, ok := doc.Metadata["id"]; ok {
-			return id.(string), nil
-		}
-	}
-	b, err := json.Marshal(doc)
-	if err != nil {
-		return "", fmt.Errorf("pinecone: error marshaling document: %v", err)
-	}
-	return fmt.Sprintf("%02x", md5.Sum(b)), nil
 }
 
 // resolveFirestoreCollection resolves the Firestore collection name from the environment if necessary
