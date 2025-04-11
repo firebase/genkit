@@ -28,7 +28,7 @@ import (
 
 var (
 	testProjectID   = flag.String("test-project-id", "", "GCP Project ID to use for tests")
-	testCollection  = flag.String("test-collection", "testR2", "Firestore collection to use for tests")
+	testCollection  = flag.String("test-collection", "samplecollection", "Firestore collection to use for tests")
 	testVectorField = flag.String("test-vector-field", "embedding", "Field name for vector embeddings")
 )
 
@@ -144,8 +144,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	// Initialize Firebase app
-	conf := &firebasev4.Config{ProjectID: *testProjectID}
-	app, err := firebasev4.NewApp(ctx, conf)
+	app, err := firebasev4.NewApp(ctx, &firebasev4.Config{ProjectID: *testProjectID})
 	if err != nil {
 		t.Fatalf("Failed to create Firebase app: %v", err)
 	}
@@ -200,29 +199,22 @@ func TestFirestoreRetriever(t *testing.T) {
 			t.Fatalf("Generated embedding is empty for document %s", doc.ID)
 		}
 
-		// Convert to []float64
-		embedding64 := make([]float64, len(embedding))
-		for i, val := range embedding {
-			embedding64[i] = float64(val)
-		}
-
 		// Store in Firestore
 		_, err = client.Collection(*testCollection).Doc(doc.ID).Set(ctx, map[string]interface{}{
 			"text":           doc.Text,
 			"metadata":       doc.Data["metadata"],
-			*testVectorField: firestore.Vector64(embedding64),
+			*testVectorField: firestore.Vector32(embedding),
 		})
 		if err != nil {
 			t.Fatalf("Failed to insert document %s: %v", doc.ID, err)
 		}
-		t.Logf("Inserted document: %s with embedding: %v", doc.ID, embedding64)
+		t.Logf("Inserted document: %s with embedding: %v", doc.ID, embedding)
 	}
 
 	// Define retriever options
 	retrieverOptions := RetrieverOptions{
 		Name:            "test-retriever",
 		Label:           "Test Retriever",
-		Client:          client,
 		Collection:      *testCollection,
 		Embedder:        embedder,
 		VectorField:     *testVectorField,
@@ -230,11 +222,10 @@ func TestFirestoreRetriever(t *testing.T) {
 		ContentField:    "text",
 		Limit:           2,
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
-		VectorType:      Vector64,
 	}
 
 	// Define the retriever
-	retriever, err := DefineFirestoreRetriever(g, retrieverOptions)
+	retriever, err := defineFirestoreRetriever(g, retrieverOptions, client)
 	if err != nil {
 		t.Fatalf("Failed to define retriever: %v", err)
 	}
