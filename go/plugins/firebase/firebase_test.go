@@ -58,13 +58,13 @@ func TestInit(t *testing.T) {
 		},
 		{
 			name:          "Initialise Plugin without app and project-id",
-			expectedError: "firebase.Init: provide projectId or firebase app", // Expecting an error when no app/projectId is passed
+			expectedError: "firebase.Init: provide ProjectId or App", // Expecting an error when no app/projectId is passed
 			projectId:     "",
 			app:           nil,
 		},
 		{
 			name:          "Initialise Plugin with both app and project-id",
-			expectedError: "firebase.Init: provide either projectId or firebase app not both", // Expecting an error when no app/projectId is passed
+			expectedError: "firebase.Init: provide either ProjectId or App, not both", // Expecting an error when no app/projectId is passed
 			projectId:     "test-app",
 			app:           firebaseApp,
 		},

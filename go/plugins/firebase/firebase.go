@@ -38,7 +38,6 @@ const projectIdEnv = "FIREBASE_PROJECT_ID" // Environment variable for the Fireb
 type Firebase struct {
 	ProjectId string          // Firebase project ID.
 	App       *firebasev4.App // Firebase app instance.
-	retriever ai.Retriever    // AI retriever instance.
 	mu        sync.Mutex      // Mutex to control concurrent access.
 	initted   bool            // Tracks whether the plugin has been initialized.
 }
@@ -50,40 +49,40 @@ func (f *Firebase) Name() string {
 
 // Init initializes the Firebase plugin.
 func (f *Firebase) Init(ctx context.Context, g *genkit.Genkit) error {
-	f.mu.Lock()         // Lock to ensure thread-safe initialization.
-	defer f.mu.Unlock() // Unlock when the function exits.
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
 	// Resolve the Firebase project ID.
 	projectId := resolveProjectId(f.ProjectId)
 
-	// Check if the plugin is already initialized.
 	if f.initted {
-		return fmt.Errorf("firebase.Init: plugin already initialized")
+		return errors.New("firebase.Init: plugin already initialized")
 	}
 
 	if f.App == nil && f.ProjectId == "" {
-		return fmt.Errorf("firebase.Init: provide projectId or firebase app")
-	} else if f.App != nil && f.ProjectId != "" {
-		return fmt.Errorf("firebase.Init: provide either projectId or firebase app not both")
-	} else if f.App == nil && f.ProjectId != "" {
+		return errors.New("firebase.Init: provide ProjectId or App")
+	}
+	if f.ProjectId != "" {
+		if f.App != nil {
+			return errors.New("firebase.Init: provide either ProjectId or App, not both")
+		}
 		// Configure and initialize the Firebase app.
 		firebaseApp, err := firebasev4.NewApp(ctx, &firebasev4.Config{ProjectID: projectId})
 		if err != nil {
-			log.Fatalf("Error initializing Firebase App: %v", err) // Log and exit on failure.
+			return fmt.Errorf("error initializing Firebase App: %v", err)
 		}
 		f.App = firebaseApp
-		f.ProjectId = projectId
 	}
 
-	f.initted = true // Mark the plugin as initialized.
+	f.initted = true
 	return nil
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
 func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg RetrieverOptions) (ai.Retriever, error) {
 	// Lookup the Firebase plugin from the registry.
-	f := genkit.LookupPlugin(g, provider).(*Firebase)
-	if f == nil {
+	f, ok := genkit.LookupPlugin(g, provider).(*Firebase)
+	if !ok {
 		return nil, errors.New("firebase plugin not found; did you call firebase.Init with the firebase plugin")
 	}
 
@@ -94,11 +93,11 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg RetrieverOptions
 	}
 
 	// Define a Firestore retriever using the client.
-	retriever, err := DefineFirestoreRetriever(g, cfg, firestoreClient)
+	retriever, err := defineFirestoreRetriever(g, cfg, firestoreClient)
 	if err != nil {
+
 		return nil, fmt.Errorf("DefineRetriever: failed to initialize retriever %s: %v", cfg.Name, err)
 	}
-	f.retriever = retriever // Cache the retriever instance.
 	return retriever, nil
 }
 

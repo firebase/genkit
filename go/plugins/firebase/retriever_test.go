@@ -232,7 +232,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	// Define the retriever
-	retriever, err := DefineFirestoreRetriever(g, retrieverOptions, client)
+	retriever, err := defineFirestoreRetriever(g, retrieverOptions, client)
 	if err != nil {
 		t.Fatalf("Failed to define retriever: %v", err)
 	}

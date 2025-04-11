@@ -41,9 +41,9 @@ type AuthClient interface {
 
 // ContextProvider creates a Firebase context provider for Genkit actions.
 func ContextProvider(ctx context.Context, g *genkit.Genkit, policy AuthPolicy) (core.ContextProvider, error) {
-	f := genkit.LookupPlugin(g, provider).(*Firebase)
-	if f == nil {
-		return nil, errors.New("firebase plugin not found; did you call firebase.Init with the firebase app")
+	f, ok := genkit.LookupPlugin(g, provider).(*Firebase)
+	if !ok {
+		return nil, errors.New("firebase plugin not found; did you call firebase.Init with the firebase plugin")
 	}
 	client, err := f.App.Auth(ctx)
 	if err != nil {

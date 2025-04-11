@@ -86,7 +86,7 @@ func convertToFloat64(queryEmbedding []float32) []float64 {
 }
 
 // DefineFirestoreRetriever defines a retriever for Firestore
-func DefineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *firestore.Client) (ai.Retriever, error) {
+func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *firestore.Client) (ai.Retriever, error) {
 	if cfg.VectorType != Vector64 {
 		return nil, fmt.Errorf("DefineFirestoreRetriever: only Vector64 is supported")
 	}
