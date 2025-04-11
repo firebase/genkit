@@ -47,11 +47,6 @@ func main() {
 		log.Fatalf("Error initializing Firebase app: %v", err)
 	}
 
-	// take instance of firestore client
-	firestoreClient, err := firebaseApp.Firestore(ctx)
-	if err != nil {
-		log.Fatalf("Error initializing Firestore client: %v", err)
-	}
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{App: firebaseApp}))
 	if err != nil {
 		log.Fatal(err)
@@ -88,6 +83,11 @@ func main() {
 
 	// Define the index flow: Insert 10 documents about famous films
 	genkit.DefineFlow(g, "flow-index-documents", func(ctx context.Context, _ struct{}) (string, error) {
+		// Instance of firestore client
+		firestoreClient, err := firebaseApp.Firestore(ctx)
+		if err != nil {
+			log.Fatalf("Error initializing Firestore client: %v", err)
+		}
 		for i, filmText := range films {
 			docID := fmt.Sprintf("doc-%d", i+1)
 			embedding := []float64{float64(i+1) * 0.1, float64(i+1) * 0.2, float64(i+1) * 0.3}

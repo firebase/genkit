@@ -78,20 +78,20 @@ func convertToDoc(docSnapshots []*firestore.DocumentSnapshot, contentField strin
 
 // Convert a slice of float32 to a slice of float64
 func convertToFloat64(queryEmbedding []float32) []float64 {
-	queryEmbedding64 := make([]float64, len(queryEmbedding)) // Allocate memory for float64 slice
+	queryEmbedding64 := make([]float64, len(queryEmbedding))
 	for i, val := range queryEmbedding {
-		queryEmbedding64[i] = float64(val) // Convert each element
+		queryEmbedding64[i] = float64(val)
 	}
 	return queryEmbedding64
 }
 
-// DefineFirestoreRetriever defines a retriever for Firestore
+// defineFirestoreRetriever defines and registers a retriever for Firestore.
 func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *firestore.Client) (ai.Retriever, error) {
 	if cfg.VectorType != Vector64 {
-		return nil, fmt.Errorf("DefineFirestoreRetriever: only Vector64 is supported")
+		return nil, fmt.Errorf("defineFirestoreRetriever: only Vector64 is supported")
 	}
 	if client == nil {
-		return nil, fmt.Errorf("DefineFirestoreRetriever: Firestore client is not provided")
+		return nil, fmt.Errorf("defineFirestoreRetriever: Firestore client is not provided")
 	}
 
 	// Resolve the Firestore collection name
@@ -101,25 +101,25 @@ func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *fi
 	}
 
 	// Define the retriever function
-	Retrieve := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+	retrieve := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 		if req.Query == nil {
-			return nil, fmt.Errorf("DefineFirestoreRetriever: Request document is nil")
+			return nil, fmt.Errorf("defineFirestoreRetriever: Request document is nil")
 		}
 
 		// Generate query embedding using the Embedder
 		embedRequest := &ai.EmbedRequest{Input: []*ai.Document{req.Query}}
 		embedResponse, err := cfg.Embedder.Embed(ctx, embedRequest)
 		if err != nil {
-			return nil, fmt.Errorf("DefineFirestoreRetriever: Embedding failed: %v", err)
+			return nil, fmt.Errorf("defineFirestoreRetriever: Embedding failed: %v", err)
 		}
 
 		if len(embedResponse.Embeddings) == 0 {
-			return nil, fmt.Errorf("DefineFirestoreRetriever: No embeddings returned")
+			return nil, fmt.Errorf("defineFirestoreRetriever: No embeddings returned")
 		}
 
 		queryEmbedding := embedResponse.Embeddings[0].Embedding
 		if len(queryEmbedding) == 0 {
-			return nil, fmt.Errorf("DefineFirestoreRetriever: Generated embedding is empty")
+			return nil, fmt.Errorf("defineFirestoreRetriever: Generated embedding is empty")
 		}
 
 		// Perform the FindNearest query
@@ -134,7 +134,7 @@ func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *fi
 
 		results, err := iter.GetAll()
 		if err != nil {
-			return nil, fmt.Errorf("DefineFirestoreRetriever: FindNearest query failed: %v", err)
+			return nil, fmt.Errorf("defineFirestoreRetriever: FindNearest query failed: %v", err)
 		}
 
 		// Convert Firestore documents to Genkit documents
@@ -142,8 +142,7 @@ func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *fi
 		return &ai.RetrieverResponse{Documents: documents}, nil
 	}
 
-	// Register the retriever in Genkit
-	return genkit.DefineRetriever(g, provider, cfg.Name, Retrieve), nil
+	return genkit.DefineRetriever(g, provider, cfg.Name, retrieve), nil
 }
 
 // resolveFirestoreCollection resolves the Firestore collection name from the environment if necessary
@@ -153,7 +152,7 @@ func resolveFirestoreCollection(collectionName string) (string, error) {
 	}
 	collectionName = os.Getenv(firestoreCollection)
 	if collectionName == "" {
-		return "", fmt.Errorf("firestore collection not set; try setting %s", firestoreCollection)
+		return "", fmt.Errorf("no Firestore collection provided; set %q env variable or pass the collection directly", firestoreCollection)
 	}
 	return collectionName, nil
 }
