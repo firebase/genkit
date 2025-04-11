@@ -22,15 +22,13 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
-	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
 	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden/anthropic"
 )
 
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(
-		modelgarden.WithProviders(&anthropic.Anthropic{})))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&anthropic.Anthropic{}))
 	if err != nil {
 		log.Fatal(err)
 	}
