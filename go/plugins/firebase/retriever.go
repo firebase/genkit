@@ -76,8 +76,8 @@ func convertToDoc(docSnapshots []*firestore.DocumentSnapshot, contentField strin
 	return documents
 }
 
-// Convert a slice of float32 to a slice of float64
-func convertToFloat64(queryEmbedding []float32) []float64 {
+// ConvertEmbeddingToFloat64 Convert a slice of float32 to a slice of float64
+func ConvertEmbeddingToFloat64(queryEmbedding []float32) []float64 {
 	queryEmbedding64 := make([]float64, len(queryEmbedding))
 	for i, val := range queryEmbedding {
 		queryEmbedding64[i] = float64(val)
@@ -125,7 +125,7 @@ func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *fi
 		// Perform the FindNearest query
 		vectorQuery := client.Collection(collection).FindNearest(
 			cfg.VectorField,
-			firestore.Vector64(convertToFloat64(queryEmbedding)),
+			firestore.Vector64(ConvertEmbeddingToFloat64(queryEmbedding)),
 			cfg.Limit,
 			cfg.DistanceMeasure,
 			nil,

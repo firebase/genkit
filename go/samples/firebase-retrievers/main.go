@@ -25,6 +25,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/firebase"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 func main() {
@@ -52,13 +53,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error initializing Firestore client: %v", err)
 	}
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{App: firebaseApp}))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&firebase.Firebase{App: firebaseApp}, &googlegenai.GoogleAI{}))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Mock embedder
-	embedder := &MockEmbedder{}
+	// Google text-embedder
+	embedder := googlegenai.GoogleAIEmbedder(g, "text-embedding-004")
 
 	// Firestore Retriever Configuration
 	retrieverOptions := firebase.RetrieverOptions{
@@ -71,6 +72,8 @@ func main() {
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
 		VectorType:      firebase.Vector64,
 	}
+
+	retriever, err := firebase.DefineRetriever(ctx, g, retrieverOptions)
 
 	// Famous films text
 	films := []string{
@@ -90,11 +93,24 @@ func main() {
 	genkit.DefineFlow(g, "flow-index-documents", func(ctx context.Context, _ struct{}) (string, error) {
 		for i, filmText := range films {
 			docID := fmt.Sprintf("doc-%d", i+1)
-			embedding := []float64{float64(i+1) * 0.1, float64(i+1) * 0.2, float64(i+1) * 0.3}
+			embedRequest := &ai.EmbedRequest{Input: []*ai.Document{ai.DocumentFromText(filmText, nil)}}
+			embedResponse, err := embedder.Embed(ctx, embedRequest)
+			if err != nil {
+				return "", fmt.Errorf("defineFirestoreRetriever: Embedding failed: %v", err)
+			}
 
-			_, err := firestoreClient.Collection(collectionName).Doc(docID).Set(ctx, map[string]interface{}{
+			if len(embedResponse.Embeddings) == 0 {
+				return "", fmt.Errorf("defineFirestoreRetriever: No embeddings returned")
+			}
+
+			queryEmbedding := embedResponse.Embeddings[0].Embedding
+			if len(queryEmbedding) == 0 {
+				return "", fmt.Errorf("defineFirestoreRetriever: Generated embedding is empty")
+			}
+
+			_, err = firestoreClient.Collection(collectionName).Doc(docID).Set(ctx, map[string]interface{}{
 				"text":      filmText,
-				"embedding": firestore.Vector64(embedding),
+				"embedding": firestore.Vector64(firebase.ConvertEmbeddingToFloat64(queryEmbedding)),
 				"metadata":  fmt.Sprintf("metadata for doc %d", i+1),
 			})
 			if err != nil {
@@ -107,7 +123,7 @@ func main() {
 
 	// Define the retrieval flow: Retrieve documents based on user query
 	genkit.DefineFlow(g, "flow-retrieve-documents", func(ctx context.Context, query string) (string, error) {
-		retriever, err := firebase.DefineRetriever(ctx, g, retrieverOptions)
+
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -138,27 +154,4 @@ func main() {
 	})
 
 	<-ctx.Done()
-}
-
-// MockEmbedder is used to simulate an AI embedder for testing purposes.
-type MockEmbedder struct{}
-
-func (e *MockEmbedder) Name() string {
-	return "MockEmbedder"
-}
-
-func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
-	var embeddings []*ai.Embedding
-
-	// Generate a simple uniform embedding for each document
-	for _, doc := range req.Input {
-		// Example: Use the length of the document text to generate embeddings
-		embedding := []float32{
-			float32(len(doc.Content[0].Text)) * 0.1, // Scale based on text length
-			0.5,                                     // Static value
-			0.3,                                     // Static value
-		}
-		embeddings = append(embeddings, &ai.Embedding{Embedding: embedding})
-	}
-	return &ai.EmbedResponse{Embeddings: embeddings}, nil
 }
