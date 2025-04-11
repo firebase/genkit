@@ -187,6 +187,22 @@ export const ToolDefinitionSchema = z.object({
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
 /**
+ * Configuration parameter descriptions.
+ */
+export const GenerationCommonConfigDescriptions = {
+  temperature:
+    'Controls the degree of randomness in token selection. A lower value is ' +
+    'good for a more predictable response. A higher value leads to more ' +
+    'diverse or unexpected results.',
+  maxOutputTokens: 'The maximum number of tokens to include in the response.',
+  topK: 'The maximum number of tokens to consider when sampling.',
+  topP:
+    'Decides how many possible words to consider. A higher value means ' +
+    'that the model looks at more possible words, even the less likely ' +
+    'ones, which makes the generated text more diverse.',
+};
+
+/**
  * Zod schema of a common config object.
  */
 export const GenerationCommonConfigSchema = z.object({
@@ -199,28 +215,14 @@ export const GenerationCommonConfigSchema = z.object({
     .optional(),
   temperature: z
     .number()
-    .describe(
-      'Controls the degree of randomness in token selection. A lower value is ' +
-        'good for a more predictable response. A higher value leads to more ' +
-        'diverse or unexpected results.'
-    )
+    .describe(GenerationCommonConfigDescriptions.temperature)
     .optional(),
   maxOutputTokens: z
     .number()
-    .describe('The maximum number of tokens to include in the response.')
+    .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
     .optional(),
-  topK: z
-    .number()
-    .describe('The maximum number of tokens to consider when sampling.')
-    .optional(),
-  topP: z
-    .number()
-    .describe(
-      'Decides how many possible words to consider. A higher value means ' +
-        'that the model looks at more possible words, even the less likely ' +
-        'ones, which makes the generated text more diverse.'
-    )
-    .optional(),
+  topK: z.number().describe(GenerationCommonConfigDescriptions.topK).optional(),
+  topP: z.number().describe(GenerationCommonConfigDescriptions.topP).optional(),
   stopSequences: z
     .array(z.string())
     .length(5)
