@@ -112,7 +112,6 @@ func (r *Registry) Freeze() {
 func (r *Registry) LookupPlugin(name string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	fmt.Printf("%v", r.plugins)
 	return r.plugins[name]
 }
 
