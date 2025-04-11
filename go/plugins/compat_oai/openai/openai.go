@@ -119,24 +119,24 @@ func (o *OpenAI) Name() string {
 	return provider
 }
 
+// Init implements genkit.Plugin.
 func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
-	err := o.openAICompatible.Init(ctx, g)
-	if err != nil {
+	// initialize OpenAICompatible
+	o.openAICompatible.Opts = o.Opts
+	if err := o.openAICompatible.Init(ctx, g); err != nil {
 		return err
 	}
 
 	// define default models
 	for model, info := range supportedModels {
-		_, err := o.DefineModel(g, model, info)
-		if err != nil {
+		if _, err := o.DefineModel(g, model, info); err != nil {
 			return err
 		}
 	}
 
 	// define default embedders
 	for _, embedder := range knownEmbedders {
-		_, err := o.DefineEmbedder(g, embedder)
-		if err != nil {
+		if _, err := o.DefineEmbedder(g, embedder); err != nil {
 			return err
 		}
 	}
@@ -149,7 +149,7 @@ func (o *OpenAI) Model(g *genkit.Genkit, name string) ai.Model {
 }
 
 func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, error) {
-	return o.openAICompatible.DefineModel(g, name, info, provider)
+	return o.openAICompatible.DefineModel(g, name, provider, info)
 }
 
 func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {

@@ -22,7 +22,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
-	"github.com/openai/openai-go"
 	openaiClient "github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/stretchr/testify/assert"
@@ -123,42 +122,39 @@ func TestWithConfig(t *testing.T) {
 		config        any
 		expectError   bool
 		errorContains []string
-		validate      func(*testing.T, *openai.ChatCompletionNewParams)
+		validate      func(*testing.T, *ai.GenerationCommonConfig)
 	}{
 		{
 			name:        "nil config",
 			config:      nil,
 			expectError: false,
-			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+			validate: func(t *testing.T, cfg *ai.GenerationCommonConfig) {
 				// Temperature and MaxTokens should be nil and not present
-				assert.False(t, cfg.Temperature.Present)
-				assert.False(t, cfg.MaxTokens.Present)
+				assert.Equal(t, float64(0.0), cfg.Temperature)
+				assert.Equal(t, 0, cfg.MaxOutputTokens)
 			},
 		},
 		{
-			name: "explicitly set to nil",
-			config: &openai.ChatCompletionNewParams{
-				Temperature: openai.Null[float64](),
-				MaxTokens:   openai.Null[int64](),
-			},
+			name:        "explicitly set to nil",
+			config:      &ai.GenerationCommonConfig{},
 			expectError: false,
-			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+			validate: func(t *testing.T, cfg *ai.GenerationCommonConfig) {
 				// Temperature and MaxTokens should be nil and not present
-				assert.Equal(t, openai.Null[float64](), cfg.Temperature)
-				assert.Equal(t, openai.Null[int64](), cfg.MaxTokens)
+				assert.Equal(t, float64(0.0), cfg.Temperature)
+				assert.Equal(t, 0, cfg.MaxOutputTokens)
 			},
 		},
 		{
 			name: "float and int fields",
-			config: &openai.ChatCompletionNewParams{
-				Temperature: openai.Float(0.5),
-				MaxTokens:   openai.Int(100),
+			config: &ai.GenerationCommonConfig{
+				Temperature:     0.5,
+				MaxOutputTokens: 100,
 			},
 			expectError: false,
-			validate: func(t *testing.T, cfg *openai.ChatCompletionNewParams) {
+			validate: func(t *testing.T, cfg *ai.GenerationCommonConfig) {
 				// Temperature and MaxTokens should be 0.5 and 100 respectively
-				assert.Equal(t, openai.Float(0.5), cfg.Temperature)
-				assert.Equal(t, openai.Int(100), cfg.MaxTokens)
+				assert.Equal(t, float64(0.5), cfg.Temperature)
+				assert.Equal(t, 100, cfg.MaxOutputTokens)
 			},
 		},
 		{
@@ -203,7 +199,7 @@ func TestWithConfig(t *testing.T) {
 				assert.NotNil(t, result)
 
 				// Get request configuration to validate
-				request := generator.GetRequestConfig()
+				request := generator.TransformToGenkitGenerationCommonConfig(generator.GetRequestConfig())
 
 				// Validate the result
 				tt.validate(t, request)

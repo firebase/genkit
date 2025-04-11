@@ -16,6 +16,7 @@ package compat_oai
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 
@@ -43,10 +44,13 @@ var (
 			Tools:      true,
 			SystemRole: true,
 			Media:      true,
+			ToolChoice: true,
 		},
 	}
 )
 
+// OpenAICompatible is a plugin that provides compatibility with OpenAI's Compatible APIs.
+// It allows defining models and embedders that can be used with Genkit.
 type OpenAICompatible struct {
 	mu       sync.Mutex
 	initted  bool
@@ -60,7 +64,7 @@ func (o *OpenAICompatible) Init(ctx context.Context, g *genkit.Genkit) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.initted {
-		panic("compat_oai.Init already called")
+		return errors.New("compat_oai.Init already called")
 	}
 
 	// create client
@@ -77,11 +81,11 @@ func (o *OpenAICompatible) Name() string {
 }
 
 // DefineModel defines a model in the registry
-func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo, provider string) (ai.Model, error) {
+func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name, provider string, info ai.ModelInfo) (ai.Model, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
-		panic("OpenAICompatible.Init not called")
+		return nil, errors.New("OpenAICompatible.Init not called")
 	}
 
 	// Strip provider prefix if present to check against supportedModels
@@ -111,7 +115,7 @@ func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, name string, provide
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
-		panic("OpenAICompatible.Init not called")
+		return nil, errors.New("OpenAICompatible.Init not called")
 	}
 
 	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {

@@ -38,6 +38,20 @@ func (g *ModelGenerator) GetRequestConfig() *openai.ChatCompletionNewParams {
 	return g.request
 }
 
+func (g *ModelGenerator) TransformToGenkitGenerationCommonConfig(cfg *openai.ChatCompletionNewParams) *ai.GenerationCommonConfig {
+	// Transform the OpenAI config to Genkit config
+	if cfg == nil {
+		return nil
+	}
+
+	return &ai.GenerationCommonConfig{
+		Temperature:     cfg.Temperature.Value,
+		MaxOutputTokens: int(cfg.MaxTokens.Value),
+		TopP:            cfg.TopP.Value,
+		Version:         cfg.Model.Value,
+	}
+}
+
 // NewModelGenerator creates a new ModelGenerator instance
 func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator {
 	return &ModelGenerator{
@@ -191,7 +205,14 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolCho
 			}),
 		})
 	}
-	g.request.Tools = openai.F(toolParams)
+
+	// Set the tools in the request
+	// If no tools are provided, set it to nil
+	// This is important to avoid sending an empty array in the request
+	// which is not supported by some vendor APIs
+	if len(toolParams) > 0 {
+		g.request.Tools = openai.F(toolParams)
+	}
 
 	switch choice {
 	case ai.ToolChoiceAuto:
