@@ -30,6 +30,7 @@ members = [
     "google-genai-vertexai-image",
     "imagen",
     "menu",
+    "model-garden-example",
     "multi-server",
     "ollama-hello",
     "ollama-simple-embed",
@@ -2517,6 +2518,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c4/79/bda47f7dd7c3c55770478d6d02c9960c430b0cf1773b72366ff89126ea31/mistune-3.1.3.tar.gz", hash = "sha256:a7035c21782b2becb6be62f8f25d3df81ccb4d6fa477a6525b15af06539f02a0", size = 94347 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/01/4d/23c4e4f09da849e127e9f123241946c23c1e30f45a88366879e064211815/mistune-3.1.3-py3-none-any.whl", hash = "sha256:1a32314113cff28aa6432e99e522677c8587fd83e3d51c29b82a52409c842bd9", size = 53410 },
+]
+
+[[package]]
+name = "model-garden-example"
+version = "0.1.0"
+source = { virtual = "samples/model-garden" }
+dependencies = [
+    { name = "genkit-ai" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit-ai", editable = "packages/genkit-ai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
