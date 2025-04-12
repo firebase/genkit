@@ -17,7 +17,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/compat_oai"
+	oai "github.com/firebase/genkit/go/plugins/compat_oai/anthropic"
 	"github.com/firebase/genkit/go/plugins/server"
 	"github.com/openai/openai-go/option"
 )
@@ -25,12 +25,10 @@ import (
 func main() {
 	ctx := context.Background()
 
-	oai := compat_oai.OpenAICompatible{
+	oai := oai.Anthropic{
 		Opts: []option.RequestOption{
 			option.WithAPIKey(os.Getenv("ANTHROPIC_API_KEY")),
-			option.WithBaseURL("https://api.anthropic.com/v1/"),
 		},
-		Provider: "anthropic",
 	}
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&oai))
 	if err != nil {
@@ -38,11 +36,8 @@ func main() {
 	}
 
 	genkit.DefineFlow(g, "anthropic", func(ctx context.Context, subject string) (string, error) {
+		sonnet37 := oai.Model(g, "claude-3-7-sonnet-20250219")
 
-		sonnet37, err := oai.DefineModel(g, "claude-3-7-sonnet-20250219", "anthropic", ai.ModelInfo{Label: "Claude Sonnet", Supports: compat_oai.Multimodal.Supports})
-		if err != nil {
-			return "", err
-		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
 		foo, err := genkit.Generate(ctx, g, ai.WithModel(sonnet37), ai.WithPromptText(prompt))
 		if err != nil {
