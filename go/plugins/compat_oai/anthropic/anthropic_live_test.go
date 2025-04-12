@@ -41,7 +41,6 @@ func TestPlugin(t *testing.T) {
 		genkit.WithPlugins(&anthropic.Anthropic{
 			Opts: []option.RequestOption{
 				option.WithAPIKey(apiKey),
-				option.WithBaseURL("https://api.anthropic.com/v1/"),
 			},
 		}),
 	)

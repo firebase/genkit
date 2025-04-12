@@ -23,7 +23,10 @@ import (
 	"github.com/openai/openai-go/option"
 )
 
-const provider = "anthropic"
+const (
+	provider = "anthropic"
+	baseURL  = "https://api.anthropic.com/v1"
+)
 
 var (
 	// Supported models: https://docs.anthropic.com/en/docs/about-claude/models/all-models
@@ -92,6 +95,9 @@ func (a *Anthropic) Name() string {
 }
 
 func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) error {
+	// Set the base URL
+	a.Opts = append(a.Opts, option.WithBaseURL(baseURL))
+
 	// initialize OpenAICompatible
 	a.openAICompatible.Opts = a.Opts
 	if err := a.openAICompatible.Init(ctx, g); err != nil {

@@ -28,7 +28,6 @@ func main() {
 	oai := oai.Anthropic{
 		Opts: []option.RequestOption{
 			option.WithAPIKey(os.Getenv("ANTHROPIC_API_KEY")),
-			option.WithBaseURL("https://api.anthropic.com/v1/"),
 		},
 	}
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&oai))
