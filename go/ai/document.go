@@ -19,8 +19,6 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
-
-	"gopkg.in/yaml.v3"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -35,6 +33,7 @@ type Document struct {
 // A Part is one part of a [Document]. This may be plain text or it
 // may be a URL (possibly a "data:" URL with embedded data).
 type Part struct {
+	// The kind of part this is.
 	Kind         PartKind       `json:"kind,omitempty"`
 	ContentType  string         `json:"contentType,omitempty"`  // valid for kind==blob
 	Text         string         `json:"text,omitempty"`         // valid for kind∈{text,blob}
@@ -223,11 +222,18 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// UnmarshalYAML implements yaml.Unmarshaler for Part.
-func (p *Part) UnmarshalYAML(value *yaml.Node) error {
+// UnmarshalYAML implements custom YAML unmarshaling for Part.
+func (p *Part) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var s partSchema
-	if err := value.Decode(&s); err != nil {
-		return err
+	if err := unmarshal(&s); err != nil {
+		// If the direct unmarshal fails, it might be a simple string (plain text).
+		// Try unmarshalling as a string.
+		var text string
+		if err2 := unmarshal(&text); err2 == nil {
+			s.Text = text // Populate the schema with the text
+		} else {
+			return err // Return the original error if it wasn't a simple string
+		}
 	}
 	p.unmarshalPartFromSchema(s)
 	return nil

@@ -360,14 +360,14 @@ type textPart struct {
 
 // A ToolDefinition describes a tool.
 type ToolDefinition struct {
-	Description string `json:"description,omitempty"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 	// Valid JSON Schema representing the input of the tool.
-	InputSchema map[string]any `json:"inputSchema,omitempty"`
+	InputSchema map[string]any `json:"inputSchema,omitempty" yaml:"inputSchema,omitempty"`
 	// additional metadata for this tool definition
-	Metadata map[string]any `json:"metadata,omitempty"`
-	Name     string         `json:"name,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Name     string         `json:"name,omitempty" yaml:"name,omitempty"`
 	// Valid JSON Schema describing the output of the tool.
-	OutputSchema map[string]any `json:"outputSchema,omitempty"`
+	OutputSchema map[string]any `json:"outputSchema,omitempty" yaml:"outputSchema,omitempty"`
 }
 
 // A ToolRequest is a message from the model to the client that it should run a
