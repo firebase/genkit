@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-import { TraceDataSchema } from '@genkit-ai/tools-common';
+import {
+  TraceDataSchema,
+  TraceQueryFilterSchema,
+} from '@genkit-ai/tools-common';
 import express from 'express';
 import * as http from 'http';
-import { TraceQueryFilterSchema, TraceStore } from './types';
+import { TraceStore } from './types';
 
 export { LocalFileTraceStore } from './localFileTraceStore.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';

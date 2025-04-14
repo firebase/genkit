@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-import { TraceDataSchema, type TraceData } from '@genkit-ai/tools-common';
+import {
+  TraceDataSchema,
+  TraceQueryFilter,
+  type TraceData,
+} from '@genkit-ai/tools-common';
 import { Mutex } from 'async-mutex';
 import fs from 'fs';
 import lockfile from 'lockfile';
 import os from 'os';
 import path from 'path';
-import {
-  TraceQuery,
-  TraceQueryFilter,
-  TraceQueryResponse,
-  TraceStore,
-} from './types';
+import { TraceQuery, TraceQueryResponse, TraceStore } from './types';
 
 const MAX_TRACES = 1000;
 
