@@ -28,6 +28,8 @@ members = [
     "google-genai-image",
     "google-genai-vertexai-hello",
     "google-genai-vertexai-image",
+    "google-genai-vertexai-vector-search-bigquery",
+    "google-genai-vertexai-vector-search-firestore",
     "imagen",
     "menu",
     "multi-server",
@@ -1521,6 +1523,52 @@ requires-dist = [
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pillow" },
     { name = "pydantic", specifier = ">=2.10.5" },
+]
+
+[[package]]
+name = "google-genai-vertexai-vector-search-bigquery"
+version = "0.1.0"
+source = { editable = "samples/google-genai-vertexai-vector-search-bigquery" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "google-cloud-bigquery" },
+    { name = "pydantic" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "google-cloud-bigquery" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
+
+[[package]]
+name = "google-genai-vertexai-vector-search-firestore"
+version = "0.1.0"
+source = { editable = "samples/google-genai-vertexai-vector-search-firestore" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "google-cloud-firestore" },
+    { name = "pydantic" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "google-cloud-firestore" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
