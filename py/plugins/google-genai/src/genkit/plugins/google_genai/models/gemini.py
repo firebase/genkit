@@ -178,7 +178,7 @@ from genkit.types import (
 
 
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
-    code_execution: bool | dict | None = None
+    code_execution: bool | None = None
 
 
 GEMINI_1_0_PRO = ModelInfo(
