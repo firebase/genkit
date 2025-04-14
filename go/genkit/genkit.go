@@ -142,7 +142,6 @@ func WithPromptDir(dir string) GenkitOption {
 //
 //	import (
 //		"context"
-//		"fmt"
 //		"log"
 //		"os"
 //
@@ -156,23 +155,23 @@ func WithPromptDir(dir string) GenkitOption {
 //
 //		// Assumes a prompt file at ./prompts/jokePrompt.prompt
 //		g, err := genkit.Init(ctx,
-//			genkit.WithPlugins(googleai.Plugin(&googleai.Config{})), // Use the Google AI plugin
-//			genkit.WithDefaultModel("googleai/gemini-1.5-flash"),    // Set a default model
-//			genkit.WithPromptDir("./prompts"),                       // Load prompts from ./prompts
+//			genkit.WithPlugins(&googlegenai.GoogleAI{}),
+//			genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+//			genkit.WithPromptDir("./prompts"),
 //		)
 //		if err != nil {
 //			log.Fatalf("Failed to initialize Genkit: %v", err)
 //		}
 //
 //		// Generate text using the default model
-//		funFact, err := genkit.GenerateText(ctx, g, ai.WithPromptText("Tell me a fake fun fact!"))
+//		funFact, err := genkit.GenerateText(ctx, g, ai.WithPrompt("Tell me a fake fun fact!"))
 //		if err != nil {
 //			log.Fatalf("GenerateText failed: %v", err)
 //		}
-//		fmt.Println("Generated Fact:", funFact)
+//		log.Println("Generated Fact:", funFact)
 //
 //		// Look up and execute a loaded prompt
-//		jokePrompt, err := genkit.LookupPrompt(g, "", "jokePrompt") // Assumes jokePrompt.prompt exists
+//		jokePrompt, err := genkit.LookupPrompt(g, "jokePrompt")
 //		if err != nil {
 //			log.Fatalf("LookupPrompt failed: %v", err)
 //		}
@@ -184,7 +183,7 @@ func WithPromptDir(dir string) GenkitOption {
 //		if err != nil {
 //			log.Fatalf("jokePrompt.Execute failed: %v", err)
 //		}
-//		fmt.Println("Generated Joke:", resp.Text())
+//		log.Println("Generated joke:", resp.Text())
 //	}
 func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
@@ -193,6 +192,9 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Register default formats
+	ai.ConfigureFormats(r)
 
 	gOpts := &genkitOptions{}
 	for _, opt := range opts {
@@ -212,6 +214,7 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		if err := plugin.Init(ctx, g); err != nil {
 			return nil, fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err)
 		}
+		r.RegisterPlugin(plugin.Name(), plugin)
 	}
 
 	ai.LoadPromptDir(r, gOpts.PromptDir, "")
@@ -461,15 +464,16 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 //
 //	// Use the tool in a generation request:
 //	resp, err := genkit.Generate(ctx, g,
-//		ai.WithPromptText("What's the weather like in Paris?"),
+//		ai.WithPrompt("What's the weather like in Paris?"),
 //		ai.WithTools(weatherTool), // Make the tool available
 //		// Optionally use ai.WithToolChoice(...)
 //	)
 //	if err != nil {
 //		log.Fatalf("Generate failed: %v", err)
 //	}
+//
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
-func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) *ai.ToolDef[In, Out] {
+func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) ai.Tool {
 	return ai.DefineTool(g.reg, name, description, fn)
 }
 
@@ -508,10 +512,10 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //	capitalPrompt, err := genkit.DefinePrompt(g, "findCapital",
 //		ai.WithDescription("Finds the capital of a country."),
 //		ai.WithModelName("googleai/gemini-1.5-flash"), // Specify the model
-//		ai.WithSystemText("You are a helpful geography assistant."),
-//		ai.WithPromptText("What is the capital of {{country}}?"), // Handlebars template
-//		ai.WithInputType(GeoInput{Country: "USA"}),               // Define input schema and default
-//		ai.WithOutputType(GeoOutput{}),                           // Define output schema (implies JSON format)
+//		ai.WithSystem("You are a helpful geography assistant."),
+//		ai.WithPrompt("What is the capital of {{country}}?"),
+//		ai.WithInputType(GeoInput{Country: "USA"}),
+//		ai.WithOutputType(GeoOutput{}),
 //		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 0.5}),
 //	)
 //	if err != nil {
@@ -528,8 +532,8 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("GenerateWithRequest failed: %v", err)
 //	}
 //	var out1 GeoOutput
-//	if err = resp1.UnmarshalOutput(&out1); err != nil {
-//		log.Fatalf("UnmarshalOutput failed: %v", err)
+//	if err = resp1.Output(&out1); err != nil {
+//		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of USA: %s\n", out1.Capital) // Output: Capital of USA: Washington D.C.
 //
@@ -539,21 +543,20 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("Execute failed: %v", err)
 //	}
 //	var out2 GeoOutput
-//	if err = resp2.UnmarshalOutput(&out2); err != nil {
-//		log.Fatalf("UnmarshalOutput failed: %v", err)
+//	if err = resp2.Output(&out2); err != nil {
+//		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of France: %s\n", out2.Capital) // Output: Capital of France: Paris
 func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) (*ai.Prompt, error) {
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt retrieves a registered [ai.Prompt] by its provider and name.
+// LookupPrompt retrieves a registered [ai.Prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
 // It returns the prompt instance if found, or `nil` otherwise.
-// For prompts loaded from files without an explicit provider/namespace, use an empty string for `provider`.
-func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
-	return ai.LookupPrompt(g.reg, provider, name)
+func LookupPrompt(g *Genkit, name string) *ai.Prompt {
+	return ai.LookupPrompt(g.reg, name)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
@@ -567,7 +570,7 @@ func LookupPrompt(g *Genkit, provider, name string) *ai.Prompt {
 //
 // Example (using options rendered from a prompt):
 //
-//	myPrompt, _ := genkit.LookupPrompt(g, "", "myDefinedPrompt")
+//	myPrompt, _ := genkit.LookupPrompt(g, "myDefinedPrompt")
 //	actionOpts, err := myPrompt.Render(ctx, map[string]any{"topic": "go programming"})
 //	if err != nil {
 //		// handle error
@@ -592,13 +595,14 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 // Example:
 //
 //	resp, err := genkit.Generate(ctx, g,
-//		ai.WithModelName("googleai/gemini-1.5-flash"), // Specify model
-//		ai.WithPromptText("Write a short poem about clouds."),
-//		ai.WithConfig(&ai.GenerationCommonConfig{MaxOutputTokens: 50}),
+//		ai.WithModelName("googleai/gemini-2.0-flash"),
+//		ai.WithPrompt("Write a short poem about clouds."),
+//		ai.WithConfig(&googlegenai.GeminiConfig{MaxOutputTokens: 50}),
 //	)
 //	if err != nil {
 //		log.Fatalf("Generate failed: %v", err)
 //	}
+//
 //	fmt.Println(resp.Text())
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
 	return ai.Generate(ctx, g.reg, opts...)
@@ -612,7 +616,7 @@ func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.Mo
 // Example:
 //
 //	joke, err := genkit.GenerateText(ctx, g,
-//		ai.WithPromptText("Tell me a funny programming joke."),
+//		ai.WithPrompt("Tell me a funny programming joke."),
 //	)
 //	if err != nil {
 //		log.Fatalf("GenerateText failed: %v", err)
@@ -642,36 +646,16 @@ func GenerateText(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (st
 //		Year   int    `json:"year"`
 //	}
 //
-//	var book BookInfo
-//	_, err := genkit.GenerateData(ctx, g, &book, // Pass pointer to the struct
-//		ai.WithPromptText("Provide information about 'The Hitchhiker's Guide to the Galaxy' as JSON."),
-//		ai.WithOutputType(BookInfo{}), // Instruct model on desired output structure
+//	book, _, err := genkit.GenerateData[BookInfo](ctx, g,
+//		ai.WithPrompt("Tell me about 'The Hitchhiker's Guide to the Galaxy'."),
 //	)
 //	if err != nil {
 //		log.Fatalf("GenerateData failed: %v", err)
 //	}
-//	fmt.Printf("Book: %+v\n", book) // Output: Book: {Title:The Hitchhiker's Guide to the Galaxy Author:Douglas Adams Year:1979}
-func GenerateData(ctx context.Context, g *Genkit, value any, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
-	return ai.GenerateData(ctx, g.reg, value, opts...)
-}
-
-// DefineIndexer defines a custom indexer implementation, registers it as a
-// [core.Action] of type Indexer, and returns an [ai.Indexer].
-// Indexers are responsible for adding or updating documents in a data store,
-// often a vector database, typically involving embedding the document content.
 //
-// The `provider` and `name` form the unique identifier. The `index` function
-// contains the logic to process an [ai.IndexerRequest], which includes the
-// documents to be indexed.
-func DefineIndexer(g *Genkit, provider, name string, index func(context.Context, *ai.IndexerRequest) error) ai.Indexer {
-	return ai.DefineIndexer(g.reg, provider, name, index)
-}
-
-// LookupIndexer retrieves a registered [ai.Indexer] by its provider and name.
-// It returns the indexer instance if found, or `nil` if no indexer with the
-// given identifier is registered (e.g., via [DefineIndexer] or a plugin).
-func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
-	return ai.LookupIndexer(g.reg, provider, name)
+//	log.Printf("Book: %+v\n", book) // Output: Book: {Title:The Hitchhiker's Guide to the Galaxy Author:Douglas Adams Year:1979}
+func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*Out, *ai.ModelResponse, error) {
+	return ai.GenerateData[Out](ctx, g.reg, opts...)
 }
 
 // DefineRetriever defines a custom retriever implementation, registers it as a
@@ -691,6 +675,25 @@ func DefineRetriever(g *Genkit, provider, name string, ret func(context.Context,
 // given identifier is registered (e.g., via [DefineRetriever] or a plugin).
 func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 	return ai.LookupRetriever(g.reg, provider, name)
+}
+
+// DefineIndexer defines a custom indexer implementation, registers it as a
+// [core.Action] of type Indexer, and returns an [ai.Indexer].
+// Indexers are responsible for adding or updating documents in a data store,
+// often a vector database, typically involving embedding the document content.
+//
+// The `provider` and `name` form the unique identifier. The `index` function
+// contains the logic to process an [ai.IndexerRequest], which includes the
+// documents to be indexed.
+func DefineIndexer(g *Genkit, provider, name string, index func(context.Context, *ai.IndexerRequest) error) ai.Indexer {
+	return ai.DefineIndexer(g.reg, provider, name, index)
+}
+
+// LookupIndexer retrieves a registered [ai.Indexer] by its provider and name.
+// It returns the indexer instance if found, or `nil` if no indexer with the
+// given identifier is registered (e.g., via [DefineIndexer] or a plugin).
+func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
+	return ai.LookupIndexer(g.reg, provider, name)
 }
 
 // DefineEmbedder defines a custom text embedding implementation, registers it as a
@@ -842,4 +845,42 @@ func DefinePartial(g *Genkit, name string, source string) error {
 //	{{uppercase "hello"}} => "HELLO"
 func DefineHelper(g *Genkit, name string, fn any) error {
 	return g.reg.DefineHelper(name, fn)
+}
+
+// DefineFormat defines a new [ai.Formatter] and registers it in the registry.
+// Formatters control how model responses are structured and parsed.
+//
+// Formatters can be used with [ai.WithOutputFormat] to inject specific formatting
+// instructions into prompts and automatically format the model response according
+// to the desired output structure.
+//
+// Built-in formatters include:
+//   - "text": Plain text output (default if no format specified)
+//   - "json": Structured JSON output (default when an output schema is provided)
+//   - "jsonl": JSON Lines format for streaming structured data
+//
+// Example:
+//
+//	// Define a custom formatter
+//	type csvFormatter struct{}
+//	func (f csvFormatter) Name() string { return "csv" }
+//	func (f csvFormatter) Handler(schema map[string]any) (ai.FormatHandler, error) {
+//		// Implementation details...
+//	}
+//
+//	// Register the formatter
+//	genkit.DefineFormat(g, "csv", csvFormatter{})
+//
+//	// Use the formatter in a generation request
+//	resp, err := genkit.Generate(ctx, g,
+//		ai.WithPrompt("List 3 countries and their capitals"),
+//		ai.WithOutputFormat("csv"), // Use the custom formatter
+//	)
+func DefineFormat(g *Genkit, name string, formatter ai.Formatter) {
+	ai.DefineFormat(g.reg, name, formatter)
+}
+
+// IsDefinedFormat checks if a formatter with the given name is registered in the registry.
+func IsDefinedFormat(g *Genkit, name string) bool {
+	return g.reg.LookupValue("/format/"+name) != nil
 }

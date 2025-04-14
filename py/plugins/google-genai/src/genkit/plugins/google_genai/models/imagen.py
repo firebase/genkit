@@ -15,7 +15,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import base64
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from functools import cached_property
 from typing import Any
 
@@ -108,7 +114,7 @@ class ImagenModel:
                     raise ValueError('Non-text messages are not supported')
         return ' '.join(prompt)
 
-    async def agenerate(self, request: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
+    async def generate(self, request: GenerateRequest, _: ActionRunContext) -> GenerateResponse:
         """Handle a generation request.
 
         Args:

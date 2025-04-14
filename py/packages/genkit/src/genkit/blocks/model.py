@@ -28,9 +28,11 @@ Example:
     model_fn: ModelFn = my_model
 """
 
+from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
 from functools import cached_property
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -48,17 +50,24 @@ from genkit.core.typing import (
     ToolRequestPart,
 )
 
-# Type alias for a function that takes a GenerateRequest and returns
-# a GenerateResponse
-type ModelFn = Callable[[GenerateRequest], GenerateResponse]
+# type ModelFn = Callable[[GenerateRequest], GenerateResponse]
+ModelFn = Callable[[GenerateRequest], GenerateResponse]
 
 # These types are duplicated in genkit.blocks.formats.types due to circular deps
-type MessageParser[T] = Callable[[MessageWrapper], T]
-type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
+T = TypeVar('T')
+# type MessageParser[T] = Callable[[MessageWrapper], T]
+MessageParser = Callable[['MessageWrapper'], T]
+# type ChunkParser[T] = Callable[[GenerateResponseChunkWrapper], T]
+ChunkParser = Callable[['GenerateResponseChunkWrapper'], T]
 
 
-type ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
-type ModelMiddleware = Callable[
+# type ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
+ModelMiddlewareNext = Callable[[GenerateRequest, ActionRunContext], Awaitable[GenerateResponse]]
+# type ModelMiddleware = Callable[
+#     [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
+#     Awaitable[GenerateResponse],
+# ]
+ModelMiddleware = Callable[
     [GenerateRequest, ActionRunContext, ModelMiddlewareNext],
     Awaitable[GenerateResponse],
 ]

@@ -17,6 +17,12 @@
 """Google-Genai embedder model."""
 
 import enum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
 
 from google import genai
 
@@ -24,7 +30,7 @@ from genkit.plugins.google_genai.models.utils import PartConverter
 from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 
-class VertexEmbeddingModels(enum.StrEnum):
+class VertexEmbeddingModels(StrEnum):
     """Embedding models supported by Google-Genai vertex."""
 
     GECKO_003_ENG = 'textembedding-gecko@003'
@@ -34,7 +40,7 @@ class VertexEmbeddingModels(enum.StrEnum):
     TEXT_EMBEDDING_002_MULTILINGUAL = 'text-multilingual-embedding-002'
 
 
-class GeminiEmbeddingModels(enum.StrEnum):
+class GeminiEmbeddingModels(StrEnum):
     """Embedding models supported by Google-Genai gemini."""
 
     GEMINI_EMBEDDING_EXP_03_07 = 'gemini-embedding-exp-03-07'
@@ -42,7 +48,9 @@ class GeminiEmbeddingModels(enum.StrEnum):
     EMBEDDING_001 = 'embedding-001'
 
 
-class EmbeddingTaskType(enum.StrEnum):
+class EmbeddingTaskType(StrEnum):
+    """Embedding task types supported by Google-Genai."""
+
     RETRIEVAL_QUERY = 'RETRIEVAL_QUERY'
     RETRIEVAL_DOCUMENT = 'RETRIEVAL_DOCUMENT'
     SEMANTIC_SIMILARITY = 'SEMANTIC_SIMILARITY'
@@ -53,16 +61,24 @@ class EmbeddingTaskType(enum.StrEnum):
 
 
 class Embedder:
+    """Embedder for Google-Genai."""
+
     def __init__(
         self,
         version: VertexEmbeddingModels | GeminiEmbeddingModels | str,
         client: genai.Client,
     ):
+        """Initialize the embedder.
+
+        Args:
+            version: Embedding model version.
+            client: Google-Genai client.
+        """
         self._client = client
         self._version = version
 
-    async def agenerate(self, request: EmbedRequest) -> EmbedResponse:
-        """Generate embeddings for a given request
+    async def generate(self, request: EmbedRequest) -> EmbedResponse:
+        """Generate embeddings for a given request.
 
         Args:
             request: Genkit embed request.
@@ -86,7 +102,6 @@ class Embedder:
         Returns:
             list of google-genai contents.
         """
-
         request_contents: list[genai.types.Content] = []
         for doc in request.input:
             content_parts: list[genai.types.Part] = []
@@ -105,7 +120,6 @@ class Embedder:
         Returns:
             Google Ai embed config or None.
         """
-
         cfg = None
         if request.options:
             cfg = genai.types.EmbedContentConfig(

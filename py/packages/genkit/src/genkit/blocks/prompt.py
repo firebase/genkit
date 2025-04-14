@@ -157,6 +157,7 @@ class ExecutablePrompt:
         input: Any | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         context: dict[str, Any] | None = None,
+        timeout: float | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
         Future[GenerateResponseWrapper],
@@ -167,12 +168,13 @@ class ExecutablePrompt:
             input: The input to the prompt.
             config: The generation configuration.
             context: The action run context.
+            timeout: The timeout for the streaming action.
 
         Returns:
             A tuple containing an async iterator of response chunks and a future
             that resolves to the complete response.
         """
-        stream = Channel()
+        stream = Channel(timeout=timeout)
 
         resp = self.__call__(
             input=input,

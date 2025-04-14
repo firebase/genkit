@@ -23,11 +23,12 @@ from genkit.ai import (
     ToolRunContext,
     tool_response,
 )
-from genkit.plugins.google_genai import GoogleGenai
+from genkit.plugins.google_genai import GoogleAI, googleai_name
+from genkit.plugins.google_genai.models import gemini
 
 ai = Genkit(
-    plugins=[GoogleGenai()],
-    model='google_genai/gemini-2.0-flash',
+    plugins=[GoogleAI()],
+    model=googleai_name(gemini.GoogleAIGeminiVersion.GEMINI_2_0_FLASH),
 )
 
 
@@ -38,12 +39,14 @@ class TriviaQuestions(BaseModel):
     answers: list[str] = Field(description='list of multiple choice answers (typically 4), 1 correct 3 wrong')
 
 
-@ai.tool("can present questions to the user, responds with the user' selected answer")
+@ai.tool()
 def present_questions(questions: TriviaQuestions, ctx: ToolRunContext):
+    """Can present questions to the user, responds with the user' selected answer."""
     ctx.interrupt(questions)
 
 
 async def main() -> None:
+    """Main function."""
     response = await ai.generate(
         prompt='You a trivia game host. Cheerfully greet the user when they '
         + 'first join and ank them to for the theme of the trivia game, suggest '

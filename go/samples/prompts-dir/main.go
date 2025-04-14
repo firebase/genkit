@@ -18,7 +18,10 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}), genkit.WithPromptDir("prompts"))
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+		genkit.WithPromptDir("prompts"),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,11 +32,15 @@ func main() {
 		Name     string `json:"name"`
 	}
 
+	type greeting struct {
+		Greeting string `json:"greeting"`
+	}
+
 	// Define a simple flow that prompts an LLM to generate greetings using a
 	// given style.
 	genkit.DefineFlow(g, "assistantGreetingFlow", func(ctx context.Context, input greetingStyle) (string, error) {
 		// Look up the prompt by name
-		prompt := genkit.LookupPrompt(g, "local", "example")
+		prompt := genkit.LookupPrompt(g, "example")
 		if prompt == nil {
 			return "", errors.New("assistantGreetingFlow: failed to find prompt")
 		}
@@ -43,8 +50,13 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		text := resp.Text()
-		return text, nil
+
+		var output greeting
+		if err = resp.Output(&output); err != nil {
+			return "", err
+		}
+
+		return output.Greeting, nil
 	})
 
 	<-ctx.Done()

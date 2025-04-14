@@ -11,9 +11,7 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import pytest
 
-from genkit.ai import Genkit
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
+from genkit.ai import Genkit, GenkitRegistry, Plugin
 from genkit.core.action.types import ActionKind, ActionMetadataKey
 from genkit.core.registry import Registry
 

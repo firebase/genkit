@@ -69,7 +69,7 @@ See the following code samples for a concrete idea of how to use these capabilit
         async for chunk in stream:
             print(chunk.text)
 
-    asyncio.run(main())
+    ai.run_main(main())
     ```
 
 === "Structured output"
@@ -100,7 +100,7 @@ See the following code samples for a concrete idea of how to use these capabilit
         )
         print(json.dumps(result.output))
 
-    asyncio.run(main())
+    ai.run_main(main())
     ```
 
 === "Tool calling"
@@ -119,8 +119,9 @@ See the following code samples for a concrete idea of how to use these capabilit
     class WeatherToolInput(BaseModel):
         location: str = Field(description='weather location')
 
-    @ai.tool('Use it to get weather')
+    @ai.tool()
     def get_weather(input:WeatherToolInput) -> str:
+        """Use it get the weather."""
         return f'Weather in {input.location} is 23°'
 
     async def main():
@@ -130,7 +131,7 @@ See the following code samples for a concrete idea of how to use these capabilit
         )
         print(result.text)
 
-    asyncio.run(main())
+    ai.run_main(main())
     ```
 
 ## Development tools

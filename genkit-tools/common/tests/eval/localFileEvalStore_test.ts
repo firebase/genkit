@@ -23,6 +23,7 @@ import {
   jest,
 } from '@jest/globals';
 import fs from 'fs';
+import { Readable } from 'stream';
 import { LocalFileEvalStore } from '../../src/eval/localFileEvalStore';
 import { EvalResult, EvalRunSchema, EvalStore } from '../../src/types/eval';
 
@@ -168,6 +169,39 @@ describe('localFileEvalStore', () => {
         EVAL_RUN_WITH_ACTION.key.evalRunId
       );
       expect(fetchedEvalRun).toBeUndefined();
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes an evalRun file by id', async () => {
+      fs.existsSync = jest.fn(() => true);
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.unlink = jest.fn(async () => Promise.resolve(undefined));
+      const mockedReadStream = Readable.from(
+        JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) +
+          '\n' +
+          JSON.stringify(EVAL_RUN_WITH_ACTION.key) +
+          '\n'
+      );
+      fs.createReadStream = jest.fn(() => mockedReadStream as any);
+
+      const response = await evalStore.delete(
+        EVAL_RUN_WITH_ACTION.key.evalRunId
+      );
+
+      expect(response).toBeUndefined();
+      expect(fs.promises.writeFile).toHaveBeenCalledWith(
+        expect.stringContaining(`evals/index.txt`),
+        JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) + '\n'
+      );
+    });
+
+    it('returns undefined if file does not exist', async () => {
+      fs.existsSync = jest.fn(() => false);
+
+      expect(() =>
+        evalStore.delete(EVAL_RUN_WITH_ACTION.key.evalRunId)
+      ).rejects.toThrow();
     });
   });
 

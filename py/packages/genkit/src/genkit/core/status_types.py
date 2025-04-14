@@ -181,7 +181,7 @@ class StatusCodes(IntEnum):
 
 
 # Type alias for status names
-type StatusName = Literal[
+StatusName = Literal[
     'OK',
     'CANCELLED',
     'UNKNOWN',

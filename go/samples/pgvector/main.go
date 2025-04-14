@@ -100,8 +100,8 @@ func run(g *genkit.Genkit) error {
 
 	genkit.DefineFlow(g, "askQuestion", func(ctx context.Context, in input) (string, error) {
 		res, err := ai.Retrieve(ctx, retriever,
-			ai.WithRetrieverOpts(in.Show),
-			ai.WithRetrieverText(in.Question))
+			ai.WithConfig(in.Show),
+			ai.WithTextDocs(in.Question))
 		if err != nil {
 			return "", err
 		}
@@ -122,7 +122,7 @@ const provider = "pgvector"
 // [START retr]
 func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Query))
+		eres, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Query))
 		if err != nil {
 			return nil, err
 		}
@@ -174,7 +174,7 @@ func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexe
 			WHERE show_id = $1 AND season_number = $2 AND episode_id = $3
 		`
 	return genkit.DefineIndexer(g, provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
-		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Documents...))
+		res, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Documents...))
 		if err != nil {
 			return err
 		}
@@ -225,5 +225,5 @@ func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) erro
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	return ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...))
+	return ai.Index(ctx, indexer, ai.WithDocs(docs...))
 }

@@ -36,19 +36,22 @@ from genkit.testing import (
 
 @pytest.fixture
 def setup_test():
+    """Setup the test."""
     ai = Genkit()
 
     pm, _ = define_programmable_model(ai)
 
-    @ai.tool('the tool')
-    def testTool():
-        return 'abc'
+    @ai.tool(name='testTool')
+    def test_tool():
+        """description"""
+        return 'tool called'
 
     return (ai, pm)
 
 
 @pytest.mark.asyncio
 async def test_simple_text_generate_request(setup_test) -> None:
+    """Test that the generate action can generate text."""
     ai, pm = setup_test
 
     pm.responses.append(
@@ -328,8 +331,9 @@ async def test_generate_action_spec(spec) -> None:
 
     pm, _ = define_programmable_model(ai)
 
-    @ai.tool('description')
-    def testTool():
+    @ai.tool(name='testTool')
+    def test_tool():
+        """description"""
         return 'tool called'
 
     if 'modelResponses' in spec:

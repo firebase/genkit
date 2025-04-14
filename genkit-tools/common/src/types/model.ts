@@ -189,7 +189,6 @@ export const OutputConfigSchema = z.object({
   format: z.string().optional(),
   schema: z.record(z.any()).optional(),
   constrained: z.boolean().optional(),
-  instructions: z.string().optional(),
   contentType: z.string().optional(),
 });
 

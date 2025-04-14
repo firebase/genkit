@@ -48,8 +48,8 @@ Usage:
 from __future__ import annotations
 
 import abc
-import enum
 import socket
+import sys
 
 import structlog
 
@@ -57,19 +57,23 @@ from genkit.web.typing import Application
 
 logger = structlog.get_logger(__name__)
 
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
-class ServerType(enum.StrEnum):
-    """Enum defining available ASGI server implementations.
 
-    This enum provides a type-safe way to specify and reference supported ASGI
-    server implementations. It inherits from both str and Enum to allow for
-    string comparison while maintaining type safety.
+class ServerType(StrEnum):
+    """Supported ASGI server types.
 
-    The following server types are supported:
+    The ServerType enum provides a type-safe way to specify the type of ASGI
+    server to use. It is used by the ASGIServerAdapter factory method to
+    determine which adapter to use.
 
-    - [Uvicorn](https://www.uvicorn.org/)
-    - [Granian](https://github.com/emmett-framework/granian)
+    The supported values are:
 
+    - `UVICORN`: For serving applications with Uvicorn
+    - `GRANIAN`: For serving applications with Granian
     """
 
     UVICORN = 'uvicorn'

@@ -40,7 +40,7 @@
           "run": "bin/fmt"
         },
         {
-          "run": "py/bin/run_python_tests"
+          "run": "py/bin/run_python_tests_with_tox p"
         },
         {
           "run": "echo 'disabled' || uv run --directory py mkdocs build"
@@ -80,7 +80,7 @@
           "run": "bin/fmt"
         },
         {
-          "run": "py/bin/run_python_tests"
+          "run": "py/bin/run_python_tests_with_tox p"
         },
         {
           "run": "echo 'disabled' || uv run --directory py mkdocs build"

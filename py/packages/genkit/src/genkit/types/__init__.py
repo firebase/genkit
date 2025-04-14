@@ -19,7 +19,9 @@
 Users should import Genkit types from this module.
 """
 
+from genkit.blocks.document import Document
 from genkit.blocks.model import GenerateResponseChunkWrapper, GenerateResponseWrapper, MessageWrapper
+from genkit.core.action import ActionRunContext
 from genkit.core.error import GenkitError, StatusName
 from genkit.core.typing import (
     BaseEvalDataPoint,
@@ -33,6 +35,7 @@ from genkit.core.typing import (
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
+    GenerateActionOptions,
     GenerateRequest,
     GenerateResponse,
     GenerateResponseChunk,
@@ -42,6 +45,7 @@ from genkit.core.typing import (
     MediaPart,
     Message,
     ModelInfo,
+    OutputConfig,
     Part,
     RetrieverRequest,
     RetrieverResponse,
@@ -50,6 +54,7 @@ from genkit.core.typing import (
     Stage,
     Supports,
     TextPart,
+    ToolChoice,
     ToolDefinition,
     ToolRequest,
     ToolRequestPart,
@@ -58,42 +63,47 @@ from genkit.core.typing import (
 )
 
 __all__ = [
+    ActionRunContext.__name__,
     BaseEvalDataPoint.__name__,
     CustomPart.__name__,
     Details.__name__,
     Docs.__name__,
+    Document.__name__,
     DocumentData.__name__,
     EmbedRequest.__name__,
     EmbedResponse.__name__,
+    Embedding.__name__,
     EvalFnResponse.__name__,
     EvalRequest.__name__,
     EvalResponse.__name__,
-    Embedding.__name__,
+    GenerateActionOptions.__name__,
     GenerateRequest.__name__,
     GenerateResponse.__name__,
     GenerateResponseChunk.__name__,
+    GenerateResponseChunkWrapper.__name__,
+    GenerateResponseWrapper.__name__,
     GenerationCommonConfig.__name__,
     GenerationUsage.__name__,
+    GenkitError.__name__,
     Media.__name__,
     MediaPart.__name__,
     Message.__name__,
+    MessageWrapper.__name__,
     ModelInfo.__name__,
+    OutputConfig.__name__,
     Part.__name__,
     RetrieverRequest.__name__,
     RetrieverResponse.__name__,
     Role.__name__,
     Score.__name__,
     Stage.__name__,
+    StatusName.__name__,
     Supports.__name__,
     TextPart.__name__,
+    ToolChoice.__name__,
     ToolDefinition.__name__,
     ToolRequest.__name__,
     ToolRequestPart.__name__,
     ToolResponse.__name__,
     ToolResponsePart.__name__,
-    GenerateResponseWrapper.__name__,
-    GenerateResponseChunkWrapper.__name__,
-    MessageWrapper.__name__,
-    GenkitError.__name__,
-    StatusName.__name__,
 ]

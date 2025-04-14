@@ -22,8 +22,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/firebase/genkit/go/ai"
 	"google.golang.org/genai"
@@ -109,7 +109,7 @@ func handleCache(
 	if cs.ttl > 0 {
 		cache, err = client.Caches.Create(ctx, model, &genai.CreateCachedContentConfig{
 			DisplayName: hash,
-			TTL:         strconv.Itoa(cs.ttl) + "s",
+			TTL:         time.Duration(cs.ttl) * time.Second,
 			Contents:    messages,
 		})
 		if err != nil {
@@ -128,7 +128,7 @@ func getMessagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, err
 		if m.Role == ai.RoleSystem {
 			continue
 		}
-		parts, err := convertParts(m.Content)
+		parts, err := toGeminiParts(m.Content)
 		if err != nil {
 			return nil, err
 		}

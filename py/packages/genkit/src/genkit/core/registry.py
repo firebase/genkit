@@ -52,7 +52,7 @@ from genkit.core.action.types import ActionKind, ActionName, ActionResolver
 #     },
 # }
 # ```
-type ActionStore = dict[ActionKind, dict[ActionName, Action]]
+ActionStore = dict[ActionKind, dict[ActionName, Action]]
 
 
 class Registry:

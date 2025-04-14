@@ -71,8 +71,17 @@ type dataPart struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
+type EmbedRequest struct {
+	Input   []*Document `json:"input,omitempty"`
+	Options any         `json:"options,omitempty"`
+}
+
+type EmbedResponse struct {
+	Embeddings []*Embedding `json:"embeddings,omitempty"`
+}
+
 type Embedding struct {
-	Embedding []float64      `json:"embedding,omitempty"`
+	Embedding []float32      `json:"embedding,omitempty"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
@@ -142,7 +151,7 @@ type GenerateActionOutputConfig struct {
 	Constrained  bool           `json:"constrained,omitempty"`
 	ContentType  string         `json:"contentType,omitempty"`
 	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
+	Instructions *string        `json:"instructions,omitempty"`
 	JsonSchema   map[string]any `json:"jsonSchema,omitempty"`
 }
 
@@ -284,11 +293,10 @@ type ModelResponseChunk struct {
 // should conform to. If Format is [OutputFormatJSON], then Schema
 // can describe the desired form of the generated JSON.
 type ModelOutputConfig struct {
-	Constrained  bool           `json:"constrained,omitempty"`
-	ContentType  string         `json:"contentType,omitempty"`
-	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
-	Schema       map[string]any `json:"schema,omitempty"`
+	Constrained bool           `json:"constrained,omitempty"`
+	ContentType string         `json:"contentType,omitempty"`
+	Format      string         `json:"format,omitempty"`
+	Schema      map[string]any `json:"schema,omitempty"`
 }
 
 type PathMetadata struct {
@@ -315,6 +323,15 @@ type RerankerRequest struct {
 
 type RerankerResponse struct {
 	Documents []*RankedDocumentData `json:"documents,omitempty"`
+}
+
+type RetrieverRequest struct {
+	Options any       `json:"options,omitempty"`
+	Query   *Document `json:"query,omitempty"`
+}
+
+type RetrieverResponse struct {
+	Documents []*Document `json:"documents,omitempty"`
 }
 
 // Role indicates which entity is responsible for the content of a message.

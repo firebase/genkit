@@ -2,7 +2,7 @@
 
 This is for both bots and humans.
 
-Target: Python >= 3.12
+Target: Python >= 3.10
 
 ### Typing & Style
 

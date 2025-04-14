@@ -44,7 +44,7 @@ async def test_embedding(mocker, version):
 
     embedder = Embedder(version, googleai_client_mock)
 
-    response = await embedder.agenerate(request)
+    response = await embedder.generate(request)
 
     googleai_client_mock.assert_has_calls([
         mocker.call.aio.models.embed_content(

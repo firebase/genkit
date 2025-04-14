@@ -25,7 +25,14 @@ actions, tools, and configuration options.
 
 from __future__ import annotations
 
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
+
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
@@ -285,7 +292,6 @@ class OutputConfig(BaseModel):
     format: str | None = None
     schema_: dict[str, Any] | None = Field(None, alias='schema')
     constrained: bool | None = None
-    instructions: str | None = None
     content_type: str | None = Field(None, alias='contentType')
 
 

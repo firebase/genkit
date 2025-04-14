@@ -38,7 +38,7 @@ async def draw_image_with_gemini() -> str:
         The image.
     """
     return await ai.generate(
-        messages=[Message(role=Role.USER, content=[TextPart(text='Draw a cat in a hat.')])],
+        prompt='Draw a cat in a hat.',
         config={'response_modalities': ['Text', 'Image']},
         model=googleai_name('gemini-2.0-flash-exp'),
     )
@@ -69,7 +69,8 @@ async def describe_image_with_gemini(data: str) -> str:
     return result.text
 
 
-async def main():
+async def main() -> None:
+    """Main function."""
     # Gemini describes an image.  Works both on Gemini API and VertexAI API.
     # Make sure that there is image.jpg on root directory of current sample.
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -89,6 +90,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
-
-ai.join()
+    ai.run_main(main())

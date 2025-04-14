@@ -31,7 +31,7 @@ export const selfSummaryFlow = ai.defineFlow( {
   outputSchema: z.string(),
 }, async (input, { context }) => {
   if (!context.auth) {
-    throw new UserFacingErrorError('UNAUTHENTICATED', 'Unauthenticated');
+    throw new UserFacingError('UNAUTHENTICATED', 'Unauthenticated');
   }
   if (input.uid !== context.auth.uid) {
     throw new UserFacingError('PERMISSION_DENIED', 'You may only summarize your own profile data.');
@@ -258,11 +258,11 @@ You could secure a simple "flow server" express app by writing:
 
 ```ts
 import { apiKey } from "genkit";
-import { startFlowServer, withContext } from "@genkit-ai/express";
+import { startFlowServer, withContextProvider } from "@genkit-ai/express";
 
 startFlowServer({
   flows: [
-    withContext(selfSummaryFlow, apiKey(process.env.REQUIRED_API_KEY))
+    withContextProvider(selfSummaryFlow, apiKey(process.env.REQUIRED_API_KEY))
   ],
 });
 ```

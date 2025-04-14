@@ -37,7 +37,7 @@ from genkit.types import (
 class OpenAIModelHandler:
     """Handles OpenAI API interactions for the Genkit plugin."""
 
-    def __init__(self, model: Any):
+    def __init__(self, model: Any) -> None:
         """Initializes the OpenAIModelHandler with a specified model.
 
         Args:
@@ -60,6 +60,7 @@ class OpenAIModelHandler:
         Args:
             model: The OpenAI model name.
             client: OpenAI client instance.
+            registry: Genkit registry instance.
 
         Returns:
             A callable function that acts as an action handler.
@@ -73,7 +74,7 @@ class OpenAIModelHandler:
         openai_model = OpenAIModel(model, client, registry)
         return cls(openai_model).generate
 
-    def validate_version(self, version: str):
+    def _validate_version(self, version: str) -> None:
         """Validates whether the specified model version is supported.
 
         Args:
@@ -85,6 +86,16 @@ class OpenAIModelHandler:
         model_info = SUPPORTED_OPENAI_MODELS[self._model.name]
         if version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
+
+    def _normalize_config(self, config: Any) -> OpenAIConfig:
+        """Ensures the config is an OpenAIConfig instance."""
+        if isinstance(config, OpenAIConfig):
+            return config
+
+        if isinstance(config, dict):
+            return OpenAIConfig(**config)
+
+        raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')
 
     def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
@@ -99,11 +110,10 @@ class OpenAIModelHandler:
         Raises:
             ValueError: If the specified model version is not supported.
         """
-        if isinstance(request.config, dict):
-            request.config = OpenAIConfig(**request.config)
+        request.config = self._normalize_config(request.config)
 
-        if request.config:
-            self.validate_version(request.config.model)
+        if request.config.model:
+            self._validate_version(request.config.model)
 
         if ctx.is_streaming:
             return self._model.generate_stream(request, ctx.send_chunk)

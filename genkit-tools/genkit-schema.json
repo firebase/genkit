@@ -1012,9 +1012,6 @@
         "constrained": {
           "type": "boolean"
         },
-        "instructions": {
-          "type": "string"
-        },
         "contentType": {
           "type": "string"
         }

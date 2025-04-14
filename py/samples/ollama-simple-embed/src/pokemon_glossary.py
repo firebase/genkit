@@ -32,7 +32,6 @@ from genkit.plugins.ollama.constants import OllamaAPITypes
 from genkit.plugins.ollama.models import (
     EmbeddingModelDefinition,
     ModelDefinition,
-    OllamaPluginParams,
 )
 from genkit.types import GenerateResponse
 
@@ -42,25 +41,21 @@ EMBEDDER_MODEL = 'nomic-embed-text'
 EMBEDDER_DIMENSIONS = 768
 GENERATE_MODEL = 'phi3.5:latest'
 
-plugin_params = OllamaPluginParams(
-    models=[
-        ModelDefinition(
-            name=GENERATE_MODEL,
-            api_type=OllamaAPITypes.GENERATE,
-        )
-    ],
-    embedders=[
-        EmbeddingModelDefinition(
-            name=EMBEDDER_MODEL,
-            dimensions=512,
-        )
-    ],
-)
-
 ai = Genkit(
     plugins=[
         Ollama(
-            plugin_params=plugin_params,
+            models=[
+                ModelDefinition(
+                    name=GENERATE_MODEL,
+                    api_type=OllamaAPITypes.GENERATE,
+                )
+            ],
+            embedders=[
+                EmbeddingModelDefinition(
+                    name=EMBEDDER_MODEL,
+                    dimensions=512,
+                )
+            ],
         )
     ],
 )
@@ -107,7 +102,7 @@ async def embed_pokemons() -> None:
     """Embed the Pokemons."""
     for pokemon in pokemon_list:
         embedding_response = await ai.embed(
-            model=ollama_name(EMBEDDER_MODEL),
+            embedder=ollama_name(EMBEDDER_MODEL),
             documents=[Document.from_text(pokemon.description)],
         )
         if embedding_response.embeddings:
@@ -173,7 +168,7 @@ async def generate_response(question: str) -> GenerateResponse:
         A GenerateResponse object with the answer.
     """
     input_embedding = await ai.embed(
-        model=ollama_name(EMBEDDER_MODEL),
+        embedder=ollama_name(EMBEDDER_MODEL),
         documents=[Document.from_text(text=question)],
     )
     nearest_pokemon = find_nearest_pokemons(input_embedding.embeddings[0].embedding)

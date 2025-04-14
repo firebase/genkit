@@ -8,23 +8,20 @@ classifiers = [
   "Operating System :: OS Independent",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3 :: Only",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = [
-  "genkit",
-  "genkit-plugin-google-ai",
-  "genkit-plugin-google-genai",
-  "pydantic>=2.10.5",
-]
-description = "Hello world sample"
+dependencies = ["genkit", "genkit-plugin-google-genai", "pydantic>=2.10.5"]
+description = "Tool interrupts sample"
 license = { text = "Apache-2.0" }
-name = "tool-interrupt"
+name = "tool-interrupts"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 version = "0.1.0"
 
 [build-system]
@@ -32,4 +29,4 @@ build-backend = "hatchling.build"
 requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/hello"]
+packages = ["src/tool_interrupts"]

@@ -22,16 +22,20 @@ model.
 """
 
 from collections.abc import Callable
+from typing import TypeVar
 
 from genkit.core.typing import (
     BaseEvalDataPoint,
     EvalFnResponse,
     EvalRequest,
-    EvalResponse,
 )
 
-# User-provided evaluator function that evaluates a single datapoint
-type EvaluatorFn[T] = Callable[[BaseEvalDataPoint, T], EvalFnResponse]
+T = TypeVar('T')
+
+# User-provided evaluator function that evaluates a single datapoint.
+# type EvaluatorFn[T] = Callable[[BaseEvalDataPoint, T], EvalFnResponse]
+EvaluatorFn = Callable[[BaseEvalDataPoint, T], EvalFnResponse]
 
 # User-provided batch evaluator function that evaluates an EvaluationRequest
-type BatchEvaluatorFn = Callable[[EvalRequest], EvalResponse]
+# type BatchEvaluatorFn[T] = Callable[[EvalRequest, T], list[EvalFnResponse]]
+BatchEvaluatorFn = Callable[[EvalRequest, T], list[EvalFnResponse]]

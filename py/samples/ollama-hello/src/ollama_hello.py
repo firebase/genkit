@@ -37,16 +37,13 @@ import asyncio
 import json
 
 import structlog
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.models import (
     ModelDefinition,
-    OllamaAPITypes,
-    OllamaPluginParams,
 )
-from genkit.types import Message, Role, TextPart
 
 logger = structlog.get_logger(__name__)
 
@@ -60,23 +57,13 @@ MISTRAL_MODEL = 'mistral-nemo:latest'
 # Run your ollama models with `ollama run *MODEL_NAME*`
 # e.g. `ollama run gemma3:latest`
 
-plugin_params = OllamaPluginParams(
-    models=[
-        ModelDefinition(
-            name=GEMMA_MODEL,
-            api_type=OllamaAPITypes.CHAT,
-        ),
-        ModelDefinition(
-            name=MISTRAL_MODEL,
-            api_type=OllamaAPITypes.CHAT,
-        ),
-    ],
-)
-
 ai = Genkit(
     plugins=[
         Ollama(
-            plugin_params=plugin_params,
+            models=[
+                ModelDefinition(name=GEMMA_MODEL),
+                ModelDefinition(name=MISTRAL_MODEL),
+            ],
         )
     ],
     model=ollama_name(GEMMA_MODEL),
@@ -105,17 +92,30 @@ class GablorkenOutputSchema(BaseModel):
     result: int
 
 
-@ai.tool('calculates a gablorken')
-def gablorken_tool(input: int) -> int:
-    """Calculate a gablorken.
+class GablorkenInput(BaseModel):
+    """Input model for the gablorken tool function.
 
-    Args:
-        input: The input to calculate gablorken for.
-
-    Returns:
-        The calculated gablorken.
+    Attributes:
+        value: The value to calculate gablorken for.
     """
-    return input * 3 - 5
+
+    value: int = Field(description='value to calculate gablorken for')
+
+
+@ai.tool()
+def gablorken_tool(input: GablorkenInput):
+    """Calculate a gablorken."""
+    return input.value * 3 - 5
+
+
+class WeatherToolInput(BaseModel):
+    location: str = Field(description='weather location')
+
+
+@ai.tool()
+def get_weather(input: WeatherToolInput) -> str:
+    """Use it get the weather."""
+    return f'Weather in {input.location} is 23°'
 
 
 @ai.flow()
@@ -128,17 +128,29 @@ async def say_hi(hi_input: str):
     Returns:
         A GenerateRequest object with the greeting message.
     """
-    return await ai.generate(
+    response = await ai.generate(
         model=ollama_name(GEMMA_MODEL),
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[
-                    TextPart(text='hi ' + hi_input),
-                ],
-            )
-        ],
+        prompt='hi ' + hi_input,
     )
+    return response.text
+
+
+@ai.flow()
+async def weather_flow(location: str):
+    """Generate a request to calculate gablorken according to gablorken_tool.
+
+    Args:
+        value: Input data containing number
+
+    Returns:
+        A GenerateRequest object with the evaluation output
+    """
+    response = await ai.generate(
+        prompt=f'what is the weather in {location}',
+        model=ollama_name(MISTRAL_MODEL),
+        tools=['get_weather'],
+    )
+    return response.text
 
 
 @ai.flow()
@@ -152,20 +164,11 @@ async def calculate_gablorken(value: int):
         A GenerateRequest object with the evaluation output
     """
     response = await ai.generate(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[
-                    TextPart(text=f'run "gablorken_tool" for {value}'),
-                ],
-            )
-        ],
-        output_schema=GablorkenOutputSchema,
+        prompt=f'what is the gablorken of {value}',
         model=ollama_name(MISTRAL_MODEL),
         tools=['gablorken_tool'],
     )
-    message_raw = response.message.content[0].root.text
-    return GablorkenOutputSchema.model_validate(json.loads(message_raw))
+    return response.text
 
 
 @ai.flow()
@@ -179,18 +182,10 @@ async def say_hi_constrained(hi_input: str):
         A `HelloSchema` object with the greeting message.
     """
     response = await ai.generate(
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[
-                    TextPart(text='hi ' + hi_input),
-                ],
-            )
-        ],
+        prompt='hi ' + hi_input,
         output_schema=HelloSchema,
     )
-    message_raw = response.message.content[0].root.text
-    return HelloSchema.model_validate(json.loads(message_raw))
+    return response.output
 
 
 async def main() -> None:
@@ -201,8 +196,8 @@ async def main() -> None:
     """
     await logger.ainfo(await say_hi('John Doe'))
     await logger.ainfo(await say_hi_constrained('John Doe'))
-    await logger.ainfo(await calculate_gablorken(3))
+    await logger.ainfo(await calculate_gablorken(33))
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    ai.run_main(main())

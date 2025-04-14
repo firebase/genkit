@@ -36,7 +36,7 @@ class OpenAI(Plugin):
 
     name = 'openai-compat'
 
-    def __init__(self, **openai_params):
+    def __init__(self, **openai_params) -> None:
         """Initializes the OpenAI plugin with the specified parameters.
 
         Args:
@@ -63,7 +63,7 @@ class OpenAI(Plugin):
                 metadata={
                     'model': {
                         'label': model_info.label,
-                        'supports': {'multiturn': model_info.supports.multiturn},
+                        'supports': {'multiturn': model_info.supports.multiturn} if model_info.supports else {},
                     },
                 },
             )

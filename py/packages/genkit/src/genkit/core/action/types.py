@@ -18,15 +18,27 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
-from enum import StrEnum
-from typing import Any
+from typing import Any, Awaitable, Dict, List, Literal, Protocol, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-type ActionName = str
+if sys.version_info < (3, 11):
+    from strenum import StrEnum
+else:
+    from enum import StrEnum
 
-type ActionResolver = Callable[[ActionKind, str], None]
+# Type alias for action name.
+# type ActionName = str
+ActionName = str
+
+# Type alias for action metadata key.
+# type ActionMetadataKey = str
+ActionMetadataKey = str
+
+# type ActionResolver = Callable[[ActionKind, str], None]
+ActionResolver = Callable[['ActionKind', str], None]
 
 
 class ActionKind(StrEnum):

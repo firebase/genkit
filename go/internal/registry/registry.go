@@ -166,6 +166,13 @@ func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 	r.tstate.RegisterSpanProcessor(sp)
 }
 
+// ListValues returns a list of values of all registered values.
+func (r *Registry) ListValues() map[string]any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.values
+}
+
 // An Environment is the execution context in which the program is running.
 type Environment string
 

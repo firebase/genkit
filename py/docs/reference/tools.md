@@ -101,21 +101,22 @@ from genkit.plugins.google_genai import GoogleGenai
 
 ai = Genkit(
     plugins=[GoogleGenai()],
-    model='google_genai/gemini-2.0-flash',
+    model='googleai/gemini-2.0-flash',
 )
 
 class WeatherInput(BaseModel):
     location: str = Field(description='The location to get the current weather for')
 
 
-@ai.tool('Gets the current weather in a given location')
+@ai.tool()
 def get_weather(input: WeatherInput) -> str:
+    """Gets the current weather in a given location"""
     return f'The current weather in ${input.location} is 63°F and sunny.'
 ```
 
-The syntax here looks just like the `flow()` syntax; however `description` 
-parameter is required. When writing a tool definition, take special care 
-with the wording and descriptiveness of these parameters. They are vital 
+The syntax here looks just like the `flow()` syntax; however `description`
+parameter is required. When writing a tool definition, take special care
+with the wording and descriptiveness of these parameters. They are vital
 for the LLM to make effective use of the available tools.
 
 ### Using tools

@@ -77,7 +77,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, Protocol
 
 import structlog
 
@@ -86,6 +86,14 @@ from ._server import Server
 from .signals import SignalHandler
 
 logger = structlog.get_logger(__name__)
+
+
+class ServerManagerProtocol(Protocol):
+    """Protocol for a server manager."""
+
+    def queue_server(self, server: Server) -> None:
+        """Queue a server to be started."""
+        ...
 
 
 class ServerManager:
@@ -352,7 +360,7 @@ class ServerManager:
                 self._server_tasks.append(task)
                 self._server_queue.task_done()
             except Exception as e:
-                await logger.aerror('Error processing server from queue', error=e)
+                logger.exception('Error processing server from queue', error=e)
 
     async def _monitor_server_tasks(self) -> None:
         """Monitor server tasks for completion and log any errors."""
@@ -372,7 +380,7 @@ class ServerManager:
                         task_result=task_result,
                     )
                 except Exception as e:
-                    await logger.aerror('Server task failed with error', error=e)
+                    logger.exception('Server task failed with error', error=e)
                     # If a server task fails, we should trigger shutdown.
                     self._signal_handler.shutdown_event.set()
                     return
@@ -382,7 +390,7 @@ class ServerManager:
                 break
 
         # If we get here, all server tasks have completed.
-        await logger.ainfo('All server tasks have completed')
+        logger.info('All server tasks have completed')
         self._signal_handler.shutdown_event.set()
 
     async def _monitor_shutdown(self) -> None:
@@ -402,7 +410,7 @@ class ServerManager:
                 if asyncio.iscoroutine(result):
                     await result
             except Exception as e:
-                await logger.aerror('Error in shutdown callback', error=e)
+                logger.exception('Error in shutdown callback', error=e)
 
         # Stop all servers.
         for s in self._servers:
@@ -480,8 +488,8 @@ class ServerManager:
                 # Block until shutdown is triggered.
                 await self._signal_handler.shutdown_event.wait()
         except asyncio.CancelledError:
-            await logger.adebug('Servers task was cancelled')
+            logger.debug('Servers task was cancelled')
             raise
         except Exception as e:
-            await logger.aerror('Error running servers', error=e)
+            logger.exception('Error running servers', error=e)
             raise

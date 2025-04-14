@@ -29,6 +29,7 @@ we support:
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from typing import Union
 
 from asgiref import typing as atyping
 
@@ -43,6 +44,9 @@ except ImportError:
 try:
     import starlette
 
+    # Import the actual application class
+    from starlette.applications import Starlette as StarletteApp
+
     HAVE_STARLETTE = True
 except ImportError:
     HAVE_STARLETTE = False
@@ -50,33 +54,58 @@ except ImportError:
 
 # NOTE: Please ask these frameworks to standardize on asgiref.
 if HAVE_LITESTAR and HAVE_STARLETTE:
-    type Application = atyping.ASGIApplication | litestar.Litestar | starlette.Starlette
-    type HTTPScope = atyping.HTTPScope | litestar.HTTPScope | starlette.HTTPScope
-    type LifespanScope = atyping.LifespanScope | litestar.LifespanScope | starlette.LifespanScope
-    type Receive = atyping.ASGIReceiveCallable | litestar.Receive | starlette.Receive
-    type Scope = atyping.Scope | litestar.Scope | starlette.Scope
-    type Send = atyping.ASGISendCallable | litestar.Send | starlette.Send
+    # type Application = atyping.ASGIApplication | litestar.Litestar | starlette.Starlette
+    Application = Union[atyping.ASGIApplication, litestar.Litestar, StarletteApp]
+    # type HTTPScope = atyping.HTTPScope | litestar.HTTPScope | starlette.HTTPScope
+    HTTPScope = Union[atyping.HTTPScope, litestar.HTTPScope, starlette.types.Scope]
+    # type LifespanScope = atyping.LifespanScope | litestar.LifespanScope | starlette.LifespanScope
+    LifespanScope = Union[atyping.LifespanScope, litestar.LifespanScope, starlette.types.Scope]
+    # type Receive = atyping.ASGIReceiveCallable | litestar.Receive | starlette.Receive
+    Receive = Union[atyping.ASGIReceiveCallable, litestar.Receive, starlette.types.Receive]
+    # type Scope = atyping.Scope | litestar.Scope | starlette.Scope
+    Scope = Union[atyping.Scope, litestar.Scope, starlette.types.Scope]
+    # type Send = atyping.ASGISendCallable | litestar.Send | starlette.Send
+    Send = Union[atyping.ASGISendCallable, litestar.Send, starlette.types.Send]
 elif HAVE_LITESTAR:
-    type Application = atyping.ASGIApplication | litestar.Litestar
-    type HTTPScope = atyping.HTTPScope | litestar.HTTPScope
-    type LifespanScope = atyping.LifespanScope | litestar.LifespanScope
-    type Receive = atyping.ASGIReceiveCallable | litestar.Receive
-    type Scope = atyping.Scope | litestar.Scope
-    type Send = atyping.ASGISendCallable | litestar.Send
+    # type Application = atyping.ASGIApplication | litestar.Litestar
+    Application = Union[atyping.ASGIApplication, litestar.Litestar]
+    # type HTTPScope = atyping.HTTPScope | litestar.HTTPScope
+    HTTPScope = Union[atyping.HTTPScope, litestar.HTTPScope]
+    # type LifespanScope = atyping.LifespanScope | litestar.LifespanScope
+    LifespanScope = Union[atyping.LifespanScope, litestar.LifespanScope]
+    # type Receive = atyping.ASGIReceiveCallable | litestar.Receive
+    Receive = Union[atyping.ASGIReceiveCallable, litestar.Receive]
+    # type Scope = atyping.Scope | litestar.Scope
+    Scope = Union[atyping.Scope, litestar.Scope]
+    # type Send = atyping.ASGISendCallable | litestar.Send
+    Send = Union[atyping.ASGISendCallable, litestar.Send]
 elif HAVE_STARLETTE:
-    type Application = starlette.Starlette | atyping.ASGIApplication
-    type HTTPScope = atyping.HTTPScope | starlette.HTTPScope
-    type LifespanScope = atyping.LifespanScope | starlette.LifespanScope
-    type Receive = atyping.ASGIReceiveCallable | starlette.Receive
-    type Scope = atyping.Scope | starlette.Scope
-    type Send = atyping.ASGISendCallable | starlette.Send
+    # type Application = starlette.Starlette | atyping.ASGIApplication
+    Application = Union[StarletteApp, atyping.ASGIApplication]
+    # type HTTPScope = atyping.HTTPScope | starlette.HTTPScope
+    HTTPScope = Union[atyping.HTTPScope, starlette.types.Scope]
+    # type LifespanScope = atyping.LifespanScope | starlette.LifespanScope
+    LifespanScope = Union[atyping.LifespanScope, starlette.types.Scope]
+    # type Receive = atyping.ASGIReceiveCallable | starlette.Receive
+    Receive = Union[atyping.ASGIReceiveCallable, starlette.types.Receive]
+    # type Scope = atyping.Scope | starlette.Scope
+    Scope = Union[atyping.Scope, starlette.types.Scope]
+    # type Send = atyping.ASGISendCallable | starlette.Send
+    Send = Union[atyping.ASGISendCallable, starlette.types.Send]
 else:
-    type Application = atyping.ASGIApplication
-    type HTTPScope = atyping.HTTPScope
-    type LifespanScope = atyping.LifespanScope
-    type Receive = atyping.ASGIReceiveCallable
-    type Scope = atyping.Scope
-    type Send = atyping.ASGISendCallable
+    # type Application = atyping.ASGIApplication
+    Application = atyping.ASGIApplication
+    # type HTTPScope = atyping.HTTPScope
+    HTTPScope = atyping.HTTPScope
+    # type LifespanScope = atyping.LifespanScope
+    LifespanScope = atyping.LifespanScope
+    # type Receive = atyping.ASGIReceiveCallable
+    Receive = atyping.ASGIReceiveCallable
+    # type Scope = atyping.Scope
+    Scope = atyping.Scope
+    # type Send = atyping.ASGISendCallable
+    Send = atyping.ASGISendCallable
 
 # Type aliases for the web framework.
-type LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]
+# type LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]
+LifespanHandler = Callable[[LifespanScope, Receive, Send], Awaitable[None]]

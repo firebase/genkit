@@ -18,7 +18,7 @@ package ai
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
@@ -33,29 +33,8 @@ type Embedder interface {
 	Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error)
 }
 
-// An embedderActionDef is used to convert a document to a
-// multidimensional vector.
-type embedderActionDef core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
-
-type embedderAction = core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
-
-// EmbedRequest is the data we pass to convert one or more documents
-// to a multidimensional vector.
-type EmbedRequest struct {
-	Documents []*Document `json:"input"`
-	Options   any         `json:"options,omitempty"`
-}
-
-type EmbedResponse struct {
-	// One embedding for each Document in the request, in the same order.
-	Embeddings []*DocumentEmbedding `json:"embeddings"`
-}
-
-// DocumentEmbedding holds emdedding information about a single document.
-type DocumentEmbedding struct {
-	// The vector for the embedding.
-	Embedding []float32 `json:"embedding"`
-}
+// An embedder is used to convert a document to a multidimensional vector.
+type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
@@ -64,12 +43,7 @@ func DefineEmbedder(
 	provider, name string,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
-	return (*embedderActionDef)(core.DefineAction(r, provider, name, atype.Embedder, nil, embed))
-}
-
-// IsDefinedEmbedder reports whether an embedder is defined.
-func IsDefinedEmbedder(r *registry.Registry, provider, name string) bool {
-	return LookupEmbedder(r, provider, name) != nil
+	return (*embedder)(core.DefineAction(r, provider, name, atype.Embedder, nil, embed))
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
@@ -79,61 +53,33 @@ func LookupEmbedder(r *registry.Registry, provider, name string) Embedder {
 	if action == nil {
 		return nil
 	}
-	return (*embedderActionDef)(action)
+
+	return (*embedder)(action)
+}
+
+// Name returns the name of the embedder.
+func (e *embedder) Name() string {
+	return (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(e).Name()
 }
 
 // Embed runs the given [Embedder].
-func (e *embedderActionDef) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
-	if e == nil {
-		return nil, errors.New("Embed called on a nil Embedder; check that all embedders are defined")
-	}
-	a := (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(e)
-	return a.Run(ctx, req, nil)
-}
-
-func (e *embedderActionDef) Name() string {
-	return (*embedderAction)(e).Name()
-}
-
-// EmbedOption configures params of the Embed call.
-type EmbedOption func(req *EmbedRequest) error
-
-// WithEmbedOptions set embedder options on [EmbedRequest]
-func WithEmbedOptions(opts any) EmbedOption {
-	return func(req *EmbedRequest) error {
-		req.Options = opts
-		return nil
-	}
-}
-
-// WithEmbedText adds simple text documents to [EmbedRequest]
-func WithEmbedText(text ...string) EmbedOption {
-	return func(req *EmbedRequest) error {
-		var docs []*Document
-		for _, p := range text {
-			docs = append(docs, DocumentFromText(p, nil))
-		}
-		req.Documents = append(req.Documents, docs...)
-		return nil
-	}
-}
-
-// WithEmbedDocs adds documents to [EmbedRequest]
-func WithEmbedDocs(docs ...*Document) EmbedOption {
-	return func(req *EmbedRequest) error {
-		req.Documents = append(req.Documents, docs...)
-		return nil
-	}
+func (e *embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
+	return (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(e).Run(ctx, req, nil)
 }
 
 // Embed invokes the embedder with provided options.
-func Embed(ctx context.Context, e Embedder, opts ...EmbedOption) (*EmbedResponse, error) {
-	req := &EmbedRequest{}
-	for _, with := range opts {
-		err := with(req)
-		if err != nil {
-			return nil, err
+func Embed(ctx context.Context, e Embedder, opts ...EmbedderOption) (*EmbedResponse, error) {
+	embedOpts := &embedderOptions{}
+	for _, opt := range opts {
+		if err := opt.applyEmbedder(embedOpts); err != nil {
+			return nil, fmt.Errorf("ai.Embed: error applying options: %w", err)
 		}
 	}
+
+	req := &EmbedRequest{
+		Input:   embedOpts.Documents,
+		Options: embedOpts.Config,
+	}
+
 	return e.Embed(ctx, req)
 }

@@ -18,7 +18,12 @@
 
 import asyncio
 import threading
-from collections.abc import AsyncIterable, Callable, Iterable
+from collections.abc import AsyncIterable, Callable, Coroutine, Iterable
+from typing import Any
+
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 def create_loop():
@@ -36,7 +41,7 @@ def create_loop():
         return asyncio.new_event_loop()
 
 
-def run_async(loop: asyncio.AbstractEventLoop, fn: Callable):
+def run_async(loop: asyncio.AbstractEventLoop, fn: Callable) -> Any:
     """Runs an async callable on the given event loop and blocks until completion.
 
     If the loop is already running (e.g., called from within an async context),
@@ -56,8 +61,8 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable):
         Any exception raised by the callable `fn`.
     """
     if loop.is_running():
-        output = None
-        error = None
+        output: Any = None
+        error: Exception | None = None
         lock = threading.Lock()
         lock.acquire()
 
@@ -119,3 +124,26 @@ def iter_over_async(ait: AsyncIterable, loop: asyncio.AbstractEventLoop) -> Iter
         if done:
             break
         yield obj
+
+
+def run_loop(coro: Coroutine[Any, Any, Any], *args: Any, **kwargs: Any) -> Any:
+    """Runs a coroutine using uvloop if available.
+
+    Otherwise uses plain `asyncio.run`.
+
+    Args:
+        coro: The asynchronous coroutine to run.
+        *args: Additional positional arguments to pass to asyncio.run.
+        **kwargs: Additional keyword arguments to pass to asyncio.run.
+    """
+    try:
+        import uvloop
+
+        logger.debug('✅ Using uvloop (recommended)')
+        return uvloop.run(coro, *args, **kwargs)
+    except ImportError as e:
+        logger.debug(
+            '❓ Using asyncio (install uvloop for better performance)',
+            error=e,
+        )
+        return asyncio.run(coro, *args, **kwargs)

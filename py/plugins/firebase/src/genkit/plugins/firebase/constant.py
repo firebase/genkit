@@ -20,29 +20,5 @@ from collections.abc import Callable
 from typing import Any
 
 from google.cloud.firestore_v1 import DocumentSnapshot
-from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
-from pydantic import BaseModel
 
 MetadataTransformFn = Callable[[DocumentSnapshot], dict[str, Any]]
-
-
-class FirestoreRetrieverConfig(BaseModel):
-    """The name of the retriever."""
-
-    name: str
-    """The name of the Firestore collection to query."""
-    collection: str
-    """The name of the field containing the vector embeddings."""
-    vector_field: str
-    """The name of the field containing the document content, you wish to return."""
-    content_field: str | Callable[[DocumentSnapshot], list[dict[str, str]]]
-    """The embedder to use with this retriever."""
-    embedder: str
-    """Optional configuration to pass to the embedder."""
-    embedder_options: dict[str, Any] | None = None
-    """The distance measure to use when comparing vectors. Defaults to 'COSINE'."""
-    distance_measure: DistanceMeasure = DistanceMeasure.COSINE
-    """The Firestore database instance from which to query."""
-    firestore_client: Any
-    """Optional list of metadata fields to include."""
-    metadata_fields: list[str] | MetadataTransformFn | None = None

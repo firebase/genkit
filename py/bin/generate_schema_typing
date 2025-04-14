@@ -48,7 +48,9 @@ if [[ $CI_ENABLED == "true" ]] && [[ -f $TYPING_FILE ]]; then
 fi
 
 # Generate types using configuration from pyproject.toml.
-uv run --directory "${TOP_DIR}/py" datamodel-codegen
+uv run --directory "${TOP_DIR}/py" datamodel-codegen \
+  --formatters=ruff-check \
+  --formatters=ruff-format
 
 # Sanitize the generated schema.
 python3 "${TOP_DIR}/py/bin/sanitize_schema_typing.py" "${TYPING_FILE}"

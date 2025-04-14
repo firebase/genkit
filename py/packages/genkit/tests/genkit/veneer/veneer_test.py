@@ -51,7 +51,8 @@ from genkit.testing import (
     define_programmable_model,
 )
 
-type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
+# type SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
+SetupFixture = tuple[Genkit, EchoModel, ProgrammableModel]
 
 
 @pytest.fixture
@@ -289,8 +290,9 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     class ToolInput(BaseModel):
         value: int = Field(None, description='value field')
 
-    @ai.tool('the tool', name='testTool')
+    @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
+        """The tool."""
         return input.value
 
     response = await ai.generate(
@@ -305,7 +307,7 @@ async def test_generate_with_tools(setup_test: SetupFixture) -> None:
     want_request = [
         ToolDefinition(
             name='testTool',
-            description='the tool',
+            description='The tool.',
             input_schema={
                 'properties': {
                     'value': {
@@ -346,12 +348,14 @@ async def test_generate_with_iterrupting_tools(
     class ToolInput(BaseModel):
         value: int = Field(None, description='value field')
 
-    @ai.tool('the tool', name='test_tool')
+    @ai.tool(name='test_tool')
     def test_tool(input: ToolInput):
+        """The tool."""
         return input.value + 7
 
-    @ai.tool('the interrupt', name='test_interrupt')
+    @ai.tool(name='test_interrupt')
     def test_interrupt(input: ToolInput, ctx: ToolRunContext):
+        """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
     tool_request_msg = MessageWrapper(
@@ -386,7 +390,7 @@ async def test_generate_with_iterrupting_tools(
     want_request = [
         ToolDefinition(
             name='test_tool',
-            description='the tool',
+            description='The tool.',
             input_schema={
                 'properties': {
                     'value': {
@@ -403,7 +407,7 @@ async def test_generate_with_iterrupting_tools(
         ),
         ToolDefinition(
             name='test_interrupt',
-            description='the interrupt',
+            description='The interrupt.',
             input_schema={
                 'properties': {
                     'value': {
@@ -452,12 +456,14 @@ async def test_generate_with_interrupt_respond(
     class ToolInput(BaseModel):
         value: int = Field(None, description='value field')
 
-    @ai.tool('the tool', name='test_tool')
+    @ai.tool(name='test_tool')
     def test_tool(input: ToolInput):
+        """The tool."""
         return input.value + 7
 
-    @ai.tool('the interrupt', name='test_interrupt')
+    @ai.tool(name='test_interrupt')
     def test_interrupt(input: ToolInput, ctx: ToolRunContext):
+        """The interrupt."""
         ctx.interrupt({'banana': 'yes please'})
 
     tool_request_msg = MessageWrapper(
@@ -587,8 +593,9 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
     class ToolInput(BaseModel):
         value: int = Field(None, description='value field')
 
-    @ai.tool('the tool', name='testTool')
+    @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
+        """The tool."""
         return 'abc'
 
     tool_request_msg = MessageWrapper(
@@ -627,7 +634,7 @@ async def test_generate_with_tools_and_output(setup_test: SetupFixture) -> None:
     assert pm.last_request.tools == [
         ToolDefinition(
             name='testTool',
-            description='the tool',
+            description='The tool.',
             input_schema={
                 'properties': {
                     'value': {
@@ -653,8 +660,9 @@ async def test_generate_stream_with_tools(setup_test: SetupFixture) -> None:
     class ToolInput(BaseModel):
         value: int = Field(None, description='value field')
 
-    @ai.tool('the tool', name='testTool')
+    @ai.tool(name='testTool')
     def test_tool(input: ToolInput):
+        """The tool."""
         return 'abc'
 
     tool_request_msg = MessageWrapper(

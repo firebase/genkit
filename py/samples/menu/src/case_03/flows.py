@@ -30,7 +30,7 @@ from genkit.plugins.google_genai import google_genai_name
 from genkit.plugins.google_genai.models.gemini import GeminiVersion
 
 menu_json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'menu.json')
-with open(menu_json_path, 'r') as f:
+with open(menu_json_path) as f:
     menu_data = json.load(f)
 
 formatted_menu_data = '\n'.join([f'- ${r["title"]} ${r["price"]}\n${r["description"]}' for r in menu_data])
@@ -39,7 +39,7 @@ preamble = [
     Message(
         role=Role.USER,
         content=[
-            TextPart(text=f"Hi. What's on the menu today?"),
+            TextPart(text="Hi. What's on the menu today?"),
         ],
     ),
     Message(
