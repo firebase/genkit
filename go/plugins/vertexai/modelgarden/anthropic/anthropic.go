@@ -297,9 +297,7 @@ func convertTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, error
 			OfTool: &anthropic.ToolParam{
 				Name:        t.Name,
 				Description: anthropic.String(t.Description),
-				InputSchema: anthropic.ToolInputSchemaParam{
-					Properties: generateSchema[map[string]any](),
-				},
+				InputSchema: generateSchema[map[string]any](),
 			},
 		})
 	}
@@ -307,13 +305,17 @@ func convertTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, error
 	return resp, nil
 }
 
-func generateSchema[T any]() interface{} {
+func generateSchema[T any]() anthropic.ToolInputSchemaParam {
 	reflector := jsonschema.Reflector{
-		AllowAdditionalProperties: false,
+		AllowAdditionalProperties: true,
 		DoNotReference:            true,
 	}
 	var v T
-	return reflector.Reflect(v)
+	schema := reflector.Reflect(v)
+	return anthropic.ToolInputSchemaParam{
+		// Type:       "object",
+		Properties: schema.Properties,
+	}
 }
 
 // convertParts translates [ai.Part] to an anthropic.ContentBlockParamUnion type

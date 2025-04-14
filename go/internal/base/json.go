@@ -103,6 +103,12 @@ func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	if err != nil {
 		log.Panicf("failed to marshal schema: %v", err)
 	}
+
+	// Check if the marshaled JSON is "true" (indicates an empty schema)
+	if string(jsb) == "true" {
+		return make(map[string]any)
+	}
+
 	var m map[string]any
 	err = json.Unmarshal(jsb, &m)
 	if err != nil {
