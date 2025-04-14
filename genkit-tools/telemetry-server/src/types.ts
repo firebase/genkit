@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-import { type TraceData } from '@genkit-ai/tools-common';
+import {
+  TraceQueryFilterSchema,
+  type TraceData,
+} from '@genkit-ai/tools-common';
 import * as z from 'zod';
-
-export const TraceQueryFilterSchema = z.object({
-  eq: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
-  neq: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
-});
-
-export type TraceQueryFilter = z.infer<typeof TraceQueryFilterSchema>;
 
 /**
  * Trace store list query schema.

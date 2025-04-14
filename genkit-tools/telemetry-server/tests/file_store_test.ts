@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TraceData } from '@genkit-ai/tools-common';
+import { TraceData, TraceQueryFilter } from '@genkit-ai/tools-common';
 import * as assert from 'assert';
 import getPort from 'get-port';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -26,7 +26,6 @@ import {
   stopTelemetryApi,
 } from '../src/index';
 import { Index } from '../src/localFileTraceStore';
-import { TraceQueryFilter } from '../src/types';
 import { sleep, span } from './utils';
 
 const TRACE_ID = '1234';
