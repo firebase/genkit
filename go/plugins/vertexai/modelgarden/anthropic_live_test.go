@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package anthropic_test
+package modelgarden_test
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden/anthropic"
+	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
 )
 
 var (
@@ -43,20 +43,20 @@ func TestAnthropicLive(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&anthropic.Anthropic{}))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	t.Run("invalid model", func(t *testing.T) {
-		m := anthropic.Model(g, "claude-not-valid-v2")
+		m := modelgarden.AnthropicModel(g, "claude-not-valid-v2")
 		if m != nil {
 			t.Fatalf("model should have been empty, got: %#v", m)
 		}
 	})
 
 	t.Run("model version ok", func(t *testing.T) {
-		m := anthropic.Model(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
@@ -76,7 +76,7 @@ func TestAnthropicLive(t *testing.T) {
 	})
 
 	t.Run("model version nok", func(t *testing.T) {
-		m := anthropic.Model(g, "claude-3-5-sonnet-v2")
+		m := modelgarden.AnthropicModel(g, "claude-3-5-sonnet-v2")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
@@ -94,7 +94,7 @@ func TestAnthropicLive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m := anthropic.Model(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithSystem("You are a professional image detective that talks like an evil pirate that does not like tv shows, your task is to tell the name of the character in the image but be very short"),
 			ai.WithModel(m),
@@ -112,7 +112,7 @@ func TestAnthropicLive(t *testing.T) {
 	})
 
 	t.Run("tools", func(t *testing.T) {
-		m := anthropic.Model(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
 		myJokeTool := genkit.DefineTool(
 			g,
 			"myJoke",
@@ -135,7 +135,7 @@ func TestAnthropicLive(t *testing.T) {
 	})
 
 	t.Run("streaming", func(t *testing.T) {
-		m := anthropic.Model(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
 		out := ""
 		parts := 0
 
@@ -166,7 +166,7 @@ func TestAnthropicLive(t *testing.T) {
 	})
 
 	t.Run("tools streaming", func(t *testing.T) {
-		m := anthropic.Model(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
 		out := ""
 		parts := 0
 

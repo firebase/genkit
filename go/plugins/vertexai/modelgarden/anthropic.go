@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package anthropic
+package modelgarden
 
 import (
 	"context"
@@ -97,15 +97,15 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.client = c
 
 	for name, mi := range anthropicModels {
-		defineModel(g, a.client, name, mi)
+		defineAnthropicModel(g, a.client, name, mi)
 	}
 
 	return nil
 }
 
-// Model returns the [ai.Model] with the given name.
+// AnthropicModel returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined
-func Model(g *genkit.Genkit, name string) ai.Model {
+func AnthropicModel(g *genkit.Genkit, name string) ai.Model {
 	return genkit.LookupModel(g, anthropicProvider, name)
 }
 
@@ -121,10 +121,10 @@ func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInf
 	} else {
 		mi = *info
 	}
-	return defineModel(g, a.client, name, mi), nil
+	return defineAnthropicModel(g, a.client, name, mi), nil
 }
 
-func defineModel(g *genkit.Genkit, client anthropic.Client, name string, info ai.ModelInfo) ai.Model {
+func defineAnthropicModel(g *genkit.Genkit, client anthropic.Client, name string, info ai.ModelInfo) ai.Model {
 	meta := &ai.ModelInfo{
 		Label:    anthropicProvider + "-" + name,
 		Supports: info.Supports,
@@ -135,12 +135,12 @@ func defineModel(g *genkit.Genkit, client anthropic.Client, name string, info ai
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return generate(ctx, client, name, input, cb)
+		return anthropicGenerate(ctx, client, name, input, cb)
 	})
 }
 
 // generate function defines how a generate request is done in Anthropic models
-func generate(
+func anthropicGenerate(
 	ctx context.Context,
 	client anthropic.Client,
 	model string,
@@ -159,7 +159,7 @@ func generate(
 			return nil, err
 		}
 
-		r, err := toGenkitResponse(msg)
+		r, err := anthropicToGenkitResponse(msg)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +186,7 @@ func generate(
 					},
 				})
 			case anthropic.MessageStopEvent:
-				r, err := toGenkitResponse(&message)
+				r, err := anthropicToGenkitResponse(&message)
 				if err != nil {
 					return nil, err
 				}
@@ -255,13 +255,13 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewP
 			// if the last message is a ToolResponse, the conversation must continue
 			// and the ToolResponse message must be sent as a user
 			// see: https://docs.anthropic.com/en/docs/build-with-claude/tool-use#handling-tool-use-and-tool-result-content-blocks
-			parts, err := convertParts(message.Content)
+			parts, err := toAnthropicParts(message.Content)
 			if err != nil {
 				return req, err
 			}
 			messages = append(messages, anthropic.NewUserMessage(parts...))
 		} else {
-			parts, err := convertParts(message.Content)
+			parts, err := toAnthropicParts(message.Content)
 			if err != nil {
 				return req, err
 			}
@@ -275,7 +275,7 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewP
 	req.System = sysBlocks
 	req.Messages = messages
 
-	tools, err := convertTools(i.Tools)
+	tools, err := toAnthropicTools(i.Tools)
 	if err != nil {
 		return req, err
 	}
@@ -284,8 +284,8 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewP
 	return req, nil
 }
 
-// convertTools translates [ai.ToolDefinition] to an anthropic.ToolParam type
-func convertTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, error) {
+// toAnthropicTools translates [ai.ToolDefinition] to an anthropic.ToolParam type
+func toAnthropicTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, error) {
 	resp := make([]anthropic.ToolUnionParam, 0)
 	regex := regexp.MustCompile(ToolNameRegex)
 
@@ -301,7 +301,7 @@ func convertTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, error
 			OfTool: &anthropic.ToolParam{
 				Name:        t.Name,
 				Description: anthropic.String(t.Description),
-				InputSchema: generateSchema[map[string]any](),
+				InputSchema: toAnthropicSchema[map[string]any](),
 			},
 		})
 	}
@@ -309,7 +309,8 @@ func convertTools(tools []*ai.ToolDefinition) ([]anthropic.ToolUnionParam, error
 	return resp, nil
 }
 
-func generateSchema[T any]() anthropic.ToolInputSchemaParam {
+// toAnthropicSchema generates a JSON schema for the requested input type
+func toAnthropicSchema[T any]() anthropic.ToolInputSchemaParam {
 	reflector := jsonschema.Reflector{
 		AllowAdditionalProperties: true,
 		DoNotReference:            true,
@@ -321,8 +322,8 @@ func generateSchema[T any]() anthropic.ToolInputSchemaParam {
 	}
 }
 
-// convertParts translates [ai.Part] to an anthropic.ContentBlockParamUnion type
-func convertParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) {
+// toAnthropicParts translates [ai.Part] to an anthropic.ContentBlockParamUnion type
+func toAnthropicParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) {
 	blocks := []anthropic.ContentBlockParamUnion{}
 
 	for _, p := range parts {
@@ -353,8 +354,8 @@ func convertParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) 
 	return blocks, nil
 }
 
-// toGenkitResponse translates an Anthropic Message to [ai.ModelResponse]
-func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
+// anthropicToGenkitResponse translates an Anthropic Message to [ai.ModelResponse]
+func anthropicToGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 	r := ai.ModelResponse{}
 
 	switch m.StopReason {

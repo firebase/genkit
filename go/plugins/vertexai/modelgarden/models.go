@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package anthropic
+package modelgarden
 
 import (
 	"github.com/firebase/genkit/go/ai"
