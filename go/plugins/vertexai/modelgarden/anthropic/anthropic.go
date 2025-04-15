@@ -74,7 +74,7 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	if projectID == "" {
 		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 		if projectID == "" {
-			return fmt.Errorf("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard?project=%s", projectID)
+			return fmt.Errorf("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard")
 		}
 	}
 
@@ -149,7 +149,7 @@ func generate(
 ) (*ai.ModelResponse, error) {
 	req, err := toAnthropicRequest(model, input)
 	if err != nil {
-		panic(fmt.Sprintf("unable to generate anthropic request: %v", err))
+		return nil, fmt.Errorf("unable to generate anthropic request: %w", err)
 	}
 
 	// no streaming
@@ -159,9 +159,12 @@ func generate(
 			return nil, err
 		}
 
-		r := toGenkitResponse(msg)
-		r.Request = input
+		r, err := toGenkitResponse(msg)
+		if err != nil {
+			return nil, err
+		}
 
+		r.Request = input
 		return r, nil
 	} else {
 		stream := client.Messages.NewStreaming(ctx, req)
@@ -170,7 +173,7 @@ func generate(
 			event := stream.Current()
 			err := message.Accumulate(event)
 			if err != nil {
-				panic(err)
+				return nil, err
 			}
 
 			switch event := event.AsAny().(type) {
@@ -183,13 +186,16 @@ func generate(
 					},
 				})
 			case anthropic.MessageStopEvent:
-				r := toGenkitResponse(&message)
+				r, err := toGenkitResponse(&message)
+				if err != nil {
+					return nil, err
+				}
 				r.Request = input
 				return r, nil
 			}
 		}
 		if stream.Err() != nil {
-			panic(stream.Err())
+			return nil, stream.Err()
 		}
 	}
 
@@ -205,7 +211,7 @@ func toAnthropicRole(role ai.Role) anthropic.MessageParamRole {
 	case ai.RoleTool:
 		return anthropic.MessageParamRoleAssistant
 	default:
-		panic(fmt.Sprintf("unsupported role type: %v", role))
+		return ""
 	}
 }
 
@@ -222,7 +228,6 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewP
 		if c.MaxOutputTokens != 0 {
 			req.MaxTokens = int64(c.MaxOutputTokens)
 		}
-		req.Model = anthropic.Model(model)
 		if c.Version != "" {
 			req.Model = anthropic.Model(c.Version)
 		}
@@ -256,7 +261,6 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewP
 			}
 			messages = append(messages, anthropic.NewUserMessage(parts...))
 		} else {
-			// handle the rest of the messages
 			parts, err := convertParts(message.Content)
 			if err != nil {
 				return req, err
@@ -313,7 +317,6 @@ func generateSchema[T any]() anthropic.ToolInputSchemaParam {
 	var v T
 	schema := reflector.Reflect(v)
 	return anthropic.ToolInputSchemaParam{
-		// Type:       "object",
 		Properties: schema.Properties,
 	}
 }
@@ -330,8 +333,8 @@ func convertParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) 
 			contentType, data, _ := uri.Data(p)
 			blocks = append(blocks, anthropic.NewImageBlockBase64(contentType, base64.StdEncoding.EncodeToString(data)))
 		case p.IsData():
-			// todo: what is this? is this related to ContentBlocks?
-			panic("data content is unsupported by anthropic models")
+			contentType, data, _ := uri.Data(p)
+			blocks = append(blocks, anthropic.NewImageBlockBase64(contentType, base64.RawStdEncoding.EncodeToString(data)))
 		case p.IsToolRequest():
 			toolReq := p.ToolRequest
 			blocks = append(blocks, anthropic.ContentBlockParamOfRequestToolUseBlock(toolReq.Ref, toolReq.Input, toolReq.Name))
@@ -339,11 +342,11 @@ func convertParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) 
 			toolResp := p.ToolResponse
 			output, err := json.Marshal(toolResp.Output)
 			if err != nil {
-				panic(fmt.Sprintf("unable to parse tool response: %v", err))
+				return nil, fmt.Errorf("unable to parse tool response, err: %w", err)
 			}
 			blocks = append(blocks, anthropic.NewToolResultBlock(toolResp.Ref, string(output), false))
 		default:
-			panic("unknown part type in the request")
+			return nil, errors.New("unknown part type in the request")
 		}
 	}
 
@@ -351,8 +354,8 @@ func convertParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, error) 
 }
 
 // toGenkitResponse translates an Anthropic Message to [ai.ModelResponse]
-func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
-	r := &ai.ModelResponse{}
+func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
+	r := ai.ModelResponse{}
 
 	switch m.StopReason {
 	case anthropic.MessageStopReasonMaxTokens:
@@ -381,7 +384,7 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 				Name:  part.Name,
 			})
 		default:
-			panic(fmt.Sprintf("unknown part: %#v", part))
+			return nil, fmt.Errorf("unknown part: %#v", part)
 		}
 		msg.Content = append(msg.Content, p)
 	}
@@ -391,5 +394,5 @@ func toGenkitResponse(m *anthropic.Message) *ai.ModelResponse {
 		InputTokens:  int(m.Usage.InputTokens),
 		OutputTokens: int(m.Usage.OutputTokens),
 	}
-	return r
+	return &r, nil
 }
