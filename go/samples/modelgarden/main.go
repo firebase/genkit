@@ -21,28 +21,27 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
-	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden/anthropic"
+	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
 )
 
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&anthropic.Anthropic{}))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := anthropic.Model(g, "claude-3-5-sonnet-v2")
+		m := modelgarden.AnthropicModel(g, "claude-3-5-sonnet-v2")
 		if m == nil {
 			return "", errors.New("jokesFlow: failed to find model")
 		}
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&googlegenai.GeminiConfig{
+			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1.0,
 			}),
 			ai.WithPrompt(`Tell a short joke about %s`, input))
