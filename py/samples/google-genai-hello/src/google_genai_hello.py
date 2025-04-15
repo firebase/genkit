@@ -41,8 +41,6 @@ Key features demonstrated in this sample:
 
 """
 
-import asyncio
-
 import structlog
 from pydantic import BaseModel, Field
 
@@ -50,12 +48,10 @@ from genkit.ai import Document, Genkit, ToolRunContext, tool_response
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
-    GeminiEmbeddingModels,
     GoogleAI,
-    googleai_name,
 )
-from genkit.plugins.google_genai.models import gemini
 from genkit.types import (
+    ActionRunContext,
     GenerationCommonConfig,
     Message,
     Role,
@@ -66,7 +62,7 @@ logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model=googleai_name('gemini-2.0-flash-exp'),
+    model='googleai/gemini-2.0-flash',
 )
 
 
@@ -90,7 +86,7 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.flow()
-async def simple_generate_with_tools_flow(value: int) -> str:
+async def simple_generate_with_tools_flow(value: int, ctx: ActionRunContext) -> str:
     """Generate a greeting for the given name.
 
     Args:
@@ -100,14 +96,10 @@ async def simple_generate_with_tools_flow(value: int) -> str:
         The generated response with a function.
     """
     response = await ai.generate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
-        messages=[
-            Message(
-                role=Role.USER,
-                content=[TextPart(text=f'what is a gablorken of {value}')],
-            ),
-        ],
+        model='googleai/gemini-2.0-flash',
+        prompt=f'what is a gablorken of {value}',
         tools=['gablorkenTool'],
+        on_chunk=ctx.send_chunk,
     )
     return response.text
 
@@ -137,7 +129,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
         The generated response with a function.
     """
     response1 = await ai.generate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+        model='googleai/gemini-2.0-flash',
         messages=[
             Message(
                 role=Role.USER,
@@ -152,7 +144,7 @@ async def simple_generate_with_interrupts(value: int) -> str:
 
     tr = tool_response(response1.interrupts[0], 178)
     response = await ai.generate(
-        model=googleai_name(gemini.GoogleAiVersion.GEMINI_2_0_FLASH),
+        model='googleai/gemini-2.0-flash',
         messages=response1.messages,
         tool_responses=[tr],
         tools=['gablorkenTool'],
@@ -188,7 +180,7 @@ async def embed_docs(docs: list[str]):
     """
     options = {'task_type': EmbeddingTaskType.CLUSTERING}
     return await ai.embed(
-        embedder=googleai_name(GeminiEmbeddingModels.TEXT_EMBEDDING_004),
+        embedder='googleai/text-embedding-004',
         documents=[Document.from_text(doc) for doc in docs],
         options=options,
     )
@@ -320,4 +312,4 @@ async def main() -> None:
 
 
 if __name__ == '__main__':
-    ai.run(main())
+    ai.run_main(main())

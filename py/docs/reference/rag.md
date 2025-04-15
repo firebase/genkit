@@ -110,7 +110,7 @@ async def qa_flow(query: str):
 #### Run the retriever flow
 
 ```python
-result = ai.run(qa_flow('Recommend a dessert from the menu while avoiding dairy and nuts'))
+result = await qa_flow('Recommend a dessert from the menu while avoiding dairy and nuts')
 print(result)
 ```
 

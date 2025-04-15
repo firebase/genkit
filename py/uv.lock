@@ -9,14 +9,10 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "basic-gemini",
-    "coffee-shop",
     "compat-oai-hello",
-    "context-caching",
     "dev-local-vectorstore-hello",
     "firestore-retreiver",
     "flask-hello",
-    "flow-sample1",
     "genkit",
     "genkit-plugin-compat-oai",
     "genkit-plugin-dev-local-vectorstore",
@@ -27,23 +23,19 @@ members = [
     "genkit-plugin-ollama",
     "genkit-plugin-vertex-ai",
     "genkit-workspace",
+    "google-genai-code-execution",
+    "google-genai-context-caching",
     "google-genai-hello",
     "google-genai-image",
     "google-genai-vertexai-hello",
     "google-genai-vertexai-image",
-    "hello",
     "imagen",
     "menu",
     "multi-server",
     "ollama-hello",
     "ollama-simple-embed",
-    "prompt-file",
-    "rag",
     "short-n-long",
     "tool-interrupts",
-    "vertex-ai-model-garden",
-    "vertex-ai-reranker",
-    "vertex-ai-vector-search",
 ]
 
 [[package]]
@@ -210,23 +202,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/86/72/cd9b395f25e290e633655a100af28cb253e4393396264a98bd5f5951d50f/backports_tarfile-1.2.0.tar.gz", hash = "sha256:d75e02c268746e1b8144c278978b6e98e85de6ad16f8e4b0844a154557eca991", size = 86406 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b9/fa/123043af240e49752f1c4bd24da5053b6bd00cad78c2be53c0d1e8b975bc/backports.tarfile-1.2.0-py3-none-any.whl", hash = "sha256:77e284d754527b01fb1e6fa8a1afe577858ebe4e9dad8919e34c862cb399bc34", size = 30181 },
-]
-
-[[package]]
-name = "basic-gemini"
-version = "0.1.0"
-source = { editable = "samples/basic-gemini" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -492,17 +467,6 @@ wheels = [
 ]
 
 [[package]]
-name = "coffee-shop"
-version = "0.1.0"
-source = { editable = "samples/coffee-shop" }
-dependencies = [
-    { name = "genkit" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
-
-[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -543,17 +507,6 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "structlog", specifier = ">=25.2.0" },
 ]
-
-[[package]]
-name = "context-caching"
-version = "0.1.0"
-source = { editable = "samples/context-caching" }
-dependencies = [
-    { name = "genkit" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
 
 [[package]]
 name = "coverage"
@@ -973,17 +926,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "flow-sample1"
-version = "0.1.0"
-source = { editable = "samples/flow-sample1" }
-dependencies = [
-    { name = "genkit" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
-
-[[package]]
 name = "fqdn"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -994,7 +936,7 @@ wheels = [
 
 [[package]]
 name = "genkit"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "anyio" },
@@ -1060,7 +1002,7 @@ provides-extras = ["dev-local-vectorstore", "flask", "google-genai", "ollama", "
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit" },
@@ -1077,7 +1019,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "plugins/dev-local-vectorstore" }
 dependencies = [
     { name = "genkit" },
@@ -1096,7 +1038,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-firebase"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "plugins/firebase" }
 dependencies = [
     { name = "genkit" },
@@ -1113,7 +1055,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -1133,7 +1075,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit" },
@@ -1148,7 +1090,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit" },
@@ -1169,7 +1111,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
@@ -1186,7 +1128,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.3.0.dev2"
+version = "0.3.1"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit" },
@@ -1215,6 +1157,7 @@ dependencies = [
     { name = "genkit-plugin-compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore" },
     { name = "genkit-plugin-firebase" },
+    { name = "genkit-plugin-flask" },
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
     { name = "genkit-plugin-ollama" },
@@ -1253,6 +1196,7 @@ requires-dist = [
     { name = "genkit-plugin-compat-oai", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-firebase", editable = "plugins/firebase" },
+    { name = "genkit-plugin-flask", editable = "plugins/flask" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "genkit-plugin-ollama", editable = "plugins/ollama" },
@@ -1483,6 +1427,44 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/17/b9/fae20a998946f811d81b14b4e2da41d0d7779c3e63dedf4538c16832fa56/google_genai-1.9.0.tar.gz", hash = "sha256:eda833dcef2e3b9a05bff96ff4e0066740988199bcee0b2480cfce9909b18a26", size = 151602 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/12/3a5a11589a0b967b371c773d35cc54c75f2f44259d3d767b826d708b6377/google_genai-1.9.0-py3-none-any.whl", hash = "sha256:2140f72e6e5b89d8105fa70ae551c699b5e39492ca5f95053e1f7e99ecbdbd35", size = 149646 },
+]
+
+[[package]]
+name = "google-genai-code-execution"
+version = "0.1.0"
+source = { editable = "samples/google-genai-code-execution" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
+
+[[package]]
+name = "google-genai-context-caching"
+version = "0.1.0"
+source = { editable = "samples/google-genai-context-caching" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "pydantic" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
@@ -1733,25 +1715,6 @@ source = { git = "https://github.com/google/dotprompt.git?subdirectory=python%2F
 dependencies = [
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
-]
-
-[[package]]
-name = "hello"
-version = "0.1.0"
-source = { editable = "samples/hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-vertex-ai" },
-    { name = "pydantic" },
-    { name = "structlog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]
@@ -3290,17 +3253,6 @@ wheels = [
 ]
 
 [[package]]
-name = "prompt-file"
-version = "0.1.0"
-source = { editable = "samples/prompt-file" }
-dependencies = [
-    { name = "genkit" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
-
-[[package]]
 name = "prompt-toolkit"
 version = "3.0.50"
 source = { registry = "https://pypi.org/simple" }
@@ -3784,17 +3736,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cd/cc/6c99c84aa60ac1cc56747bed6be8ce6305b9b861d7475772e7a25ce019d3/pyzmq-26.4.0-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7731abd23a782851426d4e37deb2057bf9410848a4459b5ede4fe89342e687a9", size = 756757 },
     { url = "https://files.pythonhosted.org/packages/13/9c/d8073bd898eb896e94c679abe82e47506e2b750eb261cf6010ced869797c/pyzmq-26.4.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:a222ad02fbe80166b0526c038776e8042cd4e5f0dec1489a006a1df47e9040e0", size = 555371 },
 ]
-
-[[package]]
-name = "rag"
-version = "0.1.0"
-source = { editable = "samples/rag" }
-dependencies = [
-    { name = "genkit" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
 
 [[package]]
 name = "readme-renderer"
@@ -4567,39 +4508,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/47/57/66f061ee118f413cd22a656de622925097170b9380b30091b78ea0c6ea75/uvloop-0.21.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:bd53ecc9a0f3d87ab847503c2e1552b690362e005ab54e8a48ba97da3924c0dc", size = 4454428 },
     { url = "https://files.pythonhosted.org/packages/63/9a/0962b05b308494e3202d3f794a6e85abe471fe3cafdbcf95c2e8c713aabd/uvloop-0.21.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:a5c39f217ab3c663dc699c04cbd50c13813e31d917642d459fdcec07555cc553", size = 4660018 },
 ]
-
-[[package]]
-name = "vertex-ai-model-garden"
-version = "0.1.0"
-source = { editable = "samples/vertex-ai-vector-search" }
-dependencies = [
-    { name = "genkit" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
-
-[[package]]
-name = "vertex-ai-reranker"
-version = "0.1.0"
-source = { editable = "samples/vertex-ai-reranker" }
-dependencies = [
-    { name = "genkit" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
-
-[[package]]
-name = "vertex-ai-vector-search"
-version = "0.1.0"
-source = { editable = "samples/vertex-ai-model-garden" }
-dependencies = [
-    { name = "genkit" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "genkit", editable = "packages/genkit" }]
 
 [[package]]
 name = "virtualenv"

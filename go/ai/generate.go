@@ -433,7 +433,7 @@ func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...Ge
 		return nil, nil, err
 	}
 
-	err = resp.Output(value)
+	err = resp.Output(&value)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/firebase/genkit/go/internal/base"
 )
@@ -85,7 +84,7 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 			if !part.IsText() {
 				newParts = append(newParts, part)
 			} else {
-				lines := objectLines(part.Text)
+				lines := base.GetJsonObjectLines(part.Text)
 				for _, line := range lines {
 					if j.config.Schema != nil {
 						var schemaBytes []byte
@@ -106,34 +105,4 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 	}
 
 	return m, nil
-}
-
-// objectLines splits a string by newlines, trims whitespace from each line,
-// and returns a slice containing only the lines that start with '{'.
-func objectLines(text string) []string {
-	jsonText := base.ExtractJSONFromMarkdown(text)
-
-	// Handle both actual "\n" newline strings, as well as newline bytes
-	jsonText = strings.ReplaceAll(jsonText, "\n", `\n`)
-
-	// Split the input string into lines based on the newline character.
-	lines := strings.Split(jsonText, `\n`)
-
-	var result []string
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		// Trim leading and trailing whitespace from the current line.
-		trimmedLine := strings.TrimSpace(line)
-		// Check if the trimmed line starts with the character '{'.
-		if strings.HasPrefix(trimmedLine, "{") {
-			// If it does, append the trimmed line to our result slice.
-			result = append(result, trimmedLine)
-		}
-	}
-
-	// Return the slice containing the filtered and trimmed lines.
-	return result
 }

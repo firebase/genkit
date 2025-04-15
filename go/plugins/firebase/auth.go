@@ -24,6 +24,7 @@ import (
 
 	"firebase.google.com/go/v4/auth"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // AuthContext is the context of an authenticated request.
@@ -38,13 +39,12 @@ type AuthClient interface {
 }
 
 // ContextProvider creates a Firebase context provider for Genkit actions.
-func ContextProvider(ctx context.Context, policy AuthPolicy) (core.ContextProvider, error) {
-	app, err := App(ctx)
-	if err != nil {
-		return nil, err
+func ContextProvider(ctx context.Context, g *genkit.Genkit, policy AuthPolicy) (core.ContextProvider, error) {
+	f, ok := genkit.LookupPlugin(g, provider).(*Firebase)
+	if !ok {
+		return nil, errors.New("firebase plugin not initialized; did you pass the plugin to genkit.Init()")
 	}
-
-	client, err := app.Auth(ctx)
+	client, err := f.App.Auth(ctx)
 	if err != nil {
 		return nil, err
 	}

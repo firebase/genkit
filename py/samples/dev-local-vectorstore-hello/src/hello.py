@@ -61,4 +61,4 @@ async def retreive_documents():
     )
 
 
-ai.run()
+ai.run_main()

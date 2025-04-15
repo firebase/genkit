@@ -16,19 +16,18 @@
 
 """OpenAI sample."""
 
-import asyncio
 from decimal import Decimal
 
 import httpx
 import structlog
 from pydantic import BaseModel, Field
 
-from genkit.ai import Genkit
+from genkit.ai import ActionRunContext, Genkit
 from genkit.plugins.compat_oai import OpenAI, openai_model
 
 logger = structlog.get_logger(__name__)
 
-ai = Genkit(plugins=[OpenAI()], model=openai_model('gpt-4'))
+ai = Genkit(plugins=[OpenAI()], model=openai_model('gpt-4o'))
 
 
 class MyInput(BaseModel):
@@ -36,13 +35,6 @@ class MyInput(BaseModel):
 
     a: int = Field(description='a field')
     b: int = Field(description='b field')
-
-
-class WeatherRequest(BaseModel):
-    """Weather request."""
-
-    latitude: Decimal
-    longitude: Decimal
 
 
 @ai.flow()
@@ -98,7 +90,28 @@ async def say_hi_stream(name: str) -> str:
     return result
 
 
-@ai.tool()
+class WeatherRequest(BaseModel):
+    """Weather request."""
+
+    latitude: Decimal
+    longitude: Decimal
+
+
+class Temperature(BaseModel):
+    """Temperature by location."""
+
+    location: str
+    temperature: Decimal
+    gablorken: Decimal
+
+
+class WeatherResponse(BaseModel):
+    """Weather response."""
+
+    answer: list[Temperature]
+
+
+@ai.tool(description='Get current temperature for provided coordinates in celsius')
 def get_weather_tool(coordinates: WeatherRequest) -> float:
     """Get the current temperature for provided coordinates in celsius.
 
@@ -130,11 +143,12 @@ async def get_weather_flow(location: str) -> str:
         The weather for the location.
     """
     response = await ai.generate(
-        model=openai_model('gpt-4'),
-        system='You are an assistant that provides current weather information.',
-        config={'model': 'gpt-4-0613', 'temperature': 1},
+        model=openai_model('gpt-4o-mini'),
+        system='You are an assistant that provides current weather information in JSON format.',
+        config={'model': 'gpt-4o-mini-2024-07-18', 'temperature': 1},
         prompt=f"What's the weather like in {location} today?",
         tools=['get_weather_tool'],
+        output_schema=WeatherResponse,
     )
     return response.message.content[0].root.text
 
@@ -150,16 +164,87 @@ async def get_weather_flow_stream(location: str) -> str:
         The weather for the location as a string.
     """
     stream, _ = ai.generate_stream(
-        model=openai_model('gpt-4'),
-        config={'model': 'gpt-4-0613', 'temperature': 1},
+        model=openai_model('gpt-4o'),
+        system='You are an assistant that provides current weather information in JSON format and calculates gablorken based on weather value',
+        config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
         prompt=f"What's the weather like in {location} today?",
-        tools=['get_weather_tool'],
+        tools=['get_weather_tool', 'gablorkenTool'],
+        output_schema=WeatherResponse,
     )
     result = ''
     async for data in stream:
         for part in data.content:
-            result += part.root.text
+            result += part.root.text or ''
     return result
+
+
+class Skills(BaseModel):
+    """A set of core character skills for an RPG character"""
+
+    strength: int = Field(description='strength (0-100)')
+    charisma: int = Field(description='charisma (0-100)')
+    endurance: int = Field(description='endurance (0-100)')
+    gablorket: int = Field(description='gablorken (0-100)')
+
+
+class RpgCharacter(BaseModel):
+    """An RPG character."""
+
+    name: str = Field(description='name of the character')
+    back_story: str = Field(description='back story', alias='backStory')
+    abilities: list[str] = Field(description='list of abilities (3-4)')
+    skills: Skills
+
+
+class GablorkenInput(BaseModel):
+    """The Pydantic model for tools."""
+
+    value: int = Field(description='value to calculate gablorken for')
+
+
+@ai.tool(description='calculates a gablorken', name='gablorkenTool')
+def gablorken_tool(input_: GablorkenInput) -> int:
+    """Calculate a gablorken.
+
+    Args:
+        input_: The input to calculate gablorken for.
+
+    Returns:
+        The calculated gablorken.
+    """
+    return input_.value * 3 - 5
+
+
+@ai.flow()
+async def generate_character(name: str, ctx: ActionRunContext):
+    """Generate an RPG character.
+
+    Args:
+        name: the name of the character
+        ctx: the context of the tool
+
+    Returns:
+        The generated RPG character.
+    """
+    if ctx.is_streaming:
+        stream, result = ai.generate_stream(
+            prompt=f'generate an RPG character named {name} with gablorken based on 42',
+            output_schema=RpgCharacter,
+            config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
+            tools=['gablorkenTool'],
+        )
+        async for data in stream:
+            ctx.send_chunk(data.output)
+
+        return (await result).output
+    else:
+        result = await ai.generate(
+            prompt=f'generate an RPG character named {name} with gablorken based on 13',
+            output_schema=RpgCharacter,
+            config={'model': 'gpt-4o-2024-08-06', 'temperature': 1},
+            tools=['gablorkenTool'],
+        )
+        return result.output
 
 
 async def main() -> None:
@@ -171,6 +256,9 @@ async def main() -> None:
     await logger.ainfo(await get_weather_flow('London and Paris'))
     await logger.ainfo(await get_weather_flow_stream('London and Paris'))
 
+    await logger.ainfo(await generate_character('LunaDoodle', lambda x: x))
+    await logger.ainfo(await generate_character('NoodleMan'))
+
 
 if __name__ == '__main__':
-    ai.run(main())
+    ai.run_main(main())
