@@ -36,9 +36,7 @@ func main() {
 
 	g, err := genkit.Init(ctx,
 		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
-		genkit.WithPlugins(&googlegenai.GoogleAI{
-			APIKey: "AIzaSyCNbhe6KtqfVE72LJRts_Ei644-mGO0QoE",
-		}),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 	)
 	if err != nil {
 		log.Fatal(err)
