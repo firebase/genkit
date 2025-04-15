@@ -154,7 +154,7 @@ func anthropicGenerate(
 
 	// no streaming
 	if cb == nil {
-		msg, err := client.Messages.New(ctx, req)
+		msg, err := client.Messages.New(ctx, *req)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +167,7 @@ func anthropicGenerate(
 		r.Request = input
 		return r, nil
 	} else {
-		stream := client.Messages.NewStreaming(ctx, req)
+		stream := client.Messages.NewStreaming(ctx, *req)
 		message := anthropic.Message{}
 		for stream.Next() {
 			event := stream.Current()
@@ -202,47 +202,50 @@ func anthropicGenerate(
 	return nil, nil
 }
 
-func toAnthropicRole(role ai.Role) anthropic.MessageParamRole {
+func toAnthropicRole(role ai.Role) (anthropic.MessageParamRole, error) {
 	switch role {
 	case ai.RoleUser:
-		return anthropic.MessageParamRoleUser
+		return anthropic.MessageParamRoleUser, nil
 	case ai.RoleModel:
-		return anthropic.MessageParamRoleAssistant
+		return anthropic.MessageParamRoleAssistant, nil
 	case ai.RoleTool:
-		return anthropic.MessageParamRoleAssistant
+		return anthropic.MessageParamRoleAssistant, nil
 	default:
-		return ""
+		return "", fmt.Errorf("unknown role given: %q", role)
 	}
 }
 
 // toAnthropicRequest translates [ai.ModelRequest] to an Anthropic request
-func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewParams, error) {
-	req := anthropic.MessageNewParams{}
+func toAnthropicRequest(model string, i *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
 	messages := make([]anthropic.MessageParam, 0)
 
+	c, err := configFromRequest(i)
+	if err != nil {
+		return nil, err
+	}
+
 	// minimum required data to perform a request
+	req := anthropic.MessageNewParams{}
 	req.Model = anthropic.Model(model)
 	req.MaxTokens = int64(MaxNumberOfTokens)
 
-	if c, ok := i.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		if c.MaxOutputTokens != 0 {
-			req.MaxTokens = int64(c.MaxOutputTokens)
-		}
-		if c.Version != "" {
-			req.Model = anthropic.Model(c.Version)
-		}
-		if c.Temperature != 0 {
-			req.Temperature = anthropic.Float(c.Temperature)
-		}
-		if c.TopK != 0 {
-			req.TopK = anthropic.Int(int64(c.TopK))
-		}
-		if c.TopP != 0 {
-			req.TopP = anthropic.Float(float64(c.TopP))
-		}
-		if len(c.StopSequences) > 0 {
-			req.StopSequences = c.StopSequences
-		}
+	if c.MaxOutputTokens != 0 {
+		req.MaxTokens = int64(c.MaxOutputTokens)
+	}
+	if c.Version != "" {
+		req.Model = anthropic.Model(c.Version)
+	}
+	if c.Temperature != 0 {
+		req.Temperature = anthropic.Float(c.Temperature)
+	}
+	if c.TopK != 0 {
+		req.TopK = anthropic.Int(int64(c.TopK))
+	}
+	if c.TopP != 0 {
+		req.TopP = anthropic.Float(float64(c.TopP))
+	}
+	if len(c.StopSequences) > 0 {
+		req.StopSequences = c.StopSequences
 	}
 
 	// configure system prompt (if given)
@@ -257,16 +260,20 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewP
 			// see: https://docs.anthropic.com/en/docs/build-with-claude/tool-use#handling-tool-use-and-tool-result-content-blocks
 			parts, err := toAnthropicParts(message.Content)
 			if err != nil {
-				return req, err
+				return nil, err
 			}
 			messages = append(messages, anthropic.NewUserMessage(parts...))
 		} else {
 			parts, err := toAnthropicParts(message.Content)
 			if err != nil {
-				return req, err
+				return nil, err
+			}
+			role, err := toAnthropicRole(message.Role)
+			if err != nil {
+				return nil, err
 			}
 			messages = append(messages, anthropic.MessageParam{
-				Role:    toAnthropicRole(message.Role),
+				Role:    role,
 				Content: parts,
 			})
 		}
@@ -277,11 +284,41 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (anthropic.MessageNewP
 
 	tools, err := toAnthropicTools(i.Tools)
 	if err != nil {
-		return req, err
+		return nil, err
 	}
 	req.Tools = tools
 
-	return req, nil
+	return &req, nil
+}
+
+// mapToStruct unmarshals a map[String]any to the expected type
+func mapToStruct(m map[string]any, v any) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonData, v)
+}
+
+// configFromRequest converts any supported config type to [ai.GenerationCommonConfig]
+func configFromRequest(input *ai.ModelRequest) (*ai.GenerationCommonConfig, error) {
+	var result ai.GenerationCommonConfig
+
+	switch config := input.Config.(type) {
+	case ai.GenerationCommonConfig:
+		result = config
+	case *ai.GenerationCommonConfig:
+		result = *config
+	case map[string]any:
+		if err := mapToStruct(config, &result); err != nil {
+			return nil, err
+		}
+	case nil:
+		// Empty configuration is considered valid
+	default:
+		return nil, fmt.Errorf("unexpected config type: %T", input.Config)
+	}
+	return &result, nil
 }
 
 // toAnthropicTools translates [ai.ToolDefinition] to an anthropic.ToolParam type
