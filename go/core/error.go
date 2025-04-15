@@ -75,31 +75,27 @@ func (e *GenkitError) Error() string {
 
 // ToHTTPError returns a JSON-serializable representation for callable responses.
 func (e *GenkitError) ToHTTPError() HTTPError {
-	msg := e.Message
 	return HTTPError{
 		Details: e.Details,
 		Status:  e.Status,
-		Message: msg,
+		Message: e.Message,
 	}
 }
 
 // ToReflectionError returns a JSON-serializable representation for reflection API responses.
 func (e *GenkitError) ToReflectionError() ReflectionError {
-	msg := e.Message
 	errDetails := &ReflectionErrorDetails{}
 	if stackVal, ok := e.Details["stack"].(string); ok {
 		errDetails.Stack = &stackVal
 	}
-	// Use TraceID field directly if set, otherwise check details map
 	if traceVal, ok := e.Details["traceId"].(string); ok {
-		traceIDStr := traceVal // Create a new variable to take its address
-		errDetails.TraceID = &traceIDStr
+		errDetails.TraceID = &traceVal
 	}
 
 	return ReflectionError{
 		Details: errDetails,
 		Code:    HTTPStatusCode(e.Status),
-		Message: msg,
+		Message: e.Message,
 	}
 }
 
