@@ -42,7 +42,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err = genkit.DefinePartial(g, "header", "Welcome {{name}}!"); err != nil {
+	if err = genkit.DefinePartial(g, "header", "Welcome {{@name}}!"); err != nil {
 		log.Fatal(err)
 	}
 	if err = genkit.DefineHelper(g, "uppercase", func(s string) string {
@@ -51,7 +51,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p, err := genkit.DefinePrompt(g, "test", ai.WithPrompt(`{{> header}} {{uppercase greeting}}`))
+	p, err := genkit.DefinePrompt(g, "test", ai.WithPrompt(`{{> header}} {{uppercase @greeting}}`))
 
 	result, err := p.Execute(ctx)
 	if err != nil {
