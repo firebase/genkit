@@ -33,9 +33,17 @@ import { TraceDataSchema } from './trace';
  * It's used directly in the generation of the Reflection API OpenAPI spec.
  */
 
+export const TraceQueryFilterSchema = z.object({
+  eq: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  neq: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+});
+
+export type TraceQueryFilter = z.infer<typeof TraceQueryFilterSchema>;
+
 export const ListTracesRequestSchema = z.object({
   limit: z.number().optional(),
   continuationToken: z.string().optional(),
+  filter: TraceQueryFilterSchema.optional(),
 });
 
 export type ListTracesRequest = z.infer<typeof ListTracesRequestSchema>;
@@ -111,6 +119,12 @@ export const GetEvalRunRequestSchema = z.object({
   name: z.string(),
 });
 export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;
+
+export const DeleteEvalRunRequestSchema = z.object({
+  // Eval run name in the form evalRuns/{evalRunId}
+  name: z.string(),
+});
+export type DeleteEvalRunRequest = z.infer<typeof DeleteEvalRunRequestSchema>;
 
 export const CreateDatasetRequestSchema = z.object({
   data: InferenceDatasetSchema,

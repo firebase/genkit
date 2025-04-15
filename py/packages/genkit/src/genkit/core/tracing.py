@@ -195,15 +195,18 @@ def convert_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
 
 if is_dev_environment():
     provider = TracerProvider()
-    telemetry_server_url = os.environ['GENKIT_TELEMETRY_SERVER']
-    if not telemetry_server_url:
-        raise GenkitError(status='INVALID_ARGUMENT', message='GENKIT_TELEMETRY_SERVER is not set')
-    processor = SimpleSpanProcessor(
-        TelemetryServerSpanExporter(
-            telemetry_server_url=telemetry_server_url,
+    telemetry_server_url = os.environ.get('GENKIT_TELEMETRY_SERVER')
+    if telemetry_server_url:
+        processor = SimpleSpanProcessor(
+            TelemetryServerSpanExporter(
+                telemetry_server_url=telemetry_server_url,
+            )
         )
-    )
-    provider.add_span_processor(processor)
+        provider.add_span_processor(processor)
+    else:
+        logger.warn(
+            'GENKIT_TELEMETRY_SERVER is not set. If running with `genkit start`, make sure `genkit-cli` is up to date.'
+        )
     # Sets the global default tracer provider
     trace_api.set_tracer_provider(provider)
     tracer = trace_api.get_tracer('genkit-tracer', 'v1', provider)

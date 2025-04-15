@@ -15,11 +15,11 @@
  */
 
 import { ModelMiddleware, modelRef } from '@genkit-ai/ai/model';
+import { stripUndefinedProps } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { stripUndefinedProps } from '../../core/src';
-import { GenkitBeta, genkit } from '../src/beta';
-import { PromptAction, z } from '../src/index';
+import { GenkitBeta, genkit, z } from '../src/beta';
+import { PromptAction } from '../src/index';
 import {
   ProgrammableModel,
   defineEchoModel,
@@ -1182,15 +1182,15 @@ describe('prompt', () => {
         },
         metadata: {},
         model: undefined,
-        name: 'test.variant',
+        name: 'test',
+        variant: 'variant',
+        template: 'Hello from a variant of the hello prompt',
         raw: {
           config: {
             temperature: 13,
           },
           description: 'a prompt variant in a file',
         },
-        template: 'Hello from a variant of the hello prompt',
-        variant: 'variant',
       },
       type: 'prompt',
     });

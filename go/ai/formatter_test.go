@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -335,6 +336,12 @@ func TestConstrainedGenerate(t *testing.T) {
 }
 
 func TestHandlers(t *testing.T) {
+	type TestEnum struct {
+		FavColor string `json:"fav_color,omitempty" jsonschema:"enum=red,enum=green,enum=blue"`
+	}
+
+	enumSchema := base.SchemaAsMap(base.InferJSONSchema(TestEnum{}))
+
 	tests := []struct {
 		name         string
 		format       string
@@ -422,6 +429,52 @@ func TestHandlers(t *testing.T) {
 				ContentType: "application/jsonl",
 			},
 			instructions: "Output should be JSONL format, a sequence of JSON objects (one per line) separated by a newline '\\n' character. Each line should be a JSON object conforming to the following schema:\n\n```{\"properties\":{\"age\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}},\"type\":\"object\"}```",
+			wantErr:      false,
+		},
+		{
+			name:   "array handler",
+			format: "array",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			output: ModelOutputConfig{
+				Format: OutputFormatArray,
+				Schema: map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"id":   map[string]any{"type": "integer"},
+							"name": map[string]any{"type": "string"},
+						},
+					},
+					"additionalProperties": false,
+				},
+				Constrained: false,
+				ContentType: "application/json",
+			},
+			instructions: "Output should be a JSON array conforming to the following schema:\n\n```{\"properties\":{\"id\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}},\"type\":\"object\"}```",
+			wantErr:      false,
+		},
+		{
+			name:   "enum handler",
+			format: "enum",
+			schema: enumSchema,
+			output: ModelOutputConfig{
+				Format:      OutputFormatEnum,
+				Schema:      enumSchema,
+				Constrained: false,
+				ContentType: "text/enum",
+			},
+			instructions: "Output should be ONLY one of the following enum values. Do not output any additional information or add quotes.\n\n```red\ngreen\nblue```",
 			wantErr:      false,
 		},
 	}
@@ -723,6 +776,229 @@ func TestJsonlParser(t *testing.T) {
 			message, err := handler.ParseMessage(tt.response)
 			if err != nil {
 				t.Errorf("Parse failed")
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestArrayParser(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response *Message
+		want     *Message
+		wantErr  bool
+	}{
+		{
+			name: "parses array schema",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+					"required": []string{"id"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(JSONMarkdown(`{"id": 1, "name": "test"}\n{"id": 2}\n`)),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart("{\"id\": 1, \"name\": \"test\"}"),
+					NewJSONPart("{\"id\": 2}"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "contains unexpected field fails",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{"type": "string"},
+						"age":  map[string]any{"type": "integer"},
+					},
+					"required": []string{"name", "age"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(JSONMarkdown(`{"id": 1, "foo": "bar"}`)),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "parses empty array",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("[]"),
+				},
+			},
+			want: &Message{
+				Role:    RoleModel,
+				Content: nil,
+			},
+			wantErr: false,
+		},
+		{
+			name: "parses array with preamble and code fence",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Here are the objects:\n\n```\n{\"id\": 1}\n{\"id\": 2}\n```"),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart("{\"id\": 1}"),
+					NewJSONPart("{\"id\": 2}"),
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := arrayFormatter{}
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+			message, err := handler.ParseMessage(tt.response)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestEnumParser(t *testing.T) {
+	type TestEnum struct {
+		FavColor string `json:"fav_color,omitempty" jsonschema:"enum=red,enum=green,enum=blue"`
+	}
+
+	enumSchema := base.SchemaAsMap(base.InferJSONSchema(TestEnum{}))
+
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response *Message
+		want     *Message
+		wantErr  bool
+	}{
+		{
+			name:   "parses simple enum value",
+			schema: enumSchema,
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("red"),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("red"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "trims whitespace",
+			schema: enumSchema,
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("  green\n"),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("green"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "fails on invalid enum",
+			schema: enumSchema,
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("VALUE1"),
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := enumFormatter{}
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+			message, err := handler.ParseMessage(tt.response)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
 			}
 
 			if !tt.wantErr {
