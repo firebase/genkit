@@ -15,9 +15,13 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { enrichResultsWithScoring } from '../../src/eval';
+import { EvalStatusEnum } from 'genkit/evaluator';
+import {
+  enrichResultsWithScoring,
+  extractMetricSummaries,
+} from '../../src/eval';
 import { EvalMetricSchema, EvalResult } from '../../src/types/eval';
-import { EvalResponse } from '../../src/types/evaluator';
+import { EvalFnResponse, EvalResponse } from '../../src/types/evaluator';
 
 describe('parser', () => {
   const evalRunResults: EvalResult[] = [
@@ -113,4 +117,553 @@ describe('parser', () => {
       });
     });
   });
+
+  describe('extractMetricSummaries', () => {
+    const simpleEvalOutput: Record<string, EvalResponse> = {
+      '/evaluator/genkit/context_relevancy': [
+        {
+          testCaseId: 'case1',
+          evaluation: {
+            score: 7,
+          },
+        },
+        {
+          testCaseId: 'case2',
+          evaluation: {
+            score: 10,
+          },
+        },
+        {
+          testCaseId: 'case3',
+          evaluation: {
+            score: 5,
+          },
+        },
+      ],
+    };
+
+    describe('simpler scenarios', () => {
+      it('mean for simple numeric scores', () => {
+        const results = extractMetricSummaries(simpleEvalOutput);
+
+        expect(results).toHaveLength(1);
+
+        const result = results[0];
+        expect(result).toEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 0,
+          undefinedCount: 0,
+          statusDistribution: { undefined: 3 },
+          average: 22.0 / 3,
+        });
+      });
+
+      it('distribution for simple boolean scores', () => {
+        const booleanScores = reMapScores(simpleEvalOutput, (response, i) => ({
+          testCaseId: response.testCaseId,
+          evaluation: {
+            score: i % 2 === 0,
+          },
+        }));
+        const results = extractMetricSummaries(booleanScores);
+
+        expect(results).toHaveLength(1);
+
+        const result = results[0];
+        expect(result).toEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 0,
+          undefinedCount: 0,
+          statusDistribution: { undefined: 3 },
+          distribution: { true: 2, false: 1 },
+        });
+      });
+
+      it('distribution for simple string scores (under 5)', () => {
+        const stringScores = reMapScores(simpleEvalOutput, (response, i) => ({
+          testCaseId: response.testCaseId,
+          evaluation: {
+            score: `TYPE_${i % 2}`,
+          },
+        }));
+        const results = extractMetricSummaries(stringScores);
+
+        expect(results).toHaveLength(1);
+
+        const result = results[0];
+        expect(result).toEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 0,
+          undefinedCount: 0,
+          statusDistribution: { undefined: 3 },
+          distribution: { TYPE_0: 2, TYPE_1: 1 },
+        });
+      });
+
+      it('distribution for simple string scores (over 5)', () => {
+        const extendedSimpleEvalOutput: Record<string, EvalResponse> = {};
+        extendedSimpleEvalOutput['/evaluator/genkit/context_relevancy'] = Array(
+          2
+        )
+          .fill(simpleEvalOutput['/evaluator/genkit/context_relevancy'])
+          .flat();
+
+        const stringScores = reMapScores(
+          extendedSimpleEvalOutput,
+          (response, i) => ({
+            testCaseId: response.testCaseId,
+            evaluation: {
+              score: `TYPE_${i}`,
+            },
+          })
+        );
+        const results = extractMetricSummaries(stringScores);
+
+        expect(results).toHaveLength(1);
+
+        const result = results[0];
+        expect(result).toEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 0,
+          undefinedCount: 0,
+          statusDistribution: { undefined: 6 },
+        });
+      });
+
+      it('status distribution for simple numeric scores', () => {
+        const mockStatuses = [
+          EvalStatusEnum.PASS,
+          EvalStatusEnum.FAIL,
+          undefined,
+        ];
+        const withStatus = reMapScores(simpleEvalOutput, (response, i) => ({
+          testCaseId: response.testCaseId,
+          evaluation: {
+            score: i,
+            status: mockStatuses[i],
+          },
+        }));
+        const results = extractMetricSummaries(withStatus);
+
+        expect(results).toHaveLength(1);
+
+        const result = results[0];
+        expect(result).toEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 0,
+          undefinedCount: 0,
+          statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          average: 3.0 / 3,
+        });
+      });
+    });
+
+    describe('edge cases', () => {
+      it('metrics if scores are undefined but status available', () => {
+        const mockStatuses = [
+          EvalStatusEnum.PASS,
+          EvalStatusEnum.FAIL,
+          undefined,
+        ];
+        const undefinedScores = reMapScores(
+          simpleEvalOutput,
+          (response, i) => ({
+            testCaseId: response.testCaseId,
+            evaluation: {
+              score: undefined,
+              status: mockStatuses[i],
+            },
+          })
+        );
+        const results = extractMetricSummaries(undefinedScores);
+
+        expect(results).toHaveLength(1);
+
+        const result = results[0];
+        expect(result).toEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 0,
+          undefinedCount: 3,
+          statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+        });
+      });
+
+      it('metrics if some scores are undefined with status available', () => {
+        const mockStatuses = [
+          EvalStatusEnum.PASS,
+          EvalStatusEnum.FAIL,
+          undefined,
+        ];
+        const someDefinedScores = reMapScores(
+          simpleEvalOutput,
+          (response, i) => ({
+            testCaseId: response.testCaseId,
+            evaluation: {
+              score: i === 2 ? undefined : i,
+              status: mockStatuses[i],
+            },
+          })
+        );
+        const results = extractMetricSummaries(someDefinedScores);
+
+        expect(results).toHaveLength(1);
+
+        const result = results[0];
+        expect(result).toEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 0,
+          undefinedCount: 1,
+          average: 1 / 2.0,
+          statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+        });
+      });
+
+      it('metrics if some scores are undefined, some errors and with status available', () => {
+        const mockStatuses = [
+          EvalStatusEnum.PASS,
+          EvalStatusEnum.FAIL,
+          undefined,
+        ];
+        const someDefinedScores = reMapScores(
+          simpleEvalOutput,
+          (response, i) => ({
+            testCaseId: response.testCaseId,
+            evaluation: {
+              // undefined, 1, undefined
+              score: i % 2 === 0 ? undefined : i,
+              status: mockStatuses[i],
+              // error, undefined, error
+              error: i % 2 === 0 ? 'some error' : undefined,
+            },
+          })
+        );
+        const results = extractMetricSummaries(someDefinedScores);
+
+        expect(results).toHaveLength(1);
+
+        const result = results[0];
+        expect(result).toEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 2,
+          undefinedCount: 2,
+          average: 1.0,
+          statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+        });
+      });
+    });
+
+    describe('multiple evaluators grouped', () => {
+      const multiOutput: Record<string, EvalResponse> = {
+        '/evaluator/genkit/faithfulness': [
+          {
+            testCaseId: 'case1',
+            evaluation: {
+              score: 7,
+            },
+          },
+          {
+            testCaseId: 'case2',
+            evaluation: {
+              score: 10,
+            },
+          },
+          {
+            testCaseId: 'case3',
+            evaluation: {
+              score: 5,
+            },
+          },
+        ],
+        '/evaluator/genkit/context_relevancy': [
+          {
+            testCaseId: 'case1',
+            evaluation: {
+              score: true,
+            },
+          },
+          {
+            testCaseId: 'case2',
+            evaluation: {
+              score: false,
+            },
+          },
+          {
+            testCaseId: 'case3',
+            evaluation: {
+              score: true,
+            },
+          },
+        ],
+      };
+
+      it('treats each evaluator separately', () => {
+        const results = extractMetricSummaries(multiOutput);
+
+        expect(results).toHaveLength(2);
+        expect(results).toContainEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 0,
+          undefinedCount: 0,
+          statusDistribution: { undefined: 3 },
+          distribution: { true: 2, false: 1 },
+        });
+        expect(results).toContainEqual({
+          evaluator: '/evaluator/genkit/faithfulness',
+          errorCount: 0,
+          undefinedCount: 0,
+          statusDistribution: { undefined: 3 },
+          average: 22.0 / 3,
+        });
+      });
+
+      it('treats each evaluator separately, with errors, status, undefined scores', () => {
+        const mockStatuses = [
+          EvalStatusEnum.PASS,
+          EvalStatusEnum.FAIL,
+          undefined,
+        ];
+        const numericScores = [7, 10, 5];
+        const stringScores = ['alpha', 'beta', 'gamma'];
+        const someDefinedScores = reMapScores(
+          multiOutput,
+          (response, i, evaluator) => {
+            if (evaluator === '/evaluator/genkit/faithfulness') {
+              return {
+                testCaseId: response.testCaseId,
+                evaluation: {
+                  // undefined, score, undefined
+                  score: i % 2 === 0 ? undefined : numericScores[i],
+                  status: mockStatuses[i],
+                  // error, undefined, error
+                  error: i % 2 === 0 ? 'some error' : undefined,
+                },
+              };
+            } else {
+              return {
+                testCaseId: response.testCaseId,
+                evaluation: {
+                  // score, undefined, score
+                  score: i % 2 !== 0 ? undefined : stringScores[i],
+                  status: mockStatuses[i],
+                  // undefined, error, undefined
+                  error: i % 2 !== 0 ? 'some error' : undefined,
+                },
+              };
+            }
+          }
+        );
+        const results = extractMetricSummaries(someDefinedScores);
+
+        expect(results).toHaveLength(2);
+        expect(results).toContainEqual({
+          evaluator: '/evaluator/genkit/faithfulness',
+          errorCount: 2,
+          undefinedCount: 2,
+          statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          average: 10.0,
+        });
+        expect(results).toContainEqual({
+          evaluator: '/evaluator/genkit/context_relevancy',
+          errorCount: 1,
+          undefinedCount: 1,
+          statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          distribution: { alpha: 1, gamma: 1 },
+        });
+      });
+
+      describe('multi-scores', () => {
+        it('mix of scores', () => {
+          const mockEvaluations = [
+            {
+              score: 1,
+              status: EvalStatusEnum.PASS,
+            },
+            [
+              {
+                score: 1,
+                status: EvalStatusEnum.FAIL,
+              },
+              {
+                score: 2,
+                status: EvalStatusEnum.PASS,
+              },
+            ],
+            {
+              score: undefined,
+            },
+          ];
+          const mixedScores = reMapScores(simpleEvalOutput, (response, i) => ({
+            testCaseId: response.testCaseId,
+            evaluation: mockEvaluations[i],
+          }));
+          const results = extractMetricSummaries(mixedScores);
+
+          expect(results).toHaveLength(1);
+
+          const result = results[0];
+          expect(result).toEqual({
+            evaluator: '/evaluator/genkit/context_relevancy',
+            errorCount: 0,
+            undefinedCount: 1,
+            average: 4.0 / 3,
+            statusDistribution: { undefined: 1, PASS: 2, FAIL: 1 },
+          });
+        });
+
+        it('scores with IDs', () => {
+          const mockEvaluations = [
+            [
+              {
+                score: 5,
+                id: 'numeric',
+                status: EvalStatusEnum.PASS,
+              },
+              {
+                score: 'YES',
+                id: 'enum',
+                status: EvalStatusEnum.FAIL,
+              },
+            ],
+            [
+              {
+                score: 7,
+                id: 'numeric',
+                status: EvalStatusEnum.FAIL,
+              },
+              {
+                score: 'NO',
+                id: 'enum',
+                status: EvalStatusEnum.PASS,
+              },
+            ],
+            [
+              {
+                score: undefined,
+                id: 'numeric',
+                error: 'somer error',
+              },
+              {
+                score: undefined,
+                id: 'enum',
+              },
+            ],
+          ];
+          const mixedScores = reMapScores(simpleEvalOutput, (response, i) => ({
+            testCaseId: response.testCaseId,
+            evaluation: mockEvaluations[i],
+          }));
+          const results = extractMetricSummaries(mixedScores);
+
+          expect(results).toHaveLength(2);
+          expect(results).toContainEqual({
+            evaluator: '/evaluator/genkit/context_relevancy/numeric',
+            errorCount: 1,
+            undefinedCount: 1,
+            average: 12.0 / 2,
+            statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          });
+          expect(results).toContainEqual({
+            evaluator: '/evaluator/genkit/context_relevancy/enum',
+            errorCount: 0,
+            undefinedCount: 1,
+            distribution: { YES: 1, NO: 1 },
+            statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          });
+        });
+
+        it('multi-scores with IDs', () => {
+          const mockEvaluations = [
+            [
+              {
+                score: 5,
+                id: 'numeric',
+                status: EvalStatusEnum.PASS,
+              },
+              {
+                score: 'YES',
+                id: 'enum',
+                status: EvalStatusEnum.FAIL,
+              },
+            ],
+            [
+              {
+                score: 7,
+                id: 'numeric',
+                status: EvalStatusEnum.FAIL,
+              },
+              {
+                score: 'NO',
+                id: 'enum',
+                status: EvalStatusEnum.PASS,
+              },
+            ],
+            [
+              {
+                score: undefined,
+                id: 'numeric',
+                error: 'somer error',
+              },
+              {
+                score: undefined,
+                id: 'enum',
+              },
+            ],
+          ];
+          const mixedScores = reMapScores(multiOutput, (response, i) => ({
+            testCaseId: response.testCaseId,
+            evaluation: mockEvaluations[i],
+          }));
+          const results = extractMetricSummaries(mixedScores);
+
+          expect(results).toHaveLength(4);
+          expect(results).toContainEqual({
+            evaluator: '/evaluator/genkit/context_relevancy/numeric',
+            errorCount: 1,
+            undefinedCount: 1,
+            average: 12.0 / 2,
+            statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          });
+          expect(results).toContainEqual({
+            evaluator: '/evaluator/genkit/context_relevancy/enum',
+            errorCount: 0,
+            undefinedCount: 1,
+            distribution: { YES: 1, NO: 1 },
+            statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          });
+          expect(results).toContainEqual({
+            evaluator: '/evaluator/genkit/faithfulness/numeric',
+            errorCount: 1,
+            undefinedCount: 1,
+            average: 12.0 / 2,
+            statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          });
+          expect(results).toContainEqual({
+            evaluator: '/evaluator/genkit/faithfulness/enum',
+            errorCount: 0,
+            undefinedCount: 1,
+            distribution: { YES: 1, NO: 1 },
+            statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
+          });
+        });
+      });
+    });
+  });
 });
+
+function reMapScores(
+  scoresMap: Record<string, EvalResponse>,
+  fn: (
+    score: EvalFnResponse,
+    index: number,
+    evaluator?: string
+  ) => EvalFnResponse
+): Record<string, EvalResponse> {
+  let remapped: Record<string, EvalResponse> = {};
+
+  for (const [evaluator, scores] of Object.entries(scoresMap)) {
+    remapped[evaluator] = scores.map((score, index) =>
+      fn(score, index, evaluator)
+    );
+  }
+  return remapped;
+}

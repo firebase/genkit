@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import * as _ from 'lodash';
 import { Action } from '../types/action';
 import { EvalInput, EvalMetric, EvalResult } from '../types/eval';
 import { EvalFnResponse, EvalResponse } from '../types/evaluator';
@@ -77,4 +78,112 @@ export function extractMetricsMetadata(evaluatorActions: Action[]) {
     };
   }
   return metadata;
+}
+
+export function extractMetricSummaries(
+  /** key: evaluatorRef */
+  scores: Record<string, EvalResponse>
+) {
+  const entries = Object.entries(scores)
+    .map(([evaluator, responseArray]) => ({
+      evaluator,
+      score: responseArray.flatMap((response) =>
+        Array.isArray(response.evaluation)
+          ? response.evaluation
+          : [response.evaluation]
+      ),
+    }))
+    .flatMap((entry) => {
+      const groupedScores = _.groupBy(entry.score, 'id');
+      const groupedScoresKeys = Object.keys(groupedScores);
+
+      if (
+        groupedScoresKeys.length === 1 &&
+        groupedScoresKeys[0] === 'undefined'
+      ) {
+        // No score-level granularity
+        return _.flatMap(entry.score, (score) => ({
+          evaluator: entry.evaluator,
+          status: score.status,
+          score: score.score,
+          error: score.error,
+        }));
+      } else {
+        return _.flatMap(groupedScores, (scores, scoreId) => {
+          if (scoreId === 'undefined') {
+            return scores.map((score) => ({
+              evaluator: entry.evaluator,
+              status: score.status,
+              score: score.score,
+              error: score.error,
+            }));
+          } else {
+            return scores.map((score) => ({
+              // Synthetic ID to separate different scores
+              evaluator: entry.evaluator + '/' + scoreId,
+              status: score.status,
+              score: score.score,
+              error: score.error,
+            }));
+          }
+        });
+      }
+    });
+
+  const grouped = _.groupBy(entries, 'evaluator');
+
+  const summaries = _.map(grouped, (items, evaluator) => {
+    const definedItems = items.filter(
+      (item) => typeof item.score !== 'undefined'
+    );
+    const undefinedCount = items.filter(
+      (item) => typeof item.score === 'undefined'
+    ).length;
+    const errorCount = items.filter((item) => item.error !== undefined).length;
+    const statusDistribution = _.countBy(items, 'status');
+
+    if (definedItems.length > 0) {
+      // At least one score be registered for this
+      const validItem = definedItems[0];
+      const scoreType = typeof validItem.score;
+      if (scoreType === 'number') {
+        return {
+          evaluator,
+          errorCount,
+          undefinedCount,
+          statusDistribution,
+          average: _.meanBy(definedItems, 'score'),
+        };
+      } else if (scoreType === 'boolean') {
+        return {
+          evaluator,
+          errorCount,
+          undefinedCount,
+          statusDistribution,
+          distribution: _.countBy(definedItems, 'score'),
+        };
+      } else if (scoreType === 'string') {
+        // Treat as enum, but limit to 5 by heuristics
+        const distribution = _.countBy(definedItems, 'score');
+
+        if (Object.keys(distribution).length <= 5) {
+          return {
+            evaluator,
+            errorCount,
+            undefinedCount,
+            distribution,
+            statusDistribution,
+          };
+        }
+      }
+    }
+    return {
+      evaluator,
+      errorCount,
+      undefinedCount,
+      statusDistribution,
+    };
+  });
+
+  return summaries;
 }
