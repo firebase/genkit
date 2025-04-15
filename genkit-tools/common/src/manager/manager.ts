@@ -280,6 +280,9 @@ export class RuntimeManager {
       query += `continuationToken=${continuationToken}`;
     }
     if (filter) {
+      if (query !== '') {
+        query += '&';
+      }
       query += `filter=${encodeURI(JSON.stringify(filter))}`;
     }
 

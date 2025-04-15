@@ -154,9 +154,6 @@ export class LocalFileTraceStore implements TraceStore {
     if (!this.index) {
       return this.listFromFiles(query);
     }
-    console.log(
-      `List traces query received with limit: ${query?.limit}, filter: ${query?.filter}, continuationToken: ${query?.continuationToken}`
-    );
 
     const searchResult = this.index.search({
       limit: query?.limit ?? 10,
