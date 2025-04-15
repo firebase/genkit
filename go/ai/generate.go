@@ -231,7 +231,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	if maxTurns < 0 {
 		return nil, &core.GenkitError{
 			Message: fmt.Sprintf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns),
-			Status:  core.ABORTED,
+			Status:  core.INVALID_ARGUMENT,
 		}
 	}
 	if maxTurns == 0 {
