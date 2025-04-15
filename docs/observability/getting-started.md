@@ -50,7 +50,7 @@ npm i –save @genkit-ai/firebase
 ```
 
 Import `enableFirebaseTelemetry` into your Genkit configuration file (the
-file where `genkit(...)` is initalized), and call it:
+file where `genkit(...)` is initialized), and call it:
 
 ```typescript
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
