@@ -164,7 +164,7 @@ export const EvalRunKeySchema = z.object({
   evalRunId: z.string(),
   createdAt: z.string(),
   actionConfig: z.any().optional(),
-  metricSummaries: z.record(z.string(), z.any()).optional(),
+  metricSummaries: z.array(z.record(z.string(), z.any())).optional(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
