@@ -156,10 +156,7 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 				})
 				if err != nil {
 					logger.FromContext(ctx).Error("error providing action context from request", "err", err)
-					return &core.GenkitError{
-						Message: err.Error(),
-						Status:  core.UNAUTHENTICATED,
-					}
+					return err
 				}
 
 				if existing := core.FromContext(ctx); existing != nil {

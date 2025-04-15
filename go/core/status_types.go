@@ -132,7 +132,7 @@ func HTTPStatusCode(name StatusName) int {
 	if code, ok := statusNameToHTTPCode[name]; ok {
 		return code
 	}
-	// Default to 500 if status name is not in the map
+
 	return http.StatusInternalServerError
 }
 

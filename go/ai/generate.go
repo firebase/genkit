@@ -169,13 +169,13 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	if model == nil {
 		if provider == "" {
 			return nil, &core.GenkitError{
-				Message: fmt.Sprintf("ai.LookupModelByName: no model named %q", name),
+				Message: fmt.Sprintf("ai.LookupModelByName: model %q not found", name),
 				Status:  core.NOT_FOUND,
 			}
 
 		}
 		return nil, &core.GenkitError{
-			Message: fmt.Sprintf("ai.LookupModelByName: no model named %q for provider %q", name, provider),
+			Message: fmt.Sprintf("ai.LookupModelByName: model %q provider %q not found", name, provider),
 			Status:  core.NOT_FOUND,
 		}
 	}
@@ -207,15 +207,15 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	for _, t := range opts.Tools {
 		if _, ok := toolDefMap[t]; ok {
 			return nil, &core.GenkitError{
-				Message: fmt.Sprintf("ai.GenerateWithRequest: duplicate tool found: %q", t),
-				Status:  core.ALREADY_EXISTS,
+				Message: fmt.Sprintf("ai.GenerateWithRequest: duplicate tool %q", t),
+				Status:  core.INVALID_ARGUMENT,
 			}
 		}
 
 		tool := LookupTool(r, t)
 		if tool == nil {
 			return nil, &core.GenkitError{
-				Message: fmt.Sprintf("ai.GenerateWithRequest: tool not found: %q", t),
+				Message: fmt.Sprintf("ai.GenerateWithRequest: tool %q not found", t),
 				Status:  core.NOT_FOUND,
 			}
 		}
@@ -451,7 +451,7 @@ func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamC
 	if m == nil {
 		return nil, &core.GenkitError{
 			Message: "Model.Generate: generate called on a nil model; check that all models are defined",
-			Status:  core.ABORTED,
+			Status:  core.INVALID_ARGUMENT,
 		}
 	}
 

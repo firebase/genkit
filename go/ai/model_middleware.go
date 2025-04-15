@@ -104,7 +104,7 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 						if part.IsMedia() {
 							return nil, &core.GenkitError{
 								Message: fmt.Sprintf("model %q does not support media, but media was provided. Request: %+v", model, input),
-								Status:  core.ABORTED,
+								Status:  core.INVALID_ARGUMENT,
 							}
 						}
 					}
@@ -114,21 +114,21 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 			if !info.Supports.Tools && len(input.Tools) > 0 {
 				return nil, &core.GenkitError{
 					Message: fmt.Sprintf("model %q does not support tool use, but tools were provided. Request: %+v", model, input),
-					Status:  core.UNAVAILABLE,
+					Status:  core.INVALID_ARGUMENT,
 				}
 			}
 
 			if !info.Supports.Multiturn && len(input.Messages) > 1 {
 				return nil, &core.GenkitError{
 					Message: fmt.Sprintf("model %q does not support multiple messages, but %d were provided. Request: %+v", model, len(input.Messages), input),
-					Status:  core.UNAVAILABLE,
+					Status:  core.INVALID_ARGUMENT,
 				}
 			}
 
 			if !info.Supports.ToolChoice && input.ToolChoice != "" && input.ToolChoice != ToolChoiceAuto {
 				return nil, &core.GenkitError{
 					Message: fmt.Sprintf("model %q does not support tool choice, but tool choice was provided. Request: %+v", model, input),
-					Status:  core.UNAVAILABLE,
+					Status:  core.INVALID_ARGUMENT,
 				}
 			}
 
@@ -137,7 +137,7 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 					if msg.Role == RoleSystem {
 						return nil, &core.GenkitError{
 							Message: fmt.Sprintf("model %q does not support system role, but system role was provided. Request: %+v", model, input),
-							Status:  core.UNAVAILABLE,
+							Status:  core.INVALID_ARGUMENT,
 						}
 					}
 				}
@@ -156,7 +156,10 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				info.Supports.Constrained == ConstrainedSupportNone ||
 				(info.Supports.Constrained == ConstrainedSupportNoTools && len(input.Tools) > 0)) &&
 				input.Output != nil && input.Output.Constrained {
-				return nil, fmt.Errorf("model %q does not support native constrained output, but constrained output was requested. Request: %+v", model, input)
+				return nil, &core.GenkitError{
+					Message: fmt.Sprintf("model %q does not support native constrained output, but constrained output was requested. Request: %+v", model, input),
+					Status:  core.INVALID_ARGUMENT,
+				}
 			}
 
 			if err := validateVersion(model, info.Versions, input.Config); err != nil {

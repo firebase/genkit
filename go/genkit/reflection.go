@@ -247,7 +247,7 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 		w.Header().Set("x-genkit-version", "go/"+internal.Version)
 
 		if err = h(w, r); err != nil {
-			errorResponse := core.GetReflectionJSON(err)
+			errorResponse := core.ToReflectionError(err)
 			w.WriteHeader(errorResponse.Code)
 			writeJSON(ctx, w, errorResponse)
 		}
@@ -269,7 +269,7 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			return &core.GenkitError{
 				Message: err.Error(),
-				Status:  core.FAILED_PRECONDITION,
+				Status:  core.INVALID_ARGUMENT,
 			}
 		}
 
@@ -305,13 +305,16 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		resp, err := runAction(ctx, reg, body.Key, body.Input, cb, contextMap)
 		if err != nil {
 			if stream {
-				genkitErr := core.GetReflectionJSON(err)
-				errorJSON, _ := json.Marshal(genkitErr)
-				fmt.Printf("%v", string(errorJSON))
-				_, writeErr := fmt.Fprintf(w, "%s\n\n", errorJSON)
-				if writeErr != nil {
-					return writeErr
+				reflectErr, err := json.Marshal(core.ToReflectionError(err))
+				if err != nil {
+					return err
 				}
+
+				_, err = fmt.Fprintf(w, "%s\n\n", reflectErr)
+				if err != nil {
+					return err
+				}
+
 				if f, ok := w.(http.Flusher); ok {
 					f.Flush()
 				}
@@ -382,7 +385,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 	action := reg.LookupAction(key)
 	if action == nil {
 		return nil, &core.GenkitError{
-			Message: fmt.Sprintf("no action with key %q", key),
+			Message: fmt.Sprintf("action %q not found", key),
 			Status:  core.NOT_FOUND,
 		}
 	}
@@ -397,10 +400,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
-		return nil, &core.GenkitError{
-			Message: err.Error(),
-			Status:  core.INVALID_ARGUMENT,
-		}
+		return nil, err
 	}
 
 	return &runActionResponse{

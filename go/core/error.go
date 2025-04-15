@@ -22,23 +22,23 @@ import (
 	"runtime/debug"
 )
 
-type GenkitReflectionAPIDetailsWireFormat struct {
+type ReflectionErrorDetails struct {
 	Stack   *string `json:"stack,omitempty"` // Use pointer for optional
 	TraceID *string `json:"traceId,omitempty"`
 }
 
-// GenkitReflectionAPIErrorWireFormat is the wire format for HTTP errors.
-type GenkitReflectionAPIErrorWireFormat struct {
-	Details *GenkitReflectionAPIDetailsWireFormat `json:"details,omitempty"` // Pointer to allow nil details
-	Message string                                `json:"message"`
-	Code    int                                   `json:"code"` // Defaults handled in creation logic
+// ReflectionError is the wire format for HTTP errors for Reflection API responses.
+type ReflectionError struct {
+	Details *ReflectionErrorDetails `json:"details,omitempty"`
+	Message string                  `json:"message"`
+	Code    int                     `json:"code"`
 }
 
-// HTTPErrorWireFormat is the wire format for HTTP error details for callables.
-type HTTPErrorWireFormat struct {
-	Details any        `json:"details,omitempty"` // Use 'any' (interface{}) for arbitrary details
+// HTTPError is the wire format for HTTP error details for callables.
+type HTTPError struct {
+	Details any        `json:"details,omitempty"`
 	Message string     `json:"message"`
-	Status  StatusName `json:"status"` // Use the defined StatusName type
+	Status  StatusName `json:"status"`
 }
 
 // GenkitError is the base error type for Genkit errors.
@@ -48,6 +48,18 @@ type GenkitError struct {
 	HTTPCode int            `json:"-"`                // Exclude from default JSON
 	Details  map[string]any `json:"details"`          // Use map for arbitrary details
 	Source   *string        `json:"source,omitempty"` // Pointer for optional
+}
+
+// UserFacingError allows a web framework handler to know it
+// is safe to return the message in a request. Other kinds of errors will
+// result in a generic 500 message to avoid the possibility of internal
+// exceptions being leaked to attackers.
+func UserFacingError(status StatusName, message string, details map[string]any) *GenkitError {
+	return &GenkitError{
+		Status:  status,
+		Details: details,
+		Message: message,
+	}
 }
 
 // Error implements the standard error interface.
@@ -61,63 +73,51 @@ func (e *GenkitError) Error() string {
 	return baseMsg
 }
 
-// ToCallableSerializable returns a JSON-serializable representation for callable responses.
-func (e *GenkitError) ToCallableSerializable() HTTPErrorWireFormat {
+// ToHTTPError returns a JSON-serializable representation for callable responses.
+func (e *GenkitError) ToHTTPError() HTTPError {
 	msg := e.Message
-	return HTTPErrorWireFormat{
+	return HTTPError{
 		Details: e.Details,
 		Status:  e.Status,
 		Message: msg,
 	}
 }
 
-// UserFacingError  error allows a web framework handler to know it
-// is safe to return the message in a request. Other kinds of errors will
-// result in a generic 500 message to avoid the possibility of internal
-// exceptions being leaked to attackers.
-func UserFacingError(status StatusName, message string, details map[string]any) *GenkitError {
-	return &GenkitError{
-		Status:  status,
-		Details: details,
-		Message: message,
-	}
-}
-
-// ToSerializable returns a JSON-serializable representation for reflection API responses.
-func (e *GenkitError) ToSerializable() GenkitReflectionAPIErrorWireFormat {
+// ToReflectionError returns a JSON-serializable representation for reflection API responses.
+func (e *GenkitError) ToReflectionError() ReflectionError {
 	msg := e.Message
-	detailsWire := &GenkitReflectionAPIDetailsWireFormat{}
-	// Populate detailsWire from e.Details map
+	errDetails := &ReflectionErrorDetails{}
 	if stackVal, ok := e.Details["stack"].(string); ok {
-		detailsWire.Stack = &stackVal
+		errDetails.Stack = &stackVal
 	}
 	// Use TraceID field directly if set, otherwise check details map
 	if traceVal, ok := e.Details["traceId"].(string); ok {
 		traceIDStr := traceVal // Create a new variable to take its address
-		detailsWire.TraceID = &traceIDStr
+		errDetails.TraceID = &traceIDStr
 	}
 
-	return GenkitReflectionAPIErrorWireFormat{
-		Details: detailsWire,
-		Code:    HTTPStatusCode(e.Status), // Use the integer code
+	return ReflectionError{
+		Details: errDetails,
+		Code:    HTTPStatusCode(e.Status),
 		Message: msg,
 	}
 }
 
-// GetReflectionJSON gets the JSON representation for reflection API Error responses.
-func GetReflectionJSON(err error) GenkitReflectionAPIErrorWireFormat {
+// ToReflectionError gets the JSON representation for reflection API Error responses.
+func ToReflectionError(err error) ReflectionError {
 	if ge, ok := err.(*GenkitError); ok {
-		return ge.ToSerializable()
+		return ge.ToReflectionError()
 	}
-	// Handle non-Genkit errors
+
 	stack := getErrorStack(err)
-	detailsWire := &GenkitReflectionAPIDetailsWireFormat{}
+	detailsWire := &ReflectionErrorDetails{}
 	if stack != "" {
 		detailsWire.Stack = &stack
 	}
-	return GenkitReflectionAPIErrorWireFormat{
-		Message: err.Error(),                // Use the standard error message
-		Code:    StatusNameToCode[INTERNAL], // Default to INTERNAL code
+
+	return ReflectionError{
+		Message: err.Error(),
+		Code:    StatusNameToCode[INTERNAL],
 		Details: detailsWire,
 	}
 }
