@@ -46,7 +46,7 @@ func TestAnthropic(t *testing.T) {
 			},
 		},
 	}
-	t.Run("Convert to Anthropic request", func(t *testing.T) {
+	t.Run("to anthropic request", func(t *testing.T) {
 		ar, err := toAnthropicRequest("claude-3.7-opus", req)
 		if err != nil {
 			t.Fatal(err)
@@ -89,26 +89,35 @@ func TestAnthropic(t *testing.T) {
 			t.Errorf("expecting 2 messages, got: %d", len(ar.Messages))
 		}
 	})
-	t.Run("To Anthropic role", func(t *testing.T) {
-		r := toAnthropicRole(ai.RoleModel)
+	t.Run("to anthropic role", func(t *testing.T) {
+		r, err := toAnthropicRole(ai.RoleModel)
+		if err != nil {
+			t.Error(err)
+		}
 		if r != anthropic.MessageParamRoleAssistant {
 			t.Errorf("want: %q, got: %q", anthropic.MessageParamRoleAssistant, r)
 		}
-		r = toAnthropicRole(ai.RoleUser)
+		r, err = toAnthropicRole(ai.RoleUser)
+		if err != nil {
+			t.Error(err)
+		}
 		if r != anthropic.MessageParamRoleUser {
 			t.Errorf("want: %q, got: %q", anthropic.MessageParamRoleUser, r)
 		}
-		r = toAnthropicRole(ai.RoleSystem)
-		if r != "" {
-			t.Errorf("want: \"\", got: %q", r)
+		r, err = toAnthropicRole(ai.RoleSystem)
+		if err == nil {
+			t.Errorf("should have failed, got: %q", r)
 		}
-		r = toAnthropicRole(ai.RoleTool)
+		r, err = toAnthropicRole(ai.RoleTool)
+		if err != nil {
+			t.Error(err)
+		}
 		if r != anthropic.MessageParamRoleAssistant {
 			t.Errorf("want: %q, got: %q", anthropic.MessageParamRoleAssistant, r)
 		}
-		r = toAnthropicRole("unknown")
-		if r != "" {
-			t.Errorf("want: \"\", got: %q", r)
+		r, err = toAnthropicRole("unknown")
+		if err == nil {
+			t.Errorf("should have failed, got: %q", r)
 		}
 	})
 }
