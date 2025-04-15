@@ -18,10 +18,15 @@ import (
 	"context"
 	"testing"
 
-	firebase "firebase.google.com/go/v4"
+	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/genkit"
 )
 
+/*
+  - Pre-requisites to run this test:
+
+Same as that in retriever_test.go
+*/
 func TestInit(t *testing.T) {
 	t.Parallel()
 
@@ -31,56 +36,47 @@ func TestInit(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	firebaseApp, _ := firebasev4.NewApp(ctx, nil)
+
 	tests := []struct {
 		name          string
-		config        *FirebasePluginConfig
 		expectedError string
-		setup         func() error
+		projectId     string
+		app           *firebasev4.App
 	}{
 		{
-			name: "Successful initialization",
-			config: &FirebasePluginConfig{
-				App: &firebase.App{}, // Mock Firebase app
-			},
+			name:          "Successful initialization with project id",
 			expectedError: "",
-			setup: func() error {
-				return nil // No setup required, first call should succeed
-			},
+			projectId:     "test-app",
+			app:           nil,
 		},
 		{
-			name: "Initialization when already initialized",
-			config: &FirebasePluginConfig{
-				App: &firebase.App{}, // Mock Firebase app
-			},
+			name:          "Successful initialization with app",
 			expectedError: "",
-			setup: func() error {
-				// Initialize once
-				return Init(ctx, g, &FirebasePluginConfig{
-					App: &firebase.App{}, // Mock Firebase app
-				})
-			},
+			projectId:     "",
+			app:           firebaseApp,
 		},
 		{
-			name: "Initialization with missing App",
-			config: &FirebasePluginConfig{
-				App: nil, // No app provided
-			},
-			expectedError: "firebase.Init: no Firebase app provided", // Expecting an error when no app is passed
-			setup: func() error {
-				return nil // No setup required
-			},
+			name:          "Initialise Plugin without app and project-id",
+			expectedError: "firebase.Init: provide ProjectId or App", // Expecting an error when no app/projectId is passed
+			projectId:     "",
+			app:           nil,
+		},
+		{
+			name:          "Initialise Plugin with both app and project-id",
+			expectedError: "firebase.Init: provide either ProjectId or App, not both", // Expecting an error when no app/projectId is passed
+			projectId:     "test-app",
+			app:           firebaseApp,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer unInit()
-
-			if err := tt.setup(); err != nil {
-				t.Fatalf("Setup failed: %v", err)
+			f := &Firebase{
+				ProjectId: tt.projectId,
+				App:       tt.app,
 			}
-
-			err := Init(ctx, g, tt.config)
+			err = f.Init(ctx, g)
 
 			if tt.expectedError != "" {
 				if err == nil || err.Error() != tt.expectedError {
@@ -89,6 +85,7 @@ func TestInit(t *testing.T) {
 			} else if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}
+
 		})
 	}
 }

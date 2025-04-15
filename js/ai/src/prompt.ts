@@ -392,7 +392,7 @@ function definePromptAsync<
 }
 
 function promptMetadata(options: PromptConfig<any, any, any>) {
-  return {
+  const metadata = {
     ...options.metadata,
     prompt: {
       ...options.metadata?.prompt,
@@ -400,11 +400,19 @@ function promptMetadata(options: PromptConfig<any, any, any>) {
       input: {
         schema: options.input ? toJsonSchema(options.input) : undefined,
       },
-      name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
+      name: options.name.includes('.')
+        ? options.name.split('.')[0]
+        : options.name,
       model: modelName(options.model),
     },
     type: 'prompt',
   };
+
+  if (options.variant) {
+    metadata.prompt.variant = options.variant;
+  }
+
+  return metadata;
 }
 
 function wrapInExecutablePrompt<
