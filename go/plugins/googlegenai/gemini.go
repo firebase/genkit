@@ -558,8 +558,6 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 func validateResponseModalities(model string, modalities []Modality) error {
 	for _, m := range modalities {
 		switch m {
-		case AudioMode:
-			return fmt.Errorf("AUDIO response modality is not supported for model %q", model)
 		case ImageMode:
 			if !slices.Contains(imageGenModels, model) {
 				return fmt.Errorf("IMAGE response modality is not supported for model %q", model)
