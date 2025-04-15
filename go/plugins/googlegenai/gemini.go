@@ -182,8 +182,6 @@ const (
 	ImageMode Modality = "IMAGE"
 	// Indicates the model should return text
 	TextMode Modality = "TEXT"
-	// Indicates the model should return audio
-	AudioMode Modality = "AUDIO"
 )
 
 // GeminiConfig mirrors GenerateContentConfig without direct genai dependency
