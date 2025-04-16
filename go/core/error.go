@@ -61,19 +61,10 @@ func NewGenkitError(status StatusName, message string) *GenkitError {
 		Message: message,
 	}
 
-	stackExists := false
-	if ge.Details != nil {
-		_, stackExists = ge.Details["stack"]
-	}
-
-	if !stackExists {
-		errStack := getErrorStack(ge)
-		if errStack != "" {
-			if ge.Details == nil {
-				ge.Details = make(map[string]any)
-			}
-			ge.Details["stack"] = errStack
-		}
+	errStack := getErrorStack(ge)
+	if errStack != "" {
+		ge.Details = make(map[string]any)
+		ge.Details["stack"] = errStack
 	}
 	return ge
 }

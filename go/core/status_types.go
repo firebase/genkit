@@ -127,7 +127,6 @@ var statusNameToHTTPCode = map[StatusName]int{
 }
 
 // HTTPStatusCode gets the corresponding HTTP status code for a given Genkit status name.
-// It defaults to 500 Internal Server Error if the status name is unrecognized.
 func HTTPStatusCode(name StatusName) int {
 	if code, ok := statusNameToHTTPCode[name]; ok {
 		return code
@@ -138,10 +137,8 @@ func HTTPStatusCode(name StatusName) int {
 
 // Status represents a status condition, typically used in responses or errors.
 type Status struct {
-	// Name is the canonical status name.
-	Name StatusName `json:"name"`
-	// Message provides an optional developer-facing error message.
-	Message string `json:"message,omitempty"` // omitempty corresponds to Python's default=''
+	Name    StatusName `json:"name"`
+	Message string     `json:"message,omitempty"`
 }
 
 // NewStatus creates a new Status object.
