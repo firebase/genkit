@@ -15,12 +15,15 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { EvalStatusEnum } from 'genkit/evaluator';
 import {
   enrichResultsWithScoring,
   extractMetricSummaries,
 } from '../../src/eval';
-import { EvalMetricSchema, EvalResult } from '../../src/types/eval';
+import {
+  EvalMetricSchema,
+  EvalResult,
+  EvalStatusEnum,
+} from '../../src/types/eval';
 import { EvalFnResponse, EvalResponse } from '../../src/types/evaluator';
 
 describe('parser', () => {
