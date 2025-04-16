@@ -34,13 +34,6 @@ type ReflectionError struct {
 	Code    int                     `json:"code"`
 }
 
-// HTTPError is the wire format for HTTP error details for callables.
-type HTTPError struct {
-	Details any        `json:"details,omitempty"`
-	Message string     `json:"message"`
-	Status  StatusName `json:"status"`
-}
-
 // GenkitError is the base error type for Genkit errors.
 type GenkitError struct {
 	Message  string         `json:"message"` // Exclude from default JSON if embedded elsewhere
@@ -62,6 +55,29 @@ func UserFacingError(status StatusName, message string, details map[string]any) 
 	}
 }
 
+func NewGenkitError(status StatusName, message string) *GenkitError {
+	ge := &GenkitError{
+		Status:  status,
+		Message: message,
+	}
+
+	stackExists := false
+	if ge.Details != nil {
+		_, stackExists = ge.Details["stack"]
+	}
+
+	if !stackExists {
+		errStack := getErrorStack(ge)
+		if errStack != "" {
+			if ge.Details == nil {
+				ge.Details = make(map[string]any)
+			}
+			ge.Details["stack"] = errStack
+		}
+	}
+	return ge
+}
+
 // Error implements the standard error interface.
 func (e *GenkitError) Error() string {
 	sourcePrefix := ""
@@ -73,15 +89,6 @@ func (e *GenkitError) Error() string {
 	return baseMsg
 }
 
-// ToHTTPError returns a JSON-serializable representation for callable responses.
-func (e *GenkitError) ToHTTPError() HTTPError {
-	return HTTPError{
-		Details: e.Details,
-		Status:  e.Status,
-		Message: e.Message,
-	}
-}
-
 // ToReflectionError returns a JSON-serializable representation for reflection API responses.
 func (e *GenkitError) ToReflectionError() ReflectionError {
 	errDetails := &ReflectionErrorDetails{}
@@ -91,7 +98,6 @@ func (e *GenkitError) ToReflectionError() ReflectionError {
 	if traceVal, ok := e.Details["traceId"].(string); ok {
 		errDetails.TraceID = &traceVal
 	}
-
 	return ReflectionError{
 		Details: errDetails,
 		Code:    HTTPStatusCode(e.Status),
@@ -113,7 +119,7 @@ func ToReflectionError(err error) ReflectionError {
 
 	return ReflectionError{
 		Message: err.Error(),
-		Code:    StatusNameToCode[INTERNAL],
+		Code:    HTTPStatusCode(INTERNAL),
 		Details: detailsWire,
 	}
 }

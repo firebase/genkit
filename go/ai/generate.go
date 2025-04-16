@@ -153,10 +153,7 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 // It returns an error if the model was not defined.
 func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	if modelName == "" {
-		return nil, &core.GenkitError{
-			Message: "ai.LookupModelByName: model not specified",
-			Status:  core.INVALID_ARGUMENT,
-		}
+		return nil, core.NewGenkitError(core.INVALID_ARGUMENT, "ai.LookupModelByName: model not specified")
 	}
 
 	provider, name, found := strings.Cut(modelName, "/")
@@ -168,16 +165,10 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	model := LookupModel(r, provider, name)
 	if model == nil {
 		if provider == "" {
-			return nil, &core.GenkitError{
-				Message: fmt.Sprintf("ai.LookupModelByName: model %q not found", name),
-				Status:  core.NOT_FOUND,
-			}
+			return nil, core.NewGenkitError(core.NOT_FOUND, fmt.Sprintf("ai.LookupModelByName: model %q not found", name))
 
 		}
-		return nil, &core.GenkitError{
-			Message: fmt.Sprintf("ai.LookupModelByName: model %q provider %q not found", name, provider),
-			Status:  core.NOT_FOUND,
-		}
+		return nil, core.NewGenkitError(core.NOT_FOUND, fmt.Sprintf("ai.LookupModelByName: model %q provider %q not found", name, provider))
 	}
 
 	return model, nil
@@ -190,10 +181,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			opts.Model = defaultModel
 		}
 		if opts.Model == "" {
-			return nil, &core.GenkitError{
-				Message: "ai.GenerateWithRequest: model is required",
-				Status:  core.INVALID_ARGUMENT,
-			}
+			return nil, core.NewGenkitError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: model is required")
 		}
 	}
 
@@ -206,18 +194,12 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
 		if _, ok := toolDefMap[t]; ok {
-			return nil, &core.GenkitError{
-				Message: fmt.Sprintf("ai.GenerateWithRequest: duplicate tool %q", t),
-				Status:  core.INVALID_ARGUMENT,
-			}
+			return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("ai.GenerateWithRequest: duplicate tool %q", t))
 		}
 
 		tool := LookupTool(r, t)
 		if tool == nil {
-			return nil, &core.GenkitError{
-				Message: fmt.Sprintf("ai.GenerateWithRequest: tool %q not found", t),
-				Status:  core.NOT_FOUND,
-			}
+			return nil, core.NewGenkitError(core.NOT_FOUND, fmt.Sprintf("ai.GenerateWithRequest: tool %q not found", t))
 		}
 
 		toolDefMap[t] = tool.Definition()
@@ -229,10 +211,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 	maxTurns := opts.MaxTurns
 	if maxTurns < 0 {
-		return nil, &core.GenkitError{
-			Message: fmt.Sprintf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns),
-			Status:  core.INVALID_ARGUMENT,
-		}
+		return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns))
 	}
 	if maxTurns == 0 {
 		maxTurns = 5 // Default max turns.
@@ -298,7 +277,8 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			resp.Message, err = formatHandler.ParseMessage(resp.Message)
 			if err != nil {
 				logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
-				return nil, fmt.Errorf("model failed to generate output matching expected schema: %w", err)
+				return nil, core.NewGenkitError(core.INTERNAL, fmt.Sprintf("model failed to generate output matching expected schema: %v", err))
+
 			}
 		}
 
@@ -313,10 +293,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		}
 
 		if currentTurn+1 > maxTurns {
-			return nil, &core.GenkitError{
-				Message: fmt.Sprintf("exceeded maximum tool call iterations (%d)", maxTurns),
-				Status:  core.ABORTED,
-			}
+			return nil, core.NewGenkitError(core.ABORTED, fmt.Sprintf("exceeded maximum tool call iterations (%d)", maxTurns))
 		}
 
 		newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
@@ -343,10 +320,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
 		if err := opt.applyGenerate(genOpts); err != nil {
-			return nil, &core.GenkitError{
-				Message: fmt.Sprintf("ai.Generate: error applying options: %v", err),
-				Status:  core.INVALID_ARGUMENT,
-			}
+			return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("ai.Generate: error applying options: %v", err))
 		}
 	}
 
@@ -449,10 +423,7 @@ func (m *model) Name() string {
 // Generate applies the [Action] to provided request.
 func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
-		return nil, &core.GenkitError{
-			Message: "Model.Generate: generate called on a nil model; check that all models are defined",
-			Status:  core.INVALID_ARGUMENT,
-		}
+		return nil, core.NewGenkitError(core.INVALID_ARGUMENT, "Model.Generate: generate called on a nil model; check that all models are defined")
 	}
 
 	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)
@@ -509,12 +480,12 @@ func cloneMessage(m *Message) *Message {
 		panic(fmt.Sprintf("failed to marshal message: %v", err))
 	}
 
-	var copy Message
-	if err := json.Unmarshal(bytes, &copy); err != nil {
+	var msgCopy Message
+	if err := json.Unmarshal(bytes, &msgCopy); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal message: %v", err))
 	}
 
-	return &copy
+	return &msgCopy
 }
 
 // handleToolRequests processes any tool requests in the response, returning
@@ -551,7 +522,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 			toolReq := p.ToolRequest
 			tool := LookupTool(r, toolReq.Name)
 			if tool == nil {
-				resultChan <- toolResult{idx, nil, fmt.Errorf("tool %q not found", toolReq.Name)}
+				resultChan <- toolResult{idx, nil, core.NewGenkitError(core.NOT_FOUND, fmt.Sprintf("tool %q not found", toolReq.Name))}
 				return
 			}
 
@@ -569,7 +540,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 					resultChan <- toolResult{idx, nil, interruptErr}
 					return
 				}
-				resultChan <- toolResult{idx, nil, fmt.Errorf("tool %q failed: %w", toolReq.Name, err)}
+				resultChan <- toolResult{idx, nil, core.NewGenkitError(core.NOT_FOUND, fmt.Sprintf("tool %q failed: %v", toolReq.Name, err))}
 				return
 			}
 

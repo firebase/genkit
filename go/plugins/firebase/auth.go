@@ -42,7 +42,7 @@ type AuthClient interface {
 func ContextProvider(ctx context.Context, g *genkit.Genkit, policy AuthPolicy) (core.ContextProvider, error) {
 	f, ok := genkit.LookupPlugin(g, provider).(*Firebase)
 	if !ok {
-		return nil, errors.New("firebase plugin not initialized; did you pass the plugin to genkit.Init()")
+		return nil, core.NewGenkitError(core.NOT_FOUND, "firebase plugin not initialized; did you pass the plugin to genkit.Init()")
 	}
 	client, err := f.App.Auth(ctx)
 	if err != nil {

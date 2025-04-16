@@ -102,43 +102,28 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				for _, msg := range input.Messages {
 					for _, part := range msg.Content {
 						if part.IsMedia() {
-							return nil, &core.GenkitError{
-								Message: fmt.Sprintf("model %q does not support media, but media was provided. Request: %+v", model, input),
-								Status:  core.INVALID_ARGUMENT,
-							}
+							return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("model %q does not support media, but media was provided. Request: %+v", model, input))
 						}
 					}
 				}
 			}
 
 			if !info.Supports.Tools && len(input.Tools) > 0 {
-				return nil, &core.GenkitError{
-					Message: fmt.Sprintf("model %q does not support tool use, but tools were provided. Request: %+v", model, input),
-					Status:  core.INVALID_ARGUMENT,
-				}
+				return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("model %q does not support tool use, but tools were provided. Request: %+v", model, input))
 			}
 
 			if !info.Supports.Multiturn && len(input.Messages) > 1 {
-				return nil, &core.GenkitError{
-					Message: fmt.Sprintf("model %q does not support multiple messages, but %d were provided. Request: %+v", model, len(input.Messages), input),
-					Status:  core.INVALID_ARGUMENT,
-				}
+				return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("model %q does not support multiple messages, but %d were provided. Request: %+v", model, len(input.Messages), input))
 			}
 
 			if !info.Supports.ToolChoice && input.ToolChoice != "" && input.ToolChoice != ToolChoiceAuto {
-				return nil, &core.GenkitError{
-					Message: fmt.Sprintf("model %q does not support tool choice, but tool choice was provided. Request: %+v", model, input),
-					Status:  core.INVALID_ARGUMENT,
-				}
+				return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("model %q does not support tool choice, but tool choice was provided. Request: %+v", model, input))
 			}
 
 			if !info.Supports.SystemRole {
 				for _, msg := range input.Messages {
 					if msg.Role == RoleSystem {
-						return nil, &core.GenkitError{
-							Message: fmt.Sprintf("model %q does not support system role, but system role was provided. Request: %+v", model, input),
-							Status:  core.INVALID_ARGUMENT,
-						}
+						return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("model %q does not support system role, but system role was provided. Request: %+v", model, input))
 					}
 				}
 			}
@@ -156,10 +141,7 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				info.Supports.Constrained == ConstrainedSupportNone ||
 				(info.Supports.Constrained == ConstrainedSupportNoTools && len(input.Tools) > 0)) &&
 				input.Output != nil && input.Output.Constrained {
-				return nil, &core.GenkitError{
-					Message: fmt.Sprintf("model %q does not support native constrained output, but constrained output was requested. Request: %+v", model, input),
-					Status:  core.INVALID_ARGUMENT,
-				}
+				return nil, core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("model %q does not support native constrained output, but constrained output was requested. Request: %+v", model, input))
 			}
 
 			if err := validateVersion(model, info.Versions, input.Config); err != nil {
@@ -195,20 +177,14 @@ func validateVersion(model string, versions []string, config any) error {
 
 	version, ok := versionVal.(string)
 	if !ok {
-		return &core.GenkitError{
-			Message: fmt.Sprintf("version must be a string, got %T", versionVal),
-			Status:  core.INVALID_ARGUMENT,
-		}
+		return core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("version must be a string, got %T", versionVal))
 	}
 
 	if slices.Contains(versions, version) {
 		return nil
 	}
 
-	return &core.GenkitError{
-		Message: fmt.Sprintf("model %q does not support version %q, supported versions: %v", model, version, versions),
-		Status:  core.NOT_FOUND,
-	}
+	return core.NewGenkitError(core.INVALID_ARGUMENT, fmt.Sprintf("model %q does not support version %q, supported versions: %v", model, version, versions))
 }
 
 // ContextItemTemplate is the default item template for context augmentation.
@@ -327,19 +303,13 @@ func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
 
 					resp, err := client.Get(mediaUrl)
 					if err != nil {
-						return nil, &core.GenkitError{
-							Message: fmt.Sprintf("HTTP error downloading media %q: %v", mediaUrl, err),
-							Status:  core.ABORTED,
-						}
+						return nil, core.NewGenkitError(core.ABORTED, fmt.Sprintf("HTTP error downloading media %q: %v", mediaUrl, err))
 					}
 					defer resp.Body.Close()
 
 					if resp.StatusCode != http.StatusOK {
 						body, _ := io.ReadAll(resp.Body)
-						return nil, &core.GenkitError{
-							Message: fmt.Sprintf("HTTP error downloading media %q: %s", mediaUrl, string(body)),
-							Status:  core.ABORTED,
-						}
+						return nil, core.NewGenkitError(core.ABORTED, fmt.Sprintf("HTTP error downloading media %q: %s", mediaUrl, string(body)))
 					}
 
 					contentType := part.ContentType
@@ -355,10 +325,7 @@ func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
 						data, err = io.ReadAll(resp.Body)
 					}
 					if err != nil {
-						return nil, &core.GenkitError{
-							Message: fmt.Sprintf("error reading media %q: %v", mediaUrl, err),
-							Status:  core.ABORTED,
-						}
+						return nil, core.NewGenkitError(core.ABORTED, fmt.Sprintf("error reading media %q: %v", mediaUrl, err))
 					}
 
 					message.Content[j] = NewMediaPart(contentType, fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)))
