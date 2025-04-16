@@ -31,7 +31,6 @@ const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
 });
 
 const PostgresIndexerOptionsSchema = z.object({
-  namespace: z.string().optional(),
 });
 
 /**
@@ -61,7 +60,7 @@ If not specified, the default label will be `Postgres - <tableName>`
  * @returns A reference to a Postgres indexer.
  */
 export const postgresIndexerRef = (params: {
-  tableName?: string;
+  tableName: string;
 }) => {
   return indexerRef({
     name: `postgres/${params.tableName}`,
