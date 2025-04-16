@@ -164,11 +164,11 @@ func (o *OpenAI) Model(g *genkit.Genkit, name string) ai.Model {
 }
 
 func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, error) {
-	return o.openAICompatible.DefineModel(g, name, provider, info)
+	return o.openAICompatible.DefineModel(g, provider, name, info)
 }
 
 func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {
-	return o.openAICompatible.DefineEmbedder(g, name, provider)
+	return o.openAICompatible.DefineEmbedder(g, provider, name)
 }
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {
