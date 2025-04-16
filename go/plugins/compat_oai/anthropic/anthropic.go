@@ -119,5 +119,5 @@ func (a *Anthropic) Model(g *genkit.Genkit, name string) ai.Model {
 }
 
 func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, error) {
-	return a.openAICompatible.DefineModel(g, name, provider, info)
+	return a.openAICompatible.DefineModel(g, provider, name, info)
 }

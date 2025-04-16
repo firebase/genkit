@@ -81,7 +81,7 @@ func (o *OpenAICompatible) Name() string {
 }
 
 // DefineModel defines a model in the registry
-func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name, provider string, info ai.ModelInfo) (ai.Model, error) {
+func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, info ai.ModelInfo) (ai.Model, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
@@ -111,7 +111,7 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name, provider string, 
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, name string, provider string) (ai.Embedder, error) {
+func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name string) (ai.Embedder, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
