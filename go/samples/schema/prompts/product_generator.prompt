@@ -1,0 +1,9 @@
+---
+input:
+  schema:
+    theme: string
+output:
+  schema: ProductSchema
+---
+Generate a product that fits the {{theme}} theme.
+Make sure to provide a detailed description and appropriate pricing.

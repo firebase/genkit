@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/ProductSchema",
+  "$defs": {
+    "ProductSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$ref": "#/$defs/ProductSchema",
+      "$defs": {
+        "ProductSchema": {
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "price": {
+              "type": "number"
+            },
+            "category": {
+              "type": "string"
+            },
+            "inStock": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "name",
+            "description",
+            "price",
+            "category",
+            "inStock"
+          ]
+        }
+      }
+    }
+  }
+}
