@@ -112,7 +112,7 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 		if r.Body != nil && r.ContentLength > 0 {
 			defer r.Body.Close()
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				return core.UserFacingError(core.INVALID_ARGUMENT, err.Error(), nil)
+				return core.NewPublicError(core.INVALID_ARGUMENT, err.Error(), nil)
 			}
 		}
 
@@ -190,7 +190,7 @@ func parseBoolQueryParam(r *http.Request, name string) (bool, error) {
 		var err error
 		b, err = strconv.ParseBool(s)
 		if err != nil {
-			return false, core.UserFacingError(core.INVALID_ARGUMENT, err.Error(), nil)
+			return false, core.NewPublicError(core.INVALID_ARGUMENT, err.Error(), nil)
 		}
 	}
 	return b, nil

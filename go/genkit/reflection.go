@@ -267,7 +267,7 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		}
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return core.NewGenkitError(core.INVALID_ARGUMENT, err.Error())
+			return core.NewError(core.INVALID_ARGUMENT, err.Error())
 		}
 
 		stream, err := parseBoolQueryParam(r, "stream")
@@ -334,7 +334,7 @@ func handleNotify(reg *registry.Registry) func(w http.ResponseWriter, r *http.Re
 
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return core.NewGenkitError(core.INVALID_ARGUMENT, err.Error())
+			return core.NewError(core.INVALID_ARGUMENT, err.Error())
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {
@@ -378,7 +378,7 @@ type telemetry struct {
 func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
-		return nil, core.NewGenkitError(core.NOT_FOUND, fmt.Sprintf("action %q not found", key))
+		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
 	}
 	if runtimeContext != nil {
 		ctx = core.WithActionContext(ctx, runtimeContext)

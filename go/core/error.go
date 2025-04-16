@@ -43,11 +43,11 @@ type GenkitError struct {
 	Source   *string        `json:"source,omitempty"` // Pointer for optional
 }
 
-// UserFacingError allows a web framework handler to know it
+// NewPublicError allows a web framework handler to know it
 // is safe to return the message in a request. Other kinds of errors will
 // result in a generic 500 message to avoid the possibility of internal
 // exceptions being leaked to attackers.
-func UserFacingError(status StatusName, message string, details map[string]any) *GenkitError {
+func NewPublicError(status StatusName, message string, details map[string]any) *GenkitError {
 	return &GenkitError{
 		Status:  status,
 		Details: details,
@@ -55,10 +55,14 @@ func UserFacingError(status StatusName, message string, details map[string]any) 
 	}
 }
 
-func NewGenkitError(status StatusName, message string) *GenkitError {
+// NewError creates a new GenkitError with a stack trace.
+func NewError(status StatusName, message string, args ...any) *GenkitError {
+	// Prevents a compile-time warning about non-constant message.
+	msg := message
+
 	ge := &GenkitError{
 		Status:  status,
-		Message: message,
+		Message: fmt.Sprintf(msg, args...),
 	}
 
 	errStack := getErrorStack(ge)
