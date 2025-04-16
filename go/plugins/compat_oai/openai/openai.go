@@ -29,6 +29,21 @@ const provider = "openai"
 var (
 	// Supported models: https://platform.openai.com/docs/models
 	supportedModels = map[string]ai.ModelInfo{
+		"gpt-4.1": {
+			Label:    "GPT-4.1",
+			Supports: compat_oai.Multimodal.Supports,
+			Versions: []string{"gpt-4.1", "gpt-4.1-2025-04-14"},
+		},
+		"gpt-4.1-mini": {
+			Label:    "GPT-4.1-mini",
+			Supports: compat_oai.Multimodal.Supports,
+			Versions: []string{"gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"},
+		},
+		"gpt-4.1-nano": {
+			Label:    "GPT-4.1-nano",
+			Supports: compat_oai.Multimodal.Supports,
+			Versions: []string{"gpt-4.1-nano", "gpt-4.1-nano-2025-04-14"},
+		},
 		openaiGo.ChatModelO3Mini: {
 			Label:    "o3-mini",
 			Supports: compat_oai.BasicText.Supports,
