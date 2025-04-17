@@ -102,6 +102,8 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 }
 
 // WithConfig adds configuration parameters from the model request
+// see https://platform.openai.com/docs/api-reference/responses/create
+// for more details on openai's request fields
 func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 	// Return early if we already have an error
 	if g.err != nil {
