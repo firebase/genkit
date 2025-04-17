@@ -22,7 +22,7 @@ g, err := genkit.Init(ctx,
     genkit.WithPlugins(oai),
 )
 if err != nil {
-    // hanlde errors
+    // handle errors
 }
 
 config := &ai.GenerationCommonConfig{
