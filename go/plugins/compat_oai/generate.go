@@ -120,7 +120,7 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 
 	// Map fields explicitly from genkit common config to OpenAI config in request
 	if cfg.MaxOutputTokens != 0 {
-		g.request.MaxTokens = openai.F(int64(cfg.MaxOutputTokens))
+		g.request.MaxCompletionTokens = openai.F(int64(cfg.MaxOutputTokens))
 	}
 	if len(cfg.StopSequences) > 0 {
 		g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](

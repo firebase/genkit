@@ -124,7 +124,7 @@ func TestWithConfig(t *testing.T) {
 			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
 				// For nil config, we expect all fields to be unset (not nil, but with Present=false)
 				assert.False(t, request.Temperature.Present)
-				assert.False(t, request.MaxTokens.Present)
+				assert.False(t, request.MaxCompletionTokens.Present)
 				assert.False(t, request.TopP.Present)
 				assert.False(t, request.Stop.Present)
 			},
@@ -135,7 +135,7 @@ func TestWithConfig(t *testing.T) {
 			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
 				// For empty config, we expect all fields to be unset
 				assert.False(t, request.Temperature.Present)
-				assert.False(t, request.MaxTokens.Present)
+				assert.False(t, request.MaxCompletionTokens.Present)
 				assert.False(t, request.TopP.Present)
 				assert.False(t, request.Stop.Present)
 			},
@@ -153,8 +153,8 @@ func TestWithConfig(t *testing.T) {
 				assert.True(t, request.Temperature.Present)
 				assert.Equal(t, float64(0.7), request.Temperature.Value)
 
-				assert.True(t, request.MaxTokens.Present)
-				assert.Equal(t, int64(100), request.MaxTokens.Value)
+				assert.True(t, request.MaxCompletionTokens.Present)
+				assert.Equal(t, int64(100), request.MaxCompletionTokens.Value)
 
 				assert.True(t, request.TopP.Present)
 				assert.Equal(t, float64(0.9), request.TopP.Value)
