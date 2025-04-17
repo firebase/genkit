@@ -20,6 +20,12 @@ type MyPlugin struct {
     // define other plugin-specific fields
 }
 
+var (
+    supportedModels = map[string]ai.ModelInfo{
+        // define supported models
+    }
+)
+
 func NewPlugin(apiKey string) *MyPlugin {
     return &MyPlugin{
         OpenAICompatible: compat_oai.OpenAICompatible{
@@ -32,7 +38,21 @@ func NewPlugin(apiKey string) *MyPlugin {
 
 // Implement required methods
 func (p *MyPlugin) Init(ctx context.Context, g *genkit.Genkit) error {
-    return p.OpenAICompatible.Init(ctx, g)
+    // initialize the plugin with the common compatible package
+    if err := p.OpenAICompatible.Init(ctx, g); err != nil {
+        return err
+    }
+
+    // Define plugin-specific models
+    for model, info := range supportedModels {
+        if _, err := p.DefineModel(g, p.Provider, model, info); err != nil {
+            return err
+        }
+    }
+
+    // Define embedders, if applicable
+
+    return nil
 }
 
 func (p *MyPlugin) Name() string {
