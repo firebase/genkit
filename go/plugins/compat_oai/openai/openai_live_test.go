@@ -211,4 +211,31 @@ func TestPlugin(t *testing.T) {
 
 		t.Logf("system message response: %+v", out)
 	})
+
+	t.Run("generation config", func(t *testing.T) {
+		// Create a config with specific parameters
+		config := &ai.GenerationCommonConfig{
+			Temperature:     0.2,
+			MaxOutputTokens: 50,
+			TopP:            0.5,
+			StopSequences:   []string{".", "!", "?"},
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("Write a short sentence about artificial intelligence."),
+			ai.WithConfig(config),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Message.Content[0].Text
+
+		// Verify the response is short (due to MaxOutputTokens)
+		if len(out) > 100 {
+			t.Errorf("response too long (got %d chars), expected shorter response due to MaxOutputTokens", len(out))
+		}
+
+		t.Logf("generation config response: %+v", out)
+	})
 }
