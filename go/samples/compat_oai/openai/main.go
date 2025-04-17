@@ -20,18 +20,17 @@ import (
 	oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	"github.com/firebase/genkit/go/plugins/server"
 	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
 )
 
 func main() {
 	ctx := context.Background()
 
-	oai := oai.OpenAI{
-		Opts: []option.RequestOption{
-			option.WithAPIKey(os.Getenv("OPENAI_API_KEY")),
-		},
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		log.Fatalf("no OPENAI_API_KEY environment variable set")
 	}
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&oai))
+	oai := oai.NewPlugin(apiKey)
+	g, err := genkit.Init(ctx, genkit.WithPlugins(oai))
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
