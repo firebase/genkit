@@ -281,6 +281,23 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashPreview0417 = modelRef({
+  name: 'vertexai/gemini-2.5-flash-preview-04-17',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash Preview 04-17',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemini25ProExp0325 = modelRef({
   name: 'googleai/gemini-2.5-pro-exp-03-25',
   info: {
