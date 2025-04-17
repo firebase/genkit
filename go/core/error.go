@@ -62,7 +62,7 @@ func NewPublicError(status StatusName, message string, details map[string]any) *
 	}
 }
 
-// Error implements the standard error interface.
+// Error implements the standard error interface for UserFacingError.
 func (e *UserFacingError) Error() string {
 	return fmt.Sprintf("%s: %s", e.Status, e.Message)
 }
