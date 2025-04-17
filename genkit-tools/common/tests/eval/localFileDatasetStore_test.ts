@@ -72,7 +72,7 @@ const SAMPLE_DATASET_ID_1 = 'dataset-1-123456';
 
 const SAMPLE_DATASET_METADATA_1_V1: DatasetMetadata = {
   datasetId: SAMPLE_DATASET_ID_1,
-  metrics: [],
+  metricRefs: [],
   size: 2,
   version: 1,
   datasetType: 'UNKNOWN',
@@ -84,7 +84,7 @@ const SAMPLE_DATASET_METADATA_1_V2: DatasetMetadata = {
   size: 3,
   version: 2,
   datasetType: 'UNKNOWN',
-  metrics: [],
+  metricRefs: [],
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
@@ -119,7 +119,7 @@ const SAMPLE_DATASET_ID_2 = 'dataset-2-123456';
 
 const SAMPLE_DATASET_METADATA_2: DatasetMetadata = {
   datasetId: SAMPLE_DATASET_ID_2,
-  metrics: [],
+  metricRefs: [],
   size: 5,
   version: 1,
   datasetType: 'FLOW',
@@ -276,11 +276,11 @@ describe('localFileDatasetStore', () => {
 
       const datasetMetadata = await DatasetStore.createDataset({
         ...CREATE_DATASET_REQUEST,
-        metrics: ['metric1', 'metric2'],
+        metricRefs: ['metric1', 'metric2'],
         datasetId: SAMPLE_DATASET_ID_1,
       });
 
-      expect(datasetMetadata.metrics.sort()).toEqual(
+      expect(datasetMetadata.metricRefs.sort()).toEqual(
         ['metric1', 'metric2'].sort()
       );
     });
@@ -492,10 +492,10 @@ describe('localFileDatasetStore', () => {
 
       const datasetMetadata = await DatasetStore.updateDataset({
         datasetId: SAMPLE_DATASET_ID_1,
-        metrics: ['metric1', 'metric2'],
+        metricRefs: ['metric1', 'metric2'],
       });
 
-      expect(datasetMetadata.metrics.sort()).toEqual(
+      expect(datasetMetadata.metricRefs.sort()).toEqual(
         ['metric1', 'metric2'].sort()
       );
     });
@@ -505,7 +505,7 @@ describe('localFileDatasetStore', () => {
       let metadataMap = {
         [SAMPLE_DATASET_ID_1]: {
           ...SAMPLE_DATASET_METADATA_1_V1,
-          metrics: ['metric1', 'metric2'],
+          metricRefs: ['metric1', 'metric2'],
         },
         [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
       };
@@ -518,10 +518,10 @@ describe('localFileDatasetStore', () => {
 
       const datasetMetadata = await DatasetStore.updateDataset({
         datasetId: SAMPLE_DATASET_ID_1,
-        metrics: ['metricA', 'metricB'],
+        metricRefs: ['metricA', 'metricB'],
       });
 
-      expect(datasetMetadata.metrics.sort()).toEqual(
+      expect(datasetMetadata.metricRefs.sort()).toEqual(
         ['metricA', 'metricB'].sort()
       );
     });
@@ -531,7 +531,7 @@ describe('localFileDatasetStore', () => {
       let metadataMap = {
         [SAMPLE_DATASET_ID_1]: {
           ...SAMPLE_DATASET_METADATA_1_V1,
-          metrics: ['metric1', 'metric2'],
+          metricRefs: ['metric1', 'metric2'],
         },
         [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
       };
@@ -546,7 +546,7 @@ describe('localFileDatasetStore', () => {
         datasetId: SAMPLE_DATASET_ID_1,
       });
 
-      expect(datasetMetadata.metrics.sort()).toEqual(
+      expect(datasetMetadata.metricRefs.sort()).toEqual(
         ['metric1', 'metric2'].sort()
       );
     });
@@ -556,7 +556,7 @@ describe('localFileDatasetStore', () => {
       let metadataMap = {
         [SAMPLE_DATASET_ID_1]: {
           ...SAMPLE_DATASET_METADATA_1_V1,
-          metrics: ['metric1', 'metric2'],
+          metricRefs: ['metric1', 'metric2'],
         },
         [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
       };
@@ -569,10 +569,10 @@ describe('localFileDatasetStore', () => {
 
       const datasetMetadata = await DatasetStore.updateDataset({
         datasetId: SAMPLE_DATASET_ID_1,
-        metrics: [],
+        metricRefs: [],
       });
 
-      expect(datasetMetadata.metrics).toEqual([]);
+      expect(datasetMetadata.metricRefs).toEqual([]);
     });
 
     it('fails for non existing dataset', async () => {

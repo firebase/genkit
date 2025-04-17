@@ -90,7 +90,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: id,
       schema,
       targetAction,
-      metrics: req.metrics,
+      metricRefs: req.metricRefs,
       size: dataset.length,
       version: 1,
       datasetType: req.datasetType,
@@ -110,7 +110,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async updateDataset(req: UpdateDatasetRequest): Promise<DatasetMetadata> {
-    const { datasetId, data, schema, targetAction, metrics } = req;
+    const { datasetId, data, schema, targetAction, metricRefs } = req;
     const filePath = path.resolve(
       this.storeRoot,
       this.generateFileName(datasetId)
@@ -139,7 +139,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       targetAction: targetAction ? targetAction : prevMetadata.targetAction,
       version: data ? prevMetadata.version + 1 : prevMetadata.version,
       datasetType: prevMetadata.datasetType,
-      metrics: metrics ? metrics : prevMetadata.metrics,
+      metricRefs: metricRefs ? metricRefs : prevMetadata.metricRefs,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
