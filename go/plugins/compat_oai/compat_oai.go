@@ -52,10 +52,24 @@ var (
 // OpenAICompatible is a plugin that provides compatibility with OpenAI's Compatible APIs.
 // It allows defining models and embedders that can be used with Genkit.
 type OpenAICompatible struct {
-	mu       sync.Mutex
-	initted  bool
-	client   *openaiGo.Client
-	Opts     []option.RequestOption
+	// mu protects concurrent access to the client and initialization state
+	mu sync.Mutex
+
+	// initted tracks whether the plugin has been initialized
+	initted bool
+
+	// client is the OpenAI client used for making API requests
+	// see https://github.com/openai/openai-go
+	client *openaiGo.Client
+
+	// Opts contains request options for the OpenAI client.
+	// Required: Must include at least WithAPIKey for authentication.
+	// Optional: Can include other options like WithOrganization, WithBaseURL, etc.
+	Opts []option.RequestOption
+
+	// Provider is a unique identifier for the plugin.
+	// This will be used as a prefix for model names (e.g., "myprovider/model-name").
+	// Should be lowercase and match the plugin's Name() method.
 	Provider string
 }
 
