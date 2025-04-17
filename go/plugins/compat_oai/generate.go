@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/openai/openai-go"
@@ -127,55 +126,31 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	// Handle only the supported config types with a type switch
-	switch cfg := config.(type) {
-	case *openai.ChatCompletionNewParams:
-		if cfg != nil {
-			// Copy all non-nil fields directly from the OpenAI config
-			srcVal := reflect.ValueOf(cfg).Elem()
-			dstVal := reflect.ValueOf(g.request).Elem()
-
-			for i := 0; i < srcVal.NumField(); i++ {
-				field := srcVal.Field(i)
-				if field.Kind() == reflect.Pointer && !field.IsNil() {
-					dstVal.Field(i).Set(field)
-				} else if field.Kind() != reflect.Pointer && !field.IsZero() {
-					// For scalar fields, only copy non-zero values
-					dstVal.Field(i).Set(field)
-				}
-			}
-		}
-	case *ai.GenerationCommonConfig:
-		// Handle common config by mapping specific fields
-		if cfg != nil {
-			// Map fields explicitly from common config to OpenAI config
-			if cfg.MaxOutputTokens != 0 {
-				g.request.MaxTokens = openai.F(int64(cfg.MaxOutputTokens))
-			}
-			if len(cfg.StopSequences) > 0 {
-				g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](
-					openai.ChatCompletionNewParamsStopArray(cfg.StopSequences))
-			}
-			if cfg.Temperature != 0 {
-				g.request.Temperature = openai.F(cfg.Temperature)
-			}
-			if cfg.TopP != 0 {
-				g.request.TopP = openai.F(cfg.TopP)
-			}
-		}
-	default:
-		// Provide detailed error message for unsupported types
-		configType := reflect.TypeOf(config)
-		if configType == nil {
-			g.err = fmt.Errorf("invalid nil config of unknown type")
-		} else if configType.Kind() != reflect.Pointer {
-			g.err = fmt.Errorf("config must be a pointer, got %s", configType.Kind())
-		} else if reflect.ValueOf(config).IsNil() {
-			g.err = fmt.Errorf("config is a nil %s pointer", configType.Elem().Name())
-		} else {
-			g.err = fmt.Errorf("unsupported config type: %T\n\nSupported types:\n- *openai.ChatCompletionNewParams\n- *ai.GenerationCommonConfig", config)
-		}
+	cfg, ok := config.(*ai.GenerationCommonConfig)
+	if !ok {
+		g.err = fmt.Errorf("config must be a pointer to ai.GenerationCommonConfig")
+		return g
 	}
+
+	// Map fields explicitly from genkit common config to OpenAI config in request
+	if cfg.MaxOutputTokens != 0 {
+		g.request.MaxTokens = openai.F(int64(cfg.MaxOutputTokens))
+	}
+	if len(cfg.StopSequences) > 0 {
+		g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](
+			openai.ChatCompletionNewParamsStopArray(cfg.StopSequences))
+	}
+	if cfg.Temperature != 0 {
+		g.request.Temperature = openai.F(cfg.Temperature)
+	}
+	if cfg.TopP != 0 {
+		g.request.TopP = openai.F(cfg.TopP)
+	}
+	if cfg.TopK != 0 {
+		// TopK is not supported in OpenAI's chat completion API
+		g.err = fmt.Errorf("TopK is not supported in OpenAI's chat completion API")
+	}
+	// Note: Version is handled through the model name in OpenAI's API
 	return g
 }
 
@@ -234,7 +209,7 @@ func (g *ModelGenerator) Generate(ctx context.Context, handleChunk func(context.
 	}
 
 	// Ensure messages are set
-	if g.request.Messages.Value == nil || len(g.request.Messages.Value) == 0 {
+	if len(g.request.Messages.Value) == 0 {
 		return nil, fmt.Errorf("no messages provided")
 	}
 
