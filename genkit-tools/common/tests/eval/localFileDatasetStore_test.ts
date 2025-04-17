@@ -29,7 +29,7 @@ import {
   CreateDatasetRequestSchema,
   UpdateDatasetRequestSchema,
 } from '../../src/types/apis';
-import { Dataset, DatasetStore } from '../../src/types/eval';
+import { Dataset, DatasetMetadata, DatasetStore } from '../../src/types/eval';
 
 const FAKE_TIME = new Date('2024-02-03T12:05:33.243Z');
 
@@ -70,19 +70,21 @@ const SAMPLE_DATASET_1_V2 = [
 
 const SAMPLE_DATASET_ID_1 = 'dataset-1-123456';
 
-const SAMPLE_DATASET_METADATA_1_V1 = {
+const SAMPLE_DATASET_METADATA_1_V1: DatasetMetadata = {
   datasetId: SAMPLE_DATASET_ID_1,
+  metrics: [],
   size: 2,
   version: 1,
   datasetType: 'UNKNOWN',
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
-const SAMPLE_DATASET_METADATA_1_V2 = {
+const SAMPLE_DATASET_METADATA_1_V2: DatasetMetadata = {
   datasetId: SAMPLE_DATASET_ID_1,
   size: 3,
   version: 2,
   datasetType: 'UNKNOWN',
+  metrics: [],
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
@@ -115,10 +117,12 @@ const UPDATE_DATASET_REQUEST = UpdateDatasetRequestSchema.parse({
 
 const SAMPLE_DATASET_ID_2 = 'dataset-2-123456';
 
-const SAMPLE_DATASET_METADATA_2 = {
+const SAMPLE_DATASET_METADATA_2: DatasetMetadata = {
   datasetId: SAMPLE_DATASET_ID_2,
+  metrics: [],
   size: 5,
   version: 1,
+  datasetType: 'FLOW',
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
