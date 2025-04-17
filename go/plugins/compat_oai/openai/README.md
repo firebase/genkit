@@ -7,6 +7,33 @@ This plugin provides a simple interface for using OpenAI's services.
 - Go installed on your system
 - An OpenAI API key
 
+## Usage
+
+Here's a simple example of how to use the OpenAI plugin:
+
+```go
+// Initialize the OpenAI plugin with your API key
+oai := openai.NewPlugin(apiKey)
+
+// Initialize Genkit with the OpenAI plugin
+g, err := genkit.Init(ctx,
+    genkit.WithDefaultModel("openai/gpt-4o-mini"),
+    genkit.WithPlugins(oai),
+)
+if err != nil {
+    // hanlde errors
+}
+
+config := &ai.GenerationCommonConfig{
+    // define config fields
+}
+
+resp, err = genkit.Generate(ctx, g,
+    ai.WithPromptText("Write a short sentence about artificial intelligence."),
+    ai.WithConfig(config),
+)
+```
+
 ## Running Tests
 
 First, set your OpenAI API key as an environment variable:
