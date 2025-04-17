@@ -261,6 +261,30 @@ describe('localFileDatasetStore', () => {
       expect(datasetMetadata.targetAction).toEqual('/flow/my-flow');
     });
 
+    it('creates new dataset, with metrics', async () => {
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify({}) as any)
+      );
+      fs.existsSync = jest.fn(() => false);
+      const dataset: Dataset = SAMPLE_DATASET_1_V1.map((s) => ({
+        testCaseId: TEST_CASE_ID,
+        ...s,
+      }));
+
+      const datasetMetadata = await DatasetStore.createDataset({
+        ...CREATE_DATASET_REQUEST,
+        metrics: ['metric1', 'metric2'],
+        datasetId: SAMPLE_DATASET_ID_1,
+      });
+
+      expect(datasetMetadata.metrics.sort()).toEqual(
+        ['metric1', 'metric2'].sort()
+      );
+    });
+
     it('fails request if dataset already exists', async () => {
       fs.existsSync = jest.fn(() => true);
 
@@ -451,6 +475,104 @@ describe('localFileDatasetStore', () => {
         },
       });
       expect(datasetMetadata.targetAction).toEqual('/flow/my-flow-2');
+    });
+
+    it('succeeds for existing dataset -- with metrics', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V1,
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+        metrics: ['metric1', 'metric2'],
+      });
+
+      expect(datasetMetadata.metrics.sort()).toEqual(
+        ['metric1', 'metric2'].sort()
+      );
+    });
+
+    it('succeeds for existing dataset -- with metrics override', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: {
+          ...SAMPLE_DATASET_METADATA_1_V1,
+          metrics: ['metric1', 'metric2'],
+        },
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+        metrics: ['metricA', 'metricB'],
+      });
+
+      expect(datasetMetadata.metrics.sort()).toEqual(
+        ['metricA', 'metricB'].sort()
+      );
+    });
+
+    it('succeeds for existing dataset -- with metrics unset', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: {
+          ...SAMPLE_DATASET_METADATA_1_V1,
+          metrics: ['metric1', 'metric2'],
+        },
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+      });
+
+      expect(datasetMetadata.metrics.sort()).toEqual(
+        ['metric1', 'metric2'].sort()
+      );
+    });
+
+    it('succeeds for existing dataset -- with metrics reset', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: {
+          ...SAMPLE_DATASET_METADATA_1_V1,
+          metrics: ['metric1', 'metric2'],
+        },
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+        metrics: [],
+      });
+
+      expect(datasetMetadata.metrics).toEqual([]);
     });
 
     it('fails for non existing dataset', async () => {
