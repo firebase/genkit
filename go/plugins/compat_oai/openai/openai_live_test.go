@@ -24,7 +24,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
-	"github.com/openai/openai-go/option"
 )
 
 func TestPlugin(t *testing.T) {
@@ -36,13 +35,10 @@ func TestPlugin(t *testing.T) {
 	ctx := context.Background()
 
 	// Initialize the OpenAI plugin
-	apiKeyOption := option.WithAPIKey(apiKey)
-	oai := openai.OpenAI{
-		Opts: []option.RequestOption{apiKeyOption},
-	}
+	oai := openai.NewPlugin(apiKey)
 	g, err := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("openai/gpt-4o-mini"),
-		genkit.WithPlugins(&oai),
+		genkit.WithPlugins(oai),
 	)
 	if err != nil {
 		t.Fatal(err)
