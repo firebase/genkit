@@ -23,6 +23,9 @@ import {
   EVALUATOR_METADATA_KEY_DISPLAY_NAME,
 } from '../utils/eval';
 
+/** Maximum allowed unique strings / enums for generating summaries */
+export const MAX_UNIQUE_STRING_DIST = 5;
+
 /**
  * Combines EvalInput with the generated scores to create a storable EvalResult.
  */
@@ -84,15 +87,21 @@ export function extractMetricSummaries(
   /** key: evaluatorRef */
   scores: Record<string, EvalResponse>
 ) {
+  // key: evaluatorRef or evaluatorRef + scoreId (if available)
+  const testCaseCountMap: Record<string, number> = {};
+
   const entries = Object.entries(scores)
-    .map(([evaluator, responseArray]) => ({
-      evaluator,
-      score: responseArray.flatMap((response) =>
-        Array.isArray(response.evaluation)
-          ? response.evaluation
-          : [response.evaluation]
-      ),
-    }))
+    .map(([evaluator, responseArray]) => {
+      testCaseCountMap[evaluator] = responseArray.length;
+      return {
+        evaluator,
+        score: responseArray.flatMap((response) =>
+          Array.isArray(response.evaluation)
+            ? response.evaluation
+            : [response.evaluation]
+        ),
+      };
+    })
     .flatMap((entry) => {
       const groupedScores = _.groupBy(entry.score, 'id');
       const groupedScoresKeys = Object.keys(groupedScores);
@@ -104,6 +113,7 @@ export function extractMetricSummaries(
         // No score-level granularity
         return _.flatMap(entry.score, (score) => ({
           evaluator: entry.evaluator,
+          testCaseCount: testCaseCountMap[entry.evaluator] ?? 0,
           status: score.status,
           score: score.score,
           error: score.error,
@@ -113,14 +123,19 @@ export function extractMetricSummaries(
           if (scoreId === 'undefined') {
             return scores.map((score) => ({
               evaluator: entry.evaluator,
+              testCaseCount: testCaseCountMap[entry.evaluator] ?? 0,
               status: score.status,
               score: score.score,
               error: score.error,
             }));
           } else {
+            // Duplicate tracking to simplify lookup.
+            testCaseCountMap[entry.evaluator + '/' + scoreId] =
+              testCaseCountMap[entry.evaluator] ?? 0;
             return scores.map((score) => ({
               // Synthetic ID to separate different scores
               evaluator: entry.evaluator + '/' + scoreId,
+              testCaseCount: testCaseCountMap[entry.evaluator] ?? 0,
               status: score.status,
               score: score.score,
               error: score.error,
@@ -136,7 +151,7 @@ export function extractMetricSummaries(
     const definedItems = items.filter(
       (item) => typeof item.score !== 'undefined'
     );
-    const undefinedCount = items.filter(
+    const scoreUndefinedCount = items.filter(
       (item) => typeof item.score === 'undefined'
     ).length;
     const errorCount = items.filter((item) => item.error !== undefined).length;
@@ -149,29 +164,32 @@ export function extractMetricSummaries(
       if (scoreType === 'number') {
         return {
           evaluator,
+          testCaseCount: validItem.testCaseCount,
           errorCount,
-          undefinedCount,
+          scoreUndefinedCount,
           statusDistribution,
-          average: _.meanBy(definedItems, 'score'),
+          averageScore: _.meanBy(definedItems, 'score'),
         };
       } else if (scoreType === 'boolean') {
         return {
           evaluator,
+          testCaseCount: validItem.testCaseCount,
           errorCount,
-          undefinedCount,
+          scoreUndefinedCount,
           statusDistribution,
-          distribution: _.countBy(definedItems, 'score'),
+          scoreDistribution: _.countBy(definedItems, 'score'),
         };
       } else if (scoreType === 'string') {
         // Treat as enum, but limit to 5 by heuristics
-        const distribution = _.countBy(definedItems, 'score');
+        const scoreDistribution = _.countBy(definedItems, 'score');
 
-        if (Object.keys(distribution).length <= 5) {
+        if (Object.keys(scoreDistribution).length <= MAX_UNIQUE_STRING_DIST) {
           return {
             evaluator,
+            testCaseCount: validItem.testCaseCount,
             errorCount,
-            undefinedCount,
-            distribution,
+            scoreUndefinedCount,
+            scoreDistribution,
             statusDistribution,
           };
         }
@@ -179,8 +197,9 @@ export function extractMetricSummaries(
     }
     return {
       evaluator,
+      testCaseCount: testCaseCountMap[evaluator] ?? 0,
       errorCount,
-      undefinedCount,
+      scoreUndefinedCount,
       statusDistribution,
     };
   });

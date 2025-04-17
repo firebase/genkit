@@ -154,17 +154,20 @@ describe('parser', () => {
         const result = results[0];
         expect(result).toEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 0,
-          undefinedCount: 0,
+          scoreUndefinedCount: 0,
           statusDistribution: { undefined: 3 },
-          average: 22.0 / 3,
+          // 7 + 10 + 5
+          averageScore: 22.0 / 3,
         });
       });
 
-      it('distribution for simple boolean scores', () => {
+      it('scoreDistribution for simple boolean scores', () => {
         const booleanScores = reMapScores(simpleEvalOutput, (response, i) => ({
           testCaseId: response.testCaseId,
           evaluation: {
+            // True, False, True
             score: i % 2 === 0,
           },
         }));
@@ -175,17 +178,20 @@ describe('parser', () => {
         const result = results[0];
         expect(result).toEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 0,
-          undefinedCount: 0,
+          scoreUndefinedCount: 0,
           statusDistribution: { undefined: 3 },
-          distribution: { true: 2, false: 1 },
+          // True, False, True
+          scoreDistribution: { true: 2, false: 1 },
         });
       });
 
-      it('distribution for simple string scores (under 5)', () => {
+      it('scoreDistribution for simple string scores (under 5)', () => {
         const stringScores = reMapScores(simpleEvalOutput, (response, i) => ({
           testCaseId: response.testCaseId,
           evaluation: {
+            // TYPE_0, TYPE_1, TYPE_0
             score: `TYPE_${i % 2}`,
           },
         }));
@@ -196,15 +202,18 @@ describe('parser', () => {
         const result = results[0];
         expect(result).toEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 0,
-          undefinedCount: 0,
+          scoreUndefinedCount: 0,
           statusDistribution: { undefined: 3 },
-          distribution: { TYPE_0: 2, TYPE_1: 1 },
+          // TYPE_0, TYPE_1, TYPE_0
+          scoreDistribution: { TYPE_0: 2, TYPE_1: 1 },
         });
       });
 
-      it('distribution for simple string scores (over 5)', () => {
+      it('scoreDistribution for simple string scores (over 5)', () => {
         const extendedSimpleEvalOutput: Record<string, EvalResponse> = {};
+        // 2x the simpleEvalOutput to get 6 samples.
         extendedSimpleEvalOutput['/evaluator/genkit/context_relevancy'] = Array(
           2
         )
@@ -216,6 +225,7 @@ describe('parser', () => {
           (response, i) => ({
             testCaseId: response.testCaseId,
             evaluation: {
+              // TYPE_0, TYPE_1, TYPE_2, TYPE_3, TYPE_4, TYPE_5
               score: `TYPE_${i}`,
             },
           })
@@ -227,8 +237,9 @@ describe('parser', () => {
         const result = results[0];
         expect(result).toEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 6,
           errorCount: 0,
-          undefinedCount: 0,
+          scoreUndefinedCount: 0,
           statusDistribution: { undefined: 6 },
         });
       });
@@ -242,7 +253,9 @@ describe('parser', () => {
         const withStatus = reMapScores(simpleEvalOutput, (response, i) => ({
           testCaseId: response.testCaseId,
           evaluation: {
+            // 0, 1, 2
             score: i,
+            // PASS, FAIL, undefined
             status: mockStatuses[i],
           },
         }));
@@ -253,10 +266,12 @@ describe('parser', () => {
         const result = results[0];
         expect(result).toEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 0,
-          undefinedCount: 0,
+          scoreUndefinedCount: 0,
           statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
-          average: 3.0 / 3,
+          // avg(0, 1, 2)
+          averageScore: 3.0 / 3,
         });
       });
     });
@@ -274,6 +289,7 @@ describe('parser', () => {
             testCaseId: response.testCaseId,
             evaluation: {
               score: undefined,
+              // PASS, FAIL, undefined
               status: mockStatuses[i],
             },
           })
@@ -285,8 +301,10 @@ describe('parser', () => {
         const result = results[0];
         expect(result).toEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 0,
-          undefinedCount: 3,
+          scoreUndefinedCount: 3,
+          // PASS, FAIL, undefined
           statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
         });
       });
@@ -302,7 +320,9 @@ describe('parser', () => {
           (response, i) => ({
             testCaseId: response.testCaseId,
             evaluation: {
+              // 0, 1, undefined
               score: i === 2 ? undefined : i,
+              // PASS, FAIL, undefined
               status: mockStatuses[i],
             },
           })
@@ -314,9 +334,12 @@ describe('parser', () => {
         const result = results[0];
         expect(result).toEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 0,
-          undefinedCount: 1,
-          average: 1 / 2.0,
+          scoreUndefinedCount: 1,
+          // avg(0, 1)
+          averageScore: 1 / 2.0,
+          // PASS, FAIL, undefined
           statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
         });
       });
@@ -347,9 +370,12 @@ describe('parser', () => {
         const result = results[0];
         expect(result).toEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 2,
-          undefinedCount: 2,
-          average: 1.0,
+          scoreUndefinedCount: 2,
+          // avg(1)
+          averageScore: 1.0,
+          // PASS, FAIL, undefined
           statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
         });
       });
@@ -405,17 +431,21 @@ describe('parser', () => {
         expect(results).toHaveLength(2);
         expect(results).toContainEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 0,
-          undefinedCount: 0,
+          scoreUndefinedCount: 0,
           statusDistribution: { undefined: 3 },
-          distribution: { true: 2, false: 1 },
+          // true, false, true
+          scoreDistribution: { true: 2, false: 1 },
         });
         expect(results).toContainEqual({
           evaluator: '/evaluator/genkit/faithfulness',
+          testCaseCount: 3,
           errorCount: 0,
-          undefinedCount: 0,
+          scoreUndefinedCount: 0,
           statusDistribution: { undefined: 3 },
-          average: 22.0 / 3,
+          // avg(7, 10, 5)
+          averageScore: 22.0 / 3,
         });
       });
 
@@ -434,8 +464,9 @@ describe('parser', () => {
               return {
                 testCaseId: response.testCaseId,
                 evaluation: {
-                  // undefined, score, undefined
+                  // undefined, 10, undefined
                   score: i % 2 === 0 ? undefined : numericScores[i],
+                  // PASS, FAIL, undefined
                   status: mockStatuses[i],
                   // error, undefined, error
                   error: i % 2 === 0 ? 'some error' : undefined,
@@ -445,8 +476,9 @@ describe('parser', () => {
               return {
                 testCaseId: response.testCaseId,
                 evaluation: {
-                  // score, undefined, score
+                  // alpha, undefined, gamma
                   score: i % 2 !== 0 ? undefined : stringScores[i],
+                  // PASS, FAIL, undefined
                   status: mockStatuses[i],
                   // undefined, error, undefined
                   error: i % 2 !== 0 ? 'some error' : undefined,
@@ -460,17 +492,21 @@ describe('parser', () => {
         expect(results).toHaveLength(2);
         expect(results).toContainEqual({
           evaluator: '/evaluator/genkit/faithfulness',
+          testCaseCount: 3,
           errorCount: 2,
-          undefinedCount: 2,
+          scoreUndefinedCount: 2,
           statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
-          average: 10.0,
+          // avg(10)
+          averageScore: 10.0,
         });
         expect(results).toContainEqual({
           evaluator: '/evaluator/genkit/context_relevancy',
+          testCaseCount: 3,
           errorCount: 1,
-          undefinedCount: 1,
+          scoreUndefinedCount: 1,
           statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
-          distribution: { alpha: 1, gamma: 1 },
+          // alpha, gamma
+          scoreDistribution: { alpha: 1, gamma: 1 },
         });
       });
 
@@ -506,9 +542,12 @@ describe('parser', () => {
           const result = results[0];
           expect(result).toEqual({
             evaluator: '/evaluator/genkit/context_relevancy',
+            testCaseCount: 3,
             errorCount: 0,
-            undefinedCount: 1,
-            average: 4.0 / 3,
+            scoreUndefinedCount: 1,
+            // avg(1, 1, 2)
+            averageScore: 4.0 / 3,
+            // PASS, FAIL, PASS, undefined
             statusDistribution: { undefined: 1, PASS: 2, FAIL: 1 },
           });
         });
@@ -560,16 +599,22 @@ describe('parser', () => {
           expect(results).toHaveLength(2);
           expect(results).toContainEqual({
             evaluator: '/evaluator/genkit/context_relevancy/numeric',
+            testCaseCount: 3,
             errorCount: 1,
-            undefinedCount: 1,
-            average: 12.0 / 2,
+            scoreUndefinedCount: 1,
+            // avg(5, 7)
+            averageScore: 12.0 / 2,
+            // PASS, FAIL, undefined
             statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
           });
           expect(results).toContainEqual({
             evaluator: '/evaluator/genkit/context_relevancy/enum',
+            testCaseCount: 3,
             errorCount: 0,
-            undefinedCount: 1,
-            distribution: { YES: 1, NO: 1 },
+            scoreUndefinedCount: 1,
+            // YES, NO
+            scoreDistribution: { YES: 1, NO: 1 },
+            // FAIL, PASS, undefined
             statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
           });
         });
@@ -621,30 +666,42 @@ describe('parser', () => {
           expect(results).toHaveLength(4);
           expect(results).toContainEqual({
             evaluator: '/evaluator/genkit/context_relevancy/numeric',
+            testCaseCount: 3,
             errorCount: 1,
-            undefinedCount: 1,
-            average: 12.0 / 2,
+            scoreUndefinedCount: 1,
+            // avg(5, 7)
+            averageScore: 12.0 / 2,
+            // PASS, FAIL, undefined
             statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
           });
           expect(results).toContainEqual({
             evaluator: '/evaluator/genkit/context_relevancy/enum',
+            testCaseCount: 3,
             errorCount: 0,
-            undefinedCount: 1,
-            distribution: { YES: 1, NO: 1 },
+            scoreUndefinedCount: 1,
+            // YES, NO
+            scoreDistribution: { YES: 1, NO: 1 },
+            // FAIL, PASS, undefined
             statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
           });
           expect(results).toContainEqual({
             evaluator: '/evaluator/genkit/faithfulness/numeric',
+            testCaseCount: 3,
             errorCount: 1,
-            undefinedCount: 1,
-            average: 12.0 / 2,
+            scoreUndefinedCount: 1,
+            // avg(5, 7)
+            averageScore: 12.0 / 2,
+            // PASS, FAIL, undefined
             statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
           });
           expect(results).toContainEqual({
             evaluator: '/evaluator/genkit/faithfulness/enum',
+            testCaseCount: 3,
             errorCount: 0,
-            undefinedCount: 1,
-            distribution: { YES: 1, NO: 1 },
+            scoreUndefinedCount: 1,
+            // YES, NO
+            scoreDistribution: { YES: 1, NO: 1 },
+            // FAIL, PASS, undefined
             statusDistribution: { undefined: 1, PASS: 1, FAIL: 1 },
           });
         });
