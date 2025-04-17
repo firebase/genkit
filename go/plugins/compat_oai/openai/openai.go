@@ -16,6 +16,7 @@ package openai
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -125,8 +126,22 @@ var (
 )
 
 type OpenAI struct {
-	Opts             []option.RequestOption
-	openAICompatible compat_oai.OpenAICompatible
+	// apiKey is the API key for the OpenAI API.
+	// request a key at https://platform.openai.com/api-keys
+	apiKey           string
+	openAICompatible *compat_oai.OpenAICompatible
+}
+
+// NewPlugin creates a new OpenAI plugin with the given API key.
+func NewPlugin(apiKey string) *OpenAI {
+	return &OpenAI{
+		apiKey: apiKey,
+		openAICompatible: &compat_oai.OpenAICompatible{
+			Opts: []option.RequestOption{
+				option.WithAPIKey(apiKey),
+			},
+		},
+	}
 }
 
 // Name implements genkit.Plugin.
@@ -136,8 +151,13 @@ func (o *OpenAI) Name() string {
 
 // Init implements genkit.Plugin.
 func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
-	// initialize OpenAICompatible
-	o.openAICompatible.Opts = o.Opts
+	if o.apiKey == "" {
+		return fmt.Errorf("openai plugin initialization failed: apiKey is required")
+	}
+	// set the API key
+	o.openAICompatible.Opts = []option.RequestOption{
+		option.WithAPIKey(o.apiKey),
+	}
 	if err := o.openAICompatible.Init(ctx, g); err != nil {
 		return err
 	}
