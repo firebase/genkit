@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/goccy/go-yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"gopkg.in/yaml.v3"
 )
 
 type specSuite struct {
