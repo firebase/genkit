@@ -43,16 +43,28 @@ type GenkitError struct {
 	Source   *string        `json:"source,omitempty"` // Pointer for optional
 }
 
+// UserFacingError is the base error type for user facing errors.
+type UserFacingError struct {
+	Message string         `json:"message"` // Exclude from default JSON if embedded elsewhere
+	Status  StatusName     `json:"status"`
+	Details map[string]any `json:"details"` // Use map for arbitrary details
+}
+
 // NewPublicError allows a web framework handler to know it
 // is safe to return the message in a request. Other kinds of errors will
 // result in a generic 500 message to avoid the possibility of internal
 // exceptions being leaked to attackers.
-func NewPublicError(status StatusName, message string, details map[string]any) *GenkitError {
-	return &GenkitError{
+func NewPublicError(status StatusName, message string, details map[string]any) *UserFacingError {
+	return &UserFacingError{
 		Status:  status,
 		Details: details,
 		Message: message,
 	}
+}
+
+// Error implements the standard error interface.
+func (e *UserFacingError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Status, e.Message)
 }
 
 // NewError creates a new GenkitError with a stack trace.
