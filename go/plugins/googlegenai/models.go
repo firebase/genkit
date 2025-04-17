@@ -53,6 +53,7 @@ var (
 		gemini20FlashLitePrev,
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
+		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 	}
