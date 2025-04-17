@@ -33,22 +33,8 @@ type ModelGenerator struct {
 	err error
 }
 
-func (g *ModelGenerator) GetRequestConfig() *openai.ChatCompletionNewParams {
+func (g *ModelGenerator) GetRequest() *openai.ChatCompletionNewParams {
 	return g.request
-}
-
-func (g *ModelGenerator) TransformToGenkitGenerationCommonConfig(cfg *openai.ChatCompletionNewParams) *ai.GenerationCommonConfig {
-	// Transform the OpenAI config to Genkit config
-	if cfg == nil {
-		return nil
-	}
-
-	return &ai.GenerationCommonConfig{
-		Temperature:     cfg.Temperature.Value,
-		MaxOutputTokens: int(cfg.MaxTokens.Value),
-		TopP:            cfg.TopP.Value,
-		Version:         cfg.Model.Value,
-	}
 }
 
 // NewModelGenerator creates a new ModelGenerator instance
@@ -128,7 +114,7 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 
 	cfg, ok := config.(*ai.GenerationCommonConfig)
 	if !ok {
-		g.err = fmt.Errorf("config must be a pointer to ai.GenerationCommonConfig")
+		g.err = fmt.Errorf("config must be of type *ai.GenerationCommonConfig")
 		return g
 	}
 
