@@ -282,7 +282,7 @@ export const gemini20ProExp0205 = modelRef({
 });
 
 export const gemini25FlashPreview0417 = modelRef({
-  name: 'vertexai/gemini-2.5-flash-preview-04-17',
+  name: 'googleai/gemini-2.5-flash-preview-04-17',
   info: {
     label: 'Google AI - Gemini 2.5 Flash Preview 04-17',
     versions: [],
@@ -346,6 +346,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-flash-exp': gemini20FlashExp,
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
+  'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
