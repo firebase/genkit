@@ -181,23 +181,6 @@ type GenerationUsage struct {
 	TotalTokens      int                `json:"totalTokens,omitempty"`
 }
 
-type GenkitError struct {
-	Data    *GenkitErrorData `json:"data,omitempty"`
-	Details any              `json:"details,omitempty"`
-	Message string           `json:"message,omitempty"`
-	Stack   string           `json:"stack,omitempty"`
-}
-
-type GenkitErrorData struct {
-	GenkitErrorDetails *GenkitErrorDetails `json:"genkitErrorDetails,omitempty"`
-	GenkitErrorMessage string              `json:"genkitErrorMessage,omitempty"`
-}
-
-type GenkitErrorDetails struct {
-	Stack   string `json:"stack,omitempty"`
-	TraceID string `json:"traceId,omitempty"`
-}
-
 type Media struct {
 	ContentType string `json:"contentType,omitempty"`
 	Url         string `json:"url,omitempty"`

@@ -16,10 +16,10 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
@@ -40,7 +40,7 @@ func main() {
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-pro-preview-03-25")
 		if m == nil {
-			return "", errors.New("jokesFlow: failed to find model")
+			return "", core.NewError(core.INVALID_ARGUMENT, "jokesFlow: failed to find model")
 		}
 
 		resp, err := genkit.Generate(ctx, g,

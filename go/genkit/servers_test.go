@@ -132,8 +132,8 @@ func TestHandler(t *testing.T) {
 		resp := w.Result()
 		body, _ := io.ReadAll(resp.Body)
 
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Errorf("want status code %d, got %d", http.StatusBadRequest, resp.StatusCode)
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Errorf("want status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
 		}
 
 		if !strings.Contains(string(body), "invalid character") {
