@@ -15,11 +15,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from typing import Any, Type
 
 from google import genai
 from google.auth.credentials import Credentials
+from google.cloud import aiplatform_v1, storage
 from google.genai.client import DebugConfig
-from google.genai.types import HttpOptions, HttpOptionsDict
+from google.genai.types import HttpOptions, HttpOptionsDict, Operation
 
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
 from genkit.plugins.google_genai.models.embedder import (
@@ -34,6 +36,8 @@ from genkit.plugins.google_genai.models.gemini import (
     VertexAIGeminiVersion,
 )
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
+from genkit.plugins.google_genai.models.retriever import VertexAIVectorStoreRetriever
+from genkit.plugins.google_genai.models.vectorstore import IndexConfig
 
 GOOGLEAI_PLUGIN_NAME = 'googleai'
 VERTEXAI_PLUGIN_NAME = 'vertexai'
@@ -163,6 +167,124 @@ class VertexAI(Plugin):
         for version in ImagenVersion:
             imagen_model = ImagenModel(version, self._client)
             ai.define_model(name=vertexai_name(version), fn=imagen_model.generate, metadata=imagen_model.metadata)
+
+
+class VertexAIVectorSearch(Plugin):
+    """VertexAI vector store plugin for Genkit."""
+
+    name: str = 'vertexAIVectorstore'
+
+    def __init__(
+        self,
+        retriever: Type[VertexAIVectorStoreRetriever],
+        retriever_extra_args: dict[str, Any] | None = None,
+        credentials: Credentials | None = None,
+        project: str | None = None,
+        location: str | None = 'us-central1',
+        embedder: str | None = None,
+        embedder_options: dict[str, Any] | None = None,
+        http_options: HttpOptions | HttpOptionsDict | None = None,
+    ):
+        http_options = _inject_attribution_headers(http_options=http_options)
+
+        self.project = project
+        self.location = location
+
+        self.embedder = embedder
+        self.embedder_options = embedder_options
+
+        self.retriever_cls = retriever
+        self.retriever_extra_args = retriever_extra_args or {}
+
+        self._storage_client = storage.Client(
+            project=self.project,
+            credentials=credentials,
+            extra_headers=http_options.headers,
+        )
+        self._index_client = aiplatform_v1.IndexServiceAsyncClient(
+            credentials=credentials,
+        )
+        self._endpoint_client = aiplatform_v1.IndexEndpointServiceAsyncClient(credentials=credentials)
+        self._match_service_client = aiplatform_v1.MatchServiceAsyncClient(
+            credentials=credentials,
+        )
+
+    async def create_index(
+        self,
+        display_name: str,
+        description: str | None,
+        index_config: IndexConfig | None = None,
+        contents_delta_uri: str | None = None,
+    ) -> None:
+        if not index_config:
+            index_config = IndexConfig()
+
+        index = aiplatform_v1.Index()
+        index.display_name = display_name
+        index.description = description
+        index.metadata = {
+            'config': index_config.model_dump(),
+            'contentsDeltaUri': contents_delta_uri,
+        }
+
+        request = aiplatform_v1.CreateIndexRequest(
+            parent=self.index_location_path,
+            index=index,
+        )
+
+        operation = await self._index_client.create_index(request=request)
+
+        return await operation.result()
+
+    async def deploy_index(self, index_name: str, endpoint_name: str):
+        deployed_index = aiplatform_v1.DeployedIndex()
+        deployed_index.id = index_name
+        deployed_index.index = self.get_index_path(index_name=index_name)
+
+        request = aiplatform_v1.DeployIndexRequest(
+            index_endpoint=endpoint_name,
+            deployed_index=deployed_index,
+        )
+
+        operation = await self._endpoint_client.deploy_index(request=request)
+        return operation.result()
+
+    def upload_jsonl_file(self, local_path: str, bucket_name: str, destination_location: str) -> Operation:
+        bucket = self._storage_client.bucket(bucket_name=bucket_name)
+        blob = bucket.blob(destination_location)
+        blob.upload_from_filename(local_path)
+
+    def get_index_path(self, index_name: str) -> str:
+        return self._index_client.index_path(project=self.project, location=self.location, index=index_name)
+
+    @property
+    def index_location_path(self) -> str:
+        return self._index_client.common_location_path(project=self.project, location=self.location)
+
+    def initialize(self, ai: GenkitRegistry) -> None:
+        """Initialize firestore plugin.
+
+        Register actions with the registry making them available for use in the Genkit framework.
+
+        Args:
+            ai: The registry to register actions with.
+
+        Returns:
+            None
+        """
+        retriever = self.retriever_cls(
+            ai=ai,
+            name=self.name,
+            match_service_client=self._match_service_client,
+            embedder=self.embedder,
+            embedder_options=self.embedder_options,
+            **self.retriever_extra_args,
+        )
+
+        return ai.define_retriever(
+            name=vertexai_name(self.name),
+            fn=retriever.retrieve,
+        )
 
 
 def _inject_attribution_headers(http_options):
