@@ -19,29 +19,26 @@
 
 This module provides functionality for collecting and exporting telemetry data
 from Genkit operations. It uses OpenTelemetry for tracing and exports span
-data to a telemetry server for monitoring and debugging purposes.
+data to a telemetry GCP server for monitoring and debugging purposes.
 
 The module includes:
-    - A custom span exporter for sending trace data to a telemetry server
-    - Utility functions for converting and formatting trace attributes
-    - Configuration for development environment tracing
+    - A custom span exporter for sending trace data to a telemetry GCP server
 """
 import os
 from collections.abc import Sequence
 
 import structlog
 from google.cloud.trace_v2 import BatchWriteSpansRequest
-from opentelemetry import trace as trace_api
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import (
-    BatchSpanProcessor,
+    SpanExporter,
     SpanExportResult,
 )
 
-logger = structlog.getLogger(__name__)
+from genkit.core.tracing import add_custom_exporter, init_provider
 
-tracer = trace_api.get_tracer('genkit-tracer', 'v1')
+logger = structlog.getLogger(__name__)
 
 
 class GenkitGCPExporter(CloudTraceSpanExporter):
@@ -141,24 +138,25 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
         return modified_spans
 
 
-def init_tracing():
+def init_telemetry_gcp_exporter() -> (SpanExporter | None):
     """Initializes tracing with a provider and optional exporter."""
-    _tracer_provider = trace_api.get_tracer_provider()
-
-    if _tracer_provider is None:
-        _tracer_provider = TracerProvider()
-        trace_api.set_tracer_provider(_tracer_provider)
-        logger.warning("No global TracerProvider was set, creating a new one.")
-
     telemetry_project_id = os.environ.get('GCP_PROJECT_ID')  # TODO: set correct envvar
+    processor = None
     if telemetry_project_id:
-        processor = BatchSpanProcessor(
-            GenkitGCPExporter(
-                project_id=telemetry_project_id,
-            )
+        processor = GenkitGCPExporter(
+            project_id=telemetry_project_id,
         )
-        _tracer_provider.add_span_processor(processor)
     else:
         logger.warn(
             'GCP_PROJECT_ID is not set.'  # TODO: Get a better explanation of the error
         )
+
+    return processor
+
+
+def add_gcp_telemetry():
+    """Inits and adds GCP telemetry exporter."""
+    add_custom_exporter(
+        init_telemetry_gcp_exporter(),
+        "gcp_telemetry_server"
+    )
