@@ -40,12 +40,13 @@ func (r *Registry) DefineSchema(name string, structType any) error {
 	}
 
 	r.Dotprompt.DefineSchema(name, jsonSchema)
-	r.RegisterValue("schema/"+name, structType)
+	r.RegisterValue(SchemaType+"/"+name, structType)
 	fmt.Printf("Registered schema '%s' with registry and Dotprompt\n", name)
 	return nil
 }
 
 // RegisterSchemaWithDotprompt registers a schema with the Dotprompt instance
+// This is used during Init to register schemas that were defined before the registry was created.
 func (r *Registry) RegisterSchemaWithDotprompt(name string, schema any) error {
 	if r.Dotprompt == nil {
 		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
@@ -59,7 +60,9 @@ func (r *Registry) RegisterSchemaWithDotprompt(name string, schema any) error {
 	}
 
 	r.Dotprompt.DefineSchema(name, jsonSchema)
-	r.RegisterValue("schema/"+name, schema)
+	r.RegisterValue(SchemaType+"/"+name, schema)
+
+	// Set up schema lookup if not already done
 	r.setupSchemaLookupFunction()
 
 	return nil
@@ -69,20 +72,13 @@ func (r *Registry) RegisterSchemaWithDotprompt(name string, schema any) error {
 // This function bridges between Dotprompt's schema resolution and the registry's values
 func (r *Registry) setupSchemaLookupFunction() {
 	if r.Dotprompt == nil {
-		fmt.Println("Warning: No Dotprompt instance to set up schema lookup for")
 		return
 	}
 
-	fmt.Println("Registering external schema lookup function with Dotprompt")
 	r.Dotprompt.RegisterExternalSchemaLookup(func(schemaName string) any {
-		fmt.Printf("External schema lookup for '%s'\n", schemaName)
-
-		schemaValue := r.LookupValue("schema/" + schemaName)
+		schemaValue := r.LookupValue(SchemaType + "/" + schemaName)
 		if schemaValue != nil {
-			fmt.Printf("Found schema '%s' in registry values\n", schemaName)
 			return schemaValue
-		} else {
-			fmt.Printf("Schema '%s' not found in registry values\n", schemaName)
 		}
 		return nil
 	})
@@ -93,8 +89,8 @@ func (r *Registry) DumpRegistrySchemas() {
 	fmt.Println("=== Registry Schemas ===")
 
 	for k, v := range r.values {
-		if strings.HasPrefix(k, "schema/") {
-			schemaName := strings.TrimPrefix(k, "schema/")
+		if strings.HasPrefix(k, SchemaType+"/") {
+			schemaName := strings.TrimPrefix(k, SchemaType+"/")
 			fmt.Printf("Schema: %s, Type: %T\n", schemaName, v)
 		}
 	}

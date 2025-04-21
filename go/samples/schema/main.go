@@ -255,7 +255,7 @@ func main() {
 		})
 
 	// Look up and execute the prompt
-	productPrompt := genkit.LookupPrompt(g, "local", "product_generator")
+	productPrompt := genkit.LookupPrompt(g, "product_generator")
 	if productPrompt == nil {
 		log.Fatalf("Prompt 'product_generator' not found")
 	}

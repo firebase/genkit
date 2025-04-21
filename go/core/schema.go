@@ -25,9 +25,6 @@ import (
 // Schema represents a schema definition that can be of any type.
 type Schema any
 
-// SchemaType is the type identifier for schemas in the registry.
-const SchemaType = "schema"
-
 // schemaRegistry maintains registry of schemas.
 var (
 	schemasMu     sync.RWMutex
@@ -39,7 +36,10 @@ var (
 
 // RegisterSchema registers a schema with the given name.
 // This is intended to be called by higher-level packages like ai.
-func RegisterSchema(name string, schema any) {
+// It validates that the name is not empty and the schema is not nil,
+// then registers the schema in the core schemas map.
+// Returns the schema for convenience in chaining operations.
+func RegisterSchema(name string, schema any) Schema {
 	if name == "" {
 		panic("core.RegisterSchema: schema name cannot be empty")
 	}
@@ -56,6 +56,9 @@ func RegisterSchema(name string, schema any) {
 	}
 
 	schemas[name] = schema
+	pendingSchemas[name] = schema
+
+	return schema
 }
 
 // LookupSchema looks up a schema by name.
@@ -110,5 +113,31 @@ func ClearSchemas() {
 	defer schemasMu.Unlock()
 
 	schemas = make(map[string]any)
+	pendingSchemas = make(map[string]Schema)
+	schemaLookups = nil
+}
+
+// GetPendingSchemas returns a copy of pending schemas that need to be
+// registered with Dotprompt.
+func GetPendingSchemas() map[string]Schema {
+	schemasMu.RLock()
+	defer schemasMu.RUnlock()
+
+	result := make(map[string]Schema, len(pendingSchemas))
+	for name, schema := range pendingSchemas {
+		result[name] = schema
+	}
+
+	return result
+}
+
+// ClearPendingSchemas clears the pending schemas map.
+// This is called after the schemas have been registered with Dotprompt.
+func ClearPendingSchemas() {
+	schemasMu.Lock()
+	defer schemasMu.Unlock()
+
+	schemas = make(map[string]any)
+	pendingSchemas = make(map[string]Schema)
 	schemaLookups = nil
 }
