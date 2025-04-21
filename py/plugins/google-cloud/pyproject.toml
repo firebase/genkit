@@ -17,9 +17,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "genkit",
- "opentelemetry-exporter-gcp-trace>=1.9.0",
- "strenum>=0.4.15; python_version < '3.11'",
+  "genkit",
+  "opentelemetry-exporter-gcp-trace>=1.9.0",
+  "strenum>=0.4.15; python_version < '3.11'",
 ]
 description = "Genkit Google Cloud Plugin"
 license = { text = "Apache-2.0" }
