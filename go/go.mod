@@ -101,3 +101,5 @@ require (
 	google.golang.org/grpc v1.66.2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
+
+replace github.com/google/dotprompt/go => github.com/ihan211/dotprompt/go v0.0.0-20250421213448-303a393ed401
