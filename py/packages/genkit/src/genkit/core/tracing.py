@@ -193,53 +193,6 @@ def convert_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
     return attrs
 
 
-if is_dev_environment():
-    provider = TracerProvider()
-    telemetry_server_url = os.environ.get('GENKIT_TELEMETRY_SERVER')
-    if telemetry_server_url:
-        processor = SimpleSpanProcessor(
-            TelemetryServerSpanExporter(
-                telemetry_server_url=telemetry_server_url,
-            )
-        )
-        provider.add_span_processor(processor)
-    else:
-        logger.warn(
-            'GENKIT_TELEMETRY_SERVER is not set. If running with `genkit start`, make sure `genkit-cli` is up to date.'
-        )
-    # Sets the global default tracer provider
-    trace_api.set_tracer_provider(provider)
-    tracer = trace_api.get_tracer('genkit-tracer', 'v1', provider)
-else:
-    tracer = trace_api.get_tracer('genkit-tracer', 'v1')
-
-
-@contextmanager
-def run_in_new_span(
-    metadata: SpanMetadata,
-    labels: dict[str, str] | None = None,
-    links: list[trace_api.Link] | None = None,
-):
-    """Starts a new span context under the current trace.
-
-    This method provides a contexmanager for working with Genkit spans. The
-    context object is a `GenkitSpan`, which is a light wrapper on OpenTelemetry
-    span object, with handling for genkit attributes.
-    """
-    with tracer.start_as_current_span(name=metadata.name, links=links) as ot_span:
-        try:
-            span = GenkitSpan(ot_span, labels)
-            yield span
-            span.set_genkit_attribute('status', 'success')
-        except Exception as e:
-            logger.debug(f'Error in run_in_new_span: {str(e)}')
-            logger.debug(traceback.format_exc())
-            span.set_genkit_attribute('status', 'error')
-            span.set_status(status=trace_api.StatusCode.ERROR, description=str(e))
-            span.record_exception(e)
-            raise e
-
-
 class GenkitSpan:
     """Light wrapper for Span, specific to Genkit."""
 
@@ -300,3 +253,63 @@ class GenkitSpan:
         else:
             value = json.dumps(output)
         self.set_genkit_attribute('output', value)
+
+
+_tracer_provider: TracerProvider | None = None
+tracer = trace_api.get_tracer('genkit-tracer', 'v1')
+
+
+def init_tracing():
+    """Initializes tracing with a provider and optional exporter."""
+    global _tracer_provider
+
+    if _tracer_provider:
+        logger.warning("Tracing already initialized.")
+        return
+
+    _tracer_provider = TracerProvider()
+    trace_api.set_tracer_provider(_tracer_provider)
+
+    telemetry_server_url = os.environ.get('GENKIT_TELEMETRY_SERVER')
+    if telemetry_server_url:
+        processor = SimpleSpanProcessor(
+            TelemetryServerSpanExporter(
+                telemetry_server_url=telemetry_server_url,
+            )
+        )
+        _tracer_provider.add_span_processor(processor)
+    else:
+        logger.warn(
+            'GENKIT_TELEMETRY_SERVER is not set. If running with `genkit start`, make sure `genkit-cli` is up to date.'
+        )
+
+
+if is_dev_environment():
+    # If dev mode, set a simple span processor
+    init_tracing()
+
+
+@contextmanager
+def run_in_new_span(
+    metadata: SpanMetadata,
+    labels: dict[str, str] | None = None,
+    links: list[trace_api.Link] | None = None,
+):
+    """Starts a new span context under the current trace.
+
+    This method provides a contexmanager for working with Genkit spans. The
+    context object is a `GenkitSpan`, which is a light wrapper on OpenTelemetry
+    span object, with handling for genkit attributes.
+    """
+    with tracer.start_as_current_span(name=metadata.name, links=links) as ot_span:
+        try:
+            span = GenkitSpan(ot_span, labels)
+            yield span
+            span.set_genkit_attribute('status', 'success')
+        except Exception as e:
+            logger.debug(f'Error in run_in_new_span: {str(e)}')
+            logger.debug(traceback.format_exc())
+            span.set_genkit_attribute('status', 'error')
+            span.set_status(status=trace_api.StatusCode.ERROR, description=str(e))
+            span.record_exception(e)
+            raise e
