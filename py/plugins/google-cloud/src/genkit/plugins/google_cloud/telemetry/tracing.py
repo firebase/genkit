@@ -41,7 +41,6 @@ from opentelemetry.sdk.trace.export import (
 
 logger = structlog.getLogger(__name__)
 
-_tracer_provider: TracerProvider | None = None
 tracer = trace_api.get_tracer('genkit-tracer', 'v1')
 
 
@@ -144,14 +143,12 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
 
 def init_tracing():
     """Initializes tracing with a provider and optional exporter."""
-    global _tracer_provider
+    _tracer_provider = trace_api.get_tracer_provider()
 
-    if _tracer_provider:
-        logger.warning("Tracing already initialized.")
-        return
-
-    _tracer_provider = TracerProvider()
-    trace_api.set_tracer_provider(_tracer_provider)
+    if _tracer_provider is None:
+        _tracer_provider = TracerProvider()
+        trace_api.set_tracer_provider(_tracer_provider)
+        logger.warning("No global TracerProvider was set, creating a new one.")
 
     telemetry_project_id = os.environ.get('GCP_PROJECT_ID')  # TODO: set correct envvar
     if telemetry_project_id:
