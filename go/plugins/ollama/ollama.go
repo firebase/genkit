@@ -58,14 +58,12 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.M
 	if info != nil {
 		mi = *info
 	} else {
-		// Determine if this model supports media/images
-		hasMediaSupport := slices.Contains(mediaSupportedModels, model.Name)
 		mi = ai.ModelInfo{
 			Label: model.Name,
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				SystemRole: true,
-				Media:      hasMediaSupport,
+				Media:       slices.Contains(mediaSupportedModels, model.Name),
 			},
 			Versions: []string{},
 		}
