@@ -253,6 +253,7 @@ export const DatasetMetadataSchema = z.object({
   schema: DatasetSchemaSchema.optional(),
   datasetType: DatasetTypeSchema,
   targetAction: z.string().optional(),
+  metricRefs: z.array(z.string()),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
   createTime: z.string(),

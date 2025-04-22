@@ -64,6 +64,7 @@ class GeminiVersion(StrEnum):
     GEMINI_2_0_FLASH_001 = 'gemini-2.0-flash-001'
     GEMINI_2_0_FLASH_LITE_PREVIEW = 'gemini-2.0-flash-lite-preview-02-05'
     GEMINI_2_0_PRO_EXP = 'gemini-2.0-pro-exp-02-05'
+    GEMINI_2_5_FLASH_PREVIEW = 'gemini-2.5-flash-preview-04-17'
 
 
 SUPPORTED_MODELS: dict[GeminiVersion | str, ModelInfo] = {
@@ -90,6 +91,11 @@ SUPPORTED_MODELS: dict[GeminiVersion | str, ModelInfo] = {
     GeminiVersion.GEMINI_2_0_PRO_EXP: ModelInfo(
         versions=[],
         label='Vertex AI - Gemini 2.0 Flash Pro Experimental 02-05',
+        supports=Supports(multiturn=True, media=True, tools=True, systemRole=True),
+    ),
+    GeminiVersion.GEMINI_2_5_FLASH_PREVIEW: ModelInfo(
+        versions=[],
+        label='Vertex AI - Gemini 2.5 Flash Preview 04-17',
         supports=Supports(multiturn=True, media=True, tools=True, systemRole=True),
     ),
 }
