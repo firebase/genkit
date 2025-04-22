@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-import * as _ from 'lodash';
 import { Action } from '../types/action';
 import { EvalInput, EvalMetric, EvalResult } from '../types/eval';
 import { EvalFnResponse, EvalResponse } from '../types/evaluator';
 import {
   EVALUATOR_METADATA_KEY_DEFINITION,
   EVALUATOR_METADATA_KEY_DISPLAY_NAME,
+  countBy,
+  groupBy,
+  meanBy,
 } from '../utils/eval';
 
 /** Maximum allowed unique strings / enums for generating summaries */
@@ -103,7 +105,7 @@ export function extractMetricSummaries(
       };
     })
     .flatMap((entry) => {
-      const groupedScores = _.groupBy(entry.score, 'id');
+      const groupedScores = groupBy(entry.score, 'id');
       const groupedScoresKeys = Object.keys(groupedScores);
 
       if (
@@ -111,7 +113,7 @@ export function extractMetricSummaries(
         groupedScoresKeys[0] === 'undefined'
       ) {
         // No score-level granularity
-        return _.flatMap(entry.score, (score) => ({
+        return entry.score.flatMap((score) => ({
           evaluator: entry.evaluator,
           testCaseCount: testCaseCountMap[entry.evaluator] ?? 0,
           status: score.status,
@@ -119,7 +121,7 @@ export function extractMetricSummaries(
           error: score.error,
         }));
       } else {
-        return _.flatMap(groupedScores, (scores, scoreId) => {
+        return Object.entries(groupedScores).flatMap(([scoreId, scores]) => {
           if (scoreId === 'undefined') {
             return scores.map((score) => ({
               evaluator: entry.evaluator,
@@ -145,9 +147,9 @@ export function extractMetricSummaries(
       }
     });
 
-  const grouped = _.groupBy(entries, 'evaluator');
+  const grouped = groupBy(entries, 'evaluator');
 
-  const summaries = _.map(grouped, (items, evaluator) => {
+  const summaries = Object.entries(grouped).map(([evaluator, items]) => {
     const definedItems = items.filter(
       (item) => typeof item.score !== 'undefined'
     );
@@ -155,7 +157,7 @@ export function extractMetricSummaries(
       (item) => typeof item.score === 'undefined'
     ).length;
     const errorCount = items.filter((item) => item.error !== undefined).length;
-    const statusDistribution = _.countBy(items, 'status');
+    const statusDistribution = countBy(items, 'status');
 
     if (definedItems.length > 0) {
       // At least one score be registered for this
@@ -168,7 +170,7 @@ export function extractMetricSummaries(
           errorCount,
           scoreUndefinedCount,
           statusDistribution,
-          averageScore: _.meanBy(definedItems, 'score'),
+          averageScore: meanBy(definedItems, 'score'),
         };
       } else if (scoreType === 'boolean') {
         return {
@@ -177,11 +179,11 @@ export function extractMetricSummaries(
           errorCount,
           scoreUndefinedCount,
           statusDistribution,
-          scoreDistribution: _.countBy(definedItems, 'score'),
+          scoreDistribution: countBy(definedItems, 'score'),
         };
       } else if (scoreType === 'string') {
         // Treat as enum, but limit to 5 by heuristics
-        const scoreDistribution = _.countBy(definedItems, 'score');
+        const scoreDistribution = countBy(definedItems, 'score');
 
         if (Object.keys(scoreDistribution).length <= MAX_UNIQUE_STRING_DIST) {
           return {
