@@ -17,7 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
+	"time"d
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -69,15 +69,15 @@ func main() {
 
 	// Create system message
 	systemMsg := ai.NewTextMessage(ai.RoleSystem,
-		"You are a helpful assistant that can look up weather and perform calculations. "+
-			"When providing weather information or calculating, use the appropriate tools.")
+		"You are a helpful assistant that can look up weather. "+
+			"When providing weather information, use the appropriate tool.")
 
 	// Create user message
 	userMsg := ai.NewTextMessage(ai.RoleUser,
 		"I'd like to know the weather in Tokyo.")
 
 	// Generate response with tools
-	fmt.Println("Generating response with multiple tools...")
+	fmt.Println("Generating response with weather tool...")
 
 	resp, err := genkit.Generate(ctx, g,
 		ai.WithModel(model),
