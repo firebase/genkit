@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+from typing import Any
 
 import pytest
 
@@ -83,7 +84,7 @@ test_cases_extract_items = [
     test_cases_extract_items,
     ids=[tc[0] for tc in test_cases_extract_items],
 )
-def test_extract_items(name, steps):
+def test_extract_items(name: str, steps: list[dict[str, Any]]) -> None:
     text = ''
     cursor = 0
     for step in steps:
@@ -137,7 +138,7 @@ test_cases_extract_json = [
     test_cases_extract_json,
     ids=[tc[0] for tc in test_cases_extract_json],
 )
-def test_extract_json(name, input_data, expected_data):
+def test_extract_json(name: str, input_data: dict[str, Any], expected_data: dict[str, Any]) -> None:
     if expected_data.get('throws'):
         with pytest.raises(Exception):
             extract_json(input_data['text'], throw_on_bad_json=True)
@@ -181,6 +182,6 @@ test_cases_parse_partial_json = [
     test_cases_parse_partial_json,
     ids=[tc[0] for tc in test_cases_parse_partial_json],
 )
-def test_parse_partial_json(name, input_str, expected_data):
+def test_parse_partial_json(name: str, input_str: str, expected_data: dict[str, Any]) -> None:
     result = parse_partial_json(input_str)
     assert result == expected_data['expected']

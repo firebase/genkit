@@ -29,12 +29,12 @@ we support:
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Union
+from typing import Union, Type
 
 from asgiref import typing as atyping
 
 try:
-    import litestar
+    import litestar  # type: ignore[misc]
 
     HAVE_LITESTAR = True
 except ImportError:
