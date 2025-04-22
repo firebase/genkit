@@ -66,15 +66,6 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
             'name': 'genkit-tracer',
             'version': 'v1',
         },
-        # "timeEvents": {
-        #     timeEvent: span.events.map((e)=> ({
-        #         time: transformTime(e.time),
-        #         annotation: {
-        #             attributes: e.attributes ?? {},
-        #             description: e.name,
-        #         },
-        #     })),
-        # },
     }
     if not span_data['spans'][span.context.span_id]['parentSpanId']:  # type: ignore
         del span_data['spans'][span.context.span_id]['parentSpanId']  # type: ignore
