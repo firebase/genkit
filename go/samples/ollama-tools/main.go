@@ -17,7 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"d
+	"time"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
