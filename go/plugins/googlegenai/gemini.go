@@ -340,7 +340,7 @@ func generate(
 		return nil, err
 	}
 
-	gcc, err := convertRequest(input, cache)
+	gcc, err := toGeminiRequest(input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -448,9 +448,9 @@ func generate(
 	return r, nil
 }
 
-// convertRequest translates from [*ai.ModelRequest] to
+// toGeminiRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
+func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gcc := genai.GenerateContentConfig{
 		CandidateCount: genai.Ptr[int32](1),
 	}
@@ -483,8 +483,9 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 	hasOutput := input.Output != nil
 	isJsonFormat := hasOutput && input.Output.Format == "json"
 	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
-	jsonMode := isJsonFormat || (isJsonContentType && len(input.Tools) == 0)
-	if jsonMode {
+	jsonMode := isJsonFormat || isJsonContentType
+	// this setting is not compatible with tools forcing controlled output generation
+	if jsonMode && len(input.Tools) == 0 {
 		gcc.ResponseMIMEType = "application/json"
 	}
 
@@ -507,7 +508,7 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 		gcc.Tools = tools
 
 		// Then set up the tool configuration based on ToolChoice
-		tc, err := convertToolChoice(input.ToolChoice, input.Tools)
+		tc, err := toGeminiToolChoice(input.ToolChoice, input.Tools)
 		if err != nil {
 			return nil, err
 		}
@@ -708,7 +709,7 @@ func castToStringArray(i []any) []string {
 	return r
 }
 
-func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
+func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
 	var mode genai.FunctionCallingConfigMode
 	switch toolChoice {
 	case "":
