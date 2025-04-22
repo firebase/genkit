@@ -58,14 +58,12 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.M
 	if info != nil {
 		mi = *info
 	} else {
-		// Determine if this model supports media/images
-		hasMediaSupport := slices.Contains(mediaSupportedModels, model.Name)
 		mi = ai.ModelInfo{
 			Label: model.Name,
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				SystemRole: true,
-				Media:      hasMediaSupport,
+				Media:      slices.Contains(mediaSupportedModels, model.Name),
 			},
 			Versions: []string{},
 		}
@@ -123,6 +121,7 @@ keep_alive: controls how long the model will stay loaded into memory following t
 */
 type ollamaChatRequest struct {
 	Messages []*ollamaMessage `json:"messages"`
+	Images   []string         `json:"images,omitempty"`
 	Model    string           `json:"model"`
 	Stream   bool             `json:"stream"`
 	Format   string           `json:"format,omitempty"`
@@ -190,17 +189,17 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	// Check if this is an image model
 	hasMediaSupport := slices.Contains(mediaSupportedModels, g.model.Name)
 
-	if !isChatModel {
-		// Only extract images if the model supports them
-		var images []string
-		var err error
-		if hasMediaSupport {
-			images, err = concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
-			if err != nil {
-				return nil, fmt.Errorf("failed to grab image parts: %v", err)
-			}
+	// Extract images if the model supports them
+	var images []string
+	var err error
+	if hasMediaSupport {
+		images, err = concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
+		if err != nil {
+			return nil, fmt.Errorf("failed to grab image parts: %v", err)
 		}
+	}
 
+	if !isChatModel {
 		payload = ollamaModelRequest{
 			Model:  g.model.Name,
 			Prompt: concatMessages(input, []ai.Role{ai.RoleUser, ai.RoleModel, ai.RoleTool}),
@@ -222,6 +221,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 			Messages: messages,
 			Model:    g.model.Name,
 			Stream:   stream,
+			Images:   images,
 		}
 	}
 	client := &http.Client{Timeout: 30 * time.Second}
