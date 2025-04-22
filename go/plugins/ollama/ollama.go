@@ -39,7 +39,7 @@ import (
 const provider = "ollama"
 
 var (
-	mediaSupportedModels = []string{"llava"}
+	mediaSupportedModels = []string{"llava", "bakllava", "llava-llama3", "llava:13b", "llava:7b", "llava:latest"}
 	roleMapping          = map[ai.Role]string{
 		ai.RoleUser:   "user",
 		ai.RoleModel:  "assistant",
@@ -54,15 +54,18 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.M
 		panic("ollama.Init not called")
 	}
 	var mi ai.ModelInfo
+
 	if info != nil {
 		mi = *info
 	} else {
+		// Determine if this model supports media/images
+		hasMediaSupport := slices.Contains(mediaSupportedModels, model.Name)
 		mi = ai.ModelInfo{
 			Label: model.Name,
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				SystemRole: true,
-				Media:      slices.Contains(mediaSupportedModels, model.Name),
+				Media:      hasMediaSupport,
 			},
 			Versions: []string{},
 		}
@@ -122,6 +125,7 @@ type ollamaChatRequest struct {
 	Messages []*ollamaMessage `json:"messages"`
 	Model    string           `json:"model"`
 	Stream   bool             `json:"stream"`
+	Format   string           `json:"format,omitempty"`
 }
 
 type ollamaModelRequest struct {
@@ -130,6 +134,7 @@ type ollamaModelRequest struct {
 	Model  string   `json:"model"`
 	Prompt string   `json:"prompt"`
 	Stream bool     `json:"stream"`
+	Format string   `json:"format,omitempty"`
 }
 
 // TODO: Add optional parameters (images, format, options, etc.) based on your use case
@@ -181,11 +186,21 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	stream := cb != nil
 	var payload any
 	isChatModel := g.model.Type == "chat"
+
+	// Check if this is an image model
+	hasMediaSupport := slices.Contains(mediaSupportedModels, g.model.Name)
+
 	if !isChatModel {
-		images, err := concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
-		if err != nil {
-			return nil, fmt.Errorf("failed to grab image parts: %v", err)
+		// Only extract images if the model supports them
+		var images []string
+		var err error
+		if hasMediaSupport {
+			images, err = concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
+			if err != nil {
+				return nil, fmt.Errorf("failed to grab image parts: %v", err)
+			}
 		}
+
 		payload = ollamaModelRequest{
 			Model:  g.model.Name,
 			Prompt: concatMessages(input, []ai.Role{ai.RoleUser, ai.RoleModel, ai.RoleTool}),
@@ -293,21 +308,27 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 		Role: roleMapping[role],
 	}
 	var contentBuilder strings.Builder
+	var images []string
+
 	for _, part := range parts {
 		if part.IsText() {
 			contentBuilder.WriteString(part.Text)
 		} else if part.IsMedia() {
 			_, data, err := uri.Data(part)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to extract media data: %v", err)
 			}
 			base64Encoded := base64.StdEncoding.EncodeToString(data)
-			message.Images = append(message.Images, base64Encoded)
+			images = append(images, base64Encoded)
 		} else {
-			return nil, errors.New("unknown content type")
+			return nil, errors.New("unsupported content type")
 		}
 	}
+
 	message.Content = contentBuilder.String()
+	if len(images) > 0 {
+		message.Images = images
+	}
 	return message, nil
 }
 
@@ -414,10 +435,18 @@ func concatImages(input *ai.ModelRequest, roleFilter []ai.Role) ([]string, error
 				if !part.IsMedia() {
 					continue
 				}
-				_, data, err := uri.Data(part)
+
+				// Get the media type and data
+				mediaType, data, err := uri.Data(part)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to extract image data: %v", err)
 				}
+
+				// Only include image media types
+				if !strings.HasPrefix(mediaType, "image/") {
+					continue
+				}
+
 				base64Encoded := base64.StdEncoding.EncodeToString(data)
 				images = append(images, base64Encoded)
 			}
