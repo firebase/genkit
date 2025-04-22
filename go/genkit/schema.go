@@ -72,9 +72,9 @@ func LookupSchema(name string) (Schema, bool) {
 	return schema, schema != nil
 }
 
-// GetSchema retrieves a registered schema by name.
+// FindSchema retrieves a registered schema by name.
 // It returns an error if no schema exists with that name.
-func GetSchema(name string) (Schema, error) {
+func FindSchema(name string) (Schema, error) {
 	schema, exists := LookupSchema(name)
 	if !exists {
 		return nil, fmt.Errorf("genkit: schema '%s' not found", name)
@@ -92,7 +92,6 @@ func registerSchemaResolver(dp *dotprompt.Dotprompt) {
 			return nil
 		}
 
-		// Convert the schema to a JSON schema
 		reflector := jsonschema.Reflector{}
 		jsonSchema := reflector.Reflect(schema)
 		return jsonSchema

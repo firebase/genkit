@@ -25,7 +25,6 @@ import (
 // Schema represents a schema definition that can be of any type.
 type Schema any
 
-// schemaRegistry maintains registry of schemas.
 var (
 	schemasMu     sync.RWMutex
 	schemas       = make(map[string]any)
@@ -93,8 +92,8 @@ func RegisterSchemaLookup(lookup func(string) any) {
 	schemaLookups = append(schemaLookups, lookup)
 }
 
-// GetSchemas returns a copy of all registered schemas.
-func GetSchemas() map[string]any {
+// Schemas returns a copy of all registered schemas.
+func Schemas() map[string]any {
 	schemasMu.RLock()
 	defer schemasMu.RUnlock()
 
@@ -117,9 +116,9 @@ func ClearSchemas() {
 	schemaLookups = nil
 }
 
-// GetPendingSchemas returns a copy of pending schemas that need to be
+// PendingSchemas returns a copy of pending schemas that need to be
 // registered with Dotprompt.
-func GetPendingSchemas() map[string]Schema {
+func PendingSchemas() map[string]Schema {
 	schemasMu.RLock()
 	defer schemasMu.RUnlock()
 

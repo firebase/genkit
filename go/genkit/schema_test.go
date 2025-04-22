@@ -49,12 +49,12 @@ func TestDefineAndLookupSchema(t *testing.T) {
 	}
 }
 
-func TestGetSchemaSuccess(t *testing.T) {
+func TestSchemaSuccess(t *testing.T) {
 	schemaName := "GetStruct"
 	testSchema := TestStruct{Name: "Bob", Age: 25}
 	DefineSchema(schemaName, testSchema)
 
-	schema, err := GetSchema(schemaName)
+	schema, err := FindSchema(schemaName)
 	if err != nil {
 		t.Fatalf("Expected schema '%s' to be retrieved without error", schemaName)
 	}
@@ -65,8 +65,8 @@ func TestGetSchemaSuccess(t *testing.T) {
 	}
 }
 
-func TestGetSchemaNotFound(t *testing.T) {
-	_, err := GetSchema("NonExistentSchema")
+func TestSchemaNotFound(t *testing.T) {
+	_, err := FindSchema("NonExistentSchema")
 	if err == nil {
 		t.Fatal("Expected error when retrieving a non-existent schema")
 	}

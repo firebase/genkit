@@ -253,7 +253,7 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 // Internal function called during Init to register pending schemas
 func registerPendingSchemas(reg *registry.Registry) error {
 	// Get pending schemas from core
-	pendingSchemas := core.GetPendingSchemas()
+	pendingSchemas := core.PendingSchemas()
 
 	for name, schema := range pendingSchemas {
 		if err := reg.RegisterSchemaWithDotprompt(name, schema); err != nil {
