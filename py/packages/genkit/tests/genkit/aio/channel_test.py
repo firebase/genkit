@@ -19,16 +19,15 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
-from typing import Any, TypeVar
-
+from typing import TypeVar, Any
 
 import pytest
 
 from genkit.aio import Channel
 
 T = TypeVar('T')
-
 
 @pytest.mark.asyncio
 async def test_channel_send_and_receive() -> None:
@@ -84,7 +83,6 @@ async def test_channel_aiter_anext() -> None:
     """Tests the asynchronous iterator functionality."""
     close_future: asyncio.Future[Any] = asyncio.Future()
     channel: Channel[Any]  = Channel()
-
     channel.set_close_future(close_future)
     values = ['a', 'b', 'c']
     for value in values:
@@ -107,8 +105,7 @@ async def test_channel_invalid_timeout() -> None:
 @pytest.mark.asyncio
 async def test_channel_timeout() -> None:
     """Tests that the channel raises TimeoutError when timeout is reached."""
-    channel: Channel[Any] = Channel(timeout=0.1)
-
+    channel: Channel[Any]  = Channel(timeout=0.1)
     with pytest.raises(TimeoutError):
         await channel.__anext__()
 
@@ -116,9 +113,7 @@ async def test_channel_timeout() -> None:
 @pytest.mark.asyncio
 async def test_channel_no_timeout() -> None:
     """Tests that the channel doesn't timeout when timeout=None."""
-
-    channel: Channel[Any] = Channel(timeout=None)
-
+    channel: Channel[Any]  = Channel(timeout=None)
     anext_task = asyncio.create_task(channel.__anext__())
     await asyncio.sleep(0.1)
     assert not anext_task.done()
