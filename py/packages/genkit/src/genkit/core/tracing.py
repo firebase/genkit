@@ -60,7 +60,7 @@ def init_provider():
     if tracer_provider is None or not isinstance(tracer_provider, TracerProvider):
         tracer_provider = TracerProvider()
         trace_api.set_tracer_provider(tracer_provider)
-        logger.warning("No global TracerProvider was set, creating a new one.")
+        logger.debug("Creating a new global tracer provider for telemetry.")
 
     if not isinstance(tracer_provider, TracerProvider):
         raise TypeError(

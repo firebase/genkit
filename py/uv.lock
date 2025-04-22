@@ -29,7 +29,6 @@ members = [
     "google-genai-image",
     "google-genai-vertexai-hello",
     "google-genai-vertexai-image",
-    "google-otel-hello",
     "imagen",
     "menu",
     "multi-server",
@@ -1520,6 +1519,7 @@ version = "0.1.0"
 source = { editable = "samples/google-genai-hello" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
     { name = "structlog" },
@@ -1528,6 +1528,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "structlog", specifier = ">=25.2.0" },
@@ -1588,27 +1589,6 @@ requires-dist = [
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pillow" },
     { name = "pydantic", specifier = ">=2.10.5" },
-]
-
-[[package]]
-name = "google-otel-hello"
-version = "0.1.0"
-source = { editable = "samples/google-otel-hello" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-google-cloud" },
-    { name = "genkit-plugin-google-genai" },
-    { name = "pydantic" },
-    { name = "structlog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
-    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
-    { name = "pydantic", specifier = ">=2.10.5" },
-    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]

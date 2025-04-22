@@ -140,7 +140,7 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
 
 def init_telemetry_gcp_exporter() -> (SpanExporter | None):
     """Initializes tracing with a provider and optional exporter."""
-    telemetry_project_id = os.environ.get('GCP_PROJECT_ID')  # TODO: set correct envvar
+    telemetry_project_id = os.environ.get('GOOGLE_CLOUD_PROJECT')  # TODO: set correct envvar
     processor = None
     if telemetry_project_id:
         processor = GenkitGCPExporter(
@@ -148,7 +148,7 @@ def init_telemetry_gcp_exporter() -> (SpanExporter | None):
         )
     else:
         logger.warn(
-            'GCP_PROJECT_ID is not set.'  # TODO: Get a better explanation of the error
+            'GOOGLE_CLOUD_PROJECT is not set.'  # TODO: Get a better explanation of the error
         )
 
     return processor
