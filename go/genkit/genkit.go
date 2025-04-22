@@ -210,6 +210,11 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 
 	g := &Genkit{reg: r}
 
+	// Register schemas with Dotprompt before loading plugins or prompt files
+	if err := registerPendingSchemas(r); err != nil {
+		return nil, fmt.Errorf("genkit.Init: error registering schemas: %w", err)
+	}
+
 	for _, plugin := range gOpts.Plugins {
 		if err := plugin.Init(ctx, g); err != nil {
 			return nil, fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err)
@@ -243,6 +248,22 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 	}
 
 	return g, nil
+}
+
+// Internal function called during Init to register pending schemas
+func registerPendingSchemas(reg *registry.Registry) error {
+	// Get pending schemas from core
+	pendingSchemas := core.GetPendingSchemas()
+
+	for name, schema := range pendingSchemas {
+		if err := reg.RegisterSchemaWithDotprompt(name, schema); err != nil {
+			return fmt.Errorf("failed to register schema %s: %w", name, err)
+		}
+	}
+
+	// Clear pending schemas after registration
+	core.ClearPendingSchemas()
+	return nil
 }
 
 // DefineFlow defines a non-streaming flow, registers it as a [core.Action] of type Flow,

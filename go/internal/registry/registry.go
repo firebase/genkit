@@ -36,6 +36,7 @@ import (
 const (
 	DefaultModelKey = "genkit/defaultModel"
 	PromptDirKey    = "genkit/promptDir"
+	SchemaType      = "schema"
 )
 
 type Registry struct {
