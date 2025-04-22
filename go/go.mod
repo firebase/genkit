@@ -25,11 +25,11 @@ require (
 	github.com/weaviate/weaviate v1.26.0-rc.1
 	github.com/weaviate/weaviate-go-client/v4 v4.15.0
 	github.com/xeipuuv/gojsonschema v1.2.0
-	go.opentelemetry.io/otel v1.29.0
-	go.opentelemetry.io/otel/metric v1.29.0
-	go.opentelemetry.io/otel/sdk v1.29.0
+	go.opentelemetry.io/otel v1.35.0
+	go.opentelemetry.io/otel/metric v1.35.0
+	go.opentelemetry.io/otel/sdk v1.35.0
 	go.opentelemetry.io/otel/sdk/metric v1.29.0
-	go.opentelemetry.io/otel/trace v1.29.0
+	go.opentelemetry.io/otel/trace v1.35.0
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
 	golang.org/x/tools v0.31.0
 	google.golang.org/api v0.197.0
@@ -90,6 +90,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
