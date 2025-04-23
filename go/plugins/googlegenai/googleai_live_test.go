@@ -183,13 +183,20 @@ func TestGoogleAILive(t *testing.T) {
 			},
 		)
 
-		_, err := genkit.Generate(ctx, g,
+		resp, err := genkit.Generate(ctx, g,
 			ai.WithTools(weatherTool),
 			ai.WithPrompt("what's the weather in San Francisco?"),
 			ai.WithOutputType(weather{}),
 		)
 		if err != nil {
 			t.Fatal(err)
+		}
+		var w weather
+		if err = resp.Output(&w); err != nil {
+			t.Fatal(err)
+		}
+		if w.Report == "" {
+			t.Fatal("empty weather report, tool should have provided an output")
 		}
 	})
 	t.Run("avoid tool", func(t *testing.T) {
