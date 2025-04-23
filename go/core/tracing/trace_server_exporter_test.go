@@ -112,7 +112,7 @@ func TestConvertSpan(t *testing.T) {
 			DroppedAttributesCount: 1,
 		}},
 		Status: Status{Code: 2, Description: "desc"},
-		InstrumentationLibrary: InstrumentationLibrary{
+		InstrumentationScope: InstrumentationScope{
 			Name:      "iname",
 			Version:   "version",
 			SchemaURL: "surl",

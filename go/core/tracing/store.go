@@ -83,10 +83,9 @@ type Link struct {
 // InstrumentationScope is a copy of [go.opentelemetry.io/otel/sdk/instrumentation.Scope],
 // with added struct tags to match the javascript JSON field names.
 type InstrumentationScope struct {
-	Name       string `json:"name"`
-	Version    string `json:"version"`
-	SchemaURL  string `json:"schemaUrl,omitempty"`
-	Attributes any    `json:"attributes,omitempty"`
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	SchemaURL string `json:"schemaUrl,omitempty"`
 }
 
 // Status is a copy of [go.opentelemetry.io/otel/sdk/trace.Status],

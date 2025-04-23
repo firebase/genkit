@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/instrumentation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	otrace "go.opentelemetry.io/otel/trace"
 )
@@ -102,7 +103,7 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 		Attributes:              attributesToMap(span.Attributes()),
 		DisplayName:             span.Name(),
 		Links:                   convertLinks(span.Links()),
-		InstrumentationScope:    InstrumentationScope(span.InstrumentationScope()),
+		InstrumentationScope:    convertScope(span.InstrumentationScope()),
 		SpanKind:                strings.ToUpper(span.SpanKind().String()),
 		SameProcessAsParentSpan: BoolValue{!sc.IsRemote()},
 		Status:                  convertStatus(span.Status()),
@@ -114,6 +115,15 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 		sd.TimeEvents.TimeEvent = convertEvents(span.Events())
 	}
 	return sd
+}
+
+// convertScope converts an OpenTelemetry scope to an InstrumentationScope
+func convertScope(s instrumentation.Scope) InstrumentationScope {
+	return InstrumentationScope{
+		Name:      s.Name,
+		Version:   s.Version,
+		SchemaURL: s.SchemaURL,
+	}
 }
 
 func attributesToMap(attrs []attribute.KeyValue) map[string]any {
