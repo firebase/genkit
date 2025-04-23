@@ -130,8 +130,8 @@ func TestWithConfig(t *testing.T) {
 			},
 		},
 		{
-			name:   "empty config",
-			config: &ai.GenerationCommonConfig{},
+			name:   "empty openai config",
+			config: compat_oai.OpenaiConfig{},
 			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
 				// For empty config, we expect all fields to be unset
 				assert.False(t, request.Temperature.Present)
@@ -141,8 +141,8 @@ func TestWithConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "valid config with all supported openai fields",
-			config: &ai.GenerationCommonConfig{
+			name: "valid config with all supported fields",
+			config: compat_oai.OpenaiConfig{
 				Temperature:     0.7,
 				MaxOutputTokens: 100,
 				TopP:            0.9,
@@ -162,23 +162,37 @@ func TestWithConfig(t *testing.T) {
 				assert.True(t, request.Stop.Present)
 				stopArray, ok := request.Stop.Value.(openaiClient.ChatCompletionNewParamsStopArray)
 				assert.True(t, ok)
-				assert.Equal(t, openaiClient.ChatCompletionNewParamsStopArray(openaiClient.ChatCompletionNewParamsStopArray{"stop1", "stop2"}), stopArray)
+				assert.Equal(t, openaiClient.ChatCompletionNewParamsStopArray{"stop1", "stop2"}, stopArray)
 			},
 		},
 		{
-			name:   "unsupported TopK parameter",
-			config: &ai.GenerationCommonConfig{TopK: 10},
-			err:    fmt.Errorf("TopK is not supported in OpenAI's chat completion API"),
+			name: "valid config as map",
+			config: map[string]any{
+				"temperature":       0.7,
+				"max_output_tokens": 100,
+				"top_p":             0.9,
+				"stop_sequences":    []string{"stop1", "stop2"},
+			},
+			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
+				assert.True(t, request.Temperature.Present)
+				assert.Equal(t, float64(0.7), request.Temperature.Value)
+
+				assert.True(t, request.MaxCompletionTokens.Present)
+				assert.Equal(t, int64(100), request.MaxCompletionTokens.Value)
+
+				assert.True(t, request.TopP.Present)
+				assert.Equal(t, float64(0.9), request.TopP.Value)
+
+				assert.True(t, request.Stop.Present)
+				stopArray, ok := request.Stop.Value.(openaiClient.ChatCompletionNewParamsStopArray)
+				assert.True(t, ok)
+				assert.Equal(t, openaiClient.ChatCompletionNewParamsStopArray{"stop1", "stop2"}, stopArray)
+			},
 		},
 		{
-			name:   "non-pointer config",
-			config: ai.GenerationCommonConfig{},
-			err:    fmt.Errorf("config must be of type *ai.GenerationCommonConfig"),
-		},
-		{
-			name:   "invalid type",
+			name:   "invalid config type",
 			config: "not a config",
-			err:    fmt.Errorf("config must be of type *ai.GenerationCommonConfig"),
+			err:    fmt.Errorf("unexpected config type: string"),
 		},
 	}
 
