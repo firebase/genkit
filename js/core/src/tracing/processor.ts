@@ -25,7 +25,7 @@ import { ATTR_PREFIX } from './instrumentation.js';
 // Experimental, WIP
 
 export class GenkitSpanProcessorWrapper implements SpanProcessor {
-  constructor(private processor: SpanProcessor) {}
+  constructor(private processor: SpanProcessor) { }
 
   forceFlush(): Promise<void> {
     return this.processor.forceFlush();
@@ -51,7 +51,7 @@ export class GenkitSpanProcessorWrapper implements SpanProcessor {
 }
 
 class FilteringReadableSpanProxy implements ReadableSpan {
-  constructor(private span: ReadableSpan) {}
+  constructor(private span: ReadableSpan) { }
 
   get name() {
     return this.span.name;
@@ -60,7 +60,7 @@ class FilteringReadableSpanProxy implements ReadableSpan {
     return this.span.kind;
   }
   get parentSpanId() {
-    return this.span.parentSpanId;
+    return this.span.parentSpanContext;
   }
   get startTime() {
     return this.span.startTime;
@@ -95,8 +95,8 @@ class FilteringReadableSpanProxy implements ReadableSpan {
   get resource() {
     return this.span.resource;
   }
-  get instrumentationLibrary() {
-    return this.span.instrumentationLibrary;
+  get instrumentationScope() {
+    return this.span.instrumentationScope;
   }
   get droppedAttributesCount() {
     return this.span.droppedAttributesCount;

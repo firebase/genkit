@@ -72,7 +72,7 @@ export const LinkSchema = z.object({
   droppedAttributesCount: z.number().optional(),
 });
 
-export const InstrumentationLibrarySchema = z.object({
+export const InstrumentationScopeSchema = z.object({
   name: z.string().readonly(),
   version: z.string().optional().readonly(),
   schemaUrl: z.string().optional().readonly(),
@@ -87,7 +87,7 @@ export const SpanDataSchema = z.object({
   attributes: z.record(z.string(), z.any()),
   displayName: z.string(),
   links: z.array(LinkSchema).optional(),
-  instrumentationLibrary: InstrumentationLibrarySchema,
+  instrumentationScope: InstrumentationScopeSchema,
   spanKind: z.string(),
   sameProcessAsParentSpan: z.object({ value: z.boolean() }).optional(),
   status: SpanStatusSchema.optional(),

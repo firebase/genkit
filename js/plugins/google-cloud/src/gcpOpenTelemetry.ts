@@ -33,14 +33,13 @@ import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
 import { Resource } from '@opentelemetry/resources';
 import {
   AggregationTemporality,
-  DefaultAggregation,
-  ExponentialHistogramAggregation,
   InMemoryMetricExporter,
   InstrumentType,
   PeriodicExportingMetricReader,
   PushMetricExporter,
   ResourceMetrics,
 } from '@opentelemetry/sdk-metrics';
+import { ExponentialHistogramAggregation, DefaultAggregation } from '@opentelemetry/sdk-metrics/build/src/view/Aggregation.js';
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
@@ -123,11 +122,11 @@ export class GcpOpenTelemetry {
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
         ? new TraceExporter({
-            // provided projectId should take precedence over env vars, etc
-            projectId: this.config.projectId,
-            // creds for non-GCP environments, in lieu of using ADC.
-            credentials: this.config.credentials,
-          })
+          // provided projectId should take precedence over env vars, etc
+          projectId: this.config.projectId,
+          // creds for non-GCP environments, in lieu of using ADC.
+          credentials: this.config.credentials,
+        })
         : new InMemorySpanExporter(),
       this.config.exportInputAndOutput,
       this.config.projectId,
@@ -187,23 +186,23 @@ export class GcpOpenTelemetry {
   private async buildMetricExporter(): Promise<PushMetricExporter> {
     const exporter: PushMetricExporter = this.shouldExportMetrics()
       ? new MetricExporterWrapper(
-          {
-            userAgent: {
-              product: 'genkit',
-              version: GENKIT_VERSION,
-            },
-            // provided projectId should take precedence over env vars, etc
-            projectId: this.config.projectId,
-            // creds for non-GCP environments, in lieu of using ADC.
-            credentials: this.config.credentials,
+        {
+          userAgent: {
+            product: 'genkit',
+            version: GENKIT_VERSION,
           },
-          getErrorHandler(
-            (err) => {
-              return metricsDenied(err);
-            },
-            await metricsDeniedHelpText()
-          )
+          // provided projectId should take precedence over env vars, etc
+          projectId: this.config.projectId,
+          // creds for non-GCP environments, in lieu of using ADC.
+          credentials: this.config.credentials,
+        },
+        getErrorHandler(
+          (err) => {
+            return metricsDenied(err);
+          },
+          await metricsDeniedHelpText()
         )
+      )
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
     return exporter;
   }
@@ -297,7 +296,7 @@ class AdjustingTraceExporter implements SpanExporter {
     private logInputAndOutput: boolean,
     private projectId?: string,
     private errorHandler?: (error: Error) => void
-  ) {}
+  ) { }
 
   export(
     spans: ReadableSpan[],
@@ -453,14 +452,14 @@ class AdjustingTraceExporter implements SpanExporter {
     return !hasInput && !hasOutput
       ? span
       : {
-          ...span,
-          spanContext: span.spanContext,
-          attributes: {
-            ...span.attributes,
-            'genkit:input': '<redacted>',
-            'genkit:output': '<redacted>',
-          },
-        };
+        ...span,
+        spanContext: span.spanContext,
+        attributes: {
+          ...span.attributes,
+          'genkit:input': '<redacted>',
+          'genkit:output': '<redacted>',
+        },
+      };
   }
 
   // This is a workaround for GCP Trace to mark a span with a red
@@ -469,13 +468,13 @@ class AdjustingTraceExporter implements SpanExporter {
     return span.status.code !== SpanStatusCode.ERROR
       ? span
       : {
-          ...span,
-          spanContext: span.spanContext,
-          attributes: {
-            ...span.attributes,
-            '/http/status_code': '599',
-          },
-        };
+        ...span,
+        spanContext: span.spanContext,
+        attributes: {
+          ...span.attributes,
+          '/http/status_code': '599',
+        },
+      };
   }
 
   private normalizeLabels(span: ReadableSpan): ReadableSpan {

@@ -72,7 +72,6 @@ export class TraceServerExporter implements SpanExporter {
       displayName: span.name,
       links: span.links,
       spanKind: SpanKind[span.kind],
-      parentSpanId: span.parentSpanId,
       sameProcessAsParentSpan: { value: !span.spanContext().isRemote },
       status: span.status,
       timeEvents: {
@@ -85,17 +84,20 @@ export class TraceServerExporter implements SpanExporter {
         })),
       },
     };
-    if (span.instrumentationLibrary !== undefined) {
-      spanData.instrumentationLibrary = {
-        name: span.instrumentationLibrary.name,
+    if (span.parentSpanContext !== undefined) {
+      spanData.parentSpanId = span.parentSpanContext.spanId
+    }
+    if (span.instrumentationScope !== undefined) {
+      spanData.instrumentationScope = {
+        name: span.instrumentationScope.name,
       };
-      if (span.instrumentationLibrary.schemaUrl !== undefined) {
-        spanData.instrumentationLibrary.schemaUrl =
-          span.instrumentationLibrary.schemaUrl;
+      if (span.instrumentationScope.schemaUrl !== undefined) {
+        spanData.instrumentationScope.schemaUrl =
+          span.instrumentationScope.schemaUrl;
       }
-      if (span.instrumentationLibrary.version !== undefined) {
-        spanData.instrumentationLibrary.version =
-          span.instrumentationLibrary.version;
+      if (span.instrumentationScope.version !== undefined) {
+        spanData.instrumentationScope.version =
+          span.instrumentationScope.version;
       }
     }
     deleteUndefinedProps(spanData);
