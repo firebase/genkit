@@ -126,22 +126,10 @@ var (
 )
 
 type OpenAI struct {
-	// apiKey is the API key for the OpenAI API.
+	// APIKey is the API key for the OpenAI API.
 	// request a key at https://platform.openai.com/api-keys
-	apiKey           string
+	APIKey           string
 	openAICompatible *compat_oai.OpenAICompatible
-}
-
-// NewPlugin creates a new OpenAI plugin with the given API key.
-func NewPlugin(apiKey string) *OpenAI {
-	return &OpenAI{
-		apiKey: apiKey,
-		openAICompatible: &compat_oai.OpenAICompatible{
-			Opts: []option.RequestOption{
-				option.WithAPIKey(apiKey),
-			},
-		},
-	}
 }
 
 // Name implements genkit.Plugin.
@@ -151,12 +139,12 @@ func (o *OpenAI) Name() string {
 
 // Init implements genkit.Plugin.
 func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
-	if o.apiKey == "" {
+	if o.APIKey == "" {
 		return fmt.Errorf("openai plugin initialization failed: apiKey is required")
 	}
 	// set the API key
 	o.openAICompatible.Opts = []option.RequestOption{
-		option.WithAPIKey(o.apiKey),
+		option.WithAPIKey(o.APIKey),
 	}
 	if err := o.openAICompatible.Init(ctx, g); err != nil {
 		return err

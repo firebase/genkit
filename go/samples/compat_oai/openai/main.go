@@ -29,7 +29,9 @@ func main() {
 	if apiKey == "" {
 		log.Fatalf("no OPENAI_API_KEY environment variable set")
 	}
-	oai := oai.NewPlugin(apiKey)
+	oai := &oai.OpenAI{
+		APIKey: apiKey,
+	}
 	g, err := genkit.Init(ctx, genkit.WithPlugins(oai))
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
