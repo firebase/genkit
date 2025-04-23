@@ -53,12 +53,12 @@ except ImportError:
 
 # NOTE: Please ask these frameworks to standardize on asgiref.
 if HAVE_LITESTAR and HAVE_STARLETTE:
-    Application = atyping.ASGIApplication | litestar.Litestar | starlette.Starlette
-    HTTPScope = atyping.HTTPScope | litestar.HTTPScope | starlette.HTTPScope
-    LifespanScope = atyping.LifespanScope | litestar.LifespanScope | starlette.LifespanScope
-    Receive = atyping.ASGIReceiveCallable | litestar.Receive | starlette.Receive
-    Scope = atyping.Scope | litestar.Scope | starlette.Scope
-    Send = atyping.ASGISendCallable | litestar.Send | starlette.Send
+    Application = atyping.ASGIApplication | litestar.Litestar | StarletteApp
+    HTTPScope = atyping.HTTPScope | litestar.HTTPScope | starlette.types.Scope
+    LifespanScope = atyping.LifespanScope | litestar.LifespanScope | starlette.types.Scope
+    Receive = atyping.ASGIReceiveCallable | litestar.Receive | starlette.types.Scope
+    Scope = atyping.Scope | litestar.Scope | starlette.types.Scope
+    Send = atyping.ASGISendCallable | litestar.Send | starlette.types.Send
 elif HAVE_LITESTAR:
     Application = atyping.ASGIApplication | litestar.Litestar
     HTTPScope = atyping.HTTPScope | litestar.HTTPScope
@@ -67,12 +67,12 @@ elif HAVE_LITESTAR:
     Scope = atyping.Scope | litestar.Scope
     Send = atyping.ASGISendCallable | litestar.Send
 elif HAVE_STARLETTE:
-    Application = starlette.Starlette | atyping.ASGIApplication
-    HTTPScope = atyping.HTTPScope | starlette.HTTPScope
-    LifespanScope = atyping.LifespanScope | starlette.LifespanScope
-    Receive = atyping.ASGIReceiveCallable | starlette.Receive
-    Scope = atyping.Scope | starlette.Scope
-    Send = atyping.ASGISendCallable | starlette.Send
+    Application = StarletteApp | atyping.ASGIApplication
+    HTTPScope = atyping.HTTPScope | starlette.types.Scope
+    LifespanScope = atyping.LifespanScope | starlette.types.Scope
+    Receive = atyping.ASGIReceiveCallable | starlette.types.Receive
+    Scope = atyping.Scope | starlette.types.Scope
+    Send = atyping.ASGISendCallable | starlette.types.Send
 else:
     Application = atyping.ASGIApplication
     HTTPScope = atyping.HTTPScope
