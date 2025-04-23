@@ -35,7 +35,9 @@ func TestPlugin(t *testing.T) {
 	ctx := context.Background()
 
 	// Initialize the OpenAI plugin
-	oai := openai.NewPlugin(apiKey)
+	oai := &openai.OpenAI{
+		APIKey: apiKey,
+	}
 	g, err := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("openai/gpt-4o-mini"),
 		genkit.WithPlugins(oai),
