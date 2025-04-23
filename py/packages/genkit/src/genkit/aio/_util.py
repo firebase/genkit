@@ -17,8 +17,8 @@
 """AIO util module for defining and managing AIO utilities."""
 
 import asyncio
-from collections.abc import Callable
-from typing import Any, Awaitable
+from collections.abc import Callable, Awaitable
+from typing import Any
 
 
 def ensure_async(fn: Callable[..., Any] | Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
