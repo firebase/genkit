@@ -17,7 +17,7 @@
 """AIO util module for defining and managing AIO utilities."""
 
 import asyncio
-from collections.abc import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 
