@@ -128,10 +128,10 @@ var (
 
 type OpenAI struct {
 	// APIKey is the API key for the OpenAI API. If empty, the values of the environment variable "OPENAI_API_KEY" will be consulted.
-	// request a key at https://platform.openai.com/api-keys
+	// Request a key at https://platform.openai.com/api-keys
 	APIKey string
-	// Opts are additional options for the OpenAI client.
-	// Optional: Can include other options like WithOrganization, WithBaseURL, etc.
+	// Optional: Opts are additional options for the OpenAI client.
+	// Can include other options like WithOrganization, WithBaseURL, etc.
 	Opts []option.RequestOption
 
 	openAICompatible *compat_oai.OpenAICompatible
