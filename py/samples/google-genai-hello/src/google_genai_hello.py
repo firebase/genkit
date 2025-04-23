@@ -38,7 +38,7 @@ Key features demonstrated in this sample:
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
 | Multi-modal Output Configuration                         | `generate_images`                      |
-| GCP otel tracing                                         | `init_tracing()`                      |
+| GCP otel tracing                                         | `add_gcp_telemetry()`                  |
 
 """
 
