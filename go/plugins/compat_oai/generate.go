@@ -24,6 +24,15 @@ import (
 	"github.com/openai/openai-go/shared"
 )
 
+// mapToStruct unmarshals a map[string]any to the expected config type.
+func mapToStruct(m map[string]any, v any) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonData, v)
+}
+
 // ModelGenerator handles OpenAI generation requests
 type ModelGenerator struct {
 	client    *openai.Client
@@ -101,6 +110,18 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 	return g
 }
 
+// OpenaiConfig mirrors the OpenAI API configuration fields
+type OpenaiConfig struct {
+	// Maximum number of tokens to generate
+	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
+	// Temperature for sampling
+	Temperature float64 `json:"temperature,omitempty"`
+	// Top-p value for nucleus sampling
+	TopP float64 `json:"top_p,omitempty"`
+	// List of sequences where the model will stop generating
+	StopSequences []string `json:"stop_sequences,omitempty"`
+}
+
 // WithConfig adds configuration parameters from the model request
 // see https://platform.openai.com/docs/api-reference/responses/create
 // for more details on openai's request fields
@@ -114,31 +135,37 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	cfg, ok := config.(*ai.GenerationCommonConfig)
-	if !ok {
-		g.err = fmt.Errorf("config must be of type *ai.GenerationCommonConfig")
+	var openaiConfig OpenaiConfig
+	switch cfg := config.(type) {
+	case OpenaiConfig:
+		openaiConfig = cfg
+	case *OpenaiConfig:
+		openaiConfig = *cfg
+	case map[string]any:
+		if err := mapToStruct(cfg, &openaiConfig); err != nil {
+			g.err = fmt.Errorf("failed to convert config to OpenaiConfig: %w", err)
+			return g
+		}
+	default:
+		g.err = fmt.Errorf("unexpected config type: %T", config)
 		return g
 	}
 
-	// Map fields explicitly from genkit common config to OpenAI config in request
-	if cfg.MaxOutputTokens != 0 {
-		g.request.MaxCompletionTokens = openai.F(int64(cfg.MaxOutputTokens))
+	// Map fields from OpenaiConfig to OpenAI request
+	if openaiConfig.MaxOutputTokens != 0 {
+		g.request.MaxCompletionTokens = openai.F(int64(openaiConfig.MaxOutputTokens))
 	}
-	if len(cfg.StopSequences) > 0 {
+	if len(openaiConfig.StopSequences) > 0 {
 		g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](
-			openai.ChatCompletionNewParamsStopArray(cfg.StopSequences))
+			openai.ChatCompletionNewParamsStopArray(openaiConfig.StopSequences))
 	}
-	if cfg.Temperature != 0 {
-		g.request.Temperature = openai.F(cfg.Temperature)
+	if openaiConfig.Temperature != 0 {
+		g.request.Temperature = openai.F(openaiConfig.Temperature)
 	}
-	if cfg.TopP != 0 {
-		g.request.TopP = openai.F(cfg.TopP)
+	if openaiConfig.TopP != 0 {
+		g.request.TopP = openai.F(openaiConfig.TopP)
 	}
-	if cfg.TopK != 0 {
-		// TopK is not supported in OpenAI's chat completion API
-		g.err = fmt.Errorf("TopK is not supported in OpenAI's chat completion API")
-	}
-	// Note: Version is handled through the model name in OpenAI's API
+
 	return g
 }
 
