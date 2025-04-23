@@ -251,7 +251,7 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 	})
-	t.Run("media content (unstructured data)", func(t *testing.T) {
+	t.Run("media content (inline data)", func(t *testing.T) {
 		i, err := fetchImgAsBase64()
 		if err != nil {
 			t.Fatal(err)
@@ -286,6 +286,27 @@ func TestGoogleAILive(t *testing.T) {
 		}
 		if !strings.Contains(resp.Text(), "Mario Kart") {
 			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
+		}
+	})
+	t.Run("data content (inline data)", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewDataPart("data:image/png;base64,"+i),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
