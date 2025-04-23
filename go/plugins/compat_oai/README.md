@@ -26,16 +26,6 @@ var (
     }
 )
 
-func NewPlugin(apiKey string) *MyPlugin {
-    return &MyPlugin{
-        OpenAICompatible: compat_oai.OpenAICompatible{
-            Opts:     []option.RequestOption{option.WithAPIKey(apiKey)},
-            Provider: "myprovider",
-        },
-        // initialize other fields
-    }
-}
-
 // Implement required methods
 func (p *MyPlugin) Init(ctx context.Context, g *genkit.Genkit) error {
     // initialize the plugin with the common compatible package
