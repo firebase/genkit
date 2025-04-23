@@ -261,7 +261,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
 				),
 			),
 		)
