@@ -844,6 +844,13 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
+		if strings.HasPrefix(p.Text, "data:") {
+			contentType, data, err := uri.Data(p)
+			if err != nil {
+				return nil, err
+			}
+			return genai.NewPartFromBytes(data, contentType), nil
+		}
 		return genai.NewPartFromURI(p.Text, p.ContentType), nil
 	case p.IsData():
 		contentType, data, err := uri.Data(p)
