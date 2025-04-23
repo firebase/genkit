@@ -24,10 +24,10 @@ data to a telemetry GCP server for monitoring and debugging purposes.
 The module includes:
     - A custom span exporter for sending trace data to a telemetry GCP server
 """
-import os
 from collections.abc import Sequence
 
 import structlog
+from google.api_core import exceptions as core_exceptions, retry as retries
 from google.cloud.trace_v2 import BatchWriteSpansRequest
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.sdk.trace import ReadableSpan
@@ -36,7 +36,7 @@ from opentelemetry.sdk.trace.export import (
     SpanExportResult,
 )
 
-from genkit.core.tracing import add_custom_exporter, init_provider
+from genkit.core.tracing import add_custom_exporter
 
 logger = structlog.getLogger(__name__)
 
@@ -47,38 +47,12 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
     This exporter sends span data in a specific format to a GCP telemetry server,
     for visualization and debugging.
 
-    Attributes:
-        project_id: GCP project ID for the project to send spans to. Alternatively, can be
-            configured with :envvar:`OTEL_EXPORTER_GCP_TRACE_PROJECT_ID`.
-        client: Cloud Trace client. If not given, will be taken from gcloud
-            default credentials
-        resource_regex: Resource attributes with keys matching this regex will be added to
-            exported spans as labels (default: None). Alternatively, can be configured with
-            :envvar:`OTEL_EXPORTER_GCP_TRACE_RESOURCE_REGEX`.
+    Super class will use google.auth.default() to get the project id.
     """
 
-    def __init__(
-        self,
-        project_id=None,
-        client=None,
-        resource_regex=None,
-    ):
-        """Initializes the GenkitGCPExporter.
-
-        Args:
-            project_id: GCP project ID for the project to send spans to. Alternatively, can be
-                configured with :envvar:`OTEL_EXPORTER_GCP_TRACE_PROJECT_ID`.
-            client: Cloud Trace client. If not given, will be taken from gcloud
-                default credentials
-            resource_regex: Resource attributes with keys matching this regex will be added to
-                exported spans as labels (default: None). Alternatively, can be configured with
-                :envvar:`OTEL_EXPORTER_GCP_TRACE_RESOURCE_REGEX`.
-        """
-        super().__init__(
-            project_id=project_id,
-            client=client,
-            resource_regex=resource_regex,
-        )
+    def __init__(self):
+        """Initializes the GenkitGCPExporter."""
+        super().__init__()
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Export the spans to Cloud Trace.
@@ -101,6 +75,15 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
                 request=BatchWriteSpansRequest(
                     name=f"projects/{self.project_id}",
                     spans=self._translate_to_cloud_trace(spans),
+                ),
+                retry=retries.Retry(
+                    initial=0.1,
+                    maximum=30.0,
+                    multiplier=2,
+                    predicate=retries.if_exception_type(
+                        core_exceptions.DeadlineExceeded,
+                    ),
+                    deadline=120.0,
                 )
             )
         # pylint: disable=broad-except
@@ -138,25 +121,9 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
         return modified_spans
 
 
-def init_telemetry_gcp_exporter() -> (SpanExporter | None):
-    """Initializes tracing with a provider and optional exporter."""
-    telemetry_project_id = os.environ.get('GOOGLE_CLOUD_PROJECT')  # TODO: set correct envvar
-    processor = None
-    if telemetry_project_id:
-        processor = GenkitGCPExporter(
-            project_id=telemetry_project_id,
-        )
-    else:
-        logger.warn(
-            'GOOGLE_CLOUD_PROJECT is not set.'  # TODO: Get a better explanation of the error
-        )
-
-    return processor
-
-
 def add_gcp_telemetry():
     """Inits and adds GCP telemetry exporter."""
     add_custom_exporter(
-        init_telemetry_gcp_exporter(),
+        GenkitGCPExporter(),
         "gcp_telemetry_server"
     )

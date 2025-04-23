@@ -13,9 +13,6 @@ configuration.
 export GEMINI_API_KEY='<Your api key>'
 ```
 
-Export the GCP Project ID as env variable `GOOGLE\_CLOUD\_PROJECT` in your shell
-configuration for GCP Telemetry Exporter activation.
-
 ## Run the sample
 
 ```bash
