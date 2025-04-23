@@ -61,7 +61,9 @@ function parsePluginName(registryKey: string) {
 // Parses e.g. /model/googleai/gemini-2.0-flash into parts
 function parseRegistryKey(
   registryKey: string
-): { actionType: ActionType; pluginName: string; actionName: string } | undefined {
+):
+  | { actionType: ActionType; pluginName: string; actionName: string }
+  | undefined {
   const tokens = registryKey.split('/');
   if (tokens.length >= 4) {
     return {
