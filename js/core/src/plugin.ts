@@ -16,6 +16,7 @@
 
 import { z } from 'zod';
 import { Action } from './action.js';
+import { ActionType } from './registry.js';
 
 export interface Provider<T> {
   id: string;
@@ -28,6 +29,7 @@ export interface PluginProvider {
     | InitializedPlugin
     | void
     | Promise<InitializedPlugin | void>;
+  resolver?: (action: ActionType, target: string) => Promise<void>;
 }
 
 export interface InitializedPlugin {
