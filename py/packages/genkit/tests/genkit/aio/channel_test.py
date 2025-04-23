@@ -19,14 +19,12 @@
 from __future__ import annotations
 
 import asyncio
-
-from typing import TypeVar, Any
+from typing import Any
 
 import pytest
 
 from genkit.aio import Channel
 
-T = TypeVar('T')
 
 @pytest.mark.asyncio
 async def test_channel_send_and_receive() -> None:
