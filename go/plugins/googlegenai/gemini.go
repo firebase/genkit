@@ -452,7 +452,7 @@ func generate(
 // *genai.GenerateContentParameters
 func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gcc := genai.GenerateContentConfig{
-		CandidateCount: genai.Ptr[int32](1),
+		CandidateCount: 1,
 	}
 
 	c, err := configFromRequest(input)
@@ -462,7 +462,7 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 
 	// Convert standard fields
 	if c.MaxOutputTokens != 0 {
-		gcc.MaxOutputTokens = genai.Ptr(int32(c.MaxOutputTokens))
+		gcc.MaxOutputTokens = int32(c.MaxOutputTokens)
 	}
 	if len(c.StopSequences) > 0 {
 		gcc.StopSequences = c.StopSequences
@@ -813,13 +813,8 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 
 	r.Usage = &ai.GenerationUsage{}
 	if u := resp.UsageMetadata; u != nil {
-		// not all responses from the SDK come with usage metadata
-		if tokens := u.PromptTokenCount; tokens != nil {
-			r.Usage.InputTokens = int(*tokens)
-		}
-		if tokens := u.CandidatesTokenCount; tokens != nil {
-			r.Usage.OutputTokens = int(*tokens)
-		}
+		r.Usage.InputTokens = int(u.PromptTokenCount)
+		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
 	}
 	return r
