@@ -53,25 +53,24 @@ logger = structlog.getLogger(__name__)
 tracer = trace_api.get_tracer('genkit-tracer', 'v1')
 
 
-def init_provider():
+def init_provider() -> TracerProvider:
     """Inits and returns the tracer global provider."""
     tracer_provider = trace_api.get_tracer_provider()
 
     if tracer_provider is None or not isinstance(tracer_provider, TracerProvider):
         tracer_provider = TracerProvider()
         trace_api.set_tracer_provider(tracer_provider)
-        logger.debug("Creating a new global tracer provider for telemetry.")
+        logger.debug('Creating a new global tracer provider for telemetry.')
 
     if not isinstance(tracer_provider, TracerProvider):
         raise TypeError(
-            "The current trace provider is not an instance of TracerProvider.  "
-            f"It is of type: {type(tracer_provider)}"
+            f'The current trace provider is not an instance of TracerProvider.  It is of type: {type(tracer_provider)}'
         )
 
     return tracer_provider
 
 
-def add_custom_exporter(exporter: SpanExporter, name: str = "last"):
+def add_custom_exporter(exporter: SpanExporter, name: str = 'last') -> None:
     """Adds custom span exporter to current tracer provider.
 
     Args:
@@ -93,16 +92,13 @@ def add_custom_exporter(exporter: SpanExporter, name: str = "last"):
         current_provider.add_span_processor(processor)
         logger.debug(f'{name} exporter added succesfully.')
     except Exception as e:
-        logger.debug(f'Failed to add exporter: {str(e)}')
-        logger.debug(traceback.format_exc())
+        logger.error(f'tracing.add_custom_exporter: failed to add exporter {name}')
+        logger.exception(e)
 
 
 if is_dev_environment():
     # If dev mode, set a simple span processor
-    add_custom_exporter(
-        init_telemetry_server_exporter(),
-        "local_telemetry_server"
-    )
+    add_custom_exporter(init_telemetry_server_exporter(), 'local_telemetry_server')
 
 
 @contextmanager
@@ -129,3 +125,4 @@ def run_in_new_span(
             span.set_status(status=trace_api.StatusCode.ERROR, description=str(e))
             span.record_exception(e)
             raise e
+

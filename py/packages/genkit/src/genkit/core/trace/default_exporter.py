@@ -14,15 +14,26 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Definition of default exporter for opentelemetry logs."""
+"""Telemetry and tracing default exporter for the Genkit framework.
 
+This module provides functionality for collecting and exporting telemetry data
+from Genkit operations. It uses OpenTelemetry for tracing and exports span
+data to a telemetry server for monitoring and debugging purposes.
+
+The module includes:
+    - A custom span exporter for sending trace data to a telemetry server
+    - Utility functions for converting and formatting trace attributes
+"""
+
+import asyncio
 import json
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Awaitable, Sequence
 from typing import Any
+from urllib.parse import urljoin
 
-import requests  # type: ignore[import-untyped]
+import httpx
 import structlog
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk.trace import ReadableSpan
@@ -47,9 +58,7 @@ def extract_span_data(span: ReadableSpan) -> dict[str, Any]:
         'traceId': f'{span.context.trace_id}',
         'startTime': span.start_time / 1000000,
         'endTime': span.end_time / 1000000,
-        'attributes': convert_attributes(
-            attributes=span.attributes,  # type: ignore
-        ),
+        'attributes': {**span.attributes},
         'displayName': span.name,
         # "links": span.links,
         'spanKind': trace_api.SpanKind(span.kind).name,
@@ -88,13 +97,18 @@ class TelemetryServerSpanExporter(SpanExporter):
         telemetry_server_url: The URL of the telemetry server endpoint.
     """
 
-    def __init__(self, telemetry_server_url: str):
+    def __init__(self, telemetry_server_url: str, telemetry_server_endpoint: str | None = None):
         """Initializes the TelemetryServerSpanExporter.
 
         Args:
-            telemetry_server_url: The URL of the telemetry server's trace endpoint.
+            telemetry_server_url: The URL of the telemetry server.
+            telemetry_server_endpoint (optional): The telemetry server's trace endpoint.
         """
         self.telemetry_server_url = telemetry_server_url
+        if telemetry_server_endpoint is None:
+            self.telemetry_server_endpoint = "/api/traces"
+        else:
+            self.telemetry_server_endpoint = telemetry_server_endpoint
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Exports a sequence of ReadableSpans to the configured telemetry server.
@@ -103,10 +117,6 @@ class TelemetryServerSpanExporter(SpanExporter):
         `extract_span_data`, converts it to JSON, and sends it via an HTTP POST
         request to the `telemetry_server_url`.
 
-        Note:
-            This currently uses the `requests` library synchronously. Future
-            versions might switch to an asynchronous HTTP client like `aiohttp`.
-
         Args:
             spans: A sequence of OpenTelemetry ReadableSpan objects to export.
 
@@ -114,20 +124,19 @@ class TelemetryServerSpanExporter(SpanExporter):
             SpanExportResult.SUCCESS upon successful processing (does not guarantee
             server-side success).
         """
-        for span in spans:
-            # TODO: telemetry server URL must be dynamic, whatever tools
-            # notification says.
-            # TODO: replace this with aiohttp client.
-            requests.post(
-                f'{self.telemetry_server_url}/api/traces',
-                data=json.dumps(extract_span_data(span)),
-                headers={
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            )
+        with httpx.Client() as client:
+            for span in spans:
+                client.post(
+                    urljoin(self.telemetry_server_url, self.telemetry_server_endpoint),
+                    data=json.dumps(extract_span_data(span)),
+                    headers={
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                )
 
         sys.stdout.flush()
+
         return SpanExportResult.SUCCESS
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
@@ -146,25 +155,7 @@ class TelemetryServerSpanExporter(SpanExporter):
         return True
 
 
-def convert_attributes(attributes: dict[str, Any]) -> dict[str, Any]:
-    """Convert span attributes to a format suitable for export.
-
-    This function creates a new dictionary containing the span attributes,
-    ensuring they are in a format that can be properly serialized.
-
-    Args:
-        attributes: Dictionary of span attributes to convert.
-
-    Returns:
-        A new dictionary containing the converted attributes.
-    """
-    attrs: dict[str, Any] = {}
-    for key in attributes:
-        attrs[key] = attributes[key]
-    return attrs
-
-
-def init_telemetry_server_exporter() -> (SpanExporter | None):
+def init_telemetry_server_exporter() -> SpanExporter | None:
     """Initializes tracing with a provider and optional exporter."""
     telemetry_server_url = os.environ.get('GENKIT_TELEMETRY_SERVER')
     processor = None
@@ -179,3 +170,4 @@ def init_telemetry_server_exporter() -> (SpanExporter | None):
         )
 
     return processor
+

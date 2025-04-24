@@ -24,6 +24,7 @@ data to a telemetry GCP server for monitoring and debugging purposes.
 The module includes:
     - A custom span exporter for sending trace data to a telemetry GCP server
 """
+
 from collections.abc import Sequence
 
 import structlog
@@ -32,7 +33,6 @@ from google.cloud.trace_v2 import BatchWriteSpansRequest
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import (
-    SpanExporter,
     SpanExportResult,
 )
 
@@ -49,11 +49,6 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
 
     Super class will use google.auth.default() to get the project id.
     """
-
-    def __init__(self):
-        """Initializes the GenkitGCPExporter."""
-        super().__init__()
-
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Export the spans to Cloud Trace.
 
@@ -73,7 +68,7 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
         try:
             self.client.batch_write_spans(
                 request=BatchWriteSpansRequest(
-                    name=f"projects/{self.project_id}",
+                    name=f'projects/{self.project_id}',
                     spans=self._translate_to_cloud_trace(spans),
                 ),
                 retry=retries.Retry(
@@ -84,18 +79,16 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
                         core_exceptions.DeadlineExceeded,
                     ),
                     deadline=120.0,
-                )
+                ),
             )
         # pylint: disable=broad-except
         except Exception as ex:
-            logger.error("Error while writing to Cloud Trace", exc_info=ex)
+            logger.error('Error while writing to Cloud Trace', exc_info=ex)
             return SpanExportResult.FAILURE
 
         return SpanExportResult.SUCCESS
 
-    def add_tracer_attributes(
-        self, spans: Sequence[ReadableSpan]
-    ) -> Sequence[ReadableSpan]:
+    def add_tracer_attributes(self, spans: Sequence[ReadableSpan]) -> Sequence[ReadableSpan]:
         """Adds the instrumentation library attribute.
 
         Args:
@@ -108,22 +101,18 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
 
         for span in spans:
             modified_spans.append(
-                span.attributes.update(
-                    {
-                        'instrumentationLibrary': {
-                            'name': 'genkit-tracer',
-                            'version': 'v1',
-                        },
-                    }
-                )
+                span.attributes.update({
+                    'instrumentationLibrary': {
+                        'name': 'genkit-tracer',
+                        'version': 'v1',
+                    },
+                })
             )
 
         return modified_spans
 
 
-def add_gcp_telemetry():
+def add_gcp_telemetry() -> None:
     """Inits and adds GCP telemetry exporter."""
-    add_custom_exporter(
-        GenkitGCPExporter(),
-        "gcp_telemetry_server"
-    )
+    add_custom_exporter(GenkitGCPExporter(), 'gcp_telemetry_server')
+

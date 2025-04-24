@@ -14,7 +14,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Definition of custom spans for Genkit."""
+"""Telemetry and tracing types for the Genkit framework.
+
+This module defines the core tracing types for the Genkit framework.
+
+Genkit flows are instrumented to trace key data points, primarily the inputs
+sent to and the outputs received from Language Learning Models (LLMs) or
+other models.  Outputs may be streamed as chunks. This module establishes
+how these interactions are recorded and exported for observability.
+
+Key Features:
+
+-   **GenkitSpan Class:** Provides a core class, `GenkitSpan`, for representing
+    and exporting telemetry data related to Genkit operations.  This class
+    is intended for internal use by the Genkit framework.
+"""
 
 import json
 from collections.abc import Mapping
@@ -26,6 +40,7 @@ from opentelemetry.util import types
 from pydantic import BaseModel
 
 ATTR_PREFIX = 'genkit'
+
 logger = structlog.getLogger(__name__)
 
 
@@ -45,11 +60,11 @@ class GenkitSpan:
         if labels is not None:
             self.set_attributes(labels)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name) -> Any:
         """Passthrough for all OpenTelemetry Span attributes."""
         return getattr(self._span, name)
 
-    def set_genkit_attribute(self, key: str, value: types.AttributeValue):
+    def set_genkit_attribute(self, key: str, value: types.AttributeValue) -> None:
         """Set Genkit specific attribute, with the `genkit` prefix."""
         if key == 'metadata' and isinstance(value, dict) and value:
             for meta_key, meta_value in value.items():
@@ -59,20 +74,22 @@ class GenkitSpan:
         else:
             self._span.set_attribute(f'{ATTR_PREFIX}:{key}', str(value))
 
-    def set_genkit_attributes(self, attributes: Mapping[str, types.AttributeValue]):
+    def set_genkit_attributes(self, attributes: Mapping[str, types.AttributeValue]) -> None:
         """Set Genkit specific attributes, with the `genkit` prefix."""
         for key, value in attributes.items():
             self.set_genkit_attribute(key, value)
 
-    def span_id(self):
+    @property
+    def span_id(self) -> str:
         """Returns the span_id."""
         return str(self._span.get_span_context().span_id)
 
-    def trace_id(self):
+    @property
+    def trace_id(self) -> str:
         """Returns the trace_id."""
         return str(self._span.get_span_context().trace_id)
 
-    def set_input(self, input: Any):
+    def set_input(self, input: Any) -> None:
         """Set Genkit Span input, visible in the trace viewer."""
         value = None
         if isinstance(input, BaseModel):
@@ -81,7 +98,7 @@ class GenkitSpan:
             value = json.dumps(input)
         self.set_genkit_attribute('input', value)
 
-    def set_output(self, output: Any):
+    def set_output(self, output: Any) -> None:
         """Set Genkit Span output, visible in the trace viewer."""
         value = None
         if isinstance(output, BaseModel):
@@ -89,3 +106,4 @@ class GenkitSpan:
         else:
             value = json.dumps(output)
         self.set_genkit_attribute('output', value)
+
