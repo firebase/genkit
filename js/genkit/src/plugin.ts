@@ -15,27 +15,41 @@
  */
 
 import { Genkit } from './genkit.js';
+import { ActionType } from './registry.js';
 
 export interface PluginProvider {
   name: string;
   initializer: () => void | Promise<void>;
+  resolver?: (action: ActionType, target: string) => Promise<void>;
 }
+
+export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
 
 type PluginInit = (genkit: Genkit) => void | Promise<void>;
 
-export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
+type PluginActionResolver = (
+  genkit: Genkit,
+  action: ActionType,
+  target: string
+) => Promise<void>;
 
 /**
  * Defines a Genkit plugin.
  */
 export function genkitPlugin<T extends PluginInit>(
   pluginName: string,
-  initFn: T
+  initFn: T,
+  resolveFn?: PluginActionResolver
 ): GenkitPlugin {
   return (genkit: Genkit) => ({
     name: pluginName,
     initializer: async () => {
       await initFn(genkit);
+    },
+    resolver: async (action: ActionType, target: string): Promise<void> => {
+      if (resolveFn) {
+        return await resolveFn(genkit, action, target);
+      }
     },
   });
 }
