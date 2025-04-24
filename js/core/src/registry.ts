@@ -58,12 +58,14 @@ function parsePluginName(registryKey: string) {
   return undefined;
 }
 
+interface ParsedRegistryKey {
+  pluginName: string;
+  actionType: ActionType;
+  actionName: string;
+}
+
 // Parses e.g. /model/googleai/gemini-2.0-flash into parts
-function parseRegistryKey(
-  registryKey: string
-):
-  | { actionType: ActionType; pluginName: string; actionName: string }
-  | undefined {
+function parseRegistryKey(registryKey: string): ParsedRegistryKey | undefined {
   const tokens = registryKey.split('/');
   if (tokens.length >= 4) {
     return {
@@ -128,15 +130,20 @@ export class Registry {
     R extends Action<I, O>,
   >(key: string): Promise<R> {
     // We always try to initialize the plugin first.
-    const { pluginName, actionType, actionName } = parseRegistryKey(key) || {};
-    if (pluginName) {
-      await this.initializePlugin(pluginName);
-    }
-    // If we don't see the key in the registry, we try to resolve
-    // the action with the dynamic resolver. If it exists, it will
-    // register the action in the registry.
-    if (!this.actionsById[key] && pluginName && actionType && actionName) {
-      await this.resolvePluginAction(pluginName, actionType, actionName);
+    const parsedKey = parseRegistryKey(key);
+    if (parsedKey) {
+      await this.initializePlugin(parsedKey.pluginName);
+
+      // If we don't see the key in the registry, we try to resolve
+      // the action with the dynamic resolver. If it exists, it will
+      // register the action in the registry.
+      if (!this.actionsById[key]) {
+        await this.resolvePluginAction(
+          parsedKey.pluginName,
+          parsedKey.actionType,
+          parsedKey.actionName
+        );
+      }
     }
     return (
       ((await this.actionsById[key]) as R) || this.parent?.lookupAction(key)
