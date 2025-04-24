@@ -49,6 +49,7 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
 
     Super class will use google.auth.default() to get the project id.
     """
+
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Export the spans to Cloud Trace.
 
@@ -115,4 +116,3 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
 def add_gcp_telemetry() -> None:
     """Inits and adds GCP telemetry exporter."""
     add_custom_exporter(GenkitGCPExporter(), 'gcp_telemetry_server')
-

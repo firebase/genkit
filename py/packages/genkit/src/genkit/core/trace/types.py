@@ -106,4 +106,3 @@ class GenkitSpan:
         else:
             value = json.dumps(output)
         self.set_genkit_attribute('output', value)
-

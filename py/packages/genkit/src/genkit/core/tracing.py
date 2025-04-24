@@ -125,4 +125,3 @@ def run_in_new_span(
             span.set_status(status=trace_api.StatusCode.ERROR, description=str(e))
             span.record_exception(e)
             raise e
-

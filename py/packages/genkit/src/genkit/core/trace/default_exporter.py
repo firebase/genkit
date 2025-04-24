@@ -106,7 +106,7 @@ class TelemetryServerSpanExporter(SpanExporter):
         """
         self.telemetry_server_url = telemetry_server_url
         if telemetry_server_endpoint is None:
-            self.telemetry_server_endpoint = "/api/traces"
+            self.telemetry_server_endpoint = '/api/traces'
         else:
             self.telemetry_server_endpoint = telemetry_server_endpoint
 
@@ -170,4 +170,3 @@ def init_telemetry_server_exporter() -> SpanExporter | None:
         )
 
     return processor
-
