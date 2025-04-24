@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"math"
@@ -67,7 +68,7 @@ func TestGoogleAILive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
 			Over  float64
@@ -165,7 +166,39 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool with json output", func(t *testing.T) {
+		type weatherQuery struct {
+			Location string `json:"location"`
+		}
 
+		type weather struct {
+			Report string `json:"report"`
+		}
+
+		weatherTool := genkit.DefineTool(g, "weatherTool",
+			"Use this tool to get the weather report for a specific location",
+			func(ctx *ai.ToolContext, input weatherQuery) (string, error) {
+				report := fmt.Sprintf("The weather in %s is sunny and 70 degrees today.", input.Location)
+				return report, nil
+			},
+		)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithTools(weatherTool),
+			ai.WithPrompt("what's the weather in San Francisco?"),
+			ai.WithOutputType(weather{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var w weather
+		if err = resp.Output(&w); err != nil {
+			t.Fatal(err)
+		}
+		if w.Report == "" {
+			t.Fatal("empty weather report, tool should have provided an output")
+		}
+	})
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
