@@ -94,7 +94,7 @@ func TestConvertRequest(t *testing.T) {
 		}
 		// this is explicitly set to 1 in source
 		if gcc.CandidateCount == 0 {
-			t.Error("candidate count: got: nil, want: 1")
+			t.Error("candidate count: got: 0, want: 1")
 		}
 		ogCfg, ok := req.Config.(GeminiConfig)
 		if !ok {
