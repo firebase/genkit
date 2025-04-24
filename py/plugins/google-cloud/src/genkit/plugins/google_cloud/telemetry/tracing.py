@@ -38,7 +38,7 @@ from opentelemetry.sdk.trace.export import (
 
 from genkit.core.tracing import add_custom_exporter
 
-logger = structlog.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class GenkitGCPExporter(CloudTraceSpanExporter):

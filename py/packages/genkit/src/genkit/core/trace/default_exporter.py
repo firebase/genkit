@@ -43,7 +43,7 @@ from opentelemetry.sdk.trace.export import (
 )
 
 ATTR_PREFIX = 'genkit'
-logger = structlog.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def extract_span_data(span: ReadableSpan) -> dict[str, Any]:

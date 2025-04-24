@@ -47,7 +47,7 @@ from genkit.core.trace import (
 from genkit.core.typing import SpanMetadata
 
 ATTR_PREFIX = 'genkit'
-logger = structlog.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 tracer = trace_api.get_tracer('genkit-tracer', 'v1')
