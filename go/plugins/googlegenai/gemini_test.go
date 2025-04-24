@@ -93,15 +93,15 @@ func TestConvertRequest(t *testing.T) {
 			t.Errorf(" system instruction role: got: %q, want: %q", gcc.SystemInstruction.Role, string(ai.RoleSystem))
 		}
 		// this is explicitly set to 1 in source
-		if gcc.CandidateCount == nil {
+		if gcc.CandidateCount == 0 {
 			t.Error("candidate count: got: nil, want: 1")
 		}
 		ogCfg, ok := req.Config.(GeminiConfig)
 		if !ok {
 			t.Fatalf("request config should have been of type: GeminiConfig, got: %T", req.Config)
 		}
-		if gcc.MaxOutputTokens == nil {
-			t.Errorf("max output tokens: got: nil, want %d", ogCfg.MaxOutputTokens)
+		if gcc.MaxOutputTokens == 0 {
+			t.Errorf("max output tokens: got: 0, want %d", ogCfg.MaxOutputTokens)
 		}
 		if len(gcc.StopSequences) == 0 {
 			t.Errorf("stop sequences: got: 0, want: %d", len(ogCfg.StopSequences))
