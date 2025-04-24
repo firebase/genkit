@@ -58,6 +58,25 @@ function parsePluginName(registryKey: string) {
   return undefined;
 }
 
+interface ParsedRegistryKey {
+  pluginName: string;
+  actionType: ActionType;
+  actionName: string;
+}
+
+// Parses e.g. /model/googleai/gemini-2.0-flash into parts
+function parseRegistryKey(registryKey: string): ParsedRegistryKey | undefined {
+  const tokens = registryKey.split('/');
+  if (tokens.length >= 4) {
+    return {
+      actionType: tokens[1] as ActionType,
+      pluginName: tokens[2],
+      actionName: tokens[3],
+    };
+  }
+  return undefined;
+}
+
 type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
 
 /**
@@ -110,10 +129,21 @@ export class Registry {
     O extends z.ZodTypeAny,
     R extends Action<I, O>,
   >(key: string): Promise<R> {
-    // If we don't see the key in the registry we try to initialize the plugin first.
-    const pluginName = parsePluginName(key);
-    if (!this.actionsById[key] && pluginName) {
-      await this.initializePlugin(pluginName);
+    // We always try to initialize the plugin first.
+    const parsedKey = parseRegistryKey(key);
+    if (parsedKey) {
+      await this.initializePlugin(parsedKey.pluginName);
+
+      // If we don't see the key in the registry, we try to resolve
+      // the action with the dynamic resolver. If it exists, it will
+      // register the action in the registry.
+      if (!this.actionsById[key]) {
+        await this.resolvePluginAction(
+          parsedKey.pluginName,
+          parsedKey.actionType,
+          parsedKey.actionName
+        );
+      }
     }
     return (
       ((await this.actionsById[key]) as R) || this.parent?.lookupAction(key)
@@ -211,6 +241,11 @@ export class Registry {
         }
         return cached;
       },
+      resolver: async (actionType: ActionType, target: string) => {
+        if (provider.resolver) {
+          await provider.resolver(actionType, target);
+        }
+      },
     };
   }
 
@@ -221,6 +256,27 @@ export class Registry {
    */
   lookupPlugin(name: string): PluginProvider | undefined {
     return this.pluginsByName[name] || this.parent?.lookupPlugin(name);
+  }
+
+  /**
+   * Resolves a new Action dynamically by registering it.
+   * @param pluginName The name of the plugin
+   * @param action
+   * @returns
+   */
+  async resolvePluginAction(
+    pluginName: string,
+    action: ActionType,
+    target: string
+  ) {
+    const plugin = this.pluginsByName[pluginName];
+    if (plugin) {
+      return await runOutsideActionRuntimeContext(this, async () => {
+        if (plugin.resolver) {
+          await plugin.resolver(action, target);
+        }
+      });
+    }
   }
 
   /**
