@@ -16,12 +16,12 @@
 
 import json
 from abc import ABC, abstractmethod
-from typing import Any, BaseModel, Field
+from typing import Any
 
 import structlog
 from google.cloud import aiplatform_v1, bigquery, firestore
 from google.cloud.aiplatform_v1 import FindNeighborsRequest, IndexDatapoint, Neighbor
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
@@ -31,7 +31,7 @@ from genkit.types import ActionRunContext, RetrieverRequest, RetrieverResponse
 logger = structlog.get_logger(__name__)
 
 
-class DocRetriver(ABC):
+class DocRetriever(ABC):
     """Abstract base class for Vertex AI Vector Search document retrieval.
 
     This class outlines the core workflow for retrieving relevant documents.
@@ -156,7 +156,7 @@ class DocRetriver(ABC):
         raise NotImplementedError
 
 
-class BigQueryRetriever(DocRetriver):
+class BigQueryRetriever(DocRetriever):
     """Retrieves documents from a BigQuery table.
 
     This class extends DocRetriever to fetch document data from a specified BigQuery
@@ -244,7 +244,7 @@ class BigQueryRetriever(DocRetriver):
         return documents
 
 
-class FirestoreRetriever(DocRetriver):
+class FirestoreRetriever(DocRetriever):
     """Retrieves documents from a Firestore collection.
 
     This class extends DocRetriever to fetch document data from a specified Firestore
