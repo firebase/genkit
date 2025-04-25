@@ -24,20 +24,21 @@ else:  # noqa
 from pydantic import BaseModel, Field
 
 
-# Defines the size of each shard in the index.
 class IndexShardSize(StrEnum):
+    """Defines the size of each shard in the index."""
     SMALL = 'SHARD_SIZE_SMALL'
     MEDIUM = 'SHARD_SIZE_MEDIUM'
     LARGE = 'SHARD_SIZE_LARGE'
 
 
-# Specifies the normalization applied to feature vectors.
 class FeatureNormType(StrEnum):
+    """Specifies the normalization applied to feature vectors."""
     NONE = 'NONE'
     UNIT_L2_NORMALIZED = 'UNIT_L2_NORM'
 
 
 class DistanceMeasureType(StrEnum):
+    """Defines the available distance measure methods."""
     SQUARED_L2 = 'SQUARED_L2_DISTANCE'
     L2 = 'L2_DISTANCE'
     COSINE = 'COSINE_DISTANCE'
@@ -45,6 +46,7 @@ class DistanceMeasureType(StrEnum):
 
 
 class IndexConfig(BaseModel):
+    """Defines the configurations of indexes."""
     dimensions: int = 128
     approximate_neighbors_count: int = Field(default=100, alias='approximateNeighborsCount')
     distance_measure_type: DistanceMeasureType | str = Field(
