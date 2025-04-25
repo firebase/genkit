@@ -136,14 +136,14 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
 
 async function resolver(
   ai: Genkit,
-  action: ActionType,
-  target: string,
+  actionType: ActionType,
+  actionName: string,
   options?: PluginOptions
 ) {
   // TODO: also support other actions like 'embedder'
-  switch (action) {
+  switch (actionType) {
     case 'model':
-      await resolveModel(ai, target, options);
+      await resolveModel(ai, actionName, options);
       break;
     default:
     // no-op
@@ -152,17 +152,17 @@ async function resolver(
 
 async function resolveModel(
   ai: Genkit,
-  target: string,
+  actionName: string,
   options?: PluginOptions
 ) {
   const { projectId, location, vertexClientFactory } =
     await getDerivedParams(options);
-  if (target.includes('gemini')) {
-    const modelRef = gemini(target);
+  if (actionName.includes('gemini')) {
+    const modelRef = gemini(actionName);
     defineGeminiModel({
       ai,
       modelName: modelRef.name,
-      version: target,
+      version: actionName,
       modelInfo: modelRef.info,
       vertexClientFactory,
       options: {
@@ -182,8 +182,8 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin(
     'vertexai',
     async (ai: Genkit) => await initializer(ai, options),
-    async (ai: Genkit, action: ActionType, target: string) =>
-      await resolver(ai, action, target, options)
+    async (ai: Genkit, actionType: ActionType, actionName: string) =>
+      await resolver(ai, actionType, actionName, options)
   );
 }
 
