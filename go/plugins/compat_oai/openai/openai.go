@@ -155,6 +155,10 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 		return fmt.Errorf("openai plugin initialization failed: apiKey is required")
 	}
 
+	if o.openAICompatible == nil {
+		o.openAICompatible = &compat_oai.OpenAICompatible{}
+	}
+
 	// set the options
 	o.openAICompatible.Opts = []option.RequestOption{
 		option.WithAPIKey(apiKey),
