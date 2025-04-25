@@ -15,13 +15,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Type
 
 from google import genai
 from google.auth.credentials import Credentials
-from google.cloud import aiplatform_v1, storage
 from google.genai.client import DebugConfig
-from google.genai.types import HttpOptions, HttpOptionsDict, Operation
+from google.genai.types import HttpOptions, HttpOptionsDict
 
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
 from genkit.plugins.google_genai.models.embedder import (
