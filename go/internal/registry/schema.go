@@ -84,24 +84,8 @@ func (r *Registry) setupSchemaLookupFunction() {
 	})
 }
 
-// DumpRegistrySchemas prints all schemas stored in the registry
-func (r *Registry) DumpRegistrySchemas() {
-	fmt.Println("=== Registry Schemas ===")
-
-	for k, v := range r.values {
-		if strings.HasPrefix(k, SchemaType+"/") {
-			schemaName := strings.TrimPrefix(k, SchemaType+"/")
-			fmt.Printf("Schema: %s, Type: %T\n", schemaName, v)
-		}
-	}
-
-	fmt.Println("=======================")
-}
-
 // convertStructToJsonSchema converts a Go struct to a JSON schema
 func convertStructToJsonSchema(structType any) (*jsonschema.Schema, error) {
-	fmt.Printf("Converting schema of type %T to JSON Schema\n", structType)
-
 	t := reflect.TypeOf(structType)
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()

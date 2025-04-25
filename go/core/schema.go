@@ -14,7 +14,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 // Package core provides core functionality for the genkit framework.
-
 package core
 
 import (
@@ -38,26 +37,26 @@ var (
 // It validates that the name is not empty and the schema is not nil,
 // then registers the schema in the core schemas map.
 // Returns the schema for convenience in chaining operations.
-func RegisterSchema(name string, schema any) Schema {
+func RegisterSchema(name string, schema any) (Schema, error) {
 	if name == "" {
-		panic("core.RegisterSchema: schema name cannot be empty")
+		return nil, fmt.Errorf("core.RegisterSchema: schema name cannot be empty")
 	}
 
 	if schema == nil {
-		panic("core.RegisterSchema: schema definition cannot be nil")
+		return nil, fmt.Errorf("core.RegisterSchema: schema definition cannot be nil")
 	}
 
 	schemasMu.Lock()
 	defer schemasMu.Unlock()
 
 	if _, exists := schemas[name]; exists {
-		panic(fmt.Sprintf("core.RegisterSchema: schema with name %q already exists", name))
+		return nil, fmt.Errorf("core.RegisterSchema: schema with name %q already exists", name)
 	}
 
 	schemas[name] = schema
 	pendingSchemas[name] = schema
 
-	return schema
+	return schema, nil
 }
 
 // LookupSchema looks up a schema by name.
@@ -103,17 +102,6 @@ func Schemas() map[string]any {
 	}
 
 	return result
-}
-
-// ClearSchemas removes all registered schemas.
-// This is primarily for testing purposes.
-func ClearSchemas() {
-	schemasMu.Lock()
-	defer schemasMu.Unlock()
-
-	schemas = make(map[string]any)
-	pendingSchemas = make(map[string]Schema)
-	schemaLookups = nil
 }
 
 // PendingSchemas returns a copy of pending schemas that need to be

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,7 +13,6 @@
 // limitations under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
 package genkit
 
 import (
@@ -30,7 +29,10 @@ func TestDefineAndLookupSchema(t *testing.T) {
 	testSchema := TestStruct{Name: "Alice", Age: 30}
 
 	// Define the schema
-	DefineSchema(schemaName, testSchema)
+	schema, err := DefineSchema(schemaName, testSchema)
+	if err != nil {
+		t.Fatalf("Unexpected error defining schema: %v", err)
+	}
 
 	// Lookup the schema
 	schema, found := LookupSchema(schemaName)
@@ -52,7 +54,11 @@ func TestDefineAndLookupSchema(t *testing.T) {
 func TestSchemaSuccess(t *testing.T) {
 	schemaName := "GetStruct"
 	testSchema := TestStruct{Name: "Bob", Age: 25}
-	DefineSchema(schemaName, testSchema)
+
+	_, err := DefineSchema(schemaName, testSchema)
+	if err != nil {
+		t.Fatalf("Unexpected error defining schema: %v", err)
+	}
 
 	schema, err := FindSchema(schemaName)
 	if err != nil {
@@ -72,21 +78,17 @@ func TestSchemaNotFound(t *testing.T) {
 	}
 }
 
-func TestDefineSchemaPanics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("Expected panic for empty schema name")
-		}
-	}()
-	DefineSchema("", TestStruct{})
+func TestDefineSchemaEmptyName(t *testing.T) {
+	_, err := DefineSchema("", TestStruct{})
+	if err == nil {
+		t.Fatal("Expected error for empty schema name")
+	}
 }
 
-func TestDefineSchemaNilPanics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("Expected panic for nil schema")
-		}
-	}()
+func TestDefineSchemaNil(t *testing.T) {
 	var nilSchema Schema
-	DefineSchema("NilSchema", nilSchema)
+	_, err := DefineSchema("NilSchema", nilSchema)
+	if err == nil {
+		t.Fatal("Expected error for nil schema")
+	}
 }

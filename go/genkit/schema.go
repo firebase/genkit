@@ -18,6 +18,7 @@ package genkit
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/firebase/genkit/go/core"
@@ -45,24 +46,22 @@ var (
 //	}
 //
 //	personSchema := genkit.DefineSchema("Person", Person{})
-func DefineSchema(name string, schema Schema) Schema {
+func DefineSchema(name string, schema Schema) (Schema, error) {
 	if name == "" {
-		panic("genkit.DefineSchema: schema name cannot be empty")
+		return nil, fmt.Errorf("genkit.DefineSchema: schema name cannot be empty")
 	}
 
 	if schema == nil {
-		panic("genkit.DefineSchema: schema cannot be nil")
+		return nil, fmt.Errorf("genkit.DefineSchema: schema cannot be nil")
 	}
 
-	// Register with core registry
 	core.RegisterSchema(name, schema)
 
-	// Also track for Dotprompt integration
 	schemasMu.Lock()
 	defer schemasMu.Unlock()
 	pendingSchemas[name] = schema
 
-	return schema
+	return schema, nil
 }
 
 // LookupSchema retrieves a registered schema by name.
@@ -88,7 +87,7 @@ func registerSchemaResolver(dp *dotprompt.Dotprompt) {
 	schemaResolver := func(name string) any {
 		schema, exists := LookupSchema(name)
 		if !exists {
-			fmt.Printf("Schema '%s' not found in registry\n", name)
+			slog.Error("schema not found in registry", "name", name)
 			return nil
 		}
 
@@ -97,7 +96,6 @@ func registerSchemaResolver(dp *dotprompt.Dotprompt) {
 		return jsonSchema
 	}
 
-	// Register the resolver with Dotprompt
 	dp.RegisterExternalSchemaLookup(schemaResolver)
 }
 
@@ -109,7 +107,6 @@ func RegisterGlobalSchemaResolver(dp *dotprompt.Dotprompt) {
 			return nil
 		}
 
-		// Convert the schema to a JSON schema
 		reflector := jsonschema.Reflector{}
 		jsonSchema := reflector.Reflect(schema)
 		return jsonSchema
