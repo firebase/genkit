@@ -23,12 +23,12 @@ from pydantic import BaseModel
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.plugins.vertex_ai import (
+    EmbeddingModels,
     VertexAI,
     VertexAIVectorSearch,
     vertexai_name,
 )
 from genkit.plugins.vertex_ai.models.retriever import BigQueryRetriever
-from genkit.plugins.vertex_ai import EmbeddingModels
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
