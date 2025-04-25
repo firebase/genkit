@@ -39,8 +39,8 @@ type SpanData struct {
 	Attributes           map[string]any       `json:"attributes,omitempty"`
 	DisplayName          string               `json:"displayName"`
 	Links                []*Link              `json:"links,omitempty"`
-	InstrumentationScope InstrumentationScope `json:"instrumentationLibrary,omitempty"`
-	SpanKind             string               `json:"spanKind"` // trace.SpanKind as a string
+	InstrumentationScope InstrumentationScope `json:"instrumentationLibrary,omitempty"` // TODO: update json tag when JS runtime gets updated
+	SpanKind             string               `json:"spanKind"`                         // trace.SpanKind as a string
 	// This bool is in a separate struct, to match the js (and presumably the OTel) formats.
 	SameProcessAsParentSpan BoolValue  `json:"sameProcessAsParentSpan"`
 	Status                  Status     `json:"status"`
