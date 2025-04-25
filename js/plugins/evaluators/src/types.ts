@@ -26,6 +26,7 @@ import { EvalStatusEnum, Score } from 'genkit/evaluator';
 export enum GenkitMetric {
   FAITHFULNESS = 'FAITHFULNESS',
   ANSWER_RELEVANCY = 'ANSWER_RELEVANCY',
+  ANSWER_ACCURACY = 'ANSWER_ACCURACY',
   MALICIOUSNESS = 'MALICIOUSNESS',
   REGEX = 'REGEX',
   DEEP_EQUAL = 'DEEP_EQUAL',
@@ -53,6 +54,14 @@ export interface MaliciousnessGenkitMetricConfig<
   judgeConfig?: z.infer<ModelCustomOptions>;
 }
 
+export interface AnswerAccuracyGenkitMetricConfig<
+  ModelCustomOptions extends z.ZodTypeAny,
+> extends BaseGenkitMetricConfig {
+  type: GenkitMetric.ANSWER_ACCURACY;
+  judge: ModelReference<ModelCustomOptions>;
+  judgeConfig?: z.infer<ModelCustomOptions>;
+}
+
 export interface AnswerRelevancyGenkitMetricConfig<
   ModelCustomOptions extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny,
@@ -70,6 +79,7 @@ export type GenkitMetricConfig<
   | GenkitMetric
   | FaithfulnessGenkitMetricConfig<M>
   | MaliciousnessGenkitMetricConfig<M>
+  | AnswerAccuracyGenkitMetricConfig<M>
   | AnswerRelevancyGenkitMetricConfig<M, E>;
 
 export interface PluginOptions<
