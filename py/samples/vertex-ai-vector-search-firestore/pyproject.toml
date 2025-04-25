@@ -18,15 +18,15 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "genkit-plugin-google-genai",
+  "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
   "google-cloud-firestore",
   "strenum>=0.4.15; python_version < '3.11'",
 ]
-description = "An example demonstrating the use Vector Search API with Firestore retriever for Google GenAI - Vertex AI"
+description = "An example demonstrating the use Vector Search API with Firestore retriever for Vertex AI"
 license = { text = "Apache-2.0" }
-name = "google-genai-vertexai-vector-search-firestore"
+name = "vertex-ai-vector-search-firestore"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"

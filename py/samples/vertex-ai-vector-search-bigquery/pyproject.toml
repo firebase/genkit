@@ -18,15 +18,15 @@ classifiers = [
 ]
 dependencies = [
   "genkit",
-  "genkit-plugin-google-genai",
+  "genkit-plugin-vertex-ai",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
   "google-cloud-bigquery",
   "strenum>=0.4.15; python_version < '3.11'",
 ]
-description = "An example demonstrating the use Vector Search API with BigQuery retriever for Google GenAI - Vertex AI"
+description = "An example demonstrating the use Vector Search API with BigQuery retriever for Vertex AI"
 license = { text = "Apache-2.0" }
-name = "google-genai-vertexai-vector-search-bigquery"
+name = "vertex-ai-vector-search-bigquery"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
