@@ -86,15 +86,15 @@ Create and share your own plugins:
 
 Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere, and more in this [repository](https://github.com/TheFireCo/genkit-plugins).
 
-## Try Genkit on IDX
+## Try Genkit in Firebase Studio
 
-Want to skip the local setup? Click below to try out Genkit using [Project IDX](https://idx.dev), Google's AI-assisted workspace for full-stack app development in the cloud.
+Want to skip the local setup? Click below to try out Genkit using [Firebase Studio](https://firebase.studio), Google's AI-assisted workspace for full-stack app development in the cloud.
 
-<a href="https://idx.google.com/new/genkit">
+<a href="https://studio.firebase.google.com/new/genkit">
   <img
     height="32"
-    alt="Try in IDX"
-    src="https://cdn.idx.dev/btn/try_purple_32.svg">
+    alt="Open in Firebase Studio"
+    src="https://cdn.firebasestudio.dev/btn/open_bright_32.svg">
 </a>
 
 ## Sample apps

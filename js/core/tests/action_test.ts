@@ -167,4 +167,18 @@ describe('action', () => {
 
     assert.strictEqual(response, 'hi a@b.c');
   });
+
+  it('should include trace info in the context', async () => {
+    const act = defineAction(
+      registry,
+      { name: 'child', actionType: 'custom' },
+      async (_, ctx) => {
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      }
+    );
+
+    const response = await act(undefined);
+
+    assert.strictEqual(response, 'traceId=true spanId=true');
+  });
 });
