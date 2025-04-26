@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { Action } from './action.js';
+import { Action, ActionMetadata } from './action.js';
 import { ActionType } from './registry.js';
 
 export interface Provider<T> {
@@ -30,6 +30,7 @@ export interface PluginProvider {
     | void
     | Promise<InitializedPlugin | void>;
   resolver?: (action: ActionType, target: string) => Promise<void>;
+  listActions?: () => Promise<ActionMetadata[]>
 }
 
 export interface InitializedPlugin {
