@@ -816,7 +816,7 @@ export class Genkit implements HasRegistry {
           if (loadedPlugin.listActions) {
             return await loadedPlugin.listActions();
           }
-          return []
+          return [];
         },
       });
     });

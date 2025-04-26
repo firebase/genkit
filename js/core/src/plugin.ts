@@ -30,7 +30,7 @@ export interface PluginProvider {
     | void
     | Promise<InitializedPlugin | void>;
   resolver?: (action: ActionType, target: string) => Promise<void>;
-  listActions?: () => Promise<ActionMetadata[]>
+  listActions?: () => Promise<ActionMetadata[]>;
 }
 
 export interface InitializedPlugin {
