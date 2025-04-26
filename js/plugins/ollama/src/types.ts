@@ -116,7 +116,7 @@ export interface RequestHeaderFunction {
   (
     params: {
       serverAddress: string;
-      model: ModelDefinition | EmbeddingModelDefinition;
+      model?: ModelDefinition | EmbeddingModelDefinition;
       modelRequest?: GenerateRequest;
       embedRequest?: EmbedRequest;
     },

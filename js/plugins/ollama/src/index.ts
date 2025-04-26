@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { Genkit, ToolRequest, ToolRequestPart, ToolResponse, z } from 'genkit';
+import {
+  ActionMetadata,
+  Genkit,
+  ToolRequest,
+  ToolRequestPart,
+  ToolResponse,
+  z,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   GenerateRequest,
@@ -22,6 +29,7 @@ import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   MessageData,
+  ModelInfo,
   ToolDefinition,
   getBasicUsageStats,
 } from 'genkit/model';
@@ -43,21 +51,83 @@ const ANY_JSON_SCHEMA: Record<string, any> = {
   $schema: 'http://json-schema.org/draft-07/schema#',
 };
 
+const GENERIC_MODEL_INFO = {
+  supports: {
+    multiturn: true,
+    media: true,
+    tools: true,
+    toolChoice: true,
+    systemRole: true,
+    constrained: 'all',
+  },
+} as ModelInfo;
+
 export function ollama(params: OllamaPluginParams): GenkitPlugin {
-  return genkitPlugin('ollama', async (ai: Genkit) => {
-    const serverAddress = params.serverAddress;
-    params.models?.map((model) =>
-      ollamaModel(ai, model, serverAddress, params.requestHeaders)
-    );
-    params.embedders?.map((model) =>
-      defineOllamaEmbedder(ai, {
-        name: model.name,
-        modelName: model.name,
-        dimensions: model.dimensions,
-        options: params,
-      })
-    );
-  });
+  const serverAddress = params.serverAddress;
+  return genkitPlugin(
+    'ollama',
+    async (ai: Genkit) => {
+      params.models?.map((model) =>
+        ollamaModel(ai, model, serverAddress, params.requestHeaders)
+      );
+      params.embedders?.map((model) =>
+        defineOllamaEmbedder(ai, {
+          name: model.name,
+          modelName: model.name,
+          dimensions: model.dimensions,
+          options: params,
+        })
+      );
+    },
+    async (ai, actionType, actionName) => {
+      // We can only dynamically resolve models, for embedders user must provide dimensions.
+      if (actionType === 'model') {
+        ollamaModel(
+          ai,
+          {
+            name: actionName,
+          },
+          serverAddress,
+          params.requestHeaders
+        );
+      }
+    },
+    async () => {
+      // We call the ollama list local models api: https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
+      let res;
+      try {
+        res = await fetch(serverAddress + '/api/tags', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(await getHeaders(serverAddress, params.requestHeaders)),
+          },
+        });
+      } catch (e) {
+        throw new Error(`Make sure the Ollama server is running.`, {
+          cause: e,
+        });
+      }
+      const modelResponse = JSON.parse(await res.text());
+      return (
+        modelResponse?.models
+          // naively filter out embedders, unfortunately there's no better way.
+          ?.filter((m) => m.model && !m.model.includes('embed'))
+          .map(
+            (m) =>
+              ({
+                actionType: 'model',
+                name: `ollama/${m.model}`,
+                metadata: {
+                  model: {
+                    ...GENERIC_MODEL_INFO,
+                  } as ModelInfo,
+                },
+              }) as ActionMetadata
+          ) || []
+      );
+    }
+  );
 }
 
 /**
@@ -110,21 +180,29 @@ function ollamaModel(
       },
     },
     async (input, streamingCallback) => {
-      const options: Record<string, any> = {};
-      if (input.config?.temperature !== undefined) {
-        options.temperature = input.config.temperature;
+      const {
+        temperature,
+        topP,
+        topK,
+        stopSequences,
+        maxOutputTokens,
+        ...rest
+      } = input.config as any;
+      const options: Record<string, any> = { ...rest };
+      if (temperature !== undefined) {
+        options.temperature = temperature;
       }
-      if (input.config?.topP !== undefined) {
-        options.top_p = input.config.topP;
+      if (topP !== undefined) {
+        options.top_p = topP;
       }
-      if (input.config?.topK !== undefined) {
-        options.top_k = input.config.topK;
+      if (topK !== undefined) {
+        options.top_k = topK;
       }
-      if (input.config?.stopSequences !== undefined) {
-        options.stop = input.config.stopSequences.join('');
+      if (stopSequences !== undefined) {
+        options.stop = stopSequences.join('');
       }
-      if (input.config?.maxOutputTokens !== undefined) {
-        options.num_predict = input.config.maxOutputTokens;
+      if (maxOutputTokens !== undefined) {
+        options.num_predict = maxOutputTokens;
       }
       const type = model.type ?? 'chat';
       const request = toOllamaRequest(
@@ -136,18 +214,12 @@ function ollamaModel(
       );
       logger.debug(request, `ollama request (${type})`);
 
-      const extraHeaders = requestHeaders
-        ? typeof requestHeaders === 'function'
-          ? await requestHeaders(
-              {
-                serverAddress,
-                model,
-              },
-              input
-            )
-          : requestHeaders
-        : {};
-
+      const extraHeaders = await getHeaders(
+        serverAddress,
+        requestHeaders,
+        model,
+        input
+      );
       let res;
       try {
         res = await fetch(
@@ -252,6 +324,25 @@ function parseMessage(response: any, type: ApiType): MessageData {
   }
 }
 
+async function getHeaders(
+  serverAddress: string,
+  requestHeaders?: RequestHeaders,
+  model?: ModelDefinition,
+  input?: GenerateRequest
+): Promise<Record<string, string> | void> {
+  return requestHeaders
+    ? typeof requestHeaders === 'function'
+      ? await requestHeaders(
+          {
+            serverAddress,
+            model,
+          },
+          input
+        )
+      : requestHeaders
+    : {};
+}
+
 function toOllamaRequest(
   name: string,
   input: GenerateRequest,
@@ -278,7 +369,13 @@ function toOllamaRequest(
           messageText += c.text;
         }
         if (c.media) {
-          images.push(c.media.url);
+          let imageUri = c.media.url;
+          // ollama doesn't accept full data URIs, just the base64 encoded image,
+          // strip out data URI prefix (ex. `data:image/jpeg;base64,`)
+          if (imageUri.startsWith('data:')) {
+            imageUri = imageUri.substring(imageUri.indexOf(',') + 1);
+          }
+          images.push(imageUri);
         }
         if (c.toolRequest) {
           toolRequests.push(c.toolRequest);
