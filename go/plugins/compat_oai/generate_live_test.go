@@ -131,7 +131,7 @@ func TestWithConfig(t *testing.T) {
 		},
 		{
 			name:   "empty openai config",
-			config: compat_oai.OpenaiConfig{},
+			config: compat_oai.OpenAIConfig{},
 			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
 				// For empty config, we expect all fields to be unset
 				assert.False(t, request.Temperature.Present)
@@ -142,7 +142,7 @@ func TestWithConfig(t *testing.T) {
 		},
 		{
 			name: "valid config with all supported fields",
-			config: compat_oai.OpenaiConfig{
+			config: compat_oai.OpenAIConfig{
 				Temperature:     0.7,
 				MaxOutputTokens: 100,
 				TopP:            0.9,

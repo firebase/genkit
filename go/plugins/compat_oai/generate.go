@@ -135,15 +135,15 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	var openaiConfig OpenaiConfig
+	var openaiConfig OpenAIConfig
 	switch cfg := config.(type) {
-	case OpenaiConfig:
+	case OpenAIConfig:
 		openaiConfig = cfg
-	case *OpenaiConfig:
+	case *OpenAIConfig:
 		openaiConfig = *cfg
 	case map[string]any:
 		if err := mapToStruct(cfg, &openaiConfig); err != nil {
-			g.err = fmt.Errorf("failed to convert config to OpenaiConfig: %w", err)
+			g.err = fmt.Errorf("failed to convert config to OpenAIConfig: %w", err)
 			return g
 		}
 	default:
