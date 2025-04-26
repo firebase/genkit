@@ -111,7 +111,7 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 }
 
 // OpenaiConfig mirrors the OpenAI API configuration fields
-type OpenaiConfig struct {
+type OpenAIConfig struct {
 	// Maximum number of tokens to generate
 	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
 	// Temperature for sampling
