@@ -18,12 +18,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/shared"
 )
+
+// mapToStruct unmarshals a map[string]any to the expected config type.
+func mapToStruct(m map[string]any, v any) error {
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonData, v)
+}
 
 // ModelGenerator handles OpenAI generation requests
 type ModelGenerator struct {
@@ -34,22 +42,8 @@ type ModelGenerator struct {
 	err error
 }
 
-func (g *ModelGenerator) GetRequestConfig() *openai.ChatCompletionNewParams {
+func (g *ModelGenerator) GetRequest() *openai.ChatCompletionNewParams {
 	return g.request
-}
-
-func (g *ModelGenerator) TransformToGenkitGenerationCommonConfig(cfg *openai.ChatCompletionNewParams) *ai.GenerationCommonConfig {
-	// Transform the OpenAI config to Genkit config
-	if cfg == nil {
-		return nil
-	}
-
-	return &ai.GenerationCommonConfig{
-		Temperature:     cfg.Temperature.Value,
-		MaxOutputTokens: int(cfg.MaxTokens.Value),
-		TopP:            cfg.TopP.Value,
-		Version:         cfg.Model.Value,
-	}
 }
 
 // NewModelGenerator creates a new ModelGenerator instance
@@ -116,7 +110,21 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 	return g
 }
 
+// OpenaiConfig mirrors the OpenAI API configuration fields
+type OpenAIConfig struct {
+	// Maximum number of tokens to generate
+	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
+	// Temperature for sampling
+	Temperature float64 `json:"temperature,omitempty"`
+	// Top-p value for nucleus sampling
+	TopP float64 `json:"top_p,omitempty"`
+	// List of sequences where the model will stop generating
+	StopSequences []string `json:"stop_sequences,omitempty"`
+}
+
 // WithConfig adds configuration parameters from the model request
+// see https://platform.openai.com/docs/api-reference/responses/create
+// for more details on openai's request fields
 func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 	// Return early if we already have an error
 	if g.err != nil {
@@ -127,55 +135,37 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	// Handle only the supported config types with a type switch
+	var openaiConfig OpenAIConfig
 	switch cfg := config.(type) {
-	case *openai.ChatCompletionNewParams:
-		if cfg != nil {
-			// Copy all non-nil fields directly from the OpenAI config
-			srcVal := reflect.ValueOf(cfg).Elem()
-			dstVal := reflect.ValueOf(g.request).Elem()
-
-			for i := 0; i < srcVal.NumField(); i++ {
-				field := srcVal.Field(i)
-				if field.Kind() == reflect.Pointer && !field.IsNil() {
-					dstVal.Field(i).Set(field)
-				} else if field.Kind() != reflect.Pointer && !field.IsZero() {
-					// For scalar fields, only copy non-zero values
-					dstVal.Field(i).Set(field)
-				}
-			}
-		}
-	case *ai.GenerationCommonConfig:
-		// Handle common config by mapping specific fields
-		if cfg != nil {
-			// Map fields explicitly from common config to OpenAI config
-			if cfg.MaxOutputTokens != 0 {
-				g.request.MaxTokens = openai.F(int64(cfg.MaxOutputTokens))
-			}
-			if len(cfg.StopSequences) > 0 {
-				g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](
-					openai.ChatCompletionNewParamsStopArray(cfg.StopSequences))
-			}
-			if cfg.Temperature != 0 {
-				g.request.Temperature = openai.F(cfg.Temperature)
-			}
-			if cfg.TopP != 0 {
-				g.request.TopP = openai.F(cfg.TopP)
-			}
+	case OpenAIConfig:
+		openaiConfig = cfg
+	case *OpenAIConfig:
+		openaiConfig = *cfg
+	case map[string]any:
+		if err := mapToStruct(cfg, &openaiConfig); err != nil {
+			g.err = fmt.Errorf("failed to convert config to OpenAIConfig: %w", err)
+			return g
 		}
 	default:
-		// Provide detailed error message for unsupported types
-		configType := reflect.TypeOf(config)
-		if configType == nil {
-			g.err = fmt.Errorf("invalid nil config of unknown type")
-		} else if configType.Kind() != reflect.Pointer {
-			g.err = fmt.Errorf("config must be a pointer, got %s", configType.Kind())
-		} else if reflect.ValueOf(config).IsNil() {
-			g.err = fmt.Errorf("config is a nil %s pointer", configType.Elem().Name())
-		} else {
-			g.err = fmt.Errorf("unsupported config type: %T\n\nSupported types:\n- *openai.ChatCompletionNewParams\n- *ai.GenerationCommonConfig", config)
-		}
+		g.err = fmt.Errorf("unexpected config type: %T", config)
+		return g
 	}
+
+	// Map fields from OpenaiConfig to OpenAI request
+	if openaiConfig.MaxOutputTokens != 0 {
+		g.request.MaxCompletionTokens = openai.F(int64(openaiConfig.MaxOutputTokens))
+	}
+	if len(openaiConfig.StopSequences) > 0 {
+		g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](
+			openai.ChatCompletionNewParamsStopArray(openaiConfig.StopSequences))
+	}
+	if openaiConfig.Temperature != 0 {
+		g.request.Temperature = openai.F(openaiConfig.Temperature)
+	}
+	if openaiConfig.TopP != 0 {
+		g.request.TopP = openai.F(openaiConfig.TopP)
+	}
+
 	return g
 }
 
@@ -234,7 +224,7 @@ func (g *ModelGenerator) Generate(ctx context.Context, handleChunk func(context.
 	}
 
 	// Ensure messages are set
-	if g.request.Messages.Value == nil || len(g.request.Messages.Value) == 0 {
+	if len(g.request.Messages.Value) == 0 {
 		return nil, fmt.Errorf("no messages provided")
 	}
 

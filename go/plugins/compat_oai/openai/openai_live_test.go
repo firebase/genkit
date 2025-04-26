@@ -24,7 +24,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
-	"github.com/openai/openai-go/option"
 )
 
 func TestPlugin(t *testing.T) {
@@ -36,13 +35,12 @@ func TestPlugin(t *testing.T) {
 	ctx := context.Background()
 
 	// Initialize the OpenAI plugin
-	apiKeyOption := option.WithAPIKey(apiKey)
-	oai := openai.OpenAI{
-		Opts: []option.RequestOption{apiKeyOption},
+	oai := &openai.OpenAI{
+		APIKey: apiKey,
 	}
 	g, err := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("openai/gpt-4o-mini"),
-		genkit.WithPlugins(&oai),
+		genkit.WithPlugins(oai),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -214,5 +212,63 @@ func TestPlugin(t *testing.T) {
 		}
 
 		t.Logf("system message response: %+v", out)
+	})
+
+	t.Run("generation config", func(t *testing.T) {
+		// Create a config with specific parameters
+		config := &ai.GenerationCommonConfig{
+			Temperature:     0.2,
+			MaxOutputTokens: 50,
+			TopP:            0.5,
+			StopSequences:   []string{".", "!", "?"},
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("Write a short sentence about artificial intelligence."),
+			ai.WithConfig(config),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := resp.Message.Content[0].Text
+		t.Logf("generation config response: %+v", out)
+	})
+
+	t.Run("unsupported config field", func(t *testing.T) {
+		// Create a config with an unsupported TopK parameter
+		config := &ai.GenerationCommonConfig{
+			Temperature:     0.2,
+			MaxOutputTokens: 50,
+			TopK:            10, // TopK is not supported in OpenAI's chat completion API
+		}
+
+		_, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("Write a short sentence about artificial intelligence."),
+			ai.WithConfig(config),
+		)
+		if err == nil {
+			t.Fatal("expected error for unsupported TopK parameter")
+		}
+		if !strings.Contains(err.Error(), "TopK is not supported in OpenAI's chat completion API") {
+			t.Errorf("got error %q, want error containing 'TopK is not supported in OpenAI's chat completion API'", err.Error())
+		}
+		t.Logf("unsupported config error: %v", err)
+	})
+
+	t.Run("invalid config type", func(t *testing.T) {
+		// Try to use a string as config instead of *ai.GenerationCommonConfig
+		config := "not a config"
+
+		_, err := genkit.Generate(ctx, g,
+			ai.WithPromptText("Write a short sentence about artificial intelligence."),
+			ai.WithConfig(config),
+		)
+		if err == nil {
+			t.Fatal("expected error for invalid config type")
+		}
+		if !strings.Contains(err.Error(), "config must be of type *ai.GenerationCommonConfig") {
+			t.Errorf("got error %q, want error containing 'config must be of type *ai.GenerationCommonConfig'", err.Error())
+		}
+		t.Logf("invalid config type error: %v", err)
 	})
 }

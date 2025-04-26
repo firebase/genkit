@@ -16,6 +16,7 @@ package compat_oai_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -111,68 +112,91 @@ func TestGenerator_Stream(t *testing.T) {
 }
 
 func TestWithConfig(t *testing.T) {
-	// Define a random struct for testing
-	type randomConfig struct {
-		Field1 string
-		Field2 int
-	}
-
 	tests := []struct {
-		name          string
-		config        any
-		expectError   bool
-		errorContains []string
-		validate      func(*testing.T, *ai.GenerationCommonConfig)
+		name     string
+		config   any
+		err      error
+		validate func(*testing.T, *openaiClient.ChatCompletionNewParams)
 	}{
 		{
-			name:        "nil config",
-			config:      nil,
-			expectError: false,
-			validate: func(t *testing.T, cfg *ai.GenerationCommonConfig) {
-				// Temperature and MaxTokens should be nil and not present
-				assert.Equal(t, float64(0.0), cfg.Temperature)
-				assert.Equal(t, 0, cfg.MaxOutputTokens)
+			name:   "nil config",
+			config: nil,
+			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
+				// For nil config, we expect all fields to be unset (not nil, but with Present=false)
+				assert.False(t, request.Temperature.Present)
+				assert.False(t, request.MaxCompletionTokens.Present)
+				assert.False(t, request.TopP.Present)
+				assert.False(t, request.Stop.Present)
 			},
 		},
 		{
-			name:        "explicitly set to nil",
-			config:      &ai.GenerationCommonConfig{},
-			expectError: false,
-			validate: func(t *testing.T, cfg *ai.GenerationCommonConfig) {
-				// Temperature and MaxTokens should be nil and not present
-				assert.Equal(t, float64(0.0), cfg.Temperature)
-				assert.Equal(t, 0, cfg.MaxOutputTokens)
+			name:   "empty openai config",
+			config: compat_oai.OpenAIConfig{},
+			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
+				// For empty config, we expect all fields to be unset
+				assert.False(t, request.Temperature.Present)
+				assert.False(t, request.MaxCompletionTokens.Present)
+				assert.False(t, request.TopP.Present)
+				assert.False(t, request.Stop.Present)
 			},
 		},
 		{
-			name: "float and int fields",
-			config: &ai.GenerationCommonConfig{
-				Temperature:     0.5,
+			name: "valid config with all supported fields",
+			config: compat_oai.OpenAIConfig{
+				Temperature:     0.7,
 				MaxOutputTokens: 100,
+				TopP:            0.9,
+				StopSequences:   []string{"stop1", "stop2"},
 			},
-			expectError: false,
-			validate: func(t *testing.T, cfg *ai.GenerationCommonConfig) {
-				// Temperature and MaxTokens should be 0.5 and 100 respectively
-				assert.Equal(t, float64(0.5), cfg.Temperature)
-				assert.Equal(t, 100, cfg.MaxOutputTokens)
+			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
+				// Check that fields are present and have correct values
+				assert.True(t, request.Temperature.Present)
+				assert.Equal(t, float64(0.7), request.Temperature.Value)
+
+				assert.True(t, request.MaxCompletionTokens.Present)
+				assert.Equal(t, int64(100), request.MaxCompletionTokens.Value)
+
+				assert.True(t, request.TopP.Present)
+				assert.Equal(t, float64(0.9), request.TopP.Value)
+
+				assert.True(t, request.Stop.Present)
+				stopArray, ok := request.Stop.Value.(openaiClient.ChatCompletionNewParamsStopArray)
+				assert.True(t, ok)
+				assert.Equal(t, openaiClient.ChatCompletionNewParamsStopArray{"stop1", "stop2"}, stopArray)
 			},
 		},
 		{
-			name:          "invalid config type",
-			config:        "this is not a valid config type",
-			expectError:   true,
-			errorContains: []string{"config must be a pointer"},
-			validate:      nil, // No validation needed for error case
+			name: "valid config as map",
+			config: map[string]any{
+				"temperature":       0.7,
+				"max_output_tokens": 100,
+				"top_p":             0.9,
+				"stop_sequences":    []string{"stop1", "stop2"},
+			},
+			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
+				assert.True(t, request.Temperature.Present)
+				assert.Equal(t, float64(0.7), request.Temperature.Value)
+
+				assert.True(t, request.MaxCompletionTokens.Present)
+				assert.Equal(t, int64(100), request.MaxCompletionTokens.Value)
+
+				assert.True(t, request.TopP.Present)
+				assert.Equal(t, float64(0.9), request.TopP.Value)
+
+				assert.True(t, request.Stop.Present)
+				stopArray, ok := request.Stop.Value.(openaiClient.ChatCompletionNewParamsStopArray)
+				assert.True(t, ok)
+				assert.Equal(t, openaiClient.ChatCompletionNewParamsStopArray{"stop1", "stop2"}, stopArray)
+			},
 		},
 		{
-			name:          "random struct pointer",
-			config:        &randomConfig{Field1: "test", Field2: 123},
-			expectError:   true,
-			errorContains: []string{"unsupported config type", "randomConfig"},
-			validate:      nil, // No validation needed for error case
+			name:   "invalid config type",
+			config: "not a config",
+			err:    fmt.Errorf("unexpected config type: string"),
 		},
 	}
 
+	// define simple messages for testing
 	messages := []*ai.Message{
 		{
 			Role: ai.RoleUser,
@@ -187,22 +211,19 @@ func TestWithConfig(t *testing.T) {
 			generator := setupTestClient(t)
 			result, err := generator.WithMessages(messages).WithConfig(tt.config).Generate(context.Background(), nil)
 
-			if tt.expectError {
-				assert.Error(t, err, "Expected an error for config type %T", tt.config)
-				for _, errText := range tt.errorContains {
-					assert.Contains(t, err.Error(), errText, "Error message should contain '%s'", errText)
-				}
-				t.Logf("Error message for invalid config: %s", err.Error())
-				return // Skip further validation for error cases
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, result)
+			if tt.err != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tt.err.Error(), err.Error())
+				return
+			}
 
-				// Get request configuration to validate
-				request := generator.TransformToGenkitGenerationCommonConfig(generator.GetRequestConfig())
+			// validate that the response was successful
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
 
-				// Validate the result
-				tt.validate(t, request)
+			// validate the input request was transformed correctly
+			if tt.validate != nil {
+				tt.validate(t, generator.GetRequest())
 			}
 		})
 	}

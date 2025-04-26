@@ -16,6 +16,8 @@ package openai
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -125,8 +127,14 @@ var (
 )
 
 type OpenAI struct {
-	Opts             []option.RequestOption
-	openAICompatible compat_oai.OpenAICompatible
+	// APIKey is the API key for the OpenAI API. If empty, the values of the environment variable "OPENAI_API_KEY" will be consulted.
+	// Request a key at https://platform.openai.com/api-keys
+	APIKey string
+	// Optional: Opts are additional options for the OpenAI client.
+	// Can include other options like WithOrganization, WithBaseURL, etc.
+	Opts []option.RequestOption
+
+	openAICompatible *compat_oai.OpenAICompatible
 }
 
 // Name implements genkit.Plugin.
@@ -136,8 +144,29 @@ func (o *OpenAI) Name() string {
 
 // Init implements genkit.Plugin.
 func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
-	// initialize OpenAICompatible
-	o.openAICompatible.Opts = o.Opts
+	apiKey := o.APIKey
+
+	// if api key is not set, get it from environment variable
+	if apiKey == "" {
+		apiKey = os.Getenv("OPENAI_API_KEY")
+	}
+
+	if apiKey == "" {
+		return fmt.Errorf("openai plugin initialization failed: apiKey is required")
+	}
+
+	if o.openAICompatible == nil {
+		o.openAICompatible = &compat_oai.OpenAICompatible{}
+	}
+
+	// set the options
+	o.openAICompatible.Opts = []option.RequestOption{
+		option.WithAPIKey(apiKey),
+	}
+	if len(o.Opts) > 0 {
+		o.openAICompatible.Opts = append(o.openAICompatible.Opts, o.Opts...)
+	}
+
 	if err := o.openAICompatible.Init(ctx, g); err != nil {
 		return err
 	}
@@ -164,11 +193,11 @@ func (o *OpenAI) Model(g *genkit.Genkit, name string) ai.Model {
 }
 
 func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, error) {
-	return o.openAICompatible.DefineModel(g, name, provider, info)
+	return o.openAICompatible.DefineModel(g, provider, name, info)
 }
 
 func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {
-	return o.openAICompatible.DefineEmbedder(g, name, provider)
+	return o.openAICompatible.DefineEmbedder(g, provider, name)
 }
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {

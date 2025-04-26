@@ -52,10 +52,24 @@ var (
 // OpenAICompatible is a plugin that provides compatibility with OpenAI's Compatible APIs.
 // It allows defining models and embedders that can be used with Genkit.
 type OpenAICompatible struct {
-	mu       sync.Mutex
-	initted  bool
-	client   *openaiGo.Client
-	Opts     []option.RequestOption
+	// mu protects concurrent access to the client and initialization state
+	mu sync.Mutex
+
+	// initted tracks whether the plugin has been initialized
+	initted bool
+
+	// client is the OpenAI client used for making API requests
+	// see https://github.com/openai/openai-go
+	client *openaiGo.Client
+
+	// Opts contains request options for the OpenAI client.
+	// Required: Must include at least WithAPIKey for authentication.
+	// Optional: Can include other options like WithOrganization, WithBaseURL, etc.
+	Opts []option.RequestOption
+
+	// Provider is a unique identifier for the plugin.
+	// This will be used as a prefix for model names (e.g., "myprovider/model-name").
+	// Should be lowercase and match the plugin's Name() method.
 	Provider string
 }
 
@@ -81,7 +95,7 @@ func (o *OpenAICompatible) Name() string {
 }
 
 // DefineModel defines a model in the registry
-func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name, provider string, info ai.ModelInfo) (ai.Model, error) {
+func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, info ai.ModelInfo) (ai.Model, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
@@ -111,7 +125,7 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, name, provider string, 
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, name string, provider string) (ai.Embedder, error) {
+func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name string) (ai.Embedder, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
