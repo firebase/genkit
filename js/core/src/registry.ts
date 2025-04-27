@@ -74,13 +74,13 @@ interface ParsedRegistryKey {
  *  - /prompt/my-plugin/folder/my-prompt
  *  - /util/generate
  */
-export function parseRegistryKey(registryKey: string): ParsedRegistryKey {
+export function parseRegistryKey(
+  registryKey: string
+): ParsedRegistryKey | undefined {
   const tokens = registryKey.split('/');
   if (tokens.length < 3) {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: `invalid action key format: ${registryKey}`,
-    });
+    // Invalid key format
+    return undefined;
   }
   // ex: /model/googleai/gemini-2.0-flash or /prompt/my-plugin/folder/my-prompt
   if (tokens.length >= 4) {
@@ -152,7 +152,7 @@ export class Registry {
   >(key: string): Promise<R> {
     // We always try to initialize the plugin first.
     const parsedKey = parseRegistryKey(key);
-    if (parsedKey.pluginName && this.pluginsByName[parsedKey.pluginName]) {
+    if (parsedKey?.pluginName && this.pluginsByName[parsedKey.pluginName]) {
       await this.initializePlugin(parsedKey.pluginName);
 
       // If we don't see the key in the registry, we try to resolve
