@@ -16,6 +16,9 @@ importers:
         specifier: link:js/genkit
         version: link:js/genkit
     devDependencies:
+      '@types/node':
+        specifier: 22.10.5
+        version: 22.10.5
       inquirer:
         specifier: ^8.0.0
         version: 8.2.6

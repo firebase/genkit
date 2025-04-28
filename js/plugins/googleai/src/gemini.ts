@@ -430,6 +430,7 @@ function nearestGeminiModelRef(
       version,
     });
   }
+
   return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
 }
 

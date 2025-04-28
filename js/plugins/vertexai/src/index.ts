@@ -22,6 +22,7 @@
 
 import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { ActionType } from 'genkit/registry';
 import { getDerivedParams } from './common/index.js';
 import { PluginOptions } from './common/types.js';
 import {
@@ -85,57 +86,105 @@ export {
   type GeminiConfig,
 };
 
+async function initializer(ai: Genkit, options?: PluginOptions) {
+  const { projectId, location, vertexClientFactory, authClient } =
+    await getDerivedParams(options);
+
+  Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
+    imagenModel(ai, name, authClient, { projectId, location })
+  );
+  Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+    defineGeminiKnownModel(
+      ai,
+      name,
+      vertexClientFactory,
+      {
+        projectId,
+        location,
+      },
+      options?.experimental_debugTraces
+    )
+  );
+  if (options?.models) {
+    for (const modelOrRef of options?.models) {
+      const modelName =
+        typeof modelOrRef === 'string'
+          ? modelOrRef
+          : // strip out the `vertexai/` prefix
+            modelOrRef.name.split('/')[1];
+      const modelRef =
+        typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
+      defineGeminiModel({
+        ai,
+        modelName: modelRef.name,
+        version: modelName,
+        modelInfo: modelRef.info,
+        vertexClientFactory,
+        options: {
+          projectId,
+          location,
+        },
+        debugTraces: options.experimental_debugTraces,
+      });
+    }
+  }
+
+  Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+    defineVertexAIEmbedder(ai, name, authClient, { projectId, location })
+  );
+}
+
+async function resolver(
+  ai: Genkit,
+  actionType: ActionType,
+  actionName: string,
+  options?: PluginOptions
+) {
+  // TODO: also support other actions like 'embedder'
+  switch (actionType) {
+    case 'model':
+      await resolveModel(ai, actionName, options);
+      break;
+    default:
+    // no-op
+  }
+}
+
+async function resolveModel(
+  ai: Genkit,
+  actionName: string,
+  options?: PluginOptions
+) {
+  const { projectId, location, vertexClientFactory } =
+    await getDerivedParams(options);
+  if (actionName.includes('gemini')) {
+    const modelRef = gemini(actionName);
+    defineGeminiModel({
+      ai,
+      modelName: modelRef.name,
+      version: actionName,
+      modelInfo: modelRef.info,
+      vertexClientFactory,
+      options: {
+        projectId,
+        location,
+      },
+      debugTraces: options?.experimental_debugTraces,
+    });
+  }
+  // TODO: Support other models
+}
+
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 export function vertexAI(options?: PluginOptions): GenkitPlugin {
-  return genkitPlugin('vertexai', async (ai: Genkit) => {
-    const { projectId, location, vertexClientFactory, authClient } =
-      await getDerivedParams(options);
-
-    Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
-      imagenModel(ai, name, authClient, { projectId, location })
-    );
-    Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-      defineGeminiKnownModel(
-        ai,
-        name,
-        vertexClientFactory,
-        {
-          projectId,
-          location,
-        },
-        options?.experimental_debugTraces
-      )
-    );
-    if (options?.models) {
-      for (const modelOrRef of options?.models) {
-        const modelName =
-          typeof modelOrRef === 'string'
-            ? modelOrRef
-            : // strip out the `vertexai/` prefix
-              modelOrRef.name.split('/')[1];
-        const modelRef =
-          typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-        defineGeminiModel({
-          ai,
-          modelName: modelRef.name,
-          version: modelName,
-          modelInfo: modelRef.info,
-          vertexClientFactory,
-          options: {
-            projectId,
-            location,
-          },
-          debugTraces: options.experimental_debugTraces,
-        });
-      }
-    }
-
-    Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-      defineVertexAIEmbedder(ai, name, authClient, { projectId, location })
-    );
-  });
+  return genkitPlugin(
+    'vertexai',
+    async (ai: Genkit) => await initializer(ai, options),
+    async (ai: Genkit, actionType: ActionType, actionName: string) =>
+      await resolver(ai, actionType, actionName, options)
+  );
 }
 
 export default vertexAI;

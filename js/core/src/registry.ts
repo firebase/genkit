@@ -241,9 +241,9 @@ export class Registry {
         }
         return cached;
       },
-      resolver: async (actionType: ActionType, target: string) => {
+      resolver: async (actionType: ActionType, actionName: string) => {
         if (provider.resolver) {
-          await provider.resolver(actionType, target);
+          await provider.resolver(actionType, actionName);
         }
       },
     };
@@ -261,19 +261,20 @@ export class Registry {
   /**
    * Resolves a new Action dynamically by registering it.
    * @param pluginName The name of the plugin
-   * @param action
+   * @param actionType The type of the action
+   * @param actionName The name of the action
    * @returns
    */
   async resolvePluginAction(
     pluginName: string,
-    action: ActionType,
-    target: string
+    actionType: ActionType,
+    actionName: string
   ) {
     const plugin = this.pluginsByName[pluginName];
     if (plugin) {
       return await runOutsideActionRuntimeContext(this, async () => {
         if (plugin.resolver) {
-          await plugin.resolver(action, target);
+          await plugin.resolver(actionType, actionName);
         }
       });
     }
