@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { ActionMetadata } from '@genkit-ai/core';
 import { Genkit } from './genkit.js';
 import { ActionType } from './registry.js';
 
@@ -21,13 +22,14 @@ export interface PluginProvider {
   name: string;
   initializer: () => void | Promise<void>;
   resolver?: (action: ActionType, target: string) => Promise<void>;
+  listActions?: () => Promise<ActionMetadata[]>;
 }
 
 export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
 
-type PluginInit = (genkit: Genkit) => void | Promise<void>;
+export type PluginInit = (genkit: Genkit) => void | Promise<void>;
 
-type PluginActionResolver = (
+export type PluginActionResolver = (
   genkit: Genkit,
   action: ActionType,
   target: string
@@ -39,7 +41,8 @@ type PluginActionResolver = (
 export function genkitPlugin<T extends PluginInit>(
   pluginName: string,
   initFn: T,
-  resolveFn?: PluginActionResolver
+  resolveFn?: PluginActionResolver,
+  listActionsFn?: () => Promise<ActionMetadata[]>
 ): GenkitPlugin {
   return (genkit: Genkit) => ({
     name: pluginName,
@@ -50,6 +53,12 @@ export function genkitPlugin<T extends PluginInit>(
       if (resolveFn) {
         return await resolveFn(genkit, action, target);
       }
+    },
+    listActions: async (): Promise<ActionMetadata[]> => {
+      if (listActionsFn) {
+        return await listActionsFn();
+      }
+      return [];
     },
   });
 }
