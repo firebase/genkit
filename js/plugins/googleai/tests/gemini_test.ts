@@ -463,11 +463,9 @@ describe('plugin', () => {
       assert.strictEqual(flash.__action.name, 'googleai/gemini-1.5-flash');
     });
 
-    it('references dynamic models', async() => {
+    it('references dynamic models', async () => {
       const ai = genkit({
-        plugins: [
-          googleAI({}),
-        ],
+        plugins: [googleAI({})],
       });
       const giraffeRef = gemini('gemini-4.5-giraffe');
       assert.strictEqual(giraffeRef.name, 'googleai/gemini-4.5-giraffe');

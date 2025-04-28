@@ -64,9 +64,7 @@ describe('plugin', () => {
 
   it('references dynamic models', async () => {
     const ai = genkit({
-      plugins: [
-        vertexAI({location: 'us-central1'}),
-      ],
+      plugins: [vertexAI({ location: 'us-central1' })],
     });
     const giraffeRef = gemini('gemini-4.5-giraffe');
     assert.strictEqual(giraffeRef.name, 'vertexai/gemini-4.5-giraffe');
