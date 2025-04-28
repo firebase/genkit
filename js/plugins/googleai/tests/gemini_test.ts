@@ -463,7 +463,7 @@ describe('plugin', () => {
       assert.strictEqual(flash.__action.name, 'googleai/gemini-1.5-flash');
     });
 
-    it('references explicitly registered models', async () => {
+    it('references both pre-registered or dynamic models', async () => {
       const flash002Ref = gemini('gemini-1.5-flash-002');
       const ai = genkit({
         plugins: [
@@ -525,13 +525,19 @@ describe('plugin', () => {
         GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
       );
 
-      // this one is not registered
-      const flash003Ref = gemini('gemini-1.5-flash-003');
-      assert.strictEqual(flash003Ref.name, 'googleai/gemini-1.5-flash-003');
-      const flash003 = await ai.registry.lookupAction(
-        `/model/${flash003Ref.name}`
+      // this one is dynamically resolved (not pre-registered)
+      const giraffeRef = gemini('gemini-4.5-giraffe');
+      assert.strictEqual(giraffeRef.name, 'googleai/gemini-4.5-giraffe');
+      const giraffe = await ai.registry.lookupAction(
+        `/model/${giraffeRef.name}`
       );
-      assert.ok(flash003 === undefined);
+      assert.ok(giraffe);
+      assert.strictEqual(giraffe.__action.name, 'googleai/gemini-4.5-giraffe');
+      assertEqualModelInfo(
+        giraffe.__action.metadata?.model,
+        'Google AI - gemini-4.5-giraffe',
+        GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
+      );
     });
   });
 });
