@@ -16,11 +16,14 @@
 
 import {
   ActionMetadata,
+  embedderRef,
   Genkit,
   ToolRequest,
   ToolRequestPart,
   ToolResponse,
   z,
+  type EmbedderReference,
+  type ModelReference,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
@@ -28,10 +31,11 @@ import {
   GenerateResponseData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MessageData,
   ModelInfo,
+  modelRef,
   ToolDefinition,
-  getBasicUsageStats,
 } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { defineOllamaEmbedder } from './embeddings.js';
@@ -49,6 +53,16 @@ import {
 
 export { type OllamaPluginParams };
 
+export type OllamaPlugin = {
+  (params?: OllamaPluginParams): GenkitPlugin;
+
+  model(
+    name: string,
+    config?: z.infer<typeof OllamaConfigSchema>
+  ): ModelReference<typeof OllamaConfigSchema>;
+  embedder(name: string, config?: Record<string, any>): EmbedderReference;
+};
+
 const ANY_JSON_SCHEMA: Record<string, any> = {
   $schema: 'http://json-schema.org/draft-07/schema#',
 };
@@ -64,20 +78,28 @@ const GENERIC_MODEL_INFO = {
   },
 } as ModelInfo;
 
-export function ollama(params: OllamaPluginParams): GenkitPlugin {
+const DEFAULT_OLLAMA_SERVER_ADDRESS = 'http://localhost:11434';
+
+function ollamaPlugin(params?: OllamaPluginParams): GenkitPlugin {
+  if (!params) {
+    params = {};
+  }
+  if (!params.serverAddress) {
+    params.serverAddress = DEFAULT_OLLAMA_SERVER_ADDRESS;
+  }
   const serverAddress = params.serverAddress;
   return genkitPlugin(
     'ollama',
     async (ai: Genkit) => {
-      params.models?.map((model) =>
-        ollamaModel(ai, model, serverAddress, params.requestHeaders)
+      params?.models?.map((model) =>
+        ollamaModel(ai, model, serverAddress, params?.requestHeaders)
       );
-      params.embedders?.map((model) =>
+      params?.embedders?.map((model) =>
         defineOllamaEmbedder(ai, {
           name: model.name,
           modelName: model.name,
           dimensions: model.dimensions,
-          options: params,
+          options: params!,
         })
       );
     },
@@ -90,14 +112,14 @@ export function ollama(params: OllamaPluginParams): GenkitPlugin {
             name: actionName,
           },
           serverAddress,
-          params.requestHeaders
+          params?.requestHeaders
         );
       }
     },
     async () => {
       const models = await listLocalModels(
         serverAddress,
-        params.requestHeaders
+        params?.requestHeaders
       );
       return (
         models
@@ -501,3 +523,24 @@ function isValidOllamaTool(tool: ToolDefinition): boolean {
   }
   return true;
 }
+
+export const ollama = ollamaPlugin as OllamaPlugin;
+ollama.model = (
+  name: string,
+  config?: z.infer<typeof OllamaConfigSchema>
+): ModelReference<typeof OllamaConfigSchema> => {
+  return modelRef({
+    name: `ollama/${name}`,
+    config,
+    configSchema: OllamaConfigSchema,
+  });
+};
+ollama.embedder = (
+  name: string,
+  config?: Record<string, any>
+): EmbedderReference => {
+  return embedderRef({
+    name: `ollama/${name}`,
+    config,
+  });
+};

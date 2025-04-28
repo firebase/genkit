@@ -86,9 +86,9 @@ export interface OllamaPluginParams {
   embedders?: EmbeddingModelDefinition[];
 
   /**
-   * The address of the Ollama server.
+   * The address of the Ollama server. Default: http://localhost:11434
    */
-  serverAddress: string;
+  serverAddress?: string;
 
   /**
    * Optional request headers, which can be either static or dynamically generated.
