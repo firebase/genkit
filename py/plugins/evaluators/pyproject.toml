@@ -15,7 +15,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit-ai",
+  "genkit",
   "jsonata-python>=0.5.3",
   "pydantic>=2.10.5",
 ]
@@ -23,7 +23,7 @@ description = "Genkit Evaluators Plugin for RAGAS"
 license = { text = "Apache-2.0" }
 name = "genkit-plugin-evaluators"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 version = "0.0.1.dev1"
 
 [build-system]

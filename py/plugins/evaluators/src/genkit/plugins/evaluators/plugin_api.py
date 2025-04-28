@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+from collections.abc import Callable
 import json
 import re
 from typing import Any
@@ -23,7 +24,7 @@ import jsonata
 
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.plugins.evaluators.constant import GenkitMetricType, MetricConfig, PluginOptions
-from genkit.types import BaseEvalDataPoint, EvalFnResponse, Score
+from genkit.types import BaseEvalDataPoint, EvalFnResponse, Score, EvalStatusEnum
 
 
 def evaluators_name(name: str) -> str:
@@ -36,6 +37,19 @@ def evaluators_name(name: str) -> str:
         The fully qualified genkitEval action name.
     """
     return f'genkitEval/{name}'
+
+
+def fill_scores(
+    datapoint: BaseEvalDataPoint,
+    score: Score,
+    status_override_fn: Callable[[Score], EvalStatusEnum] | None = None,
+) -> EvalFnResponse:
+    """Adds status overrides if provided."""
+    status = score.status
+    if status_override_fn is not None:
+        status = status_override_fn(score)
+    score.status = status
+    return EvalFnResponse(test_case_id=datapoint.test_case_id, evaluation=score)
 
 
 class GenkitEvaluators(Plugin):
@@ -67,10 +81,8 @@ class GenkitEvaluators(Plugin):
                     )
                     pattern = re.compile(datapoint.reference)
                     score = False if pattern.search(output_string) is None else True
-                    return EvalFnResponse(
-                        test_case_id=datapoint.test_case_id,
-                        evaluation=Score(score=score),
-                    )
+                    status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
+                    return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
 
                 ai.define_evaluator(
                     name=evaluators_name(str(GenkitMetricType.REGEX).lower()),
@@ -88,10 +100,8 @@ class GenkitEvaluators(Plugin):
                     if type(datapoint.output) is type(datapoint.reference):
                         if datapoint.output == datapoint.reference:
                             score = True
-                    return EvalFnResponse(
-                        test_case_id=datapoint.test_case_id,
-                        evaluation=Score(score=score),
-                    )
+                    status = EvalStatusEnum.PASS_ if score else EvalStatusEnum.FAIL
+                    return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
 
                 ai.define_evaluator(
                     name=evaluators_name(str(GenkitMetricType.DEEP_EQUAL).lower()),
@@ -108,10 +118,8 @@ class GenkitEvaluators(Plugin):
                     assert isinstance(datapoint.reference, str), 'reference must be of string (jsonata)'
                     expr = jsonata.Jsonata(datapoint.reference)
                     score = expr.evaluate(datapoint.output)
-                    return EvalFnResponse(
-                        test_case_id=datapoint.test_case_id,
-                        evaluation=Score(score=score),
-                    )
+                    status = EvalStatusEnum.PASS_ if bool(score) else EvalStatusEnum.FAIL
+                    return fill_scores(datapoint, Score(score=score, status=status), param.status_override_fn)
 
                 ai.define_evaluator(
                     name=evaluators_name(str(GenkitMetricType.JSONATA).lower()),
