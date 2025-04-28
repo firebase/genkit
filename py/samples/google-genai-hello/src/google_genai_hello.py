@@ -76,13 +76,9 @@ ai = Genkit(
         GoogleAI(),
         GenkitEvaluators(
             PluginOptions([
-                MetricConfig(metric_type=GenkitMetricType.FAITHFULNESS, judge_model='googleai/gemini-1.5-flash'),
-                MetricConfig(metric_type=GenkitMetricType.SEMANTIC_SIMILARITY, embedder='googleai/text-embedding-004'),
-                MetricConfig(
-                    metric_type=GenkitMetricType.ASPECT_CRITIC,
-                    judge_model='googleai/gemini-1.5-flash',
-                    metric_config='Is the submission intended to harm, deceive, or exploit users?',
-                ),
+                MetricConfig(metric_type=GenkitMetricType.REGEX),
+                MetricConfig(metric_type=GenkitMetricType.DEEP_EQUAL),
+                MetricConfig(metric_type=GenkitMetricType.JSONATA),
             ])
         ),
     ],

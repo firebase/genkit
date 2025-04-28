@@ -27,9 +27,9 @@ from genkit.types import EvalStatusEnum, Score
 class GenkitMetricType(StrEnum):
     """Enumeration of GenkitMetricType values."""
 
-    FAITHFULNESS = 'FAITHFULNESS'
-    SEMANTIC_SIMILARITY = 'SEMANTIC_SIMILARITY'
-    ASPECT_CRITIC = 'ASPECT_CRITIC'
+    REGEX = ('REGEX',)
+    DEEP_EQUAL = ('DEEP_EQUAL',)
+    JSONATA = ('JSONATA',)
 
 
 class MetricConfig(BaseModel):
@@ -39,10 +39,6 @@ class MetricConfig(BaseModel):
     """
 
     metric_type: GenkitMetricType
-    judge_model: str | None = None
-    judge_config: dict[str, Any] | None = None
-    embedder: str | None = None
-    embedder_config: dict[str, Any] | None = None
     status_override_fn: Callable[[Score], EvalStatusEnum] | None = None
     metric_config: Any | None = None
 

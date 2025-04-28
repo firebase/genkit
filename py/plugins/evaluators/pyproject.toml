@@ -16,9 +16,8 @@ classifiers = [
 ]
 dependencies = [
   "genkit-ai",
-  "langchain>=0.3.22",
+  "jsonata-python>=0.5.3",
   "pydantic>=2.10.5",
-  "ragas>=0.2.14",
 ]
 description = "Genkit Evaluators Plugin for RAGAS"
 license = { text = "Apache-2.0" }

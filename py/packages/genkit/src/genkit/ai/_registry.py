@@ -330,8 +330,8 @@ class GenkitRegistry:
                 )
                 try:
                     with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
-                        span_id = span.span_id()
-                        trace_id = span.trace_id()
+                        span_id = span.span_id
+                        trace_id = span.trace_id
                         try:
                             span.set_input(datapoint)
                             test_case_output = await fn(datapoint, req.options)
