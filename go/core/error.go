@@ -87,13 +87,10 @@ func NewError(status StatusName, message string, args ...any) *GenkitError {
 
 // Error implements the standard error interface.
 func (e *GenkitError) Error() string {
-	sourcePrefix := ""
-	if e.Source != nil && *e.Source != "" {
-		sourcePrefix = fmt.Sprintf("%s: ", *e.Source)
+	if e == nil {
+		return "<nil GenkitError>"
 	}
-	baseMsg := fmt.Sprintf("%s%s: %s", sourcePrefix, e.Status, e.Message)
-
-	return baseMsg
+	return e.Message
 }
 
 // ToReflectionError returns a JSON-serializable representation for reflection API responses.
