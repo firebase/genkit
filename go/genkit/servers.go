@@ -124,7 +124,9 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 
 		var callback streamingCallback[json.RawMessage]
 		if stream {
-			w.Header().Set("Content-Type", "text/plain")
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
 			w.Header().Set("Transfer-Encoding", "chunked")
 			callback = func(ctx context.Context, msg json.RawMessage) error {
 				_, err := fmt.Fprintf(w, "data: {\"message\": %s}\n\n", msg)
@@ -136,6 +138,8 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 				}
 				return nil
 			}
+		} else {
+			w.Header().Set("Content-Type", "application/json")
 		}
 
 		ctx := r.Context()
@@ -179,7 +183,7 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 			return err
 		}
 
-		_, err = fmt.Fprintf(w, `{"result": %s}\n`, out)
+		_, err = fmt.Fprintf(w, "{\"result\": %s}\n", out)
 		return err
 	}
 }

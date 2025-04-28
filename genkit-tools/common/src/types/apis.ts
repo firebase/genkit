@@ -131,6 +131,7 @@ export const CreateDatasetRequestSchema = z.object({
   datasetId: z.string().optional(),
   datasetType: DatasetTypeSchema,
   schema: DatasetSchemaSchema.optional(),
+  metricRefs: z.array(z.string()).default([]),
   targetAction: z.string().optional(),
 });
 
@@ -140,6 +141,8 @@ export const UpdateDatasetRequestSchema = z.object({
   datasetId: z.string(),
   data: InferenceDatasetSchema.optional(),
   schema: DatasetSchemaSchema.optional(),
+  // Set to undefined if no changes in `metricRefs`.
+  metricRefs: z.array(z.string()).optional(),
   targetAction: z.string().optional(),
 });
 export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
