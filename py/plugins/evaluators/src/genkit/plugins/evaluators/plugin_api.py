@@ -15,16 +15,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from collections.abc import Callable
 import json
 import re
+from collections.abc import Callable
 from typing import Any
 
 import jsonata
 
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.plugins.evaluators.constant import GenkitMetricType, MetricConfig, PluginOptions
-from genkit.types import BaseEvalDataPoint, EvalFnResponse, Score, EvalStatusEnum
+from genkit.types import BaseEvalDataPoint, EvalFnResponse, EvalStatusEnum, Score
 
 
 def evaluators_name(name: str) -> str:
