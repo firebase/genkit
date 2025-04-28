@@ -1,4 +1,4 @@
-package postgres
+package postgresql
 
 import (
 	"context"
@@ -10,23 +10,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidateEngineConfig(t *testing.T) {
+func TestApplyEngineOptionsConfig(t *testing.T) {
 	mockEmailRetriever := func(ctx context.Context) (string, error) {
 		return "test@google.com", nil
 	}
 
 	testCases := []struct {
 		name               string
-		cfg                *EngineConfig
+		opts               []Option
 		wantErr            bool
 		wantIpType         IpType
 		wantEmailRetriever EmailRetriever
 	}{
 		{
 			name: "valid config with connection pool",
-			cfg: &EngineConfig{
-				ConnPool: &pgxpool.Pool{},
-				Database: "testdb",
+			opts: []Option{
+				WithPool(&pgxpool.Pool{}),
+				WithDatabase("testdb"),
 			},
 			wantErr:            false,
 			wantIpType:         PUBLIC,
@@ -34,12 +34,9 @@ func TestValidateEngineConfig(t *testing.T) {
 		},
 		{
 			name: "valid config with instance details",
-			cfg: &EngineConfig{
-				ProjectID: "testproject",
-				Region:    "testregion",
-				Cluster:   "testcluster",
-				Instance:  "testinstance",
-				Database:  "testdb",
+			opts: []Option{
+				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
+				WithDatabase("testdb"),
 			},
 			wantErr:            false,
 			wantIpType:         PUBLIC,
@@ -47,11 +44,8 @@ func TestValidateEngineConfig(t *testing.T) {
 		},
 		{
 			name: "missing database",
-			cfg: &EngineConfig{
-				ProjectID: "testproject",
-				Region:    "testregion",
-				Cluster:   "testcluster",
-				Instance:  "testinstance",
+			opts: []Option{
+				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
 			},
 			wantErr:            true,
 			wantIpType:         PUBLIC,
@@ -59,8 +53,8 @@ func TestValidateEngineConfig(t *testing.T) {
 		},
 		{
 			name: "missing all connection details",
-			cfg: &EngineConfig{
-				Database: "testdb",
+			opts: []Option{
+				WithDatabase("testdb"),
 			},
 			wantErr:            true,
 			wantIpType:         PUBLIC,
@@ -68,13 +62,10 @@ func TestValidateEngineConfig(t *testing.T) {
 		},
 		{
 			name: "ip type private",
-			cfg: &EngineConfig{
-				ProjectID: "testproject",
-				Region:    "testregion",
-				Cluster:   "testcluster",
-				Instance:  "testinstance",
-				Database:  "testdb",
-				IpType:    PRIVATE,
+			opts: []Option{
+				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
+				WithDatabase("testdb"),
+				WithIPType(PRIVATE),
 			},
 			wantErr:            false,
 			wantIpType:         PRIVATE,
@@ -82,13 +73,10 @@ func TestValidateEngineConfig(t *testing.T) {
 		},
 		{
 			name: "custom EmailRetriever",
-			cfg: &EngineConfig{
-				ProjectID:      "testproject",
-				Region:         "testregion",
-				Cluster:        "testcluster",
-				Instance:       "testinstance",
-				Database:       "testdb",
-				EmailRetreiver: mockEmailRetriever,
+			opts: []Option{
+				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
+				WithDatabase("testdb"),
+				WithEmailRetriever(mockEmailRetriever),
 			},
 			wantErr:            false,
 			wantIpType:         PUBLIC,
@@ -98,14 +86,14 @@ func TestValidateEngineConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateEngineConfig(tc.cfg)
+			cfg, err := applyEngineOptions(tc.opts)
 			if tc.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.wantIpType, tc.cfg.IpType)
-				assert.NotNil(t, tc.cfg.EmailRetreiver)
-				assert.Equal(t, fmt.Sprintf("%p", tc.wantEmailRetriever), fmt.Sprintf("%p", tc.cfg.EmailRetreiver))
+				assert.Equal(t, tc.wantIpType, cfg.ipType)
+				assert.NotNil(t, cfg.emailRetriever)
+				assert.Equal(t, fmt.Sprintf("%p", tc.wantEmailRetriever), fmt.Sprintf("%p", cfg.emailRetriever))
 			}
 		})
 	}
@@ -114,7 +102,7 @@ func TestValidateEngineConfig(t *testing.T) {
 func TestGetUser(t *testing.T) {
 	testCases := []struct {
 		name               string
-		cfg                EngineConfig
+		cfg                engineConfig
 		wantUser           string
 		wantIAMAuth        bool
 		wantErr            bool
@@ -122,9 +110,9 @@ func TestGetUser(t *testing.T) {
 	}{
 		{
 			name: "user and password provided",
-			cfg: EngineConfig{
-				User:     "testuser",
-				Password: "testpassword",
+			cfg: engineConfig{
+				user:     "testuser",
+				password: "testpassword",
 			},
 			wantUser:    "testuser",
 			wantIAMAuth: false,
@@ -132,8 +120,8 @@ func TestGetUser(t *testing.T) {
 		},
 		{
 			name: "iam account email provided",
-			cfg: EngineConfig{
-				IAMAccountEmail: "iam@example.com",
+			cfg: engineConfig{
+				iamAccountEmail: "iam@example.com",
 			},
 			wantUser:    "iam@example.com",
 			wantIAMAuth: true,
@@ -141,8 +129,8 @@ func TestGetUser(t *testing.T) {
 		},
 		{
 			name: "retrieve service account email success",
-			cfg: EngineConfig{
-				EmailRetreiver: func(ctx context.Context) (string, error) {
+			cfg: engineConfig{
+				emailRetriever: func(ctx context.Context) (string, error) {
 					return "service@example.com", nil
 				},
 			},
@@ -152,8 +140,8 @@ func TestGetUser(t *testing.T) {
 		},
 		{
 			name: "retrieve service account email failure",
-			cfg: EngineConfig{
-				EmailRetreiver: func(ctx context.Context) (string, error) {
+			cfg: engineConfig{
+				emailRetriever: func(ctx context.Context) (string, error) {
 					return "", errors.New("retrieve error")
 				},
 			},

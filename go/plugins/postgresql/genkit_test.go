@@ -1,22 +1,22 @@
-package postgres
+package postgresql
 
 import (
 	"context"
-	"github.com/firebase/genkit/go/genkit"
 	"testing"
+
+	"github.com/firebase/genkit/go/genkit"
 )
 
 func TestInit_AlreadyCalled(t *testing.T) {
-	t.Skip("for local test. work in progress")
 	ctx := context.Background()
-	cfg := EngineConfig{}
-
+	cfg := engineConfig{}
+	engine := PostgresEngine{Pool: cfg.connPool}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("panic not called")
 		}
 	}()
-	gcsp := &GoogleCloudSQLPostgres{Config: cfg}
+	gcsp := &Postgres{engine: engine}
 	_ = gcsp.Init(ctx, &genkit.Genkit{})
 	_ = gcsp.Init(ctx, &genkit.Genkit{})
 
