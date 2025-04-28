@@ -317,8 +317,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
-		err := opt.applyGenerate(genOpts)
-		if err != nil {
+		if err := opt.applyGenerate(genOpts); err != nil {
 			return nil, fmt.Errorf("ai.Generate: error applying options: %w", err)
 		}
 	}
@@ -337,7 +336,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 
 	messages := []*Message{}
 	if genOpts.SystemFn != nil {
-		system, err := genOpts.SystemFn(ctx, genOpts)
+		system, err := genOpts.SystemFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -345,7 +344,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, NewSystemTextMessage(system))
 	}
 	if genOpts.MessagesFn != nil {
-		msgs, err := genOpts.MessagesFn(ctx, genOpts)
+		msgs, err := genOpts.MessagesFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -353,7 +352,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		messages = append(messages, msgs...)
 	}
 	if genOpts.PromptFn != nil {
-		prompt, err := genOpts.PromptFn(ctx, genOpts)
+		prompt, err := genOpts.PromptFn(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -373,7 +372,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		Config:             genOpts.Config,
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
-		ReturnToolRequests: genOpts.ReturnToolRequests,
+		ReturnToolRequests: genOpts.ReturnToolRequests != nil && *genOpts.ReturnToolRequests,
 		Output: &GenerateActionOutputConfig{
 			JsonSchema:   genOpts.OutputSchema,
 			Format:       genOpts.OutputFormat,
@@ -397,20 +396,21 @@ func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOpt
 
 // Generate run generate request for this model. Returns ModelResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func GenerateData(ctx context.Context, r *registry.Registry, value any, opts ...GenerateOption) (*ModelResponse, error) {
+func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
+	var value Out
 	opts = append(opts, WithOutputType(value))
 
 	resp, err := Generate(ctx, r, opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	err = resp.Output(value)
+	err = resp.Output(&value)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return resp, nil
+	return &value, resp, nil
 }
 
 // Name returns the name of the model.
@@ -608,21 +608,32 @@ func (gr *ModelResponse) Text() string {
 
 // History returns messages from the request combined with the response message
 // to represent the conversation history.
-func (gr *ModelResponse) History() []*Message {
-	if gr.Message == nil {
-		return gr.Request.Messages
+func (mr *ModelResponse) History() []*Message {
+	if mr.Message == nil {
+		return mr.Request.Messages
 	}
-	return append(gr.Request.Messages, gr.Message)
+	return append(mr.Request.Messages, mr.Message)
 }
 
 // Output unmarshals structured JSON output into the provided
 // struct pointer.
-func (gr *ModelResponse) Output(v any) error {
-	j := base.ExtractJSONFromMarkdown(gr.Text())
+func (mr *ModelResponse) Output(v any) error {
+	j := base.ExtractJSONFromMarkdown(mr.Text())
 	if j == "" {
 		return errors.New("unable to parse JSON from response text")
 	}
 	return json.Unmarshal([]byte(j), v)
+}
+
+// ToolRequests returns the tool requests from the response.
+func (mr *ModelResponse) ToolRequests() []*ToolRequest {
+	toolReqs := []*ToolRequest{}
+	for _, part := range mr.Message.Content {
+		if part.IsToolRequest() {
+			toolReqs = append(toolReqs, part.ToolRequest)
+		}
+	}
+	return toolReqs
 }
 
 // Text returns the text content of the [ModelResponseChunk]

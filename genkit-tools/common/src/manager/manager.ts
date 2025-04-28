@@ -268,7 +268,7 @@ export class RuntimeManager {
   async listTraces(
     input: apis.ListTracesRequest
   ): Promise<apis.ListTracesResponse> {
-    const { limit, continuationToken } = input;
+    const { limit, continuationToken, filter } = input;
     let query = '';
     if (limit) {
       query += `limit=${limit}`;
@@ -278,6 +278,12 @@ export class RuntimeManager {
         query += '&';
       }
       query += `continuationToken=${continuationToken}`;
+    }
+    if (filter) {
+      if (query !== '') {
+        query += '&';
+      }
+      query += `filter=${encodeURI(JSON.stringify(filter))}`;
     }
 
     const response = await axios

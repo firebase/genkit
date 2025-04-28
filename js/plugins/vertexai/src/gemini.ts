@@ -42,6 +42,7 @@ import {
 import {
   CandidateData,
   GenerateRequest,
+  GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   MediaPart,
   MessageData,
@@ -60,6 +61,7 @@ import {
 } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
+
 import { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
@@ -108,8 +110,40 @@ const GoogleSearchRetrievalSchema = z.object({
 
 /**
  * Zod schema of Gemini model options.
+ * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/medlm, for further information.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+  maxOutputTokens: z
+    .number()
+    .min(1)
+    .max(8192)
+    .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
+    .optional(),
+  temperature: z
+    .number()
+    .min(0.0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 0.2.'
+    )
+    .optional(),
+  topK: z
+    .number()
+    .min(1)
+    .max(40)
+    .describe(
+      GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
+    )
+    .optional(),
+  topP: z
+    .number()
+    .min(0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.8.'
+    )
+    .optional(),
   location: z
     .string()
     .describe('Google Cloud region e.g. us-central1.')
@@ -451,6 +485,23 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashPreview0417 = modelRef({
+  name: 'vertexai/gemini-2.5-flash-preview-04-17',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Flash Preview 04-17',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemini25ProExp0325 = modelRef({
   name: 'vertexai/gemini-2.5-pro-exp-03-25',
   info: {
@@ -514,6 +565,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
+  'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {

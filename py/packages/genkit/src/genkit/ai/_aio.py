@@ -204,6 +204,7 @@ class Genkit(GenkitBase):
         output_constrained: bool | None = None,
         use: list[ModelMiddleware] | None = None,
         docs: list[DocumentData] | None = None,
+        timeout: float | None = None,
     ) -> tuple[
         AsyncIterator[GenerateResponseChunkWrapper],
         Future[GenerateResponseWrapper],
@@ -251,6 +252,7 @@ class Genkit(GenkitBase):
                 generation process. Middleware can be used to intercept and
                 modify requests and responses.
             docs: Optional. A list of documents to be used for grounding.
+            timeout: Optional. The timeout for the streaming action.
 
         Returns:
             A `GenerateResponseWrapper` object containing the model's response,
@@ -263,7 +265,7 @@ class Genkit(GenkitBase):
             - The `on_chunk` argument enables streaming responses, allowing you
               to process the generated content as it becomes available.
         """
-        stream = Channel()
+        stream = Channel(timeout=timeout)
 
         resp = self.generate(
             model=model,

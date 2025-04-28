@@ -213,6 +213,12 @@ export interface EvalStore {
    * @param query (optional) filter criteria for the result list
    */
   list(query?: ListEvalKeysRequest): Promise<ListEvalKeysResponse>;
+
+  /**
+   * Delete EvalRun by ID
+   * @param evalRunId the ID of the EvalRun
+   */
+  delete(evalRunId: string): Promise<void>;
 }
 
 export const DatasetSchemaSchema = z.object({
@@ -240,6 +246,7 @@ export const DatasetMetadataSchema = z.object({
   schema: DatasetSchemaSchema.optional(),
   datasetType: DatasetTypeSchema,
   targetAction: z.string().optional(),
+  metricRefs: z.array(z.string()).default([]),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
   createTime: z.string(),

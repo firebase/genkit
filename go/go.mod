@@ -13,14 +13,15 @@ require (
 	firebase.google.com/go/v4 v4.14.1
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
+	github.com/anthropics/anthropic-sdk-go v0.2.0-beta.3
 	github.com/blues/jsonata-go v1.5.4
-	github.com/google/dotprompt/go v0.0.0-20250402175444-30d6a6673f44
-	github.com/google/go-cmp v0.6.0
+	github.com/google/dotprompt/go v0.0.0-20250415074656-072d95deb01d
+	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
-	github.com/pgvector/pgvector-go v0.2.0
+	github.com/pgvector/pgvector-go v0.3.0
 	github.com/weaviate/weaviate v1.26.0-rc.1
 	github.com/weaviate/weaviate-go-client/v4 v4.15.0
 	github.com/xeipuuv/gojsonschema v1.2.0
@@ -30,9 +31,9 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.29.0
 	go.opentelemetry.io/otel/trace v1.29.0
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
-	golang.org/x/tools v0.23.0
+	golang.org/x/tools v0.31.0
 	google.golang.org/api v0.197.0
-	google.golang.org/genai v0.7.0
+	google.golang.org/genai v1.1.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -52,7 +53,6 @@ require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/aymerick/raymond v2.0.2+incompatible // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -67,7 +67,7 @@ require (
 	github.com/go-openapi/strfmt v0.23.0 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-openapi/validate v0.21.0 // indirect
-	github.com/goccy/go-yaml v1.16.0 // indirect
+	github.com/goccy/go-yaml v1.17.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
@@ -77,9 +77,14 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
+	github.com/mbleigh/raymond v0.0.0-20250414171441-6b3a58ab9e0a // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/tidwall/gjson v1.14.4 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
+	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
@@ -87,12 +92,12 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
-	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
 	google.golang.org/appengine/v2 v2.0.2 // indirect
 	google.golang.org/genproto v0.0.0-20240903143218-8af14fe29dc1 // indirect

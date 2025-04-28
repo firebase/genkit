@@ -61,8 +61,8 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "SimplePrompt",
 		ai.WithModelName("vertexai/gemini-1.5-flash"), // Override the default model.
-		ai.WithSystemText("You are a helpful AI assistant named Walt. Greet the user."),
-		ai.WithPromptText("Hello, who are you?"),
+		ai.WithSystem("You are a helpful AI assistant named Walt. Greet the user."),
+		ai.WithPrompt("Hello, who are you?"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -86,9 +86,8 @@ func PromptWithInput(ctx context.Context, g *genkit.Genkit) {
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "PromptWithInput",
 		ai.WithInputType(HelloPromptInput{UserName: "Alex", Theme: "beach vacation"}),
-		ai.WithSystemText("You are a helpful AI assistant named Walt. Today's theme is {{Theme}}, respond in this style. Say hello to {{UserName}}."),
-		ai.WithOutputFormat(ai.OutputFormatJSON),
-		ai.WithPromptText("Hello, who are you?"),
+		ai.WithSystem("You are a helpful AI assistant named Walt. Today's theme is {{Theme}}, respond in this style. Say hello to {{UserName}}."),
+		ai.WithPrompt("Hello, who are you?"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -113,8 +112,8 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 		g, "PromptWithOutputType",
 		ai.WithOutputType(CountryList{}),
 		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
-		ai.WithSystemText("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
-		ai.WithPromptText("Give me the 10 biggest countries in the world by habitants."),
+		ai.WithSystem("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
+		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants."),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -188,8 +187,8 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 		g, "PromptWithComplexOutputType",
 		ai.WithOutputType(countries{}),
 		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
-		ai.WithSystemText("You are a geography teacher. When asked a question about geography."),
-		ai.WithPromptText("Give me the 10 biggest countries in the world by habitants and language."),
+		ai.WithSystem("You are a geography teacher. When asked a question about geography."),
+		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants and language."),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -231,7 +230,7 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 		ai.WithMaxTurns(1),
 		ai.WithTools(gablorkenTool),
-		ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
+		ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -250,12 +249,12 @@ func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
 	// Define prompt with default messages prepended.
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "PromptWithMessageHistory",
-		ai.WithSystemText("You are a helpful AI assistant named Walt"),
+		ai.WithSystem("You are a helpful AI assistant named Walt"),
 		ai.WithMessages(
 			ai.NewUserTextMessage("Hi, my name is Bob"),
 			ai.NewModelTextMessage("Hi, my name is Walt, what can I help you with?"),
 		),
-		ai.WithPromptText("So Walt, What is my name?"),
+		ai.WithPrompt("So Walt, What is my name?"),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -273,7 +272,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 	// Define prompt with default settings.
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "PromptWithExecuteOverrides",
-		ai.WithSystemText("You are a helpful AI assistant named Walt."),
+		ai.WithSystem("You are a helpful AI assistant named Walt."),
 		ai.WithMessages(ai.NewUserTextMessage("Hi, my name is Bob!")),
 	)
 	if err != nil {

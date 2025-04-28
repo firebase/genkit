@@ -97,10 +97,12 @@ nav:
     - reference/flows.md
     - reference/tools.md
     - reference/interrupts.md
+    - reference/rag.md
     - Plugins:
       - reference/plugins/google-genai.md
       - reference/plugins/firestore.md
       - reference/plugins/ollama.md
+      - reference/plugins/dev-local-vectorstore.md
     - API:
       - reference/api/index.md
       - reference/api/types.md

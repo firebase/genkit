@@ -119,7 +119,7 @@ func f3() {
 	menuSuggestionFlow.Stream(
 		context.Background(),
 		"French",
-	)(func(sfv *core.StreamFlowValue[OutputType, StreamType], err error) bool {
+	)(func(sfv *core.StreamingFlowValue[OutputType, StreamType], err error) bool {
 		if err != nil {
 			// handle err
 			return false

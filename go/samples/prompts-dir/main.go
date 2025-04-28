@@ -40,7 +40,7 @@ func main() {
 	// given style.
 	genkit.DefineFlow(g, "assistantGreetingFlow", func(ctx context.Context, input greetingStyle) (string, error) {
 		// Look up the prompt by name
-		prompt := genkit.LookupPrompt(g, "local", "example")
+		prompt := genkit.LookupPrompt(g, "example")
 		if prompt == nil {
 			return "", errors.New("assistantGreetingFlow: failed to find prompt")
 		}

@@ -16,10 +16,13 @@ const (
 	gemini15Flash8b = "gemini-1.5-flash-8b"
 
 	gemini20Flash                = "gemini-2.0-flash"
+	gemini20FlashExp             = "gemini-2.0-flash-exp"
 	gemini20FlashLite            = "gemini-2.0-flash-lite"
 	gemini20FlashLitePrev        = "gemini-2.0-flash-lite-preview"
 	gemini20ProExp0205           = "gemini-2.0-pro-exp-02-05"
 	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
+
+	gemini25FlashPreview0417 = "gemini-2.5-flash-preview-04-17"
 
 	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
 	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
@@ -36,6 +39,7 @@ var (
 		gemini20FlashLitePrev,
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
+		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 	}
@@ -45,11 +49,18 @@ var (
 		gemini15Pro,
 		gemini15Flash8b,
 		gemini20Flash,
+		gemini20FlashExp,
 		gemini20FlashLitePrev,
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
+		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
+	}
+
+	// models with native image support generation
+	imageGenModels = []string{
+		gemini20FlashExp,
 	}
 
 	supportedGeminiModels = map[string]ai.ModelInfo{
@@ -90,6 +101,12 @@ var (
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
+		gemini20FlashExp: {
+			Label:    "Gemini 2.0 Flash Exp",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
+		},
 		gemini20FlashLite: {
 			Label: "Gemini 2.0 Flash Lite",
 			Versions: []string{
@@ -112,6 +129,12 @@ var (
 		},
 		gemini20FlashThinkingExp0121: {
 			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
+		},
+		gemini25FlashPreview0417: {
+			Label:    "Gemini 2.5 Flash Preview 04-17",
 			Versions: []string{},
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,

@@ -92,6 +92,14 @@ export interface ActionFnArg<S> {
    * Additional runtime context data (ex. auth context data).
    */
   context?: ActionContext;
+
+  /**
+   * Trace context containing trace and span IDs.
+   */
+  trace: {
+    traceId: string;
+    spanId: string;
+  };
 }
 
 /**
@@ -316,6 +324,10 @@ export function action<
               // Context can either be explicitly set, or inherited from the parent action.
               context: options?.context ?? getContext(registry),
               sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
+              trace: {
+                traceId,
+                spanId,
+              },
             });
           // if context is explicitly passed in, we run action with the provided context,
           // otherwise we let upstream context carry through.

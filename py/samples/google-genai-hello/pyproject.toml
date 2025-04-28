@@ -17,8 +17,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit",
+  "genkit@git+https://github.com/firebase/genkit/tree/feature/otel-gcp-v1/py/packages/genkit.git",
   "genkit-plugin-google-genai",
+  "genkit-plugin-google-cloud@git+https://github.com/firebase/genkit/tree/feature/otel-gcp-v1/py/plugins/google-cloud.git",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
 ]
@@ -35,3 +36,6 @@ requires      = ["hatchling"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/google_genai_hello"]
+
+[tool.hatch.metadata]
+allow-direct-references = true

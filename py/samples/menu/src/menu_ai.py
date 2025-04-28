@@ -16,25 +16,17 @@
 
 
 from genkit.ai import Genkit
-from genkit.plugins.dev_local_vector_store.constant import Params
-from genkit.plugins.dev_local_vector_store.plugin_api import DevLocalVectorStore
-from genkit.plugins.google_genai import GoogleGenai
+from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
+from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai import EmbeddingModels
 
 ai = Genkit(
     plugins=[
-        GoogleGenai(
-            vertexai=True,
-            location='us-central1',
-        ),
+        VertexAI(),
         DevLocalVectorStore(
-            params=[
-                Params(
-                    index_name='menu-items',
-                    embedder=EmbeddingModels.TEXT_EMBEDDING_004_ENG,
-                    embedder_options={'taskType': 'RETRIEVAL_DOCUMENT'},
-                )
-            ]
+            index_name='menu-items',
+            embedder=EmbeddingModels.TEXT_EMBEDDING_004_ENG,
+            embedder_options={'taskType': 'RETRIEVAL_DOCUMENT'},
         ),
     ]
 )

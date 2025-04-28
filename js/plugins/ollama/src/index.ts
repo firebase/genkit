@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import { Genkit, ToolRequest, ToolRequestPart, ToolResponse } from 'genkit';
+import { Genkit, ToolRequest, ToolRequestPart, ToolResponse, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   GenerateRequest,
   GenerateResponseData,
+  GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   MessageData,
   ToolDefinition,
@@ -59,6 +60,38 @@ export function ollama(params: OllamaPluginParams): GenkitPlugin {
   });
 }
 
+/**
+ * Please refer to: https://github.com/ollama/ollama/blob/main/docs/modelfile.md
+ * for further information.
+ */
+export const OllamaConfigSchema = GenerationCommonConfigSchema.extend({
+  temperature: z
+    .number()
+    .min(0.0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 0.8.'
+    )
+    .optional(),
+  topK: z
+    .number()
+    .min(1)
+    .max(40)
+    .describe(
+      GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
+    )
+    .optional(),
+  topP: z
+    .number()
+    .min(0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.9.'
+    )
+    .optional(),
+});
+
 function ollamaModel(
   ai: Genkit,
   model: ModelDefinition,
@@ -69,7 +102,7 @@ function ollamaModel(
     {
       name: `ollama/${model.name}`,
       label: `Ollama - ${model.name}`,
-      configSchema: GenerationCommonConfigSchema,
+      configSchema: OllamaConfigSchema,
       supports: {
         multiturn: !model.type || model.type === 'chat',
         systemRole: true,
