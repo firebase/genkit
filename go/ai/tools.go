@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/invopop/jsonschema"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/action"
@@ -105,6 +106,32 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	}
 
 	toolAction := core.DefineAction(r, "", name, atype.Tool, metadata, wrappedFn)
+
+	return &tool{action: toolAction}
+}
+
+// DefineTool defines a tool function with interrupt capability
+func DefineToolWithInputSchema[Out any](r *registry.Registry, name, description string,
+	inputSchema *jsonschema.Schema,
+	fn func(ctx *ToolContext, input any) (Out, error)) Tool {
+	metadata := make(map[string]any)
+	metadata["type"] = "tool"
+	metadata["name"] = name
+	metadata["description"] = description
+
+	wrappedFn := func(ctx context.Context, input any) (Out, error) {
+		toolCtx := &ToolContext{
+			Context: ctx,
+			Interrupt: func(opts *InterruptOptions) error {
+				return &ToolInterruptError{
+					Metadata: opts.Metadata,
+				}
+			},
+		}
+		return fn(toolCtx, input)
+	}
+
+	toolAction := core.DefineActionWithInputSchema(r, "", name, atype.Tool, metadata, inputSchema, wrappedFn)
 
 	return &tool{action: toolAction}
 }

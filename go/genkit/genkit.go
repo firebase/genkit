@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/invopop/jsonschema"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -475,6 +476,10 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
 func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) ai.Tool {
 	return ai.DefineTool(g.reg, name, description, fn)
+}
+
+func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema *jsonschema.Schema, fn func(ctx *ai.ToolContext, input any) (Out, error)) ai.Tool {
+	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
 }
 
 // LookupTool retrieves a registered [ai.Tool] by its name.
