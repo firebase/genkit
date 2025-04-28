@@ -157,3 +157,26 @@ export interface Message {
   images?: string[];
   tool_calls?: any[];
 }
+
+// Ollama local model definition
+export interface LocalModel {
+  name: string;
+  model: string;
+  // ISO 8601 format date
+  modified_at: string;
+  size: number;
+  digest: string;
+  details?: {
+    parent_model?: string;
+    format?: string;
+    family?: string;
+    families?: string[];
+    parameter_size?: string;
+    quantization_level?: string;
+  };
+}
+
+// Ollama list local models response
+export interface ListLocalModelsResponse {
+  models: LocalModel[];
+}
