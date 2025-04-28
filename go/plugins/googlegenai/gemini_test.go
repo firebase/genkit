@@ -44,6 +44,10 @@ func TestConvertRequest(t *testing.T) {
 			TopK:            1.0,
 			TopP:            1.0,
 			Version:         text,
+			ThinkingConfig: &ThinkingConfig{
+				IncludeThoughts: false,
+				ThinkingBudget:  0,
+			},
 		},
 		Tools:      []*ai.ToolDefinition{tool},
 		ToolChoice: ai.ToolChoiceAuto,
@@ -120,6 +124,9 @@ func TestConvertRequest(t *testing.T) {
 		}
 		if gcc.ResponseSchema == nil {
 			t.Errorf("ResponseSchema should not be empty")
+		}
+		if gcc.ThinkingConfig == nil {
+			t.Errorf("ThinkingConfig should not be empty")
 		}
 	})
 	t.Run("convert tools with valid tool", func(t *testing.T) {

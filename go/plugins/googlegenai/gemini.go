@@ -175,6 +175,14 @@ type SafetySetting struct {
 	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
 }
 
+// Thinking configuration to control reasoning
+type ThinkingConfig struct {
+	// Indicates whether the response should include thoughts (if available and supported)
+	IncludeThoughts bool `json:"includeThoughts,omitempty"`
+	// Thinking budget in tokens. If set to zero, thinking gets disabled
+	ThinkingBudget int32 `json:"thinkingBudget,omitempty"`
+}
+
 type Modality string
 
 const (
@@ -204,6 +212,8 @@ type GeminiConfig struct {
 	CodeExecution bool `json:"codeExecution,omitempty"`
 	// Response modalities for returned model messages
 	ResponseModalities []Modality `json:"responseModalities,omitempty"`
+	// Thinking configuration controls the model's internal reasoning process
+	ThinkingConfig *ThinkingConfig `json:"thinkingConfig,omitempty"`
 }
 
 // configFromRequest converts any supported config type to [GeminiConfig].
@@ -528,6 +538,13 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		})
 	}
 
+	if c.ThinkingConfig != nil {
+		gcc.ThinkingConfig = &genai.ThinkingConfig{
+			IncludeThoughts: c.ThinkingConfig.IncludeThoughts,
+			ThinkingBudget:  &c.ThinkingConfig.ThinkingBudget,
+		}
+	}
+
 	var systemParts []*genai.Part
 	for _, m := range input.Messages {
 		if m.Role == ai.RoleSystem {
@@ -797,6 +814,9 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 				string(part.ExecutableCode.Language),
 				part.ExecutableCode.Code,
 			)
+		}
+		if part.Thought {
+			fmt.Printf("THOUGHT found!!\n\n")
 		}
 		if partFound > 1 {
 			panic(fmt.Sprintf("expected only 1 content part in response, got %d, part: %#v", partFound, part))

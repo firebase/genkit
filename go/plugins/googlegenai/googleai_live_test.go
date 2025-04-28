@@ -398,6 +398,28 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("Empty usage stats %#v", *resp.Usage)
 		}
 	})
+	t.Run("thinking", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(googlegenai.GeminiConfig{
+				Temperature: 0.4,
+				ThinkingConfig: &googlegenai.ThinkingConfig{
+					IncludeThoughts: true,
+					ThinkingBudget:  200,
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("Analogize photosynthesis and growing up."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		// since Thinking was enabled, the response should have thinking parts
+		fmt.Print(resp.Text())
+		t.Fatal("remove me")
+	})
 }
 
 func TestCacheHelper(t *testing.T) {
