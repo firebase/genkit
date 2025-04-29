@@ -164,13 +164,13 @@ describe('parser', () => {
       });
 
       it('scoreDistribution for simple boolean scores', () => {
-        const booleanScores = reMapScores(simpleEvalOutput, (response, i) => ({
-          testCaseId: response.testCaseId,
-          evaluation: {
-            // True, False, True
-            score: i % 2 === 0,
+        const booleanScores = mockScores(simpleEvalOutput, [
+          {
+            score: true,
           },
-        }));
+          { score: false },
+          { score: true },
+        ]);
         const results = extractMetricSummaries(booleanScores);
 
         expect(results).toHaveLength(1);
@@ -188,13 +188,11 @@ describe('parser', () => {
       });
 
       it('scoreDistribution for simple string scores (under 5)', () => {
-        const stringScores = reMapScores(simpleEvalOutput, (response, i) => ({
-          testCaseId: response.testCaseId,
-          evaluation: {
-            // TYPE_0, TYPE_1, TYPE_0
-            score: `TYPE_${i % 2}`,
-          },
-        }));
+        const stringScores = mockScores(simpleEvalOutput, [
+          { score: 'TYPE_0' },
+          { score: 'TYPE_1' },
+          { score: 'TYPE_0' },
+        ]);
         const results = extractMetricSummaries(stringScores);
 
         expect(results).toHaveLength(1);
@@ -220,16 +218,14 @@ describe('parser', () => {
           .fill(simpleEvalOutput['/evaluator/genkit/context_relevancy'])
           .flat();
 
-        const stringScores = reMapScores(
-          extendedSimpleEvalOutput,
-          (response, i) => ({
-            testCaseId: response.testCaseId,
-            evaluation: {
-              // TYPE_0, TYPE_1, TYPE_2, TYPE_3, TYPE_4, TYPE_5
-              score: `TYPE_${i}`,
-            },
-          })
-        );
+        const stringScores = mockScores(extendedSimpleEvalOutput, [
+          { score: 'TYPE_0' },
+          { score: 'TYPE_1' },
+          { score: 'TYPE_2' },
+          { score: 'TYPE_3' },
+          { score: 'TYPE_4' },
+          { score: 'TYPE_5' },
+        ]);
         const results = extractMetricSummaries(stringScores);
 
         expect(results).toHaveLength(1);
@@ -245,20 +241,20 @@ describe('parser', () => {
       });
 
       it('status distribution for simple numeric scores', () => {
-        const mockStatuses = [
-          EvalStatusEnum.PASS,
-          EvalStatusEnum.FAIL,
-          undefined,
-        ];
-        const withStatus = reMapScores(simpleEvalOutput, (response, i) => ({
-          testCaseId: response.testCaseId,
-          evaluation: {
-            // 0, 1, 2
-            score: i,
-            // PASS, FAIL, undefined
-            status: mockStatuses[i],
+        const scores = [
+          {
+            score: 0,
+            status: EvalStatusEnum.PASS,
           },
-        }));
+          {
+            score: 1,
+            status: EvalStatusEnum.FAIL,
+          },
+          {
+            score: 2,
+          },
+        ];
+        const withStatus = mockScores(simpleEvalOutput, scores);
         const results = extractMetricSummaries(withStatus);
 
         expect(results).toHaveLength(1);
@@ -278,22 +274,16 @@ describe('parser', () => {
 
     describe('edge cases', () => {
       it('metrics if scores are undefined but status available', () => {
-        const mockStatuses = [
-          EvalStatusEnum.PASS,
-          EvalStatusEnum.FAIL,
-          undefined,
+        const scores = [
+          {
+            status: EvalStatusEnum.PASS,
+          },
+          {
+            status: EvalStatusEnum.FAIL,
+          },
+          {},
         ];
-        const undefinedScores = reMapScores(
-          simpleEvalOutput,
-          (response, i) => ({
-            testCaseId: response.testCaseId,
-            evaluation: {
-              score: undefined,
-              // PASS, FAIL, undefined
-              status: mockStatuses[i],
-            },
-          })
-        );
+        const undefinedScores = mockScores(simpleEvalOutput, scores);
         const results = extractMetricSummaries(undefinedScores);
 
         expect(results).toHaveLength(1);
@@ -310,23 +300,18 @@ describe('parser', () => {
       });
 
       it('metrics if some scores are undefined with status available', () => {
-        const mockStatuses = [
-          EvalStatusEnum.PASS,
-          EvalStatusEnum.FAIL,
-          undefined,
+        const scores = [
+          {
+            score: 0,
+            status: EvalStatusEnum.PASS,
+          },
+          {
+            score: 1,
+            status: EvalStatusEnum.FAIL,
+          },
+          {},
         ];
-        const someDefinedScores = reMapScores(
-          simpleEvalOutput,
-          (response, i) => ({
-            testCaseId: response.testCaseId,
-            evaluation: {
-              // 0, 1, undefined
-              score: i === 2 ? undefined : i,
-              // PASS, FAIL, undefined
-              status: mockStatuses[i],
-            },
-          })
-        );
+        const someDefinedScores = mockScores(simpleEvalOutput, scores);
         const results = extractMetricSummaries(someDefinedScores);
 
         expect(results).toHaveLength(1);
@@ -345,24 +330,19 @@ describe('parser', () => {
       });
 
       it('metrics if some scores are undefined, some errors and with status available', () => {
-        const mockStatuses = [
-          EvalStatusEnum.PASS,
-          EvalStatusEnum.FAIL,
-          undefined,
+        const scores = [
+          {
+            score: undefined,
+            error: 'some error',
+            status: EvalStatusEnum.PASS,
+          },
+          {
+            score: 1,
+            status: EvalStatusEnum.FAIL,
+          },
+          { error: 'some error' },
         ];
-        const someDefinedScores = reMapScores(
-          simpleEvalOutput,
-          (response, i) => ({
-            testCaseId: response.testCaseId,
-            evaluation: {
-              // undefined, 1, undefined
-              score: i % 2 === 0 ? undefined : i,
-              status: mockStatuses[i],
-              // error, undefined, error
-              error: i % 2 === 0 ? 'some error' : undefined,
-            },
-          })
-        );
+        const someDefinedScores = mockScores(simpleEvalOutput, scores);
         const results = extractMetricSummaries(someDefinedScores);
 
         expect(results).toHaveLength(1);
@@ -450,45 +430,49 @@ describe('parser', () => {
       });
 
       it('treats each evaluator separately, with errors, status, undefined scores', () => {
-        const mockStatuses = [
-          EvalStatusEnum.PASS,
-          EvalStatusEnum.FAIL,
-          undefined,
+        const mockFaithfulness = [
+          {
+            status: EvalStatusEnum.PASS,
+            error: 'some error',
+          },
+          {
+            score: 10,
+            status: EvalStatusEnum.FAIL,
+          },
+          {
+            error: 'some error',
+          },
         ];
-        const numericScores = [7, 10, 5];
-        const stringScores = ['alpha', 'beta', 'gamma'];
+        const mockContextRel = [
+          {
+            score: 'alpha',
+            status: EvalStatusEnum.PASS,
+          },
+          {
+            status: EvalStatusEnum.FAIL,
+            error: 'some error',
+          },
+          {
+            score: 'gamma',
+          },
+        ];
         const someDefinedScores = reMapScores(
           multiOutput,
           (response, i, evaluator) => {
             if (evaluator === '/evaluator/genkit/faithfulness') {
               return {
                 testCaseId: response.testCaseId,
-                evaluation: {
-                  // undefined, 10, undefined
-                  score: i % 2 === 0 ? undefined : numericScores[i],
-                  // PASS, FAIL, undefined
-                  status: mockStatuses[i],
-                  // error, undefined, error
-                  error: i % 2 === 0 ? 'some error' : undefined,
-                },
+                evaluation: mockFaithfulness[i],
               };
             } else {
               return {
                 testCaseId: response.testCaseId,
-                evaluation: {
-                  // alpha, undefined, gamma
-                  score: i % 2 !== 0 ? undefined : stringScores[i],
-                  // PASS, FAIL, undefined
-                  status: mockStatuses[i],
-                  // undefined, error, undefined
-                  error: i % 2 !== 0 ? 'some error' : undefined,
-                },
+                evaluation: mockContextRel[i],
               };
             }
           }
         );
         const results = extractMetricSummaries(someDefinedScores);
-
         expect(results).toHaveLength(2);
         expect(results).toContainEqual({
           evaluator: '/evaluator/genkit/faithfulness',
@@ -724,6 +708,26 @@ function reMapScores(
     remapped[evaluator] = scores.map((score, index) =>
       fn(score, index, evaluator)
     );
+  }
+  return remapped;
+}
+
+function mockScores(
+  scoresMap: Record<string, EvalResponse>,
+  mockedScores: any[] | Record<string, any[]>
+): Record<string, EvalResponse> {
+  let remapped: Record<string, EvalResponse> = {};
+
+  for (const [evaluator, scores] of Object.entries(scoresMap)) {
+    remapped[evaluator] = scores.map((score, index) => {
+      const evaluation = Array.isArray(mockedScores)
+        ? { ...mockedScores[index] }
+        : mockedScores[evaluator][index];
+      return {
+        testCaseId: score.testCaseId,
+        evaluation,
+      };
+    });
   }
   return remapped;
 }
