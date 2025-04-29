@@ -112,15 +112,9 @@ func ToReflectionError(err error) ReflectionError {
 		return ge.ToReflectionError()
 	}
 
-	stack := string(debug.Stack())
-	detailsWire := &ReflectionErrorDetails{}
-	if stack != "" {
-		detailsWire.Stack = &stack
-	}
-
 	return ReflectionError{
 		Message: err.Error(),
 		Code:    HTTPStatusCode(INTERNAL),
-		Details: detailsWire,
+		Details: &ReflectionErrorDetails{},
 	}
 }
