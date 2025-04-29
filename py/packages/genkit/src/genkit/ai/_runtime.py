@@ -145,18 +145,18 @@ class RuntimeManager:
         """
         self.spec = spec
         if runtime_dir is None:
-            self.runtime_dir = Path(os.getcwd()) / DEFAULT_RUNTIME_DIR_NAME
+            self._runtime_dir = Path(os.getcwd()) / DEFAULT_RUNTIME_DIR_NAME
         else:
-            self.runtime_dir = Path(runtime_dir)
+            self._runtime_dir = Path(runtime_dir)
 
         self._runtime_file_path: Path | None = None
 
     async def __aenter__(self) -> RuntimeManager:
         """Create the runtime directory and file."""
         try:
-            await logger.adebug(f'Ensuring runtime directory exists: {self.runtime_dir}')
-            self.runtime_dir.mkdir(parents=True, exist_ok=True)
-            runtime_file_path = _create_and_write_runtime_file(self.runtime_dir, self.spec)
+            await logger.adebug(f'Ensuring runtime directory exists: {self._runtime_dir}')
+            self._runtime_dir.mkdir(parents=True, exist_ok=True)
+            runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
             _register_atexit_cleanup_handler(runtime_file_path)
 
         except Exception as e:
@@ -186,9 +186,9 @@ class RuntimeManager:
     def __enter__(self) -> RuntimeManager:
         """Synchronous entry point: Create the runtime directory and file."""
         try:
-            logger.debug(f'[sync] Ensuring runtime directory exists: {self.runtime_dir}')
-            self.runtime_dir.mkdir(parents=True, exist_ok=True)
-            self._runtime_file_path = _create_and_write_runtime_file(self.runtime_dir, self.spec)
+            logger.debug(f'[sync] Ensuring runtime directory exists: {self._runtime_dir}')
+            self._runtime_dir.mkdir(parents=True, exist_ok=True)
+            self._runtime_file_path = _create_and_write_runtime_file(self._runtime_dir, self.spec)
             _register_atexit_cleanup_handler(self._runtime_file_path)
 
         except Exception as e:

@@ -405,7 +405,7 @@ func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...Ge
 		return nil, nil, err
 	}
 
-	err = resp.Output(value)
+	err = resp.Output(&value)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -626,14 +626,14 @@ func (mr *ModelResponse) Output(v any) error {
 }
 
 // ToolRequests returns the tool requests from the response.
-func (mr *ModelResponse) ToolRequests() ([]*ToolRequest, error) {
+func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 	toolReqs := []*ToolRequest{}
 	for _, part := range mr.Message.Content {
 		if part.IsToolRequest() {
 			toolReqs = append(toolReqs, part.ToolRequest)
 		}
 	}
-	return toolReqs, nil
+	return toolReqs
 }
 
 // Text returns the text content of the [ModelResponseChunk]

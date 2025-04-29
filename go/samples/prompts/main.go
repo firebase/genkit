@@ -111,7 +111,7 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "PromptWithOutputType",
 		ai.WithOutputType(CountryList{}),
-		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 0.5}),
+		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
 		ai.WithSystem("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
 		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants."),
 	)

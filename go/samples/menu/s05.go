@@ -23,6 +23,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 type imageURLInput struct {
@@ -39,7 +40,7 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 		ai.WithModel(model),
 		ai.WithInputType(imageURLInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.1,
 		}),
 	)
@@ -63,7 +64,7 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(textMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.3,
 		}),
 	)

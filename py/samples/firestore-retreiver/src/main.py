@@ -93,6 +93,7 @@ async def index_documents() -> None:
 
 @ai.flow()
 async def retreive_documents():
+    """Retrieves the film documents from Firestore."""
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),
         retriever=firestore_action_name('filmsretriever'),

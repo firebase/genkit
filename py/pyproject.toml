@@ -37,6 +37,8 @@ dev = [
   "pip>=25.0.1",
   "tox>=4.25.0",
   "tox-uv>=1.25.0",
+  "nox>=2025.2.9",
+  "nox-uv>=0.2.2",
 ]
 
 lint = ["mypy>=1.15", "ruff>=0.9"]
@@ -80,6 +82,7 @@ omit = [
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
+dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 genkit                              = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
@@ -91,7 +94,6 @@ genkit-plugin-ollama                = { workspace = true }
 genkit-plugin-vertex-ai             = { workspace = true }
 google-genai-hello                  = { workspace = true }
 google-genai-image                  = { workspace = true }
-dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 
 [tool.uv.workspace]
 members = ["packages/*", "plugins/*", "samples/*"]

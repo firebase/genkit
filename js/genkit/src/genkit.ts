@@ -114,7 +114,7 @@ import { HasRegistry } from '@genkit-ai/core/registry';
 import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin } from './plugin.js';
-import { Registry } from './registry.js';
+import { ActionType, Registry } from './registry.js';
 
 /**
  * @deprecated use `ai.definePrompt({messages: fn})`
@@ -806,6 +806,17 @@ export class Genkit implements HasRegistry {
         async initializer() {
           logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
           await loadedPlugin.initializer();
+        },
+        async resolver(action: ActionType, target: string) {
+          if (loadedPlugin.resolver) {
+            await loadedPlugin.resolver(action, target);
+          }
+        },
+        async listActions() {
+          if (loadedPlugin.listActions) {
+            return await loadedPlugin.listActions();
+          }
+          return [];
         },
       });
     });

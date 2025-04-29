@@ -52,7 +52,7 @@ func TestVertexAILive(t *testing.T) {
 	}
 	embedder := googlegenai.VertexAIEmbedder(g, "textembedding-gecko@003")
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value float64
 			Over  float64
@@ -161,7 +161,7 @@ func TestVertexAILive(t *testing.T) {
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
 			ai.WithPrompt("write a summary of the content"),
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}))
 		if err != nil {
@@ -183,7 +183,7 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}),
 			ai.WithMessages(resp.History()...),

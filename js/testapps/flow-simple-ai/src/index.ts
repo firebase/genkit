@@ -104,9 +104,9 @@ export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.object({
-      modelName: z.string(),
-      modelVersion: z.string().optional(),
-      subject: z.string(),
+      modelName: z.string().default('vertexai/gemini-2.5-pro-exp-03-25'),
+      modelVersion: z.string().optional().default('gemini-2.5-pro-exp-03-25'),
+      subject: z.string().default('bananas'),
     }),
     outputSchema: z.string(),
   },
@@ -740,7 +740,7 @@ ai.defineFlow('formatJsonManualSchema', async (input, { sendChunk }) => {
   const { output, text } = await ai.generate({
     model: gemini15Flash,
     prompt: `generate one RPG game character of type ${input || 'archer'} and generated JSON must match this interface
-    
+
     \`\`\`typescript
     interface Character {
       name: string;

@@ -11,7 +11,7 @@ import pytest
 import yaml
 from pydantic import TypeAdapter
 
-from genkit.ai import Genkit
+from genkit.ai import ActionKind, Genkit
 from genkit.blocks.generate import generate_action
 from genkit.blocks.model import text_from_content, text_from_message
 from genkit.codec import dump_dict, dump_json
@@ -347,6 +347,8 @@ async def test_generate_action_spec(spec) -> None:
                 converted.append(TypeAdapter(GenerateResponseChunk).validate_python(chunk))
             pm.chunks.append(converted)
 
+    action = ai.registry.lookup_action(kind=ActionKind.UTIL, name='generate')
+
     response = None
     chunks = None
     if 'stream' in spec and spec['stream']:
@@ -355,16 +357,17 @@ async def test_generate_action_spec(spec) -> None:
         def on_chunk(chunk):
             chunks.append(chunk)
 
-        response = await generate_action(
+        action_response = await action.arun(
             ai.registry,
             TypeAdapter(GenerateActionOptions).validate_python(spec['input']),
             on_chunk=on_chunk,
         )
+        response = action_response.response
     else:
-        response = await generate_action(
-            ai.registry,
+        action_response = await action.arun(
             TypeAdapter(GenerateActionOptions).validate_python(spec['input']),
         )
+        response = action_response.response
 
     if 'expectChunks' in spec:
         got = clean_schema(chunks)

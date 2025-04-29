@@ -338,6 +338,12 @@ export function imagenModel(
       const predictClient = predictClientFactory(request);
       const response = await predictClient([instance], toParameters(request));
 
+      if (!response.predictions || response.predictions.length == 0) {
+        throw new Error(
+          'Model returned no predictions. Possibly due to content filters.'
+        );
+      }
+
       const candidates: CandidateData[] = response.predictions.map((p, i) => {
         const b64data = p.bytesBase64Encoded;
         const mimeType = p.mimeType;

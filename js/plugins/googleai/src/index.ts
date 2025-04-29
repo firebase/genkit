@@ -16,6 +16,7 @@
 
 import { Genkit, ModelReference } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { ActionType } from 'genkit/registry';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
   defineGoogleAIEmbedder,
@@ -36,6 +37,7 @@ import {
   gemini20FlashExp,
   gemini20FlashLite,
   gemini20ProExp0205,
+  gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
   type GeminiConfig,
@@ -51,6 +53,7 @@ export {
   gemini20FlashExp,
   gemini20FlashLite,
   gemini20ProExp0205,
+  gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
   textEmbedding004,
@@ -79,82 +82,127 @@ export interface PluginOptions {
   experimental_debugTraces?: boolean;
 }
 
+async function initializer(ai: Genkit, options?: PluginOptions) {
+  let apiVersions = ['v1'];
+
+  if (options?.apiVersion) {
+    if (Array.isArray(options?.apiVersion)) {
+      apiVersions = options?.apiVersion;
+    } else {
+      apiVersions = [options?.apiVersion];
+    }
+  }
+
+  if (apiVersions.includes('v1beta')) {
+    Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+      defineGoogleAIModel({
+        ai,
+        name,
+        apiKey: options?.apiKey,
+        apiVersion: 'v1beta',
+        baseUrl: options?.baseUrl,
+        debugTraces: options?.experimental_debugTraces,
+      })
+    );
+  }
+  if (apiVersions.includes('v1')) {
+    Object.keys(SUPPORTED_V1_MODELS).forEach((name) =>
+      defineGoogleAIModel({
+        ai,
+        name,
+        apiKey: options?.apiKey,
+        apiVersion: undefined,
+        baseUrl: options?.baseUrl,
+        debugTraces: options?.experimental_debugTraces,
+      })
+    );
+    Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+      defineGoogleAIModel({
+        ai,
+        name,
+        apiKey: options?.apiKey,
+        apiVersion: undefined,
+        baseUrl: options?.baseUrl,
+        debugTraces: options?.experimental_debugTraces,
+      })
+    );
+    Object.keys(EMBEDDER_MODELS).forEach((name) =>
+      defineGoogleAIEmbedder(ai, name, { apiKey: options?.apiKey })
+    );
+  }
+
+  if (options?.models) {
+    for (const modelOrRef of options?.models) {
+      const modelName =
+        typeof modelOrRef === 'string'
+          ? modelOrRef
+          : // strip out the `googleai/` prefix
+            modelOrRef.name.split('/')[1];
+      const modelRef =
+        typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
+      defineGoogleAIModel({
+        ai,
+        name: modelName,
+        apiKey: options?.apiKey,
+        baseUrl: options?.baseUrl,
+        info: {
+          ...modelRef.info,
+          label: `Google AI - ${modelName}`,
+        },
+        debugTraces: options?.experimental_debugTraces,
+      });
+    }
+  }
+}
+
+async function resolver(
+  ai: Genkit,
+  actionType: ActionType,
+  actionName: string,
+  options?: PluginOptions
+) {
+  // TODO: also support other actions like 'embedder'
+  switch (actionType) {
+    case 'model':
+      await resolveModel(ai, actionName, options);
+      break;
+    default:
+    // no-op
+  }
+}
+
+async function resolveModel(
+  ai: Genkit,
+  actionName: string,
+  options?: PluginOptions
+) {
+  if (actionName.includes('gemini')) {
+    const modelRef = gemini(actionName);
+    defineGoogleAIModel({
+      ai,
+      name: modelRef.name,
+      apiKey: options?.apiKey,
+      baseUrl: options?.baseUrl,
+      info: {
+        ...modelRef.info,
+        label: `Google AI - ${actionName}`,
+      },
+      debugTraces: options?.experimental_debugTraces,
+    });
+  }
+  // TODO: Support other models
+}
+
 /**
  * Google Gemini Developer API plugin.
  */
 export function googleAI(options?: PluginOptions): GenkitPlugin {
-  return genkitPlugin('googleai', async (ai: Genkit) => {
-    let apiVersions = ['v1'];
-
-    if (options?.apiVersion) {
-      if (Array.isArray(options?.apiVersion)) {
-        apiVersions = options?.apiVersion;
-      } else {
-        apiVersions = [options?.apiVersion];
-      }
-    }
-
-    if (apiVersions.includes('v1beta')) {
-      Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
-        defineGoogleAIModel({
-          ai,
-          name,
-          apiKey: options?.apiKey,
-          apiVersion: 'v1beta',
-          baseUrl: options?.baseUrl,
-          debugTraces: options?.experimental_debugTraces,
-        })
-      );
-    }
-    if (apiVersions.includes('v1')) {
-      Object.keys(SUPPORTED_V1_MODELS).forEach((name) =>
-        defineGoogleAIModel({
-          ai,
-          name,
-          apiKey: options?.apiKey,
-          apiVersion: undefined,
-          baseUrl: options?.baseUrl,
-          debugTraces: options?.experimental_debugTraces,
-        })
-      );
-      Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
-        defineGoogleAIModel({
-          ai,
-          name,
-          apiKey: options?.apiKey,
-          apiVersion: undefined,
-          baseUrl: options?.baseUrl,
-          debugTraces: options?.experimental_debugTraces,
-        })
-      );
-      Object.keys(EMBEDDER_MODELS).forEach((name) =>
-        defineGoogleAIEmbedder(ai, name, { apiKey: options?.apiKey })
-      );
-    }
-
-    if (options?.models) {
-      for (const modelOrRef of options?.models) {
-        const modelName =
-          typeof modelOrRef === 'string'
-            ? modelOrRef
-            : // strip out the `googleai/` prefix
-              modelOrRef.name.split('/')[1];
-        const modelRef =
-          typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-        defineGoogleAIModel({
-          ai,
-          name: modelName,
-          apiKey: options?.apiKey,
-          baseUrl: options?.baseUrl,
-          info: {
-            ...modelRef.info,
-            label: `Google AI - ${modelName}`,
-          },
-          debugTraces: options?.experimental_debugTraces,
-        });
-      }
-    }
-  });
+  return genkitPlugin(
+    'googleai',
+    async (ai: Genkit) => await initializer(ai, options),
+    async (ai: Genkit, actionType: ActionType, actionName: string) =>
+      await resolver(ai, actionType, actionName, options)
+  );
 }
 
 export default googleAI;

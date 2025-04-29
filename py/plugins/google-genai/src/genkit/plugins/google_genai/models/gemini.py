@@ -112,6 +112,7 @@ The following models are currently supported by GoogleAI API:
 | `gemini-2.0-flash-exp`               | Gemini 2.0 Flash Experimental        | Supported  |
 | `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported  |
 | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
+| `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported  |
 
 
 The following models are currently supported by VertexAI API:
@@ -129,6 +130,7 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.0-flash-exp`               | Gemini 2.0 Flash Experimental        | Unavailable  |
 | `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported    |
 | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
+| `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported    |
 """
 
 import sys  # noqa
@@ -178,7 +180,7 @@ from genkit.types import (
 
 
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
-    pass
+    code_execution: bool | None = None
 
 
 GEMINI_1_0_PRO = ModelInfo(
@@ -335,6 +337,18 @@ GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
     ),
 )
 
+GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
+    label='Google AI - Gemini 2.5 Flash Preview 04-17',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+    ),
+)
+
 
 Deprecations = deprecated_enum_metafactory({
     'GEMINI_1_0_PRO': DeprecationInfo(recommendation='GEMINI_2_0_FLASH', status=DeprecationStatus.DEPRECATED),
@@ -361,6 +375,7 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported    |
     | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported    |
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
+    | `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported    |
     """
 
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
@@ -373,6 +388,7 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
+    GEMINI_2_5_FLASH_PREVIEW_04_17 = 'gemini-2.5-flash-preview-04-17'
 
 
 class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
@@ -392,6 +408,7 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported  |
     | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported  |
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
+    | `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported  |
     """
 
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
@@ -404,6 +421,7 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
+    GEMINI_2_5_FLASH_PREVIEW_04_17 = 'gemini-2.5-flash-preview-04-17'
 
 
 SUPPORTED_MODELS = {
@@ -417,6 +435,7 @@ SUPPORTED_MODELS = {
     GoogleAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
+    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
     VertexAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
     VertexAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
     VertexAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
@@ -427,6 +446,7 @@ SUPPORTED_MODELS = {
     VertexAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
+    VertexAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
 }
 
 
@@ -825,6 +845,7 @@ class GeminiModel:
             Google Ai request config or None.
         """
         cfg = None
+        tools = []
 
         if request.config:
             request_config = request.config
@@ -838,6 +859,8 @@ class GeminiModel:
                 )
             elif isinstance(request_config, GeminiConfigSchema):
                 cfg = request_config
+                if request_config.code_execution:
+                    tools.extend([genai_types.Tool(code_execution=genai_types.ToolCodeExecution())])
             elif isinstance(request_config, dict):
                 cfg = genai_types.GenerateContentConfig(**request_config)
 
@@ -855,7 +878,9 @@ class GeminiModel:
             if not cfg:
                 cfg = genai_types.GenerateContentConfig()
 
-            tools = self._get_tools(request)
+            tools.extend(self._get_tools(request))
+
+        if tools:
             cfg.tools = tools
 
         system_messages = list(filter(lambda m: m.role == Role.SYSTEM, request.messages))

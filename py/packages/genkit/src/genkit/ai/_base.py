@@ -20,12 +20,13 @@ import asyncio
 import threading
 from collections.abc import Coroutine
 from http.server import HTTPServer
-from typing import Any
+from typing import Any, TypeVar
 
 import structlog
 
 from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
+from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.web.manager import find_free_port_sync
@@ -35,6 +36,8 @@ from ._registry import GenkitRegistry
 from ._server import ServerSpec, init_default_runtime
 
 logger = structlog.get_logger(__name__)
+
+T = TypeVar('T')
 
 
 class GenkitBase(GenkitRegistry):
@@ -57,8 +60,9 @@ class GenkitBase(GenkitRegistry):
         super().__init__()
         self._initialize_server(reflection_server_spec)
         self._initialize_registry(model, plugins)
+        define_generate_action(self.registry)
 
-    def run_main(self, coro: Coroutine[Any, Any, Any] | None = None) -> Any:
+    def run_main(self, coro: Coroutine[Any, Any, T] | None = None) -> T:
         """Runs the provided coroutine on an event loop.
 
         Args:
@@ -67,7 +71,6 @@ class GenkitBase(GenkitRegistry):
         Returns:
             The result of the coroutine.
         """
-
         if not coro:
 
             async def blank_coro():
@@ -78,7 +81,7 @@ class GenkitBase(GenkitRegistry):
         result = None
         if self._loop:
 
-            async def run() -> Any:
+            async def run() -> T:
                 return await coro
 
             result = run_async(self._loop, run)
