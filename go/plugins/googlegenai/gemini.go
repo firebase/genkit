@@ -59,8 +59,18 @@ var (
 		Constrained: ai.ConstrainedSupportNoTools,
 	}
 
-	// BasicMedia describes model capabitities for image-only Gemini models.
+	// BasicMedia describes model capabitities for image-only output Gemini models.
 	BasicMedia = ai.ModelSupports{
+		Media:      false,
+		Multiturn:  false,
+		Tools:      false,
+		ToolChoice: false,
+		SystemRole: false,
+	}
+
+	// Media describes model capabilities for Gemini models with media and text
+	// input and image only output
+	Media = ai.ModelSupports{
 		Media:      true,
 		Multiturn:  false,
 		Tools:      false,
@@ -215,6 +225,54 @@ type GeminiConfig struct {
 	ResponseModalities []Modality `json:"responseModalities,omitempty"`
 }
 
+type PersonGeneration string
+
+const (
+	// Disallow the inclusion of people or faces in images
+	DontAllowPerson PersonGeneration = "dont_allow"
+	// Allow generation of adults only
+	AllowAdultPerson PersonGeneration = "allow_adult"
+	// Allow generation of people of all ages
+	AllowAllPerson PersonGeneration = "allow_all"
+)
+
+// Enum that specifies the language of the text in the prompt.
+type ImagePromptLanguage string
+
+const (
+	ImagePromptLanguageAuto ImagePromptLanguage = "auto"
+	ImagePromptLanguageEn   ImagePromptLanguage = "en"
+	ImagePromptLanguageJa   ImagePromptLanguage = "ja"
+	ImagePromptLanguageKo   ImagePromptLanguage = "ko"
+	ImagePromptLanguageHi   ImagePromptLanguage = "hi"
+)
+
+// Imagen generation configuration
+// VertexAI API default values: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api
+// GeminiAPI: https://ai.google.dev/gemini-api/docs/imagen#imagen-model
+type ImagenConfig struct {
+	// Number of images to generate. Defaults to 4
+	NumberOfImages int32 `json:"numberOfImages,omitempty"`
+	// Random seed generation
+	Seed *int32 `json:"seed,omitempty"`
+	// A description of what to discourage in the generated images
+	NegativePrompt string `json:"negativePrompt,omitempty"`
+	// Aspect ratio for the image. Defaults to 1:1
+	AspectRatio string `json:"aspectRatio,omitempty"`
+	// Allow generation of people by the model. Defaults to [AllowAdultPerson]
+	PersonGeneration PersonGeneration `json:"personGeneration,omitempty"`
+	// Language of the text in the prompt
+	Language string `json:"language,omitempty"`
+	// Filter level to safety filtering
+	SafetySetting HarmBlockThreshold `json:"safetySetting,omitempty"`
+	// Sets an invisible watermark to the generated images
+	AddWatermark bool `json:"addWatermark,omitempty"`
+	// Cloud Storage URI used to store the generated images.
+	OutputGCSURI string `json:"outputGcsUri,omitempty"`
+	// MIME type of the generated image.
+	OutputMIMEType string `json:"outputMimeType,omitempty"`
+}
+
 // configFromRequest converts any supported config type to [GeminiConfig].
 func configFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
 	var result GeminiConfig
@@ -245,11 +303,16 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		provider = vertexAIProvider
 	}
 
+	var config any
+	config = &GeminiConfig{}
+	if _, found := supportedImagenModels[name]; found {
+		config = &ImagenConfig{}
+	}
 	meta := &ai.ModelInfo{
 		Label:        info.Label,
 		Supports:     info.Supports,
 		Versions:     info.Versions,
-		ConfigSchema: configToMap(&GeminiConfig{}),
+		ConfigSchema: configToMap(config),
 	}
 
 	fn := func(

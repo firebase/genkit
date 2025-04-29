@@ -64,8 +64,6 @@ var (
 		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
-
-		imagen3,
 	}
 
 	// models with native image support generation
@@ -164,12 +162,21 @@ var (
 	}
 
 	supportedImagenModels = map[string]ai.ModelInfo{
+		imagen2: {
+			Label: "Imagen 2",
+			Versions: []string{
+				"imagegeneration@006",
+				"imagegeneration@005",
+			},
+			Supports: &BasicMedia,
+			Stage:    ai.ModelStageStable,
+		},
 		imagen3: {
 			Label: "Imagen 3",
 			Versions: []string{
 				"imagen-3.0-generate-001",
 			},
-			Supports: nil,
+			Supports: &Media,
 			Stage:    ai.ModelStageStable,
 		},
 		imagen3Fast: {
@@ -177,7 +184,7 @@ var (
 			Versions: []string{
 				"imagen-3.0-fast-generate-001",
 			},
-			Supports: nil,
+			Supports: &Media,
 			Stage:    ai.ModelStageStable,
 		},
 	}
