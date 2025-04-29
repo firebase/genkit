@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js' with { 'resolution-mode': 'import' };
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type {
   CallToolResult,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
 import { Genkit, JSONSchema7, z } from 'genkit';
 import { logger } from 'genkit/logging';
-import type { McpClientOptions } from '../index.js';
+import type { LegacyMcpClientOptions } from '../index.js';
 
 const toText = (c: CallToolResult['content']) =>
   c.map((p) => p.text || '').join('');
@@ -47,7 +47,7 @@ function registerTool(
   ai: Genkit,
   client: Client,
   tool: Tool,
-  params: McpClientOptions
+  params: LegacyMcpClientOptions
 ) {
   logger.debug(
     `[@genkit-ai/mcp] Registering MCP tool ${params.name}/${tool.name}`
@@ -84,7 +84,7 @@ function registerTool(
 export async function registerAllTools(
   ai: Genkit,
   client: Client,
-  params: McpClientOptions
+  params: LegacyMcpClientOptions
 ): Promise<void> {
   let cursor: string | undefined;
   while (true) {

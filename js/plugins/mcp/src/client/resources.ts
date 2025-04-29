@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js' with { 'resolution-mode': 'import' };
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type {
   Resource,
   ResourceTemplate,
-} from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
+} from '@modelcontextprotocol/sdk/types.js';
 import { Genkit, z } from 'genkit';
-import type { McpClientOptions } from '../index.js';
+import type { LegacyMcpClientOptions } from '../index.js';
 
 export async function registerResourceTools(
   ai: Genkit,
   client: Client,
-  params: McpClientOptions
+  params: LegacyMcpClientOptions
 ) {
   ai.defineTool(
     {

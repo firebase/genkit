@@ -14,85 +14,12 @@
  * limitations under the License.
  */
 
-import type { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js' with { 'resolution-mode': 'import' };
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js' with { 'resolution-mode': 'import' };
-import { Genkit, GenkitError } from 'genkit';
-import { genkitPlugin } from 'genkit/plugin';
-import { registerAllPrompts } from './client/prompts.js';
-import { registerResourceTools } from './client/resources.js';
-import { registerAllTools } from './client/tools.js';
-import { GenkitMcpServer } from './server.js';
+import type { Genkit } from 'genkit';
+import { GenkitMcpClient, McpClientOptions, McpServerConfig } from './client';
+import { GenkitMcpServer } from './server';
 
-export interface McpClientOptions {
-  /** Provide a name for this client which will be its namespace for all tools and prompts. */
-  name: string;
-  /** Provide a version number for this client (defaults to 1.0.0). */
-  version?: string;
-  /** If you already have an MCP transport you'd like to use, pass it here to connect to the server. */
-  transport?: Transport;
-  /** Start a local server process using the stdio MCP transport. */
-  serverProcess?: StdioServerParameters;
-  /** Connect to a remote server process using the SSE MCP transport. */
-  serverUrl?: string;
-  /** Connect to a remote server process using the WebSocket MCP transport. */
-  serverWebsocketUrl?: string | URL;
-  /** Return tool responses in raw MCP form instead of processing them for Genkit compatibility. */
-  rawToolResponses?: boolean;
-}
-
-async function transportFrom(params: McpClientOptions): Promise<Transport> {
-  if (params.transport) return params.transport;
-  if (params.serverUrl) {
-    const { SSEClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/sse.js'
-    );
-    return new SSEClientTransport(new URL(params.serverUrl));
-  }
-  if (params.serverProcess) {
-    const { StdioClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/stdio.js'
-    );
-    return new StdioClientTransport(params.serverProcess);
-  }
-  if (params.serverWebsocketUrl) {
-    const { WebSocketClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/websocket.js'
-    );
-    let url = params.serverWebsocketUrl;
-    if (typeof url === 'string') url = new URL(url);
-    return new WebSocketClientTransport(url);
-  }
-
-  throw new GenkitError({
-    status: 'INVALID_ARGUMENT',
-    message:
-      'Unable to create a server connection with supplied options. Must provide transport, stdio, or sseUrl.',
-  });
-}
-
-export function mcpClient(params: McpClientOptions) {
-  return genkitPlugin(params.name, async (ai: Genkit) => {
-    const { Client } = await import(
-      '@modelcontextprotocol/sdk/client/index.js'
-    );
-
-    const transport = await transportFrom(params);
-    ai.options.model;
-    const client = new Client(
-      { name: params.name, version: params.version || '1.0.0' },
-      { capabilities: {} }
-    );
-    await client.connect(transport);
-    const capabilties = await client.getServerCapabilities();
-    const promises: Promise<any>[] = [];
-    if (capabilties?.tools) promises.push(registerAllTools(ai, client, params));
-    if (capabilties?.prompts)
-      promises.push(registerAllPrompts(ai, client, params));
-    if (capabilties?.resources)
-      promises.push(registerResourceTools(ai, client, params));
-    await Promise.all(promises);
-  });
-}
+export { mcpClient, type LegacyMcpClientOptions } from './client/legacy';
+export { GenkitMcpClient, type McpClientOptions, type McpServerConfig };
 
 export interface McpServerOptions {
   /** The name you want to give your server for MCP inspection. */
@@ -101,6 +28,55 @@ export interface McpServerOptions {
   version?: string;
 }
 
-export function mcpServer(ai: Genkit, options: McpServerOptions) {
+/**
+ * Creates an MCP client that connects to one or more MCP servers as specified in
+ * the `mcpServers` option. By default, all servers in the config will be automatically
+ * started unless a `{disabled: true}` option is supplied.
+ *
+ * ```ts
+ * const client = createMcpClient({
+ *   name: "my-mcp-client",
+ *   version: "0.1.0",
+ *   mcpServers: {
+ *     git: {command: "uvx", args: ["mcp-server-git"]},
+ *   }
+ * })
+ * ```
+ *
+ * @param options
+ * @returns
+ */
+export function createMcpClient(
+  options: McpClientOptions & { mcpServers: Record<string, McpServerConfig> }
+) {
+  return new GenkitMcpClient(options);
+}
+
+/**
+ * Creates an MCP server based on the supplied Genkit instance. All tools and prompts
+ * will be automatically converted to MCP compatibility.
+ *
+ * ```ts
+ * const mcpServer = createMcpServer(ai, {name: 'my-mcp-server', version: '0.1.0'});
+ *
+ * await mcpServer.start(); // starts a stdio transport, OR
+ * await mcpServer.start(customMcpTransport); // starts server using supplied transport
+ * ```
+ *
+ * @param ai Your Genkit instance with registered tools and prompts.
+ * @param options Configuration metadata for the server.
+ * @returns GenkitMcpServer instance.
+ */
+export function createMcpServer(
+  ai: Genkit,
+  options: McpServerOptions
+): GenkitMcpServer {
   return new GenkitMcpServer(ai, options);
+}
+
+/**
+ * @deprecated use `createMcpServer` instead.
+ */
+export function mcpServer(ai: Genkit, options: McpServerOptions) {
+  return createMcpServer(ai, options);
 }

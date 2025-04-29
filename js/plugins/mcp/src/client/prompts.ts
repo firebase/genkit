@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js' with { 'resolution-mode': 'import' };
-import type { Prompt } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 import { Genkit, JSONSchema } from 'genkit';
 import { logger } from 'genkit/logging';
-import type { McpClientOptions } from '../index.js';
+import type { LegacyMcpClientOptions } from '../index.js';
 import { fromMcpPromptMessage } from './message.js';
 
 function toSchema(args: Prompt['arguments']) {
@@ -38,7 +38,7 @@ function registerPrompt(
   ai: Genkit,
   client: Client,
   prompt: Prompt,
-  params: McpClientOptions
+  params: LegacyMcpClientOptions
 ) {
   logger.debug(
     `[@genkit-ai/mcp] Registering MCP prompt ${params.name}/${prompt.name}`
@@ -68,7 +68,7 @@ function registerPrompt(
 export async function registerAllPrompts(
   ai: Genkit,
   client: Client,
-  params: McpClientOptions
+  params: LegacyMcpClientOptions
 ): Promise<void> {
   let cursor: string | undefined;
   while (true) {
