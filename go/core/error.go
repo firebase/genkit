@@ -77,7 +77,7 @@ func NewError(status StatusName, message string, args ...any) *GenkitError {
 		Message: fmt.Sprintf(msg, args...),
 	}
 
-	errStack := getErrorStack(ge)
+	errStack := string(debug.Stack())
 	if errStack != "" {
 		ge.Details = make(map[string]any)
 		ge.Details["stack"] = errStack
@@ -87,9 +87,6 @@ func NewError(status StatusName, message string, args ...any) *GenkitError {
 
 // Error implements the standard error interface.
 func (e *GenkitError) Error() string {
-	if e == nil {
-		return "<nil GenkitError>"
-	}
 	return e.Message
 }
 
@@ -115,7 +112,7 @@ func ToReflectionError(err error) ReflectionError {
 		return ge.ToReflectionError()
 	}
 
-	stack := getErrorStack(err)
+	stack := string(debug.Stack())
 	detailsWire := &ReflectionErrorDetails{}
 	if stack != "" {
 		detailsWire.Stack = &stack
@@ -126,13 +123,4 @@ func ToReflectionError(err error) ReflectionError {
 		Code:    HTTPStatusCode(INTERNAL),
 		Details: detailsWire,
 	}
-}
-
-// getErrorStack extracts stack trace from an error object.
-// This captures the stack trace of the current goroutine when called.
-func getErrorStack(err error) string {
-	if err == nil {
-		return ""
-	}
-	return string(debug.Stack())
 }
