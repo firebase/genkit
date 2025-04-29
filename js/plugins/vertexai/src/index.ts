@@ -20,23 +20,31 @@
  * @module /
  */
 
-import { Genkit } from 'genkit';
+import {
+  embedderRef,
+  EmbedderReference,
+  Genkit,
+  modelRef,
+  ModelReference,
+  z,
+} from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import { getDerivedParams } from './common/index.js';
 import { PluginOptions } from './common/types.js';
 import {
-  SUPPORTED_EMBEDDER_MODELS,
   defineVertexAIEmbedder,
   multimodalEmbedding001,
+  SUPPORTED_EMBEDDER_MODELS,
   textEmbedding004,
   textEmbedding005,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
+  VertexEmbeddingConfig,
+  VertexEmbeddingConfigSchema,
 } from './embedder.js';
 import {
-  SUPPORTED_GEMINI_MODELS,
   defineGeminiKnownModel,
   defineGeminiModel,
   gemini,
@@ -51,14 +59,17 @@ import {
   gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
+  GeminiConfigSchema,
+  SUPPORTED_GEMINI_MODELS,
   type GeminiConfig,
+  type GeminiVersionString,
 } from './gemini.js';
 import {
-  SUPPORTED_IMAGEN_MODELS,
   imagen2,
   imagen3,
   imagen3Fast,
   imagenModel,
+  SUPPORTED_IMAGEN_MODELS,
 } from './imagen.js';
 export { type PluginOptions } from './common/types.js';
 export {
@@ -74,6 +85,7 @@ export {
   gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
+  GeminiConfigSchema,
   imagen2,
   imagen3,
   imagen3Fast,
@@ -84,6 +96,7 @@ export {
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
   type GeminiConfig,
+  type GeminiVersionString,
 };
 
 async function initializer(ai: Genkit, options?: PluginOptions) {
@@ -145,6 +158,9 @@ async function resolver(
     case 'model':
       await resolveModel(ai, actionName, options);
       break;
+    case 'embedder':
+      await resolveEmbedder(ai, actionName, options);
+      break;
     default:
     // no-op
   }
@@ -157,28 +173,35 @@ async function resolveModel(
 ) {
   const { projectId, location, vertexClientFactory } =
     await getDerivedParams(options);
-  if (actionName.includes('gemini')) {
-    const modelRef = gemini(actionName);
-    defineGeminiModel({
-      ai,
-      modelName: modelRef.name,
-      version: actionName,
-      modelInfo: modelRef.info,
-      vertexClientFactory,
-      options: {
-        projectId,
-        location,
-      },
-      debugTraces: options?.experimental_debugTraces,
-    });
-  }
-  // TODO: Support other models
+  const modelRef = gemini(actionName);
+  defineGeminiModel({
+    ai,
+    modelName: modelRef.name,
+    version: actionName,
+    modelInfo: modelRef.info,
+    vertexClientFactory,
+    options: {
+      projectId,
+      location,
+    },
+    debugTraces: options?.experimental_debugTraces,
+  });
+}
+
+async function resolveEmbedder(
+  ai: Genkit,
+  actionName: string,
+  options?: PluginOptions
+) {
+  const { projectId, location, authClient } = await getDerivedParams(options);
+
+  defineVertexAIEmbedder(ai, actionName, authClient, { projectId, location });
 }
 
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
-export function vertexAI(options?: PluginOptions): GenkitPlugin {
+function vertexAIPlugin(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin(
     'vertexai',
     async (ai: Genkit) => await initializer(ai, options),
@@ -186,5 +209,43 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
       await resolver(ai, actionType, actionName, options)
   );
 }
+
+export type VertexAIPlugin = {
+  (params?: PluginOptions): GenkitPlugin;
+  model(
+    name: GeminiVersionString,
+    config?: z.infer<typeof GeminiConfigSchema>
+  ): ModelReference<typeof GeminiConfigSchema>;
+  embedder(
+    name: string,
+    config?: VertexEmbeddingConfig
+  ): EmbedderReference<typeof VertexEmbeddingConfigSchema>;
+};
+
+/**
+ * Google Cloud Vertex AI plugin for Genkit.
+ * Includes Gemini and Imagen models and text embedder.
+ */
+export const vertexAI = vertexAIPlugin as VertexAIPlugin;
+vertexAI.model = (
+  name: GeminiVersionString,
+  config?: GeminiConfig
+): ModelReference<typeof GeminiConfigSchema> => {
+  return modelRef({
+    name: `vertexai/${name}`,
+    config,
+    configSchema: GeminiConfigSchema,
+  });
+};
+vertexAI.embedder = (
+  name: string,
+  config?: VertexEmbeddingConfig
+): EmbedderReference<typeof VertexEmbeddingConfigSchema> => {
+  return embedderRef({
+    name: `vertexai/${name}`,
+    config,
+    configSchema: VertexEmbeddingConfigSchema,
+  });
+};
 
 export default vertexAI;
