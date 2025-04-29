@@ -16,6 +16,7 @@
 
 import {
   Action,
+  ActionMetadata,
   defineAction,
   GenkitError,
   getStreamingCallback,
@@ -505,6 +506,34 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
 
   withConfig(cfg: z.infer<CustomOptions>): ModelReference<CustomOptions>;
   withVersion(version: string): ModelReference<CustomOptions>;
+}
+
+/**
+ * Packages model information into ActionMetadata object.
+ */
+export function modelActionMetadata({
+  name,
+  info,
+  configSchema,
+}: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: z.ZodTypeAny;
+}): ActionMetadata {
+  return {
+    actionType: 'model',
+    name: name,
+    inputJsonSchema: toJsonSchema({ schema: GenerateRequestSchema }),
+    outputJsonSchema: toJsonSchema({ schema: GenerateResponseSchema }),
+    metadata: {
+      model: {
+        ...info,
+        customOptions: configSchema
+          ? toJsonSchema({ schema: configSchema })
+          : undefined,
+      },
+    },
+  } as ActionMetadata;
 }
 
 /** Cretes a model reference. */
