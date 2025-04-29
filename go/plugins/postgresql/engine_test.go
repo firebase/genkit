@@ -3,7 +3,6 @@ package postgresql
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,11 +15,10 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name               string
-		opts               []Option
-		wantErr            bool
-		wantIpType         IpType
-		wantEmailRetriever EmailRetriever
+		name       string
+		opts       []Option
+		wantErr    bool
+		wantIpType IpType
 	}{
 		{
 			name: "valid config with connection pool",
@@ -28,9 +26,8 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 				WithPool(&pgxpool.Pool{}),
 				WithDatabase("testdb"),
 			},
-			wantErr:            false,
-			wantIpType:         PUBLIC,
-			wantEmailRetriever: getServiceAccountEmail,
+			wantErr:    false,
+			wantIpType: PUBLIC,
 		},
 		{
 			name: "valid config with instance details",
@@ -38,27 +35,24 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
 				WithDatabase("testdb"),
 			},
-			wantErr:            false,
-			wantIpType:         PUBLIC,
-			wantEmailRetriever: getServiceAccountEmail,
+			wantErr:    false,
+			wantIpType: PUBLIC,
 		},
 		{
 			name: "missing database",
 			opts: []Option{
 				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
 			},
-			wantErr:            true,
-			wantIpType:         PUBLIC,
-			wantEmailRetriever: getServiceAccountEmail,
+			wantErr:    true,
+			wantIpType: PUBLIC,
 		},
 		{
 			name: "missing all connection details",
 			opts: []Option{
 				WithDatabase("testdb"),
 			},
-			wantErr:            true,
-			wantIpType:         PUBLIC,
-			wantEmailRetriever: getServiceAccountEmail,
+			wantErr:    true,
+			wantIpType: PUBLIC,
 		},
 		{
 			name: "ip type private",
@@ -67,9 +61,8 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 				WithDatabase("testdb"),
 				WithIPType(PRIVATE),
 			},
-			wantErr:            false,
-			wantIpType:         PRIVATE,
-			wantEmailRetriever: getServiceAccountEmail,
+			wantErr:    false,
+			wantIpType: PRIVATE,
 		},
 		{
 			name: "custom EmailRetriever",
@@ -78,9 +71,8 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 				WithDatabase("testdb"),
 				WithEmailRetriever(mockEmailRetriever),
 			},
-			wantErr:            false,
-			wantIpType:         PUBLIC,
-			wantEmailRetriever: mockEmailRetriever,
+			wantErr:    false,
+			wantIpType: PUBLIC,
 		},
 	}
 
@@ -93,7 +85,6 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.wantIpType, cfg.ipType)
 				assert.NotNil(t, cfg.emailRetriever)
-				assert.Equal(t, fmt.Sprintf("%p", tc.wantEmailRetriever), fmt.Sprintf("%p", cfg.emailRetriever))
 			}
 		})
 	}
@@ -101,12 +92,11 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 
 func TestGetUser(t *testing.T) {
 	testCases := []struct {
-		name               string
-		cfg                engineConfig
-		wantUser           string
-		wantIAMAuth        bool
-		wantErr            bool
-		mockEmailRetriever EmailRetriever
+		name        string
+		cfg         engineConfig
+		wantUser    string
+		wantIAMAuth bool
+		wantErr     bool
 	}{
 		{
 			name: "user and password provided",

@@ -13,9 +13,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-// EmailRetriever func(context.Context) (string, error)
-type EmailRetriever func(context.Context) (string, error)
-
 // IpType type of IP address, public or private
 type IpType string
 
@@ -65,9 +62,8 @@ func (pgEngine *PostgresEngine) GetClient() *pgxpool.Pool {
 
 func applyEngineOptions(opts []Option) (engineConfig, error) {
 	cfg := &engineConfig{
-		emailRetriever: getServiceAccountEmail,
-		ipType:         PUBLIC,
-		userAgents:     defaultUserAgent,
+		ipType:     PUBLIC,
+		userAgents: defaultUserAgent,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -96,7 +92,7 @@ func getUser(ctx context.Context, config engineConfig) (string, bool, error) {
 	}
 	// If neither user and password nor iamAccountEmail are provided,
 	// retrieve IAM email from the environment.
-	serviceAccountEmail, err := config.emailRetriever(ctx)
+	serviceAccountEmail, err := getServiceAccountEmail(ctx)
 	if err != nil {
 		return "", false, fmt.Errorf("unable to retrieve service account email: %w", err)
 	}

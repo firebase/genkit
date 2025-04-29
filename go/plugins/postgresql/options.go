@@ -6,7 +6,7 @@ import (
 
 const (
 	defaultSchemaName = "public"
-	defaultUserAgent  = "postgresql"
+	defaultUserAgent  = "genkit-cloud-sql-pg-go/0.0.0"
 )
 
 // Option is a function type that can be used to modify the Engine.
@@ -22,7 +22,6 @@ type engineConfig struct {
 	password        string
 	ipType          IpType
 	iamAccountEmail string
-	emailRetriever  EmailRetriever
 	userAgents      string
 }
 
@@ -74,12 +73,5 @@ func WithIPType(ipType IpType) Option {
 func WithIAMAccountEmail(email string) Option {
 	return func(p *engineConfig) {
 		p.iamAccountEmail = email
-	}
-}
-
-// WithEmailRetriever sets the email retriever field.
-func WithEmailRetriever(retriever EmailRetriever) Option {
-	return func(p *engineConfig) {
-		p.emailRetriever = retriever
 	}
 }
