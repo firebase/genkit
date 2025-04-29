@@ -547,12 +547,19 @@ export class RuntimeManager {
  * Checks if the runtime file is valid.
  */
 function isValidRuntimeInfo(data: any): data is RuntimeInfo {
+  let timestamp = '';
+  // runtime filename might come with underscores due OS filename restrictions
+  // revert the underscores so the timestamp gets parsed correctly
+  if (typeof data.timestamp === 'string') {
+    timestamp = data.timestamp.replaceAll('_', ':');
+  }
+
   return (
     typeof data === 'object' &&
     typeof data.id === 'string' &&
     typeof data.pid === 'number' &&
     typeof data.reflectionServerUrl === 'string' &&
     typeof data.timestamp === 'string' &&
-    !isNaN(Date.parse(data.timestamp))
+    !isNaN(Date.parse(timestamp))
   );
 }

@@ -14,12 +14,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Module containing various core constants."""
+"""Trace module for defining opentelemetry managing."""
 
-# The version of Genkit sent over HTTP in the headers.
-DEFAULT_GENKIT_VERSION = '0.3.2'
+from .default_exporter import (
+    TelemetryServerSpanExporter,
+    init_telemetry_server_exporter,
+)
+from .types import (
+    GenkitSpan,
+)
 
-# TODO: make this dynamic
-GENKIT_VERSION = DEFAULT_GENKIT_VERSION
-
-GENKIT_CLIENT_HEADER = f'genkit-python/{DEFAULT_GENKIT_VERSION}'
+__all__ = [
+    TelemetryServerSpanExporter.__name__,
+    init_telemetry_server_exporter.__name__,
+    GenkitSpan.__name__,
+]
