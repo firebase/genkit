@@ -63,6 +63,11 @@ export const ai = genkit({
           judge: gemini15Pro,
           judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
         },
+        {
+          type: GenkitMetric.ANSWER_ACCURACY,
+          judge: gemini15Pro,
+          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+        },
       ],
     }),
     vertexAI({
