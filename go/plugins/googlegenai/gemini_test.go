@@ -49,7 +49,17 @@ func TestConvertRequest(t *testing.T) {
 		ToolChoice: ai.ToolChoiceAuto,
 		Output: &ai.ModelOutputConfig{
 			Constrained: true,
-			Schema:      map[string]any{"type": string("string")},
+			Schema: map[string]any{
+				"type": string("object"),
+				"properties": map[string]any{
+					"foo": map[string]any{
+						"type": string("string"),
+					},
+					"isFoo": map[string]any{
+						"type": string("boolean"),
+					},
+				},
+			},
 		},
 		Messages: []*ai.Message{
 			{

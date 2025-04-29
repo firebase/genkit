@@ -614,7 +614,7 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		schema.Type = genai.TypeNumber
 	case "integer":
 		schema.Type = genai.TypeInteger
-	case "bool":
+	case "boolean":
 		schema.Type = genai.TypeBoolean
 	case "object":
 		schema.Type = genai.TypeObject
