@@ -18,6 +18,7 @@ import {
   ActionMetadata,
   embedderRef,
   Genkit,
+  modelActionMetadata,
   ToolRequest,
   ToolRequestPart,
   ToolResponse,
@@ -128,17 +129,11 @@ async function listActions(
     models
       // naively filter out embedders, unfortunately there's no better way.
       ?.filter((m) => m.model && !m.model.includes('embed'))
-      .map(
-        (m) =>
-          ({
-            actionType: 'model',
-            name: `ollama/${m.model}`,
-            metadata: {
-              model: {
-                ...GENERIC_MODEL_INFO,
-              } as ModelInfo,
-            },
-          }) as ActionMetadata
+      .map((m) =>
+        modelActionMetadata({
+          name: `ollama/${m.model}`,
+          info: GENERIC_MODEL_INFO,
+        })
       ) || []
   );
 }
