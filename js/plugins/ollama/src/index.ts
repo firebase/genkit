@@ -38,6 +38,7 @@ import {
   ToolDefinition,
 } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { ActionType } from 'genkit/registry';
 import { defineOllamaEmbedder } from './embeddings.js';
 import {
   ApiType,
@@ -80,6 +81,68 @@ const GENERIC_MODEL_INFO = {
 
 const DEFAULT_OLLAMA_SERVER_ADDRESS = 'http://localhost:11434';
 
+async function initializer(
+  ai: Genkit,
+  serverAddress: string,
+  params?: OllamaPluginParams
+) {
+  params?.models?.map((model) =>
+    defineOllamaModel(ai, model, serverAddress, params?.requestHeaders)
+  );
+  params?.embedders?.map((model) =>
+    defineOllamaEmbedder(ai, {
+      name: model.name,
+      modelName: model.name,
+      dimensions: model.dimensions,
+      options: params!,
+    })
+  );
+}
+
+function resolveAction(
+  ai: Genkit,
+  actionType: ActionType,
+  actionName: string,
+  serverAddress: string,
+  requestHeaders?: RequestHeaders
+) {
+  // We can only dynamically resolve models, for embedders user must provide dimensions.
+  if (actionType === 'model') {
+    defineOllamaModel(
+      ai,
+      {
+        name: actionName,
+      },
+      serverAddress,
+      requestHeaders
+    );
+  }
+}
+
+async function listActions(
+  serverAddress: string,
+  requestHeaders?: RequestHeaders
+): Promise<ActionMetadata[]> {
+  const models = await listLocalModels(serverAddress, requestHeaders);
+  return (
+    models
+      // naively filter out embedders, unfortunately there's no better way.
+      ?.filter((m) => m.model && !m.model.includes('embed'))
+      .map(
+        (m) =>
+          ({
+            actionType: 'model',
+            name: `ollama/${m.model}`,
+            metadata: {
+              model: {
+                ...GENERIC_MODEL_INFO,
+              } as ModelInfo,
+            },
+          }) as ActionMetadata
+      ) || []
+  );
+}
+
 function ollamaPlugin(params?: OllamaPluginParams): GenkitPlugin {
   if (!params) {
     params = {};
@@ -91,54 +154,18 @@ function ollamaPlugin(params?: OllamaPluginParams): GenkitPlugin {
   return genkitPlugin(
     'ollama',
     async (ai: Genkit) => {
-      params?.models?.map((model) =>
-        ollamaModel(ai, model, serverAddress, params?.requestHeaders)
-      );
-      params?.embedders?.map((model) =>
-        defineOllamaEmbedder(ai, {
-          name: model.name,
-          modelName: model.name,
-          dimensions: model.dimensions,
-          options: params!,
-        })
-      );
+      await initializer(ai, serverAddress, params);
     },
     async (ai, actionType, actionName) => {
-      // We can only dynamically resolve models, for embedders user must provide dimensions.
-      if (actionType === 'model') {
-        ollamaModel(
-          ai,
-          {
-            name: actionName,
-          },
-          serverAddress,
-          params?.requestHeaders
-        );
-      }
-    },
-    async () => {
-      const models = await listLocalModels(
+      resolveAction(
+        ai,
+        actionType,
+        actionName,
         serverAddress,
         params?.requestHeaders
       );
-      return (
-        models
-          // naively filter out embedders, unfortunately there's no better way.
-          ?.filter((m) => m.model && !m.model.includes('embed'))
-          .map(
-            (m) =>
-              ({
-                actionType: 'model',
-                name: `ollama/${m.model}`,
-                metadata: {
-                  model: {
-                    ...GENERIC_MODEL_INFO,
-                  } as ModelInfo,
-                },
-              }) as ActionMetadata
-          ) || []
-      );
-    }
+    },
+    async () => await listActions(serverAddress, params?.requestHeaders)
   );
 }
 
@@ -197,7 +224,7 @@ export const OllamaConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
 });
 
-function ollamaModel(
+function defineOllamaModel(
   ai: Genkit,
   model: ModelDefinition,
   serverAddress: string,
