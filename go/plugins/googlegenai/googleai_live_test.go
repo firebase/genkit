@@ -405,7 +405,7 @@ func TestGoogleAILive(t *testing.T) {
 				Temperature: 0.4,
 				ThinkingConfig: &googlegenai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  200,
+					ThinkingBudget:  1024,
 				},
 			}),
 			ai.WithModel(m),
