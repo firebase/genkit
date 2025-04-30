@@ -39,7 +39,7 @@ import (
 const provider = "ollama"
 
 var (
-	mediaSupportedModels = []string{"llava"}
+	mediaSupportedModels = []string{"llava", "bakllava", "llava-llama3", "llava:13b", "llava:7b", "llava:latest"}
 	toolSupportedModels  = []string{
 		"qwq", "mistral-small3.1", "llama3.3", "llama3.2", "llama3.1", "mistral",
 		"qwen2.5", "qwen2.5-coder", "qwen2", "mistral-nemo", "mixtral", "smollm2",
@@ -50,8 +50,6 @@ var (
 		"granite3.3", "command-a", "command-r7b-arabic",
 	}
 	roleMapping = map[ai.Role]string{
-	mediaSupportedModels = []string{"llava", "bakllava", "llava-llama3", "llava:13b", "llava:7b", "llava:latest"}
-	roleMapping          = map[ai.Role]string{
 		ai.RoleUser:   "user",
 		ai.RoleModel:  "assistant",
 		ai.RoleSystem: "system",
@@ -228,7 +226,6 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 	var payload any
 	isChatModel := g.model.Type == "chat"
 
-
 	// Check if this is an image model
 	hasMediaSupport := slices.Contains(mediaSupportedModels, g.model.Name)
 
@@ -398,7 +395,7 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 				return nil, fmt.Errorf("failed to extract media data: %v", err)
 			}
 			base64Encoded := base64.StdEncoding.EncodeToString(data)
-			message.Images = append(message.Images, base64Encoded)
+			images = append(images, base64Encoded)
 		} else if part.IsToolRequest() {
 			toolReq := part.ToolRequest
 			toolCalls = append(toolCalls, ollamaToolCall{
@@ -414,7 +411,6 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 				return nil, fmt.Errorf("failed to marshal tool response: %v", err)
 			}
 			contentBuilder.WriteString(string(outputJSON))
-			images = append(images, base64Encoded)
 		} else {
 			return nil, errors.New("unsupported content type")
 		}
@@ -423,6 +419,7 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 	message.Content = contentBuilder.String()
 	if len(toolCalls) > 0 {
 		message.ToolCalls = toolCalls
+	}
 	if len(images) > 0 {
 		message.Images = images
 	}
@@ -459,7 +456,7 @@ func translateChatResponse(responseData []byte) (*ai.ModelResponse, error) {
 	return modelResponse, nil
 }
 
-// translateResponse translates Ollama generate response into a genkit response.
+// translateModelResponse translates Ollama generate response into a genkit response.
 func translateModelResponse(responseData []byte) (*ai.ModelResponse, error) {
 	var response ollamaModelResponse
 
