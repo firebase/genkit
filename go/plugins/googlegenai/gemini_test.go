@@ -52,11 +52,23 @@ func TestConvertRequest(t *testing.T) {
 			Schema: map[string]any{
 				"type": string("object"),
 				"properties": map[string]any{
-					"foo": map[string]any{
+					"string": map[string]any{
 						"type": string("string"),
 					},
-					"isFoo": map[string]any{
+					"boolean": map[string]any{
 						"type": string("boolean"),
+					},
+					"float": map[string]any{
+						"type": string("float64"),
+					},
+					"number": map[string]any{
+						"type": string("number"),
+					},
+					"array": map[string]any{
+						"type": string("array"),
+					},
+					"object": map[string]any{
+						"type": string("object"),
 					},
 				},
 			},
