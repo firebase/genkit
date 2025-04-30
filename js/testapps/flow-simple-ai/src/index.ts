@@ -139,16 +139,36 @@ export const drawPictureFlow = ai.defineFlow(
   }
 );
 
-export const streamFlow = ai.defineFlow(
+export const streamFlowVertex = ai.defineFlow(
   {
-    name: 'streamFlow',
+    name: 'streamFlowVertex',
     inputSchema: z.string(),
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
   async (prompt, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: gemini15Flash,
+      model: vertexAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
+      prompt,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.content[0].text!);
+    }
+
+    return (await response).text;
+  }
+);
+export const streamFlowGemini = ai.defineFlow(
+  {
+    name: 'streamFlowGemini',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (prompt, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
       prompt,
     });
 
@@ -867,4 +887,19 @@ ai.defineFlow('geminiEnum', async (thing) => {
   });
 
   return output;
+});
+
+ai.defineFlow('embedders-tester', async () => {
+  console.log(
+    await ai.embed({
+      content: 'hello world',
+      embedder: googleAI.embedder('text-embedding-004'),
+    })
+  );
+  console.log(
+    await ai.embed({
+      content: 'hello world',
+      embedder: vertexAI.embedder('text-embedding-004'),
+    })
+  );
 });

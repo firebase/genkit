@@ -40,7 +40,11 @@ import {
   logger,
   stackTraceSpans,
 } from '../utils';
-import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
+import {
+  enrichResultsWithScoring,
+  extractMetricSummaries,
+  extractMetricsMetadata,
+} from './parser';
 
 interface InferenceRunState {
   testCaseId: string;
@@ -181,11 +185,13 @@ export async function runEvaluation(params: {
 
   const scoredResults = enrichResultsWithScoring(scores, evalDataset);
   const metadata = extractMetricsMetadata(evaluatorActions);
+  const metricSummaries = extractMetricSummaries(scores);
 
   const evalRun = {
     key: {
       evalRunId,
       createdAt: new Date().toISOString(),
+      metricSummaries,
       ...augments,
     },
     results: scoredResults,

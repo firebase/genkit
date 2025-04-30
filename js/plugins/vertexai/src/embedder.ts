@@ -247,7 +247,19 @@ export function defineVertexAIEmbedder(
   client: GoogleAuth,
   options: PluginOptions
 ): EmbedderAction<any> {
-  const embedder = SUPPORTED_EMBEDDER_MODELS[name];
+  const embedder =
+    SUPPORTED_EMBEDDER_MODELS[name] ??
+    embedderRef({
+      name: name,
+      configSchema: VertexEmbeddingConfigSchema,
+      info: {
+        dimensions: 768,
+        label: `Vertex AI - ${name}`,
+        supports: {
+          input: ['text', 'image', 'video'],
+        },
+      },
+    });
   const predictClients: Record<
     string,
     PredictClient<EmbeddingInstance, EmbeddingPrediction>

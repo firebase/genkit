@@ -821,7 +821,7 @@ export function defineGoogleAIModel({
     : name;
 
   const model: ModelReference<z.ZodTypeAny> =
-    SUPPORTED_GEMINI_MODELS[name] ??
+    SUPPORTED_GEMINI_MODELS[apiModelName] ??
     modelRef({
       name: `googleai/${apiModelName}`,
       info: {
@@ -839,7 +839,7 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[name]) {
+  if (SUPPORTED_V1_MODELS[apiModelName]) {
     middleware.push(simulateSystemPrompt());
   }
   if (model.info?.supports?.media) {
@@ -896,7 +896,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[name]) {
+      if (SUPPORTED_V15_MODELS[apiModelName]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -982,7 +982,7 @@ export function defineGoogleAIModel({
       } as StartChatParams;
       const modelVersion = (request.config?.version ||
         model.version ||
-        name) as string;
+        apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
       const { chatRequest: updatedChatRequest, cache } =

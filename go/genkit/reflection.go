@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
@@ -148,6 +149,9 @@ func (s *reflectionServer) writeRuntimeFile(url string) error {
 	}
 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
+	// remove colons to avoid problems with different OS file name restrictions
+	timestamp = strings.ReplaceAll(timestamp, ":", "_")
+
 	s.RuntimeFilePath = filepath.Join(runtimesDir, fmt.Sprintf("%d-%s.json", os.Getpid(), timestamp))
 
 	data := runtimeFileData{
