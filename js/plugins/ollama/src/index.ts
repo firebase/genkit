@@ -237,13 +237,8 @@ function defineOllamaModel(
       },
     },
     async (input, streamingCallback) => {
-      const {
-        topP,
-        topK,
-        stopSequences,
-        maxOutputTokens,
-        ...rest
-      } = input.config as any;
+      const { topP, topK, stopSequences, maxOutputTokens, ...rest } =
+        input.config as any;
       const options: Record<string, any> = { ...rest };
       if (topP !== undefined) {
         options.top_p = topP;
