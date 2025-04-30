@@ -1106,7 +1106,7 @@ describe('prompt', () => {
         {
           content: [
             {
-              text: ' from the prompt file ',
+              text: ' from the prompt file banana',
             },
           ],
           role: 'model',
@@ -1114,7 +1114,6 @@ describe('prompt', () => {
       ],
       returnToolRequests: true,
       toolChoice: 'required',
-      subject: 'banana',
       tools: ['toolA', 'toolB'],
     });
   });
