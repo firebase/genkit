@@ -132,7 +132,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         "'gemini-2.0-flash-exp' model at present."
     )
     .optional(),
-});
+}).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
 export const gemini10Pro = modelRef({
@@ -911,7 +911,14 @@ export function defineGoogleAIModel({
         });
       }
 
-      if (requestConfig.codeExecution) {
+      const {
+        apiKey: apiKeyFromConfig,
+        safetySettings: safetySettingsFromConfig,
+        codeExecution: codeExecutionFromConfig,
+        ...restOfConfigOptions
+      } = requestConfig;
+
+      if (codeExecutionFromConfig) {
         tools.push({
           codeExecution:
             request.config.codeExecution === true
@@ -944,19 +951,10 @@ export function defineGoogleAIModel({
           tools.length === 0);
 
       const generationConfig: GenerationConfig = {
+        ...restOfConfigOptions,
         candidateCount: request.candidates || undefined,
-        temperature: requestConfig.temperature,
-        maxOutputTokens: requestConfig.maxOutputTokens,
-        topK: requestConfig.topK,
-        topP: requestConfig.topP,
-        stopSequences: requestConfig.stopSequences,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
-      if (requestConfig.responseModalities) {
-        // HACK: cast to any since this isn't officially supported in the old SDK yet
-        (generationConfig as any).responseModalities =
-          requestConfig.responseModalities;
-      }
 
       if (request.output?.constrained && jsonMode) {
         generationConfig.responseSchema = cleanSchema(request.output.schema);
@@ -978,7 +976,7 @@ export function defineGoogleAIModel({
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
-        safetySettings: requestConfig.safetySettings,
+        safetySettings: safetySettingsFromConfig,
       } as StartChatParams;
       const modelVersion = (request.config?.version ||
         model.version ||
@@ -994,14 +992,14 @@ export function defineGoogleAIModel({
           cacheConfigDetails
         );
 
-      if (!requestConfig.apiKey && !apiKey) {
+      if (!apiKeyFromConfig && !apiKey) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
           message:
             'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
         });
       }
-      const client = new GoogleGenerativeAI(requestConfig.apiKey || apiKey!);
+      const client = new GoogleGenerativeAI(apiKeyFromConfig || apiKey!);
       let genModel: GenerativeModel;
 
       if (cache) {

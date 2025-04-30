@@ -250,7 +250,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'With NONE, the model is prohibited from making function calls.'
     )
     .optional(),
-});
+}).passthrough();
 
 /**
  * Known model names, to allow code completion for convenience. Allows other model names.
@@ -1053,13 +1053,9 @@ export function defineGeminiModel({
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, modelInfo)),
         generationConfig: {
+          ...request.config,
           candidateCount: request.candidates || undefined,
-          temperature: request.config?.temperature,
-          maxOutputTokens: request.config?.maxOutputTokens,
-          topK: request.config?.topK,
-          topP: request.config?.topP,
           responseMimeType: jsonMode ? 'application/json' : undefined,
-          stopSequences: request.config?.stopSequences,
         },
         safetySettings: request.config?.safetySettings,
       };
