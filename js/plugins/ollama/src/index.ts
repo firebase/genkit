@@ -238,7 +238,6 @@ function defineOllamaModel(
     },
     async (input, streamingCallback) => {
       const {
-        temperature,
         topP,
         topK,
         stopSequences,
@@ -246,9 +245,6 @@ function defineOllamaModel(
         ...rest
       } = input.config as any;
       const options: Record<string, any> = { ...rest };
-      if (temperature !== undefined) {
-        options.temperature = temperature;
-      }
       if (topP !== undefined) {
         options.top_p = topP;
       }
