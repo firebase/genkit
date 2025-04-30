@@ -144,13 +144,17 @@ export const pokemonFlow = ai.defineFlow(
 export const joker = ai.defineFlow(
   {
     name: 'joker',
-    inputSchema: z.string().describe('subject'),
+    inputSchema: z.object({
+      model: z.string().default('gemma3:latest'),
+      subject: z.string().describe('subject').default('AI'),
+    }),
     outputSchema: z.string(),
   },
-  async (subject) => {
+  async ({ subject, model }, { sendChunk }) => {
     const { text } = await ai.generate({
       prompt: `tell me joke about ${subject}`,
-      model: ollama.model('gemma3:latest'),
+      model: ollama.model(model),
+      onChunk: sendChunk,
     });
 
     return text;
