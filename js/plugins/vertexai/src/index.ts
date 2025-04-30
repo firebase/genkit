@@ -222,10 +222,10 @@ const KNOWN_DECOMISSIONED_MODELS = [
 async function listActions(options?: PluginOptions) {
   const { location, projectId, authClient } = await getDerivedParams(options);
   const models = await listModels(authClient, location, projectId);
-  // vertex has a lot of models, and no way to figure out the "type" of the model...
+  // Vertex has a lot of models, and no way to figure out the "type" of the model...
   // so, for list actions we only fetch known model "families".
   return [
-    // Gemini Models
+    // Gemini
     ...models
       .filter(
         (m) =>

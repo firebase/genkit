@@ -34,7 +34,7 @@ interface ListModelsResponse {
 export async function listModels(
   authClient: GoogleAuth,
   location: string,
-  projectId: string,
+  projectId: string
 ): Promise<Model[]> {
   const fetch = (await import('node-fetch')).default;
   const accessToken = await authClient.getAccessToken();
@@ -51,11 +51,9 @@ export async function listModels(
     }
   );
   if (!response.ok) {
-    const ee = await response.text()
+    const ee = await response.text();
     throw new Error(
-      `Error from Vertex AI predict: HTTP ${
-        response.status
-      }: ${ee}`
+      `Error from Vertex AI predict: HTTP ${response.status}: ${ee}`
     );
   }
 
