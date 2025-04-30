@@ -41,7 +41,7 @@ func TestConstrainedGenerate(t *testing.T) {
 	formatModel := DefineModel(r, "test", "format", &modelInfo, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
-				Content: []*Part{NewTextPart("stream!")},
+				Content: []*Part{NewJSONPart("{\"Foo\": \"bar\"}")},
 			})
 		}
 
@@ -53,7 +53,7 @@ func TestConstrainedGenerate(t *testing.T) {
 
 	t.Run("doesn't inject instructions when model supports native contrained generation", func(t *testing.T) {
 		wantText := JSON
-		wantStreamText := "stream!"
+		wantStreamText := "{\"Foo\": \"bar\"}"
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
 				{
@@ -113,7 +113,7 @@ func TestConstrainedGenerate(t *testing.T) {
 
 	t.Run("doesn't use format instructions when explicitly instructed not to", func(t *testing.T) {
 		wantText := JSON
-		wantStreamText := "stream!"
+		wantStreamText := "{\"Foo\": \"bar\"}"
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
 				{
@@ -166,7 +166,7 @@ func TestConstrainedGenerate(t *testing.T) {
 	t.Run("uses format instructions given by user", func(t *testing.T) {
 		customInstructions := "The generated output should be in JSON format and conform to the following schema:\n\n```{\"additionalProperties\":false,\"properties\":{\"foo\":{\"type\":\"string\"}},\"required\":[\"foo\"],\"type\":\"object\"}```"
 		wantText := JSON
-		wantStreamText := "stream!"
+		wantStreamText := "{\"Foo\": \"bar\"}"
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
 				{
@@ -224,7 +224,7 @@ func TestConstrainedGenerate(t *testing.T) {
 
 	t.Run("uses simulated constrained generation when explicitly told to do so", func(t *testing.T) {
 		wantText := JSON
-		wantStreamText := "stream!"
+		wantStreamText := "{\"Foo\": \"bar\"}"
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
 				{
@@ -601,6 +601,212 @@ func TestJsonParser(t *testing.T) {
 
 			if !tt.wantErr {
 				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestJsonStreamingParser(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response []*ModelResponseChunk
+		want     []*ModelResponseChunk
+		wantErr  bool
+	}{
+		{
+			name: "parses complete JSON object",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+					"age":  map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(JSONMarkdown(`{"name": "John", "age": 19}`)),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart("{\"name\": \"John\", \"age\": 19}"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "handles partial JSON",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id":   map[string]any{"type": "integer"},
+					"name": map[string]any{"type": "string"},
+				},
+				"additionalProperties": false,
+			},
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("{\"id\": 1"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(", \"name\": \"test\"}"),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart("{\"id\": 1}"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart("{\"id\": 1, \"name\": \"test\"}"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "handles object with array JSON",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"Countries": map[string]any{
+						"type": "array",
+						"items": map[string]any{
+							"type": "string",
+						},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("{\""),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("Countries\": [\"China\", \"India\", \"United States\", \"Indonesia\", \""),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("Pakistan\", \"Brazil\", \"Nigeria\", \"Bangladesh\", \"Russia\", \"Mexico"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("\"]}"),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart("{}"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart("{\"Countries\": [\"China\", \"India\", \"United States\", \"Indonesia\", \"\"]}"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart("{\"Countries\": [\"China\", \"India\", \"United States\", \"Indonesia\", \"Pakistan\", \"Brazil\", \"Nigeria\", \"Bangladesh\", \"Russia\", \"Mexico\"]}"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart("{\"Countries\": [\"China\", \"India\", \"United States\", \"Indonesia\", \"Pakistan\", \"Brazil\", \"Nigeria\", \"Bangladesh\", \"Russia\", \"Mexico\"]}"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "handles preamble with code fence",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id": map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("Here is the JSON:\n\n```json\n"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("{\"id\": 1}\n```"),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				nil,
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart("{\"id\": 1}"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := jsonFormatter{}
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+
+			var previousParts []*Part
+			for i, chunk := range tt.response {
+				previousParts = append(previousParts, chunk.Content...)
+				chunk.Content = previousParts
+
+				messageChunk, err := handler.ParseChunk(chunk)
+				if err != nil {
+					t.Errorf("ParseChunk() error = %v, wantErr %v", err, tt.wantErr)
+				}
+
+				if diff := cmp.Diff(tt.want[i], messageChunk); diff != "" {
 					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
 				}
 			}

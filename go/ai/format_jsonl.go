@@ -15,6 +15,7 @@
 package ai
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,6 +70,12 @@ func (j jsonlHandler) Config() ModelOutputConfig {
 	return j.config
 }
 
+func (j jsonlHandler) StreamCallback(cb ModelStreamCallback) ModelStreamCallback {
+	return func(ctx context.Context, mrc *ModelResponseChunk) error {
+		return cb(ctx, mrc)
+	}
+}
+
 // ParseMessage parses the message and returns the formatted message.
 func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 	if j.config.Format == OutputFormatJSONL {
@@ -105,4 +112,9 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 	}
 
 	return m, nil
+}
+
+// ParseChunk parse the chunk and returns a new formatted chunk.
+func (j jsonlHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, error) {
+	return c, nil
 }

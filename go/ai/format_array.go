@@ -15,6 +15,7 @@
 package ai
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -68,6 +69,12 @@ func (a arrayHandler) Config() ModelOutputConfig {
 	return a.config
 }
 
+func (a arrayHandler) StreamCallback(cb ModelStreamCallback) ModelStreamCallback {
+	return func(ctx context.Context, mrc *ModelResponseChunk) error {
+		return cb(ctx, mrc)
+	}
+}
+
 // ParseMessage parses the message and returns the formatted message.
 func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
 	if a.config.Format == OutputFormatArray {
@@ -102,4 +109,9 @@ func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
 	}
 
 	return m, nil
+}
+
+// ParseChunk parse the chunk and returns a new formatted chunk.
+func (a arrayHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, error) {
+	return c, nil
 }
