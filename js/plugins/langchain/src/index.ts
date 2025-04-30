@@ -15,7 +15,6 @@
  */
 
 import { EvaluatorAction, Genkit, ModelArgument, z } from 'genkit';
-import { GenerationCommonConfigSchema } from 'genkit/model';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { Criteria } from 'langchain/evaluation';
 import { langchainEvaluator } from './evaluators';
@@ -23,7 +22,7 @@ import { langchainEvaluator } from './evaluators';
 export { GenkitTracer } from './tracing.js';
 
 interface LangchainPluginParams<
-  ModelCustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  ModelCustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   evaluators?: {
     criteria?: Criteria[];

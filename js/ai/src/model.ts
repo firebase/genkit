@@ -619,9 +619,10 @@ function getPartCounts(parts: Part[]): PartCounts {
   );
 }
 
-export type ModelArgument<
-  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
-> = ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
+export type ModelArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
+  | ModelAction<CustomOptions>
+  | ModelReference<CustomOptions>
+  | string;
 
 export interface ResolvedModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
