@@ -1,5 +1,3 @@
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type {
   McpServerConfig,
   McpServerControls,
@@ -8,10 +6,10 @@ import type {
   Transport,
 } from './index';
 
-export function transportFrom(config: McpServerConfig): {
+export async function transportFrom(config: McpServerConfig): Promise<{
   transport: Transport | null;
   type: string;
-} {
+}> {
   // Handle pre-configured transport first
   if ('transport' in config && config.transport) {
     return { transport: config.transport, type: 'custom' };
@@ -21,6 +19,9 @@ export function transportFrom(config: McpServerConfig): {
     const { url, ...sseConfig } = config;
     // Remove McpServerControls properties before passing to transport constructor
     delete (sseConfig as Partial<McpServerControls>).disabled;
+    const { SSEClientTransport } = await import(
+      '@modelcontextprotocol/sdk/client/sse.js'
+    );
     return {
       transport: new SSEClientTransport(
         new URL(url),
@@ -34,6 +35,9 @@ export function transportFrom(config: McpServerConfig): {
     // Create a copy and remove McpServerControls properties
     const stdioConfig = { ...config };
     delete (stdioConfig as Partial<McpServerControls>).disabled;
+    const { StdioClientTransport } = await import(
+      '@modelcontextprotocol/sdk/client/stdio.js'
+    );
     return {
       transport: new StdioClientTransport(stdioConfig as StdioServerParameters),
       type: 'stdio',

@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type {
   Resource,
   ResourceTemplate,
 } from '@modelcontextprotocol/sdk/types.js';
 import { Genkit, z } from 'genkit';
-import type { LegacyMcpClientOptions } from '../index.js';
 
 export async function registerResourceTools(
   ai: Genkit,
-  client: Client,
-  params: LegacyMcpClientOptions
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  params: { name: string; serverName?: string }
 ) {
   ai.defineTool(
     {

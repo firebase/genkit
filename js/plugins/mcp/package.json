@@ -11,7 +11,7 @@
   ],
   "version": "1.6.2",
   "description": "A Genkit plugin that provides interoperability between Genkit and Model Context Protocol (MCP). Both client and server use cases are supported.",
-  "main": "dist/index.js",
+  "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "exports": {
     ".": {

@@ -109,7 +109,7 @@ export class GenkitMcpClient {
     const existingEntry = this._servers[serverName];
     if (existingEntry) await existingEntry.client.close();
 
-    const { transport, type: transportType } = transportFrom(config);
+    const { transport, type: transportType } = await transportFrom(config);
     if (!transport) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
@@ -270,7 +270,8 @@ export class GenkitMcpClient {
    * @returns A GenkitPlugin instance.
    */
   plugin(options?: { name?: string }): GenkitPlugin {
-    return genkitPlugin(options?.name || this.name, async (ai) => {
+    const name = options?.name || this.name;
+    return genkitPlugin(name, async (ai) => {
       await this.ready();
 
       const promises: Promise<any>[] = [];
@@ -281,16 +282,17 @@ export class GenkitMcpClient {
           promises.push(
             registerAllTools(ai, serverRef.client, {
               rawToolResponses: this.rawToolResponses,
-              name: serverName,
+              serverName,
+              name,
             })
           );
         if (capabilities?.prompts)
           promises.push(
-            registerAllPrompts(ai, serverRef.client, { name: serverName })
+            registerAllPrompts(ai, serverRef.client, { name, serverName })
           );
         if (capabilities?.resources)
           promises.push(
-            registerResourceTools(ai, serverRef.client, { name: serverName })
+            registerResourceTools(ai, serverRef.client, { name, serverName })
           );
       }
 

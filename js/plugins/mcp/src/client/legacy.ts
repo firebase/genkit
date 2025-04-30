@@ -1,4 +1,3 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { Genkit, GenkitError } from 'genkit';
@@ -63,18 +62,40 @@ export function mcpClient(params: LegacyMcpClientOptions) {
   return genkitPlugin(params.name, async (ai: Genkit) => {
     const transport = await transportFrom(params);
     ai.options.model;
-    const client = new Client(
-      { name: params.name, version: params.version || '1.0.0' },
-      { capabilities: {} }
+    const { Client } = await import(
+      '@modelcontextprotocol/sdk/client/index.js'
     );
+    const client = new Client({
+      name: params.name,
+      version: params.version || '1.0.0',
+    });
+    // Register empty capabilities, similar to the newer client/index.ts
+    client.registerCapabilities({ roots: {} });
     await client.connect(transport);
     const capabilties = await client.getServerCapabilities();
     const promises: Promise<any>[] = [];
-    if (capabilties?.tools) promises.push(registerAllTools(ai, client, params));
+    if (capabilties?.tools)
+      promises.push(
+        registerAllTools(ai, client, {
+          name: params.name,
+          serverName: params.name,
+          rawToolResponses: params.rawToolResponses,
+        })
+      );
     if (capabilties?.prompts)
-      promises.push(registerAllPrompts(ai, client, params));
+      promises.push(
+        registerAllPrompts(ai, client, {
+          name: params.name,
+          serverName: params.name,
+        })
+      );
     if (capabilties?.resources)
-      promises.push(registerResourceTools(ai, client, params));
+      promises.push(
+        registerResourceTools(ai, client, {
+          name: params.name,
+          serverName: params.name,
+        })
+      );
     await Promise.all(promises);
   });
 }
