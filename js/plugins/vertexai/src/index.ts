@@ -24,6 +24,7 @@ import {
   embedderRef,
   EmbedderReference,
   Genkit,
+  modelActionMetadata,
   modelRef,
   ModelReference,
   z,
@@ -65,12 +66,16 @@ import {
   type GeminiVersionString,
 } from './gemini.js';
 import {
+  ACTUAL_IMAGEN_MODELS,
+  defineImagenModel,
+  GENERIC_IMAGEN_INFO,
   imagen2,
   imagen3,
   imagen3Fast,
-  imagenModel,
+  ImagenConfigSchema,
   SUPPORTED_IMAGEN_MODELS,
 } from './imagen.js';
+import { listModels } from './list-models.js';
 export { type PluginOptions } from './common/types.js';
 export {
   gemini,
@@ -89,6 +94,7 @@ export {
   imagen2,
   imagen3,
   imagen3Fast,
+  ImagenConfigSchema,
   multimodalEmbedding001,
   textEmbedding004,
   textEmbedding005,
@@ -104,7 +110,7 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
     await getDerivedParams(options);
 
   Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
-    imagenModel(ai, name, authClient, { projectId, location })
+    defineImagenModel(ai, name, authClient, { projectId, location })
   );
   Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
     defineGeminiKnownModel(
@@ -171,8 +177,14 @@ async function resolveModel(
   actionName: string,
   options?: PluginOptions
 ) {
-  const { projectId, location, vertexClientFactory } =
+  const { projectId, location, vertexClientFactory, authClient } =
     await getDerivedParams(options);
+
+  if (actionName.startsWith('imagen')) {
+    defineImagenModel(ai, actionName, authClient, { projectId, location });
+    return;
+  }
+
   const modelRef = gemini(actionName);
   defineGeminiModel({
     ai,
@@ -198,24 +210,84 @@ async function resolveEmbedder(
   defineVertexAIEmbedder(ai, actionName, authClient, { projectId, location });
 }
 
+// Vertex AI list models still returns these and the API does not indicate in any way
+// that those models are not served anymore.
+const KNOWN_DECOMISSIONED_MODELS = [
+  'gemini-pro-vision',
+  'gemini-pro',
+  'gemini-ultra',
+  'gemini-ultra-vision',
+];
+
+async function listActions(options?: PluginOptions) {
+  const { location, projectId, authClient } = await getDerivedParams(options);
+  const models = await listModels(authClient, location, projectId);
+  // vertex has a lot of models, and no way to figure out the "type" of the model...
+  // so, for list actions we only fetch known model "families".
+  return [
+    // Gemini Models
+    ...models
+      .filter(
+        (m) =>
+          m.name.includes('gemini') &&
+          !KNOWN_DECOMISSIONED_MODELS.includes(m.name.split('/').at(-1)!)
+      )
+      .map((m) => {
+        const ref = gemini(m.name.split('/').at(-1)!);
+
+        return modelActionMetadata({
+          name: ref.name,
+          info: ref.info,
+          configSchema: GeminiConfigSchema,
+        });
+      }),
+    // Imagen
+    ...models
+      .filter((m) => m.name.includes('imagen'))
+      .map((m) => {
+        const name = m.name.split('/').at(-1)!;
+
+        return modelActionMetadata({
+          name: 'vertexai/' + name,
+          info: {
+            ...GENERIC_IMAGEN_INFO,
+            label: `Vertex AI - ${name}`,
+          },
+          configSchema: ImagenConfigSchema,
+        });
+      }),
+  ];
+}
+
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 function vertexAIPlugin(options?: PluginOptions): GenkitPlugin {
+  let listActionsCache;
   return genkitPlugin(
     'vertexai',
     async (ai: Genkit) => await initializer(ai, options),
     async (ai: Genkit, actionType: ActionType, actionName: string) =>
-      await resolver(ai, actionType, actionName, options)
+      await resolver(ai, actionType, actionName, options),
+    async () => {
+      if (listActionsCache) return listActionsCache;
+      listActionsCache = await listActions(options);
+      return listActionsCache;
+    }
   );
 }
 
 export type VertexAIPlugin = {
   (params?: PluginOptions): GenkitPlugin;
   model(
-    name: GeminiVersionString,
+    name: keyof typeof SUPPORTED_GEMINI_MODELS | (`gemini-${string}` & {}),
     config?: z.infer<typeof GeminiConfigSchema>
   ): ModelReference<typeof GeminiConfigSchema>;
+  model(
+    name: keyof typeof ACTUAL_IMAGEN_MODELS | (`imagen${string}` & {}),
+    config?: z.infer<typeof ImagenConfigSchema>
+  ): ModelReference<typeof ImagenConfigSchema>;
+  model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
   embedder(
     name: string,
     config?: VertexEmbeddingConfig
@@ -227,10 +299,18 @@ export type VertexAIPlugin = {
  * Includes Gemini and Imagen models and text embedder.
  */
 export const vertexAI = vertexAIPlugin as VertexAIPlugin;
-vertexAI.model = (
-  name: GeminiVersionString,
-  config?: GeminiConfig
-): ModelReference<typeof GeminiConfigSchema> => {
+// provide generic implementation for the model function overloads.
+(vertexAI as any).model = (
+  name: string,
+  config?: any
+): ModelReference<z.ZodTypeAny> => {
+  if (name.startsWith('imagen')) {
+    return modelRef({
+      name: `vertexai/${name}`,
+      config,
+      configSchema: ImagenConfigSchema,
+    });
+  }
   return modelRef({
     name: `vertexai/${name}`,
     config,
