@@ -134,26 +134,23 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
   thinkingConfig: z
     .object({
-      mode: z
-        .enum(['AUTO', 'BUDGET', 'NONE'])
-        .default('AUTO')
+      includeThoughts: z
+        .boolean()
         .describe(
-          "Controls the model's internal 'thinking process' during response generation." +
-            'With AUTO (Default) mode, the model decides whether to use thinking ' +
-            'or not based on the prompt and context. With BUDGET, the model ' +
-            'uses a fixed budget of thinking tokens to generate a response. ' +
-            'With NONE, the model is prohibited from using thinking.'
-        ),
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only when available.'
+        )
+        .optional(),
       thinkingBudget: z
         .number()
-        .min(1)
+        .min(0)
         .max(24576)
         .describe(
           'The thinking budget parameter gives the model guidance on the ' +
             'number of thinking tokens it can use when generating a response. ' +
             'A greater number of tokens is typically associated with more detailed ' +
             'thinking, which is needed for solving more complex tasks. ' +
-            'The field is ignored if the mode is set to AUTO or NONE.'
+            'Setting the thinking budget to 0 disables thinking.'
         )
         .optional(),
     })
@@ -986,15 +983,7 @@ export function defineGoogleAIModel({
           requestConfig.responseModalities;
       }
       if (model.info?.supports?.thinkingMode && requestConfig.thinkingConfig) {
-        if (requestConfig.thinkingConfig.mode === 'NONE') {
-          (generationConfig as any).thinkingConfig = {
-            thinkingBudget: 0,
-          };
-        } else if (requestConfig.thinkingConfig.mode === 'BUDGET') {
-          (generationConfig as any).thinkingConfig = {
-            thinkingBudget: requestConfig.thinkingConfig.thinkingBudget,
-          };
-        }
+        (generationConfig as any).thinkingConfig = requestConfig.thinkingConfig;
       }
 
       if (request.output?.constrained && jsonMode) {
