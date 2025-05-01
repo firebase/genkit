@@ -17,7 +17,11 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -25,19 +29,33 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle SIGINT (Ctrl+C) for graceful shutdown
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		log.Println("Received interrupt, shutting down...")
+		cancel()
+	}()
 
 	// Initialize Genkit with the Google AI plugin. When you pass nil for the
 	// Config parameter, the Google AI plugin will get the API key from the
 	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+	// Initialize Genkit with the Google AI plugin using an invalid API key
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{
+		APIKey: "invalid-key-12345", // Explicitly set invalid key
+	}))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Initialization failed: %v", err)
 	}
+	log.Println("Genkit initialized successfully")
 
 	// Define a simple flow that generates jokes about a given topic
-	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
+	jokesFlow := genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-pro-preview-03-25")
 		if m == nil {
 			return "", errors.New("jokesFlow: failed to find model")
@@ -50,12 +68,20 @@ func main() {
 			}),
 			ai.WithPrompt(`Tell silly short jokes about %s`, input))
 		if err != nil {
-			return "", err
+			// Log detailed error
+			log.Printf("Generate error: %v", err)
+			return "", fmt.Errorf("failed to generate: %w", err)
 		}
 
 		text := resp.Text()
 		return text, nil
 	})
 
-	<-ctx.Done()
+	// Execute the flow to trigger the 4xx error
+	log.Println("Running jokesFlow with input 'cats'")
+	result, err := jokesFlow.Run(ctx, "cats")
+	if err != nil {
+		log.Fatalf("Flow failed: %v", err)
+	}
+	log.Printf("Flow result: %s", result)
 }
