@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EvaluatorAction, Genkit, ModelArgument, z } from 'genkit';
+import { EvaluatorAction, GenerationCommonConfigSchema, Genkit, ModelArgument, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { Criteria } from 'langchain/evaluation';
 import { langchainEvaluator } from './evaluators';
@@ -22,7 +22,7 @@ import { langchainEvaluator } from './evaluators';
 export { GenkitTracer } from './tracing.js';
 
 interface LangchainPluginParams<
-  ModelCustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  ModelCustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 > {
   evaluators?: {
     criteria?: Criteria[];
