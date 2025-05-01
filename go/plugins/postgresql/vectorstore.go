@@ -1,4 +1,4 @@
-package postgres
+package postgresql
 
 type VectorStore struct {
 	tableName          string
@@ -9,19 +9,6 @@ type VectorStore struct {
 	embeddingColumn    string
 	metadataColumns    []string
 }
-
-const (
-	defaultSchemaName         = "public"
-	defaultIDColumn           = "id"
-	defaultContentColumn      = "content"
-	defaultEmbeddingColumn    = "embedding"
-	defaultMetadataJsonColumn = "metadata"
-	defaultCount              = 4
-	defaultTable              = "embeddings"
-)
-
-// defaultDistanceStrategy is the default strategy used if none is provided.
-var defaultDistanceStrategy = CosineDistance{}
 
 type VectorStoresOption func(vs *VectorStore)
 

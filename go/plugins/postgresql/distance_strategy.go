@@ -1,4 +1,6 @@
-package postgres
+package postgresql
+
+import "fmt"
 
 type DistanceStrategy interface {
 	String() string
@@ -59,4 +61,40 @@ func (i InnerProduct) searchFunction() string {
 
 func (i InnerProduct) similaritySearchFunction() string {
 	return "inner_product"
+}
+
+type Index interface {
+	Options() string
+}
+
+type BaseIndex struct {
+	name             string
+	indexType        string
+	options          Index
+	distanceStrategy DistanceStrategy
+	partialIndexes   []string
+}
+
+// HNSWOptions holds the configuration for the hnsw index.
+type HNSWOptions struct {
+	M              int
+	EfConstruction int
+}
+
+func (h HNSWOptions) Options() string {
+	return fmt.Sprintf("(m = %d, ef_construction = %d)", h.M, h.EfConstruction)
+}
+
+// IVFFlatOptions holds the configuration for the ivfflat index.
+type IVFFlatOptions struct {
+	Lists int
+}
+
+func (i IVFFlatOptions) Options() string {
+	return fmt.Sprintf("(lists = %d)", i.Lists)
+}
+
+// indexOptions returns the specific options for the index based on the index type.
+func (index *BaseIndex) indexOptions() string {
+	return index.options.Options()
 }
