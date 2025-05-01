@@ -206,32 +206,40 @@ export const GenerationCommonConfigDescriptions = {
 /**
  * Zod schema of a common config object.
  */
-export const GenerationCommonConfigSchema = z.object({
-  version: z
-    .string()
-    .describe(
-      'A specific version of a model family, e.g. `gemini-2.0-flash` ' +
-        'for the `googleai` family.'
-    )
-    .optional(),
-  temperature: z
-    .number()
-    .describe(GenerationCommonConfigDescriptions.temperature)
-    .optional(),
-  maxOutputTokens: z
-    .number()
-    .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
-    .optional(),
-  topK: z.number().describe(GenerationCommonConfigDescriptions.topK).optional(),
-  topP: z.number().describe(GenerationCommonConfigDescriptions.topP).optional(),
-  stopSequences: z
-    .array(z.string())
-    .length(5)
-    .describe(
-      'Set of character sequences (up to 5) that will stop output generation.'
-    )
-    .optional(),
-});
+export const GenerationCommonConfigSchema = z
+  .object({
+    version: z
+      .string()
+      .describe(
+        'A specific version of a model family, e.g. `gemini-2.0-flash` ' +
+          'for the `googleai` family.'
+      )
+      .optional(),
+    temperature: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.temperature)
+      .optional(),
+    maxOutputTokens: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
+      .optional(),
+    topK: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.topK)
+      .optional(),
+    topP: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.topP)
+      .optional(),
+    stopSequences: z
+      .array(z.string())
+      .length(5)
+      .describe(
+        'Set of character sequences (up to 5) that will stop output generation.'
+      )
+      .optional(),
+  })
+  .passthrough();
 
 /**
  * Common config object.
