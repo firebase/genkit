@@ -25,6 +25,7 @@ import {
   GenerativeModelPreview,
   HarmBlockThreshold,
   HarmCategory,
+  SafetySetting,
   Schema,
   StartChatParams,
   ToolConfig,
@@ -66,9 +67,25 @@ import { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
 
-const SafetySettingsSchema = z.object({
-  category: z.nativeEnum(HarmCategory),
-  threshold: z.nativeEnum(HarmBlockThreshold),
+export const SafetySettingsSchema = z.object({
+  category: z.enum([
+    /** The harm category is unspecified. */
+    'HARM_CATEGORY_UNSPECIFIED',
+    /** The harm category is hate speech. */
+    'HARM_CATEGORY_HATE_SPEECH',
+    /** The harm category is dangerous content. */
+    'HARM_CATEGORY_DANGEROUS_CONTENT',
+    /** The harm category is harassment. */
+    'HARM_CATEGORY_HARASSMENT',
+    /** The harm category is sexually explicit content. */
+    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+  ]),
+  threshold: z.enum([
+    'BLOCK_LOW_AND_ABOVE',
+    'BLOCK_MEDIUM_AND_ABOVE',
+    'BLOCK_ONLY_HIGH',
+    'BLOCK_NONE',
+  ]),
 });
 
 const VertexRetrievalSchema = z.object({
@@ -1019,17 +1036,29 @@ export function defineGeminiModel({
         }
       }
 
+      const requestConfig = request.config as z.infer<
+        typeof GeminiConfigSchema
+      >;
+      const {
+        functionCallingConfig,
+        version: versionFromConfig,
+        googleSearchRetrieval,
+        vertexRetrieval,
+        location, // location can be overridden via config, take it out.
+        safetySettings,
+        ...restOfConfig
+      } = requestConfig;
+
       const tools = request.tools?.length
         ? [{ functionDeclarations: request.tools.map(toGeminiTool) }]
         : [];
 
       let toolConfig: ToolConfig | undefined;
-      if (request?.config?.functionCallingConfig) {
+      if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
-            allowedFunctionNames:
-              request.config.functionCallingConfig.allowedFunctionNames,
-            mode: toFunctionModeEnum(request.config.functionCallingConfig.mode),
+            allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
+            mode: toFunctionModeEnum(functionCallingConfig.mode),
           },
         };
       } else if (request.toolChoice) {
@@ -1053,15 +1082,15 @@ export function defineGeminiModel({
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, modelInfo)),
         generationConfig: {
-          ...request.config,
+          ...restOfConfig,
           candidateCount: request.candidates || undefined,
           responseMimeType: jsonMode ? 'application/json' : undefined,
         },
-        safetySettings: request.config?.safetySettings,
+        safetySettings: toGeminiSafetySettings(safetySettings),
       };
 
       // Handle cache
-      const modelVersion = (request.config?.version || version) as string;
+      const modelVersion = (versionFromConfig || version) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
       const apiClient = new ApiClient(
@@ -1088,15 +1117,13 @@ export function defineGeminiModel({
         );
       }
 
-      if (request.config?.googleSearchRetrieval) {
+      if (googleSearchRetrieval) {
         updatedChatRequest.tools?.push({
-          googleSearchRetrieval: request.config
-            .googleSearchRetrieval as GoogleSearchRetrieval,
+          googleSearchRetrieval: googleSearchRetrieval as GoogleSearchRetrieval,
         });
       }
 
-      if (request.config?.vertexRetrieval) {
-        const vertexRetrieval = request.config.vertexRetrieval;
+      if (vertexRetrieval) {
         const _projectId =
           vertexRetrieval.datastore.projectId || options.projectId;
         const _location =
@@ -1241,6 +1268,18 @@ function toFunctionModeEnum(
     default:
       throw new Error(`unsupported function calling mode: ${enumMode}`);
   }
+}
+
+function toGeminiSafetySettings(
+  genkitSettings?: z.infer<typeof SafetySettingsSchema>[]
+): SafetySetting[] | undefined {
+  if (!genkitSettings) return undefined;
+  return genkitSettings.map((s) => {
+    return {
+      category: s.category as HarmCategory,
+      threshold: s.threshold as HarmBlockThreshold,
+    };
+  });
 }
 
 /** Converts mode from genkit tool choice. */

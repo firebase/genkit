@@ -915,6 +915,8 @@ export function defineGoogleAIModel({
         apiKey: apiKeyFromConfig,
         safetySettings: safetySettingsFromConfig,
         codeExecution: codeExecutionFromConfig,
+        version: versionFromConfig,
+        functionCallingConfig,
         ...restOfConfigOptions
       } = requestConfig;
 
@@ -928,12 +930,11 @@ export function defineGoogleAIModel({
       }
 
       let toolConfig: ToolConfig | undefined;
-      if (requestConfig.functionCallingConfig) {
+      if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
-            allowedFunctionNames:
-              requestConfig.functionCallingConfig.allowedFunctionNames,
-            mode: toFunctionModeEnum(requestConfig.functionCallingConfig.mode),
+            allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
+            mode: toFunctionModeEnum(functionCallingConfig.mode),
           },
         };
       } else if (request.toolChoice) {
@@ -978,7 +979,7 @@ export function defineGoogleAIModel({
           .map((message) => toGeminiMessage(message, model)),
         safetySettings: safetySettingsFromConfig,
       } as StartChatParams;
-      const modelVersion = (request.config?.version ||
+      const modelVersion = (versionFromConfig ||
         model.version ||
         apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
