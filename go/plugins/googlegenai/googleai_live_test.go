@@ -416,9 +416,29 @@ func TestGoogleAILive(t *testing.T) {
 		if resp == nil {
 			t.Fatal("nil response obtanied")
 		}
-		// since Thinking was enabled, the response should have thinking parts
-		fmt.Print(resp.Text())
-		t.Fatal("remove me")
+		// TODO: add usageMetadata validation when SDK provides int
+		// see https://github.com/googleapis/go-genai/issues/282
+	})
+	t.Run("thinking disabled", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(googlegenai.GeminiConfig{
+				Temperature: 0.4,
+				ThinkingConfig: &googlegenai.ThinkingConfig{
+					IncludeThoughts: false,
+					ThinkingBudget:  0,
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("Analogize photosynthesis and growing up."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		// TODO: add usageMetadata validation when SDK provides int
+		// see https://github.com/googleapis/go-genai/issues/282
 	})
 }
 

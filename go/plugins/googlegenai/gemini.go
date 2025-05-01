@@ -399,7 +399,6 @@ func generate(
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("thinking tokens: %d", resp.UsageMetadata.ThoughtsTokenCount)
 		r := translateResponse(resp)
 		r.Request = input
 		if cache != nil {
@@ -540,7 +539,6 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 	}
 
 	if c.ThinkingConfig != nil {
-		fmt.Printf("setting thinking config!\n\n")
 		gcc.ThinkingConfig = &genai.ThinkingConfig{
 			IncludeThoughts: c.ThinkingConfig.IncludeThoughts,
 			ThinkingBudget:  &c.ThinkingConfig.ThinkingBudget,
@@ -786,10 +784,11 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 
 		if part.Text != "" {
 			partFound++
-			p = ai.NewTextPart(part.Text)
 			if part.Thought {
-				fmt.Printf("this is a text part, and is a thought!\n\n part: %q", part.Text)
+				// TODO: Include a `reasoning` part. Not available in the SDK yet.
+				continue
 			}
+			p = ai.NewTextPart(part.Text)
 		}
 		if part.InlineData != nil {
 			partFound++
@@ -819,9 +818,6 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 				string(part.ExecutableCode.Language),
 				part.ExecutableCode.Code,
 			)
-		}
-		if part.Thought {
-			fmt.Printf("THOUGHT found!!\n\n")
 		}
 		if partFound > 1 {
 			panic(fmt.Sprintf("expected only 1 content part in response, got %d, part: %#v", partFound, part))
