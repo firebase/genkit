@@ -947,21 +947,3 @@ ai.defineFlow('embedders-tester', async () => {
     })
   );
 });
-
-ai.defineFlow('testyTest', async (thing) => {
-  const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
-    config: {
-      ...thing.config,
-      temperature: 1,
-    },
-    prompt: `What type of thing is 'a banana'?`,
-    // output: {
-    //   schema: z.object({
-    //     type: z.enum(['FRUIT', 'VEGETABLE', 'MINERAL']),
-    //   }),
-    // },
-  });
-
-  return text;
-});
