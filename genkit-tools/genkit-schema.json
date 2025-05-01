@@ -898,6 +898,9 @@
             },
             "toolChoice": {
               "type": "boolean"
+            },
+            "thinkingMode": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false

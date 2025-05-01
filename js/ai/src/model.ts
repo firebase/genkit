@@ -142,6 +142,8 @@ export const ModelInfoSchema = z.object({
       constrained: z.enum(['none', 'all', 'no-tools']).optional(),
       /** Model supports controlling tool choice, e.g. forced tool calling. */
       toolChoice: z.boolean().optional(),
+      /** Model can use an internal "thinking process" during response generation. */
+      thinkingMode: z.boolean().optional(),
     })
     .optional(),
   /** At which stage of development this model is.
