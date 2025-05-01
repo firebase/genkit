@@ -404,7 +404,7 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 					Arguments: toolReq.Input,
 				},
 			})
-		} else if part.ToolResponse != nil {
+		} else if part.IsToolResponse() {
 			toolResp := part.ToolResponse
 			outputJSON, err := json.Marshal(toolResp.Output)
 			if err != nil {
