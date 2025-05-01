@@ -275,3 +275,101 @@ func (ds *docStore) generateAddDocumentsQuery(id, content, embedding string, met
 	query := insertStmt + valuesStmt
 	return query, values, nil
 }
+
+/* +++++++++++++++++++++++
+		Advance methods
+ +++++++++++++++++++++++++ */
+
+// ApplyVectorIndex creates an index in the table of the embeddings.
+func (ds *docStore) ApplyVectorIndex(ctx context.Context, index BaseIndex, name string, concurrently bool) error {
+	if index.indexType == "exactnearestneighbor" {
+		return ds.DropVectorIndex(ctx, name)
+	}
+
+	filter := ""
+	if len(index.partialIndexes) > 0 {
+		filter = fmt.Sprintf("WHERE %s", index.partialIndexes)
+	}
+	optsString := index.indexOptions()
+	params := fmt.Sprintf("WITH %s", optsString)
+
+	if name == "" {
+		if index.name == "" {
+			index.name = ds.tableName + defaultIndexNameSuffix
+		}
+		name = index.name
+	}
+
+	concurrentlyStr := ""
+	if concurrently {
+		concurrentlyStr = "CONCURRENTLY"
+	}
+
+	function := index.distanceStrategy.searchFunction()
+	stmt := fmt.Sprintf(`CREATE INDEX %s %s ON "%s"."%s" USING %s (%s %s) %s %s`,
+		concurrentlyStr, name, ds.schemaName, ds.tableName, index.indexType, ds.embeddingColumn, function, params, filter)
+
+	_, err := ds.engine.Pool.Exec(ctx, stmt)
+	if err != nil {
+		return fmt.Errorf("failed to execute creation of index: %w", err)
+	}
+
+	return nil
+}
+
+// ReIndex recreates the index on the table.
+func (ds *docStore) ReIndex(ctx context.Context) error {
+	indexName := ds.tableName + defaultIndexNameSuffix
+	return ds.ReIndexWithName(ctx, indexName)
+}
+
+// ReIndexWithName recreates the index on the table by name.
+func (ds *docStore) ReIndexWithName(ctx context.Context, indexName string) error {
+	query := fmt.Sprintf("REINDEX INDEX %s;", indexName)
+	_, err := ds.engine.Pool.Exec(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to reindex: %w", err)
+	}
+
+	return nil
+}
+
+// DropVectorIndex drops the vector index from the table.
+func (ds *docStore) DropVectorIndex(ctx context.Context, indexName string) error {
+	if indexName == "" {
+		indexName = ds.tableName + defaultIndexNameSuffix
+	}
+	query := fmt.Sprintf("DROP INDEX IF EXISTS %s;", indexName)
+	_, err := ds.engine.Pool.Exec(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to drop vector index: %w", err)
+	}
+
+	return nil
+}
+
+// IsValidIndex checks if index exists in the table.
+func (ds *docStore) IsValidIndex(ctx context.Context, indexName string) (bool, error) {
+	if indexName == "" {
+		indexName = ds.tableName + defaultIndexNameSuffix
+	}
+	query := fmt.Sprintf("SELECT tablename, indexname  FROM pg_indexes WHERE tablename = '%s' AND schemaname = '%s' AND indexname = '%s';",
+		ds.tableName, ds.schemaName, indexName)
+	var tableName, indexNameFromDB string
+	err := ds.engine.Pool.QueryRow(ctx, query).Scan(&tableName, &indexNameFromDB)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if index exists: %w", err)
+	}
+
+	return indexNameFromDB == indexName, nil
+}
+
+func (ds *docStore) NewBaseIndex(indexName, indexType string, strategy DistanceStrategy, partialIndexes []string, opts Index) BaseIndex {
+	return BaseIndex{
+		name:             indexName,
+		indexType:        indexType,
+		distanceStrategy: strategy,
+		partialIndexes:   partialIndexes,
+		options:          opts,
+	}
+}
