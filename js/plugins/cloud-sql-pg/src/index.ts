@@ -16,6 +16,7 @@
 
 import {
   CommonRetrieverOptionsSchema,
+  Document,
   indexerRef,
   retrieverRef,
 } from 'genkit/retriever';
@@ -23,6 +24,8 @@ import {
 import { Genkit, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { EmbedderArgument } from 'genkit/embedder';
+import { DistanceStrategy, QueryOptions } from "./indexes.js";
+import { PostgresEngine } from './engine';
 
 
 const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
@@ -84,6 +87,14 @@ export function postgres<EmbedderCustomOptions extends z.ZodTypeAny>(
     tableName: string,
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
+    engine: PostgresEngine;
+    schemaName?: string;
+    contentColumn: string;
+    embeddingColumn: string;
+    metadataColumns?: string[];
+    idColumn: string;
+    metadataJsonColumn?: string;
+    distanceStrategy: 'cosine' | 'ip' | 'l2';
   }[]
 ): GenkitPlugin {
   return genkitPlugin('postgres', async (ai: Genkit) => {
@@ -109,15 +120,74 @@ export function configurePostgresRetriever<
   ai: Genkit,
   params: {
     tableName: string;
+    engine: PostgresEngine;
+    schemaName?: string;
+    contentColumn: string;
+    embeddingColumn: string;
+    metadataColumns?: string[];
+    idColumn: string;
+    metadataJsonColumn?: string;
+    distanceStrategy: DistanceStrategy;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
+    indexQueryOptions?: QueryOptions;
   }
 ) {
+  if (!params.engine) {
+    throw new Error('Engine is required');
+  }
+
+  async function queryCollection(embedding: number[], k?: number | undefined, filter?: string | undefined) {
+    const operator = params.distanceStrategy.operator;
+    const searchFunction = params.distanceStrategy.searchFunction;
+    const metadataColNames = params.metadataColumns && params.metadataColumns.length > 0 ? `"${params.metadataColumns.join("\",\"")}"` : "";
+    const metadataJsonColName = params.metadataJsonColumn ? `, "${params.metadataJsonColumn}"` : "";
+
+    const query = `SELECT "${params.idColumn}", "${params.contentColumn}", "${params.embeddingColumn}", ${metadataColNames} ${metadataJsonColName}, ${searchFunction}("${params.embeddingColumn}", '[${embedding}]') as distance FROM "${params.schemaName}"."${params.tableName}" ${_filter} ORDER BY "${params.embeddingColumn}" ${operator} '[${embedding}]';`
+
+    if (params.indexQueryOptions) {
+      await params.engine.pool.raw(`SET LOCAL ${params.indexQueryOptions.to_string()}`)
+    }
+
+    const {rows} = await params.engine.pool.raw(query);
+
+    return rows;
+  }
 
   return ai.defineRetriever(
     {
       name: `postgres/${params.tableName}`,
       configSchema: PostgresRetrieverOptionsSchema,
+    },
+    async (content, options) => {
+      console.log(`Retrieving data for table: ${params.tableName}`);
+      const queryEmbeddings = await ai.embed({
+        embedder: params.embedder ,
+        content,
+        options: params.embedderOptions,
+      });
+      let documents: Document[] = [];
+      const embedding = queryEmbeddings[0].embedding;
+      const results = await queryCollection(embedding, options.k, options.filter);
+      for (const row of results) {
+        const metadata =
+          params.metadataJsonColumn && row[params.metadataJsonColumn]
+            ? row[params.metadataJsonColumn]
+            : {};
+        if(params.metadataColumns){
+          for (const col of params.metadataColumns) {
+            metadata[col] = row[col];
+          }
+        }
+        documents.push([
+          new Document({
+            pageContent: row[params.contentColumn],
+            metadata: metadata,
+          })
+        ]);
+      }
+
+      return documents;
     }
   );
 }
