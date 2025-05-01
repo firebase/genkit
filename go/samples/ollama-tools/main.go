@@ -81,9 +81,7 @@ func main() {
 	resp, err := genkit.Generate(ctx, g,
 		ai.WithModel(model),
 		ai.WithMessages(systemMsg, userMsg),
-		ai.WithTools(
-			ai.ToolName(weatherTool.Name()),
-		),
+		ai.WithTools(weatherTool),
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 	)
 
