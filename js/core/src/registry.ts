@@ -115,21 +115,30 @@ export class Registry {
   private allPluginsInitialized = false;
   public apiStability: 'stable' | 'beta' = 'stable';
 
-  readonly asyncStore = new AsyncStore();
-  readonly dotprompt = new Dotprompt({
-    schemaResolver: async (name) => {
-      const resolvedSchema = await this.lookupSchema(name);
-      if (!resolvedSchema) {
-        throw new GenkitError({
-          message: `Schema '${name}' not found`,
-          status: 'NOT_FOUND',
-        });
-      }
-      return toJsonSchema(resolvedSchema);
-    },
-  });
+  readonly asyncStore: AsyncStore;
+  readonly dotprompt: Dotprompt;
 
-  constructor(public parent?: Registry) {}
+  constructor(public parent?: Registry) {
+    if (parent) {
+      this.apiStability = parent?.apiStability;
+      this.asyncStore = parent.asyncStore;
+      this.dotprompt = parent.dotprompt;
+    } else {
+      this.asyncStore = new AsyncStore();
+      this.dotprompt = new Dotprompt({
+        schemaResolver: async (name) => {
+          const resolvedSchema = await this.lookupSchema(name);
+          if (!resolvedSchema) {
+            throw new GenkitError({
+              message: `Schema '${name}' not found`,
+              status: 'NOT_FOUND',
+            });
+          }
+          return toJsonSchema(resolvedSchema);
+        },
+      });
+    }
+  }
 
   /**
    * Creates a new registry overlaid onto the provided registry.
