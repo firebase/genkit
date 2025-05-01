@@ -68,13 +68,12 @@ func main() {
 	)
 
 	// Create system message
-	systemMsg := ai.NewTextMessage(ai.RoleSystem,
+	systemMsg := ai.NewSystemTextMessage(
 		"You are a helpful assistant that can look up weather. "+
 			"When providing weather information, use the appropriate tool.")
 
 	// Create user message
-	userMsg := ai.NewTextMessage(ai.RoleUser,
-		"I'd like to know the weather in Tokyo.")
+	userMsg := ai.NewUserTextMessage("I'd like to know the weather in Tokyo.")
 
 	// Generate response with tools
 	fmt.Println("Generating response with weather tool...")
