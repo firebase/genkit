@@ -17,8 +17,8 @@
 import {
   EnhancedGenerateContentResponse,
   FileDataPart,
-  FunctionCallingMode,
   FunctionCallPart,
+  FunctionCallingMode,
   FunctionDeclaration,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
@@ -37,8 +37,8 @@ import {
   ToolConfig,
 } from '@google/generative-ai';
 import {
-  Genkit,
   GENKIT_CLIENT_HEADER,
+  Genkit,
   GenkitError,
   JSONSchema,
   z,
@@ -46,18 +46,18 @@ import {
 import {
   CandidateData,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
-  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
+  getBasicUsageStats,
+  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -131,6 +131,32 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       'The modalities to be used in response. Only supported for ' +
         "'gemini-2.0-flash-exp' model at present."
     )
+    .optional(),
+  thinkingConfig: z
+    .object({
+      mode: z
+        .enum(['AUTO', 'BUDGET', 'NONE'])
+        .default('AUTO')
+        .describe(
+          "Controls the model's internal 'thinking process' during response generation." +
+            'With AUTO (Default) mode, the model decides whether to use thinking ' +
+            'or not based on the prompt and context. With BUDGET, the model ' +
+            'uses a fixed budget of thinking tokens to generate a response. ' +
+            'With NONE, the model is prohibited from using thinking.'
+        ),
+      thinkingBudget: z
+        .number()
+        .min(1)
+        .max(24576)
+        .describe(
+          'The thinking budget parameter gives the model guidance on the ' +
+            'number of thinking tokens it can use when generating a response. ' +
+            'A greater number of tokens is typically associated with more detailed ' +
+            'thinking, which is needed for solving more complex tasks. ' +
+            'The field is ignored if the mode is set to AUTO or NONE.'
+        )
+        .optional(),
+    })
     .optional(),
 });
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
@@ -292,6 +318,7 @@ export const gemini25FlashPreview0417 = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
+      thinkingMode: true,
       constrained: 'no-tools',
     },
   },
@@ -952,10 +979,22 @@ export function defineGoogleAIModel({
         stopSequences: requestConfig.stopSequences,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
+
+      // HACK: cast to any since those options aren't officially supported in the old SDK yet
       if (requestConfig.responseModalities) {
-        // HACK: cast to any since this isn't officially supported in the old SDK yet
         (generationConfig as any).responseModalities =
           requestConfig.responseModalities;
+      }
+      if (model.info?.supports?.thinkingMode && requestConfig.thinkingConfig) {
+        if (requestConfig.thinkingConfig.mode === 'NONE') {
+          (generationConfig as any).thinkingConfig = {
+            thinkingBudget: 0,
+          };
+        } else if (requestConfig.thinkingConfig.mode === 'BUDGET') {
+          (generationConfig as any).thinkingConfig = {
+            thinkingBudget: requestConfig.thinkingConfig.thinkingBudget,
+          };
+        }
       }
 
       if (request.output?.constrained && jsonMode) {
