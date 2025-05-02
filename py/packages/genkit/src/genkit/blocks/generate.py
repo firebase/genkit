@@ -58,6 +58,7 @@ DEFAULT_MAX_TURNS = 5
 
 def define_generate_action(registry: Registry):
     """Registers generate action in the provided registry."""
+
     async def genereate_action_fn(input: GenerateActionOptions, ctx: ActionRunContext) -> GenerateResponse:
         return await generate_action(
             registry=registry,
