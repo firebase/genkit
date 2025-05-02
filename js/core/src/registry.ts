@@ -117,9 +117,11 @@ export class Registry {
 
   readonly asyncStore: AsyncStore;
   readonly dotprompt: Dotprompt;
+  readonly parent?: Registry;
 
-  constructor(public parent?: Registry) {
+  constructor(parent?: Registry) {
     if (parent) {
+      this.parent = parent;
       this.apiStability = parent?.apiStability;
       this.asyncStore = parent.asyncStore;
       this.dotprompt = parent.dotprompt;
