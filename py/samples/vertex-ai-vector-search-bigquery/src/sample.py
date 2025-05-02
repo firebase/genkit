@@ -17,11 +17,14 @@
 import os
 import time
 
+import structlog
 from google.cloud import aiplatform, bigquery
 from pydantic import BaseModel
 
 from genkit.ai import Genkit
-from genkit.blocks.document import Document
+from genkit.blocks.document import (
+    Document,
+)
 from genkit.plugins.vertex_ai import (
     EmbeddingModels,
     VertexAI,
@@ -32,17 +35,20 @@ from genkit.plugins.vertex_ai.models.retriever import BigQueryRetriever
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
-BIGQUERY_DATASET = os.getenv('BIGQUERY_DATASET')
-BIGQUERY_TABLE = os.getenv('BIGQUERY_TABLE')
+EMBEDDING_MODEL = EmbeddingModels.TEXT_EMBEDDING_004_ENG
+
+BIGQUERY_DATASET_NAME = os.getenv('BIGQUERY_DATASET_NAME')
+BIGQUERY_TABLE_NAME = os.getenv('BIGQUERY_TABLE_NAME')
+
+VECTOR_SEARCH_INDEX_ID = os.getenv('VECTOR_SEARCH_INDEX_ID')
+
 VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.getenv('VECTOR_SEARCH_DEPLOYED_INDEX_ID')
 VECTOR_SEARCH_INDEX_ENDPOINT_ID = os.getenv('VECTOR_SEARCH_INDEX_ENDPOINT_ID')
-VECTOR_SEARCH_INDEX_ID = os.getenv('VECTOR_SEARCH_INDEX_ID')
 VECTOR_SEARCH_PUBLIC_DOMAIN_NAME = os.getenv('VECTOR_SEARCH_PUBLIC_DOMAIN_NAME')
-
 
 bq_client = bigquery.Client(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
-
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[
@@ -51,22 +57,27 @@ ai = Genkit(
             retriever=BigQueryRetriever,
             retriever_extra_args={
                 'bq_client': bq_client,
-                'dataset_id': BIGQUERY_DATASET,
-                'table_id': BIGQUERY_TABLE,
+                'dataset_id': BIGQUERY_DATASET_NAME,
+                'table_id': BIGQUERY_TABLE_NAME,
             },
-            embedder=EmbeddingModels.TEXT_EMBEDDING_004_ENG,
-            embedder_options={'taskType': 'RETRIEVAL_DOCUMENT'},
+            embedder=EMBEDDING_MODEL,
+            embedder_options={
+                'task': 'RETRIEVAL_DOCUMENT',
+                'output_dimensionality': 128,
+            },
         ),
     ]
 )
 
 
 class QueryFlowInputSchema(BaseModel):
+    """Input schema."""
     query: str
     k: int
 
 
 class QueryFlowOutputSchema(BaseModel):
+    """Output schema."""
     result: list[dict]
     length: int
     time: int
@@ -74,12 +85,18 @@ class QueryFlowOutputSchema(BaseModel):
 
 @ai.flow(name='queryFlow')
 async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
+    """Executes a vector search with VertexAI Vector Search."""
     start_time = time.time()
     query_document = Document.from_text(text=_input.query)
+    query_document.metadata = {
+        'index_endpoint_path': 'projects/206382651113/locations/us-central1/indexEndpoints/8485065371965980672',
+        'deployed_index_id': 'genkit_sample_1746207451742',
+    }
 
     result: list[Document] = await ai.retrieve(
-        retriever=vertexai_name(VECTOR_SEARCH_INDEX_ID),
+        retriever=vertexai_name('vertexAIVectorSearch'),
         query=query_document,
+
     )
 
     end_time = time.time()
@@ -100,3 +117,17 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
         length=len(result_data),
         time=duration,
     )
+
+
+async def main() -> None:
+    """Main function."""
+    query_input = QueryFlowInputSchema(
+        query="Pedro",
+        k=10,
+    )
+
+    await logger.ainfo(await query_flow(query_input))
+
+
+if __name__ == '__main__':
+    ai.run_main(main())

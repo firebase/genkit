@@ -19,6 +19,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import structlog
+from google.auth.credentials import Credentials
 from google.cloud import aiplatform_v1, bigquery, firestore
 from google.cloud.aiplatform_v1 import FindNeighborsRequest, IndexDatapoint, Neighbor
 from pydantic import BaseModel, Field, ValidationError
@@ -50,9 +51,10 @@ class DocRetriever(ABC):
         self,
         ai: Genkit,
         name: str,
-        match_service_client: aiplatform_v1.MatchServiceAsyncClient,
+        match_service_client: aiplatform_v1.MatchServiceAsyncClient | None,
         embedder: str,
         embedder_options: dict[str, Any] | None = None,
+        credentials: Credentials | None = None,
     ) -> None:
         """Initializes the DocRetriever.
 
@@ -61,6 +63,7 @@ class DocRetriever(ABC):
             name: The name of this retriever instance.
             match_service_client: The Vertex AI Matching Engine client.
             embedder: The name of the embedder to use for generating embeddings.
+                Already added plugin prefix.
             embedder_options: Optional dictionary of options to pass to the embedder.
         """
         self.ai = ai
@@ -68,6 +71,7 @@ class DocRetriever(ABC):
         self._match_service_client = match_service_client
         self.embedder = embedder
         self.embedder_options = embedder_options or {}
+        self.credentials = credentials
 
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
         """Retrieves documents based on a given query.
@@ -92,6 +96,7 @@ class DocRetriever(ABC):
         else:
             top_k = 3
 
+        logger.debug(f'top k neighbors: {top_k}')
         docs = await self._get_closest_documents(
             request=request,
             top_k=top_k,
@@ -135,8 +140,16 @@ class DocRetriever(ABC):
             ],
         )
 
-        response = await self._match_service_client.find_neighbors(request=nn_request)
+        logger.debug('Before find neighbors')
 
+        match_service_client = self._match_service_client
+        if match_service_client is None:
+            match_service_client = aiplatform_v1.MatchServiceAsyncClient(
+                credentials=self.credentials,
+            )
+
+        response = await match_service_client.find_neighbors(request=nn_request)
+        logger.debug('After find neighbors')
         return await self._retrieve_neighbours_data_from_db(neighbours=response.nearest_neighbors[0].neighbors)
 
     @abstractmethod

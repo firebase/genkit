@@ -90,9 +90,8 @@ class VertexAIVectorSearch(Plugin):
             credentials=credentials,
         )
         self._endpoint_client = aiplatform_v1.IndexEndpointServiceAsyncClient(credentials=credentials)
-        self._match_service_client = aiplatform_v1.MatchServiceAsyncClient(
-            credentials=credentials,
-        )
+        self._match_service_client = None
+        self.credentials=credentials
 
     async def create_index(
         self,
@@ -120,6 +119,7 @@ class VertexAIVectorSearch(Plugin):
         index.metadata = {
             'config': index_config.model_dump(),
             'contentsDeltaUri': contents_delta_uri,
+            'index_update_method': 'STREAM_UPDATE'  # TODO: Add the other 2
         }
 
         request = aiplatform_v1.CreateIndexRequest(
@@ -194,12 +194,14 @@ class VertexAIVectorSearch(Plugin):
         Args:
             ai: The registry to register actions with.
         """
+        logger.debug(f'Register retriever with {self.name} name')
         retriever = self.retriever_cls(
             ai=ai,
             name=self.name,
             match_service_client=self._match_service_client,
-            embedder=self.embedder,
+            embedder=vertexai_name(self.embedder),
             embedder_options=self.embedder_options,
+            credentials=self.credentials,
             **self.retriever_extra_args,
         )
 

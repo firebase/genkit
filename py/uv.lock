@@ -963,7 +963,7 @@ wheels = [
 
 [[package]]
 name = "genkit"
-version = "0.3.2"
+version = "0.3.1"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "anyio" },
@@ -1160,6 +1160,9 @@ source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit" },
     { name = "google-cloud-aiplatform" },
+    { name = "google-cloud-bigquery" },
+    { name = "google-cloud-firestore" },
+    { name = "google-genai" },
     { name = "pytest-mock" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
@@ -1169,6 +1172,9 @@ dependencies = [
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
+    { name = "google-cloud-bigquery" },
+    { name = "google-cloud-firestore" },
+    { name = "google-genai", specifier = ">=1.7.0" },
     { name = "pytest-mock" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
