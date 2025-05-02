@@ -389,6 +389,7 @@ func generate(
 		if err != nil {
 			return nil, err
 		}
+		fmt.Printf("usage: %#v", resp.UsageMetadata)
 		r := translateResponse(resp)
 		r.Request = input
 		if cache != nil {
@@ -817,6 +818,8 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
 		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
+		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
+		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
 	}
 	return r
 }
