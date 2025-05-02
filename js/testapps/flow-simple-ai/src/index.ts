@@ -33,10 +33,11 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit/beta';
+import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
+import { dynamicTool } from 'genkit/tool';
 import { Allow, parse } from 'partial-json';
 
 logger.setLogLevel('debug');
@@ -467,6 +468,49 @@ export const toolCaller = ai.defineFlow(
       },
       tools: [jokeSubjectGenerator],
       prompt: `tell me a joke`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+export const dynamicToolCaller = ai.defineFlow(
+  {
+    name: 'dynamicToolCaller',
+    inputSchema: z.number().default(5),
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (input, { sendChunk }) => {
+    const dynamicGablorkenTool = dynamicTool(
+      ai,
+      {
+        name: 'dynamicGablorkenTool',
+        inputSchema: z.object({
+          value: z
+            .number()
+            .describe(
+              'always add 1 to the value (it is 1 based, but upstream it is zero based)'
+            ),
+        }),
+        description: 'can be used to calculate gablorken value',
+      },
+      async (input) => {
+        return input.value * 3 - 4;
+      }
+    );
+
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.0-flash'),
+      config: {
+        temperature: 1,
+      },
+      tools: [dynamicGablorkenTool],
+      prompt: `what is a gablorken of ${input}`,
     });
 
     for await (const chunk of stream) {

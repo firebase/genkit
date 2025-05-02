@@ -334,6 +334,8 @@ export async function generate<
   };
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
 
+  registry = maybeRegisterDynamicTools(registry, resolvedOptions);
+
   const params = await toGenerateActionOptions(registry, resolvedOptions);
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
@@ -360,6 +362,29 @@ export async function generate<
       });
     }
   );
+}
+
+function maybeRegisterDynamicTools<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(registry: Registry, options: GenerateOptions<O, CustomOptions>): Registry {
+  let hasDynamicTools = false;
+  options?.tools?.forEach((t) => {
+    if (
+      (t as Action).__action &&
+      (t as Action).__action.metadata?.type === 'tool' &&
+      (t as Action).__action.metadata?.dynamic
+    ) {
+      if (!hasDynamicTools) {
+        hasDynamicTools = true;
+        // Create a temporary registry with dynamic tools for the duration of this
+        // generate request.
+        registry = Registry.withParent(registry);
+      }
+      registry.registerAction('tool', t as Action);
+    }
+  });
+  return registry;
 }
 
 export async function toGenerateActionOptions<
