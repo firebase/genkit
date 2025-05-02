@@ -405,19 +405,18 @@ export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     {
       ...config,
       actionType: 'tool',
-      metadata: { ...(config.metadata || {}), type: 'tool', dynamicTool: true },
+      metadata: { ...(config.metadata || {}), type: 'tool', dynamic: true },
     },
     (i, runOptions) => {
+      const interrupt = interruptTool(ai.registry);
       if (fn) {
         return fn(i, {
           ...runOptions,
           context: { ...runOptions.context },
-          interrupt: interruptTool(ai.registry),
+          interrupt,
         });
-      } else {
-        interruptTool(ai.registry)();
-        throw '';
       }
+      return interrupt();
     }
   );
   implementTool(a as ToolAction<I, O>, config, ai.registry);

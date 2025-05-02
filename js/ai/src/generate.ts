@@ -373,7 +373,7 @@ function maybeRegisterDynamicTools<
     if (
       (t as Action).__action &&
       (t as Action).__action.metadata?.type === 'tool' &&
-      (t as Action).__action.metadata?.dynamicTool
+      (t as Action).__action.metadata?.dynamic
     ) {
       if (!hasDynamicTools) {
         hasDynamicTools = true;
