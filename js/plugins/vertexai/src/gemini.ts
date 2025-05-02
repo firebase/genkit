@@ -1141,7 +1141,7 @@ export function defineGeminiModel({
         });
       }
 
-      if (modelInfo?.supports?.thinkingMode && request.config?.thinkingConfig) {
+      if (request.config?.thinkingConfig) {
         (updatedChatRequest.generationConfig! as any).thinkingConfig =
           request.config?.thinkingConfig;
       }
