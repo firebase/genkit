@@ -19,7 +19,6 @@ import { JSONSchema7, z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
-import { dynamicTool } from '../../ai/src/tool';
 import { GenkitBeta, genkit } from '../src/beta';
 import {
   ProgrammableModel,
@@ -406,8 +405,7 @@ describe('generate', () => {
           foo: { type: 'string' },
         },
       } as JSONSchema7;
-      const dynamicTestTool1 = dynamicTool(
-        ai,
+      const dynamicTestTool1 = ai.dynamicTool(
         {
           name: 'dynamicTestTool1',
           inputJsonSchema: schema,
@@ -415,8 +413,7 @@ describe('generate', () => {
         },
         async () => 'tool called 1'
       );
-      const dynamicTestTool2 = dynamicTool(
-        ai,
+      const dynamicTestTool2 = ai.dynamicTool(
         {
           name: 'dynamicTestTool2',
           inputJsonSchema: schema,
@@ -538,7 +535,7 @@ describe('generate', () => {
           foo: { type: 'string' },
         },
       } as JSONSchema7;
-      const dynamicTestTool = dynamicTool(ai, {
+      const dynamicTestTool = ai.dynamicTool({
         name: 'dynamicTestTool',
         inputJsonSchema: schema,
         description: 'description',

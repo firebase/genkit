@@ -37,7 +37,6 @@ import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
-import { dynamicTool } from 'genkit/tool';
 import { Allow, parse } from 'partial-json';
 
 logger.setLogLevel('debug');
@@ -486,8 +485,7 @@ export const dynamicToolCaller = ai.defineFlow(
     streamSchema: z.any(),
   },
   async (input, { sendChunk }) => {
-    const dynamicGablorkenTool = dynamicTool(
-      ai,
+    const dynamicGablorkenTool = ai.dynamicTool(
       {
         name: 'dynamicGablorkenTool',
         inputSchema: z.object({
