@@ -982,7 +982,7 @@ export function defineGoogleAIModel({
         (generationConfig as any).responseModalities =
           requestConfig.responseModalities;
       }
-      if (model.info?.supports?.thinkingMode && requestConfig.thinkingConfig) {
+      if (requestConfig.thinkingConfig) {
         (generationConfig as any).thinkingConfig = requestConfig.thinkingConfig;
       }
 
