@@ -138,7 +138,7 @@ export function configurePostgresRetriever<
     throw new Error('Engine is required');
   }
 
-  async function queryCollection(embedding: number[], k?: number | undefined, filter?: string | undefined) {
+  async function queryCollection(embedding: number[], k?: number | undefined, filter?: Record<string, any>) {
     const operator = params.distanceStrategy.operator;
     const searchFunction = params.distanceStrategy.searchFunction;
     let _filter = "";
@@ -151,22 +151,22 @@ export function configurePostgresRetriever<
     const metadataColNames = params.metadataColumns && params.metadataColumns.length > 0 ? `"${params.metadataColumns.join("\",\"")}"` : "";
     const metadataJsonColName = params.metadataJsonColumn ? `, "${params.metadataJsonColumn}"` : "";
 
-    const query = `SELECT "${params.idColumn}", "${params.contentColumn}", "${params.embeddingColumn}", ${metadataColNames} ${metadataJsonColName}, ${searchFunction}("${params.embeddingColumn}", '[${embedding}]') as distance FROM "${params.schemaName}"."${params.tableName}" ${_filter} ORDER BY "${params.embeddingColumn}" ${operator} '[${embedding}]';`
+    const query = `SELECT "${params.idColumn}", "${params.contentColumn}", "${params.embeddingColumn}", ${metadataColNames} ${metadataJsonColName}, ${searchFunction}("${params.embeddingColumn}", '[${embedding}]') as distance FROM "${params.schemaName}"."${params.tableName}" ${_filter} ORDER BY "${params.embeddingColumn}" ${operator} '[${embedding}]';`;
 
     if (params.indexQueryOptions) {
-      await params.engine.pool.raw(`SET LOCAL ${params.indexQueryOptions.to_string()}`)
+      await params.engine.pool.raw(`SET LOCAL ${params.indexQueryOptions.to_string()}`);
     }
 
-    const {rows} = await params.engine.pool.raw(query);
+    const { rows } = await params.engine.pool.raw(query);
 
     return rows;
   }
     /**
-   * Create an index on the vector store table
-   * @param {BaseIndex} index
-   * @param {string} name Optional
-   * @param {boolean} concurrently Optional
-   */
+    * Create an index on the vector store table
+    * @param {BaseIndex} index
+    * @param {string} name Optional
+    * @param {boolean} concurrently Optional
+    */
     async function applyVectorIndex(index: BaseIndex, name?: string, concurrently: boolean = false): Promise<void> {
       if (index instanceof ExactNearestNeighbor) {
         await dropVectorIndex();
@@ -196,8 +196,8 @@ export function configurePostgresRetriever<
     async function isValidIndex(indexName?: string): Promise<boolean> {
       const idxName = indexName || (params.tableName + DEFAULT_INDEX_NAME_SUFFIX);
       const stmt = `SELECT tablename, indexname
-                    FROM pg_indexes
-                    WHERE tablename = '${params.tableName}' AND schemaname = '${params.schemaName}' AND indexname = '${idxName}';`
+                          FROM pg_indexes
+                          WHERE tablename = '${params.tableName}' AND schemaname = '${params.schemaName}' AND indexname = '${idxName}';`
       const {rows} = await params.engine.pool.raw(stmt);
 
       return rows.length === 1;
@@ -235,9 +235,9 @@ export function configurePostgresRetriever<
         content,
         options: params.embedderOptions,
       });
-      let documents: Document[] = [];
       const embedding = queryEmbeddings[0].embedding;
       const results = await queryCollection(embedding, options.k, options.filter);
+      const documents: Document[] = [];
       for (const row of results) {
         const metadata =
           params.metadataJsonColumn && row[params.metadataJsonColumn]
@@ -248,13 +248,12 @@ export function configurePostgresRetriever<
             metadata[col] = row[col];
           }
         }
-
-      documents.push(
-        new Document({
-          content: row[params.contentColumn], // Use 'content' instead of 'pageContent'
-          custom: metadata, // Use 'custom' for metadata
-        })
-      );
+        documents.push(
+          new Document({
+            content: row[params.contentColumn],
+            metadata: metadata,
+          })
+        );
       }
 
       return { documents };
