@@ -24,7 +24,7 @@ import {
 import { Genkit, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { EmbedderArgument } from 'genkit/embedder';
-import { BaseIndex, DEFAULT_INDEX_NAME_SUFFIX, DistanceStrategy, ExactNearestNeighbor, QueryOptions } from "./indexes.js";
+import { BaseIndex, DEFAULT_INDEX_NAME_SUFFIX, DistanceStrategy, ExactNearestNeighbor, QueryOptions } from "./indexes";
 import { PostgresEngine } from './engine';
 
 
@@ -94,7 +94,8 @@ export function postgres<EmbedderCustomOptions extends z.ZodTypeAny>(
     metadataColumns?: string[];
     idColumn: string;
     metadataJsonColumn?: string;
-    distanceStrategy: 'cosine' | 'ip' | 'l2';
+    distanceStrategy: DistanceStrategy;
+    indexQueryOptions?: QueryOptions;
   }[]
 ): GenkitPlugin {
   return genkitPlugin('postgres', async (ai: Genkit) => {
@@ -120,6 +121,8 @@ export function configurePostgresRetriever<
   ai: Genkit,
   params: {
     tableName: string;
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
     engine: PostgresEngine;
     schemaName?: string;
     contentColumn: string;
@@ -128,8 +131,6 @@ export function configurePostgresRetriever<
     idColumn: string;
     metadataJsonColumn?: string;
     distanceStrategy: DistanceStrategy;
-    embedder: EmbedderArgument<EmbedderCustomOptions>;
-    embedderOptions?: z.infer<EmbedderCustomOptions>;
     indexQueryOptions?: QueryOptions;
   }
 ) {
@@ -140,6 +141,7 @@ export function configurePostgresRetriever<
   async function queryCollection(embedding: number[], k?: number | undefined, filter?: string | undefined) {
     const operator = params.distanceStrategy.operator;
     const searchFunction = params.distanceStrategy.searchFunction;
+    const _filter = filter !== undefined ? `WHERE ${filter}` : "";
     const metadataColNames = params.metadataColumns && params.metadataColumns.length > 0 ? `"${params.metadataColumns.join("\",\"")}"` : "";
     const metadataJsonColName = params.metadataJsonColumn ? `, "${params.metadataJsonColumn}"` : "";
 

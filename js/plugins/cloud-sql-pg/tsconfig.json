@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.json",
   "include": ["src"],
   "compilerOptions": {
-    "skipLibCheck": true
+    "skipLibCheck": true,
+      "noUnusedLocals": false
   }
 }
