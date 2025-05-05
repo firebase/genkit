@@ -47,6 +47,7 @@ export async function newTrace<T>(
   },
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
+  console.log("newTrace")
   registry = (registry as HasRegistry).registry
     ? (registry as HasRegistry).registry
     : (registry as Registry);
@@ -90,6 +91,8 @@ export async function runInNewSpan<T>(
   },
   fn: (metadata: SpanMetadata, otSpan: ApiSpan, isRoot: boolean) => Promise<T>
 ): Promise<T> {
+
+  console.log("runINnew span")
   await ensureBasicTelemetryInstrumentation();
   const resolvedRegistry = (registry as HasRegistry).registry
     ? (registry as HasRegistry).registry
@@ -154,6 +157,7 @@ export async function appendSpan(
   metadata: SpanMetadata,
   labels?: Record<string, string>
 ) {
+  console.log("append span")
   await ensureBasicTelemetryInstrumentation();
 
   const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);

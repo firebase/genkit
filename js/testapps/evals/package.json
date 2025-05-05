@@ -10,7 +10,9 @@
     "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch",
     "dev": "tsx --watch src/index.ts",
-    "genkit:dev": "genkit start -- tsx --watch src/index.ts"
+    "genkit:dev": "genkit start -- tsx --watch src/index.ts",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles",
+    "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --detectOpenHandles --watch"
   },
   "keywords": [],
   "author": "",
@@ -28,8 +30,12 @@
     "pdfjs-dist-legacy": "^1.0.1"
   },
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.12",
     "cross-env": "^7.0.3",
+    "jest": "^29.7.0",
     "rimraf": "^6.0.1",
+    "ts-jest": "^29.1.2",
     "tsx": "^4.19.2",
     "typescript": "^5.3.3"
   }

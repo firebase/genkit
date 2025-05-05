@@ -23,7 +23,7 @@ import { z } from 'genkit';
 import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
-import { getDocument } from 'pdfjs-dist-legacy';
+import * as pdfjsDistLegacy from 'pdfjs-dist-legacy';
 import { ai } from './genkit.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
@@ -100,11 +100,7 @@ export const simpleEcho = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (i) => {
-    const llmResponse = await ai.generate({
-      model: gemini15Flash,
-      prompt: i,
-    });
-    return llmResponse.text;
+    return i;
   }
 );
 
@@ -143,7 +139,7 @@ export const indexPdf = ai.defineFlow(
 );
 
 async function extractText(filePath: string): Promise<string> {
-  let doc = await getDocument(filePath).promise;
+  let doc = await pdfjsDistLegacy.getDocument(filePath).promise;
 
   let pdfTxt = '';
   const numPages = doc.numPages;

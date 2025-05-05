@@ -42,6 +42,7 @@ const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
  * @hidden
  */
 export async function ensureBasicTelemetryInstrumentation() {
+  console.log("enabling basic telemetry");
   if (global[instrumentationKey]) {
     return await global[instrumentationKey];
   }
@@ -54,6 +55,7 @@ export async function ensureBasicTelemetryInstrumentation() {
 export async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
+  console.log("enabling telemetry");
   if (process.env.GENKIT_TELEMETRY_SERVER) {
     setTelemetryServerUrl(process.env.GENKIT_TELEMETRY_SERVER);
   }
@@ -102,6 +104,7 @@ export async function cleanUpTracing(): Promise<void> {
  * Creates a new SpanProcessor for exporting data to the telemetry server.
  */
 function createTelemetryServerProcessor(): SpanProcessor {
+  console.log("creating processor telemetry");
   const exporter = new TraceServerExporter();
   return isDevEnv()
     ? new SimpleSpanProcessor(exporter)
@@ -110,6 +113,7 @@ function createTelemetryServerProcessor(): SpanProcessor {
 
 /** Flush metrics if present. */
 function maybeFlushMetrics(): Promise<void> {
+  console.log("maybe flushing telemetry");
   if (nodeOtelConfig?.metricReader) {
     return nodeOtelConfig.metricReader.forceFlush();
   }
@@ -122,6 +126,7 @@ function maybeFlushMetrics(): Promise<void> {
  * @hidden
  */
 export async function flushTracing() {
+  console.log("flushing tracins");
   if (nodeOtelConfig?.spanProcessors) {
     await Promise.all(nodeOtelConfig.spanProcessors.map((p) => p.forceFlush()));
   }

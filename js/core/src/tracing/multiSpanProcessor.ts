@@ -28,10 +28,13 @@ export class MultiSpanProcessor implements SpanProcessor {
   constructor(private processors: SpanProcessor[]) {}
 
   forceFlush(): Promise<void> {
+    console.log("multispan ")
     return Promise.all(this.processors.map((p) => p.forceFlush())).then();
   }
 
   onStart(span: Span, parentContext: Context): void {
+
+  console.log("multispan ")
     this.processors.map((p) => p.onStart(span, parentContext));
   }
 

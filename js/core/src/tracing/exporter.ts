@@ -47,6 +47,7 @@ export class TraceServerExporter implements SpanExporter {
     spans: ReadableSpan[],
     resultCallback: (result: ExportResult) => void
   ): void {
+    console.log("export telemetry");
     this._sendSpans(spans, resultCallback);
   }
 
@@ -106,6 +107,7 @@ export class TraceServerExporter implements SpanExporter {
    * Exports any pending spans in exporter
    */
   forceFlush(): Promise<void> {
+    console.log("force flush 2 telemetry");
     return Promise.resolve();
   }
 
@@ -137,6 +139,7 @@ export class TraceServerExporter implements SpanExporter {
   }
 
   private async save(traceId, spans: ReadableSpan[]): Promise<void> {
+    console.log("fsaving 2 telemetry");
     if (!telemetryServerUrl) {
       logger.debug(
         `Telemetry server is not configured, trace ${traceId} not saved!`

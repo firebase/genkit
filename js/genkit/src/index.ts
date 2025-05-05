@@ -26,4 +26,10 @@
  * @module /
  */
 export * from './common.js';
-export { Genkit, genkit, type GenkitOptions } from './genkit.js';
+export {
+  Genkit,
+  __disableReflectionApi,
+  genkit,
+  shutdown,
+  type GenkitOptions,
+} from './genkit.js';

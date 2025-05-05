@@ -840,7 +840,7 @@ export function genkit(options: GenkitOptions): Genkit {
   return new Genkit(options);
 }
 
-const shutdown = async () => {
+export const shutdown = async () => {
   logger.info('Shutting down all Genkit servers...');
   await ReflectionServer.stopAll();
   process.exit(0);
@@ -852,5 +852,6 @@ process.on('SIGINT', shutdown);
 let disableReflectionApi = false;
 
 export function __disableReflectionApi() {
+  console.log("disabling reflection");
   disableReflectionApi = true;
 }

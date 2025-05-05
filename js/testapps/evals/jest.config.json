@@ -1,0 +1,21 @@
+{
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "moduleFileExtensions": ["ts", "tsx", "js", "json"],
+    "testMatch": ["**/?(*.)+(spec|test).ts"],
+    "verbose": true,
+    "preset": "ts-jest/presets/default-esm",
+    "transform": {
+        "^.+\\.tsx?$": [
+            "ts-jest",
+            {
+                "useESM": true
+            }
+        ]
+    },
+    "moduleNameMapper": {
+        "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
+}
