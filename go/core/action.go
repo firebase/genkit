@@ -213,24 +213,27 @@ func inputSchemaNullHandler(input []byte) ([]byte, error) {
 	if len(input) == 0 {
 		return []byte{}, nil
 	}
-	var rawInput map[string]interface{}
+	var rawInput any
 	if err := json.Unmarshal(input, &rawInput); err != nil {
-		return nil, NewError(INTERNAL, "failed to unmarshal JSON: %w", err)
+		return nil, NewError(INTERNAL, fmt.Sprintf("failed to unmarshal JSON: %v", err))
 	}
 
-	// Check if the "tools" key exists and if its value is a slice of interfaces.
-	if tools, ok := rawInput["tools"].([]interface{}); ok {
-		for _, t := range tools {
-			if tool, ok := t.(map[string]interface{}); ok {
-				if inputSchema, exists := tool["inputSchema"]; exists && inputSchema == nil {
-					delete(tool, "inputSchema")
+	if rawInputMap, ok := rawInput.(map[string]interface{}); ok {
+		if tools, ok := rawInputMap["tools"].([]interface{}); ok {
+			for _, t := range tools {
+				if tool, ok := t.(map[string]interface{}); ok {
+					if inputSchema, exists := tool["inputSchema"]; exists && inputSchema == nil {
+						delete(tool, "inputSchema")
+					}
 				}
 			}
 		}
 	}
+	// Check if the "tools" key exists and if its value is a slice of interfaces.
+
 	output, err := json.Marshal(rawInput)
 	if err != nil {
-		return nil, NewError(INTERNAL, "failed to marshal JSON: %w", err)
+		return nil, NewError(INTERNAL, fmt.Sprintf("failed to marshal JSON: %v", err))
 	}
 	return output, nil
 }
