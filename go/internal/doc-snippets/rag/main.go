@@ -50,7 +50,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	menuPDFIndexer, _, err := localvec.DefineIndexerAndRetriever(
+	docStore, _, err := localvec.DefineRetriever(
 		g,
 		"menuQA",
 		localvec.Config{
@@ -100,7 +100,7 @@ func main() {
 			}
 
 			// Add chunks to the index.
-			err = ai.Index(ctx, menuPDFIndexer, ai.WithDocs(docs...))
+			err = Index(ctx, docs, docStore)
 			return nil, err
 		},
 	)
@@ -155,7 +155,7 @@ func menuQA() {
 
 	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 
-	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
+	_, menuPdfRetriever, err := localvec.DefineRetriever(
 		g,
 		"menuQA",
 		localvec.Config{
@@ -207,7 +207,7 @@ func customret() {
 		log.Fatal(err)
 	}
 
-	_, menuPDFRetriever, _ := localvec.DefineIndexerAndRetriever(
+	_, menuPDFRetriever, _ := localvec.DefineRetriever(
 		g,
 		"menuQA",
 		localvec.Config{

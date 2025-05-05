@@ -26,7 +26,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(g *genkit.Genkit, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
+func setup04(ctx context.Context, g *genkit.Genkit, docStore *localvec.DocStore, retriever ai.Retriever, model ai.Model) error {
 	ragDataMenuPrompt, err := genkit.DefinePrompt(g, "s04_ragDataMenu",
 		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
@@ -68,7 +68,9 @@ Answer this customer's question:
 				}
 				docs = append(docs, ai.DocumentFromText(s, metadata))
 			}
-			if err := ai.Index(ctx, indexer, ai.WithDocs(docs...)); err != nil {
+
+			// Index the menu items.
+			if err := Index(ctx, docs, docStore); err != nil {
 				return nil, err
 			}
 
