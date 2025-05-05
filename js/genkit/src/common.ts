@@ -32,9 +32,12 @@ export {
   RoleSchema,
   ToolCallSchema,
   ToolSchema,
+  embedderActionMetadata,
   embedderRef,
   evaluatorRef,
   indexerRef,
+  modelActionMetadata,
+  modelRef,
   rerankerRef,
   retrieverRef,
   type DocumentData,
@@ -105,6 +108,7 @@ export {
   type SessionData,
   type SessionStore,
 } from '@genkit-ai/ai/session';
+export { dynamicTool } from '@genkit-ai/ai/tool';
 export {
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,

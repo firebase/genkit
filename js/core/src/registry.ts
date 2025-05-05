@@ -17,7 +17,11 @@
 import { Dotprompt } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
-import { Action, runOutsideActionRuntimeContext } from './action.js';
+import {
+  Action,
+  ActionMetadata,
+  runOutsideActionRuntimeContext,
+} from './action.js';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
@@ -59,25 +63,42 @@ function parsePluginName(registryKey: string) {
 }
 
 interface ParsedRegistryKey {
-  pluginName: string;
   actionType: ActionType;
+  pluginName?: string;
   actionName: string;
 }
 
-// Parses e.g. /model/googleai/gemini-2.0-flash into parts
-function parseRegistryKey(registryKey: string): ParsedRegistryKey | undefined {
+/**
+ * Parses the registry key into key parts as per the key format convention. Ex:
+ *  - /model/googleai/gemini-2.0-flash
+ *  - /prompt/my-plugin/folder/my-prompt
+ *  - /util/generate
+ */
+export function parseRegistryKey(
+  registryKey: string
+): ParsedRegistryKey | undefined {
   const tokens = registryKey.split('/');
+  if (tokens.length < 3) {
+    // Invalid key format
+    return undefined;
+  }
+  // ex: /model/googleai/gemini-2.0-flash or /prompt/my-plugin/folder/my-prompt
   if (tokens.length >= 4) {
     return {
       actionType: tokens[1] as ActionType,
       pluginName: tokens[2],
-      actionName: tokens[3],
+      actionName: tokens.slice(3).join('/'),
     };
   }
-  return undefined;
+  // ex: /util/generate
+  return {
+    actionType: tokens[1] as ActionType,
+    actionName: tokens[2],
+  };
 }
 
-type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
+export type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
+export type ActionMetadataRecord = Record<string, ActionMetadata>;
 
 /**
  * The registry is used to store and lookup actions, trace stores, flow state stores, plugins, and schemas.
@@ -94,21 +115,32 @@ export class Registry {
   private allPluginsInitialized = false;
   public apiStability: 'stable' | 'beta' = 'stable';
 
-  readonly asyncStore = new AsyncStore();
-  readonly dotprompt = new Dotprompt({
-    schemaResolver: async (name) => {
-      const resolvedSchema = await this.lookupSchema(name);
-      if (!resolvedSchema) {
-        throw new GenkitError({
-          message: `Schema '${name}' not found`,
-          status: 'NOT_FOUND',
-        });
-      }
-      return toJsonSchema(resolvedSchema);
-    },
-  });
+  readonly asyncStore: AsyncStore;
+  readonly dotprompt: Dotprompt;
+  readonly parent?: Registry;
 
-  constructor(public parent?: Registry) {}
+  constructor(parent?: Registry) {
+    if (parent) {
+      this.parent = parent;
+      this.apiStability = parent?.apiStability;
+      this.asyncStore = parent.asyncStore;
+      this.dotprompt = parent.dotprompt;
+    } else {
+      this.asyncStore = new AsyncStore();
+      this.dotprompt = new Dotprompt({
+        schemaResolver: async (name) => {
+          const resolvedSchema = await this.lookupSchema(name);
+          if (!resolvedSchema) {
+            throw new GenkitError({
+              message: `Schema '${name}' not found`,
+              status: 'NOT_FOUND',
+            });
+          }
+          return toJsonSchema(resolvedSchema);
+        },
+      });
+    }
+  }
 
   /**
    * Creates a new registry overlaid onto the provided registry.
@@ -131,7 +163,7 @@ export class Registry {
   >(key: string): Promise<R> {
     // We always try to initialize the plugin first.
     const parsedKey = parseRegistryKey(key);
-    if (parsedKey) {
+    if (parsedKey?.pluginName && this.pluginsByName[parsedKey.pluginName]) {
       await this.initializePlugin(parsedKey.pluginName);
 
       // If we don't see the key in the registry, we try to resolve
@@ -159,6 +191,12 @@ export class Registry {
     type: ActionType,
     action: Action<I, O>
   ) {
+    if (type !== action.__action.actionType) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `action type (${type}) does not match type on action (${action.__action.actionType})`,
+      });
+    }
     const key = `/${type}/${action.__action.name}`;
     logger.debug(`registering ${key}`);
     if (this.actionsById.hasOwnProperty(key)) {
@@ -190,8 +228,8 @@ export class Registry {
   }
 
   /**
-   * Returns all actions in the registry.
-   * @returns All actions in the registry.
+   * Returns all actions that have been registered in the registry.
+   * @returns All actions in the registry as a map of <key, action>.
    */
   async listActions(): Promise<ActionsRecord> {
     await this.initializeAllPlugins();
@@ -204,6 +242,53 @@ export class Registry {
     return {
       ...(await this.parent?.listActions()),
       ...actions,
+    };
+  }
+
+  /**
+   * Returns all actions that are resolvable by plugins as well as those that are already
+   * in the registry.
+   *
+   * NOTE: this method should not be used in latency sensitive code paths.
+   * It may rely on "admin" API calls such as "list models", which may cause increased cold start latency.
+   *
+   * @returns All resolvable action metadata as a map of <key, action metadata>.
+   */
+  async listResolvableActions(): Promise<ActionMetadataRecord> {
+    const resolvableActions = {} as ActionMetadataRecord;
+    // We listActions for all plugins in parallel.
+    await Promise.all(
+      Object.entries(this.pluginsByName).map(async ([pluginName, plugin]) => {
+        if (plugin.listActions) {
+          try {
+            (await plugin.listActions()).forEach((meta) => {
+              if (!meta.name) {
+                throw new GenkitError({
+                  status: 'INVALID_ARGUMENT',
+                  message: `Invalid metadata when listing actions from ${pluginName} - name required`,
+                });
+              }
+              if (!meta.actionType) {
+                throw new GenkitError({
+                  status: 'INVALID_ARGUMENT',
+                  message: `Invalid metadata when listing actions from ${pluginName} - actionType required`,
+                });
+              }
+              resolvableActions[`/${meta.actionType}/${meta.name}`] = meta;
+            });
+          } catch (e) {
+            logger.error(`Error listing actions for ${pluginName}\n`, e);
+          }
+        }
+      })
+    );
+    // Also add actions that are already registered.
+    for (const [key, action] of Object.entries(await this.listActions())) {
+      resolvableActions[key] = action.__action;
+    }
+    return {
+      ...(await this.parent?.listResolvableActions()),
+      ...resolvableActions,
     };
   }
 
@@ -241,10 +326,16 @@ export class Registry {
         }
         return cached;
       },
-      resolver: async (actionType: ActionType, target: string) => {
+      resolver: async (actionType: ActionType, actionName: string) => {
         if (provider.resolver) {
-          await provider.resolver(actionType, target);
+          await provider.resolver(actionType, actionName);
         }
+      },
+      listActions: async () => {
+        if (provider.listActions) {
+          return await provider.listActions();
+        }
+        return [];
       },
     };
   }
@@ -261,19 +352,20 @@ export class Registry {
   /**
    * Resolves a new Action dynamically by registering it.
    * @param pluginName The name of the plugin
-   * @param action
+   * @param actionType The type of the action
+   * @param actionName The name of the action
    * @returns
    */
   async resolvePluginAction(
     pluginName: string,
-    action: ActionType,
-    target: string
+    actionType: ActionType,
+    actionName: string
   ) {
     const plugin = this.pluginsByName[pluginName];
     if (plugin) {
       return await runOutsideActionRuntimeContext(this, async () => {
         if (plugin.resolver) {
-          await plugin.resolver(action, target);
+          await plugin.resolver(actionType, actionName);
         }
       });
     }
