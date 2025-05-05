@@ -331,7 +331,7 @@ importers:
         specifier: ^8.2.3
         version: 8.2.3
       '@types/node':
-        specifier: 20.16.9
+        specifier: ^20.16.9
         version: 20.16.9
       dotenv:
         specifier: ^16.4.5
