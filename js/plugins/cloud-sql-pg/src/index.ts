@@ -141,7 +141,13 @@ export function configurePostgresRetriever<
   async function queryCollection(embedding: number[], k?: number | undefined, filter?: string | undefined) {
     const operator = params.distanceStrategy.operator;
     const searchFunction = params.distanceStrategy.searchFunction;
-    const _filter = filter !== undefined ? `WHERE ${filter}` : "";
+    let _filter = "";
+    if (filter) {
+      const conditions = Object.entries(filter)
+        .map(([key, value]) => `"${key}" = '${value}'`) // Basic equality check, adjust as needed
+        .join(" AND ");
+      _filter = `WHERE ${conditions}`;
+    }
     const metadataColNames = params.metadataColumns && params.metadataColumns.length > 0 ? `"${params.metadataColumns.join("\",\"")}"` : "";
     const metadataJsonColName = params.metadataJsonColumn ? `, "${params.metadataJsonColumn}"` : "";
 
@@ -242,15 +248,16 @@ export function configurePostgresRetriever<
             metadata[col] = row[col];
           }
         }
-        documents.push([
-          new Document({
-            pageContent: row[params.contentColumn],
-            metadata: metadata,
-          })
-        ]);
+
+      documents.push(
+        new Document({
+          content: row[params.contentColumn], // Use 'content' instead of 'pageContent'
+          custom: metadata, // Use 'custom' for metadata
+        })
+      );
       }
 
-      return documents;
+      return { documents };
     }
   );
 }
@@ -274,11 +281,16 @@ export function configurePostgresIndexer<
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }
 ) {
-
   return ai.defineIndexer(
     {
       name: `postgres/${params.tableName}`,
       configSchema: PostgresIndexerOptionsSchema.optional(),
+    },
+    async (documents, options) => {
+      // Implement your indexing logic here
+      console.log(`Indexing data for table: ${params.tableName}`, documents, options);
+      // You'll likely need to interact with your PostgresEngine here
+      // to insert embeddings into your table.
     }
   );
 }
