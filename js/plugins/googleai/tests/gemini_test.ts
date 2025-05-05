@@ -419,13 +419,16 @@ describe('plugin', () => {
 
   describe('plugin - no env', () => {
     it('should throw when registering models with no apiKey and no env', async () => {
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.GOOGLE_API_KEY;
+      delete process.env.GOOGLE_GENAI_API_KEY;
       const ai = genkit({ plugins: [googleAI()] });
-      assert.rejects(ai.registry.initializeAllPlugins());
+      await assert.rejects(ai.registry.initializeAllPlugins());
     });
 
-    it('should not throw when registering models with {apiKey: false} and no env', () => {
+    it('should not throw when registering models with {apiKey: false} and no env', async () => {
       const ai = genkit({ plugins: [googleAI({ apiKey: false })] });
-      assert.doesNotReject(ai.registry.initializeAllPlugins());
+      await assert.doesNotReject(ai.registry.initializeAllPlugins());
     });
   });
 

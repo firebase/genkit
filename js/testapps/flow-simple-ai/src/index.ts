@@ -33,7 +33,7 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit/beta';
+import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
@@ -139,16 +139,36 @@ export const drawPictureFlow = ai.defineFlow(
   }
 );
 
-export const streamFlow = ai.defineFlow(
+export const streamFlowVertex = ai.defineFlow(
   {
-    name: 'streamFlow',
+    name: 'streamFlowVertex',
     inputSchema: z.string(),
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
   async (prompt, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: gemini15Flash,
+      model: vertexAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
+      prompt,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.content[0].text!);
+    }
+
+    return (await response).text;
+  }
+);
+export const streamFlowGemini = ai.defineFlow(
+  {
+    name: 'streamFlowGemini',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (prompt, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
       prompt,
     });
 
@@ -447,6 +467,48 @@ export const toolCaller = ai.defineFlow(
       },
       tools: [jokeSubjectGenerator],
       prompt: `tell me a joke`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+export const dynamicToolCaller = ai.defineFlow(
+  {
+    name: 'dynamicToolCaller',
+    inputSchema: z.number().default(5),
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (input, { sendChunk }) => {
+    const dynamicGablorkenTool = ai.dynamicTool(
+      {
+        name: 'dynamicGablorkenTool',
+        inputSchema: z.object({
+          value: z
+            .number()
+            .describe(
+              'always add 1 to the value (it is 1 based, but upstream it is zero based)'
+            ),
+        }),
+        description: 'can be used to calculate gablorken value',
+      },
+      async (input) => {
+        return input.value * 3 - 4;
+      }
+    );
+
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.0-flash'),
+      config: {
+        temperature: 1,
+      },
+      tools: [dynamicGablorkenTool],
+      prompt: `what is a gablorken of ${input}`,
     });
 
     for await (const chunk of stream) {
@@ -867,4 +929,19 @@ ai.defineFlow('geminiEnum', async (thing) => {
   });
 
   return output;
+});
+
+ai.defineFlow('embedders-tester', async () => {
+  console.log(
+    await ai.embed({
+      content: 'hello world',
+      embedder: googleAI.embedder('text-embedding-004'),
+    })
+  );
+  console.log(
+    await ai.embed({
+      content: 'hello world',
+      embedder: vertexAI.embedder('text-embedding-004'),
+    })
+  );
 });

@@ -40,11 +40,14 @@ import {
   generateStream,
   GenerateStreamResponse,
   OutputOptions,
+  toGenerateActionOptions,
   toGenerateRequest,
   ToolChoice,
 } from './generate.js';
 import { Message } from './message.js';
 import {
+  GenerateActionOptions,
+  GenerateActionOptionsSchema,
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseChunkSchema,
@@ -355,17 +358,15 @@ function definePromptAsync<
         name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
         inputJsonSchema: options.input?.jsonSchema,
         inputSchema: options.input?.schema,
+        outputSchema: GenerateActionOptionsSchema,
         description: options.description,
         actionType: 'executable-prompt',
         metadata,
-        fn: async (
-          input: z.infer<I>,
-          { sendChunk }
-        ): Promise<GenerateResponse> => {
-          return await generate(registry, {
-            ...(await renderOptionsFn(input, undefined)),
-            onChunk: sendChunk,
-          });
+        fn: async (input: z.infer<I>): Promise<GenerateActionOptions> => {
+          return await toGenerateActionOptions(
+            registry,
+            await renderOptionsFn(input, undefined)
+          );
         },
       } as ActionAsyncParams<any, any, any>;
     })

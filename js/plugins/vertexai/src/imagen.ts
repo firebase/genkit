@@ -20,6 +20,7 @@ import {
   GenerateRequest,
   GenerationCommonConfigSchema,
   ModelAction,
+  ModelInfo,
   ModelReference,
   getBasicUsageStats,
   modelRef,
@@ -31,7 +32,7 @@ import { PredictClient, predictModel } from './predict.js';
 /**
  * See https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api.
  */
-const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
+export const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   // TODO: Remove common config schema extension since Imagen models don't support
   // most of the common config parameters. Also, add more parameters like sampleCount
   // from the above reference.
@@ -212,7 +213,40 @@ export const imagen3Fast = modelRef({
   configSchema: ImagenConfigSchema,
 });
 
+export const ACTUAL_IMAGEN_MODELS = {
+  'imagen-3.0-generate-001': modelRef({
+    name: 'vertexai/imagen-3.0-generate-001',
+    info: {
+      label: 'Vertex AI - imagen-3.0-generate-001',
+      supports: {
+        media: true,
+        multiturn: false,
+        tools: false,
+        systemRole: false,
+        output: ['media'],
+      },
+    },
+    configSchema: ImagenConfigSchema,
+  }),
+  'imagen-3.0-fast-generate-001': modelRef({
+    name: 'vertexai/imagen-3.0-fast-generate-001',
+    info: {
+      label: 'Vertex AI - imagen-3.0-fast-generate-001',
+      supports: {
+        media: true,
+        multiturn: false,
+        tools: false,
+        systemRole: false,
+        output: ['media'],
+      },
+    },
+    configSchema: ImagenConfigSchema,
+  }),
+} as const;
+
 export const SUPPORTED_IMAGEN_MODELS = {
+  ...ACTUAL_IMAGEN_MODELS,
+  // These are old, inconsistent model naming. Only here for backwards compatibility.
   imagen2: imagen2,
   imagen3: imagen3,
   'imagen3-fast': imagen3Fast,
@@ -279,15 +313,34 @@ interface ImagenInstance {
   mask?: { image?: { bytesBase64Encoded: string } };
 }
 
-export function imagenModel(
+export const GENERIC_IMAGEN_INFO = {
+  label: `Vertex AI - Generic`,
+  supports: {
+    media: true,
+    multiturn: true,
+    tools: true,
+    systemRole: true,
+    output: ['media'],
+  },
+} as ModelInfo;
+
+export function defineImagenModel(
   ai: Genkit,
   name: string,
   client: GoogleAuth,
   options: PluginOptions
 ): ModelAction {
   const modelName = `vertexai/${name}`;
-  const model: ModelReference<z.ZodTypeAny> = SUPPORTED_IMAGEN_MODELS[name];
-  if (!model) throw new Error(`Unsupported model: ${name}`);
+  const model: ModelReference<z.ZodTypeAny> =
+    SUPPORTED_IMAGEN_MODELS[name] ||
+    modelRef({
+      name: modelName,
+      info: {
+        ...GENERIC_IMAGEN_INFO,
+        label: `Vertex AI - ${name}`,
+      },
+      configSchema: ImagenConfigSchema,
+    });
 
   const predictClients: Record<
     string,

@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"reflect"
 	"time"
 
@@ -213,7 +212,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.inputSchema); err != nil {
-		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+		return nil, NewError(INVALID_ARGUMENT, err.Error())
 	}
 	var in In
 	if input != nil {

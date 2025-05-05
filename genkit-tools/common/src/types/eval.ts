@@ -131,6 +131,12 @@ export const EvalInputDatasetSchema = z.array(EvalInputSchema);
 export type EvalInputDataset = z.infer<typeof EvalInputDatasetSchema>;
 
 const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
+/** Enum that indicates if an evaluation has passed or failed */
+export enum EvalStatusEnum {
+  UNKNOWN = 'UNKNOWN',
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+}
 
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
@@ -164,6 +170,7 @@ export const EvalRunKeySchema = z.object({
   evalRunId: z.string(),
   createdAt: z.string(),
   actionConfig: z.any().optional(),
+  metricSummaries: z.array(z.record(z.string(), z.any())).optional(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
