@@ -20,7 +20,7 @@ export class DistanceStrategy extends StrategyMixin {
 }
 
 export const DEFAULT_DISTANCE_STRATEGY = DistanceStrategy.COSINE_DISTANCE;
-export const DEFAULT_INDEX_NAME_SUFFIX: string = "langchainvectorindex";
+export const DEFAULT_INDEX_NAME_SUFFIX: string = "genkitvectorindex";
 
 export interface BaseIndexArgs {
   name?: string;
