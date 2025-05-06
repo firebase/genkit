@@ -389,6 +389,8 @@ def get_basic_usage_stats(input_: list[Message], response: Message | list[Candid
         output_images=output_counts.images,
         output_videos=output_counts.videos,
         output_audio_files=output_counts.audio,
+        thoughts_tokens=output_counts.characters,
+        cached_content_tokens=output_counts.characters,
     )
 
 
