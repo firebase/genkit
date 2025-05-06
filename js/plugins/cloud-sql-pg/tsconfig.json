@@ -3,6 +3,5 @@
   "include": ["src"],
   "compilerOptions": {
     "skipLibCheck": true,
-      "noUnusedLocals": false
   }
 }

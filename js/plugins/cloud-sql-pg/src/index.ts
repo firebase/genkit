@@ -24,7 +24,7 @@ import {
 import { Genkit, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { EmbedderArgument } from 'genkit/embedder';
-import { BaseIndex, DEFAULT_INDEX_NAME_SUFFIX, DistanceStrategy, ExactNearestNeighbor, QueryOptions } from "./indexes";
+import { DistanceStrategy, QueryOptions } from "./indexes";
 import { PostgresEngine } from './engine';
 
 
