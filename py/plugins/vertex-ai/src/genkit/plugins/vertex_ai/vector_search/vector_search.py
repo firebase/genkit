@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import os
+from functools import partial
 from typing import Any
 
 import structlog
@@ -90,8 +90,11 @@ class VertexAIVectorSearch(Plugin):
             credentials=credentials,
         )
         self._endpoint_client = aiplatform_v1.IndexEndpointServiceAsyncClient(credentials=credentials)
-        self._match_service_client = None
-        self.credentials=credentials
+
+        self._match_service_client_generator = partial(
+            aiplatform_v1.MatchServiceAsyncClient,
+            credentials=credentials,
+        )
 
     async def create_index(
         self,
@@ -194,14 +197,12 @@ class VertexAIVectorSearch(Plugin):
         Args:
             ai: The registry to register actions with.
         """
-        logger.debug(f'Register retriever with {self.name} name')
         retriever = self.retriever_cls(
             ai=ai,
             name=self.name,
-            match_service_client=self._match_service_client,
-            embedder=vertexai_name(self.embedder),
+            match_service_client_generator=self._match_service_client_generator,
+            embedder=self.embedder,
             embedder_options=self.embedder_options,
-            credentials=self.credentials,
             **self.retriever_extra_args,
         )
 

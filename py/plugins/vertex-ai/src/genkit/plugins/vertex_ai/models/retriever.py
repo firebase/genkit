@@ -16,11 +16,11 @@
 
 import json
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Any
 
 import structlog
-from google.auth.credentials import Credentials
-from google.cloud import aiplatform_v1, bigquery, firestore
+from google.cloud import bigquery, firestore
 from google.cloud.aiplatform_v1 import FindNeighborsRequest, IndexDatapoint, Neighbor
 from pydantic import BaseModel, Field, ValidationError
 
@@ -51,27 +51,28 @@ class DocRetriever(ABC):
         self,
         ai: Genkit,
         name: str,
-        match_service_client: aiplatform_v1.MatchServiceAsyncClient | None,
+        match_service_client_generator: Callable,
         embedder: str,
         embedder_options: dict[str, Any] | None = None,
-        credentials: Credentials | None = None,
+        limit: int | None = None,
     ) -> None:
         """Initializes the DocRetriever.
 
         Args:
             ai: The Genkit application instance.
             name: The name of this retriever instance.
-            match_service_client: The Vertex AI Matching Engine client.
+            match_service_client_generator: The Vertex AI Matching Engine client.
             embedder: The name of the embedder to use for generating embeddings.
                 Already added plugin prefix.
             embedder_options: Optional dictionary of options to pass to the embedder.
+            limit: Optional limit of neighbors to find.
         """
         self.ai = ai
         self.name = name
-        self._match_service_client = match_service_client
         self.embedder = embedder
         self.embedder_options = embedder_options or {}
-        self.credentials = credentials
+        self._match_service_client_generator = match_service_client_generator
+        self.limit = limit or 3
 
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
         """Retrieves documents based on a given query.
@@ -85,25 +86,25 @@ class DocRetriever(ABC):
         """
         document = Document.from_document_data(document_data=request.query)
 
+        # Removing limit key from embedder options
+        # TODO: Think a better patter of usage
+        custom_embedder_options = self.embedder_options.copy()
+        if 'limit' in custom_embedder_options.keys():
+            del custom_embedder_options['limit']
+
         embeddings = await self.ai.embed(
             embedder=self.embedder,
             documents=[document],
-            options=self.embedder_options,
+            options=custom_embedder_options,
         )
 
-        if self.embedder_options:
-            top_k = self.embedder_options.get('limit') or 3
-        else:
-            top_k = 3
-
-        logger.debug(f'top k neighbors: {top_k}')
         docs = await self._get_closest_documents(
             request=request,
-            top_k=top_k,
+            top_k=self.limit,
             query_embeddings=embeddings.embeddings[0],
         )
 
-        return RetrieverResponse(documents=[d.document for d in docs])
+        return RetrieverResponse(documents=docs)
 
     async def _get_closest_documents(
         self, request: RetrieverRequest, top_k: int, query_embeddings: Embedding
@@ -123,11 +124,20 @@ class DocRetriever(ABC):
             index endpoint path in its metadata.
         """
         metadata = request.query.metadata
-        if not metadata or 'index_endpoint_path' not in metadata:
+        if not metadata or 'index_endpoint_path' not in metadata or 'api_endpoint' not in metadata:
             raise AttributeError('Request provides no data about index endpoint path')
 
+        api_endpoint = metadata['api_endpoint']
         index_endpoint_path = metadata['index_endpoint_path']
         deployed_index_id = metadata['deployed_index_id']
+
+        client_options = {
+            "api_endpoint": api_endpoint
+        }
+
+        vector_search_client = self._match_service_client_generator(
+            client_options=client_options,
+        )
 
         nn_request = FindNeighborsRequest(
             index_endpoint=index_endpoint_path,
@@ -140,16 +150,8 @@ class DocRetriever(ABC):
             ],
         )
 
-        logger.debug('Before find neighbors')
+        response = await vector_search_client.find_neighbors(request=nn_request)
 
-        match_service_client = self._match_service_client
-        if match_service_client is None:
-            match_service_client = aiplatform_v1.MatchServiceAsyncClient(
-                credentials=self.credentials,
-            )
-
-        response = await match_service_client.find_neighbors(request=nn_request)
-        logger.debug('After find neighbors')
         return await self._retrieve_neighbours_data_from_db(neighbours=response.nearest_neighbors[0].neighbors)
 
     @abstractmethod
@@ -220,6 +222,12 @@ class BigQueryRetriever(DocRetriever):
             if n.datapoint and n.datapoint.datapoint_id
         ]
 
+        distance_by_id = {
+            n.datapoint.datapoint_id: n.distance
+            for n in neighbours
+            if n.datapoint and n.datapoint.datapoint_id
+        }
+
         if not ids:
             return []
 
@@ -243,13 +251,17 @@ class BigQueryRetriever(DocRetriever):
 
         for row in rows:
             try:
-                doc_data = {
-                    'content': json.loads(row['content']),
-                }
-                if row.get('metadata'):
-                    doc_data['metadata'] = json.loads(row['metadata'])
+                id = row['id']
 
-                documents.append(Document(**doc_data))
+                content = row['content']
+                content = content if isinstance(content, str) else json.dumps(row['content'])
+
+                metadata = row.get('metadata', {})
+                metadata = metadata if isinstance(metadata, dict) else json.loads(metadata)
+                metadata['id'] = id
+                metadata['distance'] = distance_by_id[id]
+
+                documents.append(Document.from_text(content, metadata))
             except (ValidationError, json.JSONDecodeError, Exception) as error:
                 doc_id = row.get('id', '<unknown>')
                 await logger.awarning(f'Failed to parse document data for document with ID {doc_id}: {error}')

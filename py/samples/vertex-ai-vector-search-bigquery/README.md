@@ -7,18 +7,17 @@ An example demonstrating the use Vector Search API with BigQuery retriever for V
 1. Install [GCP CLI](https://cloud.google.com/sdk/docs/install).
 2. Run the following code to connect to VertexAI.
 ```bash
-gcloud auth application-default login` 
+gcloud auth application-default login
 ```
 3. Set the following env vars to run the sample
 ```
 export LOCATION=''
 export PROJECT_ID=''
-export BIGQUERY_DATASET=''
-export BIGQUERY_TABLE=''
+export BIGQUERY_DATASET_NAME=''
+export BIGQUERY_TABLE_NAME=''
 export VECTOR_SEARCH_DEPLOYED_INDEX_ID=''
-export VECTOR_SEARCH_INDEX_ENDPOINT_ID=''
-export VECTOR_SEARCH_INDEX_ID=''
-export VECTOR_SEARCH_PUBLIC_DOMAIN_NAME=''
+export VECTOR_SEARCH_INDEX_ENDPOINT_PATH=''
+export VECTOR_SEARCH_API_ENDPOINT=''
 ```
 4. Run the sample.
 
@@ -27,3 +26,7 @@ export VECTOR_SEARCH_PUBLIC_DOMAIN_NAME=''
 ```bash
 genkit start -- uv run src/sample.py
 ```
+
+## Set up env for sample
+In the file `setup_env.py` you will find some code that will help you to create the bigquery dataset, table with the expected schema, encode the content of the table and push this to the VertexAI Vector Search index. 
+This index must be created with update method set as `stream`. You will also find some code to create and deploy the index in this file. 

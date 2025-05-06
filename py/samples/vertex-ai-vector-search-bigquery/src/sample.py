@@ -40,14 +40,13 @@ EMBEDDING_MODEL = EmbeddingModels.TEXT_EMBEDDING_004_ENG
 BIGQUERY_DATASET_NAME = os.getenv('BIGQUERY_DATASET_NAME')
 BIGQUERY_TABLE_NAME = os.getenv('BIGQUERY_TABLE_NAME')
 
-VECTOR_SEARCH_INDEX_ID = os.getenv('VECTOR_SEARCH_INDEX_ID')
-
 VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.getenv('VECTOR_SEARCH_DEPLOYED_INDEX_ID')
-VECTOR_SEARCH_INDEX_ENDPOINT_ID = os.getenv('VECTOR_SEARCH_INDEX_ENDPOINT_ID')
-VECTOR_SEARCH_PUBLIC_DOMAIN_NAME = os.getenv('VECTOR_SEARCH_PUBLIC_DOMAIN_NAME')
+VECTOR_SEARCH_INDEX_ENDPOINT_PATH = os.getenv('VECVECTOR_SEARCH_INDEX_ENDPOINT_PATHTOR_SEARCH_INDEX_ENDPOINT_ID')
+VECTOR_SEARCH_API_ENDPOINT = os.getenv('VECTOR_SEARCH_API_ENDPOINT')
 
 bq_client = bigquery.Client(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
+
 logger = structlog.get_logger(__name__)
 
 ai = Genkit(
@@ -60,10 +59,11 @@ ai = Genkit(
                 'dataset_id': BIGQUERY_DATASET_NAME,
                 'table_id': BIGQUERY_TABLE_NAME,
             },
-            embedder=EMBEDDING_MODEL,
+            embedder=vertexai_name(EMBEDDING_MODEL),
             embedder_options={
                 'task': 'RETRIEVAL_DOCUMENT',
                 'output_dimensionality': 128,
+                'limit': 10,
             },
         ),
     ]
@@ -89,14 +89,14 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
     start_time = time.time()
     query_document = Document.from_text(text=_input.query)
     query_document.metadata = {
-        'index_endpoint_path': 'projects/206382651113/locations/us-central1/indexEndpoints/8485065371965980672',
-        'deployed_index_id': 'genkit_sample_1746207451742',
+        'api_endpoint': VECTOR_SEARCH_API_ENDPOINT,
+        'index_endpoint_path': VECTOR_SEARCH_INDEX_ENDPOINT_PATH,
+        'deployed_index_id': VECTOR_SEARCH_DEPLOYED_INDEX_ID,
     }
 
     result: list[Document] = await ai.retrieve(
         retriever=vertexai_name('vertexAIVectorSearch'),
         query=query_document,
-
     )
 
     end_time = time.time()
@@ -104,8 +104,9 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
     duration = int(end_time - start_time)
 
     result_data = []
-    for doc in result:
+    for doc in result.documents:
         result_data.append({
+            'id': doc.metadata.get('id'),
             'text': doc.content[0].root.text,
             'distance': doc.metadata.get('distance'),
         })
@@ -122,7 +123,7 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
 async def main() -> None:
     """Main function."""
     query_input = QueryFlowInputSchema(
-        query="Pedro",
+        query="Content for doc",
         k=10,
     )
 
