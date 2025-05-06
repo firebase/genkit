@@ -536,7 +536,6 @@ export const gemini25FlashPreview0417 = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      thinkingMode: true,
       constrained: 'no-tools',
     },
   },
@@ -588,7 +587,6 @@ export const GENERIC_GEMINI_MODEL = modelRef({
       tools: true,
       toolChoice: true,
       systemRole: true,
-      thinkingMode: true,
     },
   },
 });
