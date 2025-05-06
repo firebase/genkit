@@ -29,34 +29,22 @@ from genkit.plugins.vertex_ai import (
     vertexai_name,
 )
 from genkit.plugins.vertex_ai.models.retriever import BigQueryRetriever
-from genkit.plugins.vertex_ai.models.vectorstore import (
-    DistanceMeasureType,
-    FeatureNormType,
-    IndexConfig,
-    IndexShardSize,
-)
 
 # Environment Variables
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
 EMBEDDING_MODEL = EmbeddingModels.TEXT_EMBEDDING_004_ENG
 
-
 BIGQUERY_DATASET_NAME = os.getenv('BIGQUERY_DATASET_NAME')
 BIGQUERY_TABLE_NAME = os.getenv('BIGQUERY_TABLE_NAME')
 
 VECTOR_SEARCH_INDEX_ID = os.getenv('VECTOR_SEARCH_INDEX_ID')
 
-VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.getenv('VECTOR_SEARCH_DEPLOYED_INDEX_ID')
-VECTOR_SEARCH_INDEX_ENDPOINT_ID = os.getenv('VECTOR_SEARCH_INDEX_ENDPOINT_ID')
-VECTOR_SEARCH_PUBLIC_DOMAIN_NAME = os.getenv('VECTOR_SEARCH_PUBLIC_DOMAIN_NAME')
-
-# Initialize Clients
-logger = structlog.get_logger(__name__)
 bq_client = bigquery.Client(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
-# Configure Genkit
+logger = structlog.get_logger(__name__)
+
 ai = Genkit(
     plugins=[
         VertexAI(),
@@ -222,40 +210,6 @@ def get_data_from_bigquery(
     logger.debug(f'Found {len(results)} rows with different ids into BigQuery.')
 
     return results
-
-
-async def create_and_deploy_index(
-    vector_search_index_id: str,
-    vector_search_deployed_index_id: str,
-    vector_search_index_endpoint_id: str,
-) -> None:
-    """Creates and deploys a Vertex AI Vector Search Index.
-
-    Args:
-        vector_search_index_id: The ID of the Vector Search index to create.
-        vector_search_deployed_index_id:  The ID of the deployed index.
-        vector_search_index_endpoint_id: The ID of the Vector Search index endpoint.
-    """
-    vertex_ai_vector_search = VertexAIVectorSearch()
-
-    logger.debug('Creating VertexAI Vector Search Index')
-    await vertex_ai_vector_search.create_index(
-        display_name=vector_search_index_id,
-        description='Toy index for genkit sample',
-        index_config=IndexConfig(
-            dimensions=128,
-            approximate_neighbors_count=100,
-            distance_measure_type=DistanceMeasureType.COSINE,
-            feature_norm_type=FeatureNormType.UNIT_L2_NORMALIZED,
-            shard_size=IndexShardSize.MEDIUM,
-        ),
-    )
-
-    logger.debug('Deploying VertexAI Vector Search Index')
-    await vertex_ai_vector_search.deploy_index(
-        index_name=vector_search_deployed_index_id,
-        endpoint_name=vector_search_index_endpoint_id,
-    )
 
 
 def upsert_index(

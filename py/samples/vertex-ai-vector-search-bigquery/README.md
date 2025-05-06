@@ -29,4 +29,4 @@ genkit start -- uv run src/sample.py
 
 ## Set up env for sample
 In the file `setup_env.py` you will find some code that will help you to create the bigquery dataset, table with the expected schema, encode the content of the table and push this to the VertexAI Vector Search index. 
-This index must be created with update method set as `stream`. You will also find some code to create and deploy the index in this file. 
+This index must be created with update method set as `stream`. VertexAI Index is expected to be already created. 

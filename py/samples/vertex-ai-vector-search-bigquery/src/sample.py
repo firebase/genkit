@@ -128,7 +128,7 @@ async def main() -> None:
     """Main function."""
     query_input = QueryFlowInputSchema(
         query="Content for doc",
-        k=10,
+        k=3,
     )
 
     await logger.ainfo(await query_flow(query_input))
