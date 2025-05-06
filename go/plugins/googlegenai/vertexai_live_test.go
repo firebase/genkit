@@ -52,7 +52,7 @@ func TestVertexAILive(t *testing.T) {
 	}
 	embedder := googlegenai.VertexAIEmbedder(g, "textembedding-gecko@003")
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value float64
 			Over  float64
