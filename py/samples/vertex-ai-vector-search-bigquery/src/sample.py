@@ -86,6 +86,7 @@ class QueryFlowOutputSchema(BaseModel):
 async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
     """Executes a vector search with VertexAI Vector Search."""
     start_time = time.time()
+
     query_document = Document.from_text(text=_input.query)
     query_document.metadata = {
         'api_endpoint': VECTOR_SEARCH_API_ENDPOINT,

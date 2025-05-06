@@ -310,13 +310,25 @@ class FirestoreRetriever(DocRetriever):
 
         for neighbor in neighbours:
             doc_ref = self.db.collection(self.collection_name).document(document_id=neighbor.datapoint.datapoint_id)
-            doc_snapshot = await doc_ref.get()
+            doc_snapshot = doc_ref.get()
 
             if doc_snapshot.exists:
                 doc_data = doc_snapshot.to_dict() or {}
 
+                content = doc_data.get('content')
+                content = json.dumps(content) if isinstance(content, dict) else str(content)
+
+                metadata = doc_data.get('metadata', {})
+                metadata['id'] = neighbor.datapoint.datapoint_id
+                metadata['distance'] = neighbor.distance
+
                 try:
-                    documents.append(Document(**doc_data))
+                    documents.append(
+                        Document.from_text(
+                            content,
+                            metadata,
+                        )
+                    )
                 except ValidationError as e:
                     await logger.awarning(
                         f'Failed to parse document data for ID {neighbor.datapoint.datapoint_id}: {e}'

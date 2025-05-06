@@ -17,6 +17,7 @@
 import os
 import time
 
+import structlog
 from google.cloud import aiplatform, firestore
 from pydantic import BaseModel
 
@@ -32,15 +33,18 @@ from genkit.plugins.vertex_ai.models.retriever import FirestoreRetriever
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
+EMBEDDING_MODEL = EmbeddingModels.TEXT_EMBEDDING_004_ENG
+
 FIRESTORE_COLLECTION = os.getenv('FIRESTORE_COLLECTION')
+
 VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.getenv('VECTOR_SEARCH_DEPLOYED_INDEX_ID')
-VECTOR_SEARCH_INDEX_ENDPOINT_ID = os.getenv('VECTOR_SEARCH_INDEX_ENDPOINT_ID')
-VECTOR_SEARCH_INDEX_ID = os.getenv('VECTOR_SEARCH_INDEX_ID')
-VECTOR_SEARCH_PUBLIC_DOMAIN_NAME = os.getenv('VECTOR_SEARCH_PUBLIC_DOMAIN_NAME')
+VECTOR_SEARCH_INDEX_ENDPOINT_PATH = os.getenv('VECVECTOR_SEARCH_INDEX_ENDPOINT_PATHTOR_SEARCH_INDEX_ENDPOINT_ID')
+VECTOR_SEARCH_API_ENDPOINT = os.getenv('VECTOR_SEARCH_API_ENDPOINT')
 
 firestore_client = firestore.Client(project=PROJECT_ID)
 aiplatform.init(project=PROJECT_ID, location=LOCATION)
 
+logger = structlog.get_logger(__name__)
 
 ai = Genkit(
     plugins=[
@@ -51,19 +55,24 @@ ai = Genkit(
                 'firestore_client': firestore_client,
                 'collection_name': FIRESTORE_COLLECTION,
             },
-            embedder=EmbeddingModels.TEXT_EMBEDDING_004_ENG,
-            embedder_options={'taskType': 'RETRIEVAL_DOCUMENT'},
+            embedder=vertexai_name(EMBEDDING_MODEL),
+            embedder_options={
+                'task': 'RETRIEVAL_DOCUMENT',
+                'output_dimensionality': 128,
+            },
         ),
     ]
 )
 
 
 class QueryFlowInputSchema(BaseModel):
+    """Input schema."""
     query: str
     k: int
 
 
 class QueryFlowOutputSchema(BaseModel):
+    """Output schema."""
     result: list[dict]
     length: int
     time: int
@@ -71,12 +80,24 @@ class QueryFlowOutputSchema(BaseModel):
 
 @ai.flow(name='queryFlow')
 async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
+    """Executes a vector search with VertexAI Vector Search."""
     start_time = time.time()
+
     query_document = Document.from_text(text=_input.query)
+    query_document.metadata = {
+        'api_endpoint': VECTOR_SEARCH_API_ENDPOINT,
+        'index_endpoint_path': VECTOR_SEARCH_INDEX_ENDPOINT_PATH,
+        'deployed_index_id': VECTOR_SEARCH_DEPLOYED_INDEX_ID,
+    }
+
+    options = {
+        'limit': 10,
+    }
 
     result: list[Document] = await ai.retrieve(
-        retriever=vertexai_name(VECTOR_SEARCH_INDEX_ID),
+        retriever=vertexai_name('vertexAIVectorSearch'),
         query=query_document,
+        options=options,
     )
 
     end_time = time.time()
@@ -84,8 +105,9 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
     duration = int(end_time - start_time)
 
     result_data = []
-    for doc in result:
+    for doc in result.documents:
         result_data.append({
+            'id': doc.metadata.get('id'),
             'text': doc.content[0].root.text,
             'distance': doc.metadata.get('distance'),
         })
@@ -97,3 +119,17 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
         length=len(result_data),
         time=duration,
     )
+
+
+async def main() -> None:
+    """Main function."""
+    query_input = QueryFlowInputSchema(
+        query="Content for doc",
+        k=3,
+    )
+
+    await logger.ainfo(await query_flow(query_input))
+
+
+if __name__ == '__main__':
+    ai.run_main(main())
