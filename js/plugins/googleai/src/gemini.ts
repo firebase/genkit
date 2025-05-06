@@ -332,23 +332,6 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25ProPreview0506 = modelRef({
-  name: 'googleai/gemini-2.5-pro-preview-05-06',
-  info: {
-    label: 'Google AI - Gemini 2.5 Pro Preview 05-06',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
 export const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': gemini10Pro,
 };
@@ -364,7 +347,6 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
-  'gemini-2.5-pro-preview-05-06': gemini25ProPreview0506,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
