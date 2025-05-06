@@ -63,7 +63,6 @@ ai = Genkit(
             embedder_options={
                 'task': 'RETRIEVAL_DOCUMENT',
                 'output_dimensionality': 128,
-                'limit': 10,
             },
         ),
     ]
@@ -94,9 +93,14 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
         'deployed_index_id': VECTOR_SEARCH_DEPLOYED_INDEX_ID,
     }
 
+    options = {
+        'limit': 10,
+    }
+
     result: list[Document] = await ai.retrieve(
         retriever=vertexai_name('vertexAIVectorSearch'),
         query=query_document,
+        options=options,
     )
 
     end_time = time.time()

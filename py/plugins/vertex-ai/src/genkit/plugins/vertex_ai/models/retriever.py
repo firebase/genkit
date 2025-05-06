@@ -31,6 +31,8 @@ from genkit.types import ActionRunContext, RetrieverRequest, RetrieverResponse
 
 logger = structlog.get_logger(__name__)
 
+DEFAULT_LIMIT_NEIGHBORS: int = 3
+
 
 class DocRetriever(ABC):
     """Abstract base class for Vertex AI Vector Search document retrieval.
@@ -54,7 +56,6 @@ class DocRetriever(ABC):
         match_service_client_generator: Callable,
         embedder: str,
         embedder_options: dict[str, Any] | None = None,
-        limit: int | None = None,
     ) -> None:
         """Initializes the DocRetriever.
 
@@ -65,14 +66,12 @@ class DocRetriever(ABC):
             embedder: The name of the embedder to use for generating embeddings.
                 Already added plugin prefix.
             embedder_options: Optional dictionary of options to pass to the embedder.
-            limit: Optional limit of neighbors to find.
         """
         self.ai = ai
         self.name = name
         self.embedder = embedder
         self.embedder_options = embedder_options or {}
         self._match_service_client_generator = match_service_client_generator
-        self.limit = limit or 3
 
     async def retrieve(self, request: RetrieverRequest, _: ActionRunContext) -> RetrieverResponse:
         """Retrieves documents based on a given query.
@@ -86,21 +85,19 @@ class DocRetriever(ABC):
         """
         document = Document.from_document_data(document_data=request.query)
 
-        # Removing limit key from embedder options
-        # TODO: Think a better patter of usage
-        custom_embedder_options = self.embedder_options.copy()
-        if 'limit' in custom_embedder_options.keys():
-            del custom_embedder_options['limit']
-
         embeddings = await self.ai.embed(
             embedder=self.embedder,
             documents=[document],
-            options=custom_embedder_options,
+            options=self.embedder_options,
         )
+
+        limit_neighbors = DEFAULT_LIMIT_NEIGHBORS
+        if isinstance(request.options, dict) and request.options.get('limit') is not None:
+            limit_neighbors = request.options.get('limit')
 
         docs = await self._get_closest_documents(
             request=request,
-            top_k=self.limit,
+            top_k=limit_neighbors,
             query_embeddings=embeddings.embeddings[0],
         )
 
