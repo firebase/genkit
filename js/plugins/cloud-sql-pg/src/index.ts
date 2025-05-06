@@ -30,7 +30,7 @@ import { PostgresEngine } from './engine';
 
 const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   k: z.number().max(1000),
-  filter: z.record(z.string(), z.any()).optional(),
+  filter: z.string().optional(),
 });
 
 const PostgresIndexerOptionsSchema = z.object({
@@ -146,7 +146,7 @@ export function configurePostgresRetriever<
     const metadataColNames = params.metadataColumns && params.metadataColumns.length > 0 ? `"${params.metadataColumns.join("\",\"")}"` : "";
     const metadataJsonColName = params.metadataJsonColumn ? `, "${params.metadataJsonColumn}"` : "";
 
-    const query = `SELECT "${params.idColumn}", "${params.contentColumn}", "${params.embeddingColumn}", ${metadataColNames} ${metadataJsonColName}, ${searchFunction}("${params.embeddingColumn}", '[${embedding}]') as distance FROM "${params.schemaName}"."${params.tableName}" ${_filter} ORDER BY "${params.embeddingColumn}" ${operator} '[${embedding}]' LIMIT ${k};;`;
+    const query = `SELECT "${params.idColumn}", "${params.contentColumn}", "${params.embeddingColumn}", ${metadataColNames} ${metadataJsonColName}, ${searchFunction}("${params.embeddingColumn}", '[${embedding}]') as distance FROM "${params.schemaName}"."${params.tableName}" ${_filter} ORDER BY "${params.embeddingColumn}" ${operator} '[${embedding}]' LIMIT ${k};`;
 
     if (params.indexQueryOptions) {
       await params.engine.pool.raw(`SET LOCAL ${params.indexQueryOptions.to_string()}`);
@@ -156,67 +156,6 @@ export function configurePostgresRetriever<
 
     return rows;
   }
-    /**
-    * Create an index on the vector store table
-    * @param {BaseIndex} index
-    * @param {string} name Optional
-    * @param {boolean} concurrently Optional
-    */
-    async function applyVectorIndex(index: BaseIndex, name?: string, concurrently: boolean = false): Promise<void> {
-      if (index instanceof ExactNearestNeighbor) {
-        await dropVectorIndex();
-        return;
-      }
-
-      const filter = index.partialIndexes ? `WHERE (${index.partialIndexes})` : "";
-      const indexOptions = `WITH ${index.indexOptions()}`;
-      const funct = index.distanceStrategy.indexFunction;
-
-      if (!name) {
-        if (!index.name) {
-          index.name = params.tableName + DEFAULT_INDEX_NAME_SUFFIX;
-        }
-        name = index.name;
-      }
-
-      const stmt = `CREATE INDEX ${concurrently ? "CONCURRENTLY" : ""} ${name} ON "${params.schemaName}"."${params.tableName}" USING ${index.indexType} (${params.embeddingColumn} ${funct}) ${indexOptions} ${filter};`
-
-      await params.engine.pool.raw(stmt);
-    }
-
-    /**
-     * Check if index exists in the table.
-     * @param {string} indexName Optional - index name
-     */
-    async function isValidIndex(indexName?: string): Promise<boolean> {
-      const idxName = indexName || (params.tableName + DEFAULT_INDEX_NAME_SUFFIX);
-      const stmt = `SELECT tablename, indexname
-                          FROM pg_indexes
-                          WHERE tablename = '${params.tableName}' AND schemaname = '${params.schemaName}' AND indexname = '${idxName}';`
-      const {rows} = await params.engine.pool.raw(stmt);
-
-      return rows.length === 1;
-    }
-
-    /**
-     * Drop the vector index
-     * @param {string} indexName Optional - index name
-     */
-    async function dropVectorIndex(indexName?: string): Promise<void> {
-      const idxName = indexName || (params.tableName + DEFAULT_INDEX_NAME_SUFFIX);
-      const query = `DROP INDEX IF EXISTS ${idxName};`;
-      await params.engine.pool.raw(query)
-    }
-
-    /**
-     * Re-index the vector store table
-     * @param {string} indexName Optional - index name
-     */
-    async function reIndex(indexName?: string) {
-      const idxName = indexName || (params.tableName + DEFAULT_INDEX_NAME_SUFFIX);
-      const query = `REINDEX INDEX ${idxName};`;
-      params.engine.pool.raw(query)
-    }
 
   return ai.defineRetriever(
     {

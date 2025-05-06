@@ -2,6 +2,7 @@ import { AuthTypes, Connector, IpAddressTypes} from "@google-cloud/cloud-sql-con
 import { GoogleAuth } from "google-auth-library";
 import knex from "knex";
 import { getIAMPrincipalEmail } from "./utils/utils.js";
+import { BaseIndex, DEFAULT_INDEX_NAME_SUFFIX, ExactNearestNeighbor } from "./indexes";
 
 export interface PostgresEngineArgs {
   ipType?: IpAddressTypes,
@@ -235,6 +236,81 @@ export class PostgresEngine {
     const now = this.pool.raw('SELECT NOW() as currentTimestamp')
     return now;
   }
+
+    /**
+    * Create an index on the vector store table
+    * @param {BaseIndex} index
+    * @param {string} name Optional
+    * @param {boolean} concurrently Optional
+    * @param {string} tableName
+    * @param {string} schemaName Optional
+    * @param {string} embeddingColumn Optional
+    */
+    async applyVectorIndex(
+      index: BaseIndex,
+      name?: string,
+      concurrently: boolean = false,
+      tableName?: string,
+      schemaName?: string,
+      embeddingColumn?: string): Promise<void> {
+      if (index instanceof ExactNearestNeighbor) {
+        await this.dropVectorIndex();
+        return;
+      }
+
+      const filter = index.partialIndexes ? `WHERE (${index.partialIndexes})` : "";
+      const indexOptions = `WITH ${index.indexOptions()}`;
+      const funct = index.distanceStrategy.indexFunction;
+
+      if (!name) {
+        if (!index.name) {
+          index.name = tableName + DEFAULT_INDEX_NAME_SUFFIX;
+        }
+        name = index.name;
+      }
+
+      const stmt = `CREATE INDEX ${concurrently ? "CONCURRENTLY" : ""} ${name} ON "${schemaName}"."${tableName}" USING ${index.indexType} (${embeddingColumn} ${funct}) ${indexOptions} ${filter};`
+
+      await this.pool.raw(stmt);
+    }
+
+    /**
+     * Check if index exists in the table.
+     * @param {string} indexName Optional - index name
+     * @param {string} tableName Optional
+     * @param {string} schemaName Optional
+     */
+    async isValidIndex(indexName?: string, tableName?: string, schemaName?: string): Promise<boolean> {
+      const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
+      const stmt = `SELECT tablename, indexname
+                          FROM pg_indexes
+                          WHERE tablename = '${tableName}' AND schemaname = '${schemaName}' AND indexname = '${idxName}';`
+      const {rows} = await this.pool.raw(stmt);
+
+      return rows.length === 1;
+    }
+
+    /**
+     * Drop the vector index
+     * @param {string} indexName Optional - index name
+     * @param {string} tableName Optional
+     */
+    async dropVectorIndex(indexName?: string, tableName?: string): Promise<void> {
+      const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
+      const query = `DROP INDEX IF EXISTS ${idxName};`;
+      await this.pool.raw(query)
+    }
+
+    /**
+     * Re-index the vector store table
+     * @param {string} indexName Optional - index name
+     * @param {string} tableName Optional
+     */
+    async  reIndex(indexName?: string, tableName?: string) {
+      const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
+      const query = `REINDEX INDEX ${idxName};`;
+      this.pool.raw(query)
+    }
 }
 
 export default PostgresEngine;
