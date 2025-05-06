@@ -251,10 +251,9 @@ class BigQueryRetriever(DocRetriever):
                 id = row['id']
 
                 content = row['content']
-                content = content if isinstance(content, str) else json.dumps(row['content'])
+                content = json.dumps(content) if isinstance(content, dict) else str(content)
 
                 metadata = row.get('metadata', {})
-                metadata = metadata if isinstance(metadata, dict) else json.loads(metadata)
                 metadata['id'] = id
                 metadata['distance'] = distance_by_id[id]
 
