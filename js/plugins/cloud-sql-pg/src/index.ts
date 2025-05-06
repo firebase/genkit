@@ -138,20 +138,15 @@ export function configurePostgresRetriever<
     throw new Error('Engine is required');
   }
 
-  async function queryCollection(embedding: number[], k?: number | undefined, filter?: Record<string, any>) {
+  async function queryCollection(embedding: number[], k?: number | undefined, filter?: string | undefined) {
+    k = k ?? 4;
     const operator = params.distanceStrategy.operator;
     const searchFunction = params.distanceStrategy.searchFunction;
-    let _filter = "";
-    if (filter) {
-      const conditions = Object.entries(filter)
-        .map(([key, value]) => `"${key}" = '${value}'`) // Basic equality check, adjust as needed
-        .join(" AND ");
-      _filter = `WHERE ${conditions}`;
-    }
+    const _filter = filter !== undefined ? `WHERE ${filter}` : "";
     const metadataColNames = params.metadataColumns && params.metadataColumns.length > 0 ? `"${params.metadataColumns.join("\",\"")}"` : "";
     const metadataJsonColName = params.metadataJsonColumn ? `, "${params.metadataJsonColumn}"` : "";
 
-    const query = `SELECT "${params.idColumn}", "${params.contentColumn}", "${params.embeddingColumn}", ${metadataColNames} ${metadataJsonColName}, ${searchFunction}("${params.embeddingColumn}", '[${embedding}]') as distance FROM "${params.schemaName}"."${params.tableName}" ${_filter} ORDER BY "${params.embeddingColumn}" ${operator} '[${embedding}]';`;
+    const query = `SELECT "${params.idColumn}", "${params.contentColumn}", "${params.embeddingColumn}", ${metadataColNames} ${metadataJsonColName}, ${searchFunction}("${params.embeddingColumn}", '[${embedding}]') as distance FROM "${params.schemaName}"."${params.tableName}" ${_filter} ORDER BY "${params.embeddingColumn}" ${operator} '[${embedding}]' LIMIT ${k};;`;
 
     if (params.indexQueryOptions) {
       await params.engine.pool.raw(`SET LOCAL ${params.indexQueryOptions.to_string()}`);
