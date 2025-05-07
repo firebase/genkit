@@ -1,0 +1,150 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import type {
+  CallToolResult,
+  Tool,
+} from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
+import { Genkit, JSONSchema7, ToolAction, z } from 'genkit';
+import { logger } from 'genkit/logging';
+
+const toText = (c: CallToolResult['content']) =>
+  c.map((p) => p.text || '').join('');
+
+function processResult(result: CallToolResult) {
+  if (result.isError) return { error: toText(result.content) };
+  if (result.content.every((c) => !!c.text)) {
+    const text = toText(result.content);
+    if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        return text;
+      }
+    }
+    return text;
+  }
+  if (result.content.length === 1) return result.content[0];
+  return result;
+}
+
+function registerTool(
+  ai: Genkit,
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  tool: Tool,
+  params: { serverName: string; name: string; rawToolResponses?: boolean }
+) {
+  logger.debug(
+    `[MCP] Registering tool '${params.name}/${tool.name}'' from server '${params.serverName}'`
+  );
+  ai.defineTool(
+    {
+      name: `${params.name}/${tool.name}`,
+      description: tool.description || '',
+      inputJsonSchema: tool.inputSchema as JSONSchema7,
+      outputSchema: z.any(),
+    },
+    async (args) => {
+      logger.debug(
+        `[MCP] Calling MCP tool '${params.name}/${tool.name}' with arguments`,
+        JSON.stringify(args)
+      );
+      const result = await client.callTool({
+        name: tool.name,
+        arguments: args,
+      });
+      logger.debug(
+        `MCP tool ${tool.name} result:`,
+        JSON.stringify(result, null, 2)
+      );
+      if (params.rawToolResponses) return result;
+      return processResult(result as CallToolResult);
+    }
+  );
+}
+
+function createDynamicTool(
+  ai: Genkit,
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  tool: Tool,
+  params: { serverName: string; name: string; rawToolResponses?: boolean }
+): ToolAction {
+  logger.debug(
+    `[MCP] Registering dynamic tool '${params.name}/${tool.name}'' from server '${params.serverName}'`
+  );
+  return ai.dynamicTool(
+    {
+      name: `${params.name}/${tool.name}`,
+      description: tool.description || '',
+      inputJsonSchema: tool.inputSchema as JSONSchema7,
+      outputSchema: z.any(),
+    },
+    async (args) => {
+      logger.debug(
+        `[MCP] Dynamically calling MCP tool '${params.name}/${tool.name}' with arguments`,
+        JSON.stringify(args)
+      );
+      const result = await client.callTool({
+        name: tool.name,
+        arguments: args,
+      });
+      logger.debug(
+        `MCP tool ${tool.name} result:`,
+        JSON.stringify(result, null, 2)
+      );
+      if (params.rawToolResponses) return result;
+      return processResult(result as CallToolResult);
+    }
+  );
+}
+
+/**
+ * Lookup all tools available in the server and register each as a Genkit tool.
+ */
+export async function registerAllTools(
+  ai: Genkit,
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  params: { name: string; serverName: string; rawToolResponses?: boolean }
+): Promise<void> {
+  let cursor: string | undefined;
+  while (true) {
+    const { nextCursor, tools } = await client.listTools({ cursor });
+    tools.forEach((t) => registerTool(ai, client, t, params));
+    cursor = nextCursor;
+    if (!cursor) break;
+  }
+}
+
+/**
+ * Lookup all tools available in the server and fetches as a Genkit dynamic tool.
+ */
+export async function fetchDynamicTools(
+  ai: Genkit,
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  params: { name: string; serverName: string; rawToolResponses?: boolean }
+): Promise<ToolAction[]> {
+  let cursor: string | undefined;
+  let allTools: ToolAction[] = [];
+  while (true) {
+    const { nextCursor, tools } = await client.listTools({ cursor });
+    allTools.push(
+      ...tools.map((t) => createDynamicTool(ai, client, t, params))
+    );
+    cursor = nextCursor;
+    if (!cursor) break;
+  }
+  return allTools;
+}
