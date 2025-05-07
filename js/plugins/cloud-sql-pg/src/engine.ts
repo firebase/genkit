@@ -231,11 +231,24 @@ export class PostgresEngine {
     }
   }
 
-  // Just to test the connection to the database
-  testConnection () {
-    const now = this.pool.raw('SELECT NOW() as currentTimestamp')
-    return now;
+   /**
+   * Just to test the connection to the database.
+   * @returns A Promise that resolves to a row containing the current timestamp.
+   */
+   testConnection(): Promise<{ currentTimestamp: Date }[]> {
+    return this.pool.raw<{ currentTimestamp: Date }[]>('SELECT NOW() as currentTimestamp')
+      .then(result => result.entries[0].currentTimestamp);
   }
+
+  /**
+   * Just to test the connection to the database and return the timestamp.
+   * @returns A Promise that resolves to the current timestamp.
+   */
+  async getTestConnectionTimestamp(): Promise<Date> {
+    const result = await this.pool.raw<{ currentTimestamp: Date }[]>('SELECT NOW() as currentTimestamp');
+    return result.entries[0].currentTimestamp;
+  }
+
 
     /**
     * Create an index on the vector store table
