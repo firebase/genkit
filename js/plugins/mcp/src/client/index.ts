@@ -87,7 +87,10 @@ export class GenkitMcpClientManager {
       await existingEntry.disconnect();
     }
 
-    const client = new GenkitMcpClient(config);
+    logger.info(
+      `[MCP Manager] Connecting to MCP server '${serverName}' in manager '${this.name}'.`
+    );
+    const client = new GenkitMcpClient(serverName, config);
     this._clients[serverName] = client;
   }
 
@@ -99,7 +102,7 @@ export class GenkitMcpClientManager {
   async disconnectClient(serverName: string) {
     const client = this._clients[serverName];
     logger.info(
-      `[MCP Manager] Disconnecting MCP server '${serverName}' in client '${this.name}'.`
+      `[MCP Manager] Disconnecting MCP server '${serverName}' in manager '${this.name}'.`
     );
     await client.disconnect();
     delete this._clients[serverName];
@@ -115,7 +118,7 @@ export class GenkitMcpClientManager {
     const client = this._clients[serverName];
     if (client.isEnabled()) {
       logger.info(
-        `[MCP Manager] Disabling MCP server '${serverName}' in client '${this.name}'`
+        `[MCP Manager] Disabling MCP server '${serverName}' in manager '${this.name}'`
       );
       await client.disable();
     }
@@ -126,11 +129,11 @@ export class GenkitMcpClientManager {
    * using the stored transport. Does nothing if the server is not disabled.
    * @param serverName The name of the server to re-enable.
    */
-  async reenableServer(serverName: string) {
+  async reenableClient(serverName: string) {
     const client = this._clients[serverName];
     if (client) {
       logger.info(
-        `[MCP Manager] Reenabling MCP server '${serverName}' in client '${this.name}'`
+        `[MCP Manager] Reenabling MCP server '${serverName}' in manager '${this.name}'`
       );
       await client.reenable();
     }
@@ -142,11 +145,11 @@ export class GenkitMcpClientManager {
    * reconfiguration.
    * @param serverName The name of the server to reconnect.
    */
-  async reconnectServer(serverName: string) {
+  async reconnectClient(serverName: string) {
     const client = this._clients[serverName];
     if (client) {
       logger.info(
-        `[MCP Manager] Reconnecting MCP server '${serverName}' in client '${this.name}'`
+        `[MCP Manager] Reconnecting MCP server '${serverName}' in manager '${this.name}'`
       );
       await client.reconnect();
     }

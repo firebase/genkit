@@ -30,7 +30,7 @@ import {
 import { genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { langchain } from 'genkitx-langchain';
-import { createMcpClient } from 'genkitx-mcp';
+import { createMcpClientManager } from 'genkitx-mcp';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -109,11 +109,11 @@ export const ai = genkit({
 
 logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
 
-export const clientManager = createMcpClient({
+export const clientManager = createMcpClientManager({
   name: 'test-mcp-manager',
   mcpClients: {
     'git-client': {
-      name: 'git-client-ccc',
+      name: 'git-client-ex',
       server: {
         command: 'uvx',
         args: ['mcp-server-git'],

@@ -76,13 +76,6 @@ export type McpServerConfig = (
  */
 export interface McpClientOptions {
   /**
-   * An optional name for this specific client instance. This name is used
-   * as a namespace for tools and prompts retrieved from the connected MCP server.
-   * It helps to avoid naming conflicts if multiple MCP clients are used.
-   * Defaults to 'genkitx-mcp-client'.
-   */
-  name?: string;
-  /**
    * An optional version number for this client. This is primarily for logging
    * and identification purposes. Defaults to '1.0.0'.
    */
@@ -112,6 +105,7 @@ export interface McpClientOptions {
 export class GenkitMcpClient {
   name: string;
   version: string;
+  private _serverConfig: McpServerConfig;
   private _server?: McpServerRef;
   private _readyListeners: {
     resolve: () => void;
@@ -120,11 +114,12 @@ export class GenkitMcpClient {
   private _ready = false;
   rawToolResponses?: boolean;
 
-  constructor(options: McpClientOptions) {
-    this.name = options.name || 'genkitx-mcp-client';
+  constructor(name: string, options: McpClientOptions) {
+    this.name = name;
     this.version = options.version || '1.0.0';
     this.rawToolResponses = options.rawToolResponses;
-    this.initializeConnection(options.server);
+    this._serverConfig = options.server;
+    this.initializeConnection();
   }
 
   /**
@@ -133,9 +128,9 @@ export class GenkitMcpClient {
    * Sets the client's ready state once all connection attempts are complete.
    * @param mcpServers A record mapping server names to their configurations.
    */
-  initializeConnection(server: McpServerConfig) {
+  initializeConnection() {
     this._ready = false;
-    this.connect(server)
+    this.connect(this._serverConfig)
       .then(() => {
         this._ready = true;
         while (this._readyListeners.length) {
@@ -171,6 +166,7 @@ export class GenkitMcpClient {
    */
   async connect(config: McpServerConfig) {
     if (this._server) await this._server.transport.close();
+    logger.info(`[MCP Client] Connecting MCP server in client '${this.name}'.`);
 
     const { transport, type: transportType } = await transportFrom(config);
     if (!transport) {
@@ -211,11 +207,13 @@ export class GenkitMcpClient {
    * from this client instance.
    */
   async disconnect() {
-    logger.info(
-      `[MCP Client] Disconnecting MCP server in client '${this.name}'.`
-    );
-    await this._server?.client.close();
-    this._server = undefined;
+    if (this._server) {
+      logger.info(
+        `[MCP Client] Disconnecting MCP server in client '${this.name}'.`
+      );
+      await this._server.client.close();
+      this._server = undefined;
+    }
   }
 
   /**
@@ -227,26 +225,27 @@ export class GenkitMcpClient {
     if (this._server?.disabled) return;
     if (this._server) {
       logger.info(`[MCP Client] Disabling MCP server in client '${this.name}'`);
-      await this._server.client.transport?.close();
       this._server.disabled = true;
     }
   }
 
+  /**
+   * Whether this client-server connection is enabled or not.
+   */
   isEnabled() {
     return !this._server?.disabled;
   }
 
   /**
-   * Re-enables a previously disabled server connection. Attempts to reconnect
-   * using the stored transport. Does nothing if the server is not disabled.
+   * Re-enables a previously disabled server connection. Does nothing if the
+   * server is not disabled.
    */
   async reenable() {
-    if (!this._server?.disabled) return;
+    if (this.isEnabled()) return;
     if (this._server) {
       logger.info(
         `[MCP Client] Reenabling MCP server in client '${this.name}'`
       );
-      await this._server.client.connect(this._server.transport);
       this._server.disabled = false;
     }
   }
@@ -261,8 +260,8 @@ export class GenkitMcpClient {
       logger.info(
         `[MCP Client] Reconnecting MCP server in client '${this.name}'`
       );
-      await this._server.client.transport?.close();
-      await this._server.client.transport?.start();
+      await this.disconnect();
+      await this.connect(this._serverConfig);
     }
   }
 

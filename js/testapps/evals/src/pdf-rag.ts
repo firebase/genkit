@@ -110,16 +110,38 @@ export const simpleEcho = ai.defineFlow(
   }
 );
 
-// Define a simple flow
-export const disconnect = ai.defineFlow(
+// MCP Controls
+export const controlMcp = ai.defineFlow(
   {
-    name: 'disconnect',
-    inputSchema: z.void(),
+    name: 'controlMcp',
+    inputSchema: z.object({
+      action: z.enum([
+        'RECONNECT',
+        'REENABLE',
+        'DISABLE',
+        'DISCONNECT',
+      ] as const),
+      clientId: z.string().optional(),
+    }),
     outputSchema: z.string(),
   },
-  async () => {
-    await clientManager.disconnectClient('git-client');
-    return 'disc';
+  async ({ action, clientId }) => {
+    const id = clientId ?? 'git-client';
+    switch (action) {
+      case 'DISABLE':
+        await clientManager.disableClient(id);
+        break;
+      case 'DISCONNECT':
+        await clientManager.disconnectClient(id);
+        break;
+      case 'RECONNECT':
+        await clientManager.reconnectClient(id);
+        break;
+      case 'REENABLE':
+        await clientManager.reenableClient(id);
+        break;
+    }
+    return action;
   }
 );
 
