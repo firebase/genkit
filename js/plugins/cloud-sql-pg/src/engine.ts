@@ -20,7 +20,8 @@ export interface VectorStoreTableArgs {
   idColumn?: string | Column,
   overwriteExisting?: boolean,
   storeMetadata?: boolean,
-  concurrently?: boolean
+  concurrently?: boolean,
+  indexName?: string,
 }
 
 export class Column {
@@ -268,7 +269,7 @@ export class PostgresEngine {
       } : VectorStoreTableArgs = {},
       name?: string): Promise<void> {
       if (index instanceof ExactNearestNeighbor) {
-        await this.dropVectorIndex(tableName);
+        await this.dropVectorIndex({tableName: tableName});
         return;
       }
 
@@ -291,15 +292,14 @@ export class PostgresEngine {
     /**
      * Check if index exists in the table.
      * @param {string} tableName
-     * @param {string} indexName Optional - index name
-     * @param {string} schemaName Optional
+     * @param VectorStoreTableArgs Optional
      */
     async isValidIndex(
       tableName: string,
-      indexName?: string,
       {
+        indexName,
         schemaName = "public",
-      } : VectorStoreTableArgs = {},): Promise<boolean> {
+      } : VectorStoreTableArgs = {}): Promise<boolean> {
       const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
       const stmt = `SELECT tablename, indexname
                           FROM pg_indexes
@@ -314,8 +314,19 @@ export class PostgresEngine {
      * @param {string} tableName
      * @param {string} indexName Optional - index name
      */
-    async dropVectorIndex(tableName: string, indexName?: string, ): Promise<void> {
-      const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
+    async dropVectorIndex(
+      params: {
+        tableName? : string,
+        indexName? : string
+      } ): Promise<void> {
+      let idxName = '';
+      if(params.indexName){
+        idxName = params.indexName;
+      } else if (params.tableName){
+        idxName = params.tableName + DEFAULT_INDEX_NAME_SUFFIX
+      } else {
+        throw new Error('Index name or Table name are not provided.');
+      }
       const query = `DROP INDEX IF EXISTS ${idxName};`;
       await this.pool.raw(query)
     }
@@ -325,8 +336,19 @@ export class PostgresEngine {
      * @param {string} tableName
      * @param {string} indexName Optional - index name
      */
-    async  reIndex(tableName?: string, indexName?: string) {
-      const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
+    async  reIndex(
+      params: {
+        tableName? : string,
+        indexName? : string
+      }) {
+        let idxName = '';
+        if(params.indexName){
+          idxName = params.indexName;
+        } else if (params.tableName){
+          idxName = params.tableName + DEFAULT_INDEX_NAME_SUFFIX
+        } else {
+          throw new Error('Index name or Table name are not provided.');
+        }
       const query = `REINDEX INDEX ${idxName};`;
       this.pool.raw(query)
     }
