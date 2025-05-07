@@ -419,13 +419,16 @@ describe('plugin', () => {
 
   describe('plugin - no env', () => {
     it('should throw when registering models with no apiKey and no env', async () => {
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.GOOGLE_API_KEY;
+      delete process.env.GOOGLE_GENAI_API_KEY;
       const ai = genkit({ plugins: [googleAI()] });
-      assert.rejects(ai.registry.initializeAllPlugins());
+      await assert.rejects(ai.registry.initializeAllPlugins());
     });
 
-    it('should not throw when registering models with {apiKey: false} and no env', () => {
+    it('should not throw when registering models with {apiKey: false} and no env', async () => {
       const ai = genkit({ plugins: [googleAI({ apiKey: false })] });
-      assert.doesNotReject(ai.registry.initializeAllPlugins());
+      await assert.doesNotReject(ai.registry.initializeAllPlugins());
     });
   });
 
@@ -463,7 +466,25 @@ describe('plugin', () => {
       assert.strictEqual(flash.__action.name, 'googleai/gemini-1.5-flash');
     });
 
-    it('references explicitly registered models', async () => {
+    it('references dynamic models', async () => {
+      const ai = genkit({
+        plugins: [googleAI({})],
+      });
+      const giraffeRef = gemini('gemini-4.5-giraffe');
+      assert.strictEqual(giraffeRef.name, 'googleai/gemini-4.5-giraffe');
+      const giraffe = await ai.registry.lookupAction(
+        `/model/${giraffeRef.name}`
+      );
+      assert.ok(giraffe);
+      assert.strictEqual(giraffe.__action.name, 'googleai/gemini-4.5-giraffe');
+      assertEqualModelInfo(
+        giraffe.__action.metadata?.model,
+        'Google AI - gemini-4.5-giraffe',
+        GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
+      );
+    });
+
+    it('references pre-registered models', async () => {
       const flash002Ref = gemini('gemini-1.5-flash-002');
       const ai = genkit({
         plugins: [
@@ -524,14 +545,6 @@ describe('plugin', () => {
         'Google AI - gemini-4.0-banana',
         GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
       );
-
-      // this one is not registered
-      const flash003Ref = gemini('gemini-1.5-flash-003');
-      assert.strictEqual(flash003Ref.name, 'googleai/gemini-1.5-flash-003');
-      const flash003 = await ai.registry.lookupAction(
-        `/model/${flash003Ref.name}`
-      );
-      assert.ok(flash003 === undefined);
     });
   });
 });

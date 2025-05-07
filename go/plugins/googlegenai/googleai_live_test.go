@@ -263,6 +263,9 @@ func TestGoogleAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if resp.Usage.CachedContentTokens == 0 {
+			t.Fatal("expecting cached content tokens but got empty")
+		}
 		text := resp.Text()
 		if !strings.Contains(text, "Ahoy") {
 			t.Fatalf("expecting a response as a pirate but got %v", text)

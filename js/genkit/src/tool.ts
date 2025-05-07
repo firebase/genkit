@@ -16,6 +16,7 @@
 
 export {
   asTool,
+  dynamicTool,
   toToolDefinition,
   type ToolAction,
   type ToolArgument,

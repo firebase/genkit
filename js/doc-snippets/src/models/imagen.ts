@@ -15,7 +15,7 @@
  */
 
 // [START imagen]
-import { imagen3Fast, vertexAI } from '@genkit-ai/vertexai';
+import { vertexAI } from '@genkit-ai/vertexai';
 import parseDataURL from 'data-urls';
 import { genkit } from 'genkit';
 
@@ -27,7 +27,7 @@ const ai = genkit({
 
 async function main() {
   const { media } = await ai.generate({
-    model: imagen3Fast,
+    model: vertexAI.model('imagen-3.0-fast-generate-001'),
     prompt: 'photo of a meal fit for a pirate',
     output: { format: 'media' },
   });

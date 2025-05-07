@@ -23,6 +23,7 @@ export {
 } from './document.js';
 export {
   embed,
+  embedderActionMetadata,
   embedderRef,
   type EmbedderAction,
   type EmbedderArgument,
@@ -65,6 +66,8 @@ export {
   ModelResponseSchema,
   PartSchema,
   RoleSchema,
+  modelActionMetadata,
+  modelRef,
   type GenerateRequest,
   type GenerateRequestData,
   type GenerateResponseChunkData,
