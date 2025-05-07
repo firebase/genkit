@@ -389,7 +389,6 @@ func generate(
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("usage: %#v", resp.UsageMetadata)
 		r := translateResponse(resp)
 		r.Request = input
 		if cache != nil {
