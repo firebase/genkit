@@ -19,7 +19,8 @@ export interface VectorStoreTableArgs {
   metadataJsonColumn?: string,
   idColumn?: string | Column,
   overwriteExisting?: boolean,
-  storeMetadata?: boolean
+  storeMetadata?: boolean,
+  concurrently?: boolean
 }
 
 export class Column {
@@ -254,17 +255,16 @@ export class PostgresEngine {
     * Create an index on the vector store table
     * @param {string} tableName
     * @param {BaseIndex} index
-    * @param {boolean} concurrently Optional
     * @param {VectorStoreTableArgs}
     * @param {string} name Optional
     */
     async applyVectorIndex(
       tableName: string,
       index: BaseIndex,
-      concurrently:boolean = false,
       {
         schemaName = "public",
-        embeddingColumn = "embedding"
+        embeddingColumn = "embedding",
+        concurrently = false
       } : VectorStoreTableArgs = {},
       name?: string): Promise<void> {
       if (index instanceof ExactNearestNeighbor) {
