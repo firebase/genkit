@@ -257,7 +257,6 @@ export class PostgresEngine {
     * @param {string} tableName
     * @param {BaseIndex} index
     * @param {VectorStoreTableArgs}
-    * @param {string} name Optional
     */
     async applyVectorIndex(
       tableName: string,
@@ -266,8 +265,7 @@ export class PostgresEngine {
         schemaName = "public",
         embeddingColumn = "embedding",
         concurrently = false
-      } : VectorStoreTableArgs = {},
-      name?: string): Promise<void> {
+      } : VectorStoreTableArgs = {}): Promise<void> {
       if (index instanceof ExactNearestNeighbor) {
         await this.dropVectorIndex({tableName: tableName});
         return;
@@ -277,12 +275,7 @@ export class PostgresEngine {
       const indexOptions = `WITH ${index.indexOptions()}`;
       const funct = index.distanceStrategy.indexFunction;
 
-      if (!name) {
-        if (!index.name) {
-          index.name = tableName + DEFAULT_INDEX_NAME_SUFFIX;
-        }
-        name = index.name;
-      }
+      const name = index.name? index.name : tableName + DEFAULT_INDEX_NAME_SUFFIX;
 
       const stmt = `CREATE INDEX ${concurrently ? "CONCURRENTLY" : ""} ${name} ON "${schemaName}"."${tableName}" USING ${index.indexType} (${embeddingColumn} ${funct}) ${indexOptions} ${filter};`
 
