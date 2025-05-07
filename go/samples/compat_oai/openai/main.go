@@ -17,6 +17,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/compat_oai"
 	oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	"github.com/firebase/genkit/go/plugins/server"
 	"github.com/openai/openai-go"
@@ -55,7 +56,7 @@ func main() {
 			return "", err
 		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		config := &ai.GenerationCommonConfig{Temperature: 0.5}
+		config := &compat_oai.OpenAIConfig{Temperature: 0.5}
 		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPrompt(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
