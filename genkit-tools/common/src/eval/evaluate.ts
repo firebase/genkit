@@ -40,7 +40,11 @@ import {
   logger,
   stackTraceSpans,
 } from '../utils';
-import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
+import {
+  enrichResultsWithScoring,
+  extractMetricSummaries,
+  extractMetricsMetadata,
+} from './parser';
 
 interface InferenceRunState {
   testCaseId: string;
@@ -181,11 +185,13 @@ export async function runEvaluation(params: {
 
   const scoredResults = enrichResultsWithScoring(scores, evalDataset);
   const metadata = extractMetricsMetadata(evaluatorActions);
+  const metricSummaries = extractMetricSummaries(scores);
 
   const evalRun = {
     key: {
       evalRunId,
       createdAt: new Date().toISOString(),
+      metricSummaries,
       ...augments,
     },
     results: scoredResults,
@@ -422,14 +428,28 @@ function getSpanErrorMessage(span: SpanData): string | undefined {
 function getErrorFromModelResponse(obj: any): string | undefined {
   const response = GenerateResponseSchema.parse(obj);
 
-  if (!response || !response.candidates || response.candidates.length === 0) {
+  // Legacy response is present
+  const hasLegacyResponse =
+    !!response.candidates && response.candidates.length > 0;
+  // New (non-deprecated) response is present
+  const hasNewResponse = !!response.message;
+
+  if (!response || (!hasLegacyResponse && !hasNewResponse)) {
     return `No response was extracted from the output. '${JSON.stringify(obj)}'`;
   }
 
-  // We currently only support the first candidate
-  const candidate = response.candidates[0] as CandidateData;
-  if (candidate.finishReason === 'blocked') {
-    return candidate.finishMessage || `Generation was blocked by the model.`;
+  if (hasLegacyResponse) {
+    // We currently only support the first candidate
+    const candidate = response.candidates![0] as CandidateData;
+    if (candidate.finishReason === 'blocked') {
+      return candidate.finishMessage || `Generation was blocked by the model.`;
+    }
+  }
+
+  if (hasNewResponse) {
+    if (response.finishReason === 'blocked') {
+      return response.finishMessage || `Generation was blocked by the model.`;
+    }
   }
 }
 

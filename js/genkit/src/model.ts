@@ -22,6 +22,7 @@ export {
   GenerateRequestSchema,
   GenerateResponseChunkSchema,
   GenerateResponseSchema,
+  GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   GenerationUsageSchema,
   MediaPartSchema,

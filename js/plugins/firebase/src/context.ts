@@ -19,6 +19,12 @@ import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
 import { UserFacingError } from 'genkit';
 import { ContextProvider, RequestData } from 'genkit/context';
 import { initializeAppIfNecessary } from './helpers.js';
+// @ts-ignore - `firebase` is an optional peer dep, don't error if it's missing
+import type {
+  FirebaseApp,
+  FirebaseOptions,
+  FirebaseServerApp,
+} from 'firebase/app';
 
 /**
  * Debug features that can be enabled to simplify testing.
@@ -68,6 +74,7 @@ export interface FirebaseContext {
   auth?: {
     uid: string;
     token: DecodedIdToken;
+    rawToken: string;
   };
 
   /**
@@ -82,12 +89,18 @@ export interface FirebaseContext {
     appId: string;
     token: DecodedAppCheckToken;
     alreadyConsumed?: boolean;
+    rawToken: string;
   };
 
   /**
    * An unverified token for a Firebase Instance ID.
    */
   instanceIdToken?: string;
+
+  /**
+   * A FirebaseServerApp with the same Auth and App Check credentials as the request.
+   */
+  firebaseApp?: FirebaseServerApp;
 }
 
 export interface FirebaseContextProvider<I = any>
@@ -129,6 +142,16 @@ export interface DeclarativePolicy {
    * Consuming tokens adds more security at the cost of performance.
    */
   consumeAppCheckToken?: boolean;
+
+  /**
+   * Either a FirebaseApp or the options used to initialize one. When provided,
+   * `context.firebaseApp` will be populated as a FirebaseServerApp with the current
+   * request's auth and app check credentials allowing you to perform actions using
+   * Firebase Client SDKs authenticated as the requesting user.
+   *
+   * You must have the `firebase` dependency in your `package.json` to use this option.
+   */
+  serverAppConfig?: FirebaseApp | FirebaseOptions;
 }
 
 /**
@@ -164,15 +187,19 @@ export function firebaseContext<I = any>(
   return async function (request: RequestData): Promise<FirebaseContext> {
     initializeAppIfNecessary();
     let auth: FirebaseContext['auth'];
+
+    const authIdToken = extractBearerToken(request.headers['authorization']);
+    const appCheckToken = request.headers['x-firebase-appcheck'];
+
     if ('authorization' in request.headers) {
-      auth = await parseAuth(request.headers['authorization']);
+      auth = await verifyAuthToken(authIdToken);
     }
     let app: FirebaseContext['app'];
     if ('x-firebase-appcheck' in request.headers) {
       const consumeAppCheckToken =
         typeof policy === 'object' && policy['consumeAppCheckToken'];
-      app = await parseAppCheck(
-        request.headers['x-firebase-appcheck'],
+      app = await verifyAppCheckToken(
+        appCheckToken,
         consumeAppCheckToken ?? false
       );
     }
@@ -181,6 +208,17 @@ export function firebaseContext<I = any>(
       instanceIdToken = request.headers['firebase-instance-id-token'];
     }
     const context: FirebaseContext = {};
+
+    if (typeof policy === 'object' && policy.serverAppConfig) {
+      // we dynamically import here to keep `firebase` an optional peer dep
+      const { initializeServerApp } = await import('firebase/app');
+      context.firebaseApp = initializeServerApp(policy.serverAppConfig, {
+        appCheckToken,
+        authIdToken,
+        releaseOnDeref: context,
+      });
+    }
+
     if (auth) {
       context.auth = auth;
     }
@@ -259,8 +297,13 @@ function enforceDelcarativePolicy(
   }
 }
 
-async function parseAuth(authHeader: string): Promise<FirebaseContext['auth']> {
-  const token = /[bB]earer (.*)/.exec(authHeader)?.[1];
+function extractBearerToken(authHeader: string): string | undefined {
+  return /[bB]earer (.*)/.exec(authHeader)?.[1];
+}
+
+async function verifyAuthToken(
+  token?: string
+): Promise<FirebaseContext['auth']> {
   if (!token) {
     return undefined;
   }
@@ -269,6 +312,7 @@ async function parseAuth(authHeader: string): Promise<FirebaseContext['auth']> {
     return {
       uid: decoded['sub'],
       token: decoded,
+      rawToken: token,
     };
   }
   try {
@@ -276,6 +320,7 @@ async function parseAuth(authHeader: string): Promise<FirebaseContext['auth']> {
     return {
       uid: decoded['sub'],
       token: decoded,
+      rawToken: token,
     };
   } catch (err) {
     console.error(`Error decoding auth token: ${err}`);
@@ -283,7 +328,7 @@ async function parseAuth(authHeader: string): Promise<FirebaseContext['auth']> {
   }
 }
 
-async function parseAppCheck(
+async function verifyAppCheckToken(
   token: string,
   consumeAppCheckToken: boolean
 ): Promise<FirebaseContext['app']> {
@@ -293,12 +338,16 @@ async function parseAppCheck(
       appId: decoded['sub'],
       token: decoded,
       alreadyConsumed: false,
+      rawToken: token,
     };
   }
   try {
-    return await getAppCheck().verifyToken(token, {
-      consume: consumeAppCheckToken,
-    });
+    return {
+      ...(await getAppCheck().verifyToken(token, {
+        consume: consumeAppCheckToken,
+      })),
+      rawToken: token,
+    };
   } catch (err) {
     console.error(`Got error verifying AppCheck token: ${err}`);
     throw new UserFacingError('PERMISSION_DENIED', 'Invalid AppCheck token');

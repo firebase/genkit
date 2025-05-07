@@ -413,6 +413,14 @@
         "$ref": "#/$defs/EvalFnResponse"
       }
     },
+    "EvalStatusEnum": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "PASS",
+        "FAIL"
+      ]
+    },
     "Score": {
       "type": "object",
       "properties": {
@@ -426,6 +434,9 @@
             "string",
             "boolean"
           ]
+        },
+        "status": {
+          "$ref": "#/$defs/EvalStatusEnum"
         },
         "error": {
           "type": "string"
@@ -843,6 +854,10 @@
         "label": {
           "type": "string"
         },
+        "configSchema": {
+          "type": "object",
+          "additionalProperties": {}
+        },
         "supports": {
           "type": "object",
           "properties": {
@@ -996,9 +1011,6 @@
         },
         "constrained": {
           "type": "boolean"
-        },
-        "instructions": {
-          "type": "string"
         },
         "contentType": {
           "type": "string"

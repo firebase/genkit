@@ -33,13 +33,13 @@ describe('registry class', () => {
     it('returns all registered actions', async () => {
       const fooSomethingAction = action(
         registry,
-        { name: 'foo_something', actionType: 'util' },
+        { name: 'foo_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
         registry,
-        { name: 'bar_something', actionType: 'util' },
+        { name: 'bar_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', barSomethingAction);
@@ -65,7 +65,7 @@ describe('registry class', () => {
             pluginId: 'foo',
             actionId: 'something',
           },
-          actionType: 'util',
+          actionType: 'model',
         },
         async () => null
       );
@@ -84,7 +84,7 @@ describe('registry class', () => {
             pluginId: 'bar',
             actionId: 'something',
           },
-          actionType: 'util',
+          actionType: 'model',
         },
         async () => null
       );
@@ -95,7 +95,7 @@ describe('registry class', () => {
             pluginId: 'bar',
             actionId: 'sub/something',
           },
-          actionType: 'util',
+          actionType: 'model',
         },
         async () => null
       );
@@ -138,13 +138,13 @@ describe('registry class', () => {
 
       const fooSomethingAction = action(
         registry,
-        { name: 'foo_something', actionType: 'util' },
+        { name: 'foo_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
         registry,
-        { name: 'bar_something', actionType: 'util' },
+        { name: 'bar_something', actionType: 'model' },
         async () => null
       );
       child.registerAction('model', barSomethingAction);
@@ -155,6 +155,207 @@ describe('registry class', () => {
       });
       assert.deepEqual(await registry.listActions(), {
         '/model/foo_something': fooSomethingAction,
+      });
+    });
+  });
+
+  describe('listResolvableActions', () => {
+    it('returns all registered actions', async () => {
+      const fooSomethingAction = action(
+        registry,
+        { name: 'foo_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', fooSomethingAction);
+      const barSomethingAction = action(
+        registry,
+        { name: 'bar_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', barSomethingAction);
+
+      assert.deepEqual(await registry.listResolvableActions(), {
+        '/model/foo_something': fooSomethingAction.__action,
+        '/model/bar_something': barSomethingAction.__action,
+      });
+    });
+
+    it('returns all registered actions by plugins', async () => {
+      registry.registerPluginProvider('foo', {
+        name: 'foo',
+        async initializer() {
+          registry.registerAction('model', fooSomethingAction);
+          return {};
+        },
+      });
+      const fooSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'foo',
+            actionId: 'something',
+          },
+          actionType: 'model',
+        },
+        async () => null
+      );
+      registry.registerPluginProvider('bar', {
+        name: 'bar',
+        async initializer() {
+          registry.registerAction('model', barSomethingAction);
+          registry.registerAction('model', barSubSomethingAction);
+          return {};
+        },
+      });
+      const barSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'bar',
+            actionId: 'something',
+          },
+          actionType: 'model',
+        },
+        async () => null
+      );
+      const barSubSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'bar',
+            actionId: 'sub/something',
+          },
+          actionType: 'model',
+        },
+        async () => null
+      );
+
+      assert.deepEqual(await registry.listResolvableActions(), {
+        '/model/foo/something': fooSomethingAction.__action,
+        '/model/bar/something': barSomethingAction.__action,
+        '/model/bar/sub/something': barSubSomethingAction.__action,
+      });
+    });
+
+    it('should allow plugin initialization from runtime context', async () => {
+      let fooInitialized = false;
+      registry.registerPluginProvider('foo', {
+        name: 'foo',
+        async initializer() {
+          defineAction(
+            registry,
+            {
+              actionType: 'model',
+              name: 'foo/something',
+            },
+            async () => null
+          );
+          fooInitialized = true;
+          return {};
+        },
+      });
+
+      const action = await runInActionRuntimeContext(registry, () =>
+        registry.lookupAction('/model/foo/something')
+      );
+
+      assert.ok(action);
+      assert.ok(fooInitialized);
+    });
+
+    it('returns all registered actions, including parent', async () => {
+      const child = Registry.withParent(registry);
+
+      const fooSomethingAction = action(
+        registry,
+        { name: 'foo_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', fooSomethingAction);
+      const barSomethingAction = action(
+        registry,
+        { name: 'bar_something', actionType: 'model' },
+        async () => null
+      );
+      child.registerAction('model', barSomethingAction);
+
+      assert.deepEqual(await child.listResolvableActions(), {
+        '/model/foo_something': fooSomethingAction.__action,
+        '/model/bar_something': barSomethingAction.__action,
+      });
+      assert.deepEqual(await registry.listResolvableActions(), {
+        '/model/foo_something': fooSomethingAction.__action,
+      });
+    });
+
+    it('returns all registered actions and ones returned by listActions by plugins', async () => {
+      registry.registerPluginProvider('foo', {
+        name: 'foo',
+        async initializer() {
+          registry.registerAction('model', fooSomethingAction);
+          return {};
+        },
+      });
+      const fooSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'foo',
+            actionId: 'something',
+          },
+          actionType: 'model',
+        },
+        async () => null
+      );
+      registry.registerPluginProvider('bar', {
+        name: 'bar',
+        async initializer() {
+          registry.registerAction('model', barSomethingAction);
+          registry.registerAction('model', barSubSomethingAction);
+          return {};
+        },
+        async listActions() {
+          return [
+            {
+              name: 'bar/barDynamicallyResolvable',
+              actionType: 'model',
+              description: 'sings a song',
+            },
+          ];
+        },
+      });
+      const barSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'bar',
+            actionId: 'something',
+          },
+          actionType: 'model',
+        },
+        async () => null
+      );
+      const barSubSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'bar',
+            actionId: 'sub/something',
+          },
+          actionType: 'model',
+        },
+        async () => null
+      );
+
+      assert.deepEqual(await registry.listResolvableActions(), {
+        '/model/foo/something': fooSomethingAction.__action,
+        '/model/bar/something': barSomethingAction.__action,
+        '/model/bar/sub/something': barSubSomethingAction.__action,
+        '/model/bar/barDynamicallyResolvable': {
+          name: 'bar/barDynamicallyResolvable',
+          actionType: 'model',
+          description: 'sings a song',
+        },
       });
     });
   });
@@ -192,19 +393,19 @@ describe('registry class', () => {
     it('returns registered action', async () => {
       const fooSomethingAction = action(
         registry,
-        { name: 'foo_something', actionType: 'util' },
+        { name: 'foo_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
         registry,
-        { name: 'bar_something', actionType: 'util' },
+        { name: 'bar_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', barSomethingAction);
       const barSubSomethingAction = action(
         registry,
-        { name: 'sub/bar_something', actionType: 'util' },
+        { name: 'sub/bar_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', barSubSomethingAction);
@@ -239,7 +440,7 @@ describe('registry class', () => {
             pluginId: 'foo',
             actionId: 'something',
           },
-          actionType: 'util',
+          actionType: 'model',
         },
         async () => null
       );
@@ -250,7 +451,59 @@ describe('registry class', () => {
             pluginId: 'foo',
             actionId: 'sub/something',
           },
-          actionType: 'util',
+          actionType: 'model',
+        },
+        async () => null
+      );
+
+      assert.strictEqual(
+        await registry.lookupAction('/model/foo/something'),
+        somethingAction
+      );
+
+      assert.strictEqual(
+        await registry.lookupAction('/model/foo/sub/something'),
+        subSomethingAction
+      );
+    });
+
+    it('returns action dynamically resolved by plugin', async () => {
+      registry.registerPluginProvider('foo', {
+        name: 'foo',
+        async initializer() {},
+        async resolver(actionType, actionName) {
+          if (actionType !== 'model') {
+            return;
+          }
+          switch (actionName) {
+            case 'something':
+              registry.registerAction('model', somethingAction);
+              return;
+            case 'sub/something':
+              registry.registerAction('model', subSomethingAction);
+              return;
+          }
+        },
+      });
+      const somethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'foo',
+            actionId: 'something',
+          },
+          actionType: 'model',
+        },
+        async () => null
+      );
+      const subSomethingAction = action(
+        registry,
+        {
+          name: {
+            pluginId: 'foo',
+            actionId: 'sub/something',
+          },
+          actionType: 'model',
         },
         async () => null
       );
@@ -278,7 +531,7 @@ describe('registry class', () => {
 
       const fooAction = action(
         registry,
-        { name: 'foo', actionType: 'util' },
+        { name: 'foo', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooAction);
@@ -297,7 +550,7 @@ describe('registry class', () => {
 
       const fooAction = action(
         registry,
-        { name: 'foo', actionType: 'util' },
+        { name: 'foo', actionType: 'model' },
         async () => null
       );
       childRegistry.registerAction('model', fooAction);

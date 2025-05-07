@@ -39,7 +39,7 @@ func main() {
 		sonnet37 := oai.Model(g, "claude-3-7-sonnet-20250219")
 
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(sonnet37), ai.WithPromptText(prompt))
+		foo, err := genkit.Generate(ctx, g, ai.WithModel(sonnet37), ai.WithPrompt(prompt))
 		if err != nil {
 			return "", err
 		}

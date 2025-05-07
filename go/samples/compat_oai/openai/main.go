@@ -42,7 +42,7 @@ func main() {
 
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
 		config := &openai.ChatCompletionNewParams{Temperature: openai.F(0.5), MaxTokens: openai.F(int64(100))}
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithPromptText(prompt), ai.WithConfig(config))
+		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithPrompt(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
 		}
@@ -56,7 +56,7 @@ func main() {
 		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
 		config := &ai.GenerationCommonConfig{Temperature: 0.5}
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPromptText(prompt), ai.WithConfig(config))
+		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPrompt(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
 		}

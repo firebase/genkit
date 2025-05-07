@@ -52,7 +52,7 @@ func TestVertexAILive(t *testing.T) {
 	}
 	embedder := googlegenai.VertexAIEmbedder(g, "textembedding-gecko@003")
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value float64
 			Over  float64
@@ -62,7 +62,7 @@ func TestVertexAILive(t *testing.T) {
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		resp, err := genkit.Generate(ctx, g, ai.WithPromptText("Which country was Napoleon the emperor of?"))
+		resp, err := genkit.Generate(ctx, g, ai.WithPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestVertexAILive(t *testing.T) {
 		out := ""
 		parts := 0
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Write one paragraph about the Golden State Warriors."),
+			ai.WithPrompt("Write one paragraph about the Golden State Warriors."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				for _, p := range c.Content {
@@ -113,7 +113,7 @@ func TestVertexAILive(t *testing.T) {
 	})
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
@@ -125,10 +125,9 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(
-			ai.DocumentFromText("time flies like an arrow", nil),
-			ai.DocumentFromText("fruit flies like a banana", nil),
-		))
+		res, err := ai.Embed(ctx, embedder,
+			ai.WithTextDocs("time flies like an arrow", "fruit flies like a banana"),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -161,8 +160,8 @@ func TestVertexAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPromptText("write a summary of the content"),
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithPrompt("write a summary of the content"),
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}))
 		if err != nil {
@@ -184,11 +183,11 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}),
 			ai.WithMessages(resp.History()...),
-			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
+			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -219,7 +218,7 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystemText("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
@@ -248,6 +247,34 @@ func TestVertexAILive(t *testing.T) {
 		}
 		if !strings.Contains(resp.Text(), "Mario Kart") {
 			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
+		}
+	})
+	t.Run("constrained generation", func(t *testing.T) {
+		type outFormat struct {
+			Country string
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("Which country was Napoleon the emperor of?"),
+			ai.WithOutputType(outFormat{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var ans outFormat
+		err = resp.Output(&ans)
+		if err != nil {
+			t.Fatal(err)
+		}
+		const want = "France"
+		if ans.Country != want {
+			t.Errorf("got %q, expecting %q", ans.Country, want)
+		}
+		if resp.Request == nil {
+			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
 		}
 	})
 }

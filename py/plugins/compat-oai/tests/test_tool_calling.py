@@ -14,69 +14,41 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Test tool calling."""
+
+import json
+from functools import reduce
 from unittest.mock import MagicMock
 
-from genkit.core.action import ActionKind
-from genkit.core.typing import GenerateResponseChunk
 from genkit.plugins.compat_oai.models import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import GPT_4
+from genkit.types import GenerateRequest, GenerateResponseChunk, TextPart, ToolRequestPart
 
 
-def test_get_evaluated_tool_message_param_returns_expected_message():
-    tool_call = MagicMock()
-    tool_call.id = 'abc123'
-    tool_call.function.name = 'tool_fn'
-    tool_call.function.arguments = '{"key": "val"}'
-
-    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
-    model._evaluate_tool = MagicMock(return_value='tool_result')
-
-    result = model._get_evaluated_tool_message_param(tool_call)
-    assert result['role'] == 'tool'
-    assert result['tool_call_id'] == 'abc123'
-    assert result['content'] == 'tool_result'
-
-
-def test_evaluate_tool_executes_registered_action():
-    mock_action = MagicMock()
-    mock_action.input_type.validate_python.return_value = {'a': 1}
-    mock_action.run.return_value = 'result'
-
-    mock_registry = MagicMock()
-    mock_registry.registry.lookup_action.return_value = mock_action
-
-    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=mock_registry)
-
-    result = model._evaluate_tool('my_tool', '{"a": 1}')
-    mock_registry.registry.lookup_action.assert_called_once_with(
-        ActionKind.TOOL, 'my_tool'
-    )
-    mock_action.input_type.validate_python.assert_called_once_with({'a': 1})
-    mock_action.run.assert_called_once_with({'a': 1})
-    assert result == 'result'
-
-
-def test_generate_with_tool_calls_executes_tools(sample_request):
+def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest) -> None:
+    """Test generate with tool calls executes tools."""
     mock_tool_call = MagicMock()
     mock_tool_call.id = 'tool123'
     mock_tool_call.function.name = 'tool_fn'
     mock_tool_call.function.arguments = '{"a": 1}'
 
     # First call triggers tool execution
+    first_message = MagicMock()
+    first_message.role = 'assistant'
+    first_message.tool_calls = [mock_tool_call]
+    first_message.content = None
+
     first_response = MagicMock()
-    first_response.choices = [
-        MagicMock(
-            finish_reason='tool_calls',
-            message=MagicMock(tool_calls=[mock_tool_call]),
-        )
-    ]
+    first_response.choices = [MagicMock(finish_reason='tool_calls', message=first_message)]
+
     # Second call is the model response
+    second_message = MagicMock()
+    second_message.role = 'model'
+    second_message.tool_calls = None
+    second_message.content = 'final response'
+
     second_response = MagicMock()
-    second_response.choices = [
-        MagicMock(
-            finish_reason='stop', message=MagicMock(content='final response')
-        )
-    ]
+    second_response.choices = [MagicMock(finish_reason='stop', message=second_message)]
 
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = [
@@ -84,114 +56,91 @@ def test_generate_with_tool_calls_executes_tools(sample_request):
         second_response,
     ]
 
-    mock_action = MagicMock()
-    mock_action.input_type.validate_python.return_value = {'a': 1}
-    mock_action.run.return_value = 'tool result'
-
-    mock_registry = MagicMock()
-    mock_registry.registry.lookup_action.return_value = mock_action
-
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=mock_registry)
+    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
 
     response = model.generate(sample_request)
 
-    assert response.message.content[0].root.text == 'final response'
+    part = response.message.content[0].root
+
+    assert isinstance(part, ToolRequestPart)
+    assert part.tool_request.input == {'a': 1}
+    assert part.tool_request.name == 'tool_fn'
+    assert part.tool_request.ref == 'tool123'
+
+    # Assume the sample request was processed by Genkit, but a mock side effect was applied
+    response = model.generate(sample_request)
+
+    part = response.message.content[0].root
+
+    assert isinstance(part, TextPart)
+    assert part.text == 'final response'
+
     assert mock_client.chat.completions.create.call_count == 2
 
 
 def test_generate_stream_with_tool_calls(sample_request):
-    mock_tool_call = MagicMock()
-    mock_tool_call.id = 'tool123'
-    mock_tool_call.index = 0
-    mock_tool_call.function.name = 'tool_fn'
-    mock_tool_call.function.arguments = ''
+    """
+    Test generate_stream processes tool calls streamed in chunks correctly.
+    """
+    mock_client = MagicMock()
 
-    # First chunk: tool call starts
-    chunk1 = MagicMock()
-    chunk1.choices = [
-        MagicMock(
-            index=0,
-            delta=MagicMock(
-                content=None,
-                tool_calls=[mock_tool_call],
-            ),
-        )
-    ]
+    class MockToolCall:
+        def __init__(self, id, index, name, args_chunk):
+            self.id = id
+            self.index = index
+            self.function = MagicMock()
+            self.function.name = name
+            self.function.arguments = args_chunk
 
-    # Second chunk: continuation of tool call arguments
-    chunk2 = MagicMock()
-    chunk2.choices = [
-        MagicMock(
-            index=0,
-            delta=MagicMock(
-                content=None,
-                tool_calls=[
-                    MagicMock(
-                        index=0,
-                        function=MagicMock(arguments='{"a": "123"}'),
-                        id='tool123',
-                    )
-                ],
-            ),
-        )
-    ]
-
-    # Third stream after tool execution: final model response
-    final_chunk = MagicMock()
-    final_chunk.choices = [
-        MagicMock(
-            index=0,
-            delta=MagicMock(content='final stream content', tool_calls=None),
-        )
-    ]
-
-    # Simulate the streaming lifecycle
     class MockStream:
-        def __init__(self, chunks):
-            self._chunks = chunks
+        def __init__(self):
+            self._chunks = [
+                # Initial chunk - empty args
+                self._make_tool_chunk(id='tool123', index=0, name='tool_fn', args_chunk=''),
+                # First chunk - partial tool call args
+                self._make_tool_chunk(id='tool123', index=0, name='tool_fn', args_chunk='{"a": '),
+                # Second chunk - rest of tool call args
+                self._make_tool_chunk(id='tool123', index=0, name='tool_fn', args_chunk='1}'),
+            ]
             self._current = 0
-            self.response = MagicMock()
-            self.response.is_closed = False
+
+        def _make_tool_chunk(self, id, index, name, args_chunk):
+            delta_mock = MagicMock()
+            delta_mock.content = None
+            delta_mock.role = None
+            delta_mock.tool_calls = [MockToolCall(id, index, name, args_chunk)]
+
+            choice_mock = MagicMock()
+            choice_mock.delta = delta_mock
+
+            return MagicMock(choices=[choice_mock])
 
         def __iter__(self):
             return self
 
         def __next__(self):
             if self._current >= len(self._chunks):
-                self.response.is_closed = True
                 raise StopIteration
             chunk = self._chunks[self._current]
             self._current += 1
             return chunk
 
-    # First stream: tool call chunks
-    first_stream = MockStream([chunk1, chunk2])
-    # Second stream: model output after tool is processed
-    second_stream = MockStream([final_chunk])
+    mock_client.chat.completions.create.return_value = MockStream()
 
-    mock_client = MagicMock()
-    mock_client.chat.completions.create.side_effect = [
-        first_stream,
-        second_stream,
-    ]
-
-    # Set up mock tool evaluation
-    mock_action = MagicMock()
-    mock_action.input_type.validate_python.return_value = {'a': '123'}
-    mock_action.run.return_value = 'tool response'
-
-    mock_registry = MagicMock()
-    mock_registry.registry.lookup_action.return_value = mock_action
-
-    model = OpenAIModel(model=GPT_4, client=mock_client, registry=mock_registry)
-
-    chunks = []
+    model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
+    collected_chunks = []
 
     def callback(chunk: GenerateResponseChunk):
-        chunks.append(chunk.content[0].root.text)
+        collected_chunks.append(chunk.content[0].root)
 
     model.generate_stream(sample_request, callback)
 
-    assert chunks == ['final stream content']
-    assert mock_action.run.call_count == 1
-    assert mock_client.chat.completions.create.call_count == 2
+    assert len(collected_chunks) == 3
+    assert all(isinstance(part, ToolRequestPart) for part in collected_chunks)
+
+    tool_part = collected_chunks[0]
+    assert tool_part.tool_request.name == 'tool_fn'
+    assert tool_part.tool_request.ref == 'tool123'
+
+    accumulated_output = reduce(lambda res, tool_call: res + tool_call.tool_request.input, collected_chunks, '')
+    assert json.loads(accumulated_output) == {'a': 1}

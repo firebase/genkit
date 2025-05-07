@@ -128,10 +128,10 @@ export class ReflectionServer {
     server.get('/api/actions', async (_, response, next) => {
       logger.debug('Fetching actions.');
       try {
-        const actions = await this.registry.listActions();
+        const actions = await this.registry.listResolvableActions();
         const convertedActions = {};
         Object.keys(actions).forEach((key) => {
-          const action = actions[key].__action;
+          const action = actions[key];
           convertedActions[key] = {
             key,
             name: action.name,

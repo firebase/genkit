@@ -27,26 +27,29 @@ fi
 TOP_DIR=$(git rev-parse --show-toplevel)
 
 PROJECT_DIRS=(
-  "packages/genkit-ai"
-  "plugins/chroma"
+  "packages/genkit"
+  "plugins/compat-oai"
+  "plugins/dev-local-vectorstore"
   "plugins/firebase"
-  "plugins/google-ai"
+  "plugins/flask"
   "plugins/google-cloud"
+  "plugins/google-genai"
   "plugins/ollama"
-  "plugins/pinecone"
   "plugins/vertex-ai"
-  "samples/basic-gemini"
-  "samples/coffee-shop"
-  "samples/context-caching"
-  "samples/flow-sample1"
-  "samples/hello"
+  "samples/compat-oai-hello"
+  "samples/google-genai-context-caching"
+  "samples/firestore-retreiver"
+  "samples/flask-hello"
+  "samples/google-genai-hello"
+  "samples/google-genai-image"
+  "samples/google-genai-vertexai-hello"
+  "samples/google-genai-vertexai-image"
   "samples/menu"
-  "samples/prompt-file"
-  "samples/rag"
+  "samples/multi-server"
+  "samples/ollama-hello"
+  "samples/ollama-simple-embed"
+  "samples/tool-interrupts"
   "samples/vertex-ai-imagen"
-  "samples/vertex-ai-model-garden"
-  "samples/vertex-ai-reranker"
-  "samples/vertex-ai-vector-search"
   "tests/smoke"
 )
 
@@ -56,3 +59,12 @@ for PROJECT_DIR in "${PROJECT_DIRS[@]}"; do
     --project "$PROJECT_DIR" \
     build
 done
+
+TWINE_CHECK=$(uv run --directory ${TOP_DIR}/py twine check ${TOP_DIR}/py/dist/*)
+echo "$TWINE_CHECK"
+if echo "$TWINE_CHECK" | grep -q "FAIL"; then
+  echo "Twine check failed."
+  exit 1
+else
+  echo "Twine check passed."
+fi

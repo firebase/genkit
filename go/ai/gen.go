@@ -71,8 +71,17 @@ type dataPart struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
+type EmbedRequest struct {
+	Input   []*Document `json:"input,omitempty"`
+	Options any         `json:"options,omitempty"`
+}
+
+type EmbedResponse struct {
+	Embeddings []*Embedding `json:"embeddings,omitempty"`
+}
+
 type Embedding struct {
-	Embedding []float64      `json:"embedding,omitempty"`
+	Embedding []float32      `json:"embedding,omitempty"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
@@ -91,6 +100,14 @@ type EvalRequest struct {
 }
 
 type EvalResponse []any
+
+type EvalStatusEnum string
+
+const (
+	EvalStatusEnumUNKNOWN EvalStatusEnum = "UNKNOWN"
+	EvalStatusEnumPASS    EvalStatusEnum = "PASS"
+	EvalStatusEnumFAIL    EvalStatusEnum = "FAIL"
+)
 
 type FinishReason string
 
@@ -134,7 +151,7 @@ type GenerateActionOutputConfig struct {
 	Constrained  bool           `json:"constrained,omitempty"`
 	ContentType  string         `json:"contentType,omitempty"`
 	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
+	Instructions *string        `json:"instructions,omitempty"`
 	JsonSchema   map[string]any `json:"jsonSchema,omitempty"`
 }
 
@@ -164,23 +181,6 @@ type GenerationUsage struct {
 	TotalTokens      int                `json:"totalTokens,omitempty"`
 }
 
-type GenkitError struct {
-	Data    *GenkitErrorData `json:"data,omitempty"`
-	Details any              `json:"details,omitempty"`
-	Message string           `json:"message,omitempty"`
-	Stack   string           `json:"stack,omitempty"`
-}
-
-type GenkitErrorData struct {
-	GenkitErrorDetails *GenkitErrorDetails `json:"genkitErrorDetails,omitempty"`
-	GenkitErrorMessage string              `json:"genkitErrorMessage,omitempty"`
-}
-
-type GenkitErrorDetails struct {
-	Stack   string `json:"stack,omitempty"`
-	TraceID string `json:"traceId,omitempty"`
-}
-
 type Media struct {
 	ContentType string `json:"contentType,omitempty"`
 	Url         string `json:"url,omitempty"`
@@ -199,10 +199,11 @@ type Message struct {
 }
 
 type ModelInfo struct {
-	Label    string         `json:"label,omitempty"`
-	Stage    ModelStage     `json:"stage,omitempty"`
-	Supports *ModelSupports `json:"supports,omitempty"`
-	Versions []string       `json:"versions,omitempty"`
+	ConfigSchema map[string]any `json:"configSchema,omitempty"`
+	Label        string         `json:"label,omitempty"`
+	Stage        ModelStage     `json:"stage,omitempty"`
+	Supports     *ModelSupports `json:"supports,omitempty"`
+	Versions     []string       `json:"versions,omitempty"`
 }
 
 type ModelStage string
@@ -275,11 +276,10 @@ type ModelResponseChunk struct {
 // should conform to. If Format is [OutputFormatJSON], then Schema
 // can describe the desired form of the generated JSON.
 type ModelOutputConfig struct {
-	Constrained  bool           `json:"constrained,omitempty"`
-	ContentType  string         `json:"contentType,omitempty"`
-	Format       string         `json:"format,omitempty"`
-	Instructions string         `json:"instructions,omitempty"`
-	Schema       map[string]any `json:"schema,omitempty"`
+	Constrained bool           `json:"constrained,omitempty"`
+	ContentType string         `json:"contentType,omitempty"`
+	Format      string         `json:"format,omitempty"`
+	Schema      map[string]any `json:"schema,omitempty"`
 }
 
 type PathMetadata struct {
@@ -306,6 +306,15 @@ type RerankerRequest struct {
 
 type RerankerResponse struct {
 	Documents []*RankedDocumentData `json:"documents,omitempty"`
+}
+
+type RetrieverRequest struct {
+	Options any       `json:"options,omitempty"`
+	Query   *Document `json:"query,omitempty"`
+}
+
+type RetrieverResponse struct {
+	Documents []*Document `json:"documents,omitempty"`
 }
 
 // Role indicates which entity is responsible for the content of a message.

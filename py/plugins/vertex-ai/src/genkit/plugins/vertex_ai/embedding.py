@@ -16,13 +16,19 @@
 
 """Vertex AI embedding plugin."""
 
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from typing import Any
 
 from vertexai.language_models import TextEmbeddingInput, TextEmbeddingModel
 
 from genkit.blocks.document import Document
-from genkit.core.typing import Embedding, EmbedRequest, EmbedResponse
+from genkit.types import Embedding, EmbedRequest, EmbedResponse
 
 
 class EmbeddingModels(StrEnum):
@@ -112,17 +118,9 @@ class Embedder:
 
         del options[self.TASK_KEY]
 
-        inputs = [
-            TextEmbeddingInput(Document.from_document_data(doc).text(), task)
-            for doc in request.input
-        ]
-        vertexai_embeddings = self.embedding_model.get_embeddings(
-            inputs, **options
-        )
-        embeddings = [
-            Embedding(embedding=embedding.values)
-            for embedding in vertexai_embeddings
-        ]
+        inputs = [TextEmbeddingInput(Document.from_document_data(doc).text(), task) for doc in request.input]
+        vertexai_embeddings = self.embedding_model.get_embeddings(inputs, **options)
+        embeddings = [Embedding(embedding=embedding.values) for embedding in vertexai_embeddings]
 
         return EmbedResponse(embeddings=embeddings)
 

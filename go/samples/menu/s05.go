@@ -23,6 +23,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
 type imageURLInput struct {
@@ -35,11 +36,11 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 {{media url=imageUrl}}`
 	readMenuPrompt, err := genkit.DefinePrompt(
 		g, "s05_readMenu",
-		ai.WithPromptText(text),
+		ai.WithPrompt(text),
 		ai.WithModel(model),
 		ai.WithInputType(imageURLInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.1,
 		}),
 	)
@@ -49,7 +50,7 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 
 	textMenuPrompt, err := genkit.DefinePrompt(
 		g, "s05_textMenu",
-		ai.WithPromptText(`
+		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general.
@@ -63,7 +64,7 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(textMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&ai.GenerationCommonConfig{
+		ai.WithConfig(&googlegenai.GeminiConfig{
 			Temperature: 0.3,
 		}),
 	)

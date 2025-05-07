@@ -31,16 +31,16 @@ type Data struct {
 // SpanData can be passed to json.Marshal, whereas most of the OpenTelemetry
 // types make no claims about JSON serializability.
 type SpanData struct {
-	SpanID                 string                 `json:"spanId"`
-	TraceID                string                 `json:"traceId,omitempty"`
-	ParentSpanID           string                 `json:"parentSpanId,omitempty"`
-	StartTime              Milliseconds           `json:"startTime"`
-	EndTime                Milliseconds           `json:"endTime"`
-	Attributes             map[string]any         `json:"attributes,omitempty"`
-	DisplayName            string                 `json:"displayName"`
-	Links                  []*Link                `json:"links,omitempty"`
-	InstrumentationLibrary InstrumentationLibrary `json:"instrumentationLibrary,omitempty"`
-	SpanKind               string                 `json:"spanKind"` // trace.SpanKind as a string
+	SpanID               string               `json:"spanId"`
+	TraceID              string               `json:"traceId,omitempty"`
+	ParentSpanID         string               `json:"parentSpanId,omitempty"`
+	StartTime            Milliseconds         `json:"startTime"`
+	EndTime              Milliseconds         `json:"endTime"`
+	Attributes           map[string]any       `json:"attributes,omitempty"`
+	DisplayName          string               `json:"displayName"`
+	Links                []*Link              `json:"links,omitempty"`
+	InstrumentationScope InstrumentationScope `json:"instrumentationLibrary,omitempty"` // TODO: update json tag when JS runtime gets updated
+	SpanKind             string               `json:"spanKind"`                         // trace.SpanKind as a string
 	// This bool is in a separate struct, to match the js (and presumably the OTel) formats.
 	SameProcessAsParentSpan BoolValue  `json:"sameProcessAsParentSpan"`
 	Status                  Status     `json:"status"`
@@ -80,9 +80,9 @@ type Link struct {
 	DroppedAttributesCount int            `json:"droppedAttributesCount"`
 }
 
-// InstrumentationLibrary is a copy of [go.opentelemetry.io/otel/sdk/instrumentation.Library],
+// InstrumentationScope is a copy of [go.opentelemetry.io/otel/sdk/instrumentation.Library],
 // with added struct tags to match the javascript JSON field names.
-type InstrumentationLibrary struct {
+type InstrumentationScope struct {
 	Name      string `json:"name"`
 	Version   string `json:"version"`
 	SchemaURL string `json:"schemaUrl,omitempty"`

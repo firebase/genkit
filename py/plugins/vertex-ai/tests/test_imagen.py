@@ -5,8 +5,9 @@
 
 import pytest
 
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.ai import ActionRunContext
+from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     Media,
@@ -14,7 +15,6 @@ from genkit.core.typing import (
     Role,
     TextPart,
 )
-from genkit.plugins.vertex_ai.imagen import Imagen, ImagenVersion
 
 
 @pytest.mark.parametrize('version', [x for x in ImagenVersion])
@@ -25,7 +25,7 @@ def test_generate(mocker, version):
             Message(
                 role=Role.USER,
                 content=[
-                    TextPart(text=f'Draw a test.'),
+                    TextPart(text='Draw a test.'),
                 ],
             ),
         ]
@@ -36,9 +36,7 @@ def test_generate(mocker, version):
     model_response_mock._mime_type = ''
     model_response_mock._as_base64_string.return_value = mocked_respond
     genai_model_mock.generate_images.return_value = [model_response_mock]
-    mocker.patch(
-        'genkit.plugins.vertex_ai.imagen.Imagen.model', genai_model_mock
-    )
+    mocker.patch('genkit.plugins.vertex_ai.imagen.Imagen.model', genai_model_mock)
 
     ctx = ActionRunContext()
     response = imagen.generate(request, ctx)

@@ -17,6 +17,7 @@
 import ollama as ollama_api
 from genkit.blocks.embedding import EmbedRequest, EmbedResponse
 from genkit.plugins.ollama.models import EmbeddingModelDefinition
+from genkit.types import Embedding
 
 
 class OllamaEmbedder:
@@ -29,8 +30,11 @@ class OllamaEmbedder:
         self.embedding_definition = embedding_definition
 
     async def embed(self, request: EmbedRequest) -> EmbedResponse:
+        input_raw = []
+        for doc in request.input:
+            input_raw.extend([content.root.text for content in doc.content])
         response = await self.client.embed(
             model=self.embedding_definition.name,
-            input=request.input,
+            input=input_raw,
         )
-        return EmbedResponse(embeddings=response.embeddings)
+        return EmbedResponse(embeddings=[Embedding(embedding=embedding) for embedding in response.embeddings])

@@ -47,12 +47,12 @@ func (e *Embedder) Register(d *ai.Document, vals []float32) {
 
 func (e *Embedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 	res := &ai.EmbedResponse{}
-	for _, doc := range req.Documents {
+	for _, doc := range req.Input {
 		vals, ok := e.registry[doc]
 		if !ok {
 			return nil, errors.New("fake embedder called with unregistered document")
 		}
-		res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: vals})
+		res.Embeddings = append(res.Embeddings, &ai.Embedding{Embedding: vals})
 	}
 	return res, nil
 }

@@ -17,11 +17,6 @@
 name: Go tests and checks
 
 on:
-  push:
-    paths:
-      - "go/**"
-      - "genkit-tools/**"
-      - ".github/workflows/go.yml"
   pull_request:
     paths:
       - "go/**"
