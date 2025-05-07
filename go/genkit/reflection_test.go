@@ -152,6 +152,12 @@ func TestServeMux(t *testing.T) {
 				wantResult: "2",
 			},
 			{
+				name:       "check telemetry labels",
+				body:       `{"key": "/custom/test/dec", "input": 3,"telemetryLabels":{"test_k":"test_v"}}`,
+				wantStatus: http.StatusOK,
+				wantResult: "2",
+			},
+			{
 				name:       "invalid action key",
 				body:       `{"key": "/custom/test/invalid", "input": 3}`,
 				wantStatus: http.StatusNotFound,
