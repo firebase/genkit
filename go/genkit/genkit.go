@@ -703,8 +703,8 @@ func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
 // The `provider` and `name` form the unique identifier. The `embed` function
 // contains the logic to process an [ai.EmbedRequest] (containing documents or a query)
 // and return an [ai.EmbedResponse] (containing the corresponding embeddings).
-func DefineEmbedder(g *Genkit, provider, name string, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
-	return ai.DefineEmbedder(g.reg, provider, name, embed)
+func DefineEmbedder(g *Genkit, provider string, name string, options *ai.EmbedderOptions, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
+	return ai.DefineEmbedder(g.reg, provider, name, options, embed)
 }
 
 // LookupEmbedder retrieves a registered [ai.Embedder] by its provider and name.

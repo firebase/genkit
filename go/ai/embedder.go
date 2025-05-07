@@ -41,9 +41,16 @@ type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 func DefineEmbedder(
 	r *registry.Registry,
 	provider, name string,
+	options *EmbedderOptions,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
-	return (*embedder)(core.DefineAction(r, provider, name, atype.Embedder, nil, embed))
+	metadata := map[string]any{}
+	metadata["type"] = "embedder"
+	metadata["info"] = options.Info
+	if options.ConfigSchema != nil {
+		metadata["embedder"] = map[string]any{"customOptions": options.ConfigSchema}
+	}
+	return (*embedder)(core.DefineAction(r, provider, name, atype.Embedder, metadata, embed))
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].

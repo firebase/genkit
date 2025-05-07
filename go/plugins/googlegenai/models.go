@@ -24,9 +24,17 @@ const (
 
 	gemini25FlashPreview0417 = "gemini-2.5-flash-preview-04-17"
 
-	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
-	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
-	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
+	gemini25ProExp0325                = "gemini-2.5-pro-exp-03-25"
+	gemini25ProPreview0325            = "gemini-2.5-pro-preview-03-25"
+	gemini25ProPreview0506            = "gemini-2.5-pro-preview-05-06"
+	textembedding004                  = "text-embedding-004"
+	embedding001                      = "embedding-001"
+	textembeddinggecko003             = "textembedding-gecko@003"
+	textembeddinggecko002             = "textembedding-gecko@002"
+	textembeddinggecko001             = "textembedding-gecko@001"
+	textembeddinggeckomultilingual001 = "textembedding-gecko-multilingual@001"
+	textmultilingualembedding002      = "text-multilingual-embedding-002"
+	multimodalembedding               = "multimodalembedding"
 )
 
 var (
@@ -163,18 +171,97 @@ var (
 	}
 
 	googleAIEmbedders = []string{
-		"text-embedding-004",
-		"embedding-001",
+		textembedding004,
+		embedding001,
+	}
+
+	googleAIEmbedderConfig = map[string]ai.EmbedderOptions{
+		textembedding004: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Google Gen AI - Text Embedding 001",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		embedding001: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		textembeddinggecko003: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Google Gen AI - Text Embedding Gecko 003",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		textembeddinggecko002: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Vertex AI - Text Embedding Gecko 002",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		textembeddinggecko001: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Vertex AI - Text Embedding Gecko 001",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		textembeddinggeckomultilingual001: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Vertex AI - Text Embedding Gecko Multilingual 001",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		textmultilingualembedding002: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Vertex AI - Text Multilingual Embedding 001",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		multimodalembedding: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
+				Supports: &ai.EmbedderSupports{ // Supports object is present
+					Input: []string{
+						"text",
+						"image",
+						"video",
+					},
+				},
+			},
+		},
 	}
 
 	vertexAIEmbedders = []string{
-		"textembedding-gecko@003",
-		"textembedding-gecko@002",
-		"textembedding-gecko@001",
-		"text-embedding-004",
-		"textembedding-gecko-multilingual@001",
-		"text-multilingual-embedding-002",
-		"multimodalembedding",
+		textembeddinggecko003,
+		textembeddinggecko002,
+		textembeddinggecko001,
+		textembedding004,
+		textembeddinggeckomultilingual001,
+		textmultilingualembedding002,
+		multimodalembedding,
 	}
 )
 
@@ -212,16 +299,21 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 
 // listEmbedders returns a list of supported embedders based on the
 // detected backend
-func listEmbedders(backend genai.Backend) ([]string, error) {
-	embedders := []string{}
+func listEmbedders(backend genai.Backend) (map[string]ai.EmbedderOptions, error) {
+	embeddersNames := []string{}
 
 	switch backend {
 	case genai.BackendGeminiAPI:
-		embedders = googleAIEmbedders
+		embeddersNames = googleAIEmbedders
 	case genai.BackendVertexAI:
-		embedders = vertexAIEmbedders
+		embeddersNames = vertexAIEmbedders
 	default:
 		return nil, fmt.Errorf("embedders for backend %s not found", backend)
+	}
+
+	embedders := make(map[string]ai.EmbedderOptions, 0)
+	for _, n := range embeddersNames {
+		embedders[n] = googleAIEmbedderConfig[n]
 	}
 
 	return embedders, nil

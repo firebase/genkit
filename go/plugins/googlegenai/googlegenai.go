@@ -108,8 +108,8 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	if err != nil {
 		return err
 	}
-	for _, e := range embedders {
-		defineEmbedder(g, ga.gclient, e)
+	for e, eOpts := range embedders {
+		defineEmbedder(g, ga.gclient, e, eOpts)
 	}
 
 	return nil
@@ -182,8 +182,8 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	if err != nil {
 		return err
 	}
-	for _, e := range embedders {
-		defineEmbedder(g, v.gclient, e)
+	for e, eOpts := range embedders {
+		defineEmbedder(g, v.gclient, e, eOpts)
 	}
 
 	return nil
@@ -248,23 +248,23 @@ func (v *VertexAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (ga *GoogleAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {
+func (ga *GoogleAI) DefineEmbedder(g *genkit.Genkit, name string, embedOptions ai.EmbedderOptions) (ai.Embedder, error) {
 	ga.mu.Lock()
 	defer ga.mu.Unlock()
 	if !ga.initted {
 		return nil, errors.New("GoogleAI plugin not initialized")
 	}
-	return defineEmbedder(g, ga.gclient, name), nil
+	return defineEmbedder(g, ga.gclient, name, embedOptions), nil
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {
+func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string, embedOptions ai.EmbedderOptions) (ai.Embedder, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if !v.initted {
 		return nil, errors.New("VertexAI plugin not initialized")
 	}
-	return defineEmbedder(g, v.gclient, name), nil
+	return defineEmbedder(g, v.gclient, name, embedOptions), nil
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
