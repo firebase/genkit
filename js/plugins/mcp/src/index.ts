@@ -15,11 +15,16 @@
  */
 
 import type { Genkit } from 'genkit';
-import { GenkitMcpClient, McpClientOptions, McpServerConfig } from './client';
+import { GenkitMcpClientManager, McpClientManagerOptions } from './client';
+import { McpClientOptions, McpServerConfig } from './client/client';
 import { GenkitMcpServer } from './server';
 
 export { mcpClient, type LegacyMcpClientOptions } from './client/legacy';
-export { GenkitMcpClient, type McpClientOptions, type McpServerConfig };
+export {
+  GenkitMcpClientManager as GenkitMcpClient,
+  type McpClientOptions,
+  type McpServerConfig,
+};
 
 export interface McpServerOptions {
   /** The name you want to give your server for MCP inspection. */
@@ -47,9 +52,11 @@ export interface McpServerOptions {
  * @returns
  */
 export function createMcpClient(
-  options: McpClientOptions & { mcpServers: Record<string, McpServerConfig> }
+  options: McpClientManagerOptions & {
+    mcpClients: Record<string, McpServerConfig>;
+  }
 ) {
-  return new GenkitMcpClient(options);
+  return new GenkitMcpClientManager(options);
 }
 
 /**

@@ -28,7 +28,9 @@ import {
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai/evaluation';
 import { genkit } from 'genkit';
+import { logger } from 'genkit/logging';
 import { langchain } from 'genkitx-langchain';
+import { createMcpClient } from 'genkitx-mcp';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -103,4 +105,20 @@ export const ai = genkit({
       },
     }),
   ],
+});
+
+logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
+
+export const clientManager = createMcpClient({
+  name: 'test-mcp-manager',
+  mcpClients: {
+    'git-client': {
+      name: 'git-client-ccc',
+      server: {
+        command: 'uvx',
+        args: ['mcp-server-git'],
+      },
+      disabled: true,
+    },
+  },
 });

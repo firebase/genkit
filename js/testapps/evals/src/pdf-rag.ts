@@ -24,7 +24,7 @@ import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import { getDocument } from 'pdfjs-dist-legacy';
-import { ai } from './genkit.js';
+import { ai, clientManager } from './genkit.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
@@ -100,11 +100,26 @@ export const simpleEcho = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (i) => {
+    const tools = await clientManager.getAllTools(ai);
     const llmResponse = await ai.generate({
       model: gemini15Flash,
       prompt: i,
+      tools,
     });
     return llmResponse.text;
+  }
+);
+
+// Define a simple flow
+export const disconnect = ai.defineFlow(
+  {
+    name: 'disconnect',
+    inputSchema: z.void(),
+    outputSchema: z.string(),
+  },
+  async () => {
+    await clientManager.disconnectClient('git-client');
+    return 'disc';
   }
 );
 

@@ -1,10 +1,26 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { Genkit, GenkitError } from 'genkit';
 import { genkitPlugin } from 'genkit/plugin';
-import { registerAllPrompts } from './prompts.js';
-import { registerResourceTools } from './resources.js';
-import { registerAllTools } from './tools.js';
+import { registerAllPrompts } from '../util/prompts.js';
+import { registerResourceTools } from '../util/resources.js';
+import { registerAllTools } from '../util/tools.js';
 
 export interface LegacyMcpClientOptions {
   /** Provide a name for this client which will be its namespace for all tools and prompts. */
