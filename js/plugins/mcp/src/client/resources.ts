@@ -27,27 +27,56 @@ export async function registerResourceTools(
   client: Client,
   params: McpClientOptions
 ) {
+  const rootsList = params.roots
+    ? params.roots
+        .map<string>((root) => `${root.name} (${root.uri})`)
+        .join(', ')
+    : '';
+
   ai.defineTool(
     {
       name: `${params.name}/list_resources`,
-      description: `list all available resources for '${params.name}'`,
+      description: `list all available resources for '${params.name}'${params.roots ? `, within roots ${rootsList}` : ''}`,
       inputSchema: z.object({
         /** Provide a cursor for accessing additional paginated results. */
         cursor: z.string().optional(),
         /** When specified, automatically paginate and fetch all resources. */
         all: z.boolean().optional(),
+        /** The list of roots to limit the results to. Must be a subset of params.roots. */
+        roots: z
+          .array(z.object({ name: z.string().optional(), uri: z.string() }))
+          .optional()
+          .describe(
+            `The list of roots to limit the results to. Must be a subset of ${rootsList}`
+          ),
       }),
     },
-    async ({ cursor, all }) => {
+    async ({
+      cursor,
+      all,
+      roots,
+    }): Promise<{ nextCursor?: string | undefined; resources: Resource[] }> => {
+      // Filter the roots so that they only contain roots in the params.roots list.
+      if (roots) {
+        roots = roots.filter((root) =>
+          params.roots?.some(
+            (pRoot) => pRoot.name === root.name && pRoot.uri === root.uri
+          )
+        );
+      }
+
       if (!all) {
-        return client.listResources();
+        return client.listResources({ roots: roots || params.roots });
       }
 
       let currentCursor: string | undefined = cursor;
       const resources: Resource[] = [];
       while (true) {
         const { nextCursor, resources: newResources } =
-          await client.listResources({ cursor: currentCursor });
+          await client.listResources({
+            cursor: currentCursor,
+            roots: roots || params.roots,
+          });
         resources.push(...newResources);
         currentCursor = nextCursor;
         if (!currentCursor) break;

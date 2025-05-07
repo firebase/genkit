@@ -33,10 +33,13 @@ import type {
   GetPromptResult,
   ListPromptsRequest,
   ListPromptsResult,
+  ListRootsRequest,
+  ListRootsResult,
   ListToolsRequest,
   ListToolsResult,
   Prompt,
   PromptMessage,
+  Root,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
 import { logger } from 'genkit/logging';
@@ -52,7 +55,6 @@ export class GenkitMcpServer {
   constructor(ai: Genkit, options: McpServerOptions) {
     this.ai = ai;
     this.options = options;
-    this.setup();
   }
 
   async setup(): Promise<void> {
@@ -62,11 +64,19 @@ export class GenkitMcpServer {
     );
 
     this.server = new Server(
-      { name: this.options.name, version: this.options.version || '1.0.0' },
+      {
+        name: this.options.name,
+        version: this.options.version || '1.0.0',
+        roots: this.options.roots,
+      },
       {
         capabilities: {
           prompts: {},
           tools: {},
+          // TODO: Support sending root list change notifications to the client.
+          // Would require some way to update the list of roots outside of the
+          // server params.
+          roots: { listChanged: false },
         },
       }
     );
@@ -76,6 +86,7 @@ export class GenkitMcpServer {
       GetPromptRequestSchema,
       ListPromptsRequestSchema,
       ListToolsRequestSchema,
+      ListRootsRequestSchema,
     } = await import('@modelcontextprotocol/sdk/types.js');
 
     this.server.setRequestHandler(
@@ -93,6 +104,10 @@ export class GenkitMcpServer {
     this.server.setRequestHandler(
       GetPromptRequestSchema,
       this.getPrompt.bind(this)
+    );
+    this.server.setRequestHandler(
+      ListRootsRequestSchema,
+      this.listRoots.bind(this)
     );
 
     const allActions = await this.ai.registry.listActions();
@@ -122,6 +137,16 @@ export class GenkitMcpServer {
         };
       }),
     };
+  }
+
+  async listRoots(req: ListRootsRequest): Promise<ListRootsResult> {
+    await this.setup();
+    if (!this.options.roots) {
+      return { roots: [] };
+    }
+
+    const mcpRoots: Root[] = this.options.roots.map<Root>((root) => root);
+    return { roots: mcpRoots };
   }
 
   async callTool(req: CallToolRequest): Promise<CallToolResult> {

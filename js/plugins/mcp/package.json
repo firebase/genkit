@@ -16,9 +16,7 @@
   "exports": {
     ".": {
       "require": "./lib/index.js",
-      "import": "./lib/index.mjs",
-      "types": "./lib/index.d.ts",
-      "default": "./lib/index.js"
+      "import": "./lib/index.mjs"
     }
   },
   "type": "commonjs",
@@ -28,7 +26,7 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "tsx --test ./tests/*_test.ts"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -43,16 +41,23 @@
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.11.16",
     "jest": "^29.7.0",
     "npm-run-all": "^4.1.5",
     "rimraf": "^6.0.1",
-    "ts-jest": "^29.1.2",
+    "ts-jest": "^29.2.5",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
-    "typescript": "^5.3.0"
+    "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.8.0"
+    "@modelcontextprotocol/sdk": "^1.11.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testMatch": [
+      "<rootDir>/tests/**/*_test.ts"
+    ]
   }
 }

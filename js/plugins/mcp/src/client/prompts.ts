@@ -72,7 +72,10 @@ export async function registerAllPrompts(
 ): Promise<void> {
   let cursor: string | undefined;
   while (true) {
-    const { nextCursor, prompts } = await client.listPrompts({ cursor });
+    const { nextCursor, prompts } = await client.listPrompts({
+      cursor,
+      roots: params.roots,
+    });
     prompts.forEach((p) => registerPrompt(ai, client, p, params));
     cursor = nextCursor;
     if (!cursor) break;

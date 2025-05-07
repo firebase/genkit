@@ -18,10 +18,10 @@ import type { StdioServerParameters } from '@modelcontextprotocol/sdk/client/std
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js' with { 'resolution-mode': 'import' };
 import { Genkit, GenkitError } from 'genkit';
 import { genkitPlugin } from 'genkit/plugin';
-import { registerAllPrompts } from './client/prompts.js';
-import { registerResourceTools } from './client/resources.js';
-import { registerAllTools } from './client/tools.js';
-import { GenkitMcpServer } from './server.js';
+import { registerAllPrompts } from './client/prompts';
+import { registerResourceTools } from './client/resources';
+import { registerAllTools } from './client/tools';
+import { GenkitMcpServer } from './server';
 
 export interface McpClientOptions {
   /** Provide a name for this client which will be its namespace for all tools and prompts. */
@@ -38,6 +38,8 @@ export interface McpClientOptions {
   serverWebsocketUrl?: string | URL;
   /** Return tool responses in raw MCP form instead of processing them for Genkit compatibility. */
   rawToolResponses?: boolean;
+  /** Specify the MCP roots this client would like the server to work within. */
+  roots?: { name: string; uri: string }[];
 }
 
 async function transportFrom(params: McpClientOptions): Promise<Transport> {
@@ -77,19 +79,36 @@ export function mcpClient(params: McpClientOptions) {
     );
 
     const transport = await transportFrom(params);
-    ai.options.model;
     const client = new Client(
-      { name: params.name, version: params.version || '1.0.0' },
-      { capabilities: {} }
+      {
+        name: params.name,
+        version: params.version || '1.0.0',
+        roots: params.roots,
+      },
+      {
+        capabilities: {
+          // TODO: Support sending root list change notifications to the server.
+          // Would require some way to update the list of roots outside of
+          // client params. Also requires that our registrations of tools and
+          // resources are able to handle updates to the list of roots this
+          // client defines, since tool and resource lists are affected by the
+          // list of roots.
+          roots: { listChanged: false },
+        },
+      }
     );
     await client.connect(transport);
-    const capabilties = await client.getServerCapabilities();
+    const capabilities = client.getServerCapabilities();
     const promises: Promise<any>[] = [];
-    if (capabilties?.tools) promises.push(registerAllTools(ai, client, params));
-    if (capabilties?.prompts)
+    if (capabilities?.tools) {
+      promises.push(registerAllTools(ai, client, params));
+    }
+    if (capabilities?.prompts) {
       promises.push(registerAllPrompts(ai, client, params));
-    if (capabilties?.resources)
+    }
+    if (capabilities?.resources) {
       promises.push(registerResourceTools(ai, client, params));
+    }
     await Promise.all(promises);
   });
 }
@@ -99,6 +118,8 @@ export interface McpServerOptions {
   name: string;
   /** The version you want the server to advertise to clients. Defaults to 1.0.0. */
   version?: string;
+  /** The MCP roots this server is associated with or serves. */
+  roots?: { name: string; uri: string }[];
 }
 
 export function mcpServer(ai: Genkit, options: McpServerOptions) {
