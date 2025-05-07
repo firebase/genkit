@@ -4,11 +4,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const (
-	defaultSchemaName = "public"
-	defaultUserAgent  = "genkit-cloud-sql-pg-go/0.0.0"
-)
-
 // Option is a function type that can be used to modify the Engine.
 type Option func(p *engineConfig)
 

@@ -2,7 +2,6 @@ package postgresql
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -10,9 +9,6 @@ import (
 )
 
 func TestApplyEngineOptionsConfig(t *testing.T) {
-	mockEmailRetriever := func(ctx context.Context) (string, error) {
-		return "test@google.com", nil
-	}
 
 	testCases := []struct {
 		name       string
@@ -69,7 +65,6 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 			opts: []Option{
 				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
 				WithDatabase("testdb"),
-				WithEmailRetriever(mockEmailRetriever),
 			},
 			wantErr:    false,
 			wantIpType: PUBLIC,
@@ -84,7 +79,6 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.wantIpType, cfg.ipType)
-				assert.NotNil(t, cfg.emailRetriever)
 			}
 		})
 	}
@@ -116,28 +110,6 @@ func TestGetUser(t *testing.T) {
 			wantUser:    "iam@example.com",
 			wantIAMAuth: true,
 			wantErr:     false,
-		},
-		{
-			name: "retrieve service account email success",
-			cfg: engineConfig{
-				emailRetriever: func(ctx context.Context) (string, error) {
-					return "service@example.com", nil
-				},
-			},
-			wantUser:    "service@example.com",
-			wantIAMAuth: true,
-			wantErr:     false,
-		},
-		{
-			name: "retrieve service account email failure",
-			cfg: engineConfig{
-				emailRetriever: func(ctx context.Context) (string, error) {
-					return "", errors.New("retrieve error")
-				},
-			},
-			wantUser:    "",
-			wantIAMAuth: false,
-			wantErr:     true,
 		},
 	}
 

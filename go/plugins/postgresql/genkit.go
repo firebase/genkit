@@ -3,6 +3,8 @@ package postgresql
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -17,12 +19,7 @@ type Postgres struct {
 	mu      sync.Mutex
 	initted bool
 	engine  PostgresEngine
-}
-
-func NewPostgres(engine PostgresEngine) *Postgres {
-	return &Postgres{
-		engine: engine,
-	}
+	config  Config
 }
 
 func (p *Postgres) Name() string {
@@ -37,99 +34,125 @@ func (p *Postgres) Init(ctx context.Context, g *genkit.Genkit) error {
 		panic("postgres.Init already initted")
 	}
 
-	// TODO: add validation
+	if p.engine.Pool == nil {
+		panic("postgres.Init engine has no pool")
+	}
+
+	if strings.TrimSpace(p.config.TableName) == "" {
+		panic("table name must be defined")
+	}
+
+	if p.config.SchemaName == "" {
+		p.config.SchemaName = defaultSchemaName
+	}
+	if p.config.SchemaName == "" {
+		p.config.SchemaName = defaultSchemaName
+	}
+	if p.config.IDColumn == "" {
+		p.config.IDColumn = defaultIDColumn
+	}
+	if p.config.MetadataJSONColumn == "" {
+		p.config.MetadataJSONColumn = defaultMetadataJsonColumn
+	}
+	if p.config.ContentColumn == "" {
+		p.config.ContentColumn = defaultContentColumn
+	}
+	if p.config.EmbeddingColumn == "" {
+		p.config.EmbeddingColumn = defaultEmbeddingColumn
+	}
+
+	if p.config.Embedder == nil {
+		return fmt.Errorf("embedder is required")
+	}
+
+	if err := p.validate(ctx); err != nil {
+		return err
+	}
 
 	p.initted = true
 	return nil
 
 }
 
-type docStore struct {
-	engine          PostgresEngine
-	embedder        ai.Embedder
-	embedderOptions any
+func (p *Postgres) validate(ctx context.Context) error {
+	stmt := fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '%s' AND table_schema = '%s'", p.config.TableName, p.config.SchemaName)
+	rows, err := p.engine.Pool.Query(ctx, stmt)
+	if err != nil {
+		return err
+	}
+
+	mapColumnNameDataType := make(map[string]string)
+
+	for rows.Next() {
+		var columnName, dataType string
+		if err := rows.Scan(&columnName, &dataType); err != nil {
+			return err
+		}
+		mapColumnNameDataType[columnName] = dataType
+	}
+
+	if _, ok := mapColumnNameDataType[p.config.IDColumn]; !ok {
+		return fmt.Errorf("id column '%s' does not exist", p.config.IDColumn)
+	}
+
+	ccdt, ok := mapColumnNameDataType[p.config.ContentColumn]
+	if !ok {
+		return fmt.Errorf("content column '%s' does not exist", p.config.ContentColumn)
+	}
+
+	if ccdt != "text" && strings.Contains(ccdt, "char") {
+		return fmt.Errorf("content column '%s' is type '%s'. must be a type of character string", p.config.ContentColumn, ccdt)
+	}
+
+	ecdt, ok := mapColumnNameDataType[p.config.EmbeddingColumn]
+	if !ok {
+		return fmt.Errorf("content column '%s' does not exist", p.config.ContentColumn)
+	}
+
+	if ecdt != "USER-DEFINED" {
+		return fmt.Errorf("content column '%s' must be a type vector", p.config.ContentColumn)
+	}
+
+	for _, mc := range p.config.MetadataColumns {
+		if _, ok = mapColumnNameDataType[mc]; !ok {
+			return fmt.Errorf("metadata column '%s' does not exist", mc)
+		}
+	}
+
+	return nil
+
 }
 
 // Config provides configuration options for [DefineIndexer] and [DefineRetriever].
 type Config struct {
-	Name            string
-	TableName       string
-	SchemaName      string
-	ContentColumn   string
-	EmbeddingColumn string
-	MetadataColumns []string
+	TableName          string
+	SchemaName         string
+	ContentColumn      string
+	EmbeddingColumn    string
+	MetadataColumns    []string
+	IDColumn           string
+	MetadataJSONColumn string
+
 	Embedder        ai.Embedder // Embedder to use. Required.
 	EmbedderOptions any         // Options to pass to the embedder.
 }
 
-// newDocStore instantiate a docStore
-func (p *Postgres) newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if !p.initted {
-		panic("postgres.Init not called")
-	}
-	if cfg.Name == "" {
-		return nil, errors.New("name is empty")
-	}
-	if cfg.Embedder == nil {
-		return nil, errors.New("embedder is required")
-	}
-
-	if cfg.SchemaName == "" {
-		cfg.SchemaName = defaultSchemaName
-	}
-
-	if cfg.TableName == "" {
-		return nil, errors.New("table name is required")
-	}
-
-	return &docStore{
-		engine:          p.engine,
-		embedder:        cfg.Embedder,
-		embedderOptions: cfg.EmbedderOptions,
-	}, nil
-}
-
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Retriever, error) {
-	gcsp := genkit.LookupPlugin(g, provider).(*Postgres)
-	if gcsp == nil {
-		return nil, errors.New("google cloud sql for postgres plugin not found; did you call genkit.Init with the google cloud sql for postgres plugin?")
+func DefineRetriever(ctx context.Context, g *genkit.Genkit) (ai.Retriever, error) {
+	p := genkit.LookupPlugin(g, provider).(*Postgres)
+	if p == nil {
+		return nil, errors.New("google cloud sql for postgres plugin not found; call genkit.Init with the google cloud sql for postgres plugin")
 	}
-
-	ds, err := gcsp.newDocStore(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return genkit.DefineRetriever(g, provider, cfg.Name, ds.Retrieve), nil
+	return genkit.DefineRetriever(g, provider, p.config.TableName, p.Retrieve), nil
 }
 
-func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-	//TODO: implement method
-	return nil, nil
-}
-
-func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Indexer, error) {
-	gcsp := genkit.LookupPlugin(g, provider).(*Postgres)
-	if gcsp == nil {
-		return nil, errors.New(" google cloud sql for postgres plugin not found; did you call genkit.Init with the google cloud sql for postgres plugin?")
+func DefineIndexer(ctx context.Context, g *genkit.Genkit) (ai.Indexer, error) {
+	p := genkit.LookupPlugin(g, provider).(*Postgres)
+	if p == nil {
+		return nil, errors.New("google cloud sql for postgres plugin not found; call genkit.Init with the google cloud sql for postgres plugin")
 	}
 
-	ds, err := gcsp.newDocStore(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return genkit.DefineIndexer(g, provider, cfg.Name, ds.Index), nil
-}
-
-// Index implements the genkit Retriever.Index method.
-func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
-	if len(req.Documents) == 0 {
-		return nil
-	}
-	//TODO: implement method
-	return nil
+	return genkit.DefineIndexer(g, provider, p.config.TableName, p.Index), nil
 }
 
 // Indexer returns the indexer with the given index name.
