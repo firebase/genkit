@@ -239,6 +239,8 @@ class GenerationUsage(BaseModel):
     input_audio_files: float | None = Field(None, alias='inputAudioFiles')
     output_audio_files: float | None = Field(None, alias='outputAudioFiles')
     custom: dict[str, float] | None = None
+    thoughts_tokens: float | None = Field(None, alias='thoughtsTokens')
+    cached_content_tokens: float | None = Field(None, alias='cachedContentTokens')
 
 
 class Constrained(StrEnum):
