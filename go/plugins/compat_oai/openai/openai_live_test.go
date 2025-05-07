@@ -23,6 +23,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/firebase/genkit/go/plugins/compat_oai/openai"
 )
 
@@ -216,7 +217,7 @@ func TestPlugin(t *testing.T) {
 
 	t.Run("generation config", func(t *testing.T) {
 		// Create a config with specific parameters
-		config := &ai.GenerationCommonConfig{
+		config := &compat_oai.OpenAIConfig{
 			Temperature:     0.2,
 			MaxOutputTokens: 50,
 			TopP:            0.5,
@@ -234,27 +235,6 @@ func TestPlugin(t *testing.T) {
 		t.Logf("generation config response: %+v", out)
 	})
 
-	t.Run("unsupported config field", func(t *testing.T) {
-		// Create a config with an unsupported TopK parameter
-		config := &ai.GenerationCommonConfig{
-			Temperature:     0.2,
-			MaxOutputTokens: 50,
-			TopK:            10, // TopK is not supported in OpenAI's chat completion API
-		}
-
-		_, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("Write a short sentence about artificial intelligence."),
-			ai.WithConfig(config),
-		)
-		if err == nil {
-			t.Fatal("expected error for unsupported TopK parameter")
-		}
-		if !strings.Contains(err.Error(), "TopK is not supported in OpenAI's chat completion API") {
-			t.Errorf("got error %q, want error containing 'TopK is not supported in OpenAI's chat completion API'", err.Error())
-		}
-		t.Logf("unsupported config error: %v", err)
-	})
-
 	t.Run("invalid config type", func(t *testing.T) {
 		// Try to use a string as config instead of *ai.GenerationCommonConfig
 		config := "not a config"
@@ -266,8 +246,8 @@ func TestPlugin(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for invalid config type")
 		}
-		if !strings.Contains(err.Error(), "config must be of type *ai.GenerationCommonConfig") {
-			t.Errorf("got error %q, want error containing 'config must be of type *ai.GenerationCommonConfig'", err.Error())
+		if !strings.Contains(err.Error(), "unexpected config type: string") {
+			t.Errorf("got error %q, want error containing 'unexpected config type: string'", err.Error())
 		}
 		t.Logf("invalid config type error: %v", err)
 	})
