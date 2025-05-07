@@ -603,8 +603,6 @@ export function getBasicUsageStats(
     outputImages: outputCounts.images,
     outputVideos: outputCounts.videos,
     outputAudioFiles: outputCounts.audio,
-    cachedContentTokens: outputCounts.characters,
-    thoughtsTokens: outputCounts.characters,
   };
 }
 
