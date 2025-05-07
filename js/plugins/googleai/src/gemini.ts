@@ -17,8 +17,8 @@
 import {
   EnhancedGenerateContentResponse,
   FileDataPart,
-  FunctionCallPart,
   FunctionCallingMode,
+  FunctionCallPart,
   FunctionDeclaration,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
@@ -37,8 +37,8 @@ import {
   ToolConfig,
 } from '@google/generative-ai';
 import {
-  GENKIT_CLIENT_HEADER,
   Genkit,
+  GENKIT_CLIENT_HEADER,
   GenkitError,
   JSONSchema,
   z,
@@ -46,18 +46,18 @@ import {
 import {
   CandidateData,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -131,29 +131,6 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       'The modalities to be used in response. Only supported for ' +
         "'gemini-2.0-flash-exp' model at present."
     )
-    .optional(),
-  thinkingConfig: z
-    .object({
-      includeThoughts: z
-        .boolean()
-        .describe(
-          'Indicates whether to include thoughts in the response.' +
-            'If true, thoughts are returned only when available.'
-        )
-        .optional(),
-      thinkingBudget: z
-        .number()
-        .min(0)
-        .max(24576)
-        .describe(
-          'The thinking budget parameter gives the model guidance on the ' +
-            'number of thinking tokens it can use when generating a response. ' +
-            'A greater number of tokens is typically associated with more detailed ' +
-            'thinking, which is needed for solving more complex tasks. ' +
-            'Setting the thinking budget to 0 disables thinking.'
-        )
-        .optional(),
-    })
     .optional(),
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
