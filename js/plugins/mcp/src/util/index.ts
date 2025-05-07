@@ -21,6 +21,15 @@ import type {
   Transport,
 } from '../client/index';
 
+/**
+ * Creates an MCP transport instance based on the provided server configuration.
+ * It supports creating SSE, Stdio, or using a pre-configured custom transport.
+ *
+ * @param config The configuration for the MCP server, determining the type of transport to create.
+ * @returns A Promise resolving to an object containing the created `Transport` instance
+ *          (or `null` if configuration is invalid) and a string indicating the `type` of transport.
+ * @throws May throw an error if essential MCP SDK components cannot be imported.
+ */
 export async function transportFrom(config: McpServerConfig): Promise<{
   transport: Transport | null;
   type: string;

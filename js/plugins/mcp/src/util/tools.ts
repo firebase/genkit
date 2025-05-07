@@ -41,6 +41,17 @@ function processResult(result: CallToolResult) {
   return result;
 }
 
+/**
+ * Registers a single MCP tool as a Genkit tool.
+ * It defines a new Genkit tool action that, when called, will
+ * interact with the MCP client to execute the corresponding MCP tool.
+ *
+ * @param ai The Genkit instance to define the tool on.
+ * @param client The MCP client instance used to interact with the MCP server.
+ * @param tool The MCP Tool object to register.
+ * @param params Contains the Genkit client name, MCP server name for namespacing,
+ *               and a flag for raw tool responses.
+ */
 function registerTool(
   ai: Genkit,
   client: any, // Use 'any' or let TS infer; removing specific type import
@@ -76,6 +87,17 @@ function registerTool(
   );
 }
 
+/**
+ * Creates a Genkit dynamic tool action for a given MCP tool.
+ * This is similar to `registerTool` but returns the `ToolAction` directly
+ * instead of defining it on the Genkit instance.
+ *
+ * @param ai The Genkit instance, used for creating the dynamic tool.
+ * @param client The MCP client instance.
+ * @param tool The MCP Tool object.
+ * @param params Configuration parameters including namespacing and raw response flag.
+ * @returns A Genkit `ToolAction` representing the MCP tool.
+ */
 function createDynamicTool(
   ai: Genkit,
   client: any, // Use 'any' or let TS infer; removing specific type import

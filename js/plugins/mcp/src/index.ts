@@ -34,24 +34,29 @@ export interface McpServerOptions {
 }
 
 /**
- * Creates an MCP client that connects to one or more MCP servers as specified in
- * the `mcpServers` option. By default, all servers in the config will be automatically
- * started unless a `{disabled: true}` option is supplied.
+ * Creates an MCP Client Manager that connects to one or more MCP servers.
+ * Each server is defined in the `mcpClients` option, where the key is a
+ * client-side name for the server and the value is the server's configuration.
+ *
+ * By default, all servers in the config will be attempted to connect unless
+ * their configuration includes `{disabled: true}`.
  *
  * ```ts
- * const client = createMcpClient({
- *   name: "my-mcp-client",
- *   version: "0.1.0",
- *   mcpServers: {
- *     git: {command: "uvx", args: ["mcp-server-git"]},
+ * const clientManager = createMcpClientManager({
+ *   name: "my-mcp-client-manager", // Name for the manager itself
+ *   mcpClients: {
+ *     // Each key is a name for this client/server configuration
+ *     // Each value is an McpServerConfig object
+ *     gitToolServer: { command: "uvx", args: ["mcp-server-git"] },
+ *     customApiServer: { url: "http://localhost:1234/mcp" }
  *   }
- * })
+ * });
  * ```
  *
- * @param options
- * @returns
+ * @param options Configuration for the MCP Client Manager, including the definitions of MCP servers to connect to.
+ * @returns A new instance of GenkitMcpClientManager.
  */
-export function createMcpClient(
+export function createMcpClientManager(
   options: McpClientManagerOptions & {
     mcpClients: Record<string, McpServerConfig>;
   }

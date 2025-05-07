@@ -23,12 +23,29 @@ import { GenkitMcpClient, McpClientOptions } from './client';
 export type { SSEClientTransportOptions, StdioServerParameters, Transport };
 
 export interface McpClientManagerOptions {
-  /** Provide a name for this client manager Defaults to 'mcp-manager'. */
+  /**
+   * An optional name for this client manager. This name is primarily for
+   * logging and identification purposes within Genkit.
+   * Defaults to 'genkitx-mcp'.
+   */
   name?: string;
-  /** Provide one or more MCP clients to manage connections. */
+  /**
+   * A record where each key is a client-side name for an MCP server,
+   * and each value is an `McpClientOptions` object defining how to connect
+   * to that server and how it should behave.
+   * This allows the manager to handle connections to multiple, uniquely named MCP servers.
+   */
   mcpClients?: Record<string, McpClientOptions>;
 }
 
+/**
+ * Manages connections to multiple MCP (Model Context Protocol) servers.
+ * Each server connection is individually configured and managed by an instance of `GenkitMcpClient`.
+ * This manager provides a centralized way to initialize, update, and interact with these clients.
+ *
+ * It allows for dynamic registration of tools from all connected and enabled MCP servers
+ * into a Genkit instance.
+ */
 export class GenkitMcpClientManager {
   name: string;
   private _clients: Record<string, GenkitMcpClient> = {};
@@ -96,7 +113,7 @@ export class GenkitMcpClientManager {
    */
   async disableClient(serverName: string) {
     const client = this._clients[serverName];
-    if (!client.isDisabled()) {
+    if (client.isEnabled()) {
       logger.info(
         `[MCP Manager] Disabling MCP server '${serverName}' in client '${this.name}'`
       );
@@ -175,26 +192,26 @@ export class GenkitMcpClientManager {
   }
 
   /**
-   * Creates a Genkit plugin that registers tools, prompts, and resources
-   * from all connected and enabled MCP servers associated with this client.
+   * Retrieves all tools from all connected and enabled MCP clients managed by this instance.
+   * This method waits for the manager to be ready (all initial connection attempts made)
+   * before fetching tools.
    *
-   * The plugin dynamically fetches capabilities from each server upon initialization.
+   * It iterates through each managed `GenkitMcpClient`, and if the client is not disabled,
+   * it calls the client's `getTools` method to fetch its available tools.
+   * These are then aggregated into a single array.
+   *
+   * This is useful for dynamically providing a list of all available MCP tools to Genkit,
+   * for example, when setting up a Genkit plugin.
    *
    * ```ts
-   * export default configureGenkit({
-   *   plugins: [
-   *     myMcpClient.plugin()
-   *   ],
-   *   // ... other configurations
-   * });
+   * const mcpManager = createMcpClientManager({ ... });
+   * // In your Genkit configuration:
+   * // const allMcpTools = await mcpManager.getAllTools(ai);
+   * // Then, these tools can be used or registered with Genkit.
    * ```
    *
-   * **Note:** The plugin is initialized once. Servers added or enabled *after*
-   * Genkit initialization will not be reflected in the plugin's registered components
-   * unless the Genkit configuration is reloaded.
-   *
-   * @param options Optional configuration for the plugin, such as its name.
-   * @returns A GenkitPlugin instance.
+   * @param ai The Genkit instance, used by individual clients to define dynamic tools.
+   * @returns A Promise that resolves to an array of `ToolAction` from all active MCP clients.
    */
   async getAllTools(ai: Genkit): Promise<ToolAction[]> {
     await this.ready();
@@ -202,7 +219,7 @@ export class GenkitMcpClientManager {
 
     for (const serverName in this._clients) {
       const client = this._clients[serverName];
-      if (!client.isDisabled()) {
+      if (client.isEnabled()) {
         const tools = await client.getTools(ai);
         allTools.push(...tools);
       }

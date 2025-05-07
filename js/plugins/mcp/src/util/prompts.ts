@@ -32,15 +32,23 @@ function toSchema(args: Prompt['arguments']) {
   return schema;
 }
 
+/**
+ * Registers a single MCP prompt as a Genkit prompt.
+ * It defines a new Genkit prompt action that, when called, will
+ * interact with the MCP client to fetch and render the corresponding MCP prompt.
+ *
+ * @param ai The Genkit instance to define the prompt on.
+ * @param client The MCP client instance used to interact with the MCP server.
+ * @param prompt The MCP Prompt object to register.
+ * @param params Contains the Genkit client name and the MCP server name for namespacing and logging.
+ */
 function registerPrompt(
   ai: Genkit,
   client: any, // Use 'any' or let TS infer; removing specific type import
   prompt: Prompt,
   params: { name: string; serverName: string }
 ) {
-  logger.debug(
-    `[@genkit-ai/mcp] Registering MCP prompt ${params.name}/${prompt.name}`
-  );
+  logger.debug(`[MCP] Registering MCP prompt ${params.name}/${prompt.name}`);
   ai.definePrompt({
     name: prompt.name,
     description: prompt.description || '',
@@ -48,7 +56,7 @@ function registerPrompt(
     output: { format: 'text' },
     messages: async (args) => {
       logger.debug(
-        `[@genkit-ai/mcp] Calling MCP prompt ${params.name}/${prompt.name} with arguments`,
+        `[MCP] Calling MCP prompt ${params.name}/${prompt.name} with arguments`,
         JSON.stringify(args)
       );
       const result = await client.getPrompt({

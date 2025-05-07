@@ -72,7 +72,7 @@ async function transportFrom(
 }
 
 /**
- * @deprecated use `createMcpClient({mcpServers: {...}})` instead.
+ * @deprecated use `createMcpClientManager({mcpClients: {...}})` instead.
  */
 export function mcpClient(params: LegacyMcpClientOptions) {
   return genkitPlugin(params.name, async (ai: Genkit) => {

@@ -70,17 +70,45 @@ export type McpServerConfig = (
 ) &
   McpServerControls;
 
+/**
+ * Configuration options for an individual `GenkitMcpClient` instance.
+ * This defines how the client connects to a single MCP server and how it behaves.
+ */
 export interface McpClientOptions {
-  /** Provide a name for this client which will be its namespace for all tools and prompts. Defaults to 'mcp'. */
+  /**
+   * An optional name for this specific client instance. This name is used
+   * as a namespace for tools and prompts retrieved from the connected MCP server.
+   * It helps to avoid naming conflicts if multiple MCP clients are used.
+   * Defaults to 'genkitx-mcp-client'.
+   */
   name?: string;
-  /** Provide a version number for this client (defaults to 1.0.0). */
+  /**
+   * An optional version number for this client. This is primarily for logging
+   * and identification purposes. Defaults to '1.0.0'.
+   */
   version?: string;
-  /** Provide an MCP server to which this client should connect. */
+  /**
+   * The configuration for the MCP server to which this client will connect.
+   * This includes details like the server's command, URL, or a pre-existing transport.
+   * See `McpServerConfig` for more details.
+   */
   server: McpServerConfig;
-  /** Return tool responses in raw MCP form instead of processing them for Genkit compatibility. */
+  /**
+   * If true, tool responses from the MCP server will be returned in their raw
+   * MCP format. Otherwise (default), they are processed and potentially
+   * simplified for better compatibility with Genkit's typical data structures.
+   */
   rawToolResponses?: boolean;
 }
 
+/**
+ * Represents a client connection to a single MCP (Model Context Protocol) server.
+ * It handles the lifecycle of the connection (connect, disconnect, disable, re-enable, reconnect)
+ * and provides methods to fetch tools from the connected server.
+ *
+ * An instance of `GenkitMcpClient` is typically managed by a `GenkitMcpClientManager`
+ * when dealing with multiple MCP server connections.
+ */
 export class GenkitMcpClient {
   name: string;
   version: string;
@@ -204,8 +232,8 @@ export class GenkitMcpClient {
     }
   }
 
-  isDisabled() {
-    return this._server?.disabled ?? false;
+  isEnabled() {
+    return !this._server?.disabled;
   }
 
   /**
