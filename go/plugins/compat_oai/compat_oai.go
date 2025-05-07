@@ -134,7 +134,7 @@ func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name strin
 
 	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var data openaiGo.EmbeddingNewParamsInputArrayOfStrings
-		for _, doc := range input.Documents {
+		for _, doc := range input.Input {
 			for _, p := range doc.Content {
 				data = append(data, p.Text)
 			}
@@ -157,7 +157,7 @@ func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name strin
 			for i, val := range emb.Embedding {
 				embedding[i] = float32(val)
 			}
-			resp.Embeddings = append(resp.Embeddings, &ai.DocumentEmbedding{Embedding: embedding})
+			resp.Embeddings = append(resp.Embeddings, &ai.Embedding{Embedding: embedding})
 		}
 		return resp, nil
 	}), nil

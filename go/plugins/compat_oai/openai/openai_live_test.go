@@ -64,7 +64,7 @@ func TestPlugin(t *testing.T) {
 
 		// define embedder
 		embedder := oai.Embedder(g, "text-embedding-3-small")
-		res, err := ai.Embed(ctx, embedder, ai.WithEmbedText("yellow banana"))
+		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -86,7 +86,7 @@ func TestPlugin(t *testing.T) {
 	t.Run("basic completion", func(t *testing.T) {
 		t.Log("generating basic completion response")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("What is the capital of France?"),
+			ai.WithPrompt("What is the capital of France?"),
 		)
 		if err != nil {
 			t.Fatal("error generating basic completion response: ", err)
@@ -109,7 +109,7 @@ func TestPlugin(t *testing.T) {
 		chunks := 0
 
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Write a short paragraph about artificial intelligence."),
+			ai.WithPrompt("Write a short paragraph about artificial intelligence."),
 			ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
 				chunks++
 				for _, content := range chunk.Content {
@@ -141,7 +141,7 @@ func TestPlugin(t *testing.T) {
 
 	t.Run("tool usage with basic completion", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
@@ -161,7 +161,7 @@ func TestPlugin(t *testing.T) {
 		chunks := 0
 
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool),
 			ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
 				chunks++
@@ -199,8 +199,8 @@ func TestPlugin(t *testing.T) {
 
 	t.Run("system message", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("What are you?"),
-			ai.WithSystemText("You are a helpful math tutor who loves numbers."),
+			ai.WithPrompt("What are you?"),
+			ai.WithSystem("You are a helpful math tutor who loves numbers."),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -224,7 +224,7 @@ func TestPlugin(t *testing.T) {
 		}
 
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Write a short sentence about artificial intelligence."),
+			ai.WithPrompt("Write a short sentence about artificial intelligence."),
 			ai.WithConfig(config),
 		)
 		if err != nil {
@@ -243,7 +243,7 @@ func TestPlugin(t *testing.T) {
 		}
 
 		_, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Write a short sentence about artificial intelligence."),
+			ai.WithPrompt("Write a short sentence about artificial intelligence."),
 			ai.WithConfig(config),
 		)
 		if err == nil {
@@ -260,7 +260,7 @@ func TestPlugin(t *testing.T) {
 		config := "not a config"
 
 		_, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Write a short sentence about artificial intelligence."),
+			ai.WithPrompt("Write a short sentence about artificial intelligence."),
 			ai.WithConfig(config),
 		)
 		if err == nil {
