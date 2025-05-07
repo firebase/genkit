@@ -79,8 +79,7 @@ func applyEngineOptions(opts []Option) (engineConfig, error) {
 	return *cfg, nil
 }
 
-// getUser retrieves the username, a flag indicating if IAM authentication
-// will be used and an error.
+// getUser retrieves the username, a flag indicating if IAM authentication will be used and an error.
 func getUser(ctx context.Context, config engineConfig) (string, bool, error) {
 	if config.user != "" && config.password != "" {
 		// If both username and password are provided use provided username.
@@ -156,4 +155,119 @@ func createPool(ctx context.Context, cfg engineConfig, usingIAMAuth bool) (*pgxp
 		return nil, fmt.Errorf("unable to create connection pool: %w", err)
 	}
 	return pool, nil
+}
+
+// Close closes the pool connection.
+func (pgEngine *PostgresEngine) Close() {
+	if pgEngine.Pool != nil {
+		pgEngine.Pool.Close()
+	}
+}
+
+type Column struct {
+	Name     string
+	DataType string
+	Nullable bool
+}
+
+type VectorstoreTableOptions struct {
+	TableName          string
+	VectorSize         int
+	SchemaName         string
+	ContentColumnName  string
+	EmbeddingColumn    string
+	MetadataJSONColumn string
+	IDColumn           Column
+	MetadataColumns    []Column
+	OverwriteExisting  bool
+	StoreMetadata      bool
+}
+
+// validateVectorstoreTableOptions initializes the options struct with the default values for
+// the InitVectorstoreTable function.
+func validateVectorstoreTableOptions(opts *VectorstoreTableOptions) error {
+	if opts.TableName == "" {
+		return fmt.Errorf("missing table name in options")
+	}
+	if opts.VectorSize == 0 {
+		return fmt.Errorf("missing vector size in options")
+	}
+
+	if opts.SchemaName == "" {
+		opts.SchemaName = "public"
+	}
+
+	if opts.ContentColumnName == "" {
+		opts.ContentColumnName = "content"
+	}
+
+	if opts.EmbeddingColumn == "" {
+		opts.EmbeddingColumn = "embedding"
+	}
+
+	if opts.MetadataJSONColumn == "" {
+		opts.MetadataJSONColumn = "langchain_metadata"
+	}
+
+	if opts.IDColumn.Name == "" {
+		opts.IDColumn.Name = "langchain_id"
+	}
+
+	if opts.IDColumn.DataType == "" {
+		opts.IDColumn.DataType = "UUID"
+	}
+
+	return nil
+}
+
+// initVectorstoreTable creates a table for saving of vectors to be used with PostgresVectorStore.
+func (pgEngine *PostgresEngine) InitVectorstoreTable(ctx context.Context, opts VectorstoreTableOptions) error {
+	err := validateVectorstoreTableOptions(&opts)
+	if err != nil {
+		return fmt.Errorf("failed to validate vectorstore table options: %w", err)
+	}
+
+	// Ensure the vector extension exists
+	_, err = pgEngine.Pool.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS vector")
+	if err != nil {
+		return fmt.Errorf("failed to create extension: %w", err)
+	}
+
+	// Drop table if exists and overwrite flag is true
+	if opts.OverwriteExisting {
+		_, err = pgEngine.Pool.Exec(ctx, fmt.Sprintf(`DROP TABLE IF EXISTS "%s"."%s"`, opts.SchemaName, opts.TableName))
+		if err != nil {
+			return fmt.Errorf("failed to drop table: %w", err)
+		}
+	}
+
+	// Build the SQL query that creates the table
+	query := fmt.Sprintf(`CREATE TABLE "%s"."%s" (
+		"%s" %s PRIMARY KEY,
+		"%s" TEXT NOT NULL,
+		"%s" vector(%d) NOT NULL`, opts.SchemaName, opts.TableName, opts.IDColumn.Name, opts.IDColumn.DataType, opts.ContentColumnName, opts.EmbeddingColumn, opts.VectorSize)
+
+	// Add metadata columns  to the query string if provided
+	for _, column := range opts.MetadataColumns {
+		nullable := ""
+		if !column.Nullable {
+			nullable = "NOT NULL"
+		}
+		query += fmt.Sprintf(`, "%s" %s %s`, column.Name, column.DataType, nullable)
+	}
+
+	// Add JSON metadata column to the query string if storeMetadata is true
+	if opts.StoreMetadata {
+		query += fmt.Sprintf(`, "%s" JSON`, opts.MetadataJSONColumn)
+	}
+	// Close the query string
+	query += ");"
+
+	// Execute the query to create the table
+	_, err = pgEngine.Pool.Exec(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to create table: %w", err)
+	}
+
+	return nil
 }
