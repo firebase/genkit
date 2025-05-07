@@ -32,32 +32,32 @@ var (
 	// Supported models: https://platform.openai.com/docs/models
 	supportedModels = map[string]ai.ModelInfo{
 		"gpt-4.1": {
-			Label:    "GPT-4.1",
+			Label:    "OpenAI GPT-4.1",
 			Supports: compat_oai.Multimodal.Supports,
 			Versions: []string{"gpt-4.1", "gpt-4.1-2025-04-14"},
 		},
 		"gpt-4.1-mini": {
-			Label:    "GPT-4.1-mini",
+			Label:    "OpenAI GPT-4.1-mini",
 			Supports: compat_oai.Multimodal.Supports,
 			Versions: []string{"gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"},
 		},
 		"gpt-4.1-nano": {
-			Label:    "GPT-4.1-nano",
+			Label:    "OpenAI GPT-4.1-nano",
 			Supports: compat_oai.Multimodal.Supports,
 			Versions: []string{"gpt-4.1-nano", "gpt-4.1-nano-2025-04-14"},
 		},
 		openaiGo.ChatModelO3Mini: {
-			Label:    "o3-mini",
+			Label:    "OpenAI o3-mini",
 			Supports: compat_oai.BasicText.Supports,
 			Versions: []string{"o3-mini", "o3-mini-2025-01-31"},
 		},
 		openaiGo.ChatModelO1: {
-			Label:    "o1",
+			Label:    "OpenAI o1",
 			Supports: compat_oai.BasicText.Supports,
 			Versions: []string{"o1", "o1-2024-12-17"},
 		},
 		openaiGo.ChatModelO1Preview: {
-			Label: "o1-preview",
+			Label: "OpenAI o1-preview",
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				Tools:      false,
@@ -67,7 +67,7 @@ var (
 			Versions: []string{"o1-preview", "o1-preview-2024-09-12"},
 		},
 		openaiGo.ChatModelO1Mini: {
-			Label: "o1-mini",
+			Label: "OpenAI o1-mini",
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				Tools:      false,
@@ -77,27 +77,27 @@ var (
 			Versions: []string{"o1-mini", "o1-mini-2024-09-12"},
 		},
 		openaiGo.ChatModelGPT4_5Preview: {
-			Label:    "GPT-4.5-preview",
+			Label:    "OpenAI GPT-4.5-preview",
 			Supports: compat_oai.Multimodal.Supports,
 			Versions: []string{"gpt-4.5-preview", "gpt-4.5-preview-2025-02-27"},
 		},
 		openaiGo.ChatModelGPT4o: {
-			Label:    "GPT-4o",
+			Label:    "OpenAI GPT-4o",
 			Supports: compat_oai.Multimodal.Supports,
 			Versions: []string{"gpt-4o", "gpt-4o-2024-11-20", "gpt-4o-2024-08-06", "gpt-4o-2024-05-13"},
 		},
 		openaiGo.ChatModelGPT4oMini: {
-			Label:    "GPT-4o-mini",
+			Label:    "OpenAI GPT-4o-mini",
 			Supports: compat_oai.Multimodal.Supports,
 			Versions: []string{"gpt-4o-mini", "gpt-4o-mini-2024-07-18"},
 		},
 		openaiGo.ChatModelGPT4Turbo: {
-			Label:    "GPT-4-turbo",
+			Label:    "OpenAI GPT-4-turbo",
 			Supports: compat_oai.Multimodal.Supports,
 			Versions: []string{"gpt-4-turbo", "gpt-4-turbo-2024-04-09", "gpt-4-turbo-preview", "gpt-4-0125-preview"},
 		},
 		openaiGo.ChatModelGPT4: {
-			Label: "GPT-4",
+			Label: "OpenAI GPT-4",
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				Tools:      false,
@@ -107,7 +107,7 @@ var (
 			Versions: []string{"gpt-4", "gpt-4-0613", "gpt-4-0314"},
 		},
 		openaiGo.ChatModelGPT3_5Turbo: {
-			Label: "GPT-3.5-turbo",
+			Label: "OpenAI GPT-3.5-turbo",
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				Tools:      false,
