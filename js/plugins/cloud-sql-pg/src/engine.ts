@@ -239,22 +239,23 @@ export class PostgresEngine {
 
     /**
     * Create an index on the vector store table
-    * @param {BaseIndex} index
-    * @param {string} name Optional
-    * @param {boolean} concurrently Optional
     * @param {string} tableName
-    * @param {string} schemaName Optional
-    * @param {string} embeddingColumn Optional
+    * @param {BaseIndex} index
+    * @param {boolean} concurrently Optional
+    * @param {VectorStoreTableArgs}
+    * @param {string} name Optional
     */
     async applyVectorIndex(
+      tableName: string,
       index: BaseIndex,
-      name?: string,
-      concurrently: boolean = false,
-      tableName?: string,
-      schemaName?: string,
-      embeddingColumn?: string): Promise<void> {
+      concurrently:boolean = false,
+      {
+        schemaName = "public",
+        embeddingColumn = "embedding"
+      } : VectorStoreTableArgs = {},
+      name?: string): Promise<void> {
       if (index instanceof ExactNearestNeighbor) {
-        await this.dropVectorIndex();
+        await this.dropVectorIndex(tableName);
         return;
       }
 
@@ -276,11 +277,16 @@ export class PostgresEngine {
 
     /**
      * Check if index exists in the table.
+     * @param {string} tableName
      * @param {string} indexName Optional - index name
-     * @param {string} tableName Optional
      * @param {string} schemaName Optional
      */
-    async isValidIndex(indexName?: string, tableName?: string, schemaName?: string): Promise<boolean> {
+    async isValidIndex(
+      tableName: string,
+      indexName?: string,
+      {
+        schemaName = "public",
+      } : VectorStoreTableArgs = {},): Promise<boolean> {
       const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
       const stmt = `SELECT tablename, indexname
                           FROM pg_indexes
@@ -292,10 +298,10 @@ export class PostgresEngine {
 
     /**
      * Drop the vector index
+     * @param {string} tableName
      * @param {string} indexName Optional - index name
-     * @param {string} tableName Optional
      */
-    async dropVectorIndex(indexName?: string, tableName?: string): Promise<void> {
+    async dropVectorIndex(tableName: string, indexName?: string, ): Promise<void> {
       const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
       const query = `DROP INDEX IF EXISTS ${idxName};`;
       await this.pool.raw(query)
@@ -303,10 +309,10 @@ export class PostgresEngine {
 
     /**
      * Re-index the vector store table
+     * @param {string} tableName
      * @param {string} indexName Optional - index name
-     * @param {string} tableName Optional
      */
-    async  reIndex(indexName?: string, tableName?: string) {
+    async  reIndex(tableName?: string, indexName?: string) {
       const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
       const query = `REINDEX INDEX ${idxName};`;
       this.pool.raw(query)
