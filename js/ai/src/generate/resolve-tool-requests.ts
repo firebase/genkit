@@ -126,13 +126,18 @@ export async function resolveToolRequest(
 
     return { response };
   } catch (e) {
-    if (e instanceof ToolInterruptError) {
+    if (
+      e instanceof ToolInterruptError ||
+      // There's an inexplicable case when the above type check fails, only in tests.
+      (e as Error).name === 'ToolInterruptError'
+    ) {
+      const ie = e as ToolInterruptError;
       logger.debug(
-        `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${e.metadata ? `: ${JSON.stringify(e.metadata)}` : ''}`
+        `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${ie.metadata ? `: ${JSON.stringify(ie.metadata)}` : ''}`
       );
       const interrupt = {
         toolRequest: part.toolRequest,
-        metadata: { ...part.metadata, interrupt: e.metadata || true },
+        metadata: { ...part.metadata, interrupt: ie.metadata || true },
       };
 
       return { interrupt };

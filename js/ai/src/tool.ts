@@ -15,6 +15,7 @@
  */
 
 import {
+  action,
   Action,
   ActionContext,
   ActionRunOptions,
@@ -24,7 +25,7 @@ import {
   stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import { HasRegistry, Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import {
@@ -270,6 +271,15 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       });
     }
   );
+  implementTool(a as ToolAction<I, O>, config, registry);
+  return a as ToolAction<I, O>;
+}
+
+function implementTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  a: ToolAction<I, O>,
+  config: ToolConfig<I, O>,
+  registry: Registry
+) {
   (a as ToolAction<I, O>).respond = (interrupt, responseData, options) => {
     assertUnstable(
       registry,
@@ -319,7 +329,6 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       }),
     };
   };
-  return a as ToolAction<I, O>;
 }
 
 /** InterruptConfig defines the options for configuring an interrupt. */
@@ -380,4 +389,36 @@ function interruptTool(registry: Registry) {
     assertUnstable(registry, 'beta', 'Tool interrupts are a beta feature.');
     throw new ToolInterruptError(metadata);
   };
+}
+
+/**
+ * Defines a dynamic tool. Dynamic tools are just like regular tools but will not be registered in the
+ * Genkit registry and can be defined dynamically at runtime.
+ */
+export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  ai: HasRegistry,
+  config: ToolConfig<I, O>,
+  fn?: ToolFn<I, O>
+): ToolAction<I, O> {
+  const a = action(
+    ai.registry,
+    {
+      ...config,
+      actionType: 'tool',
+      metadata: { ...(config.metadata || {}), type: 'tool', dynamic: true },
+    },
+    (i, runOptions) => {
+      const interrupt = interruptTool(ai.registry);
+      if (fn) {
+        return fn(i, {
+          ...runOptions,
+          context: { ...runOptions.context },
+          interrupt,
+        });
+      }
+      return interrupt();
+    }
+  );
+  implementTool(a as ToolAction<I, O>, config, ai.registry);
+  return a as ToolAction<I, O>;
 }
