@@ -121,8 +121,11 @@ class DocRetriever(ABC):
             index endpoint path in its metadata.
         """
         metadata = request.query.metadata
-        if not metadata or 'index_endpoint_path' not in metadata or 'api_endpoint' not in metadata:
-            raise AttributeError('Request provides no data about index endpoint path')
+
+        required_keys = ['index_endpoint_path', 'api_endpoint', 'deployed_index_id']
+
+        if not metadata or not all(key in metadata for key in required_keys):
+            raise AttributeError('Request provides no enough data about index')
 
         api_endpoint = metadata['api_endpoint']
         index_endpoint_path = metadata['index_endpoint_path']
