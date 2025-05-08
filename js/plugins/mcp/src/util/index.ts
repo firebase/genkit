@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { McpServerConfig, McpServerControls } from '../client/client';
+import { McpServerConfig } from '../client/client';
 import type {
   SSEClientTransportOptions,
   StdioServerParameters,
@@ -41,8 +41,6 @@ export async function transportFrom(config: McpServerConfig): Promise<{
   // Handle SSE config
   if ('url' in config && config.url) {
     const { url, ...sseConfig } = config;
-    // Remove McpServerControls properties before passing to transport constructor
-    delete (sseConfig as Partial<McpServerControls>).disabled;
     const { SSEClientTransport } = await import(
       '@modelcontextprotocol/sdk/client/sse.js'
     );
@@ -58,7 +56,6 @@ export async function transportFrom(config: McpServerConfig): Promise<{
   if ('command' in config && config.command) {
     // Create a copy and remove McpServerControls properties
     const stdioConfig = { ...config };
-    delete (stdioConfig as Partial<McpServerControls>).disabled;
     const { StdioClientTransport } = await import(
       '@modelcontextprotocol/sdk/client/stdio.js'
     );

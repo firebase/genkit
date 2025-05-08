@@ -90,7 +90,7 @@ export class GenkitMcpClientManager {
     logger.info(
       `[MCP Manager] Connecting to MCP server '${serverName}' in manager '${this.name}'.`
     );
-    const client = new GenkitMcpClient(serverName, config);
+    const client = new GenkitMcpClient({ ...config, name: serverName });
     this._clients[serverName] = client;
   }
 

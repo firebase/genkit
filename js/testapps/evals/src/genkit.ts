@@ -113,12 +113,10 @@ export const clientManager = createMcpClientManager({
   name: 'test-mcp-manager',
   mcpClients: {
     'git-client': {
-      name: 'git-client-ex',
       server: {
         command: 'uvx',
         args: ['mcp-server-git'],
       },
-      disabled: true,
     },
   },
 });

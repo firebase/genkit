@@ -16,7 +16,11 @@
 
 import type { Genkit } from 'genkit';
 import { GenkitMcpClientManager, McpClientManagerOptions } from './client';
-import { McpClientOptions, McpServerConfig } from './client/client';
+import {
+  McpClientOptions,
+  McpServerConfig,
+  McpStdioServerConfig,
+} from './client/client';
 import { GenkitMcpServer } from './server';
 
 export { mcpClient, type LegacyMcpClientOptions } from './client/legacy';
@@ -24,6 +28,7 @@ export {
   GenkitMcpClientManager as GenkitMcpClient,
   type McpClientOptions,
   type McpServerConfig,
+  type McpStdioServerConfig,
 };
 
 export interface McpServerOptions {
@@ -56,11 +61,7 @@ export interface McpServerOptions {
  * @param options Configuration for the MCP Client Manager, including the definitions of MCP servers to connect to.
  * @returns A new instance of GenkitMcpClientManager.
  */
-export function createMcpClientManager(
-  options: McpClientManagerOptions & {
-    mcpClients: Record<string, McpServerConfig>;
-  }
-) {
+export function createMcpClientManager(options: McpClientManagerOptions) {
   return new GenkitMcpClientManager(options);
 }
 

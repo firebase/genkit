@@ -219,9 +219,6 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
-      '@types/node':
-        specifier: ^22.15.3
-        version: 22.15.3
       '@types/uuid':
         specifier: ^9.0.6
         version: 9.0.8
@@ -3972,9 +3969,6 @@ packages:
   '@types/node@20.17.17':
     resolution: {integrity: sha512-/WndGO4kIfMicEQLTi/mDANUu/iVUhT7KboZPdEqqHQ4aTS+3qT3U5gIqWDFV+XouorjfgGqvKILJeHhuQgFYg==}
 
-  '@types/node@22.15.3':
-    resolution: {integrity: sha512-lX7HFZeHf4QG/J7tBZqrCAXwz9J5RD56Y6MpP0eJkka8p+K0RY/yBTW7CYFJ4VGCclxqOLKmiGP5juQc6MKgcw==}
-
   '@types/node@22.9.0':
     resolution: {integrity: sha512-vuyHg81vvWA1Z1ELfvLko2c8f34gyA0zaic0+Rllc5lbCnbSyuvb2Oxpm6TAUAC/2xZN3QGqxBNggD1nNR2AfQ==}
 
@@ -7119,9 +7113,6 @@ packages:
   undici-types@6.19.8:
     resolution: {integrity: sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw==}
 
-  undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
-
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
@@ -9741,10 +9732,6 @@ snapshots:
   '@types/node@20.17.17':
     dependencies:
       undici-types: 6.19.8
-
-  '@types/node@22.15.3':
-    dependencies:
-      undici-types: 6.21.0
 
   '@types/node@22.9.0':
     dependencies:
@@ -13888,8 +13875,6 @@ snapshots:
   undici-types@5.26.5: {}
 
   undici-types@6.19.8: {}
-
-  undici-types@6.21.0: {}
 
   unpipe@1.0.0: {}
 

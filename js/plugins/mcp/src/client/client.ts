@@ -21,32 +21,26 @@ import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { Genkit, GenkitError, ToolAction } from 'genkit';
 import { logger } from 'genkit/logging';
 import { transportFrom } from '../util';
+import { fetchDynamicResourceTools } from '../util/resources';
 import { fetchDynamicTools } from '../util/tools';
 export type { SSEClientTransportOptions, StdioServerParameters, Transport };
 
 interface McpServerRef {
   client: Client;
   transport: Transport;
-  disabled?: boolean;
   error?: string;
 }
 
-export interface McpServerControls {
-  // when true, the server will be stopped and its registered components will not appear in lists/plugins/etc
-  disabled?: boolean;
+export interface McpClientControls {
   // Optional server name
   name?: string;
+  // when true, the server will be stopped and its registered components will not appear in lists/plugins/etc
+  disabled?: boolean;
 }
 
-export type McpStdioServerConfig = StdioServerParameters & {
-  url?: never;
-  start?: never;
-};
+export type McpStdioServerConfig = StdioServerParameters;
 
-export type McpSSEServerConfig = { url: string } & SSEClientTransportOptions & {
-    command?: never;
-    start?: never;
-  };
+export type McpSSEServerConfig = { url: string } & SSEClientTransportOptions;
 
 export type McpTransportServerConfig = {
   transport: Transport;
@@ -63,18 +57,16 @@ export type McpTransportServerConfig = {
  * In addition to stdio servers, remote servers are supported via URL and
  * custom/arbitary transports are supported as well.
  */
-export type McpServerConfig = (
+export type McpServerConfig =
   | McpStdioServerConfig
   | McpSSEServerConfig
-  | McpTransportServerConfig
-) &
-  McpServerControls;
+  | McpTransportServerConfig;
 
 /**
  * Configuration options for an individual `GenkitMcpClient` instance.
  * This defines how the client connects to a single MCP server and how it behaves.
  */
-export interface McpClientOptions {
+export interface McpClientOptions extends McpClientControls {
   /**
    * An optional version number for this client. This is primarily for logging
    * and identification purposes. Defaults to '1.0.0'.
@@ -103,22 +95,26 @@ export interface McpClientOptions {
  * when dealing with multiple MCP server connections.
  */
 export class GenkitMcpClient {
-  name: string;
-  version: string;
-  private _serverConfig: McpServerConfig;
+  private name: string;
+  private version: string;
+  private serverConfig: McpServerConfig;
+  private rawToolResponses?: boolean;
+  private disabled: boolean;
+
   private _server?: McpServerRef;
   private _readyListeners: {
     resolve: () => void;
     reject: (err: Error) => void;
   }[] = [];
   private _ready = false;
-  rawToolResponses?: boolean;
 
-  constructor(name: string, options: McpClientOptions) {
-    this.name = name;
+  constructor(options: McpClientOptions & { name: string }) {
+    this.name = options.name;
     this.version = options.version || '1.0.0';
-    this.rawToolResponses = options.rawToolResponses;
-    this._serverConfig = options.server;
+    this.serverConfig = options.server;
+    this.rawToolResponses = !!options.rawToolResponses;
+    this.disabled = !!options.disabled;
+
     this.initializeConnection();
   }
 
@@ -130,7 +126,7 @@ export class GenkitMcpClient {
    */
   initializeConnection() {
     this._ready = false;
-    this.connect(this._serverConfig)
+    this.connect(this.serverConfig)
       .then(() => {
         this._ready = true;
         while (this._readyListeners.length) {
@@ -176,20 +172,19 @@ export class GenkitMcpClient {
       });
     }
 
-    let disabled = config.disabled;
     let error: string | undefined;
 
     const client = new Client({ name: this.name, version: this.version });
     client.registerCapabilities({ roots: {} });
 
-    if (!config.disabled) {
+    if (this.isEnabled()) {
       try {
         await client.connect(transport);
       } catch (e) {
         logger.warn(
           `[MCP Client] Error connecting server via ${transportType} transport: ${e}`
         );
-        disabled = true;
+        this.disabled = true;
         error = (e as Error).toString();
       }
     }
@@ -197,7 +192,6 @@ export class GenkitMcpClient {
     this._server = {
       client,
       transport,
-      disabled,
       error,
     } as McpServerRef;
   }
@@ -222,10 +216,10 @@ export class GenkitMcpClient {
    * already disabled.
    */
   async disable() {
-    if (this._server?.disabled) return;
+    if (!this.isEnabled()) return;
     if (this._server) {
       logger.info(`[MCP Client] Disabling MCP server in client '${this.name}'`);
-      this._server.disabled = true;
+      this.disabled = true;
     }
   }
 
@@ -233,7 +227,7 @@ export class GenkitMcpClient {
    * Whether this client-server connection is enabled or not.
    */
   isEnabled() {
-    return !this._server?.disabled;
+    return !this.disabled;
   }
 
   /**
@@ -246,7 +240,7 @@ export class GenkitMcpClient {
       logger.info(
         `[MCP Client] Reenabling MCP server in client '${this.name}'`
       );
-      this._server.disabled = false;
+      this.disabled = false;
     }
   }
 
@@ -261,7 +255,7 @@ export class GenkitMcpClient {
         `[MCP Client] Reconnecting MCP server in client '${this.name}'`
       );
       await this.disconnect();
-      await this.connect(this._serverConfig);
+      await this.connect(this.serverConfig);
     }
   }
 
@@ -279,14 +273,17 @@ export class GenkitMcpClient {
             name: this.name,
           }))
         );
-      //   if (capabilities?.prompts)
-      //     promises.push(
-      //       registerAllPrompts(ai, serverRef.client, { name, serverName })
-      //     );
-      //   if (capabilities?.resources)
-      //     promises.push(
-      //       registerResourceTools(ai, serverRef.client, { name, serverName })
-      //     );
+      // if (capabilities?.prompts)
+      //   promises.push(
+      //     registerAllPrompts(ai, serverRef.client, { name, serverName })
+      //   );
+      if (capabilities?.resources)
+        tools.push(
+          ...fetchDynamicResourceTools(ai, this._server.client, {
+            name: this.name,
+            serverName: this.name + '-mcp-server',
+          })
+        );
     }
 
     return tools;
