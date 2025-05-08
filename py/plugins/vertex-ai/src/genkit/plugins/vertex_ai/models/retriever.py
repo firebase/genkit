@@ -124,8 +124,12 @@ class DocRetriever(ABC):
 
         required_keys = ['index_endpoint_path', 'api_endpoint', 'deployed_index_id']
 
-        if not metadata or not all(key in metadata for key in required_keys):
-            raise AttributeError('Request provides no enough data about index')
+        if not metadata:
+            raise AttributeError('Request metadata provides no data about index')
+
+        for rkey in required_keys:
+            if rkey not in metadata:
+                raise AttributeError(f'Request metadata provides no data for {rkey}')
 
         api_endpoint = metadata['api_endpoint']
         index_endpoint_path = metadata['index_endpoint_path']
