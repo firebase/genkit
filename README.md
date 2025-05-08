@@ -31,6 +31,7 @@ While developed by the [Firebase](https://firebase.google.com) team, Genkit can 
 ## Get started
 
 - [Node.js quickstart](https://firebase.google.com/docs/genkit/get-started)
+- [Angular quickstart](https://firebase.google.com/docs/genkit/angular)
 - [Next.js quickstart](https://firebase.google.com/docs/genkit/nextjs)
 - [Go quickstart](https://firebase.google.com/docs/genkit-go/get-started-go)
 

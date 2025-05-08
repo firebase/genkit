@@ -167,18 +167,20 @@ type GenerationCommonConfig struct {
 
 // GenerationUsage provides information about the generation process.
 type GenerationUsage struct {
-	Custom           map[string]float64 `json:"custom,omitempty"`
-	InputAudioFiles  float64            `json:"inputAudioFiles,omitempty"`
-	InputCharacters  int                `json:"inputCharacters,omitempty"`
-	InputImages      int                `json:"inputImages,omitempty"`
-	InputTokens      int                `json:"inputTokens,omitempty"`
-	InputVideos      float64            `json:"inputVideos,omitempty"`
-	OutputAudioFiles float64            `json:"outputAudioFiles,omitempty"`
-	OutputCharacters int                `json:"outputCharacters,omitempty"`
-	OutputImages     int                `json:"outputImages,omitempty"`
-	OutputTokens     int                `json:"outputTokens,omitempty"`
-	OutputVideos     float64            `json:"outputVideos,omitempty"`
-	TotalTokens      int                `json:"totalTokens,omitempty"`
+	CachedContentTokens int                `json:"cachedContentTokens,omitempty"`
+	Custom              map[string]float64 `json:"custom,omitempty"`
+	InputAudioFiles     float64            `json:"inputAudioFiles,omitempty"`
+	InputCharacters     int                `json:"inputCharacters,omitempty"`
+	InputImages         int                `json:"inputImages,omitempty"`
+	InputTokens         int                `json:"inputTokens,omitempty"`
+	InputVideos         float64            `json:"inputVideos,omitempty"`
+	OutputAudioFiles    float64            `json:"outputAudioFiles,omitempty"`
+	OutputCharacters    int                `json:"outputCharacters,omitempty"`
+	OutputImages        int                `json:"outputImages,omitempty"`
+	OutputTokens        int                `json:"outputTokens,omitempty"`
+	OutputVideos        float64            `json:"outputVideos,omitempty"`
+	ThoughtsTokens      int                `json:"thoughtsTokens,omitempty"`
+	TotalTokens         int                `json:"totalTokens,omitempty"`
 }
 
 type Media struct {
