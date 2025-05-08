@@ -67,6 +67,7 @@ export function vertexAIModelGarden(options: PluginOptions): GenkitPlugin {
 }
 
 export {
+  claude37Sonnet,
   claude35Haiku,
   claude35Sonnet,
   claude35SonnetV2,
