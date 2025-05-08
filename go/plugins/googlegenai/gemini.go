@@ -39,6 +39,14 @@ import (
 	"google.golang.org/genai"
 )
 
+const (
+	// Thinking budget limit
+	thinkingBudgetMax = 24576
+
+	// Tool name regex
+	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
+)
+
 var (
 	// BasicText describes model capabilities for text-only Gemini models.
 	BasicText = ai.ModelSupports{
@@ -58,9 +66,6 @@ var (
 		Media:       true,
 		Constrained: ai.ConstrainedSupportNoTools,
 	}
-
-	// Tool name regex
-	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 
 	// Attribution header
 	xGoogApiClientHeader = http.CanonicalHeaderKey("x-goog-api-client")
@@ -400,6 +405,7 @@ func generate(
 			return nil, err
 		}
 		r := translateResponse(resp)
+
 		r.Request = input
 		if cache != nil {
 			r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
@@ -539,6 +545,9 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 	}
 
 	if c.ThinkingConfig != nil {
+		if c.ThinkingConfig.ThinkingBudget < 0 || c.ThinkingConfig.ThinkingBudget > thinkingBudgetMax {
+			return nil, fmt.Errorf("thinkingBudget should be between 0 and %d", thinkingBudgetMax)
+		}
 		gcc.ThinkingConfig = &genai.ThinkingConfig{
 			IncludeThoughts: c.ThinkingConfig.IncludeThoughts,
 			ThinkingBudget:  &c.ThinkingConfig.ThinkingBudget,

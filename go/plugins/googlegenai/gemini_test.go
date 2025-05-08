@@ -151,6 +151,27 @@ func TestConvertRequest(t *testing.T) {
 			t.Errorf("ThinkingConfig should not be empty")
 		}
 	})
+	t.Run("thinking budget limits", func(t *testing.T) {
+		thinkingBudget := GeminiConfig{
+			ThinkingConfig: &ThinkingConfig{
+				IncludeThoughts: false,
+				ThinkingBudget:  -23,
+			},
+		}
+		req := &ai.ModelRequest{
+			Config: thinkingBudget,
+		}
+		_, err := toGeminiRequest(req, nil)
+		if err == nil {
+			t.Fatal("expecting an error, thinking budget should not be negative")
+		}
+		thinkingBudget.ThinkingConfig.ThinkingBudget = 999999
+		req.Config = thinkingBudget
+		_, err = toGeminiRequest(req, nil)
+		if err == nil {
+			t.Fatalf("expecting an error, thinking budget should not be greater than %d", thinkingBudgetMax)
+		}
+	})
 	t.Run("convert tools with valid tool", func(t *testing.T) {
 		tools := []*ai.ToolDefinition{tool}
 		gt, err := toGeminiTools(tools)

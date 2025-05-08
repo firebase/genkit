@@ -408,7 +408,7 @@ func TestGoogleAILive(t *testing.T) {
 				Temperature: 0.4,
 				ThinkingConfig: &googlegenai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  1024,
+					ThinkingBudget:  100,
 				},
 			}),
 			ai.WithModel(m),
@@ -419,8 +419,9 @@ func TestGoogleAILive(t *testing.T) {
 		if resp == nil {
 			t.Fatal("nil response obtanied")
 		}
-		// TODO: add usageMetadata validation when SDK provides int
-		// see https://github.com/googleapis/go-genai/issues/282
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
+			t.Fatal("thoughts tokens should not be zero or greater than 100")
+		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
@@ -440,8 +441,9 @@ func TestGoogleAILive(t *testing.T) {
 		if resp == nil {
 			t.Fatal("nil response obtanied")
 		}
-		// TODO: add usageMetadata validation when SDK provides int
-		// see https://github.com/googleapis/go-genai/issues/282
+		if resp.Usage.ThoughtsTokens > 0 {
+			t.Fatal("thoughts tokens should be zero")
+		}
 	})
 }
 
