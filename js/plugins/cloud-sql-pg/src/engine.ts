@@ -2,6 +2,7 @@ import { AuthTypes, Connector, IpAddressTypes} from "@google-cloud/cloud-sql-con
 import { GoogleAuth } from "google-auth-library";
 import knex from "knex";
 import { getIAMPrincipalEmail } from "./utils/utils.js";
+import { BaseIndex, DEFAULT_INDEX_NAME_SUFFIX, ExactNearestNeighbor } from "./indexes";
 
 export interface PostgresEngineArgs {
   ipType?: IpAddressTypes,
@@ -18,7 +19,9 @@ export interface VectorStoreTableArgs {
   metadataJsonColumn?: string,
   idColumn?: string | Column,
   overwriteExisting?: boolean,
-  storeMetadata?: boolean
+  storeMetadata?: boolean,
+  concurrently?: boolean,
+  indexName?: string,
 }
 
 export class Column {
@@ -230,11 +233,118 @@ export class PostgresEngine {
     }
   }
 
-  // Just to test the connection to the database
-  testConnection () {
-    const now = this.pool.raw('SELECT NOW() as currentTimestamp')
-    return now;
+   /**
+   * Just to test the connection to the database.
+   * @returns A Promise that resolves to a row containing the current timestamp.
+   */
+   testConnection(): Promise<{ currentTimestamp: Date }[]> {
+    return this.pool.raw<{ currentTimestamp: Date }[]>('SELECT NOW() as currentTimestamp')
+      .then(result => result.entries[0].currentTimestamp);
   }
+
+  /**
+   * Just to test the connection to the database and return the timestamp.
+   * @returns A Promise that resolves to the current timestamp.
+   */
+  async getTestConnectionTimestamp(): Promise<Date> {
+    const result = await this.pool.raw<{ currentTimestamp: Date }[]>('SELECT NOW() as currentTimestamp');
+    return result.entries[0].currentTimestamp;
+  }
+
+
+    /**
+    * Create an index on the vector store table
+    * @param {string} tableName
+    * @param {BaseIndex} index
+    * @param {VectorStoreTableArgs}
+    */
+    async applyVectorIndex(
+      tableName: string,
+      index: BaseIndex,
+      {
+        schemaName = "public",
+        embeddingColumn = "embedding",
+        concurrently = false
+      } : VectorStoreTableArgs = {}): Promise<void> {
+      if (index instanceof ExactNearestNeighbor) {
+        await this.dropVectorIndex({tableName: tableName});
+        return;
+      }
+
+      const filter = index.partialIndexes ? `WHERE (${index.partialIndexes})` : "";
+      const indexOptions = `WITH ${index.indexOptions()}`;
+      const funct = index.distanceStrategy.indexFunction;
+
+      const name = index.name? index.name : tableName + DEFAULT_INDEX_NAME_SUFFIX;
+
+      const stmt = `CREATE INDEX ${concurrently ? "CONCURRENTLY" : ""} ${name} ON "${schemaName}"."${tableName}" USING ${index.indexType} (${embeddingColumn} ${funct}) ${indexOptions} ${filter};`
+
+      await this.pool.raw(stmt);
+    }
+
+    /**
+     * Check if index exists in the table.
+     * @param {string} tableName
+     * @param VectorStoreTableArgs Optional
+     */
+    async isValidIndex(
+      tableName: string,
+      {
+        indexName,
+        schemaName = "public",
+      } : VectorStoreTableArgs = {}): Promise<boolean> {
+      const idxName = indexName || (tableName + DEFAULT_INDEX_NAME_SUFFIX);
+      const stmt = `SELECT tablename, indexname
+                          FROM pg_indexes
+                          WHERE tablename = '${tableName}' AND schemaname = '${schemaName}' AND indexname = '${idxName}';`
+      const {rows} = await this.pool.raw(stmt);
+
+      return rows.length === 1;
+    }
+
+    /**
+     * Drop the vector index
+     * @param {string} tableName
+     * @param {string} indexName Optional - index name
+     */
+    async dropVectorIndex(
+      params: {
+        tableName? : string,
+        indexName? : string
+      } ): Promise<void> {
+      let idxName = '';
+      if(params.indexName){
+        idxName = params.indexName;
+      } else if (params.tableName){
+        idxName = params.tableName + DEFAULT_INDEX_NAME_SUFFIX
+      } else {
+        throw new Error('Index name or Table name are not provided.');
+      }
+      const query = `DROP INDEX IF EXISTS ${idxName};`;
+      await this.pool.raw(query)
+    }
+
+    /**
+     * Re-index the vector store table
+     * @param {string} tableName
+     * @param {string} indexName Optional - index name
+     */
+    async  reIndex(
+      params: {
+        tableName? : string,
+        indexName? : string
+      }) {
+        let idxName = '';
+        if(params.indexName){
+          idxName = params.indexName;
+        } else if (params.tableName){
+          idxName = params.tableName + DEFAULT_INDEX_NAME_SUFFIX
+        } else {
+          throw new Error('Index name or Table name are not provided.');
+        }
+      const query = `REINDEX INDEX ${idxName};`;
+      this.pool.raw(query)
+    }
 }
 
 export default PostgresEngine;
