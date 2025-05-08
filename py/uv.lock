@@ -37,6 +37,7 @@ members = [
     "short-n-long",
     "tool-interrupts",
     "vertex-ai-vector-search-bigquery",
+    "vertex-ai-vector-search-firestore",
 ]
 
 [[package]]
@@ -4642,6 +4643,29 @@ requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "google-cloud-bigquery" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
+
+[[package]]
+name = "vertex-ai-vector-search-firestore"
+version = "0.1.0"
+source = { editable = "samples/vertex-ai-vector-search-firestore" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-vertex-ai" },
+    { name = "google-cloud-firestore" },
+    { name = "pydantic" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
+    { name = "google-cloud-firestore" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
