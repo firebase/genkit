@@ -11,7 +11,7 @@ type RetrieverOptions struct {
 }
 
 // Retrieve returns the result of the query
-func (p *Postgres) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 	// TODO: implement
 	return nil, nil
 }

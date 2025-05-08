@@ -6,7 +6,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-func (p *Postgres) Index(context.Context, *ai.IndexerRequest) error {
+func (ds *docStore) Index(context.Context, *ai.IndexerRequest) error {
 	// TODO: implement
 	return nil
 }
