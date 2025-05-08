@@ -3,7 +3,9 @@
 > [!WARNING]  
 > This plugin is experimental, meaning it may not be supported long-term and APIs are subject to more often breaking changes.
 
-This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to both consume MCP tools, prompts, and resources as a client and provide tools and prompts as a server.
+This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to:
+- Consume MCP tools, prompts, and resources as a client using `createMcpClientManager`.
+- Provide Genkit tools and prompts as an MCP server using `createMcpServer`.
 
 ## Installation
 
@@ -13,53 +15,94 @@ To get started, you'll need Genkit and the MCP plugin:
 npm i genkit genkitx-mcp
 ```
 
-## MCP Client
+## MCP Client Manager
 
-To create an MCP client, you call the `mcpClient` function to generate a Genkit plugin for an MCP server. For example, to use MCP's example [filesystem server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem):
+To connect to one or more MCP servers, you use the `createMcpClientManager` function. This function returns a Genkit plugin that manages connections to the configured MCP servers.
 
 ```ts
 import { genkit } from 'genkit';
-import { mcpClient } from 'genkitx-mcp';
+import { createMcpClientManager } from 'genkitx-mcp';
 
-// the filesystem server requires one or more allowed directories
+// Example: Configure a client manager for a local filesystem server
+// and a hypothetical remote Git server.
 const ALLOWED_DIRS = ['/Users/yourusername/Desktop'];
 
-const filesystemClient = mcpClient({
-  name: 'filesystem',
-  serverProcess: {
-    command: 'npx',
-    args: ['-y', '@modelcontextprotocol/server-everything', ...ALLOWED_DIRS],
+const mcpManager = createMcpClientManager({
+  name: 'myMcpClients', // A name for the manager plugin itself
+  mcpClients: {
+    // Each key (e.g., 'fs', 'git') becomes a namespace for the server's tools.
+    fs: { // Configuration for the first MCP server
+      serverProcess: {
+        command: 'npx',
+        args: ['-y', '@modelcontextprotocol/server-everything', ...ALLOWED_DIRS],
+      },
+    },
+    git: { // Configuration for a second MCP server (hypothetical)
+      serverUrl: 'http://localhost:8080/mcp',
+      // disabled: true, // Optionally disable a server
+    },
   },
 });
 
 const ai = genkit({
   plugins: [
-    filesystemClient /* ... other plugins such as model providers ...*/,
+    /* ... install plugins such as model providers ...*/
   ],
+});
+
+const mcpTools = await mcpManager.getAllTools(ai);
+
+// Provide MCP tools to the model of your choice.
+const response = await ai.generate({
+  model: gemini15Flash,
+  prompt: 'What are the last 5 commits in the repo `/home/test-repo/?`',
+  tools,
 });
 ```
 
+The `createMcpClientManager` function initializes a `GenkitMcpClientManager` instance, which handles the lifecycle and communication with the defined MCP servers.
+
+### `createMcpClientManager()` Options
+
+-   **`name`**: (required, string) A name for the client manager plugin itself.
+-   **`version`**: (optional, string) The version of the client manager plugin. Defaults to "1.0.0".
+-   **`mcpClients`**: (required, object) An object where each key is a client-side name (namespace) for an MCP server, and the value is the configuration for that server.
+    Each server configuration object can include:
+    -   **`version`**: (optional, string) The specific version for this client.
+    -   **`rawToolResponses`**: (optional, boolean) If `true`, tool responses from this server are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility. Defaults to `false`.
+    -   **`disabled`**: (optional, boolean) If `true`, this server connection will not be attempted. Defaults to `false`.
+    -   One of the following server connection configurations:
+        -   **`serverProcess`**: Parameters for launching a local server process using the stdio MCP transport.
+            -   **`command`**: (required, string) Shell command path for launching the MCP server (e.g., `npx`, `python`).
+            -   **`args`**: (optional, string[]) Array of string arguments to pass to the command.
+            -   **`env`**: (optional, Record<string, string>) Key-value object of environment variables.
+        -   **`serverUrl`**: (string) The URL of a remote server to connect to using the SSE MCP transport.
+        -   **`serverWebsocketUrl`**: (string) The URL of a remote server to connect to using the WebSocket MCP transport.
+        -   **`transport`**: An existing MCP transport object for connecting to the server.
+
 Most MCP servers are built to run as spawned processes on the same machine using the `stdio` transport. When you supply the `serverProcess` option, you are specifying the command, arguments, and environment variables for spawning the server as a subprocess.
 
-### mcpClient() Options
+### Legacy `mcpClient()`
 
-- **`name`**: (required) The name for this client, which namespaces its tools and prompts.
-- **`version`**: (optional) The client's version number. Defaults to "1.0.0".
-- You must supply one of:
-  - **`serverProcess`**: Parameters for launching a local server process using the stdio MCP transport.
-    - **`command`**: Shell command path for launching the MCP server. Can be e.g. `npx` or `uvx` to download and run the server from a package manager.
-    - **`args`**: (optional) Array of string arguments to pass to the command.
-    - **`env`**: (optional) Key value object of environment variables to pass to the command.
-  - **`serverUrl`**: The URL of a remote server to connect to using the SSE MCP transport.
-  - **`serverWebsocketUrl`**: The URL of a remote server to connect to using the WebSocket MCP transport.
-  - **`transport`**: An existing MCP transport object for connecting to the server.
-- **`rawToolResponses`**: (optional) A boolean flag. If `true`, tool responses are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility.
+For simpler scenarios involving a single MCP server, or for backward compatibility, the legacy `mcpClient()` function is still available:
+
+```ts
+import { mcpClient } from 'genkitx-mcp/legacy'; // Note the import path
+
+const legacyFilesystemClient = mcpClient({
+  name: 'filesystemLegacy',
+  serverProcess: { /* ... */ },
+});
+```
+This function takes similar options to a single server configuration within `createMcpClientManager` (e.g., `name`, `version`, `serverProcess`, `rawToolResponses`) and directly returns a Genkit plugin for that single client. It is recommended to use `createMcpClientManager` for new projects.
 
 ### Using MCP Actions
 
-The Genkit MCP client automatically discovers available tools and prompts and registers them with Genkit making them available anywhere other tools and prompts can be used. To access resources, special `list_resources` and `read_resource` tools are registered that will access resources for the server.
+The Genkit MCP client manager automatically discovers available tools and prompts from each connected server and registers them with Genkit. This makes them available anywhere other Genkit tools and prompts can be used.
 
-All MCP actions are namespaced under the name you supply, so a client called `filesystem` will register tools such as `filesystem/read_file`.
+To access resources provided by an MCP server, special `list_resources` and `read_resource` tools are registered for each server.
+
+All MCP actions (tools, prompts, resources) are namespaced under the key you provide for that server in the `mcpClients` configuration. For example, if you have a server configured with the key `fs` in `mcpClients`, its `read_file` tool would be accessible as `fs/read_file`, and its resource listing tool as `fs/list_resources`.
 
 ### Tool Responses
 
@@ -72,11 +115,11 @@ MCP tools return a `content` array as opposed to a structured response like most
 
 ## MCP Server
 
-You can also expose all of the tools and prompts from a Genkit instance as an MCP server:
+You can also expose all of the tools and prompts from a Genkit instance as an MCP server using the `createMcpServer` function.
 
 ```ts
 import { genkit, z } from 'genkit';
-import { mcpServer } from 'genkitx-mcp';
+import { createMcpServer } from 'genkitx-mcp'; // Updated import
 
 const ai = genkit({});
 
@@ -105,10 +148,18 @@ ai.definePrompt(
   `If you're happy and you know it, {{action}}.`
 );
 
-mcpServer(ai, { name: 'example_server', version: '0.0.1' }).start();
+// Use createMcpServer
+const server = createMcpServer(ai, { name: 'example_server', version: '0.0.1' });
+server.start(); // Starts with stdio transport by default
 ```
 
-The above will start up an MCP server with the stdio transport that exposes a tool called `add` and a prompt called `happy`. To start the server with a different transport, use `mcpServer(...).start(otherTransport)`.
+The `createMcpServer` function returns a `GenkitMcpServer` instance. The `start()` method on this instance will start an MCP server (using the stdio transport by default) that exposes all registered Genkit tools and prompts. To start the server with a different MCP transport, you can pass the transport instance to the `start()` method (e.g., `server.start(customMcpTransport)`).
+
+### `createMcpServer()` Options
+- **`name`**: (required, string) The name you want to give your server for MCP inspection.
+- **`version`**: (optional, string) The version your server will advertise to clients. Defaults to "1.0.0".
+
+The legacy `mcpServer()` function is deprecated; please use `createMcpServer()` instead.
 
 ### Known Limitations
 
