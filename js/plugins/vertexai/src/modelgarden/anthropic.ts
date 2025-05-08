@@ -16,6 +16,7 @@
 
 import {
   ContentBlock as AnthropicContent,
+  CacheControlEphemeral,
   ImageBlockParam,
   Message,
   MessageCreateParamsBase,
@@ -27,7 +28,7 @@ import {
   ToolResultBlockParam,
   ToolUseBlock,
   ToolUseBlockParam,
-} from '@anthropic-ai/sdk/resources/messages';
+} from '@anthropic-ai/sdk/resources/messages/messages';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
   GENKIT_CLIENT_HEADER,
@@ -146,20 +147,30 @@ export function toAnthropicRequest(
   model: string,
   input: GenerateRequest<typeof AnthropicConfigSchema>
 ): MessageCreateParamsBase {
-  let system: string | undefined = undefined;
+  let system: Array<TextBlockParam> | undefined = undefined;
   const messages: MessageParam[] = [];
   for (const msg of input.messages) {
     if (msg.role === 'system') {
-      system = msg.content
+      const textBlocks = msg.content
         .map((c) => {
           if (!c.text) {
             throw new Error(
               'Only text context is supported for system messages.'
             );
           }
-          return c.text;
-        })
-        .join();
+          const textBlock = {
+            type: 'text',
+            text: c.text,
+          } as TextBlockParam;
+          if (c.custom?.cacheControl) {
+            textBlock['cacheControl'] = {
+              type: 'ephemeral',
+            } as CacheControlEphemeral;
+          }
+          return textBlock;
+        });
+      system??= [];
+      system.push(...textBlocks)
     }
     // If the last message is a tool response, we need to add a user message.
     // https://docs.anthropic.com/en/docs/build-with-claude/tool-use#handling-tool-use-and-tool-result-content-blocks
@@ -175,6 +186,7 @@ export function toAnthropicRequest(
       });
     }
   }
+
   const request = {
     model,
     messages,
@@ -182,7 +194,7 @@ export function toAnthropicRequest(
     max_tokens: input.config?.maxOutputTokens ?? 4096,
   } as MessageCreateParamsBase;
   if (system) {
-    request['system'] = system;
+    request.system = system;
   }
   if (input.tools) {
     request.tools = input.tools?.map((tool) => {
@@ -297,6 +309,15 @@ export function fromAnthropicResponse(
     role: 'model',
     content: parts.map(fromAnthropicPart),
   };
+  let usageCustom: Record<string, number> | undefined = undefined;
+  if ( response.usage.cache_creation_input_tokens) {
+    usageCustom = {};
+    usageCustom['cacheCreationInputTokens']=  response.usage.cache_creation_input_tokens;
+  }
+  if ( response.usage.cache_read_input_tokens) {
+    usageCustom = usageCustom || {};
+    usageCustom['cacheReadInputTokens']=  response.usage.cache_read_input_tokens;
+  }
   return {
     message,
     finishReason: toGenkitFinishReason(
@@ -316,6 +337,7 @@ export function fromAnthropicResponse(
       ...getBasicUsageStats(input.messages, message),
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
+      custom: usageCustom
     },
   };
 }
