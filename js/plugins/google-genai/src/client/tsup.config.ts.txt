@@ -14,18 +14,9 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
+import { defineConfig, Options } from 'tsup';
+import { defaultOptions } from '../../../tsup.common';
 
-export const cacheConfigSchema = z.union([
-  z.boolean(),
-  z.object({ ttlSeconds: z.number().optional() }).passthrough(),
-]);
-
-export type CacheConfig = z.infer<typeof cacheConfigSchema>;
-
-export const cacheConfigDetailsSchema = z.object({
-  cacheConfig: cacheConfigSchema,
-  endOfCachedContents: z.number(),
+export default defineConfig({
+  ...(defaultOptions as Options),
 });
-
-export type CacheConfigDetails = z.infer<typeof cacheConfigDetailsSchema>;

@@ -14,16 +14,9 @@
  * limitations under the License.
  */
 
-export const CONTEXT_CACHE_SUPPORTED_MODELS = [
-  'gemini-1.5-flash-001',
-  'gemini-1.5-pro-001',
-];
+import { defineConfig, Options } from 'tsup';
+import { defaultOptions } from '../../tsup.common';
 
-export const INVALID_ARGUMENT_MESSAGES = {
-  modelVersion: `Model version is required for context caching, supported only in ${CONTEXT_CACHE_SUPPORTED_MODELS.join(',')} models.`,
-  tools: 'Context caching cannot be used simultaneously with tools.',
-  codeExecution:
-    'Context caching cannot be used simultaneously with code execution.',
-};
-
-export const DEFAULT_TTL = 300;
+export default defineConfig({
+  ...(defaultOptions as Options),
+});

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
 import {
   EmbedderAction,
   EmbedderReference,
@@ -23,6 +22,12 @@ import {
   z,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
+import {
+  ContentEmbedding,
+  EmbedContentParameters,
+  GoogleGenAI,
+} from '../client';
+//import { GoogleGenAI, EmbedContentParameters, ContentEmbedding } from '../../client/lib';
 import { getApiKeyFromEnvVar } from './common.js';
 import { PluginOptions } from './index.js';
 
@@ -110,7 +115,7 @@ export function defineGoogleAIEmbedder(
         dimensions: 768,
         label: `Google AI - ${name}`,
         supports: {
-          input: ['text'],
+          input: ['text', 'image', 'video'],
         },
       },
     });
@@ -131,27 +136,32 @@ export function defineGoogleAIEmbedder(
             'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
         });
       }
-      const client = new GoogleGenerativeAI(
-        options?.apiKey || apiKey!
-      ).getGenerativeModel({
-        model:
-          options?.version ||
-          embedder.config?.version ||
-          embedder.version ||
-          apiModelName,
+      const client = new GoogleGenAI({
+        apiKey: options?.apiKey || apiKey!,
       });
       const embeddings = await Promise.all(
         input.map(async (doc) => {
-          const response = await client.embedContent({
-            taskType: options?.taskType,
-            title: options?.title,
-            content: {
+          const response = await client.models.embedContent({
+            model:
+              options?.version ||
+              embedder.config?.version ||
+              embedder.version ||
+              apiModelName,
+            contents: {
               role: '',
               parts: [{ text: doc.text }],
             },
-            outputDimensionality: options?.outputDimensionality,
-          } as EmbedContentRequest);
-          const values = response.embedding.values;
+            config: {
+              taskType: options?.taskType,
+              title: options?.title,
+              outputDimensionality: options?.outputDimensionality,
+            },
+          } as EmbedContentParameters);
+          let contentEmbedding: ContentEmbedding | undefined;
+          if (response.embeddings) {
+            contentEmbedding = response.embeddings[0];
+          }
+          const values = contentEmbedding?.values || [];
           return { embedding: values };
         })
       );

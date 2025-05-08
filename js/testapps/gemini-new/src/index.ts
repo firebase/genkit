@@ -16,11 +16,12 @@
 
 import { genkit, z } from 'genkit';
 //import { vertexAI, googleAI } from '@genkit-ai/google-genai';
-import { vertexAI } from '@genkit-ai/google-genai';
+//import { vertexAI } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const ai = genkit({
   //plugins: [googleAI(), vertexAI()],
-  plugins: [vertexAI()],
+  plugins: [googleAI()],
 });
 
 const jokeSubjectGenerator = ai.defineTool(
@@ -36,24 +37,19 @@ const jokeSubjectGenerator = ai.defineTool(
 export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
-    inputSchema: z.void(),
-    outputSchema: z.any(),
+    inputSchema: z.object({
+      modelName: z.string().default('googleai/gemini-2.5-pro-exp-03-25'),
+      modelVersion: z.string().optional().default('gemini-2.5-pro-exp-03-25'),
+      subject: z.string().default('bananas'),
+    }),
+    outputSchema: z.string(),
   },
-  async () => {
+  async (input) => {
     const llmResponse = await ai.generate({
-      model: 'vertexai/gemini-2.5-pro-exp-03-25',
-      config: {
-        temperature: 2,
-        //location: 'us-east5',
-        // if desired, model versions can be explicitly set
-        //version: 'gemini-2.0-flash-001',
-      },
-      output: {
-        schema: z.object({ jokeSubject: z.string() }),
-      },
-      tools: [jokeSubjectGenerator],
-      prompt: `come up with a subject to joke about (using the function provided)`,
+      model: input.modelName,
+      config: { version: input.modelVersion },
+      prompt: `Tell a joke about ${input.subject}.`,
     });
-    return llmResponse.output;
+    return `From ${input.modelName}: ${llmResponse.text}`;
   }
 );

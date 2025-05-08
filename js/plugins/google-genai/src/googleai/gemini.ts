@@ -15,30 +15,8 @@
  */
 
 import {
-  EnhancedGenerateContentResponse,
-  FileDataPart,
-  FunctionCallingMode,
-  FunctionCallPart,
-  FunctionDeclaration,
-  FunctionResponsePart,
-  GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
-  GenerateContentResponse,
-  GenerationConfig,
-  GenerativeModel,
-  GoogleGenerativeAI,
-  InlineDataPart,
-  RequestOptions,
-  Schema,
-  SchemaType,
-  StartChatParams,
-  Tool,
-  ToolConfig,
-} from '@google/generative-ai';
-import {
-  Genkit,
   GENKIT_CLIENT_HEADER,
+  Genkit,
   GenkitError,
   JSONSchema,
   z,
@@ -46,27 +24,43 @@ import {
 import {
   CandidateData,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
-  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
+  getBasicUsageStats,
+  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
+import {
+  CreateChatParameters,
+  FinishReason,
+  FunctionCallingConfigMode,
+  FunctionDeclaration,
+  Candidate as GeminiCandidate,
+  Content as GeminiMessage,
+  Part as GeminiPart,
+  GenerateContentConfig,
+  GenerateContentResponse,
+  GoogleGenAI,
+  HttpOptions,
+  SafetySetting,
+  Schema,
+  Tool,
+  ToolConfig,
+  Type,
+} from '../client';
 import { getApiKeyFromEnvVar } from './common';
-import { handleCacheIfNeeded } from './context-caching';
-import { extractCacheConfig } from './context-caching/utils';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
@@ -469,7 +463,7 @@ function convertSchemaProperty(property) {
     baseSchema.description = property.description;
   }
   if (property.enum) {
-    baseSchema.type = SchemaType.STRING;
+    baseSchema.type = Type.STRING;
     // supported in API but not in SDK
     (baseSchema as any).enum = property.enum;
   }
@@ -495,18 +489,18 @@ function convertSchemaProperty(property) {
     });
     return {
       ...baseSchema,
-      type: SchemaType.OBJECT,
+      type: Type.OBJECT,
       properties: nestedProperties,
       required: property.required,
     };
   } else if (propertyType === 'array') {
     return {
       ...baseSchema,
-      type: SchemaType.ARRAY,
+      type: Type.ARRAY,
       items: convertSchemaProperty(property.items),
     };
   } else {
-    const schemaType = SchemaType[propertyType.toUpperCase()] as SchemaType;
+    const schemaType = Type[propertyType.toUpperCase()] as Type;
     if (!schemaType) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
@@ -532,7 +526,7 @@ export function toGeminiTool(
   return declaration;
 }
 
-function toInlineData(part: MediaPart): InlineDataPart {
+function toInlineData(part: MediaPart): GeminiPart {
   const dataUrl = part.media.url;
   const b64Data = dataUrl.substring(dataUrl.indexOf(',')! + 1);
   const contentType =
@@ -541,17 +535,20 @@ function toInlineData(part: MediaPart): InlineDataPart {
   return { inlineData: { mimeType: contentType, data: b64Data } };
 }
 
-function toFileData(part: MediaPart): FileDataPart {
+function toFileData(part: MediaPart): GeminiPart {
   if (!part.media.contentType)
     throw new Error(
       'Must supply a `contentType` when sending File URIs to Gemini.'
     );
   return {
-    fileData: { mimeType: part.media.contentType, fileUri: part.media.url },
+    fileData: {
+      mimeType: part.media.contentType,
+      fileUri: part.media.url,
+    },
   };
 }
 
-function fromInlineData(inlinePart: InlineDataPart): MediaPart {
+function fromInlineData(inlinePart: GeminiPart): MediaPart {
   // Check if the required properties exist
   if (
     !inlinePart.inlineData ||
@@ -571,35 +568,32 @@ function fromInlineData(inlinePart: InlineDataPart): MediaPart {
   };
 }
 
-function toFunctionCall(part: ToolRequestPart): FunctionCallPart {
+function toFunctionCall(part: ToolRequestPart): GeminiPart {
   if (!part?.toolRequest?.input) {
     throw Error('Invalid ToolRequestPart: input was missing.');
   }
   return {
     functionCall: {
       name: part.toolRequest.name,
-      args: part.toolRequest.input,
+      args: part.toolRequest.input as Record<string, unknown>,
     },
   };
 }
 
-function fromFunctionCall(
-  part: FunctionCallPart,
-  ref: string
-): ToolRequestPart {
+function fromFunctionCall(part: GeminiPart, ref: string): ToolRequestPart {
   if (!part.functionCall) {
     throw Error('Invalid FunctionCallPart');
   }
   return {
     toolRequest: {
-      name: part.functionCall.name,
+      name: part.functionCall.name || 'unnammed function',
       input: part.functionCall.args,
       ref,
     },
   };
 }
 
-function toFunctionResponse(part: ToolResponsePart): FunctionResponsePart {
+function toFunctionResponse(part: ToolResponsePart): GeminiPart {
   if (!part?.toolResponse?.output) {
     throw Error('Invalid ToolResponsePart: output was missing.');
   }
@@ -614,13 +608,13 @@ function toFunctionResponse(part: ToolResponsePart): FunctionResponsePart {
   };
 }
 
-function fromFunctionResponse(part: FunctionResponsePart): ToolResponsePart {
+function fromFunctionResponse(part: GeminiPart): ToolResponsePart {
   if (!part.functionResponse) {
     throw new Error('Invalid FunctionResponsePart.');
   }
   return {
     toolResponse: {
-      name: part.functionResponse.name.replace(/__/g, '/'), // restore slashes
+      name: part.functionResponse.name?.replace(/__/g, '/') || 'unnamed', // restore slashes
       output: part.functionResponse.response,
     },
   };
@@ -721,7 +715,7 @@ export function toGeminiSystemInstruction(message: MessageData): GeminiMessage {
 }
 
 function fromGeminiFinishReason(
-  reason: GeminiCandidate['finishReason']
+  reason?: FinishReason
 ): CandidateData['finishReason'] {
   if (!reason) return 'unknown';
   switch (reason) {
@@ -757,9 +751,9 @@ export function fromGeminiCandidate(
       citationMetadata: candidate.citationMetadata,
     },
   };
-
   return genkitCandidate;
 }
+
 export function cleanSchema(schema: JSONSchema): JSONSchema {
   const out = structuredClone(schema);
   for (const key in out) {
@@ -821,7 +815,7 @@ export function defineGoogleAIModel({
     : name;
 
   const model: ModelReference<z.ZodTypeAny> =
-    SUPPORTED_GEMINI_MODELS[name] ??
+    SUPPORTED_GEMINI_MODELS[apiModelName] ??
     modelRef({
       name: `googleai/${apiModelName}`,
       info: {
@@ -839,7 +833,7 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[name]) {
+  if (SUPPORTED_V1_MODELS[apiModelName]) {
     middleware.push(simulateSystemPrompt());
   }
   if (model.info?.supports?.media) {
@@ -876,7 +870,10 @@ export function defineGoogleAIModel({
       use: middleware,
     },
     async (request, sendChunk) => {
-      const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
+      console.log(
+        'DEBUGGG: GENKIT_CLIENT_HEADER: ' + JSON.stringify(GENKIT_CLIENT_HEADER)
+      );
+      const options: HttpOptions = {}; //{ apiClient: GENKIT_CLIENT_HEADER };
       if (apiVersion) {
         options.apiVersion = apiVersion;
       }
@@ -896,7 +893,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[name]) {
+      if (SUPPORTED_V15_MODELS[apiModelName]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -943,7 +940,7 @@ export function defineGoogleAIModel({
         (request.output?.contentType === 'application/json' &&
           tools.length === 0);
 
-      const generationConfig: GenerationConfig = {
+      const generationConfig: GenerateContentConfig = {
         candidateCount: request.candidates || undefined,
         temperature: requestConfig.temperature,
         maxOutputTokens: requestConfig.maxOutputTokens,
@@ -951,6 +948,12 @@ export function defineGoogleAIModel({
         topP: requestConfig.topP,
         stopSequences: requestConfig.stopSequences,
         responseMimeType: jsonMode ? 'application/json' : undefined,
+        systemInstruction,
+        tools: tools.length ? tools : undefined,
+        toolConfig,
+        safetySettings: requestConfig.safetySettings as
+          | SafetySetting[]
+          | undefined,
       };
       if (requestConfig.responseModalities) {
         // HACK: cast to any since this isn't officially supported in the old SDK yet
@@ -970,66 +973,54 @@ export function defineGoogleAIModel({
         return fromGeminiCandidate(candidate, jsonMode);
       };
 
-      let chatRequest: StartChatParams = {
-        systemInstruction,
-        generationConfig,
-        tools: tools.length ? tools : undefined,
-        toolConfig,
+      const modelVersion = (request.config?.version ||
+        model.version ||
+        apiModelName) as string;
+      let chatRequest: CreateChatParameters = {
+        model: modelVersion,
+        config: generationConfig,
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
-        safetySettings: requestConfig.safetySettings,
-      } as StartChatParams;
-      const modelVersion = (request.config?.version ||
-        model.version ||
-        name) as string;
-      const cacheConfigDetails = extractCacheConfig(request);
+      } as CreateChatParameters;
 
-      const { chatRequest: updatedChatRequest, cache } =
-        await handleCacheIfNeeded(
-          apiKey!,
-          request,
-          chatRequest,
-          modelVersion,
-          cacheConfigDetails
-        );
+      //const cacheConfigDetails = extractCacheConfig(request);
 
-      if (!requestConfig.apiKey && !apiKey) {
+      apiKey = requestConfig.apiKey || apiKey;
+      if (!apiKey) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
           message:
             'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
         });
       }
-      const client = new GoogleGenerativeAI(requestConfig.apiKey || apiKey!);
-      let genModel: GenerativeModel;
 
-      if (cache) {
-        genModel = client.getGenerativeModelFromCachedContent(
-          cache,
-          {
-            model: modelVersion,
-          },
-          options
-        );
-      } else {
-        genModel = client.getGenerativeModel(
-          {
-            model: modelVersion,
-          },
-          options
-        );
-      }
+      // const { chatRequest: updatedChatRequest, cache } =
+      //   await handleCacheIfNeeded(
+      //     apiKey,
+      //     request,
+      //     chatRequest,
+      //     modelVersion,
+      //     cacheConfigDetails
+      //   );
+
+      const client = new GoogleGenAI({ apiKey });
 
       const callGemini = async () => {
-        let response: EnhancedGenerateContentResponse;
-
+        let responses: GenerateContentResponse[] = [];
+        if (!msg.parts) {
+          throw new Error('No parts provided.');
+        }
         if (sendChunk) {
-          const result = await genModel
-            .startChat(updatedChatRequest)
-            .sendMessageStream(msg.parts, options);
+          const result = await client.chats
+            .create(chatRequest)
+            .sendMessageStream({
+              message: msg.parts,
+              config: generationConfig,
+            });
 
-          for await (const item of result.stream) {
+          for await (const item of result) {
+            responses.push(item);
             (item as GenerateContentResponse).candidates?.forEach(
               (candidate) => {
                 const c = fromJSONModeScopedGeminiCandidate(candidate);
@@ -1040,20 +1031,22 @@ export function defineGoogleAIModel({
               }
             );
           }
-
-          response = await result.response;
         } else {
-          const result = await genModel
-            .startChat(updatedChatRequest)
-            .sendMessage(msg.parts, options);
-
-          response = result.response;
+          responses.push(
+            await client.chats
+              .create(chatRequest)
+              .sendMessage({ message: msg.parts, config: generationConfig })
+          );
         }
 
-        const candidates = response.candidates || [];
-        if (response.candidates?.['undefined']) {
-          candidates.push(response.candidates['undefined']);
-        }
+        const candidates = responses.flatMap((response) => {
+          const rcandidates = response.candidates || [];
+          if (response.candidates?.['undefined']) {
+            candidates.push(response.candidates['undefined']);
+          }
+          return rcandidates;
+        });
+
         if (!candidates.length) {
           throw new GenkitError({
             status: 'FAILED_PRECONDITION',
@@ -1064,20 +1057,22 @@ export function defineGoogleAIModel({
         const candidateData =
           candidates.map(fromJSONModeScopedGeminiCandidate) || [];
 
+        const lastResponse = responses[responses.length - 1];
+
         return {
           candidates: candidateData,
-          custom: response,
+          custom: responses,
           usage: {
             ...getBasicUsageStats(request.messages, candidateData),
-            inputTokens: response.usageMetadata?.promptTokenCount,
-            outputTokens: response.usageMetadata?.candidatesTokenCount,
-            totalTokens: response.usageMetadata?.totalTokenCount,
+            inputTokens: lastResponse.usageMetadata?.promptTokenCount,
+            outputTokens: lastResponse.usageMetadata?.candidatesTokenCount,
+            totalTokens: lastResponse.usageMetadata?.totalTokenCount,
           },
         };
       };
 
-      // If debugTraces is enable, we wrap the actual model call with a span, add raw
-      // API params as for input.
+      // If debugTraces is enabled, we wrap the actual model call with a span,
+      // add raw API params as for input.
       return debugTraces
         ? await runInNewSpan(
             ai.registry,
@@ -1089,9 +1084,8 @@ export function defineGoogleAIModel({
             async (metadata) => {
               metadata.input = {
                 sdk: '@google/generative-ai',
-                cache: cache,
-                model: genModel.model,
-                chatOptions: updatedChatRequest,
+                model: model,
+                chatOptions: chatRequest,
                 parts: msg.parts,
                 options,
               };
@@ -1108,22 +1102,22 @@ export function defineGoogleAIModel({
 /** Converts mode from the config, which follows Gemini naming convention. */
 function toFunctionModeEnum(
   configEnum: string | undefined
-): FunctionCallingMode | undefined {
+): FunctionCallingConfigMode | undefined {
   if (configEnum === undefined) {
     return undefined;
   }
   switch (configEnum) {
     case 'MODE_UNSPECIFIED': {
-      return FunctionCallingMode.MODE_UNSPECIFIED;
+      return FunctionCallingConfigMode.MODE_UNSPECIFIED;
     }
     case 'ANY': {
-      return FunctionCallingMode.ANY;
+      return FunctionCallingConfigMode.ANY;
     }
     case 'AUTO': {
-      return FunctionCallingMode.AUTO;
+      return FunctionCallingConfigMode.AUTO;
     }
     case 'NONE': {
-      return FunctionCallingMode.NONE;
+      return FunctionCallingConfigMode.NONE;
     }
     default:
       throw new Error(`unsupported function calling mode: ${configEnum}`);
@@ -1133,21 +1127,197 @@ function toFunctionModeEnum(
 /** Converts mode from genkit tool choice. */
 function toGeminiFunctionModeEnum(
   genkitMode: 'auto' | 'required' | 'none'
-): FunctionCallingMode | undefined {
+): FunctionCallingConfigMode | undefined {
   if (genkitMode === undefined) {
     return undefined;
   }
   switch (genkitMode) {
     case 'required': {
-      return FunctionCallingMode.ANY;
+      return FunctionCallingConfigMode.ANY;
     }
     case 'auto': {
-      return FunctionCallingMode.AUTO;
+      return FunctionCallingConfigMode.AUTO;
     }
     case 'none': {
-      return FunctionCallingMode.NONE;
+      return FunctionCallingConfigMode.NONE;
     }
     default:
       throw new Error(`unsupported function calling mode: ${genkitMode}`);
   }
 }
+
+// /**
+//  * Aggregates an array of `GenerateContentResponse`s into a single
+//  * GenerateContentResponse.
+//  * @ignore
+//  * @VisibleForTesting
+//  */
+// export function aggregateResponses(
+//   responses: GenerateContentResponse[]
+// ): GenerateContentResponse {
+//   const lastResponse = responses[responses.length - 1];
+
+//   if (lastResponse === undefined) {
+//     throw new GenkitError({
+//       status: 'INTERNAL',
+//       message:
+//       'Error aggregating stream chunks because the final response in stream chunk is undefined'}
+//     );
+//   }
+
+//   const aggregatedResponse = new GenerateContentResponse();
+
+//   if (lastResponse.promptFeedback) {
+//     aggregatedResponse.promptFeedback = lastResponse.promptFeedback;
+//   }
+//   if (lastResponse.usageMetadata) {
+//     aggregatedResponse.usageMetadata = lastResponse.usageMetadata;
+//   }
+
+//   for (const response of responses) {
+//     if (!response.candidates || response.candidates.length === 0) {
+//       continue;
+//     }
+//     for (let i = 0; i < response.candidates.length; i++) {
+//       if (!aggregatedResponse.candidates) {
+//         aggregatedResponse.candidates = [];
+//       }
+//       if (!aggregatedResponse.candidates[i]) {
+//         aggregatedResponse.candidates[i] = {
+//           index: response.candidates[i].index ?? i,
+//           content: {
+//             role: response.candidates[i].content?.role ?? 'model',
+//             parts: [{text: ''}],
+//           },
+//         } as GeminiCandidate;
+//       }
+//       const citationMetadataAggregated: CitationMetadata | undefined =
+//         aggregateCitationMetadataForCandidate(
+//           response.candidates[i],
+//           aggregatedResponse.candidates[i]
+//         );
+//       if (citationMetadataAggregated) {
+//         aggregatedResponse.candidates[i].citationMetadata =
+//           citationMetadataAggregated;
+//       }
+//       const finishResonOfChunk = response.candidates[i].finishReason;
+//       if (finishResonOfChunk) {
+//         aggregatedResponse.candidates[i].finishReason =
+//           response.candidates[i].finishReason;
+//       }
+//       const finishMessageOfChunk = response.candidates[i].finishMessage;
+//       if (finishMessageOfChunk) {
+//         aggregatedResponse.candidates[i].finishMessage = finishMessageOfChunk;
+//       }
+//       const safetyRatingsOfChunk = response.candidates[i].safetyRatings;
+//       if (safetyRatingsOfChunk) {
+//         aggregatedResponse.candidates[i].safetyRatings = safetyRatingsOfChunk;
+//       }
+//       const content = response.candidates[i].content;
+//       if (content && content.parts && content.parts.length > 0) {
+//         const parts = aggregatedResponse.candidates[i].content?.parts;
+//         for (const part of content.parts) {
+//           // NOTE: cannot have text and functionCall both in the same part.
+//           // add functionCall(s) to new parts.
+//           if (part.text) {
+//             parts[0].text += part.text;
+//           }
+//           if (part.functionCall) {
+//             parts.push({functionCall: part.functionCall});
+//           }
+//         }
+//       }
+//       const groundingMetadataAggregated: GroundingMetadata | undefined =
+//         aggregateGroundingMetadataForCandidate(
+//           response.candidates[i],
+//           aggregatedResponse.candidates[i]
+//         );
+//       if (groundingMetadataAggregated) {
+//         aggregatedResponse.candidates[i].groundingMetadata =
+//           groundingMetadataAggregated;
+//       }
+//     }
+//   }
+//   if (aggregatedResponse.candidates?.length) {
+//     aggregatedResponse.candidates.forEach(candidate => {
+//       if (
+//         candidate.content.parts.length > 1 &&
+//         candidate.content.parts[0].text === ''
+//       ) {
+//         candidate.content.parts.shift(); // remove empty text parameter
+//       }
+//     });
+//   }
+//   return aggregatedResponse;
+// }
+
+// function aggregateCitationMetadataForCandidate(
+//   candidateChunk: GeminiCandidate,
+//   aggregatedCandidate: GeminiCandidate
+// ): CitationMetadata | undefined {
+//   if (!candidateChunk.citationMetadata) {
+//     return;
+//   }
+//   const emptyCitationMetadata: CitationMetadata = {
+//     citations: [],
+//   };
+//   const citationMetadataAggregated: CitationMetadata =
+//     aggregatedCandidate.citationMetadata ?? emptyCitationMetadata;
+//   const citationMetadataChunk: CitationMetadata =
+//     candidateChunk.citationMetadata!;
+//   if (citationMetadataChunk.citations) {
+//     citationMetadataAggregated.citations =
+//       citationMetadataAggregated.citations!.concat(
+//         citationMetadataChunk.citations
+//       );
+//   }
+//   return citationMetadataAggregated;
+// }
+
+// function aggregateGroundingMetadataForCandidate(
+//   candidateChunk: GenerateContentCandidate,
+//   aggregatedCandidate: GenerateContentCandidate
+// ): GroundingMetadata | undefined {
+//   if (!candidateChunk.groundingMetadata) {
+//     return;
+//   }
+//   const emptyGroundingMetadata: GroundingMetadata = {
+//     webSearchQueries: [],
+//     retrievalQueries: [],
+//     groundingChunks: [],
+//     groundingSupports: [],
+//   };
+//   const groundingMetadataAggregated: GroundingMetadata =
+//     aggregatedCandidate.groundingMetadata ?? emptyGroundingMetadata;
+//   const groundingMetadataChunk: GroundingMetadata =
+//     candidateChunk.groundingMetadata!;
+//   if (groundingMetadataChunk.webSearchQueries) {
+//     groundingMetadataAggregated.webSearchQueries =
+//       groundingMetadataAggregated.webSearchQueries!.concat(
+//         groundingMetadataChunk.webSearchQueries
+//       );
+//   }
+//   if (groundingMetadataChunk.retrievalQueries) {
+//     groundingMetadataAggregated.retrievalQueries =
+//       groundingMetadataAggregated.retrievalQueries!.concat(
+//         groundingMetadataChunk.retrievalQueries
+//       );
+//   }
+//   if (groundingMetadataChunk.groundingChunks) {
+//     groundingMetadataAggregated.groundingChunks =
+//       groundingMetadataAggregated.groundingChunks!.concat(
+//         groundingMetadataChunk.groundingChunks
+//       );
+//   }
+//   if (groundingMetadataChunk.groundingSupports) {
+//     groundingMetadataAggregated.groundingSupports =
+//       groundingMetadataAggregated.groundingSupports!.concat(
+//         groundingMetadataChunk.groundingSupports
+//       );
+//   }
+//   if (groundingMetadataChunk.searchEntryPoint) {
+//     groundingMetadataAggregated.searchEntryPoint =
+//       groundingMetadataChunk.searchEntryPoint;
+//   }
+//   return groundingMetadataAggregated;
+// }

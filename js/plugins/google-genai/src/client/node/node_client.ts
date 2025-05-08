@@ -24,10 +24,10 @@ import { GoogleGenAIOptions } from '../client';
 import { Files } from '../files';
 import { Live } from '../live';
 import { Models } from '../models';
-import { NodeAuth } from '../node/_node_auth';
-import { NodeWebSocketFactory } from '../node/_node_websocket';
 import { Operations } from '../operations';
 import { Tunings } from '../tunings';
+import { NodeAuth } from './_node_auth';
+import { NodeWebSocketFactory } from './_node_websocket';
 
 import { NodeUploader } from './_node_uploader';
 
