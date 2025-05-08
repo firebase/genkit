@@ -57,7 +57,7 @@ ai = Genkit(
             },
             embedder=EMBEDDING_MODEL,
             embedder_options={'task': 'RETRIEVAL_DOCUMENT'},
-        )
+        ),
     ]
 )
 
@@ -71,24 +71,28 @@ async def generate_embeddings():
     """
     toy_documents = [
         {
-            "id": "doc1",
-            "content": {"title": "Document 1", "body": "This is the content of document 1."},
-            "metadata": {"author": "Alice", "date": "2024-01-15"},
+            'id': 'doc1',
+            'content': {'title': 'Document 1', 'body': 'This is the content of document 1.'},
+            'metadata': {'author': 'Alice', 'date': '2024-01-15'},
         },
         {
-            "id": "doc2",
-            "content": {"title": "Document 2", "body": "This is the content of document 2."},
-            "metadata": {"author": "Bob", "date": "2024-02-20"},
+            'id': 'doc2',
+            'content': {'title': 'Document 2', 'body': 'This is the content of document 2.'},
+            'metadata': {'author': 'Bob', 'date': '2024-02-20'},
         },
         {
-            "id": "doc3",
-            "content": {"title": "Document 3", "body": "Content for doc 3"},
-            "metadata": {"author": "Charlie", "date": "2024-03-01"},
+            'id': 'doc3',
+            'content': {'title': 'Document 3', 'body': 'Content for doc 3'},
+            'metadata': {'author': 'Charlie', 'date': '2024-03-01'},
         },
     ]
 
     create_bigquery_dataset_and_table(
-        PROJECT_ID, LOCATION, BIGQUERY_DATASET_NAME, BIGQUERY_TABLE_NAME, toy_documents,
+        PROJECT_ID,
+        LOCATION,
+        BIGQUERY_DATASET_NAME,
+        BIGQUERY_TABLE_NAME,
+        toy_documents,
     )
 
     results_dict = get_data_from_bigquery(
@@ -98,10 +102,7 @@ async def generate_embeddings():
         table_id=BIGQUERY_TABLE_NAME,
     )
 
-    genkit_documents = [
-        types.Document(content=[types.TextPart(text=text)])
-        for text in results_dict.values()
-    ]
+    genkit_documents = [types.Document(content=[types.TextPart(text=text)]) for text in results_dict.values()]
 
     embed_response = await ai.embed(
         embedder=vertexai_name(EMBEDDING_MODEL),
@@ -112,7 +113,7 @@ async def generate_embeddings():
     embeddings = [emb.embedding for emb in embed_response.embeddings]
     logger.debug(f'Generated {len(embeddings)} embeddings, dimension: {len(embeddings[0])}')
 
-    ids = list(results_dict.keys())[:len(embeddings)]
+    ids = list(results_dict.keys())[: len(embeddings)]
     data_embeddings = list(zip(ids, embeddings, strict=True))
 
     upsert_data = [(str(id), embedding) for id, embedding in data_embeddings]
@@ -144,41 +145,41 @@ def create_bigquery_dataset_and_table(
 
     try:
         dataset = client.create_dataset(dataset, exists_ok=True)
-        logger.debug(f"Dataset {client.project}.{dataset.dataset_id} created.")
+        logger.debug(f'Dataset {client.project}.{dataset.dataset_id} created.')
     except Exception as e:
-        logger.exception(f"Error creating dataset: {e}")
+        logger.exception(f'Error creating dataset: {e}')
         raise e
 
     schema = [
-        bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("content", "JSON"),
-        bigquery.SchemaField("metadata", "JSON"),
+        bigquery.SchemaField('id', 'STRING', mode='REQUIRED'),
+        bigquery.SchemaField('content', 'JSON'),
+        bigquery.SchemaField('metadata', 'JSON'),
     ]
 
     table_ref = dataset_ref.table(table_id)
     table = bigquery.Table(table_ref, schema=schema)
     try:
         table = client.create_table(table, exists_ok=True)
-        logger.debug(f"Table {table.project}.{table.dataset_id}.{table.table_id} created.")
+        logger.debug(f'Table {table.project}.{table.dataset_id}.{table.table_id} created.')
     except Exception as e:
-        logger.exception(f"Error creating table: {e}")
+        logger.exception(f'Error creating table: {e}')
         raise e
 
     rows_to_insert = [
         {
-            "id": doc["id"],
-            "content": json.dumps(doc["content"]),
-            "metadata": json.dumps(doc["metadata"]),
+            'id': doc['id'],
+            'content': json.dumps(doc['content']),
+            'metadata': json.dumps(doc['metadata']),
         }
         for doc in documents
     ]
 
     errors = client.insert_rows_json(table, rows_to_insert)
     if errors:
-        logger.error(f"Errors inserting rows: {errors}")
-        raise Exception(f"Failed to insert rows: {errors}")
+        logger.error(f'Errors inserting rows: {errors}')
+        raise Exception(f'Failed to insert rows: {errors}')
     else:
-        logger.debug(f"Inserted {len(rows_to_insert)} rows into BigQuery.")
+        logger.debug(f'Inserted {len(rows_to_insert)} rows into BigQuery.')
 
 
 def get_data_from_bigquery(
@@ -199,10 +200,8 @@ def get_data_from_bigquery(
         A dictionary where keys are document IDs and values are JSON strings
         representing the document content.
     """
-    table_ref = bigquery.TableReference.from_string(
-        f"{project_id}.{dataset_id}.{table_id}"
-    )
-    query = f"SELECT id, content FROM `{table_ref}`"
+    table_ref = bigquery.TableReference.from_string(f'{project_id}.{dataset_id}.{table_id}')
+    query = f'SELECT id, content FROM `{table_ref}`'
     query_job = bq_client.query(query)
     rows = query_job.result()
 
@@ -230,26 +229,19 @@ def upsert_index(
     aiplatform.init(project=project_id, location=region)
 
     index_client = aiplatform_v1.IndexServiceClient(
-        client_options={"api_endpoint": f"{region}-aiplatform.googleapis.com"}
+        client_options={'api_endpoint': f'{region}-aiplatform.googleapis.com'}
     )
 
-    index_path = index_client.index_path(
-        project=project_id, location=region, index=index_name
-    )
+    index_path = index_client.index_path(project=project_id, location=region, index=index_name)
 
-    datapoints = [
-        aiplatform_v1.IndexDatapoint(datapoint_id=id, feature_vector=embedding)
-        for id, embedding in data
-    ]
+    datapoints = [aiplatform_v1.IndexDatapoint(datapoint_id=id, feature_vector=embedding) for id, embedding in data]
 
     logger.debug(f'Attempting to insert {len(datapoints)} rows into Index {index_path}')
 
-    upsert_request = aiplatform_v1.UpsertDatapointsRequest(
-        index=index_path, datapoints=datapoints
-    )
+    upsert_request = aiplatform_v1.UpsertDatapointsRequest(index=index_path, datapoints=datapoints)
 
     response = index_client.upsert_datapoints(request=upsert_request)
-    logger.info(f"Upserted {len(datapoints)} datapoints. Response: {response}")
+    logger.info(f'Upserted {len(datapoints)} datapoints. Response: {response}')
 
 
 async def main() -> None:

@@ -21,7 +21,7 @@ from typing import Any
 
 import structlog
 from google.cloud import bigquery, firestore
-from google.cloud.aiplatform_v1 import FindNeighborsRequest, IndexDatapoint, Neighbor
+from google.cloud.aiplatform_v1 import FindNeighborsRequest, FindNeighborsResponse, IndexDatapoint
 from pydantic import BaseModel, Field, ValidationError
 
 from genkit.ai import Genkit
@@ -49,6 +49,7 @@ class DocRetriever(ABC):
         embedder: The name of the embedder to use for generating embeddings.
         embedder_options:  Options to pass to the embedder.
     """
+
     def __init__(
         self,
         ai: Genkit,
@@ -117,7 +118,7 @@ class DocRetriever(ABC):
             A list of Document objects representing the closest documents.
 
         Raises:
-            AttributeError: If the request does not contain the necessary 
+            AttributeError: If the request does not contain the necessary
             index endpoint path in its metadata.
         """
         metadata = request.query.metadata
@@ -135,9 +136,7 @@ class DocRetriever(ABC):
         index_endpoint_path = metadata['index_endpoint_path']
         deployed_index_id = metadata['deployed_index_id']
 
-        client_options = {
-            "api_endpoint": api_endpoint
-        }
+        client_options = {'api_endpoint': api_endpoint}
 
         vector_search_client = self._match_service_client_generator(
             client_options=client_options,
@@ -159,7 +158,9 @@ class DocRetriever(ABC):
         return await self._retrieve_neighbours_data_from_db(neighbours=response.nearest_neighbors[0].neighbors)
 
     @abstractmethod
-    async def _retrieve_neighbours_data_from_db(self, neighbours: list[Neighbor]) -> list[Document]:
+    async def _retrieve_neighbours_data_from_db(
+        self, neighbours: list[FindNeighborsResponse.Neighbor]
+    ) -> list[Document]:
         """Retrieves document data from the database based on neighbor information.
 
         This method must be implemented by subclasses to define how document
@@ -187,8 +188,14 @@ class BigQueryRetriever(DocRetriever):
         dataset_id: The ID of the BigQuery dataset.
         table_id: The ID of the BigQuery table.
     """
+
     def __init__(
-        self, bq_client: bigquery.Client, dataset_id: str, table_id: str, *args, **kwargs,
+        self,
+        bq_client: bigquery.Client,
+        dataset_id: str,
+        table_id: str,
+        *args,
+        **kwargs,
     ) -> None:
         """Initializes the BigQueryRetriever.
 
@@ -204,11 +211,13 @@ class BigQueryRetriever(DocRetriever):
         self.dataset_id = dataset_id
         self.table_id = table_id
 
-    async def _retrieve_neighbours_data_from_db(self, neighbours: list[Neighbor]) -> list[Document]:
+    async def _retrieve_neighbours_data_from_db(
+        self, neighbours: list[FindNeighborsResponse.Neighbor]
+    ) -> list[Document]:
         """Retrieves document data from the BigQuery table for the given neighbors.
 
         Constructs and executes a BigQuery query to fetch document data based on
-        the IDs obtained. Handles potential errors during query execution and 
+        the IDs obtained. Handles potential errors during query execution and
         document parsing.
 
         Args:
@@ -220,16 +229,10 @@ class BigQueryRetriever(DocRetriever):
             Returns an empty list if no IDs are found in the neighbors or if the
             query fails.
         """
-        ids = [
-            n.datapoint.datapoint_id
-            for n in neighbours
-            if n.datapoint and n.datapoint.datapoint_id
-        ]
+        ids = [n.datapoint.datapoint_id for n in neighbours if n.datapoint and n.datapoint.datapoint_id]
 
         distance_by_id = {
-            n.datapoint.datapoint_id: n.distance
-            for n in neighbours
-            if n.datapoint and n.datapoint.datapoint_id
+            n.datapoint.datapoint_id: n.distance for n in neighbours if n.datapoint and n.datapoint.datapoint_id
         }
 
         if not ids:
@@ -283,8 +286,13 @@ class FirestoreRetriever(DocRetriever):
         db: The Firestore client.
         collection_name: The name of the Firestore collection.
     """
+
     def __init__(
-        self, firestore_client: firestore.AsyncClient, collection_name: str, *args, **kwargs,
+        self,
+        firestore_client: firestore.AsyncClient,
+        collection_name: str,
+        *args,
+        **kwargs,
     ) -> None:
         """Initializes the FirestoreRetriever.
 
@@ -298,7 +306,9 @@ class FirestoreRetriever(DocRetriever):
         self.db = firestore_client
         self.collection_name = collection_name
 
-    async def _retrieve_neighbours_data_from_db(self, neighbours: list[Neighbor]) -> list[Document]:
+    async def _retrieve_neighbours_data_from_db(
+        self, neighbours: list[FindNeighborsResponse.Neighbor]
+    ) -> list[Document]:
         """Retrieves document data from the Firestore collection for the given neighbors.
 
         Fetches document data from Firestore based on the IDs of the nearest neighbors.
@@ -321,7 +331,7 @@ class FirestoreRetriever(DocRetriever):
             if doc_snapshot.exists:
                 doc_data = doc_snapshot.to_dict() or {}
 
-                content = doc_data.get('content')
+                content = doc_data.get('content', '')
                 content = json.dumps(content) if isinstance(content, dict) else str(content)
 
                 metadata = doc_data.get('metadata', {})
@@ -349,4 +359,5 @@ class RetrieverOptionsSchema(BaseModel):
     Attributes:
         limit: Number of documents to retrieve.
     """
+
     limit: int | None = Field(title='Number of documents to retrieve', default=None)

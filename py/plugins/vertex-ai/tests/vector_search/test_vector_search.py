@@ -14,23 +14,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
-from functools import partial
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+import json
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from google.cloud import bigquery
 from google.cloud.aiplatform_v1 import (
     FindNeighborsRequest,
     FindNeighborsResponse,
     IndexDatapoint,
     MatchServiceAsyncClient,
-    NearestNeighbors,
-    Neighbor,
+    types,
 )
 
 from genkit.ai import Genkit
-from genkit.blocks.document import Document, DocumentData, DocumentPart
+from genkit.blocks.document import Document, DocumentData
 from genkit.core.typing import Embedding
 from genkit.plugins.vertex_ai.models.retriever import (
     BigQueryRetriever,
@@ -38,10 +36,7 @@ from genkit.plugins.vertex_ai.models.retriever import (
 )
 from genkit.types import (
     ActionRunContext,
-    EmbedRequest,
-    EmbedResponse,
     RetrieverRequest,
-    RetrieverResponse,
     TextPart,
 )
 
@@ -70,7 +65,7 @@ def test_bigquery_retriever__init__(bq_retriever_instance):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "options, top_k",
+    'options, top_k',
     [
         (
             {'limit': 10},
@@ -83,8 +78,8 @@ def test_bigquery_retriever__init__(bq_retriever_instance):
         (
             None,
             3,
-        )
-    ]
+        ),
+    ],
 )
 async def test_bigquery_retriever_retrieve(
     bq_retriever_instance,
@@ -109,17 +104,11 @@ async def test_bigquery_retriever_retrieve(
     mock__get_closest_documents_result = [
         Document.from_text(
             text='1',
-            metadata={
-                'distance': 0.0,
-                'id': 1
-            },
+            metadata={'distance': 0.0, 'id': 1},
         ),
         Document.from_text(
             text='2',
-            metadata={
-                'distance': 0.0,
-                'id': 2
-            },
+            metadata={'distance': 0.0, 'id': 2},
         ),
     ]
 
@@ -132,9 +121,7 @@ async def test_bigquery_retriever_retrieve(
         RetrieverRequest(
             query=DocumentData(
                 content=[
-                    TextPart(
-                        text='test-1'
-                    ),
+                    TextPart(text='test-1'),
                 ],
             ),
             options=options,
@@ -145,11 +132,10 @@ async def test_bigquery_retriever_retrieve(
     # Assert mocks
     bq_retriever_instance.ai.embed.assert_called_once_with(
         embedder='embedder',
-        documents=[Document(
+        documents=[
+            Document(
                 content=[
-                    TextPart(
-                        text='test-1'
-                    ),
+                    TextPart(text='test-1'),
                 ],
             ),
         ],
@@ -160,9 +146,7 @@ async def test_bigquery_retriever_retrieve(
         request=RetrieverRequest(
             query=DocumentData(
                 content=[
-                    TextPart(
-                        text='test-1'
-                    ),
+                    TextPart(text='test-1'),
                 ],
             ),
             options=options,
@@ -198,20 +182,8 @@ async def test_bigquery__get_closest_documents(bq_retriever_instance):
 
     # Mock _retrieve_neighbours_data_from_db method
     mock__retrieve_neighbours_data_from_db_result = [
-        Document.from_text(
-            text='1',
-            metadata={
-                'distance': 0.0,
-                'id': 1
-            }
-        ),
-        Document.from_text(
-            text='2',
-            metadata={
-                'distance': 0.0,
-                'id': 2
-            }
-        ),
+        Document.from_text(text='1', metadata={'distance': 0.0, 'id': 1}),
+        Document.from_text(text='2', metadata={'distance': 0.0, 'id': 2}),
     ]
 
     bq_retriever_instance._retrieve_neighbours_data_from_db = AsyncMock(
@@ -221,32 +193,28 @@ async def test_bigquery__get_closest_documents(bq_retriever_instance):
     await bq_retriever_instance._get_closest_documents(
         request=RetrieverRequest(
             query=DocumentData(
-                content=[
-                    TextPart(
-                        text='test-1'
-                    )
-                ],
+                content=[TextPart(text='test-1')],
                 metadata={
                     'index_endpoint_path': 'index_endpoint_path',
                     'api_endpoint': 'api_endpoint',
                     'deployed_index_id': 'deployed_index_id',
-                }
+                },
             ),
             options={
                 'limit': 10,
-            }
+            },
         ),
         top_k=10,
         query_embeddings=Embedding(
             embedding=[0.1, 0.2, 0.3],
-        )
+        ),
     )
 
     # Assert calls
     mock_vector_search_client.find_neighbors.assert_awaited_once_with(
         request=FindNeighborsRequest(
-            index_endpoint="index_endpoint_path",
-            deployed_index_id="deployed_index_id",
+            index_endpoint='index_endpoint_path',
+            deployed_index_id='deployed_index_id',
             queries=[
                 FindNeighborsRequest.Query(
                     datapoint=IndexDatapoint(feature_vector=[0.1, 0.2, 0.3]),
@@ -261,7 +229,7 @@ async def test_bigquery__get_closest_documents(bq_retriever_instance):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "metadata",
+    'metadata',
     [
         {
             'index_endpoint_path': 'index_endpoint_path',
@@ -283,8 +251,8 @@ async def test_bigquery__get_closest_documents(bq_retriever_instance):
         {
             'api_endpoint': 'api_endpoint',
             'deployed_index_id': 'deployed_index_id',
-        }
-    ]
+        },
+    ],
 )
 async def test_bigquery__get_closest_documents_fail(
     bq_retriever_instance,
@@ -295,27 +263,114 @@ async def test_bigquery__get_closest_documents_fail(
         await bq_retriever_instance._get_closest_documents(
             request=RetrieverRequest(
                 query=DocumentData(
-                    content=[
-                        TextPart(
-                            text='test-1'
-                        )
-                    ],
+                    content=[TextPart(text='test-1')],
                     metadata=metadata,
                 ),
                 options={
                     'limit': 10,
-                }
+                },
             ),
             top_k=10,
             query_embeddings=Embedding(
                 embedding=[0.1, 0.2, 0.3],
-            )
+            ),
         )
 
 
-def test_firestore_retriever__init__():
-    """Init test."""
-    fs_retriever = FirestoreRetriever(
+@pytest.mark.asyncio
+async def test_bigquery__retrieve_neighbours_data_from_db(
+    bq_retriever_instance,
+):
+    """Test bigquery retriver _retrieve_neighbours_data_from_db."""
+    # Mock query job result from bigquery query
+    mock_bq_query_job = MagicMock()
+    mock_bq_query_job.result.return_value = [
+        {
+            'id': 'doc1',
+            'content': {'body': 'text for document 1'},
+        },
+        {'id': 'doc2', 'content': json.dumps({'body': 'text for document 2'}), 'metadata': {'date': 'today'}},
+        {},  # should error without skipping first two rows
+    ]
+
+    bq_retriever_instance.bq_client.query.return_value = mock_bq_query_job
+
+    # call the method
+    result = await bq_retriever_instance._retrieve_neighbours_data_from_db(
+        neighbours=[
+            FindNeighborsResponse.Neighbor(
+                datapoint=types.index.IndexDatapoint(datapoint_id='doc1'),
+                distance=0.0,
+                sparse_distance=0.0,
+            ),
+            FindNeighborsResponse.Neighbor(
+                datapoint=types.index.IndexDatapoint(datapoint_id='doc2'),
+                distance=0.0,
+                sparse_distance=0.0,
+            ),
+        ]
+    )
+
+    # Assert results and calls
+    expected = [
+        Document.from_text(
+            text=json.dumps(
+                {
+                    'body': 'text for document 1',
+                },
+            ),
+            metadata={'id': 'doc1', 'distance': 0.0},
+        ),
+        Document.from_text(
+            text=json.dumps(
+                {
+                    'body': 'text for document 2',
+                },
+            ),
+            metadata={'id': 'doc2', 'distance': 0.0, 'date': 'today'},
+        ),
+    ]
+
+    assert result == expected
+
+    bq_retriever_instance.bq_client.query.assert_called_once()
+
+    mock_bq_query_job.result.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_bigquery_retrieve_neighbours_data_from_db_fail(
+    bq_retriever_instance,
+):
+    """Test bigquery retriver _retrieve_neighbours_data_from_db when fails."""
+    # Mock exception from bigquery query
+    bq_retriever_instance.bq_client.query.raises = AttributeError
+
+    # call the method
+    result = await bq_retriever_instance._retrieve_neighbours_data_from_db(
+        neighbours=[
+            FindNeighborsResponse.Neighbor(
+                datapoint=types.index.IndexDatapoint(datapoint_id='doc1'),
+                distance=0.0,
+                sparse_distance=0.0,
+            ),
+            FindNeighborsResponse.Neighbor(
+                datapoint=types.index.IndexDatapoint(datapoint_id='doc2'),
+                distance=0.0,
+                sparse_distance=0.0,
+            ),
+        ]
+    )
+
+    assert len(result) == 0
+
+    bq_retriever_instance.bq_client.query.assert_called_once()
+
+
+@pytest.fixture
+def fs_retriever_instance():
+    """Common initialization of bq retriever."""
+    return FirestoreRetriever(
         ai=MagicMock(),
         name='test',
         match_service_client_generator=MagicMock(),
@@ -325,4 +380,89 @@ def test_firestore_retriever__init__():
         collection_name='collection_name',
     )
 
-    assert fs_retriever is not None
+
+def test_firestore_retriever__init__(fs_retriever_instance):
+    """Init test."""
+    assert fs_retriever_instance is not None
+
+
+@pytest.mark.asyncio
+async def test_firesstore__retrieve_neighbours_data_from_db(
+    fs_retriever_instance,
+):
+    """Test _retrieve_neighbours_data_from_db for firestore retriever."""
+    # Mock storage of firestore
+    storage = {
+        'doc1': {
+            'content': {'body': 'text for document 1'},
+        },
+        'doc2': {'content': json.dumps({'body': 'text for document 2'}), 'metadata': {'date': 'today'}},
+        'doc3': {},
+    }
+
+    # Mock get from firestore
+    class MockCollection:
+        def document(self, document_id):
+            doc_ref = MagicMock()
+            doc_snapshot = MagicMock()
+
+            doc_ref.get.return_value = doc_snapshot
+            if storage.get(document_id) is not None:
+                doc_snapshot.exists = True
+                doc_snapshot.to_dict.return_value = storage.get(document_id)
+            else:
+                doc_snapshot.exists = False
+
+            return doc_ref
+
+    fs_retriever_instance.db.collection.return_value = MockCollection()
+
+    # call the method
+    result = await fs_retriever_instance._retrieve_neighbours_data_from_db(
+        neighbours=[
+            FindNeighborsResponse.Neighbor(
+                datapoint=types.index.IndexDatapoint(datapoint_id='doc1'),
+                distance=0.0,
+                sparse_distance=0.0,
+            ),
+            FindNeighborsResponse.Neighbor(
+                datapoint=types.index.IndexDatapoint(datapoint_id='doc2'),
+                distance=0.0,
+                sparse_distance=0.0,
+            ),
+            FindNeighborsResponse.Neighbor(
+                datapoint=types.index.IndexDatapoint(datapoint_id='doc3'),
+                distance=0.0,
+                sparse_distance=0.0,
+            ),
+        ]
+    )
+
+    # Assert results and calls
+    expected = [
+        Document.from_text(
+            text=json.dumps(
+                {
+                    'body': 'text for document 1',
+                },
+            ),
+            metadata={'id': 'doc1', 'distance': 0.0},
+        ),
+        Document.from_text(
+            text=json.dumps(
+                {
+                    'body': 'text for document 2',
+                },
+            ),
+            metadata={'id': 'doc2', 'distance': 0.0, 'date': 'today'},
+        ),
+        Document.from_text(
+            text='',
+            metadata={
+                'id': 'doc3',
+                'distance': 0.0,
+            },
+        ),
+    ]
+
+    assert result == expected
