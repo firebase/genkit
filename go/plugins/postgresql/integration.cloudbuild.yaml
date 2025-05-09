@@ -15,7 +15,7 @@
 steps:
   - id: "install-dependencies"
     name: golang:1
-    dir: go/plugins/postgresql
+    dir: go
     waitFor: ["-"]
     env:
       - "GOPATH=/gopath"
@@ -25,9 +25,10 @@ steps:
     script: |
       go get -d ./...
 
+
   - id: "run-tests"
     name: golang:1
-    dir: go/plugins/postgresql
+    dir: go
     env:
       - "GOPATH=/gopath"
       - "PROJECT_ID=$PROJECT_ID"
@@ -36,12 +37,12 @@ steps:
       - "REGION=$_REGION"
       - "IP_ADDRESS=$_IP_ADDRESS"
     secretEnv: ["DB_USER", "DB_PASSWORD", "EMAIL"]
-    waitFor: ["install-dependencies"]      
+    waitFor: ["install-dependencies"]
     volumes:
       - name: "go"
         path: "/gopath"
     script: |
-      go test -c -race ./...
+      go test -race ./plugins/postgresql/...
 
 availableSecrets:
   secretManager:
