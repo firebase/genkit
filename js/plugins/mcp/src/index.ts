@@ -16,11 +16,9 @@
 
 import type { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js' with { 'resolution-mode': 'import' };
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js' with { 'resolution-mode': 'import' };
-import { Genkit, GenkitError } from 'genkit';
+import { Genkit } from 'genkit';
 import { genkitPlugin } from 'genkit/plugin';
-import { registerAllPrompts } from './client/prompts';
-import { registerResourceTools } from './client/resources';
-import { registerAllTools } from './client/tools';
+import { GenkitMcpClient } from './client';
 import { GenkitMcpServer } from './server';
 
 export interface McpClientOptions {
@@ -42,75 +40,26 @@ export interface McpClientOptions {
   roots?: { name: string; uri: string }[];
 }
 
-async function transportFrom(params: McpClientOptions): Promise<Transport> {
-  if (params.transport) return params.transport;
-  if (params.serverUrl) {
-    const { SSEClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/sse.js'
-    );
-    return new SSEClientTransport(new URL(params.serverUrl));
-  }
-  if (params.serverProcess) {
-    const { StdioClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/stdio.js'
-    );
-    return new StdioClientTransport(params.serverProcess);
-  }
-  if (params.serverWebsocketUrl) {
-    const { WebSocketClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/websocket.js'
-    );
-    let url = params.serverWebsocketUrl;
-    if (typeof url === 'string') url = new URL(url);
-    return new WebSocketClientTransport(url);
-  }
-
-  throw new GenkitError({
-    status: 'INVALID_ARGUMENT',
-    message:
-      'Unable to create a server connection with supplied options. Must provide transport, stdio, or sseUrl.',
-  });
-}
+const mcpClients: Record<string, GenkitMcpClient> = {};
 
 export function mcpClient(params: McpClientOptions) {
   return genkitPlugin(params.name, async (ai: Genkit) => {
-    const { Client } = await import(
-      '@modelcontextprotocol/sdk/client/index.js'
-    );
-
-    const transport = await transportFrom(params);
-    const client = new Client(
-      {
-        name: params.name,
-        version: params.version || '1.0.0',
-        roots: params.roots,
-      },
-      {
-        capabilities: {
-          // TODO: Support sending root list change notifications to the server.
-          // Would require some way to update the list of roots outside of
-          // client params. Also requires that our registrations of tools and
-          // resources are able to handle updates to the list of roots this
-          // client defines, since tool and resource lists are affected by the
-          // list of roots.
-          roots: { listChanged: false },
-        },
-      }
-    );
-    await client.connect(transport);
-    const capabilities = client.getServerCapabilities();
-    const promises: Promise<any>[] = [];
-    if (capabilities?.tools) {
-      promises.push(registerAllTools(ai, client, params));
-    }
-    if (capabilities?.prompts) {
-      promises.push(registerAllPrompts(ai, client, params));
-    }
-    if (capabilities?.resources) {
-      promises.push(registerResourceTools(ai, client, params));
-    }
-    await Promise.all(promises);
+    mcpClients[params.name] = new GenkitMcpClient(ai, {
+      name: params.name,
+      version: params.version || '1.0.0',
+      roots: params.roots,
+    });
   });
+}
+
+export function setMcpClientRoots(
+  name: string,
+  roots: { name: string; uri: string }[]
+) {
+  if (!mcpClients[name]) {
+    throw new Error(`MCP client plugin ${name} doesn't exist.`);
+  }
+  mcpClients[name].roots = roots;
 }
 
 export interface McpServerOptions {
