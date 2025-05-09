@@ -91,31 +91,6 @@ import { onCallGenkit } from 'firebase-functions/https';
 export generatePoem = onCallGenkit(generatePoemFlow);
 ```
 
-### Define an authorization policy
-
-All deployed flows, whether deployed to Firebase or not, should have an
-authorization policy; without one, anyone can invoke your potentially-expensive
-generative AI flows. To define an authorization policy, use the
-`authPolicy` parameter of `onCallGenkit`:
-
-```ts
-export const generatePoem = onCallGenkit({
-  authPolicy: (auth) => auth?.token?.email_verified,
-}, generatePoemFlow);
-```
-
-This sample uses a manual function as its auth policy. In addition, the https
-library exports the `signedIn()` and `hasClaim()` helpers. Here is the same code
-using one of those helpers:
-
-```ts
-import { hasClaim } from 'firebase-functions/https';
-
-export const generatePoem = onCallGenkit({
-  authPolicy: hasClaim('email_verified'),
-}, generatePoemFlow);
-```
-
 ### Make API credentials available to deployed flows
 
 Once deployed, your flows need some way to authenticate with any remote services
