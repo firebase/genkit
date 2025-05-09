@@ -72,16 +72,19 @@ your source code.
     $ export GOOGLE_GENAI_API_KEY=<your API key>
     ```
 
-> **Note:** Although this tutorial uses the Gemini API from AI Studio, Genkit
-> supports a wide variety of model providers, including:
-> 
-> * [Gemini from Vertex AI](https://firebase.google.com/docs/genkit/plugins/vertex-ai#generative_ai_models).
-> * Anthropic's Claude 3 models and Llama 3.1 through the
-> [Vertex AI Model Garden](https://firebase.google.com/docs/genkit/plugins/vertex-ai#anthropic_claude_3_on_vertex_ai_model_garden),
-> as well as community plugins.
-> * Open source models through
-> [Ollama](https://firebase.google.com/docs/genkit/plugins/ollama).
-> * [Community-supported providers](https://firebase.google.com/docs/genkit/models#models-supported) such as OpenAI and Cohere.
+<aside class="note">
+<b>Note:</b> Although this tutorial uses the Gemini API from AI Studio, Genkit
+supports a wide variety of model providers, including:
+<ul>
+<li>[Gemini from Vertex AI](https://firebase.google.com/docs/genkit/plugins/vertex-ai#generative_ai_models).</li>
+<li>Anthropic's Claude 3 models and Llama 3.1 through the
+[Vertex AI Model Garden](https://firebase.google.com/docs/genkit/plugins/vertex-ai#anthropic_claude_3_on_vertex_ai_model_garden),
+as well as community plugins.</li>
+<li>Open source models through
+[Ollama](https://firebase.google.com/docs/genkit/plugins/ollama).</li>
+<li>[Community-supported providers](https://firebase.google.com/docs/genkit/models#models-supported) such as OpenAI and Cohere.</li>
+</ul>
+</aside>
 
 ### 2. Import the required dependencies {:#import-dependencies}
 
