@@ -127,3 +127,7 @@ func TestGetUser(t *testing.T) {
 		})
 	}
 }
+
+func TestRandom(t *testing.T) {
+	assert.Equal(t, 0, 1, "0 should be equal to 1")
+}
