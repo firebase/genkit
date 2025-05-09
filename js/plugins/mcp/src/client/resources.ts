@@ -27,6 +27,12 @@ export async function registerResourceTools(
   client: Client,
   params: McpClientOptions
 ) {
+  const rootsList = params.roots
+    ? params.roots
+        .map<string>((root) => `${root.name} (${root.uri})`)
+        .join(', ')
+    : '';
+
   ai.defineTool(
     {
       name: `${params.name}/list_resources`,
@@ -36,18 +42,31 @@ export async function registerResourceTools(
         cursor: z.string().optional(),
         /** When specified, automatically paginate and fetch all resources. */
         all: z.boolean().optional(),
+        roots: z
+          .array(z.object({ name: z.string().optional(), uri: z.string() }))
+          .optional()
+          .describe(
+            `The list of roots to limit the results to. Available roots: ${rootsList}`
+          ),
       }),
     },
-    async ({ cursor, all }) => {
+    async ({
+      cursor,
+      all,
+      roots,
+    }): Promise<{ nextCursor?: string | undefined; resources: Resource[] }> => {
       if (!all) {
-        return client.listResources();
+        return client.listResources({ roots: roots || params.roots });
       }
 
       let currentCursor: string | undefined = cursor;
       const resources: Resource[] = [];
       while (true) {
         const { nextCursor, resources: newResources } =
-          await client.listResources({ cursor: currentCursor });
+          await client.listResources({
+            cursor: currentCursor,
+            roots: roots || params.roots,
+          });
         resources.push(...newResources);
         currentCursor = nextCursor;
         if (!currentCursor) break;
