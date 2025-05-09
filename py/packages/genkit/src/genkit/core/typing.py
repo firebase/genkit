@@ -673,7 +673,7 @@ class Resume(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
-class Part(RootModel[TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart]):
+class Part(RootModel[tuple[TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart]]):
     """Root model for part."""
 
     root: TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart

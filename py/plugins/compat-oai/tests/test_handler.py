@@ -27,7 +27,7 @@ from genkit.plugins.compat_oai.models.model_info import (
     GPT_4,
     SUPPORTED_OPENAI_MODELS,
 )
-from genkit.types import GenerateRequest, GenerateResponse, Message, Role, TextPart
+from  genkit.core.typing import GenerateRequest, GenerateResponse, Message, Role, TextPart
 
 
 def test_get_model_handler() -> None:
@@ -61,7 +61,12 @@ def test_handler_generate_non_streaming(sample_request: GenerateRequest) -> None
     mock_model = MagicMock(spec=OpenAIModel)
     mock_model.name = GPT_4
     mock_model.generate.return_value = GenerateResponse(
-        message=Message(role=Role.MODEL, content=[TextPart(text='Hello, user!')])
+        message=Message(
+            role=Role.MODEL,
+            content=[
+                TextPart(text='Hello, user!')
+            ]
+        )
     )
 
     handler = OpenAIModelHandler(mock_model)
@@ -71,6 +76,7 @@ def test_handler_generate_non_streaming(sample_request: GenerateRequest) -> None
 
     mock_model.generate.assert_called_once()
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.role == Role.MODEL
     assert response.message.content[0].root.text == 'Hello, user!'
 

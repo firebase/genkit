@@ -17,10 +17,11 @@
 """AIO util module for defining and managing AIO utilities."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 
-def ensure_async(fn: Callable) -> Callable:
+def ensure_async(fn: Callable[..., Any] | Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
     """Ensure the function is async.
 
     Args:
@@ -33,7 +34,7 @@ def ensure_async(fn: Callable) -> Callable:
     if is_async:
         return fn
 
-    async def async_wrapper(*args, **kwargs):
+    async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
         """Wrap the function in an async function.
 
         Args:

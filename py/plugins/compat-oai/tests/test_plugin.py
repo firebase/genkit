@@ -16,7 +16,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from genkit.ai import Genkit
+from genkit.ai._aio import Genkit
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.openai_plugin import OpenAI, openai_model
 
