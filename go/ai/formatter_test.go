@@ -880,6 +880,89 @@ func TestTextParser(t *testing.T) {
 	}
 }
 
+func TestTextStreamingParser(t *testing.T) {
+	tests := []struct {
+		name     string
+		response []*ModelResponseChunk
+		want     []*ModelResponseChunk
+		wantErr  bool
+	}{
+		{
+			name: "emits text chunks as they arrive",
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("Hello"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(" world"),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("Hello"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(" world"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "handles empty chunks",
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(""),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(""),
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := textFormatter{}
+			handler, err := formatter.Handler(nil)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+
+			for i, chunk := range tt.response {
+				messageChunk, err := handler.ParseChunk(chunk)
+				if err != nil {
+					t.Errorf("ParseChunk() error = %v, wantErr %v", err, tt.wantErr)
+				}
+
+				if diff := cmp.Diff(tt.want[i], messageChunk); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
 func TestJsonlParser(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -988,6 +1071,206 @@ func TestJsonlParser(t *testing.T) {
 				if diff := cmp.Diff(tt.want, message); diff != "" {
 					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
 				}
+			}
+		})
+	}
+}
+
+func TestJsonlStreamingParser(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response []*ModelResponseChunk
+		want     []*ModelResponseChunk
+		wantErr  bool
+	}{
+		{
+			name: "emits complete JSON objects as they arrive",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(`{"id": 1, "name": "first"}\n`),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(`{"id": 2, "name": "second"}\n{"id": 3`),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(`, "name": "third"}\n`),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart(`{"id": 1, "name": "first"}`),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart(`{"id": 2, "name": "second"}`),
+						NewJSONPart(`{"id": 3}`),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart(`{"id": 3, "name": "third"}`),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "handles single object",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(JSONMarkdown(`{"id": 1, "name": "single"}\n`)),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart(`{"id": 1, "name": "single"}`),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "handles preamble with code fence",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("Here are the objects:\n\n```\n"),
+					},
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("{\"id\": 1, \"name\": \"item\"}\n```"),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role:    RoleModel,
+					Content: nil,
+				},
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart(`{"id": 1, "name": "item"}`),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "ignores non-object lines",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart(JSONMarkdown(`First object:\n{"id": 1}\nSecond object:\n{"id": 2}\n`)),
+					},
+				},
+			},
+			want: []*ModelResponseChunk{
+				{
+					Role: RoleModel,
+					Content: []*Part{
+						NewJSONPart(`{"id": 1}`),
+						NewJSONPart(`{"id": 2}`),
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := jsonlFormatter{}
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+
+			var previousParts []*Part
+			var receivedChunks []*ModelResponseChunk
+			for _, chunk := range tt.response {
+				previousParts = append(previousParts, chunk.Content...)
+				chunk.Content = previousParts
+
+				messageChunk, err := handler.ParseChunk(chunk)
+				if err != nil {
+					t.Errorf("ParseChunk() error = %v, wantErr %v", err, tt.wantErr)
+				}
+
+				if messageChunk != nil {
+					receivedChunks = append(receivedChunks, messageChunk)
+				}
+			}
+
+			if diff := cmp.Diff(tt.want, receivedChunks); diff != "" {
+				t.Errorf("Request msgs diff (+got -want):\n%s", diff)
 			}
 		})
 	}

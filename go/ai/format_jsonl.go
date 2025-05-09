@@ -19,7 +19,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	partialparser "github.com/blaze2305/partial-json-parser"
+	"github.com/blaze2305/partial-json-parser/options"
 	"github.com/firebase/genkit/go/internal/base"
 )
 
@@ -56,8 +59,9 @@ func (j jsonlFormatter) Handler(schema map[string]any) (FormatHandler, error) {
 }
 
 type jsonlHandler struct {
-	instructions string
-	config       ModelOutputConfig
+	instructions  string
+	config        ModelOutputConfig
+	previousParts []*Part
 }
 
 // Instructions returns the instructions for the formatter.
@@ -72,7 +76,15 @@ func (j jsonlHandler) Config() ModelOutputConfig {
 
 func (j jsonlHandler) StreamCallback(cb ModelStreamCallback) ModelStreamCallback {
 	return func(ctx context.Context, mrc *ModelResponseChunk) error {
-		return cb(ctx, mrc)
+		j.previousParts = append(j.previousParts, mrc.Content...)
+		mrc.Content = j.previousParts
+
+		parsed, err := j.ParseChunk(mrc)
+		if err != nil {
+			return err
+		}
+
+		return cb(ctx, parsed)
 	}
 }
 
@@ -116,5 +128,55 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 
 // ParseChunk parse the chunk and returns a new formatted chunk.
 func (j jsonlHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, error) {
+	if j.config.Format == OutputFormatJSONL {
+		if c == nil {
+			return nil, errors.New("message is empty")
+		}
+		if len(c.Content) == 0 {
+			return nil, errors.New("message has no content")
+		}
+
+		// Get all chunks streamed so far
+		text := c.Text()
+
+		startIndex := 0
+		// If there are previous chunks, adjust startIndex based on the last newline
+		// in the previous text to ensure complete lines are processed from the accumulatedText.
+		noParts := len(c.Content)
+		if c.Content != nil && noParts > 1 {
+			var sb strings.Builder
+			i := 0
+			for i < noParts-1 {
+				sb.WriteString(c.Content[i].Text)
+				i++
+			}
+
+			previousText := sb.String()
+			lastNewline := strings.LastIndex(previousText, `\n`)
+
+			if lastNewline != -1 {
+				// Exclude the newline
+				startIndex = lastNewline + 2
+			}
+		}
+
+		text = text[startIndex:]
+
+		var newParts []*Part
+		lines := base.GetJsonObjectLines(text)
+		for _, line := range lines {
+			if line != "" {
+				var err error
+				line, err = partialparser.ParseMalformedString(line, options.ALL, false)
+				if err != nil {
+					return nil, errors.New("message is not a valid JSON")
+				}
+
+				newParts = append(newParts, NewJSONPart(line))
+			}
+		}
+
+		c.Content = newParts
+	}
 	return c, nil
 }
