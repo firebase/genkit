@@ -67,12 +67,14 @@ ai = Genkit(
 
 class QueryFlowInputSchema(BaseModel):
     """Input schema."""
+
     query: str
     k: int
 
 
 class QueryFlowOutputSchema(BaseModel):
     """Output schema."""
+
     result: list[dict]
     length: int
     time: int
@@ -124,7 +126,7 @@ async def query_flow(_input: QueryFlowInputSchema) -> QueryFlowOutputSchema:
 async def main() -> None:
     """Main function."""
     query_input = QueryFlowInputSchema(
-        query="Content for doc",
+        query='Content for doc',
         k=3,
     )
 

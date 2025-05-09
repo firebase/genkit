@@ -21,7 +21,7 @@ from typing import Any
 
 import structlog
 from google.cloud import bigquery, firestore
-from google.cloud.aiplatform_v1 import FindNeighborsRequest, IndexDatapoint, Neighbor
+from google.cloud.aiplatform_v1 import FindNeighborsRequest, FindNeighborsResponse, IndexDatapoint
 from pydantic import BaseModel, Field, ValidationError
 
 from genkit.ai import Genkit
@@ -49,6 +49,7 @@ class DocRetriever(ABC):
         embedder: The name of the embedder to use for generating embeddings.
         embedder_options:  Options to pass to the embedder.
     """
+
     def __init__(
         self,
         ai: Genkit,
@@ -117,20 +118,25 @@ class DocRetriever(ABC):
             A list of Document objects representing the closest documents.
 
         Raises:
-            AttributeError: If the request does not contain the necessary 
+            AttributeError: If the request does not contain the necessary
             index endpoint path in its metadata.
         """
         metadata = request.query.metadata
-        if not metadata or 'index_endpoint_path' not in metadata or 'api_endpoint' not in metadata:
-            raise AttributeError('Request provides no data about index endpoint path')
+
+        required_keys = ['index_endpoint_path', 'api_endpoint', 'deployed_index_id']
+
+        if not metadata:
+            raise AttributeError('Request metadata provides no data about index')
+
+        for rkey in required_keys:
+            if rkey not in metadata:
+                raise AttributeError(f'Request metadata provides no data for {rkey}')
 
         api_endpoint = metadata['api_endpoint']
         index_endpoint_path = metadata['index_endpoint_path']
         deployed_index_id = metadata['deployed_index_id']
 
-        client_options = {
-            "api_endpoint": api_endpoint
-        }
+        client_options = {'api_endpoint': api_endpoint}
 
         vector_search_client = self._match_service_client_generator(
             client_options=client_options,
@@ -149,17 +155,17 @@ class DocRetriever(ABC):
 
         response = await vector_search_client.find_neighbors(request=nn_request)
 
-        return await self._retrieve_neighbours_data_from_db(neighbours=response.nearest_neighbors[0].neighbors)
+        return await self._retrieve_neighbors_data_from_db(neighbors=response.nearest_neighbors[0].neighbors)
 
     @abstractmethod
-    async def _retrieve_neighbours_data_from_db(self, neighbours: list[Neighbor]) -> list[Document]:
+    async def _retrieve_neighbors_data_from_db(self, neighbors: list[FindNeighborsResponse.Neighbor]) -> list[Document]:
         """Retrieves document data from the database based on neighbor information.
 
         This method must be implemented by subclasses to define how document
         data is fetched from the database using the provided neighbor information.
 
         Args:
-            neighbours: A list of Neighbor objects representing the nearest neighbors
+            neighbors: A list of Neighbor objects representing the nearest neighbors
                 found in the vector search index.
 
         Returns:
@@ -180,8 +186,14 @@ class BigQueryRetriever(DocRetriever):
         dataset_id: The ID of the BigQuery dataset.
         table_id: The ID of the BigQuery table.
     """
+
     def __init__(
-        self, bq_client: bigquery.Client, dataset_id: str, table_id: str, *args, **kwargs,
+        self,
+        bq_client: bigquery.Client,
+        dataset_id: str,
+        table_id: str,
+        *args,
+        **kwargs,
     ) -> None:
         """Initializes the BigQueryRetriever.
 
@@ -197,15 +209,15 @@ class BigQueryRetriever(DocRetriever):
         self.dataset_id = dataset_id
         self.table_id = table_id
 
-    async def _retrieve_neighbours_data_from_db(self, neighbours: list[Neighbor]) -> list[Document]:
+    async def _retrieve_neighbors_data_from_db(self, neighbors: list[FindNeighborsResponse.Neighbor]) -> list[Document]:
         """Retrieves document data from the BigQuery table for the given neighbors.
 
         Constructs and executes a BigQuery query to fetch document data based on
-        the IDs obtained. Handles potential errors during query execution and 
+        the IDs obtained. Handles potential errors during query execution and
         document parsing.
 
         Args:
-            neighbours: A list of Neighbor objects representing the nearest neighbors.
+            neighbors: A list of Neighbor objects representing the nearest neighbors.
                         Each neighbor should contain a datapoint with a datapoint_id.
 
         Returns:
@@ -213,16 +225,10 @@ class BigQueryRetriever(DocRetriever):
             Returns an empty list if no IDs are found in the neighbors or if the
             query fails.
         """
-        ids = [
-            n.datapoint.datapoint_id
-            for n in neighbours
-            if n.datapoint and n.datapoint.datapoint_id
-        ]
+        ids = [n.datapoint.datapoint_id for n in neighbors if n.datapoint and n.datapoint.datapoint_id]
 
         distance_by_id = {
-            n.datapoint.datapoint_id: n.distance
-            for n in neighbours
-            if n.datapoint and n.datapoint.datapoint_id
+            n.datapoint.datapoint_id: n.distance for n in neighbors if n.datapoint and n.datapoint.datapoint_id
         }
 
         if not ids:
@@ -260,7 +266,7 @@ class BigQueryRetriever(DocRetriever):
                 documents.append(Document.from_text(content, metadata))
             except (ValidationError, json.JSONDecodeError, Exception) as error:
                 doc_id = row.get('id', '<unknown>')
-                await logger.awarning(f'Failed to parse document data for document with ID {doc_id}: {error}')
+                await logger.awarning('Failed to parse document data for document with ID %s: %s', doc_id, error)
 
         return documents
 
@@ -276,8 +282,13 @@ class FirestoreRetriever(DocRetriever):
         db: The Firestore client.
         collection_name: The name of the Firestore collection.
     """
+
     def __init__(
-        self, firestore_client: firestore.AsyncClient, collection_name: str, *args, **kwargs,
+        self,
+        firestore_client: firestore.AsyncClient,
+        collection_name: str,
+        *args,
+        **kwargs,
     ) -> None:
         """Initializes the FirestoreRetriever.
 
@@ -291,14 +302,14 @@ class FirestoreRetriever(DocRetriever):
         self.db = firestore_client
         self.collection_name = collection_name
 
-    async def _retrieve_neighbours_data_from_db(self, neighbours: list[Neighbor]) -> list[Document]:
+    async def _retrieve_neighbors_data_from_db(self, neighbors: list[FindNeighborsResponse.Neighbor]) -> list[Document]:
         """Retrieves document data from the Firestore collection for the given neighbors.
 
         Fetches document data from Firestore based on the IDs of the nearest neighbors.
         Handles potential errors during document retrieval and data parsing.
 
         Args:
-            neighbours: A list of Neighbor objects representing the nearest neighbors.
+            neighbors: A list of Neighbor objects representing the nearest neighbors.
                         Each neighbor should contain a datapoint with a datapoint_id.
 
         Returns:
@@ -307,14 +318,14 @@ class FirestoreRetriever(DocRetriever):
         """
         documents: list[Document] = []
 
-        for neighbor in neighbours:
+        for neighbor in neighbors:
             doc_ref = self.db.collection(self.collection_name).document(document_id=neighbor.datapoint.datapoint_id)
             doc_snapshot = doc_ref.get()
 
             if doc_snapshot.exists:
                 doc_data = doc_snapshot.to_dict() or {}
 
-                content = doc_data.get('content')
+                content = doc_data.get('content', '')
                 content = json.dumps(content) if isinstance(content, dict) else str(content)
 
                 metadata = doc_data.get('metadata', {})
@@ -330,7 +341,9 @@ class FirestoreRetriever(DocRetriever):
                     )
                 except ValidationError as e:
                     await logger.awarning(
-                        f'Failed to parse document data for ID {neighbor.datapoint.datapoint_id}: {e}'
+                        'Failed to parse document data for ID %s: %s',
+                        neighbor.datapoint.datapoint_id,
+                        e,
                     )
 
         return documents
@@ -342,4 +355,5 @@ class RetrieverOptionsSchema(BaseModel):
     Attributes:
         limit: Number of documents to retrieve.
     """
+
     limit: int | None = Field(title='Number of documents to retrieve', default=None)
