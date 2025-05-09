@@ -15,6 +15,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
 	github.com/anthropics/anthropic-sdk-go v0.2.0-beta.3
 	github.com/blues/jsonata-go v1.5.4
+	github.com/goccy/go-yaml v1.17.1
 	github.com/google/dotprompt/go v0.0.0-20250424065700-61c578cf43ac
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
@@ -35,8 +36,6 @@ require (
 	golang.org/x/tools v0.32.0
 	google.golang.org/api v0.230.0
 	google.golang.org/genai v1.2.0
-	gopkg.in/yaml.v2 v2.4.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -53,6 +52,8 @@ require (
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.34.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
@@ -88,7 +89,6 @@ require (
 	github.com/go-openapi/strfmt v0.23.0 // indirect
 	github.com/go-openapi/swag v0.23.1 // indirect
 	github.com/go-openapi/validate v0.24.0 // indirect
-	github.com/goccy/go-yaml v1.17.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
