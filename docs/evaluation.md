@@ -474,6 +474,17 @@ to the extractor. For example, if you use context: `{ outputOf: 'foo-step' }`,
 and `foo-step` returns an array of objects, the extracted context is also an
 array of objects.
 
+### Downloading datasets from Genkit Monitoring
+
+If you have already deployed your app with [monitoring enabled](./monitoring.md), you can download a set of representative examples directly from the Firebase console.
+
+1. Navigate to the [Genkit Monitoring dashboard](https://console.firebase.google.com/project/_/genai_monitoring) in Firebase
+2. Click on the feature you are interested in
+3. Filter the traces table to the set of traces you are interested in
+4. Click the "Download traces" button
+
+This downlaoded dataset is compatible with Genkit evaluations using any of the methods above or using the Developer UI.
+
 ### Synthesizing test data using an LLM
 
 Here is an example flow that uses a PDF file to generate potential user
