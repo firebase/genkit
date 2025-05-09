@@ -158,7 +158,7 @@ func main() {
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
 
-		err := Index(ctx, []*ai.Document{d1, d2, d3}, docStore)
+		err := localvec.Index(ctx, []*ai.Document{d1, d2, d3}, docStore)
 		if err != nil {
 			return "", err
 		}
