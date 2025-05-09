@@ -258,6 +258,7 @@ func similarity(vals1, vals2 []float32) float64 {
 	return dot / (l1 * l2)
 }
 
+// Helper function to get started with indexing
 func Index(ctx context.Context, docs []*ai.Document, ds *DocStore) error {
 	ereq := &ai.EmbedRequest{
 		Input:   docs,
