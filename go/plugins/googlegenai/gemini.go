@@ -327,6 +327,7 @@ func generate(
 	// Extract configuration to get the model version
 	config, err := configFromRequest(input)
 	if err != nil {
+		// This is a local error from config parsing, not an API error
 		return nil, err
 	}
 
@@ -337,7 +338,8 @@ func generate(
 
 	cache, err := handleCache(ctx, client, input, model)
 	if err != nil {
-		return nil, err
+		// This is likely an API error
+		return nil, extractAndFormatAPIError(err)
 	}
 
 	gcc, err := toGeminiRequest(input, cache)
@@ -387,7 +389,8 @@ func generate(
 	if cb == nil {
 		resp, err := client.Models.GenerateContent(ctx, model, contents, gcc)
 		if err != nil {
-			return nil, err
+			// This is an API error
+			return nil, extractAndFormatAPIError(err)
 		}
 		r := translateResponse(resp)
 		r.Request = input
@@ -407,7 +410,8 @@ func generate(
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
-			return nil, err
+			// This is an API error
+			return nil, extractAndFormatAPIError(err)
 		}
 		for i, c := range chunk.Candidates {
 			tc := translateCandidate(c)

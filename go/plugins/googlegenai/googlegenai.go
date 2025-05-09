@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -83,11 +82,6 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		}
 	}
 
-	// Validate API key format - do basic validation before even creating the client
-	if len(apiKey) < 30 || !strings.HasPrefix(apiKey, "AI") {
-		return fmt.Errorf("invalid Google AI API key format: keys should start with 'AI' and be at least 30 characters long")
-	}
-
 	gc := genai.ClientConfig{
 		Backend: genai.BackendGeminiAPI,
 		APIKey:  apiKey,
@@ -99,11 +93,6 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	client, err := genai.NewClient(ctx, &gc)
 	if err != nil {
 		return fmt.Errorf("failed to create Google AI client: %w", err)
-	}
-
-	// Validate API key by making a simple call
-	if err := validateAPIKey(ctx, client); err != nil {
-		return fmt.Errorf("API key validation failed: %w", err)
 	}
 
 	ga.gclient = client
@@ -324,42 +313,25 @@ func VertexAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	return genkit.LookupEmbedder(g, vertexAIProvider, name)
 }
 
-// validateAPIKey performs an API call to verify the API key is valid
-func validateAPIKey(ctx context.Context, client *genai.Client) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	content := &genai.Content{
-		Parts: []*genai.Part{
-			{Text: "Say hello"},
-		},
-	}
-
-	_, err := client.Models.GenerateContent(ctx, "gemini-2.0-flash", []*genai.Content{content}, nil)
-	if err != nil {
-		return extractAndFormatAPIError(err)
-	}
-
-	return nil
-}
-
 // extractAndFormatAPIError extracts useful information from API errors
 func extractAndFormatAPIError(err error) error {
 	// Extract HTTP status code if possible
-	if err != nil {
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "401") {
-			return fmt.Errorf("unauthorized (HTTP 401): invalid API key or the key doesn't have permission to access the API")
-		} else if strings.Contains(errMsg, "403") {
-			return fmt.Errorf("forbidden (HTTP 403): the API key is valid but doesn't have sufficient permissions")
-		} else if strings.Contains(errMsg, "429") {
-			return fmt.Errorf("rate limit exceeded (HTTP 429): the API key has reached its quota limit")
-		} else if strings.Contains(errMsg, "400") {
-			return fmt.Errorf("bad request (HTTP 400): the request was malformed or invalid parameters were provided")
-		} else if strings.Contains(errMsg, "500") {
-			return fmt.Errorf("server error (HTTP 500): an error occurred on the Google AI service")
-		}
+	if err == nil {
+		return nil
 	}
 
-	return fmt.Errorf("error validating API key: %w", err)
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "401") {
+		return fmt.Errorf("unauthorized (HTTP 401): invalid API key or the key doesn't have permission to access the API")
+	} else if strings.Contains(errMsg, "403") {
+		return fmt.Errorf("forbidden (HTTP 403): the API key is valid but doesn't have sufficient permissions")
+	} else if strings.Contains(errMsg, "429") {
+		return fmt.Errorf("rate limit exceeded (HTTP 429): the API key has reached its quota limit")
+	} else if strings.Contains(errMsg, "400") {
+		return fmt.Errorf("bad request (HTTP 400): the request was malformed or invalid parameters were provided")
+	} else if strings.Contains(errMsg, "500") {
+		return fmt.Errorf("server error (HTTP 500): an error occurred on the Google AI service")
+	}
+
+	return fmt.Errorf("error from Google AI service: %w", err)
 }
