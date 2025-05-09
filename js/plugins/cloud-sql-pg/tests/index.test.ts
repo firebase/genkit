@@ -21,7 +21,7 @@ import {
 
 // Import types and classes from your local files
 import { DistanceStrategy } from '../src/indexes';
-import { PostgresEngine, PostgresEngineArgs, Column } from '../src/engine'; // Added Column import
+import { PostgresEngine, Column } from '../src/engine'; // Added Column import
 
 // Load environment variables
 import * as dotenv from 'dotenv';
@@ -35,10 +35,6 @@ const CONTENT_COLUMN = "my_content";
 const EMBEDDING_COLUMN = "my_embedding";
 // Assuming Column class exists and is structured like this
 const METADATA_COLUMNS = [new Column("page", "TEXT"), new Column("source", "TEXT")];
-const pgArgs: PostgresEngineArgs = {
-  user: process.env.DB_USER ?? "",
-  password: process.env.PASSWORD ?? ""
-};
 
 // --- Mocks for Genkit Interactions ---
 // Mock Genkit instance for `ai` parameter
@@ -78,13 +74,13 @@ describe("configurePostgresRetriever Integration Tests", () => {
 
   beforeAll(async () => {
     // Initialize PostgresEngine
-    engine = await PostgresEngine.fromInstance(
-      process.env.PROJECT_ID ?? "test-project-id", // Provide defaults for testing safety
-      process.env.REGION ?? "us-central1",
-      process.env.INSTANCE_NAME ?? "test-instance",
-      process.env.DB_NAME ?? "test_db",
-      pgArgs
-    );
+    engine = await PostgresEngine.fromEngineArgs({
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      port: parseInt(process.env.DB_PORT || '5432')
+    });
 
     // Ensure database connection is established before proceeding
     await engine.pool.raw('SELECT 1;');
@@ -139,7 +135,8 @@ describe("configurePostgresRetriever Integration Tests", () => {
       expect.any(Function)
     );
     retrieverInstance = defineRetrieverMock.mock.results[0].value;
-  }, 60000); // Increased timeout for database operations
+  }, 60000
+  ); // Increased timeout for database operations
 
   afterEach(() => {
     jest.clearAllMocks(); // Clear mock call history after each test
@@ -152,7 +149,10 @@ describe("configurePostgresRetriever Integration Tests", () => {
     await engine.closeConnection(); // Close the database connection pool
     consoleSpy.mockRestore(); // Restore console.log
   }, 30000); // Increased timeout for cleanup
-
+  test('basic', () =>{
+    const a = 1+1;
+    expect(2).toEqual(a);
+  })
 
   test('should retrieve relevant documents based on a query', async () => {
     const queryText = 'first document content';
