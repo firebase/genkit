@@ -490,7 +490,7 @@ example, to generate an image using the Imagen2 model through Vertex AI:
 #### Learn more about Genkit
 
 - As an app developer, the primary way you influence the output of generative AI
-  models is through prompting. Read [Prompt management](dotpronpt) to learn how
+  models is through prompting. Read [Prompt management](dotprompt.md) to learn how
   Genkit helps you develop effective prompts and manage them in your codebase.
 - Although `generate()` is the nucleus of every generative AI powered
   application, real-world applications usually require additional work before
