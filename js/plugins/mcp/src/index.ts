@@ -42,24 +42,11 @@ export interface McpClientOptions {
 
 const mcpClients: Record<string, GenkitMcpClient> = {};
 
-export function mcpClient(params: McpClientOptions) {
-  return genkitPlugin(params.name, async (ai: Genkit) => {
-    mcpClients[params.name] = new GenkitMcpClient(ai, {
-      name: params.name,
-      version: params.version || '1.0.0',
-      roots: params.roots,
-    });
+export function mcpClient(options: McpClientOptions) {
+  return genkitPlugin(options.name, async (ai: Genkit) => {
+    mcpClients[options.name] = new GenkitMcpClient(ai, options);
+    await mcpClients[options.name].setup();
   });
-}
-
-export function setMcpClientRoots(
-  name: string,
-  roots: { name: string; uri: string }[]
-) {
-  if (!mcpClients[name]) {
-    throw new Error(`MCP client plugin ${name} doesn't exist.`);
-  }
-  mcpClients[name].roots = roots;
 }
 
 export interface McpServerOptions {

@@ -47,7 +47,9 @@ const mockMcpClientInstance = {
       tools: true,
       prompts: true,
       resources: true,
+      roots: { listChanged: false },
     }),
+  setRequestHandler: jest.fn(),
 };
 const MockMcpClient = jest.fn(() => mockMcpClientInstance);
 
@@ -307,7 +309,7 @@ describe('mcpClient', () => {
     } catch (e: any) {
       expect(e.details.status).toBe('INVALID_ARGUMENT');
       expect(e.message).toBe(
-        'Unable to create a server connection with supplied options. Must provide transport, stdio, or sseUrl.'
+        'Unable to create a server connection with supplied options. Must provide transport, stdio, or sseUrl:\n{\n  "name": "test-error-client"\n}'
       );
     }
 

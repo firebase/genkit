@@ -29,33 +29,36 @@ import { registerResourceTools } from './client/resources';
 import { registerAllTools } from './client/tools';
 import type { McpClientOptions } from './index.js';
 
-async function transportFrom(params: McpClientOptions): Promise<Transport> {
-  if (params.transport) return params.transport;
-  if (params.serverUrl) {
+async function transportFrom(options: McpClientOptions): Promise<Transport> {
+  if (options.transport) return options.transport;
+  if (options.serverUrl) {
     const { SSEClientTransport } = await import(
       '@modelcontextprotocol/sdk/client/sse.js'
     );
-    return new SSEClientTransport(new URL(params.serverUrl));
+    return new SSEClientTransport(new URL(options.serverUrl));
   }
-  if (params.serverProcess) {
+  if (options.serverProcess) {
     const { StdioClientTransport } = await import(
       '@modelcontextprotocol/sdk/client/stdio.js'
     );
-    return new StdioClientTransport(params.serverProcess);
+    return new StdioClientTransport(options.serverProcess);
   }
-  if (params.serverWebsocketUrl) {
+  if (options.serverWebsocketUrl) {
     const { WebSocketClientTransport } = await import(
       '@modelcontextprotocol/sdk/client/websocket.js'
     );
-    let url = params.serverWebsocketUrl;
+    let url = options.serverWebsocketUrl;
     if (typeof url === 'string') url = new URL(url);
     return new WebSocketClientTransport(url);
   }
 
   throw new GenkitError({
     status: 'INVALID_ARGUMENT',
-    message:
-      'Unable to create a server connection with supplied options. Must provide transport, stdio, or sseUrl.',
+    message: `Unable to create a server connection with supplied options. Must provide transport, stdio, or sseUrl:\n${JSON.stringify(
+      options,
+      null,
+      2
+    )}`,
   });
 }
 
@@ -64,6 +67,7 @@ export class GenkitMcpClient {
   options: McpClientOptions;
   client?: Client;
   serverCapabilities?: ServerCapabilities | undefined = {};
+  _isSetup: boolean = false;
 
   constructor(ai: Genkit, options: McpClientOptions) {
     this.ai = ai;
@@ -71,6 +75,7 @@ export class GenkitMcpClient {
   }
 
   async setup(): Promise<void> {
+    if (this._isSetup) return;
     const { Client } = await import(
       '@modelcontextprotocol/sdk/client/index.js'
     );
@@ -84,21 +89,27 @@ export class GenkitMcpClient {
       },
       {
         capabilities: {
-          roots: { listChanged: true },
+          // TODO: Allow actually changing the roots dynamically. This requires
+          // manipulating which tools, resources, etc. are registered, since
+          // they can change based on the roots.
+          roots: { listChanged: false },
         },
       }
     );
-    await this.client.connect(transport);
-    this.serverCapabilities = this.client.getServerCapabilities();
+
     this.client.setRequestHandler(
       ListRootsRequestSchema,
       this.listRoots.bind(this)
     );
 
-    await this.registerCapabilites();
+    await this.client.connect(transport);
+    this.serverCapabilities = this.client.getServerCapabilities();
+
+    await this.registerCapabilities();
+    this._isSetup = true;
   }
 
-  async registerCapabilites(): Promise<void> {
+  async registerCapabilities(): Promise<void> {
     if (!this.client || !this.serverCapabilities) {
       return;
     }
@@ -115,20 +126,7 @@ export class GenkitMcpClient {
     await Promise.all(promises);
   }
 
-  async notifyRootsChanged() {
-    this.client?.sendRootsListChanged();
-  }
-
-  set roots(roots: { name: string; uri: string }[]) {
-    this.options.roots = roots;
-    // Have to re-register the tools, resources, etc., since they can change
-    // based on the roots.
-    this.registerCapabilites();
-    this.notifyRootsChanged();
-  }
-
   async listRoots(req: ListRootsRequest): Promise<ListRootsResult> {
-    await this.setup();
     if (!this.options.roots) {
       return { roots: [] };
     }

@@ -63,7 +63,7 @@ function registerPrompt(
 }
 
 /**
- * Lookup all tools available in the server and register each as a Genkit
+ * Lookup all prompts available in the server and register each as a Genkit
  * prompt.
  */
 export async function registerAllPrompts(

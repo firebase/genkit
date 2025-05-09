@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js' with { 'resolution-mode': 'import' };
 import { Genkit, z } from 'genkit';
 import type { McpClientOptions } from '../index.js';
 
 export async function registerClientRoots(
   ai: Genkit,
-  client: Client,
   params: McpClientOptions
 ) {
   ai.defineTool(
