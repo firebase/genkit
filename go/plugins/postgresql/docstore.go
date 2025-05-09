@@ -7,7 +7,7 @@ import (
 )
 
 type docStore struct {
-	engine PostgresEngine
+	engine *PostgresEngine
 	config *Config
 }
 
