@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Example of using Genkit to fill VertexAI Index for Vector Search with BigQuery."""
+
 import json
 import os
 
@@ -111,7 +113,6 @@ async def generate_embeddings():
     )
 
     embeddings = [emb.embedding for emb in embed_response.embeddings]
-    logger.debug(f'Generated {len(embeddings)} embeddings, dimension: {len(embeddings[0])}')
 
     ids = list(results_dict.keys())[: len(embeddings)]
     data_embeddings = list(zip(ids, embeddings, strict=True))
@@ -145,9 +146,9 @@ def create_bigquery_dataset_and_table(
 
     try:
         dataset = client.create_dataset(dataset, exists_ok=True)
-        logger.debug(f'Dataset {client.project}.{dataset.dataset_id} created.')
+        logger.debug('Dataset %s.%s created.', client.project, dataset.dataset_id)
     except Exception as e:
-        logger.exception(f'Error creating dataset: {e}')
+        logger.exception('Error creating dataset: %s', e)
         raise e
 
     schema = [
@@ -160,9 +161,14 @@ def create_bigquery_dataset_and_table(
     table = bigquery.Table(table_ref, schema=schema)
     try:
         table = client.create_table(table, exists_ok=True)
-        logger.debug(f'Table {table.project}.{table.dataset_id}.{table.table_id} created.')
+        logger.debug(
+            'Table %s.%s.%s created.',
+            table.project,
+            table.dataset_id,
+            table.table_id,
+        )
     except Exception as e:
-        logger.exception(f'Error creating table: {e}')
+        logger.exception('Error creating table: %s', e)
         raise e
 
     rows_to_insert = [
@@ -176,10 +182,10 @@ def create_bigquery_dataset_and_table(
 
     errors = client.insert_rows_json(table, rows_to_insert)
     if errors:
-        logger.error(f'Errors inserting rows: {errors}')
+        logger.error('Errors inserting rows: %s', errors)
         raise Exception(f'Failed to insert rows: {errors}')
     else:
-        logger.debug(f'Inserted {len(rows_to_insert)} rows into BigQuery.')
+        logger.debug('Inserted %s rows into BigQuery.', len(rows_to_insert))
 
 
 def get_data_from_bigquery(
@@ -206,7 +212,7 @@ def get_data_from_bigquery(
     rows = query_job.result()
 
     results = {row['id']: json.dumps(row['content']) for row in rows}
-    logger.debug(f'Found {len(results)} rows with different ids into BigQuery.')
+    logger.debug('Found %s rows with different ids into BigQuery.', len(results))
 
     return results
 
@@ -236,12 +242,12 @@ def upsert_index(
 
     datapoints = [aiplatform_v1.IndexDatapoint(datapoint_id=id, feature_vector=embedding) for id, embedding in data]
 
-    logger.debug(f'Attempting to insert {len(datapoints)} rows into Index {index_path}')
+    logger.debug('Attempting to insert %s rows into Index %s', len(datapoints), index_path)
 
     upsert_request = aiplatform_v1.UpsertDatapointsRequest(index=index_path, datapoints=datapoints)
 
-    response = index_client.upsert_datapoints(request=upsert_request)
-    logger.info(f'Upserted {len(datapoints)} datapoints. Response: {response}')
+    index_client.upsert_datapoints(request=upsert_request)
+    logger.info('Upserted %s datapoints.', len(datapoints))
 
 
 async def main() -> None:

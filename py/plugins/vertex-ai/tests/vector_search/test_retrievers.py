@@ -14,6 +14,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Unittests for VertexAI Vector Search retrievers.
+
+Defines tests for all the methods of the DocRetriever
+implementations like BigQueryRetriever and FirestoreRetriever.
+"""
+
 import json
 from unittest.mock import AsyncMock, MagicMock
 
@@ -180,14 +186,14 @@ async def test_bigquery__get_closest_documents(bq_retriever_instance):
     # find_neighbors call
     bq_retriever_instance._match_service_client_generator.return_value = mock_vector_search_client
 
-    # Mock _retrieve_neighbours_data_from_db method
-    mock__retrieve_neighbours_data_from_db_result = [
+    # Mock _retrieve_neighbors_data_from_db method
+    mock__retrieve_neighbors_data_from_db_result = [
         Document.from_text(text='1', metadata={'distance': 0.0, 'id': 1}),
         Document.from_text(text='2', metadata={'distance': 0.0, 'id': 2}),
     ]
 
-    bq_retriever_instance._retrieve_neighbours_data_from_db = AsyncMock(
-        return_value=mock__retrieve_neighbours_data_from_db_result,
+    bq_retriever_instance._retrieve_neighbors_data_from_db = AsyncMock(
+        return_value=mock__retrieve_neighbors_data_from_db_result,
     )
 
     await bq_retriever_instance._get_closest_documents(
@@ -224,7 +230,7 @@ async def test_bigquery__get_closest_documents(bq_retriever_instance):
         )
     )
 
-    bq_retriever_instance._retrieve_neighbours_data_from_db.assert_awaited_once()
+    bq_retriever_instance._retrieve_neighbors_data_from_db.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -278,10 +284,10 @@ async def test_bigquery__get_closest_documents_fail(
 
 
 @pytest.mark.asyncio
-async def test_bigquery__retrieve_neighbours_data_from_db(
+async def test_bigquery__retrieve_neighbors_data_from_db(
     bq_retriever_instance,
 ):
-    """Test bigquery retriver _retrieve_neighbours_data_from_db."""
+    """Test bigquery retriver _retrieve_neighbors_data_from_db."""
     # Mock query job result from bigquery query
     mock_bq_query_job = MagicMock()
     mock_bq_query_job.result.return_value = [
@@ -296,8 +302,8 @@ async def test_bigquery__retrieve_neighbours_data_from_db(
     bq_retriever_instance.bq_client.query.return_value = mock_bq_query_job
 
     # call the method
-    result = await bq_retriever_instance._retrieve_neighbours_data_from_db(
-        neighbours=[
+    result = await bq_retriever_instance._retrieve_neighbors_data_from_db(
+        neighbors=[
             FindNeighborsResponse.Neighbor(
                 datapoint=types.index.IndexDatapoint(datapoint_id='doc1'),
                 distance=0.0,
@@ -339,16 +345,16 @@ async def test_bigquery__retrieve_neighbours_data_from_db(
 
 
 @pytest.mark.asyncio
-async def test_bigquery_retrieve_neighbours_data_from_db_fail(
+async def test_bigquery_retrieve_neighbors_data_from_db_fail(
     bq_retriever_instance,
 ):
-    """Test bigquery retriver _retrieve_neighbours_data_from_db when fails."""
+    """Test bigquery retriver _retrieve_neighbors_data_from_db when fails."""
     # Mock exception from bigquery query
     bq_retriever_instance.bq_client.query.raises = AttributeError
 
     # call the method
-    result = await bq_retriever_instance._retrieve_neighbours_data_from_db(
-        neighbours=[
+    result = await bq_retriever_instance._retrieve_neighbors_data_from_db(
+        neighbors=[
             FindNeighborsResponse.Neighbor(
                 datapoint=types.index.IndexDatapoint(datapoint_id='doc1'),
                 distance=0.0,
@@ -387,10 +393,10 @@ def test_firestore_retriever__init__(fs_retriever_instance):
 
 
 @pytest.mark.asyncio
-async def test_firesstore__retrieve_neighbours_data_from_db(
+async def test_firesstore__retrieve_neighbors_data_from_db(
     fs_retriever_instance,
 ):
-    """Test _retrieve_neighbours_data_from_db for firestore retriever."""
+    """Test _retrieve_neighbors_data_from_db for firestore retriever."""
     # Mock storage of firestore
     storage = {
         'doc1': {
@@ -418,8 +424,8 @@ async def test_firesstore__retrieve_neighbours_data_from_db(
     fs_retriever_instance.db.collection.return_value = MockCollection()
 
     # call the method
-    result = await fs_retriever_instance._retrieve_neighbours_data_from_db(
-        neighbours=[
+    result = await fs_retriever_instance._retrieve_neighbors_data_from_db(
+        neighbors=[
             FindNeighborsResponse.Neighbor(
                 datapoint=types.index.IndexDatapoint(datapoint_id='doc1'),
                 distance=0.0,

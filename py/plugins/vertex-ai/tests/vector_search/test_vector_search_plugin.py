@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Unittest for VertexAIVectorSearch plugin."""
+
 from unittest.mock import MagicMock
 
 from genkit.ai import Genkit

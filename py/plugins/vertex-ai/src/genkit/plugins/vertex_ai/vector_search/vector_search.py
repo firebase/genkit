@@ -17,7 +17,6 @@
 from functools import partial
 from typing import Any
 
-import structlog
 from google.auth.credentials import Credentials
 from google.cloud import aiplatform_v1
 
@@ -27,8 +26,6 @@ from genkit.plugins.vertex_ai.models.retriever import (
     DocRetriever,
     RetrieverOptionsSchema,
 )
-
-logger = structlog.get_logger(__name__)
 
 
 class VertexAIVectorSearch(Plugin):
