@@ -28,7 +28,7 @@ steps:
 
   - id: "run-tests"
     name: golang:1
-    dir: go
+    dir: go/plugins/postgresql
     env:
       - "GOPATH=/gopath"
       - "PROJECT_ID=$PROJECT_ID"
@@ -42,7 +42,7 @@ steps:
       - name: "go"
         path: "/gopath"
     script: |
-      go test -race ./plugins/postgresql/...
+      go test -race ./...
 
 availableSecrets:
   secretManager:

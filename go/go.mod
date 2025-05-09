@@ -16,7 +16,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/anthropics/anthropic-sdk-go v0.2.0-beta.3
 	github.com/blues/jsonata-go v1.5.4
-	github.com/google/dotprompt/go v0.0.0-20250320235217-796c6442a3c1
+	github.com/google/dotprompt/go v0.0.0-20250424065700-61c578cf43ac
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
