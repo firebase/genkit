@@ -100,7 +100,7 @@ func main() {
 			}
 
 			// Add chunks to the index.
-			err = Index(ctx, docs, docStore)
+			err = localvec.Index(ctx, docs, docStore)
 			return nil, err
 		},
 	)

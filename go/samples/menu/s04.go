@@ -70,7 +70,7 @@ Answer this customer's question:
 			}
 
 			// Index the menu items.
-			if err := Index(ctx, docs, docStore); err != nil {
+			if err := localvec.Index(ctx, docs, docStore); err != nil {
 				return nil, err
 			}
 
