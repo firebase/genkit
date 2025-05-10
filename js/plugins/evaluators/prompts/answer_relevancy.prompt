@@ -5,11 +5,12 @@ input:
         answer: string
         context: string
 ---
+{{role "system"}}
 Assess whether the generated output is relevant to the question asked.
 
 To accomplish this perform the following 3 tasks in a step by step manner:
-1. Identify if the question is noncommittal. A noncommittal answer is one that is evasive, vague, or ambiguous. For example, "I don't know", "I'm not sure", and "I can't answer" are noncommittal answers. Give a score of 1 if the answer is noncommittal and 0 if it is committal.
-2. Assess whether the answer provided addresses the question posed. If the answer is similar in subject matter but doesn't answer the question posed, that is not satisfactory. Give a score of 1 for a satisfactory answer and 0 if it is not satisfactory.
+1. Identify if the question is noncommittal. A noncommittal answer is one that is evasive, vague, or ambiguous. For example, "I don't know", "I'm not sure", and "I can't answer" are noncommittal answers. Give a score of `true` if the answer is noncommittal and `false` if it is committal.
+2. Assess whether the answer provided addresses the question posed. If the answer is similar in subject matter but doesn't answer the question posed, that is not satisfactory. Give a score of `true` for a satisfactory answer and `false` if it is not satisfactory.
 3. Generate a question that could produce the provided answer. Use only the information in the provided answer.
 
 Format the answer as json in the following manner where task 1 is assigned to the "noncommittal" field, task 2 is assigned to the "answered" field, and task 3 is assigned to the "question" field.
@@ -23,7 +24,7 @@ Albert Einstein was a German-born theoretical physicist who is widely held to be
 Answer:
 Albert Einstein was born in Germany.
 Output:
-{"noncommittal":0, "answered": 1, "question":"Where was Albert Einstein born?"}
+{"noncommittal":false, "answered": true, "question":"Where was Albert Einstein born?"}
 
 
 Question:
@@ -33,7 +34,7 @@ A recent scientific study has discovered a new species of frog in the Amazon rai
 Answer:
 It can change its skin color based on the temperature of its environment.
 Output:
-{"noncommittal":0, "answered":0, "question":"What unique ability does the newly discovered species of frog have?"}
+{"noncommittal":false, "answered":false, "question":"What unique ability does the newly discovered species of frog have?"}
 
 Question:
 What is the tallest mountain?
@@ -42,7 +43,7 @@ The tallest mountain on Earth, measured from sea level, is a renowned peak locat
 Answer:
 Everest
 Output:
-{"noncommittal":0, "answered":1, "question":"What is the tallest mountain on Earth?"}
+{"noncommittal":false, "answered":true, "question":"What is the tallest mountain on Earth?"}
 
 
 Question:
@@ -52,10 +53,11 @@ I don't know about the  groundbreaking feature of the smartphone invented in 202
 Context:
 In 2023, a groundbreaking invention was announced: a smartphone with a battery life of one month, revolutionizing the way people use mobile technology.
 Output:
-{"noncommittal":1, "answered":0, "question":"What was the groundbreaking feature of the smartphone invented in 2023?"}
+{"noncommittal":true, "answered":false, "question":"What was the groundbreaking feature of the smartphone invented in 2023?"}
 
 Now provide your analysis for the following inputs. DO NOT PROVIDE ANY MORE EXAMPLES. Your response must be a valid JSON like you see above.
 
+{{role "user"}}
 Question:
 {{question}}
 Answer:

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"math"
@@ -67,7 +68,7 @@ func TestGoogleAILive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
 			Over  float64
@@ -165,7 +166,39 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool with json output", func(t *testing.T) {
+		type weatherQuery struct {
+			Location string `json:"location"`
+		}
 
+		type weather struct {
+			Report string `json:"report"`
+		}
+
+		weatherTool := genkit.DefineTool(g, "weatherTool",
+			"Use this tool to get the weather report for a specific location",
+			func(ctx *ai.ToolContext, input weatherQuery) (string, error) {
+				report := fmt.Sprintf("The weather in %s is sunny and 70 degrees today.", input.Location)
+				return report, nil
+			},
+		)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithTools(weatherTool),
+			ai.WithPrompt("what's the weather in San Francisco?"),
+			ai.WithOutputType(weather{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var w weather
+		if err = resp.Output(&w); err != nil {
+			t.Fatal(err)
+		}
+		if w.Report == "" {
+			t.Fatal("empty weather report, tool should have provided an output")
+		}
+	})
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
@@ -230,6 +263,9 @@ func TestGoogleAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if resp.Usage.CachedContentTokens == 0 {
+			t.Fatal("expecting cached content tokens but got empty")
+		}
 		text := resp.Text()
 		if !strings.Contains(text, "Ahoy") {
 			t.Fatalf("expecting a response as a pirate but got %v", text)
@@ -251,7 +287,7 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 	})
-	t.Run("media content (unstructured data)", func(t *testing.T) {
+	t.Run("media content (inline data)", func(t *testing.T) {
 		i, err := fetchImgAsBase64()
 		if err != nil {
 			t.Fatal(err)
@@ -261,7 +297,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
 				),
 			),
 		)
@@ -286,6 +322,27 @@ func TestGoogleAILive(t *testing.T) {
 		}
 		if !strings.Contains(resp.Text(), "Mario Kart") {
 			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
+		}
+	})
+	t.Run("data content (inline data)", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewDataPart("data:image/png;base64,"+i),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {

@@ -65,6 +65,14 @@ export interface FlowSideChannel<S> {
    * Additional runtime context data (ex. auth context data).
    */
   context?: ActionContext;
+
+  /**
+   * Trace context containing trace and span IDs.
+   */
+  trace: {
+    traceId: string;
+    spanId: string;
+  };
 }
 
 /**
@@ -120,11 +128,12 @@ function defineFlowAction<
       outputSchema: config.outputSchema,
       streamSchema: config.streamSchema,
     },
-    async (input, { sendChunk, context }) => {
+    async (input, { sendChunk, context, trace }) => {
       return await legacyRegistryAls.run(registry, () => {
         const ctx = sendChunk;
         (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
         (ctx as FlowSideChannel<z.infer<S>>).context = context;
+        (ctx as FlowSideChannel<z.infer<S>>).trace = trace;
         return fn(input, ctx as FlowSideChannel<z.infer<S>>);
       });
     }

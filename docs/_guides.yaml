@@ -105,6 +105,8 @@ toc:
     path: /docs/genkit/plugins/firebase
 
   - break: true
+  - title: Using Genkit with Angular
+    path: /docs/genkit/angular
   - title: Using Genkit with Next.js
     path: /docs/genkit/nextjs
 

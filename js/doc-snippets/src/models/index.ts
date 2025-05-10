@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-import { gemini15Flash, gemini15Pro, googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini15Flash,
+  model: googleAI.model('gemini-2.0-flash'),
 });
 
 async function fn01() {
   // [START ex01]
   const { text } = await ai.generate({
-    model: gemini15Pro,
+    model: googleAI.model('gemini-2.0-flash'),
     prompt: 'Invent a menu item for a pirate themed restaurant.',
   });
   // [END ex01]
@@ -34,7 +34,7 @@ async function fn01() {
 async function fn02() {
   // [START ex02]
   const { text } = await ai.generate({
-    model: 'googleai/gemini-1.5-pro-latest',
+    model: 'googleai/gemini-2.0-flash-001',
     prompt: 'Invent a menu item for a pirate themed restaurant.',
   });
   // [END ex02]
@@ -94,7 +94,7 @@ function fn05() {
 
 async function fn06() {
   // [START ex08]
-  const { response, stream } = await ai.generateStream(
+  const { response, stream } = ai.generateStream(
     'Suggest a complete menu for a pirate themed restaurant.'
   );
   // [END ex08]

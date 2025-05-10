@@ -132,7 +132,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         "'gemini-2.0-flash-exp' model at present."
     )
     .optional(),
-});
+}).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
 export const gemini10Pro = modelRef({
@@ -430,6 +430,7 @@ function nearestGeminiModelRef(
       version,
     });
   }
+
   return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
 }
 
@@ -820,7 +821,7 @@ export function defineGoogleAIModel({
     : name;
 
   const model: ModelReference<z.ZodTypeAny> =
-    SUPPORTED_GEMINI_MODELS[name] ??
+    SUPPORTED_GEMINI_MODELS[apiModelName] ??
     modelRef({
       name: `googleai/${apiModelName}`,
       info: {
@@ -838,7 +839,7 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[name]) {
+  if (SUPPORTED_V1_MODELS[apiModelName]) {
     middleware.push(simulateSystemPrompt());
   }
   if (model.info?.supports?.media) {
@@ -895,7 +896,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[name]) {
+      if (SUPPORTED_V15_MODELS[apiModelName]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -910,7 +911,16 @@ export function defineGoogleAIModel({
         });
       }
 
-      if (requestConfig.codeExecution) {
+      const {
+        apiKey: apiKeyFromConfig,
+        safetySettings: safetySettingsFromConfig,
+        codeExecution: codeExecutionFromConfig,
+        version: versionFromConfig,
+        functionCallingConfig,
+        ...restOfConfigOptions
+      } = requestConfig;
+
+      if (codeExecutionFromConfig) {
         tools.push({
           codeExecution:
             request.config.codeExecution === true
@@ -920,12 +930,11 @@ export function defineGoogleAIModel({
       }
 
       let toolConfig: ToolConfig | undefined;
-      if (requestConfig.functionCallingConfig) {
+      if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
-            allowedFunctionNames:
-              requestConfig.functionCallingConfig.allowedFunctionNames,
-            mode: toFunctionModeEnum(requestConfig.functionCallingConfig.mode),
+            allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
+            mode: toFunctionModeEnum(functionCallingConfig.mode),
           },
         };
       } else if (request.toolChoice) {
@@ -943,19 +952,10 @@ export function defineGoogleAIModel({
           tools.length === 0);
 
       const generationConfig: GenerationConfig = {
+        ...restOfConfigOptions,
         candidateCount: request.candidates || undefined,
-        temperature: requestConfig.temperature,
-        maxOutputTokens: requestConfig.maxOutputTokens,
-        topK: requestConfig.topK,
-        topP: requestConfig.topP,
-        stopSequences: requestConfig.stopSequences,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
-      if (requestConfig.responseModalities) {
-        // HACK: cast to any since this isn't officially supported in the old SDK yet
-        (generationConfig as any).responseModalities =
-          requestConfig.responseModalities;
-      }
 
       if (request.output?.constrained && jsonMode) {
         generationConfig.responseSchema = cleanSchema(request.output.schema);
@@ -977,11 +977,11 @@ export function defineGoogleAIModel({
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
-        safetySettings: requestConfig.safetySettings,
+        safetySettings: safetySettingsFromConfig,
       } as StartChatParams;
-      const modelVersion = (request.config?.version ||
+      const modelVersion = (versionFromConfig ||
         model.version ||
-        name) as string;
+        apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
       const { chatRequest: updatedChatRequest, cache } =
@@ -993,14 +993,14 @@ export function defineGoogleAIModel({
           cacheConfigDetails
         );
 
-      if (!requestConfig.apiKey && !apiKey) {
+      if (!apiKeyFromConfig && !apiKey) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
           message:
             'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
         });
       }
-      const client = new GoogleGenerativeAI(requestConfig.apiKey || apiKey!);
+      const client = new GoogleGenerativeAI(apiKeyFromConfig || apiKey!);
       let genModel: GenerativeModel;
 
       if (cache) {
@@ -1071,6 +1071,8 @@ export function defineGoogleAIModel({
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
+            cachedContentTokens:
+              response.usageMetadata?.cachedContentTokenCount,
           },
         };
       };

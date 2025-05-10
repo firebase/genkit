@@ -22,7 +22,8 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-func TestGeminiTools(t *testing.T) {
+func TestConvertRequest(t *testing.T) {
+	text := "hello"
 	tool := &ai.ToolDefinition{
 		Description: "this is a dummy tool",
 		Name:        "myTool",
@@ -35,6 +36,114 @@ func TestGeminiTools(t *testing.T) {
 		OutputSchema: map[string]any{"type": string("string")},
 	}
 
+	req := &ai.ModelRequest{
+		Config: GeminiConfig{
+			MaxOutputTokens: 10,
+			StopSequences:   []string{"stop"},
+			Temperature:     0.4,
+			TopK:            1.0,
+			TopP:            1.0,
+			Version:         text,
+		},
+		Tools:      []*ai.ToolDefinition{tool},
+		ToolChoice: ai.ToolChoiceAuto,
+		Output: &ai.ModelOutputConfig{
+			Constrained: true,
+			Schema: map[string]any{
+				"type": string("object"),
+				"properties": map[string]any{
+					"string": map[string]any{
+						"type": string("string"),
+					},
+					"boolean": map[string]any{
+						"type": string("boolean"),
+					},
+					"float": map[string]any{
+						"type": string("float64"),
+					},
+					"number": map[string]any{
+						"type": string("number"),
+					},
+					"array": map[string]any{
+						"type": string("array"),
+					},
+					"object": map[string]any{
+						"type": string("object"),
+					},
+				},
+			},
+		},
+		Messages: []*ai.Message{
+			{
+				Role: ai.RoleUser,
+				Content: []*ai.Part{
+					{Text: text},
+				},
+			},
+			{
+				Role: ai.RoleSystem,
+				Content: []*ai.Part{
+					{Text: text},
+				},
+			},
+			{
+				Role: ai.RoleUser,
+				Content: []*ai.Part{
+					{Text: text},
+				},
+			},
+			{
+				Role: ai.RoleSystem,
+				Content: []*ai.Part{
+					{Text: text},
+				},
+			},
+		},
+	}
+	t.Run("convert request", func(t *testing.T) {
+		gcc, err := toGeminiRequest(req, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if gcc.SystemInstruction == nil {
+			t.Error("expecting system instructions to be populated")
+		}
+		if len(gcc.SystemInstruction.Parts) != 2 {
+			t.Errorf("got: %d, want: 2", len(gcc.SystemInstruction.Parts))
+		}
+		if gcc.SystemInstruction.Role != string(ai.RoleSystem) {
+			t.Errorf(" system instruction role: got: %q, want: %q", gcc.SystemInstruction.Role, string(ai.RoleSystem))
+		}
+		// this is explicitly set to 1 in source
+		if gcc.CandidateCount == 0 {
+			t.Error("candidate count: got: 0, want: 1")
+		}
+		ogCfg, ok := req.Config.(GeminiConfig)
+		if !ok {
+			t.Fatalf("request config should have been of type: GeminiConfig, got: %T", req.Config)
+		}
+		if gcc.MaxOutputTokens == 0 {
+			t.Errorf("max output tokens: got: 0, want %d", ogCfg.MaxOutputTokens)
+		}
+		if len(gcc.StopSequences) == 0 {
+			t.Errorf("stop sequences: got: 0, want: %d", len(ogCfg.StopSequences))
+		}
+		if gcc.Temperature == nil {
+			t.Errorf("temperature: got: nil, want %f", ogCfg.Temperature)
+		}
+		if gcc.TopP == nil {
+			t.Errorf("topP: got: nil, want %f", ogCfg.TopP)
+		}
+		if gcc.TopK == nil {
+			t.Errorf("topK: got: nil, want %d", ogCfg.TopK)
+		}
+		if gcc.ResponseMIMEType != "" {
+			t.Errorf("ResponseMIMEType should been empty if tools are present")
+		}
+		if gcc.ResponseSchema == nil {
+			t.Errorf("ResponseSchema should not be empty")
+		}
+	})
 	t.Run("convert tools with valid tool", func(t *testing.T) {
 		tools := []*ai.ToolDefinition{tool}
 		gt, err := toGeminiTools(tools)

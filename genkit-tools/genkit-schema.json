@@ -815,6 +815,12 @@
           "additionalProperties": {
             "type": "number"
           }
+        },
+        "thoughtsTokens": {
+          "type": "number"
+        },
+        "cachedContentTokens": {
+          "type": "number"
         }
       },
       "additionalProperties": false

@@ -86,9 +86,9 @@ export interface OllamaPluginParams {
   embedders?: EmbeddingModelDefinition[];
 
   /**
-   * The address of the Ollama server.
+   * The address of the Ollama server. Default: http://localhost:11434
    */
-  serverAddress: string;
+  serverAddress?: string;
 
   /**
    * Optional request headers, which can be either static or dynamically generated.
@@ -116,7 +116,7 @@ export interface RequestHeaderFunction {
   (
     params: {
       serverAddress: string;
-      model: ModelDefinition | EmbeddingModelDefinition;
+      model?: ModelDefinition | EmbeddingModelDefinition;
       modelRequest?: GenerateRequest;
       embedRequest?: EmbedRequest;
     },
@@ -156,4 +156,27 @@ export interface Message {
   content: string;
   images?: string[];
   tool_calls?: any[];
+}
+
+// Ollama local model definition
+export interface LocalModel {
+  name: string;
+  model: string;
+  // ISO 8601 format date
+  modified_at: string;
+  size: number;
+  digest: string;
+  details?: {
+    parent_model?: string;
+    format?: string;
+    family?: string;
+    families?: string[];
+    parameter_size?: string;
+    quantization_level?: string;
+  };
+}
+
+// Ollama list local models response
+export interface ListLocalModelsResponse {
+  models: LocalModel[];
 }
