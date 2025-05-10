@@ -79,6 +79,29 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
+type GeminiEmbeddingConfigSchema struct {
+	// Override the API key provided at plugin initialization.
+	APIKey string `json:"apiKey,omitempty"`
+
+	// The `task_type` parameter is defined as the intended downstream application
+	// to help the model produce better quality embeddings.
+	// NOTE: Assuming TaskTypeSchema resolves to a string. If it's a different
+	// complex type, this field would need to be adjusted accordingly (e.g., a struct).
+	TaskType *string `json:"taskType,omitempty"`
+
+	Title string `json:"title,omitempty"`
+
+	Version string `json:"version,omitempty"`
+
+	// The `outputDimensionality` parameter allows you to specify the dimensionality
+	// of the embedding output. By default, the model generates embeddings
+	// with 768 dimensions. Models such as `text-embedding-004`, `text-embedding-005`,
+	// and `text-multilingual-embedding-002` allow the output dimensionality
+	// to be adjusted between 1 and 768.
+	// NOTE: The min(1) and max(768) constraints
+	OutputDimensionality int `json:"outputDimensionality,omitempty"`
+}
+
 // configToMap converts a config struct to a map[string]any.
 func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
@@ -272,13 +295,18 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 
 // DefineEmbedder defines embeddings for the provided contents and embedder
 // model
-func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
+func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOptions ai.EmbedderOptions) ai.Embedder {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	emdOpts := &ai.EmbedderOptions{
+		Info:         embedOptions.Info,
+		ConfigSchema: configToMap(&GeminiEmbeddingConfigSchema{}),
+	}
+
+	return genkit.DefineEmbedder(g, provider, name, emdOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
