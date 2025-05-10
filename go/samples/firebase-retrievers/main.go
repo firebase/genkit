@@ -107,7 +107,7 @@ func main() {
 				return "", fmt.Errorf("defineFirestoreRetriever: Generated embedding is empty")
 			}
 
-			_, err = firestoreClient.Collection(collectionName).Doc(docID).Set(ctx, map[string]interface{}{
+			_, err = firestoreClient.Collection(collectionName).Doc(docID).Set(ctx, map[string]any{
 				"text":      filmText,
 				"embedding": firestore.Vector32(queryEmbedding),
 				"metadata":  fmt.Sprintf("metadata for doc %d", i+1),

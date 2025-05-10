@@ -194,7 +194,7 @@ func TestServeMux(t *testing.T) {
 
 	t.Run("streaming action", func(t *testing.T) {
 		streamingInc := func(_ context.Context, x int, cb streamingCallback[json.RawMessage]) (int, error) {
-			for i := 0; i < x; i++ {
+			for i := range x {
 				msg, _ := json.Marshal(i)
 				if err := cb(context.Background(), msg); err != nil {
 					return 0, err
@@ -217,7 +217,7 @@ func TestServeMux(t *testing.T) {
 
 		scanner := bufio.NewScanner(res.Body)
 
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if !scanner.Scan() {
 				t.Fatalf("expected streaming chunk %d", i)
 			}

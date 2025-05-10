@@ -59,7 +59,7 @@ func convertToDoc(docSnapshots []*firestore.DocumentSnapshot, contentField strin
 		}
 
 		// Extract metadata fields
-		metadata := make(map[string]interface{})
+		metadata := make(map[string]any)
 		for _, field := range metadataFields {
 			if value, ok := data[field]; ok {
 				metadata[field] = value

@@ -224,7 +224,7 @@ func cleanListing(text, indent string) string {
 // leadingTabs counts the number of tabs that start s.
 func leadingTabs(s string) int {
 	var i int
-	for i = 0; i < len(s); i++ {
+	for i = range len(s) {
 		if s[i] != '\t' {
 			break
 		}

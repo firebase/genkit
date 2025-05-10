@@ -87,8 +87,8 @@ func displayCodeExecution(msg *ai.Message) {
 	if strings.TrimSpace(result.Output) == "" {
 		fmt.Printf("  <no output>\n")
 	} else {
-		lines := strings.Split(result.Output, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(result.Output, "\n")
+		for line := range lines {
 			fmt.Printf("  %s\n", line)
 		}
 	}

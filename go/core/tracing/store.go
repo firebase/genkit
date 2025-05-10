@@ -39,12 +39,12 @@ type SpanData struct {
 	Attributes           map[string]any       `json:"attributes,omitempty"`
 	DisplayName          string               `json:"displayName"`
 	Links                []*Link              `json:"links,omitempty"`
-	InstrumentationScope InstrumentationScope `json:"instrumentationLibrary,omitempty"` // TODO: update json tag when JS runtime gets updated
-	SpanKind             string               `json:"spanKind"`                         // trace.SpanKind as a string
+	InstrumentationScope InstrumentationScope `json:"instrumentationLibrary"` // TODO: update json tag when JS runtime gets updated
+	SpanKind             string               `json:"spanKind"`               // trace.SpanKind as a string
 	// This bool is in a separate struct, to match the js (and presumably the OTel) formats.
 	SameProcessAsParentSpan BoolValue  `json:"sameProcessAsParentSpan"`
 	Status                  Status     `json:"status"`
-	TimeEvents              TimeEvents `json:"timeEvents,omitempty"`
+	TimeEvents              TimeEvents `json:"timeEvents"`
 }
 
 type TimeEvents struct {
@@ -57,7 +57,7 @@ type BoolValue struct {
 
 type TimeEvent struct {
 	Time       Milliseconds `json:"time,omitempty"`
-	Annotation Annotation   `json:"annotation,omitempty"`
+	Annotation Annotation   `json:"annotation"`
 }
 
 type Annotation struct {
@@ -75,7 +75,7 @@ type SpanContext struct {
 
 // A Link describes the relationship between two Spans.
 type Link struct {
-	SpanContext            SpanContext    `json:"spanContext,omitempty"`
+	SpanContext            SpanContext    `json:"spanContext"`
 	Attributes             map[string]any `json:"attributes,omitempty"`
 	DroppedAttributesCount int            `json:"droppedAttributesCount"`
 }

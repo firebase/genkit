@@ -69,7 +69,7 @@ func main() {
 
 	// Create system message
 	systemMsg := ai.NewSystemTextMessage(
-		"You are a helpful assistant that can look up weather. "+
+		"You are a helpful assistant that can look up weather. " +
 			"When providing weather information, use the appropriate tool.")
 
 	// Create user message
