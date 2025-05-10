@@ -71,8 +71,8 @@ class Channel(Generic[T]):
             raise ValueError('Timeout must be non-negative')
 
         self.queue: asyncio.Queue[T] = asyncio.Queue()
-        self.closed: asyncio.Future = asyncio.Future()
-        self._close_future: asyncio.Future | None = None
+        self.closed: asyncio.Future[T] = asyncio.Future()
+        self._close_future: asyncio.Future[T] | None = None
         self._timeout: float | int | None = timeout
 
     def __aiter__(self) -> AsyncIterator[T]:
@@ -166,7 +166,7 @@ class Channel(Generic[T]):
         """
         self.queue.put_nowait(value)
 
-    def set_close_future(self, future: asyncio.Future) -> None:
+    def set_close_future(self, future: asyncio.Future[T]) -> None:
         """Sets a future that, when completed, will close the channel.
 
         When the provided future completes, the channel will be marked as
