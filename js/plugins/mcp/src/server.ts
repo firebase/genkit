@@ -41,6 +41,13 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
 import { logger } from 'genkit/logging';
 import { ToolAction, toToolDefinition } from 'genkit/tool';
+
+/**
+ * Represents an MCP (Model Context Protocol) server that exposes Genkit tools and prompts.
+ * This class wraps a Genkit instance and makes its registered actions (tools, prompts)
+ * available to MCP clients. It handles the translation between Genkit's action
+ * definitions and MCP's expected formats.
+ */
 export class GenkitMcpServer {
   ai: Genkit;
   options: McpServerOptions;
@@ -49,12 +56,25 @@ export class GenkitMcpServer {
   toolActions: ToolAction[] = [];
   promptActions: PromptAction[] = [];
 
+  /**
+   * Creates an instance of GenkitMcpServer.
+   * @param ai The Genkit instance whose actions will be exposed.
+   * @param options Configuration options for the MCP server, like its name and version.
+   */
   constructor(ai: Genkit, options: McpServerOptions) {
     this.ai = ai;
     this.options = options;
     this.setup();
   }
 
+  /**
+   * Initializes the MCP server instance and registers request handlers.
+   * It dynamically imports MCP SDK components and sets up handlers for
+   * listing tools, calling tools, listing prompts, and getting prompts.
+   * It also resolves and stores all tool and prompt actions from the Genkit instance.
+   * This method is called by the constructor and ensures the server is ready
+   * before any requests are handled. It's idempotent.
+   */
   async setup(): Promise<void> {
     if (this.actionsResolved) return;
     const { Server } = await import(
@@ -110,6 +130,12 @@ export class GenkitMcpServer {
     this.actionsResolved = true;
   }
 
+  /**
+   * Handles MCP requests to list available tools.
+   * It maps the resolved Genkit tool actions to the MCP Tool format.
+   * @param req The MCP ListToolsRequest.
+   * @returns A Promise resolving to an MCP ListToolsResult.
+   */
   async listTools(req: ListToolsRequest): Promise<ListToolsResult> {
     await this.setup();
     return {
@@ -124,6 +150,14 @@ export class GenkitMcpServer {
     };
   }
 
+  /**
+   * Handles MCP requests to call a specific tool.
+   * It finds the corresponding Genkit tool action and executes it with the provided arguments.
+   * The result is then formatted as an MCP CallToolResult.
+   * @param req The MCP CallToolRequest containing the tool name and arguments.
+   * @returns A Promise resolving to an MCP CallToolResult.
+   * @throws GenkitError if the requested tool is not found.
+   */
   async callTool(req: CallToolRequest): Promise<CallToolResult> {
     await this.setup();
     const tool = this.toolActions.find(
@@ -138,6 +172,13 @@ export class GenkitMcpServer {
     return { content: [{ type: 'text', text: JSON.stringify(result) }] };
   }
 
+  /**
+   * Handles MCP requests to list available prompts.
+   * It maps the resolved Genkit prompt actions to the MCP Prompt format,
+   * including converting input schemas to MCP argument definitions.
+   * @param req The MCP ListPromptsRequest.
+   * @returns A Promise resolving to an MCP ListPromptsResult.
+   */
   async listPrompts(req: ListPromptsRequest): Promise<ListPromptsResult> {
     await this.setup();
     return {
@@ -151,6 +192,14 @@ export class GenkitMcpServer {
     };
   }
 
+  /**
+   * Handles MCP requests to get (render) a specific prompt.
+   * It finds the corresponding Genkit prompt action, executes it with the provided arguments,
+   * and then formats the resulting messages into the MCP PromptMessage format.
+   * @param req The MCP GetPromptRequest containing the prompt name and arguments.
+   * @returns A Promise resolving to an MCP GetPromptResult.
+   * @throws GenkitError if the requested prompt is not found.
+   */
   async getPrompt(req: GetPromptRequest): Promise<GetPromptResult> {
     await this.setup();
     const prompt = this.promptActions.find(
@@ -159,7 +208,7 @@ export class GenkitMcpServer {
     if (!prompt)
       throw new GenkitError({
         status: 'NOT_FOUND',
-        message: `[@genkit-ai/mcp] Tried to call prompt '${req.params.name}' but it could not be found.`,
+        message: `[MCP Server] Tried to call prompt '${req.params.name}' but it could not be found.`,
       });
     const result = await prompt(req.params.arguments);
     return {
@@ -168,6 +217,12 @@ export class GenkitMcpServer {
     };
   }
 
+  /**
+   * Starts the MCP server with the specified transport or a default StdioServerTransport.
+   * Ensures the server is set up before connecting the transport.
+   * @param transport Optional MCP transport instance. If not provided,
+   * a StdioServerTransport will be created and used.
+   */
   async start(transport?: Transport) {
     if (!transport) {
       const { StdioServerTransport } = await import(
@@ -178,11 +233,18 @@ export class GenkitMcpServer {
     await this.setup();
     await this.server!.connect(transport);
     logger.info(
-      `[@genkit-ai/mcp] MCP server '${this.options.name}' started successfully.`
+      `[MCP Server] MCP server '${this.options.name}' started successfully.`
     );
   }
 }
 
+/**
+ * Converts a Genkit prompt's input schema to an array of MCP prompt arguments.
+ * MCP prompts currently only support string arguments.
+ * @param p The Genkit PromptAction.
+ * @returns An array of MCP prompt arguments, or undefined if the schema is not defined.
+ * @throws GenkitError if the input schema is not an object or if any property is not a string.
+ */
 function toMcpPromptArguments(
   p: PromptAction
 ): Prompt['arguments'] | undefined {
@@ -195,8 +257,7 @@ function toMcpPromptArguments(
   if (!jsonSchema.properties)
     throw new GenkitError({
       status: 'FAILED_PRECONDITION',
-      message:
-        '[@genkit-ai/mcp] MCP prompts must take objects as input schema.',
+      message: '[MCP Server] MCP prompts must take objects as input schema.',
     });
 
   const args: Prompt['arguments'] = [];
@@ -208,7 +269,7 @@ function toMcpPromptArguments(
     ) {
       throw new GenkitError({
         status: 'FAILED_PRECONDITION',
-        message: `[@genkit-ai/mcp] MCP prompts may only take string arguments, but ${p.__action.name} has property '${k}' of type '${type}'.`,
+        message: `[MCP Server] MCP prompts may only take string arguments, but ${p.__action.name} has property '${k}' of type '${type}'.`,
       });
     }
     args.push({
@@ -222,11 +283,19 @@ function toMcpPromptArguments(
 
 const ROLE_MAP = { model: 'assistant', user: 'user' } as const;
 
+/**
+ * Converts a Genkit MessageData object to an MCP PromptMessage.
+ * Handles mapping of roles and content types (text, image).
+ * MCP only supports 'user' and 'assistant' (model) roles and base64 data images.
+ * @param messageData The Genkit MessageData object.
+ * @returns An MCP PromptMessage.
+ * @throws GenkitError if the role is unsupported or if media is not a data URL.
+ */
 function toMcpPromptMessage(messageData: MessageData): PromptMessage {
   if (messageData.role !== 'model' && messageData.role !== 'user') {
     throw new GenkitError({
       status: 'UNIMPLEMENTED',
-      message: `[@genkit-ai/mcp] MCP prompt messages do not support role '${messageData.role}'. Only 'user' and 'model' messages are supported.`,
+      message: `[MCP Server] MCP prompt messages do not support role '${messageData.role}'. Only 'user' and 'model' messages are supported.`,
     });
   }
   const message = new Message(messageData);
@@ -236,7 +305,7 @@ function toMcpPromptMessage(messageData: MessageData): PromptMessage {
     if (!url.startsWith('data:'))
       throw new GenkitError({
         status: 'UNIMPLEMENTED',
-        message: `[@genkit-ai/mcp] MCP prompt messages only support base64 data images.`,
+        message: `[MCP Server] MCP prompt messages only support base64 data images.`,
       });
     const mimeType =
       contentType || url.substring(url.indexOf(':')! + 1, url.indexOf(';'));
