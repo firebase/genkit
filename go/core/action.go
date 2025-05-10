@@ -208,9 +208,45 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 		})
 }
 
+// Handle inputSchema null from UI
+func inputSchemaNullHandler(input []byte) ([]byte, error) {
+	if len(input) == 0 {
+		return []byte{}, nil
+	}
+	var rawInput any
+	if err := json.Unmarshal(input, &rawInput); err != nil {
+		return nil, NewError(INTERNAL, fmt.Sprintf("failed to unmarshal JSON: %v", err))
+	}
+
+	if rawInputMap, ok := rawInput.(map[string]interface{}); ok {
+		if tools, ok := rawInputMap["tools"].([]interface{}); ok {
+			for _, t := range tools {
+				if tool, ok := t.(map[string]interface{}); ok {
+					if inputSchema, exists := tool["inputSchema"]; exists && inputSchema == nil {
+						delete(tool, "inputSchema")
+					}
+				}
+			}
+		}
+	}
+	// Check if the "tools" key exists and if its value is a slice of interfaces.
+
+	output, err := json.Marshal(rawInput)
+	if err != nil {
+		return nil, NewError(INTERNAL, fmt.Sprintf("failed to marshal JSON: %v", err))
+	}
+	return output, nil
+}
+
 // RunJSON runs the action with a JSON input, and returns a JSON result.
 func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
+	input, err := inputSchemaNullHandler(input)
+
+	if err != nil {
+		return nil, err
+	}
+
 	if err := base.ValidateJSON(input, a.inputSchema); err != nil {
 		return nil, NewError(INVALID_ARGUMENT, err.Error())
 	}
