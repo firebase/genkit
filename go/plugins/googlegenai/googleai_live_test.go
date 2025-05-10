@@ -401,6 +401,50 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("Empty usage stats %#v", *resp.Usage)
 		}
 	})
+	t.Run("thinking", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(googlegenai.GeminiConfig{
+				Temperature: 0.4,
+				ThinkingConfig: &googlegenai.ThinkingConfig{
+					IncludeThoughts: true,
+					ThinkingBudget:  100,
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("Analogize photosynthesis and growing up."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
+			t.Fatal("thoughts tokens should not be zero or greater than 100")
+		}
+	})
+	t.Run("thinking disabled", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(googlegenai.GeminiConfig{
+				Temperature: 0.4,
+				ThinkingConfig: &googlegenai.ThinkingConfig{
+					IncludeThoughts: false,
+					ThinkingBudget:  0,
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("Analogize photosynthesis and growing up."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		if resp.Usage.ThoughtsTokens > 0 {
+			t.Fatal("thoughts tokens should be zero")
+		}
+	})
 }
 
 func TestCacheHelper(t *testing.T) {
