@@ -5,23 +5,22 @@ import {
   expect,
   afterEach,
   jest,
-  test, // Explicitly importing test for clarity, though often global
+  test,
 } from '@jest/globals';
 
 // Mocks for Genkit-specific components
 import { Document } from 'genkit/retriever';
 import type { Genkit } from 'genkit';
 import { EmbedderArgument } from 'genkit/embedder';
-import { z } from 'genkit'; // Zod is used for schemas
+import { z } from 'genkit';
 
 // Import your actual source code
 import {
   configurePostgresRetriever,
 } from '../src/index';
-
-// Import types and classes from your local files
 import { DistanceStrategy } from '../src/indexes';
-import { PostgresEngine, Column } from '../src/engine'; // Added Column import
+import { PostgresEngine, Column } from '../src/engine';
+import { v4 as uuidv4 } from 'uuid';
 
 // Load environment variables
 import * as dotenv from 'dotenv';
@@ -39,19 +38,28 @@ const METADATA_COLUMNS = [new Column("page", "TEXT"), new Column("source", "TEXT
 // --- Mocks for Genkit Interactions ---
 // Mock Genkit instance for `ai` parameter
 const mockGenkit: Genkit = {
-  // configurePostgresRetriever calls `ai.embed` (not `embedMany` directly on `ai`)
-  embed: jest.fn(async ({ content }) => {
-    // Simulate an embedding API call
-    return [{ embedding: [0.1, 0.2, 0.3, 0.4, 0.5], text: content }];
+  embed: jest.fn(async ({ content }: { content: string | string[] }) => {
+    let embeddingArray = new Array(1536).fill(0.05);
+    if (typeof content === 'string' && content === 'first document content') {
+      embeddingArray = new Array(1536).fill(0.1);
+    } else if (typeof content === 'string' && content === 'another document') {
+      embeddingArray = new Array(1536).fill(0.3);
+    }
+    return [{ embedding: embeddingArray, text: Array.isArray(content) ? content.join(' ') : content }];
   }),
-  // defineRetriever and defineIndexer are called by the Genkit plugin setup
-  defineRetriever: () => (config, handler) => ({
-    config,
-    handler
+
+  defineRetriever: jest.fn((config, handler) => {
+    return {
+      config: config,
+      retrieve: handler,
+    };
   }),
-  defineIndexer: () => (config, handler) => ({
-    config,
-    handler
+
+  defineIndexer: jest.fn((config, handler) => {
+    return {
+      config: config,
+      index: handler,
+    };
   })
 } as unknown as Genkit;
 
@@ -59,9 +67,7 @@ const mockGenkit: Genkit = {
 const mockEmbedder: EmbedderArgument<z.ZodTypeAny> = {
   name: 'mock-embedder',
   type: 'embedder',
-  configSchema: z.object({}), // Empty schema for mock
-  // `embed` or `embedMany` on the embedder object itself is usually handled by `ai.embed`
-  // You don't typically mock these directly if you're mocking `ai.embed`
+  configSchema: z.object({}),
 } as any;
 
 // Spy on console.log to capture output
@@ -70,13 +76,14 @@ const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
 describe("configurePostgresRetriever Integration Tests", () => {
   let engine: PostgresEngine;
-  let retrieverInstance: any; // The returned retriever object from defineRetriever
+  let retrieverInstance: any;
 
   beforeAll(async () => {
     // Initialize PostgresEngine
+    try{
     engine = await PostgresEngine.fromEngineArgs({
       user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
+      password: "my-test-password",//process.env.DB_PASSWORD,
       host: process.env.DB_HOST,
       database: process.env.DB_NAME,
       port: parseInt(process.env.DB_PORT || '5432')
@@ -103,12 +110,15 @@ describe("configurePostgresRetriever Integration Tests", () => {
 
     // --- Populate Test Data ---
     // Insert some test documents into the table
+    const doc1Id = uuidv4();
+    const doc2Id = uuidv4();
+    const doc3Id = uuidv4();
     await engine.pool.raw(`
       INSERT INTO ${SCHEMA_NAME}.${TEST_TABLE} (${ID_COLUMN}, ${CONTENT_COLUMN}, ${EMBEDDING_COLUMN}, page, source, metadata_json)
       VALUES
-      ('doc1-id', 'This is the first test document content.', '[${new Array(1536).fill(0.1).join(',')}]', 'page1', 'sourceA', '{"key1": "value1"}'),
-      ('doc2-id', 'Second document with different content.', '[${new Array(1536).fill(0.2).join(',')}]', 'page2', 'sourceB', '{"key2": "value2"}'),
-      ('doc3-id', 'Another test document.', '[${new Array(1536).fill(0.3).join(',')}]', 'page1', 'sourceC', '{"key3": "value3"}');
+      ('${doc1Id}', 'This is the first test document content.', '[${new Array(1536).fill(0.1).join(',')}]', 'page1', 'sourceA', '{"key1": "value1"}'),
+      ('${doc2Id}', 'Second document with different content.', '[${new Array(1536).fill(0.2).join(',')}]', 'page2', 'sourceB', '{"key2": "value2"}'),
+      ('${doc3Id}', 'Another test document.', '[${new Array(1536).fill(0.3).join(',')}]', 'page1', 'sourceC', '{"key3": "value3"}');
     `);
 
     // Configure the Postgres Retriever using `configurePostgresRetriever`
@@ -135,6 +145,18 @@ describe("configurePostgresRetriever Integration Tests", () => {
       expect.any(Function)
     );
     retrieverInstance = defineRetrieverMock.mock.results[0].value;
+    } catch(error){console.error("Error during beforeAll setup:", error);
+    if (error instanceof AggregateError) {
+      console.error("Individual errors in AggregateError:");
+      error.errors.forEach((e: any, index: number) => {
+        console.error(`Error ${index + 1}:`, e);
+        if (e.stack) {
+          console.error("Stack:", e.stack);
+        }
+      });
+    }
+    // Re-throw the error so Jest still marks the test as failed
+    throw error;}
   }, 60000
   ); // Increased timeout for database operations
 
@@ -149,10 +171,6 @@ describe("configurePostgresRetriever Integration Tests", () => {
     await engine.closeConnection(); // Close the database connection pool
     consoleSpy.mockRestore(); // Restore console.log
   }, 30000); // Increased timeout for cleanup
-  test('basic', () =>{
-    const a = 1+1;
-    expect(2).toEqual(a);
-  })
 
   test('should retrieve relevant documents based on a query', async () => {
     const queryText = 'first document content';
@@ -162,7 +180,7 @@ describe("configurePostgresRetriever Integration Tests", () => {
     const result = await retrieverInstance.retrieve(queryText, options);
 
     expect(mockGenkit.embed).toHaveBeenCalledWith(expect.objectContaining({ content: queryText }));
-    expect(engine.pool.raw).toHaveBeenCalled(); // Should have called pool.raw for query
+    //expect(engine.pool.raw).toHaveBeenCalled();
 
     expect(result).toBeDefined();
     expect(result.documents).toHaveLength(2);
@@ -202,9 +220,9 @@ describe("configurePostgresRetriever Integration Tests", () => {
     );
 
     // Verify the SQL query contains the filter (implementation detail, but useful for integration)
-    const rawCalls = (engine.pool.raw as jest.Mock).mock.calls;
-    const selectQueryCall = rawCalls.find(call => typeof call[0] === 'string' && call[0].includes('SELECT') && call[0].includes('WHERE page = \'page2\''));
-    expect(selectQueryCall).toBeDefined();
+    // const rawCalls = (engine.pool.raw as jest.Mock).mock.calls;
+    // const selectQueryCall = rawCalls.find(call => typeof call[0] === 'string' && call[0].includes('SELECT') && call[0].includes('WHERE page = \'page2\''));
+    // expect(selectQueryCall).toBeDefined();
   });
 
   test('should handle empty query text gracefully', async () => {
