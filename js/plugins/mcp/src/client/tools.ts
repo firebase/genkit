@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js' with { 'resolution-mode': 'import' };
 import type {
   CallToolResult,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
 import { Genkit, JSONSchema7, z } from 'genkit';
 import { logger } from 'genkit/logging';
-import type { McpClientOptions } from '../index.js';
 
 const toText = (c: CallToolResult['content']) =>
   c.map((p) => p.text || '').join('');
@@ -45,12 +43,12 @@ function processResult(result: CallToolResult) {
 
 function registerTool(
   ai: Genkit,
-  client: Client,
+  client: any, // Use 'any' or let TS infer; removing specific type import
   tool: Tool,
-  params: McpClientOptions
+  params: { serverName: string; name: string; rawToolResponses?: boolean }
 ) {
   logger.debug(
-    `[@genkit-ai/mcp] Registering MCP tool ${params.name}/${tool.name}`
+    `[MCP] Registering tool '${params.name}/${tool.name}'' from server '${params.serverName}'`
   );
   ai.defineTool(
     {
@@ -61,7 +59,7 @@ function registerTool(
     },
     async (args) => {
       logger.debug(
-        `[@genkit-ai/mcp] Calling MCP tool ${params.name}/${tool.name} with arguments`,
+        `[MCP] Calling MCP tool '${params.name}/${tool.name}' with arguments`,
         JSON.stringify(args)
       );
       const result = await client.callTool({
@@ -83,8 +81,8 @@ function registerTool(
  */
 export async function registerAllTools(
   ai: Genkit,
-  client: Client,
-  params: McpClientOptions
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  params: { name: string; serverName: string; rawToolResponses?: boolean }
 ): Promise<void> {
   let cursor: string | undefined;
   while (true) {
