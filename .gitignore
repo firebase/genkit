@@ -54,3 +54,6 @@ next-env.d.ts
 .mypy_cache/
 .ruff_cache/
 .nox/
+
+# Code Coverage
+js/plugins/compat-oai/coverage/
