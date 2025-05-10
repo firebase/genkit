@@ -265,9 +265,10 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		ctx := r.Context()
 
 		var body struct {
-			Key     string          `json:"key"`
-			Input   json.RawMessage `json:"input"`
-			Context json.RawMessage `json:"context"`
+			Key             string          `json:"key"`
+			Input           json.RawMessage `json:"input"`
+			Context         json.RawMessage `json:"context"`
+			TelemetryLabels json.RawMessage `json:"telemetryLabels"`
 		}
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -303,7 +304,7 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		resp, err := runAction(ctx, reg, body.Key, body.Input, cb, contextMap)
+		resp, err := runAction(ctx, reg, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 		if err != nil {
 			if stream {
 				reflectErr, err := json.Marshal(core.ToReflectionError(err))
@@ -379,7 +380,7 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
+func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
 		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
@@ -391,6 +392,17 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 	var traceID string
 	output, err := tracing.RunInNewSpan(ctx, reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
+		// Set telemetry labels from payload to span
+		if telemetryLabels != nil {
+			var telemetryAttributes map[string]string
+			err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
+			if err != nil {
+				return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
+			}
+			for k, v := range telemetryAttributes {
+				tracing.SetCustomMetadataAttr(ctx, k, v)
+			}
+		}
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.RunJSON(ctx, input, cb)
 	})
