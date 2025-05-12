@@ -10,7 +10,7 @@ import (
 func TestInit_AlreadyCalled(t *testing.T) {
 	ctx := context.Background()
 	cfg := engineConfig{}
-	engine := PostgresEngine{Pool: cfg.connPool}
+	engine := &PostgresEngine{Pool: cfg.connPool}
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("panic not called")
