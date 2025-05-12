@@ -67,7 +67,7 @@ func TestActionRunJSON(t *testing.T) {
 // count streams the numbers from 0 to n-1, then returns n.
 func count(ctx context.Context, n int, cb func(context.Context, int) error) (int, error) {
 	if cb != nil {
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if err := cb(ctx, i); err != nil {
 				return 0, err
 			}

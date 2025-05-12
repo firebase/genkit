@@ -271,7 +271,7 @@ func TestValidToolName(t *testing.T) {
 func genToolName(length int, chars string) string {
 	r := make([]byte, length)
 
-	for i := 0; i < length; i++ {
+	for i := range length {
 		r[i] = chars[i%len(chars)]
 	}
 	return string(r)
