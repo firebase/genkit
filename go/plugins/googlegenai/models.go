@@ -5,6 +5,7 @@ package googlegenai
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"google.golang.org/genai"
@@ -28,9 +29,10 @@ const (
 	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
 	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
 
-	imagen2     = "imagen2"
-	imagen3     = "imagen3"
-	imagen3Fast = "imagen3-fast"
+	imagen3Generate001     = "imagen-3.0-generate-001"
+	imagen3Generate002     = "imagen-3.0-generate-002"
+	imagen3FastGenerate001 = "imagen-3.0-fast-generate-001"
+	imagen3Capability001   = "imagen-3.0-capability-001"
 )
 
 var (
@@ -49,9 +51,10 @@ var (
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
 
-		imagen2,
-		imagen3,
-		imagen3Fast,
+		imagen3Generate001,
+		imagen3Generate002,
+		imagen3FastGenerate001,
+		imagen3Capability001,
 	}
 
 	googleAIModels = []string{
@@ -171,28 +174,27 @@ var (
 	}
 
 	supportedImagenModels = map[string]ai.ModelInfo{
-		imagen2: {
-			Label: "Imagen 2",
-			Versions: []string{
-				"imagegeneration@006",
-				"imagegeneration@005",
-			},
-			Supports: &BasicMedia,
-			Stage:    ai.ModelStageStable,
-		},
-		imagen3: {
-			Label: "Imagen 3",
-			Versions: []string{
-				"imagen-3.0-generate-001",
-			},
+		imagen3Generate001: {
+			Label:    "Imagen 3 Generate 001",
+			Versions: []string{},
 			Supports: &Media,
 			Stage:    ai.ModelStageStable,
 		},
-		imagen3Fast: {
-			Label: "Imagen 3 - Fast",
-			Versions: []string{
-				"imagen-3.0-fast-generate-001",
-			},
+		imagen3Generate002: {
+			Label:    "Imagen 3 Generate 002",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
+		imagen3FastGenerate001: {
+			Label:    "Imagen 3 Fast Generate 001",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
+		imagen3Capability001: {
+			Label:    "Imagen 3 Capability 001",
+			Versions: []string{},
 			Supports: &Media,
 			Stage:    ai.ModelStageStable,
 		},
@@ -234,6 +236,9 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 	models := make(map[string]ai.ModelInfo, 0)
 	for _, n := range names {
 		m, ok := supportedGeminiModels[n]
+		if strings.HasPrefix(n, "image") {
+			m, ok = supportedImagenModels[n]
+		}
 		if !ok {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
