@@ -332,56 +332,13 @@ export async function generate<
   const resolvedOptions: GenerateOptions<O, CustomOptions> = {
     ...(await Promise.resolve(options)),
   };
-  const resolvedModel = await resolveModel(registry, resolvedOptions.model);
-
-  const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
-
-  const messages: MessageData[] = messagesFromOptions(resolvedOptions);
-
-  const resolvedSchema = toJsonSchema({
-    schema: resolvedOptions.output?.schema,
-    jsonSchema: resolvedOptions.output?.jsonSchema,
-  });
-
-  // If is schema is set but format is not explicitly set, default to `json` format.
-  if (
-    (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) &&
-    !resolvedOptions.output?.format
-  ) {
-    resolvedOptions.output.format = 'json';
-  }
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
 
-  const params: GenerateActionOptions = {
-    model: resolvedModel.modelAction.__action.name,
-    docs: resolvedOptions.docs,
-    messages: messages,
-    tools,
-    toolChoice: resolvedOptions.toolChoice,
-    config: {
-      version: resolvedModel.version,
-      ...stripUndefinedOptions(resolvedModel.config),
-      ...stripUndefinedOptions(resolvedOptions.config),
-    },
-    output: resolvedOptions.output && {
-      ...resolvedOptions.output,
-      format: resolvedOptions.output.format,
-      jsonSchema: resolvedSchema,
-    },
-    // coerce reply and restart into arrays for the action schema
-    resume: resolvedOptions.resume && {
-      respond: [resolvedOptions.resume.respond || []].flat(),
-      restart: [resolvedOptions.resume.restart || []].flat(),
-      metadata: resolvedOptions.resume.metadata,
-    },
-    returnToolRequests: resolvedOptions.returnToolRequests,
-    maxTurns: resolvedOptions.maxTurns,
-  };
-  // if config is empty and it was not explicitly passed in, we delete it, don't want {}
-  if (Object.keys(params.config).length === 0 && !resolvedOptions.config) {
-    delete params.config;
-  }
+  registry = maybeRegisterDynamicTools(registry, resolvedOptions);
 
+  const params = await toGenerateActionOptions(registry, resolvedOptions);
+
+  const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
   return await runWithStreamingCallback(
     registry,
     stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
@@ -405,6 +362,85 @@ export async function generate<
       });
     }
   );
+}
+
+function maybeRegisterDynamicTools<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(registry: Registry, options: GenerateOptions<O, CustomOptions>): Registry {
+  let hasDynamicTools = false;
+  options?.tools?.forEach((t) => {
+    if (
+      (t as Action).__action &&
+      (t as Action).__action.metadata?.type === 'tool' &&
+      (t as Action).__action.metadata?.dynamic
+    ) {
+      if (!hasDynamicTools) {
+        hasDynamicTools = true;
+        // Create a temporary registry with dynamic tools for the duration of this
+        // generate request.
+        registry = Registry.withParent(registry);
+      }
+      registry.registerAction('tool', t as Action);
+    }
+  });
+  return registry;
+}
+
+export async function toGenerateActionOptions<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  registry: Registry,
+  options: GenerateOptions<O, CustomOptions>
+): Promise<GenerateActionOptions> {
+  const resolvedModel = await resolveModel(registry, options.model);
+  const tools = await toolsToActionRefs(registry, options.tools);
+  const messages: MessageData[] = messagesFromOptions(options);
+
+  const resolvedSchema = toJsonSchema({
+    schema: options.output?.schema,
+    jsonSchema: options.output?.jsonSchema,
+  });
+
+  // If is schema is set but format is not explicitly set, default to `json` format.
+  if (
+    (options.output?.schema || options.output?.jsonSchema) &&
+    !options.output?.format
+  ) {
+    options.output.format = 'json';
+  }
+
+  const params: GenerateActionOptions = {
+    model: resolvedModel.modelAction.__action.name,
+    docs: options.docs,
+    messages: messages,
+    tools,
+    toolChoice: options.toolChoice,
+    config: {
+      version: resolvedModel.version,
+      ...stripUndefinedOptions(resolvedModel.config),
+      ...stripUndefinedOptions(options.config),
+    },
+    output: options.output && {
+      ...options.output,
+      format: options.output.format,
+      jsonSchema: resolvedSchema,
+    },
+    // coerce reply and restart into arrays for the action schema
+    resume: options.resume && {
+      respond: [options.resume.respond || []].flat(),
+      restart: [options.resume.restart || []].flat(),
+      metadata: options.resume.metadata,
+    },
+    returnToolRequests: options.returnToolRequests,
+    maxTurns: options.maxTurns,
+  };
+  // if config is empty and it was not explicitly passed in, we delete it, don't want {}
+  if (Object.keys(params.config).length === 0 && !options.config) {
+    delete params.config;
+  }
+  return params;
 }
 
 /**

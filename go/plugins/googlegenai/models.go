@@ -26,6 +26,7 @@ const (
 
 	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
 	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
+	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
 
 	imagen2     = "imagen2"
 	imagen3     = "imagen3"
@@ -46,6 +47,7 @@ var (
 		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
+		gemini25ProPreview0506,
 
 		imagen2,
 		imagen3,
@@ -64,6 +66,7 @@ var (
 		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
+		gemini25ProPreview0506,
 	}
 
 	// models with native image support generation
@@ -155,6 +158,12 @@ var (
 		},
 		gemini25ProPreview0325: {
 			Label:    "Gemini 2.5 Pro Preview 03-25",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
+		},
+		gemini25ProPreview0506: {
+			Label:    "Gemini 2.5 Pro Preview 05-06",
 			Versions: []string{},
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,

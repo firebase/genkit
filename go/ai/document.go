@@ -19,8 +19,6 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
-
-	"gopkg.in/yaml.v3"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -223,10 +221,10 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// UnmarshalYAML implements yaml.Unmarshaler for Part.
-func (p *Part) UnmarshalYAML(value *yaml.Node) error {
+// UnmarshalYAML implements goccy/go-yaml library's InterfaceUnmarshaler interface.
+func (p *Part) UnmarshalYAML(unmarshal func(any) error) error {
 	var s partSchema
-	if err := value.Decode(&s); err != nil {
+	if err := unmarshal(&s); err != nil {
 		return err
 	}
 	p.unmarshalPartFromSchema(s)

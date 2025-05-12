@@ -49,7 +49,29 @@ func TestConvertRequest(t *testing.T) {
 		ToolChoice: ai.ToolChoiceAuto,
 		Output: &ai.ModelOutputConfig{
 			Constrained: true,
-			Schema:      map[string]any{"type": string("string")},
+			Schema: map[string]any{
+				"type": string("object"),
+				"properties": map[string]any{
+					"string": map[string]any{
+						"type": string("string"),
+					},
+					"boolean": map[string]any{
+						"type": string("boolean"),
+					},
+					"float": map[string]any{
+						"type": string("float64"),
+					},
+					"number": map[string]any{
+						"type": string("number"),
+					},
+					"array": map[string]any{
+						"type": string("array"),
+					},
+					"object": map[string]any{
+						"type": string("object"),
+					},
+				},
+			},
 		},
 		Messages: []*ai.Message{
 			{
@@ -249,7 +271,7 @@ func TestValidToolName(t *testing.T) {
 func genToolName(length int, chars string) string {
 	r := make([]byte, length)
 
-	for i := 0; i < length; i++ {
+	for i := range length {
 		r[i] = chars[i%len(chars)]
 	}
 	return string(r)

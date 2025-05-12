@@ -1106,7 +1106,7 @@ describe('prompt', () => {
         {
           content: [
             {
-              text: ' from the prompt file ',
+              text: ' from the prompt file banana',
             },
           ],
           role: 'model',
@@ -1114,8 +1114,82 @@ describe('prompt', () => {
       ],
       returnToolRequests: true,
       toolChoice: 'required',
-      subject: 'banana',
       tools: ['toolA', 'toolB'],
+    });
+  });
+
+  it('renders loaded prompt via executable-prompt', async () => {
+    ai.defineModel(
+      { name: 'googleai/gemini-5.0-ultimate-pro-plus' },
+      async () => ({})
+    );
+
+    ai.defineTool(
+      {
+        name: 'toolA',
+        description: 'toolA it is',
+      },
+      async () => {}
+    );
+
+    ai.defineTool(
+      {
+        name: 'toolB',
+        description: 'toolB it is',
+      },
+      async () => {}
+    );
+
+    const generateActionOptions = await (
+      await ai.registry.lookupAction('/executable-prompt/kitchensink')
+    )({ subject: 'banana' });
+
+    assert.deepStrictEqual(stripUndefinedProps(generateActionOptions), {
+      config: {
+        temperature: 11,
+      },
+      model: 'googleai/gemini-5.0-ultimate-pro-plus',
+      maxTurns: 77,
+      messages: [
+        { role: 'system', content: [{ text: ' Hello ' }] },
+        { role: 'model', content: [{ text: ' from the prompt file banana' }] },
+      ],
+      output: {
+        format: 'csv',
+        jsonSchema: {
+          additionalProperties: false,
+          properties: {
+            arr: {
+              description: 'array of objects',
+              items: {
+                additionalProperties: false,
+                properties: {
+                  nest2: {
+                    type: ['boolean', 'null'],
+                  },
+                },
+                type: 'object',
+              },
+              type: 'array',
+            },
+            obj: {
+              additionalProperties: false,
+              description: 'a nested object',
+              properties: {
+                nest1: {
+                  type: ['string', 'null'],
+                },
+              },
+              type: ['object', 'null'],
+            },
+          },
+          required: ['arr'],
+          type: 'object',
+        },
+      },
+      returnToolRequests: true,
+      toolChoice: 'required',
+      tools: ['/tool/toolA', '/tool/toolB'],
     });
   });
 
