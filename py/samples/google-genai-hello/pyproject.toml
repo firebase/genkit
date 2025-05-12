@@ -17,9 +17,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit@git+https://github.com/firebase/genkit/tree/main/py/packages/genkit.git",
+  "genkit",
   "genkit-plugin-google-genai",
-  "genkit-plugin-google-cloud@git+https://github.com/firebase/genkit/tree/main/py/plugins/google-cloud.git",
+  "genkit-plugin-google-cloud",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
 ]
