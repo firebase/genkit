@@ -20,9 +20,11 @@ import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { Genkit, GenkitError, ToolAction } from 'genkit';
 import { logger } from 'genkit/logging';
-import { transportFrom } from '../util';
-import { fetchDynamicResourceTools } from '../util/resources';
-import { fetchDynamicTools } from '../util/tools';
+import {
+  fetchDynamicResourceTools,
+  fetchDynamicTools,
+  transportFrom,
+} from '../util';
 export type { SSEClientTransportOptions, StdioServerParameters, Transport };
 
 interface McpServerRef {
@@ -31,7 +33,7 @@ interface McpServerRef {
   error?: string;
 }
 
-export interface McpClientControls {
+export interface McpServerControls {
   // Optional server name
   name?: string;
   // when true, the server will be stopped and its registered components will not appear in lists/plugins/etc
@@ -57,34 +59,32 @@ export type McpTransportServerConfig = {
  * In addition to stdio servers, remote servers are supported via URL and
  * custom/arbitary transports are supported as well.
  */
-export type McpServerConfig =
+export type McpServerConfig = (
   | McpStdioServerConfig
   | McpSSEServerConfig
-  | McpTransportServerConfig;
+  | McpTransportServerConfig
+) &
+  McpServerControls;
 
 /**
  * Configuration options for an individual `GenkitMcpClient` instance.
  * This defines how the client connects to a single MCP server and how it behaves.
  */
-export interface McpClientOptions extends McpClientControls {
+export type McpClientOptions = McpServerConfig & {
+  /** Name for this server configuration */
+  name: string;
   /**
    * An optional version number for this client. This is primarily for logging
    * and identification purposes. Defaults to '1.0.0'.
    */
   version?: string;
   /**
-   * The configuration for the MCP server to which this client will connect.
-   * This includes details like the server's command, URL, or a pre-existing transport.
-   * See `McpServerConfig` for more details.
-   */
-  server: McpServerConfig;
-  /**
    * If true, tool responses from the MCP server will be returned in their raw
    * MCP format. Otherwise (default), they are processed and potentially
    * simplified for better compatibility with Genkit's typical data structures.
    */
   rawToolResponses?: boolean;
-}
+};
 
 /**
  * Represents a client connection to a single MCP (Model Context Protocol) server.
@@ -95,23 +95,24 @@ export interface McpClientOptions extends McpClientControls {
  * when dealing with multiple MCP server connections.
  */
 export class GenkitMcpClient {
+  _server?: McpServerRef;
+
   private name: string;
   private version: string;
   private serverConfig: McpServerConfig;
   private rawToolResponses?: boolean;
   private disabled: boolean;
 
-  private _server?: McpServerRef;
   private _readyListeners: {
     resolve: () => void;
     reject: (err: Error) => void;
   }[] = [];
   private _ready = false;
 
-  constructor(options: McpClientOptions & { name: string }) {
+  constructor(options: McpClientOptions) {
     this.name = options.name;
     this.version = options.version || '1.0.0';
-    this.serverConfig = options.server;
+    this.serverConfig = { ...options };
     this.rawToolResponses = !!options.rawToolResponses;
     this.disabled = !!options.disabled;
 
@@ -259,7 +260,11 @@ export class GenkitMcpClient {
     }
   }
 
-  async getTools(ai: Genkit): Promise<ToolAction[]> {
+  /**
+   * Fetches all tools available through this client, if the server
+   * configuration is not disabled.
+   */
+  async getActiveTools(ai: Genkit): Promise<ToolAction[]> {
     await this.ready();
     let tools: ToolAction[] = [];
 
@@ -269,7 +274,7 @@ export class GenkitMcpClient {
         tools.push(
           ...(await fetchDynamicTools(ai, this._server.client, {
             rawToolResponses: this.rawToolResponses,
-            serverName: this.name + '-mcp-server',
+            serverName: this.name,
             name: this.name,
           }))
         );
@@ -281,7 +286,7 @@ export class GenkitMcpClient {
         tools.push(
           ...fetchDynamicResourceTools(ai, this._server.client, {
             name: this.name,
-            serverName: this.name + '-mcp-server',
+            serverName: this.name,
           })
         );
     }

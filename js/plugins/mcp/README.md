@@ -4,7 +4,7 @@
 > This plugin is experimental, meaning it may not be supported long-term and APIs are subject to more often breaking changes.
 
 This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to:
-- Consume MCP tools, prompts, and resources as a client using `createMcpClientManager`.
+- Consume MCP tools, prompts, and resources as a client using `createMcpManager`.
 - Provide Genkit tools and prompts as an MCP server using `createMcpServer`.
 
 ## Installation
@@ -17,17 +17,17 @@ npm i genkit genkitx-mcp
 
 ## MCP Client Manager
 
-To connect to one or more MCP servers, you use the `createMcpClientManager` function. This function returns a Genkit plugin that manages connections to the configured MCP servers.
+To connect to one or more MCP servers, you use the `createMcpManager` function. This function returns a Genkit plugin that manages connections to the configured MCP servers.
 
 ```ts
 import { genkit } from 'genkit';
-import { createMcpClientManager } from 'genkitx-mcp';
+import { createMcpManager } from 'genkitx-mcp';
 
 // Example: Configure a client manager for a local filesystem server
 // and a hypothetical remote Git server.
 const ALLOWED_DIRS = ['/Users/yourusername/Desktop'];
 
-const mcpManager = createMcpClientManager({
+const mcpManager = createMcpManager({
   name: 'myMcpClients', // A name for the manager plugin itself
   mcpClients: {
     // Each key (e.g., 'fs', 'git') becomes a namespace for the server's tools.
@@ -60,9 +60,9 @@ const response = await ai.generate({
 });
 ```
 
-The `createMcpClientManager` function initializes a `GenkitMcpClientManager` instance, which handles the lifecycle and communication with the defined MCP servers.
+The `createMcpManager` function initializes a `GenkitMcpClientManager` instance, which handles the lifecycle and communication with the defined MCP servers.
 
-### `createMcpClientManager()` Options
+### `createMcpManager()` Options
 
 -   **`name`**: (required, string) A name for the client manager plugin itself.
 -   **`version`**: (optional, string) The version of the client manager plugin. Defaults to "1.0.0".
@@ -82,7 +82,9 @@ The `createMcpClientManager` function initializes a `GenkitMcpClientManager` ins
 
 Most MCP servers are built to run as spawned processes on the same machine using the `stdio` transport. When you supply the `serverProcess` option, you are specifying the command, arguments, and environment variables for spawning the server as a subprocess.
 
-### Legacy `mcpClient()`
+### [Deprecated] `mcpClient()`
+
+Note: This method is deprecated, please use `createMcpClient` or `createMcpManager` instead.
 
 For simpler scenarios involving a single MCP server, or for backward compatibility, the legacy `mcpClient()` function is still available:
 
@@ -94,7 +96,7 @@ const legacyFilesystemClient = mcpClient({
   serverProcess: { /* ... */ },
 });
 ```
-This function takes similar options to a single server configuration within `createMcpClientManager` (e.g., `name`, `version`, `serverProcess`, `rawToolResponses`) and directly returns a Genkit plugin for that single client. It is recommended to use `createMcpClientManager` for new projects.
+This function takes similar options to a single server configuration within `createMcpManager` (e.g., `name`, `version`, `serverProcess`, `rawToolResponses`) and directly returns a Genkit plugin for that single client. It is recommended to use `createMcpManager` for new projects.
 
 ### Using MCP Actions
 

@@ -14,55 +14,8 @@
  * limitations under the License.
  */
 
-import { McpServerConfig } from '../client/client';
-import type {
-  SSEClientTransportOptions,
-  StdioServerParameters,
-  Transport,
-} from '../client/index';
-
-/**
- * Creates an MCP transport instance based on the provided server configuration.
- * It supports creating SSE, Stdio, or using a pre-configured custom transport.
- *
- * @param config The configuration for the MCP server, determining the type of transport to create.
- * @returns A Promise resolving to an object containing the created `Transport` instance
- *          (or `null` if configuration is invalid) and a string indicating the `type` of transport.
- * @throws May throw an error if essential MCP SDK components cannot be imported.
- */
-export async function transportFrom(config: McpServerConfig): Promise<{
-  transport: Transport | null;
-  type: string;
-}> {
-  // Handle pre-configured transport first
-  if ('transport' in config && config.transport) {
-    return { transport: config.transport, type: 'custom' };
-  }
-  // Handle SSE config
-  if ('url' in config && config.url) {
-    const { url, ...sseConfig } = config;
-    const { SSEClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/sse.js'
-    );
-    return {
-      transport: new SSEClientTransport(
-        new URL(url),
-        sseConfig as SSEClientTransportOptions
-      ),
-      type: 'sse',
-    };
-  }
-  // Handle Stdio config
-  if ('command' in config && config.command) {
-    // Create a copy and remove McpServerControls properties
-    const stdioConfig = { ...config };
-    const { StdioClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/stdio.js'
-    );
-    return {
-      transport: new StdioClientTransport(stdioConfig as StdioServerParameters),
-      type: 'stdio',
-    };
-  }
-  return { transport: null, type: 'unknown' };
-}
+export * from './message';
+export * from './prompts';
+export * from './resources';
+export * from './tools';
+export * from './transport';

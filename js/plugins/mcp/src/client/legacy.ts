@@ -18,9 +18,11 @@ import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { Genkit, GenkitError } from 'genkit';
 import { genkitPlugin } from 'genkit/plugin';
-import { registerAllPrompts } from '../util/prompts.js';
-import { registerResourceTools } from '../util/resources.js';
-import { registerAllTools } from '../util/tools.js';
+import {
+  registerAllPrompts,
+  registerAllTools,
+  registerResourceTools,
+} from '../util';
 
 export interface LegacyMcpClientOptions {
   /** Provide a name for this client which will be its namespace for all tools and prompts. */
@@ -72,7 +74,7 @@ async function transportFrom(
 }
 
 /**
- * @deprecated use `createMcpClientManager({mcpClients: {...}})` instead.
+ * @deprecated use `createMcpManager({mcpClients: {...}})` instead.
  */
 export function mcpClient(params: LegacyMcpClientOptions) {
   return genkitPlugin(params.name, async (ai: Genkit) => {

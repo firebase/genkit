@@ -15,8 +15,9 @@
  */
 
 import type { Genkit } from 'genkit';
-import { GenkitMcpClientManager, McpClientManagerOptions } from './client';
+import { GenkitMcpManager, McpManagerOptions } from './client';
 import {
+  GenkitMcpClient,
   McpClientOptions,
   McpServerConfig,
   McpStdioServerConfig,
@@ -25,7 +26,8 @@ import { GenkitMcpServer } from './server';
 
 export { mcpClient, type LegacyMcpClientOptions } from './client/legacy';
 export {
-  GenkitMcpClientManager as GenkitMcpClient,
+  GenkitMcpClient,
+  GenkitMcpManager,
   type McpClientOptions,
   type McpServerConfig,
   type McpStdioServerConfig,
@@ -47,9 +49,9 @@ export interface McpServerOptions {
  * their configuration includes `{disabled: true}`.
  *
  * ```ts
- * const clientManager = createMcpClientManager({
+ * const clientManager = createMcpManager({
  *   name: "my-mcp-client-manager", // Name for the manager itself
- *   mcpClients: {
+ *   mcpServers: {
  *     // Each key is a name for this client/server configuration
  *     // Each value is an McpServerConfig object
  *     gitToolServer: { command: "uvx", args: ["mcp-server-git"] },
@@ -61,8 +63,12 @@ export interface McpServerOptions {
  * @param options Configuration for the MCP Client Manager, including the definitions of MCP servers to connect to.
  * @returns A new instance of GenkitMcpClientManager.
  */
-export function createMcpClientManager(options: McpClientManagerOptions) {
-  return new GenkitMcpClientManager(options);
+export function createMcpManager(options: McpManagerOptions) {
+  return new GenkitMcpManager(options);
+}
+
+export function createMcpClient(options: McpClientOptions) {
+  return new GenkitMcpClient(options);
 }
 
 /**
@@ -82,7 +88,7 @@ export function createMcpClientManager(options: McpClientManagerOptions) {
  */
 export function createMcpServer(
   ai: Genkit,
-  options: McpServerOptions
+  options: McpClientOptions
 ): GenkitMcpServer {
   return new GenkitMcpServer(ai, options);
 }
@@ -90,6 +96,6 @@ export function createMcpServer(
 /**
  * @deprecated use `createMcpServer` instead.
  */
-export function mcpServer(ai: Genkit, options: McpServerOptions) {
+export function mcpServer(ai: Genkit, options: McpClientOptions) {
   return createMcpServer(ai, options);
 }
