@@ -85,14 +85,14 @@ func Retriever(g *genkit.Genkit, name string) ai.Retriever {
 // DocStore implements a local vector database.
 // This is based on js/plugins/dev-local-vectorstore/src/index.ts.
 type DocStore struct {
-	filename        string
-	embedder        ai.Embedder
-	embedderOptions any
-	data            map[string]dbValue
+	Filename        string
+	Embedder        ai.Embedder
+	EmbedderOptions any
+	Data            map[string]DbValue
 }
 
-// dbValue is the type of a document stored in the database.
-type dbValue struct {
+// DbValue is the type of a document stored in the database.
+type DbValue struct {
 	Doc       *ai.Document `json:"doc"`
 	Embedding []float32    `json:"embedding"`
 }
@@ -108,7 +108,7 @@ func newDocStore(dir, name string, embedder ai.Embedder, embedderOptions any) (*
 	dbname := "__db_" + name + ".json"
 	filename := filepath.Join(dir, dbname)
 	f, err := os.Open(filename)
-	var data map[string]dbValue
+	var data map[string]DbValue
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, err
@@ -122,10 +122,10 @@ func newDocStore(dir, name string, embedder ai.Embedder, embedderOptions any) (*
 	}
 
 	ds := &DocStore{
-		filename:        filename,
-		embedder:        embedder,
-		embedderOptions: embedderOptions,
-		data:            data,
+		Filename:        filename,
+		Embedder:        embedder,
+		EmbedderOptions: embedderOptions,
+		Data:            data,
 	}
 	return ds, nil
 }
@@ -143,9 +143,9 @@ func (ds *DocStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
 		Input:   []*ai.Document{req.Query},
-		Options: ds.embedderOptions,
+		Options: ds.EmbedderOptions,
 	}
-	eres, err := ds.embedder.Embed(ctx, ereq)
+	eres, err := ds.Embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("localvec retrieve embedding failed: %v", err)
 	}
@@ -155,8 +155,8 @@ func (ds *DocStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		score float64
 		doc   *ai.Document
 	}
-	scoredDocs := make([]scoredDoc, 0, len(ds.data))
-	for _, dbv := range ds.data {
+	scoredDocs := make([]scoredDoc, 0, len(ds.Data))
+	for _, dbv := range ds.Data {
 		score := similarity(vals, dbv.Embedding)
 		scoredDocs = append(scoredDocs, scoredDoc{
 			score: score,
@@ -231,9 +231,9 @@ func similarity(vals1, vals2 []float32) float64 {
 func Index(ctx context.Context, docs []*ai.Document, ds *DocStore) error {
 	ereq := &ai.EmbedRequest{
 		Input:   docs,
-		Options: ds.embedderOptions,
+		Options: ds.EmbedderOptions,
 	}
-	eres, err := ds.embedder.Embed(ctx, ereq)
+	eres, err := ds.Embedder.Embed(ctx, ereq)
 	if err != nil {
 		return fmt.Errorf("localvec index embedding failed: %v", err)
 	}
@@ -242,16 +242,16 @@ func Index(ctx context.Context, docs []*ai.Document, ds *DocStore) error {
 		if err != nil {
 			return err
 		}
-		if _, ok := ds.data[id]; ok {
+		if _, ok := ds.Data[id]; ok {
 			logger.FromContext(ctx).Debug("localvec skipping document because already present", "id", id)
 			continue
 		}
 
-		if ds.data == nil {
-			ds.data = make(map[string]dbValue)
+		if ds.Data == nil {
+			ds.Data = make(map[string]DbValue)
 		}
 
-		ds.data[id] = dbValue{
+		ds.Data[id] = DbValue{
 			Doc:       docs[i],
 			Embedding: de.Embedding,
 		}
@@ -260,19 +260,19 @@ func Index(ctx context.Context, docs []*ai.Document, ds *DocStore) error {
 	// Update the file every time we add documents.
 	// We use a temporary file to avoid losing the original
 	// file, in case of a crash.
-	tmpname := ds.filename + ".tmp"
+	tmpname := ds.Filename + ".tmp"
 	f, err := os.Create(tmpname)
 	if err != nil {
 		return err
 	}
 	encoder := json.NewEncoder(f)
-	if err := encoder.Encode(ds.data); err != nil {
+	if err := encoder.Encode(ds.Data); err != nil {
 		return err
 	}
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpname, ds.filename); err != nil {
+	if err := os.Rename(tmpname, ds.Filename); err != nil {
 		return err
 	}
 
