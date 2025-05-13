@@ -166,11 +166,11 @@ func TestFirestoreRetriever(t *testing.T) {
 	testDocs := []struct {
 		ID   string
 		Text string
-		Data map[string]interface{}
+		Data map[string]any
 	}{
-		{"doc1", "This is document one", map[string]interface{}{"metadata": "meta1"}},
-		{"doc2", "This is document two", map[string]interface{}{"metadata": "meta2"}},
-		{"doc3", "This is document three", map[string]interface{}{"metadata": "meta3"}},
+		{"doc1", "This is document one", map[string]any{"metadata": "meta1"}},
+		{"doc2", "This is document two", map[string]any{"metadata": "meta2"}},
+		{"doc3", "This is document three", map[string]any{"metadata": "meta3"}},
 	}
 
 	// Expected document text content in order of relevance for the query
@@ -200,7 +200,7 @@ func TestFirestoreRetriever(t *testing.T) {
 		}
 
 		// Store in Firestore
-		_, err = client.Collection(*testCollection).Doc(doc.ID).Set(ctx, map[string]interface{}{
+		_, err = client.Collection(*testCollection).Doc(doc.ID).Set(ctx, map[string]any{
 			"text":           doc.Text,
 			"metadata":       doc.Data["metadata"],
 			*testVectorField: firestore.Vector32(embedding),

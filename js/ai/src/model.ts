@@ -314,6 +314,8 @@ export const GenerationUsageSchema = z.object({
   inputAudioFiles: z.number().optional(),
   outputAudioFiles: z.number().optional(),
   custom: z.record(z.number()).optional(),
+  thoughtsTokens: z.number().optional(),
+  cachedContentTokens: z.number().optional(),
 });
 
 /**
