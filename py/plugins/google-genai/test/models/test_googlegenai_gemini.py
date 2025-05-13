@@ -321,16 +321,16 @@ async def test_generate_with_system_instructions(mocker):
             ModelInfo(
                 label='Google AI - lazaro',
                 supports=DEFAULT_SUPPORTS_MODEL,
-            )
+            ),
         ),
         (
             'gemini-4-0-pro-delux-max',
             ModelInfo(
                 label='Google AI - gemini-4-0-pro-delux-max',
                 supports=DEFAULT_SUPPORTS_MODEL,
-            )
-        )
-    ]
+            ),
+        ),
+    ],
 )
 def test_gemini_model_info(input, expected):
     """Tests for gemini_model_info."""

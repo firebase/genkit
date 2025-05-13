@@ -177,6 +177,7 @@ from genkit.types import (
 
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
     """Gemini Config Schema."""
+
     code_execution: bool | None = None
 
 
