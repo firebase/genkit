@@ -30,21 +30,21 @@ from pydantic import BaseModel, Field
 from genkit.ai import ActionRunContext
 from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
-    gemini_model_info,
+    DEFAULT_SUPPORTS_MODEL,
     GeminiModel,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
-    DEFAULT_SUPPORTS_MODEL,
+    gemini_model_info,
 )
 from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     MediaPart,
     Message,
+    ModelInfo,
     Part,
     Role,
     TextPart,
-    ModelInfo,
 )
 
 ALL_VERSIONS = list(GoogleAIGeminiVersion) + list(VertexAIGeminiVersion)
