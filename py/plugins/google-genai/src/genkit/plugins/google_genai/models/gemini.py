@@ -119,10 +119,6 @@ The following models are currently supported by VertexAI API:
 
 | Model                                | Description                          | Status       |
 |--------------------------------------|--------------------------------------|--------------|
-| `gemini-1.0-pro`                     | Gemini 1.0 Pro                       | Obsolete     |
-| `gemini-1.5-pro`                     | Gemini 1.5 Pro                       | Deprecated   |
-| `gemini-1.5-flash`                   | Gemini 1.5 Flash                     | Deprecated   |
-| `gemini-1.5-flash-8b`                | Gemini 1.5 Flash 8B                  | Deprecated   |
 | `gemini-2.0-flash`                   | Gemini 2.0 Flash                     | Supported    |
 | `gemini-2.0-flash-lite`              | Gemini 2.0 Flash Lite                | Supported    |
 | `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported    |
@@ -383,12 +379,8 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported    |
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
     | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported    |
-    | `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported    |
     """
 
-    GEMINI_1_5_FLASH = 'gemini-1.5-flash'
-    GEMINI_1_5_FLASH_8B = 'gemini-1.5-flash-8b'
-    GEMINI_1_5_PRO = 'gemini-1.5-pro'
     GEMINI_2_0_FLASH = 'gemini-2.0-flash'
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
     GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite'
@@ -397,7 +389,6 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
     GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
-    # GEMINI_2_5_FLASH_PREVIEW_04_17 = 'gemini-2.5-flash-preview-04-17'
 
 
 class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
@@ -418,12 +409,8 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported  |
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
     | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
-    | `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported  |
     """
 
-    GEMINI_1_5_FLASH = 'gemini-1.5-flash'
-    GEMINI_1_5_FLASH_8B = 'gemini-1.5-flash-8b'
-    GEMINI_1_5_PRO = 'gemini-1.5-pro'
     GEMINI_2_0_FLASH = 'gemini-2.0-flash'
     GEMINI_2_0_FLASH_EXP = 'gemini-2.0-flash-exp'
     GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite'
@@ -432,7 +419,6 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
     GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
-    GEMINI_2_5_FLASH_PREVIEW_04_17 = 'gemini-2.5-flash-preview-04-17'
 
 
 SUPPORTED_MODELS = {
@@ -444,7 +430,6 @@ SUPPORTED_MODELS = {
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
-    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
