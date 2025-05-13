@@ -72,7 +72,7 @@ var (
 		gemini25ProPreview0506,
 	}
 
-	// models with native image support generation
+	// Gemini models with native image support generation
 	imageGenModels = []string{
 		gemini20FlashExp,
 	}
@@ -219,7 +219,7 @@ var (
 // listModels returns a map of supported models and their capabilities
 // based on the detected backend
 func listModels(provider string) (map[string]ai.ModelInfo, error) {
-	names := []string{}
+	var names []string
 	var prefix string
 
 	switch provider {
