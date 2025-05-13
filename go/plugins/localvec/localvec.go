@@ -88,42 +88,11 @@ type DocStore struct {
 	filename        string
 	embedder        ai.Embedder
 	embedderOptions any
-	data            map[string]DbValue
+	data            map[string]dbValue
 }
 
-func (docStore *DocStore) FileName() string {
-	return docStore.filename
-}
-
-func (docStore *DocStore) Embedder() ai.Embedder {
-	return docStore.embedder
-}
-
-func (docStore *DocStore) EmbedderOptions() any {
-	return docStore.embedderOptions
-}
-
-func (docStore *DocStore) Data() map[string]DbValue {
-	return docStore.data
-}
-
-func (docStore *DocStore) GetDbValue(id string) (DbValue, bool) {
-	if docStore.data == nil {
-		return DbValue{}, false
-	}
-	val, ok := docStore.data[id]
-	return val, ok
-}
-
-func (docStore *DocStore) SetData(id string, value DbValue) {
-	if docStore.Data() == nil {
-		docStore.data = make(map[string]DbValue)
-	}
-	docStore.data[id] = value
-}
-
-// DbValue is the type of a document stored in the database.
-type DbValue struct {
+// dbValue is the type of a document stored in the database.
+type dbValue struct {
 	Doc       *ai.Document `json:"doc"`
 	Embedding []float32    `json:"embedding"`
 }
@@ -139,7 +108,7 @@ func newDocStore(dir, name string, embedder ai.Embedder, embedderOptions any) (*
 	dbname := "__db_" + name + ".json"
 	filename := filepath.Join(dir, dbname)
 	f, err := os.Open(filename)
-	var data map[string]DbValue
+	var data map[string]dbValue
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, err
@@ -262,9 +231,9 @@ func similarity(vals1, vals2 []float32) float64 {
 func Index(ctx context.Context, docs []*ai.Document, ds *DocStore) error {
 	ereq := &ai.EmbedRequest{
 		Input:   docs,
-		Options: ds.EmbedderOptions(),
+		Options: ds.embedderOptions,
 	}
-	eres, err := ds.Embedder().Embed(ctx, ereq)
+	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return fmt.Errorf("localvec index embedding failed: %v", err)
 	}
@@ -273,33 +242,37 @@ func Index(ctx context.Context, docs []*ai.Document, ds *DocStore) error {
 		if err != nil {
 			return err
 		}
-		if _, ok := ds.GetDbValue(id); ok {
+		if _, ok := ds.data[id]; ok {
 			logger.FromContext(ctx).Debug("localvec skipping document because already present", "id", id)
 			continue
 		}
 
-		ds.SetData(id, DbValue{
+		if ds.data == nil {
+			ds.data = make(map[string]dbValue)
+		}
+
+		ds.data[id] = dbValue{
 			Doc:       docs[i],
 			Embedding: de.Embedding,
-		})
+		}
 	}
 
 	// Update the file every time we add documents.
 	// We use a temporary file to avoid losing the original
 	// file, in case of a crash.
-	tmpname := ds.FileName() + ".tmp"
+	tmpname := ds.filename + ".tmp"
 	f, err := os.Create(tmpname)
 	if err != nil {
 		return err
 	}
 	encoder := json.NewEncoder(f)
-	if err := encoder.Encode(ds.Data()); err != nil {
+	if err := encoder.Encode(ds.data); err != nil {
 		return err
 	}
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpname, ds.FileName()); err != nil {
+	if err := os.Rename(tmpname, ds.filename); err != nil {
 		return err
 	}
 
