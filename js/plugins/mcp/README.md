@@ -17,7 +17,7 @@ npm i genkit genkitx-mcp
 
 ## MCP Client Manager
 
-To connect to one or more MCP servers, you use the `createMcpManager` function. This function returns a Genkit plugin that manages connections to the configured MCP servers.
+To connect to one or more MCP servers, you use the `createMcpManager` function. This function returns a `GenkitMcpManager` instance that manages connections to the configured MCP servers.
 
 ```ts
 import { genkit } from 'genkit';
@@ -29,16 +29,14 @@ const ALLOWED_DIRS = ['/Users/yourusername/Desktop'];
 
 const mcpManager = createMcpManager({
   name: 'myMcpClients', // A name for the manager plugin itself
-  mcpClients: {
+  mcpServers: {
     // Each key (e.g., 'fs', 'git') becomes a namespace for the server's tools.
-    fs: { // Configuration for the first MCP server
-      serverProcess: {
+    fs: {
         command: 'npx',
         args: ['-y', '@modelcontextprotocol/server-everything', ...ALLOWED_DIRS],
-      },
     },
     git: { // Configuration for a second MCP server (hypothetical)
-      serverUrl: 'http://localhost:8080/mcp',
+      url: 'http://localhost:8080/mcp',
       // disabled: true, // Optionally disable a server
     },
   },
@@ -50,23 +48,27 @@ const ai = genkit({
   ],
 });
 
-const mcpTools = await mcpManager.getAllTools(ai);
+
+// Retrieve tools from all active MCP servers
+const mcpTools = await mcpManager.getActiveTools(genkit);
 
 // Provide MCP tools to the model of your choice.
 const response = await ai.generate({
   model: gemini15Flash,
-  prompt: 'What are the last 5 commits in the repo `/home/test-repo/?`',
-  tools,
+  prompt: 'What are the last 5 commits in the repo `/home/yourusername/Desktop/test-repo/?`',
+  tools: mcpTools,
 });
+
+console.log(response.text());
 ```
 
 The `createMcpManager` function initializes a `GenkitMcpClientManager` instance, which handles the lifecycle and communication with the defined MCP servers.
 
 ### `createMcpManager()` Options
 
--   **`name`**: (required, string) A name for the client manager plugin itself.
+-   **`name`**: (optional, string) A name for the client manager plugin itself. Defaults to 'genkitx-mcp'.
 -   **`version`**: (optional, string) The version of the client manager plugin. Defaults to "1.0.0".
--   **`mcpClients`**: (required, object) An object where each key is a client-side name (namespace) for an MCP server, and the value is the configuration for that server.
+-   **`mcpServers`**: (required, object) An object where each key is a client-side name (namespace) for an MCP server, and the value is the configuration for that server.
     Each server configuration object can include:
     -   **`version`**: (optional, string) The specific version for this client.
     -   **`rawToolResponses`**: (optional, boolean) If `true`, tool responses from this server are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility. Defaults to `false`.
@@ -76,7 +78,7 @@ The `createMcpManager` function initializes a `GenkitMcpClientManager` instance,
             -   **`command`**: (required, string) Shell command path for launching the MCP server (e.g., `npx`, `python`).
             -   **`args`**: (optional, string[]) Array of string arguments to pass to the command.
             -   **`env`**: (optional, Record<string, string>) Key-value object of environment variables.
-        -   **`serverUrl`**: (string) The URL of a remote server to connect to using the SSE MCP transport.
+        -   **`url`**: (string) The URL of a remote server to connect to using the SSE MCP transport.
         -   **`serverWebsocketUrl`**: (string) The URL of a remote server to connect to using the WebSocket MCP transport.
         -   **`transport`**: An existing MCP transport object for connecting to the server.
 
@@ -100,11 +102,13 @@ This function takes similar options to a single server configuration within `cre
 
 ### Using MCP Actions
 
-The Genkit MCP client manager automatically discovers available tools and prompts from each connected server and registers them with Genkit. This makes them available anywhere other Genkit tools and prompts can be used.
+The Genkit MCP client manager, through its `getActiveTools()` method, discovers available tools from each connected and enabled server. These tools can then be provided to Genkit models for use in generation requests. Resources and MCP Tools are both wrapped as GenkitTools. 
 
-To access resources provided by an MCP server, special `list_resources` and `read_resource` tools are registered for each server.
+<!-- TODO: Note about MCP prompts. -->
 
-All MCP actions (tools, prompts, resources) are namespaced under the key you provide for that server in the `mcpClients` configuration. For example, if you have a server configured with the key `fs` in `mcpClients`, its `read_file` tool would be accessible as `fs/read_file`, and its resource listing tool as `fs/list_resources`.
+To access resources provided by an MCP server, special `list_resources` and `read_resource` tools are dynamically created and retrieved for each server by the manager.
+
+All MCP actions (tools, prompts, resources) are namespaced under the key you provide for that server in the `mcpServers` configuration. For example, if you have a server configured with the key `fs` in `mcpServers`, its `read_file` tool would be accessible as `fs/read_file`, and its resource listing tool as `fs/list_resources`.
 
 ### Tool Responses
 

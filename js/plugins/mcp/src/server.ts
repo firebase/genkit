@@ -21,7 +21,7 @@ import {
   MessageData,
   PromptAction,
 } from 'genkit';
-import type { McpClientOptions } from './index.js';
+import type { McpServerOptions } from './index.js';
 
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js' with { 'resolution-mode': 'import' };
@@ -50,7 +50,7 @@ import { ToolAction, toToolDefinition } from 'genkit/tool';
  */
 export class GenkitMcpServer {
   ai: Genkit;
-  options: McpClientOptions;
+  options: McpServerOptions;
   server?: Server;
   actionsResolved: boolean = false;
   toolActions: ToolAction[] = [];
@@ -61,7 +61,7 @@ export class GenkitMcpServer {
    * @param ai The Genkit instance whose actions will be exposed.
    * @param options Configuration options for the MCP server, like its name and version.
    */
-  constructor(ai: Genkit, options: McpClientOptions) {
+  constructor(ai: Genkit, options: McpServerOptions) {
     this.ai = ai;
     this.options = options;
     this.setup();

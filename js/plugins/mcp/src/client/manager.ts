@@ -33,9 +33,8 @@ export interface McpManagerOptions {
   version?: string;
   /**
    * A record for configuring multiple MCP servers. Each server connection is
-   * managed by a since `GenkitMcpClient` instance managed by
-   * `GenkitMcpManager`. The key in the record is used as the identifier for the
-   * MCP server.
+   * controlled by a `GenkitMcpClient` instance managed by `GenkitMcpManager`.
+   * The key in the record is used as the identifier for the MCP server.
    */
   mcpServers?: Record<string, McpServerConfig>;
 }

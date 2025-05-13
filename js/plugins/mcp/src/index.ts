@@ -88,7 +88,7 @@ export function createMcpClient(options: McpClientOptions) {
  */
 export function createMcpServer(
   ai: Genkit,
-  options: McpClientOptions
+  options: McpServerOptions
 ): GenkitMcpServer {
   return new GenkitMcpServer(ai, options);
 }
