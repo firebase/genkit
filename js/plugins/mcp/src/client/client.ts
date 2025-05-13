@@ -34,10 +34,14 @@ interface McpServerRef {
 }
 
 export interface McpServerControls {
-  // Optional server name
-  name?: string;
   // when true, the server will be stopped and its registered components will not appear in lists/plugins/etc
   disabled?: boolean;
+  /**
+   * If true, tool responses from the MCP server will be returned in their raw
+   * MCP format. Otherwise (default), they are processed and potentially
+   * simplified for better compatibility with Genkit's typical data structures.
+   */
+  rawToolResponses?: boolean;
 }
 
 export type McpStdioServerConfig = StdioServerParameters;
@@ -78,12 +82,6 @@ export type McpClientOptions = McpServerConfig & {
    * and identification purposes. Defaults to '1.0.0'.
    */
   version?: string;
-  /**
-   * If true, tool responses from the MCP server will be returned in their raw
-   * MCP format. Otherwise (default), they are processed and potentially
-   * simplified for better compatibility with Genkit's typical data structures.
-   */
-  rawToolResponses?: boolean;
 };
 
 /**
