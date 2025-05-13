@@ -150,9 +150,11 @@ class GoogleAI(Plugin):
         """
         if type == ActionKind.MODEL:
             self._resolve_model(ai, name)
+        elif type == ActionKind.EMBEDDER:
+            self._resolve_embedder(ai, name)
 
     def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
-        _clean_name = name if not name.startswith(GOOGLEAI_PLUGIN_NAME) else name.replace(GOOGLEAI_PLUGIN_NAME + '/', '')
+        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
         model_ref = gemini_model_info(_clean_name)
 
         SUPPORTED_MODELS[_clean_name] = model_ref
@@ -164,6 +166,15 @@ class GoogleAI(Plugin):
             fn=gemini_model.generate,
             metadata=gemini_model.metadata,
             config_schema=GeminiConfigSchema,
+        )
+
+    def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
+        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+        embedder = Embedder(version=_clean_name, client=self._client)
+
+        ai.define_embedder(
+            name=googleai_name(name),
+            fn=embedder.generate,
         )
 
 

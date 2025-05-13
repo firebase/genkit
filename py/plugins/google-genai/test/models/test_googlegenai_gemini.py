@@ -30,9 +30,11 @@ from pydantic import BaseModel, Field
 from genkit.ai import ActionRunContext
 from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.gemini import (
+    gemini_model_info,
     GeminiModel,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
+    DEFAULT_SUPPORTS_MODEL,
 )
 from genkit.types import (
     GenerateRequest,
@@ -42,6 +44,7 @@ from genkit.types import (
     Part,
     Role,
     TextPart,
+    ModelInfo,
 )
 
 ALL_VERSIONS = list(GoogleAIGeminiVersion) + list(VertexAIGeminiVersion)
@@ -184,6 +187,7 @@ async def test_generate_media_response(mocker, version):
 
 
 def test_convert_schema_property(mocker):
+    """Test _convert_schema_property."""
     googleai_client_mock = mocker.AsyncMock()
     gemini = GeminiModel('abc', googleai_client_mock, mocker.MagicMock())
 
@@ -263,6 +267,7 @@ def test_convert_schema_property(mocker):
 
 @pytest.mark.asyncio
 async def test_generate_with_system_instructions(mocker):
+    """Test Generate using system instructions."""
     response_text = 'request answer'
     request_text = 'response question'
     system_instruction = 'system instruciton text'
@@ -306,3 +311,29 @@ async def test_generate_with_system_instructions(mocker):
     ])
     assert isinstance(response, GenerateResponse)
     assert response.message.content[0].root.text == response_text
+
+
+@pytest.mark.parametrize(
+    'input, expected',
+    [
+        (
+            'lazaro',
+            ModelInfo(
+                label=f'Google AI - lazaro',
+                supports=DEFAULT_SUPPORTS_MODEL,
+            )
+        ),
+        (
+            'gemini-4-0-pro-delux-max',
+            ModelInfo(
+                label=f'Google AI - gemini-4-0-pro-delux-max',
+                supports=DEFAULT_SUPPORTS_MODEL,
+            )
+        )
+    ]
+)
+def test_gemini_model_info(input, expected):
+    """Tests for gemini_model_info."""
+    model_info = gemini_model_info(input)
+
+    assert model_info == expected

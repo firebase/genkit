@@ -113,7 +113,6 @@ The following models are currently supported by GoogleAI API:
 | `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported  |
 | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
 | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
-| `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported  |
 
 
 The following models are currently supported by VertexAI API:
@@ -132,12 +131,10 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported    |
 | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
 | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
-| `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported    |
 """
 
-import os
 import sys  # noqa
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 from genkit.plugins.google_genai.models.context_caching.constants import DEFAULT_TTL
 from genkit.plugins.google_genai.models.context_caching.utils import generate_cache_key, validate_context_cache_request
@@ -151,7 +148,7 @@ from functools import cached_property
 from typing import Any
 
 from google import genai
-from google.genai import types as genai_types
+from google.genai import types as genai_types  # type: ignore
 
 from genkit.ai import (
     ActionKind,
@@ -183,6 +180,7 @@ from genkit.types import (
 
 
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
+    """Gemini Config Schema."""
     code_execution: bool | None = None
 
 
@@ -438,9 +436,6 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
 
 
 SUPPORTED_MODELS = {
-    GoogleAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
-    GoogleAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
-    GoogleAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
     GoogleAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
     GoogleAIGeminiVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
     GoogleAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
@@ -450,9 +445,6 @@ SUPPORTED_MODELS = {
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
     GoogleAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
-    VertexAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
-    VertexAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
-    VertexAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH: GEMINI_2_0_FLASH,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH_EXP: GEMINI_2_0_FLASH_EXP_IMAGEN,
     VertexAIGeminiVersion.GEMINI_2_0_FLASH_LITE: GEMINI_2_0_FLASH_LITE,
@@ -461,7 +453,6 @@ SUPPORTED_MODELS = {
     VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
-    # VertexAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
 }
 
 
@@ -489,7 +480,7 @@ def gemini_model_info(
     Returns:
         ModelInfo object.
     """
-    nearest_model = GEMINI_2_5_FLASH_PREVIEW_04_17
+    nearest_model = None
 
     return ModelInfo(
         label=f'Google AI - {version}',
@@ -571,7 +562,8 @@ class GeminiModel:
         """Sanitizes a schema to be compatible with Gemini API.
 
         Args:
-            input_schema: a dictionary with input parameters
+            input_schema: A dictionary with input parameters
+            defs: Dictionary with definitions. Optional.
 
         Returns:
             Schema or None
@@ -672,7 +664,7 @@ class GeminiModel:
                 cache = item
                 break
         if cache:
-            updated_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=ttl)
+            updated_expiration_time = datetime.now(UTC) + timedelta(seconds=ttl)
             cache = await self._client.aio.caches.update(
                 name=cache.name, config=genai_types.UpdateCachedContentConfig(expireTime=updated_expiration_time)
             )
