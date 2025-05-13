@@ -100,7 +100,7 @@ export const simpleEcho = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (i) => {
-    const tools = await clientManager.getAllTools(ai);
+    const tools = await clientManager.getActiveTools(ai);
     const llmResponse = await ai.generate({
       model: gemini15Flash,
       prompt: i,
@@ -129,16 +129,16 @@ export const controlMcp = ai.defineFlow(
     const id = clientId ?? 'git-client';
     switch (action) {
       case 'DISABLE':
-        await clientManager.disableClient(id);
+        await clientManager.disable(id);
         break;
       case 'DISCONNECT':
-        await clientManager.disconnectClient(id);
+        await clientManager.disconnect(id);
         break;
       case 'RECONNECT':
-        await clientManager.reconnectClient(id);
+        await clientManager.reconnect(id);
         break;
       case 'REENABLE':
-        await clientManager.reenableClient(id);
+        await clientManager.reenable(id);
         break;
     }
     return action;
