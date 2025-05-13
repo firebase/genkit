@@ -36,7 +36,8 @@ export {
 export interface McpServerOptions {
   /** The name you want to give your server for MCP inspection. */
   name: string;
-  /** The version you want the server to advertise to clients. Defaults to 1.0.0. */
+  /** The version you want the server to advertise to clients. Defaults to
+   * 1.0.0. */
   version?: string;
 }
 

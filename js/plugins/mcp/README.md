@@ -4,7 +4,7 @@
 > This plugin is experimental, meaning it may not be supported long-term and APIs are subject to more often breaking changes.
 
 This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to:
-- Consume MCP tools, prompts, and resources as a client using `createMcpManager`.
+- Consume MCP tools, prompts, and resources as a client using `createMcpManager` or `createMcpClient`.
 - Provide Genkit tools and prompts as an MCP server using `createMcpServer`.
 
 ## Installation
@@ -70,11 +70,10 @@ The `createMcpManager` function initializes a `GenkitMcpClientManager` instance,
 -   **`version`**: (optional, string) The version of the client manager plugin. Defaults to "1.0.0".
 -   **`mcpServers`**: (required, object) An object where each key is a client-side name (namespace) for an MCP server, and the value is the configuration for that server.
     Each server configuration object can include:
-    -   **`version`**: (optional, string) The specific version for this client.
     -   **`rawToolResponses`**: (optional, boolean) If `true`, tool responses from this server are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility. Defaults to `false`.
     -   **`disabled`**: (optional, boolean) If `true`, this server connection will not be attempted. Defaults to `false`.
     -   One of the following server connection configurations:
-        -   **`serverProcess`**: Parameters for launching a local server process using the stdio MCP transport.
+        -   Parameters for launching a local server process using the stdio MCP transport.
             -   **`command`**: (required, string) Shell command path for launching the MCP server (e.g., `npx`, `python`).
             -   **`args`**: (optional, string[]) Array of string arguments to pass to the command.
             -   **`env`**: (optional, Record<string, string>) Key-value object of environment variables.

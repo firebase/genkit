@@ -34,7 +34,8 @@ interface McpServerRef {
 }
 
 export interface McpServerControls {
-  // when true, the server will be stopped and its registered components will not appear in lists/plugins/etc
+  /** when true, the server will be stopped and its registered components will
+   * not appear in lists/plugins/etc */
   disabled?: boolean;
   /**
    * If true, tool responses from the MCP server will be returned in their raw

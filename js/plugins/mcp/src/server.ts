@@ -43,10 +43,10 @@ import { logger } from 'genkit/logging';
 import { ToolAction, toToolDefinition } from 'genkit/tool';
 
 /**
- * Represents an MCP (Model Context Protocol) server that exposes Genkit tools and prompts.
- * This class wraps a Genkit instance and makes its registered actions (tools, prompts)
- * available to MCP clients. It handles the translation between Genkit's action
- * definitions and MCP's expected formats.
+ * Represents an MCP (Model Context Protocol) server that exposes Genkit tools
+ * and prompts. This class wraps a Genkit instance and makes its registered
+ * actions (tools, prompts) available to MCP clients. It handles the translation
+ * between Genkit's action definitions and MCP's expected formats.
  */
 export class GenkitMcpServer {
   ai: Genkit;

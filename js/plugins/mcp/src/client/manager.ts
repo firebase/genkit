@@ -210,7 +210,7 @@ export class GenkitMcpManager {
    * ```ts
    * const mcpManager = createMcpManager({ ... });
    * // In your Genkit configuration:
-   * // const allMcpTools = await mcpManager.getAllTools(ai);
+   * // const allMcpTools = await mcpManager.getActiveTools(ai);
    * // Then, these tools can be used or registered with Genkit.
    * ```
    *
