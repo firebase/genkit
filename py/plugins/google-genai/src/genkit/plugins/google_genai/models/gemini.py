@@ -480,13 +480,9 @@ def gemini_model_info(
     Returns:
         ModelInfo object.
     """
-    nearest_model = None
-
     return ModelInfo(
         label=f'Google AI - {version}',
-        supports=nearest_model.supports
-            if nearest_model is not None else
-            DEFAULT_SUPPORTS_MODEL,
+        supports=DEFAULT_SUPPORTS_MODEL,
     )
 
 

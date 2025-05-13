@@ -319,14 +319,14 @@ async def test_generate_with_system_instructions(mocker):
         (
             'lazaro',
             ModelInfo(
-                label=f'Google AI - lazaro',
+                label='Google AI - lazaro',
                 supports=DEFAULT_SUPPORTS_MODEL,
             )
         ),
         (
             'gemini-4-0-pro-delux-max',
             ModelInfo(
-                label=f'Google AI - gemini-4-0-pro-delux-max',
+                label='Google AI - gemini-4-0-pro-delux-max',
                 supports=DEFAULT_SUPPORTS_MODEL,
             )
         )
