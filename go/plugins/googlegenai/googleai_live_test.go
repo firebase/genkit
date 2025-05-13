@@ -346,7 +346,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-exp")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-preview-image-generation")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(googlegenai.GeminiConfig{
 				ResponseModalities: []googlegenai.Modality{googlegenai.ImageMode, googlegenai.TextMode},
@@ -362,15 +362,21 @@ func TestGoogleAILive(t *testing.T) {
 		if len(resp.Message.Content) == 0 {
 			t.Fatal("empty response")
 		}
-		part := resp.Message.Content[0]
-		if part.ContentType != "image/png" {
-			t.Errorf("expecting image/png content type but got: %q", part.ContentType)
+		foundMediaPart := false
+		for _, part := range resp.Message.Content {
+			if part.ContentType == "image/png" {
+				foundMediaPart = true
+				if part.Kind != ai.PartMedia {
+					t.Errorf("expecting part to be Media type but got: %q", part.Kind)
+				}
+				if part.Text == "" {
+					t.Error("empty response")
+				}
+			}
 		}
-		if part.Kind != ai.PartMedia {
-			t.Errorf("expecting part to be Media type but got: %q", part.Kind)
-		}
-		if part.Text == "" {
-			t.Errorf("empty response")
+
+		if !foundMediaPart {
+			t.Error("no media found in the response message")
 		}
 	})
 	t.Run("constrained generation", func(t *testing.T) {
