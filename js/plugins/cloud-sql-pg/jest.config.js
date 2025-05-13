@@ -10,6 +10,5 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
   coveragePathIgnorePatterns: [
     '/node_modules/',
-    '/__tests__/',
   ],
 };
