@@ -135,11 +135,12 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported    |
 """
 
+import os
 import sys  # noqa
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from genkit.plugins.google_genai.models.context_caching.constants import DEFAULT_TTL
-from genkit.plugins.google_genai.models.context_caching.utils import validate_context_cache_request, generate_cache_key
+from genkit.plugins.google_genai.models.context_caching.utils import generate_cache_key, validate_context_cache_request
 
 if sys.version_info < (3, 11):  # noqa
     from strenum import StrEnum  # noqa
@@ -199,7 +200,6 @@ GEMINI_1_0_PRO = ModelInfo(
     ),
 )
 
-
 GEMINI_1_5_PRO = ModelInfo(
     label='Google AI - Gemini 1.5 Pro',
     stage=Stage.DEPRECATED,
@@ -217,7 +217,6 @@ GEMINI_1_5_PRO = ModelInfo(
         constrained='no-tools',
     ),
 )
-
 
 GEMINI_1_5_FLASH = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
@@ -237,7 +236,6 @@ GEMINI_1_5_FLASH = ModelInfo(
     ),
 )
 
-
 GEMINI_1_5_FLASH_8B = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
     stage=Stage.DEPRECATED,
@@ -252,7 +250,6 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
     ),
 )
 
-
 GEMINI_2_0_FLASH = ModelInfo(
     label='Google AI - Gemini 2.0 Flash',
     supports=Supports(
@@ -265,7 +262,6 @@ GEMINI_2_0_FLASH = ModelInfo(
     ),
 )
 
-
 GEMINI_2_0_FLASH_LITE = ModelInfo(
     label='Google AI - Gemini 2.0 Flash Lite',
     supports=Supports(
@@ -277,7 +273,6 @@ GEMINI_2_0_FLASH_LITE = ModelInfo(
         constrained='no-tools',
     ),
 )
-
 
 GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
     label='Google AI - Gemini 2.0 Pro Exp 02-05',
@@ -404,7 +399,7 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
     GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
-    GEMINI_2_5_FLASH_PREVIEW_04_17 = 'gemini-2.5-flash-preview-04-17'
+    # GEMINI_2_5_FLASH_PREVIEW_04_17 = 'gemini-2.5-flash-preview-04-17'
 
 
 class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
@@ -466,8 +461,42 @@ SUPPORTED_MODELS = {
     VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
-    VertexAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
+    # VertexAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
 }
+
+
+DEFAULT_SUPPORTS_MODEL = Supports(
+    multiturn=True,
+    media=True,
+    tools=True,
+    tool_choice=True,
+    system_role=True,
+    constrained='no-tools',
+)
+
+
+def gemini_model_info(
+    version: str,
+) -> ModelInfo:
+    """Generates a ModelInfo object.
+
+    This function tries to get the best ModelInfo Supports
+    for the given version.
+
+    Args:
+        version: Version of the model.
+
+    Returns:
+        ModelInfo object.
+    """
+    nearest_model = GEMINI_2_5_FLASH_PREVIEW_04_17
+
+    return ModelInfo(
+        label=f'Google AI - {version}',
+        supports=nearest_model.supports
+            if nearest_model is not None else
+            DEFAULT_SUPPORTS_MODEL,
+    )
 
 
 class GeminiModel:
@@ -616,6 +645,7 @@ class GeminiModel:
         self, request: GenerateRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
     ) -> genai_types.CachedContent:
         """Retrieves cached content from the Google API if exists.
+
         If content is present - increases storage ttl based on the configured `ttl_seconds`
         If content is not present - creates it and returns creates instance.
 
@@ -667,7 +697,6 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
-
         try:
             model_name = request.config.version
         except AttributeError:
