@@ -103,7 +103,7 @@ class GoogleAI(Plugin):
                 environment variable is not set.
         """
         api_key = api_key if api_key else os.getenv('GEMINI_API_KEY')
-        if not api_key:
+        if not api_key and credentials is None:
             raise ValueError(
                 'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable'
             )
@@ -230,7 +230,7 @@ class VertexAI(Plugin):
             ai.define_model(name=vertexai_name(version), fn=imagen_model.generate, metadata=imagen_model.metadata)
 
 
-def _inject_attribution_headers(http_options):
+def _inject_attribution_headers(http_options: dict | None = None):
     """Adds genkit client info to the appropriate http headers."""
     if not http_options:
         http_options = HttpOptions()

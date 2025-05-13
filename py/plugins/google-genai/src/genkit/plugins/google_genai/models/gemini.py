@@ -130,7 +130,7 @@ The following models are currently supported by VertexAI API:
 """
 
 import sys  # noqa
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timezone, timedelta
 
 from genkit.plugins.google_genai.models.context_caching.constants import DEFAULT_TTL
 from genkit.plugins.google_genai.models.context_caching.utils import generate_cache_key, validate_context_cache_request
@@ -646,7 +646,7 @@ class GeminiModel:
                 cache = item
                 break
         if cache:
-            updated_expiration_time = datetime.now(UTC) + timedelta(seconds=ttl)
+            updated_expiration_time = datetime.now(timezone.UTC) + timedelta(seconds=ttl)
             cache = await self._client.aio.caches.update(
                 name=cache.name, config=genai_types.UpdateCachedContentConfig(expireTime=updated_expiration_time)
             )
