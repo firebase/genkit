@@ -26,6 +26,7 @@ from genkit.plugins.vertex_ai.embedding import (
 from genkit.plugins.vertex_ai.gemini import GeminiVersion
 from genkit.plugins.vertex_ai.imagen import ImagenOptions, ImagenVersion
 from genkit.plugins.vertex_ai.plugin_api import VertexAI, vertexai_name
+from genkit.plugins.vertex_ai.vector_search.vector_search import VertexAIVectorSearch
 
 
 def package_name() -> str:
@@ -46,4 +47,5 @@ __all__ = [
     GeminiVersion.__name__,
     ImagenVersion.__name__,
     ImagenOptions.__name__,
+    VertexAIVectorSearch.__name__,
 ]

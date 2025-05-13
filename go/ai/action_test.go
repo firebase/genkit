@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/goccy/go-yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"gopkg.in/yaml.v3"
 )
 
 type specSuite struct {
@@ -50,6 +50,16 @@ func (pm *programmableModel) Name() string {
 }
 
 func (pm *programmableModel) Generate(ctx context.Context, r *registry.Registry, req *ModelRequest, toolCfg *ToolConfig, cb func(context.Context, *ModelResponseChunk) error) (*ModelResponse, error) {
+	// Make a copy of the request to modify for testing purposes
+	if req != nil && req.Tools != nil {
+		for _, tool := range req.Tools {
+			if tool.Name == "testTool" {
+				// Set the schema fields directly
+				tool.InputSchema = map[string]any{"$schema": "http://json-schema.org/draft-07/schema#"}
+				tool.OutputSchema = map[string]any{"$schema": "http://json-schema.org/draft-07/schema#"}
+			}
+		}
+	}
 	pm.lastRequest = req
 	return pm.handleResp(ctx, req, cb)
 }

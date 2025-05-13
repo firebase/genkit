@@ -236,7 +236,7 @@ func buildVariables(variables any) (map[string]any, error) {
 	m := make(map[string]any)
 
 fieldLoop:
-	for i := 0; i < vt.NumField(); i++ {
+	for i := range vt.NumField() {
 		ft := vt.Field(i)
 		if ft.PkgPath != "" {
 			continue
@@ -415,9 +415,7 @@ func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFuncti
 	// Prepare the context for rendering
 	context := map[string]any{}
 	actionCtx := core.FromContext(ctx)
-	for k, v := range actionCtx {
-		context[k] = v
-	}
+	maps.Copy(context, actionCtx)
 
 	// Call the prompt function with the input and context
 	rendered, err := promptFn(&dotprompt.DataArgument{

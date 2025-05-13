@@ -229,7 +229,7 @@ func (ds *docStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	k = min(k, len(scoredDocs))
 
 	docs := make([]*ai.Document, 0, k)
-	for i := 0; i < k; i++ {
+	for i := range k {
 		docs = append(docs, scoredDocs[i].doc)
 	}
 
