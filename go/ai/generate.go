@@ -26,7 +26,6 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -75,7 +74,7 @@ type (
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, nil,
+	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", core.ActionTypeUtil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", actionOpts))
@@ -136,13 +135,13 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return (*model)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
+	return (*model)(core.DefineStreamingAction(r, provider, name, core.ActionTypeModel, metadata, fn))
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(r *registry.Registry, provider, name string) Model {
-	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, provider, name)
+	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil
 	}

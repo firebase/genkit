@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -53,16 +53,15 @@ type runtimeFileData struct {
 // reflectionServer encapsulates everything needed to serve the Reflection API.
 type reflectionServer struct {
 	*http.Server
-	Reg             *registry.Registry // Registry from which the server gets its actions.
-	RuntimeFilePath string             // Path to the runtime file that was written at startup.
+	RuntimeFilePath string // Path to the runtime file that was written at startup.
 }
 
 // startReflectionServer starts the Reflection API server listening at the
 // value of the environment variable GENKIT_REFLECTION_PORT for the port,
 // or ":3100" if it is empty.
-func startReflectionServer(ctx context.Context, r *registry.Registry, errCh chan<- error, serverStartCh chan<- struct{}) *reflectionServer {
-	if r == nil {
-		errCh <- fmt.Errorf("nil registry provided")
+func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, serverStartCh chan<- struct{}) *reflectionServer {
+	if g == nil {
+		errCh <- fmt.Errorf("nil Genkit provided")
 		return nil
 	}
 
@@ -74,9 +73,8 @@ func startReflectionServer(ctx context.Context, r *registry.Registry, errCh chan
 	s := &reflectionServer{
 		Server: &http.Server{
 			Addr:    addr,
-			Handler: serveMux(r),
+			Handler: serveMux(g),
 		},
-		Reg: r,
 	}
 
 	slog.Debug("starting reflection server", "addr", s.Addr)
@@ -221,15 +219,15 @@ func findProjectRoot() (string, error) {
 }
 
 // serveMux returns a new ServeMux configured for the required Reflection API endpoints.
-func serveMux(r *registry.Registry) *http.ServeMux {
+func serveMux(g *Genkit) *http.ServeMux {
 	mux := http.NewServeMux()
 	// Skip wrapHandler here to avoid logging constant polling requests.
 	mux.HandleFunc("GET /api/__health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(r)))
-	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(r)))
-	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify(r)))
+	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(g)))
+	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(g)))
+	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify(g)))
 	return mux
 }
 
@@ -260,7 +258,7 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 
 // handleRunAction looks up an action by name in the registry, runs it with the
 // provided JSON input, and writes back the JSON-marshaled request.
-func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http.Request) error {
+func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
@@ -303,7 +301,7 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		resp, err := runAction(ctx, reg, body.Key, body.Input, cb, contextMap)
+		resp, err := runAction(ctx, g.reg, body.Key, body.Input, cb, contextMap)
 		if err != nil {
 			if stream {
 				reflectErr, err := json.Marshal(core.ToReflectionError(err))
@@ -329,7 +327,7 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 }
 
 // handleNotify configures the telemetry server URL from the request.
-func handleNotify(reg *registry.Registry) func(w http.ResponseWriter, r *http.Request) error {
+func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var body struct {
 			TelemetryServerURL       string `json:"telemetryServerUrl"`
@@ -342,7 +340,7 @@ func handleNotify(reg *registry.Registry) func(w http.ResponseWriter, r *http.Re
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {
-			reg.TracingState().WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
+			g.reg.TracingState().WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
 			slog.Debug("connected to telemetry server", "url", body.TelemetryServerURL)
 		}
 
@@ -357,15 +355,65 @@ func handleNotify(reg *registry.Registry) func(w http.ResponseWriter, r *http.Re
 }
 
 // handleListActions lists all the registered actions.
-func handleListActions(reg *registry.Registry) func(w http.ResponseWriter, r *http.Request) error {
+// The list is sorted by action name and contains unique action names.
+func handleListActions(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		descs := reg.ListActions()
-		descMap := map[string]action.Desc{}
-		for _, d := range descs {
+		ads := listResolvableActions(g)
+		descMap := map[string]core.ActionDesc{}
+		for _, d := range ads {
 			descMap[d.Key] = d
 		}
 		return writeJSON(r.Context(), w, descMap)
 	}
+}
+
+// listActions lists all the registered actions.
+func listActions(g *Genkit) []core.ActionDesc {
+	ads := []core.ActionDesc{}
+
+	actions := g.reg.ListActions()
+	for _, a := range actions {
+		action, ok := a.(core.Action)
+		if !ok {
+			continue
+		}
+
+		ads = append(ads, action.Desc())
+	}
+
+	sort.Slice(ads, func(i, j int) bool {
+		return ads[i].Name < ads[j].Name
+	})
+
+	return ads
+}
+
+// listResolvableActions lists all the registered and resolvable actions.
+func listResolvableActions(g *Genkit) []core.ActionDesc {
+	ads := listActions(g)
+	keys := make(map[string]struct{})
+
+	plugins := g.reg.ListPlugins()
+	for _, p := range plugins {
+		dp, ok := p.(DynamicPlugin)
+		if !ok {
+			// Not all plugins are DynamicPlugins; skip if not.
+			continue
+		}
+
+		for _, desc := range dp.ListActions() {
+			if _, exists := keys[desc.Name]; !exists {
+				ads = append(ads, desc)
+				keys[desc.Name] = struct{}{}
+			}
+		}
+	}
+
+	sort.Slice(ads, func(i, j int) bool {
+		return ads[i].Name < ads[j].Name
+	})
+
+	return ads
 }
 
 // TODO: Pull these from common types in genkit-tools.
@@ -380,7 +428,7 @@ type telemetry struct {
 }
 
 func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
-	action := reg.LookupAction(key)
+	action := reg.LookupAction(key).(core.Action)
 	if action == nil {
 		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
 	}
