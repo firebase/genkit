@@ -1,4 +1,4 @@
-package postgresql
+package alloydb
 
 import (
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -10,6 +10,7 @@ type Option func(p *engineConfig)
 type engineConfig struct {
 	projectID       string
 	region          string
+	cluster         string
 	instance        string
 	connPool        *pgxpool.Pool
 	database        string
@@ -20,12 +21,13 @@ type engineConfig struct {
 	userAgents      string
 }
 
-// WithCloudSQLInstance sets the project, region, and instance fields.
-func WithCloudSQLInstance(projectID, region, instance string) Option {
+// WithAlloyDBInstance sets the project, region, and instance fields.
+func WithAlloyDBInstance(projectID, region, cluster, instance string) Option {
 	return func(p *engineConfig) {
 		p.projectID = projectID
 		p.region = region
 		p.instance = instance
+		p.cluster = cluster
 	}
 }
 

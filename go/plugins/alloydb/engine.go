@@ -1,4 +1,4 @@
-package postgresql
+package alloydb
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"cloud.google.com/go/cloudsqlconn"
+	"cloud.google.com/go/alloydbconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/oauth2/v2"
@@ -128,13 +128,13 @@ func getServiceAccountEmail(ctx context.Context) (string, error) {
 
 // createPool creates a connection pool to the PostgreSQL database.
 func createPool(ctx context.Context, cfg engineConfig, usingIAMAuth bool) (*pgxpool.Pool, error) {
-	var dialeropts []cloudsqlconn.Option
+	dialeropts := []alloydbconn.Option{alloydbconn.WithUserAgent(cfg.userAgents)}
 	dsn := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", cfg.user, cfg.password, cfg.database)
 	if usingIAMAuth {
-		dialeropts = append(dialeropts, cloudsqlconn.WithIAMAuthN())
+		dialeropts = append(dialeropts, alloydbconn.WithIAMAuthN())
 		dsn = fmt.Sprintf("user=%s dbname=%s sslmode=disable", cfg.user, cfg.database)
 	}
-	d, err := cloudsqlconn.NewDialer(ctx, dialeropts...)
+	d, err := alloydbconn.NewDialer(ctx, dialeropts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize connection: %w", err)
 	}
@@ -143,12 +143,12 @@ func createPool(ctx context.Context, cfg engineConfig, usingIAMAuth bool) (*pgxp
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse connection config: %w", err)
 	}
-	instanceURI := fmt.Sprintf("%s:%s:%s", cfg.projectID, cfg.region, cfg.instance)
+	instanceURI := fmt.Sprintf("projects/%s/locations/%s/clusters/%s/instances/%s", cfg.projectID, cfg.region, cfg.cluster, cfg.instance)
 	config.ConnConfig.DialFunc = func(ctx context.Context, _ string, _ string) (net.Conn, error) {
 		if cfg.ipType == PRIVATE {
-			return d.Dial(ctx, instanceURI, cloudsqlconn.WithPrivateIP())
+			return d.Dial(ctx, instanceURI, alloydbconn.WithPrivateIP())
 		}
-		return d.Dial(ctx, instanceURI, cloudsqlconn.WithPublicIP())
+		return d.Dial(ctx, instanceURI, alloydbconn.WithPublicIP())
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {

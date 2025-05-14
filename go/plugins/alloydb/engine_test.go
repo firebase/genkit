@@ -1,4 +1,4 @@
-package postgresql
+package alloydb
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 		{
 			name: "valid config with instance details",
 			opts: []Option{
-				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
+				WithAlloyDBInstance("testproject", "testregion", "testcluster", "testinstance"),
 				WithDatabase("testdb"),
 			},
 			wantErr:    false,
@@ -37,7 +37,7 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 		{
 			name: "missing database",
 			opts: []Option{
-				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
+				WithAlloyDBInstance("testproject", "testregion", "testcluster", "testinstance"),
 			},
 			wantErr:    true,
 			wantIpType: PUBLIC,
@@ -53,7 +53,7 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 		{
 			name: "ip type private",
 			opts: []Option{
-				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
+				WithAlloyDBInstance("testproject", "testregion", "testcluster", "testinstance"),
 				WithDatabase("testdb"),
 				WithIPType(PRIVATE),
 			},
@@ -63,7 +63,7 @@ func TestApplyEngineOptionsConfig(t *testing.T) {
 		{
 			name: "custom EmailRetriever",
 			opts: []Option{
-				WithCloudSQLInstance("testproject", "testregion", "testinstance"),
+				WithAlloyDBInstance("testproject", "testregion", "testcluster", "testinstance"),
 				WithDatabase("testdb"),
 			},
 			wantErr:    false,
