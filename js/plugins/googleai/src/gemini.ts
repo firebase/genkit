@@ -332,7 +332,7 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const SUPPORTED_V1_MODELS = {
+const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': gemini10Pro,
 };
 
@@ -366,7 +366,6 @@ export const GENERIC_GEMINI_MODEL = modelRef({
 });
 
 export const SUPPORTED_GEMINI_MODELS = {
-  ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
 } as const;
 
@@ -1071,6 +1070,8 @@ export function defineGoogleAIModel({
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
+            cachedContentTokens:
+              response.usageMetadata?.cachedContentTokenCount,
           },
         };
       };

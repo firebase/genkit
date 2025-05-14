@@ -127,10 +127,11 @@ class VertexAI(Plugin):
         location: str | None = 'us-central1',
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
+        api_key: str | None = None,
     ):
         self._client = genai.client.Client(
             vertexai=self._vertexai,
-            api_key=None,
+            api_key=api_key,
             credentials=credentials,
             project=project,
             location=location,

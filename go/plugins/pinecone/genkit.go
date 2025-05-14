@@ -256,7 +256,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	// Wait until the vectors are visible.
 	wait := func() (bool, error) {
 		delay := 10 * time.Millisecond
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			vec, err := ds.index.queryByID(ctx, vecs[0].ID, wantValues, namespace)
 			if err != nil {
 				return false, err
