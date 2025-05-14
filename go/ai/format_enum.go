@@ -15,6 +15,7 @@
 package ai
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -67,6 +68,12 @@ func (e enumHandler) Config() ModelOutputConfig {
 	return e.config
 }
 
+func (e enumHandler) StreamCallback(cb ModelStreamCallback) ModelStreamCallback {
+	return func(ctx context.Context, mrc *ModelResponseChunk) error {
+		return cb(ctx, mrc)
+	}
+}
+
 // ParseMessage parses the message and returns the formatted message.
 func (e enumHandler) ParseMessage(m *Message) (*Message, error) {
 	if e.config.Format == OutputFormatEnum {
@@ -98,6 +105,11 @@ func (e enumHandler) ParseMessage(m *Message) (*Message, error) {
 	}
 
 	return m, nil
+}
+
+// ParseChunk parse the chunk and returns a new formatted chunk.
+func (e enumHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, error) {
+	return c, nil
 }
 
 // Get enum strings from json schema

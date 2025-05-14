@@ -148,15 +148,26 @@ func GetJsonObjectLines(text string) []string {
 			continue
 		}
 
-		// Trim leading and trailing whitespace from the current line.
-		trimmedLine := strings.TrimSpace(line)
-		// Check if the trimmed line starts with the character '{'.
-		if strings.HasPrefix(trimmedLine, "{") {
-			// If it does, append the trimmed line to our result slice.
+		// Check the given string for a json object
+		trimmedLine := GetJsonObject(line)
+		if trimmedLine != "" {
+			// If it exists, append the trimmed line to our result slice.
 			result = append(result, trimmedLine)
 		}
 	}
 
 	// Return the slice containing the filtered and trimmed lines.
+	return result
+}
+
+// Looks for a JsonObject in the given string, returns empty string if none found
+func GetJsonObject(text string) (result string) {
+	// Trim leading and trailing whitespace from the current line.
+	trimmedLine := strings.TrimSpace(text)
+	// Check if the trimmed line starts with the character '{'.
+	if strings.HasPrefix(trimmedLine, "{") {
+		result = trimmedLine
+	}
+
 	return result
 }
