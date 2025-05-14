@@ -17,7 +17,7 @@
 import {
   Message,
   MessageCreateParamsBase,
-} from '@anthropic-ai/sdk/resources/messages.mjs';
+} from '@anthropic-ai/sdk/resources/messages/messages';
 import * as assert from 'assert';
 import { GenerateRequest, GenerateResponseData } from 'genkit';
 import { describe, it } from 'node:test';
@@ -78,6 +78,68 @@ describe('toAnthropicRequest', () => {
           {
             role: 'user',
             content: [{ type: 'text', text: 'Tell a joke about dogs.' }],
+          },
+        ],
+      },
+    },
+    {
+      should: 'should transform system message with caching',
+      input: {
+        messages: [
+          {
+            role: 'system',
+            content: [
+              {
+                text: 'You are an AI assistant tasked with analyzing legal documents.',
+              },
+            ],
+          },
+          {
+            role: 'system',
+            content: [
+              {
+                text: 'Here is the full text of a complex legal agreement: [Insert full text of a 50-page legal agreement here]',
+                custom: {
+                  cacheControl: {
+                    type: 'ephemeral',
+                  },
+                },
+              },
+            ],
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                text: 'What are the key terms and conditions in this agreement?',
+              },
+            ],
+          },
+        ],
+      },
+      expectedOutput: {
+        max_tokens: 4096,
+        model: MODEL_ID,
+        system: [
+          {
+            type: 'text',
+            text: 'You are an AI assistant tasked with analyzing legal documents.',
+          },
+          {
+            type: 'text',
+            text: 'Here is the full text of a complex legal agreement: [Insert full text of a 50-page legal agreement here]',
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'What are the key terms and conditions in this agreement?',
+              },
+            ],
           },
         ],
       },
@@ -158,6 +220,8 @@ describe('fromAnthropicResponse', () => {
         usage: {
           input_tokens: 123,
           output_tokens: 234,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
         },
         stop_sequence: null,
         type: 'message',
@@ -240,6 +304,8 @@ describe('fromAnthropicResponse', () => {
         usage: {
           input_tokens: 123,
           output_tokens: 234,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
         },
         content: [
           {
