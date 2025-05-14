@@ -66,7 +66,11 @@ export class LocalFileTraceStore implements TraceStore {
     const metadata = this.index.getMetadata();
     // if the metadata file doesn't exist or it was for the older version or if
     // there are too many index files we recreate the index.
-    if (!metadata || metadata.version !== currentVersion || this.index.listIndexFiles().length > MAX_INDEX_FILES) {
+    if (
+      !metadata ||
+      metadata.version !== currentVersion ||
+      this.index.listIndexFiles().length > MAX_INDEX_FILES
+    ) {
       await this.reIndex();
     }
   }
