@@ -24,7 +24,6 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
@@ -134,7 +133,7 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 	metadataMap["evaluatorDisplayName"] = options.DisplayName
 	metadataMap["evaluatorDefinition"] = options.Definition
 
-	actionDef := (*evaluator)(core.DefineAction(r, provider, name, atype.Evaluator, map[string]any{"evaluator": metadataMap}, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
+	actionDef := (*evaluator)(core.DefineAction(r, provider, name, core.ActionTypeEvaluator, map[string]any{"evaluator": metadataMap}, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
 		var evalResponses []EvaluationResult
 		for _, datapoint := range req.Dataset {
 			if datapoint.TestCaseId == "" {
@@ -193,13 +192,13 @@ func DefineBatchEvaluator(r *registry.Registry, provider, name string, options *
 	metadataMap["evaluatorDisplayName"] = options.DisplayName
 	metadataMap["evaluatorDefinition"] = options.Definition
 
-	return (*evaluator)(core.DefineAction(r, provider, name, atype.Evaluator, map[string]any{"evaluator": metadataMap}, batchEval)), nil
+	return (*evaluator)(core.DefineAction(r, provider, name, core.ActionTypeEvaluator, map[string]any{"evaluator": metadataMap}, batchEval)), nil
 }
 
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
 func LookupEvaluator(r *registry.Registry, provider, name string) Evaluator {
-	return (*evaluator)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, atype.Evaluator, provider, name))
+	return (*evaluator)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, core.ActionTypeEvaluator, provider, name))
 }
 
 // Evaluate calls the retrivers with provided options.
