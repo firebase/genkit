@@ -452,7 +452,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 			}
 		}
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
-		return action.RunJSON(ctx, input, cb)
+		return action.(core.Action).RunJSON(ctx, input, cb)
 	})
 	if err != nil {
 		return nil, err
