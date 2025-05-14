@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -41,13 +40,13 @@ type retriever core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
 // DefineRetriever registers the given retrieve function as an action, and returns a
 // [Retriever] that runs it.
 func DefineRetriever(r *registry.Registry, provider, name string, fn RetrieverFunc) Retriever {
-	return (*retriever)(core.DefineAction(r, provider, name, atype.Retriever, nil, fn))
+	return (*retriever)(core.DefineAction(r, provider, name, core.ActionTypeRetriever, nil, fn))
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It returns nil if the retriever was not defined.
 func LookupRetriever(r *registry.Registry, provider, name string) Retriever {
-	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, atype.Retriever, provider, name))
+	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, provider, name))
 }
 
 // Retrieve runs the given [Retriever].
