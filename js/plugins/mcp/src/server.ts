@@ -23,7 +23,6 @@ import {
 } from 'genkit';
 import type { McpServerOptions } from './index.js';
 
-import { toJsonSchema } from '@genkit-ai/core/schema';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js' with { 'resolution-mode': 'import' };
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js' with { 'resolution-mode': 'import' };
 import type {
@@ -40,6 +39,7 @@ import type {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
 import { logger } from 'genkit/logging';
+import { toJsonSchema } from 'genkit/schema';
 import { ToolAction, toToolDefinition } from 'genkit/tool';
 
 /**
@@ -115,6 +115,7 @@ export class GenkitMcpServer {
       this.getPrompt.bind(this)
     );
 
+    // TODO -- use listResolvableActions.
     const allActions = await this.ai.registry.listActions();
     const toolList: ToolAction[] = [];
     const promptList: PromptAction[] = [];
