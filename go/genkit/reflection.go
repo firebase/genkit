@@ -302,7 +302,7 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		resp, err := runAction(ctx, g.reg, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
+		resp, err := runAction(ctx, g.reg, body.Key, body.Input, cb, contextMap)
 		if err != nil {
 			if stream {
 				reflectErr, err := json.Marshal(core.ToReflectionError(err))
