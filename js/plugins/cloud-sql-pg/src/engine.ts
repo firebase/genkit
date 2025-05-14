@@ -1,7 +1,7 @@
 import { AuthTypes, Connector, IpAddressTypes} from "@google-cloud/cloud-sql-connector";
 import { GoogleAuth } from "google-auth-library";
 import knex from "knex";
-import { getIAMPrincipalEmail } from "./utils/utils.js";
+import { getIAMPrincipalEmail } from "./utils";
 import { BaseIndex, DEFAULT_INDEX_NAME_SUFFIX, ExactNearestNeighbor } from "./indexes";
 
 export interface PostgresEngineArgs {
@@ -134,6 +134,16 @@ export class PostgresEngine {
 
     const engine = knex(dbConfig)
 
+    return new PostgresEngine(PostgresEngine._createKey, engine)
+  }
+
+  /**
+   * Create a PostgresEngine instance from an Knex instance.
+   *
+   * @param engine knex instance
+   * @returns PostgresEngine instance from a knex instance
+   */
+  static async fromEngine(engine: knex.Knex<any, any[]>) {
     return new PostgresEngine(PostgresEngine._createKey, engine)
   }
 
@@ -346,5 +356,6 @@ export class PostgresEngine {
       this.pool.raw(query)
     }
 }
+
 
 export default PostgresEngine;
