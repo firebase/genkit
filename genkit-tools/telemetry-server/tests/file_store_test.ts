@@ -59,7 +59,6 @@ describe('local-file-store', () => {
       traceStore: new LocalFileTraceStore({
         storeRoot,
         indexRoot,
-        useIndex: true,
       }),
     });
   });
