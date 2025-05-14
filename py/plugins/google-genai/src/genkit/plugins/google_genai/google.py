@@ -173,7 +173,7 @@ class GoogleAI(Plugin):
         embedder = Embedder(version=_clean_name, client=self._client)
 
         ai.define_embedder(
-            name=googleai_name(name),
+            name=googleai_name(_clean_name),
             fn=embedder.generate,
         )
 
