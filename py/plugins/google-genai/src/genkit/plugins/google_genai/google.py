@@ -22,16 +22,19 @@ from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
+from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,
     VertexEmbeddingModels,
 )
 from genkit.plugins.google_genai.models.gemini import (
+    SUPPORTED_MODELS,
     GeminiConfigSchema,
     GeminiModel,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
+    gemini_model_info,
 )
 from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
 
@@ -64,7 +67,13 @@ def vertexai_name(name: str) -> str:
 
 
 class GoogleAI(Plugin):
-    """GoogleAI plugin for Genkit."""
+    """GoogleAI plugin for Genkit.
+
+    Attributes:
+        name (str): The name of the plugin, typically `GOOGLEAI_PLUGIN_NAME`.
+        _vertexai (bool): Internal flag indicating if Vertex AI is being used.
+            Defaults to False.
+    """
 
     name = GOOGLEAI_PLUGIN_NAME
     _vertexai = False
@@ -75,9 +84,26 @@ class GoogleAI(Plugin):
         credentials: Credentials | None = None,
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
-    ):
+    ) -> None:
+        """Initializes the GoogleAI plugin.
+
+        Args:
+            api_key: The API key for authenticating with the Google AI service.
+                If not provided, it defaults to reading from the 'GEMINI_API_KEY'
+                environment variable.
+            credentials: Google Cloud credentials for authentication.
+                Defaults to None, in which case the client uses default authentication
+                mechanisms (e.g., application default credentials or API key).
+            debug_config: Configuration for debugging the client. Defaults to None.
+            http_options: HTTP options for configuring the client's network requests.
+                Can be an instance of HttpOptions or a dictionary. Defaults to None.
+
+        Raises:
+            ValueError: If `api_key` is not provided and the 'GEMINI_API_KEY'
+                environment variable is not set.
+        """
         api_key = api_key if api_key else os.getenv('GEMINI_API_KEY')
-        if not api_key:
+        if not api_key and credentials is None:
             raise ValueError(
                 'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable'
             )
@@ -95,9 +121,6 @@ class GoogleAI(Plugin):
 
         Args:
             ai: the action registry.
-
-        Returns:
-            None
         """
         for version in GoogleAIGeminiVersion:
             gemini_model = GeminiModel(version, self._client, ai)
@@ -111,6 +134,48 @@ class GoogleAI(Plugin):
         for version in GeminiEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
             ai.define_embedder(name=googleai_name(version), fn=embedder.generate)
+
+    def resolve_action(
+        self,
+        ai: GenkitRegistry,
+        type: ActionKind,
+        name: str,
+    ) -> None:
+        """Resolves and action.
+
+        Args:
+            ai: The Genkit registry.
+            type: The kind of action to resolve.
+            name: The name of the action to resolve.
+        """
+        if type == ActionKind.MODEL:
+            self._resolve_model(ai, name)
+        elif type == ActionKind.EMBEDDER:
+            self._resolve_embedder(ai, name)
+
+    def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
+        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+        model_ref = gemini_model_info(_clean_name)
+
+        SUPPORTED_MODELS[_clean_name] = model_ref
+
+        gemini_model = GeminiModel(_clean_name, self._client, ai)
+
+        ai.define_model(
+            name=googleai_name(_clean_name),
+            fn=gemini_model.generate,
+            metadata=gemini_model.metadata,
+            config_schema=GeminiConfigSchema,
+        )
+
+    def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
+        _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
+        embedder = Embedder(version=_clean_name, client=self._client)
+
+        ai.define_embedder(
+            name=googleai_name(name),
+            fn=embedder.generate,
+        )
 
 
 class VertexAI(Plugin):
@@ -165,7 +230,7 @@ class VertexAI(Plugin):
             ai.define_model(name=vertexai_name(version), fn=imagen_model.generate, metadata=imagen_model.metadata)
 
 
-def _inject_attribution_headers(http_options):
+def _inject_attribution_headers(http_options: dict | None = None):
     """Adds genkit client info to the appropriate http headers."""
     if not http_options:
         http_options = HttpOptions()
