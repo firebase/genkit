@@ -59,7 +59,7 @@ const response = await ai.generate({
   tools: mcpTools,
 });
 
-console.log(response.text());
+console.log(response.text);
 ```
 
 The `createMcpManager` function initializes a `GenkitMcpClientManager` instance, which handles the lifecycle and communication with the defined MCP servers.
