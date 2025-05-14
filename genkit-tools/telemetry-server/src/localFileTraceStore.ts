@@ -274,7 +274,7 @@ export class Index {
   }
 
   listIndexFiles() {
-    return fs.readdirSync(this.indexRoot);
+    return fs.readdirSync(this.indexRoot).filter((f) => f.startsWith('idx_'));
   }
 
   add(traceData: TraceData) {
@@ -295,6 +295,9 @@ export class Index {
     }
     if (rootSpan?.endTime) {
       indexData['end'] = rootSpan.endTime;
+    }
+    if (rootSpan?.displayName) {
+      indexData['status'] = rootSpan.status?.code ?? 'UNKNOWN';
     }
 
     try {
