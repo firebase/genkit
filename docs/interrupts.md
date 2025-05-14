@@ -63,7 +63,7 @@ For this use case, use the Genkit instance's `defineInterrupt()` method:
 
 ```ts
 import { genkit, z } from 'genkit';
-import { googleAI, gemini15Flash } from '@genkitai/google-ai';
+import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
 
 const ai = genkit({
   plugins: [googleAI()],
