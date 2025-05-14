@@ -230,7 +230,7 @@ class VertexAI(Plugin):
             ai.define_model(name=vertexai_name(version), fn=imagen_model.generate, metadata=imagen_model.metadata)
 
 
-def _inject_attribution_headers(http_options: dict | None = None):
+def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
     """Adds genkit client info to the appropriate http headers."""
     if not http_options:
         http_options = HttpOptions()
