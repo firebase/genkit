@@ -39,7 +39,6 @@ func (p *Postgres) Init(ctx context.Context, g *genkit.Genkit) error {
 	if p.engine.Pool == nil {
 		panic("postgres.Init engine has no pool")
 	}
-
 	p.initted = true
 	return nil
 
@@ -62,9 +61,13 @@ type Config struct {
 
 // DefineRetriever defines a Retriever with the given configuration.
 func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg *Config) (ai.Retriever, error) {
-	p := genkit.LookupPlugin(g, provider).(*Postgres)
-	if p == nil {
+	plugin := genkit.LookupPlugin(g, provider)
+	if plugin == nil {
 		return nil, errors.New("postgres plugin not found; call genkit.Init with postgres plugin")
+	}
+	p, ok := plugin.(*Postgres)
+	if !ok {
+		return nil, errors.New("plugin not a Postgres type")
 	}
 
 	ds, err := newDocStore(ctx, p, cfg)
@@ -77,9 +80,13 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg *Config) (ai.Ret
 
 // DefineIndexer defines an Indexer with the given configuration.
 func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg *Config) (ai.Indexer, error) {
-	p := genkit.LookupPlugin(g, provider).(*Postgres)
-	if p == nil {
-		return nil, errors.New(" postgres plugin not found; call genkit.Init with postgres plugin")
+	plugin := genkit.LookupPlugin(g, provider)
+	if plugin == nil {
+		return nil, errors.New("postgres plugin not found; call genkit.Init with postgres plugin")
+	}
+	p, ok := plugin.(*Postgres)
+	if !ok {
+		return nil, errors.New("plugin not a Postgres type")
 	}
 	ds, err := newDocStore(ctx, p, cfg)
 	if err != nil {

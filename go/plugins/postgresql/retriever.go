@@ -2,12 +2,13 @@ package postgresql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/pgvector/pgvector-go"
 )
 
 // RetrieverOptions options for retriever
@@ -88,7 +89,12 @@ func (ds *docStore) query(ctx context.Context, ropt *RetrieverOptions, embbeding
 			}
 
 			if ds.config.MetadataJSONColumn == col {
-				content = append(content, ai.NewJSONPart(values[i].(string)))
+				mapMetadata := map[string]any{}
+				err = json.Unmarshal(values[i].([]byte), &mapMetadata)
+				if err != nil {
+					return nil, err
+				}
+				meta[col] = mapMetadata
 				continue
 			}
 
@@ -107,15 +113,6 @@ func (ds *docStore) query(ctx context.Context, ropt *RetrieverOptions, embbeding
 }
 
 func (ds *docStore) buildQuery(ropt *RetrieverOptions, embedding []float32) string {
-
-	vectorToString := func(v []float32) string {
-		stringArray := make([]string, len(v))
-		for i, val := range v {
-			stringArray[i] = strconv.FormatFloat(float64(val), 'f', -1, 32)
-		}
-		return "[" + strings.Join(stringArray, ", ") + "]"
-	}
-
 	operator := ropt.DistanceStrategy.operator()
 	searchFunction := ropt.DistanceStrategy.similaritySearchFunction()
 	columns := append(ds.config.MetadataColumns, ds.config.ContentColumn)
@@ -127,11 +124,11 @@ func (ds *docStore) buildQuery(ropt *RetrieverOptions, embedding []float32) stri
 	if ropt.Filter != nil {
 		whereClause = fmt.Sprintf("WHERE %s", ropt.Filter)
 	}
-
+	vectorAsString := pgvector.NewVector(embedding).String()
 	stmt := fmt.Sprintf(`
         SELECT %s, %s(%s, '%s') AS distance FROM "%s"."%s" %s ORDER BY %s %s '%s' LIMIT %d;`,
-		columnNames, searchFunction, ds.config.EmbeddingColumn, vectorToString(embedding), ds.config.SchemaName, ds.config.TableName,
-		whereClause, ds.config.EmbeddingColumn, operator, vectorToString(embedding), ropt.K)
+		columnNames, searchFunction, ds.config.EmbeddingColumn, vectorAsString, ds.config.SchemaName, ds.config.TableName,
+		whereClause, ds.config.EmbeddingColumn, operator, vectorAsString, ropt.K)
 
 	return stmt
 }
