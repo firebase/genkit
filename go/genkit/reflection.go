@@ -428,7 +428,7 @@ type telemetry struct {
 }
 
 func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
-	action := reg.LookupAction(key).(core.Action)
+	action := reg.LookupAction(key)
 	if action == nil {
 		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
 	}
@@ -440,7 +440,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 	output, err := tracing.RunInNewSpan(ctx, reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
-		return action.RunJSON(ctx, input, cb)
+		return action.(core.Action).RunJSON(ctx, input, cb)
 	})
 	if err != nil {
 		return nil, err
