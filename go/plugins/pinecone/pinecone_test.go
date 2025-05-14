@@ -100,7 +100,7 @@ func TestPinecone(t *testing.T) {
 	// so we don't know what the number of vectors should be.
 	wait := func() bool {
 		delay := 10 * time.Millisecond
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			vec, err := idx.queryByID(ctx, "1", 0, namespace)
 			if err != nil {
 				t.Fatal(err)

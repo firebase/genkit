@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -555,7 +556,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 	var toolResponses []*Part
 	hasInterrupts := false
-	for i := 0; i < toolCount; i++ {
+	for range toolCount {
 		result := <-resultChan
 		if result.err != nil {
 			var interruptErr *ToolInterruptError
@@ -591,7 +592,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	}
 
 	newReq := req
-	newReq.Messages = append(append([]*Message{}, req.Messages...), resp.Message, toolMessage)
+	newReq.Messages = append(slices.Clone(req.Messages), resp.Message, toolMessage)
 
 	return newReq, nil, nil
 }
