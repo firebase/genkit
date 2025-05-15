@@ -87,6 +87,7 @@ type ImagenConfig struct {
 	// Filter level to safety filtering
 	SafetySetting HarmBlockThreshold `json:"safetySetting,omitempty"`
 	// Sets an invisible watermark to the generated images
+	// Only available in VertexAI API
 	AddWatermark bool `json:"addWatermark,omitempty"`
 	// Cloud Storage URI used to store the generated images.
 	OutputGCSURI string `json:"outputGcsUri,omitempty"`
