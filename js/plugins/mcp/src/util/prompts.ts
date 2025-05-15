@@ -14,8 +14,23 @@
  * limitations under the License.
  */
 
+import {
+  GenerateResponse as AiGenerateResponse,
+  GenerateStreamResponse as AiGenerateStreamResponse,
+  ExecutablePrompt,
+  GenerateResponseChunk,
+  PromptGenerateOptions,
+} from '@genkit-ai/ai';
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
-import { Genkit, JSONSchema } from 'genkit';
+import {
+  GenerateOptions,
+  Genkit,
+  GenkitError,
+  JSONSchema,
+  MessageData,
+  ToolAction,
+  z,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import { fromMcpPromptMessage } from './message.js';
 
@@ -68,6 +83,86 @@ function registerPrompt(
   });
 }
 
+function createExecutablePrompt<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  prompt: Prompt,
+  params: { name: string; serverName: string }
+): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
+  const callPrompt = async (
+    input?: z.infer<I>,
+    opts?: PromptGenerateOptions<O, CustomOptions>
+  ): Promise<AiGenerateResponse<z.infer<O>>> => {
+    logger.debug(
+      `[MCP] Calling MCP prompt ${params.name}/${prompt.name} with arguments`,
+      JSON.stringify(input)
+    );
+    const result = await client.getPrompt({
+      name: prompt.name,
+      arguments: input,
+    });
+    const messages = result.messages.map(fromMcpPromptMessage);
+    return new AiGenerateResponse<z.infer<O>>({ message: messages.at(-1) });
+  };
+
+  callPrompt.stream = async (
+    input?: z.infer<I>,
+    opts?: PromptGenerateOptions<O, CustomOptions>
+  ): Promise<AiGenerateStreamResponse<z.infer<O>>> => {
+    logger.debug(
+      `[MCP] Streaming MCP prompt ${params.name}/${prompt.name} with arguments`,
+      JSON.stringify(input)
+    );
+    const result = await client.getPrompt({
+      name: prompt.name,
+      arguments: input,
+    });
+    const messages: MessageData[] = result.messages.map(fromMcpPromptMessage);
+
+    return {
+      get stream(): AsyncIterable<GenerateResponseChunk> {
+        async function* generateAsyncIterable() {
+          for (let index = 0; index < messages.length; index++) {
+            yield new GenerateResponseChunk(messages[index], {
+              role: messages[index].role,
+              index,
+            });
+          }
+        }
+        return generateAsyncIterable();
+      },
+
+      get response(): Promise<AiGenerateResponse<O>> {
+        return Promise.resolve(
+          new AiGenerateResponse<z.infer<O>>({ message: messages.at(-1) })
+        );
+      },
+    } as AiGenerateStreamResponse<O>;
+  };
+
+  callPrompt.render = async (
+    input?: I,
+    opts?: PromptGenerateOptions<O, CustomOptions>
+  ): Promise<GenerateOptions<O, CustomOptions>> => {
+    throw new GenkitError({
+      status: 'UNIMPLEMENTED',
+      message: `[MCP] prompt.render not supported with MCP`,
+    });
+  };
+
+  callPrompt.asTool = async (): Promise<ToolAction> => {
+    throw new GenkitError({
+      status: 'UNIMPLEMENTED',
+      message: `[MCP] prompt.asTool not supported with MCP`,
+    });
+  };
+
+  return callPrompt as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
+}
+
 /**
  * Lookup all tools available in the server and register each as a Genkit tool.
  */
@@ -83,4 +178,48 @@ export async function registerAllPrompts(
     cursor = nextCursor;
     if (!cursor) break;
   }
+}
+
+/**
+ * Lookup all tools available in the server and register each as a Genkit tool.
+ */
+export async function createExecutablePrompts(
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  params: { name: string; serverName: string }
+): Promise<ExecutablePrompt[]> {
+  let cursor: string | undefined;
+
+  let allPrompts: ExecutablePrompt[] = [];
+  while (true) {
+    const { nextCursor, prompts } = await client.listPrompts({ cursor });
+    allPrompts.push(
+      ...prompts.map((p) => createExecutablePrompt(client, p, params))
+    );
+    cursor = nextCursor;
+    if (!cursor) break;
+  }
+  return allPrompts;
+}
+
+/**
+ * Lookup a specified prompt from the server and return as an ExecutablePrompt.
+ */
+export async function getExecutablePrompt(
+  client: any, // Use 'any' or let TS infer; removing specific type import
+  params: { name: string; serverName: string; promptName: string }
+): Promise<ExecutablePrompt | undefined> {
+  let cursor: string | undefined;
+
+  while (true) {
+    const { nextCursor, prompts } = await client.listPrompts({ cursor });
+    const maybePrompt = prompts.find(
+      (p: Prompt) => p.name === params.promptName
+    );
+    if (maybePrompt) {
+      return createExecutablePrompt(client, maybePrompt, params);
+    }
+    cursor = nextCursor;
+    if (!cursor) break;
+  }
+  return undefined;
 }

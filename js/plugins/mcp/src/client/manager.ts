@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { ExecutablePrompt } from '@genkit-ai/ai';
 import { Genkit, ToolAction } from 'genkit';
 import { logger } from 'genkit/logging';
 import { GenkitMcpClient, McpServerConfig } from './client';
@@ -39,6 +40,14 @@ export interface McpManagerOptions {
   mcpServers?: Record<string, McpServerConfig>;
 }
 
+/** Internal representation of client state for logging. */
+interface ClientState {
+  error?: {
+    message: string;
+    detail?: any;
+  };
+}
+
 /**
  * Manages connections to multiple MCP (Model Context Protocol) servers.
  * Each server connection is individually configured and managed by an instance of `GenkitMcpClient`.
@@ -50,6 +59,7 @@ export interface McpManagerOptions {
 export class GenkitMcpManager {
   name: string;
   private _clients: Record<string, GenkitMcpClient> = {};
+  private _clientStates: Record<string, ClientState> = {};
   private _readyListeners: {
     resolve: () => void;
     reject: (err: Error) => void;
@@ -85,14 +95,29 @@ export class GenkitMcpManager {
   async connect(serverName: string, config: McpServerConfig) {
     const existingEntry = this._clients[serverName];
     if (existingEntry) {
-      await existingEntry.disconnect();
+      try {
+        await existingEntry.disconnect();
+      } catch (e) {
+        existingEntry.disable();
+        this.setError(serverName, {
+          message: `[MCP Manager] Error disconnecting from existing connection for ${serverName}`,
+          detail: `Details: ${e}`,
+        });
+      }
     }
 
     logger.info(
       `[MCP Manager] Connecting to MCP server '${serverName}' in manager '${this.name}'.`
     );
-    const client = new GenkitMcpClient({ ...config, name: serverName });
-    this._clients[serverName] = client;
+    try {
+      const client = new GenkitMcpClient({ ...config, name: serverName });
+      this._clients[serverName] = client;
+    } catch (e) {
+      this.setError(serverName, {
+        message: `[MCP Manager] Error connecting to ${serverName} with config ${config}`,
+        detail: `Details: ${e}`,
+      });
+    }
   }
 
   /**
@@ -105,7 +130,15 @@ export class GenkitMcpManager {
     logger.info(
       `[MCP Manager] Disconnecting MCP server '${serverName}' in manager '${this.name}'.`
     );
-    await client.disconnect();
+    try {
+      await client.disconnect();
+    } catch (e) {
+      client.disable();
+      this.setError(serverName, {
+        message: `[MCP Manager] Error disconnecting from existing connection for ${serverName}`,
+        detail: `Details: ${e}`,
+      });
+    }
     delete this._clients[serverName];
   }
 
@@ -121,7 +154,7 @@ export class GenkitMcpManager {
       logger.info(
         `[MCP Manager] Disabling MCP server '${serverName}' in manager '${this.name}'`
       );
-      await client.disable();
+      client.disable();
     }
   }
 
@@ -136,7 +169,15 @@ export class GenkitMcpManager {
       logger.info(
         `[MCP Manager] Reenabling MCP server '${serverName}' in manager '${this.name}'`
       );
-      await client.reenable();
+      try {
+        await client.reenable();
+      } catch (e) {
+        client.disable();
+        this.setError(serverName, {
+          message: `[MCP Manager] Error reenabling server ${serverName}`,
+          detail: `Details: ${e}`,
+        });
+      }
     }
   }
 
@@ -152,7 +193,15 @@ export class GenkitMcpManager {
       logger.info(
         `[MCP Manager] Reconnecting MCP server '${serverName}' in manager '${this.name}'`
       );
-      await client.reconnect();
+      try {
+        await client.reconnect();
+      } catch (e) {
+        client.disable();
+        this.setError(serverName, {
+          message: `[MCP Manager] Error reconnecting to server ${serverName}`,
+          detail: `Details: ${e}`,
+        });
+      }
     }
   }
 
@@ -224,15 +273,59 @@ export class GenkitMcpManager {
     for (const serverName in this._clients) {
       const client = this._clients[serverName];
       if (client.isEnabled()) {
-        const tools = await client.getActiveTools(ai);
+        const tools = await client.getActiveTools(ai).catch((e) => {
+          logger.error(
+            `Error fetching active tools from client ${serverName}.`,
+            JSON.stringify(e)
+          );
+          return [] as ToolAction[];
+        });
         allTools.push(...tools);
       }
-      //   if (capabilities?.prompts)
-      //     promises.push(
-      //       registerAllPrompts(ai, serverRef.client, { name, serverName })
-      //     );
     }
 
     return allTools;
+  }
+
+  /**
+   * Get the specified prompt as an `ExecutablePrompt` available through the
+   * specified server. If no such prompt is found, return undefined.
+   */
+  async getPrompt(
+    serverName: string,
+    promptName: string
+  ): Promise<ExecutablePrompt | undefined> {
+    await this.ready();
+    const client = this._clients[serverName];
+    if (!client) {
+      logger.error(`No client found with name '${serverName}'.`);
+      return;
+    }
+    if (client.isEnabled()) {
+      const prompt = await client.getPrompt(promptName);
+      if (!prompt) {
+        logger.error(
+          `[MCP Manager] Unable to fetch the specified ${promptName} in server ${serverName}.`
+        );
+        return;
+      }
+      return prompt;
+    }
+    return;
+  }
+
+  /** Helper method to track and log client errors. */
+  private setError(
+    serverName: string,
+    error: {
+      message: string;
+      detail?: any;
+    }
+  ) {
+    this._clientStates[serverName] = { error };
+    logger.error(
+      `An error has occured while managing your MCP client '${serverName}'. The client may be disabled to avoid further issues. Please resolve the issue and reenable the client '${serverName}' to continue using its resources.`
+    );
+    logger.error(error);
   }
 }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { ExecutablePrompt } from '@genkit-ai/ai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -23,6 +24,7 @@ import { logger } from 'genkit/logging';
 import {
   fetchDynamicResourceTools,
   fetchDynamicTools,
+  getExecutablePrompt,
   transportFrom,
 } from '../util';
 export type { SSEClientTransportOptions, StdioServerParameters, Transport };
@@ -215,7 +217,7 @@ export class GenkitMcpClient {
    * but retains the server's configuration. Does nothing if the server is
    * already disabled.
    */
-  async disable() {
+  disable() {
     if (!this.isEnabled()) return;
     if (this._server) {
       logger.info(`[MCP Client] Disabling MCP server in client '${this.name}'`);
@@ -277,10 +279,6 @@ export class GenkitMcpClient {
             name: this.name,
           }))
         );
-      // if (capabilities?.prompts)
-      //   promises.push(
-      //     registerAllPrompts(ai, serverRef.client, { name, serverName })
-      //   );
       if (capabilities?.resources)
         tools.push(
           ...fetchDynamicResourceTools(ai, this._server.client, {
@@ -291,5 +289,26 @@ export class GenkitMcpClient {
     }
 
     return tools;
+  }
+
+  /**
+   * Get the specified prompt as an `ExecutablePrompt` available through this
+   * client. If no such prompt is found, return undefined.
+   */
+  async getPrompt(promptName: string): Promise<ExecutablePrompt | undefined> {
+    await this.ready();
+
+    if (this._server) {
+      const capabilities = await this._server.client.getServerCapabilities();
+      if (capabilities?.prompts) {
+        return await getExecutablePrompt(this._server.client, {
+          serverName: this.name,
+          promptName,
+          name: this.name,
+        });
+      }
+      logger.info(`[MCP Client] No prompts are found in this MCP server.`);
+    }
+    return;
   }
 }
