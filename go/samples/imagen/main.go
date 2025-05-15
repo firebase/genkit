@@ -36,7 +36,7 @@ func main() {
 	}
 
 	genkit.DefineFlow(g, "image-generation", func(ctx context.Context, input string) (string, error) {
-		_, err = genkit.Generate(ctx, g,
+		r, err := genkit.Generate(ctx, g,
 			ai.WithModelName("vertexai/imagen-3.0-generate-001"),
 			ai.WithPrompt("Generate an image of %s", input),
 			ai.WithConfig(googlegenai.ImagenConfig{
@@ -54,7 +54,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		return "", nil
+		return r.Text(), nil
 	})
 
 	<-ctx.Done()
