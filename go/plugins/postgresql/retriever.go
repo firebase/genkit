@@ -33,10 +33,19 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		return nil, fmt.Errorf("postgres.Retrieve options have type %T, want %T", req.Options, &RetrieverOptions{})
 	}
 
+	if ropt.K <= 0 {
+		ropt.K = defaultCount
+	}
+
+	if ropt.DistanceStrategy == nil {
+		ropt.DistanceStrategy = defaultDistanceStrategy
+	}
+
 	ereq := &ai.EmbedRequest{
 		Documents: []*ai.Document{req.Query},
 		Options:   ds.config.EmbedderOptions,
 	}
+
 	eres, err := ds.config.Embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.Retrieve retrieve embedding failed: %v", err)
@@ -90,10 +99,13 @@ func (ds *docStore) query(ctx context.Context, ropt *RetrieverOptions, embbeding
 
 			if ds.config.MetadataJSONColumn == col {
 				mapMetadata := map[string]any{}
-				err = json.Unmarshal(values[i].([]byte), &mapMetadata)
-				if err != nil {
-					return nil, err
+				if values[i] != nil {
+					err = json.Unmarshal(values[i].([]byte), &mapMetadata)
+					if err != nil {
+						return nil, err
+					}
 				}
+
 				meta[col] = mapMetadata
 				continue
 			}

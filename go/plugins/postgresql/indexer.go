@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -37,19 +38,31 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 
 		// generate the id if it's not defined
 		_, okString := doc.Metadata[ds.config.IDColumn].(string)
-		_, okBytes := doc.Metadata[ds.config.IDColumn].([]byte) // represents the uuid
+		idBytes, okBytes := doc.Metadata[ds.config.IDColumn].([]byte) // represents the uuid
 
 		if !okString && !okBytes {
 			doc.Metadata[ds.config.IDColumn] = uuid.New().String()
 		}
 
+		if okBytes {
+			doc.Metadata[ds.config.IDColumn] = string(idBytes)
+		}
+
+		doc.Metadata[ds.config.ContentColumn] = ""
+		if len(doc.Content) > 0 {
+			doc.Metadata[ds.config.ContentColumn] = doc.Content[0].Text
+		}
+
 		embeddingString := pgvector.NewVector(eres.Embeddings[i].Embedding).String()
 		query, values, err := ds.generateAddDocumentsQuery(
-			doc.Metadata[ds.config.IDColumn].(string), doc.Metadata[ds.config.ContentColumn].(string), embeddingString, doc.Metadata)
+			doc.Metadata[ds.config.IDColumn].(string),
+			doc.Metadata[ds.config.ContentColumn].(string),
+			embeddingString,
+			doc.Metadata)
 		if err != nil {
 			return err
 		}
-		b.Queue(query, values)
+		b.Queue(query, values...)
 	}
 
 	batchResults := ds.engine.Pool.SendBatch(ctx, b)
@@ -67,13 +80,13 @@ func (ds *docStore) generateAddDocumentsQuery(id, content, embedding string, met
 		metadataColNames = ", " + strings.Join(ds.config.MetadataColumns, ", ")
 	}
 
-	if ds.config.MetadataJSONColumn != "" {
+	if ds.config.MetadataJSONColumn != "" && !slices.Contains(ds.config.MetadataColumns, ds.config.MetadataJSONColumn) {
 		metadataColNames += ", " + ds.config.MetadataJSONColumn
 	}
 
 	insertStmt := fmt.Sprintf(`INSERT INTO %q.%q (%s, %s, %s%s)`,
 		ds.config.SchemaName, ds.config.TableName, ds.config.IDColumn, ds.config.ContentColumn, ds.config.EmbeddingColumn, metadataColNames)
-	valuesStmt := "VALUES ($1, $2, $3"
+	valuesStmt := " VALUES ($1, $2, $3"
 	values := []any{id, content, embedding}
 
 	// Add metadata
@@ -87,7 +100,7 @@ func (ds *docStore) generateAddDocumentsQuery(id, content, embedding string, met
 		}
 	}
 	// Add JSON column and/or close statement
-	if ds.config.MetadataJSONColumn != "" {
+	if ds.config.MetadataJSONColumn != "" && !slices.Contains(ds.config.MetadataColumns, ds.config.MetadataJSONColumn) {
 		valuesStmt += fmt.Sprintf(", $%d", len(values)+1)
 		metadataJSON, err := json.Marshal(metadata)
 		if err != nil {

@@ -3,17 +3,30 @@ package postgresql
 import (
 	"context"
 	"flag"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	TestTable             = "test_embeddings"
+	SchemaName            = "test_schema"
+	CustomContentColumn   = "my_content"
+	CustomEmbeddingColumn = "my_embedding"
+	CustomIdColumn        = "custom_id"
+	CustomMetadataColumn  = "custom_metadata"
+	DIM                   = 768
 )
 
 var testUsername = flag.String("test-postgres_user", "", "postgres username for tests")
 var testPassword = flag.String("test-postgres_password", "", "postgres password  for tests")
-var testDatabase = flag.String("test-postgres-database", "", "postgres database")
+var testDatabase = flag.String("test-postgres-database", "test_database", "postgres database")
 var testProjectID = flag.String("test-postgres-project-id", "", "postgres project id  for tests")
 var testRegion = flag.String("test-postgres-region", "", "postgres region for tests")
 var testInstance = flag.String("test-postgres-instance", "", "postgres instance for tests")
@@ -71,8 +84,6 @@ func TestPostgres(t *testing.T) {
 
 	ctx := context.Background()
 
-	//embedder := newFakeEmbedder()
-
 	pEngine, err := NewPostgresEngine(ctx,
 		WithUser(*testUsername),
 		WithPassword(*testPassword),
@@ -93,32 +104,118 @@ func TestPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create test schema and table
+	_, err = pEngine.Pool.Exec(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", SchemaName))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	_, err = pEngine.Pool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", SchemaName, TestTable))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	// Initialize the vectorstore table
+	err = pEngine.InitVectorstoreTable(ctx, VectorstoreTableOptions{
+		TableName:          TestTable,
+		VectorSize:         DIM,
+		SchemaName:         SchemaName,
+		ContentColumnName:  CustomContentColumn,
+		EmbeddingColumn:    CustomEmbeddingColumn,
+		MetadataJSONColumn: CustomMetadataColumn,
+		IDColumn: Column{
+			Name:     CustomIdColumn,
+			Nullable: false,
+		},
+		MetadataColumns: []Column{
+			{
+				Name:     "source",
+				DataType: "text",
+				Nullable: true,
+			},
+			{
+				Name:     "name",
+				DataType: "text",
+				Nullable: true,
+			},
+		},
+		OverwriteExisting: true,
+		StoreMetadata:     true,
+	})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	d1 := ai.DocumentFromText("hello1", map[string]any{"source": "test1", "name": "some_value1"})
+	d2 := ai.DocumentFromText("hello2", map[string]any{"source": "test2", "name": "some_value2"})
+	d3 := ai.DocumentFromText("goodbye", map[string]any{"source": "test3", "name": "some_value3"})
+
+	embedder := newFakeEmbedder([3]*ai.Document{d1, d2, d3})
+
 	cfg := &Config{
-		TableName:             "my-documents",
-		SchemaName:            "public",
-		ContentColumn:         "content",
-		EmbeddingColumn:       "embedding",
-		MetadataColumns:       []string{"source", "category"},
-		IDColumn:              "custom_id",
-		MetadataJSONColumn:    "metadata",
+		TableName:             TestTable,
+		SchemaName:            SchemaName,
+		ContentColumn:         CustomContentColumn,
+		EmbeddingColumn:       CustomEmbeddingColumn,
+		MetadataColumns:       []string{"source", "name"},
+		IDColumn:              CustomIdColumn,
+		MetadataJSONColumn:    CustomMetadataColumn,
 		IgnoreMetadataColumns: []string{"created_at", "updated_at"},
-		Embedder:              nil,
+		Embedder:              genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
 		EmbedderOptions:       nil,
 	}
 
-	indexer, err := DefineIndexer(ctx, g, cfg)
+	indexer, err := DefineIndexer(ctx, g, postgres, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	indexer.Name()
+	reqIndexer := &ai.IndexerRequest{
+		Documents: []*ai.Document{d1, d2, d3},
+		Options:   nil}
 
-	retriever, err := DefineRetriever(ctx, g, cfg)
+	err = indexer.Index(ctx, reqIndexer)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	rows, err := pEngine.Pool.Query(ctx, fmt.Sprintf("SELECT * FROM %s.%s", SchemaName, TestTable))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if !rows.Next() {
+		t.Fatal("must have a single document")
+	}
+
+	retriever, err := DefineRetriever(ctx, g, postgres, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	retriever.Name()
+	resp, err := retriever.Retrieve(ctx, &ai.RetrieverRequest{
+		Query: d1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	require.Len(t, resp.Documents, 3)
+	require.Len(t, resp.Documents[0].Content, 1)
+	assert.Equal(t, "hello1", resp.Documents[0].Content[0].Text)
+
+	resp, err = retriever.Retrieve(ctx, &ai.RetrieverRequest{
+		Query: d1,
+		Options: &RetrieverOptions{
+			Filter: "name='some_value2'",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	require.Len(t, resp.Documents, 1)
+	require.Len(t, resp.Documents[0].Content, 1)
+	assert.Equal(t, "hello2", resp.Documents[0].Content[0].Text)
 
 }
 
@@ -126,27 +223,22 @@ func TestPostgres(t *testing.T) {
 Helper functions
 ************** */
 
-func newFakeEmbedder() *fakeembedder.Embedder {
-	const dim = 768
+func newFakeEmbedder(docs [3]*ai.Document) *fakeembedder.Embedder {
 
-	v1 := make([]float32, dim)
-	v2 := make([]float32, dim)
-	v3 := make([]float32, dim)
+	v1 := make([]float32, DIM)
+	v2 := make([]float32, DIM)
+	v3 := make([]float32, DIM)
 	for i := range v1 {
 		v1[i] = float32(i)
 		v2[i] = float32(i)
-		v3[i] = float32(dim - i)
+		v3[i] = float32(DIM - i)
 	}
 	v2[0] = 1
 
-	d1 := ai.DocumentFromText("hello1", map[string]any{"name": "hello1"})
-	d2 := ai.DocumentFromText("hello2", map[string]any{"name": "hello2"})
-	d3 := ai.DocumentFromText("goodbye", map[string]any{"name": "goodbye"})
-
 	embedder := fakeembedder.New()
-	embedder.Register(d1, v1)
-	embedder.Register(d2, v2)
-	embedder.Register(d3, v3)
+	embedder.Register(docs[0], v1)
+	embedder.Register(docs[1], v2)
+	embedder.Register(docs[2], v3)
 
 	return embedder
 }

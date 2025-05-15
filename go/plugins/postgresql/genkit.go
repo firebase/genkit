@@ -2,7 +2,6 @@ package postgresql
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -60,16 +59,7 @@ type Config struct {
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg *Config) (ai.Retriever, error) {
-	plugin := genkit.LookupPlugin(g, provider)
-	if plugin == nil {
-		return nil, errors.New("postgres plugin not found; call genkit.Init with postgres plugin")
-	}
-	p, ok := plugin.(*Postgres)
-	if !ok {
-		return nil, errors.New("plugin not a Postgres type")
-	}
-
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (ai.Retriever, error) {
 	ds, err := newDocStore(ctx, p, cfg)
 	if err != nil {
 		return nil, err
@@ -79,15 +69,7 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg *Config) (ai.Ret
 }
 
 // DefineIndexer defines an Indexer with the given configuration.
-func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg *Config) (ai.Indexer, error) {
-	plugin := genkit.LookupPlugin(g, provider)
-	if plugin == nil {
-		return nil, errors.New("postgres plugin not found; call genkit.Init with postgres plugin")
-	}
-	p, ok := plugin.(*Postgres)
-	if !ok {
-		return nil, errors.New("plugin not a Postgres type")
-	}
+func DefineIndexer(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (ai.Indexer, error) {
 	ds, err := newDocStore(ctx, p, cfg)
 	if err != nil {
 		return nil, err
