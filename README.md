@@ -103,12 +103,12 @@ Want to skip the local setup? Click below to try out Genkit using [Firebase Stud
 Take a look at some samples of Genkit in use:
 
 - ["AI barista"](https://github.com/firebase/genkit/blob/main/samples/js-coffee-shop) -- demonstrates simple LLM usage
-- [A simple chatbot with a JavaScript frontend](https://github.com/firebase/genkit/blob/main/samples/chatbot) -- add history to LLM sessions
+- [A simple chatbot with a JavaScript frontend](https://github.com/firebase/genkit/blob/main/samples/js-chatbot) -- add history to LLM sessions
 - [Restaurant menu Q&A app](https://github.com/firebase/genkit/blob/main/samples/js-menu) -- this sample shows progressively
   more sophisticated versions of a menu understanding app.
 - [Streaming to an Angular frontend](https://github.com/firebase/genkit/blob/main/samples/js-angular)
 - [js-schoolAgent](https://github.com/firebase/genkit/blob/main/samples/js-schoolAgent/): A simple school assistant system with a routing agent and specialized agents
-- [Prompts](https://github.com/firebase/genkit/blob/main/samples/prompts/): Shows off several prompting techniques
+- [Prompts](https://github.com/firebase/genkit/blob/main/samples/js-prompts/): Shows off several prompting techniques
 
 ## Connect with us
 
