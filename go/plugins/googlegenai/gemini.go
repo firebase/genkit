@@ -451,11 +451,6 @@ func generate(
 	}
 	resp.Candidates = merged
 	r = translateResponse(resp)
-	if r == nil {
-		// No candidates were returned. Probably rare, but it might avoid a NPE
-		// to return an empty instead of nil result.
-		r = &ai.ModelResponse{}
-	}
 	r.Request = input
 	if cache != nil {
 		r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
@@ -840,9 +835,17 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
-	r := translateCandidate(resp.Candidates[0])
+	var r *ai.ModelResponse
+	if len(resp.Candidates) > 0 {
+		r = translateCandidate(resp.Candidates[0])
+	} else {
+		r = &ai.ModelResponse{}
+	}
 
-	r.Usage = &ai.GenerationUsage{}
+	if r.Usage == nil {
+		r.Usage = &ai.GenerationUsage{}
+	}
+
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
 		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
