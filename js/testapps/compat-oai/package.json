@@ -1,0 +1,29 @@
+{
+  "name": "compat-oai-example",
+  "version": "0.22.0",
+  "description": "",
+  "main": "lib/index.js",
+  "private": true,
+  "scripts": {
+    "start": "node lib/index.js",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "genkit:dev": "cross-env GENKIT_ENV=dev npm run dev",
+    "genkit:start": "cross-env GENKIT_ENV=dev genkit start -- tsx --watch src/index.ts",
+    "dev": "export GENKIT_RUNTIME_ID=$(openssl rand -hex 8) && node lib/index.js 2>&1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/express": "^1.1.0",
+    "genkit": "workspace:*",
+    "@genkit-ai/compat-oai": "workspace:*",
+    "tsx": "^4.19.3"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "typescript": "^5.6.2"
+  }
+}
