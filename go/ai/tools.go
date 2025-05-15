@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/invopop/jsonschema"
 
 	"github.com/firebase/genkit/go/core"
@@ -110,7 +111,8 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	return &tool{action: toolAction}
 }
 
-// DefineTool defines a tool function with interrupt capability
+// DefineToolWithInputSchema defines a tool function with a custom input schema and interrupt capability.
+// The input schema allows specifying a JSON Schema for validating tool inputs.
 func DefineToolWithInputSchema[Out any](r *registry.Registry, name, description string,
 	inputSchema *jsonschema.Schema,
 	fn func(ctx *ToolContext, input any) (Out, error)) Tool {
