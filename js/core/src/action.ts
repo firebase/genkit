@@ -33,9 +33,9 @@ export { JSONSchema7 };
  * Action metadata.
  */
 export interface ActionMetadata<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   actionType?: ActionType;
   name: string;
@@ -283,6 +283,7 @@ export function action<
     outputJsonSchema: config.outputJsonSchema,
     streamSchema: config.streamSchema,
     metadata: config.metadata,
+    actionType: config.actionType,
   } as ActionMetadata<I, O, S>;
   actionFn.run = async (
     input: z.infer<I>,

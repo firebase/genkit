@@ -110,7 +110,7 @@ export function defineGoogleAIEmbedder(
         dimensions: 768,
         label: `Google AI - ${name}`,
         supports: {
-          input: ['text'],
+          input: ['text', 'image', 'video'],
         },
       },
     });

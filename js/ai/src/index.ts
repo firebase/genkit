@@ -23,6 +23,7 @@ export {
 } from './document.js';
 export {
   embed,
+  embedderActionMetadata,
   embedderRef,
   type EmbedderAction,
   type EmbedderArgument,
@@ -54,7 +55,9 @@ export {
   type GenerateOptions,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
+  type OutputOptions,
   type ResumeOptions,
+  type ToolChoice,
 } from './generate.js';
 export { Message } from './message.js';
 export {
@@ -65,6 +68,8 @@ export {
   ModelResponseSchema,
   PartSchema,
   RoleSchema,
+  modelActionMetadata,
+  modelRef,
   type GenerateRequest,
   type GenerateRequestData,
   type GenerateResponseChunkData,

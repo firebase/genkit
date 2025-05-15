@@ -19,7 +19,6 @@ package genkit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -27,15 +26,14 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/action"
-	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -148,6 +146,9 @@ func (s *reflectionServer) writeRuntimeFile(url string) error {
 	}
 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
+	// remove colons to avoid problems with different OS file name restrictions
+	timestamp = strings.ReplaceAll(timestamp, ":", "_")
+
 	s.RuntimeFilePath = filepath.Join(runtimesDir, fmt.Sprintf("%d-%s.json", os.Getpid(), timestamp))
 
 	data := runtimeFileData{
@@ -250,26 +251,9 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 		w.Header().Set("x-genkit-version", "go/"+internal.Version)
 
 		if err = h(w, r); err != nil {
-			var traceID string
-			statusCode := http.StatusInternalServerError
-			if herr, ok := err.(*base.HTTPError); ok {
-				traceID = herr.TraceID
-				statusCode = herr.Code
-			}
-
-			genkitErr := &ai.GenkitError{
-				Message: err.Error(),
-				Details: struct {
-					TraceID string `json:"traceId"`
-					Stack   string `json:"stack"`
-				}{
-					TraceID: traceID,
-					Stack:   "", // TODO: Propagate stack trace from local error.
-				},
-			}
-
-			w.WriteHeader(statusCode)
-			writeJSON(ctx, w, genkitErr)
+			errorResponse := core.ToReflectionError(err)
+			w.WriteHeader(errorResponse.Code)
+			writeJSON(ctx, w, errorResponse)
 		}
 	}
 }
@@ -281,13 +265,14 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		ctx := r.Context()
 
 		var body struct {
-			Key     string          `json:"key"`
-			Input   json.RawMessage `json:"input"`
-			Context json.RawMessage `json:"context"`
+			Key             string          `json:"key"`
+			Input           json.RawMessage `json:"input"`
+			Context         json.RawMessage `json:"context"`
+			TelemetryLabels json.RawMessage `json:"telemetryLabels"`
 		}
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return core.NewError(core.INVALID_ARGUMENT, err.Error())
 		}
 
 		stream, err := parseBoolQueryParam(r, "stream")
@@ -319,29 +304,19 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		resp, err := runAction(ctx, reg, body.Key, body.Input, cb, contextMap)
+		resp, err := runAction(ctx, reg, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 		if err != nil {
 			if stream {
-				var traceID string
-				if herr, ok := err.(*base.HTTPError); ok {
-					traceID = herr.TraceID
+				reflectErr, err := json.Marshal(core.ToReflectionError(err))
+				if err != nil {
+					return err
 				}
 
-				genkitErr := &ai.GenkitError{
-					Message: err.Error(),
-					Data: &ai.GenkitErrorData{
-						GenkitErrorMessage: err.Error(),
-						GenkitErrorDetails: &ai.GenkitErrorDetails{
-							TraceID: traceID,
-						},
-					},
+				_, err = fmt.Fprintf(w, "%s\n\n", reflectErr)
+				if err != nil {
+					return err
 				}
 
-				errorJSON, _ := json.Marshal(genkitErr)
-				_, writeErr := fmt.Fprintf(w, "%s\n\n", errorJSON)
-				if writeErr != nil {
-					return writeErr
-				}
 				if f, ok := w.(http.Flusher); ok {
 					f.Flush()
 				}
@@ -364,7 +339,7 @@ func handleNotify(reg *registry.Registry) func(w http.ResponseWriter, r *http.Re
 
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return core.NewError(core.INVALID_ARGUMENT, err.Error())
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {
@@ -405,10 +380,10 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
+func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
-		return nil, &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
+		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
 	}
 	if runtimeContext != nil {
 		ctx = core.WithActionContext(ctx, runtimeContext)
@@ -417,16 +392,22 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 	var traceID string
 	output, err := tracing.RunInNewSpan(ctx, reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
+		// Set telemetry labels from payload to span
+		if telemetryLabels != nil {
+			var telemetryAttributes map[string]string
+			err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
+			if err != nil {
+				return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
+			}
+			for k, v := range telemetryAttributes {
+				tracing.SetCustomMetadataAttr(ctx, k, v)
+			}
+		}
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
-		var herr *base.HTTPError
-		if errors.As(err, &herr) {
-			herr.TraceID = traceID
-			return nil, herr
-		}
-		return nil, &base.HTTPError{Code: http.StatusInternalServerError, Err: err, TraceID: traceID}
+		return nil, err
 	}
 
 	return &runActionResponse{

@@ -44,12 +44,38 @@ func TestConvertRequest(t *testing.T) {
 			TopK:            1.0,
 			TopP:            1.0,
 			Version:         text,
+			ThinkingConfig: &ThinkingConfig{
+				IncludeThoughts: false,
+				ThinkingBudget:  0,
+			},
 		},
 		Tools:      []*ai.ToolDefinition{tool},
 		ToolChoice: ai.ToolChoiceAuto,
 		Output: &ai.ModelOutputConfig{
 			Constrained: true,
-			Schema:      map[string]any{"type": string("string")},
+			Schema: map[string]any{
+				"type": string("object"),
+				"properties": map[string]any{
+					"string": map[string]any{
+						"type": string("string"),
+					},
+					"boolean": map[string]any{
+						"type": string("boolean"),
+					},
+					"float": map[string]any{
+						"type": string("float64"),
+					},
+					"number": map[string]any{
+						"type": string("number"),
+					},
+					"array": map[string]any{
+						"type": string("array"),
+					},
+					"object": map[string]any{
+						"type": string("object"),
+					},
+				},
+			},
 		},
 		Messages: []*ai.Message{
 			{
@@ -120,6 +146,30 @@ func TestConvertRequest(t *testing.T) {
 		}
 		if gcc.ResponseSchema == nil {
 			t.Errorf("ResponseSchema should not be empty")
+		}
+		if gcc.ThinkingConfig == nil {
+			t.Errorf("ThinkingConfig should not be empty")
+		}
+	})
+	t.Run("thinking budget limits", func(t *testing.T) {
+		thinkingBudget := GeminiConfig{
+			ThinkingConfig: &ThinkingConfig{
+				IncludeThoughts: false,
+				ThinkingBudget:  -23,
+			},
+		}
+		req := &ai.ModelRequest{
+			Config: thinkingBudget,
+		}
+		_, err := toGeminiRequest(req, nil)
+		if err == nil {
+			t.Fatal("expecting an error, thinking budget should not be negative")
+		}
+		thinkingBudget.ThinkingConfig.ThinkingBudget = 999999
+		req.Config = thinkingBudget
+		_, err = toGeminiRequest(req, nil)
+		if err == nil {
+			t.Fatalf("expecting an error, thinking budget should not be greater than %d", thinkingBudgetMax)
 		}
 	})
 	t.Run("convert tools with valid tool", func(t *testing.T) {
@@ -249,7 +299,7 @@ func TestValidToolName(t *testing.T) {
 func genToolName(length int, chars string) string {
 	r := make([]byte, length)
 
-	for i := 0; i < length; i++ {
+	for i := range length {
 		r[i] = chars[i%len(chars)]
 	}
 	return string(r)
