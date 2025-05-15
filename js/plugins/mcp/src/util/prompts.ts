@@ -23,9 +23,9 @@ import {
 } from '@genkit-ai/ai';
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 import {
-  GenerateOptions,
   GenerateResponse as AiGenerateResponse,
   GenerateStreamResponse as AiGenerateStreamResponse,
+  GenerateOptions,
   Genkit,
   GenkitError,
   JSONSchema,
