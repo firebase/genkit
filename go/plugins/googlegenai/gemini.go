@@ -221,8 +221,8 @@ type GeminiConfig struct {
 	ThinkingConfig *ThinkingConfig `json:"thinkingConfig,omitempty"`
 }
 
-// configFromRequest converts any supported config type to [GeminiConfig].
-func configFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
+// geminiConfigFromRequest converts any supported config type to [GeminiConfig].
+func geminiConfigFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
 	var result GeminiConfig
 
 	switch config := input.Config.(type) {
@@ -251,11 +251,17 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		provider = vertexAIProvider
 	}
 
+	var config any
+	config = &GeminiConfig{}
+	if mi, found := supportedImagenModels[name]; found {
+		config = &ImagenConfig{}
+		info = mi
+	}
 	meta := &ai.ModelInfo{
 		Label:        info.Label,
 		Supports:     info.Supports,
 		Versions:     info.Versions,
-		ConfigSchema: configToMap(&GeminiConfig{}),
+		ConfigSchema: configToMap(config),
 	}
 
 	fn := func(
@@ -263,7 +269,12 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return generate(ctx, client, name, input, cb)
+		switch config.(type) {
+		case *ImagenConfig:
+			return generateImage(ctx, client, name, input, cb)
+		default:
+			return generate(ctx, client, name, input, cb)
+		}
 	}
 	// the gemini api doesn't support downloading media from http(s)
 	if info.Supports.Media {
@@ -340,7 +351,7 @@ func generate(
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
 	// Extract configuration to get the model version
-	config, err := configFromRequest(input)
+	config, err := geminiConfigFromRequest(input)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +482,7 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		CandidateCount: 1,
 	}
 
-	c, err := configFromRequest(input)
+	c, err := geminiConfigFromRequest(input)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ package googlegenai
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"google.golang.org/genai"
@@ -28,6 +29,11 @@ const (
 	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
 	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
 	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
+
+	imagen2                = "imagegeneration@006"
+	imagen3Generate001     = "imagen-3.0-generate-001"
+	imagen3Generate002     = "imagen-3.0-generate-002"
+	imagen3FastGenerate001 = "imagen-3.0-fast-generate-001"
 )
 
 var (
@@ -46,6 +52,11 @@ var (
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
+
+		imagen2,
+		imagen3Generate001,
+		imagen3Generate002,
+		imagen3FastGenerate001,
 	}
 
 	googleAIModels = []string{
@@ -62,9 +73,11 @@ var (
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
+
+		imagen3Generate002,
 	}
 
-	// models with native image support generation
+	// Gemini models with native image support generation
 	imageGenModels = []string{
 		gemini20FlashPrevImageGen,
 	}
@@ -171,6 +184,33 @@ var (
 		},
 	}
 
+	supportedImagenModels = map[string]ai.ModelInfo{
+		imagen2: {
+			Label:    "Imagen 2",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
+		imagen3Generate001: {
+			Label:    "Imagen 3 Generate 001",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
+		imagen3Generate002: {
+			Label:    "Imagen 3 Generate 002",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
+		imagen3FastGenerate001: {
+			Label:    "Imagen 3 Fast Generate 001",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
+	}
+
 	googleAIEmbedders = []string{
 		"text-embedding-004",
 		"embedding-001",
@@ -190,7 +230,7 @@ var (
 // listModels returns a map of supported models and their capabilities
 // based on the detected backend
 func listModels(provider string) (map[string]ai.ModelInfo, error) {
-	names := []string{}
+	var names []string
 	var prefix string
 
 	switch provider {
@@ -206,7 +246,13 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 
 	models := make(map[string]ai.ModelInfo, 0)
 	for _, n := range names {
-		m, ok := supportedGeminiModels[n]
+		var m ai.ModelInfo
+		var ok bool
+		if strings.HasPrefix(n, "image") {
+			m, ok = supportedImagenModels[n]
+		} else {
+			m, ok = supportedGeminiModels[n]
+		}
 		if !ok {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
@@ -222,7 +268,7 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 // listEmbedders returns a list of supported embedders based on the
 // detected backend
 func listEmbedders(backend genai.Backend) ([]string, error) {
-	embedders := []string{}
+	var embedders []string
 
 	switch backend {
 	case genai.BackendGeminiAPI:
