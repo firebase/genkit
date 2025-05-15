@@ -116,6 +116,15 @@ function readResourceTool(
     : ai.defineTool(actionMetadata, fn);
 }
 
+/**
+ * Registers Genkit tools for MCP resource operations.
+ * This includes tools for listing resources, listing resource templates, and reading a resource.
+ * These tools are defined on the provided Genkit instance.
+ *
+ * @param ai The Genkit instance on which to define the tools.
+ * @param client The MCP client instance to interact with the server.
+ * @param params Configuration parameters, including the client name and server name for namespacing.
+ */
 export async function registerResourceTools(
   ai: Genkit,
   client: any, // Use 'any' or let TS infer; removing specific type import
@@ -126,6 +135,17 @@ export async function registerResourceTools(
   readResourceTool(ai, client, params);
 }
 
+/**
+ * Fetches and returns Genkit dynamic tool actions for MCP resource operations.
+ * This includes tools for listing resources, listing resource templates, and reading a resource.
+ * These tools are created as dynamic tools, meaning they are not permanently defined
+ * on the Genkit instance but are returned as executable actions.
+ *
+ * @param ai The Genkit instance, used for creating the dynamic tools.
+ * @param client The MCP client instance to interact with the server.
+ * @param params Configuration parameters, including the client name and server name for namespacing.
+ * @returns An array of Genkit `ToolAction` instances for MCP resource operations.
+ */
 export function fetchDynamicResourceTools(
   ai: Genkit,
   client: any, // Use 'any' or let TS infer; removing specific type import

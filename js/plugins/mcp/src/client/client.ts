@@ -251,10 +251,10 @@ export class GenkitMcpClient {
    * Useful for attempting to recover from connection issues without full
    * reconfiguration.
    */
-  async reconnect() {
+  async restart() {
     if (this._server) {
       logger.info(
-        `[MCP Client] Reconnecting MCP server in client '${this.name}'`
+        `[MCP Client] Restarting connection to MCP server in client '${this.name}'`
       );
       await this.disconnect();
       await this.connect(this.serverConfig);

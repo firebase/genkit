@@ -83,6 +83,52 @@ The `createMcpManager` function initializes a `GenkitMcpClientManager` instance,
 
 Most MCP servers are built to run as spawned processes on the same machine using the `stdio` transport. When you supply the `serverProcess` option, you are specifying the command, arguments, and environment variables for spawning the server as a subprocess.
 
+
+## MCP Client (Single Server)
+
+For scenarios where you only need to connect to a single MCP server, or prefer to manage client instances individually, you can use `createMcpClient`.
+
+```ts
+import { genkit } from 'genkit';
+import { createMcpClient } from 'genkitx-mcp';
+
+const myFsClient = createMcpClient({
+  name: 'myFileSystemClient', // A unique name for this client instance
+  command: 'npx',
+  args: ['-y', '@modelcontextprotocol/server-everything', '/Users/yourusername/Documents'],
+  // rawToolResponses: true, // Optional: get raw MCP responses
+});
+
+// In your Genkit configuration:
+genkit({
+  plugins: [
+    /* ... other plugins ... */
+    // Individual clients are not Genkit plugins themselves.
+  ],
+});
+
+async function runSingleClient() {
+  // Retrieve tools from this specific client
+  const fsTools = await myFsClient.getActiveTools(genkit);
+
+  const response = await genkit.generate({
+    model: gemini15Flash, // Replace with your model
+    prompt: 'List files in my Documents folder.',
+    tools: fsTools,
+  });
+  console.log(response.text);
+}
+
+runSingleClient();
+```
+
+### `createMcpClient()` Options
+
+The `createMcpClient` function takes an `McpClientOptions` object:
+-   **`name`**: (required, string) A unique name for this client instance. This name will be used as the namespace for its tools and prompts.
+-   **`version`**: (optional, string) Version for this client instance. Defaults to "1.0.0".
+-   Plus, all options from `McpServerConfig` (see `disabled`, `rawToolResponses`, and transport configurations under `createMcpManager` options).
+
 ### [Deprecated] `mcpClient()`
 
 Note: This method is deprecated, please use `createMcpClient` or `createMcpManager` instead.
@@ -99,15 +145,20 @@ const legacyFilesystemClient = mcpClient({
 ```
 This function takes similar options to a single server configuration within `createMcpManager` (e.g., `name`, `version`, `serverProcess`, `rawToolResponses`) and directly returns a Genkit plugin for that single client. It is recommended to use `createMcpManager` for new projects.
 
-### Using MCP Actions
+### Using MCP Actions (Tools, Prompts, Resources)
 
-The Genkit MCP client manager, through its `getActiveTools()` method, discovers available tools from each connected and enabled server. These tools can then be provided to Genkit models for use in generation requests. Resources and MCP Tools are both wrapped as GenkitTools. 
+Both `GenkitMcpManager` (via `getActiveTools()`) and `GenkitMcpClient` (via `getActiveTools()`) discover available tools from their connected and enabled MCP server(s). These tools are standard Genkit `ToolAction` instances and can be provided to Genkit models.
 
-<!-- TODO: Note about MCP prompts. -->
+MCP resources are accessed via dynamically generated tools:
+- `[serverName]/list_resources`: Lists available resources.
+- `[serverName]/list_resource_templates`: Lists resource templates.
+- `[serverName]/read_resource`: Reads a specific resource by URI.
 
-To access resources provided by an MCP server, special `list_resources` and `read_resource` tools are dynamically created and retrieved for each server by the manager.
+MCP prompts can be fetched using `mcpManager.getPrompt(serverName, promptName)` or `mcpClient.getPrompt(promptName)`. These return an `ExecutablePrompt`.
 
-All MCP actions (tools, prompts, resources) are namespaced under the key you provide for that server in the `mcpServers` configuration. For example, if you have a server configured with the key `fs` in `mcpServers`, its `read_file` tool would be accessible as `fs/read_file`, and its resource listing tool as `fs/list_resources`.
+All MCP actions (tools, prompts, resources) are namespaced.
+- For `createMcpManager`, the namespace is the key you provide for that server in the `mcpServers` configuration (e.g., `localFs/read_file`).
+- For `createMcpClient`, the namespace is the `name` you provide in its options (e.g., `myFileSystemClient/list_resources`).
 
 ### Tool Responses
 

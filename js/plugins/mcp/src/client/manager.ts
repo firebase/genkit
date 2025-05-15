@@ -191,14 +191,14 @@ export class GenkitMcpManager {
     const client = this._clients[serverName];
     if (client) {
       logger.info(
-        `[MCP Manager] Reconnecting MCP server '${serverName}' in manager '${this.name}'`
+        `[MCP Manager] Restarting connection to MCP server '${serverName}' in manager '${this.name}'`
       );
       try {
-        await client.reconnect();
+        await client.restart();
       } catch (e) {
         client.disable();
         this.setError(serverName, {
-          message: `[MCP Manager] Error reconnecting to server ${serverName}`,
+          message: `[MCP Manager] Error restarting to server ${serverName}`,
           detail: `Details: ${e}`,
         });
       }
@@ -272,7 +272,7 @@ export class GenkitMcpManager {
 
     for (const serverName in this._clients) {
       const client = this._clients[serverName];
-      if (client.isEnabled()) {
+      if (client.isEnabled() && !this.hasError(serverName)) {
         const tools = await client.getActiveTools(ai).catch((e) => {
           logger.error(
             `Error fetching active tools from client ${serverName}.`,
@@ -301,6 +301,14 @@ export class GenkitMcpManager {
       logger.error(`No client found with name '${serverName}'.`);
       return;
     }
+    if (this.hasError(serverName)) {
+      const errorStringified = JSON.stringify(
+        this._clientStates[serverName].error
+      );
+      logger.error(
+        `Client '${serverName}' is in an error state. ${errorStringified}`
+      );
+    }
     if (client.isEnabled()) {
       const prompt = await client.getPrompt(promptName);
       if (!prompt) {
@@ -327,5 +335,11 @@ export class GenkitMcpManager {
       `An error has occured while managing your MCP client '${serverName}'. The client may be disabled to avoid further issues. Please resolve the issue and reenable the client '${serverName}' to continue using its resources.`
     );
     logger.error(error);
+  }
+
+  private hasError(serverName: string) {
+    return (
+      this._clientStates[serverName] && !!this._clientStates[serverName].error
+    );
   }
 }

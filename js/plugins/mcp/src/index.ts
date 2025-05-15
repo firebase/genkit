@@ -68,6 +68,26 @@ export function createMcpManager(options: McpManagerOptions) {
   return new GenkitMcpManager(options);
 }
 
+/**
+ * Creates an MCP Client that connects to a single MCP server.
+ * This is useful when you only need to interact with one MCP server,
+ * or if you want to manage client instances individually.
+ *
+ * ```ts
+ * const client = createMcpClient({
+ *   name: "mySingleMcpClient", // A name for this client instance
+ *   command: "npx", // Example: Launching a local server
+ *   args: ["-y", "@modelcontextprotocol/server-everything", "/path/to/allowed/dir"],
+ * });
+ *
+ * // To get tools from this client:
+ * // const tools = await client.getActiveTools(ai);
+ * ```
+ *
+ * @param options Configuration for the MCP Client, defining how it connects
+ *                to the MCP server and its behavior.
+ * @returns A new instance of GenkitMcpClient.
+ */
 export function createMcpClient(options: McpClientOptions) {
   return new GenkitMcpClient(options);
 }
