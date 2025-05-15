@@ -94,6 +94,7 @@ type ImagenConfig struct {
 	OutputMIMEType string `json:"outputMimeType,omitempty"`
 }
 
+// imagenConfigFromRequest translates an [*ai.ModelRequest] configuration to [*ImagenConfig]
 func imagenConfigFromRequest(input *ai.ModelRequest) (*ImagenConfig, error) {
 	var result ImagenConfig
 
@@ -115,6 +116,7 @@ func imagenConfigFromRequest(input *ai.ModelRequest) (*ImagenConfig, error) {
 	return &result, nil
 }
 
+// toImageRequest translates an [*ai.ModelRequest] to a [*genai.GenerateImagesConfig]
 func toImageRequest(input *ai.ModelRequest) (*genai.GenerateImagesConfig, error) {
 	config, err := imagenConfigFromRequest(input)
 	if err != nil {
@@ -155,6 +157,7 @@ func toImageRequest(input *ai.ModelRequest) (*genai.GenerateImagesConfig, error)
 	return &gic, nil
 }
 
+// translateImagenCandidates translates the image generation response to [*ai.ModelResponse]
 func translateImagenCandidates(images []*genai.GeneratedImage) *ai.ModelResponse {
 	m := &ai.ModelResponse{}
 	m.FinishReason = ai.FinishReasonStop
@@ -170,10 +173,13 @@ func translateImagenCandidates(images []*genai.GeneratedImage) *ai.ModelResponse
 	return m
 }
 
+// translateImagenResponse translates [*genai.GenerateImagesResponse] to an [*ai.ModelResponse]
 func translateImagenResponse(resp *genai.GenerateImagesResponse) *ai.ModelResponse {
 	return translateImagenCandidates(resp.GeneratedImages)
 }
 
+// generateImage requests a generate call to the specified imagen model with the
+// provided configuration
 func generateImage(
 	ctx context.Context,
 	client *genai.Client,
@@ -193,19 +199,19 @@ func generateImage(
 		}
 	}
 	if userPrompt == "" {
-		return nil, fmt.Errorf("empty prompt detected")
+		return nil, fmt.Errorf("error generating images: empty prompt detected")
 	}
 
-	if cb == nil {
-		resp, err := client.Models.GenerateImages(ctx, model, userPrompt, gic)
-		if err != nil {
-			return nil, err
-		}
-
-		r := translateImagenResponse(resp)
-		r.Request = input
-		return r, nil
+	if cb != nil {
+		return nil, fmt.Errorf("streaming mode not supported for image generation")
 	}
 
-	return nil, nil
+	resp, err := client.Models.GenerateImages(ctx, model, userPrompt, gic)
+	if err != nil {
+		return nil, err
+	}
+
+	r := translateImagenResponse(resp)
+	r.Request = input
+	return r, nil
 }

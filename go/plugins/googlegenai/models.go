@@ -29,10 +29,10 @@ const (
 	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
 	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
 
+	imagen2                = "imagegeneration@006"
 	imagen3Generate001     = "imagen-3.0-generate-001"
 	imagen3Generate002     = "imagen-3.0-generate-002"
 	imagen3FastGenerate001 = "imagen-3.0-fast-generate-001"
-	imagen3Capability001   = "imagen-3.0-capability-001"
 )
 
 var (
@@ -51,10 +51,10 @@ var (
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
 
+		imagen2,
 		imagen3Generate001,
 		imagen3Generate002,
 		imagen3FastGenerate001,
-		imagen3Capability001,
 	}
 
 	googleAIModels = []string{
@@ -70,6 +70,8 @@ var (
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
+
+		imagen3Generate002,
 	}
 
 	// Gemini models with native image support generation
@@ -174,6 +176,12 @@ var (
 	}
 
 	supportedImagenModels = map[string]ai.ModelInfo{
+		imagen2: {
+			Label:    "Imagen 2",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
 		imagen3Generate001: {
 			Label:    "Imagen 3 Generate 001",
 			Versions: []string{},
@@ -188,12 +196,6 @@ var (
 		},
 		imagen3FastGenerate001: {
 			Label:    "Imagen 3 Fast Generate 001",
-			Versions: []string{},
-			Supports: &Media,
-			Stage:    ai.ModelStageStable,
-		},
-		imagen3Capability001: {
-			Label:    "Imagen 3 Capability 001",
 			Versions: []string{},
 			Supports: &Media,
 			Stage:    ai.ModelStageStable,
@@ -235,9 +237,12 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 
 	models := make(map[string]ai.ModelInfo, 0)
 	for _, n := range names {
-		m, ok := supportedGeminiModels[n]
+		var m ai.ModelInfo
+		var ok bool
 		if strings.HasPrefix(n, "image") {
 			m, ok = supportedImagenModels[n]
+		} else {
+			m, ok = supportedGeminiModels[n]
 		}
 		if !ok {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
@@ -254,7 +259,7 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 // listEmbedders returns a list of supported embedders based on the
 // detected backend
 func listEmbedders(backend genai.Backend) ([]string, error) {
-	embedders := []string{}
+	var embedders []string
 
 	switch backend {
 	case genai.BackendGeminiAPI:
