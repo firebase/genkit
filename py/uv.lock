@@ -29,7 +29,6 @@ members = [
     "google-genai-image",
     "google-genai-vertexai-hello",
     "google-genai-vertexai-image",
-    "imagen",
     "menu",
     "multi-server",
     "ollama-hello",
@@ -1163,7 +1162,6 @@ dependencies = [
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-firestore" },
     { name = "google-genai" },
-    { name = "pytest-mock" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
 ]
@@ -1175,7 +1173,6 @@ requires-dist = [
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-firestore" },
     { name = "google-genai", specifier = ">=1.7.0" },
-    { name = "pytest-mock" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
 ]
@@ -1820,21 +1817,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f1/70/7703c29685631f5a7590aa73f1f1d3fa9a380e654b86af429e0934a32f7d/idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9", size = 190490 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/c6/c88e154df9c4e1a2a66ccf0005a88dfb2650c1dffb6f5ce603dfbd452ce3/idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3", size = 70442 },
-]
-
-[[package]]
-name = "imagen"
-version = "0.1.0"
-source = { editable = "samples/vertex-ai-imagen" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-vertex-ai" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
 ]
 
 [[package]]
@@ -4631,6 +4613,7 @@ version = "0.1.0"
 source = { editable = "samples/vertex-ai-vector-search-bigquery" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "google-cloud-bigquery" },
     { name = "pydantic" },
@@ -4641,6 +4624,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "google-cloud-bigquery" },
     { name = "pydantic", specifier = ">=2.10.5" },
@@ -4654,6 +4638,7 @@ version = "0.1.0"
 source = { editable = "samples/vertex-ai-vector-search-firestore" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
     { name = "genkit-plugin-vertex-ai" },
     { name = "google-cloud-firestore" },
     { name = "pydantic" },
@@ -4664,6 +4649,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
     { name = "google-cloud-firestore" },
     { name = "pydantic", specifier = ">=2.10.5" },

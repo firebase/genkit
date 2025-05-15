@@ -21,6 +21,7 @@ from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions, HttpOptionsDict
 
+import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
@@ -179,7 +180,13 @@ class GoogleAI(Plugin):
 
 
 class VertexAI(Plugin):
-    """VertexAI plugin for Genkit."""
+    """Vertex AI plugin for Genkit.
+
+    This plugin provides integration with Google Cloud's Vertex AI platform,
+    enabling the use of Vertex AI models and services within the Genkit
+    framework. It handles initialization of the Vertex AI client and
+    registration of model actions.
+    """
 
     _vertexai = True
 
@@ -192,7 +199,26 @@ class VertexAI(Plugin):
         location: str | None = 'us-central1',
         debug_config: DebugConfig | None = None,
         http_options: HttpOptions | HttpOptionsDict | None = None,
-    ):
+        api_key: str | None = None,
+    ) -> None:
+        """Initializes the GoogleAI plugin.
+
+        Args:
+            credentials: Google Cloud credentials for authentication.
+                Defaults to None, in which case the client uses default authentication
+                mechanisms (e.g., application default credentials or API key).
+            project: Name of the Google Cloud project.
+            location: Location of the Google Cloud project.
+            debug_config: Configuration for debugging the client. Defaults to None.
+            http_options: HTTP options for configuring the client's network requests.
+                Can be an instance of HttpOptions or a dictionary. Defaults to None.
+            api_key: The API key for authenticating with the Google AI service.
+                If not provided, it defaults to reading from the 'GEMINI_API_KEY'
+                environment variable.
+        """
+        project = project if project else os.getenv(const.GCLOUD_PROJECT)
+        location = location if location else const.DEFAULT_REGION
+
         self._client = genai.client.Client(
             vertexai=self._vertexai,
             api_key=None,
@@ -204,13 +230,13 @@ class VertexAI(Plugin):
         )
 
     def initialize(self, ai: GenkitRegistry) -> None:
-        """Initialize the plugin by registering actions in the registry.
+        """Initialize the plugin by registering actions with the registry.
+
+        This method registers the Vertex AI model actions with the provided
+        registry, making them available for use in the Genkit framework.
 
         Args:
             ai: the action registry.
-
-        Returns:
-            None
         """
         for version in VertexAIGeminiVersion:
             gemini_model = GeminiModel(version, self._client, ai)
