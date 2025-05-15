@@ -15,8 +15,8 @@
  */
 
 import {
-  GenerateResponse as AiGenerateResponse,
-  GenerateStreamResponse as AiGenerateStreamResponse,
+  // GenerateResponse as AiGenerateResponse,
+  // GenerateStreamResponse as AiGenerateStreamResponse,
   ExecutablePrompt,
   GenerateResponseChunk,
   PromptGenerateOptions,
@@ -24,6 +24,8 @@ import {
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 import {
   GenerateOptions,
+  GenerateResponse as AiGenerateResponse,
+  GenerateStreamResponse as AiGenerateStreamResponse,
   Genkit,
   GenkitError,
   JSONSchema,
@@ -108,23 +110,30 @@ function createExecutablePrompt<
     return new AiGenerateResponse<z.infer<O>>({ message: messages.at(-1) });
   };
 
-  callPrompt.stream = async (
+  callPrompt.stream = (
     input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
-  ): Promise<AiGenerateStreamResponse<z.infer<O>>> => {
+  ): AiGenerateStreamResponse<z.infer<O>> => {
     logger.debug(
       `[MCP] Streaming MCP prompt ${params.name}/${prompt.name} with arguments`,
       JSON.stringify(input)
     );
-    const result = await client.getPrompt({
-      name: prompt.name,
-      arguments: input,
-    });
-    const messages: MessageData[] = result.messages.map(fromMcpPromptMessage);
+    // const result = await client.getPrompt({
+    //   name: prompt.name,
+    //   arguments: input,
+    // });
+    // const messages: MessageData[] = result.messages.map(fromMcpPromptMessage);
 
     return {
       get stream(): AsyncIterable<GenerateResponseChunk> {
         async function* generateAsyncIterable() {
+          const result = await client.getPrompt({
+            name: prompt.name,
+            arguments: input,
+          });
+          const messages: MessageData[] =
+            result.messages.map(fromMcpPromptMessage);
+
           for (let index = 0; index < messages.length; index++) {
             yield new GenerateResponseChunk(messages[index], {
               role: messages[index].role,
@@ -136,9 +145,17 @@ function createExecutablePrompt<
       },
 
       get response(): Promise<AiGenerateResponse<O>> {
-        return Promise.resolve(
-          new AiGenerateResponse<z.infer<O>>({ message: messages.at(-1) })
-        );
+        return new Promise(async (resolve) => {
+          const result = await client.getPrompt({
+            name: prompt.name,
+            arguments: input,
+          });
+          const messages = result.messages.map(fromMcpPromptMessage);
+
+          resolve(
+            new AiGenerateResponse<z.infer<O>>({ message: messages.at(-1) })
+          );
+        });
       },
     } as AiGenerateStreamResponse<O>;
   };

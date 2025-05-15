@@ -633,6 +633,9 @@ importers:
 
   plugins/mcp:
     dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:^
+        version: link:../../ai
       '@modelcontextprotocol/sdk':
         specifier: ^1.8.0
         version: 1.8.0
