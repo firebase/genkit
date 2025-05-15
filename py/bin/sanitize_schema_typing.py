@@ -116,7 +116,7 @@ class ClassTransformer(ast.NodeTransformer):
                         return item
         return None
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:  # noqa: N802
+    def visit_ClassDef(self, _node: ast.ClassDef) -> ast.ClassDef:  # noqa: N802
         """Visit and transform a class definition node.
 
         Args:
@@ -126,12 +126,11 @@ class ClassTransformer(ast.NodeTransformer):
             The transformed ClassDef node.
         """
         # First apply base class transformations recursively
-        node = super().generic_visit(node)
-
-        new_body = []
+        node = super().generic_visit(_node)
+        new_body: list[ ast.stmt | ast.Constant | ast.Assign ] = []
 
         # Handle Docstrings
-        if not node.body or not isinstance(node.body[0], ast.Expr) or not isinstance(node.body[0].value, ast.Str):
+        if not node.body or not isinstance(node.body[0], ast.Expr) or not isinstance(node.body[0].value, ast.Constant):
             # Generate a more descriptive docstring based on class type
             if self.is_rootmodel_class(node):
                 docstring = f'Root model for {node.name.lower().replace("_", " ")}.'
@@ -143,7 +142,7 @@ class ClassTransformer(ast.NodeTransformer):
             else:
                 docstring = f'{node.name} data type class.'
 
-            new_body.append(ast.Expr(value=ast.Str(s=docstring)))
+            new_body.append(ast.Expr(value=ast.Constant(value=docstring)))
             self.modified = True
         else:  # Ensure existing docstring is kept
             new_body.append(node.body[0])

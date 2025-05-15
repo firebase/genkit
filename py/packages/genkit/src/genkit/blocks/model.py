@@ -51,7 +51,7 @@ from genkit.core.typing import (
 )
 
 # type ModelFn = Callable[[GenerateRequest], GenerateResponse]
-ModelFn = Callable[[GenerateRequest], GenerateResponse]
+ModelFn = Callable[[GenerateRequest, ActionRunContext], GenerateResponse]
 
 # These types are duplicated in genkit.blocks.formats.types due to circular deps
 T = TypeVar('T')

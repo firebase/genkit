@@ -42,7 +42,7 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import Any
+from typing import Any, Type
 
 import structlog
 from pydantic import BaseModel
@@ -417,7 +417,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: ModelFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
+        config_schema: Type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
