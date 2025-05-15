@@ -146,7 +146,7 @@ class ExtractItemsResult:
                 processed character.
     """
 
-    def __init__(self, items: list, cursor: int):
+    def __init__(self, items: list[Any], cursor: int):
         self.items = items
         self.cursor = cursor
 

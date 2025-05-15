@@ -18,6 +18,7 @@
 
 import asyncio
 import threading
+from asyncio import AbstractEventLoop
 from collections.abc import AsyncIterable, Callable, Coroutine, Iterable
 from typing import Any
 
@@ -26,7 +27,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-def create_loop():
+def create_loop() -> AbstractEventLoop:
     """Creates a new asyncio event loop or returns the current one.
 
     This function attempts to get the current event loop. If no current loop
@@ -41,7 +42,7 @@ def create_loop():
         return asyncio.new_event_loop()
 
 
-def run_async(loop: asyncio.AbstractEventLoop, fn: Callable) -> Any:
+def run_async(loop: asyncio.AbstractEventLoop, fn: Callable[..., Any]) -> Any | None:
     """Runs an async callable on the given event loop and blocks until completion.
 
     If the loop is already running (e.g., called from within an async context),
@@ -66,7 +67,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable) -> Any:
         lock = threading.Lock()
         lock.acquire()
 
-        async def run_fn():
+        async def run_fn() -> Any:
             nonlocal lock
             nonlocal output
             nonlocal error
@@ -80,7 +81,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable) -> Any:
 
         asyncio.run_coroutine_threadsafe(run_fn(), loop=loop)
 
-        def wait_for_done():
+        def wait_for_done() -> None:
             nonlocal lock
             lock.acquire()
 
@@ -96,7 +97,7 @@ def run_async(loop: asyncio.AbstractEventLoop, fn: Callable) -> Any:
         return loop.run_until_complete(fn())
 
 
-def iter_over_async(ait: AsyncIterable, loop: asyncio.AbstractEventLoop) -> Iterable:
+def iter_over_async(ait: AsyncIterable[Any], loop: asyncio.AbstractEventLoop) -> Iterable:
     """Synchronously iterates over an AsyncIterable using a specified event loop.
 
     This function bridges asynchronous iteration with synchronous code by
@@ -112,7 +113,7 @@ def iter_over_async(ait: AsyncIterable, loop: asyncio.AbstractEventLoop) -> Iter
     """
     ait = ait.__aiter__()
 
-    async def get_next():
+    async def get_next() -> tuple[bool, Any]:
         try:
             obj = await ait.__anext__()
             return False, obj
