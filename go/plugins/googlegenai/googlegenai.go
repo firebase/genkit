@@ -11,7 +11,9 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
+
 	"google.golang.org/genai"
 )
 
@@ -309,4 +311,12 @@ func GoogleAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 // It returns nil if the embedder was not defined.
 func VertexAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	return genkit.LookupEmbedder(g, vertexAIProvider, name)
+}
+
+func (ga *GoogleAI) ListActions() []core.ActionDesc {
+	return nil
+}
+
+func (ga *GoogleAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+	return nil
 }
