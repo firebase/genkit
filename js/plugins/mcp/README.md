@@ -54,7 +54,7 @@ const mcpTools = await mcpManager.getActiveTools(genkit);
 
 // Provide MCP tools to the model of your choice.
 const response = await ai.generate({
-  model: gemini15Flash,
+  model: googleAI.model('gemini-2.0-flash'),
   prompt: 'What are the last 5 commits in the repo `/home/yourusername/Desktop/test-repo/?`',
   tools: mcpTools,
 });
@@ -112,7 +112,7 @@ async function runSingleClient() {
   const fsTools = await myFsClient.getActiveTools(genkit);
 
   const response = await genkit.generate({
-    model: gemini15Flash, // Replace with your model
+    model: googleAI.model('gemini-2.0-flash'), // Replace with your model
     prompt: 'List files in my Documents folder.',
     tools: fsTools,
   });
