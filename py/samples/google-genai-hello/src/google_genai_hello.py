@@ -67,7 +67,7 @@ add_gcp_telemetry()
 
 ai = Genkit(
     plugins=[GoogleAI()],
-    model='googleai/gemini-2.0-flash',
+    model='googleai/gemini-2.5-flash-preview-04-17',
 )
 
 

@@ -21,11 +21,24 @@ from google.auth.credentials import Credentials
 from google.cloud import aiplatform_v1
 
 from genkit.ai import GenkitRegistry, Plugin
-from genkit.plugins.vertex_ai import vertexai_name
 from genkit.plugins.vertex_ai.models.retriever import (
     DocRetriever,
     RetrieverOptionsSchema,
 )
+
+VERTEXAI_PLUGIN_NAME = 'vertexai'
+
+
+def vertexai_name(name: str) -> str:
+    """Create a VertexAI action name.
+
+    Args:
+        name: Base name for the action.
+
+    Returns:
+        The fully qualified Google AI action name.
+    """
+    return f'{VERTEXAI_PLUGIN_NAME}/{name}'
 
 
 class VertexAIVectorSearch(Plugin):

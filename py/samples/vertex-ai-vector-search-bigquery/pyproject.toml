@@ -19,6 +19,7 @@ classifiers = [
 dependencies = [
   "genkit",
   "genkit-plugin-vertex-ai",
+  "genkit-plugin-google-genai",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
   "google-cloud-bigquery",

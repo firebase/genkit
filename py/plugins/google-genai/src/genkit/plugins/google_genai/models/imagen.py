@@ -46,6 +46,8 @@ from genkit.types import (
 
 
 class ImagenVersion(StrEnum):
+    """Supported text-to-image models."""
+
     IMAGEN3 = 'imagen-3.0-generate-002'
     IMAGEN3_FAST = 'imagen-3.0-fast-generate-001'
     IMAGEN2 = 'imagegeneration@006'
@@ -86,6 +88,8 @@ SUPPORTED_MODELS = {
 
 
 class ImagenModel:
+    """Imagen text-to-image model."""
+
     def __init__(self, version: str | ImagenVersion, client: genai.Client):
         """Initialize Imagen model.
 
