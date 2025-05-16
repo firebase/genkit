@@ -2,12 +2,12 @@
 
 !!! note
 
-    If you're a user of Firebase Genkit and landed here,
+    If you're a user of Genkit and landed here,
     this is engineering documentation that someone contributing
     to Genkit would use, not necessarily only use it.
 
     For more information about how to get started with using
-    Firebase Genkit, please see: [User Guide](.)
+    Genkit, please see: [User Guide](.)
 
 ## What is Genkit?
 
@@ -72,7 +72,6 @@ capabilities in code:
 | Pinecone     | ❌     | ✅         | ✅ |
 | Vertex AI    | ❌     | ✅         | ✅ |
 
-
 ## Examples
 
 ### Basic generation
@@ -99,7 +98,7 @@ capabilities in code:
         response = await ai.generate('Why is AI awesome?')
         await logger.adebug(response.text)
 
-        stream = await ai.generate_stream("Tell me a story")
+        stream, _ = ai.generate_stream("Tell me a story")
         async for chunk in stream:
             await logger.adebug("Received chunk", text=chunk.text)
         await logger.adebug("Finished generating text stream")
@@ -109,7 +108,7 @@ capabilities in code:
         asyncio.run(content_generation())
     ```
 
-    1. :man_raising_hand: Basic example of annotation.
+1. :man_raising_hand: Basic example of annotation.
 
 === "JavaScript"
 
@@ -143,14 +142,12 @@ capabilities in code:
     }
     ```
 
-
 ### Structured output
 
 === "Python"
 
     ```python
     import asyncio
-    import logging
     import structlog
 
     from genkit.ai import genkit
@@ -227,7 +224,6 @@ capabilities in code:
 
     ```python
     import asyncio
-    import logging
     import structlog
 
     from genkit.ai import genkit
@@ -321,7 +317,6 @@ capabilities in code:
 
     ```python
     import asyncio
-    import logging
     import structlog
 
     from genkit.ai import genkit
@@ -384,6 +379,7 @@ capabilities in code:
     console.log(response.text);
     // Ahoy there! Your name is Pavel, you scurvy dog
     ```
+
 ### Agents
 
 === "Python"
@@ -442,7 +438,6 @@ capabilities in code:
 
     ```python
     import asyncio
-    import logging
     import structlog
 
     from genkit.ai import genkit

@@ -114,6 +114,7 @@ func (ds *docStore) validateConfiguration(ctx context.Context) error {
 		}
 
 		var filteredColumns []string
+
 		for col, _ := range mapColumnNameDataType {
 			filteredColumns = append(filteredColumns, col)
 		}

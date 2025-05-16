@@ -45,7 +45,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		Documents: []*ai.Document{req.Query},
 		Options:   ds.config.EmbedderOptions,
 	}
-
+  
 	eres, err := ds.config.Embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.Retrieve retrieve embedding failed: %v", err)
@@ -141,6 +141,5 @@ func (ds *docStore) buildQuery(ropt *RetrieverOptions, embedding []float32) stri
         SELECT %s, %s(%s, '%s') AS distance FROM "%s"."%s" %s ORDER BY %s %s '%s' LIMIT %d;`,
 		columnNames, searchFunction, ds.config.EmbeddingColumn, vectorAsString, ds.config.SchemaName, ds.config.TableName,
 		whereClause, ds.config.EmbeddingColumn, operator, vectorAsString, ropt.K)
-
 	return stmt
 }

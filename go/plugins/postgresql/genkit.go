@@ -38,6 +38,7 @@ func (p *Postgres) Init(ctx context.Context, g *genkit.Genkit) error {
 	if p.engine.Pool == nil {
 		panic("postgres.Init engine has no pool")
 	}
+
 	p.initted = true
 	return nil
 
@@ -59,6 +60,7 @@ type Config struct {
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
+
 func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (ai.Retriever, error) {
 	ds, err := newDocStore(ctx, p, cfg)
 	if err != nil {
@@ -70,6 +72,7 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Co
 
 // DefineIndexer defines an Indexer with the given configuration.
 func DefineIndexer(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (ai.Indexer, error) {
+
 	ds, err := newDocStore(ctx, p, cfg)
 	if err != nil {
 		return nil, err

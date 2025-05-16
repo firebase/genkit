@@ -57,10 +57,18 @@ export const ai = genkit({
   plugins: [
     googleAI(),
     genkitEval({
-      judge: gemini15Pro,
-      judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      metrics: [GenkitMetric.MALICIOUSNESS],
-      embedder: textEmbeddingGecko001,
+      metrics: [
+        {
+          type: GenkitMetric.MALICIOUSNESS,
+          judge: gemini15Pro,
+          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+        },
+        {
+          type: GenkitMetric.ANSWER_ACCURACY,
+          judge: gemini15Pro,
+          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+        },
+      ],
     }),
     vertexAI({
       location: 'us-central1',

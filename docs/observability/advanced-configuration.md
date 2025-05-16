@@ -85,7 +85,7 @@ enableFirebaseTelemetry({
 
 ## Disable telemetry {: #disable-telemetry }
 
-Firebase Genkit Monitoring leverages a combination of logging, tracing, and
+Genkit Monitoring leverages a combination of logging, tracing, and
 metrics to capture a holistic view of your Genkit interactions, however, you can
 also disable each of these elements independently if needed.
 
@@ -106,7 +106,7 @@ enableFirebaseTelemetry({
 ```
 
 With this option set, input and output attributes will be redacted
-in the Firebase Genkit Monitoring trace viewer and will be missing
+in the Genkit Monitoring trace viewer and will be missing
 from Google Cloud logging.
 
 ### Disable metrics {: #disable-metrics }
@@ -122,7 +122,7 @@ enableFirebaseTelemetry({
 ```
 
 With this option set, you will no longer see stability metrics in the
-Firebase Genkit Monitoring dashboard and will be missing from Google Cloud
+Genkit Monitoring dashboard and will be missing from Google Cloud
 Metrics.
 
 ### Disable traces {: #disable-traces }
@@ -137,6 +137,6 @@ enableFirebaseTelemetry({
 });
 ```
 
-With this option set, you will no longer see traces in the Firebase Genkit
+With this option set, you will no longer see traces in the Genkit
 Monitoring feature page, have access to the trace viewer, or see traces
 present in Google Cloud Tracing.

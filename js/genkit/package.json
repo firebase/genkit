@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.3.0",
+  "version": "1.8.0",
   "type": "commonjs",
   "main": "./lib/cjs/index.js",
   "scripts": {

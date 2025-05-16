@@ -207,8 +207,8 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	// Use the embedder to convert each Document into a vector.
 	vecs := make([]vector, 0, len(req.Documents))
 	ereq := &ai.EmbedRequest{
-		Documents: req.Documents,
-		Options:   ds.embedderOptions,
+		Input:   req.Documents,
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
@@ -303,8 +303,8 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Query},
-		Options:   ds.embedderOptions,
+		Input:   []*ai.Document{req.Query},
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {

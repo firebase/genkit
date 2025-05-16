@@ -38,8 +38,8 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 
 		// generate the id if it's not defined
 		_, okString := doc.Metadata[ds.config.IDColumn].(string)
-		idBytes, okBytes := doc.Metadata[ds.config.IDColumn].([]byte) // represents the uuid
 
+		idBytes, okBytes := doc.Metadata[ds.config.IDColumn].([]byte) // represents the uuid
 		if !okString && !okBytes {
 			doc.Metadata[ds.config.IDColumn] = uuid.New().String()
 		}

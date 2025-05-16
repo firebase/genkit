@@ -25,6 +25,7 @@ import {
   GenerativeModelPreview,
   HarmBlockThreshold,
   HarmCategory,
+  SafetySetting,
   Schema,
   StartChatParams,
   ToolConfig,
@@ -42,6 +43,7 @@ import {
 import {
   CandidateData,
   GenerateRequest,
+  GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   MediaPart,
   MessageData,
@@ -60,36 +62,109 @@ import {
 } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
+
 import { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
 
-const SafetySettingsSchema = z.object({
-  category: z.nativeEnum(HarmCategory),
-  threshold: z.nativeEnum(HarmBlockThreshold),
+export const SafetySettingsSchema = z.object({
+  category: z.enum([
+    /** The harm category is unspecified. */
+    'HARM_CATEGORY_UNSPECIFIED',
+    /** The harm category is hate speech. */
+    'HARM_CATEGORY_HATE_SPEECH',
+    /** The harm category is dangerous content. */
+    'HARM_CATEGORY_DANGEROUS_CONTENT',
+    /** The harm category is harassment. */
+    'HARM_CATEGORY_HARASSMENT',
+    /** The harm category is sexually explicit content. */
+    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+  ]),
+  threshold: z.enum([
+    'BLOCK_LOW_AND_ABOVE',
+    'BLOCK_MEDIUM_AND_ABOVE',
+    'BLOCK_ONLY_HIGH',
+    'BLOCK_NONE',
+  ]),
 });
 
 const VertexRetrievalSchema = z.object({
-  datastore: z.object({
-    projectId: z.string().optional(),
-    location: z.string().optional(),
-    dataStoreId: z.string(),
-  }),
-  disableAttribution: z.boolean().optional(),
+  datastore: z
+    .object({
+      projectId: z.string().describe('Google Cloud Project ID.').optional(),
+      location: z
+        .string()
+        .describe('Google Cloud region e.g. us-central1.')
+        .optional(),
+      dataStoreId: z
+        .string()
+        .describe(
+          'The data store id, when project id and location are provided as ' +
+            'separate options. Alternatively, the full path to the data ' +
+            'store should be provided in the form: "projects/{project}/' +
+            'locations/{location}/collections/default_collection/dataStores/{data_store}".'
+        ),
+    })
+    .describe('Vertex AI Search data store details'),
+  disableAttribution: z
+    .boolean()
+    .describe(
+      'Disable using the search data in detecting grounding attribution. This ' +
+        'does not affect how the result is given to the model for generation.'
+    )
+    .optional(),
 });
 
 const GoogleSearchRetrievalSchema = z.object({
-  disableAttribution: z.boolean().optional(),
+  disableAttribution: z
+    .boolean()
+    .describe(
+      'Disable using the search data in detecting grounding attribution. This ' +
+        'does not affect how the result is given to the model for generation.'
+    )
+    .optional(),
 });
 
 /**
  * Zod schema of Gemini model options.
+ * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/medlm, for further information.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  /**
-   * GCP region (e.g. us-central1)
-   */
-  location: z.string().optional(),
+  maxOutputTokens: z
+    .number()
+    .min(1)
+    .max(8192)
+    .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
+    .optional(),
+  temperature: z
+    .number()
+    .min(0.0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 0.2.'
+    )
+    .optional(),
+  topK: z
+    .number()
+    .min(1)
+    .max(40)
+    .describe(
+      GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
+    )
+    .optional(),
+  topP: z
+    .number()
+    .min(0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.8.'
+    )
+    .optional(),
+  location: z
+    .string()
+    .describe('Google Cloud region e.g. us-central1.')
+    .optional(),
 
   /**
    * Safety filter settings. See: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/configure-safety-filters#configurable-filters
@@ -119,7 +194,13 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    * }
    * ```
    */
-  safetySettings: z.array(SafetySettingsSchema).optional(),
+  safetySettings: z
+    .array(SafetySettingsSchema)
+    .describe(
+      'Adjust how likely you are to see responses that could be harmful. ' +
+        'Content is blocked based on the probability that it is harmful.'
+    )
+    .optional(),
 
   /**
    * Vertex retrieval options.
@@ -139,7 +220,10 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    *   }
    * ```
    */
-  vertexRetrieval: VertexRetrievalSchema.optional(),
+  vertexRetrieval: VertexRetrievalSchema.describe(
+    'Retrieve from Vertex AI Search data store for grounding ' +
+      'generative responses.'
+  ).optional(),
 
   /**
    * Google Search retrieval options.
@@ -152,7 +236,9 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
    *   }
    * ```
    */
-  googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
+  googleSearchRetrieval: GoogleSearchRetrievalSchema.describe(
+    'Retrieve public web data for grounding, powered by Google Search.'
+  ).optional(),
 
   /**
    * Function calling options.
@@ -172,8 +258,16 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
     })
+    .describe(
+      'Controls how the model uses the provided tools (function declarations). ' +
+        'With AUTO (Default) mode, the model decides whether to generate a ' +
+        'natural language response or suggest a function call based on the ' +
+        'prompt and context. With ANY, the model is constrained to always ' +
+        'predict a function call and guarantee function schema adherence. ' +
+        'With NONE, the model is prohibited from making function calls.'
+    )
     .optional(),
-});
+}).passthrough();
 
 /**
  * Known model names, to allow code completion for convenience. Allows other model names.
@@ -408,6 +502,57 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashPreview0417 = modelRef({
+  name: 'vertexai/gemini-2.5-flash-preview-04-17',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Flash Preview 04-17',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25ProExp0325 = modelRef({
+  name: 'vertexai/gemini-2.5-pro-exp-03-25',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Pro Experimental 03-25',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25ProPreview0325 = modelRef({
+  name: 'vertexai/gemini-2.5-pro-preview-03-25',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Pro Preview 03-25',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const GENERIC_GEMINI_MODEL = modelRef({
   name: 'vertexai/gemini',
   configSchema: GeminiConfigSchema,
@@ -435,6 +580,9 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-flash-lite': gemini20FlashLite,
   'gemini-2.0-flash-lite-preview-02-05': gemini20FlashLitePreview0205,
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
+  'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
+  'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
+  'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
@@ -888,17 +1036,29 @@ export function defineGeminiModel({
         }
       }
 
+      const requestConfig = request.config as z.infer<
+        typeof GeminiConfigSchema
+      >;
+      const {
+        functionCallingConfig,
+        version: versionFromConfig,
+        googleSearchRetrieval,
+        vertexRetrieval,
+        location, // location can be overridden via config, take it out.
+        safetySettings,
+        ...restOfConfig
+      } = requestConfig;
+
       const tools = request.tools?.length
         ? [{ functionDeclarations: request.tools.map(toGeminiTool) }]
         : [];
 
       let toolConfig: ToolConfig | undefined;
-      if (request?.config?.functionCallingConfig) {
+      if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
-            allowedFunctionNames:
-              request.config.functionCallingConfig.allowedFunctionNames,
-            mode: toFunctionModeEnum(request.config.functionCallingConfig.mode),
+            allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
+            mode: toFunctionModeEnum(functionCallingConfig.mode),
           },
         };
       } else if (request.toolChoice) {
@@ -922,19 +1082,15 @@ export function defineGeminiModel({
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, modelInfo)),
         generationConfig: {
+          ...restOfConfig,
           candidateCount: request.candidates || undefined,
-          temperature: request.config?.temperature,
-          maxOutputTokens: request.config?.maxOutputTokens,
-          topK: request.config?.topK,
-          topP: request.config?.topP,
           responseMimeType: jsonMode ? 'application/json' : undefined,
-          stopSequences: request.config?.stopSequences,
         },
-        safetySettings: request.config?.safetySettings,
+        safetySettings: toGeminiSafetySettings(safetySettings),
       };
 
       // Handle cache
-      const modelVersion = (request.config?.version || version) as string;
+      const modelVersion = (versionFromConfig || version) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
       const apiClient = new ApiClient(
@@ -961,15 +1117,13 @@ export function defineGeminiModel({
         );
       }
 
-      if (request.config?.googleSearchRetrieval) {
+      if (googleSearchRetrieval) {
         updatedChatRequest.tools?.push({
-          googleSearchRetrieval: request.config
-            .googleSearchRetrieval as GoogleSearchRetrieval,
+          googleSearchRetrieval: googleSearchRetrieval as GoogleSearchRetrieval,
         });
       }
 
-      if (request.config?.vertexRetrieval) {
-        const vertexRetrieval = request.config.vertexRetrieval;
+      if (vertexRetrieval) {
         const _projectId =
           vertexRetrieval.datastore.projectId || options.projectId;
         const _location =
@@ -1058,6 +1212,8 @@ export function defineGeminiModel({
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
+            cachedContentTokens:
+              response.usageMetadata?.cachedContentTokenCount,
           },
         };
       };
@@ -1114,6 +1270,18 @@ function toFunctionModeEnum(
     default:
       throw new Error(`unsupported function calling mode: ${enumMode}`);
   }
+}
+
+function toGeminiSafetySettings(
+  genkitSettings?: z.infer<typeof SafetySettingsSchema>[]
+): SafetySetting[] | undefined {
+  if (!genkitSettings) return undefined;
+  return genkitSettings.map((s) => {
+    return {
+      category: s.category as HarmCategory,
+      threshold: s.threshold as HarmBlockThreshold,
+    };
+  });
 }
 
 /** Converts mode from genkit tool choice. */

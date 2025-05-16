@@ -29,8 +29,6 @@ import { getModelInput } from '../utils';
 
 // Setup for AJV
 type JSONSchema = JSONSchemaType<any> | any;
-const ajv = new Ajv();
-addFormats(ajv);
 
 /**
  * Validate given data against a target action. Intended to be used via the
@@ -110,6 +108,9 @@ function validate(
   } else {
     input = data;
   }
+
+  const ajv = new Ajv();
+  addFormats(ajv);
   const validator = ajv.compile(jsonSchema);
   const valid = validator(input) as boolean;
   const errors = validator.errors?.map((e) => e);

@@ -54,6 +54,19 @@ export function expressHandler<
     response: express.Response
   ): Promise<void> => {
     const { stream } = request.query;
+    if (!request.body) {
+      const errMsg =
+        `Error: request.body is undefined. ` +
+        `Possible reasons: missing 'content-type: application/json' in request ` +
+        `headers or misconfigured JSON middleware ('app.use(express.json()')? `;
+      logger.error(errMsg);
+      response
+        .status(400)
+        .json({ message: errMsg, status: 'INVALID ARGUMENT' })
+        .end();
+      return;
+    }
+
     let input = request.body.data as z.infer<I>;
     let context: Record<string, any>;
 

@@ -1,7 +1,7 @@
 [![Run e2e tests](https://github.com/firebase/genkit/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/firebase/genkit/actions/workflows/e2e-tests.yml)
 
-![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
-![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
+![Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Genkit')
+![Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Genkit')
 
 Genkit is a framework for building AI-powered applications. It provides open source libraries for Node.js and Go, along with tools to help you debug and iterate quickly.
 
@@ -31,6 +31,7 @@ While developed by the [Firebase](https://firebase.google.com) team, Genkit can 
 ## Get started
 
 - [Node.js quickstart](https://firebase.google.com/docs/genkit/get-started)
+- [Angular quickstart](https://firebase.google.com/docs/genkit/angular)
 - [Next.js quickstart](https://firebase.google.com/docs/genkit/nextjs)
 - [Go quickstart](https://firebase.google.com/docs/genkit-go/get-started-go)
 
@@ -86,15 +87,15 @@ Create and share your own plugins:
 
 Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere, and more in this [repository](https://github.com/TheFireCo/genkit-plugins).
 
-## Try Genkit on IDX
+## Try Genkit in Firebase Studio
 
-Want to skip the local setup? Click below to try out Genkit using [Project IDX](https://idx.dev), Google's AI-assisted workspace for full-stack app development in the cloud.
+Want to skip the local setup? Click below to try out Genkit using [Firebase Studio](https://firebase.studio), Google's AI-assisted workspace for full-stack app development in the cloud.
 
-<a href="https://idx.google.com/new/genkit">
+<a href="https://studio.firebase.google.com/new/genkit">
   <img
     height="32"
-    alt="Try in IDX"
-    src="https://cdn.idx.dev/btn/try_purple_32.svg">
+    alt="Open in Firebase Studio"
+    src="https://cdn.firebasestudio.dev/btn/open_bright_32.svg">
 </a>
 
 ## Sample apps

@@ -1,6 +1,6 @@
 # Deploy flows to any app hosting platform
 
-You can deploy Firebase Genkit flows as web services using any service that can
+You can deploy Genkit flows as web services using any service that can
 host a Go binary.
 This page, as an example, walks you through the general process of deploying the
 default sample flow, and points out where you must take provider-specific

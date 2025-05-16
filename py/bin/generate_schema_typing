@@ -38,16 +38,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 TOP_DIR=$(git rev-parse --show-toplevel)
-TYPING_FILE="${TOP_DIR}/py/packages/genkit-ai/src/genkit/core/typing.py"
+TYPING_FILE="${TOP_DIR}/py/packages/genkit/src/genkit/core/typing.py"
 
 # If in CI mode and the file exists, make a backup copy to compare later.
-if [[ "$CI_ENABLED" == "true" ]] && [[ -f "$TYPING_FILE" ]]; then
+BACKUP_FILE=""
+if [[ $CI_ENABLED == "true" ]] && [[ -f $TYPING_FILE ]]; then
   BACKUP_FILE="${TYPING_FILE}.backup"
   cp "$TYPING_FILE" "$BACKUP_FILE"
 fi
 
 # Generate types using configuration from pyproject.toml.
-uv run --directory "${TOP_DIR}/py" datamodel-codegen
+uv run --directory "${TOP_DIR}/py" datamodel-codegen \
+  --formatters=ruff-check \
+  --formatters=ruff-format
 
 # Sanitize the generated schema.
 python3 "${TOP_DIR}/py/bin/sanitize_schema_typing.py" "${TYPING_FILE}"
@@ -62,7 +65,7 @@ uv run --directory "${TOP_DIR}/py" \
 
 # We want to detect and raise an error when this file changes in our hooks or in
 # CI.
-if [[ "$CI_ENABLED" == "true" ]] && [[ -f "$BACKUP_FILE" ]]; then
+if [[ $CI_ENABLED == "true" ]] && [[ -f $BACKUP_FILE ]]; then
   if ! diff -q "$BACKUP_FILE" "$TYPING_FILE" >/dev/null; then
     echo "Error: Generated schema typing file differs from the existing one."
     echo "Please run './py/bin/generate_schema_typing' locally and commit the changes."
@@ -70,4 +73,8 @@ if [[ "$CI_ENABLED" == "true" ]] && [[ -f "$BACKUP_FILE" ]]; then
     exit 1
   fi
 fi
-rm "$BACKUP_FILE"
+
+# Remove the backup file if it exists.
+if [[ -f $BACKUP_FILE ]]; then
+  rm "$BACKUP_FILE"
+fi

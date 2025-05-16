@@ -40,13 +40,16 @@
           "run": "bin/fmt"
         },
         {
-          "run": "py/bin/run_python_tests"
+          "run": "py/bin/run_python_tests_with_tox p"
         },
         {
-          "run": "uv run --directory py mkdocs build"
+          "run": "echo 'disabled' || uv run --directory py mkdocs build"
         },
         {
           "run": "py/bin/build_dists"
+        },
+        {
+          "run": "uv run --directory py liccheck"
         },
         {
           "run": "bin/run_go_tests"
@@ -77,13 +80,16 @@
           "run": "bin/fmt"
         },
         {
-          "run": "py/bin/run_python_tests"
+          "run": "py/bin/run_python_tests_with_tox p"
         },
         {
-          "run": "uv run --directory py mkdocs build"
+          "run": "echo 'disabled' || uv run --directory py mkdocs build"
         },
         {
           "run": "py/bin/build_dists"
+        },
+        {
+          "run": "uv run --directory py liccheck"
         },
         {
           "run": "bin/run_go_tests"

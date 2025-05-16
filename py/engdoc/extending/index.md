@@ -2,14 +2,14 @@
 
 !!! note
 
-    If you're a user of Firebase Genkit and landed here,
+    If you're a user of Genkit and landed here,
     this is engineering documentation that someone contributing
     to Genkit would use, not necessarily only use it.
 
     For more information about how to get started with using
-    Firebase Genkit, please see: [User Guide](.)
+    Genkit, please see: [User Guide](.)
 
-Firebase Genkit models a generative AI framework allowing application developers
+Genkit models a generative AI framework allowing application developers
 to work with abstractions to allow the use of pluggable implementations of the
 various elements of generative AI. It has SDKs for JavaScript, Go, and Python.
 

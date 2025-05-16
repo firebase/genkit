@@ -413,6 +413,14 @@
         "$ref": "#/$defs/EvalFnResponse"
       }
     },
+    "EvalStatusEnum": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "PASS",
+        "FAIL"
+      ]
+    },
     "Score": {
       "type": "object",
       "properties": {
@@ -426,6 +434,9 @@
             "string",
             "boolean"
           ]
+        },
+        "status": {
+          "$ref": "#/$defs/EvalStatusEnum"
         },
         "error": {
           "type": "string"
@@ -804,6 +815,12 @@
           "additionalProperties": {
             "type": "number"
           }
+        },
+        "thoughtsTokens": {
+          "type": "number"
+        },
+        "cachedContentTokens": {
+          "type": "number"
         }
       },
       "additionalProperties": false
@@ -842,6 +859,10 @@
         },
         "label": {
           "type": "string"
+        },
+        "configSchema": {
+          "type": "object",
+          "additionalProperties": {}
         },
         "supports": {
           "type": "object",
@@ -996,9 +1017,6 @@
         },
         "constrained": {
           "type": "boolean"
-        },
-        "instructions": {
-          "type": "string"
         },
         "contentType": {
           "type": "string"

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"math"
@@ -67,7 +68,7 @@ func TestGoogleAILive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
 			Over  float64
@@ -78,7 +79,7 @@ func TestGoogleAILive(t *testing.T) {
 	)
 
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder, ai.WithEmbedText("yellow banana"))
+		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -99,7 +100,7 @@ func TestGoogleAILive(t *testing.T) {
 
 	t.Run("generate", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Which country was Napoleon the emperor of? Name the country, nothing else"),
+			ai.WithPrompt("Which country was Napoleon the emperor of? Name the country, nothing else"),
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -122,7 +123,7 @@ func TestGoogleAILive(t *testing.T) {
 		out := ""
 		parts := 0
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("Write one paragraph about the North Pole."),
+			ai.WithPrompt("Write one paragraph about the North Pole."),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
 				parts++
 				out += c.Content[0].Text
@@ -153,7 +154,7 @@ func TestGoogleAILive(t *testing.T) {
 
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
@@ -165,10 +166,42 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool with json output", func(t *testing.T) {
+		type weatherQuery struct {
+			Location string `json:"location"`
+		}
 
+		type weather struct {
+			Report string `json:"report"`
+		}
+
+		weatherTool := genkit.DefineTool(g, "weatherTool",
+			"Use this tool to get the weather report for a specific location",
+			func(ctx *ai.ToolContext, input weatherQuery) (string, error) {
+				report := fmt.Sprintf("The weather in %s is sunny and 70 degrees today.", input.Location)
+				return report, nil
+			},
+		)
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithTools(weatherTool),
+			ai.WithPrompt("what's the weather in San Francisco?"),
+			ai.WithOutputType(weather{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var w weather
+		if err = resp.Output(&w); err != nil {
+			t.Fatal(err)
+		}
+		if w.Report == "" {
+			t.Fatal("empty weather report, tool should have provided an output")
+		}
+	})
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPromptText("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool),
 			ai.WithToolChoice(ai.ToolChoiceNone),
 		)
@@ -196,8 +229,8 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPromptText("write a summary of the content"),
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithPrompt("write a summary of the content"),
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}))
 		if err != nil {
@@ -221,14 +254,17 @@ func TestGoogleAILive(t *testing.T) {
 		}
 
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&ai.GenerationCommonConfig{
+			ai.WithConfig(&googlegenai.GeminiConfig{
 				Version: "gemini-1.5-flash-001",
 			}),
 			ai.WithMessages(resp.History()...),
-			ai.WithPromptText("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
+			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if resp.Usage.CachedContentTokens == 0 {
+			t.Fatal("expecting cached content tokens but got empty")
 		}
 		text := resp.Text()
 		if !strings.Contains(text, "Ahoy") {
@@ -251,17 +287,17 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 	})
-	t.Run("media content (unstructured data)", func(t *testing.T) {
+	t.Run("media content (inline data)", func(t *testing.T) {
 		i, err := fetchImgAsBase64()
 		if err != nil {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystemText("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
 				),
 			),
 		)
@@ -286,6 +322,83 @@ func TestGoogleAILive(t *testing.T) {
 		}
 		if !strings.Contains(resp.Text(), "Mario Kart") {
 			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
+		}
+	})
+	t.Run("data content (inline data)", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewDataPart("data:image/png;base64,"+i),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(resp.Text(), "Bluey") {
+			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		}
+	})
+	t.Run("image generation", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-exp")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(googlegenai.GeminiConfig{
+				ResponseModalities: []googlegenai.Modality{googlegenai.ImageMode, googlegenai.TextMode},
+			}),
+			ai.WithMessages(
+				ai.NewUserTextMessage("generate an image of a dog wearing a black tejana while playing the accordion"),
+			),
+			ai.WithModel(m),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(resp.Message.Content) == 0 {
+			t.Fatal("empty response")
+		}
+		part := resp.Message.Content[0]
+		if part.ContentType != "image/png" {
+			t.Errorf("expecting image/png content type but got: %q", part.ContentType)
+		}
+		if part.Kind != ai.PartMedia {
+			t.Errorf("expecting part to be Media type but got: %q", part.Kind)
+		}
+		if part.Text == "" {
+			t.Errorf("empty response")
+		}
+	})
+	t.Run("constrained generation", func(t *testing.T) {
+		type outFormat struct {
+			Country string
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("Which country was Napoleon the emperor of?"),
+			ai.WithOutputType(outFormat{}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var ans outFormat
+		err = resp.Output(&ans)
+		if err != nil {
+			t.Fatal(err)
+		}
+		const want = "France"
+		if ans.Country != want {
+			t.Errorf("got %q, expecting %q", ans.Country, want)
+		}
+		if resp.Request == nil {
+			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
 		}
 	})
 }

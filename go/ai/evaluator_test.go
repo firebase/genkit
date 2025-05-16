@@ -42,12 +42,10 @@ var testEvalFunc = func(ctx context.Context, req *EvaluatorCallbackRequest) (*Ev
 
 var testBatchEvalFunc = func(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
 	var evalResponses []EvaluationResult
-	dataset := *req.Dataset
-	for i := 0; i < len(dataset); i++ {
-		input := dataset[i]
-		fmt.Printf("%+v\n", input)
+	for _, datapoint := range req.Dataset {
+		fmt.Printf("%+v\n", datapoint)
 		m := make(map[string]any)
-		m["reasoning"] = fmt.Sprintf("batch of cookies, %s", input.Input)
+		m["reasoning"] = fmt.Sprintf("batch of cookies, %s", datapoint.Input)
 		m["options"] = req.Options
 		score := Score{
 			Id:      "testScore",
@@ -56,7 +54,7 @@ var testBatchEvalFunc = func(ctx context.Context, req *EvaluatorRequest) (*Evalu
 			Details: m,
 		}
 		callbackResponse := EvaluationResult{
-			TestCaseId: input.TestCaseId,
+			TestCaseId: datapoint.TestCaseId,
 			Evaluation: []Score{score},
 		}
 		evalResponses = append(evalResponses, callbackResponse)
@@ -74,7 +72,7 @@ var evalOptions = EvaluatorOptions{
 	IsBilled:    false,
 }
 
-var dataset = Dataset{
+var dataset = []*Example{
 	{
 		Input: "hello world",
 	},
@@ -84,7 +82,7 @@ var dataset = Dataset{
 }
 
 var testRequest = EvaluatorRequest{
-	Dataset:      &dataset,
+	Dataset:      dataset,
 	EvaluationId: "testrun",
 	Options:      "test-options",
 }
@@ -114,7 +112,7 @@ func TestSimpleEvaluator(t *testing.T) {
 	if got, want := (*resp)[0].Evaluation[0].Score, 1; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := (*resp)[0].Evaluation[0].Status, "pass"; got != want {
+	if got, want := (*resp)[0].Evaluation[0].Status, "PASS"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := (*resp)[0].Evaluation[0].Details["options"], "test-options"; got != want {
@@ -157,36 +155,9 @@ func TestFailingEvaluator(t *testing.T) {
 	if got, dontWant := (*resp)[0].Evaluation[0].Error, ""; got == dontWant {
 		t.Errorf("got %v, dontWant %v", got, dontWant)
 	}
-	if got, want := (*resp)[0].Evaluation[0].Status, "fail"; got != want {
+	if got, want := (*resp)[0].Evaluation[0].Status, "FAIL"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-}
-
-func TestIsDefinedEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = DefineEvaluator(r, "test", "testEvaluator", &evalOptions, testEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = DefineBatchEvaluator(r, "test", "testBatchEvaluator", &evalOptions, testBatchEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if got, want := IsDefinedEvaluator(r, "test", "testEvaluator"), true; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
-	if got, want := IsDefinedEvaluator(r, "test", "testBatchEvaluator"), true; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
-	if got, want := IsDefinedEvaluator(r, "test", "fakefakefake"), false; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
-
 }
 
 func TestLookupEvaluator(t *testing.T) {
@@ -224,9 +195,9 @@ func TestEvaluate(t *testing.T) {
 	}
 
 	resp, err := Evaluate(context.Background(), evalAction,
-		WithEvaluateDataset(&dataset),
-		WithEvaluateId("testrun"),
-		WithEvaluateOptions("test-options"))
+		WithDataset(dataset...),
+		WithID("testrun"),
+		WithConfig("test-options"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +208,7 @@ func TestEvaluate(t *testing.T) {
 	if got, want := (*resp)[0].Evaluation[0].Score, 1; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := (*resp)[0].Evaluation[0].Status, "pass"; got != want {
+	if got, want := (*resp)[0].Evaluation[0].Status, "PASS"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := (*resp)[0].Evaluation[0].Details["options"], "test-options"; got != want {
@@ -270,7 +241,7 @@ func TestBatchEvaluator(t *testing.T) {
 	if got, want := (*resp)[0].Evaluation[0].Score, true; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := (*resp)[0].Evaluation[0].Status, "pass"; got != want {
+	if got, want := (*resp)[0].Evaluation[0].Status, "PASS"; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if got, want := (*resp)[0].Evaluation[0].Details["options"], "test-options"; got != want {

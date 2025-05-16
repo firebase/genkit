@@ -97,6 +97,8 @@ export const ModelInfoSchema = z.object({
   versions: z.array(z.string()).optional(),
   /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
   label: z.string().optional(),
+  /** Model Specific configuration. */
+  configSchema: z.record(z.any()).optional(),
   /** Supported model capabilities. */
   supports: z
     .object({
@@ -187,7 +189,6 @@ export const OutputConfigSchema = z.object({
   format: z.string().optional(),
   schema: z.record(z.any()).optional(),
   constrained: z.boolean().optional(),
-  instructions: z.string().optional(),
   contentType: z.string().optional(),
 });
 
@@ -249,6 +250,8 @@ export const GenerationUsageSchema = z.object({
   inputAudioFiles: z.number().optional(),
   outputAudioFiles: z.number().optional(),
   custom: z.record(z.number()).optional(),
+  thoughtsTokens: z.number().optional(),
+  cachedContentTokens: z.number().optional(),
 });
 
 /**

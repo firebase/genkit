@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, z } from '@genkit-ai/core';
+import { Action, ActionMetadata, defineAction, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
 /**
@@ -115,6 +116,11 @@ export function defineEmbedder<
       metadata: {
         type: 'embedder',
         info: options.info,
+        embedder: {
+          customOptions: options.configSchema
+            ? toJsonSchema({ schema: options.configSchema })
+            : undefined,
+        },
       },
     },
     (i) =>
@@ -286,4 +292,32 @@ export function embedderRef<
   options: EmbedderReference<CustomOptionsSchema>
 ): EmbedderReference<CustomOptionsSchema> {
   return { ...options };
+}
+
+/**
+ * Packages embedder information into ActionMetadata object.
+ */
+export function embedderActionMetadata({
+  name,
+  info,
+  configSchema,
+}: {
+  name: string;
+  info?: EmbedderInfo;
+  configSchema?: z.ZodTypeAny;
+}): ActionMetadata {
+  return {
+    actionType: 'embedder',
+    name: name,
+    inputJsonSchema: toJsonSchema({ schema: EmbedRequestSchema }),
+    outputJsonSchema: toJsonSchema({ schema: EmbedResponseSchema }),
+    metadata: {
+      embedder: {
+        ...info,
+        customOptions: configSchema
+          ? toJsonSchema({ schema: configSchema })
+          : undefined,
+      },
+    },
+  } as ActionMetadata;
 }

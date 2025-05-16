@@ -78,3 +78,22 @@ func ValidateRaw(dataBytes json.RawMessage, schemaBytes json.RawMessage) error {
 
 	return nil
 }
+
+// ValidateIsJSONArray will validate if the schema represents a JSON array.
+func ValidateIsJSONArray(schema map[string]any) bool {
+	if sType, ok := schema["type"]; !ok || sType != "array" {
+		return false
+	}
+
+	if _, ok := schema["items"]; !ok {
+		return false
+	}
+
+	return true
+}
+
+// Validates if the given string is a valid JSON string
+func ValidJSON(s string) bool {
+	var js json.RawMessage
+	return json.Unmarshal([]byte(s), &js) == nil
+}

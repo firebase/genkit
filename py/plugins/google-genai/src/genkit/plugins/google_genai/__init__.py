@@ -14,13 +14,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from genkit.plugins.google_genai.google import GoogleGenai, google_genai_name
+from genkit.plugins.google_genai.google import GoogleAI, VertexAI, googleai_name, vertexai_name
 from genkit.plugins.google_genai.models.embedder import (
     EmbeddingTaskType,
     GeminiEmbeddingModels,
     VertexEmbeddingModels,
 )
-from genkit.plugins.google_genai.models.gemini import GeminiVersion
+from genkit.plugins.google_genai.models.gemini import GeminiConfigSchema, GoogleAIGeminiVersion, VertexAIGeminiVersion
+from genkit.plugins.google_genai.models.imagen import ImagenVersion
 
 
 def package_name() -> str:
@@ -34,10 +35,15 @@ def package_name() -> str:
 
 __all__ = [
     package_name.__name__,
-    GoogleGenai.__name__,
-    google_genai_name.__name__,
+    GoogleAI.__name__,
+    VertexAI.__name__,
+    googleai_name.__name__,
+    vertexai_name.__name__,
     GeminiEmbeddingModels.__name__,
     VertexEmbeddingModels.__name__,
-    GeminiVersion.__name__,
+    GoogleAIGeminiVersion.__name__,
+    VertexAIGeminiVersion.__name__,
     EmbeddingTaskType.__name__,
+    GeminiConfigSchema.__name__,
+    ImagenVersion.__name__,
 ]

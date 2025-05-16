@@ -26,9 +26,9 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/weaviate/weaviate-go-client/v4/weaviate"
-	"github.com/weaviate/weaviate-go-client/v4/weaviate/auth"
-	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
+	"github.com/weaviate/weaviate-go-client/v5/weaviate"
+	"github.com/weaviate/weaviate-go-client/v5/weaviate/auth"
+	"github.com/weaviate/weaviate-go-client/v5/weaviate/graphql"
 	"github.com/weaviate/weaviate/entities/models"
 )
 
@@ -146,8 +146,7 @@ type ClassConfig struct {
 
 // DefineIndexerAndRetriever defines an [ai.Indexer] and [ai.Retriever]
 // that use the same class.
-// The name uniquely identifies the Indexer and Retriever
-// in the registry.
+// The name uniquely identifies the Indexer and Retriever in the registry.
 func DefineIndexerAndRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig) (ai.Indexer, ai.Retriever, error) {
 	if cfg.Embedder == nil {
 		return nil, nil, errors.New("weaviate: Embedder required")
@@ -228,8 +227,8 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 
 	// Use the embedder to convert each Document into a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: req.Documents,
-		Options:   ds.embedderOptions,
+		Input:   req.Documents,
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
@@ -295,8 +294,8 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 
 	// Use the embedder to convert the document to a vector.
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Query},
-		Options:   ds.embedderOptions,
+		Input:   []*ai.Document{req.Query},
+		Options: ds.embedderOptions,
 	}
 	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {

@@ -14,44 +14,63 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Ollama Plugin for Genkit.
-"""
-
-import logging
+"""Ollama Plugin for Genkit."""
 
 import ollama as ollama_api
-from genkit.ai.plugin import Plugin
-from genkit.ai.registry import GenkitRegistry
+from genkit.ai import GenkitRegistry, Plugin
 from genkit.plugins.ollama.embedders import OllamaEmbedder
 from genkit.plugins.ollama.models import (
+    DEFAULT_OLLAMA_SERVER_URL,
+    EmbeddingModelDefinition,
+    ModelDefinition,
     OllamaAPITypes,
     OllamaModel,
-    OllamaPluginParams,
 )
-
-LOG = logging.getLogger(__name__)
 
 
 def ollama_name(name: str) -> str:
+    """Get the name of the Ollama model.
+
+    Args:
+        name: The name of the Ollama model.
+
+    Returns:
+        The name of the Ollama model.
+    """
     return f'ollama/{name}'
 
 
 class Ollama(Plugin):
+    """Ollama plugin for Genkit."""
+
     name = 'ollama'
 
-    def __init__(self, plugin_params: OllamaPluginParams):
-        self.plugin_params = plugin_params
-        self.client = ollama_api.AsyncClient(
-            host=self.plugin_params.server_address.unicode_string()
-        )
+    def __init__(
+        self,
+        models: list[ModelDefinition] | None = None,
+        embedders: list[EmbeddingModelDefinition] | None = None,
+        server_address: str | None = None,
+        request_headers: dict[str, str] | None = None,
+    ):
+        """Initialize the Ollama plugin."""
+        self.models = models or []
+        self.embedders = embedders or []
+        self.server_address = server_address or DEFAULT_OLLAMA_SERVER_URL
+        self.request_headers = request_headers or {}
+
+        self.client = ollama_api.AsyncClient(host=self.server_address)
 
     def initialize(self, ai: GenkitRegistry) -> None:
+        """Initialize the Ollama plugin.
+
+        Args:
+            ai: The AI registry to initialize the plugin with.
+        """
         self._initialize_models(ai=ai)
         self._initialize_embedders(ai=ai)
 
     def _initialize_models(self, ai: GenkitRegistry):
-        for model_definition in self.plugin_params.models:
+        for model_definition in self.models:
             model = OllamaModel(
                 client=self.client,
                 model_definition=model_definition,
@@ -60,14 +79,13 @@ class Ollama(Plugin):
                 name=ollama_name(model_definition.name),
                 fn=model.generate,
                 metadata={
-                    'multiturn': model_definition.api_type
-                    == OllamaAPITypes.CHAT,
+                    'multiturn': model_definition.api_type == OllamaAPITypes.CHAT,
                     'system_role': True,
                 },
             )
 
     def _initialize_embedders(self, ai: GenkitRegistry):
-        for embedding_definition in self.plugin_params.embedders:
+        for embedding_definition in self.embedders:
             embedder = OllamaEmbedder(
                 client=self.client,
                 embedding_definition=embedding_definition,

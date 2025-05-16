@@ -68,6 +68,9 @@ import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
+/**
+ * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
+ */
 const SafetySettingsSchema = z.object({
   category: z.enum([
     'HARM_CATEGORY_UNSPECIFIED',
@@ -75,6 +78,7 @@ const SafetySettingsSchema = z.object({
     'HARM_CATEGORY_SEXUALLY_EXPLICIT',
     'HARM_CATEGORY_HARASSMENT',
     'HARM_CATEGORY_DANGEROUS_CONTENT',
+    'HARM_CATEGORY_CIVIC_INTEGRITY',
   ]),
   threshold: z.enum([
     'BLOCK_LOW_AND_ABOVE',
@@ -85,23 +89,50 @@ const SafetySettingsSchema = z.object({
 });
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  /** When supplied, override the plugin-configured API key and use this instead. */
-  apiKey: z.string().optional(),
-  safetySettings: z.array(SafetySettingsSchema).optional(),
-  codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
-  contextCache: z.boolean().optional(),
+  apiKey: z
+    .string()
+    .describe('Overrides the plugin-configured API key, if specified.')
+    .optional(),
+  safetySettings: z
+    .array(SafetySettingsSchema)
+    .describe(
+      'Adjust how likely you are to see responses that could be harmful. ' +
+        'Content is blocked based on the probability that it is harmful.'
+    )
+    .optional(),
+  codeExecution: z
+    .union([z.boolean(), z.object({}).strict()])
+    .describe('Enables the model to generate and run code.')
+    .optional(),
+  contextCache: z
+    .boolean()
+    .describe(
+      'Context caching allows you to save and reuse precomputed input ' +
+        'tokens that you wish to use repeatedly.'
+    )
+    .optional(),
   functionCallingConfig: z
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
     })
+    .describe(
+      'Controls how the model uses the provided tools (function declarations). ' +
+        'With AUTO (Default) mode, the model decides whether to generate a ' +
+        'natural language response or suggest a function call based on the ' +
+        'prompt and context. With ANY, the model is constrained to always ' +
+        'predict a function call and guarantee function schema adherence. ' +
+        'With NONE, the model is prohibited from making function calls.'
+    )
     .optional(),
-  /**
-   * Specify what modalities should be used in response. Only supported in
-   * 'gemini-2.0-flash-exp' model at present.
-   **/
-  responseModalities: z.array(z.enum(['TEXT', 'IMAGE', 'AUDIO'])).optional(),
-});
+  responseModalities: z
+    .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
+    .describe(
+      'The modalities to be used in response. Only supported for ' +
+        "'gemini-2.0-flash-exp' model at present."
+    )
+    .optional(),
+}).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
 export const gemini10Pro = modelRef({
@@ -250,10 +281,44 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashPreview0417 = modelRef({
+  name: 'googleai/gemini-2.5-flash-preview-04-17',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash Preview 04-17',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemini25ProExp0325 = modelRef({
   name: 'googleai/gemini-2.5-pro-exp-03-25',
   info: {
     label: 'Google AI - Gemini 2.5 Pro Exp 03-25',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25ProPreview0325 = modelRef({
+  name: 'googleai/gemini-2.5-pro-preview-03-25',
+  info: {
+    label: 'Google AI - Gemini 2.5 Pro Preview 03-25',
     versions: [],
     supports: {
       multiturn: true,
@@ -280,6 +345,8 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
   'gemini-2.0-flash-exp': gemini20FlashExp,
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
+  'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
+  'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
@@ -363,6 +430,7 @@ function nearestGeminiModelRef(
       version,
     });
   }
+
   return GENERIC_GEMINI_MODEL.withConfig({ ...options, version });
 }
 
@@ -753,7 +821,7 @@ export function defineGoogleAIModel({
     : name;
 
   const model: ModelReference<z.ZodTypeAny> =
-    SUPPORTED_GEMINI_MODELS[name] ??
+    SUPPORTED_GEMINI_MODELS[apiModelName] ??
     modelRef({
       name: `googleai/${apiModelName}`,
       info: {
@@ -771,7 +839,7 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[name]) {
+  if (SUPPORTED_V1_MODELS[apiModelName]) {
     middleware.push(simulateSystemPrompt());
   }
   if (model.info?.supports?.media) {
@@ -828,7 +896,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[name]) {
+      if (SUPPORTED_V15_MODELS[apiModelName]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -843,7 +911,16 @@ export function defineGoogleAIModel({
         });
       }
 
-      if (requestConfig.codeExecution) {
+      const {
+        apiKey: apiKeyFromConfig,
+        safetySettings: safetySettingsFromConfig,
+        codeExecution: codeExecutionFromConfig,
+        version: versionFromConfig,
+        functionCallingConfig,
+        ...restOfConfigOptions
+      } = requestConfig;
+
+      if (codeExecutionFromConfig) {
         tools.push({
           codeExecution:
             request.config.codeExecution === true
@@ -853,12 +930,11 @@ export function defineGoogleAIModel({
       }
 
       let toolConfig: ToolConfig | undefined;
-      if (requestConfig.functionCallingConfig) {
+      if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
-            allowedFunctionNames:
-              requestConfig.functionCallingConfig.allowedFunctionNames,
-            mode: toFunctionModeEnum(requestConfig.functionCallingConfig.mode),
+            allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
+            mode: toFunctionModeEnum(functionCallingConfig.mode),
           },
         };
       } else if (request.toolChoice) {
@@ -876,19 +952,10 @@ export function defineGoogleAIModel({
           tools.length === 0);
 
       const generationConfig: GenerationConfig = {
+        ...restOfConfigOptions,
         candidateCount: request.candidates || undefined,
-        temperature: requestConfig.temperature,
-        maxOutputTokens: requestConfig.maxOutputTokens,
-        topK: requestConfig.topK,
-        topP: requestConfig.topP,
-        stopSequences: requestConfig.stopSequences,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
-      if (requestConfig.responseModalities) {
-        // HACK: cast to any since this isn't officially supported in the old SDK yet
-        (generationConfig as any).responseModalities =
-          requestConfig.responseModalities;
-      }
 
       if (request.output?.constrained && jsonMode) {
         generationConfig.responseSchema = cleanSchema(request.output.schema);
@@ -910,11 +977,11 @@ export function defineGoogleAIModel({
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
-        safetySettings: requestConfig.safetySettings,
+        safetySettings: safetySettingsFromConfig,
       } as StartChatParams;
-      const modelVersion = (request.config?.version ||
+      const modelVersion = (versionFromConfig ||
         model.version ||
-        name) as string;
+        apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
       const { chatRequest: updatedChatRequest, cache } =
@@ -926,14 +993,14 @@ export function defineGoogleAIModel({
           cacheConfigDetails
         );
 
-      if (!requestConfig.apiKey && !apiKey) {
+      if (!apiKeyFromConfig && !apiKey) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
           message:
             'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
         });
       }
-      const client = new GoogleGenerativeAI(requestConfig.apiKey || apiKey!);
+      const client = new GoogleGenerativeAI(apiKeyFromConfig || apiKey!);
       let genModel: GenerativeModel;
 
       if (cache) {
@@ -1004,6 +1071,8 @@ export function defineGoogleAIModel({
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
+            cachedContentTokens:
+              response.usageMetadata?.cachedContentTokenCount,
           },
         };
       };

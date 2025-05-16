@@ -16,6 +16,7 @@
 
 import {
   Action,
+  ActionMetadata,
   defineAction,
   GenkitError,
   getStreamingCallback,
@@ -119,6 +120,8 @@ export const ModelInfoSchema = z.object({
   versions: z.array(z.string()).optional(),
   /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
   label: z.string().optional(),
+  /** Model Specific configuration. */
+  configSchema: z.record(z.any()).optional(),
   /** Supported model capabilities. */
   supports: z
     .object({
@@ -185,17 +188,58 @@ export const ToolDefinitionSchema = z.object({
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
 /**
+ * Configuration parameter descriptions.
+ */
+export const GenerationCommonConfigDescriptions = {
+  temperature:
+    'Controls the degree of randomness in token selection. A lower value is ' +
+    'good for a more predictable response. A higher value leads to more ' +
+    'diverse or unexpected results.',
+  maxOutputTokens: 'The maximum number of tokens to include in the response.',
+  topK: 'The maximum number of tokens to consider when sampling.',
+  topP:
+    'Decides how many possible words to consider. A higher value means ' +
+    'that the model looks at more possible words, even the less likely ' +
+    'ones, which makes the generated text more diverse.',
+};
+
+/**
  * Zod schema of a common config object.
  */
-export const GenerationCommonConfigSchema = z.object({
-  /** A specific version of a model family, e.g. `gemini-1.0-pro-001` for the `gemini-1.0-pro` family. */
-  version: z.string().optional(),
-  temperature: z.number().optional(),
-  maxOutputTokens: z.number().optional(),
-  topK: z.number().optional(),
-  topP: z.number().optional(),
-  stopSequences: z.array(z.string()).optional(),
-});
+export const GenerationCommonConfigSchema = z
+  .object({
+    version: z
+      .string()
+      .describe(
+        'A specific version of a model family, e.g. `gemini-2.0-flash` ' +
+          'for the `googleai` family.'
+      )
+      .optional(),
+    temperature: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.temperature)
+      .optional(),
+    maxOutputTokens: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
+      .optional(),
+    topK: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.topK)
+      .optional(),
+    topP: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.topP)
+      .optional(),
+    stopSequences: z
+      .array(z.string())
+      .length(5)
+      .describe(
+        'Set of character sequences (up to 5) that will stop output generation.'
+      )
+      .optional(),
+  })
+  .passthrough();
 
 /**
  * Common config object.
@@ -209,7 +253,6 @@ export const OutputConfigSchema = z.object({
   format: z.string().optional(),
   schema: z.record(z.any()).optional(),
   constrained: z.boolean().optional(),
-  instructions: z.string().optional(),
   contentType: z.string().optional(),
 });
 
@@ -271,6 +314,8 @@ export const GenerationUsageSchema = z.object({
   inputAudioFiles: z.number().optional(),
   outputAudioFiles: z.number().optional(),
   custom: z.record(z.number()).optional(),
+  thoughtsTokens: z.number().optional(),
+  cachedContentTokens: z.number().optional(),
 });
 
 /**
@@ -473,6 +518,34 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   withVersion(version: string): ModelReference<CustomOptions>;
 }
 
+/**
+ * Packages model information into ActionMetadata object.
+ */
+export function modelActionMetadata({
+  name,
+  info,
+  configSchema,
+}: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: z.ZodTypeAny;
+}): ActionMetadata {
+  return {
+    actionType: 'model',
+    name: name,
+    inputJsonSchema: toJsonSchema({ schema: GenerateRequestSchema }),
+    outputJsonSchema: toJsonSchema({ schema: GenerateResponseSchema }),
+    metadata: {
+      model: {
+        ...info,
+        customOptions: configSchema
+          ? toJsonSchema({ schema: configSchema })
+          : undefined,
+      },
+    },
+  } as ActionMetadata;
+}
+
 /** Cretes a model reference. */
 export function modelRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
@@ -556,9 +629,10 @@ function getPartCounts(parts: Part[]): PartCounts {
   );
 }
 
-export type ModelArgument<
-  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
-> = ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
+export type ModelArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
+  | ModelAction<CustomOptions>
+  | ModelReference<CustomOptions>
+  | string;
 
 export interface ResolvedModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,

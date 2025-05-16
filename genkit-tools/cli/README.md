@@ -1,6 +1,6 @@
-# Firebase Genkit CLI
+# Genkit CLI
 
-The package contains the CLI for Firebase Genkit, an open source framework with rich local tooling to help app developers build, test, deploy, and monitor AI-powered features for their apps with confidence. Genkit is built by Firebase, Google's app development platform that is trusted by millions of businesses around the world.
+The package contains the CLI for Genkit, an open source framework with rich local tooling to help app developers build, test, deploy, and monitor AI-powered features for their apps with confidence. Genkit is built by Firebase, Google's app development platform that is trusted by millions of businesses around the world.
 
 Review the [documentation](https://firebase.google.com/docs/genkit) for details and samples.
 

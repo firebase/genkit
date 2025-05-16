@@ -7,31 +7,29 @@ classifiers = [
   "Operating System :: OS Independent",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3 :: Only",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "genkit-ai",
-  "genkit-firebase-plugin",
-  "genkit-google-ai-plugin",
-  "genkit-google-cloud-plugin",
-  "genkit-ollama-plugin",
-  "genkit-pinecone-plugin",
-  "genkit-vertex-ai-plugin",
+  "genkit",
+  "genkit-plugin-firebase",
+  "genkit-plugin-google-genai",
+  "genkit-plugin-google-cloud",
+  "genkit-plugin-ollama",
+  "genkit-plugin-vertex-ai",
+  "strenum>=0.4.15; python_version < '3.11'",
 ]
 description = "Packaging smoke test"
 license = { text = "Apache-2.0" }
 name = "smoke"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 version = "0.1.0"
-
-[tool.pytest]
-python_files = ["**/*_test.py"]
-testpaths    = ["."]
 
 [tool.hatch.build.targets.wheel]
 packages = ["smoke"]

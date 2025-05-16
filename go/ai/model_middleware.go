@@ -26,6 +26,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/logger"
 )
 
 // AugmentWithContextOptions configures how a request is augmented with context.
@@ -99,37 +102,51 @@ func validateSupport(model string, info *ModelInfo) ModelMiddleware {
 				for _, msg := range input.Messages {
 					for _, part := range msg.Content {
 						if part.IsMedia() {
-							return nil, fmt.Errorf("model %q does not support media, but media was provided. Request: %+v", model, input)
+							return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support media, but media was provided. Request: %+v", model, input)
 						}
 					}
 				}
 			}
 
 			if !info.Supports.Tools && len(input.Tools) > 0 {
-				return nil, fmt.Errorf("model %q does not support tool use, but tools were provided. Request: %+v", model, input)
+				return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support tool use, but tools were provided. Request: %+v", model, input)
 			}
 
 			if !info.Supports.Multiturn && len(input.Messages) > 1 {
-				return nil, fmt.Errorf("model %q does not support multiple messages, but %d were provided. Request: %+v", model, len(input.Messages), input)
+				return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support multiple messages, but %d were provided. Request: %+v", model, len(input.Messages), input)
 			}
 
 			if !info.Supports.ToolChoice && input.ToolChoice != "" && input.ToolChoice != ToolChoiceAuto {
-				return nil, fmt.Errorf("model %q does not support tool choice, but tool choice was provided. Request: %+v", model, input)
+				return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support tool choice, but tool choice was provided. Request: %+v", model, input)
 			}
 
 			if !info.Supports.SystemRole {
 				for _, msg := range input.Messages {
 					if msg.Role == RoleSystem {
-						return nil, fmt.Errorf("model %q does not support system role, but system role was provided. Request: %+v", model, input)
+						return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support system role, but system role was provided. Request: %+v", model, input)
 					}
 				}
+			}
+
+			if info.Stage != "" {
+				switch info.Stage {
+				case ModelStageDeprecated:
+					logger.FromContext(ctx).Warn("model is deprecated and may be removed in a future release", "model", model)
+				case ModelStageUnstable:
+					logger.FromContext(ctx).Info("model is experimental or unstable", "model", model)
+				}
+			}
+
+			if (info.Supports.Constrained == "" ||
+				info.Supports.Constrained == ConstrainedSupportNone ||
+				(info.Supports.Constrained == ConstrainedSupportNoTools && len(input.Tools) > 0)) &&
+				input.Output != nil && input.Output.Constrained {
+				return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support native constrained output, but constrained output was requested. Request: %+v", model, input)
 			}
 
 			if err := validateVersion(model, info.Versions, input.Config); err != nil {
 				return nil, err
 			}
-
-			// TODO: Add validation for features that won't have simulated support via middleware.
 
 			return next(ctx, input, cb)
 		}
@@ -160,14 +177,14 @@ func validateVersion(model string, versions []string, config any) error {
 
 	version, ok := versionVal.(string)
 	if !ok {
-		return fmt.Errorf("version must be a string, got %T", versionVal)
+		return core.NewError(core.INVALID_ARGUMENT, "version must be a string, got %T", versionVal)
 	}
 
 	if slices.Contains(versions, version) {
 		return nil
 	}
 
-	return fmt.Errorf("model %q does not support version %q, supported versions: %v", model, version, versions)
+	return core.NewError(core.INVALID_ARGUMENT, "model %q does not support version %q, supported versions: %v", model, version, versions)
 }
 
 // ContextItemTemplate is the default item template for context augmentation.
@@ -286,13 +303,13 @@ func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
 
 					resp, err := client.Get(mediaUrl)
 					if err != nil {
-						return nil, fmt.Errorf("HTTP error downloading media %q: %w", mediaUrl, err)
+						return nil, core.NewError(core.INVALID_ARGUMENT, "HTTP error downloading media %q: %v", mediaUrl, err)
 					}
 					defer resp.Body.Close()
 
 					if resp.StatusCode != http.StatusOK {
 						body, _ := io.ReadAll(resp.Body)
-						return nil, fmt.Errorf("HTTP error downloading media %q: %s", mediaUrl, string(body))
+						return nil, core.NewError(core.UNKNOWN, "HTTP error downloading media %q: %s", mediaUrl, string(body))
 					}
 
 					contentType := part.ContentType
@@ -308,7 +325,7 @@ func DownloadRequestMedia(options *DownloadMediaOptions) ModelMiddleware {
 						data, err = io.ReadAll(resp.Body)
 					}
 					if err != nil {
-						return nil, fmt.Errorf("error reading media %q: %v", mediaUrl, err)
+						return nil, core.NewError(core.UNKNOWN, "error reading media %q: %v", mediaUrl, err)
 					}
 
 					message.Content[j] = NewMediaPart(contentType, fmt.Sprintf("data:%s;base64,%s", contentType, base64.StdEncoding.EncodeToString(data)))

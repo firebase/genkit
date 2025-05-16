@@ -30,6 +30,7 @@
     "format:check"
   ],
   "devDependencies": {
+    "@types/node": "22.10.5",
     "inquirer": "^8.0.0",
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
@@ -47,7 +48,7 @@
       "genkit": "link:js/genkit"
     }
   },
-  "packageManager": "pnpm@10.6.5+sha512.cdf928fca20832cd59ec53826492b7dc25dc524d4370b6b4adbf65803d32efaa6c1c88147c0ae4e8d579a6c9eec715757b50d4fa35eea179d868eada4ed043af",
+  "packageManager": "pnpm@10.8.1+sha256.d8b2ebbc65cf02c349eca6b45c9640b910f16b6adebdb7b926e9db440e47cac7",
   "dependencies": {
     "genkit": "link:js/genkit"
   }
