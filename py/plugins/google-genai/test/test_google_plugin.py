@@ -123,7 +123,7 @@ def test_googleai_resolve_action_embedder(mock_resolve_action):
     mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
 
 
-@patch('genkit.plugins.google_genai.models.gemini.gemini_model_info')
+@patch('genkit.plugins.google_genai.models.gemini.google_model_info')
 @pytest.mark.parametrize(
     'model_name, expected_model_name, key',
     [
@@ -140,7 +140,7 @@ def test_googleai_resolve_action_embedder(mock_resolve_action):
     ],
 )
 def test_googleai__resolve_model(
-    mock_gemini_model_info,
+    mock_google_model_info,
     model_name,
     expected_model_name,
     key,
@@ -150,7 +150,7 @@ def test_googleai__resolve_model(
     plugin = GoogleAI(api_key=api_key)
     ai_mock = MagicMock(spec=Genkit)
 
-    mock_gemini_model_info.return_value = ModelInfo(
+    mock_google_model_info.return_value = ModelInfo(
         label=f'Google AI - {model_name}',
         supports=DEFAULT_SUPPORTS_MODEL,
     )

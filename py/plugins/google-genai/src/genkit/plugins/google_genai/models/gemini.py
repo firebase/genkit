@@ -466,7 +466,7 @@ DEFAULT_SUPPORTS_MODEL = Supports(
 )
 
 
-def gemini_model_info(
+def google_model_info(
     version: str,
 ) -> ModelInfo:
     """Generates a ModelInfo object.

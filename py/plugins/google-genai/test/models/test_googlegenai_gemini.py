@@ -34,7 +34,7 @@ from genkit.plugins.google_genai.models.gemini import (
     GeminiModel,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
-    gemini_model_info,
+    google_model_info,
 )
 from genkit.types import (
     GenerateRequest,
@@ -332,8 +332,8 @@ async def test_generate_with_system_instructions(mocker):
         ),
     ],
 )
-def test_gemini_model_info(input, expected):
-    """Tests for gemini_model_info."""
-    model_info = gemini_model_info(input)
+def test_google_model_info(input, expected):
+    """Tests for google_model_info."""
+    model_info = google_model_info(input)
 
     assert model_info == expected

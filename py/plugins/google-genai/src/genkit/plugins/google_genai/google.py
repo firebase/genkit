@@ -35,9 +35,13 @@ from genkit.plugins.google_genai.models.gemini import (
     GeminiModel,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
-    gemini_model_info,
+    google_model_info,
 )
-from genkit.plugins.google_genai.models.imagen import ImagenModel, ImagenVersion
+from genkit.plugins.google_genai.models.imagen import (
+    SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
+    ImagenModel,
+    ImagenVersion,
+)
 
 GOOGLEAI_PLUGIN_NAME = 'googleai'
 VERTEXAI_PLUGIN_NAME = 'vertexai'
@@ -155,8 +159,20 @@ class GoogleAI(Plugin):
             self._resolve_embedder(ai, name)
 
     def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
+        """Resolves and defines a Google AI model within the Genkit registry.
+
+        This internal method handles the logic for registering different types of
+        Google AI models (e.g., Gemini text models) based on the provided name.
+        It extracts a clean name, determines the model type, instantiates the
+        appropriate model class, and registers it with the Genkit AI registry.
+
+        Args:
+            ai: The Genkit AI registry instance to define the model in.
+            name: The name of the model to resolve. This name might include a
+                prefix indicating it's from a specific plugin (e.g., 'googleai/gemini-pro').
+        """
         _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
-        model_ref = gemini_model_info(_clean_name)
+        model_ref = google_model_info(_clean_name)
 
         SUPPORTED_MODELS[_clean_name] = model_ref
 
@@ -170,6 +186,17 @@ class GoogleAI(Plugin):
         )
 
     def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
+        """Resolves and defines a Google AI embedder within the Genkit registry.
+
+        This internal method handles the logic for registering Google AI embedder
+        models. It extracts a clean name, instantiates the embedder class, and
+        registers it with the Genkit AI registry.
+
+        Args:
+            ai: The Genkit AI registry instance to define the embedder in.
+            name: The name of the embedder to resolve. This name might include a
+                prefix indicating it's from a specific plugin (e.g., 'googleai/embedding-001').
+        """
         _clean_name = name.replace(GOOGLEAI_PLUGIN_NAME + '/', '') if name.startswith(GOOGLEAI_PLUGIN_NAME) else name
         embedder = Embedder(version=_clean_name, client=self._client)
 
@@ -221,7 +248,7 @@ class VertexAI(Plugin):
 
         self._client = genai.client.Client(
             vertexai=self._vertexai,
-            api_key=None,
+            api_key=api_key,
             credentials=credentials,
             project=project,
             location=location,
@@ -249,11 +276,87 @@ class VertexAI(Plugin):
 
         for version in VertexEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
-            ai.define_embedder(name=vertexai_name(version), fn=embedder.generate)
+            ai.define_embedder(
+                name=vertexai_name(version),
+                fn=embedder.generate,
+            )
 
         for version in ImagenVersion:
             imagen_model = ImagenModel(version, self._client)
-            ai.define_model(name=vertexai_name(version), fn=imagen_model.generate, metadata=imagen_model.metadata)
+            ai.define_model(
+                name=vertexai_name(version),
+                fn=imagen_model.generate,
+                metadata=imagen_model.metadata,
+            )
+
+    def resolve_action(
+        self,
+        ai: GenkitRegistry,
+        type: ActionKind,
+        name: str,
+    ) -> None:
+        """Resolves and action.
+
+        Args:
+            ai: The Genkit registry.
+            type: The kind of action to resolve.
+            name: The name of the action to resolve.
+        """
+        if type == ActionKind.MODEL:
+            self._resolve_model(ai, name)
+        elif type == ActionKind.EMBEDDER:
+            self._resolve_model(ai, name)
+
+    def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
+        """Resolves and defines a Vertex AI model within the Genkit registry.
+
+        This internal method handles the logic for registering different types of
+        Vertex AI models (e.g., Gemini text models, Imagen image models) based on
+        the provided name. It extracts a clean name, determines the model type,
+        instantiates the appropriate model class, and registers it with the Genkit
+        AI registry.
+
+        Args:
+            ai: The Genkit AI registry instance to define the model in.
+            name: The name of the model to resolve. This name might include a
+                prefix indicating it's from a specific plugin (e.g., 'vertexai/gemini-pro').
+        """
+        _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+        model_ref = google_model_info(_clean_name)
+
+        if 'image' in _clean_name.lower():
+            model = ImagenModel(_clean_name, self._client)
+            IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
+        else:
+            model = GeminiModel(_clean_name, self._client, ai)
+            SUPPORTED_MODELS[_clean_name] = model_ref
+
+        ai.define_model(
+            name=vertexai_name(_clean_name),
+            fn=model.generate,
+            metadata=model.metadata,
+            config_schema=GeminiConfigSchema,
+        )
+
+    def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
+        """Resolves and defines a Vertex AI embedder within the Genkit registry.
+
+        This internal method handles the logic for registering Google AI embedder
+        models. It extracts a clean name, instantiates the embedder class, and
+        registers it with the Genkit AI registry.
+
+        Args:
+            ai: The Genkit AI registry instance to define the embedder in.
+            name: The name of the embedder to resolve. This name might include a
+                prefix indicating it's from a specific plugin (e.g., 'vertexai/embedding-001').
+        """
+        _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
+        embedder = Embedder(version=_clean_name, client=self._client)
+
+        ai.define_embedder(
+            name=vertexai_name(_clean_name),
+            fn=embedder.generate,
+        )
 
 
 def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
