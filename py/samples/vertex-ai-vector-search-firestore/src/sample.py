@@ -23,9 +23,8 @@ from pydantic import BaseModel
 
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
+from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai import (
-    EmbeddingModels,
-    VertexAI,
     VertexAIVectorSearch,
     vertexai_name,
 )
@@ -33,7 +32,7 @@ from genkit.plugins.vertex_ai.models.retriever import FirestoreRetriever
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
-EMBEDDING_MODEL = EmbeddingModels.TEXT_EMBEDDING_004_ENG
+EMBEDDING_MODEL = 'text-embedding-004'
 
 FIRESTORE_COLLECTION = os.getenv('FIRESTORE_COLLECTION')
 
