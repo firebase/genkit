@@ -1,6 +1,6 @@
-# Firebase Genkit Developer Tools
+# Genkit Developer Tools
 
-Firebase Genkit provides two key developer tools:
+Genkit provides two key developer tools:
 
 - A Node.js CLI for command-line operations
 - An optional local web app, called the Developer UI, that interfaces with your

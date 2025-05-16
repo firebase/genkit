@@ -46,7 +46,8 @@ export const BaseEvalDataPointSchema = BaseDataPointSchema.extend({
   testCaseId: z.string(),
 });
 export type BaseEvalDataPoint = z.infer<typeof BaseEvalDataPointSchema>;
-
+// Enum for Score Status
+export const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
 /**
  * Zod schema for evaluation score
  */
@@ -56,7 +57,7 @@ export const ScoreSchema = z.object({
     .describe('Optional ID to differentiate different scores')
     .optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
-  // TODO: use StatusSchema
+  status: EvalStatusEnumSchema.optional(),
   error: z.string().optional(),
   details: z
     .object({

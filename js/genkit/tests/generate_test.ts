@@ -15,7 +15,7 @@
  */
 
 import { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
-import { z } from '@genkit-ai/core';
+import { JSONSchema7, z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
@@ -397,6 +397,190 @@ describe('generate', () => {
           ],
         }
       );
+    });
+
+    it('calls the dynamic tool', async () => {
+      const schema = {
+        properties: {
+          foo: { type: 'string' },
+        },
+      } as JSONSchema7;
+      const dynamicTestTool1 = ai.dynamicTool(
+        {
+          name: 'dynamicTestTool1',
+          inputJsonSchema: schema,
+          description: 'description',
+        },
+        async () => 'tool called 1'
+      );
+      const dynamicTestTool2 = ai.dynamicTool(
+        {
+          name: 'dynamicTestTool2',
+          inputJsonSchema: schema,
+          description: 'description 2',
+        },
+        async () => 'tool called 2'
+      );
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content:
+              reqCounter++ === 0
+                ? [
+                    {
+                      toolRequest: {
+                        name: 'dynamicTestTool1',
+                        input: { foo: 'bar' },
+                        ref: 'ref123',
+                      },
+                    },
+                    {
+                      toolRequest: {
+                        name: 'dynamicTestTool2',
+                        input: { foo: 'baz' },
+                        ref: 'ref234',
+                      },
+                    },
+                  ]
+                : [{ text: 'done' }],
+          },
+        };
+      };
+
+      const { text } = await ai.generate({
+        prompt: 'call the tool',
+        tools: [dynamicTestTool1, dynamicTestTool2],
+      });
+
+      assert.strictEqual(text, 'done');
+      assert.deepStrictEqual(
+        pm.lastRequest,
+
+        {
+          config: {},
+          messages: [
+            {
+              role: 'user',
+              content: [{ text: 'call the tool' }],
+            },
+            {
+              role: 'model',
+              content: [
+                {
+                  toolRequest: {
+                    input: { foo: 'bar' },
+                    name: 'dynamicTestTool1',
+                    ref: 'ref123',
+                  },
+                },
+                {
+                  toolRequest: {
+                    input: { foo: 'baz' },
+                    name: 'dynamicTestTool2',
+                    ref: 'ref234',
+                  },
+                },
+              ],
+            },
+            {
+              role: 'tool',
+              content: [
+                {
+                  toolResponse: {
+                    name: 'dynamicTestTool1',
+                    output: 'tool called 1',
+                    ref: 'ref123',
+                  },
+                },
+                {
+                  toolResponse: {
+                    name: 'dynamicTestTool2',
+                    output: 'tool called 2',
+                    ref: 'ref234',
+                  },
+                },
+              ],
+            },
+          ],
+          output: {},
+          tools: [
+            {
+              description: 'description',
+              inputSchema: schema,
+              name: 'dynamicTestTool1',
+              outputSchema: {
+                $schema: 'http://json-schema.org/draft-07/schema#',
+              },
+            },
+            {
+              description: 'description 2',
+              inputSchema: schema,
+              name: 'dynamicTestTool2',
+              outputSchema: {
+                $schema: 'http://json-schema.org/draft-07/schema#',
+              },
+            },
+          ],
+        }
+      );
+    });
+
+    it.only('interrupts the dynamic tool with no impl', async () => {
+      const schema = {
+        properties: {
+          foo: { type: 'string' },
+        },
+      } as JSONSchema7;
+      const dynamicTestTool = ai.dynamicTool({
+        name: 'dynamicTestTool',
+        inputJsonSchema: schema,
+        description: 'description',
+      });
+
+      // first response be tools call, the subsequent just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'dynamicTestTool',
+                      input: { foo: 'bar' },
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const response = await ai.generate({
+        prompt: 'call the tool',
+        tools: [dynamicTestTool],
+      });
+
+      assert.deepStrictEqual(response.interrupts, [
+        {
+          metadata: {
+            interrupt: true,
+          },
+          toolRequest: {
+            input: {
+              foo: 'bar',
+            },
+            name: 'dynamicTestTool',
+            ref: 'ref123',
+          },
+        },
+      ]);
     });
 
     it('call the tool with output schema', async () => {
@@ -825,7 +1009,7 @@ describe('generate', () => {
       });
     });
 
-    it('can resume generation', { only: true }, async () => {
+    it('can resume generation', async () => {
       const interrupter = ai.defineInterrupt({
         name: 'interrupter',
         description: 'always interrupts',

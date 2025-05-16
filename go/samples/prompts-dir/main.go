@@ -18,17 +18,31 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+		genkit.WithPromptDir("prompts"),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Define a simple flow that prompts an LLM to generate menu suggestions.
-	genkit.DefineFlow(g, "menuSuggestionFlow", func(ctx context.Context, input any) (string, error) {
+	type greetingStyle struct {
+		Style    string `json:"style"`
+		Location string `json:"location"`
+		Name     string `json:"name"`
+	}
+
+	type greeting struct {
+		Greeting string `json:"greeting"`
+	}
+
+	// Define a simple flow that prompts an LLM to generate greetings using a
+	// given style.
+	genkit.DefineFlow(g, "assistantGreetingFlow", func(ctx context.Context, input greetingStyle) (string, error) {
 		// Look up the prompt by name
-		prompt := genkit.LookupPrompt(g, "local", "example")
+		prompt := genkit.LookupPrompt(g, "example")
 		if prompt == nil {
-			return "", errors.New("menuSuggestionFlow: failed to find prompt")
+			return "", errors.New("assistantGreetingFlow: failed to find prompt")
 		}
 
 		// Execute the prompt with the provided input
@@ -36,8 +50,13 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		text := resp.Text()
-		return text, nil
+
+		var output greeting
+		if err = resp.Output(&output); err != nil {
+			return "", err
+		}
+
+		return output.Greeting, nil
 	})
 
 	<-ctx.Done()

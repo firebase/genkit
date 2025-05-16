@@ -1,7 +1,7 @@
 import { AuthTypes, Connector, IpAddressTypes} from "@google-cloud/cloud-sql-connector";
 import { GoogleAuth } from "google-auth-library";
 import knex from "knex";
-import { getIAMPrincipalEmail } from "./utils/utils.js";
+import { getIAMPrincipalEmail } from "./utils/utils";
 import { BaseIndex, DEFAULT_INDEX_NAME_SUFFIX, ExactNearestNeighbor } from "./indexes";
 
 export interface PostgresEngineArgs {

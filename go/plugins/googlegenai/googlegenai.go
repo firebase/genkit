@@ -12,7 +12,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"google.golang.org/genai"
 )
 
@@ -86,7 +85,7 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		Backend: genai.BackendGeminiAPI,
 		APIKey:  apiKey,
 		HTTPOptions: genai.HTTPOptions{
-			Headers: gemini.GenkitClientHeader,
+			Headers: genkitClientHeader,
 		},
 	}
 
@@ -102,7 +101,7 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return err
 	}
 	for n, mi := range models {
-		gemini.DefineModel(g, ga.gclient, n, mi)
+		defineModel(g, ga.gclient, n, mi)
 	}
 
 	embedders, err := listEmbedders(gc.Backend)
@@ -110,7 +109,7 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return err
 	}
 	for _, e := range embedders {
-		gemini.DefineEmbedder(g, ga.gclient, e)
+		defineEmbedder(g, ga.gclient, e)
 	}
 
 	return nil
@@ -160,7 +159,7 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		Project:  v.ProjectID,
 		Location: v.Location,
 		HTTPOptions: genai.HTTPOptions{
-			Headers: gemini.GenkitClientHeader,
+			Headers: genkitClientHeader,
 		},
 	}
 
@@ -176,7 +175,7 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return err
 	}
 	for n, mi := range models {
-		gemini.DefineModel(g, v.gclient, n, mi)
+		defineModel(g, v.gclient, n, mi)
 	}
 
 	embedders, err := listEmbedders(gc.Backend)
@@ -184,7 +183,7 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return err
 	}
 	for _, e := range embedders {
-		gemini.DefineEmbedder(g, v.gclient, e)
+		defineEmbedder(g, v.gclient, e)
 	}
 
 	return nil
@@ -216,7 +215,7 @@ func (ga *GoogleAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInf
 		mi = *info
 	}
 
-	return gemini.DefineModel(g, ga.gclient, name, mi), nil
+	return defineModel(g, ga.gclient, name, mi), nil
 }
 
 // DefineModel defines an unknown model with the given name.
@@ -245,7 +244,7 @@ func (v *VertexAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo
 		mi = *info
 	}
 
-	return gemini.DefineModel(g, v.gclient, name, mi), nil
+	return defineModel(g, v.gclient, name, mi), nil
 }
 
 // DefineEmbedder defines an embedder with a given name.
@@ -255,7 +254,7 @@ func (ga *GoogleAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, 
 	if !ga.initted {
 		return nil, errors.New("GoogleAI plugin not initialized")
 	}
-	return gemini.DefineEmbedder(g, ga.gclient, name), nil
+	return defineEmbedder(g, ga.gclient, name), nil
 }
 
 // DefineEmbedder defines an embedder with a given name.
@@ -265,7 +264,7 @@ func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, e
 	if !v.initted {
 		return nil, errors.New("VertexAI plugin not initialized")
 	}
-	return gemini.DefineEmbedder(g, v.gclient, name), nil
+	return defineEmbedder(g, v.gclient, name), nil
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
@@ -276,6 +275,16 @@ func (ga *GoogleAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
 func (v *VertexAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
 	return genkit.LookupEmbedder(g, vertexAIProvider, name) != nil
+}
+
+// GoogleAIModelRef creates a new ModelRef for a Google AI model with the given name and configuration.
+func GoogleAIModelRef(name string, config *GeminiConfig) ai.ModelRef {
+	return ai.NewModelRef(googleAIProvider+"/"+name, config)
+}
+
+// VertexAIModelRef creates a new ModelRef for a Vertex AI model with the given name and configuration.
+func VertexAIModelRef(name string, config *GeminiConfig) ai.ModelRef {
+	return ai.NewModelRef(vertexAIProvider+"/"+name, config)
 }
 
 // GoogleAIModel returns the [ai.Model] with the given name.

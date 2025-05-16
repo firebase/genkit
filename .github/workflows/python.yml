@@ -17,11 +17,6 @@
 name: Python Checks
 
 on:
-  push:
-    paths:
-      - "py/**"
-      - "genkit-tools/**"
-      - ".github/workflows/python.yml"
   pull_request:
     paths:
       - "py/**"
@@ -36,8 +31,13 @@ jobs:
     strategy:
       matrix:
         python-version:
+          - "3.10"
+          - "3.11"
           - "3.12"
           - "3.13"
+          #- "pypy-3.10" # TODO: Fix build failures.
+          #- "pypy-3.11" # TODO: Fix build failures.
+          #- "3.14" # TODO: This still fails.
       fail-fast: false
 
     steps:
@@ -78,6 +78,7 @@ jobs:
         run: |
           cd py
           uv pip install -e .[dev,test,docs]
+          uv pip install --group dev
 
       - name: Install NPM packages
         run: |
@@ -100,7 +101,7 @@ jobs:
         run: ./bin/check_license
 
       - name: Run Python tests
-        run: uv run --directory py pytest -xvs --log-level=DEBUG .
+        run: uv run --python ${{ matrix.python-version }} --active --isolated --directory py pytest -xvs --log-level=DEBUG .
 
       - name: Build distributions
         run: ./py/bin/build_dists

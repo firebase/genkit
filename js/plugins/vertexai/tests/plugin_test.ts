@@ -62,7 +62,23 @@ describe('plugin', () => {
     assert.strictEqual(flash.__action.name, 'vertexai/gemini-1.5-flash');
   });
 
-  it('references explicitly registered models', async () => {
+  it('references dynamic models', async () => {
+    const ai = genkit({
+      plugins: [vertexAI({ location: 'us-central1' })],
+    });
+    const giraffeRef = gemini('gemini-4.5-giraffe');
+    assert.strictEqual(giraffeRef.name, 'vertexai/gemini-4.5-giraffe');
+    const giraffe = await ai.registry.lookupAction(`/model/${giraffeRef.name}`);
+    assert.ok(giraffe);
+    assert.strictEqual(giraffe.__action.name, 'vertexai/gemini-4.5-giraffe');
+    assertEqualModelInfo(
+      giraffe.__action.metadata?.model,
+      'Vertex AI - gemini-4.5-giraffe',
+      GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
+    );
+  });
+
+  it('references pre-registered models', async () => {
     const flash002Ref = gemini('gemini-1.5-flash-002');
     const ai = genkit({
       plugins: [
@@ -121,14 +137,6 @@ describe('plugin', () => {
       'Vertex AI - gemini-4.0-banana',
       GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
     );
-
-    // this one is not registered
-    const flash003Ref = gemini('gemini-1.5-flash-003');
-    assert.strictEqual(flash003Ref.name, 'vertexai/gemini-1.5-flash-003');
-    const flash003 = await ai.registry.lookupAction(
-      `/model/${flash003Ref.name}`
-    );
-    assert.ok(flash003 === undefined);
   });
 });
 

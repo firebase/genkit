@@ -1,11 +1,11 @@
 # Get started with Genkit Monitoring {: #get-started }
 
-This quickstart guide describes how to set up Firebase Genkit Monitoring for
+This quickstart guide describes how to set up Genkit Monitoring for
 your deployed Genkit features, so that you can collect and view real-time
-telemetry data. With Firebase Genkit Monitoring, you get visibility into how
+telemetry data. With Genkit Monitoring, you get visibility into how
 your Genkit features are performing in production.
 
-Key capabilities of Firebase Genkit Monitoring include:
+Key capabilities of Genkit Monitoring include:
 
 * Viewing quantitative metrics like Genkit feature latency, errors, and
   token usage.

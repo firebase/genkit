@@ -8,19 +8,25 @@ classifiers = [
   "Operating System :: OS Independent",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3 :: Only",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["genkit-ai"]
+dependencies = [
+  "genkit",
+  "opentelemetry-exporter-gcp-trace>=1.9.0",
+  "strenum>=0.4.15; python_version < '3.11'",
+]
 description = "Genkit Google Cloud Plugin"
 license = { text = "Apache-2.0" }
-name = "genkit-google-cloud-plugin"
+name = "genkit-plugin-google-cloud"
 readme = "README.md"
-requires-python = ">=3.12"
-version = "0.1.0"
+requires-python = ">=3.10"
+version = "0.3.2"
 
 [build-system]
 build-backend = "hatchling.build"

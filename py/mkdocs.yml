@@ -1,20 +1,33 @@
 # Copyright 2025 Google LLC
 # SPDX-License-Identifier: Apache-2.0
 
-site_name: Firebase Genkit
-repo_url: https://github.com/firebase/genkit
-docs_dir: engdoc
+site_name: Genkit Python
+docs_dir: docs
 theme:
   name: material
   palette:
-    - scheme: default
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      primary: black
       toggle:
-        icon: material/lightbulb
-        name: Switch to dark mode
-    - scheme: slate
-      toggle:
-        icon: material/lightbulb-outline
+        icon: material/brightness-auto
         name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default 
+      primary: black
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
   logo: assets/logo.png
   favicon: assets/favicon.png
   font:
@@ -57,12 +70,16 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [packages/genkit-ai/src]
+          paths: 
+            - packages/genkit/src
+            - plugins/ollama/src
+            - plugins/google-genai/src
+            - plugins/firebase/src
           options:
             docstring_style: google
             annotations_path: full
-  - literate-nav:
-      nav_file: SUMMARY.md
+            inherited_members: true
+
   - minify:
       minify_html: true
       minify_js: true
@@ -70,13 +87,39 @@ plugins:
       htmlmin_opts:
         remove_comments: true
       cache_safe: true
+nav:
+  - Documentation:
+    - What is Genkit: index.md
+    - get-started.md
+    - cloud-run.md
+    - flask.md
+    - reference/models.md
+    - reference/flows.md
+    - reference/tools.md
+    - reference/interrupts.md
+    - reference/rag.md
+    - Plugins:
+      - reference/plugins/google-genai.md
+      - reference/plugins/firestore.md
+      - reference/plugins/ollama.md
+      - reference/plugins/dev-local-vectorstore.md
+    - API:
+      - reference/api/index.md
+      - reference/api/types.md
 extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/firebase/genkit
     - icon: fontawesome/brands/discord
       link: https://discord.gg/qXt5zzQKpc
-    - icon: fontawesome/brands/youtube
-      link: https://www.youtube.com/user/Firebase
-    - icon: fontawesome/brands/x-twitter
-      link: https://x.com/Firebase
+  analytics:
+    provider: google
+    property: G-4FWYP18LPS
+  consent:
+    title: Cookie consent
+    description: >- 
+      python.api.genkit.dev uses <a href="https://policies.google.com/technologies/cookies">cookies</a>
+      from Google to deliver and enhance the quality of its services and to analyze traffic
+    actions:
+      - accept
+      - manage

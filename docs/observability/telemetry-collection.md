@@ -111,7 +111,7 @@ Each generate metric contains the following dimensions:
 
 All Genkit actions are automatically instrumented to provide detailed traces for
 your AI features. Locally, traces are visible in the Developer UI. For deployed
-apps enable Firebase Genkit Monitoring to get the same level of visibility.
+apps enable Genkit Monitoring to get the same level of visibility.
 
 The following sections describe what trace attributes you can expect based on
 the Genkit action type for a particular span in the trace.
@@ -177,7 +177,7 @@ the whole trace versus an individual span.
 
 ## Logs {: #logs }
 
-For deployed apps with Firebase Genkit Monitoring, logs are used to capture
+For deployed apps with Genkit Monitoring, logs are used to capture
 input, output, and configuration metadata that provides rich detail about
 each step in your AI feature.
 

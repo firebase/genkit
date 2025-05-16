@@ -1,6 +1,6 @@
 # Writing Genkit plugins
 
-Firebase Genkit's capabilities are designed to be extended by plugins. Genkit
+Genkit's capabilities are designed to be extended by plugins. Genkit
 plugins are configurable modules that can provide models, retrievers, indexers,
 trace stores, and more. You've already seen plugins in action just by using
 Genkit:

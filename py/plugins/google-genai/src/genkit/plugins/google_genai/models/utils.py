@@ -17,7 +17,7 @@ import base64
 
 from google import genai
 
-from genkit.core.typing import (
+from genkit.types import (
     CustomPart,
     Media,
     MediaPart,
@@ -46,15 +46,17 @@ class PartConverter:
         if isinstance(part.root, ToolRequestPart):
             return genai.types.Part(
                 function_call=genai.types.FunctionCall(
+                    id=part.root.tool_request.ref,
                     name=part.root.tool_request.name,
-                    args=part.root.tool_request.args,
+                    args=part.root.tool_request.input,
                 )
             )
         if isinstance(part.root, ToolResponsePart):
             return genai.types.Part(
                 function_response=genai.types.FunctionResponse(
-                    name=part.root.tool_request.name,
-                    response=part.root.tool_request.output,
+                    id=part.root.tool_response.ref,
+                    name=part.root.tool_response.name,
+                    response={'output': part.root.tool_response.output},
                 )
             )
         if isinstance(part.root, MediaPart):
@@ -73,58 +75,59 @@ class PartConverter:
             return genai.types.Part(
                 executable_code=genai.types.ExecutableCode(
                     code=part.root.custom[cls.EXECUTABLE_CODE][cls.CODE],
-                    language=part.root.custom[cls.EXECUTABLE_CODE][
-                        cls.LANGUAGE
-                    ],
+                    language=part.root.custom[cls.EXECUTABLE_CODE][cls.LANGUAGE],
                 )
             )
         if cls.CODE_EXECUTION_RESULT in part.root.custom:
             return genai.types.Part(
                 code_execution_result=genai.types.CodeExecutionResult(
-                    outcome=part.root.custom[cls.CODE_EXECUTION_RESULT][
-                        cls.OUTCOME
-                    ],
-                    output=part.root.custom[cls.CODE_EXECUTION_RESULT][
-                        cls.OUTPUT
-                    ],
+                    outcome=part.root.custom[cls.CODE_EXECUTION_RESULT][cls.OUTCOME],
+                    output=part.root.custom[cls.CODE_EXECUTION_RESULT][cls.OUTPUT],
                 )
             )
 
     @classmethod
     def from_gemini(cls, part: genai.types.Part) -> Part:
         if part.text:
-            return TextPart(text=part.text)
+            return Part(text=part.text)
         if part.function_call:
-            return ToolRequestPart(
+            return Part(
                 toolRequest=ToolRequest(
-                    name=part.function_call.name, args=part.function_call.args
+                    ref=part.function_call.id,
+                    name=part.function_call.name,
+                    input=part.function_call.args,
                 )
             )
         if part.function_response:
-            return ToolResponsePart(
+            return Part(
                 toolResponse=ToolResponse(
+                    ref=part.function_call.id,
                     name=part.function_response.name,
                     output=part.function_response.response,
                 )
             )
         if part.inline_data:
-            return MediaPart(
+            return Part(
                 media=Media(
                     url=base64.b64encode(part.inline_data.data),
                     contentType=part.inline_data.mime_type,
                 )
             )
         if part.executable_code:
-            return {
-                cls.EXECUTABLE_CODE: {
-                    cls.LANGUAGE: part.executable_code.language,
-                    cls.CODE: part.executable_code.code,
+            return CustomPart(
+                custom={
+                    cls.EXECUTABLE_CODE: {
+                        cls.LANGUAGE: part.executable_code.language,
+                        cls.CODE: part.executable_code.code,
+                    }
                 }
-            }
+            )
         if part.code_execution_result:
-            return {
-                cls.CODE_EXECUTION_RESULT: {
-                    cls.OUTCOME: part.code_execution_result.outcome,
-                    cls.OUTPUT: part.code_execution_result.output,
+            return CustomPart(
+                custom={
+                    cls.CODE_EXECUTION_RESULT: {
+                        cls.OUTCOME: part.code_execution_result.outcome,
+                        cls.OUTPUT: part.code_execution_result.output,
+                    }
                 }
-            }
+            )

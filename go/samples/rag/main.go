@@ -102,8 +102,8 @@ func main() {
 	}
 
 	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
-		ai.WithModelName("googlegenai/gemini-2.0-flash"),
-		ai.WithPromptText(simpleQaPromptTemplate),
+		ai.WithModelName("googleai/gemini-2.0-flash"),
+		ai.WithPrompt(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 	)
@@ -135,12 +135,9 @@ func main() {
 
 	genkit.DefineBatchEvaluator(g, "custom", "simpleBatchEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
 		var evalResponses []ai.EvaluationResult
-		dataset := *req.Dataset
-		for i := 0; i < len(dataset); i++ {
-			input := dataset[i]
-
+		for _, datapoint := range req.Dataset {
 			m := make(map[string]any)
-			m["reasoning"] = fmt.Sprintf("batch of cookies, %s", input.Input)
+			m["reasoning"] = fmt.Sprintf("batch of cookies, %s", datapoint.Input)
 			score := ai.Score{
 				Id:      "testScore",
 				Score:   true,
@@ -148,7 +145,7 @@ func main() {
 				Details: m,
 			}
 			callbackResponse := ai.EvaluationResult{
-				TestCaseId: input.TestCaseId,
+				TestCaseId: datapoint.TestCaseId,
 				Evaluation: []ai.Score{score},
 			}
 			evalResponses = append(evalResponses, callbackResponse)
@@ -161,13 +158,13 @@ func main() {
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
 
-		err := ai.Index(ctx, indexer, ai.WithIndexerDocs(d1, d2, d3))
+		err := ai.Index(ctx, indexer, ai.WithDocs(d1, d2, d3))
 		if err != nil {
 			return "", err
 		}
 
 		dRequest := ai.DocumentFromText(input.Question, nil)
-		response, err := ai.Retrieve(ctx, retriever, ai.WithRetrieverDoc(dRequest))
+		response, err := ai.Retrieve(ctx, retriever, ai.WithDocs(dRequest))
 		if err != nil {
 			return "", err
 		}
@@ -188,6 +185,10 @@ func main() {
 			return "", err
 		}
 		return resp.Text(), nil
+	})
+
+	genkit.DefineFlow(g, "echoFlow", func(ctx context.Context, input string) (string, error) {
+		return input, nil
 	})
 
 	<-ctx.Done()

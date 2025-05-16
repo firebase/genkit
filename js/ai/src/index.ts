@@ -23,6 +23,7 @@ export {
 } from './document.js';
 export {
   embed,
+  embedderActionMetadata,
   embedderRef,
   type EmbedderAction,
   type EmbedderArgument,
@@ -33,6 +34,7 @@ export {
 } from './embedder.js';
 export {
   BaseDataPointSchema,
+  EvalStatusEnum,
   evaluate,
   evaluatorRef,
   type EvalResponses,
@@ -64,6 +66,8 @@ export {
   ModelResponseSchema,
   PartSchema,
   RoleSchema,
+  modelActionMetadata,
+  modelRef,
   type GenerateRequest,
   type GenerateRequestData,
   type GenerateResponseChunkData,

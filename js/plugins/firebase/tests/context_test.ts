@@ -51,11 +51,13 @@ describe('firebaseAuth', () => {
         auth: {
           uid: 'user',
           token: { sub: 'user' },
+          rawToken: fakeToken({ sub: 'user' }),
         },
         app: {
           appId: 'appId',
           token: { sub: 'appId' },
           alreadyConsumed: false,
+          rawToken: fakeToken({ sub: 'appId' }),
         },
         instanceIdToken: 'token',
       });
@@ -78,6 +80,7 @@ describe('firebaseAuth', () => {
           token: {
             sub: 'user',
           },
+          rawToken: fakeToken({ sub: 'user' }),
         },
       });
     });
@@ -115,6 +118,11 @@ describe('firebaseAuth', () => {
             email: 'user@google.com',
             email_verified: 'true',
           },
+          rawToken: fakeToken({
+            sub: 'user',
+            email: 'user@google.com',
+            email_verified: 'true',
+          }),
         },
       });
     });
@@ -133,6 +141,7 @@ describe('firebaseAuth', () => {
             sub: 'user',
             email: 'user@google.com',
           },
+          rawToken: fakeToken({ sub: 'user', email: 'user@google.com' }),
         },
       });
       expect(() =>
@@ -196,6 +205,11 @@ describe('firebaseAuth', () => {
             admin: 'true',
             email: 'user@google.com',
           },
+          rawToken: fakeToken({
+            sub: 'user',
+            admin: 'true',
+            email: 'user@google.com',
+          }),
         },
       });
     });
@@ -255,6 +269,11 @@ describe('firebaseAuth', () => {
             admin: 'true',
             humor: 'dad',
           },
+          rawToken: fakeToken({
+            sub: 'user',
+            admin: 'true',
+            humor: 'dad',
+          }),
         },
       });
     });
@@ -273,6 +292,7 @@ describe('firebaseAuth', () => {
             sub: 'appId',
           },
           alreadyConsumed: false,
+          rawToken: fakeToken({ sub: 'appId' }),
         },
       });
       expect(() =>
@@ -290,6 +310,7 @@ describe('firebaseAuth', () => {
             token: {
               sub: 'user',
             },
+            rawToken: fakeToken({ sub: 'user' }),
           },
           app: {
             appId: 'app',
@@ -297,6 +318,7 @@ describe('firebaseAuth', () => {
               sub: 'app',
             },
             alreadyConsumed: false,
+            rawToken: fakeToken({ sub: 'app' }),
           },
           instanceIdToken: 'iid',
         });

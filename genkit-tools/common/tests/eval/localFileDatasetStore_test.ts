@@ -29,7 +29,7 @@ import {
   CreateDatasetRequestSchema,
   UpdateDatasetRequestSchema,
 } from '../../src/types/apis';
-import { Dataset, DatasetStore } from '../../src/types/eval';
+import { Dataset, DatasetMetadata, DatasetStore } from '../../src/types/eval';
 
 const FAKE_TIME = new Date('2024-02-03T12:05:33.243Z');
 
@@ -70,19 +70,21 @@ const SAMPLE_DATASET_1_V2 = [
 
 const SAMPLE_DATASET_ID_1 = 'dataset-1-123456';
 
-const SAMPLE_DATASET_METADATA_1_V1 = {
+const SAMPLE_DATASET_METADATA_1_V1: DatasetMetadata = {
   datasetId: SAMPLE_DATASET_ID_1,
+  metricRefs: [],
   size: 2,
   version: 1,
   datasetType: 'UNKNOWN',
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
-const SAMPLE_DATASET_METADATA_1_V2 = {
+const SAMPLE_DATASET_METADATA_1_V2: DatasetMetadata = {
   datasetId: SAMPLE_DATASET_ID_1,
   size: 3,
   version: 2,
   datasetType: 'UNKNOWN',
+  metricRefs: [],
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
@@ -115,10 +117,12 @@ const UPDATE_DATASET_REQUEST = UpdateDatasetRequestSchema.parse({
 
 const SAMPLE_DATASET_ID_2 = 'dataset-2-123456';
 
-const SAMPLE_DATASET_METADATA_2 = {
+const SAMPLE_DATASET_METADATA_2: DatasetMetadata = {
   datasetId: SAMPLE_DATASET_ID_2,
+  metricRefs: [],
   size: 5,
   version: 1,
+  datasetType: 'FLOW',
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
@@ -255,6 +259,30 @@ describe('localFileDatasetStore', () => {
         },
       });
       expect(datasetMetadata.targetAction).toEqual('/flow/my-flow');
+    });
+
+    it('creates new dataset, with metrics', async () => {
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify({}) as any)
+      );
+      fs.existsSync = jest.fn(() => false);
+      const dataset: Dataset = SAMPLE_DATASET_1_V1.map((s) => ({
+        testCaseId: TEST_CASE_ID,
+        ...s,
+      }));
+
+      const datasetMetadata = await DatasetStore.createDataset({
+        ...CREATE_DATASET_REQUEST,
+        metricRefs: ['metric1', 'metric2'],
+        datasetId: SAMPLE_DATASET_ID_1,
+      });
+
+      expect(datasetMetadata.metricRefs.sort()).toEqual(
+        ['metric1', 'metric2'].sort()
+      );
     });
 
     it('fails request if dataset already exists', async () => {
@@ -447,6 +475,104 @@ describe('localFileDatasetStore', () => {
         },
       });
       expect(datasetMetadata.targetAction).toEqual('/flow/my-flow-2');
+    });
+
+    it('succeeds for existing dataset -- with metrics', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V1,
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+        metricRefs: ['metric1', 'metric2'],
+      });
+
+      expect(datasetMetadata.metricRefs.sort()).toEqual(
+        ['metric1', 'metric2'].sort()
+      );
+    });
+
+    it('succeeds for existing dataset -- with metrics override', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: {
+          ...SAMPLE_DATASET_METADATA_1_V1,
+          metricRefs: ['metric1', 'metric2'],
+        },
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+        metricRefs: ['metricA', 'metricB'],
+      });
+
+      expect(datasetMetadata.metricRefs.sort()).toEqual(
+        ['metricA', 'metricB'].sort()
+      );
+    });
+
+    it('succeeds for existing dataset -- with metrics unset', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: {
+          ...SAMPLE_DATASET_METADATA_1_V1,
+          metricRefs: ['metric1', 'metric2'],
+        },
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+      });
+
+      expect(datasetMetadata.metricRefs.sort()).toEqual(
+        ['metric1', 'metric2'].sort()
+      );
+    });
+
+    it('succeeds for existing dataset -- with metrics reset', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: {
+          ...SAMPLE_DATASET_METADATA_1_V1,
+          metricRefs: ['metric1', 'metric2'],
+        },
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+        metricRefs: [],
+      });
+
+      expect(datasetMetadata.metricRefs).toEqual([]);
     });
 
     it('fails for non existing dataset', async () => {

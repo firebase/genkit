@@ -130,10 +130,19 @@ export type EvalInput = z.infer<typeof EvalInputSchema>;
 export const EvalInputDatasetSchema = z.array(EvalInputSchema);
 export type EvalInputDataset = z.infer<typeof EvalInputDatasetSchema>;
 
+const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
+/** Enum that indicates if an evaluation has passed or failed */
+export enum EvalStatusEnum {
+  UNKNOWN = 'UNKNOWN',
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+}
+
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
   scoreId: z.string().optional(),
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
+  status: EvalStatusEnumSchema.optional(),
   rationale: z.string().optional(),
   error: z.string().optional(),
   traceId: z.string().optional(),
@@ -161,6 +170,7 @@ export const EvalRunKeySchema = z.object({
   evalRunId: z.string(),
   createdAt: z.string(),
   actionConfig: z.any().optional(),
+  metricSummaries: z.array(z.record(z.string(), z.any())).optional(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
@@ -210,6 +220,12 @@ export interface EvalStore {
    * @param query (optional) filter criteria for the result list
    */
   list(query?: ListEvalKeysRequest): Promise<ListEvalKeysResponse>;
+
+  /**
+   * Delete EvalRun by ID
+   * @param evalRunId the ID of the EvalRun
+   */
+  delete(evalRunId: string): Promise<void>;
 }
 
 export const DatasetSchemaSchema = z.object({
@@ -237,6 +253,7 @@ export const DatasetMetadataSchema = z.object({
   schema: DatasetSchemaSchema.optional(),
   datasetType: DatasetTypeSchema,
   targetAction: z.string().optional(),
+  metricRefs: z.array(z.string()).default([]),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
   createTime: z.string(),

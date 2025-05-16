@@ -1,0 +1,66 @@
+[project]
+authors = [{ name = "Google" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+  "opentelemetry-api>=1.29.0",
+  "opentelemetry-sdk>=1.29.0",
+  "pydantic>=2.10.5",
+  "partial-json-parser>=0.2.1.1.post5",
+  "json5>=0.10.0",
+  "structlog>=25.2.0",
+  "asgiref>=3.8.1",
+  "httpx>=0.28.1",
+  "psutil>=7.0.0",
+  "starlette>=0.46.1",
+  "sse-starlette>=2.2.1",
+  "pillow",
+  "strenum>=0.4.15; python_version < '3.11'",
+  "uvicorn>=0.34.0",
+  "anyio>=4.9.0",
+]
+description = "Genkit AI Framework"
+license = { text = "Apache-2.0" }
+name = "genkit"
+readme = "README.md"
+requires-python = ">=3.10"
+version = "0.3.2"
+
+[project.optional-dependencies]
+dev-local-vectorstore = ["genkit-plugin-dev-local-vectorstore"]
+flask                 = ["genkit-plugin-flask"]
+google-genai          = ["genkit-plugin-google-genai"]
+ollama                = ["genkit-plugin-ollama"]
+openai                = ["genkit-plugin-compat-oai"]
+
+[build-system]
+build-backend = "hatchling.build"
+requires      = ["hatchling"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/genkit"]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src", "tests", "packages/genkit/src"]
+testpaths  = ["tests"]
+
+[tool.uv.sources]
+genkit-plugin-compat-oai            = { workspace = true }
+genkit-plugin-dev-local-vectorstore = { workspace = true }
+genkit-plugin-flask                 = { workspace = true }
+genkit-plugin-google-genai          = { workspace = true }
+genkit-plugin-ollama                = { workspace = true }

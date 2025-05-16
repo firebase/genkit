@@ -14,15 +14,21 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
-from enum import StrEnum
+import sys  # noqa
+
+if sys.version_info < (3, 11):  # noqa
+    from strenum import StrEnum  # noqa
+else:  # noqa
+    from enum import StrEnum  # noqa
+
 from typing import Any, Literal
 
+import structlog
 from pydantic import BaseModel
 from vertexai.preview.vision_models import ImageGenerationModel
 
-from genkit.core.action import ActionRunContext
-from genkit.core.typing import (
+from genkit.ai import ActionRunContext
+from genkit.types import (
     GenerateRequest,
     GenerateResponse,
     Media,
@@ -34,27 +40,25 @@ from genkit.core.typing import (
     TextPart,
 )
 
-LOG = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ImagenVersion(StrEnum):
+    """The version of the Imagen model to use."""
+
     IMAGEN3 = 'imagen-3.0-generate-002'
     IMAGEN3_FAST = 'imagen-3.0-fast-generate-001'
     IMAGEN2 = 'imagegeneration@006'
 
 
 class ImagenOptions(BaseModel):
+    """Options for the Imagen model."""
+
     number_of_images: int = 1
-    language: Literal[
-        'auto', 'en', 'es', 'hi', 'ja', 'ko', 'pt', 'zh-TW', 'zh', 'zh-CN'
-    ] = 'auto'
+    language: Literal['auto', 'en', 'es', 'hi', 'ja', 'ko', 'pt', 'zh-TW', 'zh', 'zh-CN'] = 'auto'
     aspect_ratio: Literal['1:1', '9:16', '16:9', '3:4', '4:3'] = '1:1'
-    safety_filter_level: Literal[
-        'block_most', 'block_some', 'block_few', 'block_fewest'
-    ] = 'block_some'
-    person_generation: Literal['dont_allow', 'allow_adult', 'allow_all'] = (
-        'allow_adult'
-    )
+    safety_filter_level: Literal['block_most', 'block_some', 'block_few', 'block_fewest'] = 'block_some'
+    person_generation: Literal['dont_allow', 'allow_adult', 'allow_all'] = 'allow_adult'
     negative_prompt: bool = False
 
 
@@ -93,18 +97,26 @@ SUPPORTED_MODELS = {
 
 
 class Imagen:
-    """Imagen - text to image model."""
+    """Imagen text-to-image model."""
 
-    def __init__(self, version):
+    def __init__(self, version: ImagenVersion):
+        """Initialize the Imagen model.
+
+        Args:
+            version: The version of the Imagen model to use.
+        """
         self._version = version
 
     @property
     def model(self) -> ImageGenerationModel:
+        """Get the Imagen model.
+
+        Returns:
+            The Imagen model.
+        """
         return ImageGenerationModel.from_pretrained(self._version)
 
-    def generate(
-        self, request: GenerateRequest, ctx: ActionRunContext
-    ) -> GenerateResponse:
+    def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Handle a generation request using the Imagen model.
 
         Args:
@@ -116,20 +128,13 @@ class Imagen:
         """
         prompt = self.build_prompt(request)
 
-        options = (
-            request.config if request.config else ImagenOptions().model_dump()
-        )
+        options = request.config if request.config else ImagenOptions().model_dump()
         options['prompt'] = prompt
 
         images = self.model.generate_images(**options)
 
         media_content = [
-            MediaPart(
-                media=Media(
-                    contentType=image._mime_type, url=image._as_base64_string()
-                )
-            )
-            for image in images
+            MediaPart(media=Media(contentType=image._mime_type, url=image._as_base64_string())) for image in images
         ]
 
         return GenerateResponse(
@@ -143,10 +148,10 @@ class Imagen:
         """Creates a single prompt string fom a list of messages and parts in requests.
 
         Args:
-            - request: a packed request for the model
+            request: a packed request for the model
 
         Returns:
-            - a single string with a prompt
+            a single string with a prompt
         """
         prompt = []
         for message in request.messages:
@@ -154,11 +159,16 @@ class Imagen:
                 if isinstance(text_part.root, TextPart):
                     prompt.append(text_part.root.text)
                 else:
-                    LOG.error('Non-text messages are not supported')
+                    logger.error('Non-text messages are not supported')
         return ' '.join(prompt)
 
     @property
     def model_metadata(self) -> dict[str, Any]:
+        """Get the metadata for the Imagen model.
+
+        Returns:
+            The metadata for the Imagen model.
+        """
         supports = SUPPORTED_MODELS[self._version].supports.model_dump()
         return {
             'model': {

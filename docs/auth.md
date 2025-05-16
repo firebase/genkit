@@ -6,7 +6,7 @@ necessary to ensure that the model is only accessing data it should, tool calls
 are properly scoped to the user invoking the LLM, and the flow is being invoked
 only by verified client applications.
 
-Firebase Genkit provides mechanisms for managing authorization policies and
+Genkit provides mechanisms for managing authorization policies and
 contexts. Flows running on Firebase can use an auth policy callback (or helper).
 Alternatively, Firebase also provides auth context into the flow where it can
 do its own checks. For non-Functions flows, auth can be managed and set
@@ -31,7 +31,7 @@ export const selfSummaryFlow = ai.defineFlow( {
   outputSchema: z.string(),
 }, async (input, { context }) => {
   if (!context.auth) {
-    throw new UserFacingErrorError('UNAUTHENTICATED', 'Unauthenticated');
+    throw new UserFacingError('UNAUTHENTICATED', 'Unauthenticated');
   }
   if (input.uid !== context.auth.uid) {
     throw new UserFacingError('PERMISSION_DENIED', 'You may only summarize your own profile data.');
@@ -258,11 +258,11 @@ You could secure a simple "flow server" express app by writing:
 
 ```ts
 import { apiKey } from "genkit";
-import { startFlowServer, withContext } from "@genkit-ai/express";
+import { startFlowServer, withContextProvider } from "@genkit-ai/express";
 
 startFlowServer({
   flows: [
-    withContext(selfSummaryFlow, apiKey(process.env.REQUIRED_API_KEY))
+    withContextProvider(selfSummaryFlow, apiKey(process.env.REQUIRED_API_KEY))
   ],
 });
 ```

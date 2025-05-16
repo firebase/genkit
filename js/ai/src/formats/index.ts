@@ -50,7 +50,7 @@ export async function resolveFormat(
 ): Promise<Formatter<any, any> | undefined> {
   if (!outputOpts) return undefined;
   // If schema is set but no explicit format is set we default to json.
-  if (outputOpts.schema && !outputOpts.format) {
+  if ((outputOpts.jsonSchema || outputOpts.schema) && !outputOpts.format) {
     return registry.lookupValue<Formatter>('format', 'json');
   }
   if (outputOpts.format) {

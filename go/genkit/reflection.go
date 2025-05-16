@@ -19,7 +19,6 @@ package genkit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -27,15 +26,14 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/action"
-	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -148,6 +146,9 @@ func (s *reflectionServer) writeRuntimeFile(url string) error {
 	}
 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
+	// remove colons to avoid problems with different OS file name restrictions
+	timestamp = strings.ReplaceAll(timestamp, ":", "_")
+
 	s.RuntimeFilePath = filepath.Join(runtimesDir, fmt.Sprintf("%d-%s.json", os.Getpid(), timestamp))
 
 	data := runtimeFileData{
@@ -250,26 +251,9 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 		w.Header().Set("x-genkit-version", "go/"+internal.Version)
 
 		if err = h(w, r); err != nil {
-			var traceID string
-			statusCode := http.StatusInternalServerError
-			if herr, ok := err.(*base.HTTPError); ok {
-				traceID = herr.TraceID
-				statusCode = herr.Code
-			}
-
-			genkitErr := &ai.GenkitError{
-				Message: err.Error(),
-				Details: struct {
-					TraceID string `json:"traceId"`
-					Stack   string `json:"stack"`
-				}{
-					TraceID: traceID,
-					Stack:   "", // TODO: Propagate stack trace from local error.
-				},
-			}
-
-			w.WriteHeader(statusCode)
-			writeJSON(ctx, w, genkitErr)
+			errorResponse := core.ToReflectionError(err)
+			w.WriteHeader(errorResponse.Code)
+			writeJSON(ctx, w, errorResponse)
 		}
 	}
 }
@@ -287,7 +271,7 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		}
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return core.NewError(core.INVALID_ARGUMENT, err.Error())
 		}
 
 		stream, err := parseBoolQueryParam(r, "stream")
@@ -322,26 +306,16 @@ func handleRunAction(reg *registry.Registry) func(w http.ResponseWriter, r *http
 		resp, err := runAction(ctx, reg, body.Key, body.Input, cb, contextMap)
 		if err != nil {
 			if stream {
-				var traceID string
-				if herr, ok := err.(*base.HTTPError); ok {
-					traceID = herr.TraceID
+				reflectErr, err := json.Marshal(core.ToReflectionError(err))
+				if err != nil {
+					return err
 				}
 
-				genkitErr := &ai.GenkitError{
-					Message: err.Error(),
-					Data: &ai.GenkitErrorData{
-						GenkitErrorMessage: err.Error(),
-						GenkitErrorDetails: &ai.GenkitErrorDetails{
-							TraceID: traceID,
-						},
-					},
+				_, err = fmt.Fprintf(w, "%s\n\n", reflectErr)
+				if err != nil {
+					return err
 				}
 
-				errorJSON, _ := json.Marshal(genkitErr)
-				_, writeErr := fmt.Fprintf(w, "%s\n", errorJSON)
-				if writeErr != nil {
-					return writeErr
-				}
 				if f, ok := w.(http.Flusher); ok {
 					f.Flush()
 				}
@@ -364,7 +338,7 @@ func handleNotify(reg *registry.Registry) func(w http.ResponseWriter, r *http.Re
 
 		defer r.Body.Close()
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return core.NewError(core.INVALID_ARGUMENT, err.Error())
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {
@@ -408,7 +382,7 @@ type telemetry struct {
 func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
-		return nil, &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
+		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
 	}
 	if runtimeContext != nil {
 		ctx = core.WithActionContext(ctx, runtimeContext)
@@ -421,12 +395,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
-		var herr *base.HTTPError
-		if errors.As(err, &herr) {
-			herr.TraceID = traceID
-			return nil, herr
-		}
-		return nil, &base.HTTPError{Code: http.StatusInternalServerError, Err: err, TraceID: traceID}
+		return nil, err
 	}
 
 	return &runActionResponse{
@@ -438,7 +407,13 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 // writeJSON writes a JSON-marshaled value to the response writer.
 func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(value); err != nil {
+
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	if err != nil {
 		logger.FromContext(ctx).Error("writing output", "err", err)
 	}
 	if f, ok := w.(http.Flusher); ok {

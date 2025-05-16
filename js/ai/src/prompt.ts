@@ -40,11 +40,14 @@ import {
   generateStream,
   GenerateStreamResponse,
   OutputOptions,
+  toGenerateActionOptions,
   toGenerateRequest,
   ToolChoice,
 } from './generate.js';
 import { Message } from './message.js';
 import {
+  GenerateActionOptions,
+  GenerateActionOptionsSchema,
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseChunkSchema,
@@ -355,17 +358,15 @@ function definePromptAsync<
         name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
         inputJsonSchema: options.input?.jsonSchema,
         inputSchema: options.input?.schema,
+        outputSchema: GenerateActionOptionsSchema,
         description: options.description,
         actionType: 'executable-prompt',
         metadata,
-        fn: async (
-          input: z.infer<I>,
-          { sendChunk }
-        ): Promise<GenerateResponse> => {
-          return await generate(registry, {
-            ...(await renderOptionsFn(input, undefined)),
-            onChunk: sendChunk,
-          });
+        fn: async (input: z.infer<I>): Promise<GenerateActionOptions> => {
+          return await toGenerateActionOptions(
+            registry,
+            await renderOptionsFn(input, undefined)
+          );
         },
       } as ActionAsyncParams<any, any, any>;
     })
@@ -392,7 +393,7 @@ function definePromptAsync<
 }
 
 function promptMetadata(options: PromptConfig<any, any, any>) {
-  return {
+  const metadata = {
     ...options.metadata,
     prompt: {
       ...options.metadata?.prompt,
@@ -400,11 +401,19 @@ function promptMetadata(options: PromptConfig<any, any, any>) {
       input: {
         schema: options.input ? toJsonSchema(options.input) : undefined,
       },
-      name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
+      name: options.name.includes('.')
+        ? options.name.split('.')[0]
+        : options.name,
       model: modelName(options.model),
     },
     type: 'prompt',
   };
+
+  if (options.variant) {
+    metadata.prompt.variant = options.variant;
+  }
+
+  return metadata;
 }
 
 function wrapInExecutablePrompt<
@@ -536,7 +545,7 @@ async function renderMessages<
           Message.parseData(m)
         ) as DpMessage[],
       });
-      messages.push(...rendered.messages);
+      messages.push(...(rendered.messages as MessageData[]));
     } else {
       messages.push(...options.messages);
     }
