@@ -423,9 +423,16 @@ class TestVertexAIInit(unittest.TestCase):
         self.assertIsInstance(plugin._client, MagicMock)
 
 
-def test_vertexai_initialize():
+@pytest.fixture
+@patch('google.genai.client.Client')
+def vertexai_plugin_instance(client):
+    """VertexAI fixture."""
+    return VertexAI()
+
+
+def test_vertexai_initialize(vertexai_plugin_instance):
     """Unit tests for VertexAI.initialize method."""
-    plugin = VertexAI()
+    plugin = vertexai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     plugin.initialize(ai_mock)
@@ -456,9 +463,9 @@ def test_vertexai_initialize():
 
 
 @patch('genkit.plugins.google_genai.VertexAI._resolve_model')
-def test_vertexai_resolve_action_model(mock_resolve_action):
+def test_vertexai_resolve_action_model(mock_resolve_action, vertexai_plugin_instance):
     """Test resolve action for model."""
-    plugin = VertexAI()
+    plugin = vertexai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     plugin.resolve_action(ai=ai_mock, type=ActionKind.MODEL, name='lazaro-model')
@@ -466,9 +473,9 @@ def test_vertexai_resolve_action_model(mock_resolve_action):
 
 
 @patch('genkit.plugins.google_genai.VertexAI._resolve_embedder')
-def test_vertexai_resolve_action_embedder(mock_resolve_action):
+def test_vertexai_resolve_action_embedder(mock_resolve_action, vertexai_plugin_instance):
     """Test resolve action for embedder."""
-    plugin = VertexAI()
+    plugin = vertexai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     plugin.resolve_action(ai=ai_mock, type=ActionKind.EMBEDDER, name='lazaro-model')
@@ -514,9 +521,10 @@ def test_vertexai__resolve_model(
     expected_model_name,
     key,
     image,
+    vertexai_plugin_instance,
 ):
     """Tests for VertexAI._resolve_model method."""
-    plugin = VertexAI()
+    plugin = vertexai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     mock_google_model_info.return_value = ModelInfo(
@@ -568,9 +576,10 @@ def test_vertexai__resolve_model(
 def test_vertexai__resolve_embedder(
     model_name,
     expected_model_name,
+    vertexai_plugin_instance,
 ):
     """Tests for VertexAI._resolve_embedder method."""
-    plugin = VertexAI()
+    plugin = vertexai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     plugin._resolve_embedder(
