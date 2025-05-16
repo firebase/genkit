@@ -64,10 +64,7 @@ func TestLocalVec(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	indexerReq := &ai.IndexerRequest{
-		Documents: []*ai.Document{d1, d2, d3},
-	}
-	err = ds.index(ctx, indexerReq)
+	err = Index(ctx, []*ai.Document{d1, d2, d3}, ds)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -132,10 +129,7 @@ func TestPersistentIndexing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	indexerReq := &ai.IndexerRequest{
-		Documents: []*ai.Document{d1, d2},
-	}
-	err = ds.index(ctx, indexerReq)
+	err = Index(ctx, []*ai.Document{d1, d2}, ds)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -163,10 +157,7 @@ func TestPersistentIndexing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	indexerReq = &ai.IndexerRequest{
-		Documents: []*ai.Document{d3},
-	}
-	err = dsAnother.index(ctx, indexerReq)
+	err = Index(ctx, []*ai.Document{d3}, dsAnother)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -210,14 +201,11 @@ func TestInit(t *testing.T) {
 		t.Fatal(err)
 	}
 	const name = "mystore"
-	ind, ret, err := DefineIndexerAndRetriever(g, name, Config{Embedder: embedder})
+	_, ret, err := DefineRetriever(g, name, Config{Embedder: embedder})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := "devLocalVectorStore/" + name
-	if g := ind.Name(); g != want {
-		t.Errorf("got %q, want %q", g, want)
-	}
 	if g := ret.Name(); g != want {
 		t.Errorf("got %q, want %q", g, want)
 	}
