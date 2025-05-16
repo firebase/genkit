@@ -50,6 +50,11 @@ type Pinecone struct {
 	initted bool       // Whether the plugin has been initialized.
 }
 
+// Name returns the name of the plugin.
+func (p *Pinecone) Name() string {
+	return provider
+}
+
 // Init initializes the Pinecone plugin.
 // If apiKey is the empty string, it is read from the PINECONE_API_KEY
 // environment variable.
