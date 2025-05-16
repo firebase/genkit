@@ -16,7 +16,7 @@
 
 import { Genkit, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { EmbedderArgument, Embedding } from 'genkit/embedder';
+import { EmbedderArgument } from 'genkit/embedder';
 import {
   CommonRetrieverOptionsSchema,
   Document,
@@ -25,7 +25,7 @@ import {
 } from 'genkit/retriever';
 
 import { v4 as uuidv4 } from 'uuid';
-import { PostgresEngine, Column } from './engine';
+import { PostgresEngine } from './engine';
 import { DistanceStrategy, type QueryOptions } from './indexes';
 
 const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
@@ -175,7 +175,7 @@ export async function configurePostgresRetriever<
     const contentType = contentColumn ? columns[contentColumn] : '';
 
     if (contentType !== 'text' && !contentType.includes('char')) {
-      throw `Content column: ${contentColumn}, is type: ${contentType}. It must be a type of character string.`;
+      throw `Content column: ${params.contentColumn}, is type: ${contentType}. It must be a type of character string.`;
     }
 
     if (embeddingColumn && !columns.hasOwnProperty(embeddingColumn)) {
@@ -314,9 +314,7 @@ export async function configurePostgresRetriever<
  * @param params.chunkSize The chunk size to use for the indexer
  * @returns Add documents to vector store
  */
-export function configurePostgresIndexer<
-  EmbedderCustomOptions extends z.ZodTypeAny,
->(
+export function configurePostgresIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(
   ai: Genkit,
   params: {
     tableName: string;
@@ -332,6 +330,12 @@ export function configurePostgresIndexer<
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }
 ) {
+  const schemaName = params.schemaName ?? 'public';
+  const contentColumn = params.contentColumn ?? 'content';
+  const embeddingColumn = params.embeddingColumn ?? 'embedding';
+  const idColumn = params.idColumn ?? 'id';
+  const metadataJsonColumn = params.metadataJsonColumn ?? 'metadata';
+
   if (!params.engine) {
     throw new Error('Engine is required');
   }
@@ -340,110 +344,41 @@ export function configurePostgresIndexer<
     throw new Error('Cannot use both metadataColumns and ignoreMetadataColumns');
   }
 
-  const {
-    tableName,
-    engine,
-    schemaName,
-    contentColumn,
-    embeddingColumn,
-    metadataColumns,
-    ignoreMetadataColumns,
-    idColumn,
-    metadataJsonColumn,
-    embedder,
-    embedderOptions
-  } = params;
-
-  const defaultSchemaName = schemaName ?? 'public';
-  const defaultContentColumn = contentColumn ?? 'content';
-  const defaultEmbeddingColumn = embeddingColumn ?? 'embedding';
-  const defaultIdColumn = idColumn ?? 'id';
-  const defaultMetadataJsonColumn = metadataJsonColumn ?? 'metadata';
-
-  // Store the final metadata columns at the module level
-  let finalMetadataColumns: string[] = metadataColumns || [];
-
-  async function ensureTableExists() {
-    // Get existing columns and their types if table exists
-    const { rows } = await engine.pool.raw(
-      `SELECT column_name, data_type, is_nullable 
-       FROM information_schema.columns 
-       WHERE table_name = '${tableName}' AND table_schema = '${defaultSchemaName}'`
+  async function checkColumns() {
+    const { rows } = await params.engine.pool.raw(
+      `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${params.tableName}' AND table_schema = '${schemaName}'`
     );
-    
-    if (rows.length === 0) {
-      throw new Error(`Table ${defaultSchemaName}.${tableName} does not exist. Please create it using initVectorstoreTable first.`);
+
+    const columns: { [key: string]: any } = {};
+
+    for (const index in rows) {
+      const row = rows[index];
+      columns[row['column_name']] = row['data_type'];
     }
 
-    const existingColumns = rows.map(row => row.column_name);
-    const requiredColumns = [
-      defaultIdColumn,
-      defaultContentColumn,
-      defaultEmbeddingColumn
-    ];
-
-    const missingColumns = requiredColumns.filter(col => !existingColumns.includes(col));
-    if (missingColumns.length > 0) {
-      throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+    if (!columns.hasOwnProperty(idColumn)) {
+      throw new Error(`Id column: ${idColumn}, does not exist.`);
     }
 
-    const columnTypes = rows.reduce((acc, row) => {
-      acc[row.column_name] = row.data_type;
-      return acc;
-    }, {} as Record<string, string>);
-
-
-    if (columnTypes[defaultContentColumn] !== 'text') {
-      throw new Error(`Content column must be of type 'text', found '${columnTypes[defaultContentColumn]}'`);
+    if (!columns.hasOwnProperty(contentColumn)) {
+      throw new Error(`Content column: ${contentColumn}, does not exist.`);
     }
 
-
-    if (columnTypes[defaultEmbeddingColumn] !== 'USER-DEFINED') {
-      throw new Error(`Embedding column must be of type 'vector', found '${columnTypes[defaultEmbeddingColumn]}'`);
+    if (!columns.hasOwnProperty(embeddingColumn)) {
+      throw new Error(`Embedding column: ${embeddingColumn}, does not exist.`);
     }
 
-    const idColumnType = columnTypes[defaultIdColumn];
-    if (!idColumnType || !['text', 'character varying', 'varchar', 'uuid'].includes(idColumnType)) {
-      throw new Error(`ID column must be a string type (text, varchar, or uuid), found '${idColumnType}'`);
+    if (columns[embeddingColumn] !== 'USER-DEFINED') {
+      throw new Error(`Embedding column: ${embeddingColumn} is not of type Vector.`);
     }
 
-    if (ignoreMetadataColumns && ignoreMetadataColumns.length > 0) {
-      finalMetadataColumns = existingColumns.filter(col => 
-        !ignoreMetadataColumns.includes(col) && 
-        !requiredColumns.includes(col) &&
-        col !== defaultMetadataJsonColumn
-      );
-    }
-  }
-
-  async function generateEmbeddings(documents: Document[], options?: { batchSize?: number }): Promise<IndexedDocument[]> {
-    const CHUNK_SIZE = options?.batchSize || 100;
-    const results: IndexedDocument[] = [];
-    
-    for (let i = 0; i < documents.length; i += CHUNK_SIZE) {
-      const chunk = documents.slice(i, i + CHUNK_SIZE);
-      try {
-        // Single batch call for all documents in the chunk
-        const batchEmbeddings = await ai.embedMany({
-          embedder,
-          content: chunk,
-          options: embedderOptions
-        });
-        
-        const chunkResults = chunk.map((doc, index) => ({
-          id: doc.metadata?.[defaultIdColumn] as string || uuidv4(),
-          content: typeof doc.content === 'string' ? doc.content : JSON.stringify(doc.content),
-          embedding: JSON.stringify(batchEmbeddings[index].embedding),
-          metadata: doc.metadata || {}
-        }));
-        
-        results.push(...chunkResults);
-      } catch (error) {
-        throw new Error('Embedding failed');
+    if (params.metadataColumns) {
+      for (const column of params.metadataColumns) {
+        if (column && !columns.hasOwnProperty(column)) {
+          throw new Error(`Metadata column: ${column}, does not exist.`);
+        }
       }
     }
-    
-    return results;
   }
 
   return ai.defineIndexer(
@@ -451,48 +386,68 @@ export function configurePostgresIndexer<
       name: `postgres/${params.tableName}`,
       configSchema: PostgresIndexerOptionsSchema.optional(),
     },
-
-    async (docs, options) => {
-      await ensureTableExists();
-      
+    async (docs: Document[] | { documents: Document[]; options?: any }, options?: { batchSize?: number }) => {
       try {
-        const vectors = await generateEmbeddings(docs, options);
-        const batchSize = options?.batchSize || 100;
+        await checkColumns();
+        
+        // Normalize input to always have documents array and merged options
+        const documents = Array.isArray(docs) ? docs : docs.documents || [];
+        const mergedOptions = Array.isArray(docs) ? options : docs.options || options || {};
+        const batchSize = mergedOptions.batchSize || 100;
 
-        for (let i = 0; i < vectors.length; i += batchSize) {
-          const batch = vectors.slice(i, i + batchSize);
-          
-          const insertData = batch.map(doc => {
-            const metadata = doc.metadata || {};
-            return {
-              [defaultIdColumn]: doc.id,
-              [defaultContentColumn]: doc.content,
-              [defaultEmbeddingColumn]: doc.embedding,
-              ...(defaultMetadataJsonColumn && { [defaultMetadataJsonColumn]: metadata }),
-              ...Object.fromEntries(
-                finalMetadataColumns
-                  .filter(col => metadata[col] !== undefined)
-                  .map(col => [col, metadata[col]])
-              )
-            };
-          });
-
-          const table = defaultSchemaName 
-            ? engine.pool.withSchema(defaultSchemaName).table(tableName)
-            : engine.pool.table(tableName);
-
+        console.log(`Indexing ${documents.length} documents in batches of ${batchSize}`);
+  
+        for (let i = 0; i < documents.length; i += batchSize) {
+          const chunk = documents.slice(i, i + batchSize); 
+          const texts = chunk.map(doc => 
+            Array.isArray(doc.content) 
+              ? doc.content.map(c => c.text).join(' ') 
+              : doc.content
+          );
+  
+          let embeddings;
+          try {
+            if (ai.embedMany) {
+              embeddings = await ai.embedMany({
+                embedder: params.embedder,
+                content: texts,
+                options: params.embedderOptions,
+              });
+            } else {
+              embeddings = await Promise.all(texts.map(text => 
+                ai.embed({
+                  embedder: params.embedder,
+                  content: text,
+                  options: params.embedderOptions,
+                }).then(res => res[0])
+              ));
+            }
+          } catch (error: unknown) {
+            throw new Error('Embedding failed', { cause: error });
+          }
+  
+          const insertData = chunk.map((doc, index) => ({
+            [idColumn]: doc.metadata?.[idColumn] || uuidv4(),
+            [contentColumn]: texts[index],
+            [embeddingColumn]: JSON.stringify(embeddings[index].embedding),
+            ...(metadataJsonColumn && { [metadataJsonColumn]: doc.metadata || {} }),
+            ...Object.fromEntries(
+              (params.metadataColumns || [])
+                .filter(col => doc.metadata?.[col] !== undefined)
+                .map(col => [col, doc.metadata?.[col]])
+            )
+          }));
+  
+          const table = schemaName 
+            ? params.engine.pool.withSchema(schemaName).table(params.tableName)
+            : params.engine.pool.table(params.tableName);
+  
           await table.insert(insertData);
         }
-      } catch (error) {
+      } catch (error: unknown) {
+        console.error('Error in indexer:', error);
         throw error;
       }
     }
   );
-}
-
-interface IndexedDocument {
-  id: string;
-  content: string;
-  embedding: string;
-  metadata: Record<string, unknown>;
 }

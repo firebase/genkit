@@ -4,6 +4,7 @@ import {
   describe,
   expect,
   afterEach,
+  beforeEach,
   jest,
   test,
 } from '@jest/globals';
@@ -17,6 +18,7 @@ import { z } from 'genkit';
 // Import your actual source code
 import {
   configurePostgresRetriever,
+  configurePostgresIndexer,
 } from '../src/index';
 import { DistanceStrategy } from '../src/indexes';
 import { PostgresEngine, Column } from '../src/engine';
@@ -38,29 +40,32 @@ const METADATA_COLUMNS = [new Column("page", "TEXT"), new Column("source", "TEXT
 // --- Mocks for Genkit Interactions ---
 // Mock Genkit instance for `ai` parameter
 const mockGenkit: Genkit = {
-  embed: jest.fn(async ({ content }: { content: string | string[] }) => {
+  embed: jest.fn(async ({ content }) => {
     let embeddingArray = new Array(1536).fill(0.05);
-    if (typeof content === 'string' && content === 'first document content') {
+    if (content === 'first document content') {
       embeddingArray = new Array(1536).fill(0.1);
-    } else if (typeof content === 'string' && content === 'another document') {
+    } else if (content === 'another document') {
       embeddingArray = new Array(1536).fill(0.3);
     }
-    return [{ embedding: embeddingArray, text: Array.isArray(content) ? content.join(' ') : content }];
+    return [{ embedding: embeddingArray, text: content }];
   }),
 
-  defineRetriever: jest.fn((config, handler) => {
-    return {
-      config: config,
-      retrieve: handler,
-    };
+  embedMany: jest.fn(async ({ content }) => {
+    return content.map(text => ({
+      embedding: new Array(1536).fill(0.1),
+      text: Array.isArray(text) ? text.join(' ') : text
+    }));
   }),
 
-  defineIndexer: jest.fn((config, handler) => {
-    return {
-      config: config,
-      index: handler,
-    };
-  })
+  defineRetriever: jest.fn((config, handler) => ({
+    config,
+    retrieve: handler
+  })),
+
+  defineIndexer: jest.fn((config, handler: (input: { documents: Document[]; options?: any }, options?: any) => Promise<void>) => ({
+    config,
+    index: (input: any, options?: any) => handler(input, options)
+  }))
 } as unknown as Genkit;
 
 // Mock EmbedderArgument as configured in Genkit plugin
@@ -242,4 +247,206 @@ describe("configurePostgresRetriever Integration Tests", () => {
   // - Error scenarios from `engine.pool.raw` (e.g., network issues)
   // - Testing `ignoreMetadataColumns` and `metadataJsonColumn` interactions
   // - Testing `DistanceStrategy` variations
+});
+
+describe("configurePostgresIndexer Integration Tests", () => {
+  let engine: PostgresEngine;
+  let indexerInstance: any;
+
+  beforeAll(async () => {
+    try {
+      engine = await PostgresEngine.fromEngineArgs({
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        port: parseInt(process.env.DB_PORT || '5432')
+      });
+
+      await engine.pool.raw(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA_NAME}`);
+      await engine.pool.raw(`DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`);
+
+      await engine.initVectorstoreTable(TEST_TABLE, 1536, {
+        schemaName: SCHEMA_NAME,
+        contentColumn: CONTENT_COLUMN,
+        embeddingColumn: EMBEDDING_COLUMN,
+        metadataColumns: METADATA_COLUMNS,
+        metadataJsonColumn: 'metadata_json',
+        idColumn: ID_COLUMN,
+        overwriteExisting: true,
+        storeMetadata: true
+      });
+
+      configurePostgresIndexer(mockGenkit, {
+        tableName: TEST_TABLE,
+        engine: engine,
+        schemaName: SCHEMA_NAME,
+        contentColumn: CONTENT_COLUMN,
+        embeddingColumn: EMBEDDING_COLUMN,
+        idColumn: ID_COLUMN,
+        metadataColumns: METADATA_COLUMNS.map(col => col.name),
+        metadataJsonColumn: 'metadata_json',
+        embedder: mockEmbedder
+      });
+
+      const defineIndexerMock = mockGenkit.defineIndexer as jest.Mock;
+      indexerInstance = defineIndexerMock.mock.results[0].value;
+    } catch (error) {
+      console.error("Error during beforeAll setup:", error);
+      throw error;
+    }
+  }, 60000);
+
+  beforeEach(async () => {
+    // Clear table before each test
+    await engine.pool.raw(`TRUNCATE TABLE ${SCHEMA_NAME}.${TEST_TABLE}`);
+    jest.clearAllMocks();
+  });
+
+  afterAll(async () => {
+    if (engine?.pool) {
+      await engine.pool.raw(`DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`);
+      await engine.pool.raw(`DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE`);
+      await engine.closeConnection();
+    }
+    consoleSpy.mockRestore();
+  }, 30000);
+
+  test('should index a single document correctly', async () => {
+    const testDoc = new Document({
+      content: [{ text: 'This is the first test document content.' }],
+      metadata: { page: 'page1', source: 'sourceA', key1: 'value1' }
+    });
+
+    await indexerInstance.index({ documents: [testDoc], options: {} });
+
+    const result = await engine.pool
+      .withSchema(SCHEMA_NAME)
+      .select([ID_COLUMN, CONTENT_COLUMN, EMBEDDING_COLUMN, 'metadata_json'])
+      .from(TEST_TABLE);
+
+    expect(result).toHaveLength(1);
+    expect(result[0][CONTENT_COLUMN]).toBe('This is the first test document content.');
+    expect(result[0]['metadata_json']).toEqual(
+      expect.objectContaining({
+        page: 'page1',
+        source: 'sourceA',
+        key1: 'value1'
+      })
+    );
+    expect(result[0][EMBEDDING_COLUMN]).toBeDefined();
+  });
+
+  test('should index multiple documents in batch', async () => {
+    const testDocs = [
+      new Document({
+        content: [{ text: 'Second document with different content.' }],
+        metadata: { page: 'page2', source: 'sourceB', key2: 'value2' }
+      }),
+      new Document({
+        content: [{ text: 'Another test document.' }],
+        metadata: { page: 'page1', source: 'sourceC', key3: 'value3' }
+      })
+    ];
+
+    await indexerInstance.index({ documents: testDocs, options: { batchSize: 2 } });
+
+    const result = await engine.pool
+      .withSchema(SCHEMA_NAME)
+      .select([ID_COLUMN, CONTENT_COLUMN, EMBEDDING_COLUMN, 'metadata_json'])
+      .from(TEST_TABLE)
+      .orderBy(CONTENT_COLUMN);
+
+    expect(result).toHaveLength(2);
+    expect(result[0][CONTENT_COLUMN]).toBe('Another test document.');
+    expect(result[1][CONTENT_COLUMN]).toBe('Second document with different content.');
+  });
+
+  test('should handle empty document array gracefully', async () => {
+    await expect(
+      indexerInstance.index({ documents: [], options: {} })
+    ).resolves.not.toThrow();
+
+    const result = await engine.pool
+      .withSchema(SCHEMA_NAME)
+      .select('*')
+      .from(TEST_TABLE);
+
+    expect(result).toHaveLength(0);
+  });
+
+  test('should use existing ID from metadata if provided', async () => {
+    const testId = uuidv4();
+    const testDoc = new Document({
+      content: [{ text: 'Test with ID' }],
+      metadata: { [ID_COLUMN]: testId, source: 'id-test' }
+    });
+
+    await indexerInstance.index({ documents: [testDoc], options: {} });
+
+    const result = await engine.pool
+      .withSchema(SCHEMA_NAME)
+      .select(ID_COLUMN)
+      .from(TEST_TABLE)
+      .where(ID_COLUMN, testId)
+      .first();
+
+    expect(result).toBeDefined();
+    expect(result[ID_COLUMN]).toBe(testId);
+  });
+
+  test('should throw error when engine is not provided', () => {
+    expect(() => {
+      configurePostgresIndexer(mockGenkit, {
+        tableName: TEST_TABLE,
+        // @ts-expect-error - Testing invalid input
+        engine: undefined,
+        contentColumn: CONTENT_COLUMN,
+        embeddingColumn: EMBEDDING_COLUMN,
+        idColumn: ID_COLUMN,
+        embedder: mockEmbedder
+      });
+    }).toThrow('Engine is required');
+  });
+
+  test('should throw error when both metadataColumns and ignoreMetadataColumns are provided', () => {
+    expect(() => {
+      configurePostgresIndexer(mockGenkit, {
+        tableName: TEST_TABLE,
+        engine,
+        contentColumn: CONTENT_COLUMN,
+        embeddingColumn: EMBEDDING_COLUMN,
+        idColumn: ID_COLUMN,
+        metadataColumns: ['col1'],
+        ignoreMetadataColumns: ['col2'],
+        embedder: mockEmbedder
+      });
+    }).toThrow('Cannot use both metadataColumns and ignoreMetadataColumns');
+  });
+
+  test('should handle embedding generation errors', async () => {
+    const errorMockGenkit = {
+      ...mockGenkit,
+      embedMany: jest.fn(() => {
+        throw new Error('Embedding failed');
+      })
+    } as unknown as Genkit;
+
+    configurePostgresIndexer(errorMockGenkit, {
+      tableName: TEST_TABLE,
+      engine,
+      schemaName: SCHEMA_NAME,
+      contentColumn: CONTENT_COLUMN,
+      embeddingColumn: EMBEDDING_COLUMN,
+      idColumn: ID_COLUMN,
+      embedder: mockEmbedder
+    });
+
+    const defineIndexerMock = errorMockGenkit.defineIndexer as jest.Mock;
+    const errorIndexerInstance = defineIndexerMock.mock.results[0].value as { index: (args: { documents: Document[]; options: {} }) => Promise<void> };
+
+    await expect(
+      errorIndexerInstance.index({ documents: [new Document({ content: [{ text: 'Fail me' }] })], options: {} })
+    ).rejects.toThrow('Embedding failed');
+  });
 });
