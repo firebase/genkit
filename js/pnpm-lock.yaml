@@ -136,7 +136,7 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0
       zod:
-        specifier: ^3.22.4
+        specifier: ^3.23.8
         version: 3.24.1
       zod-to-json-schema:
         specifier: ^3.22.4
