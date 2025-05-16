@@ -25,9 +25,8 @@ from genkit.ai import Genkit
 from genkit.blocks.document import (
     Document,
 )
+from genkit.plugins.google_genai import VertexAI
 from genkit.plugins.vertex_ai import (
-    EmbeddingModels,
-    VertexAI,
     VertexAIVectorSearch,
     vertexai_name,
 )
@@ -35,7 +34,7 @@ from genkit.plugins.vertex_ai.models.retriever import BigQueryRetriever
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
-EMBEDDING_MODEL = EmbeddingModels.TEXT_EMBEDDING_004_ENG
+EMBEDDING_MODEL = 'text-embedding-004'
 
 BIGQUERY_DATASET_NAME = os.getenv('BIGQUERY_DATASET_NAME')
 BIGQUERY_TABLE_NAME = os.getenv('BIGQUERY_TABLE_NAME')
