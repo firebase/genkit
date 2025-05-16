@@ -316,6 +316,7 @@ async def test_generate_with_system_instructions(mocker):
     assert isinstance(response, GenerateResponse)
     assert response.message.content[0].root.text == response_text
 
+
 # Unit tests
 
 
@@ -404,12 +405,9 @@ def test_gemini_model__get_tools(
             description='model tool description',
             input_schema={},
             outputSchema={
-                "type": "object",
-                "properties": {
-                    "test": {
-                        "type": "string",
-                        "description": "test field"
-                    },
+                'type': 'object',
+                'properties': {
+                    'test': {'type': 'string', 'description': 'test field'},
                 },
             },
             metadata={'date': 'today'},
@@ -419,16 +417,13 @@ def test_gemini_model__get_tools(
             description='model tool description',
             input_schema={},
             outputSchema={
-                "type": "object",
-                "properties": {
-                    "test": {
-                        "type": "string",
-                        "description": "test field"
-                    },
+                'type': 'object',
+                'properties': {
+                    'test': {'type': 'string', 'description': 'test field'},
                 },
             },
             metadata={'date': 'today'},
-        )
+        ),
     ]
 
     request = GenerateRequest(
@@ -440,7 +435,7 @@ def test_gemini_model__get_tools(
                     TextPart(text='test text'),
                 ],
             ),
-        ]
+        ],
     )
 
     tools = gemini_model_instance._get_tools(request)
@@ -457,12 +452,9 @@ def test_gemini_model__create_vertexai_tool(gemini_model_instance):
         description='model tool description',
         input_schema=None,
         outputSchema={
-            "type": "object",
-            "properties": {
-                "test": {
-                    "type": "string",
-                    "description": "test field"
-                },
+            'type': 'object',
+            'properties': {
+                'test': {'type': 'string', 'description': 'test field'},
             },
         },
         metadata={'date': 'today'},
@@ -482,16 +474,13 @@ def test_gemini_model__create_gemini_tool(mock_convert_schema_property, gemini_m
         name='model_tool',
         description='model tool description',
         input_schema={
-            "type": "str",
-            "description": "test field",
+            'type': 'str',
+            'description': 'test field',
         },
         outputSchema={
-            "type": "object",
-            "properties": {
-                "test": {
-                    "type": "string",
-                    "description": "test field"
-                },
+            'type': 'object',
+            'properties': {
+                'test': {'type': 'string', 'description': 'test field'},
             },
         },
         metadata={'date': 'today'},
@@ -507,7 +496,7 @@ def test_gemini_model__create_gemini_tool(mock_convert_schema_property, gemini_m
 
 
 @pytest.mark.parametrize(
-    "input_schema, defs, expected_schema",
+    'input_schema, defs, expected_schema',
     [
         # Test Case 1: None input_schema
         (
@@ -517,27 +506,25 @@ def test_gemini_model__create_gemini_tool(mock_convert_schema_property, gemini_m
         ),
         # Test Case 2: input_schema without 'type'
         (
-            {"description": "A simple description"},
+            {'description': 'A simple description'},
             None,
             None,
         ),
         # Test Case 3: Simple string type
         (
-            {"type": "STRING", "description": "A string field", "required": ["field"]},
+            {'type': 'STRING', 'description': 'A string field', 'required': ['field']},
             None,
-            genai_types.Schema(
-                description="A string field", required=["field"], type=genai_types.Type.STRING
-            ),
+            genai_types.Schema(description='A string field', required=['field'], type=genai_types.Type.STRING),
         ),
         # Test Case 4: String with enum
         (
-            {"type": "STRING", "enum": ["A", "B"]},
+            {'type': 'STRING', 'enum': ['A', 'B']},
             None,
-            genai_types.Schema(type=genai_types.Type.STRING, enum=["A", "B"]),
+            genai_types.Schema(type=genai_types.Type.STRING, enum=['A', 'B']),
         ),
         # Test Case 5: Array of strings
         (
-            {"type": genai_types.Type.ARRAY, "items": {"type": "STRING"}},
+            {'type': genai_types.Type.ARRAY, 'items': {'type': 'STRING'}},
             None,
             genai_types.Schema(
                 type=genai_types.Type.ARRAY,
@@ -546,46 +533,42 @@ def test_gemini_model__create_gemini_tool(mock_convert_schema_property, gemini_m
         ),
         # Test Case 6: Empty object
         (
-            {"type": "OBJECT", "properties": {}},
+            {'type': 'OBJECT', 'properties': {}},
             None,
-            genai_types.Schema(
-                type=genai_types.Type.OBJECT, properties={}
-            ),
+            genai_types.Schema(type=genai_types.Type.OBJECT, properties={}),
         ),
         # Test Case 7: Object with simple properties
         (
             {
-                "type": "OBJECT",
-                "properties": {
-                    "prop1": {"type": "STRING"},
-                    "prop2": {"type": "NUMBER", "description": "Numeric field"},
+                'type': 'OBJECT',
+                'properties': {
+                    'prop1': {'type': 'STRING'},
+                    'prop2': {'type': 'NUMBER', 'description': 'Numeric field'},
                 },
             },
             None,
             genai_types.Schema(
                 type=genai_types.Type.OBJECT,
                 properties={
-                    "prop1": genai_types.Schema(type=genai_types.Type.STRING),
-                    "prop2": genai_types.Schema(type=genai_types.Type.NUMBER, description="Numeric field"),
+                    'prop1': genai_types.Schema(type=genai_types.Type.STRING),
+                    'prop2': genai_types.Schema(type=genai_types.Type.NUMBER, description='Numeric field'),
                 },
             ),
         ),
         # Test Case 8: Object with nested $ref
         (
             {
-                "type": "OBJECT",
-                "properties": {"user": {"$ref": "#/$defs/User"}},
-                "$defs": {
-                    "User": {"type": "OBJECT", "properties": {"name": {"type": "STRING"}}}
-                },
+                'type': 'OBJECT',
+                'properties': {'user': {'$ref': '#/$defs/User'}},
+                '$defs': {'User': {'type': 'OBJECT', 'properties': {'name': {'type': 'STRING'}}}},
             },
             None,  # defs will be picked from input_schema['$defs']
             genai_types.Schema(
                 type=genai_types.Type.OBJECT,
                 properties={
-                    "user": genai_types.Schema(
+                    'user': genai_types.Schema(
                         type=genai_types.Type.OBJECT,
-                        properties={"name": genai_types.Schema(type=genai_types.Type.STRING)},
+                        properties={'name': genai_types.Schema(type=genai_types.Type.STRING)},
                     )
                 },
             ),
@@ -593,18 +576,16 @@ def test_gemini_model__create_gemini_tool(mock_convert_schema_property, gemini_m
         # Test Case 9: Object with nested $ref and existing defs
         (
             {
-                "type": "OBJECT",
-                "properties": {"address": {"$ref": "#/$defs/Address"}},
+                'type': 'OBJECT',
+                'properties': {'address': {'$ref': '#/$defs/Address'}},
             },
-            {
-                "Address": {"type": "OBJECT", "properties": {"street": {"type": "STRING"}}}
-            },
+            {'Address': {'type': 'OBJECT', 'properties': {'street': {'type': 'STRING'}}}},
             genai_types.Schema(
                 type=genai_types.Type.OBJECT,
                 properties={
-                    "address": genai_types.Schema(
+                    'address': genai_types.Schema(
                         type=genai_types.Type.OBJECT,
-                        properties={"street": genai_types.Schema(type=genai_types.Type.STRING)},
+                        properties={'street': genai_types.Schema(type=genai_types.Type.STRING)},
                     )
                 },
             ),
@@ -612,27 +593,32 @@ def test_gemini_model__create_gemini_tool(mock_convert_schema_property, gemini_m
         # Test Case 10: Object with $ref and description at the $ref level
         (
             {
-                "type": "OBJECT",
-                "properties": {
-                    "item": {
-                        "$ref": "#/$defs/Item",
-                        "description": "A referenced item description",
+                'type': 'OBJECT',
+                'properties': {
+                    'item': {
+                        '$ref': '#/$defs/Item',
+                        'description': 'A referenced item description',
                     }
                 },
-                "$defs": {"Item": {"type": "STRING"}},
+                '$defs': {'Item': {'type': 'STRING'}},
             },
             None,
             genai_types.Schema(
                 type=genai_types.Type.OBJECT,
                 properties={
-                    "item": genai_types.Schema(type=genai_types.Type.STRING, description="A referenced item description")
+                    'item': genai_types.Schema(
+                        type=genai_types.Type.STRING, description='A referenced item description'
+                    )
                 },
             ),
         ),
     ],
 )
 def test_gemini_model__convert_schema_property(
-    input_schema, defs, expected_schema, gemini_model_instance,
+    input_schema,
+    defs,
+    expected_schema,
+    gemini_model_instance,
 ):
     """Unit tests for  GeminiModel._convert_schema_property with various valid schema inputs."""
     result_schema = gemini_model_instance._convert_schema_property(input_schema, defs)
@@ -640,6 +626,7 @@ def test_gemini_model__convert_schema_property(
     if expected_schema is None:
         assert result_schema is None
     else:
+
         def compare_schemas(s1: genai_types.Schema, s2: genai_types.Schema):
             assert s1.description == s2.description
             assert s1.required == s2.required
@@ -658,30 +645,29 @@ def test_gemini_model__convert_schema_property(
                 for key in s1.properties:
                     compare_schemas(s1.properties[key], s2.properties[key])
             else:
-                assert (s1.properties is None and s2.properties is None) or \
-                    (len(s1.properties) == 0 and len(s2.properties) == 0)
+                assert (s1.properties is None and s2.properties is None) or (
+                    len(s1.properties) == 0 and len(s2.properties) == 0
+                )
 
         compare_schemas(result_schema, expected_schema)
 
 
 @pytest.mark.parametrize(
-    "input_schema, defs",
+    'input_schema, defs',
     [
         # Test Case 11: Unresolvable $ref
         (
-            {"type": "OBJECT", "properties": {"user": {"$ref": "#/$defs/NonExistent"}}},
-            {"$defs": {"SomeOtherDef": {"type": "STRING"}}},
+            {'type': 'OBJECT', 'properties': {'user': {'$ref': '#/$defs/NonExistent'}}},
+            {'$defs': {'SomeOtherDef': {'type': 'STRING'}}},
         ),
         # Test Case 12: $ref with missing defs dict
         (
-            {"type": "OBJECT", "properties": {"user": {"$ref": "#/$defs/NonExistent"}}},
+            {'type': 'OBJECT', 'properties': {'user': {'$ref': '#/$defs/NonExistent'}}},
             None,
         ),
     ],
 )
-def test_gemini_model__convert_schema_property_raises_exception(
-    input_schema, defs, gemini_model_instance
-):
+def test_gemini_model__convert_schema_property_raises_exception(input_schema, defs, gemini_model_instance):
     """Test GeminiModel._convert_schema_property raises an exception for unresolvable schemas."""
     with pytest.raises(ValueError, match=r'Failed to resolve schema for .*'):
         gemini_model_instance._convert_schema_property(input_schema, defs)
@@ -692,7 +678,7 @@ def test_gemini_model__convert_schema_property_raises_exception(
     [
         ('tool-1', 'tool 1 response'),
         ('tool-2', {'complex_response': True}),
-    ]
+    ],
 )
 def test_gemini_model__call_tool(
     tool_name,
@@ -702,10 +688,7 @@ def test_gemini_model__call_tool(
     """Unit tests for GeminiModel._call_tool."""
     mock_tool = MagicMock()
     mock_tool.input_type.validate_python.return_value = []
-    mock_tool.run.return_value = ActionResponse(
-        response=tool_response,
-        trace_id='trace-id'
-    )
+    mock_tool.run.return_value = ActionResponse(response=tool_response, trace_id='trace-id')
 
     gemini_model_instance._registry = MagicMock()
     gemini_model_instance._registry.registry.lookup_action.return_value = mock_tool
@@ -741,7 +724,7 @@ def test_gemini_model__call_tool_raises_exception(gemini_model_instance):
     [
         'key_not_cached',
         'key1',
-    ]
+    ],
 )
 async def test_gemini_model__retrieve_cached_content(
     mock_generate_cache_key,
@@ -762,14 +745,7 @@ async def test_gemini_model__retrieve_cached_content(
     mock_client = MagicMock()
     mock_client.aio.caches.list = async_mock_list
 
-    async_mock_list.__aiter__.return_value = [
-        MockPage(
-            display_name='key1'
-        ),
-        MockPage(
-            display_name='key2'
-        )
-    ]
+    async_mock_list.__aiter__.return_value = [MockPage(display_name='key1'), MockPage(display_name='key2')]
 
     # Mock update and create cache methods of google genai
     async_cache = AsyncMock()

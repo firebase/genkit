@@ -504,12 +504,7 @@ def test_vertexai_resolve_action_embedder(mock_resolve_action):
             'gemini-pro-deluxe-max-image',
             True,
         ),
-        (
-            'gemini-pro-deluxe-max-image',
-            'vertexai/gemini-pro-deluxe-max-image',
-            'gemini-pro-deluxe-max-image',
-            True
-        ),
+        ('gemini-pro-deluxe-max-image', 'vertexai/gemini-pro-deluxe-max-image', 'gemini-pro-deluxe-max-image', True),
     ],
 )
 def test_vertexai__resolve_model(
