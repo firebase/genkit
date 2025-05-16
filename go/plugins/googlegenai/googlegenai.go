@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -314,9 +315,64 @@ func VertexAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 }
 
 func (ga *GoogleAI) ListActions() []core.ActionDesc {
-	return nil
+	actions := []core.ActionDesc{}
+	models, err := listGenaiModels(context.TODO(), ga.gclient)
+	if err != nil {
+		return nil
+	}
+
+	for _, name := range models.gemini {
+		metadata := map[string]any{
+			"model": map[string]any{
+				"supports": map[string]any{
+					"media":       true,
+					"multiturn":   true,
+					"systemRole":  true,
+					"tools":       true,
+					"toolChoice":  true,
+					"constrained": true,
+				},
+				"versions": []string{},
+				"stage":    string(ai.ModelStageStable),
+			},
+		}
+		metadata["label"] = fmt.Sprintf("%s - %s", googleAILabelPrefix, name)
+		actions = append(actions, core.ActionDesc{
+			Type:     core.ActionTypeModel,
+			Name:     fmt.Sprintf("%s/%s", googleAIProvider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, googleAIProvider, name),
+			Metadata: metadata,
+		})
+	}
+
+	for _, e := range models.embedders {
+		actions = append(actions, core.ActionDesc{
+			Type: core.ActionTypeEmbedder,
+			Name: fmt.Sprintf("%s/%s", googleAIProvider, e),
+			Key:  fmt.Sprintf("/%s/%s/%s", core.ActionTypeEmbedder, googleAIProvider, e),
+		})
+	}
+
+	return actions
 }
 
 func (ga *GoogleAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+	switch atype {
+	case core.ActionTypeEmbedder:
+		defineEmbedder(g, ga.gclient, name)
+	case core.ActionTypeModel:
+		var supports *ai.ModelSupports
+		fmt.Printf("resolving action: %s\n", name)
+		if strings.Contains(name, "gemini") {
+			supports = &Multimodal
+		}
+
+		defineModel(g, ga.gclient, name, ai.ModelInfo{
+			Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+			Stage:    ai.ModelStageStable,
+			Versions: []string{},
+			Supports: supports,
+		})
+	}
 	return nil
 }
