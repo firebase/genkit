@@ -14,16 +14,8 @@
  * limitations under the License.
  */
 
-import { SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { GenkitMcpClient, McpClientOptions } from './client';
-import { GenkitMcpManager, McpManagerOptions } from './manager';
-export { GenkitMcpClient, GenkitMcpManager };
-export type {
-  McpClientOptions,
-  McpManagerOptions,
-  SSEClientTransportOptions,
-  StdioServerParameters,
-  Transport,
-};
+export * from './message';
+export * from './prompts';
+export * from './resources';
+export * from './tools';
+export * from './transport';

@@ -137,10 +137,10 @@ importers:
         version: 0.4.0
       zod:
         specifier: ^3.23.8
-        version: 3.23.8
+        version: 3.24.1
       zod-to-json-schema:
         specifier: ^3.22.4
-        version: 3.22.5(zod@3.23.8)
+        version: 3.22.5(zod@3.24.1)
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
@@ -221,7 +221,7 @@ importers:
         version: 4.17.21
       '@types/node':
         specifier: ^22.15.3
-        version: 22.15.3
+        version: 22.15.17
       '@types/uuid':
         specifier: ^9.0.6
         version: 9.0.8
@@ -633,9 +633,9 @@ importers:
 
   plugins/mcp:
     dependencies:
-      '@genkit-ai/core':
+      '@genkit-ai/ai':
         specifier: workspace:^
-        version: link:../../core
+        version: link:../../ai
       '@modelcontextprotocol/sdk':
         specifier: ^1.8.0
         version: 1.8.0
@@ -1123,6 +1123,9 @@ importers:
       genkitx-langchain:
         specifier: workspace:*
         version: link:../../plugins/langchain
+      genkitx-mcp:
+        specifier: workspace:*
+        version: link:../../plugins/mcp
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1
@@ -1391,7 +1394,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.6.2)(@genkit-ai/core@1.6.2)
+        version: 0.10.1(@genkit-ai/ai@1.8.0)(@genkit-ai/core@1.8.0)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2523,11 +2526,11 @@ packages:
   '@firebase/webchannel-wrapper@1.0.3':
     resolution: {integrity: sha512-2xCRM9q9FlzGZCdgDMJwc0gyUkWFtkosy7Xxr6sFgQwn+wMNIWd7xIvYNauU1r64B5L5rsGKy/n9TKJ0aAFeqQ==}
 
-  '@genkit-ai/ai@1.6.2':
-    resolution: {integrity: sha512-MiwW7tudCbiQz2g6ouhsvvP09/esyXuCdnutLk1LPahD53G1PeoHp41zm4WGQ2z2fR1l19L2vRhj+ah+s9mGqw==}
+  '@genkit-ai/ai@1.8.0':
+    resolution: {integrity: sha512-TIhFgQCThdVOyrk6qiVF8dPfz4XmL3RxE9OCidhqcpGrGE5YeRvle+nWIbkNIojdLURQf3/dBxNdaqZZ7B3msQ==}
 
-  '@genkit-ai/core@1.6.2':
-    resolution: {integrity: sha512-K7JvbBs0UlZkMbUbCrHgXdqXbHs4bNuRtYwNem3Uroxh7gZm2MDD4gK0BWS9sTOBl+ZN8xyNWJ2mGebE5r7bFQ==}
+  '@genkit-ai/core@1.8.0':
+    resolution: {integrity: sha512-XvK/Gq7fi8pFCJftzby/6EWoVBj5EUSai/9/104Y699wbub3qreoIGH2DN/CKOUzt0gD2i7fHeYlyTAnJ+TPbw==}
 
   '@gerrit0/mini-shiki@1.24.4':
     resolution: {integrity: sha512-YEHW1QeAg6UmxEmswiQbOVEg1CW22b1XUD/lNTliOsu0LD0wqoyleFMnmbTp697QE0pcadQiR5cVtbbAPncvpw==}
@@ -3969,11 +3972,8 @@ packages:
   '@types/node@20.17.17':
     resolution: {integrity: sha512-/WndGO4kIfMicEQLTi/mDANUu/iVUhT7KboZPdEqqHQ4aTS+3qT3U5gIqWDFV+XouorjfgGqvKILJeHhuQgFYg==}
 
-  '@types/node@22.15.3':
-    resolution: {integrity: sha512-lX7HFZeHf4QG/J7tBZqrCAXwz9J5RD56Y6MpP0eJkka8p+K0RY/yBTW7CYFJ4VGCclxqOLKmiGP5juQc6MKgcw==}
-
-  '@types/node@22.9.0':
-    resolution: {integrity: sha512-vuyHg81vvWA1Z1ELfvLko2c8f34gyA0zaic0+Rllc5lbCnbSyuvb2Oxpm6TAUAC/2xZN3QGqxBNggD1nNR2AfQ==}
+  '@types/node@22.15.17':
+    resolution: {integrity: sha512-wIX2aSZL5FE+MR0JlvF87BNVrtFWf6AE6rxSE9X7OwnVvoyCQjpzSRJ+M87se/4QCkCiebQAqrJ0y6fwIyi7nw==}
 
   '@types/pdf-parse@1.1.4':
     resolution: {integrity: sha512-+gbBHbNCVGGYw1S9lAIIvrHW47UYOhMIFUsJcMkMrzy1Jf0vulBN3XQIjPgnoOXveMuHnF3b57fXROnY/Or7eg==}
@@ -6117,7 +6117,6 @@ packages:
   node-domexception@1.0.0:
     resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
     engines: {node: '>=10.5.0'}
-    deprecated: Use your platform's native DOMException instead
 
   node-ensure@0.0.0:
     resolution: {integrity: sha512-DRI60hzo2oKN1ma0ckc6nQWlHU69RH6xN0sjQTjMpChPfTYvKZdcQFfdYK2RWbJcKyUizSIy/l8OTGxMAM1QDw==}
@@ -7324,9 +7323,6 @@ packages:
   zod@3.22.4:
     resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
 
-  zod@3.23.8:
-    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
-
   zod@3.24.1:
     resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
 
@@ -8098,9 +8094,9 @@ snapshots:
 
   '@firebase/webchannel-wrapper@1.0.3': {}
 
-  '@genkit-ai/ai@1.6.2':
+  '@genkit-ai/ai@1.8.0':
     dependencies:
-      '@genkit-ai/core': 1.6.2
+      '@genkit-ai/core': 1.8.0
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.17.17
       colorette: 2.0.20
@@ -8112,7 +8108,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.6.2':
+  '@genkit-ai/core@1.8.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.30.1(@opentelemetry/api@1.9.0)
@@ -9739,13 +9735,9 @@ snapshots:
     dependencies:
       undici-types: 6.19.8
 
-  '@types/node@22.15.3':
+  '@types/node@22.15.17':
     dependencies:
       undici-types: 6.21.0
-
-  '@types/node@22.9.0':
-    dependencies:
-      undici-types: 6.19.8
 
   '@types/pdf-parse@1.1.4': {}
 
@@ -10952,7 +10944,7 @@ snapshots:
       '@fastify/busboy': 3.0.0
       '@firebase/database-compat': 1.0.4
       '@firebase/database-types': 1.0.2
-      '@types/node': 22.9.0
+      '@types/node': 22.15.17
       farmhash-modern: 1.1.0
       jsonwebtoken: 9.0.2
       jwks-rsa: 3.1.0
@@ -11110,10 +11102,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.6.2)(@genkit-ai/core@1.6.2):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.8.0)(@genkit-ai/core@1.8.0):
     dependencies:
-      '@genkit-ai/ai': 1.6.2
-      '@genkit-ai/core': 1.6.2
+      '@genkit-ai/ai': 1.8.0
+      '@genkit-ai/core': 1.8.0
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.24.1
     transitivePeerDependencies:
@@ -14074,10 +14066,6 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  zod-to-json-schema@3.22.5(zod@3.23.8):
-    dependencies:
-      zod: 3.23.8
-
   zod-to-json-schema@3.22.5(zod@3.24.1):
     dependencies:
       zod: 3.24.1
@@ -14087,7 +14075,5 @@ snapshots:
       zod: 3.24.1
 
   zod@3.22.4: {}
-
-  zod@3.23.8: {}
 
   zod@3.24.1: {}
