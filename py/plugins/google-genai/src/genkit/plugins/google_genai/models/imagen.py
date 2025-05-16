@@ -86,6 +86,34 @@ SUPPORTED_MODELS = {
     ),
 }
 
+DEFAULT_IMAGE_SUPPORT = Supports(
+    media=True,
+    multiturn=False,
+    tools=False,
+    systemRole=False,
+    output=['media'],
+)
+
+
+def vertexai_image_model_info(
+    version: str,
+) -> ModelInfo:
+    """Generates a ModelInfo object.
+
+    This function tries to get the best ModelInfo Supports
+    for the given version.
+
+    Args:
+        version: Version of the model.
+
+    Returns:
+        ModelInfo object.
+    """
+    return ModelInfo(
+        label=f'Vertex AI - {version}',
+        supports=DEFAULT_IMAGE_SUPPORT,
+    )
+
 
 class ImagenModel:
     """Imagen text-to-image model."""

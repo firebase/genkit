@@ -41,6 +41,7 @@ from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
     ImagenModel,
     ImagenVersion,
+    vertexai_image_model_info,
 )
 
 GOOGLEAI_PLUGIN_NAME = 'googleai'
@@ -305,7 +306,7 @@ class VertexAI(Plugin):
         if type == ActionKind.MODEL:
             self._resolve_model(ai, name)
         elif type == ActionKind.EMBEDDER:
-            self._resolve_model(ai, name)
+            self._resolve_embedder(ai, name)
 
     def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
         """Resolves and defines a Vertex AI model within the Genkit registry.
@@ -322,20 +323,23 @@ class VertexAI(Plugin):
                 prefix indicating it's from a specific plugin (e.g., 'vertexai/gemini-pro').
         """
         _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
-        model_ref = google_model_info(_clean_name)
 
         if 'image' in _clean_name.lower():
+            model_ref = vertexai_image_model_info(_clean_name)
             model = ImagenModel(_clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = None
         else:
+            model_ref = google_model_info(_clean_name)
             model = GeminiModel(_clean_name, self._client, ai)
             SUPPORTED_MODELS[_clean_name] = model_ref
+            config_schema = GeminiConfigSchema
 
         ai.define_model(
             name=vertexai_name(_clean_name),
             fn=model.generate,
             metadata=model.metadata,
-            config_schema=GeminiConfigSchema,
+            config_schema=config_schema,
         )
 
     def _resolve_embedder(self, ai: GenkitRegistry, name: str) -> None:
