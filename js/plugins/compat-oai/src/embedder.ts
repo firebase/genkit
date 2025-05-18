@@ -16,9 +16,9 @@
 
 // import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
 
-import OpenAI from 'openai';
 import type { Genkit } from 'genkit';
 import { embedderRef, z } from 'genkit';
+import OpenAI from 'openai';
 
 import { type PluginOptions } from './index.js';
 

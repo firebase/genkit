@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+import openAI, { gpt41, textEmbeddingAda002 } from '@genkit-ai/compat-oai';
 import { startFlowServer } from '@genkit-ai/express';
 import dotenv from 'dotenv';
 import { GenerationCommonConfigSchema, genkit, z } from 'genkit';
 import { ModelInfo } from 'genkit/model';
-import openAI, { gpt41, textEmbeddingAda002 } from '@genkit-ai/compat-oai';
 
 dotenv.config();
 

@@ -14,30 +14,37 @@
  * limitations under the License.
  */
 
-import { describe, it, expect, afterEach, beforeEach, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
+import type { GenerateRequest, Genkit, MessageData, Part, Role } from 'genkit';
+import type { CandidateData } from 'genkit/model';
+import type OpenAI from 'openai';
 import type {
   ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionMessageToolCall,
   ChatCompletionRole,
 } from 'openai/resources/index.mjs';
-import type OpenAI from 'openai';
-import type { GenerateRequest, Genkit, MessageData, Part, Role } from 'genkit';
-import type { CandidateData } from 'genkit/model';
 
+import type { OpenAiConfigSchema } from './gpt';
 import {
-  gpt4o,
   fromOpenAiChoice,
   fromOpenAiChunkChoice,
   fromOpenAiToolCall,
+  gpt4o,
   gptModel,
+  gptRunner,
   toOpenAIRole,
   toOpenAiMessages,
   toOpenAiRequestBody,
   toOpenAiTextAndMedia,
-  gptRunner,
 } from './gpt';
-import type { OpenAiConfigSchema } from './gpt';
 
 jest.mock('@genkit-ai/ai/model', () => ({
   ...(jest.requireActual('@genkit-ai/ai/model') as Record<string, unknown>),

@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import type { CandidateData, ModelInfo } from 'genkit/model';
 import type {
-  StreamingCallback,
   GenerateRequest,
   GenerateResponseData,
   Genkit,
@@ -24,12 +22,15 @@ import type {
   ModelReference,
   Part,
   Role,
+  StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
-import { Message, GenerationCommonConfigSchema, z } from 'genkit';
+import { GenerationCommonConfigSchema, Message, z } from 'genkit';
 import type {
+  CandidateData,
   GenerateResponseChunkData,
   ModelAction,
+  ModelInfo,
   ToolDefinition,
 } from 'genkit/model';
 import { modelRef } from 'genkit/model';

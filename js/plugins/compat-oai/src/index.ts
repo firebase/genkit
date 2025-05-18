@@ -20,23 +20,24 @@ import { ClientOptions, OpenAI } from 'openai';
 import { ModelInfo } from 'genkit/model';
 import { dallE3, dallE3Model } from './dalle.js';
 import {
-  openaiEmbedder,
   SUPPORTED_EMBEDDING_MODELS,
+  openaiEmbedder,
   textEmbedding3Large,
   textEmbedding3Small,
   textEmbeddingAda002,
 } from './embedder.js';
 import {
+  SUPPORTED_GPT_MODELS,
   gpt35Turbo,
   gpt4,
   gpt41,
   gpt41Mini,
   gpt41Nano,
   gpt45,
-  gpt4o,
-  gpt4oMini,
   gpt4Turbo,
   gpt4Vision,
+  gpt4o,
+  gpt4oMini,
   gptModel,
   o1,
   o1Mini,
@@ -44,20 +45,19 @@ import {
   o3,
   o3Mini,
   o4Mini,
-  SUPPORTED_GPT_MODELS,
 } from './gpt.js';
 import {
   SUPPORTED_TTS_MODELS,
+  gpt4oMiniTts,
   tts1,
   tts1Hd,
-  gpt4oMiniTts,
   ttsModel,
 } from './tts.js';
 import {
-  whisper1,
-  gpt4oTranscribe,
   SUPPORTED_STT_MODELS,
+  gpt4oTranscribe,
   sttModel,
+  whisper1,
 } from './whisper.js';
 export {
   dallE3,
@@ -67,10 +67,12 @@ export {
   gpt41Mini,
   gpt41Nano,
   gpt45,
-  gpt4o,
-  gpt4oMini,
   gpt4Turbo,
   gpt4Vision,
+  gpt4o,
+  gpt4oMini,
+  gpt4oMiniTts,
+  gpt4oTranscribe,
   o1,
   o1Mini,
   o1Preview,
@@ -82,9 +84,7 @@ export {
   textEmbeddingAda002,
   tts1,
   tts1Hd,
-  gpt4oMiniTts,
   whisper1,
-  gpt4oTranscribe,
 };
 
 export interface PluginOptions extends Partial<ClientOptions> {

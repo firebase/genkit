@@ -68,24 +68,24 @@ function toDallE3Request(
 }
 
 function toGenerateResponse(result: ImagesResponse): GenerateResponseData {
-  const candidates: GenerateResponseData['candidates'] = (result.data ?? []).map(
-    (image, index) => ({
-      index: index,
-      finishReason: 'stop',
-      custom: { revisedPrompt: image.revised_prompt },
-      message: {
-        role: 'model',
-        content: [
-          {
-            media: {
-              contentType: 'image/png',
-              url: image.url || `data:image/png;base64,${image.b64_json}`,
-            },
+  const candidates: GenerateResponseData['candidates'] = (
+    result.data ?? []
+  ).map((image, index) => ({
+    index: index,
+    finishReason: 'stop',
+    custom: { revisedPrompt: image.revised_prompt },
+    message: {
+      role: 'model',
+      content: [
+        {
+          media: {
+            contentType: 'image/png',
+            url: image.url || `data:image/png;base64,${image.b64_json}`,
           },
-        ],
-      },
-    })
-  );
+        },
+      ],
+    },
+  }));
   return { candidates };
 }
 
