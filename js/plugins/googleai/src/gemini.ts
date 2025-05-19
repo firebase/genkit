@@ -89,29 +89,7 @@ const SafetySettingsSchema = z.object({
   ]),
 });
 
-export const GoogleSearchRetrievalSchema = z
-  .object({
-    dynamicRetrievalConfig: z
-      .object({
-        mode: z
-          .string()
-          .describe(
-            'The mode of the predictor to be used in dynamic retrieval.'
-          )
-          .optional(),
-        dynamicThreshold: z
-          .number()
-          .describe(
-            'The threshold to be used in dynamic retrieval. If not set, a system default value is used.'
-          )
-          .optional(),
-      })
-      .describe(
-        'Specifies the dynamic retrieval configuration for the given source.'
-      )
-      .optional(),
-  })
-  .passthrough();
+export const GoogleSearchRetrievalSchema = z.object({}).passthrough();
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   apiKey: z
@@ -1025,8 +1003,11 @@ export function defineGoogleAIModel({
       const cacheConfigDetails = extractCacheConfig(request);
 
       if (googleSearchRetrieval) {
+        if (!chatRequest.tools) {
+          chatRequest.tools = [];
+        }
         chatRequest.tools?.push({
-          googleSearchRetrieval,
+          googleSearch: googleSearchRetrieval,
         } as GoogleSearchRetrievalTool);
       }
 
