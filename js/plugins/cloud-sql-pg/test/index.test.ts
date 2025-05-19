@@ -1,41 +1,60 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import {
   afterAll,
+  afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
-  afterEach,
-  beforeEach,
   jest,
   test,
 } from '@jest/globals';
 
 // Mocks for Genkit-specific components
-import { Document } from 'genkit/retriever';
 import type { Genkit } from 'genkit';
-import { EmbedderArgument } from 'genkit/embedder';
 import { z } from 'genkit';
+import { EmbedderArgument } from 'genkit/embedder';
+import { Document } from 'genkit/retriever';
 
 // Import your actual source code
+import { v4 as uuidv4 } from 'uuid';
+import { Column, PostgresEngine } from '../src/engine';
 import {
-  configurePostgresRetriever,
   configurePostgresIndexer,
+  configurePostgresRetriever,
 } from '../src/index';
 import { DistanceStrategy } from '../src/indexes';
-import { PostgresEngine, Column } from '../src/engine';
-import { v4 as uuidv4 } from 'uuid';
 
 // Load environment variables
 import * as dotenv from 'dotenv';
 dotenv.config();
 
 // --- Constants for Test Setup ---
-const TEST_TABLE = "test_embeddings_integration";
-const SCHEMA_NAME = "test_schema_integration";
-const ID_COLUMN = "uuid";
-const CONTENT_COLUMN = "my_content";
-const EMBEDDING_COLUMN = "my_embedding";
+const TEST_TABLE = 'test_embeddings_integration';
+const SCHEMA_NAME = 'test_schema_integration';
+const ID_COLUMN = 'uuid';
+const CONTENT_COLUMN = 'my_content';
+const EMBEDDING_COLUMN = 'my_embedding';
 // Assuming Column class exists and is structured like this
-const METADATA_COLUMNS = [new Column("page", "TEXT"), new Column("source", "TEXT")];
+const METADATA_COLUMNS = [
+  new Column('page', 'TEXT'),
+  new Column('source', 'TEXT'),
+];
 
 // --- Mocks for Genkit Interactions ---
 // Mock Genkit instance for `ai` parameter
@@ -51,21 +70,29 @@ const mockGenkit: Genkit = {
   }),
 
   embedMany: jest.fn(async ({ content }) => {
-    return content.map(text => ({
+    return content.map((text) => ({
       embedding: new Array(1536).fill(0.1),
-      text: Array.isArray(text) ? text.join(' ') : text
+      text: Array.isArray(text) ? text.join(' ') : text,
     }));
   }),
 
   defineRetriever: jest.fn((config, handler) => ({
     config,
-    retrieve: handler
+    retrieve: handler,
   })),
 
-  defineIndexer: jest.fn((config, handler: (input: { documents: Document[]; options?: any }, options?: any) => Promise<void>) => ({
-    config,
-    index: (input: any, options?: any) => handler(input, options)
-  }))
+  defineIndexer: jest.fn(
+    (
+      config,
+      handler: (
+        input: { documents: Document[]; options?: any },
+        options?: any
+      ) => Promise<void>
+    ) => ({
+      config,
+      index: (input: any, options?: any) => handler(input, options),
+    })
+  ),
 } as unknown as Genkit;
 
 // Mock EmbedderArgument as configured in Genkit plugin
@@ -78,47 +105,49 @@ const mockEmbedder: EmbedderArgument<z.ZodTypeAny> = {
 // Spy on console.log to capture output
 const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-
-describe("configurePostgresRetriever Integration Tests", () => {
+describe('configurePostgresRetriever Integration Tests', () => {
   let engine: PostgresEngine;
   let retrieverInstance: any;
 
   beforeAll(async () => {
     // Initialize PostgresEngine
-    try{
-    engine = await PostgresEngine.fromEngineArgs({
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      port: parseInt(process.env.DB_PORT || '5432')
-    });
+    try {
+      engine = await PostgresEngine.fromEngineArgs({
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        host: process.env.DB_HOST,
+        database: process.env.DB_NAME,
+        port: parseInt(process.env.DB_PORT || '5432'),
+      });
 
-    // Ensure database connection is established before proceeding
-    await engine.pool.raw('SELECT 1;');
+      // Ensure database connection is established before proceeding
+      await engine.pool.raw('SELECT 1;');
 
-    // Create test schema and table
-    await engine.pool.raw(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA_NAME}`);
-    await engine.pool.raw(`DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`);
+      // Create test schema and table
+      await engine.pool.raw(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA_NAME}`);
+      await engine.pool.raw(
+        `DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`
+      );
 
-    // Initialize the vectorstore table
-    await engine.initVectorstoreTable(TEST_TABLE, 1536, { // Using 1536 as typical embedding size
-      schemaName: SCHEMA_NAME,
-      contentColumn: CONTENT_COLUMN,
-      embeddingColumn: EMBEDDING_COLUMN,
-      metadataColumns: METADATA_COLUMNS,
-      metadataJsonColumn: 'metadata_json',
-      idColumn: ID_COLUMN,
-      overwriteExisting: true,
-      storeMetadata: true
-    });
+      // Initialize the vectorstore table
+      await engine.initVectorstoreTable(TEST_TABLE, 1536, {
+        // Using 1536 as typical embedding size
+        schemaName: SCHEMA_NAME,
+        contentColumn: CONTENT_COLUMN,
+        embeddingColumn: EMBEDDING_COLUMN,
+        metadataColumns: METADATA_COLUMNS,
+        metadataJsonColumn: 'metadata_json',
+        idColumn: ID_COLUMN,
+        overwriteExisting: true,
+        storeMetadata: true,
+      });
 
-    // --- Populate Test Data ---
-    // Insert some test documents into the table
-    const doc1Id = uuidv4();
-    const doc2Id = uuidv4();
-    const doc3Id = uuidv4();
-    await engine.pool.raw(`
+      // --- Populate Test Data ---
+      // Insert some test documents into the table
+      const doc1Id = uuidv4();
+      const doc2Id = uuidv4();
+      const doc3Id = uuidv4();
+      await engine.pool.raw(`
       INSERT INTO ${SCHEMA_NAME}.${TEST_TABLE} (${ID_COLUMN}, ${CONTENT_COLUMN}, ${EMBEDDING_COLUMN}, page, source, metadata_json)
       VALUES
       ('${doc1Id}', 'This is the first test document content.', '[${new Array(1536).fill(0.1).join(',')}]', 'page1', 'sourceA', '{"key1": "value1"}'),
@@ -126,44 +155,45 @@ describe("configurePostgresRetriever Integration Tests", () => {
       ('${doc3Id}', 'Another test document.', '[${new Array(1536).fill(0.3).join(',')}]', 'page1', 'sourceC', '{"key3": "value3"}');
     `);
 
-    // Configure the Postgres Retriever using `configurePostgresRetriever`
-    await configurePostgresRetriever(mockGenkit, {
-      tableName: TEST_TABLE,
-      engine: engine,
-      schemaName: SCHEMA_NAME,
-      contentColumn: CONTENT_COLUMN,
-      embeddingColumn: EMBEDDING_COLUMN,
-      idColumn: ID_COLUMN,
-      metadataColumns: METADATA_COLUMNS.map(col => col.name), // Pass metadata columns defined
-      metadataJsonColumn: 'metadata_json', // Ensure this matches the table column name
-      embedder: mockEmbedder,
-      distanceStrategy: DistanceStrategy.COSINE_DISTANCE, // Explicitly set or use default
-    });
-
-    // Get the configured retriever instance that Genkit would use
-    // This requires accessing the mock's internal state
-    const defineRetrieverMock = mockGenkit.defineRetriever as jest.Mock;
-    expect(defineRetrieverMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: `postgres/${TEST_TABLE}`,
-      }),
-      expect.any(Function)
-    );
-    retrieverInstance = defineRetrieverMock.mock.results[0].value;
-    } catch(error){console.error("Error during beforeAll setup:", error);
-    if (error instanceof AggregateError) {
-      console.error("Individual errors in AggregateError:");
-      error.errors.forEach((e: any, index: number) => {
-        console.error(`Error ${index + 1}:`, e);
-        if (e.stack) {
-          console.error("Stack:", e.stack);
-        }
+      // Configure the Postgres Retriever using `configurePostgresRetriever`
+      await configurePostgresRetriever(mockGenkit, {
+        tableName: TEST_TABLE,
+        engine: engine,
+        schemaName: SCHEMA_NAME,
+        contentColumn: CONTENT_COLUMN,
+        embeddingColumn: EMBEDDING_COLUMN,
+        idColumn: ID_COLUMN,
+        metadataColumns: METADATA_COLUMNS.map((col) => col.name), // Pass metadata columns defined
+        metadataJsonColumn: 'metadata_json', // Ensure this matches the table column name
+        embedder: mockEmbedder,
+        distanceStrategy: DistanceStrategy.COSINE_DISTANCE, // Explicitly set or use default
       });
+
+      // Get the configured retriever instance that Genkit would use
+      // This requires accessing the mock's internal state
+      const defineRetrieverMock = mockGenkit.defineRetriever as jest.Mock;
+      expect(defineRetrieverMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: `postgres/${TEST_TABLE}`,
+        }),
+        expect.any(Function)
+      );
+      retrieverInstance = defineRetrieverMock.mock.results[0].value;
+    } catch (error) {
+      console.error('Error during beforeAll setup:', error);
+      if (error instanceof AggregateError) {
+        console.error('Individual errors in AggregateError:');
+        error.errors.forEach((e: any, index: number) => {
+          console.error(`Error ${index + 1}:`, e);
+          if (e.stack) {
+            console.error('Stack:', e.stack);
+          }
+        });
+      }
+      // Re-throw the error so Jest still marks the test as failed
+      throw error;
     }
-    // Re-throw the error so Jest still marks the test as failed
-    throw error;}
-  }, 60000
-  ); // Increased timeout for database operations
+  }, 60000); // Increased timeout for database operations
 
   afterEach(() => {
     jest.clearAllMocks(); // Clear mock call history after each test
@@ -184,7 +214,9 @@ describe("configurePostgresRetriever Integration Tests", () => {
     // Call the retrieve method on the configured retriever instance
     const result = await retrieverInstance.retrieve(queryText, options);
 
-    expect(mockGenkit.embed).toHaveBeenCalledWith(expect.objectContaining({ content: queryText }));
+    expect(mockGenkit.embed).toHaveBeenCalledWith(
+      expect.objectContaining({ content: queryText })
+    );
     //expect(engine.pool.raw).toHaveBeenCalled();
 
     expect(result).toBeDefined();
@@ -208,14 +240,16 @@ describe("configurePostgresRetriever Integration Tests", () => {
 
   test('should retrieve documents with specific filter criteria', async () => {
     const queryText = 'another document';
-    const options = { k: 1, filter: 'page = \'page2\'' };
+    const options = { k: 1, filter: "page = 'page2'" };
 
     const result = await retrieverInstance.retrieve(queryText, options);
 
     expect(result).toBeDefined();
     expect(result.documents).toHaveLength(1); // Should only get the doc with page2
 
-    expect(result.documents[0].content).toContain('Second document with different content');
+    expect(result.documents[0].content).toContain(
+      'Second document with different content'
+    );
     expect(result.documents[0].metadata).toEqual(
       expect.objectContaining({
         page: 'page2',
@@ -237,7 +271,9 @@ describe("configurePostgresRetriever Integration Tests", () => {
     // Expect `ai.embed` to be called with empty string, and the retriever to return results (or empty results if no matching embeddings)
     const result = await retrieverInstance.retrieve(queryText, options);
 
-    expect(mockGenkit.embed).toHaveBeenCalledWith(expect.objectContaining({ content: '' }));
+    expect(mockGenkit.embed).toHaveBeenCalledWith(
+      expect.objectContaining({ content: '' })
+    );
     expect(result).toBeDefined();
     expect(result.documents).toHaveLength(1); // Still expects a document from the mock
   });
@@ -249,7 +285,7 @@ describe("configurePostgresRetriever Integration Tests", () => {
   // - Testing `DistanceStrategy` variations
 });
 
-describe("configurePostgresIndexer Integration Tests", () => {
+describe('configurePostgresIndexer Integration Tests', () => {
   let engine: PostgresEngine;
   let indexerInstance: any;
 
@@ -260,11 +296,13 @@ describe("configurePostgresIndexer Integration Tests", () => {
         password: process.env.DB_PASSWORD,
         host: process.env.DB_HOST,
         database: process.env.DB_NAME,
-        port: parseInt(process.env.DB_PORT || '5432')
+        port: parseInt(process.env.DB_PORT || '5432'),
       });
 
       await engine.pool.raw(`CREATE SCHEMA IF NOT EXISTS ${SCHEMA_NAME}`);
-      await engine.pool.raw(`DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`);
+      await engine.pool.raw(
+        `DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`
+      );
 
       await engine.initVectorstoreTable(TEST_TABLE, 1536, {
         schemaName: SCHEMA_NAME,
@@ -274,7 +312,7 @@ describe("configurePostgresIndexer Integration Tests", () => {
         metadataJsonColumn: 'metadata_json',
         idColumn: ID_COLUMN,
         overwriteExisting: true,
-        storeMetadata: true
+        storeMetadata: true,
       });
 
       configurePostgresIndexer(mockGenkit, {
@@ -284,15 +322,15 @@ describe("configurePostgresIndexer Integration Tests", () => {
         contentColumn: CONTENT_COLUMN,
         embeddingColumn: EMBEDDING_COLUMN,
         idColumn: ID_COLUMN,
-        metadataColumns: METADATA_COLUMNS.map(col => col.name),
+        metadataColumns: METADATA_COLUMNS.map((col) => col.name),
         metadataJsonColumn: 'metadata_json',
-        embedder: mockEmbedder
+        embedder: mockEmbedder,
       });
 
       const defineIndexerMock = mockGenkit.defineIndexer as jest.Mock;
       indexerInstance = defineIndexerMock.mock.results[0].value;
     } catch (error) {
-      console.error("Error during beforeAll setup:", error);
+      console.error('Error during beforeAll setup:', error);
       throw error;
     }
   }, 60000);
@@ -305,7 +343,9 @@ describe("configurePostgresIndexer Integration Tests", () => {
 
   afterAll(async () => {
     if (engine?.pool) {
-      await engine.pool.raw(`DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`);
+      await engine.pool.raw(
+        `DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`
+      );
       await engine.pool.raw(`DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE`);
       await engine.closeConnection();
     }
@@ -315,7 +355,7 @@ describe("configurePostgresIndexer Integration Tests", () => {
   test('should index a single document correctly', async () => {
     const testDoc = new Document({
       content: [{ text: 'This is the first test document content.' }],
-      metadata: { page: 'page1', source: 'sourceA', key1: 'value1' }
+      metadata: { page: 'page1', source: 'sourceA', key1: 'value1' },
     });
 
     await indexerInstance.index({ documents: [testDoc], options: {} });
@@ -326,12 +366,14 @@ describe("configurePostgresIndexer Integration Tests", () => {
       .from(TEST_TABLE);
 
     expect(result).toHaveLength(1);
-    expect(result[0][CONTENT_COLUMN]).toBe('This is the first test document content.');
+    expect(result[0][CONTENT_COLUMN]).toBe(
+      'This is the first test document content.'
+    );
     expect(result[0]['metadata_json']).toEqual(
       expect.objectContaining({
         page: 'page1',
         source: 'sourceA',
-        key1: 'value1'
+        key1: 'value1',
       })
     );
     expect(result[0][EMBEDDING_COLUMN]).toBeDefined();
@@ -341,15 +383,18 @@ describe("configurePostgresIndexer Integration Tests", () => {
     const testDocs = [
       new Document({
         content: [{ text: 'Second document with different content.' }],
-        metadata: { page: 'page2', source: 'sourceB', key2: 'value2' }
+        metadata: { page: 'page2', source: 'sourceB', key2: 'value2' },
       }),
       new Document({
         content: [{ text: 'Another test document.' }],
-        metadata: { page: 'page1', source: 'sourceC', key3: 'value3' }
-      })
+        metadata: { page: 'page1', source: 'sourceC', key3: 'value3' },
+      }),
     ];
 
-    await indexerInstance.index({ documents: testDocs, options: { batchSize: 2 } });
+    await indexerInstance.index({
+      documents: testDocs,
+      options: { batchSize: 2 },
+    });
 
     const result = await engine.pool
       .withSchema(SCHEMA_NAME)
@@ -359,7 +404,9 @@ describe("configurePostgresIndexer Integration Tests", () => {
 
     expect(result).toHaveLength(2);
     expect(result[0][CONTENT_COLUMN]).toBe('Another test document.');
-    expect(result[1][CONTENT_COLUMN]).toBe('Second document with different content.');
+    expect(result[1][CONTENT_COLUMN]).toBe(
+      'Second document with different content.'
+    );
   });
 
   test('should handle empty document array gracefully', async () => {
@@ -379,7 +426,7 @@ describe("configurePostgresIndexer Integration Tests", () => {
     const testId = uuidv4();
     const testDoc = new Document({
       content: [{ text: 'Test with ID' }],
-      metadata: { [ID_COLUMN]: testId, source: 'id-test' }
+      metadata: { [ID_COLUMN]: testId, source: 'id-test' },
     });
 
     await indexerInstance.index({ documents: [testDoc], options: {} });
@@ -404,7 +451,7 @@ describe("configurePostgresIndexer Integration Tests", () => {
         contentColumn: CONTENT_COLUMN,
         embeddingColumn: EMBEDDING_COLUMN,
         idColumn: ID_COLUMN,
-        embedder: mockEmbedder
+        embedder: mockEmbedder,
       });
     }).toThrow('Engine is required');
   });
@@ -419,7 +466,7 @@ describe("configurePostgresIndexer Integration Tests", () => {
         idColumn: ID_COLUMN,
         metadataColumns: ['col1'],
         ignoreMetadataColumns: ['col2'],
-        embedder: mockEmbedder
+        embedder: mockEmbedder,
       });
     }).toThrow('Cannot use both metadataColumns and ignoreMetadataColumns');
   });
@@ -429,7 +476,7 @@ describe("configurePostgresIndexer Integration Tests", () => {
       ...mockGenkit,
       embedMany: jest.fn(() => {
         throw new Error('Embedding failed');
-      })
+      }),
     } as unknown as Genkit;
 
     configurePostgresIndexer(errorMockGenkit, {
@@ -439,14 +486,19 @@ describe("configurePostgresIndexer Integration Tests", () => {
       contentColumn: CONTENT_COLUMN,
       embeddingColumn: EMBEDDING_COLUMN,
       idColumn: ID_COLUMN,
-      embedder: mockEmbedder
+      embedder: mockEmbedder,
     });
 
     const defineIndexerMock = errorMockGenkit.defineIndexer as jest.Mock;
-    const errorIndexerInstance = defineIndexerMock.mock.results[0].value as { index: (args: { documents: Document[]; options: {} }) => Promise<void> };
+    const errorIndexerInstance = defineIndexerMock.mock.results[0].value as {
+      index: (args: { documents: Document[]; options: {} }) => Promise<void>;
+    };
 
     await expect(
-      errorIndexerInstance.index({ documents: [new Document({ content: [{ text: 'Fail me' }] })], options: {} })
+      errorIndexerInstance.index({
+        documents: [new Document({ content: [{ text: 'Fail me' }] })],
+        options: {},
+      })
     ).rejects.toThrow('Embedding failed');
   });
 });

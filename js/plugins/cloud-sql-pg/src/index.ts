@@ -15,8 +15,8 @@
  */
 
 import { Genkit, z } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { EmbedderArgument } from 'genkit/embedder';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   CommonRetrieverOptionsSchema,
   Document,
@@ -44,9 +44,7 @@ const PostgresIndexerOptionsSchema = z.object({
 If not specified, the default label will be `Postgres - <tableName>`
  * @returns A reference to a Postgres retriever.
  */
-export const postgresRetrieverRef = (params: {
-  tableName: string;
-}) => {
+export const postgresRetrieverRef = (params: { tableName: string }) => {
   return retrieverRef({
     name: `postgres/${params.tableName}`,
     info: {
@@ -63,9 +61,7 @@ export const postgresRetrieverRef = (params: {
 If not specified, the default label will be `Postgres - <tableName>`
  * @returns A reference to a Postgres indexer.
  */
-export const postgresIndexerRef = (params: {
-  tableName: string;
-}) => {
+export const postgresIndexerRef = (params: { tableName: string }) => {
   return indexerRef({
     name: `postgres/${params.tableName}`,
     info: {
@@ -101,8 +97,8 @@ export function postgres<EmbedderCustomOptions extends z.ZodTypeAny>(
   }[]
 ): GenkitPlugin {
   return genkitPlugin('postgres', async (ai: Genkit) => {
-    params.map(i => configurePostgresRetriever(ai, i));
-    params.map(i => configurePostgresIndexer(ai, i));
+    params.map((i) => configurePostgresRetriever(ai, i));
+    params.map((i) => configurePostgresIndexer(ai, i));
   });
 }
 
@@ -259,7 +255,6 @@ export async function configurePostgresRetriever<
       configSchema: PostgresRetrieverOptionsSchema,
     },
     async (content, options) => {
- 
       console.log(`Retrieving data for table: ${params.tableName}`);
       checkColumns();
       const queryEmbeddings = await ai.embed({
@@ -314,7 +309,9 @@ export async function configurePostgresRetriever<
  * @param params.chunkSize The chunk size to use for the indexer
  * @returns Add documents to vector store
  */
-export function configurePostgresIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(
+export function configurePostgresIndexer<
+  EmbedderCustomOptions extends z.ZodTypeAny,
+>(
   ai: Genkit,
   params: {
     tableName: string;
@@ -341,7 +338,9 @@ export function configurePostgresIndexer<EmbedderCustomOptions extends z.ZodType
   }
 
   if (params.metadataColumns && params.ignoreMetadataColumns) {
-    throw new Error('Cannot use both metadataColumns and ignoreMetadataColumns');
+    throw new Error(
+      'Cannot use both metadataColumns and ignoreMetadataColumns'
+    );
   }
 
   async function checkColumns() {
@@ -369,7 +368,9 @@ export function configurePostgresIndexer<EmbedderCustomOptions extends z.ZodType
     }
 
     if (columns[embeddingColumn] !== 'USER-DEFINED') {
-      throw new Error(`Embedding column: ${embeddingColumn} is not of type Vector.`);
+      throw new Error(
+        `Embedding column: ${embeddingColumn} is not of type Vector.`
+      );
     }
 
     if (params.metadataColumns) {
@@ -386,25 +387,32 @@ export function configurePostgresIndexer<EmbedderCustomOptions extends z.ZodType
       name: `postgres/${params.tableName}`,
       configSchema: PostgresIndexerOptionsSchema.optional(),
     },
-    async (docs: Document[] | { documents: Document[]; options?: any }, options?: { batchSize?: number }) => {
+    async (
+      docs: Document[] | { documents: Document[]; options?: any },
+      options?: { batchSize?: number }
+    ) => {
       try {
         await checkColumns();
-        
+
         // Normalize input to always have documents array and merged options
         const documents = Array.isArray(docs) ? docs : docs.documents || [];
-        const mergedOptions = Array.isArray(docs) ? options : docs.options || options || {};
+        const mergedOptions = Array.isArray(docs)
+          ? options
+          : docs.options || options || {};
         const batchSize = mergedOptions.batchSize || 100;
 
-        console.log(`Indexing ${documents.length} documents in batches of ${batchSize}`);
-  
+        console.log(
+          `Indexing ${documents.length} documents in batches of ${batchSize}`
+        );
+
         for (let i = 0; i < documents.length; i += batchSize) {
-          const chunk = documents.slice(i, i + batchSize); 
-          const texts = chunk.map(doc => 
-            Array.isArray(doc.content) 
-              ? doc.content.map(c => c.text).join(' ') 
+          const chunk = documents.slice(i, i + batchSize);
+          const texts = chunk.map((doc) =>
+            Array.isArray(doc.content)
+              ? doc.content.map((c) => c.text).join(' ')
               : doc.content
           );
-  
+
           let embeddings;
           try {
             if (ai.embedMany) {
@@ -414,34 +422,40 @@ export function configurePostgresIndexer<EmbedderCustomOptions extends z.ZodType
                 options: params.embedderOptions,
               });
             } else {
-              embeddings = await Promise.all(texts.map(text => 
-                ai.embed({
-                  embedder: params.embedder,
-                  content: text,
-                  options: params.embedderOptions,
-                }).then(res => res[0])
-              ));
+              embeddings = await Promise.all(
+                texts.map((text) =>
+                  ai
+                    .embed({
+                      embedder: params.embedder,
+                      content: text,
+                      options: params.embedderOptions,
+                    })
+                    .then((res) => res[0])
+                )
+              );
             }
           } catch (error: unknown) {
             throw new Error('Embedding failed', { cause: error });
           }
-  
+
           const insertData = chunk.map((doc, index) => ({
             [idColumn]: doc.metadata?.[idColumn] || uuidv4(),
             [contentColumn]: texts[index],
             [embeddingColumn]: JSON.stringify(embeddings[index].embedding),
-            ...(metadataJsonColumn && { [metadataJsonColumn]: doc.metadata || {} }),
+            ...(metadataJsonColumn && {
+              [metadataJsonColumn]: doc.metadata || {},
+            }),
             ...Object.fromEntries(
               (params.metadataColumns || [])
-                .filter(col => doc.metadata?.[col] !== undefined)
-                .map(col => [col, doc.metadata?.[col]])
-            )
+                .filter((col) => doc.metadata?.[col] !== undefined)
+                .map((col) => [col, doc.metadata?.[col]])
+            ),
           }));
-  
-          const table = schemaName 
+
+          const table = schemaName
             ? params.engine.pool.withSchema(schemaName).table(params.tableName)
             : params.engine.pool.table(params.tableName);
-  
+
           await table.insert(insertData);
         }
       } catch (error: unknown) {
