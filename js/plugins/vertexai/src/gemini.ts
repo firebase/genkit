@@ -115,40 +115,19 @@ const VertexRetrievalSchema = z.object({
     .optional(),
 });
 
-export const GoogleSearchRetrievalSchema = z
-  .object({
-    disableAttribution: z
-      .boolean()
-      .describe(
-        'Disable using the search data in detecting grounding attribution. This ' +
-          'does not affect how the result is given to the model for generation.'
-      )
-      .optional(),
-    dynamicRetrievalConfig: z
-      .object({
-        mode: z
-          .string()
-          .describe(
-            'The mode of the predictor to be used in dynamic retrieval.'
-          )
-          .optional(),
-        dynamicThreshold: z
-          .number()
-          .describe(
-            'The threshold to be used in dynamic retrieval. If not set, a system default value is used.'
-          )
-          .optional(),
-      })
-      .describe(
-        'Specifies the dynamic retrieval configuration for the given source.'
-      )
-      .optional(),
-  })
-  .passthrough();
+const GoogleSearchRetrievalSchema = z.object({
+  disableAttribution: z
+    .boolean()
+    .describe(
+      'Disable using the search data in detecting grounding attribution. This ' +
+        'does not affect how the result is given to the model for generation.'
+    )
+    .optional(),
+});
 
 /**
  * Zod schema of Gemini model options.
- * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference, for further information.
+ * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/medlm, for further information.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   maxOutputTokens: z
