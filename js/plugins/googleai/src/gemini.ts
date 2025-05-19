@@ -28,6 +28,7 @@ import {
   GenerationConfig,
   GenerativeModel,
   GoogleGenerativeAI,
+  GoogleSearchRetrievalTool,
   InlineDataPart,
   RequestOptions,
   Schema,
@@ -88,6 +89,37 @@ const SafetySettingsSchema = z.object({
   ]),
 });
 
+export const GoogleSearchRetrievalSchema = z
+  .object({
+    disableAttribution: z
+      .boolean()
+      .describe(
+        'Disable using the search data in detecting grounding attribution. This ' +
+          'does not affect how the result is given to the model for generation.'
+      )
+      .optional(),
+    dynamicRetrievalConfig: z
+      .object({
+        mode: z
+          .string()
+          .describe(
+            'The mode of the predictor to be used in dynamic retrieval.'
+          )
+          .optional(),
+        dynamicThreshold: z
+          .number()
+          .describe(
+            'The threshold to be used in dynamic retrieval. If not set, a system default value is used.'
+          )
+          .optional(),
+      })
+      .describe(
+        'Specifies the dynamic retrieval configuration for the given source.'
+      )
+      .optional(),
+  })
+  .passthrough();
+
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   apiKey: z
     .string()
@@ -132,6 +164,21 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         "'gemini-2.0-flash-exp' model at present."
     )
     .optional(),
+
+  /**
+   * Google Search retrieval options.
+   *
+   * ```js
+   *   config: {
+   *     googleSearchRetrieval: {
+   *       disableAttribution: true,
+   *     }
+   *   }
+   * ```
+   */
+  googleSearchRetrieval: GoogleSearchRetrievalSchema.describe(
+    'Retrieve public web data for grounding, powered by Google Search.'
+  ).optional(),
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
@@ -916,6 +963,7 @@ export function defineGoogleAIModel({
         codeExecution: codeExecutionFromConfig,
         version: versionFromConfig,
         functionCallingConfig,
+        googleSearchRetrieval,
         ...restOfConfigOptions
       } = requestConfig;
 
@@ -982,6 +1030,12 @@ export function defineGoogleAIModel({
         model.version ||
         apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
+
+      if (googleSearchRetrieval) {
+        chatRequest.tools?.push({
+          googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
+      }
 
       const { chatRequest: updatedChatRequest, cache } =
         await handleCacheIfNeeded(
