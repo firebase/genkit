@@ -42,7 +42,14 @@ steps:
       - name: "go"
         path: "/gopath"
     script: |
-      go test -race ./...
+      go test -race ./... \
+        -test-postgres_user=$DB_USER \
+        -test-postgres_password=$DB_PASSWORD \
+        -test-postgres-iam-email=$EMAIL \
+        -test-postgres-project-id=$PROJECT_ID
+        -test-postgres-region=$REGION
+        -test-postgres-instance=$INSTANCE_ID \
+        -test-postgres-database=$DATABASE_ID
 
 availableSecrets:
   secretManager:
