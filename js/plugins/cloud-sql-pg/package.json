@@ -22,7 +22,7 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "jest"
+    "test": "jest --verbose"
   },
   "repository": {
     "type": "git",
