@@ -91,13 +91,6 @@ const SafetySettingsSchema = z.object({
 
 export const GoogleSearchRetrievalSchema = z
   .object({
-    disableAttribution: z
-      .boolean()
-      .describe(
-        'Disable using the search data in detecting grounding attribution. This ' +
-          'does not affect how the result is given to the model for generation.'
-      )
-      .optional(),
     dynamicRetrievalConfig: z
       .object({
         mode: z
