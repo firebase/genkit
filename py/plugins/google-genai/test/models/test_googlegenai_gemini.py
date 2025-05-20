@@ -378,26 +378,13 @@ def test_gemini_model__init__():
     assert model._registry == mock_registry
 
 
-@patch('genkit.plugins.google_genai.models.gemini.GeminiModel._create_vertexai_tool')
-@patch('genkit.plugins.google_genai.models.gemini.GeminiModel._create_gemini_tool')
-@pytest.mark.parametrize(
-    'vertexai_model',
-    [
-        True,
-        False,
-    ],
-)
+@patch('genkit.plugins.google_genai.models.gemini.GeminiModel._create_tool')
 def test_gemini_model__get_tools(
-    mock_create_vertexai_tool,
-    mock_create_gemini_tool,
-    vertexai_model,
+    mock_create_tool,
     gemini_model_instance,
 ):
     """Unit test for GeminiModel._get_tools."""
-    mock_create_vertexai_tool.return_value = genai_types.Tool()
-    mock_create_gemini_tool.return_value = genai_types.Tool()
-    gemini_model_instance._client = MagicMock()
-    gemini_model_instance._client.vertexai = vertexai_model
+    mock_create_tool.return_value = genai_types.Tool()
 
     request_tools = [
         ToolDefinition(
@@ -445,31 +432,9 @@ def test_gemini_model__get_tools(
         assert isinstance(tool, genai_types.Tool)
 
 
-def test_gemini_model__create_vertexai_tool(gemini_model_instance):
-    """Unit tests for GeminiModel._create_vertexai_tool."""
-    tool_defined = ToolDefinition(
-        name='model_tool',
-        description='model tool description',
-        input_schema=None,
-        outputSchema={
-            'type': 'object',
-            'properties': {
-                'test': {'type': 'string', 'description': 'test field'},
-            },
-        },
-        metadata={'date': 'today'},
-    )
-
-    vertex_ai_tool = gemini_model_instance._create_vertexai_tool(
-        tool_defined,
-    )
-
-    assert isinstance(vertex_ai_tool, genai_types.Tool)
-
-
 @patch('genkit.plugins.google_genai.models.gemini.GeminiModel._convert_schema_property')
-def test_gemini_model__create_gemini_tool(mock_convert_schema_property, gemini_model_instance):
-    """Unit tests for GeminiModel._create_gemini_tool."""
+def test_gemini_model__create_tool(mock_convert_schema_property, gemini_model_instance):
+    """Unit tests for GeminiModel._create_tool."""
     tool_defined = ToolDefinition(
         name='model_tool',
         description='model tool description',
@@ -488,7 +453,7 @@ def test_gemini_model__create_gemini_tool(mock_convert_schema_property, gemini_m
 
     mock_convert_schema_property.return_value = genai_types.Schema()
 
-    gemini_tool = gemini_model_instance._create_gemini_tool(
+    gemini_tool = gemini_model_instance._create_tool(
         tool_defined,
     )
 

@@ -503,30 +503,13 @@ class GeminiModel:
         """
         tools = []
         for tool in request.tools:
-            genai_tool = self._create_vertexai_tool(tool) if self._client.vertexai else self._create_gemini_tool(tool)
+            genai_tool = self._create_tool(tool)
             tools.append(genai_tool)
 
         return tools
 
-    def _create_vertexai_tool(self, tool: ToolDefinition) -> genai_types.Tool:
-        """Create a tool that is compatible with VertexAI API.
-
-        Args:
-            tool: Genkit Tool Definition
-
-        Returns:
-            Genai tool compatible with VertexAI API.
-        """
-        function = genai_types.FunctionDeclaration(
-            name=tool.name,
-            description=tool.description,
-            parameters=tool.input_schema,
-            response=tool.output_schema,
-        )
-        return genai_types.Tool(function_declarations=[function])
-
-    def _create_gemini_tool(self, tool: ToolDefinition) -> genai_types.Tool:
-        """Create a tool that is compatible with Gemini API.
+    def _create_tool(self, tool: ToolDefinition) -> genai_types.Tool:
+        """Create a tool that is compatible with Google Genai API.
 
         Args:
             tool: Genkit Tool Definition
@@ -539,6 +522,7 @@ class GeminiModel:
             name=tool.name,
             description=tool.description,
             parameters=params,
+            response=tool.output_schema,
         )
         return genai_types.Tool(function_declarations=[function])
 
