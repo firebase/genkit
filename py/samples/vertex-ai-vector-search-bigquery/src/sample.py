@@ -34,7 +34,6 @@ from genkit.plugins.vertex_ai.models.retriever import BigQueryRetriever
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
-EMBEDDING_MODEL = 'text-embedding-004'
 
 BIGQUERY_DATASET_NAME = os.getenv('BIGQUERY_DATASET_NAME')
 BIGQUERY_TABLE_NAME = os.getenv('BIGQUERY_TABLE_NAME')
@@ -58,7 +57,7 @@ ai = Genkit(
                 'dataset_id': BIGQUERY_DATASET_NAME,
                 'table_id': BIGQUERY_TABLE_NAME,
             },
-            embedder=vertexai_name(EMBEDDING_MODEL),
+            embedder=vertexai_name('text-embedding-004'),
             embedder_options={
                 'task': 'RETRIEVAL_DOCUMENT',
                 'output_dimensionality': 128,
