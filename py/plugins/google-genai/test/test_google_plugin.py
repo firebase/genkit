@@ -23,7 +23,7 @@ import unittest
 from unittest.mock import MagicMock, patch, ANY
 
 from google.auth.credentials import Credentials
-from google.genai.types import HttpOptions
+from google.genai.types import GenerateImagesConfigOrDict, HttpOptions
 
 import pytest
 from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
@@ -450,9 +450,7 @@ def test_vertexai_initialize(vertexai_plugin_instance):
 
     for version in ImagenVersion:
         ai_mock.define_model.assert_any_call(
-            name=vertexai_name(version),
-            fn=ANY,
-            metadata=ANY,
+            name=vertexai_name(version), fn=ANY, metadata=ANY, config_schema=GenerateImagesConfigOrDict
         )
 
     for version in VertexEmbeddingModels:
@@ -558,7 +556,7 @@ def test_vertexai__resolve_model(
             name=expected_model_name,
             fn=ANY,
             metadata=ANY,
-            config_schema=None,
+            config_schema=GenerateImagesConfigOrDict,
         )
         assert key in IMAGE_SUPPORTED_MODELS
     else:
