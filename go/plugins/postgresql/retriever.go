@@ -2,7 +2,6 @@ package postgresql
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -100,10 +99,7 @@ func (ds *docStore) query(ctx context.Context, ropt *RetrieverOptions, embbeding
 			if ds.config.MetadataJSONColumn == col {
 				mapMetadata := map[string]any{}
 				if values[i] != nil {
-					err = json.Unmarshal(values[i].([]byte), &mapMetadata)
-					if err != nil {
-						return nil, err
-					}
+					mapMetadata = values[i].(map[string]any)
 				}
 
 				meta[col] = mapMetadata

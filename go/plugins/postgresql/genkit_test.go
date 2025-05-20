@@ -146,9 +146,9 @@ func TestPostgres(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	d1 := ai.DocumentFromText("hello1", map[string]any{"source": "test1", "name": "some_value1"})
-	d2 := ai.DocumentFromText("hello2", map[string]any{"source": "test2", "name": "some_value2"})
-	d3 := ai.DocumentFromText("goodbye", map[string]any{"source": "test3", "name": "some_value3"})
+	d1 := ai.DocumentFromText("hello1", map[string]any{"source": "test1", "name": "some_value1", "custom_metadata": "{\"key\":\"value1\"}"})
+	d2 := ai.DocumentFromText("hello2", map[string]any{"source": "test2", "name": "some_value2", "custom_metadata": "{\"key\":\"value2\"}"})
+	d3 := ai.DocumentFromText("goodbye", map[string]any{"source": "test3", "name": "some_value3", "custom_metadata": "{\"key\": { \"subKey\":\"value3\"}}"})
 
 	embedder := newFakeEmbedder([3]*ai.Document{d1, d2, d3})
 
