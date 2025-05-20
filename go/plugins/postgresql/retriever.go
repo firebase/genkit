@@ -42,10 +42,10 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	}
 
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Query},
-		Options:   ds.config.EmbedderOptions,
+		Input:   []*ai.Document{req.Query},
+		Options: ds.config.EmbedderOptions,
 	}
-  
+
 	eres, err := ds.config.Embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.Retrieve retrieve embedding failed: %v", err)

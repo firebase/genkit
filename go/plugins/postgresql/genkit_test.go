@@ -24,8 +24,8 @@ const (
 	DIM                   = 768
 )
 
-var testUsername = flag.String("test-postgres_user", "", "postgres username for tests")
-var testPassword = flag.String("test-postgres_password", "", "postgres password  for tests")
+var testUsername = flag.String("test-postgres-user", "", "postgres username for tests")
+var testPassword = flag.String("test-postgres-password", "", "postgres password  for tests")
 var testDatabase = flag.String("test-postgres-database", "test_database", "postgres database")
 var testProjectID = flag.String("test-postgres-project-id", "", "postgres project id  for tests")
 var testRegion = flag.String("test-postgres-region", "", "postgres region for tests")

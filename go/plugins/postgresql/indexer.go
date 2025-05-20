@@ -20,8 +20,8 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	}
 
 	ereq := &ai.EmbedRequest{
-		Documents: req.Documents,
-		Options:   ds.config.EmbedderOptions,
+		Input:   req.Documents,
+		Options: ds.config.EmbedderOptions,
 	}
 	eres, err := ds.config.Embedder.Embed(ctx, ereq)
 	if err != nil {
