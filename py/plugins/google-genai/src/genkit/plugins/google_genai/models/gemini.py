@@ -183,20 +183,6 @@ class GeminiConfigSchema(genai_types.GenerateContentConfig):
     code_execution: bool | None = None
 
 
-GEMINI_1_0_PRO = ModelInfo(
-    label='Google AI - Gemini Pro',
-    stage=Stage.LEGACY,
-    versions=['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
-    supports=Supports(
-        multiturn=True,
-        media=False,
-        tools=True,
-        tool_choice=True,
-        system_role=True,
-        constrained='no-tools',
-    ),
-)
-
 GEMINI_1_5_PRO = ModelInfo(
     label='Google AI - Gemini 1.5 Pro',
     stage=Stage.DEPRECATED,
@@ -506,36 +492,6 @@ class GeminiModel:
         self._client = client
         self._registry = registry
 
-    def _create_vertexai_tool(self, tool: ToolDefinition) -> genai_types.Tool:
-        """Create a tool that is compatible with VertexAI API.
-
-        Args:
-            tool: Genkit Tool Definition
-
-        Returns:
-            Genai tool compatible with VertexAI API.
-        """
-        function = genai_types.FunctionDeclaration(
-            name=tool.name,
-            description=tool.description,
-            parameters=tool.input_schema,
-            response=tool.output_schema,
-        )
-        return genai_types.Tool(function_declarations=[function])
-
-    def _create_gemini_tool(self, tool: ToolDefinition) -> genai_types.Tool:
-        """Create a tool that is compatible with Gemini API.
-
-        Args:
-            tool: Genkit Tool Definition
-
-        Returns:
-            Genai tool compatible with Gemini API.
-        """
-        params = self._convert_schema_property(tool.input_schema)
-        function = genai_types.FunctionDeclaration(name=tool.name, description=tool.description, parameters=params)
-        return genai_types.Tool(function_declarations=[function])
-
     def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
         """Generates VertexAI Gemini compatible tool definitions.
 
@@ -547,10 +503,28 @@ class GeminiModel:
         """
         tools = []
         for tool in request.tools:
-            genai_tool = self._create_vertexai_tool(tool) if self._client.vertexai else self._create_gemini_tool(tool)
+            genai_tool = self._create_tool(tool)
             tools.append(genai_tool)
 
         return tools
+
+    def _create_tool(self, tool: ToolDefinition) -> genai_types.Tool:
+        """Create a tool that is compatible with Google Genai API.
+
+        Args:
+            tool: Genkit Tool Definition
+
+        Returns:
+            Genai tool compatible with Gemini API.
+        """
+        params = self._convert_schema_property(tool.input_schema)
+        function = genai_types.FunctionDeclaration(
+            name=tool.name,
+            description=tool.description,
+            parameters=params,
+            response=tool.output_schema,
+        )
+        return genai_types.Tool(function_declarations=[function])
 
     def _convert_schema_property(
         self, input_schema: dict[str, Any], defs: dict[str, Any] | None = None
@@ -564,11 +538,11 @@ class GeminiModel:
         Returns:
             Schema or None
         """
-        if defs is None:
-            defs = input_schema.get('$defs') if '$defs' in input_schema else {}
-
         if input_schema is None or 'type' not in input_schema:
             return None
+
+        if defs is None:
+            defs = input_schema.get('$defs') if '$defs' in input_schema else {}
 
         schema = genai_types.Schema()
         if input_schema.get('description'):
@@ -594,7 +568,7 @@ class GeminiModel:
                     if isinstance(properties[key], dict) and '$ref' in properties[key]:
                         ref_tokens = properties[key]['$ref'].split('/')
                         if ref_tokens[2] not in defs:
-                            raise Exception(f'Failed to resolve schema for {ref_tokens[2]}')
+                            raise ValueError(f'Failed to resolve schema for {ref_tokens[2]}')
                         resolved_schema = self._convert_schema_property(defs[ref_tokens[2]], defs)
                         schema.properties[key] = resolved_schema
 
@@ -616,6 +590,9 @@ class GeminiModel:
             Gemini message content to add to the message
         """
         tool_function = self._registry.registry.lookup_action(ActionKind.TOOL, call.name)
+        if tool_function is None:
+            raise LookupError(f'Tool {call.name} not found')
+
         args = tool_function.input_type.validate_python(call.args)
         tool_answer = tool_function.run(args)
         return genai_types.Content(
