@@ -324,7 +324,7 @@ class VertexAI(Plugin):
         """
         _clean_name = name.replace(VERTEXAI_PLUGIN_NAME + '/', '') if name.startswith(VERTEXAI_PLUGIN_NAME) else name
 
-        if 'image' in _clean_name.lower():
+        if _clean_name.lower().startswith('image'):
             model_ref = vertexai_image_model_info(_clean_name)
             model = ImagenModel(_clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref

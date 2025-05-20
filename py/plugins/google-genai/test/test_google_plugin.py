@@ -506,12 +506,23 @@ def test_vertexai_resolve_action_embedder(mock_resolve_action, vertexai_plugin_i
             False,
         ),
         (
-            'vertexai/gemini-pro-deluxe-max-image',
-            'vertexai/gemini-pro-deluxe-max-image',
-            'gemini-pro-deluxe-max-image',
+            'vertexai/image-gemini-pro-deluxe-max',
+            'vertexai/image-gemini-pro-deluxe-max',
+            'image-gemini-pro-deluxe-max',
             True,
         ),
-        ('gemini-pro-deluxe-max-image', 'vertexai/gemini-pro-deluxe-max-image', 'gemini-pro-deluxe-max-image', True),
+        (
+            'image-gemini-pro-deluxe-max',
+            'vertexai/image-gemini-pro-deluxe-max',
+            'image-gemini-pro-deluxe-max',
+            True,
+        ),
+        (
+            'gemini-pro-deluxe-max-image',
+            'vertexai/gemini-pro-deluxe-max-image',
+            'gemini-pro-deluxe-max-image',
+            False,
+        ),
     ],
 )
 def test_vertexai__resolve_model(
