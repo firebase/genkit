@@ -19,7 +19,7 @@ import os
 from google import genai
 from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
-from google.genai.types import HttpOptions, HttpOptionsDict
+from google.genai.types import GenerateImagesConfigOrDict, HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
@@ -288,6 +288,7 @@ class VertexAI(Plugin):
                 name=vertexai_name(version),
                 fn=imagen_model.generate,
                 metadata=imagen_model.metadata,
+                config_schema=GenerateImagesConfigOrDict,
             )
 
     def resolve_action(
@@ -328,7 +329,7 @@ class VertexAI(Plugin):
             model_ref = vertexai_image_model_info(_clean_name)
             model = ImagenModel(_clean_name, self._client)
             IMAGE_SUPPORTED_MODELS[_clean_name] = model_ref
-            config_schema = None
+            config_schema = GenerateImagesConfigOrDict
         else:
             model_ref = google_model_info(_clean_name)
             model = GeminiModel(_clean_name, self._client, ai)
