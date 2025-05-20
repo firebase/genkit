@@ -89,8 +89,6 @@ const SafetySettingsSchema = z.object({
   ]),
 });
 
-export const GoogleSearchRetrievalSchema = z.object({}).passthrough();
-
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   apiKey: z
     .string()
@@ -135,21 +133,12 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         "'gemini-2.0-flash-exp' model at present."
     )
     .optional(),
-
-  /**
-   * Google Search retrieval options.
-   *
-   * ```js
-   *   config: {
-   *     googleSearchRetrieval: {
-   *       disableAttribution: true,
-   *     }
-   *   }
-   * ```
-   */
-  googleSearchRetrieval: GoogleSearchRetrievalSchema.describe(
-    'Retrieve public web data for grounding, powered by Google Search.'
-  ).optional(),
+  googleSearchRetrieval: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
+    .optional(),
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
@@ -947,6 +936,13 @@ export function defineGoogleAIModel({
         });
       }
 
+      if (googleSearchRetrieval) {
+        tools.push({
+          googleSearch:
+            googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
+      }
+
       let toolConfig: ToolConfig | undefined;
       if (functionCallingConfig) {
         toolConfig = {
@@ -1001,15 +997,6 @@ export function defineGoogleAIModel({
         model.version ||
         apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
-
-      if (googleSearchRetrieval) {
-        if (!chatRequest.tools) {
-          chatRequest.tools = [];
-        }
-        chatRequest.tools?.push({
-          googleSearch: googleSearchRetrieval,
-        } as GoogleSearchRetrievalTool);
-      }
 
       const { chatRequest: updatedChatRequest, cache } =
         await handleCacheIfNeeded(
