@@ -450,10 +450,7 @@ def test_vertexai_initialize(vertexai_plugin_instance):
 
     for version in ImagenVersion:
         ai_mock.define_model.assert_any_call(
-            name=vertexai_name(version),
-            fn=ANY,
-            metadata=ANY,
-            config_schema=GenerateImagesConfigOrDict
+            name=vertexai_name(version), fn=ANY, metadata=ANY, config_schema=GenerateImagesConfigOrDict
         )
 
     for version in VertexEmbeddingModels:
