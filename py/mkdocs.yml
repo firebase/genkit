@@ -88,24 +88,9 @@ plugins:
         remove_comments: true
       cache_safe: true
 nav:
-  - Documentation:
-    - What is Genkit: index.md
-    - get-started.md
-    - cloud-run.md
-    - flask.md
-    - reference/models.md
-    - reference/flows.md
-    - reference/tools.md
-    - reference/interrupts.md
-    - reference/rag.md
-    - Plugins:
-      - reference/plugins/google-genai.md
-      - reference/plugins/firestore.md
-      - reference/plugins/ollama.md
-      - reference/plugins/dev-local-vectorstore.md
-    - API:
-      - reference/api/index.md
-      - reference/api/types.md
+  - API:
+    - API Reference: index.md
+    - Types: types.md
 extra:
   social:
     - icon: fontawesome/brands/github
