@@ -13,7 +13,7 @@ npm i --save @genkitx-cloud-sql-pg
 To use this plugin, first create a `PostgresEngine` instance:
 
 ```ts
-import { PostgresEngine } from 'genkit/plugins/cloud-sql-pg';
+import { PostgresEngine } from 'genkitx-cloud-sql-pg';;
 
 // Create PostgresEngine instance
 const engine = await PostgresEngine.fromInstance('my-project', 'us-central1', 'my-instance', 'my-database');
@@ -41,7 +41,7 @@ Then, specify the plugin when you initialize Genkit:
 
 ```ts
 import { genkit } from 'genkit';
-import { postgres } from '@genkit-ai/cloud-sql-pg';
+import { postgres } from 'genkitx-cloud-sql-pg';
 import { textEmbedding004 } from '@genkit-ai/vertexai';
 
 const ai = genkit({
