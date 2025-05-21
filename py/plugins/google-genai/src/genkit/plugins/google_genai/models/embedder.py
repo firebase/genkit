@@ -16,7 +16,6 @@
 
 """Google-Genai embedder model."""
 
-import enum
 import sys  # noqa
 
 if sys.version_info < (3, 11):  # noqa

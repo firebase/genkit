@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
@@ -60,7 +59,7 @@ type textMenuQuestionInput struct {
 func main() {
 	ctx := context.Background()
 	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.VertexAI{Location: os.Getenv("GCLOUD_LOCATION")}),
+		genkit.WithPlugins(&googlegenai.VertexAI{}),
 	)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
@@ -83,13 +82,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "go-menu_items", localvec.Config{
+	docStore, retriever, err := localvec.DefineRetriever(g, "go-menu_items", localvec.Config{
 		Embedder: embedder,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(g, indexer, retriever, model); err != nil {
+	if err := setup04(ctx, g, docStore, retriever, model); err != nil {
 		log.Fatal(err)
 	}
 
