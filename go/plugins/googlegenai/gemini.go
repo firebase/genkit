@@ -793,11 +793,10 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 
 		if part.Text != "" {
 			partFound++
-			if part.Thought {
-				// TODO: Include a `reasoning` part. Not available in the SDK yet.
-				continue
-			}
 			p = ai.NewTextPart(part.Text)
+			if part.Thought {
+				p = ai.NewReasoningPart(part.Text)
+			}
 		}
 		if part.InlineData != nil {
 			partFound++
@@ -870,6 +869,8 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
 	case p.IsText():
+		return genai.NewPartFromText(p.Text), nil
+	case p.IsReasoning():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
 		if strings.HasPrefix(p.Text, "data:") {

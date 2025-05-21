@@ -51,6 +51,7 @@ const (
 	PartToolRequest
 	PartToolResponse
 	PartCustom
+	PartReasoning
 )
 
 // NewTextPart returns a Part containing text.
@@ -92,6 +93,11 @@ func NewCustomPart(customData map[string]any) *Part {
 	return &Part{Kind: PartCustom, Custom: customData}
 }
 
+// NewReasoningPart returns a Part containing reasoning text
+func NewReasoningPart(text string) *Part {
+	return &Part{Kind: PartReasoning, ContentType: "plain/text", Text: text}
+}
+
 // IsText reports whether the [Part] contains plain text.
 func (p *Part) IsText() bool {
 	return p.Kind == PartText
@@ -120,6 +126,11 @@ func (p *Part) IsToolResponse() bool {
 // IsCustom reports whether the [Part] contains custom plugin-specific data.
 func (p *Part) IsCustom() bool {
 	return p.Kind == PartCustom
+}
+
+// IsReasoning reports whether the [Part] contains a reasoning text
+func (p *Part) IsReasoning() bool {
+	return p.Kind == PartReasoning
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
@@ -167,6 +178,13 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 			Metadata: p.Metadata,
 		}
 		return json.Marshal(v)
+	case PartReasoning:
+		// TODO: check this, not sure this is ok
+		v := textPart{
+			Text:     p.Text,
+			Metadata: p.Metadata,
+		}
+		return json.Marshal(v)
 	default:
 		return nil, fmt.Errorf("invalid part kind %v", p.Kind)
 	}
@@ -180,6 +198,7 @@ type partSchema struct {
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
 	Custom       map[string]any `json:"custom,omitempty" yaml:"custom,omitempty"`
 	Metadata     map[string]any `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Reasoning    string         `json:"reasoning,omitempty" yaml:"text,omitempty"`
 }
 
 // unmarshalPartFromSchema updates Part p based on the schema s.
