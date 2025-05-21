@@ -28,6 +28,7 @@ import {
   GenerationConfig,
   GenerativeModel,
   GoogleGenerativeAI,
+  GoogleSearchRetrievalTool,
   InlineDataPart,
   RequestOptions,
   Schema,
@@ -130,6 +131,12 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .describe(
       'The modalities to be used in response. Only supported for ' +
         "'gemini-2.0-flash-exp' model at present."
+    )
+    .optional(),
+  googleSearchRetrieval: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
     )
     .optional(),
 }).passthrough();
@@ -683,7 +690,12 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref: string
 ): Part {
-  if (part.text !== undefined) return { text: part.text };
+  if (part.text !== undefined) {
+    if ((part as any).thought === true) {
+      return { reasoning: part.text };
+    }
+    return { text: part.text };
+  }
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);
@@ -916,6 +928,7 @@ export function defineGoogleAIModel({
         codeExecution: codeExecutionFromConfig,
         version: versionFromConfig,
         functionCallingConfig,
+        googleSearchRetrieval,
         ...restOfConfigOptions
       } = requestConfig;
 
@@ -926,6 +939,13 @@ export function defineGoogleAIModel({
               ? {}
               : request.config.codeExecution,
         });
+      }
+
+      if (googleSearchRetrieval) {
+        tools.push({
+          googleSearch:
+            googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
       }
 
       let toolConfig: ToolConfig | undefined;
