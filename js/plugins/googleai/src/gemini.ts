@@ -822,7 +822,7 @@ export function defineGoogleAIModel({
         status: 'FAILED_PRECONDITION',
         message:
           'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
+          'For more details see https://genkit.dev/docs/plugins/google-genai',
       });
     }
   }

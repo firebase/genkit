@@ -34,7 +34,7 @@ and on the Google Cloud Console.
    page for pricing details and to learn about free-of-charge tier limits.
 
 3. Write a Genkit feature by following the
-   [Get Started Guide](https://firebase.google.com/docs/genkit/get-started), and
+   [Get Started Guide](https://genkit.dev/docs/get-started), and
    prepare your code for deployment by using one of the following guides:
 
    1. [Deploy flows using Cloud Functions for Firebase](../firebase)

@@ -5,7 +5,7 @@
 
 Genkit is a framework for building AI-powered applications. It provides open source libraries for Node.js and Go, along with tools to help you debug and iterate quickly.
 
-Learn more in our documentation for [Node.js](https://firebase.google.com/docs/genkit) and [Go](https://firebase.google.com/docs/genkit-go/get-started-go).
+Learn more in our documentation for [Node.js](https://genkit.dev/docs/get-started) and [Go](https://genkit.dev/go/docs/get-started-go).
 
 ## What can you build with Genkit?
 
@@ -20,7 +20,7 @@ Genkit is a versatile framework, which you can use to build many different types
   - Example: [Add Natural Language AI Data Filters with Genkit](https://medium.com/firebase-developers/how-to-add-natural-language-ai-data-filters-to-your-app-71d64a79624d)
 
 - **Retrieval-augmented generation:** Create apps that provide accurate and contextually relevant responses by grounding generation with your own data sources, such as chatbots or question answering systems.
-  - Example: [Build AI features powered by your data](https://firebase.google.com/codelabs/ai-genkit-rag#0)
+  - Example: [Build AI features powered by your data](https://genkit.dev/docs/tutorials/tutorial-chat-with-a-pdf)
 
 ## Who should use Genkit?
 
@@ -30,10 +30,10 @@ While developed by the [Firebase](https://firebase.google.com) team, Genkit can 
 
 ## Get started
 
-- [Node.js quickstart](https://firebase.google.com/docs/genkit/get-started)
-- [Angular quickstart](https://firebase.google.com/docs/genkit/angular)
-- [Next.js quickstart](https://firebase.google.com/docs/genkit/nextjs)
-- [Go quickstart](https://firebase.google.com/docs/genkit-go/get-started-go)
+- [Node.js quickstart](https://genkit.dev/docs/get-started)
+- [Angular quickstart](https://genkit.dev/docs/angular)
+- [Next.js quickstart](https://genkit.dev/docs/nextjs)
+- [Go quickstart](https://genkit.dev/go/docs/get-started-go)
 
 > [!NOTE]
 > Genkit for Go is in alpha, so we only recommend it for prototyping.
@@ -44,9 +44,9 @@ While developed by the [Firebase](https://firebase.google.com) team, Genkit can 
 
 - **Vector database support:** Add retrieval-augmented generation (RAG) to your apps with simple indexing and retrieval APIs that work across vector database providers.
 
-- **Enhanced prompt engineering:** Define rich prompt templates, model configurations, input/output schemas, and tools all within a single, runnable [.prompt](https://firebase.google.com/docs/genkit/dotprompt) file.
+- **Enhanced prompt engineering:** Define rich prompt templates, model configurations, input/output schemas, and tools all within a single, runnable [.prompt](https://genkit.dev/docs/dotprompt) file.
 
-- **AI workflows:** Organize your AI app logic into [Flows](https://firebase.google.com/docs/genkit/flows) - functions designed for observability, streaming, integration with Genkit devtools, and easy deployment as API endpoints.
+- **AI workflows:** Organize your AI app logic into [Flows](https://genkit.dev/docs/flows) - functions designed for observability, streaming, integration with Genkit devtools, and easy deployment as API endpoints.
 
 - **Built-in streaming:** Stream content from your Genkit API endpoints to your client app to create snappy user experiences.
 
@@ -82,8 +82,8 @@ Extend Genkit with plugins for specific AI models, vector databases, and platfor
 
 Create and share your own plugins:
 
-- **Write Node.js plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit/plugin-authoring)
-- **Write Go plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit-go/plugin-authoring)
+- **Write Node.js plugins:** [Plugin Authoring Guide](https://genkit.dev/docs/plugin-authoring)
+- **Write Go plugins:** [Plugin Authoring Guide](https://genkit.dev/go/docs/plugin-authoring)
 
 Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere, and more in this [repository](https://github.com/TheFireCo/genkit-plugins).
 

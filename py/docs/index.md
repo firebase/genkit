@@ -5,8 +5,8 @@ It provides open source libraries for Python, Node.js and Go, plus developer too
 and debugging.
 
 This documentation covers Genkit for Python.
-If you're a Go developer, see the [Genkit Go documentation](https://firebase.google.com/docs/genkit-go/get-started-go).
-If you're a Node.js developer, see the [Genkit JS documentation](https://firebase.google.com/docs/genkit).
+If you're a Go developer, see the [Genkit Go documentation](https://genkit.dev/go/docs/get-started-go).
+If you're a Node.js developer, see the [Genkit JS documentation](https://genkit.dev/docs/get-started).
 
 You can deploy and run Genkit libraries anywhere Python is supported. It's designed to work with
 many AI model providers and vector databases. While we offer integrations for Firebase and Google Cloud,

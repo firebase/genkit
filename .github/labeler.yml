@@ -26,7 +26,6 @@ docs:
           - "**/*.md"
           - "**/*.rst"
           - "LICENSE"
-          - "docs-go/**"
           - "docs/**"
           - "py/engdocs/**"
 
