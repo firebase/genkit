@@ -179,9 +179,9 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 		}
 		return json.Marshal(v)
 	case PartReasoning:
-		v := textPart{
-			Text:     p.Text,
-			Metadata: p.Metadata,
+		v := reasoningPart{
+			Reasoning: p.Text,
+			Metadata:  p.Metadata,
 		}
 		return json.Marshal(v)
 	default:
