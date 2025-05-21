@@ -946,7 +946,7 @@ ai.defineFlow('embedders-tester', async () => {
   );
 });
 
-ai.defineFlow('reasoning', async (_, {sendChunk}) => {
+ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   const { message } = await ai.generate({
     prompt: 'whats heavier, one kilo of steel or or one kilo of feathers',
     model: googleAI.model('gemini-2.5-flash-preview-04-17'),
@@ -958,6 +958,6 @@ ai.defineFlow('reasoning', async (_, {sendChunk}) => {
     },
     onChunk: sendChunk,
   });
-  
+
   return message;
 });
