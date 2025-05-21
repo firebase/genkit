@@ -690,7 +690,12 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref: string
 ): Part {
-  if (part.text !== undefined) return { text: part.text };
+  if (part.text !== undefined) {
+    if ((part as any).thought === true) {
+      return { reasoning: part.text };
+    }
+    return { text: part.text };
+  }
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);

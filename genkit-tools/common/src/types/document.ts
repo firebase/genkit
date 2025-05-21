@@ -27,6 +27,7 @@ const EmptyPartSchema = z.object({
   data: z.unknown().optional(),
   metadata: z.record(z.unknown()).optional(),
   custom: z.record(z.unknown()).optional(),
+  reasoning: z.never().optional(),
 });
 
 /**
@@ -35,6 +36,14 @@ const EmptyPartSchema = z.object({
 export const TextPartSchema = EmptyPartSchema.extend({
   /** The text of the document. */
   text: z.string(),
+});
+
+/**
+ * Zod schema for a reasoning part.
+ */
+export const ReasoningPartSchema = EmptyPartSchema.extend({
+  /** The reasoning text of the message. */
+  reasoning: z.string(),
 });
 
 /**
