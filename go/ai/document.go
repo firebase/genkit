@@ -197,7 +197,7 @@ type partSchema struct {
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
 	Custom       map[string]any `json:"custom,omitempty" yaml:"custom,omitempty"`
 	Metadata     map[string]any `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Reasoning    string         `json:"reasoning,omitempty" yaml:"text,omitempty"`
+	Reasoning    string         `json:"reasoning,omitempty" yaml:"reasoning,omitempty"`
 }
 
 // unmarshalPartFromSchema updates Part p based on the schema s.
