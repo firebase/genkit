@@ -49,7 +49,6 @@ from genkit.plugins.google_genai.models.gemini import (
 from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
     DEFAULT_IMAGE_SUPPORT,
-    ImagenModel,
     ImagenVersion,
 )
 from genkit.types import (
@@ -150,7 +149,7 @@ def test_googleai_resolve_action_model(mock_resolve_action):
     plugin = GoogleAI(api_key=api_key)
     ai_mock = MagicMock(spec=Genkit)
 
-    plugin.resolve_action(ai=ai_mock, type=ActionKind.MODEL, name='lazaro-model')
+    plugin.resolve_action(ai=ai_mock, kind=ActionKind.MODEL, name='lazaro-model')
     mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
 
 
@@ -161,7 +160,7 @@ def test_googleai_resolve_action_embedder(mock_resolve_action):
     plugin = GoogleAI(api_key=api_key)
     ai_mock = MagicMock(spec=Genkit)
 
-    plugin.resolve_action(ai=ai_mock, type=ActionKind.EMBEDDER, name='lazaro-model')
+    plugin.resolve_action(ai=ai_mock, kind=ActionKind.EMBEDDER, name='lazaro-model')
     mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
 
 
@@ -466,7 +465,7 @@ def test_vertexai_resolve_action_model(mock_resolve_action, vertexai_plugin_inst
     plugin = vertexai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
-    plugin.resolve_action(ai=ai_mock, type=ActionKind.MODEL, name='lazaro-model')
+    plugin.resolve_action(ai=ai_mock, kind=ActionKind.MODEL, name='lazaro-model')
     mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
 
 
@@ -476,7 +475,7 @@ def test_vertexai_resolve_action_embedder(mock_resolve_action, vertexai_plugin_i
     plugin = vertexai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
-    plugin.resolve_action(ai=ai_mock, type=ActionKind.EMBEDDER, name='lazaro-model')
+    plugin.resolve_action(ai=ai_mock, kind=ActionKind.EMBEDDER, name='lazaro-model')
     mock_resolve_action.assert_called_once_with(ai_mock, 'lazaro-model')
 
 

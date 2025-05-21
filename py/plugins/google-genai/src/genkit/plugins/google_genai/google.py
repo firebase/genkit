@@ -144,19 +144,19 @@ class GoogleAI(Plugin):
     def resolve_action(
         self,
         ai: GenkitRegistry,
-        type: ActionKind,
+        kind: ActionKind,
         name: str,
     ) -> None:
         """Resolves and action.
 
         Args:
             ai: The Genkit registry.
-            type: The kind of action to resolve.
+            kind: The kind of action to resolve.
             name: The name of the action to resolve.
         """
-        if type == ActionKind.MODEL:
+        if kind == ActionKind.MODEL:
             self._resolve_model(ai, name)
-        elif type == ActionKind.EMBEDDER:
+        elif kind == ActionKind.EMBEDDER:
             self._resolve_embedder(ai, name)
 
     def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
@@ -205,6 +205,29 @@ class GoogleAI(Plugin):
             name=googleai_name(_clean_name),
             fn=embedder.generate,
         )
+
+    def list_models(self, kind: ActionKind) -> list[str]:
+        """Generate a list of available models.
+
+        Args:
+            kind: Supported kind
+
+        Returns:
+            List of model names.
+        """
+        _supported_action = ''
+        if kind == ActionKind.MODEL:
+            _supported_action = 'generateContent'
+        elif kind == ActionKind.EMBEDDER:
+            _supported_action = 'embedContent'
+
+        models_list = list()
+        for m in self._client.models.list():
+            if _supported_action in m.supported_actions:
+                name = m.name.replace('models/', '')
+                models_list.append(googleai_name(name))
+
+        return models_list
 
 
 class VertexAI(Plugin):
@@ -294,19 +317,19 @@ class VertexAI(Plugin):
     def resolve_action(
         self,
         ai: GenkitRegistry,
-        type: ActionKind,
+        kind: ActionKind,
         name: str,
     ) -> None:
         """Resolves and action.
 
         Args:
             ai: The Genkit registry.
-            type: The kind of action to resolve.
+            kind: The kind of action to resolve.
             name: The name of the action to resolve.
         """
-        if type == ActionKind.MODEL:
+        if kind == ActionKind.MODEL:
             self._resolve_model(ai, name)
-        elif type == ActionKind.EMBEDDER:
+        elif kind == ActionKind.EMBEDDER:
             self._resolve_embedder(ai, name)
 
     def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
@@ -362,6 +385,26 @@ class VertexAI(Plugin):
             name=vertexai_name(_clean_name),
             fn=embedder.generate,
         )
+
+    def list_models(self, kind: ActionKind) -> list[str]:
+        """Generate a list of available models.
+
+        Args:
+            kind: Supported kind
+
+        Returns:
+            List of model names.
+        """
+        models_list = list()
+        for m in self._client.models.list():
+            name = m.name.replace('publishers/google/models/', '')
+            if 'embedding' in name.lower():
+                if kind == ActionKind.EMBEDDER:
+                    models_list.append(vertexai_name(name))
+            elif kind == ActionKind.MODEL:
+                models_list.append(vertexai_name(name))
+
+        return models_list
 
 
 def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
