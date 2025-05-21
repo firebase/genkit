@@ -73,7 +73,8 @@ type noStream = func(context.Context, struct{}) error
 // DefineAction creates a new non-streaming Action and registers it.
 func DefineAction[In, Out any](
 	r *registry.Registry,
-	provider, name string,
+	provider,
+	name string,
 	atype atype.ActionType,
 	metadata map[string]any,
 	fn Func[In, Out],
@@ -116,7 +117,8 @@ func DefineActionWithInputSchema[Out any](
 // defineAction creates an action and registers it with the given Registry.
 func defineAction[In, Out, Stream any](
 	r *registry.Registry,
-	provider, name string,
+	provider,
+	name string,
 	atype atype.ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
