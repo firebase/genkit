@@ -24,8 +24,8 @@ const (
 	DIM                   = 768
 )
 
-var testUsername = flag.String("test-postgres_user", "", "postgres username for tests")
-var testPassword = flag.String("test-postgres_password", "", "postgres password  for tests")
+var testUsername = flag.String("test-postgres-user", "", "postgres username for tests")
+var testPassword = flag.String("test-postgres-password", "", "postgres password  for tests")
 var testDatabase = flag.String("test-postgres-database", "test_database", "postgres database")
 var testProjectID = flag.String("test-postgres-project-id", "", "postgres project id  for tests")
 var testRegion = flag.String("test-postgres-region", "", "postgres region for tests")
@@ -147,9 +147,9 @@ func TestPostgres(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	d1 := ai.DocumentFromText("hello1", map[string]any{"source": "test1", "name": "some_value1"})
-	d2 := ai.DocumentFromText("hello2", map[string]any{"source": "test2", "name": "some_value2"})
-	d3 := ai.DocumentFromText("goodbye", map[string]any{"source": "test3", "name": "some_value3"})
+	d1 := ai.DocumentFromText("hello1", map[string]any{"source": "test1", "name": "some_value1", "custom_metadata": "{\"key\":\"value1\"}"})
+	d2 := ai.DocumentFromText("hello2", map[string]any{"source": "test2", "name": "some_value2", "custom_metadata": "{\"key\":\"value2\"}"})
+	d3 := ai.DocumentFromText("goodbye", map[string]any{"source": "test3", "name": "some_value3", "custom_metadata": "{\"key\": { \"subKey\":\"value3\"}}"})
 
 	embedder := newFakeEmbedder([3]*ai.Document{d1, d2, d3})
 

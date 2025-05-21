@@ -2,7 +2,6 @@ package alloydb
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -42,8 +41,8 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	}
 
 	ereq := &ai.EmbedRequest{
-		Documents: []*ai.Document{req.Query},
-		Options:   ds.config.EmbedderOptions,
+		Input:   []*ai.Document{req.Query},
+		Options: ds.config.EmbedderOptions,
 	}
 
 	eres, err := ds.config.Embedder.Embed(ctx, ereq)
@@ -100,12 +99,8 @@ func (ds *docStore) query(ctx context.Context, ropt *RetrieverOptions, embbeding
 			if ds.config.MetadataJSONColumn == col {
 				mapMetadata := map[string]any{}
 				if values[i] != nil {
-					err = json.Unmarshal(values[i].([]byte), &mapMetadata)
-					if err != nil {
-						return nil, err
-					}
+					mapMetadata = values[i].(map[string]any)
 				}
-
 				meta[col] = mapMetadata
 				continue
 			}
