@@ -134,6 +134,14 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   }
 
   /**
+   * Concatenates all `reasoning` parts present in the generated message with no delimiter.
+   * @returns A string of all concatenated reasoning parts.
+   */
+  get reasoning(): string {
+    return this.message?.reasoning || '';
+  }
+
+  /**
    * Returns the first detected media part in the generated message. Useful for
    * extracting (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the candidate.
@@ -185,7 +193,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   }
 
   get raw(): unknown {
-    return this.raw ?? this.custom;
+    return this.custom;
   }
 
   toJSON(): ModelResponseData {
