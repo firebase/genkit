@@ -1,5 +1,4 @@
 /**
- * Copyright 2024 The Fire Company
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +14,7 @@
  * limitations under the License.
  */
 
-import type { Options } from 'tsup';
-import { defineConfig } from 'tsup';
-
+import { defineConfig, Options } from 'tsup';
 import { defaultOptions } from '../../tsup.common';
 
 export default defineConfig({
