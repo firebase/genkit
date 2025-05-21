@@ -179,7 +179,6 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 		}
 		return json.Marshal(v)
 	case PartReasoning:
-		// TODO: check this, not sure this is ok
 		v := textPart{
 			Text:     p.Text,
 			Metadata: p.Metadata,

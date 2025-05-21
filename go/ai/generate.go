@@ -629,7 +629,6 @@ func (mr *ModelResponse) Reasoning() string {
 			continue
 		}
 		sb.WriteString(p.Text)
-
 	}
 	return sb.String()
 }
