@@ -59,6 +59,11 @@ type Genkit struct {
 	reg *registry.Registry // Registry for actions, values, and other resources.
 }
 
+// Registry returns the internal registry. This is primarily for use by plugins.
+func (g *Genkit) Registry() *registry.Registry {
+	return g.reg
+}
+
 // genkitOptions are options for configuring the Genkit instance.
 type genkitOptions struct {
 	DefaultModel string   // Default model to use if no other model is specified.

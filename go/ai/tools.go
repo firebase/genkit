@@ -26,6 +26,7 @@ import (
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/invopop/jsonschema"
 )
 
 // ToolRef is a reference to a tool.
@@ -105,6 +106,38 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	}
 
 	toolAction := core.DefineAction(r, "", name, atype.Tool, metadata, wrappedFn)
+
+	return &tool{action: toolAction}
+}
+
+// DefineToolWithInputSchema defines a tool function with an explicit input schema and interrupt capability.
+// The output schema will be inferred as "any".
+func DefineToolWithInputSchema(
+	r *registry.Registry,
+	name, description string,
+	inputSchema *jsonschema.Schema,
+	fn func(ctx *ToolContext, input any) (any, error),
+) Tool {
+	metadata := make(map[string]any)
+	metadata["type"] = "tool"
+	metadata["name"] = name
+	metadata["description"] = description
+
+	wrappedFn := func(coreCtx context.Context, input any) (any, error) {
+		toolCtx := &ToolContext{
+			Context: coreCtx,
+			Interrupt: func(opts *InterruptOptions) error {
+				return &ToolInterruptError{
+					Metadata: opts.Metadata,
+				}
+			},
+		}
+		return fn(toolCtx, input)
+	}
+
+	// Note: The output type for DefineActionWithInputSchema is `any`,
+	// so the output schema will be inferred as a generic "any" type.
+	toolAction := core.DefineActionWithInputSchema[any](r, "", name, atype.Tool, metadata, inputSchema, wrappedFn)
 
 	return &tool{action: toolAction}
 }
