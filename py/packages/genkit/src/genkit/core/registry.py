@@ -75,6 +75,7 @@ class Registry:
     def __init__(self):
         """Initialize an empty Registry instance."""
         self._action_resolvers: dict[str, ActionResolver] = {}
+        self._list_models_resolvers: dict[str, Callable] = {}
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
@@ -82,7 +83,7 @@ class Registry:
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
-    def register_action_resolver(self, plugin_name: str, resolver: ActionResolver):
+    def register_action_resolver(self, plugin_name: str, resolver: ActionResolver) -> None:
         """Registers an ActionResolver function for a given plugin.
 
         Args:
@@ -96,6 +97,21 @@ class Registry:
             if plugin_name in self._action_resolvers:
                 raise ValueError(f'Plugin {plugin_name} already registered')
             self._action_resolvers[plugin_name] = resolver
+
+    def register_list_models_resolver(self, plugin_name: str, resolver: Callable) -> None:
+        """Registers an Callable function to list available models.
+
+        Args:
+            plugin_name: The name of the plugin.
+            resolver: The Callable function to list models.
+
+        Raises:
+            ValueError: If a resolver is already registered for the plugin.
+        """
+        with self._lock:
+            if plugin_name in self._list_models_resolvers:
+                raise ValueError(f'Plugin {plugin_name} already registered')
+            self._list_models_resolvers[plugin_name] = resolver
 
     def register_action(
         self,
@@ -210,7 +226,40 @@ class Registry:
                             'outputSchema': action.output_schema,
                             'metadata': action.metadata,
                         }
+
             return actions
+
+    def list_models(
+        self,
+        actions: dict[str, Action] | None = None,
+        allowed_kinds: set[ActionKind] | None = None,
+    ) -> dict[str, Action] | None:
+        """List more models into a dictionary.
+
+        Args:
+            actions: dictionary of serializable actions.
+            allowed_kinds: The types of actions to list. If None, all actions
+            are listed.
+
+        Returns:
+            A dictionary of serializable Actions updated.
+        """
+        if actions is None:
+            actions = {}
+
+        for plugin_name in self._list_models_resolvers:
+            for kind in self._entries:
+                if allowed_kinds is not None and kind not in allowed_kinds:
+                    continue
+                models_list = self._list_models_resolvers[plugin_name](kind)
+                for name in models_list:
+                    key = create_action_key(kind, name)
+                    if key not in actions:
+                        actions[key] = {
+                            'key': key,
+                            'name': name,
+                        }
+        return actions
 
     def register_value(self, kind: str, name: str, value: Any):
         """Registers a value with a given kind and name.

@@ -74,3 +74,17 @@ class Plugin(abc.ABC):
             None, initialization is done by side-effect on the registry.
         """
         pass
+
+    def list_models(
+        self,
+        kind: ActionKind,
+    ) -> list[str]:
+        """Generate a list of available models.
+
+        Args:
+            kind: Supported kind
+
+        Returns:
+            List of model names.
+        """
+        return []
