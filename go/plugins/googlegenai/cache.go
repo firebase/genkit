@@ -85,7 +85,7 @@ func handleCache(
 		return nil, err
 	}
 
-	messages, err := getMessagesToCache(request.Messages, cs.endIndex)
+	messages, err := messagesToCache(request.Messages, cs.endIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -120,8 +120,8 @@ func handleCache(
 	return cache, nil
 }
 
-// getMessagesToCache collects all the messages that should be cached
-func getMessagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, error) {
+// messagesToCache collects all the messages that should be cached
+func messagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, error) {
 	var messagesToCache []*genai.Content
 	for i := cacheEndIdx; i >= 0; i-- {
 		m := m[i]
@@ -236,9 +236,9 @@ func calculateCacheHash(content []*genai.Content) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-// setCacheMetadata writes in the metadata map the cache name used in the
+// cacheMetadata writes in the metadata map the cache name used in the
 // request
-func setCacheMetadata(m map[string]any, cc *genai.CachedContent) map[string]any {
+func cacheMetadata(m map[string]any, cc *genai.CachedContent) map[string]any {
 	// keep the original metadata if no cache was used in the request
 	if cc == nil {
 		return m

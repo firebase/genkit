@@ -24,6 +24,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 func main() {
@@ -50,8 +51,12 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				Temperature:   0.2,
-				CodeExecution: true,
+				Temperature: googlegenai.Float32Ptr(0.2),
+				Tools: []*genai.Tool{
+					{
+						CodeExecution: &genai.ToolCodeExecution{},
+					},
+				},
 			}),
 			ai.WithPrompt(problem))
 		if err != nil {

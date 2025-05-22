@@ -55,11 +55,8 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				Temperature: 0.5,
-				ResponseModalities: []googlegenai.Modality{
-					googlegenai.ImageMode,
-					googlegenai.TextMode,
-				},
+				Temperature:        googlegenai.Float32Ptr(0.5),
+				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
 			ai.WithPrompt(fmt.Sprintf(`generate a story about %s and for each scene, generate an image for it`, input)))
 		if err != nil {
