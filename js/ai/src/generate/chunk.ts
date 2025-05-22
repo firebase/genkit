@@ -71,6 +71,14 @@ export class GenerateResponseChunk<T = unknown>
   }
 
   /**
+   * Concatenates all `reasoning` parts present in the chunk with no delimiter.
+   * @returns A string of all concatenated reasoning parts.
+   */
+  get reasoning(): string {
+    return this.content.map((part) => part.reasoning || '').join('');
+  }
+
+  /**
    * Concatenates all `text` parts of all chunks from the response thus far.
    * @returns A string of all concatenated chunk text content.
    */

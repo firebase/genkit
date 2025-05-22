@@ -96,7 +96,7 @@ Use the Genkit instance's `defineTool()` function to write tool definitions:
 
 ```ts
 import { genkit, z } from 'genkit';
-import { googleAI, gemini15Flash } from '@genkitai/google-ai';
+import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
 
 const ai = genkit({
   plugins: [googleAI()],

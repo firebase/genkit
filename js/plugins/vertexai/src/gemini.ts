@@ -568,7 +568,7 @@ export const GENERIC_GEMINI_MODEL = modelRef({
   },
 });
 
-export const SUPPORTED_V1_MODELS = {
+const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': gemini10Pro,
 };
 
@@ -586,7 +586,6 @@ export const SUPPORTED_V15_MODELS = {
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
-  ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
 } as const;
 
@@ -820,7 +819,12 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref?: string
 ): Part {
-  if (part.text !== undefined) return { text: part.text };
+  if (part.text !== undefined) {
+    if ((part as any).thought === true) {
+      return { reasoning: part.text };
+    }
+    return { text: part.text };
+  }
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
   if (part.functionCall) return fromGeminiFunctionCallPart(part, ref);

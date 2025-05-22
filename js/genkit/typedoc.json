@@ -7,6 +7,7 @@
     "src/tool.ts",
     "src/retriever.ts",
     "src/reranker.ts",
+    "src/context.ts",
     "src/plugin.ts",
     "src/middleware.ts",
     "src/registry.ts",
