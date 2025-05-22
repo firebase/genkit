@@ -32,7 +32,7 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@google-cloud/cloud-sql-connector": "^1.6.0",
+    "@google-cloud/cloud-sql-connector": "1.7.1",
     "google-auth-library": "^9.15.0",
     "knex": "^3.1.0",
     "pg": "^8.15.6",
