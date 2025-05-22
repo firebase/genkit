@@ -144,19 +144,28 @@ export async function checkServerHealth(url: string): Promise<boolean> {
   try {
     const response = await fetch(`${url}/api/__health`);
     return response.status === 200;
-  } catch (error: any) { // Catch as 'any' for broader inspection
+  } catch (error: any) {
+    // Catch as 'any' for broader inspection
     // Log the actual error received during health check for debugging
-    logger.debug(`Health check for ${url} failed. Error type: ${typeof error}, Error:`, error);
-    
+    logger.debug(
+      `Health check for ${url} failed. Error type: ${typeof error}, Error:`,
+      error
+    );
+
     // Check for ECONNREFUSED more safely
-    if (error && error.cause && typeof error.cause === 'object' && (error.cause as any).code === 'ECONNREFUSED') {
+    if (
+      error &&
+      error.cause &&
+      typeof error.cause === 'object' &&
+      (error.cause as any).code === 'ECONNREFUSED'
+    ) {
       return false;
     }
     // If it's any other error during fetch, also consider it unhealthy for this check's purpose
     // or if it's not an Error instance with a cause.
     // The original code would return `true` here, which seems wrong.
     // If fetch fails for *any* reason, the server is not healthy from this check's POV.
-    return false; 
+    return false;
   }
   // This line should not be reached if the try block has a return or the catch block has a return.
   // However, to satisfy TypeScript if it thinks not all paths return, and as a fallback:
@@ -220,11 +229,11 @@ export async function retriable<T>(
 
   let attempt = 0;
   while (true) {
-    attempt++; 
+    attempt++;
     try {
       return await fn();
     } catch (e) {
-      if (attempt >= maxRetries) { 
+      if (attempt >= maxRetries) {
         throw e;
       }
       if (delayMs > 0) {
