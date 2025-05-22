@@ -41,7 +41,7 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 		ai.WithInputType(imageURLInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.1,
+			Temperature: googlegenai.Float32Ptr(0.1),
 		}),
 	)
 	if err != nil {
@@ -65,7 +65,7 @@ Answer this customer's question:
 		ai.WithInputType(textMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.3,
+			Temperature: googlegenai.Float32Ptr(0.3),
 		}),
 	)
 	if err != nil {

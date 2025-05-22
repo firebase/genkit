@@ -59,8 +59,7 @@ func main() {
 
 		// generate a request with a large text content to be cached
 		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.7,
-			Version:     "gemini-1.5-flash-001",
+			Temperature: googlegenai.Float32Ptr(0.7),
 		}),
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
@@ -74,8 +73,7 @@ func main() {
 		// use previous messages to keep the conversation going and keep
 		// asking questions related to the large content that was cached
 		resp, err = genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.7,
-			Version:     "gemini-1.5-flash-001",
+			Temperature: googlegenai.Float32Ptr(0.7),
 		}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("now rewrite the previous summary and make it look like a pirate wrote it"),
