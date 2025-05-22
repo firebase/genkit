@@ -114,14 +114,15 @@ pnpm run pack:all
 ```
 
 This command will:
+
 1.  Produce tarball packages (`.tgz` files) for all workspaces (e.g., from `js/` and `genkit-tools/`) in the project's root `dist/` folder.
 2.  Produce a `genkit-dist.zip` file (a zip of all the package tarballs) in the project's root `dist/` folder.
 3.  Additionally, it will use Bun (which must be installed) to create stand-alone executable binaries for the Genkit CLI. These binaries will be located in the `genkit-tools/dist/` folder. Targets include:
-    *   macOS (Apple Silicon): `genkit-bun-macos-arm64`
-    *   macOS (Intel): `genkit-bun-macos-x64`
-    *   Linux (x64): `genkit-bun-linux-x64`
-    *   Windows (x64): `genkit-bun-windows-x64.exe`
-    These binaries allow users to run the Genkit CLI without needing a Node.js or Bun installation.
+    - macOS (Apple Silicon): `genkit-bun-macos-arm64`
+    - macOS (Intel): `genkit-bun-macos-x64`
+    - Linux (x64): `genkit-bun-linux-x64`
+    - Windows (x64): `genkit-bun-windows-x64.exe`
+      These binaries allow users to run the Genkit CLI without needing a Node.js or Bun installation.
 
 ### Link it
 
