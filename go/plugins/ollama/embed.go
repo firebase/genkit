@@ -91,7 +91,7 @@ func sendEmbedRequest(ctx context.Context, serverAddress string, jsonData []byte
 }
 
 func newOllamaEmbedRequest(model string, documents []*ai.Document) ollamaEmbedRequest {
-	var input interface{}
+	var input any
 	if len(documents) == 1 {
 		input = concatenateText(documents[0])
 	} else {
