@@ -46,6 +46,8 @@ export interface FlowConfig<
   outputSchema?: O;
   /** Schema of the streaming chunks from the flow. */
   streamSchema?: S;
+  /** Metadata of the flow used by tooling. */
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -127,6 +129,7 @@ function defineFlowAction<
       inputSchema: config.inputSchema,
       outputSchema: config.outputSchema,
       streamSchema: config.streamSchema,
+      metadata: config.metadata,
     },
     async (input, { sendChunk, context, trace }) => {
       return await legacyRegistryAls.run(registry, () => {
