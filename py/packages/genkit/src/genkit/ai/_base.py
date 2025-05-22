@@ -118,7 +118,7 @@ class GenkitBase(GenkitRegistry):
                         return plugin.resolve_action(self, kind, name)
 
                     self.registry.register_action_resolver(plugin.plugin_name(), resolver)
-                    self.registry.register_list_models_resolver(plugin.plugin_name(), plugin.list_models)
+                    self.registry.register_list_actions_resolver(plugin.plugin_name(), plugin.list_actions)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
 

@@ -16,6 +16,31 @@ from genkit.core.action.types import ActionKind, ActionMetadataKey
 from genkit.core.registry import Registry
 
 
+def test_register_list_actions_resolver():
+    """Test for register list models resolver."""
+    registry = Registry()
+
+    def list_actions_mock(kind: ActionKind):
+        return []
+
+    registry.register_list_actions_resolver('test_plugin', list_actions_mock)
+
+    assert 'test_plugin' in registry._list_actions_resolvers
+
+
+def test_register_list_actions_resolver_raises_exception():
+    """Test when ValueError is raised."""
+    registry = Registry()
+
+    def list_actions_mock(kind: ActionKind):
+        return []
+
+    registry._list_actions_resolvers['test_plugin'] = list_actions_mock
+
+    with pytest.raises(ValueError, match=r'Plugin .* already registered'):
+        registry.register_list_actions_resolver('test_plugin', list_actions_mock)
+
+
 def test_register_action_with_name_and_kind() -> None:
     """Ensure we can register an action with a name and kind."""
     registry = Registry()
@@ -65,7 +90,29 @@ def test_list_serializable_actions() -> None:
     }
 
 
+def test_list_actions() -> None:
+    """Ensure we can list models."""
+    def list_actions_mock(kind: ActionKind):
+        return ["test_model"]
+
+    registry = Registry()
+    registry._list_actions_resolvers['test_plugin'] = list_actions_mock
+    registry._entries[ActionKind.CUSTOM] = {}
+
+    got = registry.list_actions({}, set([ActionKind.CUSTOM]))
+    assert got == {
+        '/custom/test_model': {
+            'key': '/custom/test_model',
+            'name': 'test_model',
+            'inputSchema': {},
+            'outputSchema': {},
+            'metadata': {},
+        },
+    }
+
+
 def test_resolve_action_from_plugin():
+    """Resolve action from plugin test."""
     resolver_calls = []
 
     class MyPlugin(Plugin):
@@ -98,6 +145,7 @@ def test_resolve_action_from_plugin():
 
 
 def test_register_value():
+    """Register a value and lookup test."""
     registry = Registry()
 
     registry.register_value('format', 'json', [1, 2, 3])

@@ -206,8 +206,8 @@ class GoogleAI(Plugin):
             fn=embedder.generate,
         )
 
-    def list_models(self, kind: ActionKind) -> list[str]:
-        """Generate a list of available models.
+    def list_actions(self, kind: ActionKind) -> list[str]:
+        """Generate a list of available actions or models.
 
         Args:
             kind: Supported kind
@@ -386,8 +386,8 @@ class VertexAI(Plugin):
             fn=embedder.generate,
         )
 
-    def list_models(self, kind: ActionKind) -> list[str]:
-        """Generate a list of available models.
+    def list_actions(self, kind: ActionKind) -> list[str]:
+        """Generate a list of available actions or models.
 
         Args:
             kind: Supported kind
@@ -398,7 +398,7 @@ class VertexAI(Plugin):
         models_list = list()
         for m in self._client.models.list():
             name = m.name.replace('publishers/google/models/', '')
-            if 'embedding' in name.lower():
+            if 'embed' in name.lower():
                 if kind == ActionKind.EMBEDDER:
                     models_list.append(vertexai_name(name))
             elif kind == ActionKind.MODEL:

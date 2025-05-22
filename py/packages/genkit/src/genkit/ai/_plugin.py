@@ -75,11 +75,11 @@ class Plugin(abc.ABC):
         """
         pass
 
-    def list_models(
+    def list_actions(
         self,
         kind: ActionKind,
     ) -> list[str]:
-        """Generate a list of available models.
+        """Generate a list of available actions or models.
 
         Args:
             kind: Supported kind

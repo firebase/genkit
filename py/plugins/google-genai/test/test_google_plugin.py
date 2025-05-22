@@ -23,6 +23,7 @@ import unittest
 from unittest.mock import MagicMock, patch, ANY
 
 from google.auth.credentials import Credentials
+from pydantic import BaseModel
 from google.genai.types import GenerateImagesConfigOrDict, HttpOptions
 
 import pytest
@@ -54,6 +55,14 @@ from genkit.plugins.google_genai.models.imagen import (
 from genkit.types import (
     ModelInfo,
 )
+
+
+@pytest.fixture
+@patch('google.genai.client.Client')
+def googleai_plugin_instance(client):
+    """GoogleAI fixture."""
+    api_key = 'test_api_key'
+    return GoogleAI(api_key=api_key)
 
 
 class TestGoogleAIInit(unittest.TestCase):
@@ -143,10 +152,9 @@ def test_googleai_initialize():
 
 
 @patch('genkit.plugins.google_genai.GoogleAI._resolve_model')
-def test_googleai_resolve_action_model(mock_resolve_action):
+def test_googleai_resolve_action_model(mock_resolve_action, googleai_plugin_instance):
     """Test resolve action for model."""
-    api_key = 'test_api_key'
-    plugin = GoogleAI(api_key=api_key)
+    plugin = googleai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     plugin.resolve_action(ai=ai_mock, kind=ActionKind.MODEL, name='lazaro-model')
@@ -154,10 +162,9 @@ def test_googleai_resolve_action_model(mock_resolve_action):
 
 
 @patch('genkit.plugins.google_genai.GoogleAI._resolve_embedder')
-def test_googleai_resolve_action_embedder(mock_resolve_action):
+def test_googleai_resolve_action_embedder(mock_resolve_action, googleai_plugin_instance):
     """Test resolve action for embedder."""
-    api_key = 'test_api_key'
-    plugin = GoogleAI(api_key=api_key)
+    plugin = googleai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     plugin.resolve_action(ai=ai_mock, kind=ActionKind.EMBEDDER, name='lazaro-model')
@@ -185,10 +192,10 @@ def test_googleai__resolve_model(
     model_name,
     expected_model_name,
     key,
+    googleai_plugin_instance,
 ):
     """Tests for GoogleAI._resolve_model method."""
-    api_key = 'test_api_key'
-    plugin = GoogleAI(api_key=api_key)
+    plugin = googleai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     mock_google_model_info.return_value = ModelInfo(
@@ -226,10 +233,10 @@ def test_googleai__resolve_model(
 def test_googleai__resolve_embedder(
     model_name,
     expected_model_name,
+    googleai_plugin_instance,
 ):
     """Tests for GoogleAI._resolve_embedder method."""
-    api_key = 'test_api_key'
-    plugin = GoogleAI(api_key=api_key)
+    plugin = googleai_plugin_instance
     ai_mock = MagicMock(spec=Genkit)
 
     plugin._resolve_embedder(
@@ -241,6 +248,49 @@ def test_googleai__resolve_embedder(
         name=expected_model_name,
         fn=ANY,
     )
+
+
+@pytest.mark.parametrize(
+    'kind, expected',
+    [
+        (
+            ActionKind.MODEL,
+            ['googleai/model1', 'googleai/model3'],
+        ),
+        (
+            ActionKind.EMBEDDER,
+            ['googleai/model2', 'googleai/model3'],
+        ),
+    ]
+)
+def test_googleai_list_actions(kind, expected, googleai_plugin_instance):
+    """Unit test for list actions."""
+    class MockModel(BaseModel):
+        """mock."""
+        supported_actions: list[str]
+        name: str
+
+    models_return_value = [
+        MockModel(
+            supported_actions=['generateContent'],
+            name='models/model1'
+        ),
+        MockModel(
+            supported_actions=['embedContent'],
+            name='models/model2'
+        ),
+        MockModel(
+            supported_actions=['generateContent', 'embedContent'],
+            name='models/model3'
+        ),
+    ]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = models_return_value
+    googleai_plugin_instance._client = mock_client
+
+    result = googleai_plugin_instance.list_actions(kind)
+    assert result == expected
 
 
 @pytest.mark.parametrize(
@@ -599,3 +649,42 @@ def test_vertexai__resolve_embedder(
         name=expected_model_name,
         fn=ANY,
     )
+
+
+@pytest.mark.parametrize(
+    'kind, expected',
+    [
+        (
+            ActionKind.MODEL,
+            ['vertexai/model1'],
+        ),
+        (
+            ActionKind.EMBEDDER,
+            ['vertexai/model2_embeddings', 'vertexai/model3_embedder'],
+        ),
+    ]
+)
+def test_vertexai_list_actions(kind, expected, vertexai_plugin_instance):
+    """Unit test for list actions."""
+    class MockModel(BaseModel):
+        """mock."""
+        name: str
+
+    models_return_value = [
+        MockModel(
+            name='publishers/google/models/model1'
+        ),
+        MockModel(
+            name='publishers/google/models/model2_embeddings'
+        ),
+        MockModel(
+            name='publishers/google/models/model3_embedder'
+        ),
+    ]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = models_return_value
+    vertexai_plugin_instance._client = mock_client
+
+    result = vertexai_plugin_instance.list_actions(kind)
+    assert result == expected

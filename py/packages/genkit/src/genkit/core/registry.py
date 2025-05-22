@@ -75,7 +75,7 @@ class Registry:
     def __init__(self):
         """Initialize an empty Registry instance."""
         self._action_resolvers: dict[str, ActionResolver] = {}
-        self._list_models_resolvers: dict[str, Callable] = {}
+        self._list_actions_resolvers: dict[str, Callable] = {}
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
@@ -98,8 +98,8 @@ class Registry:
                 raise ValueError(f'Plugin {plugin_name} already registered')
             self._action_resolvers[plugin_name] = resolver
 
-    def register_list_models_resolver(self, plugin_name: str, resolver: Callable) -> None:
-        """Registers an Callable function to list available models.
+    def register_list_actions_resolver(self, plugin_name: str, resolver: Callable) -> None:
+        """Registers an Callable function to list available actions or models.
 
         Args:
             plugin_name: The name of the plugin.
@@ -109,9 +109,9 @@ class Registry:
             ValueError: If a resolver is already registered for the plugin.
         """
         with self._lock:
-            if plugin_name in self._list_models_resolvers:
+            if plugin_name in self._list_actions_resolvers:
                 raise ValueError(f'Plugin {plugin_name} already registered')
-            self._list_models_resolvers[plugin_name] = resolver
+            self._list_actions_resolvers[plugin_name] = resolver
 
     def register_action(
         self,
@@ -228,7 +228,7 @@ class Registry:
                         }
             return actions
 
-    def list_models(
+    def list_actions(
         self,
         actions: dict[str, Action] | None = None,
         allowed_kinds: set[ActionKind] | None = None,
@@ -246,17 +246,23 @@ class Registry:
         if actions is None:
             actions = {}
 
-        for plugin_name in self._list_models_resolvers:
+        if allowed_kinds is None:
+            return actions
+
+        for plugin_name in self._list_actions_resolvers:
             for kind in self._entries:
-                if allowed_kinds is not None and kind not in allowed_kinds:
+                if kind not in allowed_kinds:
                     continue
-                models_list = self._list_models_resolvers[plugin_name](kind)
+                models_list = self._list_actions_resolvers[plugin_name](kind)
                 for name in models_list:
                     key = create_action_key(kind, name)
                     if key not in actions:
                         actions[key] = {
                             'key': key,
                             'name': name,
+                            'inputSchema': {},
+                            'outputSchema': {},
+                            'metadata': {},
                         }
         return actions
 
