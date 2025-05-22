@@ -107,13 +107,17 @@ This will build all packages in this repository. This is recommended the first t
 
 Pack packages for testing/distribution.
 
-Assuming you built everything previously....
+Assuming you built everything previously, navigate to the `genkit-tools` directory and run:
 
-```
+```bash
+cd genkit-tools
 pnpm pack:all
 ```
 
-This will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip of all the package tarballs.
+This command will:
+1.  Produce tarball packages (`.tgz` files) for `cli`, `telemetry-server`, and `common` in the `genkit-tools/dist` folder.
+2.  Produce a `genkit-dist.zip` file (a zip of all the package tarballs) in the `genkit-tools/dist` folder.
+3.  Additionally, it will create stand-alone executable binaries for the Genkit CLI (for macOS, Linux, and Windows) in the `genkit-tools/dist` folder (e.g., `genkit-macos`, `genkit-linux`, `genkit-win.exe`). These binaries allow users to run the Genkit CLI without needing a Node.js installation.
 
 ### Link it
 
