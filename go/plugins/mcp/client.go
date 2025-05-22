@@ -1,20 +1,15 @@
-// Package mcp provides a Genkit plugin for integration with the Model Context Protocol.
+// Package mcp provides a client for integration with the Model Context Protocol.
 package mcp
 
 import (
 	"context"
-	"encoding/json"
-	"fmt" // Keep net/url as it might be used by SSE/WebSocket if uncommented later
+	"fmt"
 	"log"
-	"strings"
+	"net/http"
 
-	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
-	"github.com/invopop/jsonschema"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
-	// "github.com/mark3labs/mcp-go/server" // Unused import
 )
 
 // StdioConfig holds configuration for a stdio-based MCP server process.
@@ -24,96 +19,193 @@ type StdioConfig struct {
 	Args    []string
 }
 
-// MCPClientOptions holds configuration for the MCPPlugin.
+// SSEConfig contains options for the SSE transport
+type SSEConfig struct {
+	BaseURL    string
+	Headers    map[string]string
+	HTTPClient *http.Client // Optional custom HTTP client
+}
+
+// MCPClientOptions holds configuration for the MCPClient.
 type MCPClientOptions struct {
-	// ServerName for this plugin instance, used for naming tools (defaults to "mcp" if empty in Init)
-	ServerName string
-	// Version number for this client (defaults to "1.0.0" if empty in Init)
+	// Name for this client instance - ideally a nickname for the server
+	Name string
+	// Version number for this client (defaults to "1.0.0" if empty)
 	Version string
-	// ServerProcess contains config for starting a local server process using stdio
-	ServerProcess *StdioConfig
-	// ServerURL for connecting to a remote server via SSE transport
-	ServerURL string
-	// ServerWebsocketURL for connecting to a remote server via WebSocket
-	ServerWebsocketURL string // This transport seems unavailable in the current mcp-go version
+
+	// Disabled flag to temporarily disable this client
+	Disabled bool
 	// RawToolResponses returns tool responses in raw MCP form if true
 	RawToolResponses bool
+
+	// Transport options - only one should be provided
+
+	// Stdio contains config for starting a local server process using stdio transport
+	Stdio *StdioConfig
+
+	// SSE contains config for connecting to a remote server via SSE transport
+	SSE *SSEConfig
 }
 
-// MCP represents the MCP plugin that implements the genkit.Plugin interface.
-type MCP struct {
-	// clients stores all the MCP clients created by this plugin
-	clients []*MCPPlugin
+// ServerRef represents an active connection to an MCP server
+type ServerRef struct {
+	Client    *client.Client
+	Transport transport.Interface
+	Error     string
 }
 
-// Name returns the unique name of this plugin.
-// This implements the genkit.Plugin interface.
-func (p *MCP) Name() string {
-	return "mcp"
+// GenkitMCPClient represents a client for interacting with MCP servers.
+// Unlike the original MCPClient, this doesn't implement the genkit.Plugin interface.
+type GenkitMCPClient struct {
+	options        MCPClientOptions
+	server         *ServerRef
+	ready          bool
+	readyListeners []struct {
+		resolve func()
+		reject  func(error)
+	}
 }
 
-// Init implements the trivial initialization required by the genkit.Plugin interface.
-// The actual initialization work is deferred to NewClient.
-func (p *MCP) Init(ctx context.Context, g *genkit.Genkit) error {
-	// Init is now trivial - just returns nil
-	return nil
-}
+// NewGenkitMCPClient creates a new GenkitMCPClient with the given options.
+func NewGenkitMCPClient(options MCPClientOptions) *GenkitMCPClient {
+	// Set default values
+	if options.Name == "" {
+		options.Name = "unnamed"
+	}
+	if options.Version == "" {
+		options.Version = "1.0.0"
+	}
 
-// NewClient creates a new MCP client with the given options and registers it with Genkit.
-// This handles all the initialization that was previously in Init().
-func (p *MCP) NewClient(options MCPClientOptions, g *genkit.Genkit) (*MCPPlugin, error) {
-	ctx := context.Background()
-
-	log.Println("Creating new MCP client plugin...")
-	// Create the new MCP client plugin
-	mcpPlugin := &MCPPlugin{
+	client := &GenkitMCPClient{
 		options: options,
+		ready:   false,
+		readyListeners: []struct {
+			resolve func()
+			reject  func(error)
+		}{},
 	}
 
-	// Set default version if not provided
-	if mcpPlugin.options.Version == "" {
-		log.Println("Using default version 1.0.0")
-		mcpPlugin.options.Version = "1.0.0"
+	// Initialize the connection
+	go client.initializeConnection()
+
+	return client
+}
+
+// initializeConnection initializes the MCP server connection
+func (c *GenkitMCPClient) initializeConnection() {
+	c.ready = false
+
+	err := c.connect(c.options)
+	if err != nil {
+		log.Printf("Failed to initialize MCP connection: %v", err)
+		// Notify listeners of failure
+		for _, listener := range c.readyListeners {
+			listener.reject(err)
+		}
+		c.readyListeners = nil
+		return
 	}
-	// Set default name if not provided
-	if mcpPlugin.options.ServerName == "" {
-		log.Println("Using default server name 'unnamed'")
-		mcpPlugin.options.ServerName = "unnamed"
+
+	// Mark as ready and notify listeners
+	c.ready = true
+	for _, listener := range c.readyListeners {
+		listener.resolve()
 	}
+	c.readyListeners = nil
+}
+
+// Ready returns a channel that is closed when the client is ready
+func (c *GenkitMCPClient) Ready() <-chan struct{} {
+	ch := make(chan struct{})
+	if c.ready {
+		close(ch)
+		return ch
+	}
+
+	c.readyListeners = append(c.readyListeners, struct {
+		resolve func()
+		reject  func(error)
+	}{
+		resolve: func() { close(ch) },
+		reject:  func(error) { close(ch) },
+	})
+
+	return ch
+}
+
+// WaitForReady blocks until the client is ready or returns an error
+func (c *GenkitMCPClient) WaitForReady(ctx context.Context) error {
+	if c.ready {
+		return nil
+	}
+
+	errCh := make(chan error, 1)
+	readyCh := make(chan struct{})
+
+	c.readyListeners = append(c.readyListeners, struct {
+		resolve func()
+		reject  func(error)
+	}{
+		resolve: func() { close(readyCh) },
+		reject:  func(err error) { errCh <- err },
+	})
+
+	select {
+	case <-readyCh:
+		return nil
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// connect establishes a connection to an MCP server
+func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
+	if c.server != nil {
+		if err := c.server.Transport.Close(); err != nil {
+			log.Printf("Warning: error closing previous transport: %v", err)
+		}
+	}
+
+	log.Printf("[MCP Client] Connecting to MCP server '%s'", options.Name)
 
 	// Create transport based on options
 	var t transport.Interface
 	var err error
 
-	log.Println("Setting up transport...")
-	if mcpPlugin.options.ServerProcess != nil {
-		log.Printf("Creating stdio transport with command: %s", mcpPlugin.options.ServerProcess.Command)
+	if options.Stdio != nil {
+		log.Printf("Creating stdio transport with command: %s", options.Stdio.Command)
 		// Create stdio transport
-		t = transport.NewStdio(mcpPlugin.options.ServerProcess.Command, mcpPlugin.options.ServerProcess.Env, mcpPlugin.options.ServerProcess.Args...)
-		if err := t.Start(ctx); err != nil { // Must start the transport
-			return nil, fmt.Errorf("failed to start stdio transport: %w", err)
+		t = transport.NewStdio(options.Stdio.Command, options.Stdio.Env, options.Stdio.Args...)
+	} else if options.SSE != nil {
+		log.Printf("Creating SSE transport with URL: %s", options.SSE.BaseURL)
+		// Create SSE transport with options
+		var sseOptions []transport.ClientOption
+		if options.SSE.Headers != nil {
+			sseOptions = append(sseOptions, transport.WithHeaders(options.SSE.Headers))
 		}
-		log.Println("Stdio transport started successfully")
-	} else if mcpPlugin.options.ServerURL != "" {
-		log.Printf("Creating SSE transport with URL: %s", mcpPlugin.options.ServerURL)
-		// Create SSE transport
-		t, err = transport.NewSSE(mcpPlugin.options.ServerURL)
+		if options.SSE.HTTPClient != nil {
+			sseOptions = append(sseOptions, transport.WithHTTPClient(options.SSE.HTTPClient))
+		}
+
+		t, err = transport.NewSSE(options.SSE.BaseURL, sseOptions...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create SSE transport: %w", err)
+			return fmt.Errorf("failed to create SSE transport: %w", err)
 		}
-		if err := t.Start(ctx); err != nil {
-			return nil, fmt.Errorf("failed to start SSE transport: %w", err)
-		}
-		log.Println("SSE transport started successfully")
 	} else {
-		return nil, fmt.Errorf("no valid transport configuration provided: must specify ServerProcess or ServerURL")
+		return fmt.Errorf("no valid transport configuration provided: must specify Stdio or SSE")
 	}
 
-	log.Println("Creating MCP client...")
-	// Create MCP client
-	mcpPlugin.client = client.NewClient(t)
+	// Start the transport
+	ctx := context.Background() // Using background context for now
+	if err := t.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start transport: %w", err)
+	}
 
-	log.Println("Initializing MCP client...")
+	// Create MCP client
+	mcpClient := client.NewClient(t)
+
 	// Initialize the client
 	initReq := mcp.InitializeRequest{
 		Params: struct {
@@ -123,398 +215,135 @@ func (p *MCP) NewClient(options MCPClientOptions, g *genkit.Genkit) (*MCPPlugin,
 		}{
 			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
 			ClientInfo: mcp.Implementation{
-				Name:    "genkit-mcp-plugin",
-				Version: mcpPlugin.options.Version,
+				Name:    "genkit-mcp-client",
+				Version: options.Version,
 			},
-			// Capabilities: mcp.ClientCapabilities{}, // Optionally specify client capabilities
+			Capabilities: mcp.ClientCapabilities{},
 		},
 	}
-	initResult, err := mcpPlugin.client.Initialize(ctx, initReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize MCP client: %w", err)
-	}
-	log.Println("MCP client initialized successfully")
 
-	// Get server capabilities from InitializeResult
-	capabilities := initResult.Capabilities
-
-	log.Println("Registering components based on server capabilities...")
-	// Register tools, prompts, and resources based on capabilities
-	if capabilities.Tools != nil {
-		log.Println("Registering tools...")
-		if err := mcpPlugin.registerTools(ctx, g); err != nil {
-			return nil, err
-		}
-	}
-
-	if capabilities.Prompts != nil {
-		log.Println("Registering prompts...")
-		if err := mcpPlugin.registerPrompts(ctx, g); err != nil {
-			return nil, err
-		}
-	}
-
-	if capabilities.Resources != nil {
-		log.Println("Registering resources...")
-		if err := mcpPlugin.registerResources(ctx, g); err != nil {
-			return nil, err
-		}
-	}
-
-	// Add the client to the list of clients
-	p.clients = append(p.clients, mcpPlugin)
-	log.Println("MCP client setup completed successfully")
-
-	return mcpPlugin, nil
-}
-
-// MCPPlugin represents a specific MCP client instance.
-type MCPPlugin struct {
-	options MCPClientOptions
-	client  *client.Client
-}
-
-// Helper methods for registering MCP components
-func (p *MCPPlugin) registerTools(ctx context.Context, g *genkit.Genkit) error {
-	var cursor mcp.Cursor
-
-	for {
-		listReq := mcp.ListToolsRequest{
-			PaginatedRequest: mcp.PaginatedRequest{
-				Params: struct {
-					Cursor mcp.Cursor `json:"cursor,omitempty"`
-				}{
-					Cursor: cursor,
-				},
-			},
-		}
-		result, err := p.client.ListTools(ctx, listReq)
+	var serverError string
+	if !options.Disabled {
+		// Only attempt to initialize if not disabled
+		_, err = mcpClient.Initialize(ctx, initReq)
 		if err != nil {
-			return fmt.Errorf("failed to list tools: %w", err)
+			serverError = err.Error()
+			log.Printf("Warning: failed to initialize MCP client: %v", err)
 		}
+	}
 
-		for _, mcpTool := range result.Tools {
-			log.Printf("Registering MCP Tool: %s, InputSchema Type: %s", mcpTool.Name, mcpTool.InputSchema.Type)
+	c.server = &ServerRef{
+		Client:    mcpClient,
+		Transport: t,
+		Error:     serverError,
+	}
 
-			var inputSchemaForAI *jsonschema.Schema
-			if mcpTool.InputSchema.Type != "" { // Check if schema type is defined
-				// Marshal the mcp.ToolInputSchema (which embeds mcp.ToolInputSchemaJSON) to JSON bytes
-				schemaBytes, err := json.Marshal(mcpTool.InputSchema) // mcpTool.InputSchema is mcp.ToolInputSchema
-				if err != nil {
-					return fmt.Errorf("failed to marshal MCP input schema for tool %s: %w", mcpTool.Name, err)
-				}
-				inputSchemaForAI = new(jsonschema.Schema)
-				if err := json.Unmarshal(schemaBytes, inputSchemaForAI); err != nil {
-					log.Printf("Warning: Failed to unmarshal MCP input schema directly for tool %s: %v. Using empty schema.", mcpTool.Name, err)
-					inputSchemaForAI = &jsonschema.Schema{}
-				}
-			} else {
-				log.Printf("MCP Tool %s has no input schema defined (Type is empty). Using empty schema.", mcpTool.Name)
-				inputSchemaForAI = &jsonschema.Schema{}
-			}
+	return nil
+}
 
-			// Capture mcpTool by value for the closure
-			currentMCPTool := mcpTool
-			toolFunc := func(toolCtx *ai.ToolContext, args interface{}) (interface{}, error) {
-				log.Printf("Executing MCP tool (via ai.DefineToolWithInputSchema) %q", currentMCPTool.Name)
-				log.Printf("Raw input args: %+v (type: %T)", args, args)
+// Name returns the client name
+func (c *GenkitMCPClient) Name() string {
+	return c.options.Name
+}
 
-				var callToolArgs map[string]interface{}
-				if args != nil {
-					jsonBytes, jsonErr := json.Marshal(args)
-					if jsonErr != nil {
-						log.Printf("Failed to marshal args to JSON for tool %s: %v", currentMCPTool.Name, jsonErr)
-						return nil, fmt.Errorf("tool arguments must be marshallable to map[string]interface{}, got %T (marshal error: %v)", args, jsonErr)
-					}
-					if err := json.Unmarshal(jsonBytes, &callToolArgs); err != nil {
-						log.Printf("Failed to unmarshal JSON args to map[string]any for tool %s: %v. Args: %s", currentMCPTool.Name, err, string(jsonBytes))
-						return nil, fmt.Errorf("tool arguments could not be converted to map[string]interface{} for tool %s (re-marshal/unmarshal error: %v)", currentMCPTool.Name, err)
-					}
-					log.Printf("Successfully converted args for tool %s via JSON marshal/unmarshal: %+v", currentMCPTool.Name, callToolArgs)
-				}
+// IsEnabled returns whether the client is enabled
+func (c *GenkitMCPClient) IsEnabled() bool {
+	return !c.options.Disabled
+}
 
-				callReq := mcp.CallToolRequest{
-					Params: struct {
-						Name      string         `json:"name"`
-						Arguments map[string]any `json:"arguments,omitempty"`
-						Meta      *mcp.Meta      `json:"_meta,omitempty"`
-					}{
-						Name:      currentMCPTool.Name,
-						Arguments: callToolArgs,
-						Meta:      nil,
-					},
-				}
+// Disable temporarily disables the client
+func (c *GenkitMCPClient) Disable() {
+	if !c.options.Disabled {
+		log.Printf("[MCP Client] Disabling MCP client '%s'", c.options.Name)
+		c.options.Disabled = true
+	}
+}
 
-				log.Printf("Calling MCP tool %q with request: %+v", currentMCPTool.Name, callReq)
-				mcpResult, err := p.client.CallTool(toolCtx, callReq)
-				if err != nil {
-					log.Printf("Tool %q execution failed: %v", currentMCPTool.Name, err)
-					return nil, fmt.Errorf("failed to call tool %s: %w", currentMCPTool.Name, err)
-				}
-				log.Printf("Tool %q execution succeeded with result: %+v", currentMCPTool.Name, mcpResult)
+// Reenable re-enables a previously disabled client
+func (c *GenkitMCPClient) Reenable() {
+	if c.options.Disabled {
+		log.Printf("[MCP Client] Re-enabling MCP client '%s'", c.options.Name)
+		c.options.Disabled = false
+	}
+}
 
-				if p.options.RawToolResponses {
-					log.Printf("Returning raw tool response for %s", currentMCPTool.Name)
-					return mcpResult, nil
-				}
-				log.Printf("Processing tool result for %s", currentMCPTool.Name)
-				return p.processToolResult(mcpResult)
-			}
-
-			ai.DefineToolWithInputSchema(
-				g.Registry(), // Pass the registry from genkit.Genkit
-				mcpTool.Name,
-				mcpTool.Description,
-				inputSchemaForAI,
-				toolFunc,
-			)
-			log.Printf("Successfully registered tool %s with explicit input schema using ai.DefineToolWithInputSchema.", mcpTool.Name)
+// Restart restarts the transport connection
+func (c *GenkitMCPClient) Restart(ctx context.Context) error {
+	log.Printf("[MCP Client] Restarting connection to MCP server '%s'", c.options.Name)
+	if c.server != nil {
+		if err := c.server.Transport.Close(); err != nil {
+			log.Printf("Warning: error closing transport during restart: %v", err)
 		}
+		c.server = nil
+	}
+	return c.connect(c.options)
+}
 
-		cursor = result.NextCursor
-		if cursor == "" {
-			break
-		}
+// Disconnect closes the connection to the MCP server
+func (c *GenkitMCPClient) Disconnect() error {
+	if c.server != nil {
+		log.Printf("[MCP Client] Disconnecting from MCP server '%s'", c.options.Name)
+		err := c.server.Transport.Close()
+		c.server = nil
+		return err
 	}
 	return nil
 }
 
-func (p *MCPPlugin) processToolResult(result *mcp.CallToolResult) (interface{}, error) {
-	if result.IsError {
-		errorMsg := "tool error"
-		if len(result.Content) > 0 {
-			tempMsg := p.contentToText(result.Content)
-			if tempMsg != "" {
-				errorMsg = tempMsg
-			}
-		}
-		return nil, fmt.Errorf("tool error: %s", errorMsg)
-	}
-
-	isAllText := true
-	if len(result.Content) == 0 {
-		isAllText = false
-	}
-	for _, contentItem := range result.Content {
-		textContent, ok := contentItem.(mcp.TextContent)
-		if !ok || textContent.Type != "text" {
-			isAllText = false
-			break
-		}
-	}
-
-	if isAllText {
-		text := p.contentToText(result.Content)
-		trimmedText := strings.TrimSpace(text)
-		if strings.HasPrefix(trimmedText, "{") || strings.HasPrefix(trimmedText, "[") {
-			var jsonData interface{}
-			if err := json.Unmarshal([]byte(trimmedText), &jsonData); err == nil {
-				return jsonData, nil
-			}
-		}
-		return text, nil
-	}
-
-	if len(result.Content) == 1 {
-		contentItem := result.Content[0]
-		if tc, ok := contentItem.(mcp.TextContent); ok && tc.Type == "text" {
-			trimmedText := strings.TrimSpace(tc.Text)
-			if strings.HasPrefix(trimmedText, "{") || strings.HasPrefix(trimmedText, "[") {
-				var jsonData interface{}
-				if err := json.Unmarshal([]byte(trimmedText), &jsonData); err == nil {
-					return jsonData, nil
-				}
-			}
-			return tc.Text, nil
-		}
-		if ec, ok := contentItem.(mcp.EmbeddedResource); ok && ec.Type == "resource" {
-			if trc, ok := ec.Resource.(mcp.TextResourceContents); ok && trc.MIMEType == "application/json" {
-				var jsonData interface{}
-				if err := json.Unmarshal([]byte(trc.Text), &jsonData); err == nil {
-					return jsonData, nil
-				}
-			}
-		}
-		return contentItem, nil
-	}
-
-	return result.Content, nil
+/*
+// MCPPlugin implements the genkit.Plugin interface to provide MCP functionality
+// as a Genkit plugin while using the GenkitMCPClient underneath
+type MCPPlugin struct {
+	client *GenkitMCPClient
 }
 
-func (p *MCPPlugin) contentToText(contentList []mcp.Content) string {
-	var textParts []string
-	for _, contentItem := range contentList {
-		if textContent, ok := contentItem.(mcp.TextContent); ok && textContent.Type == "text" {
-			textParts = append(textParts, textContent.Text)
-		} else if erContent, ok := contentItem.(mcp.EmbeddedResource); ok {
-			if trc, ok := erContent.Resource.(mcp.TextResourceContents); ok {
-				textParts = append(textParts, trc.Text)
-			}
-		}
+// NewMCPPlugin creates a new MCP plugin with the given options
+func NewMCPPlugin(options MCPClientOptions) *MCPPlugin {
+	return &MCPPlugin{
+		client: NewGenkitMCPClient(options),
 	}
-	return strings.Join(textParts, "")
 }
 
-func (p *MCPPlugin) registerPrompts(ctx context.Context, g *genkit.Genkit) error {
-	// Placeholder
-	return nil
+// Name returns the unique name of this plugin
+func (p *MCPPlugin) Name() string {
+	return p.client.Name()
 }
 
-// decodeToolArgs is a helper to unmarshal tool arguments from interface{} into a struct.
-func decodeToolArgs(args interface{}, out interface{}) error {
-	if args == nil {
+// Init initializes the MCP plugin and registers it with Genkit
+func (p *MCPPlugin) Init(ctx context.Context, g *genkit.Genkit) error {
+	// Wait for the client to be ready
+	if err := p.client.WaitForReady(ctx); err != nil {
+		return fmt.Errorf("failed to initialize MCP client: %w", err)
+	}
+
+	// Skip if this client is disabled
+	if !p.client.IsEnabled() {
+		log.Println("MCP client is disabled, skipping initialization")
 		return nil
 	}
-	jsonBytes, err := json.Marshal(args)
+
+	log.Println("Registering MCP tools...")
+	tools, err := p.client.GetActiveTools(ctx, g)
 	if err != nil {
-		return fmt.Errorf("failed to marshal tool arguments: %w", err)
+		return fmt.Errorf("failed to register tools: %w", err)
 	}
-	if err := json.Unmarshal(jsonBytes, out); err != nil {
-		return fmt.Errorf("failed to unmarshal tool arguments: %w", err)
-	}
+
+	log.Printf("Registered %d MCP tools", len(tools))
 	return nil
 }
 
-// Input struct for the listResources tool
-type listResourcesInput struct {
-	Cursor string `json:"cursor,omitempty"`
-	All    bool   `json:"all,omitempty"`
+// GetActiveTools returns all active tools from the underlying client
+func (p *MCPPlugin) GetActiveTools(ctx context.Context, g *genkit.Genkit) ([]ai.Tool, error) {
+	return p.client.GetActiveTools(ctx, g)
 }
 
-// Input struct for the listResourceTemplates tool
-type listResourceTemplatesInput struct {
-	Cursor string `json:"cursor,omitempty"`
-	All    bool   `json:"all,omitempty"`
+// GetPrompt retrieves a prompt from the underlying client
+func (p *MCPPlugin) GetPrompt(ctx context.Context, g *genkit.Genkit, promptName string, args map[string]string) (*ai.Prompt, error) {
+	return p.client.GetPrompt(ctx, g, promptName, args)
 }
 
-// Input struct for the readResource tool
-type readResourceInput struct {
-	URI string `json:"uri"`
+// For backward compatibility, keep the original function name
+func NewMCPClient(options MCPClientOptions) *MCPPlugin {
+	return NewMCPPlugin(options)
 }
-
-func (p *MCPPlugin) registerResources(ctx context.Context, g *genkit.Genkit) error {
-	// Define listResources tool
-	genkit.DefineTool(g, fmt.Sprintf("%s/listResources", p.options.ServerName), fmt.Sprintf("list all available resources for '%s'", p.options.ServerName),
-		func(toolCtx *ai.ToolContext, args interface{}) (interface{}, error) {
-			input := listResourcesInput{}
-			if err := decodeToolArgs(args, &input); err != nil {
-				return nil, err
-			}
-
-			if !input.All {
-				req := mcp.ListResourcesRequest{
-					PaginatedRequest: mcp.PaginatedRequest{
-						Params: struct {
-							Cursor mcp.Cursor `json:"cursor,omitempty"`
-						}{
-							Cursor: mcp.Cursor(input.Cursor),
-						},
-					},
-				}
-				return p.client.ListResources(toolCtx.Context, req)
-			}
-
-			var allResources []mcp.Resource
-			currentCursor := mcp.Cursor(input.Cursor)
-			for {
-				req := mcp.ListResourcesRequest{
-					PaginatedRequest: mcp.PaginatedRequest{
-						Params: struct {
-							Cursor mcp.Cursor `json:"cursor,omitempty"`
-						}{
-							Cursor: currentCursor,
-						},
-					},
-				}
-				resp, err := p.client.ListResources(toolCtx.Context, req)
-				if err != nil {
-					return nil, fmt.Errorf("failed to list resources page: %w", err)
-				}
-				if resp != nil {
-					allResources = append(allResources, resp.Resources...)
-					currentCursor = resp.NextCursor
-					if currentCursor == "" {
-						break
-					}
-				} else {
-					break
-				}
-			}
-			return map[string]interface{}{"resources": allResources}, nil
-		})
-
-	// Define listResourceTemplates tool
-	genkit.DefineTool(g, fmt.Sprintf("%s/listResourceTemplates", p.options.ServerName), fmt.Sprintf("list all available resource templates for '%s'", p.options.ServerName),
-		func(toolCtx *ai.ToolContext, args interface{}) (interface{}, error) {
-			input := listResourceTemplatesInput{}
-			if err := decodeToolArgs(args, &input); err != nil {
-				return nil, err
-			}
-
-			if !input.All {
-				req := mcp.ListResourceTemplatesRequest{
-					PaginatedRequest: mcp.PaginatedRequest{
-						Params: struct {
-							Cursor mcp.Cursor `json:"cursor,omitempty"`
-						}{
-							Cursor: mcp.Cursor(input.Cursor),
-						},
-					},
-				}
-				return p.client.ListResourceTemplates(toolCtx.Context, req)
-			}
-
-			var allTemplates []mcp.ResourceTemplate
-			currentCursor := mcp.Cursor(input.Cursor)
-			for {
-				req := mcp.ListResourceTemplatesRequest{
-					PaginatedRequest: mcp.PaginatedRequest{
-						Params: struct {
-							Cursor mcp.Cursor `json:"cursor,omitempty"`
-						}{
-							Cursor: currentCursor,
-						},
-					},
-				}
-				resp, err := p.client.ListResourceTemplates(toolCtx.Context, req)
-				if err != nil {
-					return nil, fmt.Errorf("failed to list resource templates page: %w", err)
-				}
-				if resp != nil {
-					allTemplates = append(allTemplates, resp.ResourceTemplates...)
-					currentCursor = resp.NextCursor
-					if currentCursor == "" {
-						break
-					}
-				} else {
-					break
-				}
-			}
-			return map[string]interface{}{"resourceTemplates": allTemplates}, nil
-		})
-
-	// Define readResource tool
-	genkit.DefineTool(g, fmt.Sprintf("%s/readResource", p.options.ServerName), fmt.Sprintf("this tool can read resources from '%s'", p.options.ServerName),
-		func(toolCtx *ai.ToolContext, args interface{}) (interface{}, error) {
-			input := readResourceInput{}
-			if err := decodeToolArgs(args, &input); err != nil {
-				return nil, err
-			}
-			if input.URI == "" {
-				return nil, fmt.Errorf("uri parameter is required for readResource")
-			}
-
-			req := mcp.ReadResourceRequest{
-				Params: struct {
-					URI       string         `json:"uri"`
-					Arguments map[string]any `json:"arguments,omitempty"`
-				}{
-					URI:       input.URI,
-					Arguments: nil,
-				},
-			}
-			return p.client.ReadResource(toolCtx.Context, req)
-		})
-
-	return nil
-}
+*/

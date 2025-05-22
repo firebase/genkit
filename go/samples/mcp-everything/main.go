@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -30,113 +31,224 @@ func main() {
 	// Uncomment the one you want to run
 
 	runMCPEverything()
-	//runMCPToolCalling()
+	//runMCPDecoupled()
+	//runDirectToolTest()
 }
 
+// Example using the traditional plugin approach
 func runMCPEverything() {
-	log.Println("Starting MCP everything sample...")
+	log.Println("Starting MCP everything sample with plugin approach...")
 
 	ctx := context.Background()
-
-	// Initialize the MCP plugin with the "everything" server
-	// The "everything" server provides a variety of sample tools
-
-	log.Println("Creating MCP plugin instance...")
-	// Create the MCP plugin instance (trivial initialization)
-	mcpPlugin := &mcp.MCP{}
 
 	log.Println("Initializing Google AI plugin...")
 	// Initialize Google AI plugin for the model
 	googleAIPlugin := &googlegenai.GoogleAI{}
 
+	log.Println("Creating MCP client with 'everything' server...")
+	// Create an MCP client with the "everything" server using the plugin approach
+	client := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
+		Name:    "everything",
+		Version: "1.0.0",
+		// Start the "everything" server as a child process using stdio transport
+		Stdio: &mcp.StdioConfig{
+			Command: "npx",
+			Args:    []string{"@modelcontextprotocol/server-everything"},
+		},
+	})
+
+	// Wait for the client to be ready
+	select {
+	case <-client.Ready():
+		log.Println("MCP client is ready")
+	case <-ctx.Done():
+		log.Fatalf("Context cancelled while waiting for MCP client: %v", ctx.Err())
+	}
+
 	log.Println("Initializing Genkit with plugins...")
 	// Initialize Genkit with both plugins
-	g, err := genkit.Init(ctx, genkit.WithPlugins(googleAIPlugin, mcpPlugin))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(googleAIPlugin))
+	if err != nil {
+		log.Fatalf("Failed to initialize Genkit: %v", err)
+	}
+
+	// Get MCP tools
+	log.Println("Getting MCP tools...")
+	tools, err := client.GetActiveTools(ctx, g)
+	if err != nil {
+		log.Fatalf("Failed to get MCP tools: %v", err)
+	}
+	log.Printf("Found %d MCP tools", len(tools))
+
+	// Create a generation with Gemini Pro and tools
+	log.Println("Creating generation request with tools...")
+
+	// Create generation options
+	var genOptions []ai.GenerateOption
+	genOptions = append(genOptions,
+		ai.WithModelName("googleai/gemini-2.5-pro-preview-05-06"),
+		ai.WithPrompt("Please use the 'everything_echo' tool to echo a message. You MUST provide the 'message' parameter with the exact value 'Hello from MCP!' as follows: { \"message\": \"Hello from MCP!\" }"),
+		ai.WithToolChoice(ai.ToolChoiceAuto),
+		ai.WithTools(
+			ai.LookupTool(g.Registry(), "everything_echo"),
+			ai.LookupTool(g.Registry(), "everything_add"),
+		))
+
+	// Generate the response with tools
+	response, err := genkit.Generate(ctx, g, genOptions...)
+	if err != nil {
+		log.Fatalf("Failed to generate response: %v", err)
+	}
+
+	// Print the response
+	log.Println("Generated response:")
+	fmt.Println(response.Text())
+}
+
+// Example using the decoupled client approach
+func runMCPDecoupled() {
+	log.Println("Starting MCP everything sample with decoupled client approach...")
+
+	ctx := context.Background()
+
+	log.Println("Initializing Google AI plugin...")
+	// Initialize Google AI plugin for the model
+	googleAIPlugin := &googlegenai.GoogleAI{}
+
+	log.Println("Initializing Genkit with Google AI plugin...")
+	// Initialize Genkit with just the Google AI plugin
+	g, err := genkit.Init(ctx, genkit.WithPlugins(googleAIPlugin))
 	if err != nil {
 		log.Fatalf("Failed to initialize Genkit: %v", err)
 	}
 
 	log.Println("Creating MCP client with 'everything' server...")
-	// Now create an MCP client with the "everything" server
-	_, err = mcpPlugin.NewClient(mcp.MCPClientOptions{
-		ServerName: "everything",
-		Version:    "1.0.0",
-		// Start the "everything" server as a child process using npx
-		ServerProcess: &mcp.StdioConfig{
+	// Create an MCP client directly (not as a plugin)
+	mcpClient := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
+		Name:    "everything",
+		Version: "1.0.0",
+		// Start the "everything" server as a child process using stdio transport
+		Stdio: &mcp.StdioConfig{
 			Command: "npx",
 			Args:    []string{"@modelcontextprotocol/server-everything"},
 		},
-	}, g)
+	})
+
+	// Wait for the client to be ready
+	select {
+	case <-mcpClient.Ready():
+		log.Println("MCP client is ready")
+	case <-ctx.Done():
+		log.Fatalf("Context cancelled while waiting for MCP client: %v", ctx.Err())
+	}
+
+	// Manually register tools from the MCP client
+	log.Println("Registering tools from MCP client...")
+	tools, err := mcpClient.GetActiveTools(ctx, g)
 	if err != nil {
-		log.Fatalf("Failed to create MCP client: %v", err)
+		log.Fatalf("Failed to get tools from MCP client: %v", err)
+	}
+	log.Printf("Registered %d tools from MCP client", len(tools))
+
+	// Create generation options
+	var genOptions []ai.GenerateOption
+	genOptions = append(genOptions,
+		ai.WithModelName("googleai/gemini-2.5-pro-preview-05-06"),
+		ai.WithPrompt("Please use the 'everything_echo' tool to echo a message. You MUST provide the 'message' parameter with the exact value 'Hello from MCP decoupled approach!' as follows: { \"message\": \"Hello from MCP decoupled approach!\" }"),
+		ai.WithToolChoice(ai.ToolChoiceRequired))
+
+	// Add each tool individually
+	for _, tool := range tools {
+		genOptions = append(genOptions, ai.WithTools(tool))
 	}
 
-	log.Println("Getting Gemini model...")
-	// Get a model to use
-	model := googlegenai.GoogleAIModel(g, "gemini-1.5-pro")
-	if model == nil {
-		log.Fatal("Failed to get Gemini model")
-	}
-
-	log.Println("Setting up tool references...")
-	// Define the explicit tool references to use with the model
-	// Based on our tool listing, we know that "echo" is available
-	echoTool := ai.ToolName("echo")
-
-	log.Println("Creating system and user messages...")
-	// Create system message that instructs the model to use the echo tool
-	systemMsg := ai.NewSystemTextMessage(
-		"You are a helpful assistant that can echo messages back. " +
-			"When asked to echo something, use the 'echo' tool with a parameter named 'message' " +
-			"that contains the text to echo.")
-
-	// Create user message asking to echo text
-	userMsg := ai.NewUserTextMessage("Please echo this message: Hello, world!")
-
-	fmt.Println("Chat session started...")
-	fmt.Println("User: Please echo this message: Hello, world!")
-
-	log.Println("Generating initial response...")
-	// Generate response with the explicit reference to the MCP tool
-	resp, err := genkit.Generate(ctx, g,
-		ai.WithModel(model),
-		ai.WithMessages(systemMsg, userMsg),
-		// Make the specific tool available by referencing it explicitly
-		ai.WithTools(echoTool),
-		ai.WithToolChoice(ai.ToolChoiceAuto),
-	)
-
+	// Generate the response with tools
+	log.Println("Creating generation request with tools...")
+	response, err := genkit.Generate(ctx, g, genOptions...)
 	if err != nil {
-		log.Fatalf("Error generating response: %v", err)
+		log.Fatalf("Failed to generate response: %v", err)
 	}
 
-	// Print the final response
-	fmt.Println("\nAssistant:", resp.Text())
+	// Print the response
+	log.Println("Generated response:")
+	fmt.Println(response.Text())
 
-	log.Println("Processing follow-up message...")
-	// Now demonstrate a follow-up message in the chat
-	followupMsg := ai.NewUserTextMessage("Thanks! Now can you echo: The quick brown fox jumps over the lazy dog.")
-	fmt.Println("\nUser: Thanks! Now can you echo: The quick brown fox jumps over the lazy dog.")
+	// Print tool calls from the response
+	log.Println("Tool call information:")
+	for _, part := range response.Message.Content {
+		if part.IsToolRequest() {
+			log.Printf("Tool request: %s, Arguments: %v",
+				part.ToolRequest.Name, part.ToolRequest.Input)
+		}
+		if part.IsToolResponse() {
+			log.Printf("Tool response: %s, Result: %v",
+				part.ToolResponse.Name, part.ToolResponse.Output)
+		}
+	}
+}
 
-	completeHistoryAfterFirstTurn := append(resp.Request.Messages, resp.Message)
+// Test function to directly call the echo tool with the correct parameters
+func runDirectToolTest() {
+	log.Println("Starting direct tool test...")
 
-	// Now add the new user message for the follow-up
-	messagesForFollowup := append(completeHistoryAfterFirstTurn, followupMsg)
+	ctx := context.Background()
 
-	log.Println("Generating follow-up response...")
-	// Generate a follow-up response with all previous context and the explicit tool reference
-	followupResp, err := genkit.Generate(ctx, g,
-		ai.WithModel(model),
-		ai.WithMessages(messagesForFollowup...),
-		// Make the specific tool available by referencing it explicitly again
-		ai.WithTools(echoTool),
-		ai.WithToolChoice(ai.ToolChoiceAuto),
-	)
+	// Create MCP client
+	client := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
+		Name:    "everything",
+		Version: "1.0.0",
+		Stdio: &mcp.StdioConfig{
+			Command: "npx",
+			Args:    []string{"@modelcontextprotocol/server-everything"},
+		},
+	})
 
+	// Wait for the client to be ready
+	select {
+	case <-client.Ready():
+		log.Println("MCP client is ready")
+	case <-ctx.Done():
+		log.Fatalf("Context cancelled while waiting for MCP client: %v", ctx.Err())
+	}
+
+	// Initialize Genkit without Google AI plugin
+	g, err := genkit.Init(ctx)
 	if err != nil {
-		log.Fatalf("Error generating follow-up response: %v", err)
+		log.Fatalf("Failed to initialize Genkit: %v", err)
 	}
 
-	// Print the final response
-	fmt.Println("\nAssistant:", followupResp.Text())
+	// Get MCP tools
+	log.Println("Getting MCP tools...")
+	tools, err := client.GetActiveTools(ctx, g)
+	if err != nil {
+		log.Fatalf("Failed to get tools from MCP client: %v", err)
+	}
+	log.Printf("Found %d tools from MCP client", len(tools))
+
+	// Find the echo tool directly from registry to test
+	echoTool := ai.LookupTool(g.Registry(), "everything_echo")
+	if echoTool == nil {
+		log.Fatalf("Could not find the 'everything_echo' tool")
+	}
+
+	log.Println("Found echo tool, calling it directly...")
+
+	// Create correct arguments with the required "message" parameter
+	args := map[string]interface{}{
+		"message": "Direct test message",
+	}
+
+	// Print the args
+	argsJSON, _ := json.MarshalIndent(args, "", "  ")
+	log.Printf("Calling echo tool with args: %s", argsJSON)
+
+	// Call the tool directly using RunRaw method
+	result, err := echoTool.RunRaw(ctx, args)
+	if err != nil {
+		log.Fatalf("Failed to call echo tool: %v", err)
+	}
+
+	// Print the result
+	resultJSON, _ := json.MarshalIndent(result, "", "  ")
+	log.Printf("Echo tool result: %s", resultJSON)
 }
