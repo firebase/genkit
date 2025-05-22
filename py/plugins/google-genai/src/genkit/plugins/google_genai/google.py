@@ -221,13 +221,13 @@ class GoogleAI(Plugin):
         elif kind == ActionKind.EMBEDDER:
             _supported_action = 'embedContent'
 
-        models_list = list()
+        actions_list = list()
         for m in self._client.models.list():
             if _supported_action in m.supported_actions:
                 name = m.name.replace('models/', '')
-                models_list.append(googleai_name(name))
+                actions_list.append(googleai_name(name))
 
-        return models_list
+        return actions_list
 
 
 class VertexAI(Plugin):
@@ -395,16 +395,16 @@ class VertexAI(Plugin):
         Returns:
             List of model names.
         """
-        models_list = list()
+        actions_list = list()
         for m in self._client.models.list():
             name = m.name.replace('publishers/google/models/', '')
             if 'embed' in name.lower():
                 if kind == ActionKind.EMBEDDER:
-                    models_list.append(vertexai_name(name))
+                    actions_list.append(vertexai_name(name))
             elif kind == ActionKind.MODEL:
-                models_list.append(vertexai_name(name))
+                actions_list.append(vertexai_name(name))
 
-        return models_list
+        return actions_list
 
 
 def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):

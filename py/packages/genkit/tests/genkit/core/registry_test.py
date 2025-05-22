@@ -17,7 +17,7 @@ from genkit.core.registry import Registry
 
 
 def test_register_list_actions_resolver():
-    """Test for register list models resolver."""
+    """Test for register list actions resolver."""
     registry = Registry()
 
     def list_actions_mock(kind: ActionKind):
@@ -91,9 +91,9 @@ def test_list_serializable_actions() -> None:
 
 
 def test_list_actions() -> None:
-    """Ensure we can list models."""
+    """Ensure we can list actions."""
     def list_actions_mock(kind: ActionKind):
-        return ["test_model"]
+        return ["test_action"]
 
     registry = Registry()
     registry._list_actions_resolvers['test_plugin'] = list_actions_mock
@@ -101,9 +101,9 @@ def test_list_actions() -> None:
 
     got = registry.list_actions({}, set([ActionKind.CUSTOM]))
     assert got == {
-        '/custom/test_model': {
-            'key': '/custom/test_model',
-            'name': 'test_model',
+        '/custom/test_action': {
+            'key': '/custom/test_action',
+            'name': 'test_action',
             'inputSchema': {},
             'outputSchema': {},
             'metadata': {},

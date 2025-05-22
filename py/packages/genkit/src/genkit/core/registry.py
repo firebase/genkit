@@ -233,7 +233,7 @@ class Registry:
         actions: dict[str, Action] | None = None,
         allowed_kinds: set[ActionKind] | None = None,
     ) -> dict[str, Action] | None:
-        """List more models into a dictionary.
+        """Add actions or models.
 
         Args:
             actions: dictionary of serializable actions.
@@ -253,8 +253,8 @@ class Registry:
             for kind in self._entries:
                 if kind not in allowed_kinds:
                     continue
-                models_list = self._list_actions_resolvers[plugin_name](kind)
-                for name in models_list:
+                actions_list = self._list_actions_resolvers[plugin_name](kind)
+                for name in actions_list:
                     key = create_action_key(kind, name)
                     if key not in actions:
                         actions[key] = {
