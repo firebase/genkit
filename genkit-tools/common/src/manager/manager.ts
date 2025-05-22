@@ -400,7 +400,7 @@ export class RuntimeManager {
         logger.error(`Unexpected file in the servers directory: ${content}`);
       }
     } catch (error) {
-      logger.info('Error reading tools config', error);
+      logger.info('Error reading tools config', error); 
       return undefined;
     }
   }
