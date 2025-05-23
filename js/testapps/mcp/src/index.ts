@@ -15,9 +15,9 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
+import { createMcpManager } from '@genkit-ai/mcp';
 import { genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
-import { createMcpManager } from 'genkitx-mcp';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.

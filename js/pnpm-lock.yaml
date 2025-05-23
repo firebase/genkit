@@ -1065,6 +1065,9 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
+      '@genkit-ai/mcp':
+        specifier: workspace:*
+        version: link:../../plugins/mcp
       '@genkit-ai/next':
         specifier: workspace:^
         version: link:../../plugins/next
@@ -1080,9 +1083,6 @@ importers:
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
-      genkitx-mcp:
-        specifier: workspace:*
-        version: link:../../plugins/mcp
       genkitx-ollama:
         specifier: workspace:*
         version: link:../../plugins/ollama
@@ -1129,9 +1129,6 @@ importers:
       genkitx-langchain:
         specifier: workspace:*
         version: link:../../plugins/langchain
-      genkitx-mcp:
-        specifier: workspace:*
-        version: link:../../plugins/mcp
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1
@@ -1364,6 +1361,9 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
+      '@genkit-ai/mcp':
+        specifier: workspace:*
+        version: link:../../plugins/mcp
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -1373,9 +1373,6 @@ importers:
       genkitx-langchain:
         specifier: workspace:*
         version: link:../../plugins/langchain
-      genkitx-mcp:
-        specifier: workspace:*
-        version: link:../../plugins/mcp
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1

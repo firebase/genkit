@@ -12,7 +12,7 @@ This plugin provides integration between Genkit and the [Model Context Protocol]
 To get started, you'll need Genkit and the MCP plugin:
 
 ```bash
-npm i genkit genkitx-mcp
+npm i genkit @genkit-ai/mcp
 ```
 
 ## MCP Client Manager
@@ -21,7 +21,7 @@ To connect to one or more MCP servers, you use the `createMcpManager` function. 
 
 ```ts
 import { genkit } from 'genkit';
-import { createMcpManager } from 'genkitx-mcp';
+import { createMcpManager } from '@genkit-ai/mcp';
 
 // Example: Configure a client manager for a local filesystem server
 // and a hypothetical remote Git server.
@@ -90,7 +90,7 @@ For scenarios where you only need to connect to a single MCP server, or prefer t
 
 ```ts
 import { genkit } from 'genkit';
-import { createMcpClient } from 'genkitx-mcp';
+import { createMcpClient } from '@genkit-ai/mcp';
 
 const myFsClient = createMcpClient({
   name: 'myFileSystemClient', // A unique name for this client instance
@@ -129,22 +129,6 @@ The `createMcpClient` function takes an `McpClientOptions` object:
 -   **`version`**: (optional, string) Version for this client instance. Defaults to "1.0.0".
 -   Plus, all options from `McpServerConfig` (see `disabled`, `rawToolResponses`, and transport configurations under `createMcpManager` options).
 
-### [Deprecated] `mcpClient()`
-
-Note: This method is deprecated, please use `createMcpClient` or `createMcpManager` instead.
-
-For simpler scenarios involving a single MCP server, or for backward compatibility, the legacy `mcpClient()` function is still available:
-
-```ts
-import { mcpClient } from 'genkitx-mcp/legacy'; // Note the import path
-
-const legacyFilesystemClient = mcpClient({
-  name: 'filesystemLegacy',
-  serverProcess: { /* ... */ },
-});
-```
-This function takes similar options to a single server configuration within `createMcpManager` (e.g., `name`, `version`, `serverProcess`, `rawToolResponses`) and directly returns a Genkit plugin for that single client. It is recommended to use `createMcpManager` for new projects.
-
 ### Using MCP Actions (Tools, Prompts, Resources)
 
 Both `GenkitMcpManager` (via `getActiveTools()`) and `GenkitMcpClient` (via `getActiveTools()`) discover available tools from their connected and enabled MCP server(s). These tools are standard Genkit `ToolAction` instances and can be provided to Genkit models.
@@ -175,7 +159,7 @@ You can also expose all of the tools and prompts from a Genkit instance as an MC
 
 ```ts
 import { genkit, z } from 'genkit';
-import { createMcpServer } from 'genkitx-mcp'; // Updated import
+import { createMcpServer } from '@genkit-ai/mcp'; // Updated import
 
 const ai = genkit({});
 

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+import { mcpServer } from '@genkit-ai/mcp';
 import { genkit, z } from 'genkit';
-import { mcpServer } from 'genkitx-mcp';
 
 const ai = genkit({});
 

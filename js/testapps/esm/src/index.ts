@@ -22,6 +22,11 @@ import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { firebaseContext } from '@genkit-ai/firebase/context';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import { googleAI } from '@genkit-ai/googleai';
+import {
+  createMcpClient,
+  createMcpManager,
+  createMcpServer,
+} from '@genkit-ai/mcp';
 import { appRoute } from '@genkit-ai/next';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { vertexAIEvaluation } from '@genkit-ai/vertexai/evaluation';
@@ -29,11 +34,6 @@ import { vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
 import { vertexAIRerankers } from '@genkit-ai/vertexai/rerankers';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
-import {
-  createMcpClient,
-  createMcpManager,
-  createMcpServer,
-} from 'genkitx-mcp';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 

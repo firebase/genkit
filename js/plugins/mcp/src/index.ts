@@ -23,8 +23,6 @@ import {
 } from './client/client.js';
 import { GenkitMcpManager, McpManagerOptions } from './client/index.js';
 import { GenkitMcpServer } from './server.js';
-
-export { mcpClient, type LegacyMcpClientOptions } from './client/legacy.js';
 export {
   GenkitMcpClient,
   GenkitMcpManager,

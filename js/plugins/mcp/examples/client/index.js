@@ -15,9 +15,9 @@
  */
 
 import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
+import { mcpClient } from '@genkit-ai/mcp';
 import { genkit } from 'genkit';
 import { logger } from 'genkit/logging';
-import { mcpClient } from 'genkitx-mcp';
 
 logger.setLogLevel('debug');
 
