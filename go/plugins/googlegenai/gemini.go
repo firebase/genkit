@@ -95,9 +95,8 @@ func configToMap(config any) map[string]any {
 		ExpandedStruct: true, // Include all fields directly
 		// Prevent stack overflow panic due type traversal recursion (circular references)
 		// [genai.Schema] should not be used at this point since Schema is provided later
-		// in toGeminiRequest function
-		// NOTE:: keep track of updated fields in [genai.GenerateContentConfig] since
-		// they could create runtime panics when parsing configs
+		// NOTE: keep track of updated fields in [genai.GenerateContentConfig] since
+		// they could create runtime panics when parsing fields with type recursion
 		IgnoredTypes: []any{genai.Schema{}},
 	}
 	schema := r.Reflect(config)
@@ -627,7 +626,7 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		}
 		if part.InlineData != nil {
 			partFound++
-			p = ai.NewMediaPart(part.InlineData.MIMEType, base64.StdEncoding.EncodeToString(part.InlineData.Data))
+			p = ai.NewMediaPart(part.InlineData.MIMEType, "data:"+part.InlineData.MIMEType+";base64,"+base64.StdEncoding.EncodeToString((part.InlineData.Data)))
 		}
 		if part.FileData != nil {
 			partFound++

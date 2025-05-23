@@ -36,7 +36,7 @@ type duneQuestionInput struct {
 func main() {
 	ctx := context.Background()
 	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
+		genkit.WithDefaultModel("googleai/gemini-2.5-flash-preview-04-17"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 	)
 	if err != nil {
@@ -69,7 +69,6 @@ func main() {
 		if err != nil {
 			return "", nil
 		}
-
 		// use previous messages to keep the conversation going and keep
 		// asking questions related to the large content that was cached
 		resp, err = genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
