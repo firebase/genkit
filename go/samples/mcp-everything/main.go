@@ -31,6 +31,7 @@ func main() {
 	// Uncomment the one you want to run
 
 	runMCPEverything()
+	//runMCPDecoupled()
 	//runDirectToolTest()
 }
 
@@ -46,7 +47,7 @@ func runMCPEverything() {
 
 	log.Println("Creating MCP client with 'everything' server...")
 	// Create an MCP client with the "everything" server using the plugin approach
-	client := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
+	client, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
 		Name:    "everything",
 		Version: "1.0.0",
 		// Start the "everything" server as a child process using stdio transport
@@ -55,14 +56,11 @@ func runMCPEverything() {
 			Args:    []string{"@modelcontextprotocol/server-everything"},
 		},
 	})
-
-	// Wait for the client to be ready
-	select {
-	case <-client.Ready():
-		log.Println("MCP client is ready")
-	case <-ctx.Done():
-		log.Fatalf("Context cancelled while waiting for MCP client: %v", ctx.Err())
+	if err != nil {
+		log.Fatalf("Failed to create MCP client: %v", err)
 	}
+
+	log.Println("MCP client is ready")
 
 	log.Println("Initializing Genkit with plugins...")
 	// Initialize Genkit with both plugins
@@ -111,7 +109,7 @@ func runDirectToolTest() {
 	ctx := context.Background()
 
 	// Create MCP client
-	client := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
+	client, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
 		Name:    "everything",
 		Version: "1.0.0",
 		Stdio: &mcp.StdioConfig{
@@ -119,14 +117,11 @@ func runDirectToolTest() {
 			Args:    []string{"@modelcontextprotocol/server-everything"},
 		},
 	})
-
-	// Wait for the client to be ready
-	select {
-	case <-client.Ready():
-		log.Println("MCP client is ready")
-	case <-ctx.Done():
-		log.Fatalf("Context cancelled while waiting for MCP client: %v", ctx.Err())
+	if err != nil {
+		log.Fatalf("Failed to create MCP client: %v", err)
 	}
+
+	log.Println("MCP client is ready")
 
 	// Initialize Genkit without Google AI plugin
 	g, err := genkit.Init(ctx)

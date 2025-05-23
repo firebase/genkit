@@ -18,6 +18,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/mark3labs/mcp-go/client"
@@ -66,19 +67,14 @@ type ServerRef struct {
 }
 
 // GenkitMCPClient represents a client for interacting with MCP servers.
-// Unlike the original MCPClient, this doesn't implement the genkit.Plugin interface.
 type GenkitMCPClient struct {
-	options        MCPClientOptions
-	server         *ServerRef
-	ready          bool
-	readyListeners []struct {
-		resolve func()
-		reject  func(error)
-	}
+	options MCPClientOptions
+	server  *ServerRef
 }
 
 // NewGenkitMCPClient creates a new GenkitMCPClient with the given options.
-func NewGenkitMCPClient(options MCPClientOptions) *GenkitMCPClient {
+// Returns an error if the initial connection fails.
+func NewGenkitMCPClient(options MCPClientOptions) (*GenkitMCPClient, error) {
 	// Set default values
 	if options.Name == "" {
 		options.Name = "unnamed"
@@ -89,92 +85,22 @@ func NewGenkitMCPClient(options MCPClientOptions) *GenkitMCPClient {
 
 	client := &GenkitMCPClient{
 		options: options,
-		ready:   false,
-		readyListeners: []struct {
-			resolve func()
-			reject  func(error)
-		}{},
 	}
 
-	// Initialize the connection
-	go client.initializeConnection()
-
-	return client
-}
-
-// initializeConnection initializes the MCP server connection
-func (c *GenkitMCPClient) initializeConnection() {
-	c.ready = false
-
-	err := c.connect(c.options)
-	if err != nil {
-		// Notify listeners of failure
-		for _, listener := range c.readyListeners {
-			listener.reject(err)
-		}
-		c.readyListeners = nil
-		return
+	if err := client.connect(options); err != nil {
+		return nil, fmt.Errorf("failed to initialize MCP client: %w", err)
 	}
 
-	// Mark as ready and notify listeners
-	c.ready = true
-	for _, listener := range c.readyListeners {
-		listener.resolve()
-	}
-	c.readyListeners = nil
-}
-
-// Ready returns a channel that is closed when the client is ready
-func (c *GenkitMCPClient) Ready() <-chan struct{} {
-	ch := make(chan struct{})
-	if c.ready {
-		close(ch)
-		return ch
-	}
-
-	c.readyListeners = append(c.readyListeners, struct {
-		resolve func()
-		reject  func(error)
-	}{
-		resolve: func() { close(ch) },
-		reject:  func(error) { close(ch) },
-	})
-
-	return ch
-}
-
-// WaitForReady blocks until the client is ready or returns an error
-func (c *GenkitMCPClient) WaitForReady(ctx context.Context) error {
-	if c.ready {
-		return nil
-	}
-
-	errCh := make(chan error, 1)
-	readyCh := make(chan struct{})
-
-	c.readyListeners = append(c.readyListeners, struct {
-		resolve func()
-		reject  func(error)
-	}{
-		resolve: func() { close(readyCh) },
-		reject:  func(err error) { errCh <- err },
-	})
-
-	select {
-	case <-readyCh:
-		return nil
-	case err := <-errCh:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return client, nil
 }
 
 // connect establishes a connection to an MCP server
 func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
 	// Close existing connection if any
 	if c.server != nil {
-		c.server.Transport.Close()
+		if err := c.server.Transport.Close(); err != nil {
+			log.Printf("Warning: error closing previous transport: %v", err)
+		}
 	}
 
 	// Create and configure transport
@@ -280,7 +206,9 @@ func (c *GenkitMCPClient) Reenable() {
 // Restart restarts the transport connection
 func (c *GenkitMCPClient) Restart(ctx context.Context) error {
 	if c.server != nil {
-		c.server.Transport.Close()
+		if err := c.server.Transport.Close(); err != nil {
+			log.Printf("Warning: error closing transport during restart: %v", err)
+		}
 		c.server = nil
 	}
 	return c.connect(c.options)
