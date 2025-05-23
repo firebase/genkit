@@ -62,13 +62,7 @@ class EmbeddingTaskType(StrEnum):
 
 def default_embedder_info(name: str) -> dict[str, Any]:
     """Returns default info for embedders given a name."""
-    return {
-        'dimensions': 768,
-        'label': f'Google AI - {name}',
-        'supports': {
-            'input': ['text']
-        }
-    }
+    return {'dimensions': 768, 'label': f'Google AI - {name}', 'supports': {'input': ['text']}}
 
 
 class Embedder:

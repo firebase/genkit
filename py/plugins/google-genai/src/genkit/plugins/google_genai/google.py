@@ -426,7 +426,7 @@ class VertexAI(Plugin):
                     'name': vertexai_name(name),
                     'kind': ActionKind.EMBEDDER,
                     'config_schema': EmbedContentConfig,
-                    'info': default_embedder_info(name)
+                    'info': default_embedder_info(name),
                 })
             # List all the vertexai models for generate actions
             info = google_model_info(name)
