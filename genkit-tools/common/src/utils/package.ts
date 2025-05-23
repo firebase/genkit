@@ -18,4 +18,25 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const packagePath = join(__dirname, '../../../package.json');
-export const toolsPackage = JSON.parse(readFileSync(packagePath, 'utf8'));
+
+interface MinimalPackageJson {
+  name: string;
+  version: string;
+  [key: string]: any;
+}
+
+// Attempt to read package.json, with a fallback for safety,
+// though Bun's bundling should make this reliable.
+let pkg: MinimalPackageJson;
+try {
+  pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as MinimalPackageJson;
+} catch (e) {
+  // This fallback should ideally not be hit if Bun bundles the package.json correctly.
+  // Logging a warning if it does get hit during development or in a strange environment.
+  console.warn(
+    `[genkit-tools-common] Warning: Could not read package.json at '${packagePath}'. Using fallback values. Error: ${e}`
+  );
+  pkg = { name: 'genkit-tools', version: '0.0.0-fallback' };
+}
+
+export const toolsPackage = pkg;
