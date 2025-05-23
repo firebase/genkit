@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package mcp provides a client for integration with the Model Context Protocol.
 package mcp
 
@@ -95,7 +109,6 @@ func (c *GenkitMCPClient) initializeConnection() {
 
 	err := c.connect(c.options)
 	if err != nil {
-		log.Printf("Failed to initialize MCP connection: %v", err)
 		// Notify listeners of failure
 		for _, listener := range c.readyListeners {
 			listener.reject(err)
@@ -160,25 +173,50 @@ func (c *GenkitMCPClient) WaitForReady(ctx context.Context) error {
 
 // connect establishes a connection to an MCP server
 func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
+	// Close existing connection if any
 	if c.server != nil {
 		if err := c.server.Transport.Close(); err != nil {
 			log.Printf("Warning: error closing previous transport: %v", err)
 		}
 	}
 
-	log.Printf("[MCP Client] Connecting to MCP server '%s'", options.Name)
+	// Create and configure transport
+	transport, err := c.createTransport(options)
+	if err != nil {
+		return err
+	}
 
-	// Create transport based on options
-	var t transport.Interface
-	var err error
+	// Start the transport
+	ctx := context.Background()
+	if err := transport.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start transport: %w", err)
+	}
 
+	// Create MCP client
+	mcpClient := client.NewClient(transport)
+
+	// Initialize the client if not disabled
+	var serverError string
+	if !options.Disabled {
+		serverError = c.initializeClient(ctx, mcpClient, options.Version)
+	}
+
+	c.server = &ServerRef{
+		Client:    mcpClient,
+		Transport: transport,
+		Error:     serverError,
+	}
+
+	return nil
+}
+
+// createTransport creates the appropriate transport based on client options
+func (c *GenkitMCPClient) createTransport(options MCPClientOptions) (transport.Interface, error) {
 	if options.Stdio != nil {
-		log.Printf("Creating stdio transport with command: %s", options.Stdio.Command)
-		// Create stdio transport
-		t = transport.NewStdio(options.Stdio.Command, options.Stdio.Env, options.Stdio.Args...)
-	} else if options.SSE != nil {
-		log.Printf("Creating SSE transport with URL: %s", options.SSE.BaseURL)
-		// Create SSE transport with options
+		return transport.NewStdio(options.Stdio.Command, options.Stdio.Env, options.Stdio.Args...), nil
+	}
+
+	if options.SSE != nil {
 		var sseOptions []transport.ClientOption
 		if options.SSE.Headers != nil {
 			sseOptions = append(sseOptions, transport.WithHeaders(options.SSE.Headers))
@@ -187,24 +225,14 @@ func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
 			sseOptions = append(sseOptions, transport.WithHTTPClient(options.SSE.HTTPClient))
 		}
 
-		t, err = transport.NewSSE(options.SSE.BaseURL, sseOptions...)
-		if err != nil {
-			return fmt.Errorf("failed to create SSE transport: %w", err)
-		}
-	} else {
-		return fmt.Errorf("no valid transport configuration provided: must specify Stdio or SSE")
+		return transport.NewSSE(options.SSE.BaseURL, sseOptions...)
 	}
 
-	// Start the transport
-	ctx := context.Background() // Using background context for now
-	if err := t.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start transport: %w", err)
-	}
+	return nil, fmt.Errorf("no valid transport configuration provided: must specify Stdio or SSE")
+}
 
-	// Create MCP client
-	mcpClient := client.NewClient(t)
-
-	// Initialize the client
+// initializeClient initializes the MCP client connection
+func (c *GenkitMCPClient) initializeClient(ctx context.Context, mcpClient *client.Client, version string) string {
 	initReq := mcp.InitializeRequest{
 		Params: struct {
 			ProtocolVersion string                 `json:"protocolVersion"`
@@ -214,29 +242,18 @@ func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
 			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
 			ClientInfo: mcp.Implementation{
 				Name:    "genkit-mcp-client",
-				Version: options.Version,
+				Version: version,
 			},
 			Capabilities: mcp.ClientCapabilities{},
 		},
 	}
 
-	var serverError string
-	if !options.Disabled {
-		// Only attempt to initialize if not disabled
-		_, err = mcpClient.Initialize(ctx, initReq)
-		if err != nil {
-			serverError = err.Error()
-			log.Printf("Warning: failed to initialize MCP client: %v", err)
-		}
+	_, err := mcpClient.Initialize(ctx, initReq)
+	if err != nil {
+		return err.Error()
 	}
 
-	c.server = &ServerRef{
-		Client:    mcpClient,
-		Transport: t,
-		Error:     serverError,
-	}
-
-	return nil
+	return ""
 }
 
 // Name returns the client name
@@ -252,7 +269,6 @@ func (c *GenkitMCPClient) IsEnabled() bool {
 // Disable temporarily disables the client
 func (c *GenkitMCPClient) Disable() {
 	if !c.options.Disabled {
-		log.Printf("[MCP Client] Disabling MCP client '%s'", c.options.Name)
 		c.options.Disabled = true
 	}
 }
@@ -260,14 +276,12 @@ func (c *GenkitMCPClient) Disable() {
 // Reenable re-enables a previously disabled client
 func (c *GenkitMCPClient) Reenable() {
 	if c.options.Disabled {
-		log.Printf("[MCP Client] Re-enabling MCP client '%s'", c.options.Name)
 		c.options.Disabled = false
 	}
 }
 
 // Restart restarts the transport connection
 func (c *GenkitMCPClient) Restart(ctx context.Context) error {
-	log.Printf("[MCP Client] Restarting connection to MCP server '%s'", c.options.Name)
 	if c.server != nil {
 		if err := c.server.Transport.Close(); err != nil {
 			log.Printf("Warning: error closing transport during restart: %v", err)
@@ -280,68 +294,9 @@ func (c *GenkitMCPClient) Restart(ctx context.Context) error {
 // Disconnect closes the connection to the MCP server
 func (c *GenkitMCPClient) Disconnect() error {
 	if c.server != nil {
-		log.Printf("[MCP Client] Disconnecting from MCP server '%s'", c.options.Name)
 		err := c.server.Transport.Close()
 		c.server = nil
 		return err
 	}
 	return nil
 }
-
-/*
-// MCPPlugin implements the genkit.Plugin interface to provide MCP functionality
-// as a Genkit plugin while using the GenkitMCPClient underneath
-type MCPPlugin struct {
-	client *GenkitMCPClient
-}
-
-// NewMCPPlugin creates a new MCP plugin with the given options
-func NewMCPPlugin(options MCPClientOptions) *MCPPlugin {
-	return &MCPPlugin{
-		client: NewGenkitMCPClient(options),
-	}
-}
-
-// Name returns the unique name of this plugin
-func (p *MCPPlugin) Name() string {
-	return p.client.Name()
-}
-
-// Init initializes the MCP plugin and registers it with Genkit
-func (p *MCPPlugin) Init(ctx context.Context, g *genkit.Genkit) error {
-	// Wait for the client to be ready
-	if err := p.client.WaitForReady(ctx); err != nil {
-		return fmt.Errorf("failed to initialize MCP client: %w", err)
-	}
-
-	// Skip if this client is disabled
-	if !p.client.IsEnabled() {
-		log.Println("MCP client is disabled, skipping initialization")
-		return nil
-	}
-
-	log.Println("Registering MCP tools...")
-	tools, err := p.client.GetActiveTools(ctx, g)
-	if err != nil {
-		return fmt.Errorf("failed to register tools: %w", err)
-	}
-
-	log.Printf("Registered %d MCP tools", len(tools))
-	return nil
-}
-
-// GetActiveTools returns all active tools from the underlying client
-func (p *MCPPlugin) GetActiveTools(ctx context.Context, g *genkit.Genkit) ([]ai.Tool, error) {
-	return p.client.GetActiveTools(ctx, g)
-}
-
-// GetPrompt retrieves a prompt from the underlying client
-func (p *MCPPlugin) GetPrompt(ctx context.Context, g *genkit.Genkit, promptName string, args map[string]string) (*ai.Prompt, error) {
-	return p.client.GetPrompt(ctx, g, promptName, args)
-}
-
-// For backward compatibility, keep the original function name
-func NewMCPClient(options MCPClientOptions) *MCPPlugin {
-	return NewMCPPlugin(options)
-}
-*/

@@ -90,8 +90,8 @@ func runMCPEverything() {
 		ai.WithPrompt("Please use the 'everything_echo' tool to echo a message. You MUST provide the 'message' parameter with the exact value 'Hello from MCP!' as follows: { \"message\": \"Hello from MCP!\" }"),
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 		ai.WithTools(
-			ai.LookupTool(g.Registry(), "everything_echo"),
-			ai.LookupTool(g.Registry(), "everything_add"),
+			genkit.LookupTool(g, "everything_echo"),
+			genkit.LookupTool(g, "everything_add"),
 		))
 
 	// Generate the response with tools
@@ -226,7 +226,7 @@ func runDirectToolTest() {
 	log.Printf("Found %d tools from MCP client", len(tools))
 
 	// Find the echo tool directly from registry to test
-	echoTool := ai.LookupTool(g.Registry(), "everything_echo")
+	echoTool := genkit.LookupTool(g, "everything_echo")
 	if echoTool == nil {
 		log.Fatalf("Could not find the 'everything_echo' tool")
 	}

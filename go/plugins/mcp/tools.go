@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package mcp provides a client for integration with the Model Context Protocol.
 package mcp
 
@@ -95,13 +109,13 @@ func (c *GenkitMCPClient) fetchToolsPage(ctx context.Context, cursor mcp.Cursor)
 
 // registerTool converts a single MCP tool to a Genkit tool
 // Returns nil for the tool if it already exists in the registry
-func (c *GenkitMCPClient) registerTool(ctx context.Context, gk *genkit.Genkit, mcpTool mcp.Tool) (ai.Tool, error) {
+func (c *GenkitMCPClient) registerTool(ctx context.Context, g *genkit.Genkit, mcpTool mcp.Tool) (ai.Tool, error) {
 	// Use namespaced tool name
 	namespacedToolName := c.GetToolNameWithNamespace(mcpTool.Name)
 	log.Printf("Processing MCP Tool: %s (namespaced as %s)", mcpTool.Name, namespacedToolName)
 
 	// Check if the tool already exists in the registry
-	existingTool := ai.LookupTool(gk.Registry(), namespacedToolName)
+	existingTool := genkit.LookupTool(g, namespacedToolName)
 	if existingTool != nil {
 		log.Printf("Found existing tool %s in registry, reusing it", namespacedToolName)
 		return existingTool, nil
@@ -118,7 +132,7 @@ func (c *GenkitMCPClient) registerTool(ctx context.Context, gk *genkit.Genkit, m
 
 	// Register the tool with Genkit
 	tool := ai.DefineToolWithInputSchema(
-		gk.Registry(),
+		g.Registry(),
 		namespacedToolName,
 		mcpTool.Description,
 		inputSchemaForAI,
