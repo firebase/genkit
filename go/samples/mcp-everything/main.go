@@ -31,7 +31,6 @@ func main() {
 	// Uncomment the one you want to run
 
 	runMCPEverything()
-	//runMCPDecoupled()
 	//runDirectToolTest()
 }
 
@@ -103,88 +102,6 @@ func runMCPEverything() {
 	// Print the response
 	log.Println("Generated response:")
 	fmt.Println(response.Text())
-}
-
-// Example using the decoupled client approach
-func runMCPDecoupled() {
-	log.Println("Starting MCP everything sample with decoupled client approach...")
-
-	ctx := context.Background()
-
-	log.Println("Initializing Google AI plugin...")
-	// Initialize Google AI plugin for the model
-	googleAIPlugin := &googlegenai.GoogleAI{}
-
-	log.Println("Initializing Genkit with Google AI plugin...")
-	// Initialize Genkit with just the Google AI plugin
-	g, err := genkit.Init(ctx, genkit.WithPlugins(googleAIPlugin))
-	if err != nil {
-		log.Fatalf("Failed to initialize Genkit: %v", err)
-	}
-
-	log.Println("Creating MCP client with 'everything' server...")
-	// Create an MCP client directly (not as a plugin)
-	mcpClient := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
-		Name:    "everything",
-		Version: "1.0.0",
-		// Start the "everything" server as a child process using stdio transport
-		Stdio: &mcp.StdioConfig{
-			Command: "npx",
-			Args:    []string{"@modelcontextprotocol/server-everything"},
-		},
-	})
-
-	// Wait for the client to be ready
-	select {
-	case <-mcpClient.Ready():
-		log.Println("MCP client is ready")
-	case <-ctx.Done():
-		log.Fatalf("Context cancelled while waiting for MCP client: %v", ctx.Err())
-	}
-
-	// Manually register tools from the MCP client
-	log.Println("Registering tools from MCP client...")
-	tools, err := mcpClient.GetActiveTools(ctx, g)
-	if err != nil {
-		log.Fatalf("Failed to get tools from MCP client: %v", err)
-	}
-	log.Printf("Registered %d tools from MCP client", len(tools))
-
-	// Create generation options
-	var genOptions []ai.GenerateOption
-	genOptions = append(genOptions,
-		ai.WithModelName("googleai/gemini-2.5-pro-preview-05-06"),
-		ai.WithPrompt("Please use the 'everything_echo' tool to echo a message. You MUST provide the 'message' parameter with the exact value 'Hello from MCP decoupled approach!' as follows: { \"message\": \"Hello from MCP decoupled approach!\" }"),
-		ai.WithToolChoice(ai.ToolChoiceRequired))
-
-	// Add each tool individually
-	for _, tool := range tools {
-		genOptions = append(genOptions, ai.WithTools(tool))
-	}
-
-	// Generate the response with tools
-	log.Println("Creating generation request with tools...")
-	response, err := genkit.Generate(ctx, g, genOptions...)
-	if err != nil {
-		log.Fatalf("Failed to generate response: %v", err)
-	}
-
-	// Print the response
-	log.Println("Generated response:")
-	fmt.Println(response.Text())
-
-	// Print tool calls from the response
-	log.Println("Tool call information:")
-	for _, part := range response.Message.Content {
-		if part.IsToolRequest() {
-			log.Printf("Tool request: %s, Arguments: %v",
-				part.ToolRequest.Name, part.ToolRequest.Input)
-		}
-		if part.IsToolResponse() {
-			log.Printf("Tool response: %s, Result: %v",
-				part.ToolResponse.Name, part.ToolResponse.Output)
-		}
-	}
 }
 
 // Test function to directly call the echo tool with the correct parameters
