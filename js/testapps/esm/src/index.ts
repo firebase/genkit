@@ -29,6 +29,11 @@ import { vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
 import { vertexAIRerankers } from '@genkit-ai/vertexai/rerankers';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
+import {
+  createMcpClient,
+  createMcpManager,
+  createMcpServer,
+} from 'genkitx-mcp';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
@@ -46,6 +51,9 @@ pinecone;
 chroma;
 devLocalVectorstore;
 genkitEval;
+createMcpClient;
+createMcpServer;
+createMcpManager;
 
 export const ai = genkit({});
 const hello = ai.defineFlow('hello', () => 'hello');

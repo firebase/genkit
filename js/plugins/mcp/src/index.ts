@@ -15,16 +15,16 @@
  */
 
 import type { Genkit } from 'genkit';
-import { GenkitMcpManager, McpManagerOptions } from './client';
 import {
   GenkitMcpClient,
   McpClientOptions,
   McpServerConfig,
   McpStdioServerConfig,
-} from './client/client';
-import { GenkitMcpServer } from './server';
+} from './client/client.js';
+import { GenkitMcpManager, McpManagerOptions } from './client/index.js';
+import { GenkitMcpServer } from './server.js';
 
-export { mcpClient, type LegacyMcpClientOptions } from './client/legacy';
+export { mcpClient, type LegacyMcpClientOptions } from './client/legacy.js';
 export {
   GenkitMcpClient,
   GenkitMcpManager,

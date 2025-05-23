@@ -39,10 +39,11 @@
   "license": "Apache-2.0",
   "peerDependencies": {
     "genkit": "workspace:^",
-    "@genkit-ai/ai": "workspace:^",
     "@modelcontextprotocol/sdk": "^1.8.0"
   },
   "devDependencies": {
+    "get-port": "^5.1.0",
+    "express": "^5.1.0",
     "@jest/globals": "^29.7.0",
     "@types/node": "^20.11.16",
     "jest": "^29.7.0",

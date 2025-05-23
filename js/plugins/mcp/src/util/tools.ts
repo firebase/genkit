@@ -105,7 +105,7 @@ function createDynamicTool(
   params: { serverName: string; name: string; rawToolResponses?: boolean }
 ): ToolAction {
   logger.debug(
-    `[MCP] Registering dynamic tool '${params.name}/${tool.name}'' from server '${params.serverName}'`
+    `[MCP] Registering dynamic tool '${params.name}/${tool.name}' from server '${params.serverName}'`
   );
   return ai.dynamicTool(
     {

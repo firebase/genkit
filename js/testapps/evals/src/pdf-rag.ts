@@ -24,7 +24,7 @@ import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import { getDocument } from 'pdfjs-dist-legacy';
-import { ai, clientManager } from './genkit.js';
+import { ai } from './genkit.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
@@ -89,59 +89,6 @@ export const simpleStructured = ai.defineFlow(
       prompt: i.query,
     });
     return { response: llmResponse.text };
-  }
-);
-
-// Define a simple flow
-export const simpleEcho = ai.defineFlow(
-  {
-    name: 'simpleEcho',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-  },
-  async (i) => {
-    const tools = await clientManager.getActiveTools(ai);
-    const llmResponse = await ai.generate({
-      model: gemini15Flash,
-      prompt: i,
-      tools,
-    });
-    return llmResponse.text;
-  }
-);
-
-// MCP Controls
-export const controlMcp = ai.defineFlow(
-  {
-    name: 'controlMcp',
-    inputSchema: z.object({
-      action: z.enum([
-        'RECONNECT',
-        'REENABLE',
-        'DISABLE',
-        'DISCONNECT',
-      ] as const),
-      clientId: z.string().optional(),
-    }),
-    outputSchema: z.string(),
-  },
-  async ({ action, clientId }) => {
-    const id = clientId ?? 'git-client';
-    switch (action) {
-      case 'DISABLE':
-        await clientManager.disable(id);
-        break;
-      case 'DISCONNECT':
-        await clientManager.disconnect(id);
-        break;
-      case 'RECONNECT':
-        await clientManager.reconnect(id);
-        break;
-      case 'REENABLE':
-        await clientManager.reenable(id);
-        break;
-    }
-    return action;
   }
 );
 

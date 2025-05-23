@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-export * from './message';
-export * from './prompts';
-export * from './resources';
-export * from './tools';
-export * from './transport';
+export * from './message.js';
+export * from './prompts.js';
+export * from './resources.js';
+export * from './tools.js';
+export * from './transport.js';

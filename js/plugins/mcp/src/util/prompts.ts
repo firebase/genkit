@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-import {
-  // GenerateResponse as AiGenerateResponse,
-  // GenerateStreamResponse as AiGenerateStreamResponse,
-  ExecutablePrompt,
-  GenerateResponseChunk,
-  PromptGenerateOptions,
-} from '@genkit-ai/ai';
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 import {
-  GenerateResponse as AiGenerateResponse,
-  GenerateStreamResponse as AiGenerateStreamResponse,
+  ExecutablePrompt,
   GenerateOptions,
+  GenerateResponse,
+  GenerateStreamResponse,
   Genkit,
   GenkitError,
   JSONSchema,
-  MessageData,
   ToolAction,
   z,
+  type PromptGenerateOptions,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { fromMcpPromptMessage } from './message.js';
@@ -92,82 +86,45 @@ function createExecutablePrompt<
 >(
   client: any, // Use 'any' or let TS infer; removing specific type import
   prompt: Prompt,
-  params: { name: string; serverName: string }
+  params: {
+    ai: Genkit;
+    name: string;
+    serverName: string;
+    promptName: string;
+    options?: PromptGenerateOptions<any, any>;
+  }
 ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
   const callPrompt = async (
     input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
-  ): Promise<AiGenerateResponse<z.infer<O>>> => {
-    logger.debug(
-      `[MCP] Calling MCP prompt ${params.name}/${prompt.name} with arguments`,
-      JSON.stringify(input)
-    );
-    const result = await client.getPrompt({
-      name: prompt.name,
-      arguments: input,
-    });
-    const messages = result.messages.map(fromMcpPromptMessage);
-    return new AiGenerateResponse<z.infer<O>>({ message: messages.at(-1) });
+  ): Promise<GenerateResponse<z.infer<O>>> => {
+    logger.debug(`[MCP] Calling MCP prompt ${params.name}/${prompt.name}`);
+    return params.ai.generate(callPrompt.render(input, opts));
   };
 
   callPrompt.stream = (
     input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
-  ): AiGenerateStreamResponse<z.infer<O>> => {
-    logger.debug(
-      `[MCP] Streaming MCP prompt ${params.name}/${prompt.name} with arguments`,
-      JSON.stringify(input)
-    );
-    // const result = await client.getPrompt({
-    //   name: prompt.name,
-    //   arguments: input,
-    // });
-    // const messages: MessageData[] = result.messages.map(fromMcpPromptMessage);
-
-    return {
-      get stream(): AsyncIterable<GenerateResponseChunk> {
-        async function* generateAsyncIterable() {
-          const result = await client.getPrompt({
-            name: prompt.name,
-            arguments: input,
-          });
-          const messages: MessageData[] =
-            result.messages.map(fromMcpPromptMessage);
-
-          for (let index = 0; index < messages.length; index++) {
-            yield new GenerateResponseChunk(messages[index], {
-              role: messages[index].role,
-              index,
-            });
-          }
-        }
-        return generateAsyncIterable();
-      },
-
-      get response(): Promise<AiGenerateResponse<O>> {
-        return new Promise(async (resolve) => {
-          const result = await client.getPrompt({
-            name: prompt.name,
-            arguments: input,
-          });
-          const messages = result.messages.map(fromMcpPromptMessage);
-
-          resolve(
-            new AiGenerateResponse<z.infer<O>>({ message: messages.at(-1) })
-          );
-        });
-      },
-    } as AiGenerateStreamResponse<O>;
+  ): GenerateStreamResponse<z.infer<O>> => {
+    logger.debug(`[MCP] Streaming MCP prompt ${params.name}/${prompt.name}`);
+    return params.ai.generateStream(callPrompt.render(input, opts));
   };
 
   callPrompt.render = async (
     input?: I,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateOptions<O, CustomOptions>> => {
-    throw new GenkitError({
-      status: 'UNIMPLEMENTED',
-      message: `[MCP] prompt.render not supported with MCP`,
+    logger.debug(`[MCP] Rendering MCP prompt ${params.name}/${prompt.name}`);
+    const result = await client.getPrompt({
+      name: prompt.name,
+      arguments: input,
     });
+    const messages = result.messages.map(fromMcpPromptMessage);
+    return {
+      ...params.options,
+      ...opts,
+      messages,
+    };
   };
 
   callPrompt.asTool = async (): Promise<ToolAction> => {
@@ -198,32 +155,17 @@ export async function registerAllPrompts(
 }
 
 /**
- * Lookup all tools available in the server and register each as a Genkit tool.
- */
-export async function createExecutablePrompts(
-  client: any, // Use 'any' or let TS infer; removing specific type import
-  params: { name: string; serverName: string }
-): Promise<ExecutablePrompt[]> {
-  let cursor: string | undefined;
-
-  let allPrompts: ExecutablePrompt[] = [];
-  while (true) {
-    const { nextCursor, prompts } = await client.listPrompts({ cursor });
-    allPrompts.push(
-      ...prompts.map((p) => createExecutablePrompt(client, p, params))
-    );
-    cursor = nextCursor;
-    if (!cursor) break;
-  }
-  return allPrompts;
-}
-
-/**
  * Lookup a specified prompt from the server and return as an ExecutablePrompt.
  */
 export async function getExecutablePrompt(
   client: any, // Use 'any' or let TS infer; removing specific type import
-  params: { name: string; serverName: string; promptName: string }
+  params: {
+    name: string;
+    serverName: string;
+    promptName: string;
+    ai: Genkit;
+    options?: PromptGenerateOptions;
+  }
 ): Promise<ExecutablePrompt | undefined> {
   let cursor: string | undefined;
 

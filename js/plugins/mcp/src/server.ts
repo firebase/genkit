@@ -170,7 +170,14 @@ export class GenkitMcpServer {
         message: `Tried to call tool '${req.params.name}' but it could not be found.`,
       });
     const result = await tool(req.params.arguments);
-    return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    return {
+      content: [
+        {
+          type: 'text',
+          text: typeof result === 'string' ? result : JSON.stringify(result),
+        },
+      ],
+    };
   }
 
   /**

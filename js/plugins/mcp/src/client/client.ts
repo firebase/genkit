@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-import { ExecutablePrompt } from '@genkit-ai/ai';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { Genkit, GenkitError, ToolAction } from 'genkit';
+import {
+  ExecutablePrompt,
+  Genkit,
+  GenkitError,
+  PromptGenerateOptions,
+  ToolAction,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   fetchDynamicResourceTools,
@@ -295,16 +300,22 @@ export class GenkitMcpClient {
    * Get the specified prompt as an `ExecutablePrompt` available through this
    * client. If no such prompt is found, return undefined.
    */
-  async getPrompt(promptName: string): Promise<ExecutablePrompt | undefined> {
+  async getPrompt(
+    ai: Genkit,
+    promptName: string,
+    opts?: PromptGenerateOptions
+  ): Promise<ExecutablePrompt | undefined> {
     await this.ready();
 
     if (this._server) {
       const capabilities = await this._server.client.getServerCapabilities();
       if (capabilities?.prompts) {
         return await getExecutablePrompt(this._server.client, {
+          ai,
           serverName: this.name,
           promptName,
           name: this.name,
+          options: opts,
         });
       }
       logger.info(`[MCP Client] No prompts are found in this MCP server.`);

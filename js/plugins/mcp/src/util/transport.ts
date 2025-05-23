@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { McpServerConfig } from '../client/client';
+import { McpServerConfig } from '../client/client.js';
 import type {
   SSEClientTransportOptions,
   StdioServerParameters,
   Transport,
-} from '../client/index';
+} from '../client/index.js';
 
 /**
  * Creates an MCP transport instance based on the provided server configuration.

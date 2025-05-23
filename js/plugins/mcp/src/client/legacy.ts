@@ -22,7 +22,7 @@ import {
   registerAllPrompts,
   registerAllTools,
   registerResourceTools,
-} from '../util';
+} from '../util/index.js';
 
 export interface LegacyMcpClientOptions {
   /** Provide a name for this client which will be its namespace for all tools and prompts. */

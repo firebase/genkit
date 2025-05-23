@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-import { ExecutablePrompt } from '@genkit-ai/ai';
-import { Genkit, ToolAction } from 'genkit';
+import {
+  ExecutablePrompt,
+  Genkit,
+  PromptGenerateOptions,
+  ToolAction,
+} from 'genkit';
 import { logger } from 'genkit/logging';
-import { GenkitMcpClient, McpServerConfig } from './client';
+import { GenkitMcpClient, McpServerConfig } from './client.js';
 
 export interface McpManagerOptions {
   /**
@@ -273,14 +277,15 @@ export class GenkitMcpManager {
     for (const serverName in this._clients) {
       const client = this._clients[serverName];
       if (client.isEnabled() && !this.hasError(serverName)) {
-        const tools = await client.getActiveTools(ai).catch((e) => {
+        try {
+          const tools = await client.getActiveTools(ai);
+          allTools.push(...tools);
+        } catch (e) {
           logger.error(
             `Error fetching active tools from client ${serverName}.`,
             JSON.stringify(e)
           );
-          return [] as ToolAction[];
-        });
-        allTools.push(...tools);
+        }
       }
     }
 
@@ -292,9 +297,11 @@ export class GenkitMcpManager {
    * specified server. If no such prompt is found, return undefined.
    */
   async getPrompt(
+    ai: Genkit,
     serverName: string,
-    promptName: string
-  ): Promise<ExecutablePrompt | undefined> {
+    promptName: string,
+    opts?: PromptGenerateOptions
+  ): Promise<ExecutablePrompt<any> | undefined> {
     await this.ready();
     const client = this._clients[serverName];
     if (!client) {
@@ -310,7 +317,7 @@ export class GenkitMcpManager {
       );
     }
     if (client.isEnabled()) {
-      const prompt = await client.getPrompt(promptName);
+      const prompt = await client.getPrompt(ai, promptName, opts);
       if (!prompt) {
         logger.error(
           `[MCP Manager] Unable to fetch the specified ${promptName} in server ${serverName}.`
@@ -320,6 +327,12 @@ export class GenkitMcpManager {
       return prompt;
     }
     return;
+  }
+
+  async close() {
+    for (const client of Object.values(this._clients)) {
+      await client.disconnect();
+    }
   }
 
   /** Helper method to track and log client errors. */
