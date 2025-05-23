@@ -344,10 +344,10 @@ export class GenkitMcpManager {
     }
   ) {
     this._clientStates[serverName] = { error };
-    logger.error(
+    logger.warn(
       `An error has occured while managing your MCP client '${serverName}'. The client may be disabled to avoid further issues. Please resolve the issue and reenable the client '${serverName}' to continue using its resources.`
     );
-    logger.error(error);
+    logger.warn(error);
   }
 
   private hasError(serverName: string) {
