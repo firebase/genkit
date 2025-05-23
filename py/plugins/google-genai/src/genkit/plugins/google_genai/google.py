@@ -206,26 +206,30 @@ class GoogleAI(Plugin):
             fn=embedder.generate,
         )
 
-    def list_actions(self, kind: ActionKind) -> list[str]:
+    def list_actions(self) -> list[dict[str, str]]:
         """Generate a list of available actions or models.
 
-        Args:
-            kind: Supported kind
-
         Returns:
-            List of model names.
+            list of actions dicts with the following shape:
+            {
+                'name': str,
+                'kind': ActionKind,
+            }
         """
-        _supported_action = ''
-        if kind == ActionKind.MODEL:
-            _supported_action = 'generateContent'
-        elif kind == ActionKind.EMBEDDER:
-            _supported_action = 'embedContent'
-
         actions_list = list()
         for m in self._client.models.list():
-            if _supported_action in m.supported_actions:
-                name = m.name.replace('models/', '')
-                actions_list.append(googleai_name(name))
+            name = m.name.replace('models/', '')
+            if 'generateContent' in m.supported_actions:
+                actions_list.append({
+                    'name': googleai_name(name),
+                    'kind': ActionKind.MODEL,
+                })
+
+            if 'embedContent' in m.supported_actions:
+                actions_list.append({
+                    'name': googleai_name(name),
+                    'kind': ActionKind.EMBEDDER,
+                })
 
         return actions_list
 
@@ -386,23 +390,29 @@ class VertexAI(Plugin):
             fn=embedder.generate,
         )
 
-    def list_actions(self, kind: ActionKind) -> list[str]:
+    def list_actions(self) -> list[dict[str, str]]:
         """Generate a list of available actions or models.
 
-        Args:
-            kind: Supported kind
-
         Returns:
-            List of model names.
+            list of actions dicts with the following shape:
+            {
+                'name': str,
+                'kind': ActionKind,
+            }
         """
         actions_list = list()
         for m in self._client.models.list():
             name = m.name.replace('publishers/google/models/', '')
             if 'embed' in name.lower():
-                if kind == ActionKind.EMBEDDER:
-                    actions_list.append(vertexai_name(name))
-            elif kind == ActionKind.MODEL:
-                actions_list.append(vertexai_name(name))
+                actions_list.append({
+                    'name': vertexai_name(name),
+                    'kind': ActionKind.EMBEDDER,
+                })
+            # List all the vertexai models for generate actions
+            actions_list.append({
+                'name': vertexai_name(name),
+                'kind': ActionKind.MODEL,
+            })
 
         return actions_list
 

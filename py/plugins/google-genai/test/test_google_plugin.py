@@ -250,47 +250,44 @@ def test_googleai__resolve_embedder(
     )
 
 
-@pytest.mark.parametrize(
-    'kind, expected',
-    [
-        (
-            ActionKind.MODEL,
-            ['googleai/model1', 'googleai/model3'],
-        ),
-        (
-            ActionKind.EMBEDDER,
-            ['googleai/model2', 'googleai/model3'],
-        ),
-    ]
-)
-def test_googleai_list_actions(kind, expected, googleai_plugin_instance):
+def test_googleai_list_actions(googleai_plugin_instance):
     """Unit test for list actions."""
+
     class MockModel(BaseModel):
         """mock."""
+
         supported_actions: list[str]
         name: str
 
     models_return_value = [
-        MockModel(
-            supported_actions=['generateContent'],
-            name='models/model1'
-        ),
-        MockModel(
-            supported_actions=['embedContent'],
-            name='models/model2'
-        ),
-        MockModel(
-            supported_actions=['generateContent', 'embedContent'],
-            name='models/model3'
-        ),
+        MockModel(supported_actions=['generateContent'], name='models/model1'),
+        MockModel(supported_actions=['embedContent'], name='models/model2'),
+        MockModel(supported_actions=['generateContent', 'embedContent'], name='models/model3'),
     ]
 
     mock_client = MagicMock()
     mock_client.models.list.return_value = models_return_value
     googleai_plugin_instance._client = mock_client
 
-    result = googleai_plugin_instance.list_actions(kind)
-    assert result == expected
+    result = googleai_plugin_instance.list_actions()
+    assert result == [
+        {
+            'name': 'googleai/model1',
+            'kind': ActionKind.MODEL,
+        },
+        {
+            'name': 'googleai/model2',
+            'kind': ActionKind.EMBEDDER,
+        },
+        {
+            'name': 'googleai/model3',
+            'kind': ActionKind.MODEL,
+        },
+        {
+            'name': 'googleai/model3',
+            'kind': ActionKind.EMBEDDER,
+        },
+    ]
 
 
 @pytest.mark.parametrize(
@@ -651,40 +648,44 @@ def test_vertexai__resolve_embedder(
     )
 
 
-@pytest.mark.parametrize(
-    'kind, expected',
-    [
-        (
-            ActionKind.MODEL,
-            ['vertexai/model1'],
-        ),
-        (
-            ActionKind.EMBEDDER,
-            ['vertexai/model2_embeddings', 'vertexai/model3_embedder'],
-        ),
-    ]
-)
-def test_vertexai_list_actions(kind, expected, vertexai_plugin_instance):
+def test_vertexai_list_actions(vertexai_plugin_instance):
     """Unit test for list actions."""
+
     class MockModel(BaseModel):
         """mock."""
+
         name: str
 
     models_return_value = [
-        MockModel(
-            name='publishers/google/models/model1'
-        ),
-        MockModel(
-            name='publishers/google/models/model2_embeddings'
-        ),
-        MockModel(
-            name='publishers/google/models/model3_embedder'
-        ),
+        MockModel(name='publishers/google/models/model1'),
+        MockModel(name='publishers/google/models/model2_embeddings'),
+        MockModel(name='publishers/google/models/model3_embedder'),
     ]
 
     mock_client = MagicMock()
     mock_client.models.list.return_value = models_return_value
     vertexai_plugin_instance._client = mock_client
 
-    result = vertexai_plugin_instance.list_actions(kind)
-    assert result == expected
+    result = vertexai_plugin_instance.list_actions()
+    assert result == [
+        {
+            'name': 'vertexai/model1',
+            'kind': ActionKind.MODEL,
+        },
+        {
+            'name': 'vertexai/model2_embeddings',
+            'kind': ActionKind.EMBEDDER,
+        },
+        {
+            'name': 'vertexai/model2_embeddings',
+            'kind': ActionKind.MODEL,
+        },
+        {
+            'name': 'vertexai/model3_embedder',
+            'kind': ActionKind.EMBEDDER,
+        },
+        {
+            'name': 'vertexai/model3_embedder',
+            'kind': ActionKind.MODEL,
+        },
+    ]

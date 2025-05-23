@@ -75,16 +75,14 @@ class Plugin(abc.ABC):
         """
         pass
 
-    def list_actions(
-        self,
-        kind: ActionKind,
-    ) -> list[str]:
+    def list_actions(self) -> list[dict[str, str]]:
         """Generate a list of available actions or models.
 
-        Args:
-            kind: Supported kind
-
         Returns:
-            List of model names.
+            list of actions dicts with the following shape:
+            {
+                'name': str,
+                'kind': ActionKind,
+            }
         """
         return []

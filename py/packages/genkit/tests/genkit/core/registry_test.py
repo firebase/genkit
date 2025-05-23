@@ -90,25 +90,83 @@ def test_list_serializable_actions() -> None:
     }
 
 
-def test_list_actions() -> None:
+@pytest.mark.parametrize(
+    'allowed_kind, expected',
+    [
+        (
+            set([ActionKind.CUSTOM]),
+            {
+                '/custom/test_action': {
+                    'key': '/custom/test_action',
+                    'name': 'test_action',
+                    'inputSchema': {},
+                    'outputSchema': {},
+                    'metadata': {},
+                },
+            },
+        ),
+        (
+            None,
+            {
+                '/custom/test_action': {
+                    'key': '/custom/test_action',
+                    'name': 'test_action',
+                    'inputSchema': {},
+                    'outputSchema': {},
+                    'metadata': {},
+                },
+                '/tool/test_tool': {
+                    'key': '/tool/test_tool',
+                    'name': 'test_tool',
+                    'inputSchema': {},
+                    'outputSchema': {},
+                    'metadata': {},
+                },
+            },
+        ),
+        (
+            set([ActionKind.CUSTOM, ActionKind.TOOL]),
+            {
+                '/custom/test_action': {
+                    'key': '/custom/test_action',
+                    'name': 'test_action',
+                    'inputSchema': {},
+                    'outputSchema': {},
+                    'metadata': {},
+                },
+                '/tool/test_tool': {
+                    'key': '/tool/test_tool',
+                    'name': 'test_tool',
+                    'inputSchema': {},
+                    'outputSchema': {},
+                    'metadata': {},
+                },
+            },
+        ),
+    ],
+)
+def test_list_actions(allowed_kind, expected) -> None:
     """Ensure we can list actions."""
-    def list_actions_mock(kind: ActionKind):
-        return ["test_action"]
+
+    def list_actions_mock():
+        return [
+            {
+                'name': 'test_action',
+                'kind': ActionKind.CUSTOM,
+            },
+            {
+                'name': 'test_tool',
+                'kind': ActionKind.TOOL,
+            },
+        ]
 
     registry = Registry()
     registry._list_actions_resolvers['test_plugin'] = list_actions_mock
     registry._entries[ActionKind.CUSTOM] = {}
+    registry._entries[ActionKind.TOOL] = {}
 
-    got = registry.list_actions({}, set([ActionKind.CUSTOM]))
-    assert got == {
-        '/custom/test_action': {
-            'key': '/custom/test_action',
-            'name': 'test_action',
-            'inputSchema': {},
-            'outputSchema': {},
-            'metadata': {},
-        },
-    }
+    got = registry.list_actions({}, allowed_kind)
+    assert got == expected
 
 
 def test_resolve_action_from_plugin():

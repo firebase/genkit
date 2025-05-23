@@ -246,24 +246,24 @@ class Registry:
         if actions is None:
             actions = {}
 
-        if allowed_kinds is None:
-            return actions
-
         for plugin_name in self._list_actions_resolvers:
-            for kind in self._entries:
-                if kind not in allowed_kinds:
+            actions_list = self._list_actions_resolvers[plugin_name]()
+            for _action in actions_list:
+                name = _action['name']
+                kind = _action['kind']
+
+                if allowed_kinds is not None and kind not in allowed_kinds:
                     continue
-                actions_list = self._list_actions_resolvers[plugin_name](kind)
-                for name in actions_list:
-                    key = create_action_key(kind, name)
-                    if key not in actions:
-                        actions[key] = {
-                            'key': key,
-                            'name': name,
-                            'inputSchema': {},
-                            'outputSchema': {},
-                            'metadata': {},
-                        }
+                key = create_action_key(kind, name)
+
+                if key not in actions:
+                    actions[key] = {
+                        'key': key,
+                        'name': name,
+                        'inputSchema': {},
+                        'outputSchema': {},
+                        'metadata': {},
+                    }
         return actions
 
     def register_value(self, kind: str, name: str, value: Any):
