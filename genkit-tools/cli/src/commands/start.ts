@@ -36,8 +36,9 @@ export const start = new Command('start')
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
-    // Always start the manager.
-    let managerPromise: Promise<RuntimeManager> = startManager(true);
+    // Always start the manager first.
+    const manager = await startManager(true);
+
     if (!options.noui) {
       let port: number;
       if (options.port) {
@@ -49,18 +50,18 @@ export const start = new Command('start')
       } else {
         port = await getPort({ port: makeRange(4000, 4099) });
       }
-      managerPromise = managerPromise.then((manager) => {
-        startServer(manager, port);
-        return manager;
-      });
+      // Await the server startup completely.
+      // startServer is async and internally calls writeToolsInfoFile.
+      await startServer(manager, port);
       if (options.open) {
         open(`http://localhost:${port}`);
       }
     }
-    await managerPromise.then((manager: RuntimeManager) => {
-      const telemetryServerUrl = manager?.telemetryServerUrl;
-      return startRuntime(telemetryServerUrl);
-    });
+
+    // Now that the manager is initialized and the UI server (if enabled) has started
+    // (and should have written its tools file), proceed to start the runtime.
+    const telemetryServerUrl = manager?.telemetryServerUrl;
+    await startRuntime(telemetryServerUrl);
   });
 
 async function startRuntime(telemetryServerUrl?: string) {

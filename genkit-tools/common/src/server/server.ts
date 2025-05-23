@@ -45,12 +45,12 @@ const API_BASE_PATH = '/api';
 /**
  * Starts up the Genkit Tools server which includes static files for the UI and the Tools API.
  */
-export function startServer(manager: RuntimeManager, port: number) {
+export async function startServer(manager: RuntimeManager, port: number) {
   let server: Server;
   const app = express();
 
   // Download UI assets from public GCS bucket and serve locally
-  downloadAndExtractUiAssets({
+  await downloadAndExtractUiAssets({
     fileUrl: UI_ASSETS_ZIP_GCS_PATH,
     extractPath: UI_ASSETS_ROOT,
     zipFileName: UI_ASSETS_ZIP_FILE_NAME,
