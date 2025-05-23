@@ -100,7 +100,7 @@ export class GenkitMcpManager {
     const existingEntry = this._clients[serverName];
     if (existingEntry) {
       try {
-        await existingEntry.disconnect();
+        await existingEntry._disconnect();
       } catch (e) {
         existingEntry.disable();
         this.setError(serverName, {
@@ -135,7 +135,7 @@ export class GenkitMcpManager {
       `[MCP Manager] Disconnecting MCP server '${serverName}' in manager '${this.name}'.`
     );
     try {
-      await client.disconnect();
+      await client._disconnect();
     } catch (e) {
       client.disable();
       this.setError(serverName, {
@@ -331,7 +331,7 @@ export class GenkitMcpManager {
 
   async close() {
     for (const client of Object.values(this._clients)) {
-      await client.disconnect();
+      await client._disconnect();
     }
   }
 

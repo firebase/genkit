@@ -207,7 +207,7 @@ export class GenkitMcpClient {
    * Disconnects the MCP server and removes its registration
    * from this client instance.
    */
-  async disconnect() {
+  async _disconnect() {
     if (this._server) {
       logger.info(
         `[MCP Client] Disconnecting MCP server in client '${this.name}'.`
@@ -218,14 +218,14 @@ export class GenkitMcpClient {
   }
 
   /**
-   * Temporarily disables a server connection. Closes the underlying transport
-   * but retains the server's configuration. Does nothing if the server is
+   * Disables a server. Closes the underlying transport and server's configuration. Does nothing if the server is
    * already disabled.
    */
   disable() {
     if (!this.isEnabled()) return;
     if (this._server) {
       logger.info(`[MCP Client] Disabling MCP server in client '${this.name}'`);
+      this._disconnect();
       this.disabled = true;
     }
   }
@@ -244,10 +244,11 @@ export class GenkitMcpClient {
   async enable() {
     if (this.isEnabled()) return;
     if (this._server) {
+      await this.connect(this.serverConfig);
       logger.info(
         `[MCP Client] Reenabling MCP server in client '${this.name}'`
       );
-      this.disabled = false;
+      this.disabled = !!this._server.error;
     }
   }
 
@@ -261,7 +262,7 @@ export class GenkitMcpClient {
       logger.info(
         `[MCP Client] Restarting connection to MCP server in client '${this.name}'`
       );
-      await this.disconnect();
+      await this._disconnect();
       await this.connect(this.serverConfig);
     }
   }
