@@ -18,7 +18,6 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/mark3labs/mcp-go/client"
@@ -175,9 +174,7 @@ func (c *GenkitMCPClient) WaitForReady(ctx context.Context) error {
 func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
 	// Close existing connection if any
 	if c.server != nil {
-		if err := c.server.Transport.Close(); err != nil {
-			log.Printf("Warning: error closing previous transport: %v", err)
-		}
+		c.server.Transport.Close()
 	}
 
 	// Create and configure transport
@@ -283,9 +280,7 @@ func (c *GenkitMCPClient) Reenable() {
 // Restart restarts the transport connection
 func (c *GenkitMCPClient) Restart(ctx context.Context) error {
 	if c.server != nil {
-		if err := c.server.Transport.Close(); err != nil {
-			log.Printf("Warning: error closing transport during restart: %v", err)
-		}
+		c.server.Transport.Close()
 		c.server = nil
 	}
 	return c.connect(c.options)

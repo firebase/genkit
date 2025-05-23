@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -30,7 +29,7 @@ import (
 
 // GetActiveTools retrieves all tools available from the MCP server
 // and returns them as Genkit ToolAction objects
-func (c *GenkitMCPClient) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]ai.Tool, error) {
+func (c *GenkitMCPClient) GetActiveTools(ctx context.Context, g *genkit.Genkit) ([]ai.Tool, error) {
 	if !c.IsEnabled() || c.server == nil {
 		return nil, nil
 	}
@@ -42,15 +41,15 @@ func (c *GenkitMCPClient) GetActiveTools(ctx context.Context, gk *genkit.Genkit)
 	}
 
 	// Register all tools
-	return c.registerTools(ctx, gk, mcpTools)
+	return c.registerTools(ctx, g, mcpTools)
 }
 
 // registerTools registers all MCP tools with Genkit
 // It returns tools that were successfully registered
-func (c *GenkitMCPClient) registerTools(ctx context.Context, gk *genkit.Genkit, mcpTools []mcp.Tool) ([]ai.Tool, error) {
+func (c *GenkitMCPClient) registerTools(ctx context.Context, g *genkit.Genkit, mcpTools []mcp.Tool) ([]ai.Tool, error) {
 	var tools []ai.Tool
 	for _, mcpTool := range mcpTools {
-		tool, err := c.registerTool(ctx, gk, mcpTool)
+		tool, err := c.registerTool(ctx, g, mcpTool)
 		if err != nil {
 			return nil, err
 		}
@@ -112,12 +111,10 @@ func (c *GenkitMCPClient) fetchToolsPage(ctx context.Context, cursor mcp.Cursor)
 func (c *GenkitMCPClient) registerTool(ctx context.Context, g *genkit.Genkit, mcpTool mcp.Tool) (ai.Tool, error) {
 	// Use namespaced tool name
 	namespacedToolName := c.GetToolNameWithNamespace(mcpTool.Name)
-	log.Printf("Processing MCP Tool: %s (namespaced as %s)", mcpTool.Name, namespacedToolName)
 
 	// Check if the tool already exists in the registry
 	existingTool := genkit.LookupTool(g, namespacedToolName)
 	if existingTool != nil {
-		log.Printf("Found existing tool %s in registry, reusing it", namespacedToolName)
 		return existingTool, nil
 	}
 
@@ -144,10 +141,6 @@ func (c *GenkitMCPClient) registerTool(ctx context.Context, g *genkit.Genkit, mc
 
 // getInputSchema exposes the MCP input schema as a jsonschema.Schema for Genkit
 func (c *GenkitMCPClient) getInputSchema(mcpTool mcp.Tool) (*jsonschema.Schema, error) {
-	// Log the tool's input schema
-	schemaJSON, _ := json.MarshalIndent(mcpTool.InputSchema, "", "  ")
-	log.Printf("Tool %s input schema: %s", mcpTool.Name, schemaJSON)
-
 	var inputSchemaForAI *jsonschema.Schema
 	if mcpTool.InputSchema.Type != "" {
 		schemaBytes, err := json.Marshal(mcpTool.InputSchema)
@@ -156,7 +149,7 @@ func (c *GenkitMCPClient) getInputSchema(mcpTool mcp.Tool) (*jsonschema.Schema, 
 		}
 		inputSchemaForAI = new(jsonschema.Schema)
 		if err := json.Unmarshal(schemaBytes, inputSchemaForAI); err != nil {
-			log.Printf("Warning: Failed to unmarshal MCP input schema directly for tool %s: %v. Using empty schema.", mcpTool.Name, err)
+			// Fall back to empty schema if unmarshaling fails
 			inputSchemaForAI = &jsonschema.Schema{}
 		}
 	} else {
@@ -173,8 +166,6 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 	client := c.server.Client
 
 	return func(toolCtx *ai.ToolContext, args interface{}) (interface{}, error) {
-		log.Printf("Executing MCP tool %q", currentMCPTool.Name)
-
 		// Convert the arguments to the format expected by MCP
 		callToolArgs, err := prepareToolArguments(currentMCPTool, args)
 		if err != nil {
@@ -184,15 +175,9 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 		// Create and execute the MCP tool call request
 		mcpResult, err := executeToolCall(toolCtx, client, currentMCPTool.Name, callToolArgs)
 		if err != nil {
-			log.Printf("Tool %q execution failed: %v", currentMCPTool.Name, err)
 			return nil, fmt.Errorf("failed to call tool %s: %w", currentMCPTool.Name, err)
 		}
 
-		// Log successful response
-		resultJSON, _ := json.MarshalIndent(mcpResult, "", "  ")
-		log.Printf("Tool %q execution succeeded with result: %s", currentMCPTool.Name, resultJSON)
-
-		log.Printf("Returning raw tool response for %s", currentMCPTool.Name)
 		return mcpResult, nil
 	}
 }
@@ -200,46 +185,38 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 // prepareToolArguments converts Genkit tool arguments to MCP format
 // and validates required fields based on the tool's schema
 func prepareToolArguments(mcpTool mcp.Tool, args interface{}) (map[string]interface{}, error) {
-	// Log detailed information about the arguments received
-	argsJSON, _ := json.MarshalIndent(args, "", "  ")
-	log.Printf("Tool %q received arguments: %s", mcpTool.Name, argsJSON)
-
 	var callToolArgs map[string]interface{}
 	if args != nil {
-		jsonBytes, jsonErr := json.Marshal(args)
-		if jsonErr != nil {
-			log.Printf("ERROR: Failed to marshal args for tool %q: %v", mcpTool.Name, jsonErr)
-			return nil, fmt.Errorf("tool arguments must be marshallable to map[string]interface{}, got %T (marshal error: %v)", args, jsonErr)
+		jsonBytes, err := json.Marshal(args)
+		if err != nil {
+			return nil, fmt.Errorf("tool arguments must be marshallable to map[string]interface{}, got %T: %w", args, err)
 		}
-
-		log.Printf("Tool %q arguments JSON: %s", mcpTool.Name, string(jsonBytes))
 
 		if err := json.Unmarshal(jsonBytes, &callToolArgs); err != nil {
-			log.Printf("ERROR: Failed to unmarshal args to map for tool %q: %v", mcpTool.Name, err)
-			return nil, fmt.Errorf("tool arguments could not be converted to map[string]interface{} for tool %s (re-marshal/unmarshal error: %v)", mcpTool.Name, err)
+			return nil, fmt.Errorf("tool arguments could not be converted to map[string]interface{} for tool %s: %w", mcpTool.Name, err)
 		}
 	} else {
-		log.Printf("WARNING: No arguments provided for tool %q", mcpTool.Name)
 		callToolArgs = make(map[string]interface{})
 	}
 
-	// Check for required fields based on schema
-	validateRequiredArguments(mcpTool, callToolArgs)
+	// Validate required fields
+	if err := validateRequiredArguments(mcpTool, callToolArgs); err != nil {
+		return nil, err
+	}
 
 	return callToolArgs, nil
 }
 
 // validateRequiredArguments checks if all required arguments are present
-// Logs warnings if required fields are missing
-func validateRequiredArguments(mcpTool mcp.Tool, args map[string]interface{}) {
+func validateRequiredArguments(mcpTool mcp.Tool, args map[string]interface{}) error {
 	if mcpTool.InputSchema.Required != nil {
-		log.Printf("Tool %q required fields: %v", mcpTool.Name, mcpTool.InputSchema.Required)
 		for _, required := range mcpTool.InputSchema.Required {
 			if _, exists := args[required]; !exists {
-				log.Printf("ERROR: Required field %q missing for tool %q", required, mcpTool.Name)
+				return fmt.Errorf("required field %q missing for tool %q", required, mcpTool.Name)
 			}
 		}
 	}
+	return nil
 }
 
 // executeToolCall makes the actual MCP tool call
@@ -255,10 +232,6 @@ func executeToolCall(ctx context.Context, client *client.Client, toolName string
 			Meta:      nil,
 		},
 	}
-
-	// Log the actual request being sent
-	callReqJSON, _ := json.MarshalIndent(callReq, "", "  ")
-	log.Printf("Sending tool request to MCP server: %s", callReqJSON)
 
 	return client.CallTool(ctx, callReq)
 }

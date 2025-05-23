@@ -18,7 +18,6 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -133,8 +132,6 @@ func (m *MCPManager) Connect(serverName string, config MCPClientOptions) error {
 		}
 	}
 
-	log.Printf("[MCP Manager] Connecting to MCP server '%s' in manager '%s'", serverName, m.Name)
-
 	// Set the server name in the config
 	if config.Name == "" {
 		config.Name = serverName
@@ -164,8 +161,6 @@ func (m *MCPManager) Disconnect(serverName string) error {
 		return fmt.Errorf("no client found with name '%s'", serverName)
 	}
 
-	log.Printf("[MCP Manager] Disconnecting MCP server '%s' in manager '%s'", serverName, m.Name)
-
 	err := client.Disconnect()
 	if err != nil {
 		client.Disable()
@@ -184,7 +179,6 @@ func (m *MCPManager) Disable(serverName string) error {
 	}
 
 	if client.IsEnabled() {
-		log.Printf("[MCP Manager] Disabling MCP server '%s' in manager '%s'", serverName, m.Name)
 		client.Disable()
 	}
 
@@ -198,7 +192,6 @@ func (m *MCPManager) Reenable(serverName string) error {
 		return fmt.Errorf("no client found with name '%s'", serverName)
 	}
 
-	log.Printf("[MCP Manager] Reenabling MCP server '%s' in manager '%s'", serverName, m.Name)
 	client.Reenable()
 	return nil
 }
@@ -209,8 +202,6 @@ func (m *MCPManager) Restart(ctx context.Context, serverName string) error {
 	if !exists {
 		return fmt.Errorf("no client found with name '%s'", serverName)
 	}
-
-	log.Printf("[MCP Manager] Restarting connection to MCP server '%s' in manager '%s'", serverName, m.Name)
 
 	err := client.Restart(ctx)
 	if err != nil {
@@ -250,12 +241,7 @@ func (m *MCPManager) UpdateServers(mcpServers map[string]MCPClientOptions) {
 		wg.Add(1)
 		go func(name string, cfg MCPClientOptions) {
 			defer wg.Done()
-
-			err := m.Connect(name, cfg)
-			if err != nil {
-				log.Printf("[MCP Manager] Error connecting to server '%s': %v", name, err)
-			}
-
+			m.Connect(name, cfg)
 			// Remove from current servers since we're handling it
 			delete(currentServers, name)
 		}(serverName, config)
@@ -266,11 +252,7 @@ func (m *MCPManager) UpdateServers(mcpServers map[string]MCPClientOptions) {
 		wg.Add(1)
 		go func(name string) {
 			defer wg.Done()
-
-			err := m.Disconnect(name)
-			if err != nil {
-				log.Printf("[MCP Manager] Error disconnecting from server '%s': %v", name, err)
-			}
+			m.Disconnect(name)
 		}(serverName)
 	}
 
@@ -310,7 +292,9 @@ func (m *MCPManager) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]a
 
 			tools, err := c.GetActiveTools(ctx, gk)
 			if err != nil {
-				log.Printf("Error fetching active tools from client %s: %v", name, err)
+				mu.Lock()
+				errors = append(errors, fmt.Errorf("error fetching tools from client %s: %w", name, err))
+				mu.Unlock()
 				return
 			}
 
@@ -364,9 +348,7 @@ func (m *MCPManager) GetPrompt(ctx context.Context, serverName, promptName strin
 	// You'll need to implement GetPrompt on the GenkitMCPClient
 	prompt, err := m.getPromptFromClient(ctx, client, promptName)
 	if err != nil {
-		log.Printf("[MCP Manager] Unable to fetch prompt '%s' from server '%s': %v",
-			promptName, serverName, err)
-		return nil, err
+		return nil, fmt.Errorf("unable to fetch prompt '%s' from server '%s': %w", promptName, serverName, err)
 	}
 
 	return prompt, nil
@@ -380,15 +362,13 @@ func (m *MCPManager) getPromptFromClient(ctx context.Context, client *GenkitMCPC
 	return nil, fmt.Errorf("not implemented")
 }
 
-// Helper method to track and log client errors
+// Helper method to track client errors without logging
 func (m *MCPManager) setError(serverName, message string, detail interface{}) {
 	state := &ClientState{}
 	state.Error.Message = message
 	state.Error.Detail = detail
 
 	m.clientStates[serverName] = state
-
-	log.Printf("Error in MCP client '%s': %s - %v", serverName, message, detail)
 }
 
 // Check if a client has an error
