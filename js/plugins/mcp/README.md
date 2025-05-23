@@ -81,8 +81,6 @@ The `createMcpManager` function initializes a `GenkitMcpClientManager` instance,
         -   **`serverWebsocketUrl`**: (string) The URL of a remote server to connect to using the WebSocket MCP transport.
         -   **`transport`**: An existing MCP transport object for connecting to the server.
 
-Most MCP servers are built to run as spawned processes on the same machine using the `stdio` transport. When you supply the `serverProcess` option, you are specifying the command, arguments, and environment variables for spawning the server as a subprocess.
-
 
 ## MCP Client (Single Server)
 
