@@ -16,11 +16,9 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -40,10 +38,10 @@ func main() {
 	}
 
 	// Define a simple flow that generates an image of a given topic
-	genkit.DefineFlow(g, "imageFlow", func(ctx context.Context, input string) (string, error) {
+	genkit.DefineFlow(g, "imageFlow", func(ctx context.Context, input string) ([]string, error) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-exp")
 		if m == nil {
-			return "", errors.New("imageFlow: failed to find model")
+			return nil, errors.New("imageFlow: failed to find model")
 		}
 
 		if input == "" {
@@ -60,45 +58,18 @@ func main() {
 			}),
 			ai.WithPrompt(fmt.Sprintf(`generate a story about %s and for each scene, generate an image for it`, input)))
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		story := ""
-		scene := 0
+		story := []string{}
 		for _, p := range resp.Message.Content {
-			if p.IsMedia() {
-				scene += 1
-				err = base64toFile(p.Text, fmt.Sprintf("scene_%d.png", scene))
+			if p.IsMedia() || p.IsText() {
+				story = append(story, p.Text)
 			}
-			if p.IsText() {
-				story += p.Text
-			}
-		}
-		if err != nil {
-			return "", err
 		}
 
 		return story, nil
 	})
 
 	<-ctx.Done()
-}
-
-func base64toFile(data, path string) error {
-	dec, err := base64.StdEncoding.DecodeString(data)
-	if err != nil {
-		return err
-	}
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = f.Write(dec)
-	if err != nil {
-		return err
-	}
-
-	return f.Sync()
 }

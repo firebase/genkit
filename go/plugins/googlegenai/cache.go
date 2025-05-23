@@ -21,8 +21,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
@@ -31,25 +29,11 @@ import (
 
 const cacheContentsPerPage = 5
 
-var cacheSupportedVersions = []string{
-	"gemini-2.0-flash-lite-001",
-	"gemini-2.0-flash-001",
-
-	"gemini-1.5-flash-001",
-	"gemini-1.5-flash-002",
-
-	"gemini-1.5-pro-001",
-	"gemini-1.5-pro-002",
-}
-
 var invalidArgMessages = struct {
 	modelVersion string
 	tools        string
 	systemPrompt string
 }{
-	modelVersion: fmt.Sprintf(
-		"unsupported model version, expected: %s",
-		strings.Join(cacheSupportedVersions, ", ")),
 	tools:        "tools are not supported with context caching",
 	systemPrompt: "system prompts are not supported with context caching",
 }
@@ -143,9 +127,6 @@ func messagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, error)
 // validateContextCacheRequest checks for supported models and checks if Tools
 // are being provided in the request
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
-	if modelVersion == "" || !slices.Contains(cacheSupportedVersions, modelVersion) {
-		return fmt.Errorf("%s", invalidArgMessages.modelVersion)
-	}
 	if len(request.Tools) > 0 {
 		return fmt.Errorf("%s", invalidArgMessages.tools)
 	}

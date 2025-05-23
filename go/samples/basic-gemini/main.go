@@ -22,6 +22,7 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 func main() {
@@ -31,14 +32,14 @@ func main() {
 	// Config parameter, the Google AI plugin will get the API key from the
 	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.VertexAI{}))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-pro-preview-03-25")
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
 		if m == nil {
 			return "", core.NewError(core.INVALID_ARGUMENT, "jokesFlow: failed to find model")
 		}
@@ -47,6 +48,10 @@ func main() {
 			ai.WithModel(m),
 			ai.WithConfig(&googlegenai.GeminiConfig{
 				Temperature: googlegenai.Float32Ptr(1.0),
+				ThinkingConfig: &genai.ThinkingConfig{
+					IncludeThoughts: true,
+					ThinkingBudget:  googlegenai.Int32Ptr(1024),
+				},
 			}),
 			ai.WithPrompt(`Tell silly short jokes about %s`, input))
 		if err != nil {
