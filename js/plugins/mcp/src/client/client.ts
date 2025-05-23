@@ -244,10 +244,10 @@ export class GenkitMcpClient {
   async enable() {
     if (this.isEnabled()) return;
     if (this._server) {
-      await this.connect(this.serverConfig);
       logger.info(
         `[MCP Client] Reenabling MCP server in client '${this.name}'`
       );
+      await this.connect(this.serverConfig);
       this.disabled = !!this._server.error;
     }
   }
