@@ -122,6 +122,7 @@ def make_reflection_server(
                 self.send_header('content-type', 'application/json')
                 self.end_headers()
                 actions = registry.list_serializable_actions()
+                actions = registry.list_actions(actions)
                 self.wfile.write(bytes(json.dumps(actions), encoding))
             else:
                 self.send_response(404)

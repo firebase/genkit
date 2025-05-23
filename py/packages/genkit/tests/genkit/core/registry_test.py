@@ -12,8 +12,34 @@ functionality, ensuring proper registration and management of Genkit resources.
 import pytest
 
 from genkit.ai import Genkit, GenkitRegistry, Plugin
+from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind, ActionMetadataKey
 from genkit.core.registry import Registry
+
+
+def test_register_list_actions_resolver():
+    """Test for register list actions resolver."""
+    registry = Registry()
+
+    def list_actions_mock():
+        return []
+
+    registry.register_list_actions_resolver('test_plugin', list_actions_mock)
+
+    assert 'test_plugin' in registry._list_actions_resolvers
+
+
+def test_register_list_actions_resolver_raises_exception():
+    """Test when ValueError is raised."""
+    registry = Registry()
+
+    def list_actions_mock():
+        return []
+
+    registry._list_actions_resolvers['test_plugin'] = list_actions_mock
+
+    with pytest.raises(ValueError, match=r'Plugin .* already registered'):
+        registry.register_list_actions_resolver('test_plugin', list_actions_mock)
 
 
 def test_register_action_with_name_and_kind() -> None:
@@ -65,7 +91,84 @@ def test_list_serializable_actions() -> None:
     }
 
 
+@pytest.mark.parametrize(
+    'allowed_kind, expected',
+    [
+        (
+            set([ActionKind.CUSTOM]),
+            {
+                '/custom/test_action': {
+                    'key': '/custom/test_action',
+                    'name': 'test_action',
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
+                },
+            },
+        ),
+        (
+            None,
+            {
+                '/custom/test_action': {
+                    'key': '/custom/test_action',
+                    'name': 'test_action',
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
+                },
+                '/tool/test_tool': {
+                    'key': '/tool/test_tool',
+                    'name': 'test_tool',
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
+                },
+            },
+        ),
+        (
+            set([ActionKind.CUSTOM, ActionKind.TOOL]),
+            {
+                '/custom/test_action': {
+                    'key': '/custom/test_action',
+                    'name': 'test_action',
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
+                },
+                '/tool/test_tool': {
+                    'key': '/tool/test_tool',
+                    'name': 'test_tool',
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
+                },
+            },
+        ),
+    ],
+)
+def test_list_actions(allowed_kind, expected) -> None:
+    """Ensure we can list actions."""
+
+    def list_actions_mock():
+        return [
+            ActionMetadata(
+                kind=ActionKind.CUSTOM,
+                name='test_action',
+            ),
+            ActionMetadata(kind=ActionKind.TOOL, name='test_tool'),
+        ]
+
+    registry = Registry()
+    registry._list_actions_resolvers['test_plugin'] = list_actions_mock
+    registry._entries[ActionKind.CUSTOM] = {}
+    registry._entries[ActionKind.TOOL] = {}
+
+    got = registry.list_actions({}, allowed_kind)
+    assert got == expected
+
+
 def test_resolve_action_from_plugin():
+    """Resolve action from plugin test."""
     resolver_calls = []
 
     class MyPlugin(Plugin):
@@ -98,6 +201,7 @@ def test_resolve_action_from_plugin():
 
 
 def test_register_value():
+    """Register a value and lookup test."""
     registry = Registry()
 
     registry.register_value('format', 'json', [1, 2, 3])
