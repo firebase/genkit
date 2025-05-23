@@ -35,8 +35,6 @@ type MCPClientOptions struct {
 
 	// Disabled flag to temporarily disable this client
 	Disabled bool
-	// RawToolResponses returns tool responses in raw MCP form if true
-	RawToolResponses bool
 
 	// Transport options - only one should be provided
 

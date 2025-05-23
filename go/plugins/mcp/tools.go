@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -158,7 +157,6 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 	// Capture mcpTool by value for the closure
 	currentMCPTool := mcpTool
 	client := c.server.Client
-	rawToolResponses := c.options.RawToolResponses
 
 	return func(toolCtx *ai.ToolContext, args interface{}) (interface{}, error) {
 		log.Printf("Executing MCP tool %q", currentMCPTool.Name)
@@ -180,12 +178,8 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 		resultJSON, _ := json.MarshalIndent(mcpResult, "", "  ")
 		log.Printf("Tool %q execution succeeded with result: %s", currentMCPTool.Name, resultJSON)
 
-		if rawToolResponses {
-			log.Printf("Returning raw tool response for %s", currentMCPTool.Name)
-			return mcpResult, nil
-		}
-
-		return ProcessToolResult(mcpResult)
+		log.Printf("Returning raw tool response for %s", currentMCPTool.Name)
+		return mcpResult, nil
 	}
 }
 
@@ -253,81 +247,4 @@ func executeToolCall(ctx context.Context, client *client.Client, toolName string
 	log.Printf("Sending tool request to MCP server: %s", callReqJSON)
 
 	return client.CallTool(ctx, callReq)
-}
-
-// ProcessToolResult processes the result from an MCP tool call
-func ProcessToolResult(result *mcp.CallToolResult) (interface{}, error) {
-	if result.IsError {
-		errorMsg := "tool error"
-		if len(result.Content) > 0 {
-			// Convert result.Content from []interface{} to []mcp.Content
-			var mcpContents []mcp.Content
-			for _, item := range result.Content {
-				if mcpContent, ok := item.(mcp.Content); ok {
-					mcpContents = append(mcpContents, mcpContent)
-				}
-			}
-			tempMsg := ContentToText(mcpContents)
-			if tempMsg != "" {
-				errorMsg = tempMsg
-			}
-		}
-		return nil, fmt.Errorf("tool error: %s", errorMsg)
-	}
-
-	isAllText := true
-	if len(result.Content) == 0 {
-		isAllText = false
-	}
-	for _, contentItem := range result.Content {
-		textContent, ok := contentItem.(mcp.TextContent)
-		if !ok || textContent.Type != "text" {
-			isAllText = false
-			break
-		}
-	}
-
-	if isAllText {
-		// Convert result.Content from []interface{} to []mcp.Content
-		var mcpContents []mcp.Content
-		for _, item := range result.Content {
-			if mcpContent, ok := item.(mcp.Content); ok {
-				mcpContents = append(mcpContents, mcpContent)
-			}
-		}
-		text := ContentToText(mcpContents)
-		trimmedText := strings.TrimSpace(text)
-		if strings.HasPrefix(trimmedText, "{") || strings.HasPrefix(trimmedText, "[") {
-			var jsonData interface{}
-			if err := json.Unmarshal([]byte(trimmedText), &jsonData); err == nil {
-				return jsonData, nil
-			}
-		}
-		return text, nil
-	}
-
-	if len(result.Content) == 1 {
-		contentItem := result.Content[0]
-		if tc, ok := contentItem.(mcp.TextContent); ok && tc.Type == "text" {
-			trimmedText := strings.TrimSpace(tc.Text)
-			if strings.HasPrefix(trimmedText, "{") || strings.HasPrefix(trimmedText, "[") {
-				var jsonData interface{}
-				if err := json.Unmarshal([]byte(trimmedText), &jsonData); err == nil {
-					return jsonData, nil
-				}
-			}
-			return tc.Text, nil
-		}
-		if ec, ok := contentItem.(mcp.EmbeddedResource); ok && ec.Type == "resource" {
-			if trc, ok := ec.Resource.(mcp.TextResourceContents); ok && trc.MIMEType == "application/json" {
-				var jsonData interface{}
-				if err := json.Unmarshal([]byte(trc.Text), &jsonData); err == nil {
-					return jsonData, nil
-				}
-			}
-		}
-		return contentItem, nil
-	}
-
-	return result.Content, nil
 }
