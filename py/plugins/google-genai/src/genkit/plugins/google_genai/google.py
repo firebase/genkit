@@ -23,6 +23,8 @@ from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, H
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
+from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
@@ -228,22 +230,22 @@ class GoogleAI(Plugin):
         for m in self._client.models.list():
             name = m.name.replace('models/', '')
             if 'generateContent' in m.supported_actions:
-                info = google_model_info(name)
-
-                actions_list.append({
-                    'name': googleai_name(name),
-                    'kind': ActionKind.MODEL,
-                    'config_schema': GeminiConfigSchema,
-                    'info': info.model_dump(),
-                })
+                actions_list.append(
+                    model_action_metadata(
+                        name=googleai_name(name),
+                        info=google_model_info(name).model_dump(),
+                        config_schema=GeminiConfigSchema,
+                    ),
+                )
 
             if 'embedContent' in m.supported_actions:
-                actions_list.append({
-                    'name': googleai_name(name),
-                    'kind': ActionKind.EMBEDDER,
-                    'config_schema': EmbedContentConfig,
-                    'info': default_embedder_info(name),
-                })
+                actions_list.append(
+                    embedder_action_metadata(
+                        name=googleai_name(name),
+                        info=default_embedder_info(name),
+                        config_schema=EmbedContentConfig,
+                    )
+                )
 
         return actions_list
 
@@ -422,20 +424,21 @@ class VertexAI(Plugin):
         for m in self._client.models.list():
             name = m.name.replace('publishers/google/models/', '')
             if 'embed' in name.lower():
-                actions_list.append({
-                    'name': vertexai_name(name),
-                    'kind': ActionKind.EMBEDDER,
-                    'config_schema': EmbedContentConfig,
-                    'info': default_embedder_info(name),
-                })
+                actions_list.append(
+                    embedder_action_metadata(
+                        name=vertexai_name(name),
+                        info=default_embedder_info(name),
+                        config_schema=EmbedContentConfig,
+                    )
+                )
             # List all the vertexai models for generate actions
-            info = google_model_info(name)
-            actions_list.append({
-                'name': vertexai_name(name),
-                'kind': ActionKind.MODEL,
-                'config_schema': GeminiConfigSchema,
-                'info': info.model_dump(),
-            })
+            actions_list.append(
+                model_action_metadata(
+                    name=vertexai_name(name),
+                    info=google_model_info(name).model_dump(),
+                    config_schema=GeminiConfigSchema,
+                ),
+            )
 
         return actions_list
 

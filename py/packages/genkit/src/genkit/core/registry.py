@@ -33,6 +33,7 @@ from typing import Any
 
 from genkit.core.action import (
     Action,
+    ActionMetadata,
     create_action_key,
     parse_action_key,
     parse_plugin_name_from_action_name,
@@ -247,23 +248,20 @@ class Registry:
             actions = {}
 
         for plugin_name in self._list_actions_resolvers:
-            actions_list = self._list_actions_resolvers[plugin_name]()
+            actions_list: list[ActionMetadata] = self._list_actions_resolvers[plugin_name]()
             for _action in actions_list:
-                name = _action['name']
-                kind = _action['kind']
-                metadata = _action.get('info', {})
-
+                kind = _action.kind
                 if allowed_kinds is not None and kind not in allowed_kinds:
                     continue
-                key = create_action_key(kind, name)
+                key = create_action_key(kind, _action.name)
 
                 if key not in actions:
                     actions[key] = {
                         'key': key,
-                        'name': name,
-                        'inputSchema': {},
-                        'outputSchema': {},
-                        'metadata': metadata,
+                        'name': _action.name,
+                        'inputSchema': _action.input_json_schema,
+                        'outputSchema': _action.output_json_schema,
+                        'metadata': _action.metadata,
                     }
         return actions
 

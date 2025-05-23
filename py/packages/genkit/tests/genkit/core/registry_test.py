@@ -12,6 +12,7 @@ functionality, ensuring proper registration and management of Genkit resources.
 import pytest
 
 from genkit.ai import Genkit, GenkitRegistry, Plugin
+from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind, ActionMetadataKey
 from genkit.core.registry import Registry
 
@@ -20,7 +21,7 @@ def test_register_list_actions_resolver():
     """Test for register list actions resolver."""
     registry = Registry()
 
-    def list_actions_mock(kind: ActionKind):
+    def list_actions_mock():
         return []
 
     registry.register_list_actions_resolver('test_plugin', list_actions_mock)
@@ -32,7 +33,7 @@ def test_register_list_actions_resolver_raises_exception():
     """Test when ValueError is raised."""
     registry = Registry()
 
-    def list_actions_mock(kind: ActionKind):
+    def list_actions_mock():
         return []
 
     registry._list_actions_resolvers['test_plugin'] = list_actions_mock
@@ -99,9 +100,9 @@ def test_list_serializable_actions() -> None:
                 '/custom/test_action': {
                     'key': '/custom/test_action',
                     'name': 'test_action',
-                    'inputSchema': {},
-                    'outputSchema': {},
-                    'metadata': {},
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
                 },
             },
         ),
@@ -111,16 +112,16 @@ def test_list_serializable_actions() -> None:
                 '/custom/test_action': {
                     'key': '/custom/test_action',
                     'name': 'test_action',
-                    'inputSchema': {},
-                    'outputSchema': {},
-                    'metadata': {},
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
                 },
                 '/tool/test_tool': {
                     'key': '/tool/test_tool',
                     'name': 'test_tool',
-                    'inputSchema': {},
-                    'outputSchema': {},
-                    'metadata': {},
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
                 },
             },
         ),
@@ -130,16 +131,16 @@ def test_list_serializable_actions() -> None:
                 '/custom/test_action': {
                     'key': '/custom/test_action',
                     'name': 'test_action',
-                    'inputSchema': {},
-                    'outputSchema': {},
-                    'metadata': {},
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
                 },
                 '/tool/test_tool': {
                     'key': '/tool/test_tool',
                     'name': 'test_tool',
-                    'inputSchema': {},
-                    'outputSchema': {},
-                    'metadata': {},
+                    'inputSchema': None,
+                    'outputSchema': None,
+                    'metadata': None,
                 },
             },
         ),
@@ -150,14 +151,11 @@ def test_list_actions(allowed_kind, expected) -> None:
 
     def list_actions_mock():
         return [
-            {
-                'name': 'test_action',
-                'kind': ActionKind.CUSTOM,
-            },
-            {
-                'name': 'test_tool',
-                'kind': ActionKind.TOOL,
-            },
+            ActionMetadata(
+                kind=ActionKind.CUSTOM,
+                name='test_action',
+            ),
+            ActionMetadata(kind=ActionKind.TOOL, name='test_tool'),
         ]
 
     registry = Registry()

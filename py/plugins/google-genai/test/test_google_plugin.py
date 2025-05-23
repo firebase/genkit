@@ -28,6 +28,8 @@ from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, H
 
 import pytest
 from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
+from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai import (
     GoogleAI,
@@ -269,30 +271,26 @@ def test_googleai_list_actions(googleai_plugin_instance):
 
     result = googleai_plugin_instance.list_actions()
     assert result == [
-        {
-            'name': 'googleai/model1',
-            'kind': ActionKind.MODEL,
-            'config_schema': GeminiConfigSchema,
-            'info': google_model_info('model1').model_dump(),
-        },
-        {
-            'name': 'googleai/model2',
-            'kind': ActionKind.EMBEDDER,
-            'config_schema': EmbedContentConfig,
-            'info': default_embedder_info('model2'),
-        },
-        {
-            'name': 'googleai/model3',
-            'kind': ActionKind.MODEL,
-            'config_schema': GeminiConfigSchema,
-            'info': google_model_info('model3').model_dump(),
-        },
-        {
-            'name': 'googleai/model3',
-            'kind': ActionKind.EMBEDDER,
-            'config_schema': EmbedContentConfig,
-            'info': default_embedder_info('model3'),
-        },
+        model_action_metadata(
+            name=googleai_name('model1'),
+            info=google_model_info('model1').model_dump(),
+            config_schema=GeminiConfigSchema,
+        ),
+        embedder_action_metadata(
+            name=googleai_name('model2'),
+            info=default_embedder_info('model2'),
+            config_schema=EmbedContentConfig,
+        ),
+        model_action_metadata(
+            name=googleai_name('model3'),
+            info=google_model_info('model3').model_dump(),
+            config_schema=GeminiConfigSchema,
+        ),
+        embedder_action_metadata(
+            name=googleai_name('model3'),
+            info=default_embedder_info('model3'),
+            config_schema=EmbedContentConfig,
+        ),
     ]
 
 
@@ -678,34 +676,29 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
 
     result = vertexai_plugin_instance.list_actions()
     assert result == [
-        {
-            'name': 'vertexai/model1',
-            'kind': ActionKind.MODEL,
-            'config_schema': GeminiConfigSchema,
-            'info': google_model_info('model1').model_dump(),
-        },
-        {
-            'name': 'vertexai/model2_embeddings',
-            'kind': ActionKind.EMBEDDER,
-            'config_schema': EmbedContentConfig,
-            'info': default_embedder_info('model2_embeddings'),
-        },
-        {
-            'name': 'vertexai/model2_embeddings',
-            'kind': ActionKind.MODEL,
-            'config_schema': GeminiConfigSchema,
-            'info': google_model_info('model2_embeddings').model_dump(),
-        },
-        {
-            'name': 'vertexai/model3_embedder',
-            'kind': ActionKind.EMBEDDER,
-            'config_schema': EmbedContentConfig,
-            'info': default_embedder_info('model3_embedder'),
-        },
-        {
-            'name': 'vertexai/model3_embedder',
-            'kind': ActionKind.MODEL,
-            'config_schema': GeminiConfigSchema,
-            'info': google_model_info('model3_embedder').model_dump(),
-        },
+        model_action_metadata(
+            name=vertexai_name('model1'),
+            info=google_model_info('model1').model_dump(),
+            config_schema=GeminiConfigSchema,
+        ),
+        embedder_action_metadata(
+            name=vertexai_name('model2_embeddings'),
+            info=default_embedder_info('model2_embeddings'),
+            config_schema=EmbedContentConfig,
+        ),
+        model_action_metadata(
+            name=vertexai_name('model2_embeddings'),
+            info=google_model_info('model2_embeddings').model_dump(),
+            config_schema=GeminiConfigSchema,
+        ),
+        embedder_action_metadata(
+            name=vertexai_name('model3_embedder'),
+            info=default_embedder_info('model3_embedder'),
+            config_schema=EmbedContentConfig,
+        ),
+        model_action_metadata(
+            name=vertexai_name('model3_embedder'),
+            info=google_model_info('model3_embedder').model_dump(),
+            config_schema=GeminiConfigSchema,
+        ),
     ]
