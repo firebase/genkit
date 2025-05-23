@@ -238,10 +238,10 @@ export class GenkitMcpClient {
   }
 
   /**
-   * Re-enables a previously disabled server connection. Does nothing if the
+   * Enables a server connection, including previously disabled ones. Does nothing if the
    * server is not disabled.
    */
-  async reenable() {
+  async enable() {
     if (this.isEnabled()) return;
     if (this._server) {
       logger.info(

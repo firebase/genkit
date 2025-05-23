@@ -95,8 +95,8 @@ export const controlMcp = ai.defineFlow(
       case 'RECONNECT':
         await clientManager.reconnect(id);
         break;
-      case 'REENABLE':
-        await clientManager.reenable(id);
+      case 'ENABLE':
+        await clientManager.enable(id);
         break;
     }
     return action;

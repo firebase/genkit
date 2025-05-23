@@ -163,18 +163,18 @@ export class GenkitMcpManager {
   }
 
   /**
-   * Re-enables a previously disabled server connection. Attempts to reconnect
+   * Enables a server connection, including previously disabled ones. Attempts to reconnect
    * using the stored transport. Does nothing if the server is not disabled.
    * @param serverName The name of the server to re-enable.
    */
-  async reenable(serverName: string) {
+  async enable(serverName: string) {
     const client = this._clients[serverName];
     if (client) {
       logger.info(
         `[MCP Manager] Reenabling MCP server '${serverName}' in manager '${this.name}'`
       );
       try {
-        await client.reenable();
+        await client.enable();
       } catch (e) {
         client.disable();
         this.setError(serverName, {
