@@ -19,17 +19,17 @@
 from collections.abc import Generator
 from typing import Generator
 from unittest import mock
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
+import ollama as ollama_api
 import pytest
 
 from genkit.ai import Genkit
-from genkit.plugins.ollama.plugin_api import Ollama
 from genkit.plugins.ollama.models import (
     ModelDefinition,
     OllamaAPITypes,
 )
-import ollama as ollama_api
+from genkit.plugins.ollama.plugin_api import Ollama
 
 
 @pytest.fixture

@@ -17,10 +17,10 @@
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
 
-from openai import OpenAI as OpenAIClient, Client
+from openai import Client, OpenAI as OpenAIClient
 
-from genkit.ai._registry import GenkitRegistry
 from genkit.ai._plugin import Plugin
+from genkit.ai._registry import GenkitRegistry
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_MODELS,
     OpenAIModelHandler,
