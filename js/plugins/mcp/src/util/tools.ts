@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type {
   CallToolResult,
   Tool,
@@ -54,7 +55,7 @@ function processResult(result: CallToolResult) {
  */
 function registerTool(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   tool: Tool,
   params: { serverName: string; name: string; rawToolResponses?: boolean }
 ) {
@@ -100,7 +101,7 @@ function registerTool(
  */
 function createDynamicTool(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   tool: Tool,
   params: { serverName: string; name: string; rawToolResponses?: boolean }
 ): ToolAction {
@@ -138,7 +139,7 @@ function createDynamicTool(
  */
 export async function registerAllTools(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   params: { name: string; serverName: string; rawToolResponses?: boolean }
 ): Promise<void> {
   let cursor: string | undefined;
@@ -155,7 +156,7 @@ export async function registerAllTools(
  */
 export async function fetchDynamicTools(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   params: { name: string; serverName: string; rawToolResponses?: boolean }
 ): Promise<ToolAction[]> {
   let cursor: string | undefined;

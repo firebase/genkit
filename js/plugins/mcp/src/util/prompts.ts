@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 import {
   ExecutablePrompt,
@@ -55,7 +56,7 @@ function toSchema(args: Prompt['arguments']) {
  */
 function registerPrompt(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   prompt: Prompt,
   params: { name: string; serverName: string }
 ) {
@@ -84,7 +85,7 @@ function createExecutablePrompt<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   prompt: Prompt,
   params: {
     ai: Genkit;
@@ -117,7 +118,7 @@ function createExecutablePrompt<
     logger.debug(`[MCP] Rendering MCP prompt ${params.name}/${prompt.name}`);
     const result = await client.getPrompt({
       name: prompt.name,
-      arguments: input,
+      arguments: input as any,
     });
     const messages = result.messages.map(fromMcpPromptMessage);
     return {
@@ -142,7 +143,7 @@ function createExecutablePrompt<
  */
 export async function registerAllPrompts(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   params: { name: string; serverName: string }
 ): Promise<void> {
   let cursor: string | undefined;
@@ -158,7 +159,7 @@ export async function registerAllPrompts(
  * Lookup a specified prompt from the server and return as an ExecutablePrompt.
  */
 export async function getExecutablePrompt(
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   params: {
     name: string;
     serverName: string;

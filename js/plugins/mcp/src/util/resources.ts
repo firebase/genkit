@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type {
   Resource,
   ResourceTemplate,
@@ -22,7 +23,7 @@ import { Genkit, z } from 'genkit';
 
 function listResourcesTool(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   params: { name: string; serverName?: string; asDynamicTool?: boolean }
 ) {
   const actionMetadata = {
@@ -59,7 +60,7 @@ function listResourcesTool(
 
 function listResourceTemplatesTool(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   params: { name: string; serverName?: string; asDynamicTool?: boolean }
 ) {
   const actionMetadata = {
@@ -97,7 +98,7 @@ function listResourceTemplatesTool(
 
 function readResourceTool(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   params: { name: string; serverName?: string; asDynamicTool?: boolean }
 ) {
   const actionMetadata = {
@@ -117,25 +118,6 @@ function readResourceTool(
 }
 
 /**
- * Registers Genkit tools for MCP resource operations.
- * This includes tools for listing resources, listing resource templates, and reading a resource.
- * These tools are defined on the provided Genkit instance.
- *
- * @param ai The Genkit instance on which to define the tools.
- * @param client The MCP client instance to interact with the server.
- * @param params Configuration parameters, including the client name and server name for namespacing.
- */
-export async function registerResourceTools(
-  ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
-  params: { name: string; serverName?: string }
-) {
-  listResourcesTool(ai, client, params);
-  listResourceTemplatesTool(ai, client, params);
-  readResourceTool(ai, client, params);
-}
-
-/**
  * Fetches and returns Genkit dynamic tool actions for MCP resource operations.
  * This includes tools for listing resources, listing resource templates, and reading a resource.
  * These tools are created as dynamic tools, meaning they are not permanently defined
@@ -148,7 +130,7 @@ export async function registerResourceTools(
  */
 export function fetchDynamicResourceTools(
   ai: Genkit,
-  client: any, // Use 'any' or let TS infer; removing specific type import
+  client: Client,
   params: { name: string; serverName?: string }
 ) {
   const dynamicParams = { ...params, asDynamicTool: true };
