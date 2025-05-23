@@ -85,6 +85,7 @@ test_cases_extract_items = [
     ids=[tc[0] for tc in test_cases_extract_items],
 )
 def test_extract_items(name: str, steps: list[dict[str, Any]]) -> None:
+    """Test extraction of incomplete json that can be fixed"""
     text = ''
     cursor = 0
     for step in steps:

@@ -29,7 +29,7 @@ we support:
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Type, Union
+from typing import Union
 
 from asgiref import typing as atyping
 
