@@ -16,7 +16,6 @@
 
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
-from typing import Mapping
 
 from openai import OpenAI as OpenAIClient, Client
 
@@ -38,7 +37,7 @@ class OpenAI(Plugin):
 
     name = 'openai-compat'
 
-    def __init__(self, **openai_params: str ) -> None:
+    def __init__(self, **openai_params: str) -> None:
         """Initializes the OpenAI plugin with the specified parameters.
 
         Args:
