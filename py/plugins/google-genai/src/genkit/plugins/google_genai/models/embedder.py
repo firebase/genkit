@@ -16,7 +16,8 @@
 
 """Google-Genai embedder model."""
 
-import sys  # noqa
+import sys
+from typing import Any  # noqa
 
 if sys.version_info < (3, 11):  # noqa
     from strenum import StrEnum  # noqa
@@ -57,6 +58,17 @@ class EmbeddingTaskType(StrEnum):
     CLUSTERING = 'CLUSTERING'
     QUESTION_ANSWERING = 'QUESTION_ANSWERING'
     FACT_VERIFICATION = 'FACT_VERIFICATION'
+
+
+def default_embedder_info(name: str) -> dict[str, Any]:
+    """Returns default info for embedders given a name."""
+    return {
+        'dimensions': 768,
+        'label': f'Google AI - {name}',
+        'supports': {
+            'input': ['text']
+        }
+    }
 
 
 class Embedder:

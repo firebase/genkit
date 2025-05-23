@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, patch, ANY
 
 from google.auth.credentials import Credentials
 from pydantic import BaseModel
-from google.genai.types import GenerateImagesConfigOrDict, HttpOptions
+from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, HttpOptions
 
 import pytest
 from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
@@ -39,6 +39,7 @@ from genkit.plugins.google_genai.google import _inject_attribution_headers
 from genkit.plugins.google_genai.models.embedder import (
     GeminiEmbeddingModels,
     VertexEmbeddingModels,
+    default_embedder_info,
 )
 from genkit.plugins.google_genai.models.gemini import (
     DEFAULT_SUPPORTS_MODEL,
@@ -46,6 +47,7 @@ from genkit.plugins.google_genai.models.gemini import (
     SUPPORTED_MODELS,
     GoogleAIGeminiVersion,
     VertexAIGeminiVersion,
+    google_model_info,
 )
 from genkit.plugins.google_genai.models.imagen import (
     SUPPORTED_MODELS as IMAGE_SUPPORTED_MODELS,
@@ -148,6 +150,8 @@ def test_googleai_initialize():
         ai_mock.define_embedder.assert_any_call(
             name=googleai_name(version),
             fn=ANY,
+            metadata=ANY,
+            config_schema=EmbedContentConfig,
         )
 
 
@@ -218,21 +222,24 @@ def test_googleai__resolve_model(
 
 
 @pytest.mark.parametrize(
-    'model_name, expected_model_name',
+    'model_name, expected_model_name, clean_name',
     [
         (
             'gemini-pro-deluxe-max',
             'googleai/gemini-pro-deluxe-max',
+            'gemini-pro-deluxe-max'
         ),
         (
             'googleai/gemini-pro-deluxe-max',
             'googleai/gemini-pro-deluxe-max',
+            'gemini-pro-deluxe-max'
         ),
     ],
 )
 def test_googleai__resolve_embedder(
     model_name,
     expected_model_name,
+    clean_name,
     googleai_plugin_instance,
 ):
     """Tests for GoogleAI._resolve_embedder method."""
@@ -247,6 +254,8 @@ def test_googleai__resolve_embedder(
     ai_mock.define_embedder.assert_called_once_with(
         name=expected_model_name,
         fn=ANY,
+        config_schema=EmbedContentConfig,
+        metadata=default_embedder_info(clean_name)
     )
 
 
@@ -274,18 +283,26 @@ def test_googleai_list_actions(googleai_plugin_instance):
         {
             'name': 'googleai/model1',
             'kind': ActionKind.MODEL,
+            'config_schema': GeminiConfigSchema,
+            'info': google_model_info('model1').model_dump()
         },
         {
             'name': 'googleai/model2',
             'kind': ActionKind.EMBEDDER,
+            'config_schema': EmbedContentConfig,
+            'info': default_embedder_info('model2'),
         },
         {
             'name': 'googleai/model3',
             'kind': ActionKind.MODEL,
+            'config_schema': GeminiConfigSchema,
+            'info': google_model_info('model3').model_dump()
         },
         {
             'name': 'googleai/model3',
             'kind': ActionKind.EMBEDDER,
+            'config_schema': EmbedContentConfig,
+            'info': default_embedder_info('model3'),
         },
     ]
 
@@ -496,13 +513,18 @@ def test_vertexai_initialize(vertexai_plugin_instance):
 
     for version in ImagenVersion:
         ai_mock.define_model.assert_any_call(
-            name=vertexai_name(version), fn=ANY, metadata=ANY, config_schema=GenerateImagesConfigOrDict
+            name=vertexai_name(version),
+            fn=ANY,
+            metadata=ANY,
+            config_schema=GenerateImagesConfigOrDict
         )
 
     for version in VertexEmbeddingModels:
         ai_mock.define_embedder.assert_any_call(
             name=vertexai_name(version),
             fn=ANY,
+            metadata=ANY,
+            config_schema=EmbedContentConfig,
         )
 
 
@@ -616,21 +638,24 @@ def test_vertexai__resolve_model(
 
 
 @pytest.mark.parametrize(
-    'model_name, expected_model_name',
+    'model_name, expected_model_name, clean_name',
     [
         (
             'gemini-pro-deluxe-max',
             'vertexai/gemini-pro-deluxe-max',
+            'gemini-pro-deluxe-max',
         ),
         (
             'vertexai/gemini-pro-deluxe-max',
             'vertexai/gemini-pro-deluxe-max',
+            'gemini-pro-deluxe-max',
         ),
     ],
 )
 def test_vertexai__resolve_embedder(
     model_name,
     expected_model_name,
+    clean_name,
     vertexai_plugin_instance,
 ):
     """Tests for VertexAI._resolve_embedder method."""
@@ -645,6 +670,8 @@ def test_vertexai__resolve_embedder(
     ai_mock.define_embedder.assert_called_once_with(
         name=expected_model_name,
         fn=ANY,
+        config_schema=EmbedContentConfig,
+        metadata=default_embedder_info(clean_name)
     )
 
 
@@ -671,21 +698,31 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
         {
             'name': 'vertexai/model1',
             'kind': ActionKind.MODEL,
+            'config_schema': GeminiConfigSchema,
+            'info': google_model_info('model1').model_dump()
         },
         {
             'name': 'vertexai/model2_embeddings',
             'kind': ActionKind.EMBEDDER,
+            'config_schema': EmbedContentConfig,
+            'info': default_embedder_info('model2_embeddings'),
         },
         {
             'name': 'vertexai/model2_embeddings',
             'kind': ActionKind.MODEL,
+            'config_schema': GeminiConfigSchema,
+            'info': google_model_info('model2_embeddings').model_dump()
         },
         {
             'name': 'vertexai/model3_embedder',
             'kind': ActionKind.EMBEDDER,
+            'config_schema': EmbedContentConfig,
+            'info': default_embedder_info('model3_embedder'),
         },
         {
             'name': 'vertexai/model3_embedder',
             'kind': ActionKind.MODEL,
+            'config_schema': GeminiConfigSchema,
+            'info': google_model_info('model3_embedder').model_dump()
         },
     ]

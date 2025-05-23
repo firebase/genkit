@@ -19,7 +19,7 @@ import os
 from google import genai
 from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
-from google.genai.types import GenerateImagesConfigOrDict, HttpOptions, HttpOptionsDict
+from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
@@ -28,6 +28,7 @@ from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,
     VertexEmbeddingModels,
+    default_embedder_info,
 )
 from genkit.plugins.google_genai.models.gemini import (
     SUPPORTED_MODELS,
@@ -139,7 +140,12 @@ class GoogleAI(Plugin):
 
         for version in GeminiEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
-            ai.define_embedder(name=googleai_name(version), fn=embedder.generate)
+            ai.define_embedder(
+                name=googleai_name(version),
+                fn=embedder.generate,
+                metadata=default_embedder_info(version),
+                config_schema=EmbedContentConfig,
+            )
 
     def resolve_action(
         self,
@@ -204,6 +210,8 @@ class GoogleAI(Plugin):
         ai.define_embedder(
             name=googleai_name(_clean_name),
             fn=embedder.generate,
+            metadata=default_embedder_info(_clean_name),
+            config_schema=EmbedContentConfig,
         )
 
     def list_actions(self) -> list[dict[str, str]]:
@@ -220,15 +228,21 @@ class GoogleAI(Plugin):
         for m in self._client.models.list():
             name = m.name.replace('models/', '')
             if 'generateContent' in m.supported_actions:
+                info = google_model_info(name)
+
                 actions_list.append({
                     'name': googleai_name(name),
                     'kind': ActionKind.MODEL,
+                    'config_schema': GeminiConfigSchema,
+                    'info': info.model_dump(),
                 })
 
             if 'embedContent' in m.supported_actions:
                 actions_list.append({
                     'name': googleai_name(name),
                     'kind': ActionKind.EMBEDDER,
+                    'config_schema': EmbedContentConfig,
+                    'info': default_embedder_info(name),
                 })
 
         return actions_list
@@ -307,6 +321,8 @@ class VertexAI(Plugin):
             ai.define_embedder(
                 name=vertexai_name(version),
                 fn=embedder.generate,
+                metadata=default_embedder_info(version),
+                config_schema=EmbedContentConfig,
             )
 
         for version in ImagenVersion:
@@ -388,6 +404,8 @@ class VertexAI(Plugin):
         ai.define_embedder(
             name=vertexai_name(_clean_name),
             fn=embedder.generate,
+            metadata=default_embedder_info(_clean_name),
+            config_schema=EmbedContentConfig,
         )
 
     def list_actions(self) -> list[dict[str, str]]:
@@ -407,11 +425,16 @@ class VertexAI(Plugin):
                 actions_list.append({
                     'name': vertexai_name(name),
                     'kind': ActionKind.EMBEDDER,
+                    'config_schema': EmbedContentConfig,
+                    'info': default_embedder_info(name)
                 })
             # List all the vertexai models for generate actions
+            info = google_model_info(name)
             actions_list.append({
                 'name': vertexai_name(name),
                 'kind': ActionKind.MODEL,
+                'config_schema': GeminiConfigSchema,
+                'info': info.model_dump(),
             })
 
         return actions_list

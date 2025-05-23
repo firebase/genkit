@@ -251,6 +251,7 @@ class Registry:
             for _action in actions_list:
                 name = _action['name']
                 kind = _action['kind']
+                metadata = _action.get('info', {})
 
                 if allowed_kinds is not None and kind not in allowed_kinds:
                     continue
@@ -262,7 +263,7 @@ class Registry:
                         'name': name,
                         'inputSchema': {},
                         'outputSchema': {},
-                        'metadata': {},
+                        'metadata': metadata,
                     }
         return actions
 
