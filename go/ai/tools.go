@@ -110,7 +110,7 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	return &tool{action: toolAction}
 }
 
-// DefineToolWithInputSchema defines a tool function with an explicit input schema and interrupt capability.
+// DefineToolWithInputSchema defines a tool function with an explicit input schema.
 // The output schema will be inferred as "any".
 func DefineToolWithInputSchema(
 	r *registry.Registry,
