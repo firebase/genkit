@@ -361,10 +361,10 @@ export class RuntimeManager {
         persistent: true,
         ignoreInitial: false,
         usePolling: true, // Force polling
-        interval: 400,    // Poll every 400ms
+        interval: 400, // Poll every 400ms
         awaitWriteFinish: {
           stabilityThreshold: 3000, // Wait 3s after last write to consider it stable
-          pollInterval: 100,        // Check stability every 100ms (for awaitWriteFinish)
+          pollInterval: 100, // Check stability every 100ms (for awaitWriteFinish)
         },
       });
       watcher.on('add', (filePath) => this.handleNewDevUi(filePath));
