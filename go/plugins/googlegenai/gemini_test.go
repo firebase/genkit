@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"google.golang.org/genai"
 )
 
 func TestConvertRequest(t *testing.T) {
@@ -40,13 +41,12 @@ func TestConvertRequest(t *testing.T) {
 		Config: GeminiConfig{
 			MaxOutputTokens: 10,
 			StopSequences:   []string{"stop"},
-			Temperature:     0.4,
-			TopK:            1.0,
-			TopP:            1.0,
-			Version:         text,
-			ThinkingConfig: &ThinkingConfig{
+			Temperature:     Float32Ptr(0.4),
+			TopK:            Float32Ptr(0.1),
+			TopP:            Float32Ptr(1.0),
+			ThinkingConfig: &genai.ThinkingConfig{
 				IncludeThoughts: false,
-				ThinkingBudget:  0,
+				ThinkingBudget:  Int32Ptr(0),
 			},
 		},
 		Tools:      []*ai.ToolDefinition{tool},
@@ -133,10 +133,10 @@ func TestConvertRequest(t *testing.T) {
 			t.Errorf("stop sequences: got: 0, want: %d", len(ogCfg.StopSequences))
 		}
 		if gcc.Temperature == nil {
-			t.Errorf("temperature: got: nil, want %f", ogCfg.Temperature)
+			t.Errorf("temperature: got: nil, want %f", *ogCfg.Temperature)
 		}
 		if gcc.TopP == nil {
-			t.Errorf("topP: got: nil, want %f", ogCfg.TopP)
+			t.Errorf("topP: got: nil, want %f", *ogCfg.TopP)
 		}
 		if gcc.TopK == nil {
 			t.Errorf("topK: got: nil, want %d", ogCfg.TopK)
@@ -151,25 +151,17 @@ func TestConvertRequest(t *testing.T) {
 			t.Errorf("ThinkingConfig should not be empty")
 		}
 	})
-	t.Run("thinking budget limits", func(t *testing.T) {
-		thinkingBudget := GeminiConfig{
-			ThinkingConfig: &ThinkingConfig{
-				IncludeThoughts: false,
-				ThinkingBudget:  -23,
-			},
+	t.Run("use system instruction outside genkit", func(t *testing.T) {
+		badCfg := GeminiConfig{
+			Temperature:       Float32Ptr(1.0),
+			SystemInstruction: &genai.Content{Parts: []*genai.Part{{Text: "talk like a pirate"}}},
 		}
-		req := &ai.ModelRequest{
-			Config: thinkingBudget,
+		req := ai.ModelRequest{
+			Config: badCfg,
 		}
-		_, err := toGeminiRequest(req, nil)
+		_, err := toGeminiRequest(&req, nil)
 		if err == nil {
-			t.Fatal("expecting an error, thinking budget should not be negative")
-		}
-		thinkingBudget.ThinkingConfig.ThinkingBudget = 999999
-		req.Config = thinkingBudget
-		_, err = toGeminiRequest(req, nil)
-		if err == nil {
-			t.Fatalf("expecting an error, thinking budget should not be greater than %d", thinkingBudgetMax)
+			t.Fatal("system instruction should be set using Genkit features")
 		}
 	})
 	t.Run("convert tools with valid tool", func(t *testing.T) {
