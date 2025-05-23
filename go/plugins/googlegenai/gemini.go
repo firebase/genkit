@@ -40,6 +40,9 @@ import (
 	"google.golang.org/genai"
 )
 
+// Plugin configuration alias
+type GeminiConfig = genai.GenerateContentConfig
+
 const (
 	// Thinking budget limit
 	thinkingBudgetMax = 24576
@@ -90,6 +93,12 @@ func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
 		DoNotReference: true, // Prevent $ref usage
 		ExpandedStruct: true, // Include all fields directly
+		// Prevent stack overflow panic due type traversal recursion (circular references)
+		// [genai.Schema] should not be used at this point since Schema is provided later
+		// in toGeminiRequest function
+		// NOTE:: keep track of updated fields in [genai.GenerateContentConfig] since
+		// they could create runtime panics when parsing configs
+		IgnoredTypes: []any{genai.Schema{}},
 	}
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
@@ -104,8 +113,6 @@ func mapToStruct(m map[string]any, v any) error {
 	}
 	return json.Unmarshal(jsonData, v)
 }
-
-type GeminiConfig = genai.GenerateContentConfig
 
 // configFromRequest converts any supported config type to [GeminiConfig].
 func configFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
@@ -141,7 +148,7 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		Label:        info.Label,
 		Supports:     info.Supports,
 		Versions:     info.Versions,
-		ConfigSchema: configToMap(&GeminiConfig{}),
+		ConfigSchema: configToMap(GeminiConfig{}),
 	}
 
 	fn := func(
