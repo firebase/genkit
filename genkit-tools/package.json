@@ -7,7 +7,7 @@
     "build:telemetry-server": "cd telemetry-server && pnpm build",
     "build:common": "cd common && pnpm build && cd .. && pnpm export:schemas",
     "export:schemas": "npx tsx scripts/schema-exporter.ts .",
-    "pack:all": "pnpm run pack:cli && pnpm run pack:telemetry-server && pnpm run pack:common && pnpm run package:binaries",
+    "pack:all": "pnpm run pack:cli && pnpm run pack:telemetry-server && pnpm run pack:common",
     "pack:common": "cd common && pnpm pack --pack-destination ../../dist",
     "pack:cli": "cd cli && pnpm pack --pack-destination ../../dist",
     "pack:telemetry-server": "cd telemetry-server && pnpm pack --pack-destination ../../dist",
