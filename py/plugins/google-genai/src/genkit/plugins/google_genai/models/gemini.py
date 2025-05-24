@@ -101,7 +101,6 @@ The following models are currently supported by GoogleAI API:
 
 | Model                                | Description                          | Status     |
 |--------------------------------------|--------------------------------------|------------|
-| `gemini-1.0-pro`                     | Gemini 1.0 Pro                       | Obsolete   |
 | `gemini-1.5-pro`                     | Gemini 1.5 Pro                       | Deprecated |
 | `gemini-1.5-flash`                   | Gemini 1.5 Flash                     | Deprecated |
 | `gemini-1.5-flash-8b`                | Gemini 1.5 Flash 8B                  | Deprecated |
@@ -112,14 +111,13 @@ The following models are currently supported by GoogleAI API:
 | `gemini-2.0-flash-exp`               | Gemini 2.0 Flash Experimental        | Supported  |
 | `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported  |
 | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
-| `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported  |
+| `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
 
 
 The following models are currently supported by VertexAI API:
 
 | Model                                | Description                          | Status       |
 |--------------------------------------|--------------------------------------|--------------|
-| `gemini-1.0-pro`                     | Gemini 1.0 Pro                       | Obsolete     |
 | `gemini-1.5-pro`                     | Gemini 1.5 Pro                       | Deprecated   |
 | `gemini-1.5-flash`                   | Gemini 1.5 Flash                     | Deprecated   |
 | `gemini-1.5-flash-8b`                | Gemini 1.5 Flash 8B                  | Deprecated   |
@@ -130,14 +128,14 @@ The following models are currently supported by VertexAI API:
 | `gemini-2.0-flash-exp`               | Gemini 2.0 Flash Experimental        | Unavailable  |
 | `gemini-2.0-flash-thinking-exp-01-21`| Gemini 2.0 Flash Thinking Exp 01-21  | Supported    |
 | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
-| `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported    |
+| `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
 """
 
 import sys  # noqa
 from datetime import datetime, timezone, timedelta
 
 from genkit.plugins.google_genai.models.context_caching.constants import DEFAULT_TTL
-from genkit.plugins.google_genai.models.context_caching.utils import validate_context_cache_request, generate_cache_key
+from genkit.plugins.google_genai.models.context_caching.utils import generate_cache_key, validate_context_cache_request
 
 if sys.version_info < (3, 11):  # noqa
     from strenum import StrEnum  # noqa
@@ -148,7 +146,7 @@ from functools import cached_property
 from typing import Any
 
 from google import genai
-from google.genai import types as genai_types
+from google.genai import types as genai_types  # type: ignore
 
 from genkit.ai import (
     ActionKind,
@@ -180,22 +178,9 @@ from genkit.types import (
 
 
 class GeminiConfigSchema(genai_types.GenerateContentConfig):
+    """Gemini Config Schema."""
+
     code_execution: bool | None = None
-
-
-GEMINI_1_0_PRO = ModelInfo(
-    label='Google AI - Gemini Pro',
-    stage=Stage.LEGACY,
-    versions=['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
-    supports=Supports(
-        multiturn=True,
-        media=False,
-        tools=True,
-        tool_choice=True,
-        system_role=True,
-        constrained='no-tools',
-    ),
-)
 
 
 GEMINI_1_5_PRO = ModelInfo(
@@ -216,7 +201,6 @@ GEMINI_1_5_PRO = ModelInfo(
     ),
 )
 
-
 GEMINI_1_5_FLASH = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
     stage=Stage.DEPRECATED,
@@ -235,7 +219,6 @@ GEMINI_1_5_FLASH = ModelInfo(
     ),
 )
 
-
 GEMINI_1_5_FLASH_8B = ModelInfo(
     label='Google AI - Gemini 1.5 Flash',
     stage=Stage.DEPRECATED,
@@ -250,7 +233,6 @@ GEMINI_1_5_FLASH_8B = ModelInfo(
     ),
 )
 
-
 GEMINI_2_0_FLASH = ModelInfo(
     label='Google AI - Gemini 2.0 Flash',
     supports=Supports(
@@ -263,7 +245,6 @@ GEMINI_2_0_FLASH = ModelInfo(
     ),
 )
 
-
 GEMINI_2_0_FLASH_LITE = ModelInfo(
     label='Google AI - Gemini 2.0 Flash Lite',
     supports=Supports(
@@ -275,7 +256,6 @@ GEMINI_2_0_FLASH_LITE = ModelInfo(
         constrained='no-tools',
     ),
 )
-
 
 GEMINI_2_0_PRO_EXP_02_05 = ModelInfo(
     label='Google AI - Gemini 2.0 Pro Exp 02-05',
@@ -337,6 +317,18 @@ GEMINI_2_5_PRO_PREVIEW_03_25 = ModelInfo(
     ),
 )
 
+GEMINI_2_5_PRO_PREVIEW_05_06 = ModelInfo(
+    label='Google AI - Gemini 2.5 Pro Preview 05-06',
+    supports=Supports(
+        multiturn=True,
+        media=True,
+        tools=True,
+        tool_choice=True,
+        system_role=True,
+        constrained='no-tools',
+    ),
+)
+
 GEMINI_2_5_FLASH_PREVIEW_04_17 = ModelInfo(
     label='Google AI - Gemini 2.5 Flash Preview 04-17',
     supports=Supports(
@@ -375,7 +367,7 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported    |
     | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported    |
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported    |
-    | `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported    |
+    | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported    |
     """
 
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
@@ -388,7 +380,7 @@ class VertexAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
-    GEMINI_2_5_FLASH_PREVIEW_04_17 = 'gemini-2.5-flash-preview-04-17'
+    GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
 
 
 class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
@@ -408,7 +400,7 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     | `gemini-2.0-pro-exp-02-05`           | Gemini 2.0 Pro Exp 02-05             | Supported  |
     | `gemini-2.5-pro-exp-03-25`           | Gemini 2.5 Pro Exp 03-25             | Supported  |
     | `gemini-2.5-pro-preview-03-25`       | Gemini 2.5 Pro Preview 03-25         | Supported  |
-    | `gemini-2.5-flash-preview-04-17`     | Gemini 2.5 Flash Preview 04-17       | Supported  |
+    | `gemini-2.5-pro-preview-05-06`       | Gemini 2.5 Pro Preview 05-06         | Supported  |
     """
 
     GEMINI_1_5_FLASH = 'gemini-1.5-flash'
@@ -421,7 +413,7 @@ class GoogleAIGeminiVersion(StrEnum, metaclass=Deprecations):
     GEMINI_2_0_PRO_EXP_02_05 = 'gemini-2.0-pro-exp-02-05'
     GEMINI_2_5_PRO_EXP_03_25 = 'gemini-2.5-pro-exp-03-25'
     GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25'
-    GEMINI_2_5_FLASH_PREVIEW_04_17 = 'gemini-2.5-flash-preview-04-17'
+    GEMINI_2_5_PRO_PREVIEW_05_06 = 'gemini-2.5-pro-preview-05-06'
 
 
 SUPPORTED_MODELS = {
@@ -435,7 +427,7 @@ SUPPORTED_MODELS = {
     GoogleAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
-    GoogleAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
+    GoogleAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
     VertexAIGeminiVersion.GEMINI_1_5_FLASH: GEMINI_1_5_FLASH,
     VertexAIGeminiVersion.GEMINI_1_5_FLASH_8B: GEMINI_1_5_FLASH_8B,
     VertexAIGeminiVersion.GEMINI_1_5_PRO: GEMINI_1_5_PRO,
@@ -446,8 +438,38 @@ SUPPORTED_MODELS = {
     VertexAIGeminiVersion.GEMINI_2_0_PRO_EXP_02_05: GEMINI_2_0_PRO_EXP_02_05,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_EXP_03_25: GEMINI_2_5_PRO_EXP_03_25,
     VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_03_25: GEMINI_2_5_PRO_PREVIEW_03_25,
-    VertexAIGeminiVersion.GEMINI_2_5_FLASH_PREVIEW_04_17: GEMINI_2_5_FLASH_PREVIEW_04_17,
+    VertexAIGeminiVersion.GEMINI_2_5_PRO_PREVIEW_05_06: GEMINI_2_5_PRO_PREVIEW_05_06,
 }
+
+
+DEFAULT_SUPPORTS_MODEL = Supports(
+    multiturn=True,
+    media=True,
+    tools=True,
+    tool_choice=True,
+    system_role=True,
+    constrained='no-tools',
+)
+
+
+def google_model_info(
+    version: str,
+) -> ModelInfo:
+    """Generates a ModelInfo object.
+
+    This function tries to get the best ModelInfo Supports
+    for the given version.
+
+    Args:
+        version: Version of the model.
+
+    Returns:
+        ModelInfo object.
+    """
+    return ModelInfo(
+        label=f'Google AI - {version}',
+        supports=DEFAULT_SUPPORTS_MODEL,
+    )
 
 
 class GeminiModel:
@@ -470,36 +492,6 @@ class GeminiModel:
         self._client = client
         self._registry = registry
 
-    def _create_vertexai_tool(self, tool: ToolDefinition) -> genai_types.Tool:
-        """Create a tool that is compatible with VertexAI API.
-
-        Args:
-            tool: Genkit Tool Definition
-
-        Returns:
-            Genai tool compatible with VertexAI API.
-        """
-        function = genai_types.FunctionDeclaration(
-            name=tool.name,
-            description=tool.description,
-            parameters=tool.input_schema,
-            response=tool.output_schema,
-        )
-        return genai_types.Tool(function_declarations=[function])
-
-    def _create_gemini_tool(self, tool: ToolDefinition) -> genai_types.Tool:
-        """Create a tool that is compatible with Gemini API.
-
-        Args:
-            tool: Genkit Tool Definition
-
-        Returns:
-            Genai tool compatible with Gemini API.
-        """
-        params = self._convert_schema_property(tool.input_schema)
-        function = genai_types.FunctionDeclaration(name=tool.name, description=tool.description, parameters=params)
-        return genai_types.Tool(function_declarations=[function])
-
     def _get_tools(self, request: GenerateRequest) -> list[genai_types.Tool]:
         """Generates VertexAI Gemini compatible tool definitions.
 
@@ -511,10 +503,28 @@ class GeminiModel:
         """
         tools = []
         for tool in request.tools:
-            genai_tool = self._create_vertexai_tool(tool) if self._client.vertexai else self._create_gemini_tool(tool)
+            genai_tool = self._create_tool(tool)
             tools.append(genai_tool)
 
         return tools
+
+    def _create_tool(self, tool: ToolDefinition) -> genai_types.Tool:
+        """Create a tool that is compatible with Google Genai API.
+
+        Args:
+            tool: Genkit Tool Definition
+
+        Returns:
+            Genai tool compatible with Gemini API.
+        """
+        params = self._convert_schema_property(tool.input_schema)
+        function = genai_types.FunctionDeclaration(
+            name=tool.name,
+            description=tool.description,
+            parameters=params,
+            response=tool.output_schema,
+        )
+        return genai_types.Tool(function_declarations=[function])
 
     def _convert_schema_property(
         self, input_schema: dict[str, Any], defs: dict[str, Any] | None = None
@@ -522,16 +532,17 @@ class GeminiModel:
         """Sanitizes a schema to be compatible with Gemini API.
 
         Args:
-            input_schema: a dictionary with input parameters
+            input_schema: A dictionary with input parameters
+            defs: Dictionary with definitions. Optional.
 
         Returns:
             Schema or None
         """
-        if defs is None:
-            defs = input_schema.get('$defs') if '$defs' in input_schema else {}
-
         if input_schema is None or 'type' not in input_schema:
             return None
+
+        if defs is None:
+            defs = input_schema.get('$defs') if '$defs' in input_schema else {}
 
         schema = genai_types.Schema()
         if input_schema.get('description'):
@@ -557,7 +568,7 @@ class GeminiModel:
                     if isinstance(properties[key], dict) and '$ref' in properties[key]:
                         ref_tokens = properties[key]['$ref'].split('/')
                         if ref_tokens[2] not in defs:
-                            raise Exception(f'Failed to resolve schema for {ref_tokens[2]}')
+                            raise ValueError(f'Failed to resolve schema for {ref_tokens[2]}')
                         resolved_schema = self._convert_schema_property(defs[ref_tokens[2]], defs)
                         schema.properties[key] = resolved_schema
 
@@ -579,6 +590,9 @@ class GeminiModel:
             Gemini message content to add to the message
         """
         tool_function = self._registry.registry.lookup_action(ActionKind.TOOL, call.name)
+        if tool_function is None:
+            raise LookupError(f'Tool {call.name} not found')
+
         args = tool_function.input_type.validate_python(call.args)
         tool_answer = tool_function.run(args)
         return genai_types.Content(
@@ -596,6 +610,7 @@ class GeminiModel:
         self, request: GenerateRequest, model_name: str, cache_config: dict, contents: list[genai_types.Content]
     ) -> genai_types.CachedContent:
         """Retrieves cached content from the Google API if exists.
+
         If content is present - increases storage ttl based on the configured `ttl_seconds`
         If content is not present - creates it and returns creates instance.
 
@@ -622,7 +637,7 @@ class GeminiModel:
                 cache = item
                 break
         if cache:
-            updated_expiration_time = datetime.now(timezone.utc) + timedelta(seconds=ttl)
+            updated_expiration_time = datetime.now(timezone.UTC) + timedelta(seconds=ttl)
             cache = await self._client.aio.caches.update(
                 name=cache.name, config=genai_types.UpdateCachedContentConfig(expireTime=updated_expiration_time)
             )
@@ -647,7 +662,6 @@ class GeminiModel:
         Returns:
             The model's response to the generation request.
         """
-
         try:
             model_name = request.config.version
         except AttributeError:

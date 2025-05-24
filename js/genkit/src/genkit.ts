@@ -92,7 +92,7 @@ import {
   defineSimpleRetriever,
   index,
 } from '@genkit-ai/ai/retriever';
-import { ToolFn } from '@genkit-ai/ai/tool';
+import { ToolFn, dynamicTool } from '@genkit-ai/ai/tool';
 import {
   Action,
   ActionContext,
@@ -197,6 +197,17 @@ export class Genkit implements HasRegistry {
     fn: ToolFn<I, O>
   ): ToolAction<I, O> {
     return defineTool(this.registry, config, fn);
+  }
+
+  /**
+   * Defines a dynamic tool. Dynamic tools are just like regular tools ({@link Genkit.defineTool}) but will not be registered in the
+   * Genkit registry and can be defined dynamically at runtime.
+   */
+  dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: ToolConfig<I, O>,
+    fn?: ToolFn<I, O>
+  ): ToolAction<I, O> {
+    return dynamicTool(this, config, fn);
   }
 
   /**

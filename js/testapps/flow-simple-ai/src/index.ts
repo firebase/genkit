@@ -37,7 +37,6 @@ import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
-import { dynamicTool } from 'genkit/tool';
 import { Allow, parse } from 'partial-json';
 
 logger.setLogLevel('debug');
@@ -486,8 +485,7 @@ export const dynamicToolCaller = ai.defineFlow(
     streamSchema: z.any(),
   },
   async (input, { sendChunk }) => {
-    const dynamicGablorkenTool = dynamicTool(
-      ai,
+    const dynamicGablorkenTool = ai.dynamicTool(
       {
         name: 'dynamicGablorkenTool',
         inputSchema: z.object({
@@ -946,4 +944,20 @@ ai.defineFlow('embedders-tester', async () => {
       embedder: vertexAI.embedder('text-embedding-004'),
     })
   );
+});
+
+ai.defineFlow('reasoning', async (_, { sendChunk }) => {
+  const { message } = await ai.generate({
+    prompt: 'whats heavier, one kilo of steel or or one kilo of feathers',
+    model: googleAI.model('gemini-2.5-flash-preview-04-17'),
+    config: {
+      thinkingConfig: {
+        thinkingBudget: 1024,
+        includeThoughts: true,
+      },
+    },
+    onChunk: sendChunk,
+  });
+
+  return message;
 });

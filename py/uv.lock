@@ -29,13 +29,14 @@ members = [
     "google-genai-image",
     "google-genai-vertexai-hello",
     "google-genai-vertexai-image",
-    "imagen",
     "menu",
     "multi-server",
     "ollama-hello",
     "ollama-simple-embed",
     "short-n-long",
     "tool-interrupts",
+    "vertex-ai-vector-search-bigquery",
+    "vertex-ai-vector-search-firestore",
 ]
 
 [[package]]
@@ -1025,7 +1026,7 @@ provides-extras = ["dev-local-vectorstore", "flask", "google-genai", "ollama", "
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit" },
@@ -1042,7 +1043,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "plugins/dev-local-vectorstore" }
 dependencies = [
     { name = "genkit" },
@@ -1061,7 +1062,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-firebase"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "plugins/firebase" }
 dependencies = [
     { name = "genkit" },
@@ -1078,7 +1079,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -1098,7 +1099,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit" },
@@ -1115,7 +1116,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit" },
@@ -1136,7 +1137,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
@@ -1153,12 +1154,14 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit" },
     { name = "google-cloud-aiplatform" },
-    { name = "pytest-mock" },
+    { name = "google-cloud-bigquery" },
+    { name = "google-cloud-firestore" },
+    { name = "google-genai" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "structlog" },
 ]
@@ -1167,7 +1170,9 @@ dependencies = [
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
     { name = "google-cloud-aiplatform", specifier = ">=1.77.0" },
-    { name = "pytest-mock" },
+    { name = "google-cloud-bigquery" },
+    { name = "google-cloud-firestore" },
+    { name = "google-genai", specifier = ">=1.7.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
     { name = "structlog", specifier = ">=25.2.0" },
 ]
@@ -1812,21 +1817,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f1/70/7703c29685631f5a7590aa73f1f1d3fa9a380e654b86af429e0934a32f7d/idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9", size = 190490 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/c6/c88e154df9c4e1a2a66ccf0005a88dfb2650c1dffb6f5ce603dfbd452ce3/idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3", size = 70442 },
-]
-
-[[package]]
-name = "imagen"
-version = "0.1.0"
-source = { editable = "samples/vertex-ai-imagen" }
-dependencies = [
-    { name = "genkit" },
-    { name = "genkit-plugin-vertex-ai" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "genkit", editable = "packages/genkit" },
-    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
 ]
 
 [[package]]
@@ -4615,6 +4605,56 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d2/19/f5b78616566ea68edd42aacaf645adbf71fbd83fc52281fba555dc27e3f1/uvloop-0.21.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f3df876acd7ec037a3d005b3ab85a7e4110422e4d9c1571d4fc89b0fc41b6816", size = 4701068 },
     { url = "https://files.pythonhosted.org/packages/47/57/66f061ee118f413cd22a656de622925097170b9380b30091b78ea0c6ea75/uvloop-0.21.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:bd53ecc9a0f3d87ab847503c2e1552b690362e005ab54e8a48ba97da3924c0dc", size = 4454428 },
     { url = "https://files.pythonhosted.org/packages/63/9a/0962b05b308494e3202d3f794a6e85abe471fe3cafdbcf95c2e8c713aabd/uvloop-0.21.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:a5c39f217ab3c663dc699c04cbd50c13813e31d917642d459fdcec07555cc553", size = 4660018 },
+]
+
+[[package]]
+name = "vertex-ai-vector-search-bigquery"
+version = "0.1.0"
+source = { editable = "samples/vertex-ai-vector-search-bigquery" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "genkit-plugin-vertex-ai" },
+    { name = "google-cloud-bigquery" },
+    { name = "pydantic" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
+    { name = "google-cloud-bigquery" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+    { name = "structlog", specifier = ">=25.2.0" },
+]
+
+[[package]]
+name = "vertex-ai-vector-search-firestore"
+version = "0.1.0"
+source = { editable = "samples/vertex-ai-vector-search-firestore" }
+dependencies = [
+    { name = "genkit" },
+    { name = "genkit-plugin-google-genai" },
+    { name = "genkit-plugin-vertex-ai" },
+    { name = "google-cloud-firestore" },
+    { name = "pydantic" },
+    { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
+    { name = "genkit-plugin-vertex-ai", editable = "plugins/vertex-ai" },
+    { name = "google-cloud-firestore" },
+    { name = "pydantic", specifier = ">=2.10.5" },
+    { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+    { name = "structlog", specifier = ">=25.2.0" },
 ]
 
 [[package]]

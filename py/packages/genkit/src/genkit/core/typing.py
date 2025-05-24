@@ -55,6 +55,7 @@ class CustomPart(BaseModel):
     data: Any | None = None
     metadata: dict[str, Any] | None = None
     custom: dict[str, Any]
+    reasoning: Any | None = None
 
 
 class Media(BaseModel):
@@ -239,6 +240,8 @@ class GenerationUsage(BaseModel):
     input_audio_files: float | None = Field(None, alias='inputAudioFiles')
     output_audio_files: float | None = Field(None, alias='outputAudioFiles')
     custom: dict[str, float] | None = None
+    thoughts_tokens: float | None = Field(None, alias='thoughtsTokens')
+    cached_content_tokens: float | None = Field(None, alias='cachedContentTokens')
 
 
 class Constrained(StrEnum):
@@ -477,6 +480,12 @@ class Metadata(RootModel[dict[str, Any] | None]):
     root: dict[str, Any] | None = None
 
 
+class Reasoning(RootModel[Any]):
+    """Root model for reasoning."""
+
+    root: Any
+
+
 class Text(RootModel[Any]):
     """Root model for text."""
 
@@ -572,6 +581,7 @@ class DataPart(BaseModel):
     data: Any | None = None
     metadata: Metadata | None = None
     custom: dict[str, Any] | None = None
+    reasoning: Reasoning | None = None
 
 
 class MediaPart(BaseModel):
@@ -585,6 +595,21 @@ class MediaPart(BaseModel):
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
+    reasoning: Reasoning | None = None
+
+
+class ReasoningPart(BaseModel):
+    """Model for reasoningpart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: Data | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: str
 
 
 class TextPart(BaseModel):
@@ -598,6 +623,7 @@ class TextPart(BaseModel):
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
+    reasoning: Reasoning | None = None
 
 
 class ToolRequestPart(BaseModel):
@@ -611,6 +637,7 @@ class ToolRequestPart(BaseModel):
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
+    reasoning: Reasoning | None = None
 
 
 class ToolResponsePart(BaseModel):
@@ -624,6 +651,7 @@ class ToolResponsePart(BaseModel):
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
+    reasoning: Reasoning | None = None
 
 
 class EmbedResponse(BaseModel):
@@ -671,10 +699,12 @@ class Resume(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
-class Part(RootModel[TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart]):
+class Part(
+    RootModel[TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart]
+):
     """Root model for part."""
 
-    root: TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart
+    root: TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart
 
 
 class Link(BaseModel):
