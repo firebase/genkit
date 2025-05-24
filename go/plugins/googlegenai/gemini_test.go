@@ -17,6 +17,7 @@
 package googlegenai
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
@@ -151,17 +152,102 @@ func TestConvertRequest(t *testing.T) {
 			t.Errorf("ThinkingConfig should not be empty")
 		}
 	})
-	t.Run("use system instruction outside genkit", func(t *testing.T) {
+	t.Run("use valid tools outside genkit", func(t *testing.T) {
 		badCfg := GeminiConfig{
-			Temperature:       Float32Ptr(1.0),
-			SystemInstruction: &genai.Content{Parts: []*genai.Part{{Text: "talk like a pirate"}}},
+			Temperature: Float32Ptr(1.0),
+			Tools: []*genai.Tool{
+				{
+					CodeExecution: &genai.ToolCodeExecution{},
+					GoogleSearch:  &genai.GoogleSearch{},
+				},
+			},
 		}
 		req := ai.ModelRequest{
 			Config: badCfg,
 		}
 		_, err := toGeminiRequest(&req, nil)
-		if err == nil {
-			t.Fatal("system instruction should be set using Genkit features")
+		if err != nil {
+			t.Fatalf("expected nil, got: %v", err)
+		}
+	})
+	t.Run("forbidden primitives outside genkit", func(t *testing.T) {
+		type testCase struct {
+			name string
+			cfg  GeminiConfig
+			err  error
+		}
+		tests := []testCase{
+			{
+				name: "use system instruction outside genkit",
+				cfg: GeminiConfig{
+					Temperature:       Float32Ptr(1.0),
+					SystemInstruction: &genai.Content{Parts: []*genai.Part{{Text: "talk like a pirate"}}},
+				},
+				err: errors.New("system instruction should be set using Genkit features"),
+			},
+			{
+				name: "use function declaration tools outside genkit",
+				cfg: GeminiConfig{
+					Temperature: Float32Ptr(1.0),
+					Tools: []*genai.Tool{
+						{
+							FunctionDeclarations: []*genai.FunctionDeclaration{},
+							GoogleSearch:         &genai.GoogleSearch{},
+						},
+					},
+				},
+				err: errors.New("function declaration tools should be set using Genkit features"),
+			},
+			{
+				name: "use code execution tool",
+				cfg: GeminiConfig{
+					Temperature: Float32Ptr(1.0),
+					Tools: []*genai.Tool{
+						{
+							FunctionDeclarations: []*genai.FunctionDeclaration{},
+						},
+						{
+							CodeExecution: &genai.ToolCodeExecution{},
+						},
+					},
+				},
+				err: errors.New("function declaration tools should be set using Genkit features"),
+			},
+			{
+				name: "use cache outside genkit",
+				cfg: GeminiConfig{
+					CachedContent: "some cache uuid",
+				},
+				err: errors.New("cache contents should be set using Genkit features"),
+			},
+			{
+				name: "use response schema outside genkit",
+				cfg: GeminiConfig{
+					ResponseSchema: &genai.Schema{
+						Description: "some schema",
+					},
+				},
+				err: errors.New("response schema should be set using Genkit features"),
+			},
+			{
+				name: "use response MIME type outside genkit",
+				cfg: GeminiConfig{
+					ResponseMIMEType: "image/png",
+				},
+				err: errors.New("response schema should be set using Genkit features"),
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				req := ai.ModelRequest{
+					Config: tc.cfg,
+				}
+				_, err := toGeminiRequest(&req, nil)
+				if err == nil {
+					t.Fatalf("expected an error: '%v' but got nil", tc.err)
+				}
+			})
 		}
 	})
 	t.Run("convert tools with valid tool", func(t *testing.T) {
