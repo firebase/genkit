@@ -24,6 +24,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
+	"google.golang.org/genai"
 )
 
 func setup04(ctx context.Context, g *genkit.Genkit, docStore *localvec.DocStore, retriever ai.Retriever, model ai.Model) error {
@@ -47,7 +48,7 @@ Answer this customer's question:
 		ai.WithInputType(dataMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: googlegenai.Float32Ptr(0.3),
+			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)
 	if err != nil {

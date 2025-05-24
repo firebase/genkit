@@ -24,6 +24,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 type imageURLInput struct {
@@ -41,7 +42,7 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 		ai.WithInputType(imageURLInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: googlegenai.Float32Ptr(0.1),
+			Temperature: genai.Ptr[float32](0.1),
 		}),
 	)
 	if err != nil {
@@ -65,7 +66,7 @@ Answer this customer's question:
 		ai.WithInputType(textMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: googlegenai.Float32Ptr(0.3),
+			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)
 	if err != nil {

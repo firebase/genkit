@@ -42,12 +42,12 @@ func TestConvertRequest(t *testing.T) {
 		Config: GeminiConfig{
 			MaxOutputTokens: 10,
 			StopSequences:   []string{"stop"},
-			Temperature:     Float32Ptr(0.4),
-			TopK:            Float32Ptr(0.1),
-			TopP:            Float32Ptr(1.0),
+			Temperature:     genai.Ptr[float32](0.4),
+			TopK:            genai.Ptr[float32](0.1),
+			TopP:            genai.Ptr[float32](1.0),
 			ThinkingConfig: &genai.ThinkingConfig{
 				IncludeThoughts: false,
-				ThinkingBudget:  Int32Ptr(0),
+				ThinkingBudget:  genai.Ptr[int32](0),
 			},
 		},
 		Tools:      []*ai.ToolDefinition{tool},
@@ -154,7 +154,7 @@ func TestConvertRequest(t *testing.T) {
 	})
 	t.Run("use valid tools outside genkit", func(t *testing.T) {
 		badCfg := GeminiConfig{
-			Temperature: Float32Ptr(1.0),
+			Temperature: genai.Ptr[float32](1.0),
 			Tools: []*genai.Tool{
 				{
 					CodeExecution: &genai.ToolCodeExecution{},
@@ -180,7 +180,7 @@ func TestConvertRequest(t *testing.T) {
 			{
 				name: "use system instruction outside genkit",
 				cfg: GeminiConfig{
-					Temperature:       Float32Ptr(1.0),
+					Temperature:       genai.Ptr[float32](1.0),
 					SystemInstruction: &genai.Content{Parts: []*genai.Part{{Text: "talk like a pirate"}}},
 				},
 				err: errors.New("system instruction should be set using Genkit features"),
@@ -188,7 +188,7 @@ func TestConvertRequest(t *testing.T) {
 			{
 				name: "use function declaration tools outside genkit",
 				cfg: GeminiConfig{
-					Temperature: Float32Ptr(1.0),
+					Temperature: genai.Ptr[float32](1.0),
 					Tools: []*genai.Tool{
 						{
 							FunctionDeclarations: []*genai.FunctionDeclaration{},
@@ -201,7 +201,7 @@ func TestConvertRequest(t *testing.T) {
 			{
 				name: "use code execution tool",
 				cfg: GeminiConfig{
-					Temperature: Float32Ptr(1.0),
+					Temperature: genai.Ptr[float32](1.0),
 					Tools: []*genai.Tool{
 						{
 							FunctionDeclarations: []*genai.FunctionDeclaration{},
