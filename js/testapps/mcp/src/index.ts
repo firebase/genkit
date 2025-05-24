@@ -75,7 +75,7 @@ export const controlMcp = ai.defineFlow(
     inputSchema: z.object({
       action: z.enum([
         'RECONNECT',
-        'REENABLE',
+        'ENABLE',
         'DISABLE',
         'DISCONNECT',
       ] as const),
