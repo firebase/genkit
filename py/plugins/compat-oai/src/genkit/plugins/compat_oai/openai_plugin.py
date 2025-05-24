@@ -17,9 +17,10 @@
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
 
-from openai import OpenAI as OpenAIClient
+from openai import Client, OpenAI as OpenAIClient
 
-from genkit.ai import GenkitRegistry, Plugin
+from genkit.ai._plugin import Plugin
+from genkit.ai._registry import GenkitRegistry
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_MODELS,
     OpenAIModelHandler,
@@ -36,7 +37,7 @@ class OpenAI(Plugin):
 
     name = 'openai-compat'
 
-    def __init__(self, **openai_params) -> None:
+    def __init__(self, **openai_params: str) -> None:
         """Initializes the OpenAI plugin with the specified parameters.
 
         Args:

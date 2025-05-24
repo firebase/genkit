@@ -42,8 +42,10 @@ Transformations applied:
 
 import ast
 import sys
+from _ast import AST
 from datetime import datetime
 from pathlib import Path
+from typing import Type, cast
 
 
 class ClassTransformer(ast.NodeTransformer):
@@ -207,7 +209,7 @@ class ClassTransformer(ast.NodeTransformer):
             # For other classes, just copy the rest of the body
             new_body.extend(node.body[body_start_index:])
 
-        node.body = new_body
+        node.body = cast(list[ast.stmt], new_body)
         return node
 
 
