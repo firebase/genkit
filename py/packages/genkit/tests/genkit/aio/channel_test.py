@@ -19,9 +19,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
-
-from typing import TypeVar, Any
+from typing import Any, TypeVar
 
 import pytest
 
