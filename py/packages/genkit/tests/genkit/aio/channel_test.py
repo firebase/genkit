@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import pytest
 
@@ -26,22 +27,22 @@ from genkit.aio import Channel
 
 
 @pytest.mark.asyncio
-async def test_channel_send_and_receive():
+async def test_channel_send_and_receive() -> None:
     """Tests sending a value and receiving it from the channel."""
-    channel = Channel()
+    channel: Channel[str] = Channel[str]()
     channel.send('hello')
     received = await channel.__anext__()
     assert received == 'hello'
 
 
 @pytest.mark.asyncio
-async def test_channel_empty():
+async def test_channel_empty() -> None:
     """Tests that __anext__ waits for a value when the channel is empty."""
-    close_future = asyncio.Future()
-    channel = Channel()
+    close_future: asyncio.Future[Any] = asyncio.Future()
+    channel: Channel[Any] = Channel()
     channel.set_close_future(close_future)
 
-    async def async_send():
+    async def async_send() -> None:
         channel.send('world')
 
     send_task = asyncio.create_task(async_send())
@@ -53,10 +54,10 @@ async def test_channel_empty():
 
 
 @pytest.mark.asyncio
-async def test_channel_close():
+async def test_channel_close() -> None:
     """Tests that the channel closes correctly."""
-    channel = Channel()
-    close_future = asyncio.Future()
+    channel: Channel[Any] = Channel()
+    close_future: asyncio.Future[Any] = asyncio.Future()
     channel.set_close_future(close_future)
     close_future.set_result(None)
     with pytest.raises(StopAsyncIteration):
@@ -64,9 +65,9 @@ async def test_channel_close():
 
 
 @pytest.mark.asyncio
-async def test_channel_multiple_send_receive():
+async def test_channel_multiple_send_receive() -> None:
     """Tests sending and receiving multiple values."""
-    channel = Channel()
+    channel: Channel[Any] = Channel()
     values = ['one', 'two', 'three']
     for value in values:
         channel.send(value)
@@ -75,10 +76,10 @@ async def test_channel_multiple_send_receive():
 
 
 @pytest.mark.asyncio
-async def test_channel_aiter_anext():
+async def test_channel_aiter_anext() -> None:
     """Tests the asynchronous iterator functionality."""
-    close_future = asyncio.Future()
-    channel = Channel()
+    close_future: asyncio.Future[Any] = asyncio.Future()
+    channel: Channel[Any]  = Channel()
     channel.set_close_future(close_future)
     values = ['a', 'b', 'c']
     for value in values:
@@ -92,24 +93,24 @@ async def test_channel_aiter_anext():
 
 
 @pytest.mark.asyncio
-async def test_channel_invalid_timeout():
+async def test_channel_invalid_timeout() -> None:
     """Tests that an invalid timeout value raises ValueError."""
     with pytest.raises(ValueError):
         Channel(timeout=-0.1)
 
 
 @pytest.mark.asyncio
-async def test_channel_timeout():
+async def test_channel_timeout() -> None:
     """Tests that the channel raises TimeoutError when timeout is reached."""
-    channel = Channel(timeout=0.1)
+    channel: Channel[Any]  = Channel(timeout=0.1)
     with pytest.raises(TimeoutError):
         await channel.__anext__()
 
 
 @pytest.mark.asyncio
-async def test_channel_no_timeout():
+async def test_channel_no_timeout() -> None:
     """Tests that the channel doesn't timeout when timeout=None."""
-    channel = Channel(timeout=None)
+    channel: Channel[Any]  = Channel(timeout=None)
     anext_task = asyncio.create_task(channel.__anext__())
     await asyncio.sleep(0.1)
     assert not anext_task.done()
@@ -119,10 +120,10 @@ async def test_channel_no_timeout():
 
 
 @pytest.mark.asyncio
-async def test_channel_timeout_with_close_future():
+async def test_channel_timeout_with_close_future() -> None:
     """Tests timeout with an active close_future."""
-    channel = Channel(timeout=0.1)
-    close_future = asyncio.Future()
+    channel: Channel[Any] = Channel(timeout=0.1)
+    close_future: asyncio.Future[Any] = asyncio.Future()
     channel.set_close_future(close_future)
     with pytest.raises(TimeoutError):
         await channel.__anext__()
@@ -132,7 +133,7 @@ async def test_channel_timeout_with_close_future():
 
 
 @pytest.mark.asyncio
-async def test_channel_invalid_timeout_negative():
+async def test_channel_invalid_timeout_negative() -> None:
     """Tests that negative timeout values raise ValueError."""
     with pytest.raises(ValueError) as excinfo:
         Channel(timeout=-1.0)
@@ -140,11 +141,11 @@ async def test_channel_invalid_timeout_negative():
 
 
 @pytest.mark.asyncio
-async def test_channel_timeout_race_condition():
+async def test_channel_timeout_race_condition() -> None:
     """Tests the behavior when a value arrives just as the timeout occurs."""
-    channel = Channel(timeout=0.2)
+    channel: Channel[Any] = Channel(timeout=0.2)
 
-    async def delayed_send():
+    async def delayed_send() -> None:
         await asyncio.sleep(0.15)
         channel.send('just in time')
 

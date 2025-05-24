@@ -54,7 +54,7 @@ def parse_plugin_name_from_action_name(name: str) -> str | None:
 
 def extract_action_args_and_types(
     input_spec: inspect.FullArgSpec,
-) -> tuple[list[str], list[type]]:
+) -> tuple[list[str], list[Any]]:
     """Extracts relevant argument names and types from a function's FullArgSpec.
 
     Specifically handles the case where the first argument might be 'self'
