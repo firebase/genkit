@@ -406,10 +406,10 @@ func TestGoogleAILive(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(googlegenai.GeminiConfig{
-				Temperature: googlegenai.Float32Ptr(0.4),
+				Temperature: genai.Ptr[float32](0.4),
 				ThinkingConfig: &genai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  googlegenai.Int32Ptr(100),
+					ThinkingBudget:  genai.Ptr[int32](100),
 				},
 			}),
 			ai.WithModel(m),
