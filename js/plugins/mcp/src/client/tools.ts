@@ -88,7 +88,10 @@ export async function registerAllTools(
 ): Promise<void> {
   let cursor: string | undefined;
   while (true) {
-    const { nextCursor, tools } = await client.listTools({ cursor });
+    const { nextCursor, tools } = await client.listTools({
+      cursor,
+      roots: params.roots,
+    });
     tools.forEach((t) => registerTool(ai, client, t, params));
     cursor = nextCursor;
     if (!cursor) break;

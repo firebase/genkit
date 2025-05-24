@@ -14,4 +14,22 @@
  * limitations under the License.
  */
 
-// no tests... :(
+import { Genkit, z } from 'genkit';
+import type { McpClientOptions } from '../index.js';
+
+export async function registerClientRoots(
+  ai: Genkit,
+  params: McpClientOptions
+) {
+  ai.defineTool(
+    {
+      name: `${params.name}/list_roots`,
+      description: `Lists the available roots for this MCP client`,
+      inputSchema: z.object({}),
+      outputSchema: z.array(z.object({ name: z.string(), uri: z.string() })),
+    },
+    async () => {
+      return params.roots ?? [];
+    }
+  );
+}

@@ -40,6 +40,7 @@ export function fromMcpPart(part: PromptMessage['content']): Part {
           url: `data:${part.mimeType};base64,${part.data}`,
         },
       };
+    case 'audio':
     case 'resource':
       return {};
   }
