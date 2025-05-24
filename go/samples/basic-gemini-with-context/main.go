@@ -22,6 +22,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 func main() {
@@ -41,8 +42,7 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.0-flash"),
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				Temperature: 1,
-				Version:     "gemini-2.0-flash-001",
+				Temperature: genai.Ptr[float32](1.0),
 			}),
 			ai.WithPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)),
 			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))

@@ -160,10 +160,7 @@ func TestVertexAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPrompt("write a summary of the content"),
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}))
+			ai.WithPrompt("write a summary of the content"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -183,9 +180,6 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
@@ -277,7 +271,7 @@ func TestVertexAILive(t *testing.T) {
 		m := googlegenai.VertexAIModel(g, "gemini-2.0-flash-preview-image-generation")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(googlegenai.GeminiConfig{
-				ResponseModalities: []googlegenai.Modality{googlegenai.ImageMode, googlegenai.TextMode},
+				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
 			ai.WithMessages(
 				ai.NewUserTextMessage("generate an image of a dog wearing a black tejana while playing the accordion"),
