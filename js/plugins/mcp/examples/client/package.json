@@ -16,7 +16,7 @@
     "@modelcontextprotocol/server-filesystem": "^0.5.1",
     "@modelcontextprotocol/server-github": "^0.5.1",
     "genkit": "file:../../../../genkit",
-    "genkitx-mcp": "file:../../"
+    "@genkit-ai/mcp": "file:../../"
   },
   "devDependencies": {
     "@modelcontextprotocol/server-puppeteer": "^0.5.1",

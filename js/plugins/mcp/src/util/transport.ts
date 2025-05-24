@@ -14,14 +14,22 @@
  * limitations under the License.
  */
 
+import { McpServerConfig } from '../client/client.js';
 import type {
-  McpServerConfig,
-  McpServerControls,
   SSEClientTransportOptions,
   StdioServerParameters,
   Transport,
-} from './index';
+} from '../client/index.js';
 
+/**
+ * Creates an MCP transport instance based on the provided server configuration.
+ * It supports creating SSE, Stdio, or using a pre-configured custom transport.
+ *
+ * @param config The configuration for the MCP server, determining the type of transport to create.
+ * @returns A Promise resolving to an object containing the created `Transport` instance
+ *          (or `null` if configuration is invalid) and a string indicating the `type` of transport.
+ * @throws May throw an error if essential MCP SDK components cannot be imported.
+ */
 export async function transportFrom(config: McpServerConfig): Promise<{
   transport: Transport | null;
   type: string;
@@ -33,8 +41,6 @@ export async function transportFrom(config: McpServerConfig): Promise<{
   // Handle SSE config
   if ('url' in config && config.url) {
     const { url, ...sseConfig } = config;
-    // Remove McpServerControls properties before passing to transport constructor
-    delete (sseConfig as Partial<McpServerControls>).disabled;
     const { SSEClientTransport } = await import(
       '@modelcontextprotocol/sdk/client/sse.js'
     );
@@ -50,7 +56,6 @@ export async function transportFrom(config: McpServerConfig): Promise<{
   if ('command' in config && config.command) {
     // Create a copy and remove McpServerControls properties
     const stdioConfig = { ...config };
-    delete (stdioConfig as Partial<McpServerControls>).disabled;
     const { StdioClientTransport } = await import(
       '@modelcontextprotocol/sdk/client/stdio.js'
     );
