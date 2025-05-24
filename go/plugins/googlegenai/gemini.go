@@ -872,13 +872,3 @@ func GetCodeExecutionResult(msg *ai.Message) *CodeExecutionResult {
 	}
 	return nil
 }
-
-// Float32Ptr returns a pointer to a float32
-func Float32Ptr(f float32) *float32 {
-	return &f
-}
-
-// Int32Ptr returns a pointer to an int32
-func Int32Ptr(i int32) *int32 {
-	return &i
-}

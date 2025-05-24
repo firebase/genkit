@@ -26,6 +26,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/server"
+	"google.golang.org/genai"
 )
 
 func main() {
@@ -111,7 +112,7 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "PromptWithOutputType",
 		ai.WithOutputType(CountryList{}),
-		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: googlegenai.Float32Ptr(0.5)}),
+		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: genai.Ptr[float32](0.5)}),
 		ai.WithSystem("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
 		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants."),
 	)
@@ -186,7 +187,7 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 	prompt, err := genkit.DefinePrompt(
 		g, "PromptWithComplexOutputType",
 		ai.WithOutputType(countries{}),
-		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: googlegenai.Float32Ptr(0.5)}),
+		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: genai.Ptr[float32](0.5)}),
 		ai.WithSystem("You are a geography teacher. When asked a question about geography."),
 		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants and language."),
 	)

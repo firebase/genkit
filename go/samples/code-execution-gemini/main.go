@@ -51,7 +51,7 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				Temperature: googlegenai.Float32Ptr(0.2),
+				Temperature: genai.Ptr[float32](0.2),
 				Tools: []*genai.Tool{
 					{
 						CodeExecution: &genai.ToolCodeExecution{},

@@ -25,6 +25,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 // duneQuestionInput is a question about Dune.
@@ -59,7 +60,7 @@ func main() {
 
 		// generate a request with a large text content to be cached
 		resp, err := genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: googlegenai.Float32Ptr(0.7),
+			Temperature: genai.Ptr[float32](0.7),
 		}),
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
@@ -72,7 +73,7 @@ func main() {
 		// use previous messages to keep the conversation going and keep
 		// asking questions related to the large content that was cached
 		resp, err = genkit.Generate(ctx, g, ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: googlegenai.Float32Ptr(0.7),
+			Temperature: genai.Ptr[float32](0.7),
 		}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("now rewrite the previous summary and make it look like a pirate wrote it"),
