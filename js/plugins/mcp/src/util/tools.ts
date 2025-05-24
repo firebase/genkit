@@ -78,10 +78,6 @@ function registerTool(
         name: tool.name,
         arguments: args,
       });
-      logger.debug(
-        `MCP tool ${tool.name} result:`,
-        JSON.stringify(result, null, 2)
-      );
       if (params.rawToolResponses) return result;
       return processResult(result as CallToolResult);
     }
@@ -124,10 +120,6 @@ function createDynamicTool(
         name: tool.name,
         arguments: args,
       });
-      logger.debug(
-        `MCP tool ${tool.name} result:`,
-        JSON.stringify(result, null, 2)
-      );
       if (params.rawToolResponses) return result;
       return processResult(result as CallToolResult);
     }

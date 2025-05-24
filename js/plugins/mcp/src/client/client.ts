@@ -58,7 +58,6 @@ export type McpSSEServerConfig = { url: string } & SSEClientTransportOptions;
 
 export type McpTransportServerConfig = {
   transport: Transport;
-  client: Client;
   command?: never;
   url?: never;
 };
@@ -122,7 +121,7 @@ export class GenkitMcpClient {
     this.rawToolResponses = !!options.rawToolResponses;
     this.disabled = !!options.disabled;
 
-    this.initializeConnection();
+    this._initializeConnection();
   }
 
   /**
@@ -131,20 +130,19 @@ export class GenkitMcpClient {
    * Sets the client's ready state once all connection attempts are complete.
    * @param mcpServers A record mapping server names to their configurations.
    */
-  initializeConnection() {
+  private async _initializeConnection() {
     this._ready = false;
-    this.connect(this.serverConfig)
-      .then(() => {
-        this._ready = true;
-        while (this._readyListeners.length) {
-          this._readyListeners.pop()?.resolve();
-        }
-      })
-      .catch((err) => {
-        while (this._readyListeners.length) {
-          this._readyListeners.pop()?.reject(err);
-        }
-      });
+    try {
+      await this._connect(this.serverConfig);
+      this._ready = true;
+      while (this._readyListeners.length) {
+        this._readyListeners.pop()?.resolve();
+      }
+    } catch (err) {
+      while (this._readyListeners.length) {
+        this._readyListeners.pop()?.reject(err as Error);
+      }
+    }
   }
 
   /**
@@ -167,9 +165,11 @@ export class GenkitMcpClient {
    * @param serverName The name to assign to this server connection.
    * @param config The configuration object for the server.
    */
-  async connect(config: McpServerConfig) {
+  private async _connect(config: McpServerConfig) {
     if (this._server) await this._server.transport.close();
-    logger.info(`[MCP Client] Connecting MCP server in client '${this.name}'.`);
+    logger.debug(
+      `[MCP Client] Connecting MCP server in client '${this.name}'.`
+    );
 
     const { transport, type: transportType } = await transportFrom(config);
     if (!transport) {
@@ -184,16 +184,14 @@ export class GenkitMcpClient {
     const client = new Client({ name: this.name, version: this.version });
     client.registerCapabilities({ roots: {} });
 
-    if (this.isEnabled()) {
-      try {
-        await client.connect(transport);
-      } catch (e) {
-        logger.warn(
-          `[MCP Client] Error connecting server via ${transportType} transport: ${e}`
-        );
-        this.disabled = true;
-        error = (e as Error).toString();
-      }
+    try {
+      await client.connect(transport);
+    } catch (e) {
+      logger.warn(
+        `[MCP Client] Error connecting server via ${transportType} transport: ${e}`
+      );
+      this.disabled = true;
+      error = (e as Error).toString();
     }
 
     this._server = {
@@ -209,7 +207,7 @@ export class GenkitMcpClient {
    */
   async _disconnect() {
     if (this._server) {
-      logger.info(
+      logger.debug(
         `[MCP Client] Disconnecting MCP server in client '${this.name}'.`
       );
       await this._server.client.close();
@@ -221,11 +219,13 @@ export class GenkitMcpClient {
    * Disables a server. Closes the underlying transport and server's configuration. Does nothing if the server is
    * already disabled.
    */
-  disable() {
+  async disable() {
     if (!this.isEnabled()) return;
     if (this._server) {
-      logger.info(`[MCP Client] Disabling MCP server in client '${this.name}'`);
-      this._disconnect();
+      logger.debug(
+        `[MCP Client] Disabling MCP server in client '${this.name}'`
+      );
+      await this._disconnect();
       this.disabled = true;
     }
   }
@@ -243,13 +243,9 @@ export class GenkitMcpClient {
    */
   async enable() {
     if (this.isEnabled()) return;
-    if (this._server) {
-      logger.info(
-        `[MCP Client] Reenabling MCP server in client '${this.name}'`
-      );
-      await this.connect(this.serverConfig);
-      this.disabled = !!this._server.error;
-    }
+    logger.debug(`[MCP Client] Reenabling MCP server in client '${this.name}'`);
+    await this._initializeConnection();
+    this.disabled = !!this._server!.error;
   }
 
   /**
@@ -259,11 +255,11 @@ export class GenkitMcpClient {
    */
   async restart() {
     if (this._server) {
-      logger.info(
+      logger.debug(
         `[MCP Client] Restarting connection to MCP server in client '${this.name}'`
       );
       await this._disconnect();
-      await this.connect(this.serverConfig);
+      await this._initializeConnection();
     }
   }
 
@@ -319,7 +315,7 @@ export class GenkitMcpClient {
           options: opts,
         });
       }
-      logger.info(`[MCP Client] No prompts are found in this MCP server.`);
+      logger.debug(`[MCP Client] No prompts are found in this MCP server.`);
     }
     return;
   }

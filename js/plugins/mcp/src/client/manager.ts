@@ -73,7 +73,11 @@ export class GenkitMcpManager {
   constructor(options: McpManagerOptions) {
     this.name = options.name || 'genkitx-mcp';
 
-    if (options.mcpServers) this.updateServers(options.mcpServers);
+    if (options.mcpServers) {
+      this.updateServers(options.mcpServers);
+    } else {
+      this._ready = true;
+    }
   }
 
   /**
@@ -110,7 +114,7 @@ export class GenkitMcpManager {
       }
     }
 
-    logger.info(
+    logger.debug(
       `[MCP Manager] Connecting to MCP server '${serverName}' in manager '${this.name}'.`
     );
     try {
@@ -131,7 +135,12 @@ export class GenkitMcpManager {
    */
   async disconnect(serverName: string) {
     const client = this._clients[serverName];
-    logger.info(
+    if (!client) {
+      logger.warn(`[MCP Manager] unable to find server ${serverName}`);
+      return;
+    }
+
+    logger.debug(
       `[MCP Manager] Disconnecting MCP server '${serverName}' in manager '${this.name}'.`
     );
     try {
@@ -154,12 +163,19 @@ export class GenkitMcpManager {
    */
   async disable(serverName: string) {
     const client = this._clients[serverName];
-    if (client.isEnabled()) {
-      logger.info(
-        `[MCP Manager] Disabling MCP server '${serverName}' in manager '${this.name}'`
-      );
-      client.disable();
+    if (!client) {
+      logger.warn(`[MCP Manager] unable to find server ${serverName}`);
+      return;
     }
+    if (!client.isEnabled()) {
+      logger.warn(`[MCP Manager] server ${serverName} already disabled`);
+      return;
+    }
+
+    logger.debug(
+      `[MCP Manager] Disabling MCP server '${serverName}' in manager '${this.name}'`
+    );
+    await client.disable();
   }
 
   /**
@@ -169,19 +185,22 @@ export class GenkitMcpManager {
    */
   async enable(serverName: string) {
     const client = this._clients[serverName];
-    if (client) {
-      logger.info(
-        `[MCP Manager] Reenabling MCP server '${serverName}' in manager '${this.name}'`
-      );
-      try {
-        await client.enable();
-      } catch (e) {
-        client.disable();
-        this.setError(serverName, {
-          message: `[MCP Manager] Error reenabling server ${serverName}`,
-          detail: `Details: ${e}`,
-        });
-      }
+    if (!client) {
+      logger.warn(`[MCP Manager] unable to find server ${serverName}`);
+      return;
+    }
+
+    logger.debug(
+      `[MCP Manager] Reenabling MCP server '${serverName}' in manager '${this.name}'`
+    );
+    try {
+      await client.enable();
+    } catch (e) {
+      client.disable();
+      this.setError(serverName, {
+        message: `[MCP Manager] Error reenabling server ${serverName}`,
+        detail: `Details: ${e}`,
+      });
     }
   }
 
@@ -193,19 +212,22 @@ export class GenkitMcpManager {
    */
   async reconnect(serverName: string) {
     const client = this._clients[serverName];
-    if (client) {
-      logger.info(
-        `[MCP Manager] Restarting connection to MCP server '${serverName}' in manager '${this.name}'`
-      );
-      try {
-        await client.restart();
-      } catch (e) {
-        client.disable();
-        this.setError(serverName, {
-          message: `[MCP Manager] Error restarting to server ${serverName}`,
-          detail: `Details: ${e}`,
-        });
-      }
+    if (!client) {
+      logger.warn(`[MCP Manager] unable to find server ${serverName}`);
+      return;
+    }
+
+    logger.debug(
+      `[MCP Manager] Restarting connection to MCP server '${serverName}' in manager '${this.name}'`
+    );
+    try {
+      await client.restart();
+    } catch (e) {
+      client.disable();
+      this.setError(serverName, {
+        message: `[MCP Manager] Error restarting to server ${serverName}`,
+        detail: `Details: ${e}`,
+      });
     }
   }
 
