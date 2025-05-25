@@ -101,7 +101,7 @@ export class FakeTransport implements Transport {
 
   async send(message: JSONRPCMessage): Promise<void> {
     const request = message as JSONRPCRequest;
-    console.log(' - - - - -send', JSON.stringify(request, undefined, 2))
+    console.log(' - - - - -send', JSON.stringify(request, undefined, 2));
     if (request.method === 'initialize') {
       this.onmessage?.({
         result: {

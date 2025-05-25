@@ -343,11 +343,7 @@ describe('createMcpManager', () => {
         (await clientManager.getActiveTools(ai, { resourceTools: true })).map(
           (t) => t.__action.name
         ),
-        [
-          'test-server/testTool',
-          'mcp/list_resources',
-          'mcp/read_resource',
-        ]
+        ['test-server/testTool', 'mcp/list_resources', 'mcp/read_resource']
       );
     });
 
