@@ -133,7 +133,7 @@ export class GenkitMcpClient {
   private async _initializeConnection() {
     this._ready = false;
     try {
-      await this._connect(this.serverConfig);
+      await this._connect();
       this._ready = true;
       while (this._readyListeners.length) {
         this._readyListeners.pop()?.resolve();
@@ -159,19 +159,15 @@ export class GenkitMcpClient {
 
   /**
    * Connects to a single MCP server defined by the provided configuration.
-   * If a server with the same name already exists, it will be disconnected first.
-   * Stores the client and transport references internally. Handles connection errors
-   * by marking the server as disabled.
-   * @param serverName The name to assign to this server connection.
    * @param config The configuration object for the server.
    */
-  private async _connect(config: McpServerConfig) {
+  private async _connect() {
     if (this._server) await this._server.transport.close();
     logger.debug(
       `[MCP Client] Connecting MCP server in client '${this.name}'.`
     );
 
-    const { transport, type: transportType } = await transportFrom(config);
+    const { transport, type: transportType } = await transportFrom(this.serverConfig);
     if (!transport) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
