@@ -33,7 +33,7 @@ const mcpManager = createMcpManager({
     // Each key (e.g., 'fs', 'git') becomes a namespace for the server's tools.
     fs: {
         command: 'npx',
-        args: ['-y', '@modelcontextprotocol/server-everything', ...ALLOWED_DIRS],
+        args: ['-y', '@modelcontextprotocol/server-filesystem', ...ALLOWED_DIRS],
     },
     git: { // Configuration for a second MCP server (hypothetical)
       url: 'http://localhost:8080/mcp',
