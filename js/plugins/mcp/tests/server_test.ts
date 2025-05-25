@@ -56,7 +56,8 @@ describe('createMcpServer', async () => {
       async (input) => `yep ${JSON.stringify(input)}`
     );
 
-    mcpServer = createMcpServer(ai, { name: 'orders', version: '0.0.1' });
+    mcpServer = createMcpServer(ai, { name: 'test-server', version: '0.0.1' });
+    await mcpServer.setup();
 
     const app = express();
     let transport: SSEServerTransport | null = null;

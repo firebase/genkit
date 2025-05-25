@@ -64,7 +64,6 @@ export class GenkitMcpServer {
   constructor(ai: Genkit, options: McpServerOptions) {
     this.ai = ai;
     this.options = options;
-    this.setup();
   }
 
   /**

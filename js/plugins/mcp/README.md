@@ -188,7 +188,8 @@ ai.definePrompt(
 
 // Use createMcpServer
 const server = createMcpServer(ai, { name: 'example_server', version: '0.0.1' });
-server.start(); // Starts with stdio transport by default
+// Setup (async) then starts with stdio transport by default
+server.setup().then(() => server.start())
 ```
 
 The `createMcpServer` function returns a `GenkitMcpServer` instance. The `start()` method on this instance will start an MCP server (using the stdio transport by default) that exposes all registered Genkit tools and prompts. To start the server with a different MCP transport, you can pass the transport instance to the `start()` method (e.g., `server.start(customMcpTransport)`).
