@@ -73,12 +73,7 @@ export const controlMcp = ai.defineFlow(
   {
     name: 'controlMcp',
     inputSchema: z.object({
-      action: z.enum([
-        'RECONNECT',
-        'ENABLE',
-        'DISABLE',
-        'DISCONNECT',
-      ] as const),
+      action: z.enum(['RECONNECT', 'ENABLE', 'DISABLE', 'DISCONNECT'] as const),
       clientId: z.string().optional(),
     }),
     outputSchema: z.string(),
