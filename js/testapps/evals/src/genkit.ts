@@ -28,7 +28,6 @@ import {
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai/evaluation';
 import { genkit } from 'genkit';
-import { logger } from 'genkit/logging';
 import { langchain } from 'genkitx-langchain';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
@@ -105,5 +104,3 @@ export const ai = genkit({
     }),
   ],
 });
-
-logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
