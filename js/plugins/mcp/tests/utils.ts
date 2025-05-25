@@ -87,7 +87,7 @@ export function defineEchoModel(ai: Genkit): ModelAction {
   return model;
 }
 
-export class MockTransport implements Transport {
+export class FakeTransport implements Transport {
   tools: Tool[] = [];
   prompts: Prompt[] = [];
   resources: Resource[] = [];

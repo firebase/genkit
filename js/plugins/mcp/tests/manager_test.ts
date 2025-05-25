@@ -19,7 +19,7 @@ import { Genkit, genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { GenkitMcpManager, createMcpManager } from '../src/index.js';
-import { MockTransport, defineEchoModel } from './utils.js';
+import { FakeTransport, defineEchoModel } from './utils.js';
 
 logger.setLogLevel('debug');
 
@@ -32,8 +32,8 @@ describe('createMcpManager', () => {
   });
 
   describe('manager', () => {
-    let mockTransport1: MockTransport;
-    let mockTransport2: MockTransport;
+    let fakeTransport1: FakeTransport;
+    let fakeTransport2: FakeTransport;
     let clientManager: GenkitMcpManager;
 
     beforeEach(() => {
@@ -41,8 +41,8 @@ describe('createMcpManager', () => {
         name: 'test-mcp-manager',
       });
 
-      mockTransport1 = new MockTransport();
-      mockTransport1.tools.push({
+      fakeTransport1 = new FakeTransport();
+      fakeTransport1.tools.push({
         name: 'testTool1',
         inputSchema: {
           type: 'object',
@@ -58,8 +58,8 @@ describe('createMcpManager', () => {
         description: 'test tool 1',
       });
 
-      mockTransport2 = new MockTransport();
-      mockTransport2.tools.push({
+      fakeTransport2 = new FakeTransport();
+      fakeTransport2.tools.push({
         name: 'testTool2',
         inputSchema: {
           type: 'object',
@@ -87,9 +87,9 @@ describe('createMcpManager', () => {
         []
       );
 
-      // connect mockTransport1
+      // connect fakeTransport1
       await clientManager.connect('test-mcp-manager1', {
-        transport: mockTransport1,
+        transport: fakeTransport1,
       });
 
       assert.deepStrictEqual(
@@ -97,9 +97,9 @@ describe('createMcpManager', () => {
         ['test-mcp-manager1/testTool1']
       );
 
-      // connect mockTransport2
+      // connect fakeTransport2
       await clientManager.connect('test-mcp-manager2', {
-        transport: mockTransport2,
+        transport: fakeTransport2,
       });
 
       assert.deepStrictEqual(
@@ -134,21 +134,21 @@ describe('createMcpManager', () => {
   });
 
   describe('tools', () => {
-    let mockTransport: MockTransport;
+    let fakeTransport: FakeTransport;
     let clientManager: GenkitMcpManager;
 
     beforeEach(() => {
-      mockTransport = new MockTransport();
+      fakeTransport = new FakeTransport();
       clientManager = createMcpManager({
         name: 'test-mcp-manager',
         mcpServers: {
           'test-server': {
-            transport: mockTransport,
+            transport: fakeTransport,
           },
         },
       });
 
-      mockTransport.tools.push({
+      fakeTransport.tools.push({
         name: 'testTool',
         inputSchema: {
           type: 'object',
@@ -177,7 +177,7 @@ describe('createMcpManager', () => {
     });
 
     it('should call the tool', async () => {
-      mockTransport.callToolResult = {
+      fakeTransport.callToolResult = {
         content: [
           {
             type: 'text',
@@ -195,25 +195,25 @@ describe('createMcpManager', () => {
   });
 
   describe('prompts', () => {
-    let mockTransport: MockTransport;
+    let fakeTransport: FakeTransport;
     let clientManager: GenkitMcpManager;
 
     beforeEach(() => {
-      mockTransport = new MockTransport();
+      fakeTransport = new FakeTransport();
 
       clientManager = createMcpManager({
         name: 'test-mcp-manager',
         mcpServers: {
           'test-server': {
-            transport: mockTransport,
+            transport: fakeTransport,
           },
         },
       });
 
-      mockTransport.prompts.push({
+      fakeTransport.prompts.push({
         name: 'testPrompt',
       });
-      mockTransport.getPromptResult = {
+      fakeTransport.getPromptResult = {
         messages: [
           {
             role: 'user',
