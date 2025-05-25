@@ -197,8 +197,6 @@ The `createMcpServer` function returns a `GenkitMcpServer` instance. The `start(
 - **`name`**: (required, string) The name you want to give your server for MCP inspection.
 - **`version`**: (optional, string) The version your server will advertise to clients. Defaults to "1.0.0".
 
-The legacy `mcpServer()` function is deprecated; please use `createMcpServer()` instead.
-
 ### Known Limitations
 
 - MCP prompts are only able to take string parameters, so inputs to schemas must be objects with only string property values.
