@@ -167,7 +167,9 @@ export class GenkitMcpClient {
       `[MCP Client] Connecting MCP server in client '${this.name}'.`
     );
 
-    const { transport, type: transportType } = await transportFrom(this.serverConfig);
+    const { transport, type: transportType } = await transportFrom(
+      this.serverConfig
+    );
     if (!transport) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
