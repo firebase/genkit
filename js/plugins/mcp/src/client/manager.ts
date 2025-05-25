@@ -22,6 +22,7 @@ import {
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { GenkitMcpClient, McpServerConfig } from './client.js';
+import { fetchDynamicResourceTools } from '../util/resources.js';
 
 export interface McpManagerOptions {
   /**
@@ -292,7 +293,10 @@ export class GenkitMcpManager {
    * @param ai The Genkit instance, used by individual clients to define dynamic tools.
    * @returns A Promise that resolves to an array of `ToolAction` from all active MCP clients.
    */
-  async getActiveTools(ai: Genkit): Promise<ToolAction[]> {
+  async getActiveTools(
+    ai: Genkit,
+    opts?: { resourceTools?: boolean }
+  ): Promise<ToolAction[]> {
     await this.ready();
     let allTools: ToolAction[] = [];
 
@@ -309,6 +313,9 @@ export class GenkitMcpManager {
           );
         }
       }
+    }
+    if (opts?.resourceTools) {
+      allTools.push(...fetchDynamicResourceTools(ai, this))
     }
 
     return allTools;
@@ -376,5 +383,12 @@ export class GenkitMcpManager {
     return (
       this._clientStates[serverName] && !!this._clientStates[serverName].error
     );
+  }
+
+  /**
+   * Returns an array of all active clients.
+   */
+  get activeClients(): GenkitMcpClient[] {
+    return Object.values(this._clients).filter(c => c.isEnabled());
   }
 }

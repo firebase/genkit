@@ -113,8 +113,7 @@ function createDynamicTool(
     },
     async (args) => {
       logger.debug(
-        `[MCP] Dynamically calling MCP tool '${params.name}/${tool.name}' with arguments`,
-        JSON.stringify(args)
+        `[MCP] Dynamically calling MCP tool '${params.name}/${tool.name}'`
       );
       const result = await client.callTool({
         name: tool.name,

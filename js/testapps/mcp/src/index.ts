@@ -18,6 +18,7 @@ import { googleAI } from '@genkit-ai/googleai';
 import { createMcpManager } from '@genkit-ai/mcp';
 import { genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
+import path from 'path';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -44,6 +45,7 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 
 export const ai = genkit({
   plugins: [googleAI()],
+  model: googleAI.model('gemini-2.5-pro-preview-03-25'),
 });
 
 logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
@@ -55,17 +57,46 @@ export const clientManager = createMcpManager({
       command: 'uvx',
       args: ['mcp-server-git'],
     },
+    fs: {
+      command: 'npx',
+      args: [
+        '-y',
+        '@modelcontextprotocol/server-filesystem',
+        `${process.cwd()}/test-workspace`,
+      ],
+    },
+    everything: {
+      command: 'npx',
+      args: ['-y', '@modelcontextprotocol/server-everything'],
+    },
   },
 });
 
-ai.defineFlow('ask', async () => {
+ai.defineFlow('git-commits', async (q) => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-pro-preview-03-25'),
-    prompt: 'summarize last 5 commits in `/Users/pavelj/genkit/genkit/`',
+    prompt: `summarize last 5 commits in '${path.resolve(process.cwd(), '../../..')}'`,
     tools: await clientManager.getActiveTools(ai),
   });
 
-  console.log(text);
+  return text;
+});
+
+ai.defineFlow('get-file', async (q) => {
+  const { text } = await ai.generate({
+    prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
+    tools: await clientManager.getActiveTools(ai),
+  });
+
+  return text;
+});
+
+ai.defineFlow('get-resouce', async (q) => {
+  const { text } = await ai.generate({
+    prompt: `list available resources (using list_resources tool) and then summarize contents of static resource 1`,
+    tools: await clientManager.getActiveTools(ai, { resourceTools: true }),
+  });
+
+  return text;
 });
 
 // MCP Controls

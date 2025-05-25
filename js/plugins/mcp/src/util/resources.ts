@@ -14,81 +14,66 @@
  * limitations under the License.
  */
 
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import type {
-  Resource,
-  ResourceTemplate,
-} from '@modelcontextprotocol/sdk/types.js';
-import { Genkit, z } from 'genkit';
+import { Resource, ResourceTemplate } from '@modelcontextprotocol/sdk/types.js';
+import { Genkit, GenkitError, ToolAction, z } from 'genkit';
+import { logger } from 'genkit/logging';
+import { GenkitMcpManager } from '../client';
 
 function listResourcesTool(
   ai: Genkit,
-  client: Client,
-  params: { name: string; serverName?: string; asDynamicTool?: boolean }
-) {
+  manager: GenkitMcpManager,
+  params: { asDynamicTool?: boolean }
+): ToolAction {
   const actionMetadata = {
-    name: `${params.name}/list_resources`,
-    description: `list all available resources for '${params.name}'`,
-    inputSchema: z.object({
-      /** Provide a cursor for accessing additional paginated results. */
-      cursor: z.string().optional(),
-      /** When specified, automatically paginate and fetch all resources. */
-      all: z.boolean().optional(),
-    }),
+    name: `mcp/list_resources`,
+    description: `list all available resources`,
+    inputSchema: z
+      .object({
+        servers: z
+          .array(z.string())
+          .describe(
+            'optional array of server names to list resources for. When not provided resources for all servers are returned.'
+          )
+          .optional(),
+      })
+      .optional(),
   };
-  const fn = async ({ cursor, all }: { cursor?: string; all?: boolean }) => {
-    if (!all) {
-      return client.listResources();
+  const fn = async (opts?: { servers?: string[] }) => {
+    const resources: Record<
+      string,
+      { resources: Resource[]; resourceTemplates: ResourceTemplate[] }
+    > = {};
+    for (const client of manager.activeClients) {
+      if (
+        opts?.servers &&
+        opts.servers.length > 0 &&
+        !opts.servers.includes(client.name)
+      ) {
+        continue;
+      }
+      resources[client.name] = {
+        resources: [],
+        resourceTemplates: [],
+      };
+      try {
+        resources[client.name].resources = (
+          await client._server!.client.listResources()
+        ).resources;
+      } catch (e) {
+        logger.warn(`[MCP] failed to list resources for ${client.name}`, e);
+      }
+      try {
+        resources[client.name].resourceTemplates = (
+          await client._server!.client.listResourceTemplates()
+        ).resourceTemplates;
+      } catch (e) {
+        logger.warn(
+          `[MCP] failed to list resource templates for ${client.name}`,
+          e
+        );
+      }
     }
-
-    let currentCursor: string | undefined = cursor;
-    const resources: Resource[] = [];
-    while (true) {
-      const { nextCursor, resources: newResources } =
-        await client.listResources({ cursor: currentCursor });
-      resources.push(...newResources);
-      currentCursor = nextCursor;
-      if (!currentCursor) break;
-    }
-    return { resources };
-  };
-
-  return !!params.asDynamicTool
-    ? ai.dynamicTool(actionMetadata, fn)
-    : ai.defineTool(actionMetadata, fn);
-}
-
-function listResourceTemplatesTool(
-  ai: Genkit,
-  client: Client,
-  params: { name: string; serverName?: string; asDynamicTool?: boolean }
-) {
-  const actionMetadata = {
-    name: `${params.name}/list_resource_templates`,
-    description: `list all available resource templates for '${params.name}'`,
-    inputSchema: z.object({
-      /** Provide a cursor for accessing additional paginated results. */
-      cursor: z.string().optional(),
-      /** When specified, automatically paginate and fetch all resources. */
-      all: z.boolean().optional(),
-    }),
-  };
-
-  const fn = async ({ cursor, all }: { cursor?: string; all?: boolean }) => {
-    if (!all) {
-      return client.listResourceTemplates();
-    }
-
-    let currentCursor: string | undefined = cursor;
-    const resourceTemplates: ResourceTemplate[] = [];
-    while (true) {
-      const { nextCursor, resourceTemplates: newResourceTemplates } =
-        await client.listResourceTemplates({ cursor: currentCursor });
-      resourceTemplates.push(...newResourceTemplates);
-      currentCursor = nextCursor;
-      if (!currentCursor) break;
-    }
-    return { resourceTemplates };
+    return { servers: resources };
   };
 
   return !!params.asDynamicTool
@@ -98,18 +83,26 @@ function listResourceTemplatesTool(
 
 function readResourceTool(
   ai: Genkit,
-  client: Client,
-  params: { name: string; serverName?: string; asDynamicTool?: boolean }
+  manager: GenkitMcpManager,
+  params: { asDynamicTool?: boolean }
 ) {
   const actionMetadata = {
-    name: `${params.name}/read_resource`,
-    description: `this tool can read resources from '${params.name}'`,
+    name: `mcp/read_resource`,
+    description: `this tool can read resources`,
     inputSchema: z.object({
+      server: z.string(),
       uri: z.string().describe('the URI of the resource to retrieve'),
     }),
   };
-  const fn = async ({ uri }) => {
-    return client.readResource({ uri });
+  const fn = async ({ server, uri }) => {
+    const client = manager.activeClients.find((c) => c.name === server);
+    if (!client) {
+      throw new GenkitError({
+        status: 'NOT_FOUND',
+        message: `Server ${server} not found in the active server list.`,
+      });
+    }
+    return client!._server!.client.readResource({ uri });
   };
 
   return !!params.asDynamicTool
@@ -130,13 +123,11 @@ function readResourceTool(
  */
 export function fetchDynamicResourceTools(
   ai: Genkit,
-  client: Client,
-  params: { name: string; serverName?: string }
+  manager: GenkitMcpManager
 ) {
-  const dynamicParams = { ...params, asDynamicTool: true };
+  const dynamicParams = { asDynamicTool: true };
   return [
-    listResourcesTool(ai, client, dynamicParams),
-    listResourceTemplatesTool(ai, client, dynamicParams),
-    readResourceTool(ai, client, dynamicParams),
+    listResourcesTool(ai, manager, dynamicParams),
+    readResourceTool(ai, manager, dynamicParams),
   ];
 }

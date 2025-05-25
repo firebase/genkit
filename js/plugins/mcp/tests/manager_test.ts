@@ -19,7 +19,7 @@ import { Genkit, genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { GenkitMcpManager, createMcpManager } from '../src/index.js';
-import { FakeTransport, defineEchoModel } from './utils.js';
+import { FakeTransport, defineEchoModel } from './fakes.js';
 
 logger.setLogLevel('debug');
 
@@ -287,6 +287,130 @@ describe('createMcpManager', () => {
         (await response).text,
         'Echo: prompt says: hello; config: {"temperature":11}'
       );
+    });
+  });
+
+  describe('resources', () => {
+    let fakeTransport: FakeTransport;
+    let clientManager: GenkitMcpManager;
+
+    beforeEach(() => {
+      fakeTransport = new FakeTransport();
+      clientManager = createMcpManager({
+        name: 'test-mcp-manager',
+        mcpServers: {
+          'test-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+
+      fakeTransport.tools.push({
+        name: 'testTool',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            foo: {
+              type: 'string',
+            },
+          },
+          required: ['foo'],
+          additionalProperties: true,
+          $schema: 'http://json-schema.org/draft-07/schema#',
+        },
+        description: 'test tool',
+      });
+
+      fakeTransport.resources.push({
+        name: 'testResource',
+        uri: 'test://foo/bar',
+        description: 'test resource',
+      });
+
+      fakeTransport.resourceTemplates.push({
+        name: 'tesetTemplate',
+        uriTemplate: 'template://foo/{bar}',
+        description: 'test resource template',
+      });
+    });
+
+    afterEach(() => {
+      clientManager?.close();
+    });
+
+    it('should list resource tools', async () => {
+      assert.deepStrictEqual(
+        (await clientManager.getActiveTools(ai, { resourceTools: true })).map(
+          (t) => t.__action.name
+        ),
+        [
+          'test-server/testTool',
+          'mcp/list_resources',
+          'mcp/read_resource',
+        ]
+      );
+    });
+
+    it('should list resources and templates', async () => {
+      const listResourcesTool = (
+        await clientManager.getActiveTools(ai, { resourceTools: true })
+      ).find((t) => t.__action.name === 'mcp/list_resources');
+      assert.ok(listResourcesTool);
+
+      const response = await listResourcesTool({});
+      assert.deepStrictEqual(response, {
+        resources: {
+          'test-server': {
+            resources: [
+              {
+                description: 'test resource',
+                name: 'testResource',
+                uri: 'test://foo/bar',
+              },
+            ],
+          },
+        },
+        templates: {
+          'test-server': {
+            resourceTemplates: [
+              {
+                description: 'test resource template',
+                name: 'tesetTemplate',
+                uriTemplate: 'template://foo/{bar}',
+              },
+            ],
+          },
+        },
+      });
+    });
+
+    it('should read resources', async () => {
+      fakeTransport.readResourceResult = {
+        contents: [
+          {
+            uri: 'test://foo/bar',
+            text: 'hello world',
+          },
+        ],
+      };
+
+      const readResourceTool = (
+        await clientManager.getActiveTools(ai, { resourceTools: true })
+      ).find((t) => t.__action.name === 'mcp/read_resource');
+      assert.ok(readResourceTool);
+
+      const response = await readResourceTool({
+        server: 'test-server',
+        uri: 'test://foo/bar',
+      });
+      assert.deepStrictEqual(response, {
+        contents: [
+          {
+            text: 'hello world',
+            uri: 'test://foo/bar',
+          },
+        ],
+      });
     });
   });
 });

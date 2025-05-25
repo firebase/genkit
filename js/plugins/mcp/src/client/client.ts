@@ -26,12 +26,7 @@ import {
   ToolAction,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import {
-  fetchDynamicResourceTools,
-  fetchDynamicTools,
-  getExecutablePrompt,
-  transportFrom,
-} from '../util';
+import { fetchDynamicTools, getExecutablePrompt, transportFrom } from '../util';
 export type { SSEClientTransportOptions, StdioServerParameters, Transport };
 
 interface McpServerRef {
@@ -102,7 +97,7 @@ export type McpClientOptions = McpServerConfig & {
 export class GenkitMcpClient {
   _server?: McpServerRef;
 
-  private name: string;
+  readonly name: string;
   private version: string;
   private serverConfig: McpServerConfig;
   private rawToolResponses?: boolean;
@@ -278,13 +273,6 @@ export class GenkitMcpClient {
             serverName: this.name,
             name: this.name,
           }))
-        );
-      if (capabilities?.resources)
-        tools.push(
-          ...fetchDynamicResourceTools(ai, this._server.client, {
-            name: this.name,
-            serverName: this.name,
-          })
         );
     }
 

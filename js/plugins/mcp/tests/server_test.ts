@@ -26,7 +26,7 @@ import * as http from 'http';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { createMcpServer } from '../src/index.js';
 import { GenkitMcpServer } from '../src/server.js';
-import { defineEchoModel } from './utils.js';
+import { defineEchoModel } from './fakes.js';
 
 logger.setLogLevel('debug');
 

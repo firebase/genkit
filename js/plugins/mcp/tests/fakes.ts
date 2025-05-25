@@ -23,6 +23,7 @@ import {
   Prompt,
   ReadResourceResult,
   Resource,
+  ResourceTemplate,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { Genkit } from 'genkit';
@@ -91,6 +92,7 @@ export class FakeTransport implements Transport {
   tools: Tool[] = [];
   prompts: Prompt[] = [];
   resources: Resource[] = [];
+  resourceTemplates: ResourceTemplate[] = [];
   callToolResult?: CallToolResult;
   getPromptResult?: GetPromptResult;
   readResourceResult?: ReadResourceResult;
@@ -99,6 +101,7 @@ export class FakeTransport implements Transport {
 
   async send(message: JSONRPCMessage): Promise<void> {
     const request = message as JSONRPCRequest;
+    console.log(' - - - - -send', JSON.stringify(request, undefined, 2))
     if (request.method === 'initialize') {
       this.onmessage?.({
         result: {
@@ -153,6 +156,14 @@ export class FakeTransport implements Transport {
       this.onmessage?.({
         result: {
           resources: this.resources,
+        },
+        jsonrpc: '2.0',
+        id: request.id,
+      });
+    } else if (request.method === 'resources/templates/list') {
+      this.onmessage?.({
+        result: {
+          resourceTemplates: this.resourceTemplates,
         },
         jsonrpc: '2.0',
         id: request.id,

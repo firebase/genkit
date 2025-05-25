@@ -29,6 +29,8 @@
     "pdfjs-dist-legacy": "^1.0.1"
   },
   "devDependencies": {
+    "@modelcontextprotocol/server-filesystem": "^2025.3.28",
+    "@modelcontextprotocol/server-everything": "^2025.5.12",
     "cross-env": "^7.0.3",
     "rimraf": "^6.0.1",
     "tsx": "^4.19.2",
