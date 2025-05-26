@@ -31,6 +31,8 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
+import structlog
+
 from genkit.core.action import (
     Action,
     ActionMetadata,
@@ -39,6 +41,8 @@ from genkit.core.action import (
     parse_plugin_name_from_action_name,
 )
 from genkit.core.action.types import ActionKind, ActionName, ActionResolver
+
+logger = structlog.get_logger(__name__)
 
 # An action store is a nested dictionary mapping ActionKind to a dictionary of
 # action names and their corresponding Action instances.
@@ -248,7 +252,14 @@ class Registry:
             actions = {}
 
         for plugin_name in self._list_actions_resolvers:
-            actions_list: list[ActionMetadata] = self._list_actions_resolvers[plugin_name]()
+            actions_lister = self._list_actions_resolvers[plugin_name]
+
+            # TODO: Set all the list_actions plugins' methods as cached_properties.
+            if isinstance(actions_lister, list):
+                actions_list = actions_lister
+            else:
+                actions_list = actions_lister()
+
             for _action in actions_list:
                 kind = _action.kind
                 if allowed_kinds is not None and kind not in allowed_kinds:

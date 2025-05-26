@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from functools import cached_property
 
 from google import genai
 from google.auth.credentials import Credentials
@@ -216,6 +217,7 @@ class GoogleAI(Plugin):
             config_schema=EmbedContentConfig,
         )
 
+    @cached_property
     def list_actions(self) -> list[dict[str, str]]:
         """Generate a list of available actions or models.
 
@@ -410,6 +412,7 @@ class VertexAI(Plugin):
             config_schema=EmbedContentConfig,
         )
 
+    @cached_property
     def list_actions(self) -> list[dict[str, str]]:
         """Generate a list of available actions or models.
 

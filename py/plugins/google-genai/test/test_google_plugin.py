@@ -269,7 +269,7 @@ def test_googleai_list_actions(googleai_plugin_instance):
     mock_client.models.list.return_value = models_return_value
     googleai_plugin_instance._client = mock_client
 
-    result = googleai_plugin_instance.list_actions()
+    result = googleai_plugin_instance.list_actions
     assert result == [
         model_action_metadata(
             name=googleai_name('model1'),
@@ -674,7 +674,7 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
     mock_client.models.list.return_value = models_return_value
     vertexai_plugin_instance._client = mock_client
 
-    result = vertexai_plugin_instance.list_actions()
+    result = vertexai_plugin_instance.list_actions
     assert result == [
         model_action_metadata(
             name=vertexai_name('model1'),
