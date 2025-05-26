@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { mcpServer } from '@genkit-ai/mcp';
+import { createMcpServer } from '@genkit-ai/mcp';
 import { genkit, z } from 'genkit';
 
 const ai = genkit({});
@@ -43,4 +43,4 @@ ai.definePrompt(
   `If you're happy and you know it, {{action}}.`
 );
 
-mcpServer(ai, { name: 'example_server', version: '0.0.1' }).start();
+createMcpServer(ai, { name: 'example_server', version: '0.0.1' }).start();
