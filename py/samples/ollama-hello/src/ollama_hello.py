@@ -62,7 +62,7 @@ ai = Genkit(
         Ollama(
             models=[
                 ModelDefinition(name=GEMMA_MODEL),
-                ModelDefinition(name=MISTRAL_MODEL),
+                # ModelDefinition(name=MISTRAL_MODEL),  # example of dinamic registry
             ],
         )
     ],

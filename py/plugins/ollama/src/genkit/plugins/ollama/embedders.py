@@ -14,17 +14,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from pydantic import BaseModel
+
 import ollama as ollama_api
 from genkit.blocks.embedding import EmbedRequest, EmbedResponse
-from genkit.plugins.ollama.models import EmbeddingModelDefinition
 from genkit.types import Embedding
+
+
+class EmbeddingDefinition(BaseModel):
+    name: str
+    # Ollama do not support changing dimensionality, but it can be truncated
+    dimensions: int | None = None
 
 
 class OllamaEmbedder:
     def __init__(
         self,
         client: ollama_api.AsyncClient,
-        embedding_definition: EmbeddingModelDefinition,
+        embedding_definition: EmbeddingDefinition,
     ):
         self.client = client
         self.embedding_definition = embedding_definition

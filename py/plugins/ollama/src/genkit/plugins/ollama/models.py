@@ -23,7 +23,6 @@ import ollama as ollama_api
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.plugins.ollama.constants import (
-    DEFAULT_OLLAMA_SERVER_URL,
     OllamaAPITypes,
 )
 from genkit.types import (
@@ -46,14 +45,14 @@ from genkit.types import (
 logger = structlog.get_logger(__name__)
 
 
+class OllamaSupports(BaseModel):
+    tools: bool = False
+
+
 class ModelDefinition(BaseModel):
     name: str
     api_type: OllamaAPITypes = 'chat'
-
-
-class EmbeddingModelDefinition(BaseModel):
-    name: str
-    dimensions: int
+    supports: OllamaSupports = OllamaSupports()
 
 
 class OllamaModel:
@@ -206,6 +205,7 @@ class OllamaModel:
                         content=[TextPart(text=chunk.response)],
                     )
                 )
+            return generate_response
         else:
             return generate_response
 
@@ -249,7 +249,7 @@ class OllamaModel:
 
     @staticmethod
     def build_request_options(
-        config: GenerationCommonConfig | dict,
+        config: GenerationCommonConfig | ollama_api.Options | dict,
     ) -> ollama_api.Options:
         """Build request options for the generate API.
 
@@ -267,8 +267,10 @@ class OllamaModel:
                 temperature=config.temperature,
                 num_predict=config.max_output_tokens,
             )
-        if config:
-            return ollama_api.Options(**config)
+        if isinstance(config, dict):
+            config = ollama_api.Options(**config)
+
+        return config
 
     @staticmethod
     def build_prompt(request: GenerateRequest) -> str:

@@ -962,7 +962,7 @@ wheels = [
 
 [[package]]
 name = "genkit"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "packages/genkit" }
 dependencies = [
     { name = "anyio" },
@@ -1026,7 +1026,7 @@ provides-extras = ["dev-local-vectorstore", "flask", "google-genai", "ollama", "
 
 [[package]]
 name = "genkit-plugin-compat-oai"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "plugins/compat-oai" }
 dependencies = [
     { name = "genkit" },
@@ -1043,7 +1043,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-dev-local-vectorstore"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "plugins/dev-local-vectorstore" }
 dependencies = [
     { name = "genkit" },
@@ -1062,7 +1062,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-firebase"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "plugins/firebase" }
 dependencies = [
     { name = "genkit" },
@@ -1079,7 +1079,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-flask"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "plugins/flask" }
 dependencies = [
     { name = "flask" },
@@ -1099,7 +1099,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-cloud"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "plugins/google-cloud" }
 dependencies = [
     { name = "genkit" },
@@ -1116,7 +1116,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-google-genai"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "plugins/google-genai" }
 dependencies = [
     { name = "genkit" },
@@ -1137,7 +1137,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-ollama"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "plugins/ollama" }
 dependencies = [
     { name = "genkit" },
@@ -1154,7 +1154,7 @@ requires-dist = [
 
 [[package]]
 name = "genkit-plugin-vertex-ai"
-version = "0.3.2"
+version = "0.4.0"
 source = { editable = "plugins/vertex-ai" }
 dependencies = [
     { name = "genkit" },
