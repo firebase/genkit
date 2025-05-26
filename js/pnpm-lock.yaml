@@ -588,6 +588,37 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  plugins/google-genai:
+    dependencies:
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
+      google-auth-library:
+        specifier: ^9.14.2
+        version: 9.14.2(encoding@0.1.13)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.17.17
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      tsup:
+        specifier: ^8.3.5
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.7.0)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.19.2
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
   plugins/googleai:
     dependencies:
       '@google/generative-ai':
@@ -1337,6 +1368,31 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.6.2
+
+  testapps/gemini-new:
+    dependencies:
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/google-cloud':
+        specifier: workspace:*
+        version: link:../../plugins/google-cloud
+      '@genkit-ai/google-genai':
+        specifier: workspace:*
+        version: link:../../plugins/google-genai
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      express:
+        specifier: ^4.20.0
+        version: 4.21.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+    devDependencies:
+      typescript:
+        specifier: ^5.6.2
+        version: 5.6.3
 
   testapps/google-ai-code-execution:
     dependencies:

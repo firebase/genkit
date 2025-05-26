@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,60 +14,49 @@
  * limitations under the License.
  */
 
-import {
-  EnhancedGenerateContentResponse,
-  FileDataPart,
-  FunctionCallingMode,
-  FunctionCallPart,
-  FunctionDeclaration,
-  FunctionResponsePart,
-  GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
-  GenerateContentResponse,
-  GenerationConfig,
-  GenerativeModel,
-  GoogleGenerativeAI,
-  GoogleSearchRetrievalTool,
-  InlineDataPart,
-  RequestOptions,
-  Schema,
-  SchemaType,
-  StartChatParams,
-  Tool,
-  ToolConfig,
-} from '@google/generative-ai';
-import {
-  Genkit,
-  GENKIT_CLIENT_HEADER,
-  GenkitError,
-  JSONSchema,
-  z,
-} from 'genkit';
+import { Genkit, GenkitError, JSONSchema, z } from 'genkit';
 import {
   CandidateData,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
-  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
+  getBasicUsageStats,
+  modelRef,
 } from 'genkit/model';
-import {
-  downloadRequestMedia,
-  simulateSystemPrompt,
-} from 'genkit/model/middleware';
+import { downloadRequestMedia } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
+import { generateContent, generateContentStream, getGoogleAIUrl } from './client';
 import { getApiKeyFromEnvVar } from './common';
-import { handleCacheIfNeeded } from './context-caching';
-import { extractCacheConfig } from './context-caching/utils';
+import {
+  EnhancedGenerateContentResponse,
+  FileDataPart,
+  FunctionCallPart,
+  FunctionCallingMode,
+  FunctionDeclaration,
+  FunctionResponsePart,
+  GenerateContentCandidate as GeminiCandidate,
+  Content as GeminiMessage,
+  Part as GeminiPart,
+  GenerateContentRequest,
+  GenerateContentResponse,
+  GenerationConfig,
+  GoogleSearchRetrievalTool,
+  InlineDataPart,
+  RequestOptions,
+  SafetySetting,
+  Schema,
+  SchemaType,
+  Tool,
+  ToolConfig,
+} from './types';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
@@ -142,24 +131,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
 
-export const gemini10Pro = modelRef({
-  name: 'googleai/gemini-1.0-pro',
-  info: {
-    label: 'Google AI - Gemini Pro',
-    versions: ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
-    supports: {
-      multiturn: true,
-      media: false,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
-export const gemini15Pro = modelRef({
+const gemini15Pro = modelRef({
   name: 'googleai/gemini-1.5-pro',
   info: {
     label: 'Google AI - Gemini 1.5 Pro',
@@ -180,7 +152,7 @@ export const gemini15Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini15Flash = modelRef({
+const gemini15Flash = modelRef({
   name: 'googleai/gemini-1.5-flash',
   info: {
     label: 'Google AI - Gemini 1.5 Flash',
@@ -203,7 +175,7 @@ export const gemini15Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini15Flash8b = modelRef({
+const gemini15Flash8b = modelRef({
   name: 'googleai/gemini-1.5-flash-8b',
   info: {
     label: 'Google AI - Gemini 1.5 Flash',
@@ -220,7 +192,7 @@ export const gemini15Flash8b = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20Flash = modelRef({
+const gemini20Flash = modelRef({
   name: 'googleai/gemini-2.0-flash',
   info: {
     label: 'Google AI - Gemini 2.0 Flash',
@@ -237,7 +209,7 @@ export const gemini20Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20FlashExp = modelRef({
+const gemini20FlashExp = modelRef({
   name: 'googleai/gemini-2.0-flash-exp',
   info: {
     label: 'Google AI - Gemini 2.0 Flash (Experimental)',
@@ -254,7 +226,7 @@ export const gemini20FlashExp = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20FlashLite = modelRef({
+const gemini20FlashLite = modelRef({
   name: 'googleai/gemini-2.0-flash-lite',
   info: {
     label: 'Google AI - Gemini 2.0 Flash Lite',
@@ -271,7 +243,7 @@ export const gemini20FlashLite = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20ProExp0205 = modelRef({
+const gemini20ProExp0205 = modelRef({
   name: 'googleai/gemini-2.0-pro-exp-02-05',
   info: {
     label: 'Google AI - Gemini 2.0 Pro Exp 02-05',
@@ -288,7 +260,7 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25FlashPreview0417 = modelRef({
+const gemini25FlashPreview0417 = modelRef({
   name: 'googleai/gemini-2.5-flash-preview-04-17',
   info: {
     label: 'Google AI - Gemini 2.5 Flash Preview 04-17',
@@ -305,7 +277,7 @@ export const gemini25FlashPreview0417 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25ProExp0325 = modelRef({
+const gemini25ProExp0325 = modelRef({
   name: 'googleai/gemini-2.5-pro-exp-03-25',
   info: {
     label: 'Google AI - Gemini 2.5 Pro Exp 03-25',
@@ -322,7 +294,7 @@ export const gemini25ProExp0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25ProPreview0325 = modelRef({
+const gemini25ProPreview0325 = modelRef({
   name: 'googleai/gemini-2.5-pro-preview-03-25',
   info: {
     label: 'Google AI - Gemini 2.5 Pro Preview 03-25',
@@ -339,11 +311,7 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-const SUPPORTED_V1_MODELS = {
-  'gemini-1.0-pro': gemini10Pro,
-};
-
-export const SUPPORTED_V15_MODELS = {
+export const KNOWN_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
@@ -373,7 +341,7 @@ export const GENERIC_GEMINI_MODEL = modelRef({
 });
 
 export const SUPPORTED_GEMINI_MODELS = {
-  ...SUPPORTED_V15_MODELS,
+  ...KNOWN_MODELS,
 } as const;
 
 function longestMatchingPrefix(version: string, potentialMatches: string[]) {
@@ -450,7 +418,7 @@ function toGeminiRole(
     case 'model':
       return 'model';
     case 'system':
-      if (model && SUPPORTED_V15_MODELS[model.name]) {
+      if (model && KNOWN_MODELS[model.name]) {
         // We should have already pulled out the supported system messages,
         // anything remaining is unsupported; throw an error.
         throw new Error(
@@ -690,12 +658,7 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref: string
 ): Part {
-  if (part.text !== undefined) {
-    if ((part as any).thought === true) {
-      return { reasoning: part.text };
-    }
-    return { text: part.text };
-  }
+  if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);
@@ -822,7 +785,7 @@ export function defineGoogleAIModel({
         status: 'FAILED_PRECONDITION',
         message:
           'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://genkit.dev/docs/plugins/google-genai',
+          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
       });
     }
   }
@@ -850,9 +813,6 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[apiModelName]) {
-    middleware.push(simulateSystemPrompt());
-  }
   if (model.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middleware.push(
@@ -887,13 +847,10 @@ export function defineGoogleAIModel({
       use: middleware,
     },
     async (request, sendChunk) => {
-      const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
-      if (apiVersion) {
-        options.apiVersion = apiVersion;
-      }
-      if (baseUrl) {
-        options.baseUrl = baseUrl;
-      }
+      const options: RequestOptions = {
+        apiVersion,
+        baseUrl,
+      };
       const requestConfig: z.infer<typeof GeminiConfigSchema> = {
         ...defaultConfig,
         ...request.config,
@@ -907,7 +864,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[apiModelName]) {
+      if (KNOWN_MODELS[apiModelName]) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -988,64 +945,41 @@ export function defineGoogleAIModel({
         return fromGeminiCandidate(candidate, jsonMode);
       };
 
-      let chatRequest: StartChatParams = {
+      let generateContentRequest: GenerateContentRequest = {
         systemInstruction,
         generationConfig,
         tools: tools.length ? tools : undefined,
         toolConfig,
-        history: messages
-          .slice(0, -1)
-          .map((message) => toGeminiMessage(message, model)),
-        safetySettings: safetySettingsFromConfig,
-      } as StartChatParams;
+        safetySettings: safetySettingsFromConfig?.filter(
+          (setting) => setting.category !== 'HARM_CATEGORY_UNSPECIFIED'
+        ) as SafetySetting[],
+        cachedContent: undefined,
+        contents: messages.map((message) => toGeminiMessage(message, model)),
+      };
+
       const modelVersion = (versionFromConfig ||
         model.version ||
         apiModelName) as string;
-      const cacheConfigDetails = extractCacheConfig(request);
 
-      const { chatRequest: updatedChatRequest, cache } =
-        await handleCacheIfNeeded(
-          apiKey!,
-          request,
-          chatRequest,
-          modelVersion,
-          cacheConfigDetails
-        );
-
-      if (!apiKeyFromConfig && !apiKey) {
+      apiKey = apiKeyFromConfig || apiKey;
+      if (!apiKey) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
           message:
             'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
         });
       }
-      const client = new GoogleGenerativeAI(apiKeyFromConfig || apiKey!);
-      let genModel: GenerativeModel;
-
-      if (cache) {
-        genModel = client.getGenerativeModelFromCachedContent(
-          cache,
-          {
-            model: modelVersion,
-          },
-          options
-        );
-      } else {
-        genModel = client.getGenerativeModel(
-          {
-            model: modelVersion,
-          },
-          options
-        );
-      }
 
       const callGemini = async () => {
         let response: EnhancedGenerateContentResponse;
 
         if (sendChunk) {
-          const result = await genModel
-            .startChat(updatedChatRequest)
-            .sendMessageStream(msg.parts, options);
+          const result = await generateContentStream(
+            apiKey!,
+            modelVersion,
+            generateContentRequest,
+            options
+          );
 
           for await (const item of result.stream) {
             (item as GenerateContentResponse).candidates?.forEach(
@@ -1061,11 +995,12 @@ export function defineGoogleAIModel({
 
           response = await result.response;
         } else {
-          const result = await genModel
-            .startChat(updatedChatRequest)
-            .sendMessage(msg.parts, options);
-
-          response = result.response;
+          response = await generateContent(
+            apiKey!,
+            modelVersion,
+            generateContentRequest,
+            options
+          );
         }
 
         const candidates = response.candidates || [];
@@ -1108,10 +1043,12 @@ export function defineGoogleAIModel({
             },
             async (metadata) => {
               metadata.input = {
-                sdk: '@google/generative-ai',
-                cache: cache,
-                model: genModel.model,
-                chatOptions: updatedChatRequest,
+                //sdk: '@genkit-ai/google-genai',
+                apiEndpoint: getGoogleAIUrl({ path: "", requestOptions: options}),
+                cache: {},
+                model: modelVersion,
+                generateContentOptions: generateContentRequest,
+                //chatOptions: chatParams,
                 parts: msg.parts,
                 options,
               };
