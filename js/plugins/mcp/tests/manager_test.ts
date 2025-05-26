@@ -355,7 +355,7 @@ describe('createMcpManager', () => {
 
       const response = await listResourcesTool({});
       assert.deepStrictEqual(response, {
-        resources: {
+        servers: {
           'test-server': {
             resources: [
               {
@@ -364,10 +364,6 @@ describe('createMcpManager', () => {
                 uri: 'test://foo/bar',
               },
             ],
-          },
-        },
-        templates: {
-          'test-server': {
             resourceTemplates: [
               {
                 description: 'test resource template',
