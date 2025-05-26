@@ -67,10 +67,11 @@ export class GenkitMcpServer {
   }
 
   /**
-   * Initializes the MCP server instance and registers request handlers.
-   * It dynamically imports MCP SDK components and sets up handlers for
-   * listing tools, calling tools, listing prompts, and getting prompts.
-   * It also resolves and stores all tool and prompt actions from the Genkit instance.
+   * Initializes the MCP server instance and registers request handlers. It
+   * dynamically imports MCP SDK components and sets up handlers for listing
+   * tools, calling tools, listing prompts, and getting prompts. It also
+   * resolves and stores all tool and prompt actions from the Genkit instance.
+   *
    * This method is called by the constructor and ensures the server is ready
    * before any requests are handled. It's idempotent.
    */
@@ -151,9 +152,9 @@ export class GenkitMcpServer {
   }
 
   /**
-   * Handles MCP requests to call a specific tool.
-   * It finds the corresponding Genkit tool action and executes it with the provided arguments.
-   * The result is then formatted as an MCP CallToolResult.
+   * Handles MCP requests to call a specific tool. It finds the corresponding
+   * Genkit tool action and executes it with the provided arguments. The result
+   * is then formatted as an MCP CallToolResult.
    * @param req The MCP CallToolRequest containing the tool name and arguments.
    * @returns A Promise resolving to an MCP CallToolResult.
    * @throws GenkitError if the requested tool is not found.
@@ -200,10 +201,12 @@ export class GenkitMcpServer {
   }
 
   /**
-   * Handles MCP requests to get (render) a specific prompt.
-   * It finds the corresponding Genkit prompt action, executes it with the provided arguments,
-   * and then formats the resulting messages into the MCP PromptMessage format.
-   * @param req The MCP GetPromptRequest containing the prompt name and arguments.
+   * Handles MCP requests to get (render) a specific prompt. It finds the
+   * corresponding Genkit prompt action, executes it with the provided
+   * arguments, and then formats the resulting messages into the MCP
+   * PromptMessage format.
+   * @param req The MCP GetPromptRequest containing the prompt name and
+   * arguments.
    * @returns A Promise resolving to an MCP GetPromptResult.
    * @throws GenkitError if the requested prompt is not found.
    */
@@ -225,10 +228,11 @@ export class GenkitMcpServer {
   }
 
   /**
-   * Starts the MCP server with the specified transport or a default StdioServerTransport.
-   * Ensures the server is set up before connecting the transport.
-   * @param transport Optional MCP transport instance. If not provided,
-   * a StdioServerTransport will be created and used.
+   * Starts the MCP server with the specified transport or a default
+   * StdioServerTransport. Ensures the server is set up before connecting the
+   * transport.
+   * @param transport Optional MCP transport instance. If not provided, a
+   * StdioServerTransport will be created and used.
    */
   async start(transport?: Transport) {
     if (!transport) {

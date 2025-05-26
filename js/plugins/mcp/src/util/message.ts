@@ -23,9 +23,10 @@ const ROLE_MAP = {
 } as const;
 
 /**
- * Converts an MCP (Model Context Protocol) PromptMessage into Genkit's MessageData format.
- * This involves mapping MCP roles (user, assistant) to Genkit roles (user, model)
- * and transforming the MCP content part into a Genkit Part.
+ * Converts an MCP (Model Context Protocol) PromptMessage into Genkit's
+ * MessageData format. This involves mapping MCP roles (user, assistant) to
+ * Genkit roles (user, model) and transforming the MCP content part into a
+ * Genkit Part.
  *
  * @param message The MCP PromptMessage to convert.
  * @returns The corresponding Genkit MessageData object.
@@ -38,10 +39,12 @@ export function fromMcpPromptMessage(message: PromptMessage): MessageData {
 }
 
 /**
- * Converts an MCP message content part (text, image, or resource) into a Genkit Part.
+ * Converts an MCP message content part (text, image, or resource) into a Genkit
+ * Part.
  * - Text parts are directly mapped.
  * - Image parts are converted to Genkit media parts with a data URL.
- * - Resource parts currently result in an empty Genkit Part (further implementation may be needed).
+ * - Resource parts currently result in an empty Genkit Part (further
+ *   implementation may be needed).
  *
  * @param part The MCP PromptMessage content part to convert.
  * @returns The corresponding Genkit Part.

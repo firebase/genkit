@@ -121,8 +121,9 @@ export class GenkitMcpClient {
 
   /**
    * Sets up a connection based on a provided map of server configurations.
-   * - Reconnects existing servers if their configuration appears to have changed (implicitly handled by `connectServer`).
-   * Sets the client's ready state once all connection attempts are complete.
+   * - Reconnects existing servers if their configuration appears to have
+   *   changed (implicitly handled by `connectServer`).
+   * - Sets the client's ready state once all connection attempts are complete.
    * @param mcpServers A record mapping server names to their configurations.
    */
   private async _initializeConnection() {

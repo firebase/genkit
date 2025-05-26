@@ -272,16 +272,16 @@ export class GenkitMcpManager {
   }
 
   /**
-   * Retrieves all tools from all connected and enabled MCP clients managed by this instance.
-   * This method waits for the manager to be ready (all initial connection attempts made)
-   * before fetching tools.
+   * Retrieves all tools from all connected and enabled MCP clients managed by
+   * this instance. This method waits for the manager to be ready (all initial
+   * connection attempts made) before fetching tools.
    *
-   * It iterates through each managed `GenkitMcpClient`, and if the client is not disabled,
-   * it calls the client's `getTools` method to fetch its available tools.
-   * These are then aggregated into a single array.
+   * It iterates through each managed `GenkitMcpClient`, and if the client is
+   * not disabled, it calls the client's `getTools` method to fetch its
+   * available tools. These are then aggregated into a single array.
    *
-   * This is useful for dynamically providing a list of all available MCP tools to Genkit,
-   * for example, when setting up a Genkit plugin.
+   * This is useful for dynamically providing a list of all available MCP tools
+   * to Genkit, for example, when setting up a Genkit plugin.
    *
    * ```ts
    * const mcpManager = createMcpManager({ ... });
@@ -290,8 +290,10 @@ export class GenkitMcpManager {
    * // Then, these tools can be used or registered with Genkit.
    * ```
    *
-   * @param ai The Genkit instance, used by individual clients to define dynamic tools.
-   * @returns A Promise that resolves to an array of `ToolAction` from all active MCP clients.
+   * @param ai The Genkit instance, used by individual clients to define dynamic
+   * tools.
+   * @returns A Promise that resolves to an array of `ToolAction` from all
+   * active MCP clients.
    */
   async getActiveTools(
     ai: Genkit,

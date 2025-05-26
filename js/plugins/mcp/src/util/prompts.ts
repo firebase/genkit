@@ -139,7 +139,8 @@ function createExecutablePrompt<
 }
 
 /**
- * Lookup all prompts available in the server and register each as a Genkit prompt.
+ * Lookup all prompts available in the server and register each as a Genkit
+ * prompt.
  */
 export async function registerAllPrompts(
   ai: Genkit,
