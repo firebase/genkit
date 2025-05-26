@@ -279,7 +279,7 @@ importers:
     dependencies:
       chromadb:
         specifier: 1.8.1
-        version: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
+        version: 1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       genkit:
         specifier: workspace:^
         version: link:../../genkit
@@ -464,7 +464,7 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.11.30)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
         version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.7.0)
@@ -549,7 +549,7 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.11.30)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
         version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.7.0)
@@ -598,7 +598,7 @@ importers:
     dependencies:
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@9.14.2(encoding@0.1.13))(googleapis@140.0.1(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -610,7 +610,7 @@ importers:
         version: link:../../genkit
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@9.14.2(encoding@0.1.13))(googleapis@140.0.1(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -634,8 +634,8 @@ importers:
   plugins/mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: ^1.8.0
-        version: 1.8.0
+        specifier: ^1.12.0
+        version: 1.12.0
       genkit:
         specifier: workspace:^
         version: link:../../genkit
@@ -663,7 +663,7 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3)))(typescript@5.6.3)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3)))(typescript@5.6.3)
       tsup:
         specifier: ^8.3.5
         version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@5.6.3)(yaml@2.7.0)
@@ -708,7 +708,7 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.0.2
         version: 8.3.5(postcss@8.4.47)(tsx@4.19.2)(typescript@4.9.5)(yaml@2.7.0)
@@ -813,6 +813,13 @@ importers:
       openai:
         specifier: ^4.52.7
         version: 4.53.0(encoding@0.1.13)
+    optionalDependencies:
+      '@google-cloud/bigquery':
+        specifier: ^7.8.0
+        version: 7.8.0(encoding@0.1.13)
+      firebase-admin:
+        specifier: '>=12.2'
+        version: 12.3.1(encoding@0.1.13)
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -835,13 +842,6 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
-    optionalDependencies:
-      '@google-cloud/bigquery':
-        specifier: ^7.8.0
-        version: 7.8.0(encoding@0.1.13)
-      firebase-admin:
-        specifier: '>=12.2'
-        version: 12.3.1(encoding@0.1.13)
 
   testapps/basic-gemini:
     dependencies:
@@ -1314,7 +1314,7 @@ importers:
         version: link:../../plugins/vertexai
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@9.14.2(encoding@0.1.13))(googleapis@140.0.1(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -1335,7 +1335,7 @@ importers:
         version: link:../../plugins/ollama
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@9.14.2(encoding@0.1.13))(googleapis@140.0.1(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
@@ -1452,7 +1452,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.10.0)(@genkit-ai/core@1.10.0)
+        version: 0.10.1(@genkit-ai/ai@1.10.0)(@genkit-ai/core@1.10.0)(encoding@0.1.13)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1662,7 +1662,7 @@ importers:
         version: link:../../plugins/vertexai
       '@mistralai/mistralai-gcp':
         specifier: ^1.3.4
-        version: 1.3.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.22.4)
+        version: 1.3.5(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.22.4)
       express:
         specifier: ^4.21.0
         version: 4.21.0
@@ -3227,10 +3227,6 @@ packages:
     resolution: {integrity: sha512-m//7RlINx1F3sz3KqwY1WWzVgTcYX52HYk4bJ1hkBXV3zccAEth+jRvG8DBRrdaQuRsPAJOx2MH3zaHNCKL7Zg==}
     engines: {node: '>=18'}
 
-  '@modelcontextprotocol/sdk@1.8.0':
-    resolution: {integrity: sha512-e06W7SwrontJDHwCawNO5SGxG+nU9AAx+jpHHZqGl/WrDBdWOpvirC+s58VpJTB5QemI4jTRcjWT4Pt3Q1NPQQ==}
-    engines: {node: '>=18'}
-
   '@modelcontextprotocol/server-everything@2025.5.12':
     resolution: {integrity: sha512-u5gJgXdZFIxP82S3LRE2CbTo301wcaPdbWNNlearX85PkcV4x/3b1sZgX+TVgNd3hIYdbFyhB1NSekY2hqSYDg==}
     hasBin: true
@@ -4429,21 +4425,6 @@ packages:
       openai:
         optional: true
 
-  chromadb@1.9.2:
-    resolution: {integrity: sha512-JNeLKlrsPxld7oPJCNeF73yHyyYeyP950enWRkTa6WsJ6UohH2NQ1vXZu6lWO9WuA9EMypITyZFZ8KtcTV3y2Q==}
-    engines: {node: '>=14.17.0'}
-    peerDependencies:
-      '@google/generative-ai': ^0.1.1
-      cohere-ai: ^5.0.0 || ^6.0.0 || ^7.0.0
-      openai: ^3.0.0 || ^4.0.0
-    peerDependenciesMeta:
-      '@google/generative-ai':
-        optional: true
-      cohere-ai:
-        optional: true
-      openai:
-        optional: true
-
   ci-info@3.9.0:
     resolution: {integrity: sha512-NIxF55hv4nSqQswkAeiOi1r83xy8JldOFDTWiug55KBu9Jnblncd2U6ViHmYgHf01TPZS77NJBhBMKdWj9HQMQ==}
     engines: {node: '>=8'}
@@ -4930,9 +4911,6 @@ packages:
   fast-json-stable-stringify@2.1.0:
     resolution: {integrity: sha512-lhd/wF+Lk98HZoTCtlVraHtfh5XYijIjalXck7saUtuanSDyLMxnHhSXEDJqHxD7msR8D0uCmqlkwjCV8xvwHw==}
 
-  fast-text-encoding@1.0.6:
-    resolution: {integrity: sha512-VhXlQgj9ioXCqGstD37E/HBeqEGV/qOD/kmbVG8h5xKBYvM1L3lR1Zn4555cQ8GkYbJa8aJSipLPndE1k6zK2w==}
-
   fast-uri@3.0.6:
     resolution: {integrity: sha512-Atfo14OibSv5wAp4VWNsFYE1AchQRTv9cBGWET4pZWHzYshFSS9NQI6I57rdKn9croWVMbYFbLhJ+yJvmZIIHw==}
 
@@ -5070,17 +5048,9 @@ packages:
   functions-have-names@1.2.3:
     resolution: {integrity: sha512-xckBUXyTIqT97tq2x2AMb+g163b5JFysYk0x4qxNFwbfQkmNZoiRHb6sPzI9/QV33WeuvVYBUIiD4NzNIyqaRQ==}
 
-  gaxios@5.1.3:
-    resolution: {integrity: sha512-95hVgBRgEIRQQQHIbnxBXeHbW4TqFk4ZDJW7wmVtvYar72FdhRIo1UGOLS2eRAKCPEdPBWu+M7+A33D9CdX9rA==}
-    engines: {node: '>=12'}
-
   gaxios@6.3.0:
     resolution: {integrity: sha512-p+ggrQw3fBwH2F5N/PAI4k/G/y1art5OxKpb2J2chwNNHM4hHuAOtivjPuirMF4KNKwTTUal/lPfL2+7h2mEcg==}
     engines: {node: '>=14'}
-
-  gcp-metadata@5.3.0:
-    resolution: {integrity: sha512-FNTkdNEnBdlqF2oatizolQqNANMrcqJt6AAYt99B3y1aLLC8Hc5IOBb+ZnnzllodEEf6xMBp6wRcBbc16fa65w==}
-    engines: {node: '>=12'}
 
   gcp-metadata@6.1.0:
     resolution: {integrity: sha512-Jh/AIwwgaxan+7ZUUmRLCjtchyDiqh4KjBJ5tW3plBZb5iL/BPcso8A5DlzeD9qlw0duCamnNdpFjxwaT0KyKg==}
@@ -5165,10 +5135,6 @@ packages:
     resolution: {integrity: sha512-sFdI5LyBiNTHjRd7cGPWapiHWMOXKyuBNX/cWJ3NfzrZQVa8GI/8cofCl74AOVqq9W5kNmguTIzJ/1s2gyI9wA==}
     engines: {node: '>= 0.4'}
 
-  google-auth-library@8.9.0:
-    resolution: {integrity: sha512-f7aQCJODJFmYWN6PeNKzgvy9LI2tYmXnzpNDHEjG5sDNPgGb2FXQyTBnXeSH+PAtpKESFD+LmHw3Ox3mN7e1Fg==}
-    engines: {node: '>=12'}
-
   google-auth-library@9.11.0:
     resolution: {integrity: sha512-epX3ww/mNnhl6tL45EQ/oixsY8JLEgUFoT4A5E/5iAR4esld9Kqv6IJGk7EmGuOgDvaarwF95hU2+v7Irql9lw==}
     engines: {node: '>=14'}
@@ -5193,12 +5159,6 @@ packages:
     resolution: {integrity: sha512-Phyp9fMfA00J3sZbJxbbB4jC55b7DBjE3F6poyL3wKMEBVKA79q6BGuHcTiM28yOzVql0NDbRL8MLLh8Iwk9Dg==}
     engines: {node: '>=14'}
 
-  google-p12-pem@4.0.1:
-    resolution: {integrity: sha512-WPkN4yGtz05WZ5EhtlxNDWPhC4JIic6G8ePitwUWy4l+XPVYec+a0j0Ts47PDtW59y3RwAhUd9/h9ZZ63px6RQ==}
-    engines: {node: '>=12.0.0'}
-    deprecated: Package is no longer maintained
-    hasBin: true
-
   googleapis-common@7.2.0:
     resolution: {integrity: sha512-/fhDZEJZvOV3X5jmD+fKxMqma5q2Q9nZNSF3kn1F18tpxmA86BcTxAGBQdM0N89Z3bEaIs+HVznSmFJEAmMTjA==}
     engines: {node: '>=14.0.0'}
@@ -5220,10 +5180,6 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
-
-  gtoken@6.1.2:
-    resolution: {integrity: sha512-4ccGpzz7YAr7lxrT2neugmXQ3hP9ho2gcaityLVkiUecAiwiy60Ii8gRbZeOsXV19fYaRjgBSshs8kXw+NKCPQ==}
-    engines: {node: '>=12.0.0'}
 
   gtoken@7.1.0:
     resolution: {integrity: sha512-pCcEwRi+TKpMlxAQObHDQ56KawURgyAf6jtIY046fJ5tIv3zDe/LEIubckAO8fj6JnAxLdmWkUfNyulQ2iKdEw==}
@@ -6438,10 +6394,6 @@ packages:
   pirates@4.0.6:
     resolution: {integrity: sha512-saLsH7WeYYPiD25LDuLRRY/i+6HaPYr6G1OUlN39otzkSTxKnubR9RTxS3/Kk50s1g2JTgFwWQDQyplC5/SHZg==}
     engines: {node: '>= 6'}
-
-  pkce-challenge@4.1.0:
-    resolution: {integrity: sha512-ZBmhE1C9LcPoH9XZSdwiPtbPHZROwAnMy+kIFQVrnMCxY4Cudlz3gBOpzilgc0jOgRaiT3sIWfpMomW2ar2orQ==}
-    engines: {node: '>=16.20.0'}
 
   pkce-challenge@5.0.0:
     resolution: {integrity: sha512-ueGLflrrnvwB3xuo/uGob5pd5FN7l0MsLf0Z87o/UQmRtwjvfylfc9MurIxRAWywCYTgrvpXBcqjV4OfCYGCIQ==}
@@ -8777,7 +8729,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
+  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@9.14.2(encoding@0.1.13))(googleapis@140.0.1(encoding@0.1.13))(jsonwebtoken@9.0.2)':
     dependencies:
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
@@ -8789,9 +8741,10 @@ snapshots:
       zod-to-json-schema: 3.22.5(zod@3.24.1)
     optionalDependencies:
       '@pinecone-database/pinecone': 2.2.0
-      chromadb: 1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
+      chromadb: 1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       firebase-admin: 12.3.1(encoding@0.1.13)
-      google-auth-library: 8.9.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
+      googleapis: 140.0.1(encoding@0.1.13)
       jsonwebtoken: 9.0.2
     transitivePeerDependencies:
       - encoding
@@ -8826,22 +8779,22 @@ snapshots:
       '@langchain/core': 0.1.61
       js-tiktoken: 1.0.11
 
+  '@mistralai/mistralai-gcp@1.3.5(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.22.4)':
+    dependencies:
+      google-auth-library: 9.14.2(encoding@0.1.13)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      zod: 3.22.4
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   '@mistralai/mistralai-gcp@1.3.5(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.24.1)':
     dependencies:
       google-auth-library: 9.14.2(encoding@0.1.13)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
       zod: 3.24.1
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@mistralai/mistralai-gcp@1.3.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(zod@3.22.4)':
-    dependencies:
-      google-auth-library: 9.14.2(encoding@0.1.13)
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      zod: 3.22.4
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -8862,21 +8815,6 @@ snapshots:
       express: 5.1.0
       express-rate-limit: 7.5.0(express@5.1.0)
       pkce-challenge: 5.0.0
-      raw-body: 3.0.0
-      zod: 3.24.1
-      zod-to-json-schema: 3.24.1(zod@3.24.1)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@modelcontextprotocol/sdk@1.8.0':
-    dependencies:
-      content-type: 1.0.5
-      cors: 2.8.5
-      cross-spawn: 7.0.6
-      eventsource: 3.0.5
-      express: 5.1.0
-      express-rate-limit: 7.5.0(express@5.1.0)
-      pkce-challenge: 4.1.0
       raw-body: 3.0.0
       zod: 3.24.1
       zod-to-json-schema: 3.24.1(zod@3.24.1)
@@ -10292,24 +10230,15 @@ snapshots:
   chownr@1.1.4:
     optional: true
 
-  chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)):
+  chromadb@1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)):
     dependencies:
       cliui: 8.0.1
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
     optionalDependencies:
+      '@google/generative-ai': 0.24.0
       openai: 4.53.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
-
-  chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)):
-    dependencies:
-      cliui: 8.0.1
-      isomorphic-fetch: 3.0.0(encoding@0.1.13)
-    optionalDependencies:
-      openai: 4.53.0(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-    optional: true
 
   ci-info@3.9.0: {}
 
@@ -10988,9 +10917,6 @@ snapshots:
 
   fast-json-stable-stringify@2.1.0: {}
 
-  fast-text-encoding@1.0.6:
-    optional: true
-
   fast-uri@3.0.6: {}
 
   fast-xml-parser@4.3.6:
@@ -11184,17 +11110,6 @@ snapshots:
 
   functions-have-names@1.2.3: {}
 
-  gaxios@5.1.3(encoding@0.1.13):
-    dependencies:
-      extend: 3.0.2
-      https-proxy-agent: 5.0.1
-      is-stream: 2.0.1
-      node-fetch: 2.7.0(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-    optional: true
-
   gaxios@6.3.0(encoding@0.1.13):
     dependencies:
       extend: 3.0.2
@@ -11205,15 +11120,6 @@ snapshots:
       - encoding
       - supports-color
 
-  gcp-metadata@5.3.0(encoding@0.1.13):
-    dependencies:
-      gaxios: 5.1.3(encoding@0.1.13)
-      json-bigint: 1.0.0
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-    optional: true
-
   gcp-metadata@6.1.0(encoding@0.1.13):
     dependencies:
       gaxios: 6.3.0(encoding@0.1.13)
@@ -11222,7 +11128,7 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.10.0)(@genkit-ai/core@1.10.0):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.10.0)(@genkit-ai/core@1.10.0)(encoding@0.1.13):
     dependencies:
       '@genkit-ai/ai': 1.10.0
       '@genkit-ai/core': 1.10.0
@@ -11320,22 +11226,6 @@ snapshots:
     dependencies:
       define-properties: 1.2.1
 
-  google-auth-library@8.9.0(encoding@0.1.13):
-    dependencies:
-      arrify: 2.0.1
-      base64-js: 1.5.1
-      ecdsa-sig-formatter: 1.0.11
-      fast-text-encoding: 1.0.6
-      gaxios: 5.1.3(encoding@0.1.13)
-      gcp-metadata: 5.3.0(encoding@0.1.13)
-      gtoken: 6.1.2(encoding@0.1.13)
-      jws: 4.0.0
-      lru-cache: 6.0.0
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-    optional: true
-
   google-auth-library@9.11.0(encoding@0.1.13):
     dependencies:
       base64-js: 1.5.1
@@ -11426,11 +11316,6 @@ snapshots:
       - encoding
       - supports-color
 
-  google-p12-pem@4.0.1:
-    dependencies:
-      node-forge: 1.3.1
-    optional: true
-
   googleapis-common@7.2.0(encoding@0.1.13):
     dependencies:
       extend: 3.0.2
@@ -11466,16 +11351,6 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
-
-  gtoken@6.1.2(encoding@0.1.13):
-    dependencies:
-      gaxios: 5.1.3(encoding@0.1.13)
-      google-p12-pem: 4.0.1
-      jws: 4.0.0
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-    optional: true
 
   gtoken@7.1.0(encoding@0.1.13):
     dependencies:
@@ -12377,10 +12252,10 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
+  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@9.14.2(encoding@0.1.13))(googleapis@140.0.1(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
     dependencies:
       '@anthropic-ai/sdk': 0.9.1(encoding@0.1.13)
-      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@9.14.2(encoding@0.1.13))(googleapis@140.0.1(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
       '@langchain/textsplitters': 0.0.0
@@ -12400,9 +12275,9 @@ snapshots:
     optionalDependencies:
       '@google-cloud/storage': 7.10.1(encoding@0.1.13)
       '@pinecone-database/pinecone': 2.2.0
-      chromadb: 1.9.2(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
+      chromadb: 1.8.1(@google/generative-ai@0.24.0)(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       fast-xml-parser: 4.3.6
-      google-auth-library: 8.9.0(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
       handlebars: 4.7.8
       ignore: 5.3.1
       pdf-parse: 1.1.1
@@ -13006,8 +12881,6 @@ snapshots:
   pify@3.0.0: {}
 
   pirates@4.0.6: {}
-
-  pkce-challenge@4.1.0: {}
 
   pkce-challenge@5.0.0: {}
 
@@ -13731,7 +13604,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.11.30)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5)))(typescript@4.9.5):
+  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.11.30)(ts-node@10.9.2(@types/node@20.11.30)(typescript@4.9.5)))(typescript@4.9.5):
     dependencies:
       bs-logger: 0.2.6
       ejs: 3.1.10
@@ -13749,8 +13622,9 @@ snapshots:
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
       babel-jest: 29.7.0(@babel/core@7.25.7)
+      esbuild: 0.24.0
 
-  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)))(typescript@4.9.5):
+  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@4.9.5)))(typescript@4.9.5):
     dependencies:
       bs-logger: 0.2.6
       ejs: 3.1.10
@@ -13768,8 +13642,9 @@ snapshots:
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
       babel-jest: 29.7.0(@babel/core@7.25.7)
+      esbuild: 0.24.0
 
-  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3)))(typescript@5.6.3):
+  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.16.9)(ts-node@10.9.2(@types/node@20.16.9)(typescript@5.6.3)))(typescript@5.6.3):
     dependencies:
       bs-logger: 0.2.6
       ejs: 3.1.10
@@ -13787,6 +13662,7 @@ snapshots:
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
       babel-jest: 29.7.0(@babel/core@7.25.7)
+      esbuild: 0.24.0
 
   ts-md5@1.3.1: {}
 
