@@ -62,6 +62,6 @@ export function fromMcpPart(part: PromptMessage['content']): Part {
   }
   throw new GenkitError({
     status: 'UNIMPLEMENTED',
-    message: `Part type ${part.type} is not currently supported.`
+    message: `Part type ${part.type} is not currently supported.`,
   });
 }
