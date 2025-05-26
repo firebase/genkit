@@ -1016,7 +1016,7 @@ export function defineGoogleAIModel({
       if (apiVersion) {
         options.apiVersion = apiVersion;
       }
-      if (apiVersion) {
+      if (baseUrl) {
         options.baseUrl = baseUrl;
       }
       const requestConfig: z.infer<typeof GeminiConfigSchema> = {

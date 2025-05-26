@@ -286,6 +286,8 @@ export interface EmbedderReference<
   info?: EmbedderInfo;
   config?: z.infer<CustomOptions>;
   version?: string;
+
+  withConfig(cfg: z.infer<CustomOptions>): EmbedderReference<CustomOptions>;
 }
 
 /**
@@ -294,10 +296,29 @@ export interface EmbedderReference<
 export function embedderRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  options: EmbedderReference<CustomOptionsSchema>
+  options: Omit<EmbedderReference<CustomOptionsSchema>, 'withConfig'>
 ): EmbedderReference<CustomOptionsSchema> {
-  return { ...options };
+  const ref: Partial<EmbedderReference<CustomOptionsSchema>> = {
+    ...options,
+  };
+  ref.withConfig = (
+    cfg: z.infer<CustomOptionsSchema>
+  ): EmbedderReference<CustomOptionsSchema> => {
+    return embedderRef({
+      ...options,
+      config: cfg,
+    });
+  };
+  return ref as EmbedderReference<CustomOptionsSchema>;
 }
+
+// export function embedderRef<
+//   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+// >(
+//   options: EmbedderReference<CustomOptionsSchema>
+// ): EmbedderReference<CustomOptionsSchema> {
+//   return { ...options };
+// }
 
 /**
  * Packages embedder information into ActionMetadata object.

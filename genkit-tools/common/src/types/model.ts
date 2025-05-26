@@ -342,7 +342,7 @@ export const ModelResponseSchema = z.object({
 export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
 
 /**
- * Zod schema of generaete response.
+ * Zod schema of generate response.
  */
 export const GenerateResponseSchema = ModelResponseSchema.extend({
   /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finishReason`, and `finishMessage` instead. */
