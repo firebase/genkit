@@ -48,12 +48,12 @@ ai = Genkit(
                     api_type=OllamaAPITypes.GENERATE,
                 )
             ],
-            # embedders=[
-            #     EmbeddingDefinition(
-            #         name=EMBEDDER_MODEL,
-            #         dimensions=512,
-            #     )
-            # ],  # example of dynamic registry
+            embedders=[
+                EmbeddingDefinition(
+                    name=EMBEDDER_MODEL,
+                    dimensions=512,
+                )
+            ],
         )
     ],
 )
