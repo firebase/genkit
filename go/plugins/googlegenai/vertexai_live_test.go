@@ -337,11 +337,11 @@ func TestVertexAILive(t *testing.T) {
 		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(
-				googlegenai.GeminiConfig{
-					Temperature: 1,
-					ThinkingConfig: &googlegenai.ThinkingConfig{
+				genai.GenerateContentConfig{
+					Temperature: genai.Ptr[float32](1),
+					ThinkingConfig: &genai.ThinkingConfig{
 						IncludeThoughts: true,
-						ThinkingBudget:  1024,
+						ThinkingBudget:  genai.Ptr[int32](1024),
 					},
 				},
 			),
@@ -369,11 +369,11 @@ func TestVertexAILive(t *testing.T) {
 		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(
-				googlegenai.GeminiConfig{
-					Temperature: 1,
-					ThinkingConfig: &googlegenai.ThinkingConfig{
+				genai.GenerateContentConfig{
+					Temperature: genai.Ptr[float32](1),
+					ThinkingConfig: &genai.ThinkingConfig{
 						IncludeThoughts: false,
-						ThinkingBudget:  0,
+						ThinkingBudget:  genai.Ptr[int32](0),
 					},
 				},
 			),
