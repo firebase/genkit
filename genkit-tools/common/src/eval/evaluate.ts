@@ -124,6 +124,7 @@ export async function runNewEvaluation(
     manager,
     evaluatorActions,
     evalDataset,
+    batchSize: request.options?.batchSize,
     augments: {
       ...metadata,
       actionRef,

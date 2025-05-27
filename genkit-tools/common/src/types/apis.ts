@@ -161,6 +161,12 @@ export const RunNewEvaluationRequestSchema = z.object({
         .any()
         .describe('addition parameters required for inference')
         .optional(),
+      batchSize: z
+        .number()
+        .describe(
+          'Batch the dataset into smaller segments that are run in parallel'
+        )
+        .optional(),
     })
     .optional(),
 });
