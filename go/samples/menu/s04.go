@@ -22,7 +22,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
 	"google.golang.org/genai"
 )
@@ -47,7 +46,7 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(dataMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
+		ai.WithConfig(&genai.GenerateContentConfig{
 			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)

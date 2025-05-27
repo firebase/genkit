@@ -41,7 +41,7 @@ func main() {
 	genkit.DefineFlow(g, "contextFlow", func(ctx context.Context, input string) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.0-flash"),
-			ai.WithConfig(&googlegenai.GeminiConfig{
+			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 			}),
 			ai.WithPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)),

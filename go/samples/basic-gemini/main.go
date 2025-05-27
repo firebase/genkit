@@ -32,25 +32,24 @@ func main() {
 	// Config parameter, the Google AI plugin will get the API key from the
 	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.VertexAI{}))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
 		if m == nil {
 			return "", core.NewError(core.INVALID_ARGUMENT, "jokesFlow: failed to find model")
 		}
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&googlegenai.GeminiConfig{
+			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 				ThinkingConfig: &genai.ThinkingConfig{
-					IncludeThoughts: true,
-					ThinkingBudget:  genai.Ptr[int32](1024),
+					ThinkingBudget: genai.Ptr[int32](0), // disable thinking in the generate call
 				},
 			}),
 			ai.WithPrompt(`Tell silly short jokes about %s`, input))

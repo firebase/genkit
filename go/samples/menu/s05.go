@@ -23,7 +23,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"google.golang.org/genai"
 )
 
@@ -41,7 +40,7 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 		ai.WithModel(model),
 		ai.WithInputType(imageURLInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
+		ai.WithConfig(&genai.GenerateContentConfig{
 			Temperature: genai.Ptr[float32](0.1),
 		}),
 	)
@@ -65,7 +64,7 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(textMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
+		ai.WithConfig(&genai.GenerateContentConfig{
 			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)

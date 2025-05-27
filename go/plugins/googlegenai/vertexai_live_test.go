@@ -27,6 +27,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 // The tests here only work with a project set to a valid value.
@@ -270,7 +271,7 @@ func TestVertexAILive(t *testing.T) {
 		}
 		m := googlegenai.VertexAIModel(g, "gemini-2.0-flash-preview-image-generation")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(googlegenai.GeminiConfig{
+			ai.WithConfig(genai.GenerateContentConfig{
 				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
 			ai.WithMessages(

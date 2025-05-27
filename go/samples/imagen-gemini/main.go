@@ -53,7 +53,7 @@ func main() {
 		}
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&googlegenai.GeminiConfig{
+			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature:        genai.Ptr[float32](0.5),
 				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),

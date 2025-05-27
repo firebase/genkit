@@ -22,7 +22,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"google.golang.org/genai"
 )
 
@@ -76,7 +75,7 @@ Do you have any questions about the menu?`),
 		ai.WithModel(m),
 		ai.WithInputType(dataMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
+		ai.WithConfig(&genai.GenerateContentConfig{
 			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)

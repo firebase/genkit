@@ -39,7 +39,7 @@ func TestConvertRequest(t *testing.T) {
 	}
 
 	req := &ai.ModelRequest{
-		Config: GeminiConfig{
+		Config: genai.GenerateContentConfig{
 			MaxOutputTokens: 10,
 			StopSequences:   []string{"stop"},
 			Temperature:     genai.Ptr[float32](0.4),
@@ -123,9 +123,9 @@ func TestConvertRequest(t *testing.T) {
 		if gcc.CandidateCount == 0 {
 			t.Error("candidate count: got: 0, want: 1")
 		}
-		ogCfg, ok := req.Config.(GeminiConfig)
+		ogCfg, ok := req.Config.(genai.GenerateContentConfig)
 		if !ok {
-			t.Fatalf("request config should have been of type: GeminiConfig, got: %T", req.Config)
+			t.Fatalf("request config should have been of type: genai.GenerateContentConfig, got: %T", req.Config)
 		}
 		if gcc.MaxOutputTokens == 0 {
 			t.Errorf("max output tokens: got: 0, want %d", ogCfg.MaxOutputTokens)
@@ -153,7 +153,7 @@ func TestConvertRequest(t *testing.T) {
 		}
 	})
 	t.Run("use valid tools outside genkit", func(t *testing.T) {
-		badCfg := GeminiConfig{
+		badCfg := genai.GenerateContentConfig{
 			Temperature: genai.Ptr[float32](1.0),
 			Tools: []*genai.Tool{
 				{
@@ -173,13 +173,13 @@ func TestConvertRequest(t *testing.T) {
 	t.Run("forbidden primitives outside genkit", func(t *testing.T) {
 		type testCase struct {
 			name string
-			cfg  GeminiConfig
+			cfg  genai.GenerateContentConfig
 			err  error
 		}
 		tests := []testCase{
 			{
 				name: "use system instruction outside genkit",
-				cfg: GeminiConfig{
+				cfg: genai.GenerateContentConfig{
 					Temperature:       genai.Ptr[float32](1.0),
 					SystemInstruction: &genai.Content{Parts: []*genai.Part{{Text: "talk like a pirate"}}},
 				},
@@ -187,7 +187,7 @@ func TestConvertRequest(t *testing.T) {
 			},
 			{
 				name: "use function declaration tools outside genkit",
-				cfg: GeminiConfig{
+				cfg: genai.GenerateContentConfig{
 					Temperature: genai.Ptr[float32](1.0),
 					Tools: []*genai.Tool{
 						{
@@ -200,7 +200,7 @@ func TestConvertRequest(t *testing.T) {
 			},
 			{
 				name: "use code execution tool",
-				cfg: GeminiConfig{
+				cfg: genai.GenerateContentConfig{
 					Temperature: genai.Ptr[float32](1.0),
 					Tools: []*genai.Tool{
 						{
@@ -215,14 +215,14 @@ func TestConvertRequest(t *testing.T) {
 			},
 			{
 				name: "use cache outside genkit",
-				cfg: GeminiConfig{
+				cfg: genai.GenerateContentConfig{
 					CachedContent: "some cache uuid",
 				},
 				err: errors.New("cache contents should be set using Genkit features"),
 			},
 			{
 				name: "use response schema outside genkit",
-				cfg: GeminiConfig{
+				cfg: genai.GenerateContentConfig{
 					ResponseSchema: &genai.Schema{
 						Description: "some schema",
 					},
@@ -231,7 +231,7 @@ func TestConvertRequest(t *testing.T) {
 			},
 			{
 				name: "use response MIME type outside genkit",
-				cfg: GeminiConfig{
+				cfg: genai.GenerateContentConfig{
 					ResponseMIMEType: "image/png",
 				},
 				err: errors.New("response schema should be set using Genkit features"),

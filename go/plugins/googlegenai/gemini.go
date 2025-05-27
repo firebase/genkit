@@ -40,9 +40,6 @@ import (
 	"google.golang.org/genai"
 )
 
-// Plugin configuration alias
-type GeminiConfig = genai.GenerateContentConfig
-
 const (
 	// Thinking budget limit
 	thinkingBudgetMax = 24576
@@ -113,14 +110,14 @@ func mapToStruct(m map[string]any, v any) error {
 	return json.Unmarshal(jsonData, v)
 }
 
-// configFromRequest converts any supported config type to [GeminiConfig].
-func configFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
-	var result GeminiConfig
+// configFromRequest converts any supported config type to [genai.GenerateContentConfig].
+func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
+	var result genai.GenerateContentConfig
 
 	switch config := input.Config.(type) {
-	case GeminiConfig:
+	case genai.GenerateContentConfig:
 		result = config
-	case *GeminiConfig:
+	case *genai.GenerateContentConfig:
 		result = *config
 	case map[string]any:
 		// TODO: Log warnings if unknown parameters are found.
@@ -147,7 +144,7 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		Label:        info.Label,
 		Supports:     info.Supports,
 		Versions:     info.Versions,
-		ConfigSchema: configToMap(GeminiConfig{}),
+		ConfigSchema: configToMap(genai.GenerateContentConfig{}),
 	}
 
 	fn := func(

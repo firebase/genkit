@@ -50,7 +50,7 @@ func main() {
 		fmt.Println("Sending request to Gemini...")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&googlegenai.GeminiConfig{
+			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](0.2),
 				Tools: []*genai.Tool{
 					{
