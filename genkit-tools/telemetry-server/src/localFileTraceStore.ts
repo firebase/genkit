@@ -126,7 +126,7 @@ export class LocalFileTraceStore implements TraceStore {
         Object.keys(trace.spans).forEach(
           (spanId) => (existing.spans[spanId] = trace.spans[spanId])
         );
-        // If we it's one of those wierd roots (internal span that we filter) we try to fix
+        // If it's one of those weird roots (internal span that we filter) we try to fix
         // whoever was referencing it by making them root.
         if (possibleRoot) {
           Object.keys(existing.spans).forEach((spanId) => {
