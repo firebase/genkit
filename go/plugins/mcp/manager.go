@@ -130,7 +130,7 @@ func (m *MCPManager) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]a
 }
 
 // GetPrompt retrieves a specific prompt from a specific server
-func (m *MCPManager) GetPrompt(ctx context.Context, serverName, promptName string) (*ai.Prompt, error) {
+func (m *MCPManager) GetPrompt(ctx context.Context, gk *genkit.Genkit, serverName, promptName string, args map[string]string) (*ai.Prompt, error) {
 	client, exists := m.clients[serverName]
 	if !exists {
 		return nil, fmt.Errorf("no client found with name '%s'", serverName)
@@ -140,7 +140,5 @@ func (m *MCPManager) GetPrompt(ctx context.Context, serverName, promptName strin
 		return nil, fmt.Errorf("client '%s' is disabled", serverName)
 	}
 
-	// This would need to be implemented on GenkitMCPClient
-	// For now, return an error indicating it's not implemented
-	return nil, fmt.Errorf("GetPrompt not yet implemented on GenkitMCPClient")
+	return client.GetPrompt(ctx, gk, promptName, args)
 }
