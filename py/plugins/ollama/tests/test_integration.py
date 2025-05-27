@@ -14,6 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Integration tests for Ollama plugin with Genkit."""
+
 from unittest.mock import ANY, MagicMock, Mock, patch
 
 import ollama as ollama_api
