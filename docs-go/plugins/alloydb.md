@@ -18,15 +18,18 @@ pEngine, err := NewPostgresEngine(ctx,
 
 // with email authentication
 pEngine, err := NewPostgresEngine(ctx,
-    WithUser('user'),
-    WithPassword('password'),
     WithCloudSQLInstance('my-project', 'us-central1', 'my-cluster', 'my-instance'),
-    WithDatabase('my-database')
+    WithDatabase('my-database'),
+    WithIAMAccountEmail('mail@company.com'))
 
 // with custom pool
+
+pool, err := pgxpool.New(ctx, "add_your_connection_string")
+  if err != nil {
+    return err
+  }
+
 pEngine, err := NewPostgresEngine(ctx,
-    WithUser("user"),
-    WithPassword("passw0rd"),
     WithDatabase("db_test"),
     WithPool(pool))
 
@@ -113,13 +116,4 @@ if err != nil {
 }
 
 ```
-
-
-
-
-
-
-
-
-
 See the [Retrieval-augmented generation](../rag.md) page for a general discussion on indexers and retrievers.
