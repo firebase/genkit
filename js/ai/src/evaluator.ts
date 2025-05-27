@@ -241,7 +241,8 @@ export function defineEvaluator<
               });
 
               const allResults = await Promise.all(evalRunPromises);
-              metadata.output = allResults;
+              metadata.output =
+                allResults.length === 1 ? allResults[0] : allResults;
               allResults.map((result) => {
                 evalResponses.push(result);
               });

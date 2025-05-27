@@ -174,6 +174,10 @@ export async function runEvaluation(params: {
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   logger.info('Running evaluation...');
+
+  const runtime = manager.getMostRecentRuntime();
+  const isNodeRuntime = runtime?.genkitVersion?.startsWith('nodejs');
+
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await manager.runAction({
@@ -181,7 +185,7 @@ export async function runEvaluation(params: {
       input: {
         dataset: evalDataset.filter((row) => !row.error),
         evalRunId,
-        batchSize,
+        batchSize: isNodeRuntime ? batchSize : undefined,
       },
     });
     scores[name] = response.result;
