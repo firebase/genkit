@@ -16,7 +16,7 @@ import (
 
 const (
 	TestTable             = "test_embeddings"
-	SchemaName            = "test_schema"
+	SchemaName            = "test"
 	CustomContentColumn   = "my_content"
 	CustomEmbeddingColumn = "my_embedding"
 	CustomIdColumn        = "custom_id"
