@@ -176,7 +176,7 @@ export async function runEvaluation(params: {
   logger.info('Running evaluation...');
 
   const runtime = manager.getMostRecentRuntime();
-  const isNodeRuntime = runtime?.genkitVersion?.startsWith('nodejs');
+  const isNodeRuntime = runtime?.genkitVersion?.startsWith('nodejs') ?? false;
 
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
