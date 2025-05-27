@@ -163,8 +163,10 @@ export async function runEvaluation(params: {
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
   augments?: EvalKeyAugments;
+  batchSize?: number;
 }): Promise<EvalRun> {
-  const { manager, evaluatorActions, evalDataset, augments } = params;
+  const { manager, evaluatorActions, evalDataset, augments, batchSize } =
+    params;
   if (evalDataset.length === 0) {
     throw new Error('Cannot run evaluation, no data provided');
   }
@@ -178,6 +180,7 @@ export async function runEvaluation(params: {
       input: {
         dataset: evalDataset.filter((row) => !row.error),
         evalRunId,
+        batchSize,
       },
     });
     scores[name] = response.result;

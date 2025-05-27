@@ -177,6 +177,7 @@ export function defineEvaluator<
           : z.array(BaseDataPointSchema),
         options: options.configSchema ?? z.unknown(),
         evalRunId: z.string(),
+        batchSize: z.number().optional(),
       }),
       outputSchema: EvalResponsesSchema,
       metadata: {
@@ -186,17 +187,19 @@ export function defineEvaluator<
     },
     async (i) => {
       let evalResponses: EvalResponses = [];
-      for (let index = 0; index < i.dataset.length; index++) {
-        const datapoint: BaseEvalDataPoint = {
-          ...i.dataset[index],
-          testCaseId: i.dataset[index].testCaseId ?? randomUUID(),
-        };
+      // This also populates missing testCaseIds
+      const batches = getBatchedArray(i.dataset, i.batchSize);
+
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
         try {
           await runInNewSpan(
             registry,
             {
               metadata: {
-                name: `Test Case ${datapoint.testCaseId}`,
+                name: i.batchSize
+                  ? `Batch ${batchIndex}`
+                  : `Test Case ${batch[0].testCaseId}`,
                 metadata: { 'evaluator:evalRunId': i.evalRunId },
               },
               labels: {
@@ -206,38 +209,47 @@ export function defineEvaluator<
             async (metadata, otSpan) => {
               const spanId = otSpan.spanContext().spanId;
               const traceId = otSpan.spanContext().traceId;
-              try {
+              const evalRunPromises = batch.map((d, index) => {
+                const sampleIndex = i.batchSize
+                  ? i.batchSize * batchIndex + index
+                  : batchIndex;
+                const datapoint = d as BaseEvalDataPoint;
                 metadata.input = {
                   input: datapoint.input,
                   output: datapoint.output,
                   context: datapoint.context,
                 };
-                const testCaseOutput = await runner(datapoint, i.options);
-                testCaseOutput.sampleIndex = index;
-                testCaseOutput.spanId = spanId;
-                testCaseOutput.traceId = traceId;
-                metadata.output = testCaseOutput;
-                evalResponses.push(testCaseOutput);
-                return testCaseOutput;
-              } catch (e) {
-                evalResponses.push({
-                  sampleIndex: index,
-                  spanId,
-                  traceId,
-                  testCaseId: datapoint.testCaseId,
-                  evaluation: {
-                    error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`,
-                    status: EvalStatusEnum.FAIL,
-                  },
-                });
-                // Throw to mark the span as failed.
-                throw e;
-              }
+                const evalOutputPromise = runner(datapoint, i.options)
+                  .then((result) => ({
+                    ...result,
+                    traceId,
+                    spanId,
+                    sampleIndex,
+                  }))
+                  .catch((error) => {
+                    return {
+                      sampleIndex,
+                      spanId,
+                      traceId,
+                      testCaseId: datapoint.testCaseId,
+                      evaluation: {
+                        error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${error}`,
+                      },
+                    };
+                  });
+                return evalOutputPromise;
+              });
+
+              const allResults = await Promise.all(evalRunPromises);
+              metadata.output = allResults;
+              allResults.map((result) => {
+                evalResponses.push(result);
+              });
             }
           );
         } catch (e) {
           logger.error(
-            `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`
+            `Evaluation of batch ${batchIndex} failed: \n${(e as Error).stack}`
           );
           continue;
         }
@@ -316,4 +328,32 @@ export function evaluatorRef<
   options: EvaluatorReference<CustomOptionsSchema>
 ): EvaluatorReference<CustomOptionsSchema> {
   return { ...options };
+}
+
+/**
+ * Helper method to generated batched array. Also ensures each testCase has a
+ * testCaseId
+ */
+function getBatchedArray<T extends { testCaseId?: string }>(
+  arr: T[],
+  batchSize?: number
+): T[][] {
+  let size: number;
+  if (!batchSize) {
+    size = 1;
+  } else {
+    size = batchSize;
+  }
+
+  let batches: T[][] = [];
+  for (var i = 0; i < arr.length; i += size) {
+    batches.push(
+      arr.slice(i, i + size).map((d) => ({
+        ...d,
+        testCaseId: d.testCaseId ?? randomUUID(),
+      }))
+    );
+  }
+
+  return batches;
 }
