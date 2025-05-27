@@ -139,9 +139,11 @@ class Ollama(Plugin):
             ai: The Genkit AI registry instance.
             model_ref: The definition of the model to be registered.
         """
-        _clean_name = (model_ref.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
+        _clean_name = (
+            model_ref.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
             if model_ref.name.startswith(OLLAMA_PLUGIN_NAME)
-            else model_ref.name)
+            else model_ref.name
+        )
 
         model_ref.name = _clean_name
         model = OllamaModel(
@@ -154,10 +156,10 @@ class Ollama(Plugin):
             fn=model.generate,
             config_schema=GenerationCommonConfig,
             metadata={
-                'lable': f'Ollama - {_clean_name}',
+                'label': f'Ollama - {_clean_name}',
                 'multiturn': model_ref.api_type == OllamaAPITypes.CHAT,
                 'system_role': True,
-                'tools': model_ref.supports.tools
+                'tools': model_ref.supports.tools,
             },
         )
 
@@ -172,9 +174,11 @@ class Ollama(Plugin):
             ai: The Genkit AI registry instance.
             embedder_ref: The definition of the embedding model to be registered.
         """
-        _clean_name = (embedder_ref.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
+        _clean_name = (
+            embedder_ref.name.replace(OLLAMA_PLUGIN_NAME + '/', '')
             if embedder_ref.name.startswith(OLLAMA_PLUGIN_NAME)
-            else embedder_ref.name)
+            else embedder_ref.name
+        )
 
         embedder_ref.name = _clean_name
         embedder = OllamaEmbedder(

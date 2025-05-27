@@ -14,95 +14,229 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from unittest import mock
+"""Unit tests for Ollama Plugin."""
+
+import unittest
+from unittest.mock import ANY, MagicMock, patch
 
 import ollama as ollama_api
 import pytest
 
 from genkit.ai import ActionKind, Genkit
-from genkit.types import GenerateResponse, Message, Role, TextPart
+from genkit.plugins.ollama import Ollama, ollama_name
+from genkit.plugins.ollama.constants import DEFAULT_OLLAMA_SERVER_URL
+from genkit.plugins.ollama.embedders import EmbeddingDefinition
+from genkit.plugins.ollama.models import ModelDefinition
+from genkit.types import GenerationCommonConfig
 
 
-def test_adding_ollama_chat_model_to_genkit_veneer(
-    ollama_model: str,
-    genkit_veneer_chat_model: Genkit,
-) -> None:
-    """Test adding ollama chat model to genkit veneer."""
-    assert genkit_veneer_chat_model.registry.lookup_action(ActionKind.MODEL, ollama_model)
+class TestOllamaInit(unittest.TestCase):
+    """Test cases for Ollama.__init__ plugin."""
 
+    @patch('ollama.AsyncClient')
+    def test_init_with_models(self, ollama_aclient):
+        """Test correct propagation of models param."""
+        model_ref = ModelDefinition(name='test_model')
+        plugin = Ollama(models=[model_ref])
 
-def test_adding_ollama_generation_model_to_genkit_veneer(
-    ollama_model: str,
-    genkit_veneer_generate_model: Genkit,
-) -> None:
-    """Test adding ollama generation model to genkit veneer."""
-    assert genkit_veneer_generate_model.registry.lookup_action(ActionKind.MODEL, ollama_model)
-
-
-@pytest.mark.asyncio
-async def test_async_get_chat_model_response_from_llama_api_flow(
-    mock_ollama_api_async_client: mock.Mock,
-    genkit_veneer_chat_model: Genkit,
-) -> None:
-    """Test async get chat model response from llama api flow."""
-    mock_response_message = 'Mocked response message'
-
-    async def fake_chat_response(*args, **kwargs):
-        return ollama_api.ChatResponse(
-            message=ollama_api.Message(
-                content=mock_response_message,
-                role=Role.USER,
-            )
+        assert plugin.models[0] == model_ref
+        ollama_aclient.assert_called_once_with(
+            host=DEFAULT_OLLAMA_SERVER_URL,
         )
 
-    mock_ollama_api_async_client.return_value.chat.side_effect = fake_chat_response
+    @patch('ollama.AsyncClient')
+    def test_init_with_embedders(self, ollama_aclient):
+        """Test correct propagation of embedders param."""
+        embedder_ref = EmbeddingDefinition(name='test_embedder')
+        plugin = Ollama(embedders=[embedder_ref])
 
-    async def _test_fun():
-        return await genkit_veneer_chat_model.generate(
-            messages=[
-                Message(
-                    role=Role.USER,
-                    content=[
-                        TextPart(text='Test message'),
-                    ],
-                )
-            ]
+        assert plugin.embedders[0] == embedder_ref
+        ollama_aclient.assert_called_once_with(
+            host=DEFAULT_OLLAMA_SERVER_URL,
         )
 
-    response = await genkit_veneer_chat_model.flow()(_test_fun)()
+    @patch('ollama.AsyncClient')
+    def test_init_with_options(self, ollama_aclient):
+        """Test correct propagation of other options param."""
+        model_ref = ModelDefinition(name='test_model')
+        embedder_ref = EmbeddingDefinition(name='test_embedder')
+        server_address = 'new.server.address'
+        headers = {'Content-Type': 'json'}
 
-    assert isinstance(response, GenerateResponse)
-    assert response.message.content[0].root.text == mock_response_message
-
-
-@pytest.mark.asyncio
-async def test_async_get_generate_model_response_from_llama_api_flow(
-    mock_ollama_api_async_client: mock.Mock,
-    genkit_veneer_generate_model: Genkit,
-) -> None:
-    """Test async get generate model response from llama api flow."""
-    mock_response_message = 'Mocked response message'
-
-    async def fake_generate_response(*args, **kwargs):
-        return ollama_api.GenerateResponse(
-            response=mock_response_message,
+        plugin = Ollama(
+            models=[model_ref],
+            embedders=[embedder_ref],
+            server_address=server_address,
+            request_headers=headers,
         )
 
-    mock_ollama_api_async_client.return_value.generate.side_effect = fake_generate_response
+        assert plugin.embedders[0] == embedder_ref
+        assert plugin.models[0] == model_ref
+        assert plugin.server_address == server_address
+        assert plugin.request_headers == headers
 
-    async def _test_fun():
-        return await genkit_veneer_generate_model.generate(
-            messages=[
-                Message(
-                    role=Role.USER,
-                    content=[
-                        TextPart(text='Test message'),
-                    ],
-                )
-            ]
+        ollama_aclient.assert_called_once_with(
+            host=server_address,
         )
 
-    response = await genkit_veneer_generate_model.flow()(_test_fun)()
 
-    assert isinstance(response, GenerateResponse)
-    assert response.message.content[0].root.text == mock_response_message
+def test_initialize(ollama_plugin_instance):
+    """Test initialize method of Ollama plugin."""
+    ai_mock = MagicMock(spec=Genkit)
+    model_ref = ModelDefinition(name='test_model')
+    embedder_ref = EmbeddingDefinition(name='test_embedder')
+    ollama_plugin_instance.models = [model_ref]
+    ollama_plugin_instance.embedders = [embedder_ref]
+
+    init_models = MagicMock()
+    init_embedders = MagicMock()
+
+    ollama_plugin_instance._initialize_models = init_models
+    ollama_plugin_instance._initialize_embedders = init_embedders
+
+    ollama_plugin_instance.initialize(ai_mock)
+
+    init_models.assert_called_once_with(ai=ai_mock)
+    init_embedders.assert_called_once_with(ai=ai_mock)
+
+
+def test__initialize_models(ollama_plugin_instance):
+    """Test _initialize_models method of Ollama plugin."""
+    ai_mock = MagicMock(spec=Genkit)
+    name = 'test_model'
+
+    plugin = ollama_plugin_instance
+    plugin.models = [ModelDefinition(name=name)]
+    plugin._initialize_models(ai_mock)
+
+    ai_mock.define_model.assert_called_once_with(
+        name=ollama_name(name),
+        fn=ANY,
+        config_schema=GenerationCommonConfig,
+        metadata={
+            'label': f'Ollama - {name}',
+            'multiturn': True,
+            'system_role': True,
+            'tools': False,
+        },
+    )
+
+
+def test__initialize_embedders(ollama_plugin_instance):
+    """Test _initialize_embedders method of Ollama plugin."""
+    ai_mock = MagicMock(spec=Genkit)
+    name = 'test_embedder'
+
+    plugin = ollama_plugin_instance
+    plugin.embedders = [
+        EmbeddingDefinition(
+            name=name,
+            dimensions=1024,
+        )
+    ]
+    plugin._initialize_embedders(ai_mock)
+
+    ai_mock.define_embedder.assert_called_once_with(
+        name=ollama_name(name),
+        fn=ANY,
+        config_schema=ollama_api.Options,
+        metadata={
+            'label': f'Ollama Embedding - {name}',
+            'dimensions': 1024,
+            'supports': {
+                'input': ['text'],
+            },
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    'kind, name',
+    [
+        (ActionKind.MODEL, 'test_model'),
+        (ActionKind.EMBEDDER, 'test_embedder'),
+    ],
+)
+def test_resolve_action(kind, name, ollama_plugin_instance):
+    """Unit Tests for resolve action method."""
+    ai_mock = MagicMock(spec=Genkit)
+    ollama_plugin_instance.resolve_action(ai_mock, kind, name)
+
+    if kind == ActionKind.MODEL:
+        ai_mock.define_model.assert_called_once_with(
+            name=ollama_name(name),
+            fn=ANY,
+            config_schema=GenerationCommonConfig,
+            metadata={
+                'label': f'Ollama - {name}',
+                'multiturn': True,
+                'system_role': True,
+                'tools': False,
+            },
+        )
+    else:
+        ai_mock.define_embedder.assert_called_once_with(
+            name=ollama_name(name),
+            fn=ANY,
+            config_schema=ollama_api.Options,
+            metadata={
+                'label': f'Ollama Embedding - {name}',
+                'dimensions': None,
+                'supports': {
+                    'input': ['text'],
+                },
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    'name, expected_name, clean_name',
+    [
+        ('mistral', 'ollama/mistral', 'mistral'),
+        ('ollama/mistral', 'ollama/mistral', 'mistral'),
+    ],
+)
+def test_define_ollama_model(name, expected_name, clean_name, ollama_plugin_instance):
+    """Unit tests for _define_ollama_model method."""
+    ai_mock = MagicMock(spec=Genkit)
+
+    ollama_plugin_instance._define_ollama_model(ai_mock, ModelDefinition(name=name))
+
+    ai_mock.define_model.assert_called_once_with(
+        name=expected_name,
+        fn=ANY,
+        config_schema=GenerationCommonConfig,
+        metadata={
+            'label': f'Ollama - {clean_name}',
+            'multiturn': True,
+            'system_role': True,
+            'tools': False,
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    'name, expected_name, clean_name',
+    [
+        ('mistral', 'ollama/mistral', 'mistral'),
+        ('ollama/mistral', 'ollama/mistral', 'mistral'),
+    ],
+)
+def test_define_ollama_embedder(name, expected_name, clean_name, ollama_plugin_instance):
+    """Unit tests for _define_ollama_embedder method."""
+    ai_mock = MagicMock(spec=Genkit)
+
+    ollama_plugin_instance._define_ollama_embedder(ai_mock, EmbeddingDefinition(name=name, dimensions=1024))
+
+    ai_mock.define_embedder.assert_called_once_with(
+        name=expected_name,
+        fn=ANY,
+        config_schema=ollama_api.Options,
+        metadata={
+            'label': f'Ollama Embedding - {clean_name}',
+            'dimensions': 1024,
+            'supports': {
+                'input': ['text'],
+            },
+        },
+    )
