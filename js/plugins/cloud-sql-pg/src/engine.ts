@@ -245,7 +245,7 @@ export class PostgresEngine {
     const idColumnName =
       typeof idColumn === 'string' ? idColumn : idColumn.name;
 
-    let query = `CREATE TABLE ${schemaName}.${tableName}(
+    let query = `CREATE TABLE "${schemaName}"."${tableName}"(
       ${idColumnName} ${idDataType} PRIMARY KEY,
       ${contentColumn} TEXT NOT NULL,
       ${embeddingColumn} vector(${vectorSize}) NOT NULL`;
