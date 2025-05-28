@@ -14,16 +14,16 @@
 
 package postgresql
 
-const (
-	defaultSchemaName         = "public"
-	defaultIDColumn           = "id"
-	defaultContentColumn      = "content"
-	defaultEmbeddingColumn    = "embedding"
-	defaultMetadataJsonColumn = "metadata"
-	defaultCount              = 4
-	defaultUserAgent          = "genkit-cloud-sql-pg-go/0.0.0"
-	defaultIndexNameSuffix    = "vectorindex"
+import (
+	"context"
+	"errors"
+
+	"github.com/firebase/genkit/go/ai"
 )
 
-// defaultDistanceStrategy is the default strategy used if none is provided.
-var defaultDistanceStrategy = CosineDistance{}
+type mockEmbedderFail struct{}
+
+func (m mockEmbedderFail) Name() string { return "mock" }
+func (m mockEmbedderFail) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return nil, errors.New("mock fail")
+}
