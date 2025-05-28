@@ -45,6 +45,7 @@ interface EvalFlowRunCliOptions {
   context?: string;
   evaluators?: string;
   force?: boolean;
+  batchSize?: number;
   outputFormat: string;
 }
 
@@ -80,6 +81,11 @@ export const evalFlow = new Command('eval:flow')
   .option(
     '-e, --evaluators <evaluators>',
     'comma separated list of evaluators to use (by default uses all)'
+  )
+  .option(
+    '--batchSize <batchSize>',
+    'batch size to use for parallel evals (default to 1, no parallelization)',
+    parseInt
   )
   .option('-f, --force', 'Automatically accept all interactive prompts')
   .action(
@@ -153,6 +159,7 @@ export const evalFlow = new Command('eval:flow')
           manager,
           evaluatorActions,
           evalDataset,
+          batchSize: options.batchSize,
           augments: {
             actionRef: `/flow/${flowName}`,
             datasetId:
