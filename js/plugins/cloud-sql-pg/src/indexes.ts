@@ -1,3 +1,19 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 class StrategyMixin {
   operator: string;
   searchFunction: string;
@@ -14,27 +30,44 @@ class StrategyMixin {
  * Enumerator of the Distance strategies.
  */
 export class DistanceStrategy extends StrategyMixin {
-  public static EUCLIDEAN =  new StrategyMixin("<->", "l2_distance", "vector_l2_ops");
-  public static COSINE_DISTANCE = new StrategyMixin("<=>", "cosine_distance", "vector_cosine_ops");
-  public static INNER_PRODUCT = new StrategyMixin("<#>", "inner_product", "vector_ip_ops");
+  public static EUCLIDEAN = new StrategyMixin(
+    '<->',
+    'l2_distance',
+    'vector_l2_ops'
+  );
+  public static COSINE_DISTANCE = new StrategyMixin(
+    '<=>',
+    'cosine_distance',
+    'vector_cosine_ops'
+  );
+  public static INNER_PRODUCT = new StrategyMixin(
+    '<#>',
+    'inner_product',
+    'vector_ip_ops'
+  );
 }
 
 export const DEFAULT_DISTANCE_STRATEGY = DistanceStrategy.COSINE_DISTANCE;
-export const DEFAULT_INDEX_NAME_SUFFIX: string = "genkitvectorindex";
+export const DEFAULT_INDEX_NAME_SUFFIX: string = 'genkitvectorindex';
 
 export interface BaseIndexArgs {
   name?: string;
   distanceStrategy?: DistanceStrategy;
-  partialIndexes?: string[]
+  partialIndexes?: string[];
 }
 
 export abstract class BaseIndex {
   name?: string;
   indexType: string;
   distanceStrategy: DistanceStrategy;
-  partialIndexes?: string[]
+  partialIndexes?: string[];
 
-  constructor(name?: string, indexType: string = "base", distanceStrategy: DistanceStrategy = DistanceStrategy.COSINE_DISTANCE, partialIndexes?: string[]) {
+  constructor(
+    name?: string,
+    indexType: string = 'base',
+    distanceStrategy: DistanceStrategy = DistanceStrategy.COSINE_DISTANCE,
+    partialIndexes?: string[]
+  ) {
     this.name = name;
     this.indexType = indexType;
     this.distanceStrategy = distanceStrategy;
@@ -48,13 +81,17 @@ export abstract class BaseIndex {
 }
 
 export class ExactNearestNeighbor extends BaseIndex {
-
   constructor(baseArgs?: BaseIndexArgs) {
-    super(baseArgs?.name, "exactnearestneighbor", baseArgs?.distanceStrategy, baseArgs?.partialIndexes)
+    super(
+      baseArgs?.name,
+      'exactnearestneighbor',
+      baseArgs?.distanceStrategy,
+      baseArgs?.partialIndexes
+    );
   }
 
   indexOptions(): string {
-    throw new Error("indexOptions method must be implemented by subclass");
+    throw new Error('indexOptions method must be implemented by subclass');
   }
 }
 
@@ -63,13 +100,18 @@ export class HNSWIndex extends BaseIndex {
   efConstruction: number;
 
   constructor(baseArgs?: BaseIndexArgs, m?: number, efConstruction?: number) {
-    super(baseArgs?.name, "hnsw", baseArgs?.distanceStrategy, baseArgs?.partialIndexes);
+    super(
+      baseArgs?.name,
+      'hnsw',
+      baseArgs?.distanceStrategy,
+      baseArgs?.partialIndexes
+    );
     this.m = m ?? 16;
     this.efConstruction = efConstruction ?? 64;
   }
 
   indexOptions(): string {
-    return `(m = ${this.m}, ef_construction = ${this.efConstruction})`
+    return `(m = ${this.m}, ef_construction = ${this.efConstruction})`;
   }
 }
 
@@ -77,12 +119,17 @@ export class IVFFlatIndex extends BaseIndex {
   lists: number;
 
   constructor(baseArgs: BaseIndexArgs, lists?: number) {
-    super(baseArgs?.name, "ivfflat", baseArgs?.distanceStrategy, baseArgs?.partialIndexes);
+    super(
+      baseArgs?.name,
+      'ivfflat',
+      baseArgs?.distanceStrategy,
+      baseArgs?.partialIndexes
+    );
     this.lists = lists ?? 100;
   }
 
   indexOptions(): string {
-    return `(lists = ${this.lists})`
+    return `(lists = ${this.lists})`;
   }
 }
 
