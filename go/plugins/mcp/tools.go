@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -172,11 +173,18 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 			return nil, err
 		}
 
+		// Log the MCP tool call request
+		log.Printf("[MCP] Calling tool %s with arguments: %+v", currentMCPTool.Name, callToolArgs)
+
 		// Create and execute the MCP tool call request
 		mcpResult, err := executeToolCall(toolCtx, client, currentMCPTool.Name, callToolArgs)
 		if err != nil {
+			log.Printf("[MCP] Tool call failed for %s: %v", currentMCPTool.Name, err)
 			return nil, fmt.Errorf("failed to call tool %s: %w", currentMCPTool.Name, err)
 		}
+
+		// Log the MCP tool call response
+		log.Printf("[MCP] Tool call succeeded for %s. Result: %+v", currentMCPTool.Name, mcpResult)
 
 		return mcpResult, nil
 	}
@@ -233,5 +241,20 @@ func executeToolCall(ctx context.Context, client *client.Client, toolName string
 		},
 	}
 
-	return client.CallTool(ctx, callReq)
+	// Log the raw MCP request
+	reqBytes, _ := json.MarshalIndent(callReq, "", "  ")
+	log.Printf("[MCP] Raw request to MCP server:\n%s", string(reqBytes))
+
+	result, err := client.CallTool(ctx, callReq)
+
+	if err != nil {
+		log.Printf("[MCP] Raw MCP server error: %v", err)
+		return nil, err
+	}
+
+	// Log the raw MCP response
+	respBytes, _ := json.MarshalIndent(result, "", "  ")
+	log.Printf("[MCP] Raw response from MCP server:\n%s", string(respBytes))
+
+	return result, nil
 }

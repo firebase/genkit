@@ -98,7 +98,7 @@ func NewGenkitMCPClient(options MCPClientOptions) (*GenkitMCPClient, error) {
 func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
 	// Close existing connection if any
 	if c.server != nil {
-		if err := c.server.Transport.Close(); err != nil {
+		if err := c.server.Client.Close(); err != nil {
 			log.Printf("Warning: error closing previous transport: %v", err)
 		}
 	}
@@ -189,27 +189,26 @@ func (c *GenkitMCPClient) IsEnabled() bool {
 	return !c.options.Disabled
 }
 
-// Disable temporarily disables the client
+// Disable temporarily disables the client by closing the connection
 func (c *GenkitMCPClient) Disable() {
 	if !c.options.Disabled {
 		c.options.Disabled = true
+		c.Disconnect()
 	}
 }
 
-// Reenable re-enables a previously disabled client
+// Reenable re-enables a previously disabled client by reconnecting
 func (c *GenkitMCPClient) Reenable() {
 	if c.options.Disabled {
 		c.options.Disabled = false
+		c.connect(c.options)
 	}
 }
 
 // Restart restarts the transport connection
 func (c *GenkitMCPClient) Restart(ctx context.Context) error {
-	if c.server != nil {
-		if err := c.server.Transport.Close(); err != nil {
-			log.Printf("Warning: error closing transport during restart: %v", err)
-		}
-		c.server = nil
+	if err := c.Disconnect(); err != nil {
+		log.Printf("Warning: error closing transport during restart: %v", err)
 	}
 	return c.connect(c.options)
 }
@@ -217,7 +216,7 @@ func (c *GenkitMCPClient) Restart(ctx context.Context) error {
 // Disconnect closes the connection to the MCP server
 func (c *GenkitMCPClient) Disconnect() error {
 	if c.server != nil {
-		err := c.server.Transport.Close()
+		err := c.server.Client.Close()
 		c.server = nil
 		return err
 	}

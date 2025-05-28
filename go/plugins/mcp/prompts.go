@@ -106,3 +106,58 @@ func (c *GenkitMCPClient) convertMCPMessages(mcpMessages []mcp.PromptMessage) []
 
 	return messages
 }
+
+// GetActivePrompts retrieves all prompts available from the MCP server
+func (c *GenkitMCPClient) GetActivePrompts(ctx context.Context) ([]mcp.Prompt, error) {
+	if !c.IsEnabled() || c.server == nil {
+		return nil, nil
+	}
+
+	// Get all MCP prompts
+	return c.getPrompts(ctx)
+}
+
+// getPrompts retrieves all prompts from the MCP server by paginating through results
+func (c *GenkitMCPClient) getPrompts(ctx context.Context) ([]mcp.Prompt, error) {
+	var allMcpPrompts []mcp.Prompt
+	var cursor mcp.Cursor
+
+	// Paginate through all available prompts from the MCP server
+	for {
+		// Fetch a page of prompts
+		mcpPrompts, nextCursor, err := c.fetchPromptsPage(ctx, cursor)
+		if err != nil {
+			return nil, err
+		}
+
+		allMcpPrompts = append(allMcpPrompts, mcpPrompts...)
+
+		// Check if we've reached the last page
+		cursor = nextCursor
+		if cursor == "" {
+			break
+		}
+	}
+
+	return allMcpPrompts, nil
+}
+
+// fetchPromptsPage retrieves a single page of prompts from the MCP server
+func (c *GenkitMCPClient) fetchPromptsPage(ctx context.Context, cursor mcp.Cursor) ([]mcp.Prompt, mcp.Cursor, error) {
+	listReq := mcp.ListPromptsRequest{
+		PaginatedRequest: mcp.PaginatedRequest{
+			Params: struct {
+				Cursor mcp.Cursor `json:"cursor,omitempty"`
+			}{
+				Cursor: cursor,
+			},
+		},
+	}
+
+	result, err := c.server.Client.ListPrompts(ctx, listReq)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list prompts: %w", err)
+	}
+
+	return result.Prompts, result.NextCursor, nil
+}
