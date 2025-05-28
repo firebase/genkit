@@ -19,7 +19,7 @@ pEngine, err := NewPostgresEngine(ctx,
 // with email authentication
 pEngine, err := NewPostgresEngine(ctx,
     WithCloudSQLInstance('my-project', 'us-central1', 'my-instance'),
-    WithDatabase('my-database')
+    WithDatabase('my-database'),
     WithIAMAccountEmail('mail@company.com'))
 
 // with custom pool
