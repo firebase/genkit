@@ -33,11 +33,12 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit/beta';
+import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
 import { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
+import wav from 'wav';
 
 logger.setLogLevel('debug');
 
@@ -139,16 +140,36 @@ export const drawPictureFlow = ai.defineFlow(
   }
 );
 
-export const streamFlow = ai.defineFlow(
+export const streamFlowVertex = ai.defineFlow(
   {
-    name: 'streamFlow',
+    name: 'streamFlowVertex',
     inputSchema: z.string(),
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
   async (prompt, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: gemini15Flash,
+      model: vertexAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
+      prompt,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.content[0].text!);
+    }
+
+    return (await response).text;
+  }
+);
+export const streamFlowGemini = ai.defineFlow(
+  {
+    name: 'streamFlowGemini',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (prompt, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
       prompt,
     });
 
@@ -447,6 +468,48 @@ export const toolCaller = ai.defineFlow(
       },
       tools: [jokeSubjectGenerator],
       prompt: `tell me a joke`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+export const dynamicToolCaller = ai.defineFlow(
+  {
+    name: 'dynamicToolCaller',
+    inputSchema: z.number().default(5),
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (input, { sendChunk }) => {
+    const dynamicGablorkenTool = ai.dynamicTool(
+      {
+        name: 'dynamicGablorkenTool',
+        inputSchema: z.object({
+          value: z
+            .number()
+            .describe(
+              'always add 1 to the value (it is 1 based, but upstream it is zero based)'
+            ),
+        }),
+        description: 'can be used to calculate gablorken value',
+      },
+      async (input) => {
+        return input.value * 3 - 4;
+      }
+    );
+
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.0-flash'),
+      config: {
+        temperature: 1,
+      },
+      tools: [dynamicGablorkenTool],
+      prompt: `what is a gablorken of ${input}`,
     });
 
     for await (const chunk of stream) {
@@ -868,3 +931,149 @@ ai.defineFlow('geminiEnum', async (thing) => {
 
   return output;
 });
+
+ai.defineFlow('embedders-tester', async () => {
+  console.log(
+    await ai.embed({
+      content: 'hello world',
+      embedder: googleAI.embedder('text-embedding-004'),
+    })
+  );
+  console.log(
+    await ai.embed({
+      content: 'hello world',
+      embedder: vertexAI.embedder('text-embedding-004'),
+    })
+  );
+});
+
+ai.defineFlow('reasoning', async (_, { sendChunk }) => {
+  const { message } = await ai.generate({
+    prompt: 'whats heavier, one kilo of steel or or one kilo of feathers',
+    model: googleAI.model('gemini-2.5-flash-preview-04-17'),
+    config: {
+      thinkingConfig: {
+        thinkingBudget: 1024,
+        includeThoughts: true,
+      },
+    },
+    onChunk: sendChunk,
+  });
+
+  return message;
+});
+
+ai.defineFlow(
+  {
+    name: 'audioSimple',
+    inputSchema: z
+      .string()
+      .default(
+        'say that that Genkit (G pronounced as J) is an amazing Gen AI library'
+      ),
+    outputSchema: z.void(),
+  },
+  async (query) => {
+    const { media } = await ai.generate({
+      // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
+      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Algenib' },
+          },
+        },
+      },
+      prompt: query,
+    });
+    if (!media) {
+      return;
+    }
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    const fileName = 'out.wav';
+    await saveWaveFile(fileName, audioBuffer);
+  }
+);
+
+ai.defineFlow(
+  {
+    name: 'audioMultipleSpeakers',
+    inputSchema: z
+      .string()
+      .default(
+        "Genkit (pronounced as Gen Kit). here's the dialog:\n\n" +
+          'Speaker1: "Genkit is an amazing Gen AI **library**!"\n' +
+          'Speaker2: "Library? I thought it was a **framework**."\n' +
+          'Speaker1: "No, it\'s definitely a library. You just import components and use functions. It\'s a toolkit, not a prescriptive structure for your whole app."\n' +
+          'Speaker2: "But it defines how you *structure* your Gen AI application. It has its own lifecycle, handles models and prompts. You build *on top* of it, which is framework-like."\n' +
+          "Speaker1: \"It doesn't dictate your *entire* app's architecture. You can use it for just one feature. Like NumPy, it's powerful functions, not an overall design.\"\n" +
+          'Speaker2: "Yet it orchestrates your Gen AI pipeline, managing things from data to output. That\'s more than just functions; it\'s an integrated system, providing the structure and conventions. That sounds like a framework."\n' +
+          'Speaker1: "It\'s an opinionated library then, or a specialized toolkit."\n' +
+          'Speaker2: "And that is why the line often blurs."'
+      ),
+    outputSchema: z.void(),
+  },
+  async (query) => {
+    const { media } = await ai.generate({
+      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      config: {
+        // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              {
+                speaker: 'Speaker1',
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                },
+              },
+              {
+                speaker: 'Speaker2',
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Achernar' },
+                },
+              },
+            ],
+          },
+        },
+      },
+      prompt: query,
+    });
+    if (!media) {
+      return;
+    }
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    const fileName = 'out_multi.wav';
+    await saveWaveFile(fileName, audioBuffer);
+  }
+);
+
+async function saveWaveFile(
+  filename: string,
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+) {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.FileWriter(filename, {
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+
+    writer.write(pcmData);
+    writer.end();
+  });
+}

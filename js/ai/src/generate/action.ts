@@ -16,16 +16,17 @@
 
 import {
   Action,
-  defineAction,
   GenkitError,
+  defineAction,
   getStreamingCallback,
   runWithStreamingCallback,
+  sentinelNoopStreamingCallback,
   stripUndefinedProps,
   z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { Registry } from '@genkit-ai/core/registry';
-import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import {
   injectInstructions,
   resolveFormat,
@@ -53,10 +54,10 @@ import {
   ModelMiddleware,
   ModelRequest,
   Part,
-  resolveModel,
   Role,
+  resolveModel,
 } from '../model.js';
-import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
+import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
 import {
   assertValidToolNames,
   resolveResumeOption,
@@ -89,7 +90,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
           // Generate util action does not support middleware. Maybe when we add named/registered middleware....
           middleware: [],
         });
-      return sendChunk
+      return sendChunk !== sentinelNoopStreamingCallback
         ? runWithStreamingCallback(
             registry,
             (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),

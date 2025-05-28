@@ -45,7 +45,12 @@ class Plugin(abc.ABC):
 
     # TODO: https://github.com/firebase/genkit/issues/2438
     # @abc.abstractmethod
-    def resolve_action(self, ai: GenkitRegistry, kind: ActionKind, name: str) -> None:
+    def resolve_action(  # noqa: B027
+        self,
+        ai: GenkitRegistry,
+        kind: ActionKind,
+        name: str,
+    ) -> None:
         """Resolves an action by adding it to the provided GenkitRegistry.
 
         Args:
@@ -69,3 +74,15 @@ class Plugin(abc.ABC):
             None, initialization is done by side-effect on the registry.
         """
         pass
+
+    def list_actions(self) -> list[dict[str, str]]:
+        """Generate a list of available actions or models.
+
+        Returns:
+            list of actions dicts with the following shape:
+            {
+                'name': str,
+                'kind': ActionKind,
+            }
+        """
+        return []

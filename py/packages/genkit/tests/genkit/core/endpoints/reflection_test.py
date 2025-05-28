@@ -82,6 +82,7 @@ async def test_health_check(asgi_client):
 async def test_list_actions(asgi_client, mock_registry):
     """Test that the actions list endpoint returns registered actions."""
     mock_registry.list_serializable_actions.return_value = {'action1': {'name': 'Action 1'}}
+    mock_registry.list_actions.return_value = {'action1': {'name': 'Action 1'}}
     response = await asgi_client.get('/api/actions')
     assert response.status_code == 200
     assert response.json() == {'action1': {'name': 'Action 1'}}
