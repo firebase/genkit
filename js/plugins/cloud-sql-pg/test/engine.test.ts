@@ -27,7 +27,7 @@ import {
   PostgresEngine,
   PostgresEngineArgs,
   VectorStoreTableArgs,
-} from '../src/engine.js';
+} from '../src/engine';
 
 dotenv.config();
 
@@ -46,11 +46,11 @@ const STORE_METADATA = true;
 const REQUIRED_ENV_VARS = [
   'PROJECT_ID',
   'REGION',
-  'INSTANCE_NAME',
-  'DB_NAME',
+  'INSTANCE_ID',
+  'DATABASE_ID',
   'DB_USER',
   'DB_PASSWORD',
-  'HOST',
+  'IP_ADDRESS',
 ];
 
 function validateEnvVars() {
@@ -85,8 +85,8 @@ describe('PostgresEngine Instance creation', () => {
       PEInstance = await PostgresEngine.fromInstance(
         process.env.PROJECT_ID!,
         process.env.REGION!,
-        process.env.INSTANCE_NAME!,
-        process.env.DB_NAME!,
+        process.env.INSTANCE_ID!,
+        process.env.DATABASE_ID!,
         pgArgs
       );
     }
@@ -107,8 +107,8 @@ describe('PostgresEngine Instance creation', () => {
     PEInstance = await PostgresEngine.fromInstance(
       process.env.PROJECT_ID!,
       process.env.REGION!,
-      process.env.INSTANCE_NAME!,
-      process.env.DB_NAME!,
+      process.env.INSTANCE_ID!,
+      process.env.DATABASE_ID!,
       pgArgs
     );
 
@@ -132,8 +132,8 @@ describe('PostgresEngine Instance creation', () => {
     PEInstance = await PostgresEngine.fromInstance(
       process.env.PROJECT_ID ?? '',
       process.env.REGION ?? '',
-      process.env.INSTANCE_NAME ?? '',
-      process.env.DB_NAME ?? '',
+      process.env.INSTANCE_ID ?? '',
+      process.env.DATABASE_ID ?? '',
       pgArgs
     );
 
@@ -151,7 +151,7 @@ describe('PostgresEngine Instance creation', () => {
   test('should create a PostgresEngine Instance through from_engine method', async () => {
     PostgresEngine.connector = new Connector({ userAgent: USER_AGENT });
     const clientOpts = await PostgresEngine.connector.getOptions({
-      instanceConnectionName: `${process.env.PROJECT_ID}:${process.env.REGION}:${process.env.INSTANCE_NAME}`,
+      instanceConnectionName: `${process.env.PROJECT_ID}:${process.env.REGION}:${process.env.INSTANCE_ID}`,
       ipType: IpAddressTypes.PUBLIC,
       authType: AuthTypes.PASSWORD,
     });
@@ -162,7 +162,7 @@ describe('PostgresEngine Instance creation', () => {
         ...clientOpts,
         password: process.env.DB_PASSWORD,
         user: process.env.DB_USER,
-        database: process.env.DB_NAME,
+        database: process.env.DATABASE_ID,
       },
     };
 
@@ -193,7 +193,7 @@ describe('PostgresEngine Instance creation', () => {
   });
 
   test('should create a PostgresEngine Instance through from_engine_args using a URL', async () => {
-    const url = `postgresql+asyncpg://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.IP_ADDRESS}:5432/${process.env.DB_NAME}`;
+    const url = `postgresql+asyncpg://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.IP_ADDRESS}:5432/${process.env.DATABASE_ID}`;
 
     PEInstance = await PostgresEngine.fromEngineArgs(url, poolConfig);
 
@@ -221,8 +221,8 @@ describe('PostgresEngine - table initialization', () => {
     PEInstance = await PostgresEngine.fromInstance(
       process.env.PROJECT_ID ?? '',
       process.env.REGION ?? '',
-      process.env.INSTANCE_NAME ?? '',
-      process.env.DB_NAME ?? '',
+      process.env.INSTANCE_ID ?? '',
+      process.env.DATABASE_ID ?? '',
       pgArgs
     );
   });

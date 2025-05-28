@@ -25,9 +25,11 @@ import {
 } from 'genkit/retriever';
 
 import { v4 as uuidv4 } from 'uuid';
-import { PostgresEngine } from './engine';
-import { DistanceStrategy, type QueryOptions } from './indexes';
+import { PostgresEngine } from './engine.js';
+import { DistanceStrategy, type QueryOptions } from './indexes.js';
 
+export { PostgresEngine, Column } from './engine.js';
+export { DistanceStrategy, ExactNearestNeighbor, HNSWIndex, HNSWQueryOptions, IVFFlatIndex, IVFFlatQueryOptions } from './indexes.js'
 const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   k: z.number().max(1000),
   filter: z.string().optional(),
