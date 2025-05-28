@@ -58,8 +58,5 @@ export async function listModels(
   }
 
   const modelResponse = (await response.json()) as ListModelsResponse;
-  for (const m of modelResponse.publisherModels) {
-    console.log(m.name);
-  }
   return modelResponse.publisherModels;
 }
