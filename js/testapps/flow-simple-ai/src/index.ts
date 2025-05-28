@@ -1021,7 +1021,7 @@ ai.defineFlow(
     const { media } = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
-      // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
+        // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
         responseModalities: ['AUDIO'],
         speechConfig: {
           multiSpeakerVoiceConfig: {
