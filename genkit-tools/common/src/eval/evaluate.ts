@@ -124,6 +124,7 @@ export async function runNewEvaluation(
     manager,
     evaluatorActions,
     evalDataset,
+    batchSize: request.options?.batchSize,
     augments: {
       ...metadata,
       actionRef,
@@ -163,14 +164,20 @@ export async function runEvaluation(params: {
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
   augments?: EvalKeyAugments;
+  batchSize?: number;
 }): Promise<EvalRun> {
-  const { manager, evaluatorActions, evalDataset, augments } = params;
+  const { manager, evaluatorActions, evalDataset, augments, batchSize } =
+    params;
   if (evalDataset.length === 0) {
     throw new Error('Cannot run evaluation, no data provided');
   }
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   logger.info('Running evaluation...');
+
+  const runtime = manager.getMostRecentRuntime();
+  const isNodeRuntime = runtime?.genkitVersion?.startsWith('nodejs') ?? false;
+
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await manager.runAction({
@@ -178,6 +185,7 @@ export async function runEvaluation(params: {
       input: {
         dataset: evalDataset.filter((row) => !row.error),
         evalRunId,
+        batchSize: isNodeRuntime ? batchSize : undefined,
       },
     });
     scores[name] = response.result;

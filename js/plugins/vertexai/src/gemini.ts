@@ -267,29 +267,6 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'With NONE, the model is prohibited from making function calls.'
     )
     .optional(),
-  thinkingConfig: z
-    .object({
-      includeThoughts: z
-        .boolean()
-        .describe(
-          'Indicates whether to include thoughts in the response.' +
-            'If true, thoughts are returned only when available.'
-        )
-        .optional(),
-      thinkingBudget: z
-        .number()
-        .min(0)
-        .max(24576)
-        .describe(
-          'The thinking budget parameter gives the model guidance on the ' +
-            'number of thinking tokens it can use when generating a response. ' +
-            'A greater number of tokens is typically associated with more detailed ' +
-            'thinking, which is needed for solving more complex tasks. ' +
-            'Setting the thinking budget to 0 disables thinking.'
-        )
-        .optional(),
-    })
-    .optional(),
 }).passthrough();
 
 /**
@@ -591,7 +568,7 @@ export const GENERIC_GEMINI_MODEL = modelRef({
   },
 });
 
-export const SUPPORTED_V1_MODELS = {
+const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': gemini10Pro,
 };
 
@@ -609,7 +586,6 @@ export const SUPPORTED_V15_MODELS = {
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
-  ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
 } as const;
 
@@ -843,7 +819,12 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref?: string
 ): Part {
-  if (part.text !== undefined) return { text: part.text };
+  if (part.text !== undefined) {
+    if ((part as any).thought === true) {
+      return { reasoning: part.text };
+    }
+    return { text: part.text };
+  }
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
   if (part.functionCall) return fromGeminiFunctionCallPart(part, ref);
@@ -1235,6 +1216,8 @@ export function defineGeminiModel({
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
+            cachedContentTokens:
+              response.usageMetadata?.cachedContentTokenCount,
           },
         };
       };

@@ -96,6 +96,14 @@ export class Message<T = unknown> implements MessageData {
   }
 
   /**
+   * Concatenates all `reasoning` parts present in the message with no delimiter.
+   * @returns A string of all concatenated reasoning parts.
+   */
+  get reasoning(): string {
+    return this.content.map((part) => part.reasoning || '').join('');
+  }
+
+  /**
    * Returns the first media part detected in the message. Useful for extracting
    * (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the message.

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -556,7 +557,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 	var toolResponses []*Part
 	hasInterrupts := false
-	for i := 0; i < toolCount; i++ {
+	for range toolCount {
 		result := <-resultChan
 		if result.err != nil {
 			var interruptErr *ToolInterruptError
@@ -592,7 +593,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	}
 
 	newReq := req
-	newReq.Messages = append(append([]*Message{}, req.Messages...), resp.Message, toolMessage)
+	newReq.Messages = append(slices.Clone(req.Messages), resp.Message, toolMessage)
 
 	return newReq, nil, nil
 }
@@ -614,6 +615,22 @@ func (mr *ModelResponse) History() []*Message {
 		return mr.Request.Messages
 	}
 	return append(mr.Request.Messages, mr.Message)
+}
+
+// Reasoning concatenates all reasoning parts present in the message
+func (mr *ModelResponse) Reasoning() string {
+	var sb strings.Builder
+	if mr.Message == nil {
+		return ""
+	}
+
+	for _, p := range mr.Message.Content {
+		if !p.IsReasoning() {
+			continue
+		}
+		sb.WriteString(p.Text)
+	}
+	return sb.String()
 }
 
 // Output unmarshals structured JSON output into the provided

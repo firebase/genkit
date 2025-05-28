@@ -22,11 +22,12 @@ import {
 import { Mutex } from 'async-mutex';
 import fs from 'fs';
 import lockfile from 'lockfile';
-import os from 'os';
 import path from 'path';
 import { TraceQuery, TraceQueryResponse, TraceStore } from './types';
+import { version as currentVersion } from './utils/version';
 
 const MAX_TRACES = 1000;
+const MAX_INDEX_FILES = 10;
 
 /**
  * Implementation of trace store that persists traces on local disk.
@@ -36,7 +37,7 @@ export class LocalFileTraceStore implements TraceStore {
   private readonly indexRoot;
   private mutexes: Record<string, Mutex> = {};
   private filters: Record<string, string>;
-  private readonly index: Index | undefined;
+  private readonly index: Index;
 
   static defaultFilters: Record<string, string> = {
     // Prevent prompt rendering from spamming local trace store
@@ -47,32 +48,35 @@ export class LocalFileTraceStore implements TraceStore {
     filters?: Record<string, string>;
     storeRoot?: string;
     indexRoot?: string;
-    useIndex?: boolean;
   }) {
     this.storeRoot =
       options?.storeRoot ?? path.resolve(process.cwd(), `.genkit/traces`);
-    // Index is ephemeral, gets rebuilt on every restart. It's done for simplicity
-    // for now, so that we can tweak index format without having to worry about
-    // backwards compatibility. In the future we can keep indexes around between
-    // restarts and only rebuild if we detect corruption.
-    this.indexRoot = path.resolve(
-      os.tmpdir(),
-      `./genkit-trace-index-${Date.now()}-${Math.random()}`
-    );
     fs.mkdirSync(this.storeRoot, { recursive: true });
+    this.indexRoot =
+      options?.indexRoot ?? path.resolve(process.cwd(), `.genkit/traces_idx`);
+    fs.mkdirSync(this.indexRoot, { recursive: true });
     console.info(
       `[Telemetry Server] initialized local file trace store at root: ${this.storeRoot}`
     );
     this.filters = options?.filters ?? LocalFileTraceStore.defaultFilters;
-    if (options?.useIndex) {
-      this.index = new Index(this.indexRoot);
-    }
+    this.index = new Index(this.indexRoot);
   }
 
   async init() {
-    if (!this.index) {
-      return;
+    const metadata = this.index.getMetadata();
+    // if the metadata file doesn't exist or it was for the older version or if
+    // there are too many index files we recreate the index.
+    if (
+      !metadata ||
+      metadata.version !== currentVersion ||
+      this.index.listIndexFiles().length > MAX_INDEX_FILES
+    ) {
+      await this.reIndex();
     }
+  }
+
+  private async reIndex() {
+    this.index.clear();
     const time = Date.now();
     // Index only the last MAX_TRACES traces.
     const list = await this.listFromFiles({ limit: MAX_TRACES });
@@ -151,10 +155,6 @@ export class LocalFileTraceStore implements TraceStore {
   }
 
   async list(query?: TraceQuery): Promise<TraceQueryResponse> {
-    if (!this.index) {
-      return this.listFromFiles(query);
-    }
-
     const searchResult = this.index.search({
       limit: query?.limit ?? 10,
       startFromIndex: query?.continuationToken
@@ -240,11 +240,41 @@ export class Index {
 
   constructor(private indexRoot: string) {
     // TODO: do something about index getting too big. Delete/forget old stuff, etc.
-    this.currentIndexFile = path.resolve(this.indexRoot, '1.idx');
+    this.currentIndexFile = path.resolve(
+      this.indexRoot,
+      this.newIndexFileName()
+    );
     fs.mkdirSync(this.indexRoot, { recursive: true });
-    if (!fs.existsSync(this.currentIndexFile)) {
-      fs.writeFileSync(this.currentIndexFile, '');
+  }
+
+  clear() {
+    fs.rmSync(this.indexRoot, { recursive: true, force: true });
+    fs.mkdirSync(this.indexRoot, { recursive: true });
+    fs.appendFileSync(
+      this.metadataFileName(),
+      JSON.stringify({ version: currentVersion })
+    );
+  }
+
+  metadataFileName() {
+    return path.resolve(this.indexRoot, 'genkit.metadata');
+  }
+
+  getMetadata(): { version: string } | undefined {
+    if (!fs.existsSync(this.metadataFileName())) {
+      return undefined;
     }
+    return JSON.parse(
+      fs.readFileSync(this.metadataFileName(), { encoding: 'utf8' })
+    );
+  }
+
+  private newIndexFileName() {
+    return `idx_${(Date.now() + '').padStart(17, '0')}.json`;
+  }
+
+  listIndexFiles() {
+    return fs.readdirSync(this.indexRoot).filter((f) => f.startsWith('idx_'));
   }
 
   add(traceData: TraceData) {
@@ -266,6 +296,9 @@ export class Index {
     if (rootSpan?.endTime) {
       indexData['end'] = rootSpan.endTime;
     }
+    if (rootSpan?.displayName) {
+      indexData['status'] = rootSpan.status?.code ?? 'UNKNOWN';
+    }
 
     try {
       lockfile.lockSync(lockFile(this.currentIndexFile));
@@ -284,41 +317,53 @@ export class Index {
     startFromIndex?: number;
     filter?: TraceQueryFilter;
   }): IndexSearchResult {
-    const idxTxt = fs.readFileSync(this.currentIndexFile, 'utf8');
-    const fullData = idxTxt
-      .split('\n')
-      .map((l) => {
-        try {
-          return JSON.parse(l);
-        } catch {
-          return undefined;
-        }
-      })
-      .filter((d) => {
-        if (!d) return false;
-        if (!query?.filter) return true;
-        if (
-          query.filter.eq &&
-          Object.keys(query.filter.eq).find(
-            (k) => d[k] !== query.filter!.eq![k]
-          )
-        ) {
-          return false;
-        }
-        if (
-          query.filter.neq &&
-          Object.keys(query.filter.neq).find(
-            (k) => d[k] === query.filter!.neq![k]
-          )
-        ) {
-          return false;
-        }
-        return true;
-      })
-      .reverse();
-
-    // do pagination
     const startFromIndex = query.startFromIndex ?? 0;
+
+    const fullData = [] as Record<string, string | number>[];
+
+    for (const idxFile of this.listIndexFiles()) {
+      const idxTxt = fs.readFileSync(
+        path.resolve(this.indexRoot, idxFile),
+        'utf8'
+      );
+      const fileData = idxTxt
+        .split('\n')
+        .map((l) => {
+          try {
+            return JSON.parse(l) as Record<string, string | number>;
+          } catch {
+            return undefined;
+          }
+        })
+        .filter((d) => {
+          if (!d) return false;
+          if (!query?.filter) return true;
+          if (
+            query.filter.eq &&
+            Object.keys(query.filter.eq).find(
+              (k) => d[k] !== query.filter!.eq![k]
+            )
+          ) {
+            return false;
+          }
+          if (
+            query.filter.neq &&
+            Object.keys(query.filter.neq).find(
+              (k) => d[k] === query.filter!.neq![k]
+            )
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .reverse() as Record<string, string | number>[];
+
+      fullData.push(...fileData);
+    }
+    fullData
+      // We must sort the data as chronological ordering is not guaranteed between
+      // different index files.
+      .sort((a, b) => (b!['start'] as number) - (a!['start'] as number));
 
     const result = {
       data: fullData.slice(startFromIndex, startFromIndex + query.limit),

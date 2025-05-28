@@ -17,8 +17,8 @@
 import {
   EnhancedGenerateContentResponse,
   FileDataPart,
-  FunctionCallPart,
   FunctionCallingMode,
+  FunctionCallPart,
   FunctionDeclaration,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
@@ -28,6 +28,7 @@ import {
   GenerationConfig,
   GenerativeModel,
   GoogleGenerativeAI,
+  GoogleSearchRetrievalTool,
   InlineDataPart,
   RequestOptions,
   Schema,
@@ -37,8 +38,8 @@ import {
   ToolConfig,
 } from '@google/generative-ai';
 import {
-  GENKIT_CLIENT_HEADER,
   Genkit,
+  GENKIT_CLIENT_HEADER,
   GenkitError,
   JSONSchema,
   z,
@@ -46,18 +47,18 @@ import {
 import {
   CandidateData,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelInfo,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -132,28 +133,11 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         "'gemini-2.0-flash-exp' model at present."
     )
     .optional(),
-  thinkingConfig: z
-    .object({
-      includeThoughts: z
-        .boolean()
-        .describe(
-          'Indicates whether to include thoughts in the response.' +
-            'If true, thoughts are returned only when available.'
-        )
-        .optional(),
-      thinkingBudget: z
-        .number()
-        .min(0)
-        .max(24576)
-        .describe(
-          'The thinking budget parameter gives the model guidance on the ' +
-            'number of thinking tokens it can use when generating a response. ' +
-            'A greater number of tokens is typically associated with more detailed ' +
-            'thinking, which is needed for solving more complex tasks. ' +
-            'Setting the thinking budget to 0 disables thinking.'
-        )
-        .optional(),
-    })
+  googleSearchRetrieval: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
     .optional(),
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
@@ -355,7 +339,7 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const SUPPORTED_V1_MODELS = {
+const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': gemini10Pro,
 };
 
@@ -389,7 +373,6 @@ export const GENERIC_GEMINI_MODEL = modelRef({
 });
 
 export const SUPPORTED_GEMINI_MODELS = {
-  ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
 } as const;
 
@@ -707,7 +690,12 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref: string
 ): Part {
-  if (part.text !== undefined) return { text: part.text };
+  if (part.text !== undefined) {
+    if ((part as any).thought === true) {
+      return { reasoning: part.text };
+    }
+    return { text: part.text };
+  }
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);
@@ -834,7 +822,7 @@ export function defineGoogleAIModel({
         status: 'FAILED_PRECONDITION',
         message:
           'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
+          'For more details see https://genkit.dev/docs/plugins/google-genai',
       });
     }
   }
@@ -940,6 +928,7 @@ export function defineGoogleAIModel({
         codeExecution: codeExecutionFromConfig,
         version: versionFromConfig,
         functionCallingConfig,
+        googleSearchRetrieval,
         ...restOfConfigOptions
       } = requestConfig;
 
@@ -950,6 +939,13 @@ export function defineGoogleAIModel({
               ? {}
               : request.config.codeExecution,
         });
+      }
+
+      if (googleSearchRetrieval) {
+        tools.push({
+          googleSearch:
+            googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
       }
 
       let toolConfig: ToolConfig | undefined;
@@ -1094,6 +1090,8 @@ export function defineGoogleAIModel({
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
+            cachedContentTokens:
+              response.usageMetadata?.cachedContentTokenCount,
           },
         };
       };

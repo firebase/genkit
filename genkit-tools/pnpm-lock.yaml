@@ -275,6 +275,9 @@ importers:
       '@types/node':
         specifier: ^20.11.30
         version: 20.12.7
+      genversion:
+        specifier: ^3.2.0
+        version: 3.2.0
       get-port:
         specifier: ^7.1.0
         version: 7.1.0

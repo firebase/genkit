@@ -20,6 +20,7 @@ package googlecloud
 
 import (
 	"log/slog"
+	"maps"
 	"testing"
 	"testing/slogtest"
 
@@ -45,8 +46,6 @@ func entryToMap(e logging.Entry) map[string]any {
 	}
 	m[slog.LevelKey] = e.Severity
 	pm := e.Payload.(map[string]any)
-	for k, v := range pm {
-		m[k] = v
-	}
+	maps.Copy(m, pm)
 	return m
 }

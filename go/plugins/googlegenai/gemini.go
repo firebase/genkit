@@ -39,6 +39,14 @@ import (
 	"google.golang.org/genai"
 )
 
+const (
+	// Thinking budget limit
+	thinkingBudgetMax = 24576
+
+	// Tool name regex
+	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
+)
+
 var (
 	// BasicText describes model capabilities for text-only Gemini models.
 	BasicText = ai.ModelSupports{
@@ -58,9 +66,6 @@ var (
 		Media:       true,
 		Constrained: ai.ConstrainedSupportNoTools,
 	}
-
-	// Tool name regex
-	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 
 	// Attribution header
 	xGoogApiClientHeader = http.CanonicalHeaderKey("x-goog-api-client")
@@ -198,6 +203,14 @@ type SafetySetting struct {
 	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
 }
 
+// Thinking configuration to control reasoning
+type ThinkingConfig struct {
+	// Indicates whether the response should include thoughts (if available and supported)
+	IncludeThoughts bool `json:"includeThoughts,omitempty"`
+	// Thinking budget in tokens. If set to zero, thinking gets disabled
+	ThinkingBudget int32 `json:"thinkingBudget,omitempty"`
+}
+
 type Modality string
 
 const (
@@ -227,6 +240,8 @@ type GeminiConfig struct {
 	CodeExecution bool `json:"codeExecution,omitempty"`
 	// Response modalities for returned model messages
 	ResponseModalities []Modality `json:"responseModalities,omitempty"`
+	// Thinking configuration controls the model's internal reasoning process
+	ThinkingConfig *ThinkingConfig `json:"thinkingConfig,omitempty"`
 }
 
 // configFromRequest converts any supported config type to [GeminiConfig].
@@ -418,6 +433,7 @@ func generate(
 			return nil, err
 		}
 		r := translateResponse(resp)
+
 		r.Request = input
 		if cache != nil {
 			r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
@@ -463,11 +479,6 @@ func generate(
 	}
 	resp.Candidates = merged
 	r = translateResponse(resp)
-	if r == nil {
-		// No candidates were returned. Probably rare, but it might avoid a NPE
-		// to return an empty instead of nil result.
-		r = &ai.ModelResponse{}
-	}
 	r.Request = input
 	if cache != nil {
 		r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
@@ -554,6 +565,16 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		gcc.Tools = append(gcc.Tools, &genai.Tool{
 			CodeExecution: &genai.ToolCodeExecution{},
 		})
+	}
+
+	if c.ThinkingConfig != nil {
+		if c.ThinkingConfig.ThinkingBudget < 0 || c.ThinkingConfig.ThinkingBudget > thinkingBudgetMax {
+			return nil, fmt.Errorf("thinkingBudget should be between 0 and %d", thinkingBudgetMax)
+		}
+		gcc.ThinkingConfig = &genai.ThinkingConfig{
+			IncludeThoughts: c.ThinkingConfig.IncludeThoughts,
+			ThinkingBudget:  &c.ThinkingConfig.ThinkingBudget,
+		}
 	}
 
 	var systemParts []*genai.Part
@@ -796,6 +817,9 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		if part.Text != "" {
 			partFound++
 			p = ai.NewTextPart(part.Text)
+			if part.Thought {
+				p = ai.NewReasoningPart(part.Text)
+			}
 		}
 		if part.InlineData != nil {
 			partFound++
@@ -838,13 +862,23 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
-	r := translateCandidate(resp.Candidates[0])
+	var r *ai.ModelResponse
+	if len(resp.Candidates) > 0 {
+		r = translateCandidate(resp.Candidates[0])
+	} else {
+		r = &ai.ModelResponse{}
+	}
 
-	r.Usage = &ai.GenerationUsage{}
+	if r.Usage == nil {
+		r.Usage = &ai.GenerationUsage{}
+	}
+
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
 		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
+		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
+		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
 	}
 	return r
 }
@@ -866,6 +900,8 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
 	case p.IsText():
+		return genai.NewPartFromText(p.Text), nil
+	case p.IsReasoning():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
 		if strings.HasPrefix(p.Text, "data:") {
