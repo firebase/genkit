@@ -42,7 +42,14 @@ steps:
       - name: "go"
         path: "/gopath"
     script: |
-      go test -race ./...
+      go test -race ./... \
+        -test-postgres-user=$DB_USER \
+        -test-postgres-password=$DB_PASSWORD \
+        -test-postgres-iam-email=$EMAIL \
+        -test-postgres-project-id=$PROJECT_ID \
+        -test-postgres-region=$REGION \
+        -test-postgres-instance=$INSTANCE_ID \
+        -test-postgres-database=$DATABASE_ID
 
 availableSecrets:
   secretManager:
@@ -57,8 +64,8 @@ substitutions:
   _INSTANCE_CONNECTION_NAME: ${PROJECT_ID}:${_REGION}:${_INSTANCE_ID}
   _DATABASE_PORT: "5432"
   _DATABASE_ID: test_database
-  _REGION: us-west2
-  _VERSION: "22"
+  _REGION: us-central1
+  _VERSION: "1.24"
   _IP_ADDRESS: "127.0.0.1"
   _INSTANCE_ID: my-instance
 
