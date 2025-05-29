@@ -120,9 +120,7 @@ let envVarsFound = true;
 let missingEnvVars: string[] = [];
 
 function validateEnvVars() {
-  missingEnvVars = REQUIRED_ENV_VARS.filter(
-    (varName) => !process.env[varName]
-  );
+  missingEnvVars = REQUIRED_ENV_VARS.filter((varName) => !process.env[varName]);
   if (missingEnvVars.length > 0) {
     envVarsFound = false;
     console.warn(
@@ -241,7 +239,9 @@ describe('configurePostgresRetriever Integration Tests', () => {
   afterAll(async () => {
     // Clean up the test table and schema after all tests are done
     if (engine?.pool) {
-      await engine.pool.raw(`DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`);
+      await engine.pool.raw(
+        `DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`
+      );
       await engine.pool.raw(`DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE`);
       await engine.closeConnection(); // Close the database connection pool
     }
@@ -388,7 +388,8 @@ describe('configurePostgresIndexer Integration Tests', () => {
 
   beforeEach(async () => {
     // Clear table before each test
-    if (engine?.pool) { // Add a check here for engine and pool
+    if (engine?.pool) {
+      // Add a check here for engine and pool
       await engine.pool.raw(`TRUNCATE TABLE ${SCHEMA_NAME}.${TEST_TABLE}`);
     }
     jest.clearAllMocks();

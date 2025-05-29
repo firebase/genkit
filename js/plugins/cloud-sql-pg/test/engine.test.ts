@@ -58,9 +58,7 @@ let envVarsFound = true;
 let missingEnvVars: string[] = [];
 
 function validateEnvVars() {
-  missingEnvVars = REQUIRED_ENV_VARS.filter(
-    (varName) => !process.env[varName]
-  );
+  missingEnvVars = REQUIRED_ENV_VARS.filter((varName) => !process.env[varName]);
   if (missingEnvVars.length > 0) {
     envVarsFound = false;
     console.warn(
