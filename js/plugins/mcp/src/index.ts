@@ -111,10 +111,3 @@ export function createMcpServer(
 ): GenkitMcpServer {
   return new GenkitMcpServer(ai, options);
 }
-
-/**
- * @deprecated use `createMcpServer` instead.
- */
-export function mcpServer(ai: Genkit, options: McpClientOptions) {
-  return createMcpServer(ai, options);
-}
