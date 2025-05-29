@@ -28,8 +28,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { PostgresEngine } from './engine';
 import { DistanceStrategy, type QueryOptions } from './indexes';
 
-export { PostgresEngine, Column } from './engine';
-export { DistanceStrategy, ExactNearestNeighbor, HNSWIndex, HNSWQueryOptions, IVFFlatIndex, IVFFlatQueryOptions } from './indexes'
+export { Column, PostgresEngine } from './engine';
+export {
+  DistanceStrategy,
+  ExactNearestNeighbor,
+  HNSWIndex,
+  HNSWQueryOptions,
+  IVFFlatIndex,
+  IVFFlatQueryOptions,
+} from './indexes';
 const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   k: z.number().max(1000),
   filter: z.string().optional(),

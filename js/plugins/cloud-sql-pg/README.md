@@ -9,6 +9,7 @@ npm i --save @genkit-ai/cloud-sql-pg
 ## Using the plugin
 
 ### Initialize the Postgres engine
+
 ```ts
 import { PostgresEngine } from '@genkit-ai/cloud-sql-pg';
 
@@ -20,12 +21,13 @@ const engine = await PostgresEngine.fromInstance(
   'your-database-name',
   {
     user: 'your-username',
-    password: 'your-password'
+    password: 'your-password',
   }
 );
 ```
 
 ### Indexer usage
+
 ```ts
 import { genkit } from 'genkit';
 import {
@@ -42,7 +44,7 @@ const ai = genkit({
         tableName: 'my-documents',
         engine: engine,
         embedder: textEmbedding004,
-        schemaName: 'public', 
+        schemaName: 'public',
         contentColumn: 'content',
         embeddingColumn: 'embedding',
         idColumn: 'custom_id',
@@ -63,41 +65,39 @@ export const myDocumentsIndexer = postgresIndexerRef({
 const documents = [
   new Document({
     content: [{ text: 'This is a test document' }],
-    metadata: { source: 'test', category: 'example' }
+    metadata: { source: 'test', category: 'example' },
   }),
   new Document({
     content: [{ text: 'Another test document' }],
-    metadata: { source: 'test', category: 'example' }
-  })
+    metadata: { source: 'test', category: 'example' },
+  }),
 ];
 
 // Index with default options
-await ai.index({ 
-  indexer: myDocumentsIndexer, 
-  documents 
+await ai.index({
+  indexer: myDocumentsIndexer,
+  documents,
 });
 
 // Index with custom batch size
-await ai.index({ 
-  indexer: myDocumentsIndexer, 
+await ai.index({
+  indexer: myDocumentsIndexer,
   documents,
-  options: { batchSize: 10 }
+  options: { batchSize: 10 },
 });
 
 // Index with custom ID from metadata
 const docWithCustomId = new Document({
   content: [{ text: 'Document with custom ID' }],
-  metadata: { 
+  metadata: {
     source: 'test',
-    customId: 'custom-123' // This will be used as the document ID
-  }
+    customId: 'custom-123', // This will be used as the document ID
+  },
 });
-await ai.index({ 
-  indexer: myDocumentsIndexer, 
-  documents: [docWithCustomId]
+await ai.index({
+  indexer: myDocumentsIndexer,
+  documents: [docWithCustomId],
 });
-
-
 ```
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
