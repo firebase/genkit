@@ -929,6 +929,7 @@ export function defineGoogleAIModel({
         version: versionFromConfig,
         functionCallingConfig,
         googleSearchRetrieval,
+        tools: toolsFromConfig,
         ...restOfConfigOptions
       } = requestConfig;
 
@@ -939,6 +940,10 @@ export function defineGoogleAIModel({
               ? {}
               : request.config.codeExecution,
         });
+      }
+
+      if (toolsFromConfig) {
+        tools.push(...(toolsFromConfig as any[]));
       }
 
       if (googleSearchRetrieval) {

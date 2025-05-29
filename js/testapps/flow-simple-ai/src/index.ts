@@ -1077,3 +1077,13 @@ async function saveWaveFile(
     writer.end();
   });
 }
+
+ai.defineFlow('googleSearch', async (thing) => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt: `What is a baanna?`,
+    config: { tools: [{ googleSearch: {} }] },
+  });
+
+  return text;
+});

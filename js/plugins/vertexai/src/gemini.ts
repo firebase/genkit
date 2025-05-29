@@ -1047,6 +1047,7 @@ export function defineGeminiModel({
         functionCallingConfig,
         version: versionFromConfig,
         googleSearchRetrieval,
+        tools: toolsFromConfig,
         vertexRetrieval,
         location, // location can be overridden via config, take it out.
         safetySettings,
@@ -1121,20 +1122,27 @@ export function defineGeminiModel({
         );
       }
 
+      if (toolsFromConfig) {
+        if (!updatedChatRequest.tools) updatedChatRequest.tools = [];
+        updatedChatRequest.tools.push(...(toolsFromConfig as any[]));
+      }
+
       if (googleSearchRetrieval) {
-        updatedChatRequest.tools?.push({
+        if (!updatedChatRequest.tools) updatedChatRequest.tools = [];
+        updatedChatRequest.tools.push({
           googleSearchRetrieval: googleSearchRetrieval as GoogleSearchRetrieval,
         });
       }
 
       if (vertexRetrieval) {
+        if (!updatedChatRequest.tools) updatedChatRequest.tools = [];
         const _projectId =
           vertexRetrieval.datastore.projectId || options.projectId;
         const _location =
           vertexRetrieval.datastore.location || options.location;
         const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
         const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
-        updatedChatRequest.tools?.push({
+        updatedChatRequest.tools.push({
           retrieval: {
             vertexAiSearch: {
               datastore,
