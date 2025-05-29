@@ -312,7 +312,7 @@ importers:
         specifier: workspace:^
         version: link:../../genkit
       google-auth-library:
-        specifier: ^9.15.0
+        specifier: ^9.14.2
         version: 9.15.1(encoding@0.1.13)
       knex:
         specifier: ^3.1.0
@@ -886,7 +886,7 @@ importers:
         version: link:../../genkit
       google-auth-library:
         specifier: ^9.14.2
-        version: 9.14.2(encoding@0.1.13)
+        version: 9.15.1(encoding@0.1.13)
       googleapis:
         specifier: ^140.0.1
         version: 140.0.1(encoding@0.1.13)
