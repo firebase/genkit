@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -105,7 +105,46 @@ const mockEmbedder: EmbedderArgument<z.ZodTypeAny> = {
 // Spy on console.log to capture output
 const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
+const REQUIRED_ENV_VARS = [
+  'PROJECT_ID',
+  'REGION',
+  'INSTANCE_ID',
+  'DATABASE_ID',
+  'DB_USER',
+  'DB_PASSWORD',
+  'IP_ADDRESS',
+  'DB_HOST',
+];
+
+let envVarsFound = true;
+let missingEnvVars: string[] = [];
+
+function validateEnvVars() {
+  missingEnvVars = REQUIRED_ENV_VARS.filter(
+    (varName) => !process.env[varName]
+  );
+  if (missingEnvVars.length > 0) {
+    envVarsFound = false;
+    console.warn(
+      `Skipping tests due to missing environment variables: ${missingEnvVars.join(', ')}`
+    );
+  }
+}
+
+// Validate environment variables once at the top level
+validateEnvVars();
+
 describe('configurePostgresRetriever Integration Tests', () => {
+  // Conditionally skip the entire describe block
+  if (!envVarsFound) {
+    describe.skip('configurePostgresRetriever Integration Tests (skipped due to missing env vars)', () => {
+      test('this test will be skipped', () => {
+        // This block won't execute
+      });
+    });
+    return; // Exit the describe block early
+  }
+
   let engine: PostgresEngine;
   let retrieverInstance: any;
 
@@ -113,10 +152,10 @@ describe('configurePostgresRetriever Integration Tests', () => {
     // Initialize PostgresEngine
     try {
       engine = await PostgresEngine.fromEngineArgs({
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        host: process.env.DB_HOST,
-        database: process.env.DB_NAME,
+        user: process.env.DB_USER!,
+        password: process.env.DB_PASSWORD!,
+        host: process.env.DB_HOST!,
+        database: process.env.DATABASE_ID!,
         port: parseInt(process.env.DB_PORT || '5432'),
       });
 
@@ -148,12 +187,12 @@ describe('configurePostgresRetriever Integration Tests', () => {
       const doc2Id = uuidv4();
       const doc3Id = uuidv4();
       await engine.pool.raw(`
-      INSERT INTO ${SCHEMA_NAME}.${TEST_TABLE} (${ID_COLUMN}, ${CONTENT_COLUMN}, ${EMBEDDING_COLUMN}, page, source, metadata_json)
-      VALUES
-      ('${doc1Id}', 'This is the first test document content.', '[${new Array(1536).fill(0.1).join(',')}]', 'page1', 'sourceA', '{"key1": "value1"}'),
-      ('${doc2Id}', 'Second document with different content.', '[${new Array(1536).fill(0.2).join(',')}]', 'page2', 'sourceB', '{"key2": "value2"}'),
-      ('${doc3Id}', 'Another test document.', '[${new Array(1536).fill(0.3).join(',')}]', 'page1', 'sourceC', '{"key3": "value3"}');
-    `);
+       INSERT INTO ${SCHEMA_NAME}.${TEST_TABLE} (${ID_COLUMN}, ${CONTENT_COLUMN}, ${EMBEDDING_COLUMN}, page, source, metadata_json)
+       VALUES
+       ('${doc1Id}', 'This is the first test document content.', '[${new Array(1536).fill(0.1).join(',')}]', 'page1', 'sourceA', '{"key1": "value1"}'),
+       ('${doc2Id}', 'Second document with different content.', '[${new Array(1536).fill(0.2).join(',')}]', 'page2', 'sourceB', '{"key2": "value2"}'),
+       ('${doc3Id}', 'Another test document.', '[${new Array(1536).fill(0.3).join(',')}]', 'page1', 'sourceC', '{"key3": "value3"}');
+     `);
 
       // Configure the Postgres Retriever using `configurePostgresRetriever`
       await configurePostgresRetriever(mockGenkit, {
@@ -201,9 +240,11 @@ describe('configurePostgresRetriever Integration Tests', () => {
 
   afterAll(async () => {
     // Clean up the test table and schema after all tests are done
-    await engine.pool.raw(`DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`);
-    await engine.pool.raw(`DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE`);
-    await engine.closeConnection(); // Close the database connection pool
+    if (engine?.pool) {
+      await engine.pool.raw(`DROP TABLE IF EXISTS ${SCHEMA_NAME}.${TEST_TABLE}`);
+      await engine.pool.raw(`DROP SCHEMA IF EXISTS ${SCHEMA_NAME} CASCADE`);
+      await engine.closeConnection(); // Close the database connection pool
+    }
     consoleSpy.mockRestore(); // Restore console.log
   }, 30000); // Increased timeout for cleanup
 
@@ -286,16 +327,26 @@ describe('configurePostgresRetriever Integration Tests', () => {
 });
 
 describe('configurePostgresIndexer Integration Tests', () => {
+  // Conditionally skip the entire describe block
+  if (!envVarsFound) {
+    describe.skip('configurePostgresIndexer Integration Tests (skipped due to missing env vars)', () => {
+      test('this test will be skipped', () => {
+        // This block won't execute
+      });
+    });
+    return; // Exit the describe block early
+  }
+
   let engine: PostgresEngine;
   let indexerInstance: any;
 
   beforeAll(async () => {
     try {
       engine = await PostgresEngine.fromEngineArgs({
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        host: process.env.DB_HOST,
-        database: process.env.DB_NAME,
+        user: process.env.DB_USER!,
+        password: process.env.DB_PASSWORD!,
+        host: process.env.DB_HOST!,
+        database: process.env.DATABASE_ID!,
         port: parseInt(process.env.DB_PORT || '5432'),
       });
 
@@ -337,7 +388,9 @@ describe('configurePostgresIndexer Integration Tests', () => {
 
   beforeEach(async () => {
     // Clear table before each test
-    await engine.pool.raw(`TRUNCATE TABLE ${SCHEMA_NAME}.${TEST_TABLE}`);
+    if (engine?.pool) { // Add a check here for engine and pool
+      await engine.pool.raw(`TRUNCATE TABLE ${SCHEMA_NAME}.${TEST_TABLE}`);
+    }
     jest.clearAllMocks();
   });
 

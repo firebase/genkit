@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -51,20 +51,38 @@ const REQUIRED_ENV_VARS = [
   'DB_USER',
   'DB_PASSWORD',
   'IP_ADDRESS',
+  // 'EMAIL', // Add EMAIL here if it's consistently required for some tests
 ];
 
+let envVarsFound = true;
+let missingEnvVars: string[] = [];
+
 function validateEnvVars() {
-  const missingVars = REQUIRED_ENV_VARS.filter(
+  missingEnvVars = REQUIRED_ENV_VARS.filter(
     (varName) => !process.env[varName]
   );
-  if (missingVars.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missingVars.join(', ')}`
+  if (missingEnvVars.length > 0) {
+    envVarsFound = false;
+    console.warn(
+      `Skipping tests due to missing environment variables: ${missingEnvVars.join(', ')}`
     );
   }
 }
 
+// Validate environment variables once at the top level
+validateEnvVars();
+
 describe('PostgresEngine Instance creation', () => {
+  // Conditionally skip the entire describe block
+  if (!envVarsFound) {
+    describe.skip('PostgresEngine Instance creation (skipped due to missing env vars)', () => {
+      test('this test will be skipped', () => {
+        // This block won't execute
+      });
+    });
+    return; // Exit the describe block early
+  }
+
   let PEInstance: PostgresEngine;
 
   const poolConfig: knex.Knex.PoolConfig = {
@@ -72,9 +90,10 @@ describe('PostgresEngine Instance creation', () => {
     max: 5,
   };
 
-  beforeAll(() => {
-    validateEnvVars();
-  });
+  // No need for beforeAll here if the entire describe block is skipped
+  // beforeAll(() => {
+  //   // validateEnvVars is called once at the top level
+  // });
 
   test('should throw an error if only user or password are passed', async () => {
     const pgArgs: PostgresEngineArgs = {
@@ -123,30 +142,34 @@ describe('PostgresEngine Instance creation', () => {
     }
   });
 
-  test('should create a PostgresEngine Instance with IAM email', async () => {
-    const pgArgs: PostgresEngineArgs = {
-      ipType: IpAddressTypes.PUBLIC,
-      iamAccountEmail: process.env.EMAIL ?? '',
-    };
+  // Example of conditionally skipping a single test if a specific env var is missing
+  (process.env.EMAIL ? test : test.skip)(
+    'should create a PostgresEngine Instance with IAM email',
+    async () => {
+      const pgArgs: PostgresEngineArgs = {
+        ipType: IpAddressTypes.PUBLIC,
+        iamAccountEmail: process.env.EMAIL!, // Use ! as we checked for its existence
+      };
 
-    PEInstance = await PostgresEngine.fromInstance(
-      process.env.PROJECT_ID ?? '',
-      process.env.REGION ?? '',
-      process.env.INSTANCE_ID ?? '',
-      process.env.DATABASE_ID ?? '',
-      pgArgs
-    );
+      PEInstance = await PostgresEngine.fromInstance(
+        process.env.PROJECT_ID!,
+        process.env.REGION!,
+        process.env.INSTANCE_ID!,
+        process.env.DATABASE_ID!,
+        pgArgs
+      );
 
-    const result = await PEInstance.testConnection();
-    const currentTimestamp = result[0].currentTimestamp;
-    expect(currentTimestamp).toBeDefined();
+      const result = await PEInstance.testConnection();
+      const currentTimestamp = result[0].currentTimestamp;
+      expect(currentTimestamp).toBeDefined();
 
-    try {
-      await PEInstance.closeConnection();
-    } catch (error) {
-      throw new Error(`Error on closing connection: ${error}`);
+      try {
+        await PEInstance.closeConnection();
+      } catch (error) {
+        throw new Error(`Error on closing connection: ${error}`);
+      }
     }
-  });
+  );
 
   test('should create a PostgresEngine Instance through from_engine method', async () => {
     PostgresEngine.connector = new Connector({ userAgent: USER_AGENT });
@@ -210,19 +233,29 @@ describe('PostgresEngine Instance creation', () => {
 });
 
 describe('PostgresEngine - table initialization', () => {
+  // Conditionally skip the entire describe block
+  if (!envVarsFound) {
+    describe.skip('PostgresEngine - table initialization (skipped due to missing env vars)', () => {
+      test('this test will be skipped', () => {
+        // This block won't execute
+      });
+    });
+    return; // Exit the describe block early
+  }
+
   let PEInstance: PostgresEngine;
 
   beforeAll(async () => {
     const pgArgs: PostgresEngineArgs = {
-      user: process.env.DB_USER ?? '',
-      password: process.env.DB_PASSWORD ?? '',
+      user: process.env.DB_USER!,
+      password: process.env.DB_PASSWORD!,
     };
 
     PEInstance = await PostgresEngine.fromInstance(
-      process.env.PROJECT_ID ?? '',
-      process.env.REGION ?? '',
-      process.env.INSTANCE_ID ?? '',
-      process.env.DATABASE_ID ?? '',
+      process.env.PROJECT_ID!,
+      process.env.REGION!,
+      process.env.INSTANCE_ID!,
+      process.env.DATABASE_ID!,
       pgArgs
     );
   });
@@ -261,10 +294,15 @@ describe('PostgresEngine - table initialization', () => {
   });
 
   afterAll(async () => {
-    await PEInstance.pool.raw(`DROP TABLE "${CUSTOM_TABLE}"`);
+    // Only attempt to drop the table if the instance was successfully created
+    if (PEInstance && PEInstance.pool) {
+      await PEInstance.pool.raw(`DROP TABLE "${CUSTOM_TABLE}"`);
+    }
 
     try {
-      await PEInstance.closeConnection();
+      if (PEInstance) {
+        await PEInstance.closeConnection();
+      }
     } catch (error) {
       throw new Error(`Error on closing connection: ${error}`);
     }
