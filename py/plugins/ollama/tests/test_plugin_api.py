@@ -17,9 +17,10 @@
 """Unit tests for Ollama Plugin."""
 
 import unittest
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import ollama as ollama_api
+from pydantic import BaseModel
 import pytest
 
 from genkit.ai import ActionKind, Genkit
@@ -33,30 +34,21 @@ from genkit.types import GenerationCommonConfig
 class TestOllamaInit(unittest.TestCase):
     """Test cases for Ollama.__init__ plugin."""
 
-    @patch('ollama.AsyncClient')
-    def test_init_with_models(self, ollama_aclient):
+    def test_init_with_models(self):
         """Test correct propagation of models param."""
         model_ref = ModelDefinition(name='test_model')
         plugin = Ollama(models=[model_ref])
 
         assert plugin.models[0] == model_ref
-        ollama_aclient.assert_called_once_with(
-            host=DEFAULT_OLLAMA_SERVER_URL,
-        )
 
-    @patch('ollama.AsyncClient')
-    def test_init_with_embedders(self, ollama_aclient):
+    def test_init_with_embedders(self):
         """Test correct propagation of embedders param."""
         embedder_ref = EmbeddingDefinition(name='test_embedder')
         plugin = Ollama(embedders=[embedder_ref])
 
         assert plugin.embedders[0] == embedder_ref
-        ollama_aclient.assert_called_once_with(
-            host=DEFAULT_OLLAMA_SERVER_URL,
-        )
 
-    @patch('ollama.AsyncClient')
-    def test_init_with_options(self, ollama_aclient):
+    def test_init_with_options(self):
         """Test correct propagation of other options param."""
         model_ref = ModelDefinition(name='test_model')
         embedder_ref = EmbeddingDefinition(name='test_embedder')
@@ -74,10 +66,6 @@ class TestOllamaInit(unittest.TestCase):
         assert plugin.models[0] == model_ref
         assert plugin.server_address == server_address
         assert plugin.request_headers == headers
-
-        ollama_aclient.assert_called_once_with(
-            host=server_address,
-        )
 
 
 def test_initialize(ollama_plugin_instance):
@@ -240,3 +228,48 @@ def test_define_ollama_embedder(name, expected_name, clean_name, ollama_plugin_i
             },
         },
     )
+
+
+def test_list_actions(ollama_plugin_instance):
+    """Unit tests for list_actions method."""
+    class MockModelResponse(BaseModel):
+        model: str
+
+    class MockListResponse(BaseModel):
+        models: list[MockModelResponse]
+
+    _client_mock = MagicMock()
+    list_method_mock = AsyncMock()
+    _client_mock.list = list_method_mock
+
+    list_method_mock.return_value = MockListResponse(
+        models=[
+            MockModelResponse(model='test_model'),
+            MockModelResponse(model='test_embedder'),
+        ]
+    )
+
+    def mock_client():
+        return _client_mock
+
+    ollama_plugin_instance.client = mock_client
+
+    actions = ollama_plugin_instance.list_actions
+
+    assert len(actions) == 2
+
+    has_model = False
+    for action in actions:
+        if action.kind == ActionKind.MODEL:
+            has_model = True
+            break
+
+    assert has_model
+
+    has_embedder = False
+    for action in actions:
+        if action.kind == ActionKind.EMBEDDER:
+            has_embedder = True
+            break
+
+    assert has_embedder
