@@ -118,7 +118,10 @@ class GenkitBase(GenkitRegistry):
                         return plugin.resolve_action(self, kind, name)
 
                     def action_resolver(plugin=plugin):
-                        return plugin.list_actions
+                        if isinstance(plugin.list_actions, list):
+                            return plugin.list_actions
+                        else:
+                            return plugin.list_actions()
 
                     self.registry.register_action_resolver(plugin.plugin_name(), resolver)
                     self.registry.register_list_actions_resolver(plugin.plugin_name(), action_resolver)

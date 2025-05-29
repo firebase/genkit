@@ -17,11 +17,11 @@
 """Unit tests for Ollama Plugin."""
 
 import unittest
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import ollama as ollama_api
-from pydantic import BaseModel
 import pytest
+from pydantic import BaseModel
 
 from genkit.ai import ActionKind, Genkit
 from genkit.plugins.ollama import Ollama, ollama_name
@@ -232,6 +232,7 @@ def test_define_ollama_embedder(name, expected_name, clean_name, ollama_plugin_i
 
 def test_list_actions(ollama_plugin_instance):
     """Unit tests for list_actions method."""
+
     class MockModelResponse(BaseModel):
         model: str
 

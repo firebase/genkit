@@ -15,6 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Ollama Plugin for Genkit."""
+
 import asyncio
 from functools import cached_property, partial
 
