@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { GenerateContentCandidate } from '@google/generative-ai';
+import type { GenerateContentCandidate } from '@google/generative-ai';
 import * as assert from 'assert';
 import { genkit, z } from 'genkit';
-import { MessageData, ModelInfo } from 'genkit/model';
+import type { MessageData, ModelInfo } from 'genkit/model';
 import { toJsonSchema } from 'genkit/schema';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import {

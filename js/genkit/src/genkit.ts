@@ -15,33 +15,6 @@
  */
 
 import {
-  BaseDataPointSchema,
-  Document,
-  EmbedderInfo,
-  EmbedderParams,
-  Embedding,
-  EvalResponses,
-  EvaluatorParams,
-  ExecutablePrompt,
-  GenerateOptions,
-  GenerateRequest,
-  GenerateResponse,
-  GenerateResponseData,
-  GenerateStreamOptions,
-  GenerateStreamResponse,
-  GenerationCommonConfigSchema,
-  IndexerParams,
-  ModelArgument,
-  Part,
-  PromptConfig,
-  PromptGenerateOptions,
-  RankedDocument,
-  RerankerParams,
-  RetrieverAction,
-  RetrieverInfo,
-  RetrieverParams,
-  ToolAction,
-  ToolConfig,
   defineHelper,
   definePartial,
   definePrompt,
@@ -54,67 +27,94 @@ import {
   prompt,
   rerank,
   retrieve,
+  type BaseDataPointSchema,
+  type Document,
+  type EmbedderInfo,
+  type EmbedderParams,
+  type Embedding,
+  type EvalResponses,
+  type EvaluatorParams,
+  type ExecutablePrompt,
+  type GenerateOptions,
+  type GenerateRequest,
+  type GenerateResponse,
+  type GenerateResponseData,
+  type GenerateStreamOptions,
+  type GenerateStreamResponse,
+  type GenerationCommonConfigSchema,
+  type IndexerParams,
+  type ModelArgument,
+  type Part,
+  type PromptConfig,
+  type PromptGenerateOptions,
+  type RankedDocument,
+  type RerankerParams,
+  type RetrieverAction,
+  type RetrieverInfo,
+  type RetrieverParams,
+  type ToolAction,
+  type ToolConfig,
 } from '@genkit-ai/ai';
 import {
-  EmbedderAction,
-  EmbedderArgument,
-  EmbedderFn,
-  EmbeddingBatch,
   defineEmbedder,
   embedMany,
+  type EmbedderAction,
+  type EmbedderArgument,
+  type EmbedderFn,
+  type EmbeddingBatch,
 } from '@genkit-ai/ai/embedder';
 import {
-  EvaluatorAction,
-  EvaluatorFn,
   defineEvaluator,
+  type EvaluatorAction,
+  type EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
-  DefineModelOptions,
-  GenerateResponseChunkData,
-  ModelAction,
   defineGenerateAction,
   defineModel,
+  type DefineModelOptions,
+  type GenerateResponseChunkData,
+  type ModelAction,
 } from '@genkit-ai/ai/model';
 import {
-  RerankerFn,
-  RerankerInfo,
   defineReranker,
+  type RerankerFn,
+  type RerankerInfo,
 } from '@genkit-ai/ai/reranker';
 import {
-  DocumentData,
-  IndexerAction,
-  IndexerFn,
-  RetrieverFn,
-  SimpleRetrieverOptions,
   defineIndexer,
   defineRetriever,
   defineSimpleRetriever,
   index,
+  type DocumentData,
+  type IndexerAction,
+  type IndexerFn,
+  type RetrieverFn,
+  type SimpleRetrieverOptions,
 } from '@genkit-ai/ai/retriever';
-import { ToolFn, dynamicTool } from '@genkit-ai/ai/tool';
+import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
-  Action,
-  ActionContext,
-  FlowConfig,
-  FlowFn,
   GenkitError,
-  JSONSchema,
   ReflectionServer,
-  StreamingCallback,
   defineFlow,
   defineJsonSchema,
   defineSchema,
   getContext,
   isDevEnv,
   run,
-  z,
+  type Action,
+  type ActionContext,
+  type FlowConfig,
+  type FlowFn,
+  type JSONSchema,
+  type StreamingCallback,
+  type z,
 } from '@genkit-ai/core';
-import { HasRegistry } from '@genkit-ai/core/registry';
-import { BaseEvalDataPointSchema } from './evaluator.js';
+import type { HasRegistry } from '@genkit-ai/core/registry';
+import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import { GenkitPlugin } from './plugin.js';
-import { ActionType, Registry } from './registry.js';
+import type { GenkitPlugin } from './plugin.js';
+import { Registry, type ActionType } from './registry.js';
 
 /**
  * @deprecated use `ai.definePrompt({messages: fn})`

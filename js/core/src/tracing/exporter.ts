@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { HrTime, SpanKind } from '@opentelemetry/api';
+import { SpanKind, type HrTime } from '@opentelemetry/api';
 import {
-  ExportResult,
   ExportResultCode,
   hrTimeToMilliseconds,
+  type ExportResult,
 } from '@opentelemetry/core';
-import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 import { logger } from '../logging.js';
 import { deleteUndefinedProps } from '../utils.js';
-import { SpanData, TraceData } from './types.js';
+import type { SpanData, TraceData } from './types.js';
 
 export let telemetryServerUrl: string | undefined;
 

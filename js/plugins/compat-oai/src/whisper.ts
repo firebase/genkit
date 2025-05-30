@@ -20,9 +20,9 @@ import { GenerationCommonConfigSchema, Message, z } from 'genkit';
 import type { ModelAction } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import type OpenAI from 'openai';
-import {
-  type Transcription,
-  type TranscriptionCreateParams,
+import type {
+  Transcription,
+  TranscriptionCreateParams,
 } from 'openai/resources/audio/index.mjs';
 
 export const Whisper1ConfigSchema = GenerationCommonConfigSchema.extend({

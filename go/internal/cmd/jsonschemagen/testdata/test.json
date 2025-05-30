@@ -9,10 +9,7 @@
         },
         "state": {
           "type": "string",
-          "enum": [
-            "success",
-            "error"
-          ]
+          "enum": ["success", "error"]
         },
         "input": {},
         "output": {},
@@ -26,9 +23,7 @@
           }
         }
       },
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "additionalProperties": false
     },
     "SpanStatus": {
@@ -41,9 +36,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "code"
-      ],
+      "required": ["code"],
       "additionalProperties": false
     },
     "TimeEvent": {
@@ -63,17 +56,11 @@
               "type": "string"
             }
           },
-          "required": [
-            "attributes",
-            "description"
-          ],
+          "required": ["attributes", "description"],
           "additionalProperties": false
         }
       },
-      "required": [
-        "time",
-        "annotation"
-      ],
+      "required": ["time", "annotation"],
       "additionalProperties": false
     },
     "SpanContext": {
@@ -92,11 +79,7 @@
           "type": "number"
         }
       },
-      "required": [
-        "traceId",
-        "spanId",
-        "traceFlags"
-      ],
+      "required": ["traceId", "spanId", "traceFlags"],
       "additionalProperties": false
     },
     "Link": {
@@ -128,9 +111,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "additionalProperties": false
     },
     "SpanData": {
@@ -177,9 +158,7 @@
               "type": "boolean"
             }
           },
-          "required": [
-            "value"
-          ],
+          "required": ["value"],
           "additionalProperties": false
         },
         "status": {
@@ -195,9 +174,7 @@
               }
             }
           },
-          "required": [
-            "timeEvent"
-          ],
+          "required": ["timeEvent"],
           "additionalProperties": false
         }
       },
@@ -232,9 +209,7 @@
           }
         }
       },
-      "required": [
-        "spans"
-      ],
+      "required": ["spans"],
       "additionalProperties": false
     },
     "TextPart": {
@@ -253,9 +228,7 @@
           "not": {}
         }
       },
-      "required": [
-        "text"
-      ],
+      "required": ["text"],
       "additionalProperties": false
     },
     "MediaPart": {
@@ -274,9 +247,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "url"
-          ],
+          "required": ["url"],
           "additionalProperties": false
         },
         "toolRequest": {
@@ -286,9 +257,7 @@
           "not": {}
         }
       },
-      "required": [
-        "media"
-      ],
+      "required": ["media"],
       "additionalProperties": false
     },
     "Part": {
@@ -324,9 +293,7 @@
                     "not": {}
                   }
                 },
-                "required": [
-                  "text"
-                ],
+                "required": ["text"],
                 "additionalProperties": false
               },
               {
@@ -345,15 +312,11 @@
                         "type": "string"
                       }
                     },
-                    "required": [
-                      "url"
-                    ],
+                    "required": ["url"],
                     "additionalProperties": false
                   }
                 },
-                "required": [
-                  "media"
-                ],
+                "required": ["media"],
                 "additionalProperties": false
               }
             ]
@@ -364,9 +327,7 @@
           "additionalProperties": {}
         }
       },
-      "required": [
-        "content"
-      ],
+      "required": ["content"],
       "additionalProperties": false
     },
     "ToolRequestPart": {
@@ -389,18 +350,14 @@
             },
             "input": {}
           },
-          "required": [
-            "name"
-          ],
+          "required": ["name"],
           "additionalProperties": false
         },
         "toolResponse": {
           "not": {}
         }
       },
-      "required": [
-        "toolRequest"
-      ],
+      "required": ["toolRequest"],
       "additionalProperties": false
     },
     "ToolResponsePart": {
@@ -426,25 +383,16 @@
             },
             "output": {}
           },
-          "required": [
-            "name"
-          ],
+          "required": ["name"],
           "additionalProperties": false
         }
       },
-      "required": [
-        "toolResponse"
-      ],
+      "required": ["toolResponse"],
       "additionalProperties": false
     },
     "Role": {
       "type": "string",
-      "enum": [
-        "system",
-        "user",
-        "model",
-        "tool"
-      ]
+      "enum": ["system", "user", "model", "tool"]
     },
     "Message": {
       "type": "object",
@@ -459,10 +407,7 @@
           }
         }
       },
-      "required": [
-        "role",
-        "content"
-      ],
+      "required": ["role", "content"],
       "additionalProperties": false
     },
     "ToolDefinition": {
@@ -482,10 +427,7 @@
           "description": "Valid JSON Schema describing the output of the tool."
         }
       },
-      "required": [
-        "name",
-        "inputSchema"
-      ],
+      "required": ["name", "inputSchema"],
       "additionalProperties": false
     },
     "GenerationConfig": {
@@ -539,10 +481,7 @@
           "properties": {
             "format": {
               "type": "string",
-              "enum": [
-                "json",
-                "text"
-              ]
+              "enum": ["json", "text"]
             },
             "schema": {
               "type": "object",
@@ -555,9 +494,7 @@
           "type": "number"
         }
       },
-      "required": [
-        "messages"
-      ],
+      "required": ["messages"],
       "additionalProperties": false
     },
     "GenerationUsage": {
@@ -595,24 +532,14 @@
         },
         "finishReason": {
           "type": "string",
-          "enum": [
-            "stop",
-            "length",
-            "blocked",
-            "other",
-            "unknown"
-          ]
+          "enum": ["stop", "length", "blocked", "other", "unknown"]
         },
         "finishMessage": {
           "type": "string"
         },
         "custom": {}
       },
-      "required": [
-        "index",
-        "message",
-        "finishReason"
-      ],
+      "required": ["index", "message", "finishReason"],
       "additionalProperties": false
     },
     "GenerationResponse": {
@@ -629,9 +556,7 @@
         },
         "custom": {}
       },
-      "required": [
-        "candidates"
-      ],
+      "required": ["candidates"],
       "additionalProperties": false
     },
     "FlowInvokeEnvelopeMessage": {
@@ -667,9 +592,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "flowId"
-          ],
+          "required": ["flowId"],
           "additionalProperties": false
         },
         "retry": {
@@ -679,9 +602,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "flowId"
-          ],
+          "required": ["flowId"],
           "additionalProperties": false
         },
         "resume": {
@@ -692,9 +613,7 @@
             },
             "payload": {}
           },
-          "required": [
-            "flowId"
-          ],
+          "required": ["flowId"],
           "additionalProperties": false
         },
         "state": {
@@ -704,9 +623,7 @@
               "type": "string"
             }
           },
-          "required": [
-            "flowId"
-          ],
+          "required": ["flowId"],
           "additionalProperties": false
         }
       },
@@ -728,9 +645,7 @@
           }
         }
       },
-      "required": [
-        "traceIds"
-      ],
+      "required": ["traceIds"],
       "additionalProperties": false
     },
     "FlowResponse": {
@@ -797,15 +712,11 @@
               "type": "string"
             }
           },
-          "required": [
-            "name"
-          ],
+          "required": ["name"],
           "additionalProperties": false
         }
       },
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "additionalProperties": false
     },
     "FlowState": {
@@ -851,9 +762,7 @@
                   "type": "string"
                 }
               },
-              "required": [
-                "name"
-              ],
+              "required": ["name"],
               "additionalProperties": false
             },
             {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { SpanData } from '@genkit-ai/tools-common';
+import type { SpanData } from '@genkit-ai/tools-common';
 
 export function span(
   traceId: string,

@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
-import { JSONSchema7, z } from '@genkit-ai/core';
+import type { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
+import { z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
-import { GenkitBeta, genkit } from '../src/beta';
+import { genkit, type GenkitBeta } from '../src/beta';
 import {
-  ProgrammableModel,
   defineEchoModel,
   defineProgrammableModel,
   runAsync,
+  type ProgrammableModel,
 } from './helpers';
 
 describe('generate', () => {

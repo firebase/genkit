@@ -16,7 +16,7 @@
 
 import { describe, expect, it, jest } from '@jest/globals';
 import * as configModule from '../../src/plugin/config';
-import { TraceData } from '../../src/types/trace';
+import type { TraceData } from '../../src/types/trace';
 import { getEvalExtractors } from '../../src/utils/eval';
 import { MockTrace } from './trace';
 

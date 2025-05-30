@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { BigQuery } from '@google-cloud/bigquery';
+import type { BigQuery } from '@google-cloud/bigquery';
 import * as assert from 'assert';
 import { Document } from 'genkit/retriever';
 import { describe, it } from 'node:test';

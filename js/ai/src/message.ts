@@ -15,11 +15,14 @@
  */
 
 import { extractJson } from './extract';
-import { MessageData, Part, ToolRequestPart, ToolResponsePart } from './model';
+import type {
+  MessageData,
+  Part,
+  ToolRequestPart,
+  ToolResponsePart,
+} from './model';
 
-export interface MessageParser<T = unknown> {
-  (message: Message): T;
-}
+export type MessageParser<T = unknown> = (message: Message) => T;
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -143,7 +146,7 @@ export class Message<T = unknown> implements MessageData {
    * @returns Plain JS object representing the data contained in the message.
    */
   toJSON(): MessageData {
-    let out: MessageData = {
+    const out: MessageData = {
       role: this.role,
       content: [...this.content],
     };

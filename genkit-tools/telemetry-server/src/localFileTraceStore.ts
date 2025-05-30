@@ -16,14 +16,14 @@
 
 import {
   TraceDataSchema,
-  TraceQueryFilter,
   type TraceData,
+  type TraceQueryFilter,
 } from '@genkit-ai/tools-common';
 import { Mutex } from 'async-mutex';
 import fs from 'fs';
 import lockfile from 'lockfile';
 import path from 'path';
-import { TraceQuery, TraceQueryResponse, TraceStore } from './types';
+import type { TraceQuery, TraceQueryResponse, TraceStore } from './types';
 import { version as currentVersion } from './utils/version';
 
 const MAX_TRACES = 1000;
@@ -171,7 +171,7 @@ export class LocalFileTraceStore implements TraceStore {
     const searchResult = this.index.search({
       limit: query?.limit ?? 10,
       startFromIndex: query?.continuationToken
-        ? parseInt(query?.continuationToken)
+        ? Number.parseInt(query?.continuationToken)
         : undefined,
       filter: query?.filter,
     });
@@ -197,7 +197,7 @@ export class LocalFileTraceStore implements TraceStore {
       );
     });
     const startFrom = query?.continuationToken
-      ? parseInt(query?.continuationToken)
+      ? Number.parseInt(query?.continuationToken)
       : 0;
     const stopAt = startFrom + (query?.limit || 10);
     const traces = files.slice(startFrom, stopAt).map((id) => {

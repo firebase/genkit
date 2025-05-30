@@ -16,8 +16,8 @@
 
 import { GenkitError, stripUndefinedProps } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
-import {
+import type { Registry } from '@genkit-ai/core/registry';
+import type {
   GenerateActionOptions,
   GenerateResponseData,
   MessageData,
@@ -27,11 +27,11 @@ import {
 } from '../model.js';
 import { isPromptAction } from '../prompt.js';
 import {
-  ToolAction,
   ToolInterruptError,
-  ToolRunOptions,
   isToolRequest,
   resolveTools,
+  type ToolAction,
+  type ToolRunOptions,
 } from '../tool.js';
 
 export function toToolMap(tools: ToolAction[]): Record<string, ToolAction> {
@@ -164,7 +164,7 @@ export async function resolveToolRequests(
   const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
 
   const responseParts: ToolResponsePart[] = [];
-  let hasInterrupts: boolean = false;
+  let hasInterrupts = false;
   let transferPreamble: GenerateActionOptions | undefined;
 
   const revisedModelMessage = {

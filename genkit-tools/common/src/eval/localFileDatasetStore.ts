@@ -18,13 +18,13 @@ import fs from 'fs';
 import { readFile, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateDatasetRequest, UpdateDatasetRequest } from '../types/apis';
+import type { CreateDatasetRequest, UpdateDatasetRequest } from '../types/apis';
 import {
-  Dataset,
-  DatasetMetadata,
   DatasetSchema,
-  DatasetStore,
-  InferenceDataset,
+  type Dataset,
+  type DatasetMetadata,
+  type DatasetStore,
+  type InferenceDataset,
 } from '../types/eval';
 import { generateTestCaseId } from '../utils';
 import { logger } from '../utils/logger';
@@ -98,7 +98,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       updateTime: now,
     };
 
-    let metadataMap = await this.getMetadataMap();
+    const metadataMap = await this.getMetadataMap();
     metadataMap[id] = metadata;
 
     logger.debug(
@@ -119,7 +119,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       throw new Error(`Update dataset failed: dataset not found`);
     }
 
-    let metadataMap = await this.getMetadataMap();
+    const metadataMap = await this.getMetadataMap();
     const prevMetadata = metadataMap[datasetId];
     if (!prevMetadata) {
       throw new Error(`Update dataset failed: dataset metadata not found`);
@@ -170,7 +170,7 @@ export class LocalFileDatasetStore implements DatasetStore {
 
   async listDatasets(): Promise<DatasetMetadata[]> {
     return this.getMetadataMap().then((metadataMap) => {
-      let metadatas = [];
+      const metadatas = [];
 
       for (var key in metadataMap) {
         metadatas.push(metadataMap[key]);
@@ -186,7 +186,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     );
     await rm(filePath);
 
-    let metadataMap = await this.getMetadataMap();
+    const metadataMap = await this.getMetadataMap();
     delete metadataMap[datasetId];
 
     logger.debug(

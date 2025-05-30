@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { initTRPC, TRPCError } from '@trpc/server';
+import { TRPCError, initTRPC } from '@trpc/server';
 import { z } from 'zod';
 import {
   getDatasetStore,
@@ -21,14 +21,14 @@ import {
   runNewEvaluation,
   validateSchema,
 } from '../eval';
-import { RuntimeManager } from '../manager/manager';
-import { GenkitToolsError, RuntimeInfo } from '../manager/types';
-import { Action } from '../types/action';
+import type { RuntimeManager } from '../manager/manager';
+import { GenkitToolsError, type RuntimeInfo } from '../manager/types';
+import type { Action } from '../types/action';
 import * as apis from '../types/apis';
-import { EnvironmentVariable } from '../types/env';
+import type { EnvironmentVariable } from '../types/env';
 import * as evals from '../types/eval';
-import { PromptFrontmatter } from '../types/prompt';
-import { PageViewEvent, record, ToolsRequestEvent } from '../utils/analytics';
+import type { PromptFrontmatter } from '../types/prompt';
+import { PageViewEvent, ToolsRequestEvent, record } from '../utils/analytics';
 import { toolsPackage } from '../utils/package';
 import { fromMessages } from '../utils/prompt';
 

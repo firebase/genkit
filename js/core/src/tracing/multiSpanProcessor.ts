@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Context } from '@opentelemetry/api';
-import {
+import type { Context } from '@opentelemetry/api';
+import type {
   ReadableSpan,
   Span,
   SpanProcessor,

@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai/model';
+import type { MessageData } from '@genkit-ai/ai/model';
 import { gemini20Flash } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { defineAgent, HistoryStore } from './agent.js';
+import { defineAgent, type HistoryStore } from './agent.js';
 import { ai } from './genkit.js';
 
 const weatherTool = ai.defineTool(

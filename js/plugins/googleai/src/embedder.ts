@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
 import {
-  EmbedderAction,
-  EmbedderReference,
-  Genkit,
+  GoogleGenerativeAI,
+  type EmbedContentRequest,
+} from '@google/generative-ai';
+import {
   GenkitError,
   z,
+  type EmbedderAction,
+  type EmbedderReference,
+  type Genkit,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
 import { getApiKeyFromEnvVar } from './common.js';
-import { PluginOptions } from './index.js';
+import type { PluginOptions } from './index.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',

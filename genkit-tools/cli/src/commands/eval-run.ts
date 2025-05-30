@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { Action, EvalInputDataset } from '@genkit-ai/tools-common';
+import type { Action, EvalInputDataset } from '@genkit-ai/tools-common';
 import {
-  EvalExporter,
   getAllEvaluatorActions,
   getExporterForString,
   getMatchingEvaluatorActions,
   runEvaluation,
+  type EvalExporter,
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
@@ -62,7 +62,7 @@ export const evalRun = new Command('eval:run')
   .option(
     '--batchSize <batchSize>',
     'batch size to use for parallel evals (default to 1, no parallelization)',
-    parseInt
+    Number.parseInt
   )
   .option('--force', 'Automatically accept all interactive prompts')
   .action(async (dataset: string, options: EvalRunCliOptions) => {

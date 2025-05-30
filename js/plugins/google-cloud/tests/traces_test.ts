@@ -23,10 +23,10 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
-import { Genkit, z } from 'genkit';
-import { GenkitBeta, genkit } from 'genkit/beta';
+import { z, type Genkit } from 'genkit';
+import { genkit, type GenkitBeta } from 'genkit/beta';
 import { appendSpan } from 'genkit/tracing';
 import {
   __forceFlushSpansForTesting,
@@ -318,9 +318,7 @@ describe('GoogleCloudTracing', () => {
   }
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
-  async function getExportedSpans(
-    maxAttempts: number = 200
-  ): Promise<ReadableSpan[]> {
+  async function getExportedSpans(maxAttempts = 200): Promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
     while (attempts++ < maxAttempts) {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TraceData, TraceQueryFilter } from '@genkit-ai/tools-common';
+import type { TraceData, TraceQueryFilter } from '@genkit-ai/tools-common';
 import * as assert from 'assert';
 import getPort from 'get-port';
 import { afterEach, beforeEach, describe, it } from 'node:test';

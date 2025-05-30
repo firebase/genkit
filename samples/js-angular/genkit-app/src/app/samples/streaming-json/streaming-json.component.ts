@@ -28,10 +28,10 @@ const url = 'http://127.0.0.1:3400/streamCharacters';
   styleUrl: './streaming-json.component.scss',
 })
 export class StreamingJSONComponent {
-  count: string = '3';
+  count = '3';
   characters: any = undefined;
   error?: string = undefined;
-  loading: boolean = false;
+  loading = false;
 
   async callFlow() {
     this.characters = undefined;
@@ -40,7 +40,7 @@ export class StreamingJSONComponent {
     try {
       const response = streamFlow({
         url,
-        input: parseInt(this.count),
+        input: Number.parseInt(this.count),
       });
       for await (const chunk of response.stream) {
         this.characters = chunk;
