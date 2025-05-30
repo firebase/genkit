@@ -1,1 +1,4 @@
 node_modules
+jest.config.ts
+tsconfig.json
+tsup.config.ts
