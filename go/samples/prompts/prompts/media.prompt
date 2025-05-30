@@ -1,0 +1,13 @@
+---
+model: vertexai/gemini-2.5-flash-preview-04-17
+config:
+  temperature: 0.1
+input:
+  schema:
+    imageUrl: string
+output:
+  character: string
+---
+Analyze the provided image of an animal, tell which animal is in the picture
+
+{{media url=imageUrl}}
