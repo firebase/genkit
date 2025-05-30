@@ -108,7 +108,7 @@ func (c *GenkitMCPClient) fetchToolsPage(ctx context.Context, cursor mcp.Cursor)
 }
 
 // registerTool converts a single MCP tool to a Genkit tool
-// Returns nil for the tool if it already exists in the registry
+// Returns the tool without re-registering if it already exists in the registry
 func (c *GenkitMCPClient) registerTool(ctx context.Context, g *genkit.Genkit, mcpTool mcp.Tool) (ai.Tool, error) {
 	// Use namespaced tool name
 	namespacedToolName := c.GetToolNameWithNamespace(mcpTool.Name)
