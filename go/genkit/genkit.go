@@ -32,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/invopop/jsonschema"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -57,11 +58,6 @@ type Plugin interface {
 // A Genkit instance is created using [Init].
 type Genkit struct {
 	reg *registry.Registry // Registry for actions, values, and other resources.
-}
-
-// Registry returns the internal registry. This is primarily for use by plugins.
-func (g *Genkit) Registry() *registry.Registry {
-	return g.reg
 }
 
 // genkitOptions are options for configuring the Genkit instance.
@@ -480,6 +476,44 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
 func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) ai.Tool {
 	return ai.DefineTool(g.reg, name, description, fn)
+}
+
+// DefineToolWithInputSchema defines a tool with an explicit input schema.
+// Unlike [DefineTool], this function allows you to specify the input schema directly
+// rather than inferring it from the Go types. This is useful when you need more
+// control over the schema or when working with dynamic input structures.
+//
+// The function takes:
+//   - name: The unique identifier for the tool
+//   - description: A human-readable description of what the tool does
+//   - inputSchema: A JSON schema defining the expected input structure
+//   - fn: The function that implements the tool's behavior
+//
+// The output schema will be inferred as "any" since the return type is any.
+//
+// Example:
+//
+//	schema := &jsonschema.Schema{
+//		Type: "object",
+//		Properties: map[string]*jsonschema.Schema{
+//			"city": {Type: "string"},
+//		},
+//		Required: []string{"city"},
+//	}
+//
+//	weatherTool := genkit.DefineToolWithInputSchema(g,
+//		"getWeather",
+//		"Get current weather for a city",
+//		schema,
+//		func(ctx *ai.ToolContext, input any) (any, error) {
+//			data := input.(map[string]any)
+//			city := data["city"].(string)
+//			// Implementation here...
+//			return map[string]any{"temperature": "25°C", "condition": "sunny"}, nil
+//		},
+//	)
+func DefineToolWithInputSchema(g *Genkit, name, description string, inputSchema *jsonschema.Schema, fn func(ctx *ai.ToolContext, input any) (any, error)) ai.Tool {
+	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
 }
 
 // LookupTool retrieves a registered [ai.Tool] by its name.
