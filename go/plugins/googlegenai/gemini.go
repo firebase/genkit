@@ -28,13 +28,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/base"
-	"github.com/invopop/jsonschema"
-
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
@@ -84,36 +82,9 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
-type GeminiEmbeddingConfigSchema struct {
-	// Override the API key provided at plugin initialization.
-	APIKey string `json:"apiKey,omitempty"`
-
-	// The `task_type` parameter is defined as the intended downstream application
-	// to help the model produce better quality embeddings.
-	// NOTE: Assuming TaskTypeSchema resolves to a string. If it's a different
-	// complex type, this field would need to be adjusted accordingly (e.g., a struct).
-	TaskType *string `json:"taskType,omitempty"`
-
-	Title string `json:"title,omitempty"`
-
-	Version string `json:"version,omitempty"`
-
-	// The `outputDimensionality` parameter allows you to specify the dimensionality
-	// of the embedding output. By default, the model generates embeddings
-	// with 768 dimensions. Models such as `text-embedding-004`, `text-embedding-005`,
-	// and `text-multilingual-embedding-002` allow the output dimensionality
-	// to be adjusted between 1 and 768.
-	// NOTE: The min(1) and max(768) constraints
-	OutputDimensionality int `json:"outputDimensionality,omitempty"`
-}
-
 // configToMap converts a config struct to a map[string]any.
 func configToMap(config any) map[string]any {
-	r := jsonschema.Reflector{
-		DoNotReference: true, // Prevent $ref usage
-		ExpandedStruct: true, // Include all fields directly
-	}
-	schema := r.Reflect(config)
+	schema := base.InferJSONSchema(config)
 	result := base.SchemaAsMap(schema)
 	return result
 }
@@ -318,21 +289,24 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOp
 
 	emdOpts := &ai.EmbedderOptions{
 		Info:         embedOptions.Info,
-		ConfigSchema: configToMap(&GeminiEmbeddingConfigSchema{}),
+		ConfigSchema: genai.EmbedContentConfig{},
 	}
 
 	return genkit.DefineEmbedder(g, provider, name, emdOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
-		// check if request options matches VertexAI configuration
-		if opts, _ := req.Options.(*EmbedOptions); opts != nil {
-			if provider == googleAIProvider {
-				return nil, fmt.Errorf("wrong options provided for %s provider, got %T", provider, opts)
-			}
-			embedConfig = &genai.EmbedContentConfig{
-				Title:    opts.Title,
-				TaskType: opts.TaskType,
+		if req.Options != nil {
+			if optsMap, ok := req.Options.(map[string]any); ok {
+				optionsBytes, err := json.Marshal(optsMap)
+				if err != nil {
+					fmt.Println("Error marshaling options map to bytes:", err)
+				}
+				var tempConfig genai.EmbedContentConfig
+				err = json.Unmarshal(optionsBytes, &tempConfig)
+				if err == nil {
+					embedConfig = &tempConfig
+				}
 			}
 		}
 
@@ -898,6 +872,7 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
+
 	switch {
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil

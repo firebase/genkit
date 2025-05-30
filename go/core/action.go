@@ -100,16 +100,16 @@ func DefineStreamingAction[In, Out, Stream any](
 // This differs from DefineAction in that the input schema is
 // defined dynamically; the static input type is "any".
 // This is used for prompts.
-func DefineActionWithInputSchema[Out any](
+func DefineActionWithInputSchema[In, Out any](
 	r *registry.Registry,
 	provider, name string,
 	atype atype.ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
-	fn Func[any, Out],
-) *ActionDef[any, Out, struct{}] {
+	fn Func[In, Out],
+) *ActionDef[In, Out, struct{}] {
 	return defineAction(r, provider, name, atype, metadata, inputSchema,
-		func(ctx context.Context, in any, _ noStream) (Out, error) {
+		func(ctx context.Context, in In, _ noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }

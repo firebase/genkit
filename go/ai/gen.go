@@ -399,7 +399,6 @@ type TraceMetadata struct {
 }
 
 // EmbedderInfo represents the structure of the embedder information object.
-// It mirrors the Zod schema EmbedderInfoSchema.
 type EmbedderInfo struct {
 	// Friendly label for this model (e.g. "Google AI - Gemini Pro")
 	Label string `json:"label,omitempty"`
@@ -419,6 +418,6 @@ type EmbedderSupports struct {
 }
 
 type EmbedderOptions struct {
-	ConfigSchema map[string]any `json:"configSchema,omitempty"`
-	Info         *EmbedderInfo  `json:"info,omitempty"`
+	ConfigSchema any           `json:"configSchema,omitempty"`
+	Info         *EmbedderInfo `json:"info,omitempty"`
 }
