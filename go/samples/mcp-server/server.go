@@ -1,0 +1,132 @@
+// Run with: go run server.go
+package main
+
+import (
+	"context"
+	"crypto/md5"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/mcp"
+)
+
+func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	g, err := genkit.Init(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Tool 1: Encode/decode text
+	genkit.DefineTool(g, "text_encode", "Encode or decode text using various methods",
+		func(ctx *ai.ToolContext, input struct {
+			Text   string `json:"text" description:"Text to encode/decode"`
+			Method string `json:"method" description:"Method: base64_encode, base64_decode, url_encode"`
+		}) (map[string]interface{}, error) {
+			switch input.Method {
+			case "base64_encode":
+				encoded := base64.StdEncoding.EncodeToString([]byte(input.Text))
+				return map[string]interface{}{
+					"original": input.Text,
+					"method":   input.Method,
+					"result":   encoded,
+				}, nil
+			case "base64_decode":
+				decoded, err := base64.StdEncoding.DecodeString(input.Text)
+				if err != nil {
+					return nil, fmt.Errorf("invalid base64: %v", err)
+				}
+				return map[string]interface{}{
+					"original": input.Text,
+					"method":   input.Method,
+					"result":   string(decoded),
+				}, nil
+			case "url_encode":
+				encoded := strings.ReplaceAll(input.Text, " ", "%20")
+				encoded = strings.ReplaceAll(encoded, "&", "%26")
+				return map[string]interface{}{
+					"original": input.Text,
+					"method":   input.Method,
+					"result":   encoded,
+				}, nil
+			default:
+				return nil, fmt.Errorf("unsupported method: %s", input.Method)
+			}
+		})
+
+	// Tool 2: Generate hashes
+	genkit.DefineTool(g, "hash_generate", "Generate hash values for text",
+		func(ctx *ai.ToolContext, input struct {
+			Text string `json:"text" description:"Text to hash"`
+			Type string `json:"type" description:"Hash type: md5, sha256"`
+		}) (map[string]interface{}, error) {
+			switch input.Type {
+			case "md5":
+				hash := md5.Sum([]byte(input.Text))
+				return map[string]interface{}{
+					"original": input.Text,
+					"type":     input.Type,
+					"hash":     hex.EncodeToString(hash[:]),
+				}, nil
+			case "sha256":
+				hash := sha256.Sum256([]byte(input.Text))
+				return map[string]interface{}{
+					"original": input.Text,
+					"type":     input.Type,
+					"hash":     hex.EncodeToString(hash[:]),
+				}, nil
+			default:
+				return nil, fmt.Errorf("unsupported hash type: %s", input.Type)
+			}
+		})
+
+	// Tool 3: Fetch URL content
+	genkit.DefineTool(g, "fetch_url", "Fetch content from a URL",
+		func(ctx *ai.ToolContext, input struct {
+			URL string `json:"url" description:"URL to fetch content from"`
+		}) (map[string]interface{}, error) {
+			resp, err := http.Get(input.URL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch URL: %v", err)
+			}
+			defer resp.Body.Close()
+
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read response body: %v", err)
+			}
+
+			return map[string]interface{}{
+				"url":     input.URL,
+				"status":  resp.StatusCode,
+				"content": string(body),
+				"headers": resp.Header,
+				"length":  len(body),
+			}, nil
+		})
+
+	// Start MCP server
+	server := mcp.NewMCPServer(g, mcp.MCPServerOptions{
+		Name: "text-utilities",
+	})
+
+	log.Printf("Starting server with tools: %v", server.ListRegisteredTools())
+	log.Println("Ready! Run: go run client.go")
+
+	if err := server.ServeStdio(ctx); err != nil && err != context.Canceled {
+		log.Fatalf("Server error: %v", err)
+	}
+}
