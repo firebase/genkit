@@ -597,7 +597,7 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 //	resp, err := genkit.Generate(ctx, g,
 //		ai.WithModelName("googleai/gemini-2.0-flash"),
 //		ai.WithPrompt("Write a short poem about clouds."),
-//		ai.WithConfig(&googlegenai.GeminiConfig{MaxOutputTokens: 50}),
+//		ai.WithConfig(&genai.GenerateContentConfig{MaxOutputTokens: 50}),
 //	)
 //	if err != nil {
 //		log.Fatalf("Generate failed: %v", err)

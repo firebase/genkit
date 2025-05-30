@@ -32,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 // The tests here only work with an API key set to a valid value.
@@ -229,10 +230,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPrompt("write a summary of the content"),
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}))
+			ai.WithPrompt("write a summary of the content"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -254,9 +252,6 @@ func TestGoogleAILive(t *testing.T) {
 		}
 
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
@@ -348,8 +343,8 @@ func TestGoogleAILive(t *testing.T) {
 	t.Run("image generation", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-preview-image-generation")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(googlegenai.GeminiConfig{
-				ResponseModalities: []googlegenai.Modality{googlegenai.ImageMode, googlegenai.TextMode},
+			ai.WithConfig(genai.GenerateContentConfig{
+				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
 			ai.WithMessages(
 				ai.NewUserTextMessage("generate an image of a dog wearing a black tejana while playing the accordion"),
@@ -410,11 +405,11 @@ func TestGoogleAILive(t *testing.T) {
 	t.Run("thinking", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(googlegenai.GeminiConfig{
-				Temperature: 0.4,
-				ThinkingConfig: &googlegenai.ThinkingConfig{
+			ai.WithConfig(genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.4),
+				ThinkingConfig: &genai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  100,
+					ThinkingBudget:  genai.Ptr[int32](100),
 				},
 			}),
 			ai.WithModel(m),
@@ -426,17 +421,17 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal("nil response obtanied")
 		}
 		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
-			t.Fatal("thoughts tokens should not be zero or greater than 100")
+			t.Fatalf("thoughts tokens should not be zero or greater than 100, got: %d", resp.Usage.ThoughtsTokens)
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(googlegenai.GeminiConfig{
-				Temperature: 0.4,
-				ThinkingConfig: &googlegenai.ThinkingConfig{
+			ai.WithConfig(genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.4),
+				ThinkingConfig: &genai.ThinkingConfig{
 					IncludeThoughts: false,
-					ThinkingBudget:  0,
+					ThinkingBudget:  genai.Ptr[int32](0),
 				},
 			}),
 			ai.WithModel(m),

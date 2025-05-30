@@ -22,7 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 type chatSessionInput struct {
@@ -75,8 +75,8 @@ Do you have any questions about the menu?`),
 		ai.WithModel(m),
 		ai.WithInputType(dataMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.3,
+		ai.WithConfig(&genai.GenerateContentConfig{
+			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)
 	if err != nil {
