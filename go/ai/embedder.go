@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -43,13 +42,13 @@ func DefineEmbedder(
 	provider, name string,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
-	return (*embedder)(core.DefineAction(r, provider, name, atype.Embedder, nil, embed))
+	return (*embedder)(core.DefineAction(r, provider, name, core.ActionTypeEmbedder, nil, embed))
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(r *registry.Registry, provider, name string) Embedder {
-	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, atype.Embedder, provider, name)
+	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, provider, name)
 	if action == nil {
 		return nil
 	}
