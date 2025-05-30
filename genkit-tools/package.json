@@ -10,7 +10,8 @@
     "pack:all": "pnpm run pack:cli && pnpm run pack:telemetry-server && pnpm run pack:common",
     "pack:common": "cd common && pnpm pack --pack-destination ../../dist",
     "pack:cli": "cd cli && pnpm pack --pack-destination ../../dist",
-    "pack:telemetry-server": "cd telemetry-server && pnpm pack --pack-destination ../../dist"
+    "pack:telemetry-server": "cd telemetry-server && pnpm pack --pack-destination ../../dist",
+    "package:binaries": "pnpm run build && echo \"Building for macOS (Apple Silicon, arm64)...\" && bun build cli/src/bin/genkit.ts --compile --outfile dist/genkit-bun-macos-arm64 --target bun-darwin-arm64 && echo \"Building for macOS (Intel, x64)...\" && bun build cli/src/bin/genkit.ts --compile --outfile dist/genkit-bun-macos-x64 --target bun-darwin-x64 && echo \"Building for Linux (x64)...\" && bun build cli/src/bin/genkit.ts --compile --outfile dist/genkit-bun-linux-x64 --target bun-linux-x64 && echo \"Building for Windows (x64)...\" && bun build cli/src/bin/genkit.ts --compile --outfile dist/genkit-bun-windows-x64.exe --target bun-windows-x64 && echo \"Binary packaging complete.\""
   },
   "devDependencies": {
     "json-schema": "^0.4.0",

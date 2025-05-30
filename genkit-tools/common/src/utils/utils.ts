@@ -144,15 +144,34 @@ export async function checkServerHealth(url: string): Promise<boolean> {
   try {
     const response = await fetch(`${url}/api/__health`);
     return response.status === 200;
-  } catch (error) {
+  } catch (error: any) {
+    // Catch as 'any' for broader inspection
+    // Log the actual error received during health check for debugging
+    logger.debug(
+      `Health check for ${url} failed. Error type: ${typeof error}, Error:`,
+      error
+    );
+
+    // Check for ECONNREFUSED more safely
     if (
-      error instanceof Error &&
+      error &&
+      error.cause &&
+      typeof error.cause === 'object' &&
       (error.cause as any).code === 'ECONNREFUSED'
     ) {
       return false;
     }
+    // If it's any other error during fetch, also consider it unhealthy for this check's purpose
+    // or if it's not an Error instance with a cause.
+    // The original code would return `true` here, which seems wrong.
+    // If fetch fails for *any* reason, the server is not healthy from this check's POV.
+    return false;
   }
-  return true;
+  // This line should not be reached if the try block has a return or the catch block has a return.
+  // However, to satisfy TypeScript if it thinks not all paths return, and as a fallback:
+  // But logically, if fetch succeeds, it returns from try. If it fails, it returns from catch.
+  // The original code had `return true` here, which would mean if an error (not ECONNREFUSED) occurred, it was considered healthy.
+  // Let's stick to: if fetch fails, it's false.
 }
 
 /**
@@ -210,17 +229,17 @@ export async function retriable<T>(
 
   let attempt = 0;
   while (true) {
+    attempt++;
     try {
       return await fn();
     } catch (e) {
-      if (attempt >= maxRetries - 1) {
+      if (attempt >= maxRetries) {
         throw e;
       }
       if (delayMs > 0) {
         await new Promise((r) => setTimeout(r, delayMs));
       }
     }
-    attempt++;
   }
 }
 
@@ -250,7 +269,7 @@ export async function writeToolsInfoFile(url: string, projectRoot?: string) {
     await fs.writeFile(toolsJsonPath, JSON.stringify(serverInfo, null, 2));
     logger.debug(`Tools Info file written: ${toolsJsonPath}`);
   } catch (error) {
-    logger.info('Error writing tools config', error);
+    logger.info('Error writing tools config file:', error);
   }
 }
 

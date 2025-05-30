@@ -360,6 +360,12 @@ export class RuntimeManager {
       const watcher = chokidar.watch(serversDir, {
         persistent: true,
         ignoreInitial: false,
+        usePolling: true, // Force polling
+        interval: 400, // Poll every 400ms
+        awaitWriteFinish: {
+          stabilityThreshold: 3000, // Wait 3s after last write to consider it stable
+          pollInterval: 100, // Check stability every 100ms (for awaitWriteFinish)
+        },
       });
       watcher.on('add', (filePath) => this.handleNewDevUi(filePath));
       if (this.manageHealth) {
@@ -385,7 +391,7 @@ export class RuntimeManager {
           const toolsInfo = JSON.parse(content) as DevToolsInfo;
           return { content, toolsInfo };
         },
-        { maxRetries: 10, delayMs: 500 }
+        { maxRetries: 20, delayMs: 750 } // Increased retries and delay
       );
 
       if (isValidDevToolsInfo(toolsInfo)) {
