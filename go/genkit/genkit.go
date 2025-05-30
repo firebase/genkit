@@ -420,6 +420,11 @@ func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.Mod
 // It returns the model instance if found, or `nil` if no model with the
 // given identifier is registered (e.g., via [DefineModel] or a plugin).
 func LookupModel(g *Genkit, provider, name string) ai.Model {
+	m := ai.LookupModel(g.reg, provider, name)
+	if m != nil {
+		return m
+	}
+
 	plugins := g.reg.ListPlugins()
 	if plugins == nil {
 		return nil
@@ -437,8 +442,8 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 		if err != nil {
 			return nil
 		}
-
 	}
+
 	return ai.LookupModel(g.reg, provider, name)
 }
 
