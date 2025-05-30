@@ -22,6 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -36,14 +37,33 @@ type Embedder interface {
 // An embedder is used to convert a document to a multidimensional vector.
 type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 
+func configToMap(config any) map[string]any {
+	schema := base.InferJSONSchema(config)
+	result := base.SchemaAsMap(schema)
+	return result
+}
+
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
 func DefineEmbedder(
 	r *registry.Registry,
 	provider, name string,
+	options *EmbedderOptions,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
-	return (*embedder)(core.DefineAction(r, provider, name, atype.Embedder, nil, embed))
+	metadata := map[string]any{}
+	metadata["type"] = "embedder"
+	metadata["info"] = options.Info
+	if options.ConfigSchema != nil {
+		metadata["embedder"] = map[string]any{"customOptions": configToMap(options.ConfigSchema)}
+	}
+	inputSchema := base.InferJSONSchema(EmbedRequest{})
+	if inputSchema.Properties != nil && options.ConfigSchema != nil {
+		if _, ok := inputSchema.Properties.Get("options"); ok {
+			inputSchema.Properties.Set("options", base.InferJSONSchema(options.ConfigSchema))
+		}
+	}
+	return (*embedder)(core.DefineActionWithInputSchema(r, provider, name, atype.Embedder, metadata, inputSchema, embed))
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
