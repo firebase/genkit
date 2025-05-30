@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -62,25 +61,25 @@ func DefineIndexer(r *registry.Registry, provider, name string, fn IndexerFunc) 
 	wrappedFn := func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, fn(ctx, req)
 	}
-	return (*indexer)(core.DefineAction(r, provider, name, atype.Indexer, nil, wrappedFn))
+	return (*indexer)(core.DefineAction(r, provider, name, core.ActionTypeIndexer, nil, wrappedFn))
 }
 
 // LookupIndexer looks up an [Indexer] registered by [DefineIndexer].
 // It returns nil if the model was not defined.
 func LookupIndexer(r *registry.Registry, provider, name string) Indexer {
-	return (*indexer)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](r, atype.Indexer, provider, name))
+	return (*indexer)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](r, core.ActionTypeIndexer, provider, name))
 }
 
 // DefineRetriever registers the given retrieve function as an action, and returns a
 // [Retriever] that runs it.
 func DefineRetriever(r *registry.Registry, provider, name string, fn RetrieverFunc) Retriever {
-	return (*retriever)(core.DefineAction(r, provider, name, atype.Retriever, nil, fn))
+	return (*retriever)(core.DefineAction(r, provider, name, core.ActionTypeRetriever, nil, fn))
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It returns nil if the retriever was not defined.
 func LookupRetriever(r *registry.Registry, provider, name string) Retriever {
-	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, atype.Retriever, provider, name))
+	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, provider, name))
 }
 
 // Index runs the given [Indexer].
