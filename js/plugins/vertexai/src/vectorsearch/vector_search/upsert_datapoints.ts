@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { GoogleAuth } from 'google-auth-library';
-import { IIndexDatapoint } from './types';
+import type { GoogleAuth } from 'google-auth-library';
+import type { IIndexDatapoint } from './types';
 
 interface UpsertDatapointsParams {
   datapoints: IIndexDatapoint[];

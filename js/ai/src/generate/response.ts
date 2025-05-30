@@ -19,8 +19,8 @@ import {
   GenerationBlockedError,
   GenerationResponseError,
 } from '../generate.js';
-import { Message, MessageParser } from '../message.js';
-import {
+import { Message, type MessageParser } from '../message.js';
+import type {
   GenerateRequest,
   GenerateResponseData,
   GenerationUsage,

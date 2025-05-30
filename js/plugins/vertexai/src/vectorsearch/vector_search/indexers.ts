@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { Genkit, z } from 'genkit';
-import { IndexerAction, indexerRef } from 'genkit/retriever';
+import type { Genkit, z } from 'genkit';
+import { indexerRef, type IndexerAction } from 'genkit/retriever';
 import {
   Datapoint,
   VertexAIVectorIndexerOptionsSchema,
-  VertexVectorSearchOptions,
+  type VertexVectorSearchOptions,
 } from './types';
 import { upsertDatapoints } from './upsert_datapoints';
 

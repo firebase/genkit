@@ -17,12 +17,12 @@
 import * as trpcExpress from '@trpc/server/adapters/express';
 import * as bodyParser from 'body-parser';
 import * as clc from 'colorette';
-import express, { ErrorRequestHandler } from 'express';
-import { Server } from 'http';
+import express, { type ErrorRequestHandler } from 'express';
+import type { Server } from 'http';
 import os from 'os';
 import path from 'path';
-import { GenkitToolsError } from '../manager';
-import { RuntimeManager } from '../manager/manager';
+import type { GenkitToolsError } from '../manager';
+import type { RuntimeManager } from '../manager/manager';
 import { findProjectRoot, writeToolsInfoFile } from '../utils';
 import { logger } from '../utils/logger';
 import { toolsPackage } from '../utils/package';

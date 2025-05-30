@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
-import {
+import type { Genkit } from 'genkit';
+import type {
   BaseEvalDataPoint,
   EvalResponse,
   EvaluatorAction,
   Score,
 } from 'genkit/evaluator';
-import { ByoMetric } from '..';
+import type { ByoMetric } from '..';
 
 /** We allow multiple regex matchers to be defined. This is the prefix to use. */
 const REGEX_MATCH_NAME_PREFIX = 'REGEX_MATCH';

@@ -15,50 +15,50 @@
  */
 
 import {
-  EnhancedGenerateContentResponse,
-  FileDataPart,
   FunctionCallingMode,
-  FunctionCallPart,
-  FunctionDeclaration,
-  FunctionResponsePart,
-  GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
-  GenerateContentResponse,
-  GenerationConfig,
-  GenerativeModel,
   GoogleGenerativeAI,
-  GoogleSearchRetrievalTool,
-  InlineDataPart,
-  RequestOptions,
-  Schema,
   SchemaType,
-  StartChatParams,
-  Tool,
-  ToolConfig,
+  type EnhancedGenerateContentResponse,
+  type FileDataPart,
+  type FunctionCallPart,
+  type FunctionDeclaration,
+  type FunctionResponsePart,
+  type GenerateContentCandidate as GeminiCandidate,
+  type Content as GeminiMessage,
+  type Part as GeminiPart,
+  type GenerateContentResponse,
+  type GenerationConfig,
+  type GenerativeModel,
+  type GoogleSearchRetrievalTool,
+  type InlineDataPart,
+  type RequestOptions,
+  type Schema,
+  type StartChatParams,
+  type Tool,
+  type ToolConfig,
 } from '@google/generative-ai';
 import {
-  Genkit,
   GENKIT_CLIENT_HEADER,
   GenkitError,
-  JSONSchema,
   z,
+  type Genkit,
+  type JSONSchema,
 } from 'genkit';
 import {
-  CandidateData,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
-  MediaPart,
-  MessageData,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
   modelRef,
-  ModelReference,
-  Part,
-  ToolDefinitionSchema,
-  ToolRequestPart,
-  ToolResponsePart,
+  type CandidateData,
+  type MediaPart,
+  type MessageData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelReference,
+  type Part,
+  type ToolDefinitionSchema,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -715,7 +715,7 @@ export function toGeminiMessage(
       if (!aRef && !bRef) return 0;
       if (!aRef) return 1;
       if (!bRef) return -1;
-      return parseInt(aRef, 10) - parseInt(bRef, 10);
+      return Number.parseInt(aRef, 10) - Number.parseInt(bRef, 10);
     });
   }
   return {
@@ -750,7 +750,7 @@ function fromGeminiFinishReason(
 
 export function fromGeminiCandidate(
   candidate: GeminiCandidate,
-  jsonMode: boolean = false
+  jsonMode = false
 ): CandidateData {
   const parts = candidate.content?.parts || [];
   const genkitCandidate: CandidateData = {
@@ -993,7 +993,7 @@ export function defineGoogleAIModel({
         return fromGeminiCandidate(candidate, jsonMode);
       };
 
-      let chatRequest: StartChatParams = {
+      const chatRequest: StartChatParams = {
         systemInstruction,
         generationConfig,
         tools: tools.length ? tools : undefined,

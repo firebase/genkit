@@ -19,7 +19,7 @@ import { GenerationCommonConfigSchema, Message, z } from 'genkit';
 import type { ModelAction } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import type OpenAI from 'openai';
-import { type SpeechCreateParams } from 'openai/resources/audio/index.mjs';
+import type { SpeechCreateParams } from 'openai/resources/audio/index.mjs';
 
 export const TTSConfigSchema = GenerationCommonConfigSchema.extend({
   voice: z

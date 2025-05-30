@@ -15,24 +15,24 @@
  */
 
 import {
-  Action,
   GenkitError,
   defineAction,
   getStreamingCallback,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
   stripUndefinedProps,
-  z,
+  type Action,
+  type z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import {
   injectInstructions,
   resolveFormat,
   resolveInstructions,
 } from '../formats/index.js';
-import { Formatter } from '../formats/types.js';
+import type { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
@@ -40,24 +40,24 @@ import {
   tagAsPreamble,
 } from '../generate.js';
 import {
-  GenerateActionOptions,
   GenerateActionOptionsSchema,
-  GenerateActionOutputConfig,
-  GenerateRequest,
-  GenerateRequestSchema,
-  GenerateResponseChunkData,
   GenerateResponseChunkSchema,
-  GenerateResponseData,
   GenerateResponseSchema,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
-  ModelRequest,
-  Part,
-  Role,
   resolveModel,
+  type GenerateActionOptions,
+  type GenerateActionOutputConfig,
+  type GenerateRequest,
+  type GenerateRequestSchema,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelRequest,
+  type Part,
+  type Role,
 } from '../model.js';
-import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
+import { resolveTools, toToolDefinition, type ToolAction } from '../tool.js';
 import {
   assertValidToolNames,
   resolveResumeOption,
@@ -113,8 +113,8 @@ export async function generateHelper(
     messageIndex?: number;
   }
 ): Promise<GenerateResponseData> {
-  let currentTurn = options.currentTurn ?? 0;
-  let messageIndex = options.messageIndex ?? 0;
+  const currentTurn = options.currentTurn ?? 0;
+  const messageIndex = options.messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,

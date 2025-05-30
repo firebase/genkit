@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
-import { Instrumentation } from '@opentelemetry/instrumentation';
-import { Sampler } from '@opentelemetry/sdk-trace-base';
-import { JWTInput } from 'google-auth-library';
+import type { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
+import type { Sampler } from '@opentelemetry/sdk-trace-base';
+import type { JWTInput } from 'google-auth-library';
 
 /** Configuration options for the Google Cloud plugin. */
 export interface GcpTelemetryConfigOptions {

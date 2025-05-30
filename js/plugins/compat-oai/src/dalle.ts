@@ -19,9 +19,9 @@ import { GenerationCommonConfigSchema, Message, z } from 'genkit';
 import type { ModelAction } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import type OpenAI from 'openai';
-import {
-  type ImageGenerateParams,
-  type ImagesResponse,
+import type {
+  ImageGenerateParams,
+  ImagesResponse,
 } from 'openai/resources/images.mjs';
 
 export const DallE3ConfigSchema = GenerationCommonConfigSchema.extend({

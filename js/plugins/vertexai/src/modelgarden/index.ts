@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import type { Genkit } from 'genkit';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 import { getDerivedParams } from '../common/index.js';
 import { SUPPORTED_ANTHROPIC_MODELS, anthropicModel } from './anthropic.js';
 import { SUPPORTED_MISTRAL_MODELS, mistralModel } from './mistral.js';
@@ -23,7 +23,7 @@ import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
   modelGardenOpenaiCompatibleModel,
 } from './model_garden.js';
-import { PluginOptions } from './types.js';
+import type { PluginOptions } from './types.js';
 
 /**
  * Add Google Cloud Vertex AI Rerankers API to Genkit.

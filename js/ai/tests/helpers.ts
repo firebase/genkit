@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { StreamingCallback } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import type { StreamingCallback } from '@genkit-ai/core';
+import type { Registry } from '@genkit-ai/core/registry';
 import {
-  GenerateRequest,
-  GenerateResponseChunkData,
-  GenerateResponseData,
-  ModelAction,
-  ModelInfo,
   defineModel,
+  type GenerateRequest,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
+  type ModelAction,
+  type ModelInfo,
 } from '../src/model';
 
 export async function runAsync<O>(fn: () => O): Promise<O> {

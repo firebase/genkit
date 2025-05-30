@@ -15,11 +15,11 @@
  */
 
 import { z } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import * as assert from 'assert';
 import { generate } from '../generate';
-import { ModelAction } from '../model';
+import type { ModelAction } from '../model';
 import { defineTool } from '../tool';
 
 const tests: Record<string, TestCase> = {

@@ -17,45 +17,45 @@
 import {
   FunctionCallingMode,
   FunctionDeclarationSchemaType,
-  GoogleSearchRetrieval,
-  HarmBlockThreshold,
-  HarmCategory,
-  SafetySetting,
-  Schema,
-  StartChatParams,
-  ToolConfig,
-  VertexAI,
   type Content,
   type FunctionDeclaration,
   type Part as GeminiPart,
   type GenerateContentCandidate,
   type GenerateContentResponse,
   type GenerativeModelPreview,
+  type GoogleSearchRetrieval,
   type GoogleSearchRetrievalTool,
+  type HarmBlockThreshold,
+  type HarmCategory,
+  type SafetySetting,
+  type Schema,
+  type StartChatParams,
+  type ToolConfig,
+  type VertexAI,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
 import {
   GENKIT_CLIENT_HEADER,
-  Genkit,
   GenkitError,
-  JSONSchema,
   z,
+  type Genkit,
+  type JSONSchema,
 } from 'genkit';
 import {
-  CandidateData,
-  GenerateRequest,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
-  MediaPart,
-  MessageData,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
-  ModelReference,
-  Part,
-  ToolDefinitionSchema,
   getBasicUsageStats,
   modelRef,
+  type CandidateData,
+  type GenerateRequest,
+  type MediaPart,
+  type MessageData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelReference,
+  type Part,
+  type ToolDefinitionSchema,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -64,7 +64,7 @@ import {
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 
-import { PluginOptions } from './common/types.js';
+import type { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
 
@@ -705,7 +705,7 @@ export function toGeminiMessage(
       if (!aRef && !bRef) return 0;
       if (!aRef) return 1;
       if (!bRef) return -1;
-      return parseInt(aRef, 10) - parseInt(bRef, 10);
+      return Number.parseInt(aRef, 10) - Number.parseInt(bRef, 10);
     });
   }
   return {
@@ -1080,7 +1080,7 @@ export function defineGeminiModel({
         (request.output?.format === 'json' || !!request.output?.schema) &&
         tools.length === 0;
 
-      let chatRequest: StartChatParams = {
+      const chatRequest: StartChatParams = {
         systemInstruction,
         tools,
         toolConfig,

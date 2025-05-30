@@ -15,14 +15,14 @@
  */
 
 import {
-  DevToolsInfo,
   findServersDir,
   isValidDevToolsInfo,
   logger,
   waitUntilHealthy,
+  type DevToolsInfo,
 } from '@genkit-ai/tools-common/utils';
 import axios from 'axios';
-import { ChildProcess, spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import fs from 'fs/promises';

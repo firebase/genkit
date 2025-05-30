@@ -16,7 +16,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Runtime } from '../manager/types';
+import type { Runtime } from '../manager/types';
 import { logger } from './logger';
 
 export interface DevToolsInfo {

@@ -24,8 +24,8 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import {
-  MatDatepickerInputEvent,
   MatDatepickerModule,
+  type MatDatepickerInputEvent,
 } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';

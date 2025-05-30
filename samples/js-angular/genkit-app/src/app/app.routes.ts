@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Routes } from '@angular/router';
+import type { Routes } from '@angular/router';
 import { HomeComponent } from './home/home.component';
 import { ChatbotComponent } from './samples/chatbot/chatbot.component';
 import { StreamingJSONComponent } from './samples/streaming-json/streaming-json.component';

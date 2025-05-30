@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { JSONSchema } from '@genkit-ai/core';
-import { GenerateResponseChunk } from '../generate.js';
-import { Message } from '../message.js';
-import { ModelRequest } from '../model.js';
+import type { JSONSchema } from '@genkit-ai/core';
+import type { GenerateResponseChunk } from '../generate.js';
+import type { Message } from '../message.js';
+import type { ModelRequest } from '../model.js';
 
 export type OutputContentTypes = 'application/json' | 'text/plain';
 

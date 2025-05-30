@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { MessageData } from 'genkit';
+import type { MessageData } from 'genkit';
 
 const chatHistory: Record<string, MessageData[]> = {};
 

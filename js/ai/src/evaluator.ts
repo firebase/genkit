@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, z } from '@genkit-ai/core';
+import { defineAction, z, type Action } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { randomUUID } from 'crypto';
@@ -186,7 +186,7 @@ export function defineEvaluator<
       },
     },
     async (i) => {
-      let evalResponses: EvalResponses = [];
+      const evalResponses: EvalResponses = [];
       // This also populates missing testCaseIds
       const batches = getBatchedArray(i.dataset, i.batchSize);
 
@@ -346,7 +346,7 @@ function getBatchedArray<T extends { testCaseId?: string }>(
     size = batchSize;
   }
 
-  let batches: T[][] = [];
+  const batches: T[][] = [];
   for (var i = 0; i < arr.length; i += size) {
     batches.push(
       arr.slice(i, i + size).map((d) => ({

@@ -15,7 +15,7 @@
  */
 
 import { GENKIT_CLIENT_HEADER } from 'genkit';
-import { GoogleAuth } from 'google-auth-library';
+import type { GoogleAuth } from 'google-auth-library';
 
 // Gemini  model definition
 export interface Model {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
@@ -33,10 +33,13 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit';
+import { MessageSchema, genkit, z, type GenerateResponseData } from 'genkit';
 import { logger } from 'genkit/logging';
-import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
-import { PluginProvider } from 'genkit/plugin';
+import {
+  simulateConstrainedGeneration,
+  type ModelMiddleware,
+} from 'genkit/model';
+import type { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
 import wav from 'wav';
 
