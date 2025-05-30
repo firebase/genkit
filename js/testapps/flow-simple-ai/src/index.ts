@@ -1087,3 +1087,13 @@ ai.defineFlow('googleSearch', async (thing) => {
 
   return text;
 });
+
+ai.defineFlow('googleSearchRetrieval', async (thing) => {
+  const { text } = await ai.generate({
+    model: vertexAI.model('gemini-2.0-flash'),
+    prompt: `What is a banana?`,
+    config: { googleSearchRetrieval: {} },
+  });
+
+  return text;
+});
