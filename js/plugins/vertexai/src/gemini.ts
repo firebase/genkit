@@ -15,14 +15,9 @@
  */
 
 import {
-  Content,
   FunctionCallingMode,
-  FunctionDeclaration,
   FunctionDeclarationSchemaType,
-  Part as GeminiPart,
-  GenerateContentCandidate,
-  GenerateContentResponse,
-  GenerativeModelPreview,
+  GoogleSearchRetrieval,
   HarmBlockThreshold,
   HarmCategory,
   SafetySetting,
@@ -30,7 +25,13 @@ import {
   StartChatParams,
   ToolConfig,
   VertexAI,
-  type GoogleSearchRetrieval,
+  type Content,
+  type FunctionDeclaration,
+  type Part as GeminiPart,
+  type GenerateContentCandidate,
+  type GenerateContentResponse,
+  type GenerativeModelPreview,
+  type GoogleSearchRetrievalTool,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
 import {
@@ -1129,9 +1130,17 @@ export function defineGeminiModel({
 
       if (googleSearchRetrieval) {
         if (!updatedChatRequest.tools) updatedChatRequest.tools = [];
-        updatedChatRequest.tools.push({
-          googleSearchRetrieval: googleSearchRetrieval as GoogleSearchRetrieval,
-        });
+        // Gemini 1.5 models use googleSearchRetrieval, newer models use googleSearch.
+        if (modelName.startsWith('vertexai/gemini-1.5')) {
+          updatedChatRequest.tools.push({
+            googleSearchRetrieval:
+              googleSearchRetrieval as GoogleSearchRetrieval,
+          } as GoogleSearchRetrievalTool);
+        } else {
+          updatedChatRequest.tools.push({
+            googleSearch: googleSearchRetrieval as GoogleSearchRetrieval,
+          } as GoogleSearchRetrievalTool);
+        }
       }
 
       if (vertexRetrieval) {
