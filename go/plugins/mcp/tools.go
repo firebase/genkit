@@ -123,7 +123,7 @@ func (c *GenkitMCPClient) registerTool(ctx context.Context, g *genkit.Genkit, mc
 	inputSchemaForAI, err := c.getInputSchema(mcpTool)
 	if err != nil {
 		return nil, err
-	})
+	}
 
 	// Create the tool function that will handle execution
 	toolFunc := c.createToolFunction(mcpTool)
