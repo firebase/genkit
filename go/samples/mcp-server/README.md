@@ -43,6 +43,9 @@ Add this to your Claude Desktop MCP configuration file:
 
 
 ### Option B: Genkit MCP Client spawns the MCP Server
+
+First, change `client()` to `main()` in `go/samples/mcp-server/client.go`. Then follow the steps below:
+ 
 ```bash
 export GOOGLE_AI_API_KEY=your_key
 go run client.go

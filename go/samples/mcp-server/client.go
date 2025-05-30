@@ -11,7 +11,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/mcp"
 )
 
-func main() {
+func client() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI
