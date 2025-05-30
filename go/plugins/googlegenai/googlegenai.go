@@ -337,6 +337,7 @@ func (ga *GoogleAI) ListActions() []core.ActionDesc {
 			},
 		}
 		metadata["label"] = fmt.Sprintf("%s - %s", googleAILabelPrefix, name)
+
 		actions = append(actions, core.ActionDesc{
 			Type:     core.ActionTypeModel,
 			Name:     fmt.Sprintf("%s/%s", googleAIProvider, name),

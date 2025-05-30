@@ -256,6 +256,54 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 	}
 }
 
+// resolveModel tries to resolve a model from a [DynamicPlugin]
+// by registering it into the registry if not present
+func resolveModel(g *Genkit, input json.RawMessage) error {
+	var inputMap map[string]any
+	// NOTE: returning nil regardless of error.
+	// This is to allow all type of contents in [json.RawMessage]
+	// e.g. A flow that accepts a string as an input is a valid [json.RawMessage]
+	err := json.Unmarshal(input, &inputMap)
+	if err != nil {
+		return nil
+	}
+
+	modelName, ok := inputMap["model"].(string)
+	if !ok {
+		return core.NewError(core.INVALID_ARGUMENT, "model not provided")
+	}
+	provider, name, found := strings.Cut(modelName, "/")
+	if !found {
+		provider = ""
+	}
+
+	plugins := g.reg.ListPlugins()
+	for _, plugin := range plugins {
+		dp, ok := plugin.(DynamicPlugin)
+		if !ok {
+			continue
+		}
+		if dp.Name() != provider {
+			continue
+		}
+
+		for _, ads := range dp.ListActions() {
+			if ads.Name != modelName {
+				continue
+			}
+			// action found, no need to register it
+			if a := g.reg.LookupAction(ads.Key); a != nil {
+				return nil
+			}
+			if err := dp.ResolveAction(g, ads.Type, name); err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
 // handleRunAction looks up an action by name in the registry, runs it with the
 // provided JSON input, and writes back the JSON-marshaled request.
 func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
@@ -300,6 +348,10 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 		var contextMap core.ActionContext = nil
 		if body.Context != nil {
 			json.Unmarshal(body.Context, &contextMap)
+		}
+
+		if err = resolveModel(g, body.Input); err != nil {
+			return err
 		}
 
 		resp, err := runAction(ctx, g.reg, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
