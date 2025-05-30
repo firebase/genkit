@@ -115,18 +115,31 @@ export class LocalFileTraceStore implements TraceStore {
 
   async save(id: string, rawTrace: TraceData): Promise<void> {
     let trace = this.filter(rawTrace);
-    if (Object.keys(trace.spans).length === 0) {
-      return;
-    }
+    // if everything is filtered, it's probably the root.
+    const possibleRoot = Object.keys(trace.spans).length === 0;
     const mutex = this.getMutex(id);
     await mutex.waitForUnlock();
     const release = await mutex.acquire();
     try {
-      const existing = await this.load(id);
+      const existing = (await this.load(id)) || trace;
       if (existing) {
         Object.keys(trace.spans).forEach(
           (spanId) => (existing.spans[spanId] = trace.spans[spanId])
         );
+        // If it's one of those weird roots (internal span that we filter) we try to fix
+        // whoever was referencing it by making them root.
+        if (possibleRoot) {
+          Object.keys(existing.spans).forEach((spanId) => {
+            const span = existing.spans[spanId];
+            if (
+              possibleRoot &&
+              span.parentSpanId &&
+              !existing.spans[span.parentSpanId]
+            ) {
+              delete span.parentSpanId;
+            }
+          });
+        }
         existing.displayName = trace.displayName;
         existing.startTime = trace.startTime;
         existing.endTime = trace.endTime;
@@ -136,7 +149,7 @@ export class LocalFileTraceStore implements TraceStore {
         path.resolve(this.storeRoot, `${id}`),
         JSON.stringify(trace)
       );
-      const hasRootSpan = !!Object.values(rawTrace.spans).find(
+      const hasRootSpan = !!Object.values(trace.spans).find(
         (s) => !s.parentSpanId
       );
       if (this.index && hasRootSpan) {

@@ -40,6 +40,7 @@ export function span(
     instrumentationLibrary: { name: 'genkit' },
     spanKind: 'INTERNAL',
     attributes,
+    status: { code: 0 },
   } as SpanData;
 }
 
