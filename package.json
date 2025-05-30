@@ -48,7 +48,7 @@
       "genkit": "link:js/genkit"
     }
   },
-  "packageManager": "pnpm@10.8.1+sha256.d8b2ebbc65cf02c349eca6b45c9640b910f16b6adebdb7b926e9db440e47cac7",
+  "packageManager": "pnpm@10.11.0+sha256.a69e9cb077da419d47d18f1dd52e207245b29cac6e076acedbeb8be3b1a67bd7",
   "dependencies": {
     "genkit": "link:js/genkit"
   }
