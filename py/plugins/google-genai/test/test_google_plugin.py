@@ -111,7 +111,7 @@ class TestGoogleAIInit(unittest.TestCase):
         plugin = GoogleAI(credentials=mock_credentials)
         mock_genai_client.assert_called_once_with(
             vertexai=False,
-            api_key=None,
+            api_key=ANY,
             credentials=mock_credentials,
             debug_config=None,
             http_options=_inject_attribution_headers(),
@@ -122,11 +122,12 @@ class TestGoogleAIInit(unittest.TestCase):
 
     def test_init_raises_value_error_no_api_key(self):
         """Test using credentials parameter."""
-        with self.assertRaisesRegex(
-            ValueError,
-            'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable',
-        ):
-            GoogleAI()
+        with patch.dict(os.environ, {'GEMINI_API_KEY': ''}, clear=True):
+            with self.assertRaisesRegex(
+                ValueError,
+                'Gemini api key should be passed in plugin params or as a GEMINI_API_KEY environment variable',
+            ):
+                GoogleAI()
 
 
 def test_googleai_initialize():

@@ -252,13 +252,7 @@ class Registry:
             actions = {}
 
         for plugin_name in self._list_actions_resolvers:
-            actions_lister = self._list_actions_resolvers[plugin_name]
-
-            # TODO: Set all the list_actions plugins' methods as cached_properties.
-            if isinstance(actions_lister, list):
-                actions_list = actions_lister
-            else:
-                actions_list = actions_lister()
+            actions_list = self._list_actions_resolvers[plugin_name]()
 
             for _action in actions_list:
                 kind = _action.kind

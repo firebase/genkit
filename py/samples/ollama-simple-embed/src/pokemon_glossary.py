@@ -29,10 +29,8 @@ from pydantic import BaseModel
 from genkit.ai import Document, Genkit
 from genkit.plugins.ollama import Ollama, ollama_name
 from genkit.plugins.ollama.constants import OllamaAPITypes
-from genkit.plugins.ollama.models import (
-    EmbeddingModelDefinition,
-    ModelDefinition,
-)
+from genkit.plugins.ollama.embedders import EmbeddingDefinition
+from genkit.plugins.ollama.models import ModelDefinition
 from genkit.types import GenerateResponse
 
 logger = structlog.get_logger(__name__)
@@ -51,7 +49,7 @@ ai = Genkit(
                 )
             ],
             embedders=[
-                EmbeddingModelDefinition(
+                EmbeddingDefinition(
                     name=EMBEDDER_MODEL,
                     dimensions=512,
                 )
