@@ -14,9 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Callable
+
 from pydantic import BaseModel
 
-import ollama as ollama_api
 from genkit.blocks.embedding import EmbedRequest, EmbedResponse
 from genkit.types import Embedding
 
@@ -30,10 +31,10 @@ class EmbeddingDefinition(BaseModel):
 class OllamaEmbedder:
     def __init__(
         self,
-        client: ollama_api.AsyncClient,
+        client: Callable,
         embedding_definition: EmbeddingDefinition,
     ):
-        self.client = client
+        self.client = client()
         self.embedding_definition = embedding_definition
 
     async def embed(self, request: EmbedRequest) -> EmbedResponse:

@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Callable
 from typing import Any, Literal
 
 import structlog
@@ -56,8 +57,8 @@ class ModelDefinition(BaseModel):
 
 
 class OllamaModel:
-    def __init__(self, client: ollama_api.AsyncClient, model_definition: ModelDefinition):
-        self.client = client
+    def __init__(self, client: Callable, model_definition: ModelDefinition):
+        self.client = client()
         self.model_definition = model_definition
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:

@@ -16,8 +16,15 @@
 
 """Ollama Plugin for Genkit."""
 
+import asyncio
+from functools import cached_property, partial
+
+import structlog
+
 import ollama as ollama_api
 from genkit.ai import GenkitRegistry, Plugin
+from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
@@ -34,6 +41,7 @@ from genkit.plugins.ollama.models import (
 from genkit.types import GenerationCommonConfig
 
 OLLAMA_PLUGIN_NAME = 'ollama'
+logger = structlog.get_logger(__name__)
 
 
 def ollama_name(name: str) -> str:
@@ -80,7 +88,7 @@ class Ollama(Plugin):
         self.server_address = server_address or DEFAULT_OLLAMA_SERVER_URL
         self.request_headers = request_headers or {}
 
-        self.client = ollama_api.AsyncClient(host=self.server_address)
+        self.client = partial(ollama_api.AsyncClient, host=self.server_address)
 
     def initialize(self, ai: GenkitRegistry) -> None:
         """Initialize the Ollama plugin.
@@ -198,3 +206,47 @@ class Ollama(Plugin):
                 },
             },
         )
+
+    @cached_property
+    def list_actions(self) -> list[dict[str, str]]:
+        """."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        _client = self.client()
+        response = loop.run_until_complete(_client.list())
+
+        actions = []
+        for model in response.models:
+            _name = model.model
+            if 'embed' in _name:
+                actions.append(
+                    embedder_action_metadata(
+                        name=ollama_name(_name),
+                        config_schema=ollama_api.Options,
+                        info={
+                            'label': f'Ollama Embedding - {_name}',
+                            'dimensions': None,
+                            'supports': {
+                                'input': ['text'],
+                            },
+                        },
+                    )
+                )
+            else:
+                actions.append(
+                    model_action_metadata(
+                        name=ollama_name(_name),
+                        config_schema=GenerationCommonConfig,
+                        info={
+                            'label': f'Ollama - {_name}',
+                            'multiturn': True,
+                            'system_role': True,
+                            'tools': False,
+                        },
+                    )
+                )
+        return actions
