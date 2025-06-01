@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GenkitError } from '../types/error';
+import type { GenkitError } from '../types/error';
 
 export type Runtime = 'nodejs' | 'go' | undefined;
 

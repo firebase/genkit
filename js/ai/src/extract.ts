@@ -116,10 +116,7 @@ interface ExtractItemsResult {
  * Processes text from the cursor position and returns both complete items
  * and the new cursor position.
  */
-export function extractItems(
-  text: string,
-  cursor: number = 0
-): ExtractItemsResult {
+export function extractItems(text: string, cursor = 0): ExtractItemsResult {
   const items: unknown[] = [];
   let currentCursor = cursor;
 

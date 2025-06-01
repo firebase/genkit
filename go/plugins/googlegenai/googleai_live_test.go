@@ -346,7 +346,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-exp")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-preview-image-generation")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(googlegenai.GeminiConfig{
 				ResponseModalities: []googlegenai.Modality{googlegenai.ImageMode, googlegenai.TextMode},
@@ -362,15 +362,21 @@ func TestGoogleAILive(t *testing.T) {
 		if len(resp.Message.Content) == 0 {
 			t.Fatal("empty response")
 		}
-		part := resp.Message.Content[0]
-		if part.ContentType != "image/png" {
-			t.Errorf("expecting image/png content type but got: %q", part.ContentType)
+		foundMediaPart := false
+		for _, part := range resp.Message.Content {
+			if part.ContentType == "image/png" {
+				foundMediaPart = true
+				if part.Kind != ai.PartMedia {
+					t.Errorf("expecting part to be Media type but got: %q", part.Kind)
+				}
+				if part.Text == "" {
+					t.Error("empty response")
+				}
+			}
 		}
-		if part.Kind != ai.PartMedia {
-			t.Errorf("expecting part to be Media type but got: %q", part.Kind)
-		}
-		if part.Text == "" {
-			t.Errorf("empty response")
+
+		if !foundMediaPart {
+			t.Error("no media found in the response message")
 		}
 	})
 	t.Run("constrained generation", func(t *testing.T) {
@@ -399,6 +405,50 @@ func TestGoogleAILive(t *testing.T) {
 		}
 		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
 			t.Errorf("Empty usage stats %#v", *resp.Usage)
+		}
+	})
+	t.Run("thinking", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(googlegenai.GeminiConfig{
+				Temperature: 0.4,
+				ThinkingConfig: &googlegenai.ThinkingConfig{
+					IncludeThoughts: true,
+					ThinkingBudget:  100,
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("Analogize photosynthesis and growing up."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
+			t.Fatal("thoughts tokens should not be zero or greater than 100")
+		}
+	})
+	t.Run("thinking disabled", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(googlegenai.GeminiConfig{
+				Temperature: 0.4,
+				ThinkingConfig: &googlegenai.ThinkingConfig{
+					IncludeThoughts: false,
+					ThinkingBudget:  0,
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("Analogize photosynthesis and growing up."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		if resp.Usage.ThoughtsTokens > 0 {
+			t.Fatal("thoughts tokens should be zero")
 		}
 	})
 }

@@ -15,13 +15,13 @@
  */
 
 import {
-  GenerateResponse,
-  Genkit,
-  MessageData,
-  ModelArgument,
   PartSchema,
-  ToolArgument,
   z,
+  type GenerateResponse,
+  type Genkit,
+  type MessageData,
+  type ModelArgument,
+  type ToolArgument,
 } from 'genkit';
 import { GenerateResponseSchema } from 'genkit/model';
 

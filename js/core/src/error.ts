@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { Registry } from './registry.js';
+import type { Registry } from './registry.js';
 import { httpStatusCode, type StatusName } from './statusTypes.js';
 
-export { StatusName };
+export type { StatusName };
 
 export interface HttpErrorWireFormat {
   details?: unknown;

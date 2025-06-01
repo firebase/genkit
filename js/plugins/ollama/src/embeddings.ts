@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Document, EmbedderAction, Genkit } from 'genkit';
-import { EmbedRequest, EmbedResponse } from 'ollama';
-import { DefineOllamaEmbeddingParams, RequestHeaders } from './types.js';
+import type { Document, EmbedderAction, Genkit } from 'genkit';
+import type { EmbedRequest, EmbedResponse } from 'ollama';
+import type { DefineOllamaEmbeddingParams, RequestHeaders } from './types.js';
 
 async function toOllamaEmbedRequest(
   modelName: string,

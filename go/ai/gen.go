@@ -300,6 +300,11 @@ type RankedDocumentMetadata struct {
 	Score float64 `json:"score,omitempty"`
 }
 
+type reasoningPart struct {
+	Metadata  map[string]any `json:"metadata,omitempty"`
+	Reasoning string         `json:"reasoning,omitempty"`
+}
+
 type RerankerRequest struct {
 	Documents []*Document `json:"documents,omitempty"`
 	Options   any         `json:"options,omitempty"`

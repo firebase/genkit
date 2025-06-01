@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-import { JSONSchema } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
-import { OutputOptions } from '../generate.js';
-import { MessageData, TextPart } from '../model.js';
+import type { JSONSchema } from '@genkit-ai/core';
+import type { Registry } from '@genkit-ai/core/registry';
+import type { OutputOptions } from '../generate.js';
+import type { MessageData, TextPart } from '../model.js';
 import { arrayFormatter } from './array.js';
 import { enumFormatter } from './enum.js';
 import { jsonFormatter } from './json.js';
 import { jsonlFormatter } from './jsonl.js';
 import { textFormatter } from './text.js';
-import { type Formatter } from './types.js';
+import type { Formatter } from './types.js';
 
-export { type Formatter };
+export type { Formatter };
 
 export function defineFormat(
   registry: Registry,

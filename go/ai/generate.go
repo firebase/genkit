@@ -617,6 +617,22 @@ func (mr *ModelResponse) History() []*Message {
 	return append(mr.Request.Messages, mr.Message)
 }
 
+// Reasoning concatenates all reasoning parts present in the message
+func (mr *ModelResponse) Reasoning() string {
+	var sb strings.Builder
+	if mr.Message == nil {
+		return ""
+	}
+
+	for _, p := range mr.Message.Content {
+		if !p.IsReasoning() {
+			continue
+		}
+		sb.WriteString(p.Text)
+	}
+	return sb.String()
+}
+
 // Output unmarshals structured JSON output into the provided
 // struct pointer.
 func (mr *ModelResponse) Output(v any) error {

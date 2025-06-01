@@ -17,7 +17,7 @@
 import { z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Genkit, genkit } from '../src/genkit';
+import { genkit, type Genkit } from '../src/genkit';
 
 describe('flow', () => {
   let ai: Genkit;
@@ -44,7 +44,7 @@ describe('flow', () => {
     );
 
     const { stream, output } = streamingBananaFlow.stream('banana');
-    let chunks: string[] = [];
+    const chunks: string[] = [];
     for await (const chunk of stream) {
       chunks.push(chunk as string);
     }
@@ -68,7 +68,7 @@ describe('flow', () => {
     );
 
     const { stream, output } = streamingBananaFlow.stream('banana');
-    let chunks: string[] = [];
+    const chunks: string[] = [];
     for await (const chunk of stream) {
       chunks.push(chunk);
     }

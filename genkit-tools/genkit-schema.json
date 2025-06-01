@@ -24,6 +24,9 @@
         "custom": {
           "type": "object",
           "additionalProperties": {}
+        },
+        "reasoning": {
+          "not": {}
         }
       },
       "required": [
@@ -53,6 +56,9 @@
         "custom": {
           "type": "object",
           "additionalProperties": {}
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
         }
       },
       "additionalProperties": false
@@ -109,6 +115,9 @@
         },
         "custom": {
           "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
         }
       },
       "required": [
@@ -128,6 +137,39 @@
       },
       "required": [
         "url"
+      ],
+      "additionalProperties": false
+    },
+    "ReasoningPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/CustomPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/CustomPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
+        },
+        "data": {
+          "$ref": "#/$defs/CustomPart/properties/data"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reasoning"
       ],
       "additionalProperties": false
     },
@@ -154,6 +196,9 @@
         },
         "custom": {
           "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
         }
       },
       "required": [
@@ -184,6 +229,9 @@
         },
         "custom": {
           "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
         }
       },
       "required": [
@@ -230,6 +278,9 @@
         },
         "custom": {
           "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
         }
       },
       "required": [
@@ -1043,6 +1094,9 @@
         },
         {
           "$ref": "#/$defs/CustomPart"
+        },
+        {
+          "$ref": "#/$defs/ReasoningPart"
         }
       ]
     },

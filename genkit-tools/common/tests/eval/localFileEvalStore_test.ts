@@ -25,7 +25,11 @@ import {
 import fs from 'fs';
 import { Readable } from 'stream';
 import { LocalFileEvalStore } from '../../src/eval/localFileEvalStore';
-import { EvalResult, EvalRunSchema, EvalStore } from '../../src/types/eval';
+import {
+  EvalRunSchema,
+  type EvalResult,
+  type EvalStore,
+} from '../../src/types/eval';
 
 const EVAL_RESULTS: EvalResult[] = [
   {

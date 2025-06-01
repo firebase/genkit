@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { LLMResult } from '@langchain/core/outputs';
-import { Genkit, ModelArgument } from 'genkit';
+import type { LLMResult } from '@langchain/core/outputs';
+import type { Genkit, ModelArgument } from 'genkit';
 import { logger } from 'genkit/logging';
-import { ModelAction } from 'genkit/model';
-import { CallbackManagerForLLMRun } from 'langchain/callbacks';
+import type { ModelAction } from 'genkit/model';
+import type { CallbackManagerForLLMRun } from 'langchain/callbacks';
 import { BaseLLM } from 'langchain/llms/base';
 
 export function genkitModel(

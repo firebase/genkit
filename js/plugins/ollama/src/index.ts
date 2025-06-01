@@ -15,45 +15,45 @@
  */
 
 import {
-  ActionMetadata,
   embedderRef,
-  Genkit,
   modelActionMetadata,
-  ToolRequest,
-  ToolRequestPart,
-  ToolResponse,
   z,
+  type ActionMetadata,
   type EmbedderReference,
+  type Genkit,
   type ModelReference,
+  type ToolRequest,
+  type ToolRequestPart,
+  type ToolResponse,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
-  GenerateRequest,
-  GenerateResponseData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
-  MessageData,
-  ModelInfo,
   modelRef,
-  ToolDefinition,
+  type GenerateRequest,
+  type GenerateResponseData,
+  type MessageData,
+  type ModelInfo,
+  type ToolDefinition,
 } from 'genkit/model';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { ActionType } from 'genkit/registry';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import type { ActionType } from 'genkit/registry';
 import { defineOllamaEmbedder } from './embeddings.js';
-import {
+import type {
   ApiType,
   ListLocalModelsResponse,
   LocalModel,
   Message,
   ModelDefinition,
+  OllamaPluginParams,
   OllamaTool,
   OllamaToolCall,
   RequestHeaders,
-  type OllamaPluginParams,
 } from './types.js';
 
-export { type OllamaPluginParams };
+export type { OllamaPluginParams };
 
 export type OllamaPlugin = {
   (params?: OllamaPluginParams): GenkitPlugin;
