@@ -632,6 +632,7 @@ func variantKey(variant string) string {
 	return ""
 }
 
+// contentType determines the MIME content type of the given data URI
 func contentType(uri string) (string, error) {
 	if uri == "" {
 		return "", errors.New("found empty URI in part")

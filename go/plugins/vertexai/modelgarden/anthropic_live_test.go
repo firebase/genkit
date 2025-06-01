@@ -208,6 +208,7 @@ func TestAnthropicLive(t *testing.T) {
 }
 
 func fetchImgAsBase64() (string, error) {
+	// CC0 license image
 	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
@@ -219,7 +220,6 @@ func fetchImgAsBase64() (string, error) {
 		return "", err
 	}
 
-	// keep the img in memory
 	imageBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err

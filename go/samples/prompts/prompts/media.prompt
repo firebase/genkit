@@ -6,7 +6,7 @@ input:
   schema:
     imageUrl: string
 output:
-  character: string
+  animal: string
 ---
 Analyze the provided image of an animal, tell which animal is in the picture
 
