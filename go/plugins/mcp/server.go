@@ -19,11 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -89,23 +87,15 @@ func (s *GenkitMCPServer) loadExplicitTools() {
 
 // discoverTools discovers all tools from the Genkit registry
 func (s *GenkitMCPServer) discoverTools() {
-	// Get all actions from the registry
-	allActions := s.genkit.Registry().ListActions()
+	// Get all tools from the registry
+	allTools := genkit.ListTools(s.genkit)
 
 	var discoveredCount int
-	for _, actionDesc := range allActions {
-		// Filter for tool actions (key format: "/tool/{name}")
-		if strings.HasPrefix(actionDesc.Key, "/"+string(atype.Tool)+"/") {
-			// Extract tool name from key
-			toolName := strings.TrimPrefix(actionDesc.Key, "/"+string(atype.Tool)+"/")
-
-			// Lookup the actual tool
-			tool := genkit.LookupTool(s.genkit, toolName)
-			if tool != nil {
-				s.tools[toolName] = tool
-				discoveredCount++
-				slog.Debug("MCP Server: Discovered tool", "name", toolName)
-			}
+	for _, tool := range allTools {
+		if tool != nil {
+			s.tools[tool.Name()] = tool
+			discoveredCount++
+			slog.Debug("MCP Server: Discovered tool", "name", tool.Name())
 		}
 	}
 

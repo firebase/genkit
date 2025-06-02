@@ -373,6 +373,26 @@ func ListFlows(g *Genkit) []core.Action {
 	return flows
 }
 
+// ListTools returns a slice of all [ai.Tool] instances that are registered
+// with the Genkit instance `g`. This is useful for introspection and for
+// exposing tools to external systems like MCP servers.
+func ListTools(g *Genkit) []ai.Tool {
+	acts := g.reg.ListActions()
+	tools := []ai.Tool{}
+	for _, act := range acts {
+		if strings.HasPrefix(act.Key, "/"+string(atype.Tool)+"/") {
+			// Extract tool name from key
+			toolName := strings.TrimPrefix(act.Key, "/"+string(atype.Tool)+"/")
+			// Lookup the actual tool
+			tool := LookupTool(g, toolName)
+			if tool != nil {
+				tools = append(tools, tool)
+			}
+		}
+	}
+	return tools
+}
+
 // DefineModel defines a custom model implementation, registers it as a [core.Action]
 // of type Model, and returns an [ai.Model] interface.
 //
