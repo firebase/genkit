@@ -25,7 +25,6 @@ from pydantic import BaseModel
 
 from genkit.ai import ActionKind, Genkit
 from genkit.plugins.ollama import Ollama, ollama_name
-from genkit.plugins.ollama.constants import DEFAULT_OLLAMA_SERVER_URL
 from genkit.plugins.ollama.embedders import EmbeddingDefinition
 from genkit.plugins.ollama.models import ModelDefinition
 from genkit.types import GenerationCommonConfig
