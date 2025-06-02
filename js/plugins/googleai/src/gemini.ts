@@ -1180,8 +1180,10 @@ function toGeminiFunctionModeEnum(
 }
 
 /**
- * Aggregates an array of `GenerateContentResponse`s into a single
- * GenerateContentResponse.
+ * Aggregates an array of `GenerateContentResponse`s into a single GenerateContentResponse.
+ *
+ * This code is copy-pasted from https://github.com/google-gemini/deprecated-generative-ai-js/blob/8b14949a5e8f1f3dfc35c394ebf5b19e68f92a22/src/requests/stream-reader.ts#L153
+ * with a small (but critical) bug fix.
  */
 export function aggregateResponses(
   responses: GenerateContentResponse[]
