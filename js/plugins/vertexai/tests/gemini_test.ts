@@ -388,6 +388,102 @@ describe('fromGeminiCandidate', () => {
         },
       },
     },
+    {
+      should:
+        'should transform gemini candidate to genkit candidate (thought parts) correctly',
+      geminiCandidate: {
+        content: {
+          role: 'model',
+          parts: [
+            {
+              thought: true,
+              thoughtSignature: 'abc123',
+            },
+            {
+              thought: true,
+              text: 'thought with text',
+              thoughtSignature: 'def456',
+            },
+          ],
+        },
+        finishReason: 'STOP',
+        safetyRatings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.11858909,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.11456649,
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.13857833,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.11417085,
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.28012377,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.112405084,
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            probability: 'NEGLIGIBLE',
+          },
+        ],
+      },
+      expectedOutput: {
+        index: 0,
+        message: {
+          role: 'model',
+          content: [
+            {
+              reasoning: '',
+              metadata: { thoughtSignature: 'abc123' },
+            },
+            {
+              reasoning: 'thought with text',
+              metadata: { thoughtSignature: 'def456' },
+            },
+          ],
+        },
+        finishReason: 'stop',
+        finishMessage: undefined,
+        custom: {
+          citationMetadata: undefined,
+          safetyRatings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.11858909,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.11456649,
+            },
+            {
+              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.13857833,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.11417085,
+            },
+            {
+              category: 'HARM_CATEGORY_HARASSMENT',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.28012377,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.112405084,
+            },
+            {
+              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              probability: 'NEGLIGIBLE',
+            },
+          ],
+        },
+      },
+    },
   ];
   for (const test of testCases) {
     it(test.should, () => {
