@@ -738,7 +738,7 @@ function toGeminiPart(part: Part): GeminiPart {
   if (part.toolResponse) return toGeminiToolResponsePart(part);
   if (typeof part.reasoning === 'string') return toGeminiThought(part);
 
-  throw new Error('unsupported type');
+  throw new Error(`Unsupported Gemini part type: ${JSON.stringify(part)}`);
 }
 
 function fromGeminiInlineDataPart(part: GeminiPart): MediaPart {
