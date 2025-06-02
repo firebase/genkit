@@ -736,7 +736,7 @@ function toGeminiPart(part: Part): GeminiPart {
   if (part.media) return toGeminiFileDataPart(part);
   if (part.toolRequest) return toGeminiToolRequestPart(part);
   if (part.toolResponse) return toGeminiToolResponsePart(part);
-  if (typeof part.reasoning === 'string') return toThought(part);
+  if (typeof part.reasoning === 'string') return toGeminiThought(part);
 
   throw new Error('unsupported type');
 }
@@ -761,7 +761,7 @@ function fromGeminiInlineDataPart(part: GeminiPart): MediaPart {
   };
 }
 
-function toThought(part: Part) {
+function toGeminiThought(part: Part) {
   const outPart: any = { thought: true };
   if (part.metadata?.thoughtSignature)
     outPart.thoughtSignature = part.metadata.thoughtSignature;
@@ -824,7 +824,7 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref?: string
 ): Part {
-  if ('thought' in part) return fromThought(part as any);
+  if ('thought' in part) return fromGeminiThought(part as any);
   if (typeof part.text === 'string') return { text: part.text };
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
@@ -859,7 +859,7 @@ export function fromGeminiCandidate(
   return genkitCandidate;
 }
 
-function fromThought(part: {
+function fromGeminiThought(part: {
   thought: boolean;
   text?: string;
   thoughtSignature?: string;
