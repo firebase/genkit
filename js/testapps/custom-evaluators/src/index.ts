@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { Genkit, ModelReference, genkit, z } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { genkit, type Genkit, type ModelReference, type z } from 'genkit';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 import {
   PERMISSIVE_SAFETY_SETTINGS,
   URL_REGEX,
@@ -31,10 +31,10 @@ import {
 } from './funniness/funniness_evaluator.js';
 import { PII_DETECTION, createPiiEvaluator } from './pii/pii_evaluator.js';
 import {
-  RegexMetric,
   createRegexEvaluators,
   isRegexMetric,
   regexMatcher,
+  type RegexMetric,
 } from './regex/regex_evaluator.js';
 
 export const ai = genkit({

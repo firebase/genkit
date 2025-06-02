@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import type { Genkit } from 'genkit';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 import { getDerivedParams } from '../common/index.js';
-import { PluginOptions } from './types.js';
+import type { PluginOptions } from './types.js';
 import { vertexAiIndexers, vertexAiRetrievers } from './vector_search/index.js';
-export { type PluginOptions } from '../common/types.js';
+export type { PluginOptions } from '../common/types.js';
 export {
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,

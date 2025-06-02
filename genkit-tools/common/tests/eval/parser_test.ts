@@ -21,10 +21,10 @@ import {
 } from '../../src/eval';
 import {
   EvalMetricSchema,
-  EvalResult,
   EvalStatusEnum,
+  type EvalResult,
 } from '../../src/types/eval';
-import { EvalFnResponse, EvalResponse } from '../../src/types/evaluator';
+import type { EvalFnResponse, EvalResponse } from '../../src/types/evaluator';
 
 describe('parser', () => {
   const evalRunResults: EvalResult[] = [
@@ -702,7 +702,7 @@ function reMapScores(
     evaluator?: string
   ) => EvalFnResponse
 ): Record<string, EvalResponse> {
-  let remapped: Record<string, EvalResponse> = {};
+  const remapped: Record<string, EvalResponse> = {};
 
   for (const [evaluator, scores] of Object.entries(scoresMap)) {
     remapped[evaluator] = scores.map((score, index) =>
@@ -716,7 +716,7 @@ function mockScores(
   scoresMap: Record<string, EvalResponse>,
   mockedScores: any[] | Record<string, any[]>
 ): Record<string, EvalResponse> {
-  let remapped: Record<string, EvalResponse> = {};
+  const remapped: Record<string, EvalResponse> = {};
 
   for (const [evaluator, scores] of Object.entries(scoresMap)) {
     remapped[evaluator] = scores.map((score, index) => {

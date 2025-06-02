@@ -15,49 +15,50 @@
  */
 
 import {
-  EnhancedGenerateContentResponse,
-  FileDataPart,
   FunctionCallingMode,
-  FunctionCallPart,
-  FunctionDeclaration,
-  FunctionResponsePart,
-  GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
-  GenerateContentResponse,
-  GenerationConfig,
-  GenerativeModel,
   GoogleGenerativeAI,
-  InlineDataPart,
-  RequestOptions,
-  Schema,
   SchemaType,
-  StartChatParams,
-  Tool,
-  ToolConfig,
+  type EnhancedGenerateContentResponse,
+  type FileDataPart,
+  type FunctionCallPart,
+  type FunctionDeclaration,
+  type FunctionResponsePart,
+  type GenerateContentCandidate as GeminiCandidate,
+  type Content as GeminiMessage,
+  type Part as GeminiPart,
+  type GenerateContentResponse,
+  type GenerationConfig,
+  type GenerativeModel,
+  type GoogleSearchRetrievalTool,
+  type InlineDataPart,
+  type RequestOptions,
+  type Schema,
+  type StartChatParams,
+  type Tool,
+  type ToolConfig,
 } from '@google/generative-ai';
 import {
-  Genkit,
   GENKIT_CLIENT_HEADER,
   GenkitError,
-  JSONSchema,
   z,
+  type Genkit,
+  type JSONSchema,
 } from 'genkit';
 import {
-  CandidateData,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
-  MediaPart,
-  MessageData,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
   modelRef,
-  ModelReference,
-  Part,
-  ToolDefinitionSchema,
-  ToolRequestPart,
-  ToolResponsePart,
+  type CandidateData,
+  type MediaPart,
+  type MessageData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelReference,
+  type Part,
+  type ToolDefinitionSchema,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -130,6 +131,12 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .describe(
       'The modalities to be used in response. Only supported for ' +
         "'gemini-2.0-flash-exp' model at present."
+    )
+    .optional(),
+  googleSearchRetrieval: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
     )
     .optional(),
 }).passthrough();
@@ -683,7 +690,12 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref: string
 ): Part {
-  if (part.text !== undefined) return { text: part.text };
+  if (part.text !== undefined) {
+    if ((part as any).thought === true) {
+      return { reasoning: part.text };
+    }
+    return { text: part.text };
+  }
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);
@@ -703,7 +715,7 @@ export function toGeminiMessage(
       if (!aRef && !bRef) return 0;
       if (!aRef) return 1;
       if (!bRef) return -1;
-      return parseInt(aRef, 10) - parseInt(bRef, 10);
+      return Number.parseInt(aRef, 10) - Number.parseInt(bRef, 10);
     });
   }
   return {
@@ -738,7 +750,7 @@ function fromGeminiFinishReason(
 
 export function fromGeminiCandidate(
   candidate: GeminiCandidate,
-  jsonMode: boolean = false
+  jsonMode = false
 ): CandidateData {
   const parts = candidate.content?.parts || [];
   const genkitCandidate: CandidateData = {
@@ -810,7 +822,7 @@ export function defineGoogleAIModel({
         status: 'FAILED_PRECONDITION',
         message:
           'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
+          'For more details see https://genkit.dev/docs/plugins/google-genai',
       });
     }
   }
@@ -916,6 +928,8 @@ export function defineGoogleAIModel({
         codeExecution: codeExecutionFromConfig,
         version: versionFromConfig,
         functionCallingConfig,
+        googleSearchRetrieval,
+        tools: toolsFromConfig,
         ...restOfConfigOptions
       } = requestConfig;
 
@@ -926,6 +940,17 @@ export function defineGoogleAIModel({
               ? {}
               : request.config.codeExecution,
         });
+      }
+
+      if (toolsFromConfig) {
+        tools.push(...(toolsFromConfig as any[]));
+      }
+
+      if (googleSearchRetrieval) {
+        tools.push({
+          googleSearch:
+            googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
       }
 
       let toolConfig: ToolConfig | undefined;
@@ -968,7 +993,7 @@ export function defineGoogleAIModel({
         return fromGeminiCandidate(candidate, jsonMode);
       };
 
-      let chatRequest: StartChatParams = {
+      const chatRequest: StartChatParams = {
         systemInstruction,
         generationConfig,
         tools: tools.length ? tools : undefined,

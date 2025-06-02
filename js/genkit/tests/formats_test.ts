@@ -17,7 +17,7 @@
 import { stripUndefinedProps } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { GenkitBeta, genkit } from '../src/beta';
+import { genkit, type GenkitBeta } from '../src/beta';
 import { defineEchoModel } from './helpers';
 
 describe('formats', () => {

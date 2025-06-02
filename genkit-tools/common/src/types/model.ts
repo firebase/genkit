@@ -15,19 +15,20 @@
  */
 import { z } from 'zod';
 import {
-  CustomPart,
   CustomPartSchema,
-  DataPart,
   DataPartSchema,
   DocumentDataSchema,
-  MediaPart,
   MediaPartSchema,
-  TextPart,
+  ReasoningPartSchema,
   TextPartSchema,
-  ToolRequestPart,
   ToolRequestPartSchema,
-  ToolResponsePart,
   ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from './document';
 export {
   CustomPartSchema,
@@ -58,6 +59,7 @@ export const PartSchema = z.union([
   ToolResponsePartSchema,
   DataPartSchema,
   CustomPartSchema,
+  ReasoningPartSchema,
 ]);
 
 /**

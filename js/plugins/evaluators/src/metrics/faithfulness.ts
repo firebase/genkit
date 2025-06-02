@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-import { Genkit, ModelArgument, z } from 'genkit';
-import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
+import { z, type Genkit, type ModelArgument } from 'genkit';
+import {
+  EvalStatusEnum,
+  type BaseEvalDataPoint,
+  type Score,
+} from 'genkit/evaluator';
 import path from 'path';
 import { getDirName, loadPromptFile, renderText } from './helper.js';
 
@@ -79,7 +83,7 @@ export async function faithfulnessScore<
       },
     });
     const parsedLongFormResponse = longFormResponse.output;
-    let statements = parsedLongFormResponse?.statements ?? [];
+    const statements = parsedLongFormResponse?.statements ?? [];
     if (statements.length === 0) {
       throw new Error('No statements returned');
     }

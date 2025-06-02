@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
+import type { Genkit } from 'genkit';
 import { RankedDocument, rerankerRef } from 'genkit/reranker';
 import { DEFAULT_MODEL, getRerankEndpoint } from './constants.js';
-import { VertexAIRerankerOptionsSchema, VertexRerankOptions } from './types.js';
+import {
+  VertexAIRerankerOptionsSchema,
+  type VertexRerankOptions,
+} from './types.js';
 
 /**
  * Creates Vertex AI rerankers.

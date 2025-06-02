@@ -1,6 +1,6 @@
 {
   "name": "run",
-  "commands": [{"run" :{"name": "r", "command": {"append": "x"}}}],
+  "commands": [{ "run": { "name": "r", "command": { "append": "x" } } }],
   "input": "",
   "result": "x",
   "trace": {
@@ -27,8 +27,8 @@
           "version": "v1"
         },
         "spanKind": "INTERNAL",
-        "sameProcessAsParentSpan": {"value": true},
-        "status": {"code": 0}
+        "sameProcessAsParentSpan": { "value": true },
+        "status": { "code": 0 }
       },
       "8c4373e87a4a4207": {
         "spanId": "8c4373e87a4a4207",

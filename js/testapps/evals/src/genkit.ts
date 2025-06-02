@@ -15,7 +15,7 @@
  */
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import {
   gemini15Flash,
   gemini15Pro,
@@ -24,8 +24,8 @@ import {
 } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import {
-  vertexAIEvaluation,
   VertexAIEvaluationMetricType,
+  vertexAIEvaluation,
 } from '@genkit-ai/vertexai/evaluation';
 import { genkit } from 'genkit';
 import { langchain } from 'genkitx-langchain';

@@ -16,10 +16,10 @@
 
 import { BaseTracer, type Run } from '@langchain/core/tracers/base';
 import {
-  Span as ApiSpan,
   SpanStatusCode,
   context,
   trace,
+  type Span as ApiSpan,
 } from '@opentelemetry/api';
 
 const TRACER_NAME = 'genkit-tracer';

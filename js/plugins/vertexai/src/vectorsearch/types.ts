@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { EmbedderReference, z } from 'genkit';
-import { CommonPluginOptions } from '../common/types.js';
-import { VectorSearchOptions } from './vector_search/index.js';
+import type { EmbedderReference, z } from 'genkit';
+import type { CommonPluginOptions } from '../common/types.js';
+import type { VectorSearchOptions } from './vector_search/index.js';
 
 /** Options specific to vector search configuration */
 export interface VectorSearchOptionsConfig {

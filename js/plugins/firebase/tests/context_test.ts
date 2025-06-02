@@ -15,12 +15,12 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { RequestData } from 'genkit/context';
+import type { RequestData } from 'genkit/context';
 import {
-  FirebaseContext,
   fakeToken,
   firebaseContext,
   setDebugSkipTokenVerification,
+  type FirebaseContext,
 } from '../src/context';
 
 function request(headers: Record<string, string> = {}): RequestData {

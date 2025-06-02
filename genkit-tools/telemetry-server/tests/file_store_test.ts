@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TraceData, TraceQueryFilter } from '@genkit-ai/tools-common';
+import type { TraceData, TraceQueryFilter } from '@genkit-ai/tools-common';
 import * as assert from 'assert';
 import getPort from 'get-port';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -319,6 +319,7 @@ describe('index', () => {
         name: 'spanB',
         start: 2345,
         end: 3456,
+        status: 0,
       },
       {
         id: TRACE_ID_1,
@@ -326,6 +327,7 @@ describe('index', () => {
         name: 'spanA',
         start: 1234,
         end: 2345,
+        status: 0,
       },
     ]);
   });
@@ -374,6 +376,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
         {
           id: TRACE_ID_1,
@@ -381,6 +384,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
       ]
     );
@@ -399,6 +403,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
       ]
     );
@@ -418,6 +423,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
       ]
     );
@@ -469,6 +475,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
       ]
     );
