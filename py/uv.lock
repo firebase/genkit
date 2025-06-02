@@ -16,6 +16,7 @@ members = [
     "genkit",
     "genkit-plugin-compat-oai",
     "genkit-plugin-dev-local-vectorstore",
+    "genkit-plugin-evaluators",
     "genkit-plugin-firebase",
     "genkit-plugin-flask",
     "genkit-plugin-google-cloud",
@@ -1075,6 +1076,23 @@ requires-dist = [
     { name = "pytest-asyncio" },
     { name = "pytest-mock" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.15" },
+]
+
+[[package]]
+name = "genkit-plugin-evaluators"
+version = "0.0.1.dev1"
+source = { editable = "plugins/evaluators" }
+dependencies = [
+    { name = "genkit" },
+    { name = "jsonata-python" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "genkit", editable = "packages/genkit" },
+    { name = "jsonata-python", specifier = ">=0.5.3" },
+    { name = "pydantic", specifier = ">=2.10.5" },
 ]
 
 [[package]]
@@ -2158,6 +2176,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/12/be/c6c745ec4c4539b25a278b70e29793f10382947df0d9efba2fa09120895d/json5-0.12.0.tar.gz", hash = "sha256:0b4b6ff56801a1c7dc817b0241bca4ce474a0e6a163bfef3fc594d3fd263ff3a", size = 51907, upload-time = "2025-04-03T16:33:13.201Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/41/9f/3500910d5a98549e3098807493851eeef2b89cdd3032227558a104dfe926/json5-0.12.0-py3-none-any.whl", hash = "sha256:6d37aa6c08b0609f16e1ec5ff94697e2cbbfbad5ac112afa05794da9ab7810db", size = 36079, upload-time = "2025-04-03T16:33:11.927Z" },
+]
+
+[[package]]
+name = "jsonata-python"
+version = "0.5.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/d1/9455e5ef09044a550500b32ff276a30f44928ab84b2db9ef13352bffd154/jsonata_python-0.5.3.tar.gz", hash = "sha256:c83f45127f8dc45e5ca5f20fd8b8635f094ef6bbb2d203a75bdde11ffece61e2", size = 338742 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/70/e7e92230b832e8b4ee2ee1ed0725be39991ef10bd0983e753226115a3bcb/jsonata_python-0.5.3-py3-none-any.whl", hash = "sha256:e7bd58020441fec198858fd1bc22bb9837a5ce281c41899f79750519fa6cef9f", size = 83045 },
 ]
 
 [[package]]
