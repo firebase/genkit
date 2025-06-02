@@ -268,9 +268,17 @@ func resolveModel(g *Genkit, input json.RawMessage) error {
 		return nil
 	}
 
+	var modelName string
+	var found bool
 	modelName, ok := inputMap["model"].(string)
 	if !ok {
-		return core.NewError(core.INVALID_ARGUMENT, "model not provided")
+		// reflection API tests do not set "model" attribute but it is provided in the key
+		if key, ok := inputMap["key"].(string); ok {
+			modelName, found = strings.CutPrefix(key, "model/")
+			if !found {
+				return core.NewError(core.INVALID_ARGUMENT, "model not provided")
+			}
+		}
 	}
 	provider, name, found := strings.Cut(modelName, "/")
 	if !found {
