@@ -19,35 +19,35 @@ import { createReadStream } from 'fs';
 import { readFile } from 'fs/promises';
 import * as inquirer from 'inquirer';
 import { createInterface } from 'readline';
-import { RuntimeManager } from '../manager';
+import type { RuntimeManager } from '../manager';
 import {
-  EvalField,
-  EvaluationExtractor,
-  InputStepSelector,
-  OutputStepSelector,
-  StepSelector,
   findToolsConfig,
   isEvalField,
+  type EvalField,
+  type EvaluationExtractor,
+  type InputStepSelector,
+  type OutputStepSelector,
+  type StepSelector,
 } from '../plugin';
 import {
-  Action,
-  Dataset,
   DatasetSchema,
-  DocumentData,
-  EvalInputDataset,
   EvalInputDatasetSchema,
   EvaluationDatasetSchema,
-  EvaluationSample,
   EvaluationSampleSchema,
-  GenerateRequest,
   GenerateRequestSchema,
   InferenceDatasetSchema,
-  InferenceSample,
   InferenceSampleSchema,
-  MessageData,
-  NestedSpanData,
-  RetrieverResponse,
-  TraceData,
+  type Action,
+  type Dataset,
+  type DocumentData,
+  type EvalInputDataset,
+  type EvaluationSample,
+  type GenerateRequest,
+  type InferenceSample,
+  type MessageData,
+  type NestedSpanData,
+  type RetrieverResponse,
+  type TraceData,
 } from '../types';
 import { logger } from './logger';
 import { stackTraceSpans } from './trace';
@@ -178,7 +178,7 @@ function getExtractorFromStepSelector(
 ): EvalExtractorFn {
   return (trace: TraceData) => {
     let stepName: string | undefined = undefined;
-    let selectedAttribute: string = 'genkit:output'; // default
+    let selectedAttribute = 'genkit:output'; // default
 
     if (Object.hasOwn(stepSelector, 'inputOf')) {
       stepName = (stepSelector as InputStepSelector).inputOf;
@@ -196,7 +196,7 @@ function getExtractorFromStepSelector(
 }
 
 function getExtractorMap(extractor: EvaluationExtractor) {
-  let extractorMap: Record<EvalField, EvalExtractorFn> = {} as Record<
+  const extractorMap: Record<EvalField, EvalExtractorFn> = {} as Record<
     EvalField,
     EvalExtractorFn
   >;
@@ -317,7 +317,7 @@ async function readLines(fileName: string): Promise<string[]> {
   const fileStream = createReadStream(fileName);
   const rl = createInterface({
     input: fileStream,
-    crlfDelay: Infinity,
+    crlfDelay: Number.POSITIVE_INFINITY,
   });
 
   for await (const line of rl) {
@@ -362,4 +362,61 @@ export function getModelInput(data: any, modelConfig: any): GenerateRequest {
       );
     }
   }
+}
+
+/**
+ * Helper method to groupBy an array of objects, replaces lodash equivalent.
+ */
+export function groupBy(
+  arr: any[],
+  criteria: ((i: any) => any) | string
+): Record<string, any[]> {
+  return arr.reduce((obj, item) => {
+    const key =
+      typeof criteria === 'function' ? criteria(item) : item[criteria];
+
+    if (!obj.hasOwnProperty(key)) {
+      obj[key] = [];
+    }
+    obj[key].push(item);
+
+    return obj;
+  }, {});
+}
+
+/**
+ * Helper method to countBy an array of objects, replaces lodash equivalent.
+ */
+export function countBy(
+  arr: any[],
+  criteria: ((i: any) => any) | string
+): Record<string, number> {
+  return arr.reduce((acc, item) => {
+    const key =
+      typeof criteria === 'function' ? criteria(item) : item[criteria];
+    acc[key] = (acc[key] || 0) + 1;
+
+    return acc;
+  }, {});
+}
+
+/**
+ * Helper method to meanBy an array of objects, replaces lodash equivalent.
+ */
+export function meanBy(
+  arr: any[],
+  criteria: ((i: any) => any) | string
+): number | undefined {
+  if (!arr || arr.length === 0) {
+    return undefined;
+  }
+
+  let sum = 0;
+  for (const item of arr) {
+    const value =
+      typeof criteria === 'function' ? criteria(item) : item[criteria];
+    sum += value;
+  }
+
+  return sum / arr.length;
 }

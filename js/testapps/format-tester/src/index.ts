@@ -21,7 +21,7 @@ import {
   claude35SonnetV2,
   vertexAIModelGarden,
 } from '@genkit-ai/vertexai/modelgarden';
-import { Flow, GenerateOptions, genkit, z } from 'genkit';
+import { genkit, z, type Flow, type GenerateOptions } from 'genkit';
 import { logger } from 'genkit/logging';
 
 logger.setLogLevel('debug');

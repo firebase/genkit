@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { TraceData } from '../../src/types';
+import type { TraceData } from '../../src/types';
 import { stackTraceSpans } from '../../src/utils';
 import { BASE_FLOW_SPAN_ID, MockTrace } from './trace';
 

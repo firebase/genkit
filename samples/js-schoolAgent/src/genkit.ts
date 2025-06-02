@@ -16,7 +16,7 @@
 
 import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit/beta';
-import { AgentState } from './types';
+import type { AgentState } from './types';
 
 export const ai = genkit({
   plugins: [googleAI()],

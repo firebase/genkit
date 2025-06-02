@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {
+import type {
   EvalInput,
   EvalInputDataset,
   TraceData,
@@ -51,14 +51,14 @@ export const evalExtractData = new Command('eval:extractData')
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
       let dataset: EvalInputDataset = [];
       let continuationToken = undefined;
-      while (dataset.length < parseInt(options.maxRows)) {
+      while (dataset.length < Number.parseInt(options.maxRows)) {
         const response = await manager.listTraces({
-          limit: parseInt(options.maxRows),
+          limit: Number.parseInt(options.maxRows),
           continuationToken,
         });
         continuationToken = response.continuationToken;
         const traces = response.traces;
-        let batch: EvalInput[] = traces
+        const batch: EvalInput[] = traces
           .map((t) => {
             const rootSpan = Object.values(t.spans).find(
               (s) =>
@@ -88,8 +88,8 @@ export const evalExtractData = new Command('eval:extractData')
           })
           .filter((result): result is EvalInput => !!result);
         batch.forEach((d) => dataset.push(d));
-        if (dataset.length > parseInt(options.maxRows)) {
-          dataset = dataset.splice(0, parseInt(options.maxRows));
+        if (dataset.length > Number.parseInt(options.maxRows)) {
+          dataset = dataset.splice(0, Number.parseInt(options.maxRows));
           break;
         }
         if (!continuationToken) {

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { GenerateContentCandidate } from '@google-cloud/vertexai';
+import type { GenerateContentCandidate } from '@google-cloud/vertexai';
 import * as assert from 'assert';
-import { MessageData, z } from 'genkit';
+import { z, type MessageData } from 'genkit';
 import { toJsonSchema } from 'genkit/schema';
 import { describe, it } from 'node:test';
 import {

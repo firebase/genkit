@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
@@ -153,7 +154,7 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 // It returns an error if the model was not defined.
 func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	if modelName == "" {
-		return nil, errors.New("ai.LookupModelByName: model not specified")
+		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.LookupModelByName: model not specified")
 	}
 
 	provider, name, found := strings.Cut(modelName, "/")
@@ -165,9 +166,9 @@ func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	model := LookupModel(r, provider, name)
 	if model == nil {
 		if provider == "" {
-			return nil, fmt.Errorf("ai.LookupModelByName: no model named %q", name)
+			return nil, core.NewError(core.NOT_FOUND, "ai.LookupModelByName: model %q not found", name)
 		}
-		return nil, fmt.Errorf("ai.LookupModelByName: no model named %q for provider %q", name, provider)
+		return nil, core.NewError(core.NOT_FOUND, "ai.LookupModelByName: model %q by provider %q not found", name, provider)
 	}
 
 	return model, nil
@@ -180,7 +181,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			opts.Model = defaultModel
 		}
 		if opts.Model == "" {
-			return nil, errors.New("ai.GenerateWithRequest: model is required")
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: model is required")
 		}
 	}
 
@@ -193,12 +194,12 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
 		if _, ok := toolDefMap[t]; ok {
-			return nil, fmt.Errorf("ai.GenerateWithRequest: duplicate tool found: %q", t)
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: duplicate tool %q", t)
 		}
 
 		tool := LookupTool(r, t)
 		if tool == nil {
-			return nil, fmt.Errorf("ai.GenerateWithRequest: tool not found: %q", t)
+			return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: tool %q not found", t)
 		}
 
 		toolDefMap[t] = tool.Definition()
@@ -210,7 +211,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 	maxTurns := opts.MaxTurns
 	if maxTurns < 0 {
-		return nil, fmt.Errorf("ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns)
+		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.GenerateWithRequest: max turns must be greater than 0, got %d", maxTurns)
 	}
 	if maxTurns == 0 {
 		maxTurns = 5 // Default max turns.
@@ -276,7 +277,8 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			resp.Message, err = formatHandler.ParseMessage(resp.Message)
 			if err != nil {
 				logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
-				return nil, fmt.Errorf("model failed to generate output matching expected schema: %w", err)
+				return nil, core.NewError(core.INTERNAL, "model failed to generate output matching expected schema: %v", err)
+
 			}
 		}
 
@@ -291,7 +293,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		}
 
 		if currentTurn+1 > maxTurns {
-			return nil, fmt.Errorf("exceeded maximum tool call iterations (%d)", maxTurns)
+			return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
 		}
 
 		newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
@@ -318,7 +320,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
 		if err := opt.applyGenerate(genOpts); err != nil {
-			return nil, fmt.Errorf("ai.Generate: error applying options: %w", err)
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: error applying options: %v", err)
 		}
 	}
 
@@ -421,7 +423,7 @@ func (m *model) Name() string {
 // Generate applies the [Action] to provided request.
 func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
-		return nil, errors.New("Model.Generate: generate called on a nil model; check that all models are defined")
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Model.Generate: generate called on a nil model; check that all models are defined")
 	}
 
 	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)
@@ -478,12 +480,12 @@ func cloneMessage(m *Message) *Message {
 		panic(fmt.Sprintf("failed to marshal message: %v", err))
 	}
 
-	var copy Message
-	if err := json.Unmarshal(bytes, &copy); err != nil {
+	var msgCopy Message
+	if err := json.Unmarshal(bytes, &msgCopy); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal message: %v", err))
 	}
 
-	return &copy
+	return &msgCopy
 }
 
 // handleToolRequests processes any tool requests in the response, returning
@@ -520,7 +522,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 			toolReq := p.ToolRequest
 			tool := LookupTool(r, toolReq.Name)
 			if tool == nil {
-				resultChan <- toolResult{idx, nil, fmt.Errorf("tool %q not found", toolReq.Name)}
+				resultChan <- toolResult{idx, nil, core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
 				return
 			}
 
@@ -538,7 +540,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 					resultChan <- toolResult{idx, nil, interruptErr}
 					return
 				}
-				resultChan <- toolResult{idx, nil, fmt.Errorf("tool %q failed: %w", toolReq.Name, err)}
+				resultChan <- toolResult{idx, nil, core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
 				return
 			}
 
@@ -555,7 +557,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 	var toolResponses []*Part
 	hasInterrupts := false
-	for i := 0; i < toolCount; i++ {
+	for range toolCount {
 		result := <-resultChan
 		if result.err != nil {
 			var interruptErr *ToolInterruptError
@@ -591,7 +593,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	}
 
 	newReq := req
-	newReq.Messages = append(append([]*Message{}, req.Messages...), resp.Message, toolMessage)
+	newReq.Messages = append(slices.Clone(req.Messages), resp.Message, toolMessage)
 
 	return newReq, nil, nil
 }
@@ -613,6 +615,22 @@ func (mr *ModelResponse) History() []*Message {
 		return mr.Request.Messages
 	}
 	return append(mr.Request.Messages, mr.Message)
+}
+
+// Reasoning concatenates all reasoning parts present in the message
+func (mr *ModelResponse) Reasoning() string {
+	var sb strings.Builder
+	if mr.Message == nil {
+		return ""
+	}
+
+	for _, p := range mr.Message.Content {
+		if !p.IsReasoning() {
+			continue
+		}
+		sb.WriteString(p.Text)
+	}
+	return sb.String()
 }
 
 // Output unmarshals structured JSON output into the provided

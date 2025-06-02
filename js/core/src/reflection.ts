@@ -17,7 +17,7 @@
 import express from 'express';
 import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
-import { Server } from 'http';
+import type { Server } from 'http';
 import path from 'path';
 import * as z from 'zod';
 import {
@@ -27,7 +27,7 @@ import {
 } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
-import { Registry } from './registry.js';
+import type { Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
 import { flushTracing, setTelemetryServerUrl } from './tracing.js';
 
@@ -109,7 +109,7 @@ export class ReflectionServer {
     const server = express();
 
     server.use(express.json({ limit: this.options.bodyLimit }));
-    server.use(function (req, res, next) {
+    server.use((req, res, next) => {
       res.header('x-genkit-version', GENKIT_VERSION);
       next();
     });
@@ -128,10 +128,10 @@ export class ReflectionServer {
     server.get('/api/actions', async (_, response, next) => {
       logger.debug('Fetching actions.');
       try {
-        const actions = await this.registry.listActions();
+        const actions = await this.registry.listResolvableActions();
         const convertedActions = {};
         Object.keys(actions).forEach((key) => {
-          const action = actions[key].__action;
+          const action = actions[key];
           convertedActions[key] = {
             key,
             name: action.name,

@@ -15,9 +15,9 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { GenerateRequest } from 'genkit/model';
+import type { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
-import { GeminiConfigSchema } from '../gemini.js';
+import type { GeminiConfigSchema } from '../gemini.js';
 import { CLOUD_PLATFORM_OAUTH_SCOPE } from './constants.js';
 import type { PluginOptions } from './types.js';
 export type { PluginOptions };

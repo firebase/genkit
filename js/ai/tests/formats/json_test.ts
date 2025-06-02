@@ -22,7 +22,10 @@ import { configureFormats } from '../../src/formats/index.js';
 import { jsonFormatter } from '../../src/formats/json.js';
 import { GenerateResponseChunk, generateStream } from '../../src/generate.js';
 import { Message } from '../../src/message.js';
-import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
+import type {
+  GenerateResponseChunkData,
+  MessageData,
+} from '../../src/model.js';
 import { defineProgrammableModel, runAsync } from '../helpers.js';
 
 describe('jsonFormat', () => {
@@ -143,7 +146,7 @@ describe('jsonFormat e2e', () => {
   });
 
   it('injects the instructions into the request', async () => {
-    let pm = defineProgrammableModel(registry);
+    const pm = defineProgrammableModel(registry);
     pm.handleResponse = async (req, sc) => {
       await runAsync(() => sc?.({ content: [{ text: '```\n{' }] }));
       await runAsync(() => sc?.({ content: [{ text: '"foo": "b' }] }));

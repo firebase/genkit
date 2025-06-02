@@ -91,7 +91,7 @@ from contextvars import ContextVar
 from functools import cached_property
 from typing import Any
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 
 from genkit.aio import Channel, ensure_async
 from genkit.core.error import GenkitError
@@ -455,6 +455,20 @@ class Action:
         else:
             self._output_schema = TypeAdapter(Any).json_schema()
             self._metadata[ActionMetadataKey.OUTPUT_KEY] = self._output_schema
+
+
+class ActionMetadata(BaseModel):
+    """Metadata for actions."""
+
+    kind: ActionKind
+    name: str
+    description: str | None = None
+    input_schema: Any | None = None
+    input_json_schema: dict[str, Any] | None = None
+    output_schema: Any | None = None
+    output_json_schema: dict[str, Any] | None = None
+    stream_schema: Any | None = None
+    metadata: dict[str, Any] | None = None
 
 
 _SyncTracingWrapper = Callable[[Any | None, ActionRunContext], ActionResponse]

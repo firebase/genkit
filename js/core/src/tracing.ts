@@ -18,10 +18,10 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
-  SpanProcessor,
+  type SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { logger } from './logging.js';
-import { TelemetryConfig } from './telemetryTypes.js';
+import type { TelemetryConfig } from './telemetryTypes.js';
 import {
   TraceServerExporter,
   setTelemetryServerUrl,

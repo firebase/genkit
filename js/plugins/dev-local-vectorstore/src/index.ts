@@ -16,15 +16,15 @@
 
 import similarity from 'compute-cosine-similarity';
 import * as fs from 'fs';
-import { Embedding, Genkit, z } from 'genkit';
-import { EmbedderArgument } from 'genkit/embedder';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { z, type Embedding, type Genkit } from 'genkit';
+import type { EmbedderArgument } from 'genkit/embedder';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 import {
   CommonRetrieverOptionsSchema,
   Document,
-  DocumentData,
   indexerRef,
   retrieverRef,
+  type DocumentData,
 } from 'genkit/retriever';
 import { Md5 } from 'ts-md5';
 

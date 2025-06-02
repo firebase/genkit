@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { EvaluatorAction, Genkit, ModelArgument, z } from 'genkit';
-import { GenerationCommonConfigSchema } from 'genkit/model';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { Criteria } from 'langchain/evaluation';
+import type { EvaluatorAction, Genkit, ModelArgument, z } from 'genkit';
+import type { GenerationCommonConfigSchema } from 'genkit/model';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import type { Criteria } from 'langchain/evaluation';
 import { langchainEvaluator } from './evaluators';
 
 export { GenkitTracer } from './tracing.js';

@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-import { Genkit, ModelArgument, z } from 'genkit';
-import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
+import { z, type Genkit, type ModelArgument } from 'genkit';
+import {
+  EvalStatusEnum,
+  type BaseEvalDataPoint,
+  type Score,
+} from 'genkit/evaluator';
 import path from 'path';
 import { getDirName, loadPromptFile, renderText } from './helper.js';
 
@@ -24,11 +28,13 @@ const LongFormResponseSchema = z.object({ statements: z.array(z.string()) });
 const NliResponseBaseSchema = z.object({
   statement: z.string(),
   reason: z.string(),
-  verdict: z.enum(['0', '1'] as const),
+  verdict: z.boolean(),
 });
 
 type NliResponseBase = z.infer<typeof NliResponseBaseSchema>;
-const NliResponseSchema = z.array(NliResponseBaseSchema);
+const NliResponseSchema = z.object({
+  responses: z.array(NliResponseBaseSchema),
+});
 
 /**
  *
@@ -77,7 +83,7 @@ export async function faithfulnessScore<
       },
     });
     const parsedLongFormResponse = longFormResponse.output;
-    let statements = parsedLongFormResponse?.statements ?? [];
+    const statements = parsedLongFormResponse?.statements ?? [];
     if (statements.length === 0) {
       throw new Error('No statements returned');
     }
@@ -97,7 +103,7 @@ export async function faithfulnessScore<
       },
     });
     const parsedResponse = response.output;
-    return nliResponseToScore(parsedResponse);
+    return nliResponseToScore(parsedResponse?.responses ?? []);
   } catch (err) {
     console.debug(
       `Genkit faithfulness evaluation failed with error ${err} for sample ${JSON.stringify(
@@ -113,7 +119,7 @@ function nliResponseToScore(input: NliResponseBase[] | null): Score {
     throw new Error(`Evaluator response empty`);
   }
   const faithfulStatements = input.reduce((total, resp) => {
-    return total + (resp.verdict === '1' ? 1 : 0);
+    return total + (resp.verdict ? 1 : 0);
   }, 0);
   const score = faithfulStatements / input.length;
   return {

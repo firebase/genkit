@@ -19,7 +19,7 @@ import type {
   Resource,
   ResourceTemplate,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
-import { Genkit, z } from 'genkit';
+import { z, type Genkit } from 'genkit';
 import type { McpClientOptions } from '../index.js';
 
 export async function registerResourceTools(

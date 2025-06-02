@@ -14,7 +14,9 @@ from genkit.blocks.model import (
     PartCounts,
     get_basic_usage_stats,
     get_part_counts,
+    model_action_metadata,
 )
+from genkit.core.action import ActionMetadata
 from genkit.core.typing import (
     Candidate,
     GenerateRequest,
@@ -453,3 +455,17 @@ def test_response_wrapper_interrupts() -> None:
             tool_request=ToolRequest(name='tool2', input={'bcd': 4}), metadata={'interrupt': {'banana': 'yes'}}
         )
     ]
+
+
+def test_model_action_metadata():
+    """Test for model_action_metadata."""
+    action_metadata = model_action_metadata(
+        name='test_model',
+        info={'label': 'test_label'},
+        config_schema=None,
+    )
+
+    assert isinstance(action_metadata, ActionMetadata)
+    assert action_metadata.input_json_schema is not None
+    assert action_metadata.output_json_schema is not None
+    assert action_metadata.metadata == {'model': {'customOptions': None, 'label': 'test_label'}}

@@ -29,7 +29,9 @@ export interface Task<T> {
 /** Utility for creating Tasks. */
 function createTask<T>(): Task<T> {
   let resolve: unknown, reject: unknown;
-  let promise = new Promise<T>((res, rej) => ([resolve, reject] = [res, rej]));
+  const promise = new Promise<T>(
+    (res, rej) => ([resolve, reject] = [res, rej])
+  );
   return {
     resolve: resolve as Task<T>['resolve'],
     reject: reject as Task<T>['reject'],

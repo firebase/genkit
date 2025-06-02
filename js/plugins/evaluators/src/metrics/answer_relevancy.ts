@@ -15,16 +15,20 @@
  */
 
 import similarity from 'compute-cosine-similarity';
-import { Genkit, ModelArgument, z } from 'genkit';
-import { EmbedderArgument } from 'genkit/embedder';
-import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
+import { z, type Genkit, type ModelArgument } from 'genkit';
+import type { EmbedderArgument } from 'genkit/embedder';
+import {
+  EvalStatusEnum,
+  type BaseEvalDataPoint,
+  type Score,
+} from 'genkit/evaluator';
 import path from 'path';
 import { getDirName, loadPromptFile, renderText } from './helper.js';
 
 const AnswerRelevancyResponseSchema = z.object({
   question: z.string(),
-  answered: z.enum(['0', '1'] as const),
-  noncommittal: z.enum(['0', '1'] as const),
+  answered: z.boolean(),
+  noncommittal: z.boolean(),
 });
 
 export async function answerRelevancyScore<
@@ -93,8 +97,8 @@ export async function answerRelevancyScore<
       })
     )[0].embedding; // Single embedding for text
     const score = cosineSimilarity(questionEmbed, genQuestionEmbed);
-    const answered = response.output?.answered === '1' ? 1 : 0;
-    const isNonCommittal = response.output?.noncommittal === '1' ? 1 : 0;
+    const answered = response.output?.answered ?? false;
+    const isNonCommittal = response.output?.noncommittal ?? false;
     const answeredPenalty = !answered ? 0.5 : 0;
     const adjustedScore =
       score - answeredPenalty < 0 ? 0 : score - answeredPenalty;

@@ -15,49 +15,52 @@
  */
 
 import {
-  Action,
-  ActionAsyncParams,
-  ActionContext,
-  defineActionAsync,
   GenkitError,
+  defineActionAsync,
   getContext,
-  JSONSchema7,
   stripUndefinedProps,
-  z,
+  type Action,
+  type ActionAsyncParams,
+  type ActionContext,
+  type JSONSchema7,
+  type z,
 } from '@genkit-ai/core';
 import { lazy } from '@genkit-ai/core/async';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { Message as DpMessage, PromptFunction } from 'dotprompt';
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import type { Message as DpMessage, PromptFunction } from 'dotprompt';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { basename, join, resolve } from 'path';
-import { DocumentData } from './document.js';
+import type { DocumentData } from './document.js';
 import {
   generate,
-  GenerateOptions,
-  GenerateResponse,
   generateStream,
-  GenerateStreamResponse,
-  OutputOptions,
+  toGenerateActionOptions,
   toGenerateRequest,
-  ToolChoice,
+  type GenerateOptions,
+  type GenerateResponse,
+  type GenerateStreamResponse,
+  type OutputOptions,
+  type ToolChoice,
 } from './generate.js';
 import { Message } from './message.js';
 import {
-  GenerateRequest,
-  GenerateRequestSchema,
-  GenerateResponseChunkSchema,
-  GenerateResponseSchema,
-  MessageData,
-  ModelAction,
-  ModelArgument,
-  ModelMiddleware,
-  ModelReference,
-  Part,
+  GenerateActionOptionsSchema,
+  type GenerateActionOptions,
+  type GenerateRequest,
+  type GenerateRequestSchema,
+  type GenerateResponseChunkSchema,
+  type GenerateResponseSchema,
+  type MessageData,
+  type ModelAction,
+  type ModelArgument,
+  type ModelMiddleware,
+  type ModelReference,
+  type Part,
 } from './model.js';
-import { getCurrentSession, Session } from './session.js';
-import { ToolAction, ToolArgument } from './tool.js';
+import { getCurrentSession, type Session } from './session.js';
+import type { ToolAction, ToolArgument } from './tool.js';
 
 /**
  * Prompt action.
@@ -355,17 +358,15 @@ function definePromptAsync<
         name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
         inputJsonSchema: options.input?.jsonSchema,
         inputSchema: options.input?.schema,
+        outputSchema: GenerateActionOptionsSchema,
         description: options.description,
         actionType: 'executable-prompt',
         metadata,
-        fn: async (
-          input: z.infer<I>,
-          { sendChunk }
-        ): Promise<GenerateResponse> => {
-          return await generate(registry, {
-            ...(await renderOptionsFn(input, undefined)),
-            onChunk: sendChunk,
-          });
+        fn: async (input: z.infer<I>): Promise<GenerateActionOptions> => {
+          return await toGenerateActionOptions(
+            registry,
+            await renderOptionsFn(input, undefined)
+          );
         },
       } as ActionAsyncParams<any, any, any>;
     })
@@ -671,7 +672,7 @@ export function isExecutablePrompt(obj: any): boolean {
 
 export function loadPromptFolder(
   registry: Registry,
-  dir: string = './prompts',
+  dir = './prompts',
   ns: string
 ): void {
   const promptsPath = resolve(dir);
@@ -691,7 +692,7 @@ export function loadPromptFolderRecursively(
   });
   for (const dirEnt of dirEnts) {
     const parentPath = join(promptsPath, subDir);
-    let fileName = dirEnt.name;
+    const fileName = dirEnt.name;
     if (dirEnt.isFile() && fileName.endsWith('.prompt')) {
       if (fileName.startsWith('_')) {
         const partialName = fileName.substring(1, fileName.length - 7);
@@ -834,7 +835,7 @@ async function lookupPrompt<
   name: string,
   variant?: string
 ): Promise<ExecutablePrompt<I, O, CustomOptions>> {
-  let registryPrompt = await registry.lookupAction(
+  const registryPrompt = await registry.lookupAction(
     registryLookupKey(name, variant)
   );
   if (registryPrompt) {

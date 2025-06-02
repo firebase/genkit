@@ -36,8 +36,10 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
 
-from genkit.core.action import ActionRunContext
+from genkit.ai import ActionKind
+from genkit.core.action import ActionMetadata, ActionRunContext
 from genkit.core.extract import extract_json
+from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
     Candidate,
     DocumentPart,
@@ -51,7 +53,7 @@ from genkit.core.typing import (
 )
 
 # type ModelFn = Callable[[GenerateRequest], GenerateResponse]
-ModelFn = Callable[[GenerateRequest], GenerateResponse]
+ModelFn = Callable[[GenerateRequest, ActionRunContext], GenerateResponse]
 
 # These types are duplicated in genkit.blocks.formats.types due to circular deps
 T = TypeVar('T')
@@ -423,3 +425,19 @@ def get_part_counts(parts: list[Part]) -> PartCounts:
             part_counts.audio += 1 if is_audio else 0
 
     return part_counts
+
+
+def model_action_metadata(
+    name: str,
+    info: dict[str, Any] | None = None,
+    config_schema: Any | None = None,
+) -> ActionMetadata:
+    """Generates an ActionMetadata for models."""
+    info = info if info is not None else {}
+    return ActionMetadata(
+        kind=ActionKind.MODEL,
+        name=name,
+        input_json_schema=to_json_schema(GenerateRequest),
+        output_json_schema=to_json_schema(GenerateResponse),
+        metadata={'model': {**info, 'customOptions': to_json_schema(config_schema) if config_schema else None}},
+    )

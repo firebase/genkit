@@ -16,19 +16,19 @@
 
 import { randomUUID } from 'crypto';
 import { getDatasetStore, getEvalStore } from '.';
-import { RuntimeManager } from '../manager/manager';
+import type { RuntimeManager } from '../manager/manager';
 import {
-  Action,
-  CandidateData,
-  Dataset,
   DatasetSchema,
-  EvalInput,
-  EvalKeyAugments,
-  EvalRun,
-  EvalRunKey,
   GenerateResponseSchema,
-  RunNewEvaluationRequest,
-  SpanData,
+  type Action,
+  type CandidateData,
+  type Dataset,
+  type EvalInput,
+  type EvalKeyAugments,
+  type EvalRun,
+  type EvalRunKey,
+  type RunNewEvaluationRequest,
+  type SpanData,
 } from '../types';
 import {
   evaluatorName,
@@ -40,7 +40,11 @@ import {
   logger,
   stackTraceSpans,
 } from '../utils';
-import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
+import {
+  enrichResultsWithScoring,
+  extractMetricSummaries,
+  extractMetricsMetadata,
+} from './parser';
 
 interface InferenceRunState {
   testCaseId: string;
@@ -120,6 +124,7 @@ export async function runNewEvaluation(
     manager,
     evaluatorActions,
     evalDataset,
+    batchSize: request.options?.batchSize,
     augments: {
       ...metadata,
       actionRef,
@@ -159,14 +164,20 @@ export async function runEvaluation(params: {
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
   augments?: EvalKeyAugments;
+  batchSize?: number;
 }): Promise<EvalRun> {
-  const { manager, evaluatorActions, evalDataset, augments } = params;
+  const { manager, evaluatorActions, evalDataset, augments, batchSize } =
+    params;
   if (evalDataset.length === 0) {
     throw new Error('Cannot run evaluation, no data provided');
   }
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   logger.info('Running evaluation...');
+
+  const runtime = manager.getMostRecentRuntime();
+  const isNodeRuntime = runtime?.genkitVersion?.startsWith('nodejs') ?? false;
+
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await manager.runAction({
@@ -174,6 +185,7 @@ export async function runEvaluation(params: {
       input: {
         dataset: evalDataset.filter((row) => !row.error),
         evalRunId,
+        batchSize: isNodeRuntime ? batchSize : undefined,
       },
     });
     scores[name] = response.result;
@@ -181,11 +193,13 @@ export async function runEvaluation(params: {
 
   const scoredResults = enrichResultsWithScoring(scores, evalDataset);
   const metadata = extractMetricsMetadata(evaluatorActions);
+  const metricSummaries = extractMetricSummaries(scores);
 
   const evalRun = {
     key: {
       evalRunId,
       createdAt: new Date().toISOString(),
+      metricSummaries,
       ...augments,
     },
     results: scoredResults,
@@ -249,8 +263,8 @@ async function bulkRunAction(params: {
   // works around this.
   const fullInferenceDataset = inferenceDataset as FullInferenceSample[];
 
-  let states: InferenceRunState[] = [];
-  let evalInputs: EvalInput[] = [];
+  const states: InferenceRunState[] = [];
+  const evalInputs: EvalInput[] = [];
   for (const sample of fullInferenceDataset) {
     logger.info(`Running inference '${actionRef}' ...`);
     if (isModelAction) {

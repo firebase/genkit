@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-import axios, { AxiosError } from 'axios';
+import axios, { type AxiosError } from 'axios';
 import chokidar from 'chokidar';
 import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
 import {
-  Action,
-  RunActionResponse,
   RunActionResponseSchema,
+  type Action,
+  type RunActionResponse,
 } from '../types/action';
 import * as apis from '../types/apis';
-import { GenkitError } from '../types/error';
-import { TraceData } from '../types/trace';
+import type { GenkitError } from '../types/error';
+import type { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import {
-  DevToolsInfo,
   checkServerHealth,
   findRuntimesDir,
   findServersDir,
@@ -37,12 +36,13 @@ import {
   projectNameFromGenkitFilePath,
   removeToolsInfoFile,
   retriable,
+  type DevToolsInfo,
 } from '../utils/utils';
 import {
   GenkitToolsError,
   RuntimeEvent,
-  RuntimeInfo,
-  StreamingCallback,
+  type RuntimeInfo,
+  type StreamingCallback,
 } from './types';
 
 const STREAM_DELIMITER = '\n';
@@ -64,7 +64,7 @@ export class RuntimeManager {
 
   private constructor(
     readonly telemetryServerUrl?: string,
-    private manageHealth: boolean = true
+    private manageHealth = true
   ) {}
 
   /**
@@ -547,12 +547,19 @@ export class RuntimeManager {
  * Checks if the runtime file is valid.
  */
 function isValidRuntimeInfo(data: any): data is RuntimeInfo {
+  let timestamp = '';
+  // runtime filename might come with underscores due OS filename restrictions
+  // revert the underscores so the timestamp gets parsed correctly
+  if (typeof data.timestamp === 'string') {
+    timestamp = data.timestamp.replaceAll('_', ':');
+  }
+
   return (
     typeof data === 'object' &&
     typeof data.id === 'string' &&
     typeof data.pid === 'number' &&
     typeof data.reflectionServerUrl === 'string' &&
     typeof data.timestamp === 'string' &&
-    !isNaN(Date.parse(data.timestamp))
+    !isNaN(Date.parse(timestamp))
   );
 }
