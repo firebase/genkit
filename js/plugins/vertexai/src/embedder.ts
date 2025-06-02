@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { Document, Genkit, z } from 'genkit';
+import { z, type Document, type Genkit } from 'genkit';
 import {
-  EmbedderAction,
-  EmbedderReference,
   embedderRef,
+  type EmbedderAction,
+  type EmbedderReference,
 } from 'genkit/embedder';
-import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from './common/types.js';
-import { PredictClient, predictModel } from './predict.js';
+import type { GoogleAuth } from 'google-auth-library';
+import type { PluginOptions } from './common/types.js';
+import { predictModel, type PredictClient } from './predict.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -247,7 +247,19 @@ export function defineVertexAIEmbedder(
   client: GoogleAuth,
   options: PluginOptions
 ): EmbedderAction<any> {
-  const embedder = SUPPORTED_EMBEDDER_MODELS[name];
+  const embedder =
+    SUPPORTED_EMBEDDER_MODELS[name] ??
+    embedderRef({
+      name: name,
+      configSchema: VertexEmbeddingConfigSchema,
+      info: {
+        dimensions: 768,
+        label: `Vertex AI - ${name}`,
+        supports: {
+          input: ['text', 'image', 'video'],
+        },
+      },
+    });
   const predictClients: Record<
     string,
     PredictClient<EmbeddingInstance, EmbeddingPrediction>

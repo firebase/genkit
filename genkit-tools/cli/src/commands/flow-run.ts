@@ -41,7 +41,7 @@ export const flowRun = new Command('flow:run')
   .action(async (flowName: string, data: string, options: FlowRunOptions) => {
     await runWithManager(async (manager) => {
       logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
-      let result = (
+      const result = (
         await manager.runAction(
           {
             key: `/flow/${flowName}`,

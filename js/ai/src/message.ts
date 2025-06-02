@@ -15,11 +15,14 @@
  */
 
 import { extractJson } from './extract';
-import { MessageData, Part, ToolRequestPart, ToolResponsePart } from './model';
+import type {
+  MessageData,
+  Part,
+  ToolRequestPart,
+  ToolResponsePart,
+} from './model';
 
-export interface MessageParser<T = unknown> {
-  (message: Message): T;
-}
+export type MessageParser<T = unknown> = (message: Message) => T;
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -96,6 +99,14 @@ export class Message<T = unknown> implements MessageData {
   }
 
   /**
+   * Concatenates all `reasoning` parts present in the message with no delimiter.
+   * @returns A string of all concatenated reasoning parts.
+   */
+  get reasoning(): string {
+    return this.content.map((part) => part.reasoning || '').join('');
+  }
+
+  /**
    * Returns the first media part detected in the message. Useful for extracting
    * (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the message.
@@ -135,7 +146,7 @@ export class Message<T = unknown> implements MessageData {
    * @returns Plain JS object representing the data contained in the message.
    */
   toJSON(): MessageData {
-    let out: MessageData = {
+    const out: MessageData = {
       role: this.role,
       content: [...this.content],
     };

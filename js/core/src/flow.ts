@@ -15,11 +15,11 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { z } from 'zod';
-import { Action, defineAction, StreamingCallback } from './action.js';
-import { ActionContext } from './context.js';
-import { HasRegistry, Registry } from './registry.js';
-import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
+import type { z } from 'zod';
+import { defineAction, type Action, type StreamingCallback } from './action.js';
+import type { ActionContext } from './context.js';
+import { Registry, type HasRegistry } from './registry.js';
+import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
 /**
  * Flow is an observable, streamable, (optionally) strongly typed function.
@@ -46,6 +46,8 @@ export interface FlowConfig<
   outputSchema?: O;
   /** Schema of the streaming chunks from the flow. */
   streamSchema?: S;
+  /** Metadata of the flow used by tooling. */
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -65,6 +67,14 @@ export interface FlowSideChannel<S> {
    * Additional runtime context data (ex. auth context data).
    */
   context?: ActionContext;
+
+  /**
+   * Trace context containing trace and span IDs.
+   */
+  trace: {
+    traceId: string;
+    spanId: string;
+  };
 }
 
 /**
@@ -119,12 +129,14 @@ function defineFlowAction<
       inputSchema: config.inputSchema,
       outputSchema: config.outputSchema,
       streamSchema: config.streamSchema,
+      metadata: config.metadata,
     },
-    async (input, { sendChunk, context }) => {
+    async (input, { sendChunk, context, trace }) => {
       return await legacyRegistryAls.run(registry, () => {
         const ctx = sendChunk;
         (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
         (ctx as FlowSideChannel<z.infer<S>>).context = context;
+        (ctx as FlowSideChannel<z.infer<S>>).trace = trace;
         return fn(input, ctx as FlowSideChannel<z.infer<S>>);
       });
     }

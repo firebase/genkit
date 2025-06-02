@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { JSONSchema7 } from 'json-schema';
+import type { JSONSchema7 } from 'json-schema';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
-import {
+import type {
   CreateDatasetRequest,
   ListEvalKeysRequest,
   ListEvalKeysResponse,
@@ -131,6 +131,12 @@ export const EvalInputDatasetSchema = z.array(EvalInputSchema);
 export type EvalInputDataset = z.infer<typeof EvalInputDatasetSchema>;
 
 const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
+/** Enum that indicates if an evaluation has passed or failed */
+export enum EvalStatusEnum {
+  UNKNOWN = 'UNKNOWN',
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+}
 
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
@@ -164,6 +170,7 @@ export const EvalRunKeySchema = z.object({
   evalRunId: z.string(),
   createdAt: z.string(),
   actionConfig: z.any().optional(),
+  metricSummaries: z.array(z.record(z.string(), z.any())).optional(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
@@ -246,7 +253,7 @@ export const DatasetMetadataSchema = z.object({
   schema: DatasetSchemaSchema.optional(),
   datasetType: DatasetTypeSchema,
   targetAction: z.string().optional(),
-  metricRefs: z.array(z.string()),
+  metricRefs: z.array(z.string()).default([]),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
   createTime: z.string(),

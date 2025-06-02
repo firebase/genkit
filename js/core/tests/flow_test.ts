@@ -60,6 +60,23 @@ describe('flow', () => {
       assert.equal(result, 'bar foo');
     });
 
+    it('should set metadata on the flow action', async () => {
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+          metadata: { foo: 'bar' },
+        },
+        async (input) => {
+          return `bar ${input}`;
+        }
+      );
+
+      assert.deepStrictEqual(testFlow.__action.metadata, { foo: 'bar' });
+    });
+
     it('should run simple sync flow', async () => {
       const testFlow = defineFlow(registry, 'testFlow', (input) => {
         return `bar ${input}`;
@@ -68,6 +85,16 @@ describe('flow', () => {
       const result = await testFlow('foo');
 
       assert.equal(result, 'bar foo');
+    });
+
+    it('should include trace info in the context', async () => {
+      const testFlow = defineFlow(registry, 'testFlow', (_, ctx) => {
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      });
+
+      const result = await testFlow('foo');
+
+      assert.equal(result, 'traceId=true spanId=true');
     });
 
     it('should rethrow the error', async () => {
@@ -129,8 +156,8 @@ describe('flow', () => {
           inputSchema: z.string(),
           outputSchema: z.string(),
         },
-        async (input) => {
-          return `bar ${input} ${JSON.stringify(getContext(registry))}`;
+        async (input, ctx) => {
+          return `bar ${input} ${JSON.stringify(ctx.context)}`;
         }
       );
 

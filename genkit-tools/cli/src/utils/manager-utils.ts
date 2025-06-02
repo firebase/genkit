@@ -18,10 +18,10 @@ import {
   LocalFileTraceStore,
   startTelemetryServer,
 } from '@genkit-ai/telemetry-server';
-import { Status } from '@genkit-ai/tools-common';
+import type { Status } from '@genkit-ai/tools-common';
 import {
-  GenkitToolsError,
   RuntimeManager,
+  type GenkitToolsError,
 } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import getPort, { makeRange } from 'get-port';
@@ -38,9 +38,7 @@ export async function resolveTelemetryServer(): Promise<string> {
     telemetryServerUrl = `http://localhost:${telemetryPort}`;
     await startTelemetryServer({
       port: telemetryPort,
-      traceStore: new LocalFileTraceStore({
-        useIndex: process.env['GENKIT_USE_TRACE_STORE_INDEX'] === 'true',
-      }),
+      traceStore: new LocalFileTraceStore(),
     });
   }
   return telemetryServerUrl;

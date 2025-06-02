@@ -15,7 +15,7 @@
  */
 
 import { z } from 'genkit';
-import { appendSpan, SPAN_TYPE_ATTR } from 'genkit/tracing';
+import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 
 /** Explicit user sentiment of response. */
 export enum FirebaseUserFeedbackEnum {

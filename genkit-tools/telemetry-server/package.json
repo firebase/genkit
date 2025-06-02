@@ -7,14 +7,15 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.6.1",
+  "version": "1.11.0",
   "type": "commonjs",
   "scripts": {
-    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "compile": "pnpm genversion && tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean compile",
     "test": "node --import tsx --test tests/*_test.ts",
-    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
+    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch",
+    "genversion": "genversion -esf src/utils/version.ts"
   },
   "repository": {
     "type": "git",
@@ -45,6 +46,7 @@
     "get-port": "^7.1.0",
     "npm-run-all": "^4.1.5",
     "rimraf": "^6.0.1",
+    "genversion": "^3.2.0",
     "tsx": "^4.19.2",
     "typescript": "^4.9.0"
   },

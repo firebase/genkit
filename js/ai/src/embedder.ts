@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, z } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import {
+  defineAction,
+  z,
+  type Action,
+  type ActionMetadata,
+} from '@genkit-ai/core';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { Document, DocumentData, DocumentDataSchema } from './document.js';
+import { Document, DocumentDataSchema, type DocumentData } from './document.js';
 
 /**
  * A batch (array) of embeddings.
@@ -150,7 +155,7 @@ export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
   registry: Registry,
   params: EmbedderParams<CustomOptions>
 ): Promise<Embedding[]> {
-  let embedder = await resolveEmbedder(registry, params);
+  const embedder = await resolveEmbedder(registry, params);
   if (!embedder.embedderAction) {
     let embedderId: string;
     if (typeof params.embedder === 'string') {
@@ -292,4 +297,32 @@ export function embedderRef<
   options: EmbedderReference<CustomOptionsSchema>
 ): EmbedderReference<CustomOptionsSchema> {
   return { ...options };
+}
+
+/**
+ * Packages embedder information into ActionMetadata object.
+ */
+export function embedderActionMetadata({
+  name,
+  info,
+  configSchema,
+}: {
+  name: string;
+  info?: EmbedderInfo;
+  configSchema?: z.ZodTypeAny;
+}): ActionMetadata {
+  return {
+    actionType: 'embedder',
+    name: name,
+    inputJsonSchema: toJsonSchema({ schema: EmbedRequestSchema }),
+    outputJsonSchema: toJsonSchema({ schema: EmbedResponseSchema }),
+    metadata: {
+      embedder: {
+        ...info,
+        customOptions: configSchema
+          ? toJsonSchema({ schema: configSchema })
+          : undefined,
+      },
+    },
+  } as ActionMetadata;
 }

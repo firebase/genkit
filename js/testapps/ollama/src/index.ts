@@ -20,9 +20,7 @@ import { ollama } from 'genkitx-ollama';
 const ai = genkit({
   plugins: [
     ollama({
-      serverAddress: 'http://localhost:11434',
       embedders: [{ name: 'nomic-embed-text', dimensions: 768 }],
-      models: [{ name: 'phi3.5:latest' }],
       requestHeaders: async (params) => {
         console.log('Using server address', params.serverAddress);
         // Simulate a token-based authentication
@@ -76,7 +74,7 @@ async function embedPokemon() {
   for (const pokemon of pokemonList) {
     pokemon.embedding = (
       await ai.embed({
-        embedder: 'ollama/nomic-embed-text',
+        embedder: ollama.embedder('nomic-embed-text'),
         content: pokemon.description,
       })
     )[0].embedding;
@@ -111,7 +109,7 @@ function cosineDistance(a: number[], b: number[]) {
 async function generateResponse(question: string) {
   const inputEmbedding = (
     await ai.embed({
-      embedder: 'ollama/nomic-embed-text',
+      embedder: ollama.embedder('nomic-embed-text'),
       content: question,
     })
   )[0].embedding;
@@ -122,7 +120,7 @@ async function generateResponse(question: string) {
     .join('\n');
 
   return await ai.generate({
-    model: 'ollama/phi3.5:latest',
+    model: ollama.model('phi3.5:latest'),
     prompt: `Given the following context on Pokemon:\n${pokemonContext}\n\nQuestion: ${question}\n\nAnswer:`,
   });
 }
@@ -140,5 +138,25 @@ export const pokemonFlow = ai.defineFlow(
     const answer = response.text;
 
     return answer;
+  }
+);
+
+export const joker = ai.defineFlow(
+  {
+    name: 'joker',
+    inputSchema: z.object({
+      model: z.string().default('gemma3:latest'),
+      subject: z.string().describe('subject').default('AI'),
+    }),
+    outputSchema: z.string(),
+  },
+  async ({ subject, model }, { sendChunk }) => {
+    const { text } = await ai.generate({
+      prompt: `tell me joke about ${subject}`,
+      model: ollama.model(model),
+      onChunk: sendChunk,
+    });
+
+    return text;
   }
 );

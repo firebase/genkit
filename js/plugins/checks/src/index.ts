@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
+import type { Genkit } from 'genkit';
 import { logger } from 'genkit/logging';
-import { ModelMiddleware } from 'genkit/model';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import type { ModelMiddleware } from 'genkit/model';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import { GoogleAuth, type GoogleAuthOptions } from 'google-auth-library';
 import { checksEvaluators } from './evaluation.js';
 import {
-  ChecksEvaluationMetric,
   ChecksEvaluationMetricType,
+  type ChecksEvaluationMetric,
 } from './metrics.js';
 import { checksMiddleware as authorizedMiddleware } from './middleware.js';
 
-export { ChecksEvaluationMetricType as ChecksEvaluationMetricType };
+export { ChecksEvaluationMetricType };
 
 export interface PluginOptions {
   /** The Google Cloud project id to call. Must have quota for the Checks API. */

@@ -15,12 +15,12 @@
  */
 
 // [START minimal]
-import { gemini20Flash, googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini20Flash, // Changed to gemini20Flash to match import
+  model: googleAI.model('gemini-2.0-flash'),
 });
 
 async function main() {

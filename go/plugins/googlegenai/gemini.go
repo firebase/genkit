@@ -39,6 +39,14 @@ import (
 	"google.golang.org/genai"
 )
 
+const (
+	// Thinking budget limit
+	thinkingBudgetMax = 24576
+
+	// Tool name regex
+	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
+)
+
 var (
 	// BasicText describes model capabilities for text-only Gemini models.
 	BasicText = ai.ModelSupports{
@@ -58,9 +66,6 @@ var (
 		Media:       true,
 		Constrained: ai.ConstrainedSupportNoTools,
 	}
-
-	// Tool name regex
-	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 
 	// Attribution header
 	xGoogApiClientHeader = http.CanonicalHeaderKey("x-goog-api-client")
@@ -175,6 +180,14 @@ type SafetySetting struct {
 	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
 }
 
+// Thinking configuration to control reasoning
+type ThinkingConfig struct {
+	// Indicates whether the response should include thoughts (if available and supported)
+	IncludeThoughts bool `json:"includeThoughts,omitempty"`
+	// Thinking budget in tokens. If set to zero, thinking gets disabled
+	ThinkingBudget int32 `json:"thinkingBudget,omitempty"`
+}
+
 type Modality string
 
 const (
@@ -204,6 +217,8 @@ type GeminiConfig struct {
 	CodeExecution bool `json:"codeExecution,omitempty"`
 	// Response modalities for returned model messages
 	ResponseModalities []Modality `json:"responseModalities,omitempty"`
+	// Thinking configuration controls the model's internal reasoning process
+	ThinkingConfig *ThinkingConfig `json:"thinkingConfig,omitempty"`
 }
 
 // configFromRequest converts any supported config type to [GeminiConfig].
@@ -340,7 +355,7 @@ func generate(
 		return nil, err
 	}
 
-	gcc, err := convertRequest(input, cache)
+	gcc, err := toGeminiRequest(input, cache)
 	if err != nil {
 		return nil, err
 	}
@@ -390,6 +405,7 @@ func generate(
 			return nil, err
 		}
 		r := translateResponse(resp)
+
 		r.Request = input
 		if cache != nil {
 			r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
@@ -403,7 +419,7 @@ func generate(
 
 	// merge all streamed responses
 	var resp *genai.GenerateContentResponse
-	var chunks []string
+	var chunks []*genai.Part
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
@@ -418,7 +434,7 @@ func generate(
 				return nil, err
 			}
 			// stream only supports text
-			chunks = append(chunks, c.Content.Parts[i].Text)
+			chunks = append(chunks, c.Content.Parts[i])
 		}
 		// keep the last chunk for usage metadata
 		resp = chunk
@@ -429,17 +445,12 @@ func generate(
 	merged := []*genai.Candidate{
 		{
 			Content: &genai.Content{
-				Parts: []*genai.Part{genai.NewPartFromText(strings.Join(chunks, ""))},
+				Parts: chunks,
 			},
 		},
 	}
 	resp.Candidates = merged
 	r = translateResponse(resp)
-	if r == nil {
-		// No candidates were returned. Probably rare, but it might avoid a NPE
-		// to return an empty instead of nil result.
-		r = &ai.ModelResponse{}
-	}
 	r.Request = input
 	if cache != nil {
 		r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
@@ -448,11 +459,11 @@ func generate(
 	return r, nil
 }
 
-// convertRequest translates from [*ai.ModelRequest] to
+// toGeminiRequest translates from [*ai.ModelRequest] to
 // *genai.GenerateContentParameters
-func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
+func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
 	gcc := genai.GenerateContentConfig{
-		CandidateCount: genai.Ptr[int32](1),
+		CandidateCount: 1,
 	}
 
 	c, err := configFromRequest(input)
@@ -462,7 +473,7 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 
 	// Convert standard fields
 	if c.MaxOutputTokens != 0 {
-		gcc.MaxOutputTokens = genai.Ptr(int32(c.MaxOutputTokens))
+		gcc.MaxOutputTokens = int32(c.MaxOutputTokens)
 	}
 	if len(c.StopSequences) > 0 {
 		gcc.StopSequences = c.StopSequences
@@ -483,8 +494,9 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 	hasOutput := input.Output != nil
 	isJsonFormat := hasOutput && input.Output.Format == "json"
 	isJsonContentType := hasOutput && input.Output.ContentType == "application/json"
-	jsonMode := isJsonFormat || (isJsonContentType && len(input.Tools) == 0)
-	if jsonMode {
+	jsonMode := isJsonFormat || isJsonContentType
+	// this setting is not compatible with tools forcing controlled output generation
+	if jsonMode && len(input.Tools) == 0 {
 		gcc.ResponseMIMEType = "application/json"
 	}
 
@@ -507,7 +519,7 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 		gcc.Tools = tools
 
 		// Then set up the tool configuration based on ToolChoice
-		tc, err := convertToolChoice(input.ToolChoice, input.Tools)
+		tc, err := toGeminiToolChoice(input.ToolChoice, input.Tools)
 		if err != nil {
 			return nil, err
 		}
@@ -525,6 +537,16 @@ func convertRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.
 		gcc.Tools = append(gcc.Tools, &genai.Tool{
 			CodeExecution: &genai.ToolCodeExecution{},
 		})
+	}
+
+	if c.ThinkingConfig != nil {
+		if c.ThinkingConfig.ThinkingBudget < 0 || c.ThinkingConfig.ThinkingBudget > thinkingBudgetMax {
+			return nil, fmt.Errorf("thinkingBudget should be between 0 and %d", thinkingBudgetMax)
+		}
+		gcc.ThinkingConfig = &genai.ThinkingConfig{
+			IncludeThoughts: c.ThinkingConfig.IncludeThoughts,
+			ThinkingBudget:  &c.ThinkingConfig.ThinkingBudget,
+		}
 	}
 
 	var systemParts []*genai.Part
@@ -613,7 +635,7 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		schema.Type = genai.TypeNumber
 	case "integer":
 		schema.Type = genai.TypeInteger
-	case "bool":
+	case "boolean":
 		schema.Type = genai.TypeBoolean
 	case "object":
 		schema.Type = genai.TypeObject
@@ -708,7 +730,7 @@ func castToStringArray(i []any) []string {
 	return r
 }
 
-func convertToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
+func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
 	var mode genai.FunctionCallingConfigMode
 	switch toolChoice {
 	case "":
@@ -767,6 +789,9 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		if part.Text != "" {
 			partFound++
 			p = ai.NewTextPart(part.Text)
+			if part.Thought {
+				p = ai.NewReasoningPart(part.Text)
+			}
 		}
 		if part.InlineData != nil {
 			partFound++
@@ -809,18 +834,23 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
-	r := translateCandidate(resp.Candidates[0])
+	var r *ai.ModelResponse
+	if len(resp.Candidates) > 0 {
+		r = translateCandidate(resp.Candidates[0])
+	} else {
+		r = &ai.ModelResponse{}
+	}
 
-	r.Usage = &ai.GenerationUsage{}
+	if r.Usage == nil {
+		r.Usage = &ai.GenerationUsage{}
+	}
+
 	if u := resp.UsageMetadata; u != nil {
-		// not all responses from the SDK come with usage metadata
-		if tokens := u.PromptTokenCount; tokens != nil {
-			r.Usage.InputTokens = int(*tokens)
-		}
-		if tokens := u.CandidatesTokenCount; tokens != nil {
-			r.Usage.OutputTokens = int(*tokens)
-		}
+		r.Usage.InputTokens = int(u.PromptTokenCount)
+		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
+		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
+		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
 	}
 	return r
 }
@@ -843,7 +873,16 @@ func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil
+	case p.IsReasoning():
+		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
+		if strings.HasPrefix(p.Text, "data:") {
+			contentType, data, err := uri.Data(p)
+			if err != nil {
+				return nil, err
+			}
+			return genai.NewPartFromBytes(data, contentType), nil
+		}
 		return genai.NewPartFromURI(p.Text, p.ContentType), nil
 	case p.IsData():
 		contentType, data, err := uri.Data(p)

@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { GenerateContentCandidate } from '@google/generative-ai';
+import type { GenerateContentCandidate } from '@google/generative-ai';
 import * as assert from 'assert';
 import { genkit, z } from 'genkit';
-import { MessageData, ModelInfo } from 'genkit/model';
+import type { MessageData, ModelInfo } from 'genkit/model';
 import { toJsonSchema } from 'genkit/schema';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import {
@@ -134,6 +134,17 @@ describe('toGeminiMessages', () => {
             },
           },
         ],
+      },
+    },
+    {
+      should: 'should re-populate thoughtSignature from reasoning metadata',
+      inputMessage: {
+        role: 'model',
+        content: [{ reasoning: '', metadata: { thoughtSignature: 'abc123' } }],
+      },
+      expectedOutput: {
+        role: 'model',
+        parts: [{ thought: true, thoughtSignature: 'abc123' }],
       },
     },
   ];
@@ -365,6 +376,102 @@ describe('fromGeminiCandidate', () => {
         },
       },
     },
+    {
+      should:
+        'should transform gemini candidate to genkit candidate (thought parts) correctly',
+      geminiCandidate: {
+        content: {
+          role: 'model',
+          parts: [
+            {
+              thought: true,
+              thoughtSignature: 'abc123',
+            },
+            {
+              thought: true,
+              text: 'thought with text',
+              thoughtSignature: 'def456',
+            },
+          ],
+        },
+        finishReason: 'STOP',
+        safetyRatings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.11858909,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.11456649,
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.13857833,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.11417085,
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.28012377,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.112405084,
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            probability: 'NEGLIGIBLE',
+          },
+        ],
+      },
+      expectedOutput: {
+        index: 0,
+        message: {
+          role: 'model',
+          content: [
+            {
+              reasoning: '',
+              metadata: { thoughtSignature: 'abc123' },
+            },
+            {
+              reasoning: 'thought with text',
+              metadata: { thoughtSignature: 'def456' },
+            },
+          ],
+        },
+        finishReason: 'stop',
+        finishMessage: undefined,
+        custom: {
+          citationMetadata: undefined,
+          safetyRatings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.11858909,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.11456649,
+            },
+            {
+              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.13857833,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.11417085,
+            },
+            {
+              category: 'HARM_CATEGORY_HARASSMENT',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.28012377,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.112405084,
+            },
+            {
+              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              probability: 'NEGLIGIBLE',
+            },
+          ],
+        },
+      },
+    },
   ];
   for (const test of testCases) {
     it(test.should, () => {
@@ -419,13 +526,16 @@ describe('plugin', () => {
 
   describe('plugin - no env', () => {
     it('should throw when registering models with no apiKey and no env', async () => {
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.GOOGLE_API_KEY;
+      delete process.env.GOOGLE_GENAI_API_KEY;
       const ai = genkit({ plugins: [googleAI()] });
-      assert.rejects(ai.registry.initializeAllPlugins());
+      await assert.rejects(ai.registry.initializeAllPlugins());
     });
 
-    it('should not throw when registering models with {apiKey: false} and no env', () => {
+    it('should not throw when registering models with {apiKey: false} and no env', async () => {
       const ai = genkit({ plugins: [googleAI({ apiKey: false })] });
-      assert.doesNotReject(ai.registry.initializeAllPlugins());
+      await assert.doesNotReject(ai.registry.initializeAllPlugins());
     });
   });
 
@@ -463,7 +573,25 @@ describe('plugin', () => {
       assert.strictEqual(flash.__action.name, 'googleai/gemini-1.5-flash');
     });
 
-    it('references explicitly registered models', async () => {
+    it('references dynamic models', async () => {
+      const ai = genkit({
+        plugins: [googleAI({})],
+      });
+      const giraffeRef = gemini('gemini-4.5-giraffe');
+      assert.strictEqual(giraffeRef.name, 'googleai/gemini-4.5-giraffe');
+      const giraffe = await ai.registry.lookupAction(
+        `/model/${giraffeRef.name}`
+      );
+      assert.ok(giraffe);
+      assert.strictEqual(giraffe.__action.name, 'googleai/gemini-4.5-giraffe');
+      assertEqualModelInfo(
+        giraffe.__action.metadata?.model,
+        'Google AI - gemini-4.5-giraffe',
+        GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
+      );
+    });
+
+    it('references pre-registered models', async () => {
       const flash002Ref = gemini('gemini-1.5-flash-002');
       const ai = genkit({
         plugins: [
@@ -524,14 +652,6 @@ describe('plugin', () => {
         'Google AI - gemini-4.0-banana',
         GENERIC_GEMINI_MODEL.info! // <---- generic model fallback
       );
-
-      // this one is not registered
-      const flash003Ref = gemini('gemini-1.5-flash-003');
-      assert.strictEqual(flash003Ref.name, 'googleai/gemini-1.5-flash-003');
-      const flash003 = await ai.registry.lookupAction(
-        `/model/${flash003Ref.name}`
-      );
-      assert.ok(flash003 === undefined);
     });
   });
 });

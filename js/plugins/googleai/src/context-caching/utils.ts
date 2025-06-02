@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
-import { CachedContent, StartChatParams } from '@google/generative-ai';
-import { GoogleAICacheManager } from '@google/generative-ai/server';
+import type { CachedContent, StartChatParams } from '@google/generative-ai';
+import type { GoogleAICacheManager } from '@google/generative-ai/server';
 import crypto from 'crypto';
-import { GenkitError, MessageData, z } from 'genkit';
-import { GenerateRequest } from 'genkit/model';
+import { GenkitError, type MessageData, type z } from 'genkit';
+import type { GenerateRequest } from 'genkit/model';
 import {
   CONTEXT_CACHE_SUPPORTED_MODELS,
   DEFAULT_TTL,
   INVALID_ARGUMENT_MESSAGES,
 } from './constants';
-import { CacheConfig, CacheConfigDetails, cacheConfigSchema } from './types';
+import {
+  cacheConfigSchema,
+  type CacheConfig,
+  type CacheConfigDetails,
+} from './types';
 
 /**
  * Generates a SHA-256 hash to use as a cache key.

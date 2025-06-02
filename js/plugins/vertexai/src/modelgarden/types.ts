@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { ModelReference } from 'genkit';
-import { CommonPluginOptions } from '../common/types.js';
+import type { ModelReference } from 'genkit';
+import type { CommonPluginOptions } from '../common/types.js';
 
 /**
  * Evaluation metric config. Use `metricSpec` to define the behavior of the metric.

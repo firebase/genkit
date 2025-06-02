@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 import * as assert from 'assert';
-import { Genkit, genkit, z } from 'genkit';
+import { genkit, z, type Genkit } from 'genkit';
 import { beforeEach, describe, it } from 'node:test';
 import { ollama } from '../src/index.js';
-import { OllamaPluginParams } from '../src/types.js';
+import type { OllamaPluginParams } from '../src/types.js';
 
 const MOCK_TOOL_CALL_RESPONSE = {
   model: 'llama3.2',

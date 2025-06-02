@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 import * as assert from 'assert';
-import { Genkit, genkit } from 'genkit';
+import { genkit, type Genkit } from 'genkit';
 import { beforeEach, describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js';
 import { ollama } from '../src/index.js';
-import { OllamaPluginParams } from '../src/types.js';
+import type { OllamaPluginParams } from '../src/types.js';
 
 // Mock fetch to simulate API responses
 global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {

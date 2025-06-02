@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
 import {
-  EmbedderAction,
-  EmbedderReference,
-  Genkit,
+  GoogleGenerativeAI,
+  type EmbedContentRequest,
+} from '@google/generative-ai';
+import {
   GenkitError,
   z,
+  type EmbedderAction,
+  type EmbedderReference,
+  type Genkit,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
 import { getApiKeyFromEnvVar } from './common.js';
-import { PluginOptions } from './index.js';
+import type { PluginOptions } from './index.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -98,7 +101,7 @@ export function defineGoogleAIEmbedder(
     if (!apiKey)
       throw new Error(
         'Please pass in the API key or set either GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
+          'For more details see https://genkit.dev/docs/plugins/google-genai'
       );
   }
   const embedder: EmbedderReference =
@@ -110,7 +113,7 @@ export function defineGoogleAIEmbedder(
         dimensions: 768,
         label: `Google AI - ${name}`,
         supports: {
-          input: ['text'],
+          input: ['text', 'image', 'video'],
         },
       },
     });

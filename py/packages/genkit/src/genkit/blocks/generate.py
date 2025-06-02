@@ -56,6 +56,24 @@ StreamingCallback = Callable[[GenerateResponseChunkWrapper], None]
 DEFAULT_MAX_TURNS = 5
 
 
+def define_generate_action(registry: Registry):
+    """Registers generate action in the provided registry."""
+
+    async def genereate_action_fn(input: GenerateActionOptions, ctx: ActionRunContext) -> GenerateResponse:
+        return await generate_action(
+            registry=registry,
+            raw_request=input,
+            on_chunk=ctx.send_chunk if ctx.is_streaming else None,
+            context=ctx.context,
+        )
+
+    registry.register_action(
+        kind=ActionKind.UTIL,
+        name='generate',
+        fn=genereate_action_fn,
+    )
+
+
 async def generate_action(
     registry: Registry,
     raw_request: GenerateActionOptions,
