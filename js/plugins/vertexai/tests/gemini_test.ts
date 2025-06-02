@@ -159,6 +159,17 @@ describe('toGeminiMessages', () => {
         ],
       },
     },
+    {
+      should: 'should re-populate thoughtSignature from reasoning metadata',
+      inputMessage: {
+        role: 'model',
+        content: [{ reasoning: '', metadata: { thoughtSignature: 'abc123' } }],
+      },
+      expectedOutput: {
+        role: 'model',
+        parts: [{ thought: true, thoughtSignature: 'abc123' }],
+      },
+    },
   ];
   for (const test of testCases) {
     it(test.should, () => {
