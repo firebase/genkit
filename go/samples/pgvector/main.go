@@ -84,8 +84,7 @@ func run(g *genkit.Genkit) error {
 	defer db.Close()
 
 	if *index {
-		indexer := defineIndexer(g, db, embedder)
-		if err := indexExistingRows(ctx, db, indexer); err != nil {
+		if err := indexExistingRows(ctx, db, embedder); err != nil {
 			return err
 		}
 	}
@@ -165,7 +164,7 @@ func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retr
 
 // [END retr]
 
-func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexer {
+func Index(ctx context.Context, db *sql.DB, embedder ai.Embedder, docs []*ai.Document) error {
 	// The indexer assumes that each Document has a single part, to be embedded, and metadata fields
 	// for the table primary key: show_id, season_number, episode_id.
 	const query = `
@@ -173,33 +172,32 @@ func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexe
 			SET embedding = $4
 			WHERE show_id = $1 AND season_number = $2 AND episode_id = $3
 		`
-	return genkit.DefineIndexer(g, provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
-		res, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Documents...))
-		if err != nil {
+	res, err := ai.Embed(ctx, embedder, ai.WithDocs(docs...))
+	if err != nil {
+		return err
+	}
+	// You may want to use your database's batch functionality to insert the embeddings
+	// more efficiently.
+	for i, emb := range res.Embeddings {
+		doc := docs[i]
+		args := make([]any, 4)
+		for j, k := range []string{"show_id", "season_number", "episode_id"} {
+			if a, ok := doc.Metadata[k]; ok {
+				args[j] = a
+			} else {
+				return fmt.Errorf("doc[%d]: missing metadata key %q", i, k)
+			}
+		}
+		args[3] = pgv.NewVector(emb.Embedding)
+		if _, err := db.ExecContext(ctx, query, args...); err != nil {
 			return err
 		}
-		// You may want to use your database's batch functionality to insert the embeddings
-		// more efficiently.
-		for i, emb := range res.Embeddings {
-			doc := req.Documents[i]
-			args := make([]any, 4)
-			for j, k := range []string{"show_id", "season_number", "episode_id"} {
-				if a, ok := doc.Metadata[k]; ok {
-					args[j] = a
-				} else {
-					return fmt.Errorf("doc[%d]: missing metadata key %q", i, k)
-				}
-			}
-			args[3] = pgv.NewVector(emb.Embedding)
-			if _, err := db.ExecContext(ctx, query, args...); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
+
 }
 
-func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) error {
+func indexExistingRows(ctx context.Context, db *sql.DB, embedder ai.Embedder) error {
 	rows, err := db.QueryContext(ctx, `SELECT show_id, season_number, episode_id, chunk FROM embeddings`)
 	if err != nil {
 		return err
@@ -225,5 +223,5 @@ func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) erro
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	return ai.Index(ctx, indexer, ai.WithDocs(docs...))
+	return Index(ctx, db, embedder, docs)
 }

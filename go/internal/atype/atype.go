@@ -24,7 +24,6 @@ const (
 	ChatLLM          ActionType = "chat-llm"
 	TextLLM          ActionType = "text-llm"
 	Retriever        ActionType = "retriever"
-	Indexer          ActionType = "indexer"
 	Embedder         ActionType = "embedder"
 	Evaluator        ActionType = "evaluator"
 	Flow             ActionType = "flow"

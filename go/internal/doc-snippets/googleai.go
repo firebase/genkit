@@ -83,14 +83,5 @@ func googleaiEx(ctx context.Context) error {
 
 	_ = retrieveRes
 
-	var myIndexer ai.Indexer
-	var docsToIndex []*ai.Document
-
-	// [START index]
-	if err := ai.Index(ctx, myIndexer, ai.WithDocs(docsToIndex...)); err != nil {
-		return err
-	}
-	// [END index]
-
 	return nil
 }
