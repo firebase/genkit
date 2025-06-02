@@ -83,5 +83,7 @@ func googleaiEx(ctx context.Context) error {
 
 	_ = retrieveRes
 
+	// Add indexing functionality here if needed.
+
 	return nil
 }
