@@ -660,6 +660,17 @@ function fromCodeExecutionResult(part: GeminiPart): Part {
   };
 }
 
+function fromThought(part: {
+  thought: boolean;
+  text?: string;
+  thoughtSignature?: string;
+}): Part {
+  return {
+    reasoning: part.text || '',
+    metadata: { thoughtSignature: (part as any).thoughtSignature },
+  };
+}
+
 function toCustomPart(part: Part): GeminiPart {
   if (!part.custom) {
     throw new Error('Invalid GeminiPart: missing custom');
@@ -673,6 +684,14 @@ function toCustomPart(part: Part): GeminiPart {
   throw new Error('Unsupported Custom Part type');
 }
 
+function toThought(part: Part) {
+  const outPart: any = { thought: true };
+  if (part.metadata?.thoughtSignature)
+    outPart.thoughtSignature = part.metadata.thoughtSignature;
+  if (part.reasoning?.length) outPart.text = part.reasoning;
+  return outPart;
+}
+
 function toGeminiPart(part: Part): GeminiPart {
   if (part.text !== undefined) return { text: part.text || ' ' };
   if (part.media) {
@@ -682,6 +701,7 @@ function toGeminiPart(part: Part): GeminiPart {
   if (part.toolRequest) return toFunctionCall(part);
   if (part.toolResponse) return toFunctionResponse(part);
   if (part.custom) return toCustomPart(part);
+  if (typeof part.reasoning === 'string') return toThought(part);
   throw new Error('Unsupported Part type' + JSON.stringify(part));
 }
 
@@ -690,19 +710,16 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref: string
 ): Part {
-  if (part.text !== undefined) {
-    if ((part as any).thought === true) {
-      return { reasoning: part.text };
-    }
-    return { text: part.text };
-  }
+  if ('thought' in part) return fromThought(part as any);
+  if (typeof part.text === 'string') return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);
   if (part.executableCode) return fromExecutableCode(part);
   if (part.codeExecutionResult) return fromCodeExecutionResult(part);
-  throw new Error('Unsupported GeminiPart type');
+  throw new Error('Unsupported GeminiPart type: ' + JSON.stringify(part));
 }
+
 export function toGeminiMessage(
   message: MessageData,
   model?: ModelReference<z.ZodTypeAny>
