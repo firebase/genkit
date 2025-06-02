@@ -164,6 +164,7 @@ func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retr
 
 // [END retr]
 
+// Helper function to get started with indexing
 func Index(ctx context.Context, db *sql.DB, embedder ai.Embedder, docs []*ai.Document) error {
 	// The indexer assumes that each Document has a single part, to be embedded, and metadata fields
 	// for the table primary key: show_id, season_number, episode_id.

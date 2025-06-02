@@ -155,7 +155,7 @@ type Docstore struct {
 	TextKey         string
 }
 
-// Index implements the genkit Retriever.Index method.
+// Helper function to get started with indexing
 func Index(ctx context.Context, docs []*ai.Document, ds *Docstore, namespace string) error {
 	if len(docs) == 0 {
 		return nil
