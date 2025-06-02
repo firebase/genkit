@@ -4,7 +4,7 @@ This demo shows how you can use Genkit's MCP package to expose an MCP Server tha
 
 ## Files
 - `server.go` - MCP server with 2 tools: `text_encode` and `hash_generate`
-- `run-server.sh` - Simple wrapper script for easy Claude Desktop setup
+- `run-server.sh` - Simple wrapper script for easy client setup
 - `client.go` - Client that uses tools with Gemini AI
 
 ## Two Ways to Run
@@ -17,30 +17,13 @@ This demo shows how you can use Genkit's MCP package to expose an MCP Server tha
 ```
 You should see: `Starting server with tools: [text_encode hash_generate]`
 
-#### Step 2: Configure Claude Desktop
-Add this to your Claude Desktop MCP configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "genkit-content-processor": {
-      "command": "/path/to/your/genkit/go/samples/mcp-server/run-server.sh",
-      "args": []
-    }
-  }
-}
-```
-
-#### Step 3: Restart MCP Client for the config to take effect.
+#### Step 2: Configure client.
+Point your client to run that bash command to start the server. Make sure you restart the client to ensure the server is properly started.
 
 #### Step 4: Test your assistant's connection to the MCP server with these quries:
 - *"Encode 'Hello World' as base64"*
 - *"Generate an MD5 hash of 'password123'"*
 - *"Decode this base64: SGVsbG8gV29ybGQ="*
-
 
 ### Option B: Genkit MCP Client spawns the MCP Server
 
