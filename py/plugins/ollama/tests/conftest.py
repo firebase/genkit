@@ -17,18 +17,15 @@
 """Conftest for ollama plugin."""
 
 from collections.abc import Generator
-from typing import Generator
 from unittest import mock
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import ollama as ollama_api
 import pytest
 
 from genkit.ai import Genkit
-from genkit.plugins.ollama.models import (
-    ModelDefinition,
-    OllamaAPITypes,
-)
+from genkit.plugins.ollama.constants import OllamaAPITypes
+from genkit.plugins.ollama.models import ModelDefinition
 from genkit.plugins.ollama.plugin_api import Ollama
 
 
@@ -123,3 +120,10 @@ def mock_ollama_api_async_client() -> Generator[MagicMock | AsyncMock, None, Non
     """Mock the ollama API async client."""
     with mock.patch.object(ollama_api, 'AsyncClient') as mock_ollama_async_client:
         yield mock_ollama_async_client
+
+
+@pytest.fixture
+@patch('ollama.AsyncClient')
+def ollama_plugin_instance(ollama_async_client):
+    """Common instance of ollama plugin."""
+    return Ollama()
