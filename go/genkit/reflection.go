@@ -286,7 +286,6 @@ func resolveModel(g *Genkit, input json.RawMessage) error {
 		if dp.Name() != provider {
 			continue
 		}
-
 		for _, ads := range dp.ListActions() {
 			if ads.Name != modelName {
 				continue

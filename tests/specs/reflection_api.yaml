@@ -26,6 +26,7 @@ tests:
     post:
       key: /model/customReflector
       input:
+        model: customReflector
         messages: [{ role: user, content: [{ text: hello }] }]
     body:
       result:
