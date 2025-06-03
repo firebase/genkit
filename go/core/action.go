@@ -175,6 +175,10 @@ func newAction[In, Out, Stream any](
 	if reflect.ValueOf(o).Kind() != reflect.Invalid {
 		outputSchema = base.InferJSONSchema(o)
 	}
+	var description string
+	if desc, ok := metadata["description"].(string); ok {
+		description = desc
+	}
 	return &ActionDef[In, Out, Stream]{
 		tstate: r.TracingState(),
 		fn: func(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error) {
@@ -185,6 +189,7 @@ func newAction[In, Out, Stream any](
 			Type:         atype,
 			Key:          fmt.Sprintf("/%s/%s", atype, name),
 			Name:         name,
+			Description:  description,
 			InputSchema:  inputSchema,
 			OutputSchema: outputSchema,
 			Metadata:     metadata,
