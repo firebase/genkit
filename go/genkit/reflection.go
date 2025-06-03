@@ -73,7 +73,7 @@ func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, s
 	s := &reflectionServer{
 		Server: &http.Server{
 			Addr:    addr,
-			Handler: serveMux(g),
+			Handler: serveMux(ctx, g),
 		},
 	}
 
@@ -219,13 +219,13 @@ func findProjectRoot() (string, error) {
 }
 
 // serveMux returns a new ServeMux configured for the required Reflection API endpoints.
-func serveMux(g *Genkit) *http.ServeMux {
+func serveMux(ctx context.Context, g *Genkit) *http.ServeMux {
 	mux := http.NewServeMux()
 	// Skip wrapHandler here to avoid logging constant polling requests.
 	mux.HandleFunc("GET /api/__health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(g)))
+	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(ctx, g)))
 	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(g)))
 	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify(g)))
 	return mux
@@ -258,7 +258,7 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 
 // resolveModel tries to resolve a model from a [DynamicPlugin]
 // by registering it into the registry if not present
-func resolveModel(g *Genkit, input json.RawMessage) error {
+func resolveModel(ctx context.Context, g *Genkit, input json.RawMessage) error {
 	var inputMap map[string]any
 	// NOTE: returning nil regardless of error.
 	// This is to allow all type of contents in [json.RawMessage]
@@ -294,7 +294,7 @@ func resolveModel(g *Genkit, input json.RawMessage) error {
 		if dp.Name() != provider {
 			continue
 		}
-		for _, ads := range dp.ListActions() {
+		for _, ads := range dp.ListActions(ctx) {
 			if ads.Name != modelName {
 				continue
 			}
@@ -357,7 +357,7 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		if err = resolveModel(g, body.Input); err != nil {
+		if err = resolveModel(ctx, g, body.Input); err != nil {
 			return err
 		}
 
@@ -416,9 +416,9 @@ func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error 
 
 // handleListActions lists all the registered actions.
 // The list is sorted by action name and contains unique action names.
-func handleListActions(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
+func handleListActions(ctx context.Context, g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ads := listResolvableActions(g)
+		ads := listResolvableActions(ctx, g)
 		descMap := map[string]core.ActionDesc{}
 		for _, d := range ads {
 			descMap[d.Key] = d
@@ -449,7 +449,7 @@ func listActions(g *Genkit) []core.ActionDesc {
 }
 
 // listResolvableActions lists all the registered and resolvable actions.
-func listResolvableActions(g *Genkit) []core.ActionDesc {
+func listResolvableActions(ctx context.Context, g *Genkit) []core.ActionDesc {
 	ads := listActions(g)
 	keys := make(map[string]struct{})
 
@@ -461,7 +461,7 @@ func listResolvableActions(g *Genkit) []core.ActionDesc {
 			continue
 		}
 
-		for _, desc := range dp.ListActions() {
+		for _, desc := range dp.ListActions(ctx) {
 			if _, exists := keys[desc.Name]; !exists {
 				ads = append(ads, desc)
 				keys[desc.Name] = struct{}{}

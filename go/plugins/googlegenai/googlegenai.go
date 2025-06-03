@@ -314,9 +314,9 @@ func VertexAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
 	return genkit.LookupEmbedder(g, vertexAIProvider, name)
 }
 
-func (ga *GoogleAI) ListActions() []core.ActionDesc {
+func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
 	actions := []core.ActionDesc{}
-	models, err := listGenaiModels(context.TODO(), ga.gclient)
+	models, err := listGenaiModels(ctx, ga.gclient)
 	if err != nil {
 		return nil
 	}
@@ -378,9 +378,9 @@ func (ga *GoogleAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name 
 	return nil
 }
 
-func (v *VertexAI) ListActions() []core.ActionDesc {
+func (v *VertexAI) ListActions(ctx context.Context) []core.ActionDesc {
 	actions := []core.ActionDesc{}
-	models, err := listGenaiModels(context.TODO(), v.gclient)
+	models, err := listGenaiModels(ctx, v.gclient)
 	if err != nil {
 		return nil
 	}
