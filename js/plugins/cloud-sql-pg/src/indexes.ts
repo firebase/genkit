@@ -47,21 +47,43 @@ export class DistanceStrategy extends StrategyMixin {
   );
 }
 
+/**
+ * The default distance strategy used for vector comparisons.
+ * @type {DistanceStrategy}
+ */
 export const DEFAULT_DISTANCE_STRATEGY = DistanceStrategy.COSINE_DISTANCE;
+
+/**
+ * The default suffix appended to index names.
+ * @type {string}
+ */
 export const DEFAULT_INDEX_NAME_SUFFIX: string = 'genkitvectorindex';
 
+/**
+ * Defines the base arguments for configuring a vector index.
+ */
 export interface BaseIndexArgs {
   name?: string;
   distanceStrategy?: DistanceStrategy;
   partialIndexes?: string[];
 }
 
+/**
+ * Abstract base class for defining vector indexes.
+ */
 export abstract class BaseIndex {
   name?: string;
   indexType: string;
   distanceStrategy: DistanceStrategy;
   partialIndexes?: string[];
 
+  /**
+   * Constructs a new BaseIndex instance.
+   * @param {string} [name] - The optional name of the index.
+   * @param {string} [indexType='base'] - The type of the index. Defaults to 'base'.
+   * @param {DistanceStrategy} [distanceStrategy=DistanceStrategy.COSINE_DISTANCE] - The distance strategy. Defaults to COSINE_DISTANCE.
+   * @param {string[]} [partialIndexes] - Optional array of partial index definitions.
+   */
   constructor(
     name?: string,
     indexType: string = 'base',
@@ -80,6 +102,10 @@ export abstract class BaseIndex {
   abstract indexOptions(): string;
 }
 
+/**
+ * Represents an Exact Nearest Neighbor (ENN) index.
+ * This index type typically performs a brute-force search.
+ */
 export class ExactNearestNeighbor extends BaseIndex {
   constructor(baseArgs?: BaseIndexArgs) {
     super(
@@ -95,10 +121,20 @@ export class ExactNearestNeighbor extends BaseIndex {
   }
 }
 
+/**
+ * Represents a Hierarchical Navigable Small World (HNSW) index.
+ * HNSW is an approximate nearest neighbor (ANN) algorithm.
+ */
 export class HNSWIndex extends BaseIndex {
   m: number;
   efConstruction: number;
 
+  /**
+   * Constructs a new HNSWIndex instance.
+   * @param {BaseIndexArgs} [baseArgs] - Optional base arguments for the index.
+   * @param {number} [m=16] - The 'm' parameter for HNSW. Defaults to 16.
+   * @param {number} [efConstruction=64] - The 'ef_construction' parameter for HNSW. Defaults to 64.
+   */
   constructor(baseArgs?: BaseIndexArgs, m?: number, efConstruction?: number) {
     super(
       baseArgs?.name,
@@ -115,9 +151,18 @@ export class HNSWIndex extends BaseIndex {
   }
 }
 
+/**
+ * Represents an Inverted File Index (IVFFlat) index.
+ * IVFFlat is an approximate nearest neighbor (ANN) algorithm.
+ */
 export class IVFFlatIndex extends BaseIndex {
   lists: number;
 
+  /**
+   * Constructs a new IVFFlatIndex instance.
+   * @param {BaseIndexArgs} baseArgs - Base arguments for the index.
+   * @param {number} [lists=100] - The number of lists for IVF-Flat. Defaults to 100.
+   */
   constructor(baseArgs: BaseIndexArgs, lists?: number) {
     super(
       baseArgs?.name,
@@ -141,6 +186,9 @@ export abstract class QueryOptions {
   abstract to_string(): string;
 }
 
+/**
+ * Represents query options for an HNSW index.
+ */
 export class HNSWQueryOptions extends QueryOptions {
   efSearch: number;
 
@@ -154,6 +202,9 @@ export class HNSWQueryOptions extends QueryOptions {
   }
 }
 
+/**
+ * Represents query options for an IVF-Flat index.
+ */
 export class IVFFlatQueryOptions extends QueryOptions {
   readonly probes: number;
 

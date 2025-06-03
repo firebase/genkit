@@ -51,7 +51,7 @@ const REQUIRED_ENV_VARS = [
   'DB_USER',
   'DB_PASSWORD',
   'IP_ADDRESS',
-  // 'EMAIL', // Add EMAIL here if it's consistently required for some tests
+  'EMAIL', // Add EMAIL here if it's consistently required for some tests
 ];
 
 let envVarsFound = true;
@@ -88,10 +88,6 @@ describe('PostgresEngine Instance creation', () => {
     max: 5,
   };
 
-  // No need for beforeAll here if the entire describe block is skipped
-  // beforeAll(() => {
-  //   // validateEnvVars is called once at the top level
-  // });
 
   test('should throw an error if only user or password are passed', async () => {
     const pgArgs: PostgresEngineArgs = {

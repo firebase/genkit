@@ -28,6 +28,11 @@ import {
 } from './indexes';
 import { getIAMPrincipalEmail } from './utils';
 
+export { IpAddressTypes } from '@google-cloud/cloud-sql-connector';
+
+/**
+ * Defines the arguments for configuring a PostgreSQL engine.
+ */
 export interface PostgresEngineArgs {
   ipType?: IpAddressTypes;
   user?: string;
@@ -35,6 +40,9 @@ export interface PostgresEngineArgs {
   iamAccountEmail?: string;
 }
 
+/**
+ * Defines the arguments for configuring a vector store table.
+ */
 export interface VectorStoreTableArgs {
   schemaName?: string;
   contentColumn?: string;
@@ -48,11 +56,20 @@ export interface VectorStoreTableArgs {
   indexName?: string;
 }
 
+/**
+ * Represents a database table column.
+ */
 export class Column {
   name: string;
   dataType: string;
   nullable: boolean;
 
+  /**
+   * Creates an instance of Column.
+   * @param {string} name - The name of the column.
+   * @param {string} dataType - The data type of the column.
+   * @param {boolean} [nullable=true] - Whether the column can be nullable. Defaults to true.
+   */
   constructor(name: string, dataType: string, nullable: boolean = true) {
     this.name = name;
     this.dataType = dataType;
@@ -388,4 +405,3 @@ export class PostgresEngine {
   }
 }
 
-// export default PostgresEngine;
