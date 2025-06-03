@@ -23,7 +23,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -48,7 +47,7 @@ type flowContext struct {
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]) *Flow[In, Out, struct{}] {
-	return (*Flow[In, Out, struct{}])(DefineAction(r, "", name, atype.Flow, nil, func(ctx context.Context, input In) (Out, error) {
+	return (*Flow[In, Out, struct{}])(DefineAction(r, "", name, ActionTypeFlow, nil, func(ctx context.Context, input In) (Out, error) {
 		fc := &flowContext{tracingState: r.TracingState()}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input)
@@ -65,7 +64,7 @@ func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
 func DefineStreamingFlow[In, Out, Stream any](r *registry.Registry, name string, fn StreamingFunc[In, Out, Stream]) *Flow[In, Out, Stream] {
-	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, "", name, atype.Flow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
+	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, "", name, ActionTypeFlow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
 		fc := &flowContext{tracingState: r.TracingState()}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input, cb)
@@ -104,6 +103,11 @@ func (f *Flow[In, Out, Stream]) Name() string {
 // RunJSON runs the flow with JSON input and streaming callback and returns the output as JSON.
 func (f *Flow[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
 	return (*ActionDef[In, Out, Stream])(f).RunJSON(ctx, input, cb)
+}
+
+// Desc returns the descriptor of the flow.
+func (f *Flow[In, Out, Stream]) Desc() ActionDesc {
+	return (*ActionDef[In, Out, Stream])(f).Desc()
 }
 
 // Run runs the flow in the context of another flow.
