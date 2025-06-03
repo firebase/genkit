@@ -87,21 +87,14 @@ func TestGenkit(t *testing.T) {
 		IndexID:  *testIndex,
 		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
 	}
-	indexer, err := DefineIndexer(ctx, g, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	retriever, err := DefineRetriever(ctx, g, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	indexerOptions := &IndexerOptions{
-		Namespace: namespace,
+	ds, retriever, err := DefineRetriever(ctx, g, cfg)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	t.Logf("index flag = %q, indexData.Host = %q", *testIndex, indexData.Host)
-	err = ai.Index(ctx, indexer, ai.WithConfig(indexerOptions), ai.WithDocs(d1, d2, d3))
+	err = Index(ctx, []*ai.Document{d1, d2, d3}, ds, "")
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}

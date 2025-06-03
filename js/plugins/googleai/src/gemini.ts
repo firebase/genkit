@@ -60,10 +60,7 @@ import {
   type ToolRequestPart,
   type ToolResponsePart,
 } from 'genkit/model';
-import {
-  downloadRequestMedia,
-  simulateSystemPrompt,
-} from 'genkit/model/middleware';
+import { downloadRequestMedia } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
@@ -339,10 +336,6 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-const SUPPORTED_V1_MODELS = {
-  'gemini-1.0-pro': gemini10Pro,
-};
-
 export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
@@ -450,7 +443,7 @@ function toGeminiRole(
     case 'model':
       return 'model';
     case 'system':
-      if (model && SUPPORTED_V15_MODELS[model.name]) {
+      if (model?.info?.supports?.systemRole) {
         // We should have already pulled out the supported system messages,
         // anything remaining is unsupported; throw an error.
         throw new Error(
@@ -867,9 +860,6 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[apiModelName]) {
-    middleware.push(simulateSystemPrompt());
-  }
   if (model.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middleware.push(
@@ -924,7 +914,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[apiModelName]) {
+      if (model.info?.supports?.systemRole) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);

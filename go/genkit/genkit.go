@@ -677,25 +677,6 @@ func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 	return ai.LookupRetriever(g.reg, provider, name)
 }
 
-// DefineIndexer defines a custom indexer implementation, registers it as a
-// [core.Action] of type Indexer, and returns an [ai.Indexer].
-// Indexers are responsible for adding or updating documents in a data store,
-// often a vector database, typically involving embedding the document content.
-//
-// The `provider` and `name` form the unique identifier. The `index` function
-// contains the logic to process an [ai.IndexerRequest], which includes the
-// documents to be indexed.
-func DefineIndexer(g *Genkit, provider, name string, index func(context.Context, *ai.IndexerRequest) error) ai.Indexer {
-	return ai.DefineIndexer(g.reg, provider, name, index)
-}
-
-// LookupIndexer retrieves a registered [ai.Indexer] by its provider and name.
-// It returns the indexer instance if found, or `nil` if no indexer with the
-// given identifier is registered (e.g., via [DefineIndexer] or a plugin).
-func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
-	return ai.LookupIndexer(g.reg, provider, name)
-}
-
 // DefineEmbedder defines a custom text embedding implementation, registers it as a
 // [core.Action] of type Embedder, and returns an [ai.Embedder].
 // Embedders convert text documents or queries into numerical vector representations (embeddings).
