@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Unit tests for Ollama Plugin."""
+"""Unit tests for Vectorstore Plugin."""
 
 from unittest.mock import MagicMock
 
@@ -32,7 +32,7 @@ from genkit.core.action.types import ActionKind
     ],
 )
 def test_action_resolve(kind, name, vectorstore_plugin_instance):
-    """Test initialize method of Ollama plugin."""
+    """Test initialize method of Vectorstore plugin."""
     ai_mock = MagicMock(spec=Genkit)
     assert hasattr(vectorstore_plugin_instance, "resolve_action")
     assert  vectorstore_plugin_instance.resolve_action(ai_mock, kind, name) is None
