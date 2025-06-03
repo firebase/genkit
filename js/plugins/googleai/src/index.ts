@@ -64,7 +64,7 @@ import {
   type KNOWN_IMAGEN_MODELS,
 } from './imagen.js';
 import { listModels } from './list-models.js';
-import { GENERIC_VEO_INFO, KNOWN_VEO_MODELS, VeoConfigSchema, defineVeoModel } from './veo.js';
+import { KNOWN_VEO_MODELS, VeoConfigSchema, defineVeoModel } from './veo.js';
 export {
   gemini,
   gemini10Pro,

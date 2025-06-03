@@ -191,21 +191,27 @@ function toGenkitOp(apiOp: ApiOperation): Operation {
   if (apiOp.done !== undefined) {
     res.done = apiOp.done;
   }
-  if (apiOp.response && apiOp.response.generateVideoResponse && apiOp.response.generateVideoResponse.generatedSamples) {
+  if (
+    apiOp.response &&
+    apiOp.response.generateVideoResponse &&
+    apiOp.response.generateVideoResponse.generatedSamples
+  ) {
     res.response = {
       finishReason: 'stop',
       raw: apiOp.response,
       message: {
         role: 'model',
-        content: apiOp.response.generateVideoResponse.generatedSamples.map(s => {
-          return {
-            media: {
-              url: s.video.uri
-            }
+        content: apiOp.response.generateVideoResponse.generatedSamples.map(
+          (s) => {
+            return {
+              media: {
+                url: s.video.uri,
+              },
+            };
           }
-        })
-      }
-    }
+        ),
+      },
+    };
   }
 
   return res;

@@ -273,22 +273,23 @@ export const FinishReasonSchema = z.enum([
 /**
  * Zod schema of a long running operation.
  */
-export const OperationSchema = z
-  .object({
-    name: z.string(),
-    done: z.boolean().optional(),
-    request: z
-      .object({
-        model: z.string(),
-        config: z.record(z.string(), z.any()).optional(),
-      })
-      .optional(),
-    response: z.object({
+export const OperationSchema = z.object({
+  name: z.string(),
+  done: z.boolean().optional(),
+  request: z
+    .object({
+      model: z.string(),
+      config: z.record(z.string(), z.any()).optional(),
+    })
+    .optional(),
+  response: z
+    .object({
       message: MessageSchema.optional(),
       finishReason: FinishReasonSchema,
       raw: z.unknown(),
-    }).optional(),
-  });
+    })
+    .optional(),
+});
 
 /**
  * Model message data.

@@ -376,19 +376,21 @@ export async function generateOperation<
 ): Promise<Operation> {
   options = await options;
   const resolvedModel = await resolveModel(registry, options.model);
-  if (!resolvedModel.modelAction.__action.metadata?.model.supports?.longRunning) {
+  if (
+    !resolvedModel.modelAction.__action.metadata?.model.supports?.longRunning
+  ) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
       message: `Model '${resolvedModel.modelAction.__action.name}' does not support long running operations.`,
-    })
+    });
   }
 
-  const {operation} = await generate(registry, options);
+  const { operation } = await generate(registry, options);
   if (!operation) {
     throw new GenkitError({
       status: 'FAILED_PRECONDITION',
       message: `Model '${resolvedModel.modelAction.__action.name}' did not return an operation.`,
-    })
+    });
   }
   return operation;
 }

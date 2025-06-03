@@ -28,7 +28,6 @@ export interface Operation {
   };
 }
 
-
 function predictEndpoint(options: {
   apiVersion: string;
   model: string;

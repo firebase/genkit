@@ -15,6 +15,7 @@
  */
 
 import {
+  checkOperation,
   defineHelper,
   definePartial,
   definePrompt,
@@ -22,13 +23,12 @@ import {
   embed,
   evaluate,
   generate,
+  generateOperation,
   generateStream,
   loadPromptFolder,
   prompt,
   rerank,
   retrieve,
-  checkOperation,
-  generateOperation,
   type BaseDataPointSchema,
   type Document,
   type EmbedderInfo,
@@ -647,7 +647,7 @@ export class Genkit implements HasRegistry {
    *   prompt: 'A banana riding a bicycle.',
    * });
    * ```
-   * 
+   *
    * The status of the operation and fianal result can be obtained using {@link Genkit.checkOperation}.
    */
   generateOperation<
@@ -760,21 +760,21 @@ export class Genkit implements HasRegistry {
 
   /**
    * Checks the status of of a given operation. Returns a new operation which will contain the updated status.
-   * 
+   *
    * ```ts
    * let operation = await ai.generateOperation({
    *   model: googleAI.model('veo-2.0-generate-001'),
    *   prompt: 'A banana riding a bicycle.',
    * });
-   * 
+   *
    * while (!operation.done) {
    *   operation = await ai.checkOperation(operation!);
    *   await new Promise((resolve) => setTimeout(resolve, 5000));
    * }
    * ```
-   * 
-   * @param operation 
-   * @returns 
+   *
+   * @param operation
+   * @returns
    */
   checkOperation(operation: Operation): Promise<Operation> {
     return checkOperation(this.registry, operation);

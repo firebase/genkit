@@ -16,8 +16,8 @@
 
 import { GenkitError } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { GenerateRequest, ModelAction, Operation } from './model';
 import { GenerateResponse } from './generate';
+import { GenerateRequest, ModelAction, Operation } from './model';
 
 export async function checkOperation(
   registry: Registry,
@@ -29,7 +29,9 @@ export async function checkOperation(
       message: 'Provided operation is missing original request information',
     });
   }
-  const model = await registry.lookupAction(`/model/${operation.request?.model}`) as ModelAction;
+  const model = (await registry.lookupAction(
+    `/model/${operation.request?.model}`
+  )) as ModelAction;
   if (!model) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
