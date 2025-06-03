@@ -429,8 +429,8 @@ type telemetry struct {
 }
 
 func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
-	action := reg.LookupAction(key).(core.Action)
-	if action == nil {
+	action, ok := reg.LookupAction(key).(core.Action)
+	if !ok {
 		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
 	}
 	if runtimeContext != nil {
