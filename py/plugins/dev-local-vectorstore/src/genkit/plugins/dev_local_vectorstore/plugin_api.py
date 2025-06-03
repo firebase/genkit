@@ -22,7 +22,7 @@ from genkit.ai import GenkitRegistry, Plugin
 from genkit.core.action import Action
 from genkit.core.registry import ActionKind
 from genkit.types import Docs
-from genkit.core.registry import ActionKind
+
 from .indexer import (
     DevLocalVectorStoreIndexer,
 )
@@ -30,7 +30,6 @@ from .retriever import (
     DevLocalVectorStoreRetriever,
     RetrieverOptionsSchema,
 )
-
 
 
 class DevLocalVectorStore(Plugin):
@@ -62,7 +61,7 @@ class DevLocalVectorStore(Plugin):
         self._configure_dev_local_retriever(ai=ai)
         self._configure_dev_local_indexer(ai=ai)
 
-    def resolve_action(  # noqa: B027
+    def resolve_action(
         self,
         ai: GenkitRegistry,
         kind: ActionKind,
