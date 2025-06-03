@@ -1,9 +1,11 @@
+from unittest import mock
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from genkit.plugins.dev_local_vectorstore import DevLocalVectorStore
 from genkit.plugins.google_genai import VertexEmbeddingModels
-from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, patch
+
 
 @pytest.fixture
 @patch('ollama.AsyncClient')

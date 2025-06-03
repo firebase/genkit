@@ -20,7 +20,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from genkit.ai import  Genkit
+from genkit.ai import Genkit
 from genkit.core.action.types import ActionKind
 
 

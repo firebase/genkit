@@ -20,6 +20,7 @@ from typing import Any
 
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.core.action import Action
+from genkit.core.registry import ActionKind
 from genkit.types import Docs
 from genkit.core.registry import ActionKind
 from .indexer import (
