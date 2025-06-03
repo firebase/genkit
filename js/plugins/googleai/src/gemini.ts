@@ -86,6 +86,59 @@ const SafetySettingsSchema = z.object({
   ]),
 });
 
+const VoiceConfigSchema = z
+  .object({
+    prebuiltVoiceConfig: z
+      .object({
+        // TODO: Make this an array of objects so we can also specify the description
+        // for each voiceName.
+        voiceName: z
+          .union([
+            z.enum([
+              'Zephyr',
+              'Puck',
+              'Charon',
+              'Kore',
+              'Fenrir',
+              'Leda',
+              'Orus',
+              'Aoede',
+              'Callirrhoe',
+              'Autonoe',
+              'Enceladus',
+              'Iapetus',
+              'Umbriel',
+              'Algieba',
+              'Despina',
+              'Erinome',
+              'Algenib',
+              'Rasalgethi',
+              'Laomedeia',
+              'Achernar',
+              'Alnilam',
+              'Schedar',
+              'Gacrux',
+              'Pulcherrima',
+              'Achird',
+              'Zubenelgenubi',
+              'Vindemiatrix',
+              'Sadachbia',
+              'Sadaltager',
+              'Sulafat',
+            ]),
+            // To allow any new string values
+            z.string(),
+          ])
+          .describe('Name of the preset voice to use')
+          .optional(),
+      })
+      .describe('Configuration for the prebuilt speaker to use')
+      .passthrough()
+      .optional(),
+  })
+  .describe('Configuration for the voice to use')
+  .passthrough();
+
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   apiKey: z
     .string()
@@ -138,6 +191,35 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
+
+export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
+  speechConfig: z
+    .object({
+      voiceConfig: VoiceConfigSchema.optional(),
+      multiSpeakerVoiceConfig: z
+        .object({
+          speakerVoiceConfigs: z
+            .array(
+              z
+                .object({
+                  speaker: z.string().describe('Name of the speaker to use'),
+                  voiceConfig: VoiceConfigSchema,
+                })
+                .describe(
+                  'Configuration for a single speaker in a multi speaker setup'
+                )
+                .passthrough()
+            )
+            .describe('Configuration for all the enabled speaker voices'),
+        })
+        .describe('Configuration for multi-speaker setup')
+        .passthrough()
+        .optional(),
+    })
+    .describe('Speech generation config')
+    .passthrough()
+    .optional(),
+}).passthrough();
 
 export const gemini10Pro = modelRef({
   name: 'googleai/gemini-1.0-pro',
@@ -302,6 +384,23 @@ export const gemini25FlashPreview0417 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashPreviewTts = modelRef({
+  name: 'googleai/gemini-2.5-flash-preview-tts',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash Preview TTS',
+    versions: [],
+    supports: {
+      multiturn: false,
+      media: false,
+      tools: false,
+      toolChoice: false,
+      systemRole: false,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiTtsConfigSchema,
+});
+
 export const gemini25ProExp0325 = modelRef({
   name: 'googleai/gemini-2.5-pro-exp-03-25',
   info: {
@@ -347,6 +446,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
+  'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
