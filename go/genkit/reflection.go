@@ -73,7 +73,7 @@ func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, s
 	s := &reflectionServer{
 		Server: &http.Server{
 			Addr:    addr,
-			Handler: serveMux(ctx, g),
+			Handler: serveMux(g),
 		},
 	}
 
@@ -219,13 +219,13 @@ func findProjectRoot() (string, error) {
 }
 
 // serveMux returns a new ServeMux configured for the required Reflection API endpoints.
-func serveMux(ctx context.Context, g *Genkit) *http.ServeMux {
+func serveMux(g *Genkit) *http.ServeMux {
 	mux := http.NewServeMux()
 	// Skip wrapHandler here to avoid logging constant polling requests.
 	mux.HandleFunc("GET /api/__health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(ctx, g)))
+	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(g)))
 	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(g)))
 	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify(g)))
 	return mux
@@ -416,9 +416,9 @@ func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error 
 
 // handleListActions lists all the registered actions.
 // The list is sorted by action name and contains unique action names.
-func handleListActions(ctx context.Context, g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
+func handleListActions(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ads := listResolvableActions(ctx, g)
+		ads := listResolvableActions(r.Context(), g)
 		descMap := map[string]core.ActionDesc{}
 		for _, d := range ads {
 			descMap[d.Key] = d

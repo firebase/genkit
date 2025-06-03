@@ -93,7 +93,7 @@ func TestServeMux(t *testing.T) {
 	core.DefineAction(g.reg, "test", "inc", "custom", nil, inc)
 	core.DefineAction(g.reg, "test", "dec", "custom", nil, dec)
 
-	ts := httptest.NewServer(serveMux(context.Background(), g))
+	ts := httptest.NewServer(serveMux(g))
 	defer ts.Close()
 
 	t.Parallel()
