@@ -41,6 +41,7 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  Operation,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
@@ -362,6 +363,34 @@ export async function generate<
       });
     }
   );
+}
+
+export async function generateOperation<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  registry: Registry,
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<Operation> {
+  options = await options;
+  const resolvedModel = await resolveModel(registry, options.model);
+  if (!resolvedModel.modelAction.__action.metadata?.model.supports?.longRunning) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: `Model '${resolvedModel.modelAction.__action.name}' does not support long running operations.`,
+    })
+  }
+
+  const {operation} = await generate(registry, options);
+  if (!operation) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Model '${resolvedModel.modelAction.__action.name}' did not return an operation.`,
+    })
+  }
+  return operation;
 }
 
 function maybeRegisterDynamicTools<

@@ -602,6 +602,7 @@
         "length",
         "blocked",
         "interrupted",
+        "pending",
         "other",
         "unknown"
       ]
@@ -732,6 +733,9 @@
             "$ref": "#/$defs/DocumentData"
           }
         },
+        "operation": {
+          "$ref": "#/$defs/Operation"
+        },
         "candidates": {
           "type": "number"
         }
@@ -769,6 +773,9 @@
     "GenerateResponse": {
       "type": "object",
       "properties": {
+        "model": {
+          "type": "string"
+        },
         "message": {
           "$ref": "#/$defs/Message"
         },
@@ -788,6 +795,9 @@
         "raw": {},
         "request": {
           "$ref": "#/$defs/GenerateRequest"
+        },
+        "operation": {
+          "$ref": "#/$defs/Operation"
         },
         "candidates": {
           "type": "array",
@@ -955,6 +965,9 @@
             },
             "toolChoice": {
               "type": "boolean"
+            },
+            "longRunning": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -992,6 +1005,9 @@
         },
         "docs": {
           "$ref": "#/$defs/GenerateRequest/properties/docs"
+        },
+        "operation": {
+          "$ref": "#/$defs/GenerateRequest/properties/operation"
         }
       },
       "required": [
@@ -1026,6 +1042,9 @@
     "ModelResponse": {
       "type": "object",
       "properties": {
+        "model": {
+          "$ref": "#/$defs/GenerateResponse/properties/model"
+        },
         "message": {
           "$ref": "#/$defs/GenerateResponse/properties/message"
         },
@@ -1049,12 +1068,62 @@
         },
         "request": {
           "$ref": "#/$defs/GenerateResponse/properties/request"
+        },
+        "operation": {
+          "$ref": "#/$defs/GenerateResponse/properties/operation"
         }
       },
       "required": [
         "finishReason"
       ],
       "additionalProperties": false
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "done": {
+          "type": "boolean"
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "model"
+          ],
+          "additionalProperties": false
+        },
+        "response": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "$ref": "#/$defs/Message"
+            },
+            "finishReason": {
+              "$ref": "#/$defs/FinishReason"
+            },
+            "raw": {}
+          },
+          "required": [
+            "finishReason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": true
     },
     "OutputConfig": {
       "type": "object",

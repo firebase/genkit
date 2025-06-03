@@ -39,6 +39,7 @@ import {
 } from './embedder.js';
 import {
   GeminiConfigSchema,
+  SUPPORTED_GEMINI_MODELS,
   SUPPORTED_V15_MODELS,
   defineGoogleAIModel,
   gemini,
@@ -56,7 +57,14 @@ import {
   type GeminiConfig,
   type GeminiVersionString,
 } from './gemini.js';
+import {
+  GENERIC_IMAGEN_INFO,
+  ImagenConfigSchema,
+  defineImagenModel,
+  type KNOWN_IMAGEN_MODELS,
+} from './imagen.js';
 import { listModels } from './list-models.js';
+import { GENERIC_VEO_INFO, KNOWN_VEO_MODELS, VeoConfigSchema, defineVeoModel } from './veo.js';
 export {
   gemini,
   gemini10Pro,
@@ -178,6 +186,15 @@ async function resolver(
 }
 
 function resolveModel(ai: Genkit, actionName: string, options?: PluginOptions) {
+  if (actionName.startsWith('imagen')) {
+    defineImagenModel(ai, actionName, options?.apiKey);
+    return;
+  }
+  if (actionName.startsWith('veo')) {
+    defineVeoModel(ai, actionName, options?.apiKey);
+    return;
+  }
+
   const modelRef = gemini(actionName);
   defineGoogleAIModel({
     ai,
@@ -220,6 +237,24 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
   );
 
   return [
+    // Imagen
+    ...models
+      .filter(
+        (m) =>
+          m.supportedGenerationMethods.includes('predict') &&
+          m.name.includes('imagen')
+      )
+      // Filter out deprecated
+      .filter((m) => !m.description || !m.description.includes('deprecated'))
+      .map((m) => {
+        const name = m.name.split('/').at(-1)!;
+
+        return modelActionMetadata({
+          name: `googleai/${name}`,
+          info: { ...GENERIC_IMAGEN_INFO },
+          configSchema: ImagenConfigSchema,
+        });
+      }),
     // Models
     ...models
       .filter((m) => m.supportedGenerationMethods.includes('generateContent'))
@@ -286,9 +321,18 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPlugin {
 export type GoogleAIPlugin = {
   (params?: PluginOptions): GenkitPlugin;
   model(
-    name: GeminiVersionString,
+    name: keyof typeof SUPPORTED_GEMINI_MODELS | (`gemini-${string}` & {}),
     config?: z.infer<typeof GeminiConfigSchema>
   ): ModelReference<typeof GeminiConfigSchema>;
+  model(
+    name: KNOWN_IMAGEN_MODELS | (`imagen${string}` & {}),
+    config?: z.infer<typeof ImagenConfigSchema>
+  ): ModelReference<typeof ImagenConfigSchema>;
+  model(
+    name: KNOWN_VEO_MODELS | (`veo${string}` & {}),
+    config?: z.infer<typeof VeoConfigSchema>
+  ): ModelReference<typeof VeoConfigSchema>;
+  model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
   embedder(
     name: string,
     config?: GeminiEmbeddingConfig
@@ -299,10 +343,25 @@ export type GoogleAIPlugin = {
  * Google Gemini Developer API plugin.
  */
 export const googleAI = googleAIPlugin as GoogleAIPlugin;
-googleAI.model = (
-  name: GeminiVersionString,
-  config?: GeminiConfig
-): ModelReference<typeof GeminiConfigSchema> => {
+// provide generic implementation for the model function overloads.
+(googleAI as any).model = (
+  name: string,
+  config?: any
+): ModelReference<z.ZodTypeAny> => {
+  if (name.startsWith('imagen')) {
+    return modelRef({
+      name: `googleai/${name}`,
+      config,
+      configSchema: ImagenConfigSchema,
+    });
+  }
+  if (name.startsWith('veo')) {
+    return modelRef({
+      name: `googleai/${name}`,
+      config,
+      configSchema: VeoConfigSchema,
+    });
+  }
   return modelRef({
     name: `googleai/${name}`,
     config,

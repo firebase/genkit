@@ -27,6 +27,8 @@ import {
   prompt,
   rerank,
   retrieve,
+  checkOperation,
+  generateOperation,
   type BaseDataPointSchema,
   type Document,
   type EmbedderInfo,
@@ -70,6 +72,7 @@ import {
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
+  Operation,
   defineGenerateAction,
   defineModel,
   type DefineModelOptions,
@@ -633,6 +636,32 @@ export class Genkit implements HasRegistry {
   }
 
   /**
+   * Starts a generate operation for long running generation models, tupically for
+   * video and complex audio generation.
+   *
+   * See {@link GenerateOptions} for detailed information about available options.
+   *
+   * ```ts
+   * const operation = await ai.generategenerateOperation({
+   *   model: googleAI.model('veo-2.0-generate-001'),
+   *   prompt: 'A banana riding a bicycle.',
+   * });
+   * ```
+   * 
+   * The status of the operation and fianal result can be obtained using {@link Genkit.checkOperation}.
+   */
+  generateOperation<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    opts:
+      | GenerateOptions<O, CustomOptions>
+      | PromiseLike<GenerateOptions<O, CustomOptions>>
+  ): Promise<Operation> {
+    return generateOperation(this.registry, opts);
+  }
+
+  /**
    * Make a streaming generate call to the default model with a simple text prompt.
    *
    * ```ts
@@ -728,6 +757,29 @@ export class Genkit implements HasRegistry {
     }
     return generateStream(this.registry, options);
   }
+
+  /**
+   * Checks the status of of a given operation. Returns a new operation which will contain the updated status.
+   * 
+   * ```ts
+   * let operation = await ai.generateOperation({
+   *   model: googleAI.model('veo-2.0-generate-001'),
+   *   prompt: 'A banana riding a bicycle.',
+   * });
+   * 
+   * while (!operation.done) {
+   *   operation = await ai.checkOperation(operation!);
+   *   await new Promise((resolve) => setTimeout(resolve, 5000));
+   * }
+   * ```
+   * 
+   * @param operation 
+   * @returns 
+   */
+  checkOperation(operation: Operation): Promise<Operation> {
+    return checkOperation(this.registry, operation);
+  }
+
   /**
    * A flow step that executes the provided function. Each run step is recorded separately in the trace.
    *
