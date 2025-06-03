@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import {
   AuthTypes,
   Connector,
@@ -26,6 +25,7 @@ import {
   DEFAULT_INDEX_NAME_SUFFIX,
   ExactNearestNeighbor,
 } from './indexes';
+
 import { getIAMPrincipalEmail } from './utils';
 
 export { IpAddressTypes } from '@google-cloud/cloud-sql-connector';
@@ -34,9 +34,13 @@ export { IpAddressTypes } from '@google-cloud/cloud-sql-connector';
  * Defines the arguments for configuring a PostgreSQL engine.
  */
 export interface PostgresEngineArgs {
+  /** The IP address type to use for the connection (e.g., PUBLIC, PRIVATE). */
   ipType?: IpAddressTypes;
+  /** The PostgreSQL username for basic authentication. */
   user?: string;
+  /** The PostgreSQL password for basic authentication. */
   password?: string;
+  /** The IAM service account email for IAM database authentication. */
   iamAccountEmail?: string;
 }
 
@@ -44,15 +48,31 @@ export interface PostgresEngineArgs {
  * Defines the arguments for configuring a vector store table.
  */
 export interface VectorStoreTableArgs {
+  /** The schema name for the table. Defaults to "public". */
   schemaName?: string;
+  /** The name of the column to store document content. Defaults to "content". */
   contentColumn?: string;
+  /** The name of the column to store vector embeddings. Defaults to "embedding". */
   embeddingColumn?: string;
+  /** An optional list of `Column` objects to create for custom metadata. Defaults to []. */
   metadataColumns?: Column[];
+  /** The column to store extra metadata in JSON format. Defaults to "json_metadata". */
   metadataJsonColumn?: string;
+  /**
+   * The column to store IDs. Can be a string (column name) or a `Column` object
+   * for more detailed configuration. Defaults to "id" with data type UUID.
+   */
   idColumn?: string | Column;
+  /** Whether to drop the existing table if it already exists. Defaults to false. */
   overwriteExisting?: boolean;
+  /** Whether to store metadata in the table. Defaults to true. */
   storeMetadata?: boolean;
+  /**
+   * Whether to build the index concurrently (allowing concurrent operations on the table).
+   * Defaults to false.
+   */
   concurrently?: boolean;
+  /** The name of the index. If not provided, a default name will be generated. */
   indexName?: string;
 }
 
@@ -60,8 +80,11 @@ export interface VectorStoreTableArgs {
  * Represents a database table column.
  */
 export class Column {
+  /** The name of the column. */
   name: string;
+  /** The data type of the column (e.g., 'TEXT', 'INT', 'UUID'). */
   dataType: string;
+  /** Whether the column can be nullable. */
   nullable: boolean;
 
   /**
@@ -91,6 +114,10 @@ export class Column {
 
 const USER_AGENT = 'genkit-cloud-sql-pg-js';
 
+/**
+ * Manages connections and operations for a PostgreSQL database,
+ * particularly for vector store functionalities.
+ */
 export class PostgresEngine {
   private static _createKey = Symbol();
   pool: knex.Knex<any, any[]>;
@@ -299,17 +326,6 @@ export class PostgresEngine {
     return this.pool
       .raw<{ currentTimestamp: Date }[]>('SELECT NOW() as currentTimestamp')
       .then((result) => result.entries[0].currentTimestamp);
-  }
-
-  /**
-   * Just to test the connection to the database and return the timestamp.
-   * @returns A Promise that resolves to the current timestamp.
-   */
-  async getTestConnectionTimestamp(): Promise<Date> {
-    const result = await this.pool.raw<{ currentTimestamp: Date }[]>(
-      'SELECT NOW() as currentTimestamp'
-    );
-    return result.entries[0].currentTimestamp;
   }
 
   /**
