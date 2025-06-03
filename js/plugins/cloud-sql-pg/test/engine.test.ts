@@ -88,7 +88,6 @@ describe('PostgresEngine Instance creation', () => {
     max: 5,
   };
 
-
   test('should throw an error if only user or password are passed', async () => {
     const pgArgs: PostgresEngineArgs = {
       user: process.env.DB_USER ?? '',

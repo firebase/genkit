@@ -404,4 +404,3 @@ export class PostgresEngine {
     this.pool.raw(query);
   }
 }
-
