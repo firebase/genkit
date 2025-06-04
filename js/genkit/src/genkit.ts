@@ -134,6 +134,8 @@ export interface GenkitOptions {
   promptDir?: string;
   /** Default model to use if no model is specified. */
   model?: ModelArgument<any>;
+  /** Additional runtime context data for flows and tools. */
+  context?: ActionContext;
 }
 
 /**
@@ -162,6 +164,9 @@ export class Genkit implements HasRegistry {
   constructor(options?: GenkitOptions) {
     this.options = options || {};
     this.registry = new Registry();
+    if (this.options.context) {
+      this.registry.context = this.options.context;
+    }
     this.configure();
     if (isDevEnv() && !disableReflectionApi) {
       this.reflectionServer = new ReflectionServer(this.registry, {

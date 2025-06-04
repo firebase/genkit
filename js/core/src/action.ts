@@ -360,7 +360,10 @@ export function detachedAction<
                 fn(input, {
                   ...options,
                   // Context can either be explicitly set, or inherited from the parent action.
-                  context: options?.context ?? getContext(registry),
+                  context: {
+                    ...registry.context,
+                    ...(options?.context ?? getContext(registry)),
+                  },
                   sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
                   trace: {
                     traceId,
@@ -419,7 +422,10 @@ export function detachedAction<
             }) as S extends z.ZodVoid
               ? undefined
               : StreamingCallback<z.infer<S>>,
-            context: opts?.context,
+            context: {
+              ...registry.context,
+              ...(opts?.context ?? getContext(registry)),
+            },
           })
           .then((s) => s.result)
           .finally(() => {
