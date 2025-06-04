@@ -95,13 +95,6 @@ function extractImage(request: GenerateRequest): string | undefined {
     ?.media?.url.split(',')[1];
 }
 
-/*
-interface VideoPrediction {
-  bytesBase64Encoded: string;
-  mimeType: string;
-}
-*/
-
 interface ImagenInstance {
   prompt: string;
   image?: { bytesBase64Encoded: string };
