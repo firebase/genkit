@@ -4,7 +4,7 @@
 > This plugin is experimental, meaning it may not be supported long-term and APIs are subject to more often breaking changes.
 
 This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to:
-- Consume MCP tools, prompts, and resources as a client using `createMcpManager` or `createMcpClient`.
+- Consume MCP tools, prompts, and resources as a client using `createMcpHost` or `createMcpClient`.
 - Provide Genkit tools and prompts as an MCP server using `createMcpServer`.
 
 ## Installation
@@ -15,20 +15,20 @@ To get started, you'll need Genkit and the MCP plugin:
 npm i genkit @genkit-ai/mcp
 ```
 
-## MCP Client Manager
+## MCP Host
 
-To connect to one or more MCP servers, you use the `createMcpManager` function. This function returns a `GenkitMcpManager` instance that manages connections to the configured MCP servers.
+To connect to one or more MCP servers, you use the `createMcpHost` function. This function returns a `GenkitMcpHost` instance that manages connections to the configured MCP servers.
 
 ```ts
 import { genkit } from 'genkit';
-import { createMcpManager } from '@genkit-ai/mcp';
+import { createMcpHost } from '@genkit-ai/mcp';
 
-// Example: Configure a client manager for a local filesystem server
+// Example: Configure a MCP host for a local filesystem server
 // and a hypothetical remote Git server.
 const ALLOWED_DIRS = ['/Users/yourusername/Desktop'];
 
-const mcpManager = createMcpManager({
-  name: 'myMcpClients', // A name for the manager plugin itself
+const McpHost = createMcpHost({
+  name: 'myMcpClients', // A name for the host plugin itself
   mcpServers: {
     // Each key (e.g., 'fs', 'git') becomes a namespace for the server's tools.
     fs: {
@@ -50,7 +50,7 @@ const ai = genkit({
 
 
 // Retrieve tools from all active MCP servers
-const mcpTools = await mcpManager.getActiveTools(genkit);
+const mcpTools = await McpHost.getActiveTools(genkit);
 
 // Provide MCP tools to the model of your choice.
 const response = await ai.generate({
@@ -62,12 +62,12 @@ const response = await ai.generate({
 console.log(response.text);
 ```
 
-The `createMcpManager` function initializes a `GenkitMcpClientManager` instance, which handles the lifecycle and communication with the defined MCP servers.
+The `createMcpHost` function initializes a `GenkitMcpHost` instance, which handles the lifecycle and communication with the defined MCP servers.
 
-### `createMcpManager()` Options
+### `createMcpHost()` Options
 
--   **`name`**: (optional, string) A name for the client manager plugin itself. Defaults to 'genkitx-mcp'.
--   **`version`**: (optional, string) The version of the client manager plugin. Defaults to "1.0.0".
+-   **`name`**: (optional, string) A name for the MCP host plugin itself. Defaults to 'genkitx-mcp'.
+-   **`version`**: (optional, string) The version of the MCP host plugin. Defaults to "1.0.0".
 -   **`mcpServers`**: (required, object) An object where each key is a client-side name (namespace) for an MCP server, and the value is the configuration for that server.
     Each server configuration object can include:
     -   **`rawToolResponses`**: (optional, boolean) If `true`, tool responses from this server are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility. Defaults to `false`.
@@ -125,21 +125,21 @@ runSingleClient();
 The `createMcpClient` function takes an `McpClientOptions` object:
 -   **`name`**: (required, string) A unique name for this client instance. This name will be used as the namespace for its tools and prompts.
 -   **`version`**: (optional, string) Version for this client instance. Defaults to "1.0.0".
--   Plus, all options from `McpServerConfig` (see `disabled`, `rawToolResponses`, and transport configurations under `createMcpManager` options).
+-   Plus, all options from `McpServerConfig` (see `disabled`, `rawToolResponses`, and transport configurations under `createMcpHost` options).
 
 ### Using MCP Actions (Tools, Prompts, Resources)
 
-Both `GenkitMcpManager` (via `getActiveTools()`) and `GenkitMcpClient` (via `getActiveTools()`) discover available tools from their connected and enabled MCP server(s). These tools are standard Genkit `ToolAction` instances and can be provided to Genkit models.
+Both `GenkitMcpHost` (via `getActiveTools()`) and `GenkitMcpClient` (via `getActiveTools()`) discover available tools from their connected and enabled MCP server(s). These tools are standard Genkit `ToolAction` instances and can be provided to Genkit models.
 
 MCP resources are accessed via dynamically generated tools:
 - `[serverName]/list_resources`: Lists available resources.
 - `[serverName]/list_resource_templates`: Lists resource templates.
 - `[serverName]/read_resource`: Reads a specific resource by URI.
 
-MCP prompts can be fetched using `mcpManager.getPrompt(serverName, promptName)` or `mcpClient.getPrompt(promptName)`. These return an `ExecutablePrompt`.
+MCP prompts can be fetched using `McpHost.getPrompt(serverName, promptName)` or `mcpClient.getPrompt(promptName)`. These return an `ExecutablePrompt`.
 
 All MCP actions (tools, prompts, resources) are namespaced.
-- For `createMcpManager`, the namespace is the key you provide for that server in the `mcpServers` configuration (e.g., `localFs/read_file`).
+- For `createMcpHost`, the namespace is the key you provide for that server in the `mcpServers` configuration (e.g., `localFs/read_file`).
 - For `createMcpClient`, the namespace is the `name` you provide in its options (e.g., `myFileSystemClient/list_resources`).
 
 ### Tool Responses

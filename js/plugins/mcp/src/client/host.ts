@@ -24,22 +24,22 @@ import { logger } from 'genkit/logging';
 import { fetchDynamicResourceTools } from '../util/resources.js';
 import { GenkitMcpClient, McpServerConfig } from './client.js';
 
-export interface McpManagerOptions {
+export interface McpHostOptions {
   /**
-   * An optional name for this client manager. This name is primarily for
+   * An optional name for this MCP host. This name is primarily for
    * logging and identification purposes within Genkit.
    * Defaults to 'genkitx-mcp'.
    */
   name?: string;
   /**
-   * An optional version for this client manager. Primarily for
+   * An optional version for this MCP host. Primarily for
    * logging and identification within Genkit.
    * Defaults to '1.0.0'.
    */
   version?: string;
   /**
    * A record for configuring multiple MCP servers. Each server connection is
-   * controlled by a `GenkitMcpClient` instance managed by `GenkitMcpManager`.
+   * controlled by a `GenkitMcpClient` instance managed by `GenkitMcpHost`.
    * The key in the record is used as the identifier for the MCP server.
    */
   mcpServers?: Record<string, McpServerConfig>;
@@ -56,12 +56,12 @@ interface ClientState {
 /**
  * Manages connections to multiple MCP (Model Context Protocol) servers.
  * Each server connection is individually configured and managed by an instance of `GenkitMcpClient`.
- * This manager provides a centralized way to initialize, update, and interact with these clients.
+ * This host provides a centralized way to initialize, update, and interact with these clients.
  *
  * It allows for dynamic registration of tools from all connected and enabled MCP servers
  * into a Genkit instance.
  */
-export class GenkitMcpManager {
+export class GenkitMcpHost {
   name: string;
   private _clients: Record<string, GenkitMcpClient> = {};
   private _clientStates: Record<string, ClientState> = {};
@@ -71,7 +71,7 @@ export class GenkitMcpManager {
   }[] = [];
   private _ready = false;
 
-  constructor(options: McpManagerOptions) {
+  constructor(options: McpHostOptions) {
     this.name = options.name || 'genkitx-mcp';
 
     if (options.mcpServers) {
@@ -82,7 +82,7 @@ export class GenkitMcpManager {
   }
 
   /**
-   * Returns a Promise that resolves when the manager has attempted to connect
+   * Returns a Promise that resolves when the host has attempted to connect
    * to all configured clients, or rejects if a critical error occurs during
    * the initial connection phase.
    */
@@ -109,21 +109,21 @@ export class GenkitMcpManager {
       } catch (e) {
         existingEntry.disable();
         this.setError(serverName, {
-          message: `[MCP Manager] Error disconnecting from existing connection for ${serverName}`,
+          message: `[MCP Host] Error disconnecting from existing connection for ${serverName}`,
           detail: `Details: ${e}`,
         });
       }
     }
 
     logger.debug(
-      `[MCP Manager] Connecting to MCP server '${serverName}' in manager '${this.name}'.`
+      `[MCP Host] Connecting to MCP server '${serverName}' in host '${this.name}'.`
     );
     try {
       const client = new GenkitMcpClient({ ...config, name: serverName });
       this._clients[serverName] = client;
     } catch (e) {
       this.setError(serverName, {
-        message: `[MCP Manager] Error connecting to ${serverName} with config ${config}`,
+        message: `[MCP Host] Error connecting to ${serverName} with config ${config}`,
         detail: `Details: ${e}`,
       });
     }
@@ -137,19 +137,19 @@ export class GenkitMcpManager {
   async disconnect(serverName: string) {
     const client = this._clients[serverName];
     if (!client) {
-      logger.warn(`[MCP Manager] unable to find server ${serverName}`);
+      logger.warn(`[MCP Host] unable to find server ${serverName}`);
       return;
     }
 
     logger.debug(
-      `[MCP Manager] Disconnecting MCP server '${serverName}' in manager '${this.name}'.`
+      `[MCP Host] Disconnecting MCP server '${serverName}' in host '${this.name}'.`
     );
     try {
       await client._disconnect();
     } catch (e) {
       client.disable();
       this.setError(serverName, {
-        message: `[MCP Manager] Error disconnecting from existing connection for ${serverName}`,
+        message: `[MCP Host] Error disconnecting from existing connection for ${serverName}`,
         detail: `Details: ${e}`,
       });
     }
@@ -165,16 +165,16 @@ export class GenkitMcpManager {
   async disable(serverName: string) {
     const client = this._clients[serverName];
     if (!client) {
-      logger.warn(`[MCP Manager] unable to find server ${serverName}`);
+      logger.warn(`[MCP Host] unable to find server ${serverName}`);
       return;
     }
     if (!client.isEnabled()) {
-      logger.warn(`[MCP Manager] server ${serverName} already disabled`);
+      logger.warn(`[MCP Host] server ${serverName} already disabled`);
       return;
     }
 
     logger.debug(
-      `[MCP Manager] Disabling MCP server '${serverName}' in manager '${this.name}'`
+      `[MCP Host] Disabling MCP server '${serverName}' in host '${this.name}'`
     );
     await client.disable();
   }
@@ -187,19 +187,19 @@ export class GenkitMcpManager {
   async enable(serverName: string) {
     const client = this._clients[serverName];
     if (!client) {
-      logger.warn(`[MCP Manager] unable to find server ${serverName}`);
+      logger.warn(`[MCP Host] unable to find server ${serverName}`);
       return;
     }
 
     logger.debug(
-      `[MCP Manager] Reenabling MCP server '${serverName}' in manager '${this.name}'`
+      `[MCP Host] Reenabling MCP server '${serverName}' in host '${this.name}'`
     );
     try {
       await client.enable();
     } catch (e) {
       client.disable();
       this.setError(serverName, {
-        message: `[MCP Manager] Error reenabling server ${serverName}`,
+        message: `[MCP Host] Error reenabling server ${serverName}`,
         detail: `Details: ${e}`,
       });
     }
@@ -214,19 +214,19 @@ export class GenkitMcpManager {
   async reconnect(serverName: string) {
     const client = this._clients[serverName];
     if (!client) {
-      logger.warn(`[MCP Manager] unable to find server ${serverName}`);
+      logger.warn(`[MCP Host] unable to find server ${serverName}`);
       return;
     }
 
     logger.debug(
-      `[MCP Manager] Restarting connection to MCP server '${serverName}' in manager '${this.name}'`
+      `[MCP Host] Restarting connection to MCP server '${serverName}' in host '${this.name}'`
     );
     try {
       await client.restart();
     } catch (e) {
       client.disable();
       this.setError(serverName, {
-        message: `[MCP Manager] Error restarting to server ${serverName}`,
+        message: `[MCP Host] Error restarting to server ${serverName}`,
         detail: `Details: ${e}`,
       });
     }
@@ -273,7 +273,7 @@ export class GenkitMcpManager {
 
   /**
    * Retrieves all tools from all connected and enabled MCP clients managed by
-   * this instance. This method waits for the manager to be ready (all initial
+   * this instance. This method waits for the host to be ready (all initial
    * connection attempts made) before fetching tools.
    *
    * It iterates through each managed `GenkitMcpClient`, and if the client is
@@ -284,9 +284,9 @@ export class GenkitMcpManager {
    * to Genkit, for example, when setting up a Genkit plugin.
    *
    * ```ts
-   * const mcpManager = createMcpManager({ ... });
+   * const McpHost = createMcpHost({ ... });
    * // In your Genkit configuration:
-   * // const allMcpTools = await mcpManager.getActiveTools(ai);
+   * // const allMcpTools = await McpHost.getActiveTools(ai);
    * // Then, these tools can be used or registered with Genkit.
    * ```
    *
@@ -351,7 +351,7 @@ export class GenkitMcpManager {
       const prompt = await client.getPrompt(ai, promptName, opts);
       if (!prompt) {
         logger.error(
-          `[MCP Manager] Unable to fetch the specified ${promptName} in server ${serverName}.`
+          `[MCP Host] Unable to fetch the specified ${promptName} in server ${serverName}.`
         );
         return;
       }

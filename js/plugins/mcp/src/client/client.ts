@@ -91,7 +91,7 @@ export type McpClientOptions = McpServerConfig & {
  * It handles the lifecycle of the connection (connect, disconnect, disable, re-enable, reconnect)
  * and provides methods to fetch tools from the connected server.
  *
- * An instance of `GenkitMcpClient` is typically managed by a `GenkitMcpClientManager`
+ * An instance of `GenkitMcpClient` is typically managed by a `GenkitMcpHost`
  * when dealing with multiple MCP server connections.
  */
 export class GenkitMcpClient {

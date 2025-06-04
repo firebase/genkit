@@ -24,7 +24,7 @@ import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import { googleAI } from '@genkit-ai/googleai';
 import {
   createMcpClient,
-  createMcpManager,
+  createMcpHost,
   createMcpServer,
 } from '@genkit-ai/mcp';
 import { appRoute } from '@genkit-ai/next';
@@ -53,7 +53,7 @@ devLocalVectorstore;
 genkitEval;
 createMcpClient;
 createMcpServer;
-createMcpManager;
+createMcpHost;
 
 export const ai = genkit({});
 const hello = ai.defineFlow('hello', () => 'hello');
