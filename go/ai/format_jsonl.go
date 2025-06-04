@@ -103,7 +103,7 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 			if !part.IsText() {
 				newParts = append(newParts, part)
 			} else {
-				lines := base.GetJsonObjectLines(part.Text)
+				lines := base.GetJsonLines(part.Text, "{")
 				for _, line := range lines {
 					if j.config.Schema != nil {
 						var schemaBytes []byte
@@ -163,7 +163,7 @@ func (j jsonlHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, er
 		text = text[startIndex:]
 
 		var newParts []*Part
-		lines := base.GetJsonObjectLines(text)
+		lines := base.GetJsonLines(text, "{")
 		for _, line := range lines {
 			if line != "" {
 				var err error

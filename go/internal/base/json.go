@@ -128,12 +128,13 @@ func ExtractJSONFromMarkdown(md string) string {
 	if matches == nil {
 		return md
 	}
+
 	return matches[2]
 }
 
-// GetJsonObjectLines splits a string by newlines, trims whitespace from each line,
-// and returns a slice containing only the lines that start with '{'.
-func GetJsonObjectLines(text string) []string {
+// GetJsonLines splits a string by newlines, trims whitespace from each line,
+// and returns a slice containing only the lines that start with the prefix.
+func GetJsonLines(text string, prefix string) []string {
 	jsonText := ExtractJSONFromMarkdown(text)
 
 	// Handle both actual "\n" newline strings, as well as newline bytes
@@ -148,10 +149,9 @@ func GetJsonObjectLines(text string) []string {
 			continue
 		}
 
-		// Check the given string for a json object
-		trimmedLine := GetJsonObject(line)
-		if trimmedLine != "" {
-			// If it exists, append the trimmed line to our result slice.
+		// Trim leading and trailing whitespace from the current line.
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, prefix) {
 			result = append(result, trimmedLine)
 		}
 	}
