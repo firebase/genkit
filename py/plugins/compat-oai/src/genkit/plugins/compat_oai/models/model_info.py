@@ -46,8 +46,8 @@ GPT_4O = 'gpt-4o'
 GPT_4O_MINI = 'gpt-4o-mini'
 O1_MINI = 'o1-mini'
 
-LLAMA_3_1 = 'llama-3.1'
-LLAMA_3_2 = 'llama-3.2'
+LLAMA_3_1 = 'meta/llama3-405b-instruct-maas'
+LLAMA_3_2 = 'meta/llama-3.2-90b-vision-instruct-maas'
 
 SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
     GPT_3_5_TURBO: ModelInfo(
@@ -145,8 +145,7 @@ SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
 
 SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
     LLAMA_3_1: ModelInfo(
-        versions=['meta/llama3-405b-instruct-maas'],
-        label='llama-3.1',
+        label='ModelGarden - Meta - llama-3.1',
         supports=Supports(
             multiturn=True,
             media=False,
@@ -156,8 +155,7 @@ SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
         ),
     ),
     LLAMA_3_2: ModelInfo(
-        versions=['meta/llama-3.2-90b-vision-instruct-maas'],
-        label='llama-3.2',
+        label='ModelGarden - Meta - llama-3.2',
         supports=Supports(
             multiturn=True,
             media=True,
