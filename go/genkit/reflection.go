@@ -34,7 +34,6 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -256,59 +255,76 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 	}
 }
 
-// resolveModel tries to resolve a model from a [DynamicPlugin]
+// resolveAction tries to resolve a model from a [DynamicPlugin]
 // by registering it into the registry if not present
-func resolveModel(ctx context.Context, g *Genkit, input json.RawMessage) error {
-	var inputMap map[string]any
-	// NOTE: returning nil regardless of error.
-	// This is to allow all type of contents in [json.RawMessage]
-	// e.g. A flow that accepts a string as an input is a valid [json.RawMessage]
-	err := json.Unmarshal(input, &inputMap)
-	if err != nil {
-		return nil
-	}
+func resolveAction(g *Genkit, key string, input json.RawMessage) (core.Action, error) {
+	fmt.Printf("resolving action: %q\n", key)
 
-	var modelName string
-	var found bool
-	modelName, ok := inputMap["model"].(string)
-	if !ok {
-		// reflection API tests do not set "model" attribute but it is provided in the key
-		if key, ok := inputMap["key"].(string); ok {
-			modelName, found = strings.CutPrefix(key, "model/")
-			if !found {
-				return core.NewError(core.INVALID_ARGUMENT, "model not provided")
-			}
+	var atype, provider, name string
+	trimmedKey := strings.TrimPrefix(key, "/")
+	found := strings.HasPrefix(trimmedKey, string(core.ActionTypeUtil))
+	if found && strings.Contains(key, "generate") {
+		var inputMap map[string]any
+		err := json.Unmarshal(input, &inputMap)
+		if err != nil {
+			return nil, core.NewError(core.INTERNAL, err.Error())
 		}
-	}
-	provider, name, found := strings.Cut(modelName, "/")
-	if !found {
-		provider = ""
-	}
-
-	plugins := g.reg.ListPlugins()
-	for _, plugin := range plugins {
-		dp, ok := plugin.(DynamicPlugin)
+		modelName, ok := inputMap["model"].(string)
 		if !ok {
-			continue
+			if k, ok := inputMap["key"].(string); ok {
+				modelName, found = strings.CutPrefix(k, "model/")
+				if !found {
+					return nil, core.NewError(core.INVALID_ARGUMENT, "unable to get model name for action %q", inputMap["key"])
+				}
+			}
 		}
-		if dp.Name() != provider {
-			continue
+		provider, name, found = strings.Cut(modelName, "/")
+		if !found {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "unable to get provider from %q", modelName)
 		}
-		for _, ads := range dp.ListActions(ctx) {
-			if ads.Name != modelName {
-				continue
+		plugin := g.reg.LookupPluginByName(provider)
+		if plugin == nil {
+			return nil, core.NewError(core.NOT_FOUND, "plugin for provider %q not found", provider)
+		}
+		dp, ok := plugin.(DynamicPlugin)
+		if ok {
+			if a := g.reg.LookupAction(fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, provider, name)); a != nil {
+				return a.(core.Action), nil
 			}
-			// action found, no need to register it
-			if a := g.reg.LookupAction(ads.Key); a != nil {
-				return nil
+			err = dp.ResolveAction(g, core.ActionTypeModel, name)
+			if err != nil {
+				return nil, core.NewError(core.INTERNAL, err.Error())
 			}
-			if err := dp.ResolveAction(g, ads.Type, name); err != nil {
-				return err
+		}
+
+		action := g.reg.LookupAction(key).(core.Action)
+		return action, nil
+	}
+
+	parts := strings.Split(trimmedKey, "/")
+	if len(parts) == 3 {
+		atype = parts[0]
+		provider = parts[1]
+		name = parts[2]
+
+		plugin := g.reg.LookupPluginByName(provider)
+		if plugin == nil {
+			return nil, core.NewError(core.NOT_FOUND, "plugin for provider %q not found", provider)
+		}
+		dp, ok := plugin.(DynamicPlugin)
+		if ok {
+			if a := g.reg.LookupAction(fmt.Sprintf("/%s/%s/%s", core.ActionType(atype), provider, name)); a != nil {
+				return a.(core.Action), nil
 			}
-			return nil
+			err := dp.ResolveAction(g, core.ActionType(atype), name)
+			if err != nil {
+				return nil, core.NewError(core.INTERNAL, err.Error())
+			}
 		}
 	}
-	return nil
+
+	action := g.reg.LookupAction(key).(core.Action)
+	return action, nil
 }
 
 // handleRunAction looks up an action by name in the registry, runs it with the
@@ -357,11 +373,7 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		if err = resolveModel(ctx, g, body.Input); err != nil {
-			return err
-		}
-
-		resp, err := runAction(ctx, g.reg, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
+		resp, err := runAction(ctx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 		if err != nil {
 			if stream {
 				reflectErr, err := json.Marshal(core.ToReflectionError(err))
@@ -487,17 +499,17 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
-	action, ok := reg.LookupAction(key).(core.Action)
-	if !ok {
-		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
+func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
+	action, err := resolveAction(g, key, input)
+	if err != nil {
+		return nil, err
 	}
 	if runtimeContext != nil {
 		ctx = core.WithActionContext(ctx, runtimeContext)
 	}
 
 	var traceID string
-	output, err := tracing.RunInNewSpan(ctx, reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+	output, err := tracing.RunInNewSpan(ctx, g.reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		// Set telemetry labels from payload to span
 		if telemetryLabels != nil {
