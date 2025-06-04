@@ -621,6 +621,124 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("got text %q, want %q", res.Text(), expectedText)
 		}
 	})
+
+	t.Run("registers dynamic tools", func(t *testing.T) {
+		// Create a tool that is NOT registered in the global registry
+		dynamicTool := NewTool("dynamicTestTool", "a tool that is dynamically registered",
+			func(ctx *ToolContext, input struct {
+				Message string
+			}) (string, error) {
+				return "Dynamic: " + input.Message, nil
+			},
+		)
+
+		// Verify the tool is not in the global registry
+		if LookupTool(r, "dynamicTestTool") != nil {
+			t.Fatal("dynamicTestTool should not be registered in global registry")
+		}
+
+		// Create a model that will call the dynamic tool then provide a final response
+		roundCount := 0
+		info := &ModelInfo{
+			Supports: &ModelSupports{
+				Multiturn: true,
+				Tools:     true,
+			},
+		}
+		toolCallModel := DefineModel(r, "test", "toolcall", info,
+			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+				roundCount++
+				if roundCount == 1 {
+					// First response: call the dynamic tool
+					return &ModelResponse{
+						Request: gr,
+						Message: &Message{
+							Role: RoleModel,
+							Content: []*Part{
+								NewToolRequestPart(&ToolRequest{
+									Name:  "dynamicTestTool",
+									Input: map[string]any{"Message": "Hello from dynamic tool"},
+								}),
+							},
+						},
+					}, nil
+				}
+				// Second response: provide final answer based on tool response
+				var toolResult string
+				for _, msg := range gr.Messages {
+					if msg.Role == RoleTool {
+						for _, part := range msg.Content {
+							if part.ToolResponse != nil {
+								toolResult = part.ToolResponse.Output.(string)
+							}
+						}
+					}
+				}
+				return &ModelResponse{
+					Request: gr,
+					Message: &Message{
+						Role: RoleModel,
+						Content: []*Part{
+							NewTextPart(toolResult),
+						},
+					},
+				}, nil
+			})
+
+		// Use Generate with the dynamic tool - this should trigger the dynamic registration
+		res, err := Generate(context.Background(), r,
+			WithModel(toolCallModel),
+			WithPrompt("call the dynamic tool"),
+			WithTools(dynamicTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// The tool should have been called and returned a response
+		expectedText := "Dynamic: Hello from dynamic tool"
+		if res.Text() != expectedText {
+			t.Errorf("expected text %q, got %q", expectedText, res.Text())
+		}
+
+		// Verify two rounds were executed: tool call + final response
+		if roundCount != 2 {
+			t.Errorf("expected 2 rounds, got %d", roundCount)
+		}
+
+		// Verify the tool is still not in the global registry (it was registered in a child)
+		if LookupTool(r, "dynamicTestTool") != nil {
+			t.Error("dynamicTestTool should not be registered in global registry after generation")
+		}
+	})
+
+	t.Run("handles duplicate dynamic tools", func(t *testing.T) {
+		// Create two tools with the same name
+		dynamicTool1 := NewTool("duplicateTool", "first tool",
+			func(ctx *ToolContext, input any) (string, error) {
+				return "tool1", nil
+			},
+		)
+		dynamicTool2 := NewTool("duplicateTool", "second tool",
+			func(ctx *ToolContext, input any) (string, error) {
+				return "tool2", nil
+			},
+		)
+
+		// Using both tools should result in an error
+		_, err := Generate(context.Background(), r,
+			WithModel(echoModel),
+			WithPrompt("test duplicate tools"),
+			WithTools(dynamicTool1, dynamicTool2),
+		)
+
+		if err == nil {
+			t.Fatal("expected error for duplicate tool names")
+		}
+		if !strings.Contains(err.Error(), "duplicate tool \"duplicateTool\"") {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
 }
 
 func TestModelVersion(t *testing.T) {
