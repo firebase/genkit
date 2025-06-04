@@ -15,7 +15,7 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
-import { createMcpManager } from '@genkit-ai/mcp';
+import { createMcpHost } from '@genkit-ai/mcp';
 import { genkit, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import path from 'path';
@@ -50,7 +50,7 @@ export const ai = genkit({
 
 logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
 
-export const clientManager = createMcpManager({
+export const clientManager = createMcpHost({
   name: 'test-mcp-manager',
   mcpServers: {
     'git-client': {

@@ -21,11 +21,11 @@ import {
   McpServerConfig,
   McpStdioServerConfig,
 } from './client/client.js';
-import { GenkitMcpManager, McpManagerOptions } from './client/index.js';
+import { GenkitMcpHost, McpHostOptions } from './client/index.js';
 import { GenkitMcpServer } from './server.js';
 export {
   GenkitMcpClient,
-  GenkitMcpManager,
+  GenkitMcpHost,
   type McpClientOptions,
   type McpServerConfig,
   type McpStdioServerConfig,
@@ -40,7 +40,7 @@ export interface McpServerOptions {
 }
 
 /**
- * Creates an MCP Client Manager that connects to one or more MCP servers.
+ * Creates an MCP Client Host that connects to one or more MCP servers.
  * Each server is defined in the `mcpClients` option, where the key is a
  * client-side name for the server and the value is the server's configuration.
  *
@@ -48,8 +48,8 @@ export interface McpServerOptions {
  * their configuration includes `{disabled: true}`.
  *
  * ```ts
- * const clientManager = createMcpManager({
- *   name: "my-mcp-client-manager", // Name for the manager itself
+ * const clientHost = createMcpHost({
+ *   name: "my-mcp-client-host", // Name for the host itself
  *   mcpServers: {
  *     // Each key is a name for this client/server configuration
  *     // Each value is an McpServerConfig object
@@ -59,11 +59,11 @@ export interface McpServerOptions {
  * });
  * ```
  *
- * @param options Configuration for the MCP Client Manager, including the definitions of MCP servers to connect to.
- * @returns A new instance of GenkitMcpClientManager.
+ * @param options Configuration for the MCP Client Host, including the definitions of MCP servers to connect to.
+ * @returns A new instance of GenkitMcpHost.
  */
-export function createMcpManager(options: McpManagerOptions) {
-  return new GenkitMcpManager(options);
+export function createMcpHost(options: McpHostOptions) {
+  return new GenkitMcpHost(options);
 }
 
 /**

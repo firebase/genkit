@@ -17,11 +17,11 @@
 import { Resource, ResourceTemplate } from '@modelcontextprotocol/sdk/types.js';
 import { Genkit, GenkitError, ToolAction, z } from 'genkit';
 import { logger } from 'genkit/logging';
-import { GenkitMcpManager } from '../client';
+import { GenkitMcpHost } from '../client';
 
 function listResourcesTool(
   ai: Genkit,
-  manager: GenkitMcpManager,
+  host: GenkitMcpHost,
   params: { asDynamicTool?: boolean }
 ): ToolAction {
   const actionMetadata = {
@@ -43,7 +43,7 @@ function listResourcesTool(
       string,
       { resources: Resource[]; resourceTemplates: ResourceTemplate[] }
     > = {};
-    for (const client of manager.activeClients) {
+    for (const client of host.activeClients) {
       if (
         opts?.servers &&
         opts.servers.length > 0 &&
@@ -83,7 +83,7 @@ function listResourcesTool(
 
 function readResourceTool(
   ai: Genkit,
-  manager: GenkitMcpManager,
+  host: GenkitMcpHost,
   params: { asDynamicTool?: boolean }
 ) {
   const actionMetadata = {
@@ -95,7 +95,7 @@ function readResourceTool(
     }),
   };
   const fn = async ({ server, uri }) => {
-    const client = manager.activeClients.find((c) => c.name === server);
+    const client = host.activeClients.find((c) => c.name === server);
     if (!client) {
       throw new GenkitError({
         status: 'NOT_FOUND',
@@ -121,13 +121,10 @@ function readResourceTool(
  * @param params Configuration parameters, including the client name and server name for namespacing.
  * @returns An array of Genkit `ToolAction` instances for MCP resource operations.
  */
-export function fetchDynamicResourceTools(
-  ai: Genkit,
-  manager: GenkitMcpManager
-) {
+export function fetchDynamicResourceTools(ai: Genkit, host: GenkitMcpHost) {
   const dynamicParams = { asDynamicTool: true };
   return [
-    listResourcesTool(ai, manager, dynamicParams),
-    readResourceTool(ai, manager, dynamicParams),
+    listResourcesTool(ai, host, dynamicParams),
+    readResourceTool(ai, host, dynamicParams),
   ];
 }

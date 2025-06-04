@@ -18,12 +18,12 @@ import * as assert from 'assert';
 import { Genkit, genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { GenkitMcpManager, createMcpManager } from '../src/index.js';
+import { GenkitMcpHost, createMcpHost } from '../src/index.js';
 import { FakeTransport, defineEchoModel } from './fakes.js';
 
 logger.setLogLevel('debug');
 
-describe('createMcpManager', () => {
+describe('createMcpHost', () => {
   let ai: Genkit;
 
   beforeEach(async () => {
@@ -31,14 +31,14 @@ describe('createMcpManager', () => {
     defineEchoModel(ai);
   });
 
-  describe('manager', () => {
+  describe('host', () => {
     let fakeTransport1: FakeTransport;
     let fakeTransport2: FakeTransport;
-    let clientManager: GenkitMcpManager;
+    let clientHost: GenkitMcpHost;
 
     beforeEach(() => {
-      clientManager = createMcpManager({
-        name: 'test-mcp-manager',
+      clientHost = createMcpHost({
+        name: 'test-mcp-host',
       });
 
       fakeTransport1 = new FakeTransport();
@@ -77,70 +77,70 @@ describe('createMcpManager', () => {
     });
 
     afterEach(async () => {
-      await clientManager?.close();
+      await clientHost?.close();
     });
 
     it('should dynamically connect clients', async () => {
       // no server connected, no tools
       assert.deepStrictEqual(
-        (await clientManager.getActiveTools(ai)).map((t) => t.__action.name),
+        (await clientHost.getActiveTools(ai)).map((t) => t.__action.name),
         []
       );
 
       // connect fakeTransport1
-      await clientManager.connect('test-mcp-manager1', {
+      await clientHost.connect('test-mcp-host1', {
         transport: fakeTransport1,
       });
 
       assert.deepStrictEqual(
-        (await clientManager.getActiveTools(ai)).map((t) => t.__action.name),
-        ['test-mcp-manager1/testTool1']
+        (await clientHost.getActiveTools(ai)).map((t) => t.__action.name),
+        ['test-mcp-host1/testTool1']
       );
 
       // connect fakeTransport2
-      await clientManager.connect('test-mcp-manager2', {
+      await clientHost.connect('test-mcp-host2', {
         transport: fakeTransport2,
       });
 
       assert.deepStrictEqual(
-        (await clientManager.getActiveTools(ai)).map((t) => t.__action.name),
-        ['test-mcp-manager1/testTool1', 'test-mcp-manager2/testTool2']
+        (await clientHost.getActiveTools(ai)).map((t) => t.__action.name),
+        ['test-mcp-host1/testTool1', 'test-mcp-host2/testTool2']
       );
 
       // disable
-      await clientManager.disable('test-mcp-manager1');
+      await clientHost.disable('test-mcp-host1');
 
       assert.deepStrictEqual(
-        (await clientManager.getActiveTools(ai)).map((t) => t.__action.name),
-        ['test-mcp-manager2/testTool2']
+        (await clientHost.getActiveTools(ai)).map((t) => t.__action.name),
+        ['test-mcp-host2/testTool2']
       );
 
       // reconnect
-      await clientManager.enable('test-mcp-manager1');
+      await clientHost.enable('test-mcp-host1');
 
       assert.deepStrictEqual(
-        (await clientManager.getActiveTools(ai)).map((t) => t.__action.name),
-        ['test-mcp-manager1/testTool1', 'test-mcp-manager2/testTool2']
+        (await clientHost.getActiveTools(ai)).map((t) => t.__action.name),
+        ['test-mcp-host1/testTool1', 'test-mcp-host2/testTool2']
       );
 
       // disconnect
-      await clientManager.disconnect('test-mcp-manager1');
+      await clientHost.disconnect('test-mcp-host1');
 
       assert.deepStrictEqual(
-        (await clientManager.getActiveTools(ai)).map((t) => t.__action.name),
-        ['test-mcp-manager2/testTool2']
+        (await clientHost.getActiveTools(ai)).map((t) => t.__action.name),
+        ['test-mcp-host2/testTool2']
       );
     });
   });
 
   describe('tools', () => {
     let fakeTransport: FakeTransport;
-    let clientManager: GenkitMcpManager;
+    let clientHost: GenkitMcpHost;
 
     beforeEach(() => {
       fakeTransport = new FakeTransport();
-      clientManager = createMcpManager({
-        name: 'test-mcp-manager',
+      clientHost = createMcpHost({
+        name: 'test-mcp-host',
         mcpServers: {
           'test-server': {
             transport: fakeTransport,
@@ -166,12 +166,12 @@ describe('createMcpManager', () => {
     });
 
     afterEach(() => {
-      clientManager?.close();
+      clientHost?.close();
     });
 
     it('should list tools', async () => {
       assert.deepStrictEqual(
-        (await clientManager.getActiveTools(ai)).map((t) => t.__action.name),
+        (await clientHost.getActiveTools(ai)).map((t) => t.__action.name),
         ['test-server/testTool']
       );
     });
@@ -186,7 +186,7 @@ describe('createMcpManager', () => {
         ],
       };
 
-      const tool = (await clientManager.getActiveTools(ai))[0];
+      const tool = (await clientHost.getActiveTools(ai))[0];
       const response = await tool({
         foo: 'bar',
       });
@@ -196,13 +196,13 @@ describe('createMcpManager', () => {
 
   describe('prompts', () => {
     let fakeTransport: FakeTransport;
-    let clientManager: GenkitMcpManager;
+    let clientHost: GenkitMcpHost;
 
     beforeEach(() => {
       fakeTransport = new FakeTransport();
 
-      clientManager = createMcpManager({
-        name: 'test-mcp-manager',
+      clientHost = createMcpHost({
+        name: 'test-mcp-host',
         mcpServers: {
           'test-server': {
             transport: fakeTransport,
@@ -227,11 +227,11 @@ describe('createMcpManager', () => {
     });
 
     afterEach(() => {
-      clientManager?.close();
+      clientHost?.close();
     });
 
     it('should execute prompt', async () => {
-      const prompt = await clientManager.getPrompt(
+      const prompt = await clientHost.getPrompt(
         ai,
         'test-server',
         'testPrompt',
@@ -249,7 +249,7 @@ describe('createMcpManager', () => {
     });
 
     it('should render prompt', async () => {
-      const prompt = await clientManager.getPrompt(
+      const prompt = await clientHost.getPrompt(
         ai,
         'test-server',
         'testPrompt',
@@ -266,7 +266,7 @@ describe('createMcpManager', () => {
     });
 
     it('should stream prompt', async () => {
-      const prompt = await clientManager.getPrompt(
+      const prompt = await clientHost.getPrompt(
         ai,
         'test-server',
         'testPrompt',
@@ -292,12 +292,12 @@ describe('createMcpManager', () => {
 
   describe('resources', () => {
     let fakeTransport: FakeTransport;
-    let clientManager: GenkitMcpManager;
+    let clientHost: GenkitMcpHost;
 
     beforeEach(() => {
       fakeTransport = new FakeTransport();
-      clientManager = createMcpManager({
-        name: 'test-mcp-manager',
+      clientHost = createMcpHost({
+        name: 'test-mcp-host',
         mcpServers: {
           'test-server': {
             transport: fakeTransport,
@@ -335,12 +335,12 @@ describe('createMcpManager', () => {
     });
 
     afterEach(() => {
-      clientManager?.close();
+      clientHost?.close();
     });
 
     it('should list resource tools', async () => {
       assert.deepStrictEqual(
-        (await clientManager.getActiveTools(ai, { resourceTools: true })).map(
+        (await clientHost.getActiveTools(ai, { resourceTools: true })).map(
           (t) => t.__action.name
         ),
         ['test-server/testTool', 'mcp/list_resources', 'mcp/read_resource']
@@ -349,7 +349,7 @@ describe('createMcpManager', () => {
 
     it('should list resources and templates', async () => {
       const listResourcesTool = (
-        await clientManager.getActiveTools(ai, { resourceTools: true })
+        await clientHost.getActiveTools(ai, { resourceTools: true })
       ).find((t) => t.__action.name === 'mcp/list_resources');
       assert.ok(listResourcesTool);
 
@@ -387,7 +387,7 @@ describe('createMcpManager', () => {
       };
 
       const readResourceTool = (
-        await clientManager.getActiveTools(ai, { resourceTools: true })
+        await clientHost.getActiveTools(ai, { resourceTools: true })
       ).find((t) => t.__action.name === 'mcp/read_resource');
       assert.ok(readResourceTool);
 
