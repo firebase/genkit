@@ -70,7 +70,7 @@ def test_generate(sample_request):
     mock_client.chat.completions.create.return_value = mock_response
 
     model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
-    response = model.generate(sample_request)
+    response = model._generate(sample_request)
 
     mock_client.chat.completions.create.assert_called_once()
     assert isinstance(response, GenerateResponse)
@@ -115,6 +115,6 @@ def test_generate_stream(sample_request):
     def callback(chunk: GenerateResponseChunk):
         collected_chunks.append(chunk.content[0].root.text)
 
-    model.generate_stream(sample_request, callback)
+    model._generate_stream(sample_request, callback)
 
     assert collected_chunks == ['Hello', ', world!']

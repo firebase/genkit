@@ -167,3 +167,20 @@ SUPPORTED_OPENAI_COMPAT_MODELS: dict[str, ModelInfo] = {
         ),
     ),
 }
+
+
+DEFAULT_SUPPORTS = Supports(
+    multiturn=True,
+    media=True,
+    tools=True,
+    systemRole=True,
+    output=[SupportedOutputFormat.JSON_MODE, SupportedOutputFormat.TEXT],
+)
+
+
+def get_default_model_info(name: str) -> ModelInfo:
+    """Gets the default model info given a name."""
+    return ModelInfo(
+        label=name,
+        supports=DEFAULT_SUPPORTS,
+    )

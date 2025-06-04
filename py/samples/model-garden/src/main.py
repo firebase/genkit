@@ -21,7 +21,14 @@ from genkit.plugins.vertex_ai.model_garden import VertexAIModelGarden, model_gar
 
 logger = structlog.get_logger(__name__)
 
-ai = Genkit(plugins=[VertexAIModelGarden(location='us-central1', models=['llama-3.2'])])
+ai = Genkit(
+    plugins=[
+        VertexAIModelGarden(
+            location='us-central1',
+            models=['meta/llama-3.2-90b-vision-instruct-maas'],
+        ),
+    ],
+)
 
 
 @ai.flow()
@@ -35,8 +42,8 @@ async def say_hi(name: str) -> str:
         The generated greeting response.
     """
     response = await ai.generate(
-        model=model_garden_name('llama-3.2'),
-        config={'model': 'meta/llama-3.2-90b-vision-instruct-maas', 'temperature': 1},
+        model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
+        config={'temperature': 1},
         prompt=f'hi {name}',
     )
 
@@ -54,8 +61,8 @@ async def say_hi_stream(name: str) -> str:
         The response from the OpenAI API.
     """
     stream, _ = ai.generate_stream(
-        model=model_garden_name('llama-3.2'),
-        config={'model': 'meta/llama-3.2-90b-vision-instruct-maas', 'temperature': 1},
+        model=model_garden_name('meta/llama-3.2-90b-vision-instruct-maas'),
+        config={'temperature': 1},
         prompt=f'hi {name}',
     )
     result = ''

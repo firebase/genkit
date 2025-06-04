@@ -28,7 +28,6 @@ from genkit.plugins.compat_oai.models.model_info import (
     SUPPORTED_OPENAI_MODELS,
     PluginSource,
 )
-from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.types import (
     GenerateRequest,
     GenerateResponse,
@@ -110,16 +109,6 @@ class OpenAIModelHandler:
         if version not in model_info.versions:
             raise ValueError(f"Model version '{version}' is not supported.")
 
-    def _normalize_config(self, config: Any) -> OpenAIConfig:
-        """Ensures the config is an OpenAIConfig instance."""
-        if isinstance(config, OpenAIConfig):
-            return config
-
-        if isinstance(config, dict):
-            return OpenAIConfig(**config)
-
-        raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')
-
     def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API.
 
@@ -133,12 +122,9 @@ class OpenAIModelHandler:
         Raises:
             ValueError: If the specified model version is not supported.
         """
-        request.config = self._normalize_config(request.config)
+        request.config = self._model._normalize_config(request.config)
 
         if request.config.model:
             self._validate_version(request.config.model)
 
-        if ctx.is_streaming:
-            return self._model.generate_stream(request, ctx.send_chunk)
-        else:
-            return self._model.generate(request)
+        return self._model.generate(request, ctx)

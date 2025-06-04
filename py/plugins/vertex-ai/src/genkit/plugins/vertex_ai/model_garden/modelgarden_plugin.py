@@ -21,7 +21,7 @@ import os
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.plugins.vertex_ai import constants as const
 
-from .model_garden import OPENAI_COMPAT, ModelGarden
+from .model_garden import MODELGARDEN_PLUGIN_NAME, ModelGarden
 
 
 class VertexAIModelGarden(Plugin):
@@ -33,7 +33,7 @@ class VertexAIModelGarden(Plugin):
     registration of model actions.
     """
 
-    name = 'modelgarden'
+    name = MODELGARDEN_PLUGIN_NAME
 
     def __init__(self, project_id: str | None = None, location: str | None = None, models: list[str] | None = None):
         """Initialize the plugin by registering actions with the registry."""
@@ -44,14 +44,14 @@ class VertexAIModelGarden(Plugin):
     def initialize(self, ai: GenkitRegistry) -> None:
         """Handles actions for various openaicompatible models."""
         models = self.models
-        if models:
-            for model in models:
-                model_info = ModelGarden.get_model_info(model)
-                if model_info:
-                    if model_info['type'] == OPENAI_COMPAT:
-                        ModelGarden.to_openai_compatible_model(
-                            ai,
-                            model=model_info['name'],
-                            location=self.location,
-                            project_id=self.project_id,
-                        )
+        if models is None:
+            return
+
+        for model in models:
+            model_proxy = ModelGarden(
+                model=model,
+                location=self.location,
+                project_id=self.project_id,
+                registry=ai,
+            )
+            model_proxy.define_model()

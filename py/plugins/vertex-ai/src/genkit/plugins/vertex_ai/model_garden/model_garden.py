@@ -14,18 +14,20 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+from collections.abc import Callable
+
 from genkit.ai import GenkitRegistry
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
-    OpenAIModelHandler,
-    PluginSource,
+    get_default_model_info,
 )
-from genkit.plugins.compat_oai.models.model_info import PluginSource
+from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.typing import OpenAIConfig
 
 from .client import OpenAIClient
 
 OPENAI_COMPAT = 'openai-compat'
+MODELGARDEN_PLUGIN_NAME = 'modelgarden'
 
 
 def model_garden_name(name: str) -> str:
@@ -37,36 +39,88 @@ def model_garden_name(name: str) -> str:
     Returns:
         The fully qualified Model Garden action name.
     """
-    return f'modelgarden/{name}'
+    return f'{MODELGARDEN_PLUGIN_NAME}/{name}'
 
 
 class ModelGarden:
-    @staticmethod
-    def get_model_info(name: str) -> dict[str, str] | None:
-        """Returns model type and name for a given model.
+    """Manages integration with Google's Model Garden service for Genkit.
+
+    This class provides a convenient way to interact with models hosted on
+    Google's Model Garden, allowing them to be exposed as Genkit models
+    with OpenAI compatibility. It handles client initialization, model
+    information retrieval, and dynamic model definition within the Genkit
+    registry.
+    """
+
+    def __init__(self,
+        model: str,
+        location: str,
+        project_id: str,
+        registry: GenkitRegistry,
+    ) -> None:
+        """Initializes the ModelGarden instance.
 
         Args:
-            name: Name of the model for which type and name are to be returned
-
+            model: The name of the specific model to be used from Model Garden
+                in the way <publisher>/<model> (e.g., 'meta/llama3.2-pro-max').
+            location: The Google Cloud region where the Model Garden service
+                is hosted (e.g., 'us-central1').
+            project_id: The Google Cloud project ID where the Model Garden
+                model is deployed.
+            registry: An instance of `GenkitRegistry` to register the
+                OpenAI-compatible model with Genkit.
         """
-        if SUPPORTED_OPENAI_COMPAT_MODELS.get(name):
-            return {'name': SUPPORTED_OPENAI_COMPAT_MODELS.get(name).label, 'type': OPENAI_COMPAT}
-
-    @classmethod
-    def to_openai_compatible_model(cls, ai: GenkitRegistry, model: str, location: str, project_id: str):
-        if model not in SUPPORTED_OPENAI_COMPAT_MODELS:
-            raise ValueError(f"Model '{model}' is not supported.")
+        self.name = model
+        self.ai = registry
         openai_params = {'location': location, 'project_id': project_id}
-        openai_client = OpenAIClient(**openai_params)
-        handler = OpenAIModelHandler.get_model_handler(
-            model=model, client=openai_client, registry=ai, source=PluginSource.MODEL_GARDEN
-        )
+        self.client = OpenAIClient(**openai_params)
 
-        supports = SUPPORTED_OPENAI_COMPAT_MODELS[model].supports.model_dump()
+    def get_model_info(self) -> dict[str, str] | None:
+        """Retrieves metadata and supported features for the specified model.
 
-        ai.define_model(
-            name=model_garden_name(model),
-            fn=handler,
+        This method looks up the model's information from a predefined list
+        of supported OpenAI-compatible models or provides default information.
+
+        Returns:
+            A dictionary containing the model's 'name' and 'supports' features,
+            or None if no information can be found (though typically, a default
+            is provided). The 'supports' key contains a dictionary representing
+            the model's capabilities (e.g., tools, streaming).
+        """
+        model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(self.name, get_default_model_info(self.name))
+        return {
+            'name': model_info.label,
+            'supports': model_info.supports.model_dump(),
+        }
+
+    def to_openai_compatible_model(self) -> Callable:
+        """Converts the Model Garden model into an OpenAI-compatible Genkit model function.
+
+        This method wraps the underlying Model Garden client and its generation
+        logic into a callable that adheres to the OpenAI model interface expected
+        by Genkit, specifically providing a `generate` method.
+
+        Returns:
+            A callable function (specifically, the `generate` method of an
+            `OpenAIModel` instance) that can be used by Genkit.
+        """
+        openai_model = OpenAIModel(self.name, self.client, self.ai)
+        return openai_model.generate
+
+    def define_model(self) -> None:
+        """Defines and registers the Model Garden model with the Genkit registry.
+
+        This method orchestrates the retrieval of model metadata and the creation
+        of the OpenAI-compatible generation function, then registers this model
+        within the Genkit framework using `self.ai.define_model`.
+        """
+        model_info = self.get_model_info()
+        generate_fn = self.to_openai_compatible_model()
+        self.ai.define_model(
+            name=model_garden_name(self.name),
+            fn=generate_fn,
             config_schema=OpenAIConfig,
-            metadata={'model': {'supports': supports}},
+            metadata={
+                'model': model_info,
+            },
         )
