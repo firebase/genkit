@@ -307,9 +307,15 @@ describe('generate', () => {
     let pm: ProgrammableModel;
 
     beforeEach(() => {
+      class Extra {
+        toJSON() {
+          return 'extra';
+        }
+      }
       ai = genkit({
         model: 'programmableModel',
-        context: { something: 'extra' },
+        // testing with a non-serializable data in the context
+        context: { something: new Extra() },
       });
       pm = defineProgrammableModel(ai);
       defineEchoModel(ai);
