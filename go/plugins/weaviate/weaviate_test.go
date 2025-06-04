@@ -104,7 +104,18 @@ func TestGenkit(t *testing.T) {
 		Class:    *testClass,
 		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", emdOpts, embedder.Embed),
 	}
-	ds, retriever, err := DefineRetriever(ctx, g, classCfg)
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: RetrieverOptions{
+			Count: 3,
+		},
+		Info: &ai.RetrieverInfo{
+			Label: "weaviate",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
+	ds, retriever, err := DefineRetriever(ctx, g, classCfg, retOpts)
 	if err != nil {
 		t.Fatal(err)
 	}

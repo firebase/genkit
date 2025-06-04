@@ -49,6 +49,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: localvec.RetrieverOptions{
+			K: 3,
+		},
+		Info: &ai.RetrieverInfo{
+			Label: "menuQA",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
 
 	docStore, _, err := localvec.DefineRetriever(
 		g,
@@ -56,6 +67,7 @@ func main() {
 		localvec.Config{
 			Embedder: googlegenai.VertexAIEmbedder(g, "text-embedding-004"),
 		},
+		retOpts,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -155,12 +167,25 @@ func menuQA() {
 
 	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: localvec.RetrieverOptions{
+			K: 3,
+		},
+		Info: &ai.RetrieverInfo{
+			Label: "menuQA",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
+
 	_, menuPdfRetriever, err := localvec.DefineRetriever(
 		g,
 		"menuQA",
 		localvec.Config{
 			Embedder: googlegenai.VertexAIEmbedder(g, "text-embedding-004"),
 		},
+		retOpts,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -207,12 +232,25 @@ func customret() {
 		log.Fatal(err)
 	}
 
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: localvec.RetrieverOptions{
+			K: 3,
+		},
+		Info: &ai.RetrieverInfo{
+			Label: "menuQA",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
+
 	_, menuPDFRetriever, _ := localvec.DefineRetriever(
 		g,
 		"menuQA",
 		localvec.Config{
 			Embedder: googlegenai.VertexAIEmbedder(g, "text-embedding-004"),
 		},
+		retOpts,
 	)
 
 	// [START customret]
@@ -220,10 +258,20 @@ func customret() {
 		K          int
 		PreRerankK int
 	}
+	genRetOpts := &ai.RetrieverOptions{
+		ConfigSchema: CustomMenuRetrieverOptions{},
+		Info: &ai.RetrieverInfo{
+			Label: "advancedMenuRetriever",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
 	advancedMenuRetriever := genkit.DefineRetriever(
 		g,
 		"custom",
 		"advancedMenuRetriever",
+		genRetOpts,
 		func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 			// Handle options passed using our custom type.
 			opts, _ := req.Options.(CustomMenuRetrieverOptions)

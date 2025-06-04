@@ -39,7 +39,7 @@ func TestGenkit(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.Init(context.Background())
+	g, err := genkit.Init(context.Background(), genkit.WithPlugins(&Pinecone{APIKey: *testAPIKey}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,19 @@ func TestGenkit(t *testing.T) {
 		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", emdOpts, embedder.Embed),
 	}
 
-	ds, retriever, err := DefineRetriever(ctx, g, cfg)
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: PineconeRetrieverOptions{
+			K: 3,
+		},
+		Info: &ai.RetrieverInfo{
+			Label: "embedder3",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
+
+	ds, retriever, err := DefineRetriever(ctx, g, cfg, retOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,8 +145,8 @@ func TestGenkit(t *testing.T) {
 		}
 	}()
 
-	retrieverOptions := &RetrieverOptions{
-		Count:     2,
+	retrieverOptions := &PineconeRetrieverOptions{
+		K:         2,
 		Namespace: namespace,
 	}
 	retrieverResp, err := ai.Retrieve(ctx, retriever,

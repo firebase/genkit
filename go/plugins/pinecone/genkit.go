@@ -88,25 +88,28 @@ type Config struct {
 	TextKey         string      // Metadata key to use to store document text in Pinecone; the default is "_content".
 }
 
+type SparseVector struct {
+	Indices []int     `json:"indices"`
+	Values  []float32 `json:"values"`
+}
+
+type PineconeRetrieverOptions struct {
+	K            int            `json:"k"`
+	Namespace    string         `json:"namespace,omitempty"`
+	Filter       map[string]any `json:"filter,omitempty"`
+	SparseVector *SparseVector  `json:"sparseVector,omitempty"`
+}
+
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (*Docstore, ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, retOpts *ai.RetrieverOptions) (*Docstore, ai.Retriever, error) {
 	p := genkit.LookupPlugin(g, provider).(*Pinecone)
 	if p == nil {
-		return nil, nil, errors.New("pinecone plugin not found; did you call genkit.Init with the pinecone plugin?")
+		return nil, nil, errors.New("pinecone plugin not found; did you call genkit.Init with the pinecone plugin")
 	}
 
 	ds, err := p.newDocstore(ctx, cfg)
 	if err != nil {
 		return nil, nil, err
-	}
-	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: RetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "local Vec",
-			Supports: &ai.MediaSupports{
-				Media: false,
-			},
-		},
 	}
 	return ds, genkit.DefineRetriever(g, provider, cfg.IndexID, retOpts, ds.Retrieve), nil
 }
@@ -151,14 +154,6 @@ func (p *Pinecone) newDocstore(ctx context.Context, cfg Config) (*Docstore, erro
 // Retriever returns the retriever with the given index name.
 func Retriever(g *genkit.Genkit, name string) ai.Retriever {
 	return genkit.LookupRetriever(g, provider, name)
-}
-
-// RetrieverOptions may be passed in the Options field
-// of [ai.RetrieverRequest] to pass options to Pinecone.
-// The Options field should be either nil or a value of type *RetrieverOptions.
-type RetrieverOptions struct {
-	Namespace string `json:"namespace,omitempty"` // Pinecone namespace to use
-	Count     int    `json:"count,omitempty"`     // maximum number of values to retrieve
 }
 
 // Docstore implements the genkit [ai.DocumentStore] interface.
@@ -263,12 +258,12 @@ func (ds *Docstore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		// TODO: This is plausible when called directly
 		// from Go code, but what will it look like when
 		// run from a resumed flow?
-		ropt, ok := req.Options.(*RetrieverOptions)
+		ropt, ok := req.Options.(*PineconeRetrieverOptions)
 		if !ok {
-			return nil, fmt.Errorf("pinecone.Retrieve options have type %T, want %T", req.Options, &RetrieverOptions{})
+			return nil, fmt.Errorf("pinecone.Retrieve options have type %T, want %T", req.Options, &PineconeRetrieverOptions{})
 		}
 		namespace = ropt.Namespace
-		count = ropt.Count
+		count = ropt.K
 	}
 
 	// Use the embedder to convert the document we want to

@@ -51,20 +51,12 @@ func Init() error { return nil }
 
 // DefineRetriever defines a Retriever and docStore which is also used by the retriever.
 // The name uniquely identifies the Retriever in the registry.
-func DefineRetriever(g *genkit.Genkit, name string, cfg Config) (*DocStore, ai.Retriever, error) {
+func DefineRetriever(g *genkit.Genkit, name string, cfg Config, retOpts *ai.RetrieverOptions) (*DocStore, ai.Retriever, error) {
 	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
 		return nil, nil, err
 	}
-	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: RetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "local vec",
-			Supports: &ai.MediaSupports{
-				Media: false,
-			},
-		},
-	}
+
 	return ds,
 		genkit.DefineRetriever(g, provider, name, retOpts, ds.retrieve),
 		nil
@@ -176,7 +168,7 @@ func (ds *DocStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	k = min(k, len(scoredDocs))
 
 	docs := make([]*ai.Document, 0, k)
-	for i := 0; i < k; i++ {
+	for i := range k {
 		docs = append(docs, scoredDocs[i].doc)
 	}
 

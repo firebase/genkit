@@ -232,7 +232,18 @@ func TestInit(t *testing.T) {
 		t.Fatal(err)
 	}
 	const name = "mystore"
-	_, ret, err := DefineRetriever(g, name, Config{Embedder: embedder})
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: RetrieverOptions{
+			K: 2,
+		},
+		Info: &ai.RetrieverInfo{
+			Label: name,
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
+	_, ret, err := DefineRetriever(g, name, Config{Embedder: embedder}, retOpts)
 	if err != nil {
 		t.Fatal(err)
 	}

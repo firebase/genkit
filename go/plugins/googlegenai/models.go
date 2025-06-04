@@ -193,6 +193,7 @@ var (
 					Input: []string{"text"},
 				},
 			},
+			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		embedding001: {
 			Info: &ai.EmbedderInfo{
@@ -202,6 +203,7 @@ var (
 					Input: []string{"text"},
 				},
 			},
+			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textembeddinggecko003: {
 			Info: &ai.EmbedderInfo{
@@ -211,6 +213,7 @@ var (
 					Input: []string{"text"},
 				},
 			},
+			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textembeddinggecko002: {
 			Info: &ai.EmbedderInfo{
@@ -220,6 +223,7 @@ var (
 					Input: []string{"text"},
 				},
 			},
+			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textembeddinggecko001: {
 			Info: &ai.EmbedderInfo{
@@ -229,6 +233,7 @@ var (
 					Input: []string{"text"},
 				},
 			},
+			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textembeddinggeckomultilingual001: {
 			Info: &ai.EmbedderInfo{
@@ -238,6 +243,7 @@ var (
 					Input: []string{"text"},
 				},
 			},
+			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textmultilingualembedding002: {
 			Info: &ai.EmbedderInfo{
@@ -247,6 +253,7 @@ var (
 					Input: []string{"text"},
 				},
 			},
+			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		multimodalembedding: {
 			Info: &ai.EmbedderInfo{
@@ -260,6 +267,7 @@ var (
 					},
 				},
 			},
+			ConfigSchema: genai.EmbedContentConfig{},
 		},
 	}
 

@@ -40,7 +40,6 @@ type RetrieverInfo struct {
 	Supports *MediaSupports `json:"supports,omitempty"`
 }
 
-// `Supports` is a nested struct equivalent to the nested `z.object` for the `supports` field.
 type MediaSupports struct {
 	Media bool `json:"media,omitempty"`
 }

@@ -33,6 +33,30 @@ type Embedder interface {
 	Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error)
 }
 
+// EmbedderInfo represents the structure of the embedder information object.
+type EmbedderInfo struct {
+	// Friendly label for this model (e.g. "Google AI - Gemini Pro")
+	Label string `json:"label,omitempty"`
+
+	Supports *EmbedderSupports `json:"supports,omitempty"`
+
+	Dimensions int `json:"dimensions,omitempty"`
+}
+
+// EmbedderSupports represents the supported capabilities of the embedder model.
+type EmbedderSupports struct {
+	// Model can input this type of data.
+	// Expected values could be "text", "image", "video", but the struct
+	Input []string `json:"input,omitempty"`
+
+	Multilingual bool `json:"multilingual,omitempty"`
+}
+
+type EmbedderOptions struct {
+	ConfigSchema any           `json:"configSchema,omitempty"`
+	Info         *EmbedderInfo `json:"info,omitempty"`
+}
+
 // An embedder is used to convert a document to a multidimensional vector.
 type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 

@@ -47,7 +47,6 @@ import (
 	"github.com/firebase/genkit/go/plugins/evaluators"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/firebase/genkit/go/plugins/pinecone"
 )
 
 const simpleQaPromptTemplate = `
@@ -83,7 +82,7 @@ func main() {
 		},
 	}
 	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}, &pinecone.Pinecone{}),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -97,7 +96,18 @@ func main() {
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-	docStore, retriever, err := localvec.DefineRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: localvec.RetrieverOptions{
+			K: 1,
+		},
+		Info: &ai.RetrieverInfo{
+			Label: "simpleQa",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
+	docStore, retriever, err := localvec.DefineRetriever(g, "simpleQa", localvec.Config{Embedder: embedder}, retOpts)
 	if err != nil {
 		log.Fatal(err)
 	}
