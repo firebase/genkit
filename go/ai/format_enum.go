@@ -69,6 +69,7 @@ func (e enumHandler) Config() ModelOutputConfig {
 	return e.config
 }
 
+// StreamCallback handler for streaming formatted responses
 func (e enumHandler) StreamCallback(cb ModelStreamCallback) ModelStreamCallback {
 	return func(ctx context.Context, mrc *ModelResponseChunk) error {
 		e.previousParts = append(e.previousParts, mrc.Content...)
@@ -107,10 +108,10 @@ func (e enumHandler) ParseMessage(m *Message) (*Message, error) {
 func (e enumHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, error) {
 	if e.config.Format == OutputFormatEnum {
 		if c == nil {
-			return nil, errors.New("message is empty")
+			return nil, errors.New("chunk is empty")
 		}
 		if len(c.Content) == 0 {
-			return nil, errors.New("message has no content")
+			return nil, errors.New("chunk has no content")
 		}
 
 		var err error

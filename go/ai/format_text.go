@@ -51,6 +51,7 @@ func (t textHandler) Instructions() string {
 	return t.instructions
 }
 
+// StreamCallback handler for streaming formatted responses
 func (t textHandler) StreamCallback(cb ModelStreamCallback) ModelStreamCallback {
 	return func(ctx context.Context, mrc *ModelResponseChunk) error {
 		return cb(ctx, mrc)

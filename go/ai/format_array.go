@@ -73,6 +73,7 @@ func (a arrayHandler) Config() ModelOutputConfig {
 	return a.config
 }
 
+// StreamCallback handler for streaming formatted responses
 func (a arrayHandler) StreamCallback(cb ModelStreamCallback) ModelStreamCallback {
 	return func(ctx context.Context, mrc *ModelResponseChunk) error {
 		a.previousParts = append(a.previousParts, mrc.Content...)
@@ -127,10 +128,10 @@ func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
 func (a arrayHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, error) {
 	if a.config.Format == OutputFormatArray {
 		if c == nil {
-			return nil, errors.New("message is empty")
+			return nil, errors.New("chunk is empty")
 		}
 		if len(c.Content) == 0 {
-			return nil, errors.New("message has no content")
+			return nil, errors.New("chunk has no content")
 		}
 
 		// Get all chunks streamed so far

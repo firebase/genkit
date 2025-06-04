@@ -74,6 +74,7 @@ func (j jsonlHandler) Config() ModelOutputConfig {
 	return j.config
 }
 
+// StreamCallback handler for streaming formatted responses
 func (j jsonlHandler) StreamCallback(cb ModelStreamCallback) ModelStreamCallback {
 	return func(ctx context.Context, mrc *ModelResponseChunk) error {
 		j.previousParts = append(j.previousParts, mrc.Content...)
@@ -130,10 +131,10 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 func (j jsonlHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, error) {
 	if j.config.Format == OutputFormatJSONL {
 		if c == nil {
-			return nil, errors.New("message is empty")
+			return nil, errors.New("chunk is empty")
 		}
 		if len(c.Content) == 0 {
-			return nil, errors.New("message has no content")
+			return nil, errors.New("chunk has no content")
 		}
 
 		// Get all chunks streamed so far

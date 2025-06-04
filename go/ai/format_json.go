@@ -134,7 +134,7 @@ func (j jsonHandler) ParseChunk(c *ModelResponseChunk) (*ModelResponseChunk, err
 		}
 
 		if len(c.Content) == 0 {
-			return nil, errors.New("message has no content")
+			return nil, errors.New("chunk has no content")
 		}
 
 		// Get all chunks streamed so far
