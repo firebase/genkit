@@ -220,32 +220,44 @@ func LookupTool(r *registry.Registry, name string) Tool {
 	return &tool{action: action}
 }
 
+// Respond creates a tool response for an interrupted tool call to pass to the [WithToolResponses] option to [Generate].
+// If the part provided is not a tool request, it returns nil.
 func (t *tool) Respond(toolReq *Part, output any, opts *RespondOptions) *Part {
 	if toolReq == nil || !toolReq.IsToolRequest() {
 		return nil
+	}
+
+	if opts == nil {
+		opts = &RespondOptions{}
 	}
 
 	newToolResp := NewResponseForToolRequest(toolReq, output)
 	newToolResp.Metadata = map[string]any{
 		"interruptResponse": true,
 	}
-	if opts != nil {
+	if opts.Metadata != nil {
 		newToolResp.Metadata["interruptResponse"] = opts.Metadata
 	}
 
 	return newToolResp
 }
 
+// Restart creates a tool request for an interrupted tool call to pass to the [WithToolRestarts] option to [Generate].
+// If the part provided is not a tool request, it returns nil.
 func (t *tool) Restart(p *Part, opts *RestartOptions) *Part {
 	if p == nil || !p.IsToolRequest() {
 		return nil
 	}
 
-	newInput := p.ToolRequest.Input
-	var originalInputForMeta any
+	if opts == nil {
+		opts = &RestartOptions{}
+	}
 
-	if opts != nil && opts.ReplaceInput != nil {
-		originalInputForMeta = newInput
+	newInput := p.ToolRequest.Input
+	var originalInput any
+
+	if opts.ReplaceInput != nil {
+		originalInput = newInput
 		newInput = opts.ReplaceInput
 	}
 
@@ -254,16 +266,16 @@ func (t *tool) Restart(p *Part, opts *RestartOptions) *Part {
 		newMeta = make(map[string]any)
 	}
 
-	delete(newMeta, "interrupt")
-
-	if opts != nil && opts.ResumedMetadata != nil {
+	newMeta["resumed"] = true
+	if opts.ResumedMetadata != nil {
 		newMeta["resumed"] = opts.ResumedMetadata
-	} else {
-		newMeta["resumed"] = true
 	}
-	if originalInputForMeta != nil {
-		newMeta["replacedInput"] = originalInputForMeta
+
+	if originalInput != nil {
+		newMeta["replacedInput"] = originalInput
 	}
+
+	delete(newMeta, "interrupt")
 
 	newToolReq := NewToolRequestPart(&ToolRequest{
 		Name:  p.ToolRequest.Name,
