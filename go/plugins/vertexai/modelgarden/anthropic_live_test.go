@@ -96,7 +96,7 @@ func TestAnthropicLive(t *testing.T) {
 		}
 		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a professional image detective that talks like an evil pirate that does not like tv shows, your task is to tell the name of the character in the image but be very short"),
+			ai.WithSystem("You are a professional image detective that talks like an evil pirate that loves animals, your task is to tell the name of the animal in the image but be very short"),
 			ai.WithModel(m),
 			ai.WithMessages(
 				ai.NewUserMessage(
@@ -106,8 +106,8 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("it should've said Bluey but got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "donkey") {
+			t.Fatalf("it should've said donkey but got: %s", resp.Text())
 		}
 	})
 
@@ -207,9 +207,9 @@ func TestAnthropicLive(t *testing.T) {
 	})
 }
 
-// Bluey rocks
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
+	// CC0 license image
+	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err
@@ -220,7 +220,6 @@ func fetchImgAsBase64() (string, error) {
 		return "", err
 	}
 
-	// keep the img in memory
 	imageBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
