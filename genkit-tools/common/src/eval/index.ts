@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { DatasetStore, EvalStore } from '../types/eval';
+import type { DatasetStore, EvalStore } from '../types/eval';
 import { LocalFileDatasetStore } from './localFileDatasetStore';
 import { LocalFileEvalStore } from './localFileEvalStore';
 export { InferenceDataset, InferenceDatasetSchema } from '../types/eval';

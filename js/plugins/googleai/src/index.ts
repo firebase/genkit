@@ -15,29 +15,31 @@
  */
 
 import {
-  ActionMetadata,
   embedderActionMetadata,
   embedderRef,
-  EmbedderReference,
-  Genkit,
   modelActionMetadata,
-  ModelReference,
-  z,
+  type ActionMetadata,
+  type EmbedderReference,
+  type Genkit,
+  type ModelReference,
+  type z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { modelRef } from 'genkit/model';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { ActionType } from 'genkit/registry';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import type { ActionType } from 'genkit/registry';
 import { getApiKeyFromEnvVar } from './common.js';
 import {
-  defineGoogleAIEmbedder,
   SUPPORTED_MODELS as EMBEDDER_MODELS,
-  GeminiEmbeddingConfig,
   GeminiEmbeddingConfigSchema,
+  defineGoogleAIEmbedder,
   textEmbedding004,
   textEmbeddingGecko001,
+  type GeminiEmbeddingConfig,
 } from './embedder.js';
 import {
+  GeminiConfigSchema,
+  SUPPORTED_V15_MODELS,
   defineGoogleAIModel,
   gemini,
   gemini10Pro,
@@ -51,8 +53,6 @@ import {
   gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
-  GeminiConfigSchema,
-  SUPPORTED_V15_MODELS,
   type GeminiConfig,
   type GeminiVersionString,
 } from './gemini.js';

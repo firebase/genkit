@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
+import type { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 
 /**
  * Provides a {NodeSDKConfiguration} configuration for use with the

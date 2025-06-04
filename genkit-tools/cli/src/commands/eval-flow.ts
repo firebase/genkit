@@ -15,19 +15,19 @@
  */
 
 import {
-  Action,
-  Dataset,
-  DatasetMetadata,
   DatasetSchema,
+  type Action,
+  type Dataset,
+  type DatasetMetadata,
 } from '@genkit-ai/tools-common';
 import {
-  EvalExporter,
   getAllEvaluatorActions,
   getDatasetStore,
   getExporterForString,
   getMatchingEvaluatorActions,
   runEvaluation,
   runInference,
+  type EvalExporter,
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
@@ -85,7 +85,7 @@ export const evalFlow = new Command('eval:flow')
   .option(
     '--batchSize <batchSize>',
     'batch size to use for parallel evals (default to 1, no parallelization)',
-    parseInt
+    Number.parseInt
   )
   .option('-f, --force', 'Automatically accept all interactive prompts')
   .action(

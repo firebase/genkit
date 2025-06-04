@@ -28,7 +28,7 @@ import pdf from 'pdf-parse';
 import { ai } from './genkit';
 
 const app = initializeApp();
-let firestore = getFirestore(app);
+const firestore = getFirestore(app);
 
 // There's a race condition in initializing the Firestore singleton.
 // To avoid that, explicitly create an instance using the service account
@@ -130,8 +130,8 @@ export const pdfQAFirebase = ai.defineFlow(
     });
 
     let distances: Array<number> = [];
-    let maxDistance = NaN;
-    let minDistance = NaN;
+    let maxDistance = Number.NaN;
+    let minDistance = Number.NaN;
     if (distanceResultField) {
       // Note: if you change the default distanceResultField by setting it in
       // defineFirestoreRetriever, then you need to change this code to look

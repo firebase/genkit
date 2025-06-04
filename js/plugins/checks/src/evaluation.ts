@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { EvaluatorAction, Genkit, z } from 'genkit';
-import { BaseEvalDataPoint } from 'genkit/evaluator';
+import { z, type EvaluatorAction, type Genkit } from 'genkit';
+import type { BaseEvalDataPoint } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
-import { GoogleAuth } from 'google-auth-library';
+import type { GoogleAuth } from 'google-auth-library';
 import {
-  ChecksEvaluationMetric,
-  ChecksEvaluationMetricConfig,
   isConfig,
+  type ChecksEvaluationMetric,
+  type ChecksEvaluationMetricConfig,
 } from './metrics';
 
 export function checksEvaluators(

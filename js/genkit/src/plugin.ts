@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { ActionMetadata } from '@genkit-ai/core';
-import { Genkit } from './genkit.js';
-import { ActionType } from './registry.js';
+import type { ActionMetadata } from '@genkit-ai/core';
+import type { Genkit } from './genkit.js';
+import type { ActionType } from './registry.js';
 
 export interface PluginProvider {
   name: string;

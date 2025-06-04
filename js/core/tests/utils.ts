@@ -15,8 +15,8 @@
  */
 
 import { SpanKind } from '@opentelemetry/api';
-import { ExportResult } from '@opentelemetry/core';
-import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
+import type { ExportResult } from '@opentelemetry/core';
+import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 
 export class TestSpanExporter implements SpanExporter {
   exportedSpans: any[] = [];

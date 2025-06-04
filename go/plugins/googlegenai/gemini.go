@@ -421,7 +421,7 @@ func generate(
 
 	// merge all streamed responses
 	var resp *genai.GenerateContentResponse
-	var chunks []string
+	var chunks []*genai.Part
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
@@ -436,7 +436,7 @@ func generate(
 				return nil, err
 			}
 			// stream only supports text
-			chunks = append(chunks, c.Content.Parts[i].Text)
+			chunks = append(chunks, c.Content.Parts[i])
 		}
 		// keep the last chunk for usage metadata
 		resp = chunk
@@ -447,7 +447,7 @@ func generate(
 	merged := []*genai.Candidate{
 		{
 			Content: &genai.Content{
-				Parts: []*genai.Part{genai.NewPartFromText(strings.Join(chunks, ""))},
+				Parts: chunks,
 			},
 		},
 	}

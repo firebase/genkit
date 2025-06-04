@@ -15,7 +15,7 @@
  */
 
 import { GENKIT_CLIENT_HEADER } from 'genkit';
-import { GoogleAuth } from 'google-auth-library';
+import type { GoogleAuth } from 'google-auth-library';
 
 // Gemini  model definition
 export interface Model {
@@ -58,8 +58,5 @@ export async function listModels(
   }
 
   const modelResponse = (await response.json()) as ListModelsResponse;
-  for (const m of modelResponse.publisherModels) {
-    console.log(m.name);
-  }
   return modelResponse.publisherModels;
 }

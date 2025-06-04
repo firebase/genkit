@@ -16,9 +16,9 @@
  */
 import type { Genkit } from 'genkit';
 import { genkitPlugin } from 'genkit/plugin';
-import { ClientOptions, OpenAI } from 'openai';
+import { OpenAI, type ClientOptions } from 'openai';
 
-import { ModelInfo } from 'genkit/model';
+import type { ModelInfo } from 'genkit/model';
 import { dallE3, dallE3Model } from './dalle.js';
 import {
   SUPPORTED_EMBEDDING_MODELS,

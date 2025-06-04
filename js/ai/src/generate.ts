@@ -15,19 +15,19 @@
  */
 
 import {
-  Action,
-  ActionContext,
   GenkitError,
-  StreamingCallback,
   runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
-  z,
+  type Action,
+  type ActionContext,
+  type StreamingCallback,
+  type z,
 } from '@genkit-ai/core';
 import { Channel } from '@genkit-ai/core/async';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { DocumentData } from './document.js';
+import type { DocumentData } from './document.js';
 import {
   injectInstructions,
   resolveFormat,
@@ -41,19 +41,19 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
-  GenerateActionOptions,
-  GenerateRequest,
-  GenerationCommonConfigSchema,
-  MessageData,
-  ModelArgument,
-  ModelMiddleware,
-  Part,
-  ToolRequestPart,
-  ToolResponsePart,
   resolveModel,
+  type GenerateActionOptions,
+  type GenerateRequest,
+  type GenerationCommonConfigSchema,
+  type MessageData,
+  type ModelArgument,
+  type ModelMiddleware,
+  type Part,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from './model.js';
-import { ExecutablePrompt } from './prompt.js';
-import { ToolArgument, resolveTools, toToolDefinition } from './tool.js';
+import type { ExecutablePrompt } from './prompt.js';
+import { resolveTools, toToolDefinition, type ToolArgument } from './tool.js';
 export { GenerateResponse, GenerateResponseChunk };
 
 /** Specifies how tools should be called by the model. */
@@ -161,7 +161,7 @@ export async function toGenerateRequest(
   registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
-  let messages: MessageData[] = [];
+  const messages: MessageData[] = [];
   if (options.system) {
     messages.push({
       role: 'system',
@@ -259,7 +259,7 @@ async function toolsToActionRefs(
 ): Promise<string[] | undefined> {
   if (!toolOpt) return;
 
-  let tools: string[] = [];
+  const tools: string[] = [];
 
   for (const t of toolOpt) {
     if (typeof t === 'string') {
@@ -499,7 +499,7 @@ export function generateStream<
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): GenerateStreamResponse<O> {
-  let channel = new Channel<GenerateResponseChunk>();
+  const channel = new Channel<GenerateResponseChunk>();
 
   const generated = Promise.resolve(options).then((resolvedOptions) =>
     generate<O, CustomOptions>(registry, {

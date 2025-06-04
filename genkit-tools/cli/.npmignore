@@ -2,3 +2,5 @@ node_modules
 plugins/
 common/
 ui/
+jest.config.ts
+tsconfig.json

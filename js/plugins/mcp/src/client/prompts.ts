@@ -16,7 +16,7 @@
 
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js' with { 'resolution-mode': 'import' };
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
-import { Genkit, JSONSchema } from 'genkit';
+import type { Genkit, JSONSchema } from 'genkit';
 import { logger } from 'genkit/logging';
 import type { McpClientOptions } from '../index.js';
 import { fromMcpPromptMessage } from './message.js';

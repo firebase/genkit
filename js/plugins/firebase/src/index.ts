@@ -22,7 +22,7 @@
 
 import {
   enableGoogleCloudTelemetry,
-  GcpTelemetryConfigOptions,
+  type GcpTelemetryConfigOptions,
 } from '@genkit-ai/google-cloud';
 export { defineFirestoreRetriever } from './firestore-retriever.js';
 

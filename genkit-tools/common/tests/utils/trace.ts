@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { SpanData, TraceData } from '../../src/types/trace';
+import type { SpanData, TraceData } from '../../src/types/trace';
 
 export const TRACE_ID = '7c273c22b219d077c6731a10d46b7d40';
 export const BASE_FLOW_SPAN_ID = '22b219d077c67';
@@ -178,7 +178,7 @@ export class MockTrace {
     const flowOutput = output ?? 42;
 
     if (spanType === 'flowStep') {
-      let flowStep = { ...this.BASE_SPAN };
+      const flowStep = { ...this.BASE_SPAN };
       flowStep.displayName = stepName;
       flowStep.attributes = {
         'genkit:type': 'flowStep',
@@ -195,7 +195,7 @@ export class MockTrace {
       this.trace.spans[`flowStep-${stepName}`] = flowStep;
     } else {
       // spanType === "action"
-      let actionStep = { ...this.BASE_SPAN };
+      const actionStep = { ...this.BASE_SPAN };
       actionStep.displayName = stepName;
       actionStep.attributes = {
         'genkit:type': 'action',
@@ -232,11 +232,11 @@ export class MockTrace {
   ) {
     const flowInput = traceInput ?? 'Douglas Adams';
     const flowOutput = traceOutput ?? 42;
-    let baseFlowSpan = { ...this.BASE_FLOW_SPAN };
+    const baseFlowSpan = { ...this.BASE_FLOW_SPAN };
     baseFlowSpan.attributes['genkit:input'] = JSON.stringify(flowInput);
     baseFlowSpan.attributes['genkit:output'] = JSON.stringify(flowOutput);
 
-    let wrapperActionSpan = { ...this.WRAPPER_ACTION_SPAN };
+    const wrapperActionSpan = { ...this.WRAPPER_ACTION_SPAN };
     wrapperActionSpan.attributes['genkit:input'] = JSON.stringify({
       start: { input: flowInput },
     });

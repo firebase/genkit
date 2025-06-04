@@ -23,13 +23,13 @@ import { Document, genkit, z } from 'genkit';
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 
 import {
-  DocumentIndexer,
-  DocumentRetriever,
   getFirestoreDocumentIndexer,
   getFirestoreDocumentRetriever,
+  vertexAIVectorSearch,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
-  vertexAIVectorSearch,
+  type DocumentIndexer,
+  type DocumentRetriever,
 } from '@genkit-ai/vertexai/vectorsearch';
 
 // // Environment variables set with dotenv for simplicity of sample

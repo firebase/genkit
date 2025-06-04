@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -63,13 +62,13 @@ func DefineEmbedder(
 			inputSchema.Properties.Set("options", base.InferJSONSchema(options.ConfigSchema))
 		}
 	}
-	return (*embedder)(core.DefineActionWithInputSchema(r, provider, name, atype.Embedder, metadata, inputSchema, embed))
+	return (*embedder)(core.DefineActionWithInputSchema(r, provider, name, core.ActionTypeEmbedder, metadata, inputSchema, embed))
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(r *registry.Registry, provider, name string) Embedder {
-	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, atype.Embedder, provider, name)
+	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, provider, name)
 	if action == nil {
 		return nil
 	}
