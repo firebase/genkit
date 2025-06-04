@@ -14,17 +14,33 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""This plugin provides integration with Google Cloud's Vertex AI Vector Search."""
 
-"""Google Cloud Vertex AI Models for Genkit."""
+from genkit.plugins.vertex_ai.vector_search.retriever import (
+    BigQueryRetriever,
+    FirestoreRetriever,
+    RetrieverOptionsSchema,
+)
+from genkit.plugins.vertex_ai.vector_search.vector_search import (
+    VertexAIVectorSearch,
+    vertexai_name,
+)
 
 
 def package_name() -> str:
-    """Get the package name for the Vertex AI models subpackage.
+    """Get the package name for the Vertex AI plugin.
 
     Returns:
         The fully qualified package name as a string.
     """
-    return 'genkit.plugins.vertex_ai.models'
+    return 'genkit.plugins.vertex_ai.vector_search'
 
 
-__all__ = ['package_name']
+__all__ = [
+    package_name.__name__,
+    vertexai_name.__name__,
+    VertexAIVectorSearch.__name__,
+    BigQueryRetriever.__name__,
+    FirestoreRetriever.__name__,
+    RetrieverOptionsSchema.__name__,
+]
