@@ -207,7 +207,7 @@ export class Genkit implements HasRegistry {
     config: ToolConfig<I, O>,
     fn?: ToolFn<I, O>
   ): ToolAction<I, O> {
-    return dynamicTool(this, config, fn);
+    return dynamicTool(config, fn).register(this.registry) as ToolAction<I, O>;
   }
 
   /**

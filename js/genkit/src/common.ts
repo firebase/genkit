@@ -107,6 +107,7 @@ export {
   type ToolResponsePart,
 } from '@genkit-ai/ai';
 export { Chat } from '@genkit-ai/ai/chat';
+export { dynamicTool } from '@genkit-ai/ai/tool';
 export {
   Session,
   type SessionData,

@@ -53,7 +53,12 @@ import {
   type ToolResponsePart,
 } from './model.js';
 import type { ExecutablePrompt } from './prompt.js';
-import { resolveTools, toToolDefinition, type ToolArgument } from './tool.js';
+import {
+  DynamicToolAction,
+  resolveTools,
+  toToolDefinition,
+  type ToolArgument,
+} from './tool.js';
 export { GenerateResponse, GenerateResponseChunk };
 
 /** Specifies how tools should be called by the model. */
@@ -271,8 +276,6 @@ async function toolsToActionRefs(
     } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
       const promptToolAction = await (t as ExecutablePrompt).asTool();
       tools.push(`/prompt/${promptToolAction.__action.name}`);
-    } else if (t.name) {
-      tools.push(await resolveFullToolName(registry, t.name));
     } else {
       throw new Error(`Unable to determine type of tool: ${JSON.stringify(t)}`);
     }
@@ -375,6 +378,9 @@ function maybeRegisterDynamicTools<
       (t as Action).__action.metadata?.type === 'tool' &&
       (t as Action).__action.metadata?.dynamic
     ) {
+      if (typeof (t as DynamicToolAction).register === 'function') {
+        t = (t as DynamicToolAction).register(registry);
+      }
       if (!hasDynamicTools) {
         hasDynamicTools = true;
         // Create a temporary registry with dynamic tools for the duration of this

@@ -15,17 +15,18 @@
  */
 
 import {
-  action,
   assertUnstable,
   defineAction,
   stripUndefinedProps,
+  unregisteredAction,
   z,
   type Action,
   type ActionContext,
   type ActionRunOptions,
   type JSONSchema7,
+  type UnregisteredAction,
 } from '@genkit-ai/core';
-import type { HasRegistry, Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import type {
@@ -36,18 +37,10 @@ import type {
 } from './model.js';
 import type { ExecutablePrompt } from './prompt.js';
 
-/**
- * An action with a `tool` type.
- */
-export type ToolAction<
+export interface Resumable<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<I, O, z.ZodTypeAny, ToolRunOptions> & {
-  __action: {
-    metadata: {
-      type: 'tool';
-    };
-  };
+> {
   /**
    * respond constructs a tool response corresponding to the provided interrupt tool request
    * using the provided reply data, validating it against the output schema of the tool if
@@ -90,7 +83,37 @@ export type ToolAction<
       replaceInput?: z.infer<I>;
     }
   ): ToolRequestPart;
-};
+}
+
+/**
+ * An action with a `tool` type.
+ */
+export type ToolAction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> = Action<I, O, z.ZodTypeAny, ToolRunOptions> &
+  Resumable<I, O> & {
+    __action: {
+      metadata: {
+        type: 'tool';
+      };
+    };
+  };
+
+/**
+ * An action with a `tool` type.
+ */
+export type DynamicToolAction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> = UnregisteredAction<I, O, z.ZodTypeAny, ToolRunOptions> &
+  Resumable<I, O> & {
+    __action: {
+      metadata: {
+        type: 'tool';
+      };
+    };
+  };
 
 export interface ToolRunOptions extends ActionRunOptions<z.ZodTypeAny> {
   /**
@@ -128,7 +151,12 @@ export interface ToolConfig<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 export type ToolArgument<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = string | ToolAction<I, O> | Action<I, O> | ExecutablePrompt<any, any, any>;
+> =
+  | string
+  | ToolAction<I, O>
+  | DynamicToolAction<I, O>
+  | Action<I, O>
+  | ExecutablePrompt<any, any, any>;
 
 /**
  * Converts an action to a tool action by setting the appropriate metadata.
@@ -174,10 +202,11 @@ export async function resolveTools<
         return asTool(registry, ref as Action);
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
         return await (ref as ExecutablePrompt).asTool();
-      } else if (ref.name) {
+      } else if ((ref as ToolDefinition).name) {
         return await lookupToolByName(
           registry,
-          (ref as ToolDefinition).metadata?.originalName || ref.name
+          (ref as ToolDefinition).metadata?.originalName ||
+            (ref as ToolDefinition).name
         );
       }
       throw new Error('Tools must be strings, tool definitions, or actions.');
@@ -278,14 +307,16 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 function implementTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   a: ToolAction<I, O>,
   config: ToolConfig<I, O>,
-  registry: Registry
+  registry?: Registry
 ) {
   (a as ToolAction<I, O>).respond = (interrupt, responseData, options) => {
-    assertUnstable(
-      registry,
-      'beta',
-      "The 'tool.reply' method is part of the 'interrupts' beta feature."
-    );
+    if (registry) {
+      assertUnstable(
+        registry,
+        'beta',
+        "The 'tool.reply' method is part of the 'interrupts' beta feature."
+      );
+    }
     parseSchema(responseData, {
       jsonSchema: config.outputJsonSchema,
       schema: config.outputSchema,
@@ -303,11 +334,13 @@ function implementTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   };
 
   (a as ToolAction<I, O>).restart = (interrupt, resumedMetadata, options) => {
-    assertUnstable(
-      registry,
-      'beta',
-      "The 'tool.restart' method is part of the 'interrupts' beta feature."
-    );
+    if (registry) {
+      assertUnstable(
+        registry,
+        'beta',
+        "The 'tool.restart' method is part of the 'interrupts' beta feature."
+      );
+    }
     let replaceInput = options?.replaceInput;
     if (replaceInput) {
       replaceInput = parseSchema(replaceInput, {
@@ -396,19 +429,17 @@ function interruptTool(registry: Registry) {
  * Genkit registry and can be defined dynamically at runtime.
  */
 export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  ai: HasRegistry,
   config: ToolConfig<I, O>,
   fn?: ToolFn<I, O>
-): ToolAction<I, O> {
-  const a = action(
-    ai.registry,
+): DynamicToolAction<I, O> {
+  const a = unregisteredAction(
     {
       ...config,
       actionType: 'tool',
       metadata: { ...(config.metadata || {}), type: 'tool', dynamic: true },
     },
     (i, runOptions) => {
-      const interrupt = interruptTool(ai.registry);
+      const interrupt = interruptTool(runOptions.registry);
       if (fn) {
         return fn(i, {
           ...runOptions,
@@ -419,6 +450,19 @@ export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       return interrupt();
     }
   );
-  implementTool(a as ToolAction<I, O>, config, ai.registry);
-  return a as ToolAction<I, O>;
+  implementTool(a as any, config);
+  return {
+    __action: {
+      ...a.__action,
+      metadata: {
+        ...a.__action.metadata,
+        type: 'tool',
+      },
+    },
+    register(registry) {
+      const bound = a.register(registry);
+      implementTool(bound as ToolAction<I, O>, config);
+      return bound;
+    },
+  } as DynamicToolAction<I, O>;
 }
