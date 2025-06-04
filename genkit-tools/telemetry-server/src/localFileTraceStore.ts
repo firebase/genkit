@@ -42,6 +42,7 @@ export class LocalFileTraceStore implements TraceStore {
   static defaultFilters: Record<string, string> = {
     // Prevent prompt rendering from spamming local trace store
     'genkit:metadata:subtype': 'prompt',
+    'genkit:type': 'promptTemplate',
   };
 
   constructor(options?: {
