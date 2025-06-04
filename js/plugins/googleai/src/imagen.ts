@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { GenkitError, z, type Genkit } from 'genkit';
+import { GenkitError, MessageData, z, type Genkit } from 'genkit';
 import {
   getBasicUsageStats,
   modelRef,
-  type CandidateData,
   type GenerateRequest,
   type ModelAction,
   type ModelInfo,
@@ -53,13 +52,6 @@ export const ImagenConfigSchema = z
   })
   .passthrough();
 
-function extractText(request: GenerateRequest) {
-  return request.messages
-    .at(-1)!
-    .content.map((c) => c.text || '')
-    .join('');
-}
-
 interface ImagenParameters {
   sampleCount?: number;
   aspectRatio?: string;
@@ -81,19 +73,17 @@ function toParameters(
   return out;
 }
 
-function extractMaskImage(request: GenerateRequest): string | undefined {
+function extractText(request: GenerateRequest) {
   return request.messages
-    .at(-1)
-    ?.content.find((p) => !!p.media && p.metadata?.type === 'mask')
-    ?.media?.url.split(',')[1];
+    .at(-1)!
+    .content.map((c) => c.text || '')
+    .join('');
 }
 
 function extractBaseImage(request: GenerateRequest): string | undefined {
   return request.messages
     .at(-1)
-    ?.content.find(
-      (p) => !!p.media && (!p.metadata?.type || p.metadata?.type === 'base')
-    )
+    ?.content.find((p) => !!p.media)
     ?.media?.url.split(',')[1];
 }
 
@@ -158,12 +148,6 @@ export function defineImagenModel(
       if (baseImage) {
         instance.image = { bytesBase64Encoded: baseImage };
       }
-      const maskImage = extractMaskImage(request);
-      if (maskImage) {
-        instance.mask = {
-          image: { bytesBase64Encoded: maskImage },
-        };
-      }
 
       const predictClient = predictModel<
         ImagenInstance,
@@ -178,19 +162,15 @@ export function defineImagenModel(
         );
       }
 
-      const candidate: CandidateData = {
-        index: 0,
-        finishReason: 'stop',
-        message: {
-          role: 'model',
-          content: [],
-        },
-      };
+      const message = {
+        role: 'model',
+        content: [],
+      } as MessageData;
 
       response.predictions.forEach((p, i) => {
         const b64data = p.bytesBase64Encoded;
         const mimeType = p.mimeType;
-        candidate.message.content.push({
+        message.content.push({
           media: {
             url: `data:${mimeType};base64,${b64data}`,
             contentType: mimeType,
@@ -199,11 +179,8 @@ export function defineImagenModel(
       });
       return {
         finishReason: 'stop',
-        candidates: [candidate],
-        usage: {
-          ...getBasicUsageStats(request.messages, [candidate]),
-          custom: { generations: [candidate].length },
-        },
+        message,
+        usage: getBasicUsageStats(request.messages, message),
         custom: response,
       };
     }

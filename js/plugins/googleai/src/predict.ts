@@ -63,7 +63,6 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
       parameters,
     };
 
-    console.log(JSON.stringify(req, undefined, 2));
     const response = await fetch(
       predictEndpoint({
         model,
