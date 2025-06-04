@@ -179,6 +179,6 @@ DEFAULT_SUPPORTS = Supports(
 def get_default_model_info(name: str) -> ModelInfo:
     """Gets the default model info given a name."""
     return ModelInfo(
-        label=name,
+        label=f'ModelGarden - {name}',
         supports=DEFAULT_SUPPORTS,
     )
