@@ -27,7 +27,7 @@ import { createMcpHost } from '@genkit-ai/mcp';
 // and a hypothetical remote Git server.
 const ALLOWED_DIRS = ['/Users/yourusername/Desktop'];
 
-const McpHost = createMcpHost({
+const mcpHost = createMcpHost({
   name: 'myMcpClients', // A name for the host plugin itself
   mcpServers: {
     // Each key (e.g., 'fs', 'git') becomes a namespace for the server's tools.

@@ -284,7 +284,7 @@ export class GenkitMcpHost {
    * to Genkit, for example, when setting up a Genkit plugin.
    *
    * ```ts
-   * const McpHost = createMcpHost({ ... });
+   * const mcpHost = createMcpHost({ ... });
    * // In your Genkit configuration:
    * // const allMcpTools = await McpHost.getActiveTools(ai);
    * // Then, these tools can be used or registered with Genkit.
