@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { CachedContent, StartChatParams } from '@google-cloud/vertexai';
+import type { CachedContent, StartChatParams } from '@google-cloud/vertexai';
 import assert from 'assert';
 import crypto from 'crypto';
-import { GenerateRequest } from 'genkit';
+import type { GenerateRequest } from 'genkit';
 import { describe, it } from 'node:test';
 import { DEFAULT_TTL } from '../../src/context-caching/constants.js';
-import { CacheConfigDetails } from '../../src/context-caching/types.js';
+import type { CacheConfigDetails } from '../../src/context-caching/types.js';
 import {
   calculateTTL,
   extractCacheConfig,

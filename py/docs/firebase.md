@@ -1,3 +1,0 @@
-# Deploy with Firebase
-
-TODO

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Action, Genkit, z } from 'genkit';
-import { GoogleAuth } from 'google-auth-library';
+import { z, type Action, type Genkit } from 'genkit';
+import type { GoogleAuth } from 'google-auth-library';
 import { EvaluatorFactory } from './evaluator_factory.js';
 
 /**

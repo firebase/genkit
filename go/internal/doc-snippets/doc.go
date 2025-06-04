@@ -15,7 +15,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package snippets contains snippets that are incorporated into
-// documentation (see the docs-go directory under the repo root).
+// documentation (see https://genkit.dev/go/docs/get-started-go).
 package snippets
-
-//go:generate make -C ../../../docs-go

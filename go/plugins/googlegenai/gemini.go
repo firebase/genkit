@@ -419,7 +419,7 @@ func generate(
 
 	// merge all streamed responses
 	var resp *genai.GenerateContentResponse
-	var chunks []string
+	var chunks []*genai.Part
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
@@ -434,7 +434,7 @@ func generate(
 				return nil, err
 			}
 			// stream only supports text
-			chunks = append(chunks, c.Content.Parts[i].Text)
+			chunks = append(chunks, c.Content.Parts[i])
 		}
 		// keep the last chunk for usage metadata
 		resp = chunk
@@ -445,7 +445,7 @@ func generate(
 	merged := []*genai.Candidate{
 		{
 			Content: &genai.Content{
-				Parts: []*genai.Part{genai.NewPartFromText(strings.Join(chunks, ""))},
+				Parts: chunks,
 			},
 		},
 	}
@@ -788,11 +788,10 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 
 		if part.Text != "" {
 			partFound++
-			if part.Thought {
-				// TODO: Include a `reasoning` part. Not available in the SDK yet.
-				continue
-			}
 			p = ai.NewTextPart(part.Text)
+			if part.Thought {
+				p = ai.NewReasoningPart(part.Text)
+			}
 		}
 		if part.InlineData != nil {
 			partFound++
@@ -873,6 +872,8 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
 	case p.IsText():
+		return genai.NewPartFromText(p.Text), nil
+	case p.IsReasoning():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
 		if strings.HasPrefix(p.Text, "data:") {

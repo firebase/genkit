@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { SpanData } from '@genkit-ai/tools-common';
+import type { SpanData } from '@genkit-ai/tools-common';
 
 export function span(
   traceId: string,
@@ -40,6 +40,7 @@ export function span(
     instrumentationLibrary: { name: 'genkit' },
     spanKind: 'INTERNAL',
     attributes,
+    status: { code: 0 },
   } as SpanData;
 }
 

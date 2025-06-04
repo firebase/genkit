@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
-import { PluginProvider, z } from '@genkit-ai/core';
+import { z, type PluginProvider } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
-  GenerateOptions,
   generate,
   generateStream,
   toGenerateRequest,
+  type GenerateOptions,
 } from '../../src/generate.js';
-import { ModelAction, ModelMiddleware, defineModel } from '../../src/model.js';
+import {
+  defineModel,
+  type ModelAction,
+  type ModelMiddleware,
+} from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 
 describe('toGenerateRequest', () => {
@@ -428,7 +432,7 @@ describe('generate', () => {
 
   describe('generateStream', () => {
     it('should stream out chunks', async () => {
-      let registry = new Registry();
+      const registry = new Registry();
 
       defineModel(
         registry,
@@ -448,7 +452,7 @@ describe('generate', () => {
         prompt: 'Testing streaming',
       });
 
-      let streamed: any[] = [];
+      const streamed: any[] = [];
       for await (const chunk of stream) {
         streamed.push(chunk.toJSON());
       }

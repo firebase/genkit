@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { z } from 'zod';
-import { Action, ActionMetadata } from './action.js';
-import { ActionType } from './registry.js';
+import type { z } from 'zod';
+import type { Action, ActionMetadata } from './action.js';
+import type { ActionType } from './registry.js';
 
 export interface Provider<T> {
   id: string;

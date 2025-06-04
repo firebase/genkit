@@ -18,22 +18,22 @@ import { z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { DocumentData } from '../../src/document.js';
+import type { DocumentData } from '../../src/document.js';
 import { configureFormats } from '../../src/formats/index.js';
 import { generate } from '../../src/generate.js';
 import {
-  GenerateRequest,
-  GenerateResponseData,
-  MessageData,
   defineModel,
+  type GenerateRequest,
+  type GenerateResponseData,
+  type MessageData,
 } from '../../src/model.js';
 import {
-  AugmentWithContextOptions,
   CONTEXT_PREFACE,
   augmentWithContext,
   simulateConstrainedGeneration,
   simulateSystemPrompt,
   validateSupport,
+  type AugmentWithContextOptions,
 } from '../../src/model/middleware.js';
 import { defineProgrammableModel } from '../helpers.js';
 
@@ -405,7 +405,7 @@ describe.only('simulateConstrainedGeneration', () => {
   });
 
   it('injects the instructions into the request', async () => {
-    let pm = defineProgrammableModel(registry);
+    const pm = defineProgrammableModel(registry);
     pm.handleResponse = async (req, sc) => {
       return {
         message: {
@@ -455,7 +455,7 @@ describe.only('simulateConstrainedGeneration', () => {
   });
 
   it('injects the instructions into the request idempotently', async () => {
-    let pm = defineProgrammableModel(registry);
+    const pm = defineProgrammableModel(registry);
     pm.handleResponse = async (req, sc) => {
       return {
         message: {
@@ -506,7 +506,7 @@ describe.only('simulateConstrainedGeneration', () => {
   });
 
   it('relies on native support -- no instructions', async () => {
-    let pm = defineProgrammableModel(registry, {
+    const pm = defineProgrammableModel(registry, {
       supports: { constrained: 'all' },
     });
     pm.handleResponse = async (req, sc) => {
@@ -557,7 +557,7 @@ describe.only('simulateConstrainedGeneration', () => {
   });
 
   it('uses format instructions when instructions is explicitly set to true', async () => {
-    let pm = defineProgrammableModel(registry, {
+    const pm = defineProgrammableModel(registry, {
       supports: { constrained: 'all' },
     });
     pm.handleResponse = async (req, sc) => {

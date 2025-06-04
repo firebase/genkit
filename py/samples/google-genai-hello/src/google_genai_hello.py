@@ -46,6 +46,12 @@ import structlog
 from pydantic import BaseModel, Field
 
 from genkit.ai import Document, Genkit, ToolRunContext, tool_response
+from genkit.plugins.evaluators import (
+    GenkitEvaluators,
+    GenkitMetricType,
+    MetricConfig,
+    PluginOptions,
+)
 from genkit.plugins.google_cloud.telemetry.tracing import (
     add_gcp_telemetry,
 )
@@ -66,7 +72,16 @@ logger = structlog.get_logger(__name__)
 add_gcp_telemetry()
 
 ai = Genkit(
-    plugins=[GoogleAI()],
+    plugins=[
+        GoogleAI(),
+        GenkitEvaluators(
+            PluginOptions([
+                MetricConfig(metric_type=GenkitMetricType.REGEX),
+                MetricConfig(metric_type=GenkitMetricType.DEEP_EQUAL),
+                MetricConfig(metric_type=GenkitMetricType.JSONATA),
+            ])
+        ),
+    ],
     model='googleai/gemini-2.5-flash-preview-04-17',
 )
 

@@ -18,13 +18,13 @@ import fs from 'fs';
 import { appendFile, readFile, unlink, writeFile } from 'fs/promises';
 import path from 'path';
 import * as readline from 'readline';
-import { ListEvalKeysRequest, ListEvalKeysResponse } from '../types/apis';
+import type { ListEvalKeysRequest, ListEvalKeysResponse } from '../types/apis';
 import {
-  EvalRun,
-  EvalRunKey,
   EvalRunKeySchema,
   EvalRunSchema,
-  EvalStore,
+  type EvalRun,
+  type EvalRunKey,
+  type EvalStore,
 } from '../types/eval';
 import { logger } from '../utils/logger';
 

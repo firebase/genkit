@@ -16,24 +16,24 @@
 
 import {
   defineInterrupt,
-  ExecutablePrompt,
-  InterruptConfig,
   isExecutablePrompt,
-  ToolAction,
+  type ExecutablePrompt,
+  type InterruptConfig,
+  type ToolAction,
 } from '@genkit-ai/ai';
-import { Chat, ChatOptions } from '@genkit-ai/ai/chat';
+import type { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import { defineFormat } from '@genkit-ai/ai/formats';
 import {
-  getCurrentSession,
   Session,
-  SessionData,
   SessionError,
-  SessionOptions,
+  getCurrentSession,
+  type SessionData,
+  type SessionOptions,
 } from '@genkit-ai/ai/session';
-import { z } from '@genkit-ai/core';
+import type { z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
-import { Formatter } from './formats';
-import { Genkit, GenkitOptions } from './genkit';
+import type { Formatter } from './formats';
+import { Genkit, type GenkitOptions } from './genkit';
 
 export type { GenkitOptions as GenkitBetaOptions }; // in case they drift later
 

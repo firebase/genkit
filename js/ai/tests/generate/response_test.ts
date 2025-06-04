@@ -24,7 +24,7 @@ import {
   GenerationResponseError,
 } from '../../src/generate.js';
 import { Message } from '../../src/message.js';
-import { GenerateRequest, GenerateResponseData } from '../../src/model.js';
+import type { GenerateRequest, GenerateResponseData } from '../../src/model.js';
 
 describe('GenerateResponse', () => {
   describe('#toJSON()', () => {

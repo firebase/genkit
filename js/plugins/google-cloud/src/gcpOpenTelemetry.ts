@@ -15,19 +15,19 @@
  */
 
 import {
-  ExporterOptions,
   MetricExporter,
+  type ExporterOptions,
 } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
-import { Span, SpanStatusCode, TraceFlags } from '@opentelemetry/api';
+import { SpanStatusCode, TraceFlags, type Span } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import {
-  ExportResult,
   hrTimeDuration,
   hrTimeToMilliseconds,
+  type ExportResult,
 } from '@opentelemetry/core';
-import { Instrumentation } from '@opentelemetry/instrumentation';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
 import { Resource } from '@opentelemetry/resources';
@@ -38,25 +38,25 @@ import {
   InMemoryMetricExporter,
   InstrumentType,
   PeriodicExportingMetricReader,
-  PushMetricExporter,
-  ResourceMetrics,
+  type PushMetricExporter,
+  type ResourceMetrics,
 } from '@opentelemetry/sdk-metrics';
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
+import type { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
   InMemorySpanExporter,
-  ReadableSpan,
-  SpanExporter,
+  type ReadableSpan,
+  type SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
-import { PathMetadata } from 'genkit/tracing';
+import type { PathMetadata } from 'genkit/tracing';
 import { actionTelemetry } from './telemetry/action.js';
 import { engagementTelemetry } from './telemetry/engagement.js';
 import { featuresTelemetry } from './telemetry/feature.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { pathsTelemetry } from './telemetry/path.js';
-import { GcpTelemetryConfig } from './types.js';
+import type { GcpTelemetryConfig } from './types.js';
 import {
   extractErrorName,
   metricsDenied,

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
@@ -33,11 +33,15 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit';
+import { MessageSchema, genkit, z, type GenerateResponseData } from 'genkit';
 import { logger } from 'genkit/logging';
-import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
-import { PluginProvider } from 'genkit/plugin';
+import {
+  simulateConstrainedGeneration,
+  type ModelMiddleware,
+} from 'genkit/model';
+import type { PluginProvider } from 'genkit/plugin';
 import { Allow, parse } from 'partial-json';
+import wav from 'wav';
 
 logger.setLogLevel('debug');
 
@@ -960,4 +964,139 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   });
 
   return message;
+});
+
+ai.defineFlow(
+  {
+    name: 'audioSimple',
+    inputSchema: z
+      .string()
+      .default(
+        'say that that Genkit (G pronounced as J) is an amazing Gen AI library'
+      ),
+    outputSchema: z.void(),
+  },
+  async (query) => {
+    const { media } = await ai.generate({
+      // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
+      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Algenib' },
+          },
+        },
+      },
+      prompt: query,
+    });
+    if (!media) {
+      return;
+    }
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    const fileName = 'out.wav';
+    await saveWaveFile(fileName, audioBuffer);
+  }
+);
+
+ai.defineFlow(
+  {
+    name: 'audioMultipleSpeakers',
+    inputSchema: z
+      .string()
+      .default(
+        "Genkit (pronounced as Gen Kit). here's the dialog:\n\n" +
+          'Speaker1: "Genkit is an amazing Gen AI **library**!"\n' +
+          'Speaker2: "Library? I thought it was a **framework**."\n' +
+          'Speaker1: "No, it\'s definitely a library. You just import components and use functions. It\'s a toolkit, not a prescriptive structure for your whole app."\n' +
+          'Speaker2: "But it defines how you *structure* your Gen AI application. It has its own lifecycle, handles models and prompts. You build *on top* of it, which is framework-like."\n' +
+          "Speaker1: \"It doesn't dictate your *entire* app's architecture. You can use it for just one feature. Like NumPy, it's powerful functions, not an overall design.\"\n" +
+          'Speaker2: "Yet it orchestrates your Gen AI pipeline, managing things from data to output. That\'s more than just functions; it\'s an integrated system, providing the structure and conventions. That sounds like a framework."\n' +
+          'Speaker1: "It\'s an opinionated library then, or a specialized toolkit."\n' +
+          'Speaker2: "And that is why the line often blurs."'
+      ),
+    outputSchema: z.void(),
+  },
+  async (query) => {
+    const { media } = await ai.generate({
+      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      config: {
+        // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              {
+                speaker: 'Speaker1',
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                },
+              },
+              {
+                speaker: 'Speaker2',
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Achernar' },
+                },
+              },
+            ],
+          },
+        },
+      },
+      prompt: query,
+    });
+    if (!media) {
+      return;
+    }
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    const fileName = 'out_multi.wav';
+    await saveWaveFile(fileName, audioBuffer);
+  }
+);
+
+async function saveWaveFile(
+  filename: string,
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+) {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.FileWriter(filename, {
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+
+    writer.write(pcmData);
+    writer.end();
+  });
+}
+
+ai.defineFlow('googleSearch', async (thing) => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt: `What is a baanna?`,
+    config: { tools: [{ googleSearch: {} }] },
+  });
+
+  return text;
+});
+
+ai.defineFlow('googleSearchRetrieval', async (thing) => {
+  const { text } = await ai.generate({
+    model: vertexAI.model('gemini-2.0-flash'),
+    prompt: `What is a banana?`,
+    config: { googleSearchRetrieval: {} },
+  });
+
+  return text;
 });

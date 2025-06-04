@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-import { DecodedAppCheckToken, getAppCheck } from 'firebase-admin/app-check';
-import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import { UserFacingError } from 'genkit';
-import { ContextProvider, RequestData } from 'genkit/context';
-import { initializeAppIfNecessary } from './helpers.js';
+import {
+  getAppCheck,
+  type DecodedAppCheckToken,
+} from 'firebase-admin/app-check';
+import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 // @ts-ignore - `firebase` is an optional peer dep, don't error if it's missing
 import type {
   FirebaseApp,
   FirebaseOptions,
   FirebaseServerApp,
 } from 'firebase/app';
+import { UserFacingError } from 'genkit';
+import type { ContextProvider, RequestData } from 'genkit/context';
+import { initializeAppIfNecessary } from './helpers.js';
 
 /**
  * Debug features that can be enabled to simplify testing.
@@ -184,7 +187,7 @@ export function firebaseContext<I = any>(
     | DeclarativePolicy
     | ((context: FirebaseContext, input: I) => void | Promise<void>)
 ): FirebaseContextProvider<I> {
-  return async function (request: RequestData): Promise<FirebaseContext> {
+  return async (request: RequestData): Promise<FirebaseContext> => {
     initializeAppIfNecessary();
     let auth: FirebaseContext['auth'];
 

@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-import { Counter, Histogram, Meter, metrics } from '@opentelemetry/api';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { PathMetadata } from 'genkit/tracing';
+import {
+  metrics,
+  type Counter,
+  type Histogram,
+  type Meter,
+} from '@opentelemetry/api';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { PathMetadata } from 'genkit/tracing';
 
 export const METER_NAME = 'genkit';
 export const METRIC_NAME_PREFIX = 'genkit';

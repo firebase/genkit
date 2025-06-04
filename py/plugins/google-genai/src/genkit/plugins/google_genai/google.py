@@ -15,19 +15,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from functools import cached_property
 
 from google import genai
 from google.auth.credentials import Credentials
 from google.genai.client import DebugConfig
-from google.genai.types import GenerateImagesConfigOrDict, HttpOptions, HttpOptionsDict
+from google.genai.types import EmbedContentConfig, GenerateImagesConfigOrDict, HttpOptions, HttpOptionsDict
 
 import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
+from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,
     VertexEmbeddingModels,
+    default_embedder_info,
 )
 from genkit.plugins.google_genai.models.gemini import (
     SUPPORTED_MODELS,
@@ -139,24 +143,29 @@ class GoogleAI(Plugin):
 
         for version in GeminiEmbeddingModels:
             embedder = Embedder(version=version, client=self._client)
-            ai.define_embedder(name=googleai_name(version), fn=embedder.generate)
+            ai.define_embedder(
+                name=googleai_name(version),
+                fn=embedder.generate,
+                metadata=default_embedder_info(version),
+                config_schema=EmbedContentConfig,
+            )
 
     def resolve_action(
         self,
         ai: GenkitRegistry,
-        type: ActionKind,
+        kind: ActionKind,
         name: str,
     ) -> None:
         """Resolves and action.
 
         Args:
             ai: The Genkit registry.
-            type: The kind of action to resolve.
+            kind: The kind of action to resolve.
             name: The name of the action to resolve.
         """
-        if type == ActionKind.MODEL:
+        if kind == ActionKind.MODEL:
             self._resolve_model(ai, name)
-        elif type == ActionKind.EMBEDDER:
+        elif kind == ActionKind.EMBEDDER:
             self._resolve_embedder(ai, name)
 
     def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
@@ -204,7 +213,43 @@ class GoogleAI(Plugin):
         ai.define_embedder(
             name=googleai_name(_clean_name),
             fn=embedder.generate,
+            metadata=default_embedder_info(_clean_name),
+            config_schema=EmbedContentConfig,
         )
+
+    @cached_property
+    def list_actions(self) -> list[dict[str, str]]:
+        """Generate a list of available actions or models.
+
+        Returns:
+            list of actions dicts with the following shape:
+            {
+                'name': str,
+                'kind': ActionKind,
+            }
+        """
+        actions_list = list()
+        for m in self._client.models.list():
+            name = m.name.replace('models/', '')
+            if 'generateContent' in m.supported_actions:
+                actions_list.append(
+                    model_action_metadata(
+                        name=googleai_name(name),
+                        info=google_model_info(name).model_dump(),
+                        config_schema=GeminiConfigSchema,
+                    ),
+                )
+
+            if 'embedContent' in m.supported_actions:
+                actions_list.append(
+                    embedder_action_metadata(
+                        name=googleai_name(name),
+                        info=default_embedder_info(name),
+                        config_schema=EmbedContentConfig,
+                    )
+                )
+
+        return actions_list
 
 
 class VertexAI(Plugin):
@@ -280,6 +325,8 @@ class VertexAI(Plugin):
             ai.define_embedder(
                 name=vertexai_name(version),
                 fn=embedder.generate,
+                metadata=default_embedder_info(version),
+                config_schema=EmbedContentConfig,
             )
 
         for version in ImagenVersion:
@@ -294,19 +341,19 @@ class VertexAI(Plugin):
     def resolve_action(
         self,
         ai: GenkitRegistry,
-        type: ActionKind,
+        kind: ActionKind,
         name: str,
     ) -> None:
         """Resolves and action.
 
         Args:
             ai: The Genkit registry.
-            type: The kind of action to resolve.
+            kind: The kind of action to resolve.
             name: The name of the action to resolve.
         """
-        if type == ActionKind.MODEL:
+        if kind == ActionKind.MODEL:
             self._resolve_model(ai, name)
-        elif type == ActionKind.EMBEDDER:
+        elif kind == ActionKind.EMBEDDER:
             self._resolve_embedder(ai, name)
 
     def _resolve_model(self, ai: GenkitRegistry, name: str) -> None:
@@ -361,7 +408,42 @@ class VertexAI(Plugin):
         ai.define_embedder(
             name=vertexai_name(_clean_name),
             fn=embedder.generate,
+            metadata=default_embedder_info(_clean_name),
+            config_schema=EmbedContentConfig,
         )
+
+    @cached_property
+    def list_actions(self) -> list[dict[str, str]]:
+        """Generate a list of available actions or models.
+
+        Returns:
+            list of actions dicts with the following shape:
+            {
+                'name': str,
+                'kind': ActionKind,
+            }
+        """
+        actions_list = list()
+        for m in self._client.models.list():
+            name = m.name.replace('publishers/google/models/', '')
+            if 'embed' in name.lower():
+                actions_list.append(
+                    embedder_action_metadata(
+                        name=vertexai_name(name),
+                        info=default_embedder_info(name),
+                        config_schema=EmbedContentConfig,
+                    )
+                )
+            # List all the vertexai models for generate actions
+            actions_list.append(
+                model_action_metadata(
+                    name=vertexai_name(name),
+                    info=google_model_info(name).model_dump(),
+                    config_schema=GeminiConfigSchema,
+                ),
+            )
+
+        return actions_list
 
 
 def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
