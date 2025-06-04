@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { CachedContent, StartChatParams } from '@google/generative-ai';
+import type { CachedContent, StartChatParams } from '@google/generative-ai';
 import assert from 'assert';
 import crypto from 'crypto';
-import { GenerateRequest, GenkitError } from 'genkit';
+import { GenkitError, type GenerateRequest } from 'genkit';
 import { describe, it } from 'node:test';
 import {
   CONTEXT_CACHE_SUPPORTED_MODELS,
   DEFAULT_TTL,
   INVALID_ARGUMENT_MESSAGES,
 } from '../../src/context-caching/constants.js';
-import { CacheConfigDetails } from '../../src/context-caching/types.js';
+import type { CacheConfigDetails } from '../../src/context-caching/types.js';
 import {
   calculateTTL,
   extractCacheConfig,
@@ -458,7 +458,7 @@ describe('lookupContextCache', () => {
         nextPageToken:
           pageToken === 'page99'
             ? undefined
-            : `page${parseInt(pageToken || '1') + 1}`,
+            : `page${Number.parseInt(pageToken || '1') + 1}`,
       }),
     };
 

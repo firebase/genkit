@@ -15,23 +15,23 @@
  */
 
 import bodyParser from 'body-parser';
-import cors, { CorsOptions } from 'cors';
+import cors, { type CorsOptions } from 'cors';
 import express from 'express';
 import {
-  Action,
-  ActionContext,
-  Flow,
   runWithStreamingCallback,
-  z,
+  type Action,
+  type ActionContext,
+  type Flow,
+  type z,
 } from 'genkit';
 import {
-  ContextProvider,
-  RequestData,
   getCallableJSON,
   getHttpStatus,
+  type ContextProvider,
+  type RequestData,
 } from 'genkit/context';
 import { logger } from 'genkit/logging';
-import { Server } from 'http';
+import type { Server } from 'http';
 
 const streamDelimiter = '\n\n';
 
@@ -67,7 +67,7 @@ export function expressHandler<
       return;
     }
 
-    let input = request.body.data as z.infer<I>;
+    const input = request.body.data as z.infer<I>;
     let context: Record<string, any>;
 
     try {
@@ -253,7 +253,7 @@ export class FlowServer {
     });
     this.port =
       this.options?.port ||
-      (process.env.PORT ? parseInt(process.env.PORT) : 0) ||
+      (process.env.PORT ? Number.parseInt(process.env.PORT) : 0) ||
       3400;
     this.server = server.listen(this.port, () => {
       logger.debug(`Flow server running on http://localhost:${this.port}`);

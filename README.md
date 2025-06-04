@@ -1,53 +1,121 @@
-[![Run e2e tests](https://github.com/firebase/genkit/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/firebase/genkit/actions/workflows/e2e-tests.yml)
-
 ![Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Genkit')
 ![Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Genkit')
 
-Genkit is a framework for building AI-powered applications. It provides open source libraries for Node.js and Go, along with tools to help you debug and iterate quickly.
+Genkit is an open-source framework for building full-stack AI-powered applications, built and used in production by Google's Firebase. It provides SDKs for multiple programming languages with varying levels of stability:
 
-Learn more in our documentation for [Node.js](https://firebase.google.com/docs/genkit) and [Go](https://firebase.google.com/docs/genkit-go/get-started-go).
+- **JavaScript/TypeScript (Stable)**: Production-ready with full feature support
+- **Go (Beta)**: Feature-complete but may have breaking changes
+- **Python (Alpha)**: Early development with core functionality
 
-## What can you build with Genkit?
+It offers a unified interface for integrating AI models from providers like [Google](https://genkit.dev/docs/plugins/google-genai), [OpenAI](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-openai), [Anthropic](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic), [Ollama](https://genkit.dev/docs/plugins/ollama/), and more. Rapidly build and deploy production-ready chatbots, automations, and recommendation systems using streamlined APIs for multimodal content, structured outputs, tool calling, and agentic workflows.
 
-Genkit is a versatile framework, which you can use to build many different types of AI applications. Common use cases include:
+Get started with just a few lines of code:
 
-- **Intelligent agents:** Create agents that understand user requests and perform tasks autonomously, such as personalized travel planning or itinerary generation.
+```ts
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/googleai';
 
-  - Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass)
+const ai = genkit({ plugins: [googleAI()] });
 
-- **Data transformation:** Convert unstructured data, like natural language, into structured formats (e.g., objects, SQL queries, tables) for integration into your app or data pipeline.
+const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt: 'Why is Firebase awesome?'
+});
+```
 
-  - Example: [Add Natural Language AI Data Filters with Genkit](https://medium.com/firebase-developers/how-to-add-natural-language-ai-data-filters-to-your-app-71d64a79624d)
+## Explore & build with Genkit
 
-- **Retrieval-augmented generation:** Create apps that provide accurate and contextually relevant responses by grounding generation with your own data sources, such as chatbots or question answering systems.
-  - Example: [Build AI features powered by your data](https://firebase.google.com/codelabs/ai-genkit-rag#0)
+Play with AI sample apps, with visualizations of the Genkit code that powers
+them, at no cost to you.
 
-## Who should use Genkit?
+[Explore Genkit by Example](https://examples.genkit.dev)
 
-Genkit is built for developers seeking to add generative AI to their apps with Node.js or Go, and can run anywhere these runtimes are supported. It's designed around a plugin architecture that can work with any generative model API or vector database, with many integrations [already available](#plugin-ecosystem).
+## Key capabilities
 
-While developed by the [Firebase](https://firebase.google.com) team, Genkit can be used independently of Firebase or Google Cloud services.
+<table>
+  <tr>
+    <td><strong>Broad AI model support</strong></td>
+    <td>Use a unified interface to integrate with hundreds of models from providers like <a href="https://genkit.dev/docs/plugins/google-genai">Google</a>, <a href="https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-openai">
+    OpenAI</a>, <a href="https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic">
+    Anthropic</a>, <a href="https://genkit.dev/docs/plugins/ollama">Ollama</a>, and more. Explore, compare, and use the best models for your needs.</td>
+  </tr>
+  <tr>
+    <td><strong>Simplified AI development</strong></td>
+    <td>Use streamlined APIs to build AI features with <a href="https://genkit.dev/docs/models#structured-output">
+    structured output</a>, <a href="https://genkit.dev/docs/tool-calling">agentic tool calling</a>, <a href="https://genkit.dev/docs/rag">context-aware generation</a>, <a href="https://genkit.dev/docs/models#multimodal">multi-modal input/output</a>, and more. Genkit handles the complexity of AI development, so you can build and iterate faster.</td>
+  </tr>
+  <tr>
+    <td><strong>Web and mobile ready</strong></td>
+    <td>Integrate seamlessly with frameworks and platforms including Next.js, React, Angular, iOS, Android, using purpose-built <a href="https://genkit.dev/docs/firebase">client SDKs</a> and helpers.</td>
+  </tr>
+  <tr>
+    <td><strong>Cross-language support</strong></td>
+    <td>Build with the language that best fits your project. Genkit provides SDKs for JavaScript/TypeScript (Stable), Go (Beta), and Python (Alpha) with consistent APIs and capabilities across all supported languages.</td>
+  </tr>
+  <tr>
+    <td><strong>Deploy anywhere</strong></td>
+    <td>Deploy AI logic to any environment that supports your chosen programming language, such as <a href="https://genkit.dev/docs/firebase">Cloud Functions for Firebase</a>,
+    <a href="https://genkit.dev/docs/cloud-run">Google Cloud Run</a>, or <a href="https://genkit.dev/docs/deploy-node">third-party platforms</a>,
+    with or without Google services.</td>
+  </tr>
+  <tr>
+    <td><strong>Developer tools</strong></td>
+    <td>Accelerate AI development with a purpose-built, local <a href="https://genkit.dev/docs/devtools">CLI and Developer UI</a>. Test prompts and
+    flows against individual inputs or datasets, compare outputs from different models, debug with detailed execution traces, and use immediate visual feedback to iterate rapidly on prompts.</td>
+  </tr>
+  <tr>
+    <td><strong>Production monitoring</strong></td>
+    <td>Ship AI features with confidence using comprehensive production monitoring. Track model performance, and request volumes, latency, and error rates in a <a href="https://genkit.dev/docs/observability/getting-started"> purpose-built dashboard</a>. Identify issues quickly with detailed observability metrics, and ensure your AI features meet quality and performance targets in real-world usage.</td>
+  </tr>
+</table>
+
+## How does it work?
+
+Genkit simplifies AI integration with an open-source SDK and unified APIs that
+work across various model providers and programming languages. It abstracts away complexity so you can focus on delivering great user experiences.
+
+Some key features offered by Genkit include:
+
+* [Text and image generation](https://genkit.dev/docs/models)
+* [Type-safe, structured data generation](https://genkit.dev/docs/models#structured-output)
+* [Tool calling](https://genkit.dev/docs/tool-calling)
+* [Prompt templating](https://genkit.dev/docs/dotprompt)
+* [Persisted chat interfaces](https://genkit.dev/docs/chat)
+* [AI workflows](https://genkit.dev/docs/flows)
+* [AI-powered data retrieval (RAG)](https://genkit.dev/docs/rag)
+
+Genkit is designed for server-side deployment in multiple language environments, and also provides seamless client-side integration through dedicated helpers and [client SDKs](https://genkit.dev/docs/firebase).
+
+## Implementation path
+
+<table>
+<tr>
+  <td><span>1</span></td>
+  <td>Choose your language and model provider</td>
+  <td>Select the Genkit SDK for your preferred language (JavaScript/TypeScript (Stable), Go (Beta), or Python (Alpha)). Choose a model provider like <a href="https://genkit.dev/docs/plugins/google-genai">Google Gemini</a> or Anthropic, and get an API key. Some providers, like <a href="https://genkit.dev/docs/plugins/vertex-ai">Vertex AI</a>, may rely on a different means of authentication.</td>
+</tr>
+<tr>
+  <td><span>2</span></td>
+  <td>Install the SDK and initialize</td>
+  <td>Install the Genkit SDK, model-provider package of your choice, and the Genkit CLI. Import the Genkit and provider packages and initialize Genkit with the provider API key.</td>
+</tr>
+<tr>
+  <td><span>3</span></td>
+  <td>Write and test AI features</td>
+  <td>Use the Genkit SDK to build AI features for your use case, from basic text generation to complex multi-step workflows and agents. Use the CLI and Developer UI to help you rapidly test and iterate.</td>
+</tr>
+<tr>
+  <td><span>4</span></td>
+  <td>Deploy and monitor</td>
+  <td>Deploy your AI features to Firebase, Google Cloud Run, or any environment that supports your chosen programming language. Integrate them into your app, and monitor them in production in the Firebase console.</td>
+</tr>
+</table>
 
 ## Get started
 
-- [Node.js quickstart](https://firebase.google.com/docs/genkit/get-started)
-- [Next.js quickstart](https://firebase.google.com/docs/genkit/nextjs)
-- [Go quickstart](https://firebase.google.com/docs/genkit-go/get-started-go)
-
-> [!NOTE]
-> Genkit for Go is in alpha, so we only recommend it for prototyping.
-
-## Library key features
-
-- **Unified generation API:** Generate text, media, structured objects, and tool calls from any generative model using a single, adaptable API.
-
-- **Vector database support:** Add retrieval-augmented generation (RAG) to your apps with simple indexing and retrieval APIs that work across vector database providers.
-
-- **Enhanced prompt engineering:** Define rich prompt templates, model configurations, input/output schemas, and tools all within a single, runnable [.prompt](https://firebase.google.com/docs/genkit/dotprompt) file.
-
-- **AI workflows:** Organize your AI app logic into [Flows](https://firebase.google.com/docs/genkit/flows) - functions designed for observability, streaming, integration with Genkit devtools, and easy deployment as API endpoints.
-
-- **Built-in streaming:** Stream content from your Genkit API endpoints to your client app to create snappy user experiences.
+- [JavaScript/TypeScript quickstart](https://genkit.dev/docs/get-started) (Stable)
+- [Go quickstart](https://genkit.dev/go/docs/get-started-go) (Beta)
+- [Python quickstart](https://genkit.dev/python/docs/get-started/) (Alpha)
 
 ## Development tools
 
@@ -57,7 +125,7 @@ Genkit provides a CLI and a local UI to streamline your AI development workflow.
 
 The Genkit CLI includes commands for running and evaluating your Genkit functions (flows) and collecting telemetry and logs.
 
-- **Install:** `npm i -g genkit`
+- **Install:** `npm install -g genkit-cli`
 - **Run a command, wrapped with telemetry, a interactive developer UI, etc:** `genkit start -- <command to run your code>`
 
 ### Developer UI
@@ -72,20 +140,6 @@ Key features:
 
 <img src="docs/resources/readme-ui-traces-screenshot.png" width="700" alt="Screenshot of Genkit Developer UI showing traces">
 
-## Plugin ecosystem
-
-Extend Genkit with plugins for specific AI models, vector databases, and platform integrations from providers like Google and OpenAI.
-
-- **Node.js plugins:** [Explore on npm](https://www.npmjs.com/search?q=keywords:genkit-plugin)
-- **Go plugins:** [Explore on pkg.go.dev](https://pkg.go.dev/github.com/firebase/genkit/go#section-directories)
-
-Create and share your own plugins:
-
-- **Write Node.js plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit/plugin-authoring)
-- **Write Go plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit-go/plugin-authoring)
-
-Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere, and more in this [repository](https://github.com/TheFireCo/genkit-plugins).
-
 ## Try Genkit in Firebase Studio
 
 Want to skip the local setup? Click below to try out Genkit using [Firebase Studio](https://firebase.studio), Google's AI-assisted workspace for full-stack app development in the cloud.
@@ -97,23 +151,12 @@ Want to skip the local setup? Click below to try out Genkit using [Firebase Stud
     src="https://cdn.firebasestudio.dev/btn/open_bright_32.svg">
 </a>
 
-## Sample apps
-
-Take a look at some samples of Genkit in use:
-
-- ["AI barista"](https://github.com/firebase/genkit/blob/main/samples/js-coffee-shop) -- demonstrates simple LLM usage
-- [A simple chatbot with a JavaScript frontend](https://github.com/firebase/genkit/blob/main/samples/chatbot) -- add history to LLM sessions
-- [Restaurant menu Q&A app](https://github.com/firebase/genkit/blob/main/samples/js-menu) -- this sample shows progressively
-  more sophisticated versions of a menu understanding app.
-- [Streaming to an Angular frontend](https://github.com/firebase/genkit/blob/main/samples/js-angular)
-- [js-schoolAgent](https://github.com/firebase/genkit/blob/main/samples/js-schoolAgent/): A simple school assistant system with a routing agent and specialized agents
-- [Prompts](https://github.com/firebase/genkit/blob/main/samples/prompts/): Shows off several prompting techniques
-
 ## Connect with us
 
-- **Join the community:** Stay updated, ask questions, and share your work with other Genkit users on our [Discord server](https://discord.gg/qXt5zzQKpc).
-
-- **Provide feedback:** Report issues or suggest new features using our GitHub [issue tracker](https://github.com/firebase/genkit/issues).
+- [**Join us on Discord**](https://discord.gg/qXt5zzQKpc) – Get help, share
+ideas, and chat with other developers.
+- [**Contribute on GitHub**](https://github.com/firebase/genkit/issues) – Report 
+bugs, suggest features, or explore the source code.
 
 ## Contributing
 

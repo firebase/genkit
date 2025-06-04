@@ -27,7 +27,6 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/dotprompt/go/dotprompt"
@@ -93,7 +92,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, "", name, atype.ExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineActionWithInputSchema(r, "", name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p, nil
 }
@@ -101,7 +100,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, name string) *Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, atype.ExecutablePrompt, "", name)
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, "", name)
 	if action == nil {
 		return nil
 	}
@@ -236,7 +235,7 @@ func buildVariables(variables any) (map[string]any, error) {
 	m := make(map[string]any)
 
 fieldLoop:
-	for i := 0; i < vt.NumField(); i++ {
+	for i := range vt.NumField() {
 		ft := vt.Field(i)
 		if ft.PkgPath != "" {
 			continue
@@ -415,9 +414,7 @@ func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFuncti
 	// Prepare the context for rendering
 	context := map[string]any{}
 	actionCtx := core.FromContext(ctx)
-	for k, v := range actionCtx {
-		context[k] = v
-	}
+	maps.Copy(context, actionCtx)
 
 	// Call the prompt function with the input and context
 	rendered, err := promptFn(&dotprompt.DataArgument{

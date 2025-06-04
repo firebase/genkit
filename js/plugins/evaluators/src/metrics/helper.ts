@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Dotprompt, PromptFunction } from 'dotprompt';
+import { Dotprompt, type PromptFunction } from 'dotprompt';
 import { readFileSync } from 'fs';
 
 /** Helper function to get current directory, isolated in a separate file to work with ESM */

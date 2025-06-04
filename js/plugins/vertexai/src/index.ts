@@ -22,29 +22,33 @@
 
 import {
   embedderRef,
-  EmbedderReference,
-  Genkit,
+  modelActionMetadata,
   modelRef,
-  ModelReference,
-  z,
+  type EmbedderReference,
+  type Genkit,
+  type ModelReference,
+  type z,
 } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { ActionType } from 'genkit/registry';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import type { ActionType } from 'genkit/registry';
 import { getDerivedParams } from './common/index.js';
-import { PluginOptions } from './common/types.js';
+import type { PluginOptions } from './common/types.js';
 import {
+  SUPPORTED_EMBEDDER_MODELS,
+  VertexEmbeddingConfigSchema,
   defineVertexAIEmbedder,
   multimodalEmbedding001,
-  SUPPORTED_EMBEDDER_MODELS,
   textEmbedding004,
   textEmbedding005,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-  VertexEmbeddingConfig,
-  VertexEmbeddingConfigSchema,
+  type VertexEmbeddingConfig,
 } from './embedder.js';
 import {
+  GeminiConfigSchema,
+  SUPPORTED_GEMINI_MODELS,
+  SafetySettingsSchema,
   defineGeminiKnownModel,
   defineGeminiModel,
   gemini,
@@ -59,20 +63,25 @@ import {
   gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
-  GeminiConfigSchema,
-  SUPPORTED_GEMINI_MODELS,
   type GeminiConfig,
   type GeminiVersionString,
 } from './gemini.js';
 import {
+  GENERIC_IMAGEN_INFO,
+  ImagenConfigSchema,
+  SUPPORTED_IMAGEN_MODELS,
+  defineImagenModel,
   imagen2,
   imagen3,
   imagen3Fast,
-  imagenModel,
-  SUPPORTED_IMAGEN_MODELS,
+  type ACTUAL_IMAGEN_MODELS,
 } from './imagen.js';
-export { type PluginOptions } from './common/types.js';
+import { listModels } from './list-models.js';
+export type { PluginOptions } from './common/types.js';
 export {
+  GeminiConfigSchema,
+  ImagenConfigSchema,
+  SafetySettingsSchema,
   gemini,
   gemini10Pro,
   gemini15Flash,
@@ -85,7 +94,6 @@ export {
   gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
-  GeminiConfigSchema,
   imagen2,
   imagen3,
   imagen3Fast,
@@ -104,7 +112,7 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
     await getDerivedParams(options);
 
   Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
-    imagenModel(ai, name, authClient, { projectId, location })
+    defineImagenModel(ai, name, authClient, { projectId, location })
   );
   Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
     defineGeminiKnownModel(
@@ -171,8 +179,14 @@ async function resolveModel(
   actionName: string,
   options?: PluginOptions
 ) {
-  const { projectId, location, vertexClientFactory } =
+  const { projectId, location, vertexClientFactory, authClient } =
     await getDerivedParams(options);
+
+  if (actionName.startsWith('imagen')) {
+    defineImagenModel(ai, actionName, authClient, { projectId, location });
+    return;
+  }
+
   const modelRef = gemini(actionName);
   defineGeminiModel({
     ai,
@@ -198,24 +212,84 @@ async function resolveEmbedder(
   defineVertexAIEmbedder(ai, actionName, authClient, { projectId, location });
 }
 
+// Vertex AI list models still returns these and the API does not indicate in any way
+// that those models are not served anymore.
+const KNOWN_DECOMISSIONED_MODELS = [
+  'gemini-pro-vision',
+  'gemini-pro',
+  'gemini-ultra',
+  'gemini-ultra-vision',
+];
+
+async function listActions(options?: PluginOptions) {
+  const { location, projectId, authClient } = await getDerivedParams(options);
+  const models = await listModels(authClient, location, projectId);
+  // Vertex has a lot of models, and no way to figure out the "type" of the model...
+  // so, for list actions we only fetch known model "families".
+  return [
+    // Gemini
+    ...models
+      .filter(
+        (m) =>
+          m.name.includes('gemini') &&
+          !KNOWN_DECOMISSIONED_MODELS.includes(m.name.split('/').at(-1)!)
+      )
+      .map((m) => {
+        const ref = gemini(m.name.split('/').at(-1)!);
+
+        return modelActionMetadata({
+          name: ref.name,
+          info: ref.info,
+          configSchema: GeminiConfigSchema,
+        });
+      }),
+    // Imagen
+    ...models
+      .filter((m) => m.name.includes('imagen'))
+      .map((m) => {
+        const name = m.name.split('/').at(-1)!;
+
+        return modelActionMetadata({
+          name: 'vertexai/' + name,
+          info: {
+            ...GENERIC_IMAGEN_INFO,
+            label: `Vertex AI - ${name}`,
+          },
+          configSchema: ImagenConfigSchema,
+        });
+      }),
+  ];
+}
+
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 function vertexAIPlugin(options?: PluginOptions): GenkitPlugin {
+  let listActionsCache;
   return genkitPlugin(
     'vertexai',
     async (ai: Genkit) => await initializer(ai, options),
     async (ai: Genkit, actionType: ActionType, actionName: string) =>
-      await resolver(ai, actionType, actionName, options)
+      await resolver(ai, actionType, actionName, options),
+    async () => {
+      if (listActionsCache) return listActionsCache;
+      listActionsCache = await listActions(options);
+      return listActionsCache;
+    }
   );
 }
 
 export type VertexAIPlugin = {
   (params?: PluginOptions): GenkitPlugin;
   model(
-    name: GeminiVersionString,
+    name: keyof typeof SUPPORTED_GEMINI_MODELS | (`gemini-${string}` & {}),
     config?: z.infer<typeof GeminiConfigSchema>
   ): ModelReference<typeof GeminiConfigSchema>;
+  model(
+    name: keyof typeof ACTUAL_IMAGEN_MODELS | (`imagen${string}` & {}),
+    config?: z.infer<typeof ImagenConfigSchema>
+  ): ModelReference<typeof ImagenConfigSchema>;
+  model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
   embedder(
     name: string,
     config?: VertexEmbeddingConfig
@@ -227,10 +301,18 @@ export type VertexAIPlugin = {
  * Includes Gemini and Imagen models and text embedder.
  */
 export const vertexAI = vertexAIPlugin as VertexAIPlugin;
-vertexAI.model = (
-  name: GeminiVersionString,
-  config?: GeminiConfig
-): ModelReference<typeof GeminiConfigSchema> => {
+// provide generic implementation for the model function overloads.
+(vertexAI as any).model = (
+  name: string,
+  config?: any
+): ModelReference<z.ZodTypeAny> => {
+  if (name.startsWith('imagen')) {
+    return modelRef({
+      name: `vertexai/${name}`,
+      config,
+      configSchema: ImagenConfigSchema,
+    });
+  }
   return modelRef({
     name: `vertexai/${name}`,
     config,

@@ -18,7 +18,7 @@ import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import { enumFormatter } from '../../src/formats/enum.js';
 import { Message } from '../../src/message.js';
-import { MessageData } from '../../src/model.js';
+import type { MessageData } from '../../src/model.js';
 
 describe('enumFormat', () => {
   const messageTests = [

@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import {
+  provideZoneChangeDetection,
+  type ApplicationConfig,
+} from '@angular/core';
 import { provideRouter } from '@angular/router';
 
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';

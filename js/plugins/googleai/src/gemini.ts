@@ -15,54 +15,52 @@
  */
 
 import {
-  EnhancedGenerateContentResponse,
-  FileDataPart,
   FunctionCallingMode,
-  FunctionCallPart,
-  FunctionDeclaration,
-  FunctionResponsePart,
-  GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
-  GenerateContentResponse,
-  GenerationConfig,
-  GenerativeModel,
+  GenerateContentCandidate,
   GoogleGenerativeAI,
-  InlineDataPart,
-  RequestOptions,
-  Schema,
   SchemaType,
-  StartChatParams,
-  Tool,
-  ToolConfig,
+  type FileDataPart,
+  type FunctionCallPart,
+  type FunctionDeclaration,
+  type FunctionResponsePart,
+  type GenerateContentCandidate as GeminiCandidate,
+  type Content as GeminiMessage,
+  type Part as GeminiPart,
+  type GenerateContentResponse,
+  type GenerationConfig,
+  type GenerativeModel,
+  type GoogleSearchRetrievalTool,
+  type InlineDataPart,
+  type RequestOptions,
+  type Schema,
+  type StartChatParams,
+  type Tool,
+  type ToolConfig,
 } from '@google/generative-ai';
 import {
-  Genkit,
   GENKIT_CLIENT_HEADER,
   GenkitError,
-  JSONSchema,
   z,
+  type Genkit,
+  type JSONSchema,
 } from 'genkit';
 import {
-  CandidateData,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
-  MediaPart,
-  MessageData,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
   modelRef,
-  ModelReference,
-  Part,
-  ToolDefinitionSchema,
-  ToolRequestPart,
-  ToolResponsePart,
+  type CandidateData,
+  type MediaPart,
+  type MessageData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelReference,
+  type Part,
+  type ToolDefinitionSchema,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from 'genkit/model';
-import {
-  downloadRequestMedia,
-  simulateSystemPrompt,
-} from 'genkit/model/middleware';
+import { downloadRequestMedia } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
@@ -87,6 +85,59 @@ const SafetySettingsSchema = z.object({
     'BLOCK_NONE',
   ]),
 });
+
+const VoiceConfigSchema = z
+  .object({
+    prebuiltVoiceConfig: z
+      .object({
+        // TODO: Make this an array of objects so we can also specify the description
+        // for each voiceName.
+        voiceName: z
+          .union([
+            z.enum([
+              'Zephyr',
+              'Puck',
+              'Charon',
+              'Kore',
+              'Fenrir',
+              'Leda',
+              'Orus',
+              'Aoede',
+              'Callirrhoe',
+              'Autonoe',
+              'Enceladus',
+              'Iapetus',
+              'Umbriel',
+              'Algieba',
+              'Despina',
+              'Erinome',
+              'Algenib',
+              'Rasalgethi',
+              'Laomedeia',
+              'Achernar',
+              'Alnilam',
+              'Schedar',
+              'Gacrux',
+              'Pulcherrima',
+              'Achird',
+              'Zubenelgenubi',
+              'Vindemiatrix',
+              'Sadachbia',
+              'Sadaltager',
+              'Sulafat',
+            ]),
+            // To allow any new string values
+            z.string(),
+          ])
+          .describe('Name of the preset voice to use')
+          .optional(),
+      })
+      .describe('Configuration for the prebuilt speaker to use')
+      .passthrough()
+      .optional(),
+  })
+  .describe('Configuration for the voice to use')
+  .passthrough();
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   apiKey: z
@@ -132,8 +183,43 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         "'gemini-2.0-flash-exp' model at present."
     )
     .optional(),
-});
+  googleSearchRetrieval: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe(
+      'Retrieve public web data for grounding, powered by Google Search.'
+    )
+    .optional(),
+}).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
+
+export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
+  speechConfig: z
+    .object({
+      voiceConfig: VoiceConfigSchema.optional(),
+      multiSpeakerVoiceConfig: z
+        .object({
+          speakerVoiceConfigs: z
+            .array(
+              z
+                .object({
+                  speaker: z.string().describe('Name of the speaker to use'),
+                  voiceConfig: VoiceConfigSchema,
+                })
+                .describe(
+                  'Configuration for a single speaker in a multi speaker setup'
+                )
+                .passthrough()
+            )
+            .describe('Configuration for all the enabled speaker voices'),
+        })
+        .describe('Configuration for multi-speaker setup')
+        .passthrough()
+        .optional(),
+    })
+    .describe('Speech generation config')
+    .passthrough()
+    .optional(),
+}).passthrough();
 
 export const gemini10Pro = modelRef({
   name: 'googleai/gemini-1.0-pro',
@@ -298,6 +384,23 @@ export const gemini25FlashPreview0417 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashPreviewTts = modelRef({
+  name: 'googleai/gemini-2.5-flash-preview-tts',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash Preview TTS',
+    versions: [],
+    supports: {
+      multiturn: false,
+      media: false,
+      tools: false,
+      toolChoice: false,
+      systemRole: false,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiTtsConfigSchema,
+});
+
 export const gemini25ProExp0325 = modelRef({
   name: 'googleai/gemini-2.5-pro-exp-03-25',
   info: {
@@ -332,10 +435,6 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const SUPPORTED_V1_MODELS = {
-  'gemini-1.0-pro': gemini10Pro,
-};
-
 export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
@@ -347,6 +446,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
+  'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
@@ -366,7 +466,6 @@ export const GENERIC_GEMINI_MODEL = modelRef({
 });
 
 export const SUPPORTED_GEMINI_MODELS = {
-  ...SUPPORTED_V1_MODELS,
   ...SUPPORTED_V15_MODELS,
 } as const;
 
@@ -444,7 +543,7 @@ function toGeminiRole(
     case 'model':
       return 'model';
     case 'system':
-      if (model && SUPPORTED_V15_MODELS[model.name]) {
+      if (model?.info?.supports?.systemRole) {
         // We should have already pulled out the supported system messages,
         // anything remaining is unsupported; throw an error.
         throw new Error(
@@ -654,6 +753,17 @@ function fromCodeExecutionResult(part: GeminiPart): Part {
   };
 }
 
+function fromThought(part: {
+  thought: boolean;
+  text?: string;
+  thoughtSignature?: string;
+}): Part {
+  return {
+    reasoning: part.text || '',
+    metadata: { thoughtSignature: (part as any).thoughtSignature },
+  };
+}
+
 function toCustomPart(part: Part): GeminiPart {
   if (!part.custom) {
     throw new Error('Invalid GeminiPart: missing custom');
@@ -667,6 +777,14 @@ function toCustomPart(part: Part): GeminiPart {
   throw new Error('Unsupported Custom Part type');
 }
 
+function toThought(part: Part) {
+  const outPart: any = { thought: true };
+  if (part.metadata?.thoughtSignature)
+    outPart.thoughtSignature = part.metadata.thoughtSignature;
+  if (part.reasoning?.length) outPart.text = part.reasoning;
+  return outPart;
+}
+
 function toGeminiPart(part: Part): GeminiPart {
   if (part.text !== undefined) return { text: part.text || ' ' };
   if (part.media) {
@@ -676,6 +794,7 @@ function toGeminiPart(part: Part): GeminiPart {
   if (part.toolRequest) return toFunctionCall(part);
   if (part.toolResponse) return toFunctionResponse(part);
   if (part.custom) return toCustomPart(part);
+  if (typeof part.reasoning === 'string') return toThought(part);
   throw new Error('Unsupported Part type' + JSON.stringify(part));
 }
 
@@ -684,14 +803,16 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref: string
 ): Part {
-  if (part.text !== undefined) return { text: part.text };
+  if ('thought' in part) return fromThought(part as any);
+  if (typeof part.text === 'string') return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part, ref);
   if (part.functionResponse) return fromFunctionResponse(part);
   if (part.executableCode) return fromExecutableCode(part);
   if (part.codeExecutionResult) return fromCodeExecutionResult(part);
-  throw new Error('Unsupported GeminiPart type');
+  throw new Error('Unsupported GeminiPart type: ' + JSON.stringify(part));
 }
+
 export function toGeminiMessage(
   message: MessageData,
   model?: ModelReference<z.ZodTypeAny>
@@ -704,7 +825,7 @@ export function toGeminiMessage(
       if (!aRef && !bRef) return 0;
       if (!aRef) return 1;
       if (!bRef) return -1;
-      return parseInt(aRef, 10) - parseInt(bRef, 10);
+      return Number.parseInt(aRef, 10) - Number.parseInt(bRef, 10);
     });
   }
   return {
@@ -739,7 +860,7 @@ function fromGeminiFinishReason(
 
 export function fromGeminiCandidate(
   candidate: GeminiCandidate,
-  jsonMode: boolean = false
+  jsonMode = false
 ): CandidateData {
   const parts = candidate.content?.parts || [];
   const genkitCandidate: CandidateData = {
@@ -811,7 +932,7 @@ export function defineGoogleAIModel({
         status: 'FAILED_PRECONDITION',
         message:
           'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
+          'For more details see https://genkit.dev/docs/plugins/google-genai',
       });
     }
   }
@@ -839,9 +960,6 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (SUPPORTED_V1_MODELS[apiModelName]) {
-    middleware.push(simulateSystemPrompt());
-  }
   if (model.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middleware.push(
@@ -896,7 +1014,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (SUPPORTED_V15_MODELS[apiModelName]) {
+      if (model.info?.supports?.systemRole) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -911,7 +1029,18 @@ export function defineGoogleAIModel({
         });
       }
 
-      if (requestConfig.codeExecution) {
+      const {
+        apiKey: apiKeyFromConfig,
+        safetySettings: safetySettingsFromConfig,
+        codeExecution: codeExecutionFromConfig,
+        version: versionFromConfig,
+        functionCallingConfig,
+        googleSearchRetrieval,
+        tools: toolsFromConfig,
+        ...restOfConfigOptions
+      } = requestConfig;
+
+      if (codeExecutionFromConfig) {
         tools.push({
           codeExecution:
             request.config.codeExecution === true
@@ -920,13 +1049,23 @@ export function defineGoogleAIModel({
         });
       }
 
+      if (toolsFromConfig) {
+        tools.push(...(toolsFromConfig as any[]));
+      }
+
+      if (googleSearchRetrieval) {
+        tools.push({
+          googleSearch:
+            googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+        } as GoogleSearchRetrievalTool);
+      }
+
       let toolConfig: ToolConfig | undefined;
-      if (requestConfig.functionCallingConfig) {
+      if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
-            allowedFunctionNames:
-              requestConfig.functionCallingConfig.allowedFunctionNames,
-            mode: toFunctionModeEnum(requestConfig.functionCallingConfig.mode),
+            allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
+            mode: toFunctionModeEnum(functionCallingConfig.mode),
           },
         };
       } else if (request.toolChoice) {
@@ -944,19 +1083,10 @@ export function defineGoogleAIModel({
           tools.length === 0);
 
       const generationConfig: GenerationConfig = {
+        ...restOfConfigOptions,
         candidateCount: request.candidates || undefined,
-        temperature: requestConfig.temperature,
-        maxOutputTokens: requestConfig.maxOutputTokens,
-        topK: requestConfig.topK,
-        topP: requestConfig.topP,
-        stopSequences: requestConfig.stopSequences,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
-      if (requestConfig.responseModalities) {
-        // HACK: cast to any since this isn't officially supported in the old SDK yet
-        (generationConfig as any).responseModalities =
-          requestConfig.responseModalities;
-      }
 
       if (request.output?.constrained && jsonMode) {
         generationConfig.responseSchema = cleanSchema(request.output.schema);
@@ -970,7 +1100,7 @@ export function defineGoogleAIModel({
         return fromGeminiCandidate(candidate, jsonMode);
       };
 
-      let chatRequest: StartChatParams = {
+      const chatRequest: StartChatParams = {
         systemInstruction,
         generationConfig,
         tools: tools.length ? tools : undefined,
@@ -978,9 +1108,9 @@ export function defineGoogleAIModel({
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
-        safetySettings: requestConfig.safetySettings,
+        safetySettings: safetySettingsFromConfig,
       } as StartChatParams;
-      const modelVersion = (request.config?.version ||
+      const modelVersion = (versionFromConfig ||
         model.version ||
         apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
@@ -994,14 +1124,14 @@ export function defineGoogleAIModel({
           cacheConfigDetails
         );
 
-      if (!requestConfig.apiKey && !apiKey) {
+      if (!apiKeyFromConfig && !apiKey) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
           message:
             'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
         });
       }
-      const client = new GoogleGenerativeAI(requestConfig.apiKey || apiKey!);
+      const client = new GoogleGenerativeAI(apiKeyFromConfig || apiKey!);
       let genModel: GenerativeModel;
 
       if (cache) {
@@ -1022,14 +1152,16 @@ export function defineGoogleAIModel({
       }
 
       const callGemini = async () => {
-        let response: EnhancedGenerateContentResponse;
+        let response: GenerateContentResponse;
 
         if (sendChunk) {
           const result = await genModel
             .startChat(updatedChatRequest)
             .sendMessageStream(msg.parts, options);
 
+          const chunks = [] as GenerateContentResponse[];
           for await (const item of result.stream) {
+            chunks.push(item as GenerateContentResponse);
             (item as GenerateContentResponse).candidates?.forEach(
               (candidate) => {
                 const c = fromJSONModeScopedGeminiCandidate(candidate);
@@ -1041,7 +1173,7 @@ export function defineGoogleAIModel({
             );
           }
 
-          response = await result.response;
+          response = aggregateResponses(chunks);
         } else {
           const result = await genModel
             .startChat(updatedChatRequest)
@@ -1072,6 +1204,8 @@ export function defineGoogleAIModel({
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
+            cachedContentTokens:
+              response.usageMetadata?.cachedContentTokenCount,
           },
         };
       };
@@ -1150,4 +1284,84 @@ function toGeminiFunctionModeEnum(
     default:
       throw new Error(`unsupported function calling mode: ${genkitMode}`);
   }
+}
+
+/**
+ * Aggregates an array of `GenerateContentResponse`s into a single GenerateContentResponse.
+ *
+ * This code is copy-pasted from https://github.com/google-gemini/deprecated-generative-ai-js/blob/8b14949a5e8f1f3dfc35c394ebf5b19e68f92a22/src/requests/stream-reader.ts#L153
+ * with a small (but critical) bug fix.
+ */
+export function aggregateResponses(
+  responses: GenerateContentResponse[]
+): GenerateContentResponse {
+  const lastResponse = responses[responses.length - 1];
+  const aggregatedResponse: GenerateContentResponse = {
+    promptFeedback: lastResponse?.promptFeedback,
+  };
+  for (const response of responses) {
+    if (response.candidates) {
+      let candidateIndex = 0;
+      for (const candidate of response.candidates) {
+        if (!aggregatedResponse.candidates) {
+          aggregatedResponse.candidates = [];
+        }
+        if (!aggregatedResponse.candidates[candidateIndex]) {
+          aggregatedResponse.candidates[candidateIndex] = {
+            index: candidateIndex,
+          } as GenerateContentCandidate;
+        }
+        // Keep overwriting, the last one will be final
+        aggregatedResponse.candidates[candidateIndex].citationMetadata =
+          candidate.citationMetadata;
+        aggregatedResponse.candidates[candidateIndex].groundingMetadata =
+          candidate.groundingMetadata;
+        aggregatedResponse.candidates[candidateIndex].finishReason =
+          candidate.finishReason;
+        aggregatedResponse.candidates[candidateIndex].finishMessage =
+          candidate.finishMessage;
+        aggregatedResponse.candidates[candidateIndex].safetyRatings =
+          candidate.safetyRatings;
+
+        /**
+         * Candidates should always have content and parts, but this handles
+         * possible malformed responses.
+         */
+        if (candidate.content && candidate.content.parts) {
+          if (!aggregatedResponse.candidates[candidateIndex].content) {
+            aggregatedResponse.candidates[candidateIndex].content = {
+              role: candidate.content.role || 'user',
+              parts: [],
+            };
+          }
+          for (const part of candidate.content.parts) {
+            const newPart: Partial<GeminiPart> = {};
+            if (part.text) {
+              newPart.text = part.text;
+            }
+            if (part.functionCall) {
+              newPart.functionCall = part.functionCall;
+            }
+            if (part.executableCode) {
+              newPart.executableCode = part.executableCode;
+            }
+            if (part.codeExecutionResult) {
+              newPart.codeExecutionResult = part.codeExecutionResult;
+            }
+            if (Object.keys(newPart).length === 0) {
+              newPart.text = '';
+            }
+            aggregatedResponse.candidates[candidateIndex].content.parts.push(
+              newPart as GeminiPart
+            );
+          }
+        }
+      }
+      candidateIndex++;
+    }
+    if (response.usageMetadata) {
+      aggregatedResponse.usageMetadata = response.usageMetadata;
+    }
+  }
+  return aggregatedResponse;
 }

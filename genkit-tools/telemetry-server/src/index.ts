@@ -19,8 +19,8 @@ import {
   TraceQueryFilterSchema,
 } from '@genkit-ai/tools-common';
 import express from 'express';
-import * as http from 'http';
-import { TraceStore } from './types';
+import type * as http from 'http';
+import type { TraceStore } from './types';
 
 export { LocalFileTraceStore } from './localFileTraceStore.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
@@ -75,7 +75,7 @@ export async function startTelemetryServer(params: {
       const { limit, continuationToken, filter } = request.query;
       response.json(
         await params.traceStore.list({
-          limit: limit ? parseInt(limit.toString()) : 10,
+          limit: limit ? Number.parseInt(limit.toString()) : 10,
           continuationToken: continuationToken
             ? continuationToken.toString()
             : undefined,

@@ -1,12 +1,11 @@
 [
-    {
-      "testCaseId": "dog_ancestry",
-      "input": "What animal are dogs descended from?",
-      "context": [
-        "Dogs are domesticated animals and often considered \"man's best friend\".",
-        "Dogs share many physical similarities with wolves."
-      ],
-      "output": "Dogs are descended from gray wolves."
-    }
+  {
+    "testCaseId": "dog_ancestry",
+    "input": "What animal are dogs descended from?",
+    "context": [
+      "Dogs are domesticated animals and often considered \"man's best friend\".",
+      "Dogs share many physical similarities with wolves."
+    ],
+    "output": "Dogs are descended from gray wolves."
+  }
 ]
-  

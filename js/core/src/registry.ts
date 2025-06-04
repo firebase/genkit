@@ -16,16 +16,16 @@
 
 import { Dotprompt } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import * as z from 'zod';
+import type * as z from 'zod';
 import {
-  Action,
-  ActionMetadata,
   runOutsideActionRuntimeContext,
+  type Action,
+  type ActionMetadata,
 } from './action.js';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
-import { PluginProvider } from './plugin.js';
-import { JSONSchema, toJsonSchema } from './schema.js';
+import type { PluginProvider } from './plugin.js';
+import { toJsonSchema, type JSONSchema } from './schema.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
 
@@ -115,21 +115,32 @@ export class Registry {
   private allPluginsInitialized = false;
   public apiStability: 'stable' | 'beta' = 'stable';
 
-  readonly asyncStore = new AsyncStore();
-  readonly dotprompt = new Dotprompt({
-    schemaResolver: async (name) => {
-      const resolvedSchema = await this.lookupSchema(name);
-      if (!resolvedSchema) {
-        throw new GenkitError({
-          message: `Schema '${name}' not found`,
-          status: 'NOT_FOUND',
-        });
-      }
-      return toJsonSchema(resolvedSchema);
-    },
-  });
+  readonly asyncStore: AsyncStore;
+  readonly dotprompt: Dotprompt;
+  readonly parent?: Registry;
 
-  constructor(public parent?: Registry) {}
+  constructor(parent?: Registry) {
+    if (parent) {
+      this.parent = parent;
+      this.apiStability = parent?.apiStability;
+      this.asyncStore = parent.asyncStore;
+      this.dotprompt = parent.dotprompt;
+    } else {
+      this.asyncStore = new AsyncStore();
+      this.dotprompt = new Dotprompt({
+        schemaResolver: async (name) => {
+          const resolvedSchema = await this.lookupSchema(name);
+          if (!resolvedSchema) {
+            throw new GenkitError({
+              message: `Schema '${name}' not found`,
+              status: 'NOT_FOUND',
+            });
+          }
+          return toJsonSchema(resolvedSchema);
+        },
+      });
+    }
+  }
 
   /**
    * Creates a new registry overlaid onto the provided registry.

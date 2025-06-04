@@ -15,11 +15,11 @@
  */
 
 import {
-  BaseToolPluginAction,
-  SpecialAction,
-  SupportedFlagValues,
-  ToolPlugin,
   findToolsConfig,
+  type BaseToolPluginAction,
+  type SpecialAction,
+  type SupportedFlagValues,
+  type ToolPlugin,
 } from '@genkit-ai/tools-common/plugin';
 import { logger } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';

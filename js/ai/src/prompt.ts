@@ -15,49 +15,53 @@
  */
 
 import {
-  Action,
-  ActionAsyncParams,
-  ActionContext,
-  defineActionAsync,
   GenkitError,
+  defineActionAsync,
   getContext,
-  JSONSchema7,
   stripUndefinedProps,
-  z,
+  type Action,
+  type ActionAsyncParams,
+  type ActionContext,
+  type JSONSchema7,
+  type z,
 } from '@genkit-ai/core';
 import { lazy } from '@genkit-ai/core/async';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { Message as DpMessage, PromptFunction } from 'dotprompt';
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { basename, join, resolve } from 'path';
-import { DocumentData } from './document.js';
+import type { DocumentData } from './document.js';
 import {
   generate,
-  GenerateOptions,
-  GenerateResponse,
   generateStream,
-  GenerateStreamResponse,
-  OutputOptions,
+  toGenerateActionOptions,
   toGenerateRequest,
-  ToolChoice,
+  type GenerateOptions,
+  type GenerateResponse,
+  type GenerateStreamResponse,
+  type OutputOptions,
+  type ToolChoice,
 } from './generate.js';
 import { Message } from './message.js';
 import {
-  GenerateRequest,
-  GenerateRequestSchema,
-  GenerateResponseChunkSchema,
-  GenerateResponseSchema,
-  MessageData,
-  ModelAction,
-  ModelArgument,
-  ModelMiddleware,
-  ModelReference,
-  Part,
+  GenerateActionOptionsSchema,
+  type GenerateActionOptions,
+  type GenerateRequest,
+  type GenerateRequestSchema,
+  type GenerateResponseChunkSchema,
+  type GenerateResponseSchema,
+  type MessageData,
+  type ModelAction,
+  type ModelArgument,
+  type ModelMiddleware,
+  type ModelReference,
+  type Part,
 } from './model.js';
-import { getCurrentSession, Session } from './session.js';
-import { ToolAction, ToolArgument } from './tool.js';
+import { getCurrentSession, type Session } from './session.js';
+import type { ToolAction, ToolArgument } from './tool.js';
 
 /**
  * Prompt action.
@@ -249,72 +253,87 @@ function definePromptAsync<
     input: z.infer<I>,
     renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
   ): Promise<GenerateOptions> => {
-    const messages: MessageData[] = [];
-    renderOptions = { ...renderOptions }; // make a copy, we will be trimming
-    const session = getCurrentSession(registry);
-    const resolvedOptions = await optionsPromise;
-
-    // order of these matters:
-    await renderSystemPrompt(
+    return await runInNewSpan(
       registry,
-      session,
-      input,
-      messages,
-      resolvedOptions,
-      promptCache,
-      renderOptions
-    );
-    await renderMessages(
-      registry,
-      session,
-      input,
-      messages,
-      resolvedOptions,
-      renderOptions,
-      promptCache
-    );
-    await renderUserPrompt(
-      registry,
-      session,
-      input,
-      messages,
-      resolvedOptions,
-      promptCache,
-      renderOptions
-    );
-
-    let docs: DocumentData[] | undefined;
-    if (typeof resolvedOptions.docs === 'function') {
-      docs = await resolvedOptions.docs(input, {
-        state: session?.state,
-        context: renderOptions?.context || getContext(registry) || {},
-      });
-    } else {
-      docs = resolvedOptions.docs;
-    }
-
-    const opts: GenerateOptions = stripUndefinedProps({
-      model: resolvedOptions.model,
-      maxTurns: resolvedOptions.maxTurns,
-      messages,
-      docs,
-      tools: resolvedOptions.tools,
-      returnToolRequests: resolvedOptions.returnToolRequests,
-      toolChoice: resolvedOptions.toolChoice,
-      context: resolvedOptions.context,
-      output: resolvedOptions.output,
-      use: resolvedOptions.use,
-      ...stripUndefinedProps(renderOptions),
-      config: {
-        ...resolvedOptions?.config,
-        ...renderOptions?.config,
+      {
+        metadata: {
+          name: 'render',
+          input,
+        },
+        labels: {
+          [SPAN_TYPE_ATTR]: 'promptTemplate',
+        },
       },
-    });
-    // if config is empty and it was not explicitly passed in, we delete it, don't want {}
-    if (Object.keys(opts.config).length === 0 && !renderOptions?.config) {
-      delete opts.config;
-    }
-    return opts;
+      async (metadata) => {
+        const messages: MessageData[] = [];
+        renderOptions = { ...renderOptions }; // make a copy, we will be trimming
+        const session = getCurrentSession(registry);
+        const resolvedOptions = await optionsPromise;
+
+        // order of these matters:
+        await renderSystemPrompt(
+          registry,
+          session,
+          input,
+          messages,
+          resolvedOptions,
+          promptCache,
+          renderOptions
+        );
+        await renderMessages(
+          registry,
+          session,
+          input,
+          messages,
+          resolvedOptions,
+          renderOptions,
+          promptCache
+        );
+        await renderUserPrompt(
+          registry,
+          session,
+          input,
+          messages,
+          resolvedOptions,
+          promptCache,
+          renderOptions
+        );
+
+        let docs: DocumentData[] | undefined;
+        if (typeof resolvedOptions.docs === 'function') {
+          docs = await resolvedOptions.docs(input, {
+            state: session?.state,
+            context: renderOptions?.context || getContext(registry) || {},
+          });
+        } else {
+          docs = resolvedOptions.docs;
+        }
+
+        const opts: GenerateOptions = stripUndefinedProps({
+          model: resolvedOptions.model,
+          maxTurns: resolvedOptions.maxTurns,
+          messages,
+          docs,
+          tools: resolvedOptions.tools,
+          returnToolRequests: resolvedOptions.returnToolRequests,
+          toolChoice: resolvedOptions.toolChoice,
+          context: resolvedOptions.context,
+          output: resolvedOptions.output,
+          use: resolvedOptions.use,
+          ...stripUndefinedProps(renderOptions),
+          config: {
+            ...resolvedOptions?.config,
+            ...renderOptions?.config,
+          },
+        });
+        // if config is empty and it was not explicitly passed in, we delete it, don't want {}
+        if (Object.keys(opts.config).length === 0 && !renderOptions?.config) {
+          delete opts.config;
+        }
+        metadata.output = opts;
+        return opts;
+      }
+    );
   };
   const rendererActionConfig = lazy(() =>
     optionsPromise.then((options: PromptConfig<I, O, CustomOptions>) => {
@@ -355,17 +374,15 @@ function definePromptAsync<
         name: `${options.name}${options.variant ? `.${options.variant}` : ''}`,
         inputJsonSchema: options.input?.jsonSchema,
         inputSchema: options.input?.schema,
+        outputSchema: GenerateActionOptionsSchema,
         description: options.description,
         actionType: 'executable-prompt',
         metadata,
-        fn: async (
-          input: z.infer<I>,
-          { sendChunk }
-        ): Promise<GenerateResponse> => {
-          return await generate(registry, {
-            ...(await renderOptionsFn(input, undefined)),
-            onChunk: sendChunk,
-          });
+        fn: async (input: z.infer<I>): Promise<GenerateActionOptions> => {
+          return await toGenerateActionOptions(
+            registry,
+            await renderOptionsFn(input, undefined)
+          );
         },
       } as ActionAsyncParams<any, any, any>;
     })
@@ -431,9 +448,25 @@ function wrapInExecutablePrompt<
     input?: I,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> => {
-    return generate(registry, {
-      ...(await renderOptionsFn(input, opts)),
-    });
+    return await runInNewSpan(
+      registry,
+      {
+        metadata: {
+          name: (await rendererAction).__action.name,
+          input,
+        },
+        labels: {
+          [SPAN_TYPE_ATTR]: 'dotprompt',
+        },
+      },
+      async (metadata) => {
+        const output = await generate(registry, {
+          ...(await renderOptionsFn(input, opts)),
+        });
+        metadata.output = output;
+        return output;
+      }
+    );
   }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   executablePrompt.render = async (
@@ -671,7 +704,7 @@ export function isExecutablePrompt(obj: any): boolean {
 
 export function loadPromptFolder(
   registry: Registry,
-  dir: string = './prompts',
+  dir = './prompts',
   ns: string
 ): void {
   const promptsPath = resolve(dir);
@@ -691,7 +724,7 @@ export function loadPromptFolderRecursively(
   });
   for (const dirEnt of dirEnts) {
     const parentPath = join(promptsPath, subDir);
-    let fileName = dirEnt.name;
+    const fileName = dirEnt.name;
     if (dirEnt.isFile() && fileName.endsWith('.prompt')) {
       if (fileName.startsWith('_')) {
         const partialName = fileName.substring(1, fileName.length - 7);
@@ -834,7 +867,7 @@ async function lookupPrompt<
   name: string,
   variant?: string
 ): Promise<ExecutablePrompt<I, O, CustomOptions>> {
-  let registryPrompt = await registry.lookupAction(
+  const registryPrompt = await registry.lookupAction(
     registryLookupKey(name, variant)
   );
   if (registryPrompt) {

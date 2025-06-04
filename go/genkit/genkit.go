@@ -25,30 +25,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
-
-// Plugin is the interface implemented by types that extend Genkit's functionality.
-// Plugins are typically used to integrate external services like model providers,
-// vector databases, or monitoring tools.
-// They are registered and initialized via [WithPlugins] during [Init].
-type Plugin interface {
-	// Name returns the unique identifier for the plugin.
-	// This name is used for registration and lookup.
-	Name() string
-	// Init initializes the plugin. It is called once during [Init].
-	// The plugin can use the provided [Genkit] instance to register actions,
-	// models, tools, etc.
-	Init(ctx context.Context, g *Genkit) error
-}
 
 // Genkit encapsulates a Genkit instance, providing access to its registry,
 // configuration, and core functionalities. It serves as the central hub for
@@ -224,7 +208,7 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		serverStartCh := make(chan struct{})
 
 		go func() {
-			if s := startReflectionServer(ctx, r, errCh, serverStartCh); s == nil {
+			if s := startReflectionServer(ctx, g, errCh, serverStartCh); s == nil {
 				return
 			}
 			if err := <-errCh; err != nil {
@@ -362,11 +346,12 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 // This is useful for introspection or for dynamically exposing flow endpoints,
 // for example, in an HTTP server.
 func ListFlows(g *Genkit) []core.Action {
-	acts := g.reg.ListActions()
+	acts := listActions(g)
 	flows := []core.Action{}
 	for _, act := range acts {
-		if strings.HasPrefix(act.Key, "/"+string(atype.Flow)+"/") {
-			flows = append(flows, g.reg.LookupAction(act.Key))
+		if act.Type == core.ActionTypeFlow {
+			key := fmt.Sprintf("/%s/%s", act.Type, act.Name)
+			flows = append(flows, g.reg.LookupAction(key).(core.Action))
 		}
 	}
 	return flows
@@ -677,25 +662,6 @@ func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 	return ai.LookupRetriever(g.reg, provider, name)
 }
 
-// DefineIndexer defines a custom indexer implementation, registers it as a
-// [core.Action] of type Indexer, and returns an [ai.Indexer].
-// Indexers are responsible for adding or updating documents in a data store,
-// often a vector database, typically involving embedding the document content.
-//
-// The `provider` and `name` form the unique identifier. The `index` function
-// contains the logic to process an [ai.IndexerRequest], which includes the
-// documents to be indexed.
-func DefineIndexer(g *Genkit, provider, name string, index func(context.Context, *ai.IndexerRequest) error) ai.Indexer {
-	return ai.DefineIndexer(g.reg, provider, name, index)
-}
-
-// LookupIndexer retrieves a registered [ai.Indexer] by its provider and name.
-// It returns the indexer instance if found, or `nil` if no indexer with the
-// given identifier is registered (e.g., via [DefineIndexer] or a plugin).
-func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
-	return ai.LookupIndexer(g.reg, provider, name)
-}
-
 // DefineEmbedder defines a custom text embedding implementation, registers it as a
 // [core.Action] of type Embedder, and returns an [ai.Embedder].
 // Embedders convert text documents or queries into numerical vector representations (embeddings).
@@ -716,11 +682,11 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 
 // LookupPlugin retrieves a registered plugin instance by its name.
 // Plugins are registered during initialization via [WithPlugins].
-// It returns the plugin instance as `any` if found, or `nil` otherwise.
+// It returns the plugin instance as `Plugin` if found, or `nil` otherwise.
 // The caller is responsible for type-asserting the returned value to the
 // specific plugin type.
-func LookupPlugin(g *Genkit, name string) any {
-	return g.reg.LookupPlugin(name)
+func LookupPlugin(g *Genkit, name string) Plugin {
+	return g.reg.LookupPlugin(name).(Plugin)
 }
 
 // DefineEvaluator defines an evaluator that processes test cases one by one,

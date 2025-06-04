@@ -25,5 +25,7 @@ DEFAULT_OLLAMA_SERVER_URL = 'http://127.0.0.1:11434'
 
 
 class OllamaAPITypes(StrEnum):
+    """Generation types for Ollama API."""
+
     CHAT = 'chat'
     GENERATE = 'generate'

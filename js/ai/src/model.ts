@@ -15,33 +15,34 @@
  */
 
 import {
-  Action,
-  ActionMetadata,
-  defineAction,
   GenkitError,
+  defineAction,
   getStreamingCallback,
-  SimpleMiddleware,
-  StreamingCallback,
   z,
+  type Action,
+  type ActionMetadata,
+  type SimpleMiddleware,
+  type StreamingCallback,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import {
-  CustomPart,
   CustomPartSchema,
-  DataPart,
   DataPartSchema,
   DocumentDataSchema,
-  MediaPart,
   MediaPartSchema,
-  TextPart,
+  ReasoningPartSchema,
   TextPartSchema,
-  ToolRequestPart,
   ToolRequestPartSchema,
-  ToolResponsePart,
   ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from './document.js';
 import {
   augmentWithContext,
@@ -54,10 +55,10 @@ export {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
-  simulateConstrainedGeneration,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
+  simulateConstrainedGeneration,
   type CustomPart,
   type DataPart,
   type MediaPart,
@@ -81,6 +82,7 @@ export const PartSchema = z.union([
   ToolResponsePartSchema,
   DataPartSchema,
   CustomPartSchema,
+  ReasoningPartSchema,
 ]);
 
 /**
@@ -206,32 +208,40 @@ export const GenerationCommonConfigDescriptions = {
 /**
  * Zod schema of a common config object.
  */
-export const GenerationCommonConfigSchema = z.object({
-  version: z
-    .string()
-    .describe(
-      'A specific version of a model family, e.g. `gemini-2.0-flash` ' +
-        'for the `googleai` family.'
-    )
-    .optional(),
-  temperature: z
-    .number()
-    .describe(GenerationCommonConfigDescriptions.temperature)
-    .optional(),
-  maxOutputTokens: z
-    .number()
-    .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
-    .optional(),
-  topK: z.number().describe(GenerationCommonConfigDescriptions.topK).optional(),
-  topP: z.number().describe(GenerationCommonConfigDescriptions.topP).optional(),
-  stopSequences: z
-    .array(z.string())
-    .length(5)
-    .describe(
-      'Set of character sequences (up to 5) that will stop output generation.'
-    )
-    .optional(),
-});
+export const GenerationCommonConfigSchema = z
+  .object({
+    version: z
+      .string()
+      .describe(
+        'A specific version of a model family, e.g. `gemini-2.0-flash` ' +
+          'for the `googleai` family.'
+      )
+      .optional(),
+    temperature: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.temperature)
+      .optional(),
+    maxOutputTokens: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
+      .optional(),
+    topK: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.topK)
+      .optional(),
+    topP: z
+      .number()
+      .describe(GenerationCommonConfigDescriptions.topP)
+      .optional(),
+    stopSequences: z
+      .array(z.string())
+      .length(5)
+      .describe(
+        'Set of character sequences (up to 5) that will stop output generation.'
+      )
+      .optional(),
+  })
+  .passthrough();
 
 /**
  * Common config object.
@@ -306,6 +316,8 @@ export const GenerationUsageSchema = z.object({
   inputAudioFiles: z.number().optional(),
   outputAudioFiles: z.number().optional(),
   custom: z.record(z.number()).optional(),
+  thoughtsTokens: z.number().optional(),
+  cachedContentTokens: z.number().optional(),
 });
 
 /**
@@ -619,9 +631,10 @@ function getPartCounts(parts: Part[]): PartCounts {
   );
 }
 
-export type ModelArgument<
-  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
-> = ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
+export type ModelArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
+  | ModelAction<CustomOptions>
+  | ModelReference<CustomOptions>
+  | string;
 
 export interface ResolvedModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,

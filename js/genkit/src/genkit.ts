@@ -15,33 +15,6 @@
  */
 
 import {
-  BaseDataPointSchema,
-  Document,
-  EmbedderInfo,
-  EmbedderParams,
-  Embedding,
-  EvalResponses,
-  EvaluatorParams,
-  ExecutablePrompt,
-  GenerateOptions,
-  GenerateRequest,
-  GenerateResponse,
-  GenerateResponseData,
-  GenerateStreamOptions,
-  GenerateStreamResponse,
-  GenerationCommonConfigSchema,
-  IndexerParams,
-  ModelArgument,
-  Part,
-  PromptConfig,
-  PromptGenerateOptions,
-  RankedDocument,
-  RerankerParams,
-  RetrieverAction,
-  RetrieverInfo,
-  RetrieverParams,
-  ToolAction,
-  ToolConfig,
   defineHelper,
   definePartial,
   definePrompt,
@@ -54,67 +27,97 @@ import {
   prompt,
   rerank,
   retrieve,
+  type BaseDataPointSchema,
+  type Document,
+  type EmbedderInfo,
+  type EmbedderParams,
+  type Embedding,
+  type EvalResponses,
+  type EvaluatorParams,
+  type ExecutablePrompt,
+  type GenerateOptions,
+  type GenerateRequest,
+  type GenerateResponse,
+  type GenerateResponseChunk,
+  type GenerateResponseData,
+  type GenerateStreamOptions,
+  type GenerateStreamResponse,
+  type GenerationCommonConfigSchema,
+  type IndexerParams,
+  type ModelArgument,
+  type Part,
+  type PromptConfig,
+  type PromptGenerateOptions,
+  type RankedDocument,
+  type RerankerParams,
+  type RetrieverAction,
+  type RetrieverInfo,
+  type RetrieverParams,
+  type ToolAction,
+  type ToolConfig,
 } from '@genkit-ai/ai';
 import {
-  EmbedderAction,
-  EmbedderArgument,
-  EmbedderFn,
-  EmbeddingBatch,
   defineEmbedder,
   embedMany,
+  type EmbedderAction,
+  type EmbedderArgument,
+  type EmbedderFn,
+  type EmbeddingBatch,
 } from '@genkit-ai/ai/embedder';
 import {
-  EvaluatorAction,
-  EvaluatorFn,
   defineEvaluator,
+  type EvaluatorAction,
+  type EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
-  DefineModelOptions,
-  GenerateResponseChunkData,
-  ModelAction,
   defineGenerateAction,
   defineModel,
+  type DefineModelOptions,
+  type GenerateResponseChunkData,
+  type ModelAction,
 } from '@genkit-ai/ai/model';
 import {
-  RerankerFn,
-  RerankerInfo,
   defineReranker,
+  type RerankerFn,
+  type RerankerInfo,
 } from '@genkit-ai/ai/reranker';
 import {
-  DocumentData,
-  IndexerAction,
-  IndexerFn,
-  RetrieverFn,
-  SimpleRetrieverOptions,
   defineIndexer,
   defineRetriever,
   defineSimpleRetriever,
   index,
+  type DocumentData,
+  type IndexerAction,
+  type IndexerFn,
+  type RetrieverFn,
+  type SimpleRetrieverOptions,
 } from '@genkit-ai/ai/retriever';
-import { ToolFn } from '@genkit-ai/ai/tool';
+import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
-  Action,
-  ActionContext,
-  FlowConfig,
-  FlowFn,
   GenkitError,
-  JSONSchema,
   ReflectionServer,
-  StreamingCallback,
   defineFlow,
   defineJsonSchema,
   defineSchema,
   getContext,
   isDevEnv,
   run,
-  z,
+  type Action,
+  type ActionContext,
+  type FlowConfig,
+  type FlowFn,
+  type JSONSchema,
+  type StreamingCallback,
+  type z,
 } from '@genkit-ai/core';
-import { HasRegistry } from '@genkit-ai/core/registry';
-import { BaseEvalDataPointSchema } from './evaluator.js';
+import { Channel } from '@genkit-ai/core/async';
+import type { HasRegistry } from '@genkit-ai/core/registry';
+import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import { GenkitPlugin } from './plugin.js';
-import { ActionType, Registry } from './registry.js';
+import type { GenkitPlugin } from './plugin.js';
+import { Registry, type ActionType } from './registry.js';
+import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
 /**
  * @deprecated use `ai.definePrompt({messages: fn})`
@@ -200,6 +203,17 @@ export class Genkit implements HasRegistry {
   }
 
   /**
+   * Defines a dynamic tool. Dynamic tools are just like regular tools ({@link Genkit.defineTool}) but will not be registered in the
+   * Genkit registry and can be defined dynamically at runtime.
+   */
+  dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: ToolConfig<I, O>,
+    fn?: ToolFn<I, O>
+  ): ToolAction<I, O> {
+    return dynamicTool(this, config, fn);
+  }
+
+  /**
    * Defines and registers a schema from a Zod schema.
    *
    * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
@@ -243,6 +257,7 @@ export class Genkit implements HasRegistry {
     options?: { variant?: string }
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
     return this.wrapExecutablePromptPromise(
+      `${name}${options?.variant ? `.${options?.variant}` : ''}`,
       prompt(this.registry, name, {
         ...options,
         dir: this.options.promptDir ?? './prompts',
@@ -254,7 +269,10 @@ export class Genkit implements HasRegistry {
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>) {
+  >(
+    name: string,
+    promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>
+  ) {
     const executablePrompt = (async (
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>
@@ -263,11 +281,10 @@ export class Genkit implements HasRegistry {
     }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
     executablePrompt.render = async (
-      opt: PromptGenerateOptions<O, CustomOptions> & {
-        input?: I;
-      }
+      input?: I,
+      opts?: PromptGenerateOptions<O, CustomOptions>
     ): Promise<GenerateOptions<O, CustomOptions>> => {
-      return (await promise).render(opt.input, opt) as Promise<
+      return (await promise).render(input, opts) as Promise<
         GenerateOptions<O, CustomOptions>
       >;
     };
@@ -276,13 +293,39 @@ export class Genkit implements HasRegistry {
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>
     ): GenerateStreamResponse<O> => {
-      return this.generateStream(
-        promise.then((action) =>
-          action.render(input, {
-            ...opts,
-          })
-        )
+      let channel = new Channel<GenerateResponseChunk>();
+
+      const generated = runInNewSpan(
+        this.registry,
+        {
+          metadata: {
+            name,
+            input,
+          },
+          labels: {
+            [SPAN_TYPE_ATTR]: 'dotprompt',
+          },
+        },
+        () =>
+          generate<O, CustomOptions>(
+            this.registry,
+            promise.then((action) =>
+              action.render(input, {
+                ...opts,
+                onChunk: (chunk) => channel.send(chunk),
+              })
+            )
+          )
       );
+      generated.then(
+        () => channel.close(),
+        (err) => channel.error(err)
+      );
+
+      return {
+        response: generated,
+        stream: channel,
+      };
     };
 
     executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {

@@ -17,16 +17,16 @@
 import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import { Document, checkUniqueDocuments } from '../../src/document.js';
-import { Embedding } from '../../src/embedder.js';
+import type { Embedding } from '../../src/embedder.js';
 
 describe('document', () => {
   describe('constructor', () => {
     it('makes a copy, not a reference', () => {
-      let content = [
+      const content = [
         { media: { url: 'data:foo' } },
         { media: { url: 'data:bar' } },
       ];
-      let metadata = { bar: 'baz', embedMetadata: { bar: 'qux' } };
+      const metadata = { bar: 'baz', embedMetadata: { bar: 'qux' } };
       const doc = new Document({ content, metadata });
 
       // Change the deep parts of the content
@@ -136,11 +136,11 @@ describe('document', () => {
     });
 
     it('makes a copy not a reference', () => {
-      let content = [
+      const content = [
         { media: { url: 'data:foo' } },
         { media: { url: 'data:bar' } },
       ];
-      let metadata = { bar: 'baz', embedMetadata: { bar: 'qux' } };
+      const metadata = { bar: 'baz', embedMetadata: { bar: 'qux' } };
       const doc = new Document({ content, metadata });
 
       const jsonDoc = doc.toJSON();
@@ -293,7 +293,7 @@ describe('document', () => {
       const metadata = { start: 0, end: 60 };
       const doc = Document.fromMedia(url, contentType, metadata);
 
-      let embeddings: Embedding[] = [];
+      const embeddings: Embedding[] = [];
       for (var start = 0; start < 60; start += 15) {
         embeddings.push(makeTestEmbedding(start));
       }
@@ -319,7 +319,7 @@ describe('document', () => {
       const metadata = { start: 0, end: 60 };
       const doc = Document.fromMedia(url, contentType, metadata);
 
-      let embeddings: Embedding[] = [];
+      const embeddings: Embedding[] = [];
       for (var start = 0; start < 60; start += 15) {
         embeddings.push(makeTestEmbedding(start));
       }

@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import {
+import type {
   EmbedderArgument,
   EmbedderReference,
   ModelArgument,
   ModelReference,
   z,
 } from 'genkit';
-import { EvalStatusEnum, Score } from 'genkit/evaluator';
+import type { EvalStatusEnum, Score } from 'genkit/evaluator';
 
 export enum GenkitMetric {
   FAITHFULNESS = 'FAITHFULNESS',

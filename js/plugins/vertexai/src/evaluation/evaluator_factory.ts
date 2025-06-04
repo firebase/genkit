@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { Action, Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
-import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { GENKIT_CLIENT_HEADER, type Action, type Genkit, type z } from 'genkit';
+import type { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
-import { GoogleAuth } from 'google-auth-library';
-import { VertexAIEvaluationMetricType } from './evaluation.js';
+import type { GoogleAuth } from 'google-auth-library';
+import type { VertexAIEvaluationMetricType } from './evaluation.js';
 
 export class EvaluatorFactory {
   constructor(

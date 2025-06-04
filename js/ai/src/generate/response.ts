@@ -19,8 +19,8 @@ import {
   GenerationBlockedError,
   GenerationResponseError,
 } from '../generate.js';
-import { Message, MessageParser } from '../message.js';
-import {
+import { Message, type MessageParser } from '../message.js';
+import type {
   GenerateRequest,
   GenerateResponseData,
   GenerationUsage,
@@ -44,6 +44,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   usage: GenerationUsage;
   /** Provider-specific response data. */
   custom: unknown;
+  /** Provider-specific response data. */
+  raw: unknown;
   /** The request that generated this response. */
   request?: GenerateRequest;
   /** The parser for output parsing of this response. */
@@ -70,6 +72,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       response.finishMessage || response.candidates?.[0]?.finishMessage;
     this.usage = response.usage || {};
     this.custom = response.custom || {};
+    this.raw = response.raw || this.custom;
     this.request = options?.request;
   }
 
@@ -134,6 +137,14 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   }
 
   /**
+   * Concatenates all `reasoning` parts present in the generated message with no delimiter.
+   * @returns A string of all concatenated reasoning parts.
+   */
+  get reasoning(): string {
+    return this.message?.reasoning || '';
+  }
+
+  /**
    * Returns the first detected media part in the generated message. Useful for
    * extracting (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the candidate.
@@ -182,10 +193,6 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
         "Can't construct history for response without generated message."
       );
     return [...this.request?.messages, this.message.toJSON()];
-  }
-
-  get raw(): unknown {
-    return this.raw ?? this.custom;
   }
 
   toJSON(): ModelResponseData {

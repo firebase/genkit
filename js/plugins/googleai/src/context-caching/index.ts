@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { CachedContent, StartChatParams } from '@google/generative-ai';
+import type { CachedContent, StartChatParams } from '@google/generative-ai';
 import {
-  CachedContentCreateParams,
   GoogleAICacheManager,
+  type CachedContentCreateParams,
 } from '@google/generative-ai/server';
-import { GenerateRequest, GenkitError, z } from 'genkit';
+import { GenkitError, type GenerateRequest, type z } from 'genkit';
 import { logger } from 'genkit/logging';
 import type { CacheConfigDetails } from './types.js';
 import {

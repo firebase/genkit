@@ -96,13 +96,13 @@ func main() {
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
+	docStore, retriever, err := localvec.DefineRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
-		ai.WithModelName("googlegenai/gemini-2.0-flash"),
+		ai.WithModelName("googleai/gemini-2.0-flash"),
 		ai.WithPrompt(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
@@ -158,7 +158,7 @@ func main() {
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
 
-		err := ai.Index(ctx, indexer, ai.WithDocs(d1, d2, d3))
+		err := localvec.Index(ctx, []*ai.Document{d1, d2, d3}, docStore)
 		if err != nil {
 			return "", err
 		}

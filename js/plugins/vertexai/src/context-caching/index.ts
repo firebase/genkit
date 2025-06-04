@@ -13,12 +13,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
 
-import { CachedContent, StartChatParams } from '@google-cloud/vertexai';
+import type { CachedContent, StartChatParams } from '@google-cloud/vertexai';
 import {
-  ApiClient,
   CachedContents,
+  type ApiClient,
 } from '@google-cloud/vertexai/build/src/resources';
-import { GenerateRequest, GenkitError, z } from 'genkit';
+import { GenkitError, type GenerateRequest, type z } from 'genkit';
 import { logger } from 'genkit/logging';
 import type { CacheConfigDetails } from './types.js';
 import {

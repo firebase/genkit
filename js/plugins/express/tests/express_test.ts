@@ -14,27 +14,27 @@
  * limitations under the License.
  */
 
-import { RequestData } from '@genkit-ai/core';
+import type { RequestData } from '@genkit-ai/core';
 import * as assert from 'assert';
 import express from 'express';
 import {
-  GenerateResponseData,
-  Genkit,
   UserFacingError,
   genkit,
   z,
+  type GenerateResponseData,
+  type Genkit,
 } from 'genkit';
 import { runFlow, streamFlow } from 'genkit/beta/client';
-import { ContextProvider } from 'genkit/context';
-import { GenerateResponseChunkData, ModelAction } from 'genkit/model';
+import type { ContextProvider } from 'genkit/context';
+import type { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
-import * as http from 'http';
+import type * as http from 'http';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import {
-  FlowServer,
   expressHandler,
   startFlowServer,
   withContextProvider,
+  type FlowServer,
 } from '../src/index.js';
 
 interface Context {

@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai';
+import type { MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { GenkitBeta, genkit } from '../src/beta';
+import { genkit, type GenkitBeta } from '../src/beta';
 import {
-  ProgrammableModel,
   defineEchoModel,
   defineProgrammableModel,
+  type ProgrammableModel,
 } from './helpers';
 
 describe('chat', () => {
@@ -31,6 +31,7 @@ describe('chat', () => {
   beforeEach(() => {
     ai = genkit({
       model: 'echoModel',
+      promptDir: './tests/prompts',
     });
     defineEchoModel(ai);
   });
@@ -144,6 +145,19 @@ describe('chat', () => {
       config: { version: 'abc' },
       messages: 'hi {{ name }} from template',
     });
+    const session = await ai.chat(preamble, {
+      input: { name: 'Genkit' },
+    });
+    const response = await session.send('send it');
+
+    assert.strictEqual(
+      response.text,
+      'Echo: hi Genkit from template,send it; config: {"version":"abc"}'
+    );
+  });
+
+  it('can start chat from a prompt file with input', async () => {
+    const preamble = ai.prompt('chat_preamble');
     const session = await ai.chat(preamble, {
       input: { name: 'Genkit' },
     });

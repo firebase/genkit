@@ -27,7 +27,8 @@
         {
           "run": "CaptainHook::File.BlockSecrets",
           "options": {
-            "presets": ["Aws", "GitHub", "Stripe", "Google"]
+            "presets": ["Aws", "GitHub", "Stripe", "Google"],
+            "allowed": ["AIDAQEAAAAAAAAAAAABE"]
           }
         },
         {
