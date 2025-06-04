@@ -128,23 +128,14 @@ def test__generate_stream(sample_request):
     [
         True,
         False,
-    ]
+    ],
 )
 def test_generate(stream, sample_request):
     """Tests for generate."""
     ctx_mock = MagicMock(spec=ActionRunContext)
     ctx_mock.is_streaming = stream
 
-    mock_response = GenerateResponse(
-        message=Message(
-            role=Role.MODEL,
-            content=[
-                TextPart(
-                    text='mocked'
-                )
-            ]
-        )
-    )
+    mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='mocked')]))
 
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
     model._generate_stream = MagicMock(return_value=mock_response)
@@ -158,30 +149,17 @@ def test_generate(stream, sample_request):
     else:
         model._generate.assert_called_once()
 
+
 @pytest.mark.parametrize(
     'config, expected',
     [
-        (
-            OpenAIConfig(
-                model='test'
-            ),
-            OpenAIConfig(
-                model='test'
-            )
-        ),
-        (
-            {
-                'model': 'test'
-            },
-            OpenAIConfig(
-                model='test'
-            )
-        ),
+        (OpenAIConfig(model='test'), OpenAIConfig(model='test')),
+        ({'model': 'test'}, OpenAIConfig(model='test')),
         (
             None,
             Exception(),
-        )
-    ]
+        ),
+    ],
 )
 def test_normalize_config(config, expected):
     """Tests for _normalize_config."""

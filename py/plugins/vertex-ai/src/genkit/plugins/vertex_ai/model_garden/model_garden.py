@@ -52,7 +52,8 @@ class ModelGarden:
     registry.
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         model: str,
         location: str,
         project_id: str,
