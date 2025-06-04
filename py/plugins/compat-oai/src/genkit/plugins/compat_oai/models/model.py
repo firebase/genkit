@@ -227,7 +227,7 @@ class OpenAIModel:
         Returns:
             A GenerateResponse containing the model's response.
         """
-        request.config = self._normalize_config(request.config)
+        request.config = self.normalize_config(request.config)
 
         if ctx.is_streaming:
             return self._generate_stream(request, ctx.send_chunk)
@@ -235,7 +235,7 @@ class OpenAIModel:
             return self._generate(request)
 
     @staticmethod
-    def _normalize_config(config: Any) -> OpenAIConfig:
+    def normalize_config(config: Any) -> OpenAIConfig:
         """Ensures the config is an OpenAIConfig instance."""
         if isinstance(config, OpenAIConfig):
             return config

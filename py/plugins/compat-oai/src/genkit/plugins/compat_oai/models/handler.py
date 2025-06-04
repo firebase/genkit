@@ -122,7 +122,7 @@ class OpenAIModelHandler:
         Raises:
             ValueError: If the specified model version is not supported.
         """
-        request.config = self._model._normalize_config(request.config)
+        request.config = self._model.normalize_config(request.config)
 
         if request.config.model:
             self._validate_version(request.config.model)
