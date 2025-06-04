@@ -290,7 +290,7 @@ export function unregisteredAction<
   config: ActionParams<I, O, S>,
   fn: (
     input: z.infer<I>,
-    options: ActionFnArg<z.infer<S>> & {registry: Registry}
+    options: ActionFnArg<z.infer<S>> & { registry: Registry }
   ) => Promise<z.infer<O>>
 ): UnregisteredAction<I, O, z.infer<S>> {
   const actionName =

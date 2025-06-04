@@ -19,7 +19,7 @@ import { z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
-import { genkit, type GenkitBeta, dynamicTool } from '../src/beta';
+import { dynamicTool, genkit, type GenkitBeta } from '../src/beta';
 import {
   defineEchoModel,
   defineProgrammableModel,
