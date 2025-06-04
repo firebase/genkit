@@ -17,14 +17,14 @@
 import {
   assertUnstable,
   defineAction,
+  detachedAction,
   stripUndefinedProps,
-  unregisteredAction,
   z,
   type Action,
   type ActionContext,
   type ActionRunOptions,
+  type DetachedAction,
   type JSONSchema7,
-  type UnregisteredAction,
 } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
@@ -106,7 +106,7 @@ export type ToolAction<
 export type DynamicToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = UnregisteredAction<I, O, z.ZodTypeAny, ToolRunOptions> &
+> = DetachedAction<I, O, z.ZodTypeAny, ToolRunOptions> &
   Resumable<I, O> & {
     __action: {
       metadata: {
@@ -432,7 +432,7 @@ export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: ToolConfig<I, O>,
   fn?: ToolFn<I, O>
 ): DynamicToolAction<I, O> {
-  const a = unregisteredAction(
+  const a = detachedAction(
     {
       ...config,
       actionType: 'tool',
@@ -459,8 +459,8 @@ export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
         type: 'tool',
       },
     },
-    register(registry) {
-      const bound = a.register(registry);
+    attach(registry) {
+      const bound = a.attach(registry);
       implementTool(bound as ToolAction<I, O>, config);
       return bound;
     },

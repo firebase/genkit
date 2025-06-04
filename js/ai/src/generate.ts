@@ -378,8 +378,8 @@ function maybeRegisterDynamicTools<
       (t as Action).__action.metadata?.type === 'tool' &&
       (t as Action).__action.metadata?.dynamic
     ) {
-      if (typeof (t as DynamicToolAction).register === 'function') {
-        t = (t as DynamicToolAction).register(registry);
+      if (typeof (t as DynamicToolAction).attach === 'function') {
+        t = (t as DynamicToolAction).attach(registry);
       }
       if (!hasDynamicTools) {
         hasDynamicTools = true;

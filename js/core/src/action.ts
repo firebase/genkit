@@ -140,14 +140,14 @@ export type Action<
 /**
  * Self-describing, validating, observable, locally and remotely callable function.
  */
-export type UnregisteredAction<
+export type DetachedAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
   RunOptions extends ActionRunOptions<S> = ActionRunOptions<S>,
 > = {
   __action: ActionMetadata<I, O, S>;
-  register(registry: Registry): Action<I, O, S, RunOptions>;
+  attach(registry: Registry): Action<I, O, S, RunOptions>;
 };
 
 /**
@@ -276,13 +276,13 @@ export function action<
     options: ActionFnArg<z.infer<S>>
   ) => Promise<z.infer<O>>
 ): Action<I, O, z.infer<S>> {
-  return unregisteredAction(config, fn).register(registry);
+  return detachedAction(config, fn).attach(registry);
 }
 
 /**
  * Creates an action with the provided config.
  */
-export function unregisteredAction<
+export function detachedAction<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
@@ -292,7 +292,7 @@ export function unregisteredAction<
     input: z.infer<I>,
     options: ActionFnArg<z.infer<S>> & { registry: Registry }
   ) => Promise<z.infer<O>>
-): UnregisteredAction<I, O, z.infer<S>> {
+): DetachedAction<I, O, z.infer<S>> {
   const actionName =
     typeof config.name === 'string'
       ? config.name
@@ -311,7 +311,7 @@ export function unregisteredAction<
 
   return {
     __action: actionMetadata,
-    register(registry: Registry): Action<I, O, z.infer<S>> {
+    attach(registry: Registry): Action<I, O, z.infer<S>> {
       const actionFn = async (
         input?: I,
         options?: ActionRunOptions<z.infer<S>>
