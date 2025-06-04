@@ -762,6 +762,8 @@ type generateOptions struct {
 	outputOptions
 	executionOptions
 	documentOptions
+	RespondParts []*Part // Tool responses to return from interrupted tool calls.
+	RestartParts []*Part // Tool requests to restart interrupted tools with.
 }
 
 // GenerateOption is an option for generating a model response. It applies only to Generate().
@@ -791,7 +793,31 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 		return err
 	}
 
+	if o.RespondParts != nil {
+		if genOpts.RespondParts != nil {
+			return errors.New("cannot set respond parts more than once (WithToolResponses)")
+		}
+		genOpts.RespondParts = o.RespondParts
+	}
+
+	if o.RestartParts != nil {
+		if genOpts.RestartParts != nil {
+			return errors.New("cannot set restart parts more than once (WithToolRestarts)")
+		}
+		genOpts.RestartParts = o.RestartParts
+	}
+
 	return nil
+}
+
+// WithToolResponses sets the tool responses to return from interrupted tool calls.
+func WithToolResponses(parts ...*Part) GenerateOption {
+	return &generateOptions{RespondParts: parts}
+}
+
+// WithToolRestarts sets the tool requests to restart interrupted tools with.
+func WithToolRestarts(parts ...*Part) GenerateOption {
+	return &generateOptions{RestartParts: parts}
 }
 
 // promptExecutionOptions are options for generating a model response by executing a prompt.
