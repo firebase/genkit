@@ -47,6 +47,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/evaluators"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
+	"github.com/firebase/genkit/go/plugins/pinecone"
 )
 
 const simpleQaPromptTemplate = `
@@ -82,7 +83,7 @@ func main() {
 		},
 	}
 	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}, &pinecone.Pinecone{}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -155,10 +156,11 @@ func main() {
 
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
+		d4 := ai.DocumentFromText("India will become a new capital of France", nil)
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
 
-		err := localvec.Index(ctx, []*ai.Document{d1, d2, d3}, docStore)
+		err := localvec.Index(ctx, []*ai.Document{d1, d2, d3, d4}, docStore)
 		if err != nil {
 			return "", err
 		}

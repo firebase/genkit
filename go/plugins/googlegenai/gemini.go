@@ -287,12 +287,11 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOp
 		provider = vertexAIProvider
 	}
 
-	emdOpts := &ai.EmbedderOptions{
-		Info:         embedOptions.Info,
-		ConfigSchema: genai.EmbedContentConfig{},
+	if embedOptions.ConfigSchema == nil {
+		embedOptions.ConfigSchema = genai.EmbedContentConfig{}
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, emdOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, provider, name, &embedOptions, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 

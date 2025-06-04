@@ -56,8 +56,17 @@ func DefineRetriever(g *genkit.Genkit, name string, cfg Config) (*DocStore, ai.R
 	if err != nil {
 		return nil, nil, err
 	}
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: RetrieverOptions{},
+		Info: &ai.RetrieverInfo{
+			Label: "local vec",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
 	return ds,
-		genkit.DefineRetriever(g, provider, name, ds.retrieve),
+		genkit.DefineRetriever(g, provider, name, retOpts, ds.retrieve),
 		nil
 }
 
@@ -167,7 +176,7 @@ func (ds *DocStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	k = min(k, len(scoredDocs))
 
 	docs := make([]*ai.Document, 0, k)
-	for i := range k {
+	for i := 0; i < k; i++ {
 		docs = append(docs, scoredDocs[i].doc)
 	}
 

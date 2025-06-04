@@ -99,7 +99,16 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (*Docsto
 	if err != nil {
 		return nil, nil, err
 	}
-	return ds, genkit.DefineRetriever(g, provider, cfg.IndexID, ds.Retrieve), nil
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: RetrieverOptions{},
+		Info: &ai.RetrieverInfo{
+			Label: "local Vec",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
+	return ds, genkit.DefineRetriever(g, provider, cfg.IndexID, retOpts, ds.Retrieve), nil
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.

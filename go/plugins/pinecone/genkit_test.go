@@ -83,9 +83,20 @@ func TestGenkit(t *testing.T) {
 	if err := (&Pinecone{APIKey: *testAPIKey}).Init(ctx, g); err != nil {
 		t.Fatal(err)
 	}
+	emdOpts := &ai.EmbedderOptions{
+		Info: &ai.EmbedderInfo{
+			Dimensions: 768,
+			Label:      "",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
+			},
+		},
+		ConfigSchema: nil,
+	}
+
 	cfg := Config{
 		IndexID:  *testIndex,
-		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
+		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", emdOpts, embedder.Embed),
 	}
 
 	ds, retriever, err := DefineRetriever(ctx, g, cfg)

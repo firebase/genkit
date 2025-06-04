@@ -651,8 +651,8 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 // The `provider` and `name` form the unique identifier. The `ret` function
 // contains the logic to process an [ai.RetrieverRequest] (containing the query)
 // and return an [ai.RetrieverResponse] (containing the relevant documents).
-func DefineRetriever(g *Genkit, provider, name string, ret func(context.Context, *ai.RetrieverRequest) (*ai.RetrieverResponse, error)) ai.Retriever {
-	return ai.DefineRetriever(g.reg, provider, name, ret)
+func DefineRetriever(g *Genkit, provider, name string, options *ai.RetrieverOptions, ret func(context.Context, *ai.RetrieverRequest) (*ai.RetrieverResponse, error)) ai.Retriever {
+	return ai.DefineRetriever(g.reg, provider, name, options, ret)
 }
 
 // LookupRetriever retrieves a registered [ai.Retriever] by its provider and name.

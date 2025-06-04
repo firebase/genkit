@@ -35,12 +35,33 @@ type Retriever interface {
 	Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error)
 }
 
+type RetrieverInfo struct {
+	Label    string         `json:"label,omitempty"`
+	Supports *MediaSupports `json:"supports,omitempty"`
+}
+
+// `Supports` is a nested struct equivalent to the nested `z.object` for the `supports` field.
+type MediaSupports struct {
+	Media bool `json:"media,omitempty"`
+}
+
+type RetrieverOptions struct {
+	ConfigSchema any
+	Info         *RetrieverInfo
+}
+
 type retriever core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
 
 // DefineRetriever registers the given retrieve function as an action, and returns a
 // [Retriever] that runs it.
-func DefineRetriever(r *registry.Registry, provider, name string, fn RetrieverFunc) Retriever {
-	return (*retriever)(core.DefineAction(r, provider, name, core.ActionTypeRetriever, nil, fn))
+func DefineRetriever(r *registry.Registry, provider, name string, options *RetrieverOptions, fn RetrieverFunc) Retriever {
+	metadata := map[string]any{}
+	metadata["type"] = "retriever"
+	metadata["info"] = options.Info
+	if options.ConfigSchema != nil {
+		metadata["retriever"] = map[string]any{"customOptions": configToMap(options.ConfigSchema)}
+	}
+	return (*retriever)(core.DefineAction(r, provider, name, core.ActionTypeRetriever, metadata, fn))
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].

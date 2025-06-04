@@ -58,7 +58,17 @@ func TestLocalVec(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := genkit.DefineEmbedder(g, "fake", "embedder1", embedder.Embed)
+	emdOpts := &ai.EmbedderOptions{
+		Info: &ai.EmbedderInfo{
+			Dimensions: 32,
+			Label:      "",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
+			},
+		},
+		ConfigSchema: nil,
+	}
+	embedAction := genkit.DefineEmbedder(g, "fake", "embedder1", emdOpts, embedder.Embed)
 	ds, err := newDocStore(t.TempDir(), "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +130,18 @@ func TestPersistentIndexing(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := genkit.DefineEmbedder(g, "fake", "embedder2", embedder.Embed)
+
+	emdOpts := &ai.EmbedderOptions{
+		Info: &ai.EmbedderInfo{
+			Dimensions: 32,
+			Label:      "",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
+			},
+		},
+		ConfigSchema: nil,
+	}
+	embedAction := genkit.DefineEmbedder(g, "fake", "embedder2", emdOpts, embedder.Embed)
 
 	tDir := t.TempDir()
 
@@ -196,7 +217,17 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	embedder := genkit.DefineEmbedder(g, "fake", "e", fakeembedder.New().Embed)
+	emdOpts := &ai.EmbedderOptions{
+		Info: &ai.EmbedderInfo{
+			Dimensions: 768,
+			Label:      "",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
+			},
+		},
+		ConfigSchema: nil,
+	}
+	embedder := genkit.DefineEmbedder(g, "fake", "e", emdOpts, fakeembedder.New().Embed)
 	if err := Init(); err != nil {
 		t.Fatal(err)
 	}

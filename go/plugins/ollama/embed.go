@@ -134,7 +134,11 @@ func (o *Ollama) DefineEmbedder(g *genkit.Genkit, serverAddress string, model st
 	if !o.initted {
 		panic("ollama.Init not called")
 	}
-	return genkit.DefineEmbedder(g, provider, serverAddress, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	emdOpts := &ai.EmbedderOptions{
+		Info:         &ai.EmbedderInfo{},
+		ConfigSchema: nil,
+	}
+	return genkit.DefineEmbedder(g, provider, serverAddress, emdOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		if req.Options == nil {
 			req.Options = &EmbedOptions{Model: model}
 		}

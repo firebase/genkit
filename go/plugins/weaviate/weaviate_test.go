@@ -89,9 +89,20 @@ func TestGenkit(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	emdOpts := &ai.EmbedderOptions{
+		Info: &ai.EmbedderInfo{
+			Dimensions: 768,
+			Label:      "",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
+			},
+		},
+		ConfigSchema: nil,
+	}
+
 	classCfg := ClassConfig{
 		Class:    *testClass,
-		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
+		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", emdOpts, embedder.Embed),
 	}
 	ds, retriever, err := DefineRetriever(ctx, g, classCfg)
 	if err != nil {
