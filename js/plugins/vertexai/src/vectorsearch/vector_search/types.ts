@@ -16,10 +16,10 @@
 
 import * as aiplatform from '@google-cloud/aiplatform';
 import { z } from 'genkit';
-import { EmbedderReference } from 'genkit/embedder';
-import { CommonRetrieverOptionsSchema, Document } from 'genkit/retriever';
-import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from '../types.js';
+import type { EmbedderReference } from 'genkit/embedder';
+import { CommonRetrieverOptionsSchema, type Document } from 'genkit/retriever';
+import type { GoogleAuth } from 'google-auth-library';
+import type { PluginOptions } from '../types.js';
 
 // This internal interface will be passed to the vertexIndexers and vertexRetrievers functions
 export interface VertexVectorSearchOptions<

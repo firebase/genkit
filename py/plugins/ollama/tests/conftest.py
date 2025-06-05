@@ -18,16 +18,15 @@
 
 from collections.abc import Generator
 from unittest import mock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import ollama as ollama_api
 import pytest
 
 from genkit.ai import Genkit
-from genkit.plugins.ollama import Ollama
-from genkit.plugins.ollama.models import (
-    ModelDefinition,
-    OllamaAPITypes,
-)
-from genkit.plugins.ollama.plugin_api import ollama_api
+from genkit.plugins.ollama.constants import OllamaAPITypes
+from genkit.plugins.ollama.models import ModelDefinition
+from genkit.plugins.ollama.plugin_api import Ollama
 
 
 @pytest.fixture
@@ -110,14 +109,21 @@ def genkit_veneer_generate_model(
 
 
 @pytest.fixture
-def mock_ollama_api_client() -> Generator[None, None, None]:
+def mock_ollama_api_client() -> Generator[MagicMock | AsyncMock, None, None]:
     """Mock the ollama API client."""
     with mock.patch.object(ollama_api, 'Client') as mock_ollama_client:
         yield mock_ollama_client
 
 
 @pytest.fixture
-def mock_ollama_api_async_client() -> Generator[None, None, None]:
+def mock_ollama_api_async_client() -> Generator[MagicMock | AsyncMock, None, None]:
     """Mock the ollama API async client."""
     with mock.patch.object(ollama_api, 'AsyncClient') as mock_ollama_async_client:
         yield mock_ollama_async_client
+
+
+@pytest.fixture
+@patch('ollama.AsyncClient')
+def ollama_plugin_instance(ollama_async_client):
+    """Common instance of ollama plugin."""
+    return Ollama()

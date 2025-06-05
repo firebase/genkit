@@ -24,7 +24,7 @@ import {
 } from '@jest/globals';
 import fs from 'fs';
 import { toCsv, toJson } from '../../src/eval/exporter';
-import { EvalResult, EvalRun, EvalRunKey } from '../../src/types/eval';
+import type { EvalResult, EvalRun, EvalRunKey } from '../../src/types/eval';
 
 jest.mock('crypto', () => {
   return {

@@ -16,7 +16,7 @@
 
 import { createInterface } from 'readline/promises';
 import { v4 as uuidV4 } from 'uuid';
-import { AnalyticsInfo } from '../types/analytics';
+import type { AnalyticsInfo } from '../types/analytics';
 import { configstore, getUserSettings } from './configstore';
 import { logger } from './logger';
 import { toolsPackage } from './package';

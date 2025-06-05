@@ -1,7 +1,6 @@
 .github/
 .mypy_cache/*
 .prettierrc.yaml
-docs-go/*
 docs/*
 genkit-tools/genkit-schema.json
 go/

@@ -20,10 +20,10 @@ import {
   multimodalEmbedding001,
   vertexAI,
 } from '@genkit-ai/vertexai';
-import { Genkit, genkit } from 'genkit';
+import { genkit, type Genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { pinecone } from 'genkitx-pinecone';
-import { GoogleAuth, IdTokenClient } from 'google-auth-library';
+import { GoogleAuth, type IdTokenClient } from 'google-auth-library';
 
 const auth = new GoogleAuth();
 let authClient: IdTokenClient | undefined = undefined;

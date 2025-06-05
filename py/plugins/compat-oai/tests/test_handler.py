@@ -71,6 +71,7 @@ def test_handler_generate_non_streaming(sample_request: GenerateRequest) -> None
 
     mock_model.generate.assert_called_once()
     assert isinstance(response, GenerateResponse)
+    assert response.message is not None
     assert response.message.role == Role.MODEL
     assert response.message.content[0].root.text == 'Hello, user!'
 

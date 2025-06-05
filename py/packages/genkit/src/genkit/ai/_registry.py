@@ -42,7 +42,7 @@ import traceback
 import uuid
 from collections.abc import AsyncIterator, Callable
 from functools import wraps
-from typing import Any
+from typing import Any, Type
 
 import structlog
 from pydantic import BaseModel
@@ -64,6 +64,7 @@ from genkit.core.typing import (
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
+    EvalStatusEnum,
     GenerationCommonConfig,
     Message,
     ModelInfo,
@@ -317,7 +318,7 @@ class GenkitRegistry:
 
         evaluator_description = get_func_description(fn, description)
 
-        def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
+        async def eval_stepper_fn(req: EvalRequest) -> EvalResponse:
             eval_responses: list[EvalFnResponse] = []
             for index in range(len(req.dataset)):
                 datapoint = req.dataset[index]
@@ -329,11 +330,11 @@ class GenkitRegistry:
                 )
                 try:
                     with run_in_new_span(span_metadata, labels={'genkit:type': 'evaluator'}) as span:
-                        span_id = span.span_id()
-                        trace_id = span.trace_id()
+                        span_id = span.span_id
+                        trace_id = span.trace_id
                         try:
                             span.set_input(datapoint)
-                            test_case_output = fn(datapoint, req.options)
+                            test_case_output = await fn(datapoint, req.options)
                             test_case_output.span_id = span_id
                             test_case_output.trace_id = trace_id
                             span.set_output(test_case_output)
@@ -342,7 +343,8 @@ class GenkitRegistry:
                             logger.debug(f'eval_stepper_fn error: {str(e)}')
                             logger.debug(traceback.format_exc())
                             evaluation = Score(
-                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}'
+                                error=f'Evaluation of test case {datapoint.test_case_id} failed: \n{str(e)}',
+                                status=EvalStatusEnum.FAIL,
                             )
                             eval_responses.append(
                                 EvalFnResponse(
@@ -417,7 +419,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: ModelFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
+        config_schema: Type[BaseModel] | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         info: ModelInfo | None = None,
         description: str | None = None,
@@ -456,6 +458,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: EmbedderFn,
+        config_schema: BaseModel | dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         description: str | None = None,
     ) -> Action:
@@ -464,15 +467,23 @@ class GenkitRegistry:
         Args:
             name: Name of the model.
             fn: Function implementing the embedder behavior.
+            config_schema: Optional schema for embedder configuration.
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
+        embedder_meta: dict[str, Any] = metadata if metadata else {}
+        if 'embedder' not in embedder_meta:
+            embedder_meta['embedder'] = {}
+
+        if config_schema:
+            embedder_meta['embedder']['customOptions'] = to_json_schema(config_schema)
+
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.EMBEDDER,
             fn=fn,
-            metadata=metadata,
+            metadata=embedder_meta,
             description=embedder_description,
         )
 

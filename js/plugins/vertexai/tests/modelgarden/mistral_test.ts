@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import {
+import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
   CompletionChunk,
 } from '@mistralai/mistralai-gcp/models/components';
 import * as assert from 'assert';
-import { GenerateRequest, GenerateResponseData } from 'genkit';
+import type { GenerateRequest, GenerateResponseData } from 'genkit';
 import { describe, it } from 'node:test';
 import {
-  MistralConfigSchema,
   fromMistralCompletionChunk,
   fromMistralResponse,
   toMistralRequest,
+  type MistralConfigSchema,
 } from '../../src/modelgarden/mistral';
 
 const MODEL_ID = 'mistral-large-2411';

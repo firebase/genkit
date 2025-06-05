@@ -45,29 +45,10 @@ func pineconeEx(ctx context.Context) error {
 	}
 	// [END initkey]
 
-	// [START defineindex]
-	menuIndexer, err := pinecone.DefineIndexer(ctx, g, pinecone.Config{
-		IndexID:  "menu_data",                                           // Your Pinecone index
-		Embedder: googlegenai.GoogleAIEmbedder(g, "text-embedding-004"), // Embedding model of your choice
-	})
-	if err != nil {
-		return err
-	}
-	// [END defineindex]
-
 	var docChunks []*ai.Document
 
-	// [START index]
-	if err := ai.Index(
-		ctx,
-		menuIndexer,
-		ai.WithDocs(docChunks...)); err != nil {
-		return err
-	}
-	// [END index]
-
 	// [START defineretriever]
-	menuRetriever, err := pinecone.DefineRetriever(ctx, g, pinecone.Config{
+	ds, menuRetriever, err := pinecone.DefineRetriever(ctx, g, pinecone.Config{
 		IndexID:  "menu_data",                                           // Your Pinecone index
 		Embedder: googlegenai.GoogleAIEmbedder(g, "text-embedding-004"), // Embedding model of your choice
 	})
@@ -75,6 +56,13 @@ func pineconeEx(ctx context.Context) error {
 		return err
 	}
 	// [END defineretriever]
+
+	// [START index]
+	err = pinecone.Index(ctx, docChunks, ds, "")
+	if err != nil {
+		return err
+	}
+	// [END index]
 
 	var userInput string
 

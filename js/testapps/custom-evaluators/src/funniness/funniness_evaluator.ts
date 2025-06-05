@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { Genkit, ModelReference, z } from 'genkit';
-import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
-import { ByoMetric } from '..';
+import type { Genkit, ModelReference, z } from 'genkit';
+import type { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
+import type { ByoMetric } from '..';
 import { funninessScore } from './funniness';
 
 export const FUNNINESS: ByoMetric = {

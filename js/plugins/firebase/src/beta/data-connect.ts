@@ -15,11 +15,11 @@
  */
 
 import {
-  FirebaseApp,
-  FirebaseOptions,
-  FirebaseServerApp,
   getApp,
   initializeServerApp,
+  type FirebaseApp,
+  type FirebaseOptions,
+  type FirebaseServerApp,
 } from 'firebase/app';
 import {
   executeMutation,
@@ -29,9 +29,9 @@ import {
   queryRef,
 } from 'firebase/data-connect';
 import { readFileSync } from 'fs';
-import { Genkit, GenkitError, type JSONSchema7 } from 'genkit';
+import { GenkitError, type Genkit, type JSONSchema7 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 
 export interface DataConnectTool {
   name: string;

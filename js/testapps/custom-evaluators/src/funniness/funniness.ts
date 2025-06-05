@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { ModelArgument, z } from 'genkit';
-import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { z, type ModelArgument } from 'genkit';
+import type { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import { ai } from '../index.js';
 
 const FUNNINESS_VALUES = [

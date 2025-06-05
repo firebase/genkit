@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Routes } from '@angular/router';
+import type { Routes } from '@angular/router';
 import { ChatbotComponent } from './samples/chatbot/chatbot.component';
 
 export const routes: Routes = [

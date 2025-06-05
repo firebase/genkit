@@ -16,9 +16,9 @@
 
 import { initializeApp } from 'firebase/app';
 import {
+  GoogleAuthProvider,
   connectAuthEmulator,
   getAuth,
-  GoogleAuthProvider,
   signInAnonymously,
   signInWithPopup,
 } from 'firebase/auth';
@@ -104,7 +104,7 @@ window.runflow = async () => {
   }
 };
 
-window.emulate = function () {
+window.emulate = () => {
   const url = new URL(window.location.href);
   if (emulated) {
     url.search = '';

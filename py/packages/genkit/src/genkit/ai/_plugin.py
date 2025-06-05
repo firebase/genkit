@@ -74,3 +74,15 @@ class Plugin(abc.ABC):
             None, initialization is done by side-effect on the registry.
         """
         pass
+
+    def list_actions(self) -> list[dict[str, str]]:
+        """Generate a list of available actions or models.
+
+        Returns:
+            list of actions dicts with the following shape:
+            {
+                'name': str,
+                'kind': ActionKind,
+            }
+        """
+        return []

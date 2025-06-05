@@ -15,34 +15,34 @@
  */
 
 import {
-  Action,
-  ActionMetadata,
-  defineAction,
   GenkitError,
+  defineAction,
   getStreamingCallback,
-  SimpleMiddleware,
-  StreamingCallback,
   z,
+  type Action,
+  type ActionMetadata,
+  type SimpleMiddleware,
+  type StreamingCallback,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import {
-  CustomPart,
   CustomPartSchema,
-  DataPart,
   DataPartSchema,
   DocumentDataSchema,
-  MediaPart,
   MediaPartSchema,
   ReasoningPartSchema,
-  TextPart,
   TextPartSchema,
-  ToolRequestPart,
   ToolRequestPartSchema,
-  ToolResponsePart,
   ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from './document.js';
 import {
   augmentWithContext,
@@ -55,10 +55,10 @@ export {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
-  simulateConstrainedGeneration,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
+  simulateConstrainedGeneration,
   type CustomPart,
   type DataPart,
   type MediaPart,
