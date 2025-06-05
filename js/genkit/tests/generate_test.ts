@@ -1272,7 +1272,15 @@ describe('generate', () => {
         },
       });
 
-      assert.deepStrictEqual(operation, newOp);
+      assert.deepStrictEqual(operation, {
+        ...newOp,
+        request: {
+          config: {
+            version: undefined,
+          },
+          model: 'programmableModel',
+        },
+      });
       assert.deepStrictEqual(pm.lastRequest, {
         messages: [],
         operation: {

@@ -1007,6 +1007,9 @@ dev-local-vectorstore = [
 flask = [
     { name = "genkit-plugin-flask" },
 ]
+google-cloud = [
+    { name = "genkit-plugin-google-cloud" },
+]
 google-genai = [
     { name = "genkit-plugin-google-genai" },
 ]
@@ -1016,6 +1019,9 @@ ollama = [
 openai = [
     { name = "genkit-plugin-compat-oai" },
 ]
+vertex-ai = [
+    { name = "genkit-plugin-vertex-ai" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1024,8 +1030,10 @@ requires-dist = [
     { name = "genkit-plugin-compat-oai", marker = "extra == 'openai'", editable = "plugins/compat-oai" },
     { name = "genkit-plugin-dev-local-vectorstore", marker = "extra == 'dev-local-vectorstore'", editable = "plugins/dev-local-vectorstore" },
     { name = "genkit-plugin-flask", marker = "extra == 'flask'", editable = "plugins/flask" },
+    { name = "genkit-plugin-google-cloud", marker = "extra == 'google-cloud'", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", marker = "extra == 'google-genai'", editable = "plugins/google-genai" },
     { name = "genkit-plugin-ollama", marker = "extra == 'ollama'", editable = "plugins/ollama" },
+    { name = "genkit-plugin-vertex-ai", marker = "extra == 'vertex-ai'", editable = "plugins/vertex-ai" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "json5", specifier = ">=0.10.0" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
@@ -1040,7 +1048,7 @@ requires-dist = [
     { name = "structlog", specifier = ">=25.2.0" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
-provides-extras = ["dev-local-vectorstore", "flask", "google-genai", "ollama", "openai"]
+provides-extras = ["dev-local-vectorstore", "flask", "google-genai", "ollama", "openai", "google-cloud", "vertex-ai"]
 
 [[package]]
 name = "genkit-plugin-compat-oai"
@@ -2182,9 +2190,9 @@ wheels = [
 name = "jsonata-python"
 version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ab/d1/9455e5ef09044a550500b32ff276a30f44928ab84b2db9ef13352bffd154/jsonata_python-0.5.3.tar.gz", hash = "sha256:c83f45127f8dc45e5ca5f20fd8b8635f094ef6bbb2d203a75bdde11ffece61e2", size = 338742 }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/d1/9455e5ef09044a550500b32ff276a30f44928ab84b2db9ef13352bffd154/jsonata_python-0.5.3.tar.gz", hash = "sha256:c83f45127f8dc45e5ca5f20fd8b8635f094ef6bbb2d203a75bdde11ffece61e2", size = 338742, upload-time = "2025-03-16T00:35:03.076Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/70/e7e92230b832e8b4ee2ee1ed0725be39991ef10bd0983e753226115a3bcb/jsonata_python-0.5.3-py3-none-any.whl", hash = "sha256:e7bd58020441fec198858fd1bc22bb9837a5ce281c41899f79750519fa6cef9f", size = 83045 },
+    { url = "https://files.pythonhosted.org/packages/24/70/e7e92230b832e8b4ee2ee1ed0725be39991ef10bd0983e753226115a3bcb/jsonata_python-0.5.3-py3-none-any.whl", hash = "sha256:e7bd58020441fec198858fd1bc22bb9837a5ce281c41899f79750519fa6cef9f", size = 83045, upload-time = "2025-03-16T00:35:01.437Z" },
 ]
 
 [[package]]
