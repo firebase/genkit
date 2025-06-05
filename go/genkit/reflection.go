@@ -327,8 +327,11 @@ func resolveAction(g *Genkit, key string, input json.RawMessage) (core.Action, e
 		}
 	}
 
-	action := g.reg.LookupAction(key).(core.Action)
-	return action, nil
+	action := g.reg.LookupAction(key)
+	if action == nil {
+		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
+	}
+	return action.(core.Action), nil
 }
 
 // handleRunAction looks up an action by name in the registry, runs it with the
