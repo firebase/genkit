@@ -255,14 +255,14 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 	}
 }
 
-// resolveAction tries to resolve a model from a [DynamicPlugin]
-// by registering it into the registry if not present
+// resolveAction tries to resolve any type of action and the dependant actions of it
 func resolveAction(g *Genkit, key string, input json.RawMessage) (core.Action, error) {
-	fmt.Printf("resolving action: %q\n", key)
-
 	var atype, provider, name string
+
 	trimmedKey := strings.TrimPrefix(key, "/")
 	found := strings.HasPrefix(trimmedKey, string(core.ActionTypeUtil))
+
+	// special case when the action "util/generate" gets called with a model that has not been defined
 	if found && strings.Contains(key, "generate") {
 		var inputMap map[string]any
 		err := json.Unmarshal(input, &inputMap)
@@ -289,7 +289,7 @@ func resolveAction(g *Genkit, key string, input json.RawMessage) (core.Action, e
 		dp, ok := plugin.(DynamicPlugin)
 		if ok {
 			if a := g.reg.LookupAction(fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, provider, name)); a != nil {
-				return a.(core.Action), nil
+				return g.reg.LookupAction(key).(core.Action), nil
 			}
 			err = dp.ResolveAction(g, core.ActionTypeModel, name)
 			if err != nil {
@@ -307,19 +307,23 @@ func resolveAction(g *Genkit, key string, input json.RawMessage) (core.Action, e
 		provider = parts[1]
 		name = parts[2]
 
-		plugin := g.reg.LookupPluginByName(provider)
-		if plugin == nil {
-			return nil, core.NewError(core.NOT_FOUND, "plugin for provider %q not found", provider)
-		}
-		dp, ok := plugin.(DynamicPlugin)
-		if ok {
-			if a := g.reg.LookupAction(fmt.Sprintf("/%s/%s/%s", core.ActionType(atype), provider, name)); a != nil {
-				return a.(core.Action), nil
+		for _, plugin := range g.reg.ListPlugins() {
+			dp, ok := plugin.(DynamicPlugin)
+			if !ok {
+				continue
 			}
-			err := dp.ResolveAction(g, core.ActionType(atype), name)
+			if dp.Name() != provider {
+				continue
+			}
+			if a := g.reg.LookupAction(fmt.Sprintf("/%s/%s/%s", atype, provider, name)); a != nil {
+				return g.reg.LookupAction(key).(core.Action), nil
+			}
+			err := dp.ResolveAction(g, core.ActionTypeModel, name)
 			if err != nil {
 				return nil, core.NewError(core.INTERNAL, err.Error())
 			}
+			action := g.reg.LookupAction(key).(core.Action)
+			return action, nil
 		}
 	}
 
