@@ -16,7 +16,6 @@
 
 import { GenkitError } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { GenerateResponse } from './generate';
 import { GenerateRequest, ModelAction, Operation } from './model';
 
 export async function checkOperation(
@@ -43,17 +42,14 @@ export async function checkOperation(
     messages: [],
   } as GenerateRequest;
   const rawResponse = await model(request);
-  if (!rawResponse.model) {
-    rawResponse.model = operation.request.model;
-  }
   if (!rawResponse.operation) {
     throw new GenkitError({
       status: 'FAILED_PRECONDITION',
       message: `The model did not return expected operation information: ${JSON.stringify(rawResponse)}`,
     });
   }
-  const response = new GenerateResponse(rawResponse, {
-    request,
-  });
-  return response.operation!;
+  return {
+    ...rawResponse.operation!,
+    request: operation.request,
+  };
 }

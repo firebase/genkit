@@ -328,6 +328,7 @@ async function generate(
       }
 
       return new GenerateResponse(rawResponse, {
+        model: model.__action.name,
         request,
         parser: format?.handler(request.output?.schema).parseMessage,
       });

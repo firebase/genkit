@@ -18,7 +18,7 @@ import type { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
 import { z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { modelRef } from '../../ai/src/model';
+import { Operation, modelRef } from '../../ai/src/model';
 import { genkit, type GenkitBeta } from '../src/beta';
 import {
   defineEchoModel,
@@ -529,7 +529,7 @@ describe('generate', () => {
       );
     });
 
-    it.only('interrupts the dynamic tool with no impl', async () => {
+    it('interrupts the dynamic tool with no impl', async () => {
       const schema = {
         properties: {
           foo: { type: 'string' },
@@ -1194,6 +1194,95 @@ describe('generate', () => {
           role: 'model',
         },
       ]);
+    });
+  });
+
+  describe('long running', () => {
+    let ai: GenkitBeta;
+    let pm: ProgrammableModel;
+
+    beforeEach(() => {
+      ai = genkit({
+        model: 'programmableModel',
+      });
+      pm = defineProgrammableModel(ai);
+    });
+
+    it('starts the operation', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => 'tool called'
+      );
+
+      pm.handleResponse = async (req, sc) => {
+        return {
+          finishReason: 'pending',
+          operation: { name: '123' },
+        };
+      };
+
+      const { operation } = await ai.generate({
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      assert.deepStrictEqual(operation, {
+        name: '123',
+        request: {
+          config: {
+            version: undefined,
+          },
+          model: 'programmableModel',
+        },
+      });
+    });
+
+    it('checks operation status', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => 'tool called'
+      );
+
+      const newOp = {
+        name: '123',
+        done: true,
+        response: {
+          finishReason: 'stop',
+          message: {
+            role: 'model',
+            content: [{ text: 'done' }],
+          },
+        },
+      } as Operation;
+
+      pm.handleResponse = async (req, sc) => {
+        return {
+          finishReason: 'stop',
+          operation: newOp,
+        };
+      };
+
+      const operation = await ai.checkOperation({
+        name: '123',
+        request: {
+          config: {
+            version: undefined,
+          },
+          model: 'programmableModel',
+        },
+      });
+
+      assert.deepStrictEqual(operation, newOp);
+      assert.deepStrictEqual(pm.lastRequest, {
+        messages: [],
+        operation: {
+          name: '123',
+          request: {
+            config: {},
+            model: 'programmableModel',
+          },
+        },
+      });
     });
   });
 });

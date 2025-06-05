@@ -390,7 +390,6 @@ export type CandidateError = z.infer<typeof CandidateErrorSchema>;
  * Zod schema of a model response.
  */
 export const ModelResponseSchema = z.object({
-  model: z.string().optional(),
   message: MessageSchema.optional(),
   finishReason: FinishReasonSchema,
   finishMessage: z.string().optional(),

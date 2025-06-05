@@ -338,6 +338,9 @@ export async function generate<
   registry = maybeRegisterDynamicTools(registry, resolvedOptions);
 
   const params = await toGenerateActionOptions(registry, resolvedOptions);
+  const model = await resolveModel(registry, resolvedOptions.model, {
+    warnDeprecated: true,
+  });
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
   return await runWithStreamingCallback(
@@ -358,6 +361,7 @@ export async function generate<
         tools,
       });
       return new GenerateResponse<O>(response, {
+        model: model.modelAction.__action.name,
         request: response.request ?? request,
         parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
       });

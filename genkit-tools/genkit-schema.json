@@ -773,9 +773,6 @@
     "GenerateResponse": {
       "type": "object",
       "properties": {
-        "model": {
-          "type": "string"
-        },
         "message": {
           "$ref": "#/$defs/Message"
         },
@@ -1042,9 +1039,6 @@
     "ModelResponse": {
       "type": "object",
       "properties": {
-        "model": {
-          "$ref": "#/$defs/GenerateResponse/properties/model"
-        },
         "message": {
           "$ref": "#/$defs/GenerateResponse/properties/message"
         },

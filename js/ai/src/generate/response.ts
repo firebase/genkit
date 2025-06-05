@@ -60,6 +60,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   constructor(
     response: GenerateResponseData,
     options?: {
+      model?: string;
       request?: GenerateRequest;
       parser?: MessageParser<O>;
     }
@@ -81,7 +82,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     this.raw = response.raw || this.custom;
     this.request = options?.request;
     this.operation = response.operation;
-    this.model = response.model;
+    this.model = options?.model;
     if (this.operation) {
       if (!this.model) {
         throw new GenkitError({
@@ -224,10 +225,10 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
       request: this.request,
       operation: this.operation,
-      model: this.model,
     };
     if (!out.finishMessage) delete out.finishMessage;
     if (!out.request) delete out.request;
+    if (!out.operation) delete out.operation;
     return out;
   }
 }
