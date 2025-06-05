@@ -23,21 +23,29 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 )
 
+// MCPServerConfig holds configuration for a single MCP server
+type MCPServerConfig struct {
+	// Name for this server - used as the key for lookups
+	Name string
+	// Config holds the client configuration options
+	Config MCPClientOptions
+}
+
 // MCPManagerOptions holds configuration for MCPManager
 type MCPManagerOptions struct {
 	// Name for this manager instance - used for logging and identification
 	Name string
 	// Version number for this manager (defaults to "1.0.0" if empty)
 	Version string
-	// MCPServers is a map of server names to their configurations
-	MCPServers map[string]MCPClientOptions
+	// MCPServers is an array of server configurations
+	MCPServers []MCPServerConfig
 }
 
 // MCPManager manages connections to multiple MCP servers
 type MCPManager struct {
 	name    string
 	version string
-	clients map[string]*GenkitMCPClient
+	clients map[string]*GenkitMCPClient // Internal map for efficient lookups
 }
 
 // NewMCPManager creates a new MCPManager with the given options
@@ -57,9 +65,9 @@ func NewMCPManager(options MCPManagerOptions) (*MCPManager, error) {
 	}
 
 	// Connect to all servers synchronously during initialization
-	for serverName, config := range options.MCPServers {
-		if err := manager.Connect(serverName, config); err != nil {
-			log.Printf("[MCP Manager] Failed to connect to %s: %v", serverName, err)
+	for _, serverConfig := range options.MCPServers {
+		if err := manager.Connect(serverConfig.Name, serverConfig.Config); err != nil {
+			log.Printf("[MCP Manager] Failed to connect to %s: %v", serverConfig.Name, err)
 			// Continue with other servers
 		}
 	}

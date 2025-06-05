@@ -37,18 +37,22 @@ func managerExample() {
 	}
 
 	// Create and connect to MCP time server
-	manager, _ := mcp.NewMCPManager(mcp.MCPManagerOptions{Name: "time-example"})
-	err = manager.Connect("time", mcp.MCPClientOptions{
-		Name:    "mcp-time",
-		Version: "1.0.0",
-		Stdio: &mcp.StdioConfig{
-			Command: "uvx",
-			Args:    []string{"mcp-server-time", "--local-timezone=America/New_York"},
+	manager, _ := mcp.NewMCPManager(mcp.MCPManagerOptions{
+		Name: "time-example",
+		MCPServers: []mcp.MCPServerConfig{
+			{
+				Name: "time",
+				Config: mcp.MCPClientOptions{
+					Name:    "mcp-time",
+					Version: "1.0.0",
+					Stdio: &mcp.StdioConfig{
+						Command: "uvx",
+						Args:    []string{"mcp-server-time", "--local-timezone=America/New_York"},
+					},
+				},
+			},
 		},
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// Get tools and generate response
 	tools, _ := manager.GetActiveTools(ctx, g)
@@ -87,33 +91,33 @@ func multiServerManagerExample() {
 	}
 
 	// Create MCP manager for multiple servers
-	manager, _ := mcp.NewMCPManager(mcp.MCPManagerOptions{Name: "multi-server-example"})
-
-	// Connect to time server
-	err = manager.Connect("time", mcp.MCPClientOptions{
-		Name:    "mcp-time",
-		Version: "1.0.0",
-		Stdio: &mcp.StdioConfig{
-			Command: "uvx",
-			Args:    []string{"mcp-server-time", "--local-timezone=America/New_York"},
+	manager, _ := mcp.NewMCPManager(mcp.MCPManagerOptions{
+		Name: "multi-server-example",
+		MCPServers: []mcp.MCPServerConfig{
+			{
+				Name: "time",
+				Config: mcp.MCPClientOptions{
+					Name:    "mcp-time",
+					Version: "1.0.0",
+					Stdio: &mcp.StdioConfig{
+						Command: "uvx",
+						Args:    []string{"mcp-server-time", "--local-timezone=America/New_York"},
+					},
+				},
+			},
+			{
+				Name: "fetch",
+				Config: mcp.MCPClientOptions{
+					Name:    "mcp-fetch",
+					Version: "1.0.0",
+					Stdio: &mcp.StdioConfig{
+						Command: "uvx",
+						Args:    []string{"mcp-server-fetch"},
+					},
+				},
+			},
 		},
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Connect to fetch server
-	err = manager.Connect("fetch", mcp.MCPClientOptions{
-		Name:    "mcp-fetch",
-		Version: "1.0.0",
-		Stdio: &mcp.StdioConfig{
-			Command: "uvx",
-			Args:    []string{"mcp-server-fetch"},
-		},
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// Get tools from all connected servers
 	tools, _ := manager.GetActiveTools(ctx, g)
