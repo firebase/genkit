@@ -189,6 +189,7 @@ class FinishReason(StrEnum):
     LENGTH = 'length'
     BLOCKED = 'blocked'
     INTERRUPTED = 'interrupted'
+    PENDING = 'pending'
     OTHER = 'other'
     UNKNOWN = 'unknown'
 
@@ -265,6 +266,7 @@ class Supports(BaseModel):
     context: bool | None = None
     constrained: Constrained | None = None
     tool_choice: bool | None = Field(None, alias='toolChoice')
+    long_running: bool | None = Field(None, alias='longRunning')
 
 
 class Stage(StrEnum):
@@ -286,6 +288,14 @@ class ModelInfo(BaseModel):
     config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
     supports: Supports | None = None
     stage: Stage | None = None
+
+
+class Request1(BaseModel):
+    """Model for request1 data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model: str
+    config: dict[str, Any] | None = None
 
 
 class OutputConfig(BaseModel):
@@ -799,6 +809,25 @@ class ModelResponseChunk(BaseModel):
     aggregated: Aggregated | None = None
 
 
+class Response(BaseModel):
+    """Model for response data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    message: Message | None = None
+    finish_reason: FinishReason = Field(..., alias='finishReason')
+    raw: Any | None = None
+
+
+class Operation(BaseModel):
+    """Model for operation data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: str
+    done: bool | None = None
+    request: Request1 | None = None
+    response: Response | None = None
+
+
 class RankedDocumentData(BaseModel):
     """Model for rankeddocumentdata data."""
 
@@ -874,6 +903,7 @@ class GenerateRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputConfig | None = None
     docs: list[DocumentData] | None = None
+    operation: Operation | None = None
     candidates: float | None = None
 
 
@@ -889,6 +919,7 @@ class GenerateResponse(BaseModel):
     custom: Any | None = None
     raw: Any | None = None
     request: GenerateRequest | None = None
+    operation: Operation | None = None
     candidates: list[Candidate] | None = None
 
 
@@ -938,6 +969,7 @@ class ModelRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputModel | None = None
     docs: Docs | None = None
+    operation: Operation | None = None
 
 
 class ModelResponse(BaseModel):
@@ -952,3 +984,4 @@ class ModelResponse(BaseModel):
     custom: CustomModel | None = None
     raw: Raw | None = None
     request: Request | None = None
+    operation: Operation | None = None
