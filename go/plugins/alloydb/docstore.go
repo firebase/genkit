@@ -45,9 +45,6 @@ func newDocStore(ctx context.Context, p *Postgres, cfg *Config) (*docStore, erro
 	if ds.config.SchemaName == "" {
 		ds.config.SchemaName = defaultSchemaName
 	}
-	if ds.config.SchemaName == "" {
-		ds.config.SchemaName = defaultSchemaName
-	}
 	if ds.config.IDColumn == "" {
 		ds.config.IDColumn = defaultIDColumn
 	}
