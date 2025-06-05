@@ -136,9 +136,9 @@ func DefineToolWithInputSchema(
 
 	// Note: The output type for DefineActionWithInputSchema is `any`,
 	// so the output schema will be inferred as a generic "any" type.
-	toolAction := core.DefineActionWithInputSchema[any](r, "", name, atype.Tool, metadata, inputSchema, wrappedFn)
+	toolAction := core.DefineActionWithInputSchema[any](r, "", name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
 
-	return &tool{action: toolAction}
+	return &tool{Action: toolAction}
 }
 
 // Name returns the name of the tool.
