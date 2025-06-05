@@ -94,8 +94,15 @@ func NewCustomPart(customData map[string]any) *Part {
 }
 
 // NewReasoningPart returns a Part containing reasoning text
-func NewReasoningPart(text string) *Part {
-	return &Part{Kind: PartReasoning, ContentType: "plain/text", Text: text}
+func NewReasoningPart(text string, signature []byte) *Part {
+	return &Part{
+		Kind:        PartReasoning,
+		ContentType: "plain/text",
+		Text:        text,
+		Metadata: map[string]any{
+			"signature": signature,
+		},
+	}
 }
 
 // IsText reports whether the [Part] contains plain text.

@@ -166,6 +166,28 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool with thinking", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&googlegenai.GeminiConfig{
+				ThinkingConfig: &googlegenai.ThinkingConfig{
+					ThinkingBudget: 1000,
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Message.Content[0].Text
+		const want = "11.31"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+	})
+
 	t.Run("tool with json output", func(t *testing.T) {
 		type weatherQuery struct {
 			Location string `json:"location"`
@@ -414,7 +436,7 @@ func TestGoogleAILive(t *testing.T) {
 				Temperature: 0.4,
 				ThinkingConfig: &googlegenai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  100,
+					ThinkingBudget:  1000,
 				},
 			}),
 			ai.WithModel(m),
@@ -425,8 +447,8 @@ func TestGoogleAILive(t *testing.T) {
 		if resp == nil {
 			t.Fatal("nil response obtanied")
 		}
-		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
-			t.Fatal("thoughts tokens should not be zero or greater than 100")
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1000 {
+			t.Fatalf("thoughts tokens should not be zero or greater than 100, got: %d", resp.Usage.ThoughtsTokens)
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
