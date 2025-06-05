@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
@@ -365,9 +366,14 @@ func ListTools(g *Genkit) []ai.Tool {
 	acts := g.reg.ListActions()
 	tools := []ai.Tool{}
 	for _, act := range acts {
-		if strings.HasPrefix(act.Key, "/"+string(atype.Tool)+"/") {
+		action, ok := act.(core.Action)
+		if !ok {
+			continue
+		}
+		actionDesc := action.Desc()
+		if strings.HasPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/") {
 			// Extract tool name from key
-			toolName := strings.TrimPrefix(act.Key, "/"+string(atype.Tool)+"/")
+			toolName := strings.TrimPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/")
 			// Lookup the actual tool
 			tool := LookupTool(g, toolName)
 			if tool != nil {
