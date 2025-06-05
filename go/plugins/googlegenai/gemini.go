@@ -28,13 +28,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/base"
-	"github.com/invopop/jsonschema"
-
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
@@ -86,11 +84,7 @@ type EmbedOptions struct {
 
 // configToMap converts a config struct to a map[string]any.
 func configToMap(config any) map[string]any {
-	r := jsonschema.Reflector{
-		DoNotReference: true, // Prevent $ref usage
-		ExpandedStruct: true, // Include all fields directly
-	}
-	schema := r.Reflect(config)
+	schema := base.InferJSONSchema(config)
 	result := base.SchemaAsMap(schema)
 	return result
 }
@@ -287,24 +281,31 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 
 // DefineEmbedder defines embeddings for the provided contents and embedder
 // model
-func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
+func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOptions ai.EmbedderOptions) ai.Embedder {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	if embedOptions.ConfigSchema == nil {
+		embedOptions.ConfigSchema = genai.EmbedContentConfig{}
+	}
+
+	return genkit.DefineEmbedder(g, provider, name, &embedOptions, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
-		// check if request options matches VertexAI configuration
-		if opts, _ := req.Options.(*EmbedOptions); opts != nil {
-			if provider == googleAIProvider {
-				return nil, fmt.Errorf("wrong options provided for %s provider, got %T", provider, opts)
-			}
-			embedConfig = &genai.EmbedContentConfig{
-				Title:    opts.Title,
-				TaskType: opts.TaskType,
+		if req.Options != nil {
+			if optsMap, ok := req.Options.(map[string]any); ok {
+				optionsBytes, err := json.Marshal(optsMap)
+				if err != nil {
+					fmt.Println("Error marshaling options map to bytes:", err)
+				}
+				var tempConfig genai.EmbedContentConfig
+				err = json.Unmarshal(optionsBytes, &tempConfig)
+				if err == nil {
+					embedConfig = &tempConfig
+				}
 			}
 		}
 
@@ -870,6 +871,7 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
+
 	switch {
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil

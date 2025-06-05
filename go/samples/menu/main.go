@@ -20,6 +20,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
@@ -82,9 +83,20 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: localvec.RetrieverOptions{
+			K: 3,
+		},
+		Info: &ai.RetrieverInfo{
+			Label: "go-menu_items",
+			Supports: &ai.MediaSupports{
+				Media: false,
+			},
+		},
+	}
 	docStore, retriever, err := localvec.DefineRetriever(g, "go-menu_items", localvec.Config{
 		Embedder: embedder,
-	})
+	}, retOpts)
 	if err != nil {
 		log.Fatal(err)
 	}

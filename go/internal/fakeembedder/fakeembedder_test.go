@@ -32,7 +32,17 @@ func TestFakeEmbedder(t *testing.T) {
 	}
 
 	embed := New()
-	emb := ai.DefineEmbedder(r, "fake", "embed", embed.Embed)
+	emdOpts := &ai.EmbedderOptions{
+		Info: &ai.EmbedderInfo{
+			Dimensions: 32,
+			Label:      "embed",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
+			},
+		},
+		ConfigSchema: nil,
+	}
+	emb := ai.DefineEmbedder(r, "fake", "embed", emdOpts, embed.Embed)
 	d := ai.DocumentFromText("fakeembedder test", nil)
 
 	vals := []float32{1, 2}
