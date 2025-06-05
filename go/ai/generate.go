@@ -804,7 +804,27 @@ func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts
 					newToolReq.Metadata["resolvedInterrupt"] = interruptVal
 				}
 
-				// TODO: Validate that the output is valid for the output schema of the tool.
+				tool := LookupTool(r, toolReq.Name)
+				if tool == nil {
+					return nil, core.NewError(core.NOT_FOUND, "handleResumedToolRequest: tool %q not found", toolReq.Name)
+				}
+
+				toolDef := tool.Definition()
+				if toolDef.OutputSchema != nil && len(toolDef.OutputSchema) > 0 {
+					outputBytes, err := json.Marshal(respondPart.ToolResponse.Output)
+					if err != nil {
+						return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: failed to marshal tool output for validation: %v", err)
+					}
+
+					schemaBytes, err := json.Marshal(toolDef.OutputSchema)
+					if err != nil {
+						return nil, core.NewError(core.INTERNAL, "handleResumedToolRequest: tool %q has invalid output schema: %v", toolReq.Name, err)
+					}
+
+					if err := base.ValidateRaw(outputBytes, schemaBytes); err != nil {
+						return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: tool %q output validation failed: %v", toolReq.Name, err)
+					}
+				}
 
 				newToolResp := NewToolResponsePart(respondPart.ToolResponse)
 				newToolResp.Metadata = respondPart.Metadata
