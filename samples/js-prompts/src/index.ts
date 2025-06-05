@@ -27,7 +27,7 @@ const ai = genkit({
 
 const simplePrompt = ai.defineFlow('simplePrompt', () =>
   ai.generate({
-    model: 'googleai/gemini-1.5-flash',
+    model: googleAI.model('gemini-2.0-flash'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
   })
 );
@@ -35,7 +35,7 @@ const simplePrompt = ai.defineFlow('simplePrompt', () =>
 const simpleTemplate = ai.defineFlow('simpleTemplate', () => {
   const name = 'Fred';
   return ai.generate({
-    model: 'googleai/gemini-1.5-flash',
+    model: googleAI.model('gemini-2.0-flash'),
     prompt: `You are a helpful AI assistant named Walt. Say hello to ${name}.`,
   });
 });
@@ -43,7 +43,7 @@ const simpleTemplate = ai.defineFlow('simpleTemplate', () => {
 const helloDotprompt = ai.definePrompt(
   {
     name: 'helloPrompt',
-    model: 'googleai/gemini-1.5-flash',
+    model: googleAI.model('gemini-2.0-flash'),
     input: {
       schema: z.object({ name: z.string() }),
     },
@@ -64,7 +64,7 @@ const outputSchema = z.object({
 const threeGreetingsPrompt = ai.definePrompt(
   {
     name: 'threeGreetingsPrompt',
-    model: 'googleai/gemini-1.5-flash',
+    model: googleAI.model('gemini-2.0-flash'),
     input: {
       schema: z.object({ name: z.string() }),
     },
@@ -81,16 +81,80 @@ const threeGreetings = ai.defineFlow('threeGreetingsPrompt', async () => {
   return response.output;
 });
 
+const configuredPrompt = ai.definePrompt(
+  {
+    name: 'configuredPrompt',
+    model: googleAI.model('gemini-2.0-flash'),
+    config: {
+      temperature: 0.9,
+      topK: 50,
+      topP: 0.4,
+      maxOutputTokens: 400,
+      stopSequences: ['<end>', '<fin>'],
+    },
+    input: {
+      schema: z.object({ topic: z.string() }),
+    },
+  },
+  `Tell me a short story about {{topic}}.`
+);
+
+const multiMessagePrompt = ai.definePrompt(
+  {
+    name: 'multiMessagePrompt',
+    model: googleAI.model('gemini-2.0-flash'),
+    input: {
+      schema: z.object({ userQuestion: z.string() }),
+    },
+    messages: async (input) => [
+      {
+        role: 'system',
+        content: 'You are a helpful AI assistant that really loves to talk about food. Try to work food items into all of your conversations.',
+      },
+      {
+        role: 'user',
+        content: input.userQuestion,
+      },
+    ],
+  }
+);
+
+const multiModalPrompt = ai.definePrompt(
+  {
+    name: 'multiModalPrompt',
+    model: googleAI.model('gemini-2.0-flash'),
+    input: {
+      schema: z.object({ photoUrl: z.string() }),
+    },
+    messages: async (input) => [
+      {
+        role: 'user',
+        content: [
+          { text: 'Describe this image in a detailed paragraph:' },
+          { media: { url: input.photoUrl } },
+        ],
+      },
+    ],
+  }
+);
+
+ai.defineHelper('shout', (text: string) => text.toUpperCase());
+
+const customHelperPrompt = ai.definePrompt(
+  {
+    name: 'customHelperPrompt',
+    model: googleAI.model('gemini-2.0-flash'),
+    input: {
+      schema: z.object({ name: z.string() }),
+    },
+  },
+  `HELLO, {{shout name}}!!!`
+);
+
 // Start a flow server, which exposes your flows as HTTP endpoints. This call
 // must come last, after all of your plug-in configuration and flow definitions.
 // You can optionally specify a subset of flows to serve, and configure some
 // HTTP server options, but by default, the flow server serves all defined flows.
 startFlowServer({
   flows: [threeGreetings, simpleTemplate, simpleDotprompt, simplePrompt],
-});
-
-// Call one of the flows just to validate everything is hooked up properly
-helloDotprompt({ name: 'Bob' }).then((generateResponse) => {
-  console.log('\nThe model response:');
-  console.log(generateResponse.text);
 });
