@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-import { Genkit, ModelArgument, z } from 'genkit';
-import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
+import type { Genkit, ModelArgument, z } from 'genkit';
+import {
+  EvalStatusEnum,
+  type BaseEvalDataPoint,
+  type Score,
+} from 'genkit/evaluator';
 import path from 'path';
 import { getDirName, loadPromptFile, renderText } from './helper.js';
 
@@ -58,7 +62,7 @@ export async function answerAccuracyScore<
       reference,
     }),
   });
-  const origScore = parseInt(origResp.text);
+  const origScore = Number.parseInt(origResp.text);
   if (Number.isNaN(origScore)) {
     throw new Error('Error generating original response for answer accuracy');
   }
@@ -72,7 +76,7 @@ export async function answerAccuracyScore<
       reference: output,
     }),
   });
-  const invScore = parseInt(invResp.text);
+  const invScore = Number.parseInt(invResp.text);
   if (Number.isNaN(invScore)) {
     throw new Error('Error generating inverted response for answer accuracy');
   }

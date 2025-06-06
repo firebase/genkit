@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from '@jest/globals';
 import { UserFacingError, genkit, z } from 'genkit';
-import { ApiKeyContext, apiKey } from 'genkit/context';
+import { apiKey, type ApiKeyContext } from 'genkit/context';
 import { NextRequest } from 'next/server.js';
 import { appRoute } from '../src/index.js';
 
@@ -158,7 +158,7 @@ describe('appRoute', () => {
         body: JSON.stringify({ data: 'Hello, world!' }),
       });
 
-    let route = appRoute(echoScalar);
+    const route = appRoute(echoScalar);
     let response = await route(request());
     expect(response.status).toEqual(200);
     expect(await response.json()).toEqual({ result: 'Hello, world!' });
@@ -192,7 +192,7 @@ describe('appRoute', () => {
         }),
       });
 
-    let route = appRoute(echoObject);
+    const route = appRoute(echoObject);
     let response = await route(request());
     expect(response.status).toEqual(200);
     expect(await response.json()).toEqual({
@@ -227,7 +227,7 @@ describe('appRoute', () => {
         body: JSON.stringify({ data: null }),
       });
 
-    let route = appRoute(userErrorThrower);
+    const route = appRoute(userErrorThrower);
     let response = await route(request());
     expect(response.status).toEqual(400);
     const json = await response.json();
@@ -263,7 +263,7 @@ describe('appRoute', () => {
         body: JSON.stringify({ data: null }),
       });
 
-    let route = appRoute(internalErrorThrower);
+    const route = appRoute(internalErrorThrower);
     let response = await route(request());
     expect(response.status).toEqual(500);
     expect(await response.json()).toEqual({

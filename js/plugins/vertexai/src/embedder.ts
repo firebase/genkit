@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { Document, Genkit, z } from 'genkit';
+import { z, type Document, type Genkit } from 'genkit';
 import {
-  EmbedderAction,
-  EmbedderReference,
   embedderRef,
+  type EmbedderAction,
+  type EmbedderReference,
 } from 'genkit/embedder';
-import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from './common/types.js';
-import { PredictClient, predictModel } from './predict.js';
+import type { GoogleAuth } from 'google-auth-library';
+import type { PluginOptions } from './common/types.js';
+import { predictModel, type PredictClient } from './predict.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -228,7 +228,7 @@ function checkValidDocument(
       }
       return true;
     }
-    throw new Error('Unknown multimodal embedder: ' + embedder.name);
+    return false;
   } else {
     // Not multimodal - unexpected usage.
     // Currently text-only embedders just ignore media.
@@ -250,7 +250,7 @@ export function defineVertexAIEmbedder(
   const embedder =
     SUPPORTED_EMBEDDER_MODELS[name] ??
     embedderRef({
-      name: name,
+      name: `vertexai/${name}`,
       configSchema: VertexEmbeddingConfigSchema,
       info: {
         dimensions: 768,

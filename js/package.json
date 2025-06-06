@@ -22,17 +22,17 @@
   "devDependencies": {
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
-    "typescript": "^4.9.0",
+    "tsx": "^4.19.2",
     "typedoc": "^0.27.5",
+    "typedoc-github-theme": "^0.2.0",
     "typedoc-plugin-markdown": "^4.3.2",
     "typedoc-plugin-zod": "^1.3.1",
-    "typedoc-github-theme": "^0.2.0",
-    "tsx": "^4.19.2"
+    "typescript": "^4.9.0"
   },
   "pnpm": {
     "overrides": {
       "cross-spawn": "^7.0.5"
     }
   },
-  "packageManager": "pnpm@10.8.1+sha256.d8b2ebbc65cf02c349eca6b45c9640b910f16b6adebdb7b926e9db440e47cac7"
+  "packageManager": "pnpm@10.11.0+sha256.a69e9cb077da419d47d18f1dd52e207245b29cac6e076acedbeb8be3b1a67bd7"
 }

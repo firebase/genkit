@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { Action, GenkitError, defineAction, z } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import { GenkitError, defineAction, z, type Action } from '@genkit-ai/core';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { Document, DocumentData, DocumentDataSchema } from './document.js';
-import { EmbedderInfo } from './embedder.js';
+import { Document, DocumentDataSchema, type DocumentData } from './document.js';
+import type { EmbedderInfo } from './embedder.js';
 
 export {
   Document,

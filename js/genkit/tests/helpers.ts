@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai';
-import { BaseEvalDataPoint } from '@genkit-ai/ai/evaluator';
-import { ModelAction, ModelInfo } from '@genkit-ai/ai/model';
-import { SessionData, SessionStore } from '@genkit-ai/ai/session';
-import { StreamingCallback } from '@genkit-ai/core';
-import { Genkit } from '../src/genkit';
-import {
+import type { MessageData } from '@genkit-ai/ai';
+import type { BaseEvalDataPoint } from '@genkit-ai/ai/evaluator';
+import type { ModelAction, ModelInfo } from '@genkit-ai/ai/model';
+import type { SessionData, SessionStore } from '@genkit-ai/ai/session';
+import type { StreamingCallback } from '@genkit-ai/core';
+import type { Genkit } from '../src/genkit';
+import type {
   GenerateRequest,
   GenerateResponseChunkData,
   GenerateResponseData,

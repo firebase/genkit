@@ -14,32 +14,32 @@
  * limitations under the License.
  */
 
-import { Genkit, Message, StreamingCallback, z } from 'genkit';
+import { Message, z, type Genkit, type StreamingCallback } from 'genkit';
 import {
-  GenerateResponseChunkData,
-  GenerateResponseData,
   GenerationCommonConfigSchema,
-  ModelAction,
-  ModelReference,
   type CandidateData,
   type GenerateRequest,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
   type MessageData,
+  type ModelAction,
+  type ModelReference,
   type Part,
   type Role,
   type ToolDefinition,
   type ToolRequestPart,
 } from 'genkit/model';
-import OpenAI from 'openai';
-import {
-  type ChatCompletion,
-  type ChatCompletionChunk,
-  type ChatCompletionContentPart,
-  type ChatCompletionCreateParamsNonStreaming,
-  type ChatCompletionMessageParam,
-  type ChatCompletionMessageToolCall,
-  type ChatCompletionRole,
-  type ChatCompletionTool,
-  type CompletionChoice,
+import type OpenAI from 'openai';
+import type {
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionContentPart,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
+  ChatCompletionRole,
+  ChatCompletionTool,
+  CompletionChoice,
 } from 'openai/resources/index.mjs';
 
 /**

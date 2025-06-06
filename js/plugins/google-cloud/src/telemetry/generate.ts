@@ -15,25 +15,25 @@
  */
 
 import { ValueType } from '@opentelemetry/api';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { createHash } from 'crypto';
 import {
-  GenerateRequestData,
-  GenerateResponseData,
-  GenerationUsage,
   GENKIT_VERSION,
-  MediaPart,
-  Part,
-  ToolRequestPart,
-  ToolResponsePart,
+  type GenerateRequestData,
+  type GenerateResponseData,
+  type GenerationUsage,
+  type MediaPart,
+  type Part,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { PathMetadata, toDisplayPath } from 'genkit/tracing';
+import { toDisplayPath, type PathMetadata } from 'genkit/tracing';
 import {
-  internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
-  Telemetry,
+  internalMetricNamespaceWrap,
+  type Telemetry,
 } from '../metrics.js';
 import {
   createCommonLogAttributes,

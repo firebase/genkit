@@ -419,7 +419,7 @@ func generate(
 
 	// merge all streamed responses
 	var resp *genai.GenerateContentResponse
-	var chunks []string
+	var chunks []*genai.Part
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
@@ -434,7 +434,7 @@ func generate(
 				return nil, err
 			}
 			// stream only supports text
-			chunks = append(chunks, c.Content.Parts[i].Text)
+			chunks = append(chunks, c.Content.Parts[i])
 		}
 		// keep the last chunk for usage metadata
 		resp = chunk
@@ -445,17 +445,12 @@ func generate(
 	merged := []*genai.Candidate{
 		{
 			Content: &genai.Content{
-				Parts: []*genai.Part{genai.NewPartFromText(strings.Join(chunks, ""))},
+				Parts: chunks,
 			},
 		},
 	}
 	resp.Candidates = merged
 	r = translateResponse(resp)
-	if r == nil {
-		// No candidates were returned. Probably rare, but it might avoid a NPE
-		// to return an empty instead of nil result.
-		r = &ai.ModelResponse{}
-	}
 	r.Request = input
 	if cache != nil {
 		r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
@@ -791,13 +786,13 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		var p *ai.Part
 		partFound := 0
 
-		if part.Text != "" {
+		if part.Thought {
+			p = ai.NewReasoningPart(part.Text, part.ThoughtSignature)
 			partFound++
-			if part.Thought {
-				// TODO: Include a `reasoning` part. Not available in the SDK yet.
-				continue
-			}
+		}
+		if part.Text != "" {
 			p = ai.NewTextPart(part.Text)
+			partFound++
 		}
 		if part.InlineData != nil {
 			partFound++
@@ -840,9 +835,17 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
-	r := translateCandidate(resp.Candidates[0])
+	var r *ai.ModelResponse
+	if len(resp.Candidates) > 0 {
+		r = translateCandidate(resp.Candidates[0])
+	} else {
+		r = &ai.ModelResponse{}
+	}
 
-	r.Usage = &ai.GenerationUsage{}
+	if r.Usage == nil {
+		r.Usage = &ai.GenerationUsage{}
+	}
+
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
 		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
@@ -869,6 +872,19 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
+	case p.IsReasoning():
+		// TODO: go-genai does not support genai.NewPartFromThought()
+		signature := []byte{}
+		if p.Metadata != nil {
+			if sig, ok := p.Metadata["signature"].([]byte); ok {
+				signature = sig
+			}
+		}
+		return &genai.Part{
+			Thought:          true,
+			Text:             p.Text,
+			ThoughtSignature: signature,
+		}, nil
 	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():

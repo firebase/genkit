@@ -64,7 +64,7 @@ async def describe_image_with_gemini(data: str) -> str:
                 ],
             ),
         ],
-        model=googleai_name('gemini-2.5-pro-exp-03-25'),
+        model=googleai_name('gemini-2.5-pro-preview-03-25'),
     )
     return result.text
 

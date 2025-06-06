@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 import { logger } from 'genkit/logging';
-import { auth, CredentialBody, GoogleAuth } from 'google-auth-library';
-import { GcpPrincipal, GcpTelemetryConfig } from './types.js';
+import { GoogleAuth, auth, type CredentialBody } from 'google-auth-library';
+import type { GcpPrincipal, GcpTelemetryConfig } from './types.js';
 
 /**
  * Allows Google Cloud credentials to be to passed in "raw" as an environment
@@ -35,7 +35,7 @@ export async function credentialsFromEnvironment(): Promise<
   Partial<GcpTelemetryConfig>
 > {
   let authClient: GoogleAuth;
-  let options: Partial<GcpTelemetryConfig> = {};
+  const options: Partial<GcpTelemetryConfig> = {};
 
   if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
     logger.debug('Retrieving credentials from GCLOUD_SERVICE_ACCOUNT_CREDS');
@@ -79,7 +79,7 @@ export async function resolveCurrentPrincipal(): Promise<GcpPrincipal> {
 
   // TODO(michaeldoyle): How to look up if the user provided credentials in the
   // plugin config (i.e. GcpTelemetryOptions)
-  let serviceAccountEmail =
+  const serviceAccountEmail =
     envCredentials.credentials?.client_email ?? adcCredentials.client_email;
 
   return {

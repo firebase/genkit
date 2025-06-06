@@ -15,7 +15,7 @@
  */
 
 import { TraceFlags } from '@opentelemetry/api';
-import { ReadableSpan, TimedEvent } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan, TimedEvent } from '@opentelemetry/sdk-trace-base';
 import { resolveCurrentPrincipal } from './auth.js';
 
 /**

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { RuntimeManager } from '@genkit-ai/tools-common/manager';
+import type { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { spawn } from 'child_process';

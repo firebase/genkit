@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { Genkit } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { CommonPluginOptions } from '../common/types.js';
-import { RerankerOptions } from './types.js';
+import type { Genkit } from 'genkit';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import type { CommonPluginOptions } from '../common/types.js';
+import type { RerankerOptions } from './types.js';
 
 import { getDerivedParams } from '../common/index.js';
 

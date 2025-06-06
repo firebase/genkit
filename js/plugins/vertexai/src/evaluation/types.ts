@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { CommonPluginOptions } from '../common/types.js';
+import type { CommonPluginOptions } from '../common/types.js';
 
 export enum VertexAIEvaluationMetricType {
   // Update genkit/docs/plugins/vertex-ai.md when modifying the list of enums

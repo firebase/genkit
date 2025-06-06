@@ -23,8 +23,6 @@ import (
 	"maps"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/action"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -46,13 +44,11 @@ func (t ToolName) Name() string {
 	return (string)(t)
 }
 
-// A ToolDef is an implementation of a single tool.
-type ToolDef[In, Out any] core.ActionDef[In, Out, struct{}]
-
-// tool is genericless version of ToolDef. It's required to make [LookupTool] possible.
+// tool is the internal implementation of the Tool interface.
+// It holds the underlying core action and allows looking up tools
+// by name without knowing their specific input/output types.
 type tool struct {
-	// action is the underlying internal action. It's needed for the descriptor.
-	action action.Action
+	core.Action
 }
 
 // Tool represents an instance of a tool.
@@ -142,30 +138,20 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	return &tool{action: toolAction}
 }
 
-// Name returns the name of the tool.
-func (ta *tool) Name() string {
-	return ta.Definition().Name
+	return &tool{Action: toolAction}
 }
 
 // Name returns the name of the tool.
-func (t *ToolDef[In, Out]) Name() string {
-	return t.Definition().Name
-}
-
-// Definition returns [ToolDefinition] for for this tool.
-func (t *ToolDef[In, Out]) Definition() *ToolDefinition {
-	return definition((*core.ActionDef[In, Out, struct{}])(t).Desc())
+func (t *tool) Name() string {
+	return t.Action.Name()
 }
 
 // Definition returns [ToolDefinition] for for this tool.
 func (t *tool) Definition() *ToolDefinition {
-	return definition(t.action.Desc())
-}
-
-func definition(desc action.Desc) *ToolDefinition {
+	desc := t.Action.Desc()
 	td := &ToolDefinition{
-		Name:        desc.Metadata["name"].(string),
-		Description: desc.Metadata["description"].(string),
+		Name:        desc.Name,
+		Description: desc.Description,
 	}
 	if desc.InputSchema != nil {
 		td.InputSchema = base.SchemaAsMap(desc.InputSchema)
@@ -179,13 +165,7 @@ func definition(desc action.Desc) *ToolDefinition {
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
 func (t *tool) RunRaw(ctx context.Context, input any) (any, error) {
-	return runAction(ctx, t.Definition(), t.action, input)
-}
-
-// RunRaw runs this tool using the provided raw map format data (JSON parsed
-// as map[string]any).
-func (t *ToolDef[In, Out]) RunRaw(ctx context.Context, input any) (any, error) {
-	return runAction(ctx, t.Definition(), (*core.ActionDef[In, Out, struct{}])(t), input)
+	return runAction(ctx, t.Definition(), t.Action, input)
 }
 
 // runAction runs the given action with the provided raw input and returns the output in raw format.
@@ -213,11 +193,11 @@ func LookupTool(r *registry.Registry, name string) Tool {
 		return nil
 	}
 
-	action := r.LookupAction(fmt.Sprintf("/%s/%s", atype.Tool, name))
+	action := r.LookupAction(fmt.Sprintf("/%s/%s", core.ActionTypeTool, name))
 	if action == nil {
 		return nil
 	}
-	return &tool{action: action}
+	return &tool{Action: action.(core.Action)}
 }
 
 // Respond creates a tool response for an interrupted tool call to pass to the [WithToolResponses] option to [Generate].

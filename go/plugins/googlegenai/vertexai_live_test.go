@@ -218,7 +218,7 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
@@ -229,8 +229,8 @@ func TestVertexAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "donkey") {
+			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -266,8 +266,8 @@ func TestVertexAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "donkey") {
+			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
@@ -332,6 +332,70 @@ func TestVertexAILive(t *testing.T) {
 		}
 		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
 			t.Errorf("Empty usage stats %#v", *resp.Usage)
+		}
+	})
+	t.Run("thinking enabled", func(t *testing.T) {
+		if *location != "global" {
+			t.Skip("thinking in Vertex AI is only supported in region: global")
+		}
+
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(
+				googlegenai.GeminiConfig{
+					Temperature: 1,
+					ThinkingConfig: &googlegenai.ThinkingConfig{
+						IncludeThoughts: true,
+						ThinkingBudget:  1024,
+					},
+				},
+			),
+			ai.WithPrompt(`how is a black hole born?`),
+			ai.WithModel(m),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.Reasoning() == "" {
+			t.Error("expected reasoning contents but got empty")
+		}
+		if resp.Text() == "" {
+			t.Error("expecting response output, got empty")
+		}
+		if resp.Usage.ThoughtsTokens == 0 {
+			t.Error("expecting thought token count, got 0")
+		}
+	})
+	t.Run("thinking disabled", func(t *testing.T) {
+		if *location != "global" {
+			t.Skip("thinking in Vertex AI is only supported in region: global")
+		}
+
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(
+				googlegenai.GeminiConfig{
+					Temperature: 1,
+					ThinkingConfig: &googlegenai.ThinkingConfig{
+						IncludeThoughts: false,
+						ThinkingBudget:  0,
+					},
+				},
+			),
+			ai.WithPrompt(`how is a black hole born?`),
+			ai.WithModel(m),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.Reasoning() != "" {
+			t.Error("expected reasoning contents but got content")
+		}
+		if resp.Text() == "" {
+			t.Error("expecting response output, got empty")
+		}
+		if resp.Usage.ThoughtsTokens > 0 {
+			t.Errorf("expecting 0 thought tokens, got %d", resp.Usage.ThoughtsTokens)
 		}
 	})
 }

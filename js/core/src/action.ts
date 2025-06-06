@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { type JSONSchema7 } from 'json-schema';
-import * as z from 'zod';
+import type { JSONSchema7 } from 'json-schema';
+import type * as z from 'zod';
 import { lazy } from './async.js';
-import { ActionContext, getContext, runWithContext } from './context.js';
-import { ActionType, Registry } from './registry.js';
+import { getContext, runWithContext, type ActionContext } from './context.js';
+import type { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
   SPAN_TYPE_ATTR,
@@ -27,7 +27,7 @@ import {
 } from './tracing.js';
 
 export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
-export { JSONSchema7 };
+export type { JSONSchema7 };
 
 /**
  * Action metadata.

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {
+import type {
   ContentBlock as AnthropicContent,
   ImageBlockParam,
   Message,
@@ -31,20 +31,20 @@ import {
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
   GENKIT_CLIENT_HEADER,
-  GenerateRequest,
-  Genkit,
-  Part as GenkitPart,
-  MessageData,
-  ModelReference,
-  ModelResponseData,
-  Part,
   z,
+  type GenerateRequest,
+  type Genkit,
+  type Part as GenkitPart,
+  type MessageData,
+  type ModelReference,
+  type ModelResponseData,
+  type Part,
 } from 'genkit';
 import {
   GenerationCommonConfigSchema,
-  ModelAction,
   getBasicUsageStats,
   modelRef,
+  type ModelAction,
 } from 'genkit/model';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({

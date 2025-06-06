@@ -22,30 +22,33 @@
 
 import {
   embedderRef,
-  EmbedderReference,
-  Genkit,
   modelActionMetadata,
   modelRef,
-  ModelReference,
-  z,
+  type EmbedderReference,
+  type Genkit,
+  type ModelReference,
+  type z,
 } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { ActionType } from 'genkit/registry';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import type { ActionType } from 'genkit/registry';
 import { getDerivedParams } from './common/index.js';
-import { PluginOptions } from './common/types.js';
+import type { PluginOptions } from './common/types.js';
 import {
+  SUPPORTED_EMBEDDER_MODELS,
+  VertexEmbeddingConfigSchema,
   defineVertexAIEmbedder,
   multimodalEmbedding001,
-  SUPPORTED_EMBEDDER_MODELS,
   textEmbedding004,
   textEmbedding005,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-  VertexEmbeddingConfig,
-  VertexEmbeddingConfigSchema,
+  type VertexEmbeddingConfig,
 } from './embedder.js';
 import {
+  GeminiConfigSchema,
+  SUPPORTED_GEMINI_MODELS,
+  SafetySettingsSchema,
   defineGeminiKnownModel,
   defineGeminiModel,
   gemini,
@@ -60,25 +63,25 @@ import {
   gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
-  GeminiConfigSchema,
-  SafetySettingsSchema,
-  SUPPORTED_GEMINI_MODELS,
   type GeminiConfig,
   type GeminiVersionString,
 } from './gemini.js';
 import {
-  ACTUAL_IMAGEN_MODELS,
-  defineImagenModel,
   GENERIC_IMAGEN_INFO,
+  ImagenConfigSchema,
+  SUPPORTED_IMAGEN_MODELS,
+  defineImagenModel,
   imagen2,
   imagen3,
   imagen3Fast,
-  ImagenConfigSchema,
-  SUPPORTED_IMAGEN_MODELS,
+  type ACTUAL_IMAGEN_MODELS,
 } from './imagen.js';
 import { listModels } from './list-models.js';
-export { type PluginOptions } from './common/types.js';
+export type { PluginOptions } from './common/types.js';
 export {
+  GeminiConfigSchema,
+  ImagenConfigSchema,
+  SafetySettingsSchema,
   gemini,
   gemini10Pro,
   gemini15Flash,
@@ -91,13 +94,10 @@ export {
   gemini25FlashPreview0417,
   gemini25ProExp0325,
   gemini25ProPreview0325,
-  GeminiConfigSchema,
   imagen2,
   imagen3,
   imagen3Fast,
-  ImagenConfigSchema,
   multimodalEmbedding001,
-  SafetySettingsSchema,
   textEmbedding004,
   textEmbedding005,
   textEmbeddingGecko003,

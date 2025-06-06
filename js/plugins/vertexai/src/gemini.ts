@@ -15,46 +15,47 @@
  */
 
 import {
-  Content,
   FunctionCallingMode,
-  FunctionDeclaration,
   FunctionDeclarationSchemaType,
-  Part as GeminiPart,
-  GenerateContentCandidate,
-  GenerateContentResponse,
-  GenerativeModelPreview,
-  HarmBlockThreshold,
-  HarmCategory,
-  SafetySetting,
-  Schema,
-  StartChatParams,
-  ToolConfig,
-  VertexAI,
+  type Content,
+  type FunctionDeclaration,
+  type Part as GeminiPart,
+  type GenerateContentCandidate,
+  type GenerateContentResponse,
+  type GenerativeModelPreview,
   type GoogleSearchRetrieval,
+  type GoogleSearchRetrievalTool,
+  type HarmBlockThreshold,
+  type HarmCategory,
+  type SafetySetting,
+  type Schema,
+  type StartChatParams,
+  type ToolConfig,
+  type VertexAI,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
 import {
   GENKIT_CLIENT_HEADER,
-  Genkit,
   GenkitError,
-  JSONSchema,
   z,
+  type Genkit,
+  type JSONSchema,
 } from 'genkit';
 import {
-  CandidateData,
-  GenerateRequest,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
-  MediaPart,
-  MessageData,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
-  ModelReference,
-  Part,
-  ToolDefinitionSchema,
   getBasicUsageStats,
   modelRef,
+  type CandidateData,
+  type GenerateRequest,
+  type MediaPart,
+  type MessageData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelReference,
+  type Part,
+  type ToolDefinitionSchema,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -63,7 +64,7 @@ import {
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 
-import { PluginOptions } from './common/types.js';
+import type { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
 
@@ -704,7 +705,7 @@ export function toGeminiMessage(
       if (!aRef && !bRef) return 0;
       if (!aRef) return 1;
       if (!bRef) return -1;
-      return parseInt(aRef, 10) - parseInt(bRef, 10);
+      return Number.parseInt(aRef, 10) - Number.parseInt(bRef, 10);
     });
   }
   return {
@@ -731,17 +732,13 @@ function fromGeminiFinishReason(
 }
 
 function toGeminiPart(part: Part): GeminiPart {
-  if (part.text) {
-    return { text: part.text };
-  } else if (part.media) {
-    return toGeminiFileDataPart(part);
-  } else if (part.toolRequest) {
-    return toGeminiToolRequestPart(part);
-  } else if (part.toolResponse) {
-    return toGeminiToolResponsePart(part);
-  } else {
-    throw new Error('unsupported type');
-  }
+  if (part.text) return { text: part.text };
+  if (part.media) return toGeminiFileDataPart(part);
+  if (part.toolRequest) return toGeminiToolRequestPart(part);
+  if (part.toolResponse) return toGeminiToolResponsePart(part);
+  if (typeof part.reasoning === 'string') return toGeminiThought(part);
+
+  throw new Error(`Unsupported Gemini part type: ${JSON.stringify(part)}`);
 }
 
 function fromGeminiInlineDataPart(part: GeminiPart): MediaPart {
@@ -762,6 +759,14 @@ function fromGeminiInlineDataPart(part: GeminiPart): MediaPart {
       contentType: mimeType,
     },
   };
+}
+
+function toGeminiThought(part: Part) {
+  const outPart: any = { thought: true };
+  if (part.metadata?.thoughtSignature)
+    outPart.thoughtSignature = part.metadata.thoughtSignature;
+  if (part.reasoning?.length) outPart.text = part.reasoning;
+  return outPart;
 }
 
 function fromGeminiFileDataPart(part: GeminiPart): MediaPart {
@@ -819,7 +824,8 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref?: string
 ): Part {
-  if (part.text !== undefined) return { text: part.text };
+  if ('thought' in part) return fromGeminiThought(part as any);
+  if (typeof part.text === 'string') return { text: part.text };
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
   if (part.functionCall) return fromGeminiFunctionCallPart(part, ref);
@@ -852,6 +858,18 @@ export function fromGeminiCandidate(
   };
   return genkitCandidate;
 }
+
+function fromGeminiThought(part: {
+  thought: boolean;
+  text?: string;
+  thoughtSignature?: string;
+}): Part {
+  return {
+    reasoning: part.text || '',
+    metadata: { thoughtSignature: (part as any).thoughtSignature },
+  };
+}
+
 // Translate JSON schema to Vertex AI's format. Specifically, the type field needs be mapped.
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.
@@ -1042,6 +1060,7 @@ export function defineGeminiModel({
         functionCallingConfig,
         version: versionFromConfig,
         googleSearchRetrieval,
+        tools: toolsFromConfig,
         vertexRetrieval,
         location, // location can be overridden via config, take it out.
         safetySettings,
@@ -1073,7 +1092,7 @@ export function defineGeminiModel({
         (request.output?.format === 'json' || !!request.output?.schema) &&
         tools.length === 0;
 
-      let chatRequest: StartChatParams = {
+      const chatRequest: StartChatParams = {
         systemInstruction,
         tools,
         toolConfig,
@@ -1116,20 +1135,35 @@ export function defineGeminiModel({
         );
       }
 
+      if (toolsFromConfig) {
+        if (!updatedChatRequest.tools) updatedChatRequest.tools = [];
+        updatedChatRequest.tools.push(...(toolsFromConfig as any[]));
+      }
+
       if (googleSearchRetrieval) {
-        updatedChatRequest.tools?.push({
-          googleSearchRetrieval: googleSearchRetrieval as GoogleSearchRetrieval,
-        });
+        if (!updatedChatRequest.tools) updatedChatRequest.tools = [];
+        // Gemini 1.5 models use googleSearchRetrieval, newer models use googleSearch.
+        if (modelName.startsWith('vertexai/gemini-1.5')) {
+          updatedChatRequest.tools.push({
+            googleSearchRetrieval:
+              googleSearchRetrieval as GoogleSearchRetrieval,
+          } as GoogleSearchRetrievalTool);
+        } else {
+          updatedChatRequest.tools.push({
+            googleSearch: googleSearchRetrieval as GoogleSearchRetrieval,
+          } as GoogleSearchRetrievalTool);
+        }
       }
 
       if (vertexRetrieval) {
+        if (!updatedChatRequest.tools) updatedChatRequest.tools = [];
         const _projectId =
           vertexRetrieval.datastore.projectId || options.projectId;
         const _location =
           vertexRetrieval.datastore.location || options.location;
         const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
         const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
-        updatedChatRequest.tools?.push({
+        updatedChatRequest.tools.push({
           retrieval: {
             vertexAiSearch: {
               datastore,

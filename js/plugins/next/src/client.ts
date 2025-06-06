@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, z } from 'genkit';
+import type { Action, z } from 'genkit';
 import {
   runFlow as baseRunFlow,
   streamFlow as baseStreamFlow,

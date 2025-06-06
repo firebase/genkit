@@ -15,7 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
-import { Embedding } from './embedder';
+import type { Embedding } from './embedder';
 
 const EmptyPartSchema = z.object({
   text: z.never().optional(),
@@ -25,6 +25,7 @@ const EmptyPartSchema = z.object({
   data: z.unknown().optional(),
   metadata: z.record(z.unknown()).optional(),
   custom: z.record(z.unknown()).optional(),
+  reasoning: z.never().optional(),
 });
 
 /**
@@ -33,6 +34,14 @@ const EmptyPartSchema = z.object({
 export const TextPartSchema = EmptyPartSchema.extend({
   /** The text of the message. */
   text: z.string(),
+});
+
+/**
+ * Zod schema for a reasoning part.
+ */
+export const ReasoningPartSchema = EmptyPartSchema.extend({
+  /** The reasoning text of the message. */
+  reasoning: z.string(),
 });
 
 /**
@@ -267,9 +276,9 @@ export class Document implements DocumentData {
    * @returns an array of documents based on this document and the embeddings.
    */
   getEmbeddingDocuments(embeddings: Embedding[]): Document[] {
-    let documents: Document[] = [];
+    const documents: Document[] = [];
     for (const embedding of embeddings) {
-      let jsonDoc = this.toJSON();
+      const jsonDoc = this.toJSON();
       if (embedding.metadata) {
         if (!jsonDoc.metadata) {
           jsonDoc.metadata = {};
