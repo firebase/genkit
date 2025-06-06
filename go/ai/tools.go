@@ -162,9 +162,9 @@ func DefineToolWithInputSchema[Out any](r *registry.Registry, name, description 
 		return fn(toolCtx, input)
 	}
 
-	toolAction := core.DefineActionWithInputSchema(r, "", name, atype.Tool, metadata, inputSchema, wrappedFn)
+	toolAction := core.DefineActionWithInputSchema(r, "", name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
 
-	return &tool{action: toolAction}
+	return &tool{Action: toolAction}
 }
 
 // Name returns the name of the tool.
