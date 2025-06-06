@@ -17,14 +17,16 @@
 """OpenAI Compatible Models for Genkit."""
 
 from collections.abc import Callable
+from typing import Any
 
 from openai import OpenAI, pydantic_function_tool
 from openai.lib._pydantic import _ensure_strict_json_schema
 
 from genkit.ai import ActionKind, GenkitRegistry
+from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.models.utils import DictMessageAdapter, MessageAdapter, MessageConverter
-from genkit.plugins.compat_oai.typing import SupportedOutputFormat
+from genkit.plugins.compat_oai.typing import OpenAIConfig, SupportedOutputFormat
 from genkit.types import (
     GenerateRequest,
     GenerateResponse,
@@ -144,7 +146,7 @@ class OpenAIModel:
             openai_config.update(**request.config.model_dump(exclude_none=True))
         return openai_config
 
-    def generate(self, request: GenerateRequest) -> GenerateResponse:
+    def _generate(self, request: GenerateRequest) -> GenerateResponse:
         """Processes the request using OpenAI's chat completion API and returns the generated response.
 
         Args:
@@ -160,7 +162,7 @@ class OpenAIModel:
             message=MessageConverter.to_genkit(response.choices[0].message),
         )
 
-    def generate_stream(self, request: GenerateRequest, callback: Callable) -> GenerateResponse:
+    def _generate_stream(self, request: GenerateRequest, callback: Callable) -> GenerateResponse:
         """Streams responses from the OpenAI client and sends chunks to a callback.
 
         Args:
@@ -214,3 +216,31 @@ class OpenAIModel:
             request=request,
             message=Message(role=Role.MODEL, content=accumulated_content),
         )
+
+    def generate(self, request: GenerateRequest, ctx: ActionRunContext) -> GenerateResponse:
+        """Processes the request using OpenAI's chat completion API.
+
+        Args:
+            request: The request containing messages and configurations.
+            ctx: The context of the action run.
+
+        Returns:
+            A GenerateResponse containing the model's response.
+        """
+        request.config = self.normalize_config(request.config)
+
+        if ctx.is_streaming:
+            return self._generate_stream(request, ctx.send_chunk)
+        else:
+            return self._generate(request)
+
+    @staticmethod
+    def normalize_config(config: Any) -> OpenAIConfig:
+        """Ensures the config is an OpenAIConfig instance."""
+        if isinstance(config, OpenAIConfig):
+            return config
+
+        if isinstance(config, dict):
+            return OpenAIConfig(**config)
+
+        raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')

@@ -22,14 +22,14 @@ import os
 import structlog
 from google.cloud import aiplatform, aiplatform_v1, bigquery
 
-from genkit import types
 from genkit.ai import Genkit
 from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai import (
+from genkit.plugins.vertex_ai.vector_search import (
+    BigQueryRetriever,
     VertexAIVectorSearch,
     vertexai_name,
 )
-from genkit.plugins.vertex_ai.models.retriever import BigQueryRetriever
+from genkit.types import Document, TextPart
 
 # Environment Variables
 LOCATION = os.getenv('LOCATION')
@@ -103,7 +103,7 @@ async def generate_embeddings():
         table_id=BIGQUERY_TABLE_NAME,
     )
 
-    genkit_documents = [types.Document(content=[types.TextPart(text=text)]) for text in results_dict.values()]
+    genkit_documents = [Document(content=[TextPart(text=text)]) for text in results_dict.values()]
 
     embed_response = await ai.embed(
         embedder=vertexai_name(EMBEDDING_MODEL),
