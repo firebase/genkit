@@ -143,13 +143,6 @@ func (r *Registry) ListPlugins() []any {
 	return plugins
 }
 
-// LookupPluginByName returns a registered plugin by name
-func (r *Registry) LookupPluginByName(name string) any {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.plugins[name]
-}
-
 func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 	r.tstate.RegisterSpanProcessor(sp)
 }

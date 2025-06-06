@@ -282,7 +282,7 @@ func resolveAction(g *Genkit, key string, input json.RawMessage) (core.Action, e
 		if !found {
 			return nil, core.NewError(core.INVALID_ARGUMENT, "unable to get provider from %q", modelName)
 		}
-		plugin := g.reg.LookupPluginByName(provider)
+		plugin := g.reg.LookupPlugin(provider)
 		if plugin == nil {
 			return nil, core.NewError(core.NOT_FOUND, "plugin for provider %q not found", provider)
 		}
