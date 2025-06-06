@@ -435,16 +435,34 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25ProPreviewTts = modelRef({
+  name: 'googleai/gemini-2.5-pro-preview-tts',
+  info: {
+    label: 'Google AI - Gemini 2.5 Pro Preview TTS',
+    versions: [],
+    supports: {
+      multiturn: false,
+      media: false,
+      tools: false,
+      toolChoice: false,
+      systemRole: false,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiTtsConfigSchema,
+});
+
 export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
+  'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
   'gemini-2.0-flash': gemini20Flash,
   'gemini-2.0-flash-lite': gemini20FlashLite,
-  'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
   'gemini-2.0-flash-exp': gemini20FlashExp,
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
+  'gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
   'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
 };
