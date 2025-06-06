@@ -55,14 +55,16 @@ type Tool interface {
 	Definition() *ToolDefinition
 	// RunRaw runs this tool using the provided raw input.
 	RunRaw(ctx context.Context, input any) (any, error)
+	// Register sets the tracing state on the action and registers it with the registry.
+	Register(r *registry.Registry)
 }
 
-// ToolInterruptError represents an intentional interruption of tool execution.
-type ToolInterruptError struct {
+// toolInterruptError represents an intentional interruption of tool execution.
+type toolInterruptError struct {
 	Metadata map[string]any
 }
 
-func (e *ToolInterruptError) Error() string {
+func (e *toolInterruptError) Error() string {
 	return "tool execution interrupted"
 }
 
@@ -80,22 +82,35 @@ type ToolContext struct {
 	Interrupt func(opts *InterruptOptions) error
 }
 
-// DefineTool defines a tool function with interrupt capability
-func DefineTool[In, Out any](
-	r *registry.Registry,
-	name, description string,
-	fn func(ctx *ToolContext, input In) (Out, error),
-) Tool {
-	metadata := make(map[string]any)
-	metadata["type"] = "tool"
-	metadata["name"] = name
-	metadata["description"] = description
+// DefineTool defines a tool.
+func DefineTool[In, Out any](r *registry.Registry, name, description string,
+	fn func(ctx *ToolContext, input In) (Out, error)) Tool {
+	metadata, wrappedFn := implementTool(name, description, fn)
+	toolAction := core.DefineAction(r, "", name, core.ActionTypeTool, metadata, wrappedFn)
+	return &tool{Action: toolAction}
+}
 
+// NewTool creates a tool but does not register it in the registry. It can be passed directly to [Generate].
+func NewTool[In, Out any](name, description string,
+	fn func(ctx *ToolContext, input In) (Out, error)) Tool {
+	metadata, wrappedFn := implementTool(name, description, fn)
+	metadata["dynamic"] = true
+	toolAction := core.NewAction("", name, core.ActionTypeTool, metadata, wrappedFn)
+	return &tool{Action: toolAction}
+}
+
+// implementTool creates the metadata and wrapped function common to both DefineTool and NewTool.
+func implementTool[In, Out any](name, description string, fn func(ctx *ToolContext, input In) (Out, error)) (map[string]any, func(context.Context, In) (Out, error)) {
+	metadata := map[string]any{
+		"type":        core.ActionTypeTool,
+		"name":        name,
+		"description": description,
+	}
 	wrappedFn := func(ctx context.Context, input In) (Out, error) {
 		toolCtx := &ToolContext{
 			Context: ctx,
 			Interrupt: func(opts *InterruptOptions) error {
-				return &ToolInterruptError{
+				return &toolInterruptError{
 					Metadata: opts.Metadata,
 				}
 			},
@@ -103,9 +118,7 @@ func DefineTool[In, Out any](
 		return fn(toolCtx, input)
 	}
 
-	toolAction := core.DefineAction(r, "", name, core.ActionTypeTool, metadata, wrappedFn)
-
-	return &tool{Action: toolAction}
+	return metadata, wrappedFn
 }
 
 // Name returns the name of the tool.
@@ -133,6 +146,12 @@ func (t *tool) Definition() *ToolDefinition {
 // as map[string]any).
 func (t *tool) RunRaw(ctx context.Context, input any) (any, error) {
 	return runAction(ctx, t.Definition(), t.Action, input)
+}
+
+// Register sets the tracing state on the action and registers it with the registry.
+func (t *tool) Register(r *registry.Registry) {
+	t.Action.SetTracingState(r.TracingState())
+	r.RegisterAction(fmt.Sprintf("/%s/%s", core.ActionTypeTool, t.Action.Name()), t.Action)
 }
 
 // runAction runs the given action with the provided raw input and returns the output in raw format.

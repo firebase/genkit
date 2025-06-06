@@ -330,9 +330,29 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		modelName = genOpts.ModelName
 	}
 
+	var dynamicTools []Tool
 	tools := make([]string, len(genOpts.Tools))
-	for i, tool := range genOpts.Tools {
-		tools[i] = tool.Name()
+	toolNames := make(map[string]bool)
+	for i, toolRef := range genOpts.Tools {
+		name := toolRef.Name()
+		// Redundant duplicate tool check with GenerateWithRequest otherwise we will panic when we register the dynamic tools.
+		if toolNames[name] {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: duplicate tool %q", name)
+		}
+		toolNames[name] = true
+		tools[i] = name
+		// Dynamic tools wouldn't have been registered by this point.
+		if LookupTool(r, name) == nil {
+			if tool, ok := toolRef.(Tool); ok {
+				dynamicTools = append(dynamicTools, tool)
+			}
+		}
+	}
+	if len(dynamicTools) > 0 {
+		r = r.NewChild()
+		for _, tool := range dynamicTools {
+			tool.Register(r)
+		}
 	}
 
 	messages := []*Message{}
@@ -527,7 +547,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 			output, err := tool.RunRaw(ctx, toolReq.Input)
 			if err != nil {
-				var interruptErr *ToolInterruptError
+				var interruptErr *toolInterruptError
 				if errors.As(err, &interruptErr) {
 					logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", toolReq.Name, interruptErr.Metadata)
 					revisedMessage.Content[idx] = &Part{
@@ -559,7 +579,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	for range toolCount {
 		result := <-resultChan
 		if result.err != nil {
-			var interruptErr *ToolInterruptError
+			var interruptErr *toolInterruptError
 			if errors.As(result.err, &interruptErr) {
 				hasInterrupts = true
 				continue
