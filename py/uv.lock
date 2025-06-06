@@ -2191,9 +2191,9 @@ wheels = [
 name = "jsonata-python"
 version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ab/d1/9455e5ef09044a550500b32ff276a30f44928ab84b2db9ef13352bffd154/jsonata_python-0.5.3.tar.gz", hash = "sha256:c83f45127f8dc45e5ca5f20fd8b8635f094ef6bbb2d203a75bdde11ffece61e2", size = 338742 }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/d1/9455e5ef09044a550500b32ff276a30f44928ab84b2db9ef13352bffd154/jsonata_python-0.5.3.tar.gz", hash = "sha256:c83f45127f8dc45e5ca5f20fd8b8635f094ef6bbb2d203a75bdde11ffece61e2", size = 338742, upload-time = "2025-03-16T00:35:03.076Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/70/e7e92230b832e8b4ee2ee1ed0725be39991ef10bd0983e753226115a3bcb/jsonata_python-0.5.3-py3-none-any.whl", hash = "sha256:e7bd58020441fec198858fd1bc22bb9837a5ce281c41899f79750519fa6cef9f", size = 83045 },
+    { url = "https://files.pythonhosted.org/packages/24/70/e7e92230b832e8b4ee2ee1ed0725be39991ef10bd0983e753226115a3bcb/jsonata_python-0.5.3-py3-none-any.whl", hash = "sha256:e7bd58020441fec198858fd1bc22bb9837a5ce281c41899f79750519fa6cef9f", size = 83045, upload-time = "2025-03-16T00:35:01.437Z" },
 ]
 
 [[package]]

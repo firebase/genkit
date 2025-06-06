@@ -317,24 +317,26 @@ class GenerateTelemetry implements Telemetry {
     };
     const message = output.message || output.candidates?.[0]?.message!;
 
-    const parts = message.content.length;
-    message.content.forEach((part, partIdx) => {
-      const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
-      const initial = output.finishMessage
-        ? { finishMessage: truncate(output.finishMessage) }
-        : {};
-      logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
-        ...initial,
-        ...sharedMetadata,
-        content: this.toPartLogContent(part),
-        partIndex: partIdx,
-        totalParts: parts,
-        candidateIndex: 0,
-        totalCandidates: 1,
-        messageIndex: 0,
-        finishReason: output.finishReason,
+    if (message && message.content) {
+      const parts = message.content.length;
+      message.content.forEach((part, partIdx) => {
+        const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
+        const initial = output.finishMessage
+          ? { finishMessage: truncate(output.finishMessage) }
+          : {};
+        logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
+          ...initial,
+          ...sharedMetadata,
+          content: this.toPartLogContent(part),
+          partIndex: partIdx,
+          totalParts: parts,
+          candidateIndex: 0,
+          totalCandidates: 1,
+          messageIndex: 0,
+          finishReason: output.finishReason,
+        });
       });
-    });
+    }
   }
 
   private toPartCounts(

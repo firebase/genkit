@@ -1100,3 +1100,31 @@ ai.defineFlow('googleSearchRetrieval', async (thing) => {
 
   return text;
 });
+
+ai.defineFlow('googleai-imagen', async (thing) => {
+  const { message } = await ai.generate({
+    model: googleAI.model('imagen-3.0-generate-002'),
+    prompt:
+      thing ??
+      `Dark but cozy room. A programmer happily programming an AI library.`,
+    config: { numberOfImages: 4, aspectRatio: '16:9' },
+  });
+
+  return message;
+});
+
+ai.defineFlow('googleai-veo', async (thing) => {
+  let operation = await ai.generateOperation({
+    model: googleAI.model('veo-2.0-generate-001'),
+    prompt:
+      thing ??
+      `Dark but cozy room. A programmer happily programming an AI library.`,
+  });
+
+  while (!operation?.done) {
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  return operation;
+});
