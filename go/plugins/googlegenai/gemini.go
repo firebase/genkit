@@ -826,6 +826,9 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		if partFound > 1 {
 			panic(fmt.Sprintf("expected only 1 content part in response, got %d, part: %#v", partFound, part))
 		}
+		if p == nil {
+			continue
+		}
 
 		msg.Content = append(msg.Content, p)
 	}
