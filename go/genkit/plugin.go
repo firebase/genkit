@@ -40,7 +40,7 @@ type Plugin interface {
 type DynamicPlugin interface {
 	Plugin
 	// ListActions returns a list of action descriptors that the plugin is capable of resolving to [core.Action]s.
-	ListActions() []core.ActionDesc
+	ListActions(ctx context.Context) []core.ActionDesc
 	// ResolveAction resolves an action type and name by defining and registering it in the registry.
 	ResolveAction(g *Genkit, atype core.ActionType, name string) error
 }

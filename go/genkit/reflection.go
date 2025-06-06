@@ -34,7 +34,6 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -256,6 +255,85 @@ func wrapReflectionHandler(h func(w http.ResponseWriter, r *http.Request) error)
 	}
 }
 
+// resolveAction tries to resolve any type of action and the dependant actions of it
+func resolveAction(g *Genkit, key string, input json.RawMessage) (core.Action, error) {
+	var atype, provider, name string
+
+	trimmedKey := strings.TrimPrefix(key, "/")
+	found := strings.HasPrefix(trimmedKey, string(core.ActionTypeUtil))
+
+	// special case when the action "util/generate" gets called with a model that has not been defined
+	if found && strings.Contains(key, "generate") {
+		var inputMap map[string]any
+		err := json.Unmarshal(input, &inputMap)
+		if err != nil {
+			return nil, core.NewError(core.INTERNAL, err.Error())
+		}
+		modelName, ok := inputMap["model"].(string)
+		if !ok {
+			if k, ok := inputMap["key"].(string); ok {
+				modelName, found = strings.CutPrefix(k, "model/")
+				if !found {
+					return nil, core.NewError(core.INVALID_ARGUMENT, "unable to get model name for action %q", inputMap["key"])
+				}
+			}
+		}
+		provider, name, found = strings.Cut(modelName, "/")
+		if !found {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "unable to get provider from %q", modelName)
+		}
+		plugin := g.reg.LookupPlugin(provider)
+		if plugin == nil {
+			return nil, core.NewError(core.NOT_FOUND, "plugin for provider %q not found", provider)
+		}
+		dp, ok := plugin.(DynamicPlugin)
+		if ok {
+			if a := g.reg.LookupAction(fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, provider, name)); a != nil {
+				return g.reg.LookupAction(key).(core.Action), nil
+			}
+			err = dp.ResolveAction(g, core.ActionTypeModel, name)
+			if err != nil {
+				return nil, core.NewError(core.INTERNAL, err.Error())
+			}
+		}
+
+		action := g.reg.LookupAction(key).(core.Action)
+		return action, nil
+	}
+
+	parts := strings.Split(trimmedKey, "/")
+	if len(parts) == 3 {
+		atype = parts[0]
+		provider = parts[1]
+		name = parts[2]
+
+		for _, plugin := range g.reg.ListPlugins() {
+			dp, ok := plugin.(DynamicPlugin)
+			if !ok {
+				continue
+			}
+			if dp.Name() != provider {
+				continue
+			}
+			if a := g.reg.LookupAction(fmt.Sprintf("/%s/%s/%s", atype, provider, name)); a != nil {
+				return a.(core.Action), nil
+			}
+			err := dp.ResolveAction(g, core.ActionTypeModel, name)
+			if err != nil {
+				return nil, core.NewError(core.INTERNAL, err.Error())
+			}
+			action := g.reg.LookupAction(key).(core.Action)
+			return action, nil
+		}
+	}
+
+	action := g.reg.LookupAction(key)
+	if action == nil {
+		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
+	}
+	return action.(core.Action), nil
+}
+
 // handleRunAction looks up an action by name in the registry, runs it with the
 // provided JSON input, and writes back the JSON-marshaled request.
 func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
@@ -302,7 +380,7 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		resp, err := runAction(ctx, g.reg, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
+		resp, err := runAction(ctx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 		if err != nil {
 			if stream {
 				reflectErr, err := json.Marshal(core.ToReflectionError(err))
@@ -359,7 +437,7 @@ func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error 
 // The list is sorted by action name and contains unique action names.
 func handleListActions(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ads := listResolvableActions(g)
+		ads := listResolvableActions(r.Context(), g)
 		descMap := map[string]core.ActionDesc{}
 		for _, d := range ads {
 			descMap[d.Key] = d
@@ -390,7 +468,7 @@ func listActions(g *Genkit) []core.ActionDesc {
 }
 
 // listResolvableActions lists all the registered and resolvable actions.
-func listResolvableActions(g *Genkit) []core.ActionDesc {
+func listResolvableActions(ctx context.Context, g *Genkit) []core.ActionDesc {
 	ads := listActions(g)
 	keys := make(map[string]struct{})
 
@@ -402,7 +480,7 @@ func listResolvableActions(g *Genkit) []core.ActionDesc {
 			continue
 		}
 
-		for _, desc := range dp.ListActions() {
+		for _, desc := range dp.ListActions(ctx) {
 			if _, exists := keys[desc.Name]; !exists {
 				ads = append(ads, desc)
 				keys[desc.Name] = struct{}{}
@@ -428,17 +506,17 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
-	action, ok := reg.LookupAction(key).(core.Action)
-	if !ok {
-		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
+func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
+	action, err := resolveAction(g, key, input)
+	if err != nil {
+		return nil, err
 	}
 	if runtimeContext != nil {
 		ctx = core.WithActionContext(ctx, runtimeContext)
 	}
 
 	var traceID string
-	output, err := tracing.RunInNewSpan(ctx, reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+	output, err := tracing.RunInNewSpan(ctx, g.reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		// Set telemetry labels from payload to span
 		if telemetryLabels != nil {
@@ -452,7 +530,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 			}
 		}
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
-		return action.(core.Action).RunJSON(ctx, input, cb)
+		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
 		return nil, err

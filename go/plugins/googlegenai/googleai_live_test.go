@@ -56,7 +56,7 @@ func TestGoogleAILive(t *testing.T) {
 	ctx := context.Background()
 
 	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
+		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
 	)
 	if err != nil {
@@ -68,7 +68,7 @@ func TestGoogleAILive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken, carefuly inspect the user input to determine which value from the prompt corresponds to the input structure",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
 			Over  float64
@@ -154,7 +154,7 @@ func TestGoogleAILive(t *testing.T) {
 
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
@@ -223,7 +223,7 @@ func TestGoogleAILive(t *testing.T) {
 	})
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3.5?"),
 			ai.WithTools(gablorkenTool),
 			ai.WithToolChoice(ai.ToolChoiceNone),
 		)
@@ -253,7 +253,7 @@ func TestGoogleAILive(t *testing.T) {
 			),
 			ai.WithPrompt("write a summary of the content"),
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
+				Version: "gemini-2.0-flash-001",
 			}))
 		if err != nil {
 			t.Fatal(err)
@@ -277,7 +277,7 @@ func TestGoogleAILive(t *testing.T) {
 
 		resp, err = genkit.Generate(ctx, g,
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
+				Version: "gemini-2.0-flash-001",
 			}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
