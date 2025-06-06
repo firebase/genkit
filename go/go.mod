@@ -13,12 +13,11 @@ require (
 	firebase.google.com/go/v4 v4.15.2
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
-	github.com/anthropics/anthropic-sdk-go v0.2.0-beta.3
+	github.com/anthropics/anthropic-sdk-go v1.4.0
 	github.com/blues/jsonata-go v1.5.4
 	github.com/goccy/go-yaml v1.17.1
 	github.com/google/dotprompt/go v0.0.0-20250424065700-61c578cf43ac
 	github.com/google/go-cmp v0.7.0
-	github.com/google/martian/v3 v3.3.3
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jba/slog v0.2.0
