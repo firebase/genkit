@@ -316,7 +316,7 @@ func resolveAction(g *Genkit, key string, input json.RawMessage) (core.Action, e
 				continue
 			}
 			if a := g.reg.LookupAction(fmt.Sprintf("/%s/%s/%s", atype, provider, name)); a != nil {
-				return g.reg.LookupAction(key).(core.Action), nil
+				return a.(core.Action), nil
 			}
 			err := dp.ResolveAction(g, core.ActionTypeModel, name)
 			if err != nil {
