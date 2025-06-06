@@ -57,7 +57,7 @@ class ModelGarden:
         model: str,
         location: str,
         project_id: str,
-        registry: GenkitRegistry,
+        registry: GenkitRegistry | None,
     ) -> None:
         """Initializes the ModelGarden instance.
 
