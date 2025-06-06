@@ -45,8 +45,19 @@ class VertexAIModelGarden(Plugin):
         project_id: str | None = None,
         location: str | None = None,
         models: list[str] | None = None,
-    ):
-        """Initialize the plugin by registering actions with the registry."""
+    ) -> None:
+        """Initializes the plugin and sets up its configuration.
+
+        This constructor prepares the plugin by assigning the Google Cloud project ID,
+        location, and a list of models to be used.
+
+        Args:
+            project_id: The Google Cloud project ID to use. If not provided, it attempts
+                to load from the `GCLOUD_PROJECT` environment variable.
+            location: The Google Cloud region to use for services. If not provided,
+                it defaults to `DEFAULT_REGION`.
+            models: An optional list of model names to register with the plugin.
+        """
         self.project_id = project_id if project_id is not None else os.getenv(const.GCLOUD_PROJECT)
         self.location = location if location is not None else const.DEFAULT_REGION
         self.models = models
