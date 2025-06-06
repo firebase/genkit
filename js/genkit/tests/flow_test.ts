@@ -23,7 +23,9 @@ describe('flow', () => {
   let ai: Genkit;
 
   beforeEach(() => {
-    ai = genkit({});
+    ai = genkit({
+      context: { something: 'extra' },
+    });
   });
 
   it('calls simple flow', async () => {
@@ -77,5 +79,16 @@ describe('flow', () => {
 
     // a "streaming" flow can be invoked in non-streaming mode.
     assert.strictEqual(await streamingBananaFlow('banana2'), 'banana2');
+  });
+
+  it('pass thought the context', async () => {
+    const bananaFlow = ai.defineFlow('banana', (_, { context }) =>
+      JSON.stringify(context)
+    );
+
+    assert.strictEqual(
+      await bananaFlow(undefined, { context: { foo: 'bar' } }),
+      '{"something":"extra","foo":"bar"}'
+    );
   });
 });

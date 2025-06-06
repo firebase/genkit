@@ -22,6 +22,7 @@ import {
   type Action,
   type ActionMetadata,
 } from './action.js';
+import { ActionContext } from './context.js';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
 import type { PluginProvider } from './plugin.js';
@@ -118,6 +119,8 @@ export class Registry {
   readonly asyncStore: AsyncStore;
   readonly dotprompt: Dotprompt;
   readonly parent?: Registry;
+  /** Additional runtime context data for flows and tools. */
+  context?: ActionContext;
 
   constructor(parent?: Registry) {
     if (parent) {

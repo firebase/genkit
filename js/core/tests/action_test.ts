@@ -118,6 +118,48 @@ describe('action', () => {
     assert.deepStrictEqual(chunks, [1, 2, 3]);
   });
 
+  it('run the action with context plus registry global context', async () => {
+    let passedContext;
+    const act = action(
+      registry,
+      {
+        name: 'foo',
+        inputSchema: z.string(),
+        outputSchema: z.number(),
+        actionType: 'util',
+      },
+      async (input, { sendChunk, context }) => {
+        passedContext = context;
+        sendChunk(1);
+        sendChunk(2);
+        sendChunk(3);
+        return input.length;
+      }
+    );
+
+    registry.context = { bar: 'baz' };
+
+    await act.run('1234', {
+      context: { foo: 'bar' },
+    });
+
+    assert.deepStrictEqual(passedContext, {
+      foo: 'bar',
+      bar: 'baz', // these come from glboal registry context
+    });
+
+    registry.context = { bar2: 'baz2' };
+    const { output } = act.stream('1234', {
+      context: { foo2: 'bar2' },
+    });
+    await output;
+
+    assert.deepStrictEqual(passedContext, {
+      foo2: 'bar2',
+      bar2: 'baz2', // these come from glboal registry context
+    });
+  });
+
   it('should stream the response', async () => {
     const action = defineAction(
       registry,
