@@ -25,7 +25,6 @@ ai = Genkit(
     plugins=[
         VertexAIModelGarden(
             location='us-central1',
-            models=['meta/llama-3.2-90b-vision-instruct-maas'],
         ),
     ],
 )

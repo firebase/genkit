@@ -241,6 +241,11 @@ class OpenAIModel:
             return config
 
         if isinstance(config, dict):
+            if config.get('topK'):
+                del config['topK']
+            if config.get('topP'):
+                config['top_p'] = config['topP']
+                del config['topP']
             return OpenAIConfig(**config)
 
         raise ValueError(f'Expected request.config to be a dict or OpenAIConfig, got {type(config).__name__}.')

@@ -46,7 +46,7 @@ GPT_4O = 'gpt-4o'
 GPT_4O_MINI = 'gpt-4o-mini'
 O1_MINI = 'o1-mini'
 
-LLAMA_3_1 = 'meta/llama3-405b-instruct-maas'
+LLAMA_3_1 = 'meta/llama-3.1-405b-instruct-maas'
 LLAMA_3_2 = 'meta/llama-3.2-90b-vision-instruct-maas'
 
 SUPPORTED_OPENAI_MODELS: dict[str, ModelInfo] = {
