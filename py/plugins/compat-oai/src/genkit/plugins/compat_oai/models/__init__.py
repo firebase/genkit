@@ -19,7 +19,7 @@
 
 from .handler import OpenAIModelHandler
 from .model import OpenAIModel
-from .model_info import SUPPORTED_OPENAI_MODELS
+from .model_info import SUPPORTED_OPENAI_COMPAT_MODELS, SUPPORTED_OPENAI_MODELS, PluginSource, get_default_model_info
 
 
 def package_name() -> str:
@@ -28,7 +28,10 @@ def package_name() -> str:
 
 __all__ = [
     'OpenAIModel',
+    'PluginSource',
     'SUPPORTED_OPENAI_MODELS',
+    'SUPPORTED_OPENAI_COMPAT_MODELS',
     'OpenAIModelHandler',
+    'get_default_model_info',
     'package_name',
 ]

@@ -36,16 +36,16 @@ import type {
 } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import type OpenAI from 'openai';
-import {
-  type ChatCompletion,
-  type ChatCompletionChunk,
-  type ChatCompletionContentPart,
-  type ChatCompletionCreateParamsNonStreaming,
-  type ChatCompletionMessageParam,
-  type ChatCompletionMessageToolCall,
-  type ChatCompletionRole,
-  type ChatCompletionTool,
-  type CompletionChoice,
+import type {
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionContentPart,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
+  ChatCompletionRole,
+  ChatCompletionTool,
+  CompletionChoice,
 } from 'openai/resources/index.mjs';
 
 const MODELS_SUPPORTING_OPENAI_RESPONSE_FORMAT = [

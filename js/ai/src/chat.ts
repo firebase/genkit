@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { StreamingCallback, z } from '@genkit-ai/core';
+import type { StreamingCallback, z } from '@genkit-ai/core';
 import { Channel } from '@genkit-ai/core/async';
 import {
   ATTR_PREFIX,
@@ -22,21 +22,21 @@ import {
   runInNewSpan,
 } from '@genkit-ai/core/tracing';
 import {
-  GenerateOptions,
-  GenerateResponse,
-  GenerateResponseChunk,
-  GenerateStreamOptions,
-  GenerateStreamResponse,
-  GenerationCommonConfigSchema,
-  MessageData,
-  Part,
   generate,
+  type GenerateOptions,
+  type GenerateResponse,
+  type GenerateResponseChunk,
+  type GenerateStreamOptions,
+  type GenerateStreamResponse,
+  type GenerationCommonConfigSchema,
+  type MessageData,
+  type Part,
 } from './index.js';
 import {
-  BaseGenerateOptions,
-  Session,
-  SessionStore,
   runWithSession,
+  type BaseGenerateOptions,
+  type Session,
+  type SessionStore,
 } from './session.js';
 
 export const MAIN_THREAD = 'main';
@@ -154,7 +154,7 @@ export class Chat {
           },
         },
         async (metadata) => {
-          let resolvedOptions = resolveSendOptions(options);
+          const resolvedOptions = resolveSendOptions(options);
           let streamingCallback:
             | StreamingCallback<GenerateResponseChunk>
             | undefined = undefined;
@@ -163,13 +163,13 @@ export class Chat {
             streamingCallback =
               resolvedOptions.onChunk ?? resolvedOptions.streamingCallback;
           }
-          let request: GenerateOptions = {
+          const request: GenerateOptions = {
             ...(await this.requestBase),
             messages: this.messages,
             ...resolvedOptions,
           };
           metadata.input = resolvedOptions;
-          let response = await generate(this.session.registry, {
+          const response = await generate(this.session.registry, {
             ...request,
             onChunk: streamingCallback,
           });
@@ -194,8 +194,8 @@ export class Chat {
   >(
     options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
   ): GenerateStreamResponse<z.infer<O>> {
-    let channel = new Channel<GenerateResponseChunk>();
-    let resolvedOptions = resolveSendOptions(options);
+    const channel = new Channel<GenerateResponseChunk>();
+    const resolvedOptions = resolveSendOptions(options);
 
     const sent = this.send({
       ...resolvedOptions,

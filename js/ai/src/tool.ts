@@ -16,25 +16,25 @@
 
 import {
   action,
-  Action,
-  ActionContext,
-  ActionRunOptions,
   assertUnstable,
   defineAction,
-  JSONSchema7,
   stripUndefinedProps,
   z,
+  type Action,
+  type ActionContext,
+  type ActionRunOptions,
+  type JSONSchema7,
 } from '@genkit-ai/core';
-import { HasRegistry, Registry } from '@genkit-ai/core/registry';
+import type { HasRegistry, Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
-import {
+import type {
   Part,
   ToolDefinition,
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-import { ExecutablePrompt } from './prompt.js';
+import type { ExecutablePrompt } from './prompt.js';
 
 /**
  * An action with a `tool` type.
@@ -189,7 +189,7 @@ export async function lookupToolByName(
   registry: Registry,
   name: string
 ): Promise<ToolAction> {
-  let tool =
+  const tool =
     (await registry.lookupAction(name)) ||
     (await registry.lookupAction(`/tool/${name}`)) ||
     (await registry.lookupAction(`/prompt/${name}`));

@@ -21,7 +21,7 @@ import type { Genkit } from 'genkit';
 import { embedderRef, z } from 'genkit';
 import OpenAI from 'openai';
 
-import { type PluginOptions } from './index.js';
+import type { PluginOptions } from './index.js';
 
 export const TextEmbeddingConfigSchema = z.object({
   dimensions: z.number().optional(),
@@ -81,7 +81,7 @@ export function openaiEmbedder(
   name: string,
   options?: PluginOptions
 ) {
-  let apiKey = options?.apiKey || process.env.OPENAI_API_KEY;
+  const apiKey = options?.apiKey || process.env.OPENAI_API_KEY;
   if (!apiKey)
     throw new Error(
       'please pass in the API key or set the OPENAI_API_KEY environment variable'

@@ -704,3 +704,277 @@ func validTestMessage(m *Message, output *ModelOutputConfig) (*Message, error) {
 
 	return handler.ParseMessage(m)
 }
+
+func TestToolInterruptsAndResume(t *testing.T) {
+	conditionalTool := DefineTool(r, "conditional", "tool that may interrupt based on input",
+		func(ctx *ToolContext, input struct {
+			Value     string
+			Interrupt bool
+		}) (string, error) {
+			if input.Interrupt {
+				return "", ctx.Interrupt(&InterruptOptions{
+					Metadata: map[string]any{
+						"reason":      "user_intervention_required",
+						"value":       input.Value,
+						"interrupted": true,
+					},
+				})
+			}
+			return fmt.Sprintf("processed: %s", input.Value), nil
+		},
+	)
+
+	resumableTool := DefineTool(r, "resumable", "tool that can be resumed",
+		func(ctx *ToolContext, input struct {
+			Action string
+			Data   string
+		}) (string, error) {
+			if ctx.Resumed != nil {
+				resumedData, ok := ctx.Resumed["data"].(string)
+				if ok {
+					return fmt.Sprintf("resumed with: %s, original: %s", resumedData, input.Data), nil
+				}
+				return fmt.Sprintf("resumed: %s", input.Data), nil
+			}
+			return fmt.Sprintf("first run: %s", input.Data), nil
+		},
+	)
+
+	info := &ModelInfo{
+		Supports: &ModelSupports{
+			Multiturn: true,
+			Tools:     true,
+		},
+	}
+
+	toolModel := DefineModel(r, "test", "toolmodel", info,
+		func(ctx context.Context, mr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+			return &ModelResponse{
+				Request: mr,
+				Message: &Message{
+					Role: RoleModel,
+					Content: []*Part{
+						NewTextPart("I need to use some tools."),
+						NewToolRequestPart(&ToolRequest{
+							Name: "conditional",
+							Ref:  "tool1",
+							Input: map[string]any{
+								"Value":     "test_data",
+								"Interrupt": true,
+							},
+						}),
+						NewToolRequestPart(&ToolRequest{
+							Name: "resumable",
+							Ref:  "tool2",
+							Input: map[string]any{
+								"Action": "process",
+								"Data":   "initial_data",
+							},
+						}),
+					},
+				},
+			}, nil
+		})
+
+	t.Run("basic interrupt flow", func(t *testing.T) {
+		res, err := Generate(context.Background(), r,
+			WithModel(toolModel),
+			WithPrompt("use tools"),
+			WithTools(conditionalTool, resumableTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if res.FinishReason != "interrupted" {
+			t.Errorf("expected finish reason 'interrupted', got %q", res.FinishReason)
+		}
+
+		if len(res.Message.Content) != 3 {
+			t.Fatalf("expected 3 content parts, got %d", len(res.Message.Content))
+		}
+
+		interruptedPart := res.Message.Content[1]
+		if !interruptedPart.IsToolRequest() {
+			t.Fatal("expected second part to be a tool request")
+		}
+
+		interruptMeta, ok := interruptedPart.Metadata["interrupt"].(map[string]any)
+		if !ok {
+			t.Fatal("expected interrupt metadata in tool request")
+		}
+
+		if reason, ok := interruptMeta["reason"].(string); !ok || reason != "user_intervention_required" {
+			t.Errorf("expected interrupt reason 'user_intervention_required', got %v", reason)
+		}
+	})
+
+	t.Run("tool.Respond functionality", func(t *testing.T) {
+		res, err := Generate(context.Background(), r,
+			WithModel(toolModel),
+			WithPrompt("use tools"),
+			WithTools(conditionalTool, resumableTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		interruptedPart := res.Message.Content[1]
+
+		responsePart := conditionalTool.Respond(interruptedPart, "manual_response_data", &RespondOptions{
+			Metadata: map[string]any{
+				"manual": true,
+				"source": "user",
+			},
+		})
+
+		if !responsePart.IsToolResponse() {
+			t.Fatal("expected response part to be a tool response")
+		}
+
+		if responsePart.ToolResponse.Name != "conditional" {
+			t.Errorf("expected tool response name 'conditional', got %q", responsePart.ToolResponse.Name)
+		}
+
+		if responsePart.ToolResponse.Ref != "tool1" {
+			t.Errorf("expected tool response ref 'tool1', got %q", responsePart.ToolResponse.Ref)
+		}
+
+		if responsePart.ToolResponse.Output != "manual_response_data" {
+			t.Errorf("expected output 'manual_response_data', got %v", responsePart.ToolResponse.Output)
+		}
+
+		interruptResponseMeta, ok := responsePart.Metadata["interruptResponse"].(map[string]any)
+		if !ok {
+			t.Fatal("expected interruptResponse metadata")
+		}
+
+		if manual, ok := interruptResponseMeta["manual"].(bool); !ok || !manual {
+			t.Errorf("expected manual metadata to be true")
+		}
+	})
+
+	t.Run("tool.Restart functionality", func(t *testing.T) {
+		res, err := Generate(context.Background(), r,
+			WithModel(toolModel),
+			WithPrompt("use tools"),
+			WithTools(conditionalTool, resumableTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		interruptedPart := res.Message.Content[1]
+
+		restartPart := conditionalTool.Restart(interruptedPart, &RestartOptions{
+			ReplaceInput: map[string]any{
+				"Value":     "new_test_data",
+				"Interrupt": false,
+			},
+			ResumedMetadata: map[string]any{
+				"data":   "resumed_data",
+				"source": "restart",
+			},
+		})
+
+		if !restartPart.IsToolRequest() {
+			t.Fatal("expected restart part to be a tool request")
+		}
+
+		if restartPart.ToolRequest.Name != "conditional" {
+			t.Errorf("expected tool request name 'conditional', got %q", restartPart.ToolRequest.Name)
+		}
+
+		newInput, ok := restartPart.ToolRequest.Input.(map[string]any)
+		if !ok {
+			t.Fatal("expected input to be map[string]any")
+		}
+
+		if newInput["Value"] != "new_test_data" {
+			t.Errorf("expected new input value 'new_test_data', got %v", newInput["Value"])
+		}
+
+		if newInput["Interrupt"] != false {
+			t.Errorf("expected interrupt to be false, got %v", newInput["Interrupt"])
+		}
+
+		if _, hasInterrupt := restartPart.Metadata["interrupt"]; hasInterrupt {
+			t.Error("expected interrupt metadata to be removed")
+		}
+
+		resumedMeta, ok := restartPart.Metadata["resumed"].(map[string]any)
+		if !ok {
+			t.Fatal("expected resumed metadata")
+		}
+
+		if resumedMeta["data"] != "resumed_data" {
+			t.Errorf("expected resumed data 'resumed_data', got %v", resumedMeta["data"])
+		}
+	})
+
+	t.Run("resume with respond directive", func(t *testing.T) {
+		res, err := Generate(context.Background(), r,
+			WithModel(toolModel),
+			WithPrompt("use tools"),
+			WithTools(conditionalTool, resumableTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		interruptedPart := res.Message.Content[1]
+		responsePart := conditionalTool.Respond(interruptedPart, "user_provided_response", nil)
+
+		history := res.History()
+		resumeRes, err := Generate(context.Background(), r,
+			WithModel(NewModelRef("test/echo", nil)),
+			WithMessages(history...),
+			WithTools(conditionalTool, resumableTool),
+			WithToolResponses(responsePart),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if resumeRes.FinishReason == "interrupted" {
+			t.Error("expected generation to not be interrupted after responding")
+		}
+	})
+
+	t.Run("resume with restart directive", func(t *testing.T) {
+		res, err := Generate(context.Background(), r,
+			WithModel(toolModel),
+			WithPrompt("use tools"),
+			WithTools(conditionalTool, resumableTool),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		interruptedPart := res.Message.Content[1]
+		restartPart := conditionalTool.Restart(interruptedPart, &RestartOptions{
+			ReplaceInput: map[string]any{
+				"Value":     "restarted_data",
+				"Interrupt": false,
+			},
+			ResumedMetadata: map[string]any{
+				"data": "restart_context",
+			},
+		})
+
+		history := res.History()
+		resumeRes, err := Generate(context.Background(), r,
+			WithModel(NewModelRef("test/echo", nil)),
+			WithMessages(history...),
+			WithTools(conditionalTool, resumableTool),
+			WithToolRestarts(restartPart),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if resumeRes.FinishReason == "interrupted" {
+			t.Error("expected generation to not be interrupted after restarting")
+		}
+	})
+}

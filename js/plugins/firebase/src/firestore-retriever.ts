@@ -14,14 +14,19 @@
  * limitations under the License.
  */
 
-import {
+import type {
   Firestore,
   Query,
   QueryDocumentSnapshot,
   VectorQuerySnapshot,
 } from '@google-cloud/firestore';
-import { EmbedderArgument, Genkit, RetrieverAction, z } from 'genkit';
-import { DocumentData, Part } from 'genkit/retriever';
+import {
+  z,
+  type EmbedderArgument,
+  type Genkit,
+  type RetrieverAction,
+} from 'genkit';
+import type { DocumentData, Part } from 'genkit/retriever';
 
 function toContent(
   d: QueryDocumentSnapshot,

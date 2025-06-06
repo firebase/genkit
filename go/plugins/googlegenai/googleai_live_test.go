@@ -167,6 +167,28 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool with thinking", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&googlegenai.GeminiConfig{
+				ThinkingConfig: &googlegenai.ThinkingConfig{
+					ThinkingBudget: 1000,
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Message.Content[0].Text
+		const want = "11.31"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+	})
+
 	t.Run("tool with json output", func(t *testing.T) {
 		type weatherQuery struct {
 			Location string `json:"location"`
@@ -288,19 +310,19 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
+					ai.NewTextPart("do you what animal is in the image?"),
+					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "donkey") {
+			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -336,8 +358,8 @@ func TestGoogleAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "donkey") {
+			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
@@ -409,7 +431,7 @@ func TestGoogleAILive(t *testing.T) {
 				Temperature: genai.Ptr[float32](0.4),
 				ThinkingConfig: &genai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  genai.Ptr[int32](100),
+					ThinkingBudget:  genai.Ptr[int32](1024),
 				},
 			}),
 			ai.WithModel(m),
@@ -420,7 +442,7 @@ func TestGoogleAILive(t *testing.T) {
 		if resp == nil {
 			t.Fatal("nil response obtanied")
 		}
-		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1024 {
 			t.Fatalf("thoughts tokens should not be zero or greater than 100, got: %d", resp.Usage.ThoughtsTokens)
 		}
 	})
@@ -534,7 +556,8 @@ func TestCacheHelper(t *testing.T) {
 }
 
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
+	// CC0 license image
+	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err

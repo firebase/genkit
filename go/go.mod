@@ -18,6 +18,7 @@ require (
 	github.com/goccy/go-yaml v1.17.1
 	github.com/google/dotprompt/go v0.0.0-20250424065700-61c578cf43ac
 	github.com/google/go-cmp v0.7.0
+	github.com/google/martian/v3 v3.3.3
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jba/slog v0.2.0
@@ -35,7 +36,7 @@ require (
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/tools v0.32.0
 	google.golang.org/api v0.230.0
-	google.golang.org/genai v1.5.0
+	google.golang.org/genai v1.8.0
 )
 
 require (

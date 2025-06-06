@@ -131,9 +131,9 @@ func (w *Weaviate) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	return nil
 }
 
-// ClassConfig holds configuration options for an indexer/retriever pair.
+// ClassConfig holds configuration options for a retriever.
 // Weaviate stores data in collections, and each collection has a class name.
-// Use a separate genkit Indexer/Retriever for each different class.
+// Use a separate genkit Retriever for each different class.
 type ClassConfig struct {
 	// The weaviate class name. May not be the empty string.
 	Class string
@@ -144,10 +144,10 @@ type ClassConfig struct {
 	EmbedderOptions any
 }
 
-// DefineIndexerAndRetriever defines an [ai.Indexer] and [ai.Retriever]
+// DefineRetriever defines [ai.Retriever]
 // that use the same class.
-// The name uniquely identifies the Indexer and Retriever in the registry.
-func DefineIndexerAndRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig) (ai.Indexer, ai.Retriever, error) {
+// The name uniquely identifies the Retriever in the registry.
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig) (*Docstore, ai.Retriever, error) {
 	if cfg.Embedder == nil {
 		return nil, nil, errors.New("weaviate: Embedder required")
 	}
@@ -160,25 +160,24 @@ func DefineIndexerAndRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassC
 		return nil, nil, errors.New("weaviate plugin not found; did you call genkit.Init with the weaviate plugin?")
 	}
 
-	ds, err := w.newDocStore(ctx, &cfg)
+	ds, err := w.newDocstore(ctx, &cfg)
 	if err != nil {
 		return nil, nil, err
 	}
-	indexer := genkit.DefineIndexer(g, provider, cfg.Class, ds.Index)
 	retriever := genkit.DefineRetriever(g, provider, cfg.Class, ds.Retrieve)
-	return indexer, retriever, nil
+	return ds, retriever, nil
 }
 
-// docStore defines an Indexer and a Retriever.
-type docStore struct {
-	client          *weaviate.Client
-	class           string
-	embedder        ai.Embedder
-	embedderOptions any
+// Docstore defines a Retriever.
+type Docstore struct {
+	Client          *weaviate.Client
+	Class           string
+	Embedder        ai.Embedder
+	EmbedderOptions any
 }
 
-// newDocStore creates a docStore.
-func (w *Weaviate) newDocStore(ctx context.Context, cfg *ClassConfig) (*docStore, error) {
+// newDocstore creates a Docstore.
+func (w *Weaviate) newDocstore(ctx context.Context, cfg *ClassConfig) (*Docstore, error) {
 	if w.client == nil {
 		return nil, errors.New("weaviate.Init not called")
 	}
@@ -200,71 +199,18 @@ func (w *Weaviate) newDocStore(ctx context.Context, cfg *ClassConfig) (*docStore
 		}
 	}
 
-	ds := &docStore{
-		client:          w.client,
-		class:           cfg.Class,
-		embedder:        cfg.Embedder,
-		embedderOptions: cfg.EmbedderOptions,
+	ds := &Docstore{
+		Client:          w.client,
+		Class:           cfg.Class,
+		Embedder:        cfg.Embedder,
+		EmbedderOptions: cfg.EmbedderOptions,
 	}
 	return ds, nil
-}
-
-// Indexer returns the indexer for the given class.
-func Indexer(g *genkit.Genkit, class string) ai.Indexer {
-	return genkit.LookupIndexer(g, provider, class)
 }
 
 // Retriever returns the retriever for the given class.
 func Retriever(g *genkit.Genkit, class string) ai.Retriever {
 	return genkit.LookupRetriever(g, provider, class)
-}
-
-// Index implements the genkit Retriever.Index method.
-func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
-	if len(req.Documents) == 0 {
-		return nil
-	}
-
-	// Use the embedder to convert each Document into a vector.
-	ereq := &ai.EmbedRequest{
-		Input:   req.Documents,
-		Options: ds.embedderOptions,
-	}
-	eres, err := ds.embedder.Embed(ctx, ereq)
-	if err != nil {
-		return fmt.Errorf("weaviate index embedding failed: %v", err)
-	}
-
-	objects := make([]*models.Object, 0, len(eres.Embeddings))
-	for i, de := range eres.Embeddings {
-		doc := req.Documents[i]
-
-		var sb strings.Builder
-		for _, p := range doc.Content {
-			sb.WriteString(p.Text)
-		}
-
-		metadata := make(map[string]any)
-		metadata[textKey] = sb.String()
-
-		if doc.Metadata != nil {
-			metadata[metadataKey] = doc.Metadata
-		}
-
-		obj := &models.Object{
-			Class:      ds.class,
-			Properties: metadata,
-			Vector:     de.Embedding,
-		}
-		objects = append(objects, obj)
-	}
-
-	_, err = ds.client.Batch().ObjectsBatcher().WithObjects(objects...).Do(ctx)
-	if err != nil {
-		return fmt.Errorf("weaviate insert failed: %v", err)
-	}
-
-	return nil
 }
 
 // RetrieverOptions may be passed in the Options field
@@ -280,7 +226,7 @@ type RetrieverOptions struct {
 }
 
 // Retrieve implements the genkit Retriever.Retrieve method.
-func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+func (ds *Docstore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 	count := 3 // by default we fetch 3 documents
 	var metadataKeys []string
 	if req.Options != nil {
@@ -295,14 +241,14 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// Use the embedder to convert the document to a vector.
 	ereq := &ai.EmbedRequest{
 		Input:   []*ai.Document{req.Query},
-		Options: ds.embedderOptions,
+		Options: ds.EmbedderOptions,
 	}
-	eres, err := ds.embedder.Embed(ctx, ereq)
+	eres, err := ds.Embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("weaviate retrieve embedding failed: %v", err)
 	}
 
-	gql := ds.client.GraphQL()
+	gql := ds.Client.GraphQL()
 	fields := []graphql.Field{
 		{Name: textKey},
 	}
@@ -325,7 +271,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	res, err := gql.Get().
 		WithNearVector(
 			gql.NearVectorArgBuilder().WithVector(eres.Embeddings[0].Embedding)).
-		WithClassName(ds.class).
+		WithClassName(ds.Class).
 		WithFields(fields...).
 		WithLimit(count).
 		Do(ctx)
@@ -350,9 +296,9 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		return nil, fmt.Errorf("weaviate retrieve returned type %T, expected %T", data, map[string]any{})
 	}
 
-	docValAny, ok := doc[ds.class]
+	docValAny, ok := doc[ds.Class]
 	if !ok {
-		return nil, fmt.Errorf("weaviate retrieve did not return %q key: %v", ds.class, doc)
+		return nil, fmt.Errorf("weaviate retrieve did not return %q key: %v", ds.Class, doc)
 	}
 	docVal, ok := docValAny.([]any)
 	if !ok {
@@ -383,4 +329,52 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		Documents: docs,
 	}
 	return ret, nil
+}
+
+// Helper function to get started with indexing
+func Index(ctx context.Context, docs []*ai.Document, ds *Docstore) error {
+	if len(docs) == 0 {
+		return nil
+	}
+
+	// Use the embedder to convert each Document into a vector.
+	ereq := &ai.EmbedRequest{
+		Input:   docs,
+		Options: ds.EmbedderOptions,
+	}
+	eres, err := ds.Embedder.Embed(ctx, ereq)
+	if err != nil {
+		return fmt.Errorf("weaviate index embedding failed: %v", err)
+	}
+
+	objects := make([]*models.Object, 0, len(eres.Embeddings))
+	for i, de := range eres.Embeddings {
+		doc := docs[i]
+
+		var sb strings.Builder
+		for _, p := range doc.Content {
+			sb.WriteString(p.Text)
+		}
+
+		metadata := make(map[string]any)
+		metadata[textKey] = sb.String()
+
+		if doc.Metadata != nil {
+			metadata[metadataKey] = doc.Metadata
+		}
+
+		obj := &models.Object{
+			Class:      ds.Class,
+			Properties: metadata,
+			Vector:     de.Embedding,
+		}
+		objects = append(objects, obj)
+	}
+
+	_, err = ds.Client.Batch().ObjectsBatcher().WithObjects(objects...).Do(ctx)
+	if err != nil {
+		return fmt.Errorf("weaviate insert failed: %v", err)
+	}
+
+	return nil
 }

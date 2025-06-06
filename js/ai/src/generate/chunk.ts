@@ -16,16 +16,14 @@
 
 import { GenkitError } from '@genkit-ai/core';
 import { extractJson } from '../extract.js';
-import {
+import type {
   GenerateResponseChunkData,
   Part,
   Role,
   ToolRequestPart,
 } from '../model.js';
 
-export interface ChunkParser<T = unknown> {
-  (chunk: GenerateResponseChunk<T>): T;
-}
+export type ChunkParser<T = unknown> = (chunk: GenerateResponseChunk<T>) => T;
 
 export class GenerateResponseChunk<T = unknown>
   implements GenerateResponseChunkData

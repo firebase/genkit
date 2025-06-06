@@ -15,8 +15,8 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { MessageData } from '../../src/types/model';
-import { PromptFrontmatter } from '../../src/types/prompt';
+import type { MessageData } from '../../src/types/model';
+import type { PromptFrontmatter } from '../../src/types/prompt';
 import { fromMessages } from '../../src/utils/prompt';
 
 describe('fromMessages', () => {

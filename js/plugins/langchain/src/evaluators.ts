@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { Genkit, ModelArgument } from 'genkit';
-import { BaseEvalDataPoint } from 'genkit/evaluator';
-import { Criteria, loadEvaluator } from 'langchain/evaluation';
+import type { Genkit, ModelArgument } from 'genkit';
+import type { BaseEvalDataPoint } from 'genkit/evaluator';
+import { loadEvaluator, type Criteria } from 'langchain/evaluation';
 import { genkitModel } from './model.js';
 import { GenkitTracer } from './tracing.js';
 

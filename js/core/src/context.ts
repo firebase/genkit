@@ -16,7 +16,7 @@
 
 import { runInActionRuntimeContext } from './action.js';
 import { UserFacingError } from './error.js';
-import { HasRegistry, Registry } from './registry.js';
+import type { HasRegistry, Registry } from './registry.js';
 
 const contextAlsKey = 'core.auth.context';
 
@@ -100,7 +100,7 @@ export function apiKey(value?: string): ContextProvider<ApiKeyContext>;
 export function apiKey(
   valueOrPolicy?: ((context: ApiKeyContext) => void | Promise<void>) | string
 ): ContextProvider<ApiKeyContext> {
-  return async function (request: RequestData): Promise<ApiKeyContext> {
+  return async (request: RequestData): Promise<ApiKeyContext> => {
     const context: ApiKeyContext = {
       auth: { apiKey: request.headers['authorization'] },
     };

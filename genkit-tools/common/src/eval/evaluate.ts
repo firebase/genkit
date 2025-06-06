@@ -16,19 +16,19 @@
 
 import { randomUUID } from 'crypto';
 import { getDatasetStore, getEvalStore } from '.';
-import { RuntimeManager } from '../manager/manager';
+import type { RuntimeManager } from '../manager/manager';
 import {
-  Action,
-  CandidateData,
-  Dataset,
   DatasetSchema,
-  EvalInput,
-  EvalKeyAugments,
-  EvalRun,
-  EvalRunKey,
   GenerateResponseSchema,
-  RunNewEvaluationRequest,
-  SpanData,
+  type Action,
+  type CandidateData,
+  type Dataset,
+  type EvalInput,
+  type EvalKeyAugments,
+  type EvalRun,
+  type EvalRunKey,
+  type RunNewEvaluationRequest,
+  type SpanData,
 } from '../types';
 import {
   evaluatorName,
@@ -263,8 +263,8 @@ async function bulkRunAction(params: {
   // works around this.
   const fullInferenceDataset = inferenceDataset as FullInferenceSample[];
 
-  let states: InferenceRunState[] = [];
-  let evalInputs: EvalInput[] = [];
+  const states: InferenceRunState[] = [];
+  const evalInputs: EvalInput[] = [];
   for (const sample of fullInferenceDataset) {
     logger.info(`Running inference '${actionRef}' ...`);
     if (isModelAction) {

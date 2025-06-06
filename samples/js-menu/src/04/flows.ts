@@ -23,9 +23,9 @@ import { z } from 'genkit';
 import { ai } from '../genkit.js';
 import {
   AnswerOutputSchema,
-  MenuItem,
   MenuItemSchema,
   MenuQuestionInputSchema,
+  type MenuItem,
 } from '../types';
 import { s04_ragDataMenuPrompt } from './prompts';
 

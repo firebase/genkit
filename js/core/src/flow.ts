@@ -15,11 +15,11 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { z } from 'zod';
-import { Action, defineAction, StreamingCallback } from './action.js';
-import { ActionContext } from './context.js';
-import { HasRegistry, Registry } from './registry.js';
-import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
+import type { z } from 'zod';
+import { defineAction, type Action, type StreamingCallback } from './action.js';
+import type { ActionContext } from './context.js';
+import { Registry, type HasRegistry } from './registry.js';
+import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
 /**
  * Flow is an observable, streamable, (optionally) strongly typed function.

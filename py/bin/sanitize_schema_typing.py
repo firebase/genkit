@@ -129,7 +129,7 @@ class ClassTransformer(ast.NodeTransformer):
         """
         # First apply base class transformations recursively
         node = super().generic_visit(_node)
-        new_body: list[ ast.stmt | ast.Constant | ast.Assign ] = []
+        new_body: list[ast.stmt | ast.Constant | ast.Assign] = []
 
         # Handle Docstrings
         if not node.body or not isinstance(node.body[0], ast.Expr) or not isinstance(node.body[0].value, ast.Constant):

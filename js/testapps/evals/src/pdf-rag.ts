@@ -20,6 +20,7 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { z } from 'genkit';
+import { EvalStatusEnum, type BaseEvalDataPoint } from 'genkit/evaluator';
 import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
@@ -143,14 +144,14 @@ export const indexPdf = ai.defineFlow(
 );
 
 async function extractText(filePath: string): Promise<string> {
-  let doc = await getDocument(filePath).promise;
+  const doc = await getDocument(filePath).promise;
 
   let pdfTxt = '';
   const numPages = doc.numPages;
   for (let i = 1; i <= numPages; i++) {
-    let page = await doc.getPage(i);
-    let content = await page.getTextContent();
-    let strings = content.items.map((item) => {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const strings = content.items.map((item) => {
       const str: string = (item as any).str;
       return str === '' ? '\n' : str;
     });
@@ -159,3 +160,35 @@ async function extractText(filePath: string): Promise<string> {
   }
   return pdfTxt;
 }
+
+// Test evaluator that generates random scores and randomly fails
+ai.defineEvaluator(
+  {
+    name: `custom/test_evaluator`,
+    displayName: 'TEST - Random Eval',
+    definition: 'Randomly generates scores, for testing Evals UI only',
+  },
+  async (datapoint: BaseEvalDataPoint) => {
+    const score = Math.random();
+    // Throw if score is 0.5x (10% prob.)
+    if (score >= 0.5 && score < 0.6) {
+      throw new Error('Simulated error');
+    }
+
+    // PASS if score > 0.5, else FAIL
+    const status = score < 0.5 ? EvalStatusEnum.FAIL : EvalStatusEnum.PASS;
+    return {
+      testCaseId: datapoint.testCaseId,
+      evaluation: {
+        status,
+        score,
+        details: {
+          reasoning:
+            status === EvalStatusEnum.FAIL
+              ? 'Randomly failed'
+              : 'Randomly passed',
+        },
+      },
+    };
+  }
+);

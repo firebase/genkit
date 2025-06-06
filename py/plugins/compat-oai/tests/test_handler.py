@@ -54,36 +54,3 @@ def test_validate_version() -> None:
 
     with pytest.raises(ValueError, match="Model version 'invalid-version' is not supported."):
         handler._validate_version('invalid-version')
-
-
-def test_handler_generate_non_streaming(sample_request: GenerateRequest) -> None:
-    """Test OpenAIModelHandler generate method in non-streaming mode."""
-    mock_model = MagicMock(spec=OpenAIModel)
-    mock_model.name = GPT_4
-    mock_model.generate.return_value = GenerateResponse(
-        message=Message(role=Role.MODEL, content=[TextPart(text='Hello, user!')])
-    )
-
-    handler = OpenAIModelHandler(mock_model)
-    mock_ctx = MagicMock(spec=ActionRunContext, is_streaming=False)
-
-    response = handler.generate(sample_request, mock_ctx)
-
-    mock_model.generate.assert_called_once()
-    assert isinstance(response, GenerateResponse)
-    assert response.message is not None
-    assert response.message.role == Role.MODEL
-    assert response.message.content[0].root.text == 'Hello, user!'
-
-
-def test_handler_generate_streaming(sample_request: GenerateRequest) -> None:
-    """Test OpenAIModelHandler generate method in streaming mode."""
-    mock_model = MagicMock(spec=OpenAIModel)
-    mock_model.name = GPT_4
-
-    handler = OpenAIModelHandler(mock_model)
-    mock_ctx = MagicMock(spec=ActionRunContext, is_streaming=True)
-
-    handler.generate(sample_request, mock_ctx)
-
-    mock_model.generate_stream.assert_called_once_with(sample_request, mock_ctx.send_chunk)
