@@ -375,7 +375,7 @@ func toAnthropicParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, err
 			blocks = append(blocks, anthropic.NewImageBlockBase64(contentType, base64.RawStdEncoding.EncodeToString(data)))
 		case p.IsToolRequest():
 			toolReq := p.ToolRequest
-			blocks = append(blocks, anthropic.ContentBlockParamOfRequestToolUseBlock(toolReq.Ref, toolReq.Input, toolReq.Name))
+			blocks = append(blocks, anthropic.NewToolUseBlock(toolReq.Ref, toolReq.Input, toolReq.Name))
 		case p.IsToolResponse():
 			toolResp := p.ToolResponse
 			output, err := json.Marshal(toolResp.Output)
@@ -396,13 +396,13 @@ func anthropicToGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) 
 	r := ai.ModelResponse{}
 
 	switch m.StopReason {
-	case anthropic.MessageStopReasonMaxTokens:
+	case anthropic.StopReasonMaxTokens:
 		r.FinishReason = ai.FinishReasonLength
-	case anthropic.MessageStopReasonStopSequence:
+	case anthropic.StopReasonStopSequence:
 		r.FinishReason = ai.FinishReasonStop
-	case anthropic.MessageStopReasonEndTurn:
+	case anthropic.StopReasonEndTurn:
 		r.FinishReason = ai.FinishReasonStop
-	case anthropic.MessageStopReasonToolUse:
+	case anthropic.StopReasonToolUse:
 		r.FinishReason = ai.FinishReasonStop
 	default:
 		r.FinishReason = ai.FinishReasonUnknown

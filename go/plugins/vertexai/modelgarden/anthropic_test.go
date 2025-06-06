@@ -64,7 +64,7 @@ func TestAnthropic(t *testing.T) {
 		if ar.TopP.Value != float64(cfg.TopP) {
 			t.Errorf("want: %f, got: %f", float64(cfg.TopP), ar.TopP.Value)
 		}
-		if ar.Model != cfg.Version {
+		if string(ar.Model) != cfg.Version {
 			t.Errorf("want: %q, got: %q", cfg.Version, ar.Model)
 		}
 		if ar.Tools == nil {
