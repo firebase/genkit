@@ -42,10 +42,61 @@ const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
  * @hidden
  */
 export async function ensureBasicTelemetryInstrumentation() {
+  await checkFirebaseMonitoringAutoInit();
+
   if (global[instrumentationKey]) {
     return await global[instrumentationKey];
   }
+
   await enableTelemetry({});
+}
+
+/**
+ * Checks to see if the customer is using Firebase Genkit Monitoring
+ * auto initialization via environment variable by attempting to resolve
+ * the firebase plugin.
+ *
+ * Enables Firebase Genkit Monitoring if the plugin is installed and warns
+ * if it hasn't been installed.
+ */
+async function checkFirebaseMonitoringAutoInit() {
+  if (
+    !global[instrumentationKey] &&
+    process.env.ENABLE_FIREBASE_MONITORING === 'true'
+  ) {
+    // allow overrides on common fields for testing
+    const forceDevExport: boolean =
+      process.env.FIREBASE_MONITORING_FORCE_DEV_EXPORT === 'true'
+        ? true
+        : false;
+    const metricInterval = Number(
+      process.env.FIREBASE_MONITORING_METRIC_EXPORT_INTERVAL
+    );
+    const metricTimeout = Number(
+      process.env.FIREBASE_MONITORING_METRIC_EXPORT_INTERVAL
+    );
+    const metricExportIntervalMillis: number | undefined = isNaN(metricInterval)
+      ? undefined
+      : metricInterval;
+    const metricExportTimeoutMillis: number | undefined = isNaN(metricTimeout)
+      ? undefined
+      : metricTimeout;
+
+    try {
+      const firebaseModule = await require('@genkit-ai/firebase');
+      firebaseModule.enableFirebaseTelemetry({
+        forceDevExport,
+        metricExportIntervalMillis,
+        metricExportTimeoutMillis,
+      });
+    } catch (e) {
+      logger.warn(
+        "It looks like you're trying to enable firebase monitoring, but " +
+          "haven't installed the firebase plugin. Please run " +
+          '`npm i --save @genkit-ai/firebase` and redeploy.'
+      );
+    }
+  }
 }
 
 /**
