@@ -252,6 +252,7 @@ type genaiModels struct {
 // Go Genai SDK
 func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
 	models := genaiModels{}
+	allowedModels := []string{"gemini", "gemma"}
 
 	for item, err := range client.Models.All(ctx) {
 		var name string
@@ -262,9 +263,8 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 		if !strings.HasPrefix(item.Name, "models/") {
 			continue
 		}
-		// filter out deprecated models
 		description = strings.ToLower(item.Description)
-		if description == "" || strings.Contains(item.Description, "deprecated") {
+		if strings.Contains(description, "deprecated") {
 			continue
 		}
 
@@ -274,8 +274,11 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 			continue
 		}
 
-		// filter out: Gemma, Aqa, Text-bison, Chat, learnlm
-		if strings.Contains(name, "gemini") {
+		found := slices.ContainsFunc(allowedModels, func(s string) bool {
+			return strings.Contains(name, s)
+		})
+		// filter out: Aqa, Text-bison, Chat, learnlm
+		if found {
 			models.gemini = append(models.gemini, name)
 			continue
 		}

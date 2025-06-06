@@ -363,7 +363,7 @@ func (ga *GoogleAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name 
 		defineEmbedder(g, ga.gclient, name)
 	case core.ActionTypeModel:
 		var supports *ai.ModelSupports
-		if strings.Contains(name, "gemini") {
+		if strings.Contains(name, "gemini") || strings.Contains(name, "gemma") {
 			supports = &Multimodal
 		}
 
