@@ -26,7 +26,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -34,6 +33,7 @@ import (
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/mcp"
 )
@@ -44,7 +44,8 @@ func main() {
 
 	g, err := genkit.Init(ctx)
 	if err != nil {
-		log.Fatal(err)
+		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
+		os.Exit(1)
 	}
 
 	// Tool 1: Encode/decode text
@@ -53,6 +54,8 @@ func main() {
 			Text   string `json:"text" description:"Text to encode/decode"`
 			Method string `json:"method" description:"Method: base64_encode, base64_decode, url_encode"`
 		}) (map[string]interface{}, error) {
+			logger.FromContext(ctx.Context).Debug("Executing text_encode tool", "method", input.Method, "textLength", len(input.Text))
+
 			switch input.Method {
 			case "base64_encode":
 				encoded := base64.StdEncoding.EncodeToString([]byte(input.Text))
@@ -90,6 +93,8 @@ func main() {
 			Text string `json:"text" description:"Text to hash"`
 			Type string `json:"type" description:"Hash type: md5, sha256"`
 		}) (map[string]interface{}, error) {
+			logger.FromContext(ctx.Context).Debug("Executing hash_generate tool", "type", input.Type, "textLength", len(input.Text))
+
 			switch input.Type {
 			case "md5":
 				hash := md5.Sum([]byte(input.Text))
@@ -115,6 +120,8 @@ func main() {
 		func(ctx *ai.ToolContext, input struct {
 			URL string `json:"url" description:"URL to fetch content from"`
 		}) (map[string]interface{}, error) {
+			logger.FromContext(ctx.Context).Debug("Executing fetch_url tool", "url", input.URL)
+
 			resp, err := http.Get(input.URL)
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch URL: %v", err)
@@ -125,6 +132,8 @@ func main() {
 			if err != nil {
 				return nil, fmt.Errorf("failed to read response body: %v", err)
 			}
+
+			logger.FromContext(ctx.Context).Debug("Successfully fetched URL content", "url", input.URL, "status", resp.StatusCode, "contentLength", len(body))
 
 			return map[string]interface{}{
 				"url":     input.URL,
@@ -140,10 +149,11 @@ func main() {
 		Name: "text-utilities",
 	})
 
-	log.Printf("Starting server with tools: %v", server.ListRegisteredTools())
-	log.Println("Ready! Run: go run client.go")
+	logger.FromContext(ctx).Info("Starting MCP server", "name", "text-utilities", "tools", server.ListRegisteredTools())
+	logger.FromContext(ctx).Info("Ready! Run: go run client.go")
 
 	if err := server.ServeStdio(ctx); err != nil && err != context.Canceled {
-		log.Fatalf("Server error: %v", err)
+		logger.FromContext(ctx).Error("MCP server error", "error", err)
+		os.Exit(1)
 	}
 }

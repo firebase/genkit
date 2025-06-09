@@ -19,9 +19,9 @@ package main
 
 import (
 	"context"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/mcp"
@@ -33,7 +33,8 @@ func client() {
 	// Initialize Genkit with Google AI
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 	if err != nil {
-		log.Fatal(err)
+		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
+		return
 	}
 
 	// Connect to server
@@ -45,17 +46,19 @@ func client() {
 		},
 	})
 	if err != nil {
-		log.Fatalf("Failed to connect: %v", err)
+		logger.FromContext(ctx).Error("Failed to connect to MCP server", "error", err)
+		return
 	}
 	defer client.Disconnect()
 
 	// Import tools
 	tools, err := client.GetActiveTools(ctx, g)
 	if err != nil {
-		log.Fatalf("Failed to get tools: %v", err)
+		logger.FromContext(ctx).Error("Failed to get tools from MCP server", "error", err)
+		return
 	}
 
-	log.Printf("Connected! Tools: %v", getToolNames(tools))
+	logger.FromContext(ctx).Info("Connected to MCP server", "tools", getToolNames(tools))
 
 	// Convert to ToolRef
 	var toolRefs []ai.ToolRef
@@ -64,7 +67,7 @@ func client() {
 	}
 
 	// Use tools with AI
-	log.Println("\n=== Demo: Fetch and summarize content ===")
+	logger.FromContext(ctx).Info("Starting demo: Fetch and summarize content")
 
 	response, err := genkit.Generate(ctx, g,
 		ai.WithModelName("googleai/gemini-2.5-pro-preview-05-06"),
@@ -74,9 +77,9 @@ func client() {
 	)
 
 	if err != nil {
-		log.Printf("Failed: %v", err)
+		logger.FromContext(ctx).Error("Generation failed", "error", err)
 	} else {
-		log.Printf("\nResult:\n%s", response.Text())
+		logger.FromContext(ctx).Info("Generation completed", "result", response.Text())
 	}
 }
 

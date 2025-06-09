@@ -17,10 +17,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/mcp"
@@ -33,7 +33,8 @@ func managerExample() {
 	// Initialize Genkit with Google AI
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 	if err != nil {
-		log.Fatal(err)
+		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
+		return
 	}
 
 	// Create and connect to MCP time server
@@ -56,7 +57,7 @@ func managerExample() {
 
 	// Get tools and generate response
 	tools, _ := manager.GetActiveTools(ctx, g)
-	log.Printf("Found %d time tools", len(tools))
+	logger.FromContext(ctx).Info("Found MCP tools", "count", len(tools), "example", "time")
 
 	var toolRefs []ai.ToolRef
 	for _, tool := range tools {
@@ -70,14 +71,14 @@ func managerExample() {
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 	)
 	if err != nil {
-		log.Printf("Generation failed: %v", err)
+		logger.FromContext(ctx).Error("Generation failed", "error", err)
 	} else {
-		log.Printf("Response: %s", response.Text())
+		logger.FromContext(ctx).Info("Generation completed", "response", response.Text())
 	}
 
 	// Disconnect from server
-	manager.Disconnect("time")
-	log.Println("Disconnected from time server")
+	manager.Disconnect(ctx, "time")
+	logger.FromContext(ctx).Info("Disconnected from MCP server", "server", "time")
 }
 
 // MCP Manager Multi-Server Example - connects to both time and fetch servers
@@ -87,7 +88,8 @@ func multiServerManagerExample() {
 	// Initialize Genkit with Google AI
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 	if err != nil {
-		log.Fatal(err)
+		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
+		return
 	}
 
 	// Create MCP manager for multiple servers
@@ -121,7 +123,7 @@ func multiServerManagerExample() {
 
 	// Get tools from all connected servers
 	tools, _ := manager.GetActiveTools(ctx, g)
-	log.Printf("Found %d tools from all servers", len(tools))
+	logger.FromContext(ctx).Info("Found MCP tools from all servers", "count", len(tools), "servers", []string{"time", "fetch"})
 
 	var toolRefs []ai.ToolRef
 	for _, tool := range tools {
@@ -136,15 +138,15 @@ func multiServerManagerExample() {
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 	)
 	if err != nil {
-		log.Printf("Generation failed: %v", err)
+		logger.FromContext(ctx).Error("Generation failed", "error", err)
 	} else {
-		log.Printf("Response: %s", response.Text())
+		logger.FromContext(ctx).Info("Generation completed", "response", response.Text())
 	}
 
 	// Disconnect from all servers
-	manager.Disconnect("time")
-	manager.Disconnect("fetch")
-	log.Println("Disconnected from all servers")
+	manager.Disconnect(ctx, "time")
+	manager.Disconnect(ctx, "fetch")
+	logger.FromContext(ctx).Info("Disconnected from all MCP servers", "servers", []string{"time", "fetch"})
 }
 
 // MCP Client Example - connects to time server
@@ -154,7 +156,8 @@ func clientExample() {
 	// Initialize Genkit with Google AI
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 	if err != nil {
-		log.Fatal(err)
+		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
+		return
 	}
 
 	// Create and connect to MCP time server
@@ -167,12 +170,13 @@ func clientExample() {
 		},
 	})
 	if err != nil {
-		log.Fatal(err)
+		logger.FromContext(ctx).Error("Failed to create MCP client", "error", err)
+		return
 	}
 
 	// Get tools and generate response
 	tools, _ := client.GetActiveTools(ctx, g)
-	log.Printf("Found %d time tools", len(tools))
+	logger.FromContext(ctx).Info("Found MCP time tools", "count", len(tools), "client", "mcp-time")
 
 	var toolRefs []ai.ToolRef
 	for _, tool := range tools {
@@ -186,15 +190,15 @@ func clientExample() {
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 	)
 	if err != nil {
-		log.Printf("Generation failed: %v", err)
+		logger.FromContext(ctx).Error("Generation failed", "error", err)
 	} else {
-		log.Printf("Response: %s", response.Text())
+		logger.FromContext(ctx).Info("Generation completed", "response", response.Text())
 	}
 
 	// Disconnect from server
-	log.Println("Disconnecting from server...")
+	logger.FromContext(ctx).Info("Disconnecting from MCP server", "client", "mcp-time")
 	client.Disconnect()
-	log.Println("Disconnected from server")
+	logger.FromContext(ctx).Info("Disconnected from MCP server", "client", "mcp-time")
 }
 
 // MCP Client GetPrompt Example - connects to a server and uses prompts
@@ -204,10 +208,11 @@ func clientGetPromptExample() {
 	// Initialize Genkit with Google AI
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 	if err != nil {
-		log.Fatal(err)
+		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
+		return
 	}
 
-	log.Println("Creating MCP client...")
+	logger.FromContext(ctx).Info("Creating MCP client", "server", "everything")
 	// Create and connect to MCP server (using everything server as example)
 	client, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
 		Name:    "mcp-everything",
@@ -218,28 +223,29 @@ func clientGetPromptExample() {
 		},
 	})
 	if err != nil {
-		log.Fatal(err)
+		logger.FromContext(ctx).Error("Failed to create MCP client", "error", err)
+		return
 	}
-	log.Println("MCP client created successfully")
+	logger.FromContext(ctx).Info("MCP client created successfully", "client", "mcp-everything")
 
 	// Get a specific prompt from the server
-	log.Println("Getting prompt from server...")
+	logger.FromContext(ctx).Info("Getting prompt from MCP server", "prompt", "simple_prompt")
 	prompt, err := client.GetPrompt(ctx, g, "simple_prompt", map[string]string{})
 	if err != nil {
-		log.Printf("Failed to get prompt: %v", err)
+		logger.FromContext(ctx).Error("Failed to get prompt", "prompt", "simple_prompt", "error", err)
 	} else {
-		log.Printf("Retrieved prompt: %s", prompt.Name())
+		logger.FromContext(ctx).Info("Retrieved prompt successfully", "promptName", prompt.Name())
 
 		// Execute the prompt directly
-		log.Println("Executing prompt...")
+		logger.FromContext(ctx).Info("Executing prompt", "prompt", prompt.Name())
 		response, err := prompt.Execute(ctx,
 			ai.WithInput(map[string]interface{}{}),
 			ai.WithModelName("googleai/gemini-2.5-pro-preview-05-06"),
 		)
 		if err != nil {
-			log.Printf("Prompt execution failed: %v", err)
+			logger.FromContext(ctx).Error("Prompt execution failed", "prompt", prompt.Name(), "error", err)
 		} else {
-			log.Printf("Prompt response: %s", response.Text())
+			logger.FromContext(ctx).Info("Prompt execution completed", "prompt", prompt.Name(), "response", response.Text())
 		}
 	}
 }
@@ -254,18 +260,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := context.Background()
+
 	switch os.Args[1] {
 	case "manager":
-		log.Println("Running MCP Manager example...")
+		logger.FromContext(ctx).Info("Running MCP Manager example")
 		managerExample()
 	case "multi":
-		log.Println("Running MCP Manager multi-server example...")
+		logger.FromContext(ctx).Info("Running MCP Manager multi-server example")
 		multiServerManagerExample()
 	case "client":
-		log.Println("Running MCP Client example...")
+		logger.FromContext(ctx).Info("Running MCP Client example")
 		clientExample()
 	case "getprompt":
-		log.Println("Running MCP Client GetPrompt example...")
+		logger.FromContext(ctx).Info("Running MCP Client GetPrompt example")
 		clientGetPromptExample()
 	default:
 		fmt.Printf("Unknown example: %s\n", os.Args[1])

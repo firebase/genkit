@@ -19,9 +19,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/invopop/jsonschema"
 	"github.com/mark3labs/mcp-go/client"
@@ -167,6 +167,8 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 	client := c.server.Client
 
 	return func(toolCtx *ai.ToolContext, args interface{}) (interface{}, error) {
+		ctx := toolCtx.Context // Get context from tool context
+
 		// Convert the arguments to the format expected by MCP
 		callToolArgs, err := prepareToolArguments(currentMCPTool, args)
 		if err != nil {
@@ -174,17 +176,17 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 		}
 
 		// Log the MCP tool call request
-		log.Printf("[MCP] Calling tool %s with arguments: %+v", currentMCPTool.Name, callToolArgs)
+		logger.FromContext(ctx).Debug("Calling MCP tool", "tool", currentMCPTool.Name, "args", callToolArgs)
 
 		// Create and execute the MCP tool call request
-		mcpResult, err := executeToolCall(toolCtx, client, currentMCPTool.Name, callToolArgs)
+		mcpResult, err := executeToolCall(ctx, client, currentMCPTool.Name, callToolArgs)
 		if err != nil {
-			log.Printf("[MCP] Tool call failed for %s: %v", currentMCPTool.Name, err)
+			logger.FromContext(ctx).Error("MCP tool call failed", "tool", currentMCPTool.Name, "error", err)
 			return nil, fmt.Errorf("failed to call tool %s: %w", currentMCPTool.Name, err)
 		}
 
 		// Log the MCP tool call response
-		log.Printf("[MCP] Tool call succeeded for %s. Result: %+v", currentMCPTool.Name, mcpResult)
+		logger.FromContext(ctx).Debug("MCP tool call succeeded", "tool", currentMCPTool.Name, "result", mcpResult)
 
 		return mcpResult, nil
 	}
@@ -243,18 +245,18 @@ func executeToolCall(ctx context.Context, client *client.Client, toolName string
 
 	// Log the raw MCP request
 	reqBytes, _ := json.MarshalIndent(callReq, "", "  ")
-	log.Printf("[MCP] Raw request to MCP server:\n%s", string(reqBytes))
+	logger.FromContext(ctx).Debug("Raw MCP request", "request", string(reqBytes))
 
 	result, err := client.CallTool(ctx, callReq)
 
 	if err != nil {
-		log.Printf("[MCP] Raw MCP server error: %v", err)
+		logger.FromContext(ctx).Error("Raw MCP server error", "error", err)
 		return nil, err
 	}
 
 	// Log the raw MCP response
 	respBytes, _ := json.MarshalIndent(result, "", "  ")
-	log.Printf("[MCP] Raw response from MCP server:\n%s", string(respBytes))
+	logger.FromContext(ctx).Debug("Raw MCP response", "response", string(respBytes))
 
 	return result, nil
 }

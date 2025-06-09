@@ -18,9 +18,9 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -99,7 +99,8 @@ func (c *GenkitMCPClient) connect(options MCPClientOptions) error {
 	// Close existing connection if any
 	if c.server != nil {
 		if err := c.server.Client.Close(); err != nil {
-			log.Printf("Warning: error closing previous transport: %v", err)
+			ctx := context.Background()
+			logger.FromContext(ctx).Warn("Error closing previous MCP transport", "client", c.options.Name, "error", err)
 		}
 	}
 
@@ -208,7 +209,7 @@ func (c *GenkitMCPClient) Reenable() {
 // Restart restarts the transport connection
 func (c *GenkitMCPClient) Restart(ctx context.Context) error {
 	if err := c.Disconnect(); err != nil {
-		log.Printf("Warning: error closing transport during restart: %v", err)
+		logger.FromContext(ctx).Warn("Error closing MCP transport during restart", "client", c.options.Name, "error", err)
 	}
 	return c.connect(c.options)
 }

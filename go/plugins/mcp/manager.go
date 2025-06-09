@@ -17,9 +17,9 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -65,9 +65,10 @@ func NewMCPManager(options MCPManagerOptions) (*MCPManager, error) {
 	}
 
 	// Connect to all servers synchronously during initialization
+	ctx := context.Background()
 	for _, serverConfig := range options.MCPServers {
-		if err := manager.Connect(serverConfig.Name, serverConfig.Config); err != nil {
-			log.Printf("[MCP Manager] Failed to connect to %s: %v", serverConfig.Name, err)
+		if err := manager.Connect(ctx, serverConfig.Name, serverConfig.Config); err != nil {
+			logger.FromContext(ctx).Error("Failed to connect to MCP server", "server", serverConfig.Name, "manager", manager.name, "error", err)
 			// Continue with other servers
 		}
 	}
@@ -76,15 +77,15 @@ func NewMCPManager(options MCPManagerOptions) (*MCPManager, error) {
 }
 
 // Connect connects to a single MCP server with the provided configuration
-func (m *MCPManager) Connect(serverName string, config MCPClientOptions) error {
+func (m *MCPManager) Connect(ctx context.Context, serverName string, config MCPClientOptions) error {
 	// If a client with this name already exists, disconnect it first
 	if existingClient, exists := m.clients[serverName]; exists {
 		if err := existingClient.Disconnect(); err != nil {
-			log.Printf("[MCP Manager] Warning: error disconnecting existing client %s: %v", serverName, err)
+			logger.FromContext(ctx).Warn("Error disconnecting existing MCP client", "server", serverName, "manager", m.name, "error", err)
 		}
 	}
 
-	log.Printf("[MCP Manager] Connecting to MCP server '%s' in manager '%s'", serverName, m.name)
+	logger.FromContext(ctx).Info("Connecting to MCP server", "server", serverName, "manager", m.name)
 
 	// Set the server name in the config
 	if config.Name == "" {
@@ -102,13 +103,13 @@ func (m *MCPManager) Connect(serverName string, config MCPClientOptions) error {
 }
 
 // Disconnect disconnects from a specific MCP server
-func (m *MCPManager) Disconnect(serverName string) error {
+func (m *MCPManager) Disconnect(ctx context.Context, serverName string) error {
 	client, exists := m.clients[serverName]
 	if !exists {
 		return fmt.Errorf("no client found with name '%s'", serverName)
 	}
 
-	log.Printf("[MCP Manager] Disconnecting MCP server '%s' in manager '%s'", serverName, m.name)
+	logger.FromContext(ctx).Info("Disconnecting MCP server", "server", serverName, "manager", m.name)
 
 	err := client.Disconnect()
 	delete(m.clients, serverName)
@@ -127,7 +128,7 @@ func (m *MCPManager) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]a
 
 		tools, err := client.GetActiveTools(ctx, gk)
 		if err != nil {
-			log.Printf("[MCP Manager] Error fetching tools from client %s: %v", name, err)
+			logger.FromContext(ctx).Error("Error fetching tools from MCP client", "client", name, "manager", m.name, "error", err)
 			continue
 		}
 
