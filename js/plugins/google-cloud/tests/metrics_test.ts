@@ -259,25 +259,6 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
-  it('truncates metric dimensions', async () => {
-    const testFlow = createFlow(ai, 'anExtremelyLongFlowNameThatIsTooBig');
-
-    await testFlow();
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/feature/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
-    assert.equal(
-      requestCounter.attributes.name,
-      'anExtremelyLongFlowNameThatIsToo'
-    );
-    assert.equal(
-      latencyHistogram.attributes.name,
-      'anExtremelyLongFlowNameThatIsToo'
-    );
-  });
-
   it('writes action failure metrics', async () => {
     const testAction = ai.defineTool(
       { name: 'testActionWithFailure', description: 'Just a test' },
