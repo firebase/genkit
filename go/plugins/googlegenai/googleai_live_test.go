@@ -34,18 +34,32 @@ import (
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
-// The tests here only work with an API key set to a valid value.
 var (
-	apiKey = flag.String("key", "", "Gemini API key")
+	apiKey string
 	cache  = flag.String("cache", "", "Local file to cache (large text document)")
 )
+
+func TestMain(m *testing.M) {
+	var ok bool
+	apiKey, ok = os.LookupEnv("GEMINI_API_KEY")
+	if !ok {
+		apiKey, ok = os.LookupEnv("GOOGLE_API_KEY")
+		if !ok {
+			log.Fatal("gemini env var not set, set either GEMINI_API_KEY or GOOGLE_API_KEY")
+			os.Exit(1)
+		}
+	}
+
+	c := m.Run()
+	os.Exit(c)
+}
 
 // We can't test the DefineAll functions along with the other tests because
 // we get duplicate definitions of models.
 var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
 
 func TestGoogleAILive(t *testing.T) {
-	if *apiKey == "" {
+	if apiKey == "" {
 		t.Skipf("no -key provided")
 	}
 
@@ -57,7 +71,7 @@ func TestGoogleAILive(t *testing.T) {
 
 	g, err := genkit.Init(ctx,
 		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
-		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
+		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
 	if err != nil {
 		log.Fatal(err)
