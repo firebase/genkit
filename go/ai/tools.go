@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/invopop/jsonschema"
-
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
