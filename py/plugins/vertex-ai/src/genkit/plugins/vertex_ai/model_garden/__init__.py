@@ -14,25 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""This plugin provides integration with Google Cloud's Vertex AI platform.
+from .model_garden import model_garden_name
+from .modelgarden_plugin import VertexAIModelGarden
 
-It enables the use of Vertex AI models and services within the Genkit framework.
-"""
-
-from genkit.plugins.vertex_ai import model_garden, vector_search
-
-
-def package_name() -> str:
-    """Get the package name for the Vertex AI plugin.
-
-    Returns:
-        The fully qualified package name as a string.
-    """
-    return 'genkit.plugins.vertex_ai'
-
-
-__all__ = [
-    package_name.__name__,
-    vector_search.__name__,
-    model_garden.__name__,
-]
+__all__ = [model_garden_name, VertexAIModelGarden]

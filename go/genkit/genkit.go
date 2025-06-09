@@ -489,41 +489,47 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *a
 	return ai.DefineTool(g.reg, name, description, fn)
 }
 
-// DefineToolWithInputSchema defines a tool with an explicit input schema.
-// Unlike [DefineTool], this function allows you to specify the input schema directly
-// rather than inferring it from the Go types. This is useful when you need more
-// control over the schema or when working with dynamic input structures.
+// DefineToolWithInputSchema defines a tool with a custom input schema that can be used by models during generation,
+// registers it as a [core.Action] of type Tool, and returns an [ai.Tool].
 //
-// The function takes:
-//   - name: The unique identifier for the tool
-//   - description: A human-readable description of what the tool does
-//   - inputSchema: A JSON schema defining the expected input structure
-//   - fn: The function that implements the tool's behavior
+// This variant of [DefineTool] allows specifying a JSON Schema for the tool's input, providing more
+// control over input validation and model guidance. The input parameter to the tool function will be
+// of type `any` and should be validated/processed according to the schema.
 //
-// The output schema will be inferred as "any" since the return type is any.
+// The `name` is the identifier the model uses to request the tool. The `description` helps the model
+// understand when to use the tool. The `inputSchema` defines the expected structure and constraints
+// of the input. The function `fn` implements the tool's logic, taking an [ai.ToolContext] and an
+// input of type `any`, and returning an output of type `Out`.
 //
 // Example:
 //
-//	schema := &jsonschema.Schema{
-//		Type: "object",
+//	// Define a custom input schema
+//	inputSchema := &jsonschema.Schema{
+//		Type:        "object",
 //		Properties: map[string]*jsonschema.Schema{
 //			"city": {Type: "string"},
+//			"unit": {Type: "string", Enum: []any{"C", "F"}},
 //		},
 //		Required: []string{"city"},
 //	}
 //
-//	weatherTool := genkit.DefineToolWithInputSchema(g,
-//		"getWeather",
-//		"Get current weather for a city",
-//		schema,
-//		func(ctx *ai.ToolContext, input any) (any, error) {
+//	// Define the tool with the schema
+//	weatherTool := genkit.DefineToolWithInputSchema(g, "getWeather",
+//		"Fetches the weather for a given city with unit preference",
+//		inputSchema,
+//		func(ctx *ai.ToolContext, input any) (string, error) {
+//			// Parse and validate input
 //			data := input.(map[string]any)
 //			city := data["city"].(string)
-//			// Implementation here...
-//			return map[string]any{"temperature": "25°C", "condition": "sunny"}, nil
+//			unit := "C" // default
+//			if u, ok := data["unit"].(string); ok {
+//				unit = u
+//			}
+//			// Implementation...
+//			return fmt.Sprintf("Weather in %s: 25°%s", city, unit), nil
 //		},
 //	)
-func DefineToolWithInputSchema(g *Genkit, name, description string, inputSchema *jsonschema.Schema, fn func(ctx *ai.ToolContext, input any) (any, error)) ai.Tool {
+func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema *jsonschema.Schema, fn func(ctx *ai.ToolContext, input any) (Out, error)) ai.Tool {
 	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
 }
 
