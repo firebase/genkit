@@ -34,24 +34,17 @@ import (
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
-var (
-	apiKey string
-	cache  = flag.String("cache", "", "Local file to cache (large text document)")
-)
+// To run this test suite: go test -v -run TestGoogleAI
 
-func TestMain(m *testing.M) {
-	var ok bool
-	apiKey, ok = os.LookupEnv("GEMINI_API_KEY")
-	if !ok {
-		apiKey, ok = os.LookupEnv("GOOGLE_API_KEY")
-		if !ok {
-			log.Fatal("gemini env var not set, set either GEMINI_API_KEY or GOOGLE_API_KEY")
-			os.Exit(1)
-		}
+var cache = flag.String("cache", "", "Local file to cache (large text document)")
+
+func requireEnv(key string) (string, bool) {
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return "", false
 	}
 
-	c := m.Run()
-	os.Exit(c)
+	return value, true
 }
 
 // We can't test the DefineAll functions along with the other tests because
@@ -59,10 +52,13 @@ func TestMain(m *testing.M) {
 var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
 
 func TestGoogleAILive(t *testing.T) {
-	if apiKey == "" {
-		t.Skipf("no -key provided")
+	apiKey, ok := requireEnv("GEMINI_API_KEY")
+	if !ok {
+		apiKey, ok = requireEnv("GOOGLE_API_KEY")
+		if !ok {
+			t.Skip("no gemini api key provided, set either GEMINI_API_KEY or GOOGLE_API_KEY in environment")
+		}
 	}
-
 	if *testAll {
 		t.Skip("-all provided")
 	}
@@ -82,7 +78,7 @@ func TestGoogleAILive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken, carefuly inspect the user input to determine which value from the prompt corresponds to the input structure",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
 			Over  float64
@@ -168,7 +164,7 @@ func TestGoogleAILive(t *testing.T) {
 
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
