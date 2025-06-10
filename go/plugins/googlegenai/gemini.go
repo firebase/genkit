@@ -786,12 +786,13 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		var p *ai.Part
 		partFound := 0
 
-		if part.Text != "" {
+		if part.Thought {
+			p = ai.NewReasoningPart(part.Text, part.ThoughtSignature)
 			partFound++
+		}
+		if part.Text != "" {
 			p = ai.NewTextPart(part.Text)
-			if part.Thought {
-				p = ai.NewReasoningPart(part.Text)
-			}
+			partFound++
 		}
 		if part.InlineData != nil {
 			partFound++
@@ -824,6 +825,9 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		}
 		if partFound > 1 {
 			panic(fmt.Sprintf("expected only 1 content part in response, got %d, part: %#v", partFound, part))
+		}
+		if p == nil {
+			continue
 		}
 
 		msg.Content = append(msg.Content, p)
@@ -871,9 +875,20 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
-	case p.IsText():
-		return genai.NewPartFromText(p.Text), nil
 	case p.IsReasoning():
+		// TODO: go-genai does not support genai.NewPartFromThought()
+		signature := []byte{}
+		if p.Metadata != nil {
+			if sig, ok := p.Metadata["signature"].([]byte); ok {
+				signature = sig
+			}
+		}
+		return &genai.Part{
+			Thought:          true,
+			Text:             p.Text,
+			ThoughtSignature: signature,
+		}, nil
+	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
 		if strings.HasPrefix(p.Text, "data:") {
