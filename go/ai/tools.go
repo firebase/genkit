@@ -126,7 +126,7 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 func DefineToolWithInputSchema[Out any](r *registry.Registry, name, description string,
 	inputSchema *jsonschema.Schema,
 	fn func(ctx *ToolContext, input any) (Out, error)) Tool {
-  metadata, wrappedFn := implementTool(name, description, fn)
+	metadata, wrappedFn := implementTool(name, description, fn)
 	toolAction := core.DefineActionWithInputSchema(r, "", name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
 	return &tool{Action: toolAction}
 }
@@ -148,7 +148,7 @@ func implementTool[In, Out any](name, description string, fn func(ctx *ToolConte
 		"description": description,
 	}
 	wrappedFn := func(ctx context.Context, input In) (Out, error) {
-    toolCtx := &ToolContext{
+		toolCtx := &ToolContext{
 			Context: ctx,
 			Interrupt: func(opts *InterruptOptions) error {
 				return &toolInterruptError{
@@ -160,8 +160,8 @@ func implementTool[In, Out any](name, description string, fn func(ctx *ToolConte
 		}
 		return fn(toolCtx, input)
 	}
-  
-  return metadata, wrappedFn
+
+	return metadata, wrappedFn
 }
 
 // Name returns the name of the tool.
