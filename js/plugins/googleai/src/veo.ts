@@ -147,7 +147,6 @@ export function defineVeoModel(
     },
     async (request) => {
       if (request.operation) {
-        console.log('checking status for ', request.operation);
         const newOp = await checkOp(request.operation.name, apiKey as string);
         return {
           finishReason: 'pending',

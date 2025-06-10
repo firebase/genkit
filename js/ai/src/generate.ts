@@ -15,6 +15,7 @@
  */
 
 import {
+  assertUnstable,
   GenkitError,
   runWithContext,
   runWithStreamingCallback,
@@ -378,6 +379,8 @@ export async function generateOperation<
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<Operation> {
+  assertUnstable(registry, 'beta', 'generateOperation is a beta feature.');
+
   options = await options;
   const resolvedModel = await resolveModel(registry, options.model);
   if (

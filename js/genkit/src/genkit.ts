@@ -23,7 +23,6 @@ import {
   embed,
   evaluate,
   generate,
-  generateOperation,
   generateStream,
   loadPromptFolder,
   prompt,
@@ -633,32 +632,6 @@ export class Genkit implements HasRegistry {
       resolvedOptions = options as GenerateOptions<O, CustomOptions>;
     }
     return generate(this.registry, resolvedOptions);
-  }
-
-  /**
-   * Starts a generate operation for long running generation models, tupically for
-   * video and complex audio generation.
-   *
-   * See {@link GenerateOptions} for detailed information about available options.
-   *
-   * ```ts
-   * const operation = await ai.generategenerateOperation({
-   *   model: googleAI.model('veo-2.0-generate-001'),
-   *   prompt: 'A banana riding a bicycle.',
-   * });
-   * ```
-   *
-   * The status of the operation and fianal result can be obtained using {@link Genkit.checkOperation}.
-   */
-  generateOperation<
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
-  >(
-    opts:
-      | GenerateOptions<O, CustomOptions>
-      | PromiseLike<GenerateOptions<O, CustomOptions>>
-  ): Promise<Operation> {
-    return generateOperation(this.registry, opts);
   }
 
   /**
