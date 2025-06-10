@@ -574,6 +574,16 @@ class GeminiModel:
 
                         if 'description' in properties[key]:
                             schema.properties[key].description = properties[key]['description']
+                    # For lists of structs
+                    elif isinstance(properties[key], dict) and 'items' in properties[key] and '$ref' in properties[key]:
+                        ref_tokens = properties[key]['items']['$ref'].split('/')
+                        if ref_tokens[2] not in defs:
+                            raise ValueError(f'Failed to resolve schema for {ref_tokens[2]}')
+                        resolved_schema = self._convert_schema_property(defs[ref_tokens[2]], defs)
+                        schema.properties[key] = resolved_schema
+
+                        if 'description' in properties[key]:
+                            schema.properties[key].description = properties[key]['description']
                     else:
                         nested_schema = self._convert_schema_property(properties[key], defs)
                         schema.properties[key] = nested_schema
