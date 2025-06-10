@@ -21,7 +21,7 @@ from google.auth.credentials import Credentials
 from google.cloud import aiplatform_v1
 
 from genkit.ai import GenkitRegistry, Plugin
-from genkit.plugins.vertex_ai.models.retriever import (
+from genkit.plugins.vertex_ai.vector_search.retriever import (
     DocRetriever,
     RetrieverOptionsSchema,
 )

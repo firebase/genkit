@@ -20,11 +20,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/invopop/jsonschema"
 )
+
+var resumedCtxKey = base.NewContextKey[map[string]any]()
+var origInputCtxKey = base.NewContextKey[any]()
 
 // ToolRef is a reference to a tool.
 type ToolRef interface {
@@ -57,6 +62,11 @@ type Tool interface {
 	RunRaw(ctx context.Context, input any) (any, error)
 	// Register sets the tracing state on the action and registers it with the registry.
 	Register(r *registry.Registry)
+	// Respond constructs a *Part with a ToolResponse for a given interrupted tool request.
+	Respond(toolReq *Part, outputData any, opts *RespondOptions) *Part
+	// Restart constructs a *Part with a new ToolRequest to re-trigger a tool,
+	// potentially with new input and metadata.
+	Restart(toolReq *Part, opts *RestartOptions) *Part
 }
 
 // toolInterruptError represents an intentional interruption of tool execution.
@@ -73,6 +83,23 @@ type InterruptOptions struct {
 	Metadata map[string]any
 }
 
+// RestartOptions provides configuration options for restarting a tool.
+type RestartOptions struct {
+	// ReplaceInput allows replacing the existing input arguments to the tool with different ones,
+	// for example if the user revised an action before confirming. When input is replaced,
+	// the existing tool request will be amended in the message history.
+	ReplaceInput any
+	// ResumedMetadata is the metadata you want to provide to the tool to aide in reprocessing.
+	// Defaults to true if none is supplied.
+	ResumedMetadata any
+}
+
+// RespondOptions provides configuration options for responding to a tool request.
+type RespondOptions struct {
+	// Metadata is additional metadata to include in the response.
+	Metadata map[string]any
+}
+
 // ToolContext provides context and utility functions for tool execution.
 type ToolContext struct {
 	context.Context
@@ -80,6 +107,11 @@ type ToolContext struct {
 	// Interrupting tool execution returns the control to the caller with the
 	// total model response so far.
 	Interrupt func(opts *InterruptOptions) error
+	// Resumed is optional metadata that can be used to resume the tool execution.
+	// Map is not nil only if the tool was interrupted.
+	Resumed map[string]any
+	// OriginalInput is the original input to the tool if the tool was interrupted, otherwise nil.
+	OriginalInput any
 }
 
 // DefineTool defines a tool.
@@ -87,6 +119,15 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	fn func(ctx *ToolContext, input In) (Out, error)) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
 	toolAction := core.DefineAction(r, "", name, core.ActionTypeTool, metadata, wrappedFn)
+	return &tool{Action: toolAction}
+}
+
+// DefineToolWithInputSchema defines a tool function with a custom input schema.
+func DefineToolWithInputSchema[Out any](r *registry.Registry, name, description string,
+	inputSchema *jsonschema.Schema,
+	fn func(ctx *ToolContext, input any) (Out, error)) Tool {
+  metadata, wrappedFn := implementTool(name, description, fn)
+	toolAction := core.DefineActionWithInputSchema(r, "", name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
@@ -107,18 +148,20 @@ func implementTool[In, Out any](name, description string, fn func(ctx *ToolConte
 		"description": description,
 	}
 	wrappedFn := func(ctx context.Context, input In) (Out, error) {
-		toolCtx := &ToolContext{
+    toolCtx := &ToolContext{
 			Context: ctx,
 			Interrupt: func(opts *InterruptOptions) error {
 				return &toolInterruptError{
 					Metadata: opts.Metadata,
 				}
 			},
+			Resumed:       resumedCtxKey.FromContext(ctx),
+			OriginalInput: origInputCtxKey.FromContext(ctx),
 		}
 		return fn(toolCtx, input)
 	}
-
-	return metadata, wrappedFn
+  
+  return metadata, wrappedFn
 }
 
 // Name returns the name of the tool.
@@ -184,4 +227,71 @@ func LookupTool(r *registry.Registry, name string) Tool {
 		return nil
 	}
 	return &tool{Action: action.(core.Action)}
+}
+
+// Respond creates a tool response for an interrupted tool call to pass to the [WithToolResponses] option to [Generate].
+// If the part provided is not a tool request, it returns nil.
+func (t *tool) Respond(toolReq *Part, output any, opts *RespondOptions) *Part {
+	if toolReq == nil || !toolReq.IsToolRequest() {
+		return nil
+	}
+
+	if opts == nil {
+		opts = &RespondOptions{}
+	}
+
+	newToolResp := NewResponseForToolRequest(toolReq, output)
+	newToolResp.Metadata = map[string]any{
+		"interruptResponse": true,
+	}
+	if opts.Metadata != nil {
+		newToolResp.Metadata["interruptResponse"] = opts.Metadata
+	}
+
+	return newToolResp
+}
+
+// Restart creates a tool request for an interrupted tool call to pass to the [WithToolRestarts] option to [Generate].
+// If the part provided is not a tool request, it returns nil.
+func (t *tool) Restart(p *Part, opts *RestartOptions) *Part {
+	if p == nil || !p.IsToolRequest() {
+		return nil
+	}
+
+	if opts == nil {
+		opts = &RestartOptions{}
+	}
+
+	newInput := p.ToolRequest.Input
+	var originalInput any
+
+	if opts.ReplaceInput != nil {
+		originalInput = newInput
+		newInput = opts.ReplaceInput
+	}
+
+	newMeta := maps.Clone(p.Metadata)
+	if newMeta == nil {
+		newMeta = make(map[string]any)
+	}
+
+	newMeta["resumed"] = true
+	if opts.ResumedMetadata != nil {
+		newMeta["resumed"] = opts.ResumedMetadata
+	}
+
+	if originalInput != nil {
+		newMeta["replacedInput"] = originalInput
+	}
+
+	delete(newMeta, "interrupt")
+
+	newToolReq := NewToolRequestPart(&ToolRequest{
+		Name:  p.ToolRequest.Name,
+		Ref:   p.ToolRequest.Ref,
+		Input: newInput,
+	})
+	newToolReq.Metadata = newMeta
+
+	return newToolReq
 }

@@ -38,6 +38,7 @@ import {
   type GenerateOptions,
   type GenerateRequest,
   type GenerateResponse,
+  type GenerateResponseChunk,
   type GenerateResponseData,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
@@ -110,11 +111,13 @@ import {
   type StreamingCallback,
   type z,
 } from '@genkit-ai/core';
+import { Channel } from '@genkit-ai/core/async';
 import type { HasRegistry } from '@genkit-ai/core/registry';
 import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import type { GenkitPlugin } from './plugin.js';
 import { Registry, type ActionType } from './registry.js';
+import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
 /**
  * @deprecated use `ai.definePrompt({messages: fn})`
@@ -134,6 +137,8 @@ export interface GenkitOptions {
   promptDir?: string;
   /** Default model to use if no model is specified. */
   model?: ModelArgument<any>;
+  /** Additional runtime context data for flows and tools. */
+  context?: ActionContext;
 }
 
 /**
@@ -162,6 +167,9 @@ export class Genkit implements HasRegistry {
   constructor(options?: GenkitOptions) {
     this.options = options || {};
     this.registry = new Registry();
+    if (this.options.context) {
+      this.registry.context = this.options.context;
+    }
     this.configure();
     if (isDevEnv() && !disableReflectionApi) {
       this.reflectionServer = new ReflectionServer(this.registry, {
@@ -207,7 +215,7 @@ export class Genkit implements HasRegistry {
     config: ToolConfig<I, O>,
     fn?: ToolFn<I, O>
   ): ToolAction<I, O> {
-    return dynamicTool(this, config, fn);
+    return dynamicTool(config, fn).attach(this.registry) as ToolAction<I, O>;
   }
 
   /**
@@ -254,6 +262,7 @@ export class Genkit implements HasRegistry {
     options?: { variant?: string }
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
     return this.wrapExecutablePromptPromise(
+      `${name}${options?.variant ? `.${options?.variant}` : ''}`,
       prompt(this.registry, name, {
         ...options,
         dir: this.options.promptDir ?? './prompts',
@@ -265,7 +274,10 @@ export class Genkit implements HasRegistry {
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>) {
+  >(
+    name: string,
+    promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>
+  ) {
     const executablePrompt = (async (
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>
@@ -286,13 +298,39 @@ export class Genkit implements HasRegistry {
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>
     ): GenerateStreamResponse<O> => {
-      return this.generateStream(
-        promise.then((action) =>
-          action.render(input, {
-            ...opts,
-          })
-        )
+      let channel = new Channel<GenerateResponseChunk>();
+
+      const generated = runInNewSpan(
+        this.registry,
+        {
+          metadata: {
+            name,
+            input,
+          },
+          labels: {
+            [SPAN_TYPE_ATTR]: 'dotprompt',
+          },
+        },
+        () =>
+          generate<O, CustomOptions>(
+            this.registry,
+            promise.then((action) =>
+              action.render(input, {
+                ...opts,
+                onChunk: (chunk) => channel.send(chunk),
+              })
+            )
+          )
       );
+      generated.then(
+        () => channel.close(),
+        (err) => channel.error(err)
+      );
+
+      return {
+        response: generated,
+        stream: channel,
+      };
     };
 
     executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {

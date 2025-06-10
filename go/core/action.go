@@ -139,7 +139,7 @@ func DefineStreamingAction[In, Out, Stream any](
 // DefineActionWithInputSchema creates a new Action and registers it.
 // This differs from DefineAction in that the input schema is
 // defined dynamically; the static input type is "any".
-// This is used for prompts.
+// This is used for prompts and tools that need custom input validation.
 func DefineActionWithInputSchema[Out any](
 	r *registry.Registry,
 	provider, name string,
