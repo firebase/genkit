@@ -27,6 +27,7 @@ export {
   GenkitMcpClient,
   GenkitMcpHost,
   type McpClientOptions,
+  type McpHostOptions,
   type McpServerConfig,
   type McpStdioServerConfig,
 };
