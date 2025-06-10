@@ -547,7 +547,7 @@ class GeminiModel:
         if '$ref' in input_schema:
             ref_path = input_schema['$ref']
             ref_tokens = ref_path.split('/')
-            ref_name = ref_tokens[-1]
+            ref_name = ref_tokens[2]
 
             if ref_name not in defs:
                 raise ValueError(f'Failed to resolve schema for {ref_tokens[2]}')
