@@ -14,9 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
+
+import pytest
 
 from genkit.ai._aio import Genkit
+from genkit.core.action.types import ActionKind
+from genkit.plugins.compat_oai import OpenAIConfig
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
 from genkit.plugins.compat_oai.openai_plugin import OpenAI, openai_model
 
@@ -34,6 +38,53 @@ def test_openai_plugin_initialize() -> None:
 
         assert mock_get_handler.call_count == len(SUPPORTED_OPENAI_MODELS)
         assert registry.define_model.call_count == len(SUPPORTED_OPENAI_MODELS)
+
+
+
+@pytest.mark.parametrize(
+    'kind, name',
+    [
+        (ActionKind.MODEL, model_name)
+        for model_name in SUPPORTED_OPENAI_MODELS.keys()
+    ],
+)
+def test_openai_plugin_resolve_action(kind, name):
+    """Unit Tests for resolve action method."""
+    plugin = OpenAI(api_key='test-key')
+    registry = MagicMock(spec=Genkit)
+    plugin.resolve_action(registry, kind, name)
+
+    model_info = SUPPORTED_OPENAI_MODELS[name]
+
+    registry.define_model.assert_called_once_with(
+        name=f'openai/{name}',
+        fn=ANY,
+        config_schema=OpenAIConfig,
+        metadata={
+            'model': {
+                'label': model_info.label,
+                'supports': {'multiturn': model_info.supports.multiturn} if model_info.supports else {},
+            },
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    'kind, name',
+    [
+        (ActionKind.MODEL, "model_not_found")
+    ],
+)
+def test_openai_plugin_resolve_action_not_found(kind, name):
+    """Unit Tests for resolve action method."""
+
+    plugin = OpenAI(api_key='test-key')
+    registry = MagicMock(spec=Genkit)
+    plugin.resolve_action(registry, kind, name)
+
+    registry.define_model.assert_not_called()
+
+
 
 
 def test_openai_model_function() -> None:
