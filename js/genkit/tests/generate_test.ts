@@ -327,7 +327,7 @@ describe('generate', () => {
         async () => 'tool called'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -412,7 +412,7 @@ describe('generate', () => {
         async (_, { context }) => JSON.stringify(context)
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -475,7 +475,7 @@ describe('generate', () => {
         async () => 'tool called 2'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -594,7 +594,7 @@ describe('generate', () => {
         description: 'description',
       });
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -655,7 +655,7 @@ describe('generate', () => {
         }
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -707,7 +707,7 @@ describe('generate', () => {
         }
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -753,7 +753,7 @@ describe('generate', () => {
         async () => 'tool called'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         if (sc) {
@@ -891,7 +891,7 @@ describe('generate', () => {
         }
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {

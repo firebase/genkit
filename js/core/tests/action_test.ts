@@ -118,7 +118,7 @@ describe('action', () => {
     assert.deepStrictEqual(chunks, [1, 2, 3]);
   });
 
-  it('run the action with context plus registry global context', async () => {
+  it('runs the action with context plus registry global context', async () => {
     let passedContext;
     const act = action(
       registry,

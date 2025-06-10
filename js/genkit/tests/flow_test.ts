@@ -81,7 +81,7 @@ describe('flow', () => {
     assert.strictEqual(await streamingBananaFlow('banana2'), 'banana2');
   });
 
-  it('pass thought the context', async () => {
+  it('passes through the context', async () => {
     const bananaFlow = ai.defineFlow('banana', (_, { context }) =>
       JSON.stringify(context)
     );
