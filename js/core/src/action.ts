@@ -46,6 +46,7 @@ export interface ActionMetadata<
   outputJsonSchema?: JSONSchema7;
   streamSchema?: S;
   metadata?: Record<string, any>;
+  detached?: boolean;
 }
 
 /**
@@ -307,6 +308,7 @@ export function detachedAction<
     streamSchema: config.streamSchema,
     metadata: config.metadata,
     actionType: config.actionType,
+    detached: true,
   } as ActionMetadata<I, O, S>;
 
   return {
@@ -319,7 +321,9 @@ export function detachedAction<
         return (await actionFn.run(input, options)).result;
       };
       actionFn.__registry = registry;
-      actionFn.__action = actionMetadata;
+      actionFn.__action = { ...actionMetadata };
+      delete actionFn.__action['detached'];
+
       actionFn.run = async (
         input: z.infer<I>,
         options?: ActionRunOptions<z.infer<S>>
@@ -456,6 +460,20 @@ export function detachedAction<
       return actionFn;
     },
   };
+}
+
+export function isAction(a: unknown): a is Action {
+  return (
+    typeof a === 'function' && '__action' in a && !(a as any).__action.detached
+  );
+}
+
+export function isDetachedAction(a: unknown): a is DetachedAction {
+  return (
+    !!(a as DetachedAction).__action &&
+    !!(a as DetachedAction).__action.detached &&
+    typeof (a as DetachedAction).attach === 'function'
+  );
 }
 
 /**

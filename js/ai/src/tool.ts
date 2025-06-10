@@ -18,6 +18,8 @@ import {
   assertUnstable,
   defineAction,
   detachedAction,
+  isAction,
+  isDetachedAction,
   stripUndefinedProps,
   z,
   type Action,
@@ -383,6 +385,14 @@ export function isToolRequest(part: Part): part is ToolRequestPart {
 
 export function isToolResponse(part: Part): part is ToolResponsePart {
   return !!part.toolResponse;
+}
+
+export function isDynamicTool(t: unknown): t is DynamicToolAction {
+  return (
+    (isDetachedAction(t) || isAction(t)) &&
+    t.__action.metadata?.type === 'tool' &&
+    t.__action.metadata?.dynamic
+  );
 }
 
 export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(

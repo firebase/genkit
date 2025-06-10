@@ -582,7 +582,7 @@ describe('generate', () => {
       );
     });
 
-    it.only('interrupts the dynamic tool with no impl', async () => {
+    it('interrupts the dynamic tool with no impl', async () => {
       const schema = {
         properties: {
           foo: { type: 'string' },
