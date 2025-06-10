@@ -256,4 +256,4 @@ unauthorized_licenses = [
 [tool.liccheck.authorized_packages]
 certifi      = "2025.4.26" # TODO: Verify.
 dependencies = true
-ollama       = "0.5.0"     # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
+ollama       = "0.5.1"     # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"
