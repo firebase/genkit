@@ -37,7 +37,7 @@ import type {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-import type { ExecutablePrompt } from './prompt.js';
+import { isExecutablePrompt, type ExecutablePrompt } from './prompt.js';
 
 export interface Resumable<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -103,7 +103,7 @@ export type ToolAction<
   };
 
 /**
- * An action with a `tool` type.
+ * A dynamic action with a `tool` type. Dynamic tools are detached actions -- not associated with any registry.
  */
 export type DynamicToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -200,10 +200,10 @@ export async function resolveTools<
     tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
         return await lookupToolByName(registry, ref);
-      } else if ((ref as Action).__action) {
-        return asTool(registry, ref as Action);
-      } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
-        return await (ref as ExecutablePrompt).asTool();
+      } else if (isAction(ref)) {
+        return asTool(registry, ref);
+      } else if (isExecutablePrompt(ref)) {
+        return await ref.asTool();
       } else if ((ref as ToolDefinition).name) {
         return await lookupToolByName(
           registry,
