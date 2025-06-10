@@ -616,7 +616,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 
 			output, err := tool.RunRaw(ctx, toolReq.Input)
 			if err != nil {
-				var tie *ToolInterruptError
+				var tie *toolInterruptError
 				if errors.As(err, &tie) {
 					logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", toolReq.Name, tie.Metadata)
 
@@ -656,7 +656,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	for range toolCount {
 		res := <-resultChan
 		if res.err != nil {
-			var tie *ToolInterruptError
+			var tie *toolInterruptError
 			if errors.As(res.err, &tie) {
 				hasInterrupts = true
 				continue
@@ -898,7 +898,7 @@ func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts
 
 				output, err := tool.RunRaw(resumedCtx, restartPart.ToolRequest.Input)
 				if err != nil {
-					var tie *ToolInterruptError
+					var tie *toolInterruptError
 					if errors.As(err, &tie) {
 						logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", restartPart.ToolRequest.Name, tie.Metadata)
 
