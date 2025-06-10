@@ -1163,7 +1163,7 @@ ai.defineFlow('meme-of-the-day', async () => {
 
   const fetch = (await import('node-fetch')).default;
   const videoDownloadResponse = await fetch(
-    `${video.media.url}&key=${process.env.GEMINI_API_KEY}`
+    `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
   );
   if (
     !videoDownloadResponse ||
