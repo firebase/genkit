@@ -72,6 +72,7 @@ class OpenAI(Plugin):
                     },
                 },
             )
+
     def resolve_action(  # noqa: B027
         self,
         ai: GenkitRegistry,
@@ -80,9 +81,6 @@ class OpenAI(Plugin):
     ) -> None:
 
         if kind is not ActionKind.MODEL:
-            return None
-
-        if name not in SUPPORTED_OPENAI_MODELS:
             return None
 
         self._define_openai_model(ai, name)
@@ -99,20 +97,14 @@ class OpenAI(Plugin):
             name: The name of the model to be registered.
         """
 
-        handler = OpenAIModelHandler.get_model_handler(
-            model=name,
-            client=self._openai_client,
-            registry=ai
-        )
-        model_info = SUPPORTED_OPENAI_MODELS[name]
+        handler = OpenAIModelHandler(OpenAIModel(name, self._openai_client, ai)).generate
         ai.define_model(
             name=f'openai/{name}',
             fn=handler,
             config_schema=OpenAIConfig,
             metadata={
                 'model': {
-                    'label': model_info.label,
-                    'supports': {'multiturn': model_info.supports.multiturn} if model_info.supports else {},
+                    'label': f"OpenAI - {name}",
                 },
             },
         )
@@ -152,6 +144,8 @@ class OpenAI(Plugin):
                 },
             },
         )
+
+
 
 
 def openai_model(name: str) -> str:
