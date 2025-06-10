@@ -24,7 +24,6 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -37,7 +36,7 @@ func TestActionRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := defineAction(r, "test", "inc", atype.Custom, nil, nil, inc)
+	a := defineAction(r, "test", "inc", ActionTypeCustom, nil, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +51,7 @@ func TestActionRunJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := defineAction(r, "test", "inc", atype.Custom, nil, nil, inc)
+	a := defineAction(r, "test", "inc", ActionTypeCustom, nil, nil, inc)
 	input := []byte("3")
 	want := []byte("4")
 	got, err := a.RunJSON(context.Background(), input, nil)
@@ -82,7 +81,7 @@ func TestActionStreaming(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := defineAction(r, "test", "count", atype.Custom, nil, nil, count)
+	a := defineAction(r, "test", "count", ActionTypeCustom, nil, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -121,7 +120,7 @@ func TestActionTracing(t *testing.T) {
 	tc := tracing.NewTestOnlyTelemetryClient()
 	r.TracingState().WriteTelemetryImmediate(tc)
 	const actionName = "TestTracing-inc"
-	a := defineAction(r, provider, actionName, atype.Custom, nil, nil, inc)
+	a := defineAction(r, provider, actionName, ActionTypeCustom, nil, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}

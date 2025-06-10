@@ -27,7 +27,6 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -72,11 +71,32 @@ type (
 
 	// generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
 	generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
+
+	// result is a generic struct for parallel operation results with index, value, and error.
+	result[T any] struct {
+		index int
+		value T
+		err   error
+	}
+
+	// resumeOptionOutput is the return type for resolveResumeOption.
+	resumeOptionOutput struct {
+		revisedRequest      *GenerateActionOptions
+		interruptedResponse *ModelResponse
+		toolMessage         *Message
+	}
+
+	// resumedToolRequestOutput is the return type for resolveResumedToolRequest.
+	resumedToolRequestOutput struct {
+		toolRequest  *Part
+		toolResponse *Part
+		interrupt    *Part
+	}
 )
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", atype.Util, nil,
+	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", core.ActionTypeUtil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", actionOpts))
@@ -137,13 +157,13 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return (*model)(core.DefineStreamingAction(r, provider, name, atype.Model, metadata, fn))
+	return (*model)(core.DefineStreamingAction(r, provider, name, core.ActionTypeModel, metadata, fn))
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(r *registry.Registry, provider, name string) Model {
-	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, atype.Model, provider, name)
+	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil
 	}
@@ -190,6 +210,28 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		return nil, err
 	}
 	model, _ := m.(*model)
+
+	resumeOutput, err := handleResumeOption(ctx, r, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if resumeOutput.interruptedResponse != nil {
+		return nil, core.NewError(core.FAILED_PRECONDITION,
+			"One or more tools triggered an interrupt during a restarted execution.")
+	}
+
+	opts = resumeOutput.revisedRequest
+
+	if resumeOutput.toolMessage != nil && cb != nil {
+		err := cb(ctx, &ModelResponseChunk{
+			Content: resumeOutput.toolMessage.Content,
+			Role:    RoleTool,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
+		}
+	}
 
 	toolDefMap := make(map[string]*ToolDefinition)
 	for _, t := range opts.Tools {
@@ -264,7 +306,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		Output:     &outputCfg,
 	}
 
-	fn := core.ChainMiddleware(mw...)(m.Generate)
+	fn := core.ChainMiddleware(mw...)(model.Generate)
 
 	currentTurn := 0
 	for {
@@ -278,7 +320,6 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 			if err != nil {
 				logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
 				return nil, core.NewError(core.INTERNAL, "model failed to generate output matching expected schema: %v", err)
-
 			}
 		}
 
@@ -366,6 +407,30 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		genOpts.Config = modelRef.Config()
 	}
 
+	respondParts := []*toolResponsePart{}
+	for _, part := range genOpts.RespondParts {
+		if !part.IsToolResponse() {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: respond part is not a tool response")
+		}
+
+		respondParts = append(respondParts, &toolResponsePart{
+			ToolResponse: part.ToolResponse,
+			Metadata:     part.Metadata,
+		})
+	}
+
+	restartParts := []*toolRequestPart{}
+	for _, part := range genOpts.RestartParts {
+		if !part.IsToolRequest() {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: restart part is not a tool request")
+		}
+
+		restartParts = append(restartParts, &toolRequestPart{
+			ToolRequest: part.ToolRequest,
+			Metadata:    part.Metadata,
+		})
+	}
+
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
@@ -381,6 +446,13 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			Instructions: genOpts.OutputInstructions,
 			Constrained:  !genOpts.CustomConstrained,
 		},
+	}
+
+	if len(respondParts) > 0 || len(restartParts) > 0 {
+		actionOpts.Resume = &GenerateActionResume{
+			Respond: respondParts,
+			Restart: restartParts,
+		}
 	}
 
 	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
@@ -469,23 +541,23 @@ func (m *model) SupportsConstrained(hasTools bool) bool {
 	return true
 }
 
-// cloneMessage creates a deep copy of the provided Message.
-func cloneMessage(m *Message) *Message {
-	if m == nil {
+// clone creates a deep copy of the provided object using JSON marshaling and unmarshaling.
+func clone[T any](obj *T) *T {
+	if obj == nil {
 		return nil
 	}
 
-	bytes, err := json.Marshal(m)
+	bytes, err := json.Marshal(obj)
 	if err != nil {
-		panic(fmt.Sprintf("failed to marshal message: %v", err))
+		panic(fmt.Sprintf("clone: failed to marshal object: %v", err))
 	}
 
-	var msgCopy Message
-	if err := json.Unmarshal(bytes, &msgCopy); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal message: %v", err))
+	var newObj T
+	if err := json.Unmarshal(bytes, &newObj); err != nil {
+		panic(fmt.Sprintf("clone: failed to unmarshal object: %v", err))
 	}
 
-	return &msgCopy
+	return &newObj
 }
 
 // handleToolRequests processes any tool requests in the response, returning
@@ -493,9 +565,11 @@ func cloneMessage(m *Message) *Message {
 // need handling.
 func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback) (*ModelRequest, *Message, error) {
 	toolCount := 0
-	for _, part := range resp.Message.Content {
-		if part.IsToolRequest() {
-			toolCount++
+	if resp.Message != nil {
+		for _, part := range resp.Message.Content {
+			if part.IsToolRequest() {
+				toolCount++
+			}
 		}
 	}
 
@@ -503,88 +577,91 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 		return nil, nil, nil
 	}
 
-	type toolResult struct {
-		index  int
-		output any
-		err    error
-	}
+	resultChan := make(chan result[any])
+	toolMsg := &Message{Role: RoleTool}
+	revisedMsg := clone(resp.Message)
 
-	resultChan := make(chan toolResult)
-	toolMessage := &Message{Role: RoleTool}
-	revisedMessage := cloneMessage(resp.Message)
-
-	for i, part := range resp.Message.Content {
+	for i, part := range revisedMsg.Content {
 		if !part.IsToolRequest() {
 			continue
 		}
 
 		go func(idx int, p *Part) {
 			toolReq := p.ToolRequest
-			tool := LookupTool(r, toolReq.Name)
+			tool := LookupTool(r, p.ToolRequest.Name)
 			if tool == nil {
-				resultChan <- toolResult{idx, nil, core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
+				resultChan <- result[any]{idx, nil, core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
 				return
 			}
 
 			output, err := tool.RunRaw(ctx, toolReq.Input)
 			if err != nil {
-				var interruptErr *ToolInterruptError
-				if errors.As(err, &interruptErr) {
-					logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", toolReq.Name, interruptErr.Metadata)
-					revisedMessage.Content[idx] = &Part{
-						ToolRequest: toolReq,
-						Metadata: map[string]any{
-							"interrupt": interruptErr.Metadata,
-						},
+				var tie *ToolInterruptError
+				if errors.As(err, &tie) {
+					logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", toolReq.Name, tie.Metadata)
+
+					newPart := clone(p)
+					if newPart.Metadata == nil {
+						newPart.Metadata = make(map[string]any)
 					}
-					resultChan <- toolResult{idx, nil, interruptErr}
+					if tie.Metadata != nil {
+						newPart.Metadata["interrupt"] = tie.Metadata
+					} else {
+						newPart.Metadata["interrupt"] = true
+					}
+
+					revisedMsg.Content[idx] = newPart
+
+					resultChan <- result[any]{idx, nil, tie}
 					return
 				}
-				resultChan <- toolResult{idx, nil, core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
+
+				resultChan <- result[any]{idx, nil, core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
 				return
 			}
 
-			revisedMessage.Content[idx] = &Part{
-				ToolRequest: toolReq,
-				Metadata: map[string]any{
-					"pendingOutput": output,
-				},
+			newPart := clone(p)
+			if newPart.Metadata == nil {
+				newPart.Metadata = make(map[string]any)
 			}
+			newPart.Metadata["pendingOutput"] = output
+			revisedMsg.Content[idx] = newPart
 
-			resultChan <- toolResult{idx, output, nil}
+			resultChan <- result[any]{idx, output, nil}
 		}(i, part)
 	}
 
-	var toolResponses []*Part
+	var toolResps []*Part
 	hasInterrupts := false
 	for range toolCount {
-		result := <-resultChan
-		if result.err != nil {
-			var interruptErr *ToolInterruptError
-			if errors.As(result.err, &interruptErr) {
+		res := <-resultChan
+		if res.err != nil {
+			var tie *ToolInterruptError
+			if errors.As(res.err, &tie) {
 				hasInterrupts = true
 				continue
 			}
-			return nil, nil, result.err
+
+			return nil, nil, res.err
 		}
 
-		toolReq := resp.Message.Content[result.index].ToolRequest
-		toolResponses = append(toolResponses, NewToolResponsePart(&ToolResponse{
+		toolReq := revisedMsg.Content[res.index].ToolRequest
+		toolResps = append(toolResps, NewToolResponsePart(&ToolResponse{
 			Name:   toolReq.Name,
 			Ref:    toolReq.Ref,
-			Output: result.output,
+			Output: res.value,
 		}))
 	}
 
 	if hasInterrupts {
-		return nil, revisedMessage, nil
+		return nil, revisedMsg, nil
 	}
 
-	toolMessage.Content = toolResponses
+	toolMsg.Content = toolResps
 
 	if cb != nil {
 		err := cb(ctx, &ModelResponseChunk{
-			Content: toolMessage.Content,
+			Content: toolMsg.Content,
 			Role:    RoleTool,
 		})
 		if err != nil {
@@ -593,7 +670,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 	}
 
 	newReq := req
-	newReq.Messages = append(slices.Clone(req.Messages), resp.Message, toolMessage)
+	newReq.Messages = append(slices.Clone(req.Messages), resp.Message, toolMsg)
 
 	return newReq, nil, nil
 }
@@ -646,6 +723,9 @@ func (mr *ModelResponse) Output(v any) error {
 // ToolRequests returns the tool requests from the response.
 func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 	toolReqs := []*ToolRequest{}
+	if mr.Message == nil {
+		return nil
+	}
 	for _, part := range mr.Message.Content {
 		if part.IsToolRequest() {
 			toolReqs = append(toolReqs, part.ToolRequest)
@@ -703,4 +783,251 @@ func (m ModelRef) Name() string {
 // ModelConfig returns the configuration of a ModelRef.
 func (m ModelRef) Config() any {
 	return m.config
+}
+
+// handleResumedToolRequest resolves a tool request from a previous, interrupted model turn,
+// when generation is being resumed. It determines the outcome of the tool request based on
+// pending output, or explicit 'respond' or 'restart' directives in the resume options.
+func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts *GenerateActionOptions, p *Part) (*resumedToolRequestOutput, error) {
+	if p == nil || !p.IsToolRequest() {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: part is not a tool request")
+	}
+
+	if pendingOutputVal, ok := p.Metadata["pendingOutput"]; ok {
+		newReqPart := clone(p)
+		delete(newReqPart.Metadata, "pendingOutput")
+
+		newRespPart := NewResponseForToolRequest(p, pendingOutputVal)
+		newRespPart.Metadata = map[string]any{"source": "pending"}
+
+		return &resumedToolRequestOutput{
+			toolRequest:  newReqPart,
+			toolResponse: newRespPart,
+		}, nil
+	}
+
+	if genOpts.Resume != nil {
+		toolReq := p.ToolRequest
+
+		for _, respondPart := range genOpts.Resume.Respond {
+			if respondPart.ToolResponse != nil &&
+				respondPart.ToolResponse.Name == toolReq.Name &&
+				respondPart.ToolResponse.Ref == toolReq.Ref {
+				newToolReq := clone(p)
+				if interruptVal, ok := newToolReq.Metadata["interrupt"]; ok {
+					delete(newToolReq.Metadata, "interrupt")
+					newToolReq.Metadata["resolvedInterrupt"] = interruptVal
+				}
+
+				tool := LookupTool(r, toolReq.Name)
+				if tool == nil {
+					return nil, core.NewError(core.NOT_FOUND, "handleResumedToolRequest: tool %q not found", toolReq.Name)
+				}
+
+				toolDef := tool.Definition()
+				if toolDef.OutputSchema != nil && len(toolDef.OutputSchema) > 0 {
+					outputBytes, err := json.Marshal(respondPart.ToolResponse.Output)
+					if err != nil {
+						return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: failed to marshal tool output for validation: %v", err)
+					}
+
+					schemaBytes, err := json.Marshal(toolDef.OutputSchema)
+					if err != nil {
+						return nil, core.NewError(core.INTERNAL, "handleResumedToolRequest: tool %q has invalid output schema: %v", toolReq.Name, err)
+					}
+
+					if err := base.ValidateRaw(outputBytes, schemaBytes); err != nil {
+						return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: tool %q output validation failed: %v", toolReq.Name, err)
+					}
+				}
+
+				newToolResp := NewToolResponsePart(respondPart.ToolResponse)
+				newToolResp.Metadata = respondPart.Metadata
+
+				return &resumedToolRequestOutput{
+					toolRequest:  newToolReq,
+					toolResponse: newToolResp,
+				}, nil
+			}
+		}
+
+		for _, restartPart := range genOpts.Resume.Restart {
+			if restartPart.ToolRequest != nil &&
+				restartPart.ToolRequest.Name == toolReq.Name &&
+				restartPart.ToolRequest.Ref == toolReq.Ref {
+				tool := LookupTool(r, restartPart.ToolRequest.Name)
+				if tool == nil {
+					return nil, core.NewError(core.NOT_FOUND, "handleResumedToolRequest: tool %q not found", restartPart.ToolRequest.Name)
+				}
+
+				resumedCtx := ctx
+				if resumedVal, ok := restartPart.Metadata["resumed"]; ok {
+					// TODO: Better handling here or in tools.go.
+					switch resumedVal := resumedVal.(type) {
+					case map[string]any:
+						resumedCtx = resumedCtxKey.NewContext(resumedCtx, resumedVal)
+					case bool:
+						if resumedVal {
+							resumedCtx = resumedCtxKey.NewContext(resumedCtx, map[string]any{})
+						}
+					}
+				}
+				if originalInputVal, ok := restartPart.Metadata["originalInput"]; ok {
+					resumedCtx = origInputCtxKey.NewContext(resumedCtx, originalInputVal)
+				}
+
+				output, err := tool.RunRaw(resumedCtx, restartPart.ToolRequest.Input)
+				if err != nil {
+					var tie *ToolInterruptError
+					if errors.As(err, &tie) {
+						logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", restartPart.ToolRequest.Name, tie.Metadata)
+
+						interruptPart := clone(p)
+						if interruptPart.Metadata == nil {
+							interruptPart.Metadata = make(map[string]any)
+						}
+						interruptPart.Metadata["interrupt"] = tie.Metadata
+
+						return &resumedToolRequestOutput{
+							interrupt: interruptPart,
+						}, nil
+					}
+
+					return nil, core.NewError(core.INTERNAL, "tool %q failed: %v", restartPart.ToolRequest.Name, err)
+				}
+
+				newToolReq := clone(p)
+				if interruptVal, ok := newToolReq.Metadata["interrupt"]; ok {
+					delete(newToolReq.Metadata, "interrupt")
+					newToolReq.Metadata["resolvedInterrupt"] = interruptVal
+				}
+
+				newToolResp := NewToolResponsePart(&ToolResponse{
+					Name:   restartPart.ToolRequest.Name,
+					Ref:    restartPart.ToolRequest.Ref,
+					Output: output,
+				})
+
+				return &resumedToolRequestOutput{
+					toolRequest:  newToolReq,
+					toolResponse: newToolResp,
+				}, nil
+			}
+		}
+	}
+
+	refStr := p.ToolRequest.Name
+	if p.ToolRequest.Ref != "" {
+		refStr = "#" + p.ToolRequest.Ref
+	}
+	return nil, core.NewError(core.INVALID_ARGUMENT, fmt.Sprintf("unresolved tool request %q was not handled by the Resume argument; you must supply Respond or Restart directives, or ensure there is pending output from a previous tool call", refStr))
+}
+
+// handleResumeOption amends message history to handle `resume` arguments.
+// It returns the amended history.
+func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *GenerateActionOptions) (*resumeOptionOutput, error) {
+	if genOpts.Resume == nil || (len(genOpts.Resume.Respond) == 0 && len(genOpts.Resume.Restart) == 0) {
+		return &resumeOptionOutput{revisedRequest: genOpts}, nil
+	}
+
+	toolDefMap := make(map[string]*ToolDefinition)
+	for _, t := range genOpts.Tools {
+		tool := LookupTool(r, t)
+		if tool == nil {
+			return nil, core.NewError(core.NOT_FOUND, "handleResumeOption: tool %q not found", t)
+		}
+		toolDefMap[t] = tool.Definition()
+	}
+
+	messages := genOpts.Messages
+	if len(messages) == 0 {
+		return nil, core.NewError(core.FAILED_PRECONDITION, "handleResumeOption: cannot resume generation with no messages")
+	}
+	lastMessage := messages[len(messages)-1]
+
+	if lastMessage.Role != RoleModel || !slices.ContainsFunc(lastMessage.Content, func(p *Part) bool { return p.IsToolRequest() }) {
+		return nil, core.NewError(core.FAILED_PRECONDITION, "handleResumeOption: cannot resume generation unless the last message is by a model with at least one tool request")
+	}
+
+	resultChan := make(chan result[*resumedToolRequestOutput])
+	newContent := make([]*Part, len(lastMessage.Content))
+	toolReqCount := 0
+
+	for i, part := range lastMessage.Content {
+		if !part.IsToolRequest() {
+			newContent[i] = part
+			continue
+		}
+		toolReqCount++
+
+		go func(idx int, p *Part) {
+			output, err := handleResumedToolRequest(ctx, r, genOpts, p)
+			resultChan <- result[*resumedToolRequestOutput]{
+				index: idx,
+				value: output,
+				err:   err,
+			}
+		}(i, part)
+	}
+
+	var toolResps []*Part
+	interrupted := false
+
+	for range toolReqCount {
+		res := <-resultChan
+		if res.err != nil {
+			return nil, fmt.Errorf("handleResumeOption: failed to resolve resumed tool request: %w", res.err)
+		}
+
+		if res.value.interrupt != nil {
+			interrupted = true
+			newContent[res.index] = res.value.interrupt
+		} else {
+			toolResps = append(toolResps, res.value.toolResponse)
+			newContent[res.index] = res.value.toolRequest
+		}
+	}
+
+	lastMessage.Content = newContent
+
+	if interrupted {
+		return &resumeOptionOutput{
+			interruptedResponse: &ModelResponse{
+				Message:       lastMessage,
+				FinishReason:  "interrupted",
+				FinishMessage: "One or more tools triggered interrupts while resuming generation. The model was not called.",
+			},
+		}, nil
+	}
+
+	if len(toolResps) != toolReqCount {
+		return nil, core.NewError(core.FAILED_PRECONDITION, fmt.Sprintf("handleResumeOption: Expected %d tool responses but resolved to %d.", toolReqCount, len(toolResps)))
+	}
+
+	toolMessage := &Message{
+		Role:    RoleTool,
+		Content: toolResps,
+		Metadata: map[string]any{
+			"resumed": true,
+		},
+	}
+	if genOpts.Resume.Metadata != nil {
+		toolMessage.Metadata["resumed"] = genOpts.Resume.Metadata
+	}
+	revisedMessages := append(slices.Clone(messages), toolMessage)
+
+	return &resumeOptionOutput{
+		revisedRequest: &GenerateActionOptions{
+			Model:              genOpts.Model,
+			Messages:           revisedMessages,
+			Tools:              genOpts.Tools,
+			MaxTurns:           genOpts.MaxTurns,
+			Config:             genOpts.Config,
+			ToolChoice:         genOpts.ToolChoice,
+			Docs:               genOpts.Docs,
+			ReturnToolRequests: genOpts.ReturnToolRequests,
+			Output:             genOpts.Output,
+		},
+		toolMessage: toolMessage,
+	}, nil
 }

@@ -30,25 +30,11 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/invopop/jsonschema"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
-
-// Plugin is the interface implemented by types that extend Genkit's functionality.
-// Plugins are typically used to integrate external services like model providers,
-// vector databases, or monitoring tools.
-// They are registered and initialized via [WithPlugins] during [Init].
-type Plugin interface {
-	// Name returns the unique identifier for the plugin.
-	// This name is used for registration and lookup.
-	Name() string
-	// Init initializes the plugin. It is called once during [Init].
-	// The plugin can use the provided [Genkit] instance to register actions,
-	// models, tools, etc.
-	Init(ctx context.Context, g *Genkit) error
-}
 
 // Genkit encapsulates a Genkit instance, providing access to its registry,
 // configuration, and core functionalities. It serves as the central hub for
@@ -224,7 +210,7 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		serverStartCh := make(chan struct{})
 
 		go func() {
-			if s := startReflectionServer(ctx, r, errCh, serverStartCh); s == nil {
+			if s := startReflectionServer(ctx, g, errCh, serverStartCh); s == nil {
 				return
 			}
 			if err := <-errCh; err != nil {
@@ -362,14 +348,40 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 // This is useful for introspection or for dynamically exposing flow endpoints,
 // for example, in an HTTP server.
 func ListFlows(g *Genkit) []core.Action {
-	acts := g.reg.ListActions()
+	acts := listActions(g)
 	flows := []core.Action{}
 	for _, act := range acts {
-		if strings.HasPrefix(act.Key, "/"+string(atype.Flow)+"/") {
-			flows = append(flows, g.reg.LookupAction(act.Key))
+		if act.Type == core.ActionTypeFlow {
+			key := fmt.Sprintf("/%s/%s", act.Type, act.Name)
+			flows = append(flows, g.reg.LookupAction(key).(core.Action))
 		}
 	}
 	return flows
+}
+
+// ListTools returns a slice of all [ai.Tool] instances that are registered
+// with the Genkit instance `g`. This is useful for introspection and for
+// exposing tools to external systems like MCP servers.
+func ListTools(g *Genkit) []ai.Tool {
+	acts := g.reg.ListActions()
+	tools := []ai.Tool{}
+	for _, act := range acts {
+		action, ok := act.(core.Action)
+		if !ok {
+			continue
+		}
+		actionDesc := action.Desc()
+		if strings.HasPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/") {
+			// Extract tool name from key
+			toolName := strings.TrimPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/")
+			// Lookup the actual tool
+			tool := LookupTool(g, toolName)
+			if tool != nil {
+				tools = append(tools, tool)
+			}
+		}
+	}
+	return tools
 }
 
 // DefineModel defines a custom model implementation, registers it as a [core.Action]
@@ -475,6 +487,50 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
 func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) ai.Tool {
 	return ai.DefineTool(g.reg, name, description, fn)
+}
+
+// DefineToolWithInputSchema defines a tool with a custom input schema that can be used by models during generation,
+// registers it as a [core.Action] of type Tool, and returns an [ai.Tool].
+//
+// This variant of [DefineTool] allows specifying a JSON Schema for the tool's input, providing more
+// control over input validation and model guidance. The input parameter to the tool function will be
+// of type `any` and should be validated/processed according to the schema.
+//
+// The `name` is the identifier the model uses to request the tool. The `description` helps the model
+// understand when to use the tool. The `inputSchema` defines the expected structure and constraints
+// of the input. The function `fn` implements the tool's logic, taking an [ai.ToolContext] and an
+// input of type `any`, and returning an output of type `Out`.
+//
+// Example:
+//
+//	// Define a custom input schema
+//	inputSchema := &jsonschema.Schema{
+//		Type:        "object",
+//		Properties: map[string]*jsonschema.Schema{
+//			"city": {Type: "string"},
+//			"unit": {Type: "string", Enum: []any{"C", "F"}},
+//		},
+//		Required: []string{"city"},
+//	}
+//
+//	// Define the tool with the schema
+//	weatherTool := genkit.DefineToolWithInputSchema(g, "getWeather",
+//		"Fetches the weather for a given city with unit preference",
+//		inputSchema,
+//		func(ctx *ai.ToolContext, input any) (string, error) {
+//			// Parse and validate input
+//			data := input.(map[string]any)
+//			city := data["city"].(string)
+//			unit := "C" // default
+//			if u, ok := data["unit"].(string); ok {
+//				unit = u
+//			}
+//			// Implementation...
+//			return fmt.Sprintf("Weather in %s: 25°%s", city, unit), nil
+//		},
+//	)
+func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema *jsonschema.Schema, fn func(ctx *ai.ToolContext, input any) (Out, error)) ai.Tool {
+	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
 }
 
 // LookupTool retrieves a registered [ai.Tool] by its name.
@@ -677,25 +733,6 @@ func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 	return ai.LookupRetriever(g.reg, provider, name)
 }
 
-// DefineIndexer defines a custom indexer implementation, registers it as a
-// [core.Action] of type Indexer, and returns an [ai.Indexer].
-// Indexers are responsible for adding or updating documents in a data store,
-// often a vector database, typically involving embedding the document content.
-//
-// The `provider` and `name` form the unique identifier. The `index` function
-// contains the logic to process an [ai.IndexerRequest], which includes the
-// documents to be indexed.
-func DefineIndexer(g *Genkit, provider, name string, index func(context.Context, *ai.IndexerRequest) error) ai.Indexer {
-	return ai.DefineIndexer(g.reg, provider, name, index)
-}
-
-// LookupIndexer retrieves a registered [ai.Indexer] by its provider and name.
-// It returns the indexer instance if found, or `nil` if no indexer with the
-// given identifier is registered (e.g., via [DefineIndexer] or a plugin).
-func LookupIndexer(g *Genkit, provider, name string) ai.Indexer {
-	return ai.LookupIndexer(g.reg, provider, name)
-}
-
 // DefineEmbedder defines a custom text embedding implementation, registers it as a
 // [core.Action] of type Embedder, and returns an [ai.Embedder].
 // Embedders convert text documents or queries into numerical vector representations (embeddings).
@@ -716,11 +753,11 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 
 // LookupPlugin retrieves a registered plugin instance by its name.
 // Plugins are registered during initialization via [WithPlugins].
-// It returns the plugin instance as `any` if found, or `nil` otherwise.
+// It returns the plugin instance as `Plugin` if found, or `nil` otherwise.
 // The caller is responsible for type-asserting the returned value to the
 // specific plugin type.
-func LookupPlugin(g *Genkit, name string) any {
-	return g.reg.LookupPlugin(name)
+func LookupPlugin(g *Genkit, name string) Plugin {
+	return g.reg.LookupPlugin(name).(Plugin)
 }
 
 // DefineEvaluator defines an evaluator that processes test cases one by one,
