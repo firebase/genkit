@@ -538,11 +538,29 @@ class GeminiModel:
         Returns:
             Schema or None
         """
-        if input_schema is None or 'type' not in input_schema:
+        if input_schema is None:
             return None
 
         if defs is None:
             defs = input_schema.get('$defs') if '$defs' in input_schema else {}
+
+        if '$ref' in input_schema:
+            ref_path = input_schema['$ref']
+            ref_tokens = ref_path.split('/')
+            ref_name = ref_tokens[-1]
+
+            if ref_name not in defs:
+                raise ValueError(f'Failed to resolve schema for {ref_name}')
+
+            schema = self._convert_schema_property(defs[ref_name], defs)
+
+            if input_schema.get('description'):
+                schema.description = input_schema['description']
+
+            return schema
+
+        if 'type' not in input_schema:
+            return None
 
         schema = genai_types.Schema()
         if input_schema.get('description'):
@@ -565,18 +583,8 @@ class GeminiModel:
                 schema.properties = {}
                 properties = input_schema['properties']
                 for key in properties:
-                    if isinstance(properties[key], dict) and '$ref' in properties[key]:
-                        ref_tokens = properties[key]['$ref'].split('/')
-                        if ref_tokens[2] not in defs:
-                            raise ValueError(f'Failed to resolve schema for {ref_tokens[2]}')
-                        resolved_schema = self._convert_schema_property(defs[ref_tokens[2]], defs)
-                        schema.properties[key] = resolved_schema
-
-                        if 'description' in properties[key]:
-                            schema.properties[key].description = properties[key]['description']
-                    else:
-                        nested_schema = self._convert_schema_property(properties[key], defs)
-                        schema.properties[key] = nested_schema
+                    nested_schema = self._convert_schema_property(properties[key], defs)
+                    schema.properties[key] = nested_schema
 
         return schema
 
