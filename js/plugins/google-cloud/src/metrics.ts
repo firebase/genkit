@@ -25,6 +25,7 @@ import type { PathMetadata } from 'genkit/tracing';
 
 export const METER_NAME = 'genkit';
 export const METRIC_NAME_PREFIX = 'genkit';
+const METRIC_DIMENSION_MAX_CHARS = 256;
 
 export function internalMetricNamespaceWrap(...namespaces) {
   return [METRIC_NAME_PREFIX, ...namespaces].join('/');
@@ -75,6 +76,7 @@ export class MetricCounter extends Metric<Counter> {
 
   add(val?: number, opts?: any) {
     if (val) {
+      truncateDimensions(opts);
       this.get().add(val, opts);
     }
   }
@@ -94,8 +96,25 @@ export class MetricHistogram extends Metric<Histogram> {
 
   record(val?: number, opts?: any) {
     if (val) {
+      truncateDimensions(opts);
       this.get().record(val, opts);
     }
+  }
+}
+
+/**
+ * Truncates all of the metric dimensions to ensure they are below the trace
+ * attribute max. Labels should be consistent between metrics and traces so that
+ * data can be properly correlated. This will truncate all dimensions for
+ * metrics such that they will be consistent with data included in traces.
+ */
+function truncateDimensions(opts?: any) {
+  if (opts) {
+    Object.keys(opts).forEach((k) => {
+      if (typeof opts[k] == 'string') {
+        opts[k] = opts[k].substring(0, METRIC_DIMENSION_MAX_CHARS);
+      }
+    });
   }
 }
 
