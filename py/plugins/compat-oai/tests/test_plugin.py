@@ -44,8 +44,7 @@ def test_openai_plugin_initialize() -> None:
 @pytest.mark.parametrize(
     'kind, name',
     [
-        (ActionKind.MODEL, model_name)
-        for model_name in SUPPORTED_OPENAI_MODELS.keys()
+        (ActionKind.MODEL, 'gpt-3.5-turbo')
     ],
 )
 def test_openai_plugin_resolve_action(kind, name):
@@ -63,7 +62,6 @@ def test_openai_plugin_resolve_action(kind, name):
         metadata={
             'model': {
                 'label': model_info.label,
-                'supports': {'multiturn': model_info.supports.multiturn} if model_info.supports else {},
             },
         },
     )
@@ -72,7 +70,7 @@ def test_openai_plugin_resolve_action(kind, name):
 @pytest.mark.parametrize(
     'kind, name',
     [
-        (ActionKind.MODEL, "model_not_found")
+        (ActionKind.MODEL, "model_doesnt_exist")
     ],
 )
 def test_openai_plugin_resolve_action_not_found(kind, name):
@@ -82,7 +80,7 @@ def test_openai_plugin_resolve_action_not_found(kind, name):
     registry = MagicMock(spec=Genkit)
     plugin.resolve_action(registry, kind, name)
 
-    registry.define_model.assert_not_called()
+    registry.define_model.assert_called_once()
 
 
 

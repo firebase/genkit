@@ -117,6 +117,42 @@ class OpenAI(Plugin):
             },
         )
 
+    def resolve_action(  # noqa: B027
+        self,
+        ai: GenkitRegistry,
+        kind: ActionKind,
+        name: str,
+    ) -> None:
+
+        if kind is not ActionKind.MODEL:
+            return None
+
+        self._define_openai_model(ai, name)
+        return None
+
+    def _define_openai_model(self, ai: GenkitRegistry, name: str) -> None:
+        """Defines and registers an OpenAI model with Genkit.
+
+        Cleans the model name, instantiates an OpenAI, and registers it
+        with the provided Genkit AI registry, including metadata about its capabilities.
+
+        Args:
+            ai: The Genkit AI registry instance.
+            name: The name of the model to be registered.
+        """
+
+        handler = OpenAIModelHandler(OpenAIModel(name, self._openai_client, ai)).generate
+        ai.define_model(
+            name=f'openai/{name}',
+            fn=handler,
+            config_schema=OpenAIConfig,
+            metadata={
+                'model': {
+                    'label': f"OpenAI - {name}",
+                },
+            },
+        )
+
 
 def openai_model(name: str) -> str:
     """Returns a string representing the OpenAI model name to use with Genkit.
