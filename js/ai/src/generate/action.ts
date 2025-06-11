@@ -322,7 +322,13 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request), {
+      const rawResponse = await dispatch(0, request);
+      if (!rawResponse.model) {
+        rawResponse.model = model.__action.name;
+      }
+
+      return new GenerateResponse(rawResponse, {
+        model: model.__action.name,
         request,
         parser: format?.handler(request.output?.schema).parseMessage,
       });
@@ -331,6 +337,11 @@ async function generate(
 
   // Throw an error if the response is not usable.
   response.assertValid();
+
+  if (response.operation) {
+    return response.toJSON();
+  }
+
   const generatedMessage = response.message!; // would have thrown if no message
 
   const toolRequests = generatedMessage.content.filter(
