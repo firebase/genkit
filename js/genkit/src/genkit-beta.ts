@@ -26,6 +26,7 @@ import {
 } from '@genkit-ai/ai';
 import type { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import { defineFormat } from '@genkit-ai/ai/formats';
+import { ModelOperation } from '@genkit-ai/ai/model';
 import {
   getCurrentSession,
   Session,
@@ -37,7 +38,6 @@ import type { z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
 import type { Formatter } from './formats.js';
 import { Genkit, type GenkitOptions } from './genkit.js';
-import { Operation } from './model.js';
 
 export type { GenkitOptions as GenkitBetaOptions }; // in case they drift later
 
@@ -263,7 +263,7 @@ export class GenkitBeta extends Genkit {
     opts:
       | GenerateOptions<O, CustomOptions>
       | PromiseLike<GenerateOptions<O, CustomOptions>>
-  ): Promise<Operation> {
+  ): Promise<ModelOperation> {
     return generateOperation(this.registry, opts);
   }
 }

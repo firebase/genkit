@@ -18,7 +18,7 @@ import type { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
 import { z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Operation, modelRef } from '../../ai/src/model';
+import { ModelOperation, modelRef } from '../../ai/src/model';
 import { genkit, type GenkitBeta } from '../src/beta';
 import {
   defineEchoModel,
@@ -1253,7 +1253,7 @@ describe('generate', () => {
             content: [{ text: 'done' }],
           },
         },
-      } as Operation;
+      } as ModelOperation;
 
       pm.handleResponse = async (req, sc) => {
         return {

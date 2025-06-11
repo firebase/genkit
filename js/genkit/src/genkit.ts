@@ -72,7 +72,7 @@ import {
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
-  Operation,
+  ModelOperation,
   defineGenerateAction,
   defineModel,
   type DefineModelOptions,
@@ -782,7 +782,7 @@ export class Genkit implements HasRegistry {
    * @param operation
    * @returns
    */
-  checkOperation(operation: Operation): Promise<Operation> {
+  checkOperation(operation: ModelOperation): Promise<ModelOperation> {
     return checkOperation(this.registry, operation);
   }
 

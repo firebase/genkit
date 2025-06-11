@@ -16,13 +16,13 @@
 
 import { GenkitError } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { GenerateRequest, ModelAction, Operation } from './model';
+import { GenerateRequest, ModelAction, ModelOperation } from './model';
 
 export async function checkOperation(
   registry: Registry,
-  operation: Operation
-): Promise<Operation> {
-  if (!operation.request || !operation.request?.model) {
+  operation: ModelOperation
+): Promise<ModelOperation> {
+  if (!operation.request?.model) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
       message: 'Provided operation is missing original request information',

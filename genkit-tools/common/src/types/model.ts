@@ -210,7 +210,7 @@ export const FinishReasonSchema = z.enum([
 /**
  * Zod schema of a long running operation.
  */
-export const OperationSchema = z
+export const ModelOperationSchema = z
   .object({
     name: z.string(),
     done: z.boolean().optional(),
@@ -243,7 +243,7 @@ export const ModelRequestSchema = z.object({
   toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   output: OutputConfigSchema.optional(),
   docs: z.array(DocumentDataSchema).optional(),
-  operation: OperationSchema.optional(),
+  operation: ModelOperationSchema.optional(),
 });
 
 /** ModelRequest represents the parameters that are passed to a model when generating content. */
@@ -333,7 +333,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
-  operation: OperationSchema.optional(),
+  operation: ModelOperationSchema.optional(),
 });
 
 /**

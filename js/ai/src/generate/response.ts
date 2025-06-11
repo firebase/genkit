@@ -26,8 +26,8 @@ import type {
   GenerateResponseData,
   GenerationUsage,
   MessageData,
+  ModelOperation,
   ModelResponseData,
-  Operation,
   ToolRequestPart,
 } from '../model.js';
 
@@ -51,7 +51,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   /** The request that generated this response. */
   request?: GenerateRequest;
   /** Model generation long running operation. */
-  operation?: Operation;
+  operation?: ModelOperation;
   /** Name of the model used. */
   model?: string;
   /** The parser for output parsing of this response. */

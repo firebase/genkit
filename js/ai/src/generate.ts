@@ -42,7 +42,7 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
-  Operation,
+  ModelOperation,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
@@ -378,7 +378,7 @@ export async function generateOperation<
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
-): Promise<Operation> {
+): Promise<ModelOperation> {
   assertUnstable(registry, 'beta', 'generateOperation is a beta feature.');
 
   options = await options;
