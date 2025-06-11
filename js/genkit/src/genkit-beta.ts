@@ -248,7 +248,7 @@ export class GenkitBeta extends Genkit {
    * See {@link GenerateOptions} for detailed information about available options.
    *
    * ```ts
-   * const operation = await ai.generategenerateOperation({
+   * const operation = await ai.generateOperation({
    *   model: googleAI.model('veo-2.0-generate-001'),
    *   prompt: 'A banana riding a bicycle.',
    * });
