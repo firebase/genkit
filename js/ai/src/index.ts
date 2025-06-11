@@ -87,6 +87,7 @@ export {
   type ToolResponsePart,
 } from './model.js';
 export {
+  _setPromptLoader,
   defineHelper,
   definePartial,
   definePrompt,

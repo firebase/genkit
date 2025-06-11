@@ -327,7 +327,14 @@ export const vertexStreamer = ai.defineFlow(
 export const multimodalFlow = ai.defineFlow(
   {
     name: 'multimodalFlow',
-    inputSchema: z.object({ modelName: z.string(), imageUrl: z.string() }),
+    inputSchema: z.object({
+      modelName: z.string().default('googleai/gemini-2.0-flash'),
+      imageUrl: z
+        .string()
+        .default(
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/1024px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg'
+        ),
+    }),
     outputSchema: z.string(),
   },
   async (input) => {

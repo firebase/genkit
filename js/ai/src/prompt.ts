@@ -26,13 +26,10 @@ import {
   type z,
 } from '@genkit-ai/core';
 import { lazy } from '@genkit-ai/core/async';
-import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { Message as DpMessage, PromptFunction } from 'dotprompt';
-import { existsSync, readFileSync, readdirSync } from 'fs';
-import { basename, join, resolve } from 'path';
 import type { DocumentData } from './document.js';
 import {
   generate,
@@ -62,6 +59,26 @@ import {
 } from './model.js';
 import { getCurrentSession, type Session } from './session.js';
 import type { ToolAction, ToolArgument } from './tool.js';
+
+export interface PromptLoader {
+  loadPromptFolder(registry: Registry, dir: string, ns: string): void;
+}
+
+export function _getPromptLoader(): PromptLoader {
+  const instr = globalThis.__genkit__PromptLoader;
+  if (!instr) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: 'Failed to find PromptLoader, probable misconfiguration.',
+    });
+  }
+
+  return instr;
+}
+
+export function _setPromptLoader(instr: PromptLoader) {
+  globalThis.__genkit__PromptLoader = instr;
+}
 
 /**
  * Prompt action.
@@ -238,7 +255,7 @@ export function definePrompt<
   );
 }
 
-function definePromptAsync<
+export function definePromptAsync<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -707,52 +724,7 @@ export function loadPromptFolder(
   dir = './prompts',
   ns: string
 ): void {
-  const promptsPath = resolve(dir);
-  if (existsSync(promptsPath)) {
-    loadPromptFolderRecursively(registry, dir, ns, '');
-  }
-}
-export function loadPromptFolderRecursively(
-  registry: Registry,
-  dir: string,
-  ns: string,
-  subDir: string
-): void {
-  const promptsPath = resolve(dir);
-  const dirEnts = readdirSync(join(promptsPath, subDir), {
-    withFileTypes: true,
-  });
-  for (const dirEnt of dirEnts) {
-    const parentPath = join(promptsPath, subDir);
-    const fileName = dirEnt.name;
-    if (dirEnt.isFile() && fileName.endsWith('.prompt')) {
-      if (fileName.startsWith('_')) {
-        const partialName = fileName.substring(1, fileName.length - 7);
-        definePartial(
-          registry,
-          partialName,
-          readFileSync(join(parentPath, fileName), {
-            encoding: 'utf8',
-          })
-        );
-        logger.debug(
-          `Registered Dotprompt partial "${partialName}" from "${join(parentPath, fileName)}"`
-        );
-      } else {
-        // If this prompt is in a subdirectory, we need to include that
-        // in the namespace to prevent naming conflicts.
-        loadPrompt(
-          registry,
-          promptsPath,
-          fileName,
-          subDir ? `${subDir}/` : '',
-          ns
-        );
-      }
-    } else if (dirEnt.isDirectory()) {
-      loadPromptFolderRecursively(registry, dir, ns, join(subDir, fileName));
-    }
-  }
+  _getPromptLoader().loadPromptFolder(registry, dir, ns);
 }
 
 export function definePartial(
@@ -769,73 +741,6 @@ export function defineHelper(
   fn: Handlebars.HelperDelegate
 ) {
   registry.dotprompt.defineHelper(name, fn);
-}
-
-function loadPrompt(
-  registry: Registry,
-  path: string,
-  filename: string,
-  prefix = '',
-  ns = 'dotprompt'
-): void {
-  let name = `${prefix ?? ''}${basename(filename, '.prompt')}`;
-  let variant: string | null = null;
-  if (name.includes('.')) {
-    const parts = name.split('.');
-    name = parts[0];
-    variant = parts[1];
-  }
-  const source = readFileSync(join(path, prefix ?? '', filename), 'utf8');
-  const parsedPrompt = registry.dotprompt.parse(source);
-  definePromptAsync(
-    registry,
-    registryDefinitionKey(name, variant ?? undefined, ns),
-    // We use a lazy promise here because we only want prompt loaded when it's first used.
-    // This is important because otherwise the loading may happen before the user has configured
-    // all the schemas, etc., which will result in dotprompt.renderMetadata errors.
-    lazy(async () => {
-      const promptMetadata =
-        await registry.dotprompt.renderMetadata(parsedPrompt);
-      if (variant) {
-        promptMetadata.variant = variant;
-      }
-
-      // dotprompt can set null description on the schema, which can confuse downstream schema consumers
-      if (promptMetadata.output?.schema?.description === null) {
-        delete promptMetadata.output.schema.description;
-      }
-      if (promptMetadata.input?.schema?.description === null) {
-        delete promptMetadata.input.schema.description;
-      }
-
-      return {
-        name: registryDefinitionKey(name, variant ?? undefined, ns),
-        model: promptMetadata.model,
-        config: promptMetadata.config,
-        tools: promptMetadata.tools,
-        description: promptMetadata.description,
-        output: {
-          jsonSchema: promptMetadata.output?.schema,
-          format: promptMetadata.output?.format,
-        },
-        input: {
-          jsonSchema: promptMetadata.input?.schema,
-        },
-        metadata: {
-          ...promptMetadata.metadata,
-          type: 'prompt',
-          prompt: {
-            ...promptMetadata,
-            template: parsedPrompt.template,
-          },
-        },
-        maxTurns: promptMetadata.raw?.['maxTurns'],
-        toolChoice: promptMetadata.raw?.['toolChoice'],
-        returnToolRequests: promptMetadata.raw?.['returnToolRequests'],
-        messages: parsedPrompt.template,
-      };
-    })
-  );
 }
 
 export async function prompt<
@@ -880,7 +785,12 @@ async function lookupPrompt<
   });
 }
 
-function registryDefinitionKey(name: string, variant?: string, ns?: string) {
+/** @hidden */
+export function registryDefinitionKey(
+  name: string,
+  variant?: string,
+  ns?: string
+) {
   // "ns/prompt.variant" where ns and variant are optional
   return `${ns ? `${ns}/` : ''}${name}${variant ? `.${variant}` : ''}`;
 }

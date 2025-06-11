@@ -21,9 +21,9 @@ import {
   type Span as ApiSpan,
   type Link,
 } from '@opentelemetry/api';
-import { performance } from 'node:perf_hooks';
 import type { HasRegistry, Registry } from '../registry.js';
 import { ensureBasicTelemetryInstrumentation } from '../tracing.js';
+import { performanceNow } from '../utils.js';
 import type { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
 export const spanMetadataAlsKey = 'core.tracing.instrumentation.span';
@@ -56,7 +56,7 @@ export async function newTrace<T>(
     traceMetadataAlsKey
   ) || {
     paths: new Set<PathMetadata>(),
-    timestamp: performance.now(),
+    timestamp: performanceNow(),
     featureName: opts.name,
   };
   return await registry.asyncStore.run(traceMetadataAlsKey, traceMetadata, () =>
@@ -282,7 +282,7 @@ function recordPath(registry: Registry, spanMeta: SpanMetadata, err?: any) {
   );
   const status = err ? 'failure' : 'success';
   if (!paths.some((p) => p.path.startsWith(path) && p.status === status)) {
-    const now = performance.now();
+    const now = performanceNow();
     const start =
       registry.asyncStore.getStore<TraceMetadata>(traceMetadataAlsKey)
         ?.timestamp || now;

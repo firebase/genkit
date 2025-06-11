@@ -14,36 +14,50 @@
  * limitations under the License.
  */
 
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import {
-  BatchSpanProcessor,
-  SimpleSpanProcessor,
-  type SpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
-import { logger } from './logging.js';
+import { GenkitError } from './error.js';
 import type { TelemetryConfig } from './telemetryTypes.js';
-import {
-  TraceServerExporter,
-  setTelemetryServerUrl,
-} from './tracing/exporter.js';
-import { isDevEnv } from './utils.js';
+import { setTelemetryServerUrl } from './tracing/exporter.js';
+import { getEnvVar } from './utils.js';
 
 export * from './tracing/exporter.js';
 export * from './tracing/instrumentation.js';
 export * from './tracing/processor.js';
 export * from './tracing/types.js';
 
-let telemetrySDK: NodeSDK | null = null;
-let nodeOtelConfig: TelemetryConfig | null = null;
-
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
+
+export interface GenkitOtel {
+  enableTelemetry(telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>);
+
+  shutdown(): Promise<void>;
+
+  flushTracing(): Promise<void>;
+
+  flushMetrics(): Promise<void>;
+}
+
+export function _getGenkitOtel(): GenkitOtel {
+  const instr = globalThis.__genkit__GenkitOtel;
+  if (!instr) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: 'Failed to find GenkitOtel, probable misconfiguration.',
+    });
+  }
+
+  return instr;
+}
+
+export function _setGenkitOtel(instr: GenkitOtel) {
+  globalThis.__genkit__GenkitOtel = instr;
+}
 
 /**
  * @hidden
  */
 export async function ensureBasicTelemetryInstrumentation() {
-  if (global[instrumentationKey]) {
-    return await global[instrumentationKey];
+  if (globalThis[instrumentationKey]) {
+    return await globalThis[instrumentationKey];
   }
   await enableTelemetry({});
 }
@@ -54,66 +68,16 @@ export async function ensureBasicTelemetryInstrumentation() {
 export async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
-  if (process.env.GENKIT_TELEMETRY_SERVER) {
-    setTelemetryServerUrl(process.env.GENKIT_TELEMETRY_SERVER);
+  if (getEnvVar('GENKIT_TELEMETRY_SERVER')) {
+    setTelemetryServerUrl(getEnvVar('GENKIT_TELEMETRY_SERVER')!);
   }
-  global[instrumentationKey] =
+  globalThis[instrumentationKey] =
     telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
-
-  telemetryConfig =
-    telemetryConfig instanceof Promise
-      ? await telemetryConfig
-      : telemetryConfig;
-
-  nodeOtelConfig = telemetryConfig || {};
-
-  const processors: SpanProcessor[] = [createTelemetryServerProcessor()];
-  if (nodeOtelConfig.traceExporter) {
-    throw new Error('Please specify spanProcessors instead.');
-  }
-  if (nodeOtelConfig.spanProcessors) {
-    processors.push(...nodeOtelConfig.spanProcessors);
-  }
-  if (nodeOtelConfig.spanProcessor) {
-    processors.push(nodeOtelConfig.spanProcessor);
-    delete nodeOtelConfig.spanProcessor;
-  }
-  nodeOtelConfig.spanProcessors = processors;
-  telemetrySDK = new NodeSDK(nodeOtelConfig);
-  telemetrySDK.start();
-  process.on('SIGTERM', async () => await cleanUpTracing());
+  _getGenkitOtel().enableTelemetry(telemetryConfig);
 }
 
 export async function cleanUpTracing(): Promise<void> {
-  if (!telemetrySDK) {
-    return;
-  }
-
-  // Metrics are not flushed as part of the shutdown operation. If metrics
-  // are enabled, we need to manually flush them *before* the reader
-  // receives shutdown order.
-  await maybeFlushMetrics();
-  await telemetrySDK.shutdown();
-  logger.debug('OpenTelemetry SDK shut down.');
-  telemetrySDK = null;
-}
-
-/**
- * Creates a new SpanProcessor for exporting data to the telemetry server.
- */
-function createTelemetryServerProcessor(): SpanProcessor {
-  const exporter = new TraceServerExporter();
-  return isDevEnv()
-    ? new SimpleSpanProcessor(exporter)
-    : new BatchSpanProcessor(exporter);
-}
-
-/** Flush metrics if present. */
-function maybeFlushMetrics(): Promise<void> {
-  if (nodeOtelConfig?.metricReader) {
-    return nodeOtelConfig.metricReader.forceFlush();
-  }
-  return Promise.resolve();
+  await _getGenkitOtel().shutdown();
 }
 
 /**
@@ -122,7 +86,5 @@ function maybeFlushMetrics(): Promise<void> {
  * @hidden
  */
 export async function flushTracing() {
-  if (nodeOtelConfig?.spanProcessors) {
-    await Promise.all(nodeOtelConfig.spanProcessors.map((p) => p.forceFlush()));
-  }
+  await _getGenkitOtel().flushTracing();
 }

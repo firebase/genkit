@@ -15,61 +15,26 @@
  */
 
 import {
-  _setPromptLoader,
   defineHelper,
   definePartial,
   definePrompt,
   defineTool,
-  embed,
-  evaluate,
   generate,
   generateStream,
-  loadPromptFolder,
-  prompt,
-  rerank,
-  retrieve,
-  type BaseDataPointSchema,
-  type Document,
-  type EmbedderInfo,
-  type EmbedderParams,
-  type Embedding,
-  type EvalResponses,
-  type EvaluatorParams,
   type ExecutablePrompt,
   type GenerateOptions,
   type GenerateRequest,
   type GenerateResponse,
-  type GenerateResponseChunk,
   type GenerateResponseData,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
   type GenerationCommonConfigSchema,
-  type IndexerParams,
   type ModelArgument,
   type Part,
   type PromptConfig,
-  type PromptGenerateOptions,
-  type RankedDocument,
-  type RerankerParams,
-  type RetrieverAction,
-  type RetrieverInfo,
-  type RetrieverParams,
   type ToolAction,
   type ToolConfig,
 } from '@genkit-ai/ai';
-import {
-  defineEmbedder,
-  embedMany,
-  type EmbedderAction,
-  type EmbedderArgument,
-  type EmbedderFn,
-  type EmbeddingBatch,
-} from '@genkit-ai/ai/embedder';
-import {
-  defineEvaluator,
-  type EvaluatorAction,
-  type EvaluatorFn,
-} from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
   defineGenerateAction,
@@ -78,31 +43,14 @@ import {
   type GenerateResponseChunkData,
   type ModelAction,
 } from '@genkit-ai/ai/model';
-import { NodePromptLoader } from '@genkit-ai/ai/node';
-import {
-  defineReranker,
-  type RerankerFn,
-  type RerankerInfo,
-} from '@genkit-ai/ai/reranker';
-import {
-  defineIndexer,
-  defineRetriever,
-  defineSimpleRetriever,
-  index,
-  type DocumentData,
-  type IndexerAction,
-  type IndexerFn,
-  type RetrieverFn,
-  type SimpleRetrieverOptions,
-} from '@genkit-ai/ai/retriever';
 import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
   GenkitError,
+  _setPerformanceNowFn,
   defineFlow,
   defineJsonSchema,
   defineSchema,
   getContext,
-  isDevEnv,
   run,
   type Action,
   type ActionContext,
@@ -112,24 +60,14 @@ import {
   type StreamingCallback,
   type z,
 } from '@genkit-ai/core';
-import { Channel } from '@genkit-ai/core/async';
-import { NodeRegistry, ReflectionServer } from '@genkit-ai/core/node';
 import type { HasRegistry } from '@genkit-ai/core/registry';
-import type { BaseEvalDataPointSchema } from './evaluator.js';
-import { logger } from './logging.js';
-import type { GenkitPlugin } from './plugin.js';
-import { Registry, type ActionType } from './registry.js';
-import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
+import { type PromptFn } from '../genkit.js';
+import { logger } from '../logging.js';
+import type { GenkitPlugin } from '../plugin.js';
+import { Registry, type ActionType } from '../registry.js';
+import { BrowserRegistry } from './registry.js';
 
-_setPromptLoader(new NodePromptLoader());
-
-/**
- * @deprecated use `ai.definePrompt({messages: fn})`
- */
-export type PromptFn<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
-> = (input: z.infer<I>) => Promise<GenerateRequest<CustomOptionsSchema>>;
+_setPerformanceNowFn(() => window.performance.now());
 
 /**
  * Options for initializing Genkit.
@@ -137,8 +75,6 @@ export type PromptFn<
 export interface GenkitOptions {
   /** List of plugins to load. */
   plugins?: GenkitPlugin[];
-  /** Directory where dotprompts are stored. */
-  promptDir?: string;
   /** Default model to use if no model is specified. */
   model?: ModelArgument<any>;
   /** Additional runtime context data for flows and tools. */
@@ -159,8 +95,6 @@ export class Genkit implements HasRegistry {
   readonly options: GenkitOptions;
   /** Registry instance that is exclusively modified by this Genkit instance. */
   readonly registry: Registry;
-  /** Reflection server for this registry. May be null if not started. */
-  private reflectionServer: ReflectionServer | null = null;
   /** List of flows that have been registered in this instance. */
   readonly flows: Action<any, any, any>[] = [];
 
@@ -170,17 +104,11 @@ export class Genkit implements HasRegistry {
 
   constructor(options?: GenkitOptions) {
     this.options = options || {};
-    this.registry = new NodeRegistry();
+    this.registry = new BrowserRegistry();
     if (this.options.context) {
       this.registry.context = this.options.context;
     }
     this.configure();
-    if (isDevEnv() && !disableReflectionApi) {
-      this.reflectionServer = new ReflectionServer(this.registry, {
-        configuredEnvs: ['dev'],
-      });
-      this.reflectionServer.start().catch((e) => logger.error);
-    }
   }
 
   /**
@@ -251,97 +179,6 @@ export class Genkit implements HasRegistry {
     ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema> {
     return defineModel(this.registry, options, runner);
-  }
-
-  /**
-   * Looks up a prompt by `name` (and optionally `variant`). Can be used to lookup
-   * .prompt files or prompts previously defined with {@link Genkit.definePrompt}
-   */
-  prompt<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    name: string,
-    options?: { variant?: string }
-  ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
-    return this.wrapExecutablePromptPromise(
-      `${name}${options?.variant ? `.${options?.variant}` : ''}`,
-      prompt(this.registry, name, {
-        ...options,
-        dir: this.options.promptDir ?? './prompts',
-      })
-    );
-  }
-
-  private wrapExecutablePromptPromise<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    name: string,
-    promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>
-  ) {
-    const executablePrompt = (async (
-      input?: I,
-      opts?: PromptGenerateOptions<O, CustomOptions>
-    ): Promise<GenerateResponse<z.infer<O>>> => {
-      return (await promise)(input, opts);
-    }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
-
-    executablePrompt.render = async (
-      input?: I,
-      opts?: PromptGenerateOptions<O, CustomOptions>
-    ): Promise<GenerateOptions<O, CustomOptions>> => {
-      return (await promise).render(input, opts) as Promise<
-        GenerateOptions<O, CustomOptions>
-      >;
-    };
-
-    executablePrompt.stream = (
-      input?: I,
-      opts?: PromptGenerateOptions<O, CustomOptions>
-    ): GenerateStreamResponse<O> => {
-      let channel = new Channel<GenerateResponseChunk>();
-
-      const generated = runInNewSpan(
-        this.registry,
-        {
-          metadata: {
-            name,
-            input,
-          },
-          labels: {
-            [SPAN_TYPE_ATTR]: 'dotprompt',
-          },
-        },
-        () =>
-          generate<O, CustomOptions>(
-            this.registry,
-            promise.then((action) =>
-              action.render(input, {
-                ...opts,
-                onChunk: (chunk) => channel.send(chunk),
-              })
-            )
-          )
-      );
-      generated.then(
-        () => channel.close(),
-        (err) => channel.error(err)
-      );
-
-      return {
-        response: generated,
-        stream: channel,
-      };
-    };
-
-    executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
-      return (await promise).asTool() as Promise<ToolAction<I, O>>;
-    };
-
-    return executablePrompt;
   }
 
   /**
@@ -418,85 +255,6 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * Creates a retriever action for the provided {@link RetrieverFn} implementation.
-   */
-  defineRetriever<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
-    options: {
-      name: string;
-      configSchema?: OptionsType;
-      info?: RetrieverInfo;
-    },
-    runner: RetrieverFn<OptionsType>
-  ): RetrieverAction<OptionsType> {
-    return defineRetriever(this.registry, options, runner);
-  }
-
-  /**
-   * defineSimpleRetriever makes it easy to map existing data into documents that
-   * can be used for prompt augmentation.
-   *
-   * @param options Configuration options for the retriever.
-   * @param handler A function that queries a datastore and returns items from which to extract documents.
-   * @returns A Genkit retriever.
-   */
-  defineSimpleRetriever<C extends z.ZodTypeAny = z.ZodTypeAny, R = any>(
-    options: SimpleRetrieverOptions<C, R>,
-    handler: (query: Document, config: z.infer<C>) => Promise<R[]>
-  ): RetrieverAction<C> {
-    return defineSimpleRetriever(this.registry, options, handler);
-  }
-
-  /**
-   * Creates an indexer action for the provided {@link IndexerFn} implementation.
-   */
-  defineIndexer<IndexerOptions extends z.ZodTypeAny>(
-    options: {
-      name: string;
-      embedderInfo?: EmbedderInfo;
-      configSchema?: IndexerOptions;
-    },
-    runner: IndexerFn<IndexerOptions>
-  ): IndexerAction<IndexerOptions> {
-    return defineIndexer(this.registry, options, runner);
-  }
-
-  /**
-   * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
-   */
-  defineEvaluator<
-    DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-    EvalDataPoint extends
-      typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
-    EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    options: {
-      name: string;
-      displayName: string;
-      definition: string;
-      dataPointType?: DataPoint;
-      configSchema?: EvaluatorOptions;
-      isBilled?: boolean;
-    },
-    runner: EvaluatorFn<EvalDataPoint, EvaluatorOptions>
-  ): EvaluatorAction {
-    return defineEvaluator(this.registry, options, runner);
-  }
-
-  /**
-   * Creates embedder model for the provided {@link EmbedderFn} model implementation.
-   */
-  defineEmbedder<ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny>(
-    options: {
-      name: string;
-      configSchema?: ConfigSchema;
-      info?: EmbedderInfo;
-    },
-    runner: EmbedderFn<ConfigSchema>
-  ): EmbedderAction<ConfigSchema> {
-    return defineEmbedder(this.registry, options, runner);
-  }
-
-  /**
    * create a handlebards helper (https://handlebarsjs.com/guide/block-helpers.html) to be used in dotpormpt templates.
    */
   defineHelper(name: string, fn: Handlebars.HelperDelegate): void {
@@ -508,78 +266,6 @@ export class Genkit implements HasRegistry {
    */
   definePartial(name: string, source: string): void {
     definePartial(this.registry, name, source);
-  }
-
-  /**
-   *  Creates a reranker action for the provided {@link RerankerFn} implementation.
-   */
-  defineReranker<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
-    options: {
-      name: string;
-      configSchema?: OptionsType;
-      info?: RerankerInfo;
-    },
-    runner: RerankerFn<OptionsType>
-  ) {
-    return defineReranker(this.registry, options, runner);
-  }
-
-  /**
-   * Embeds the given `content` using the specified `embedder`.
-   */
-  embed<CustomOptions extends z.ZodTypeAny>(
-    params: EmbedderParams<CustomOptions>
-  ): Promise<Embedding[]> {
-    return embed(this.registry, params);
-  }
-
-  /**
-   * A veneer for interacting with embedder models in bulk.
-   */
-  embedMany<ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny>(params: {
-    embedder: EmbedderArgument<ConfigSchema>;
-    content: string[] | DocumentData[];
-    metadata?: Record<string, unknown>;
-    options?: z.infer<ConfigSchema>;
-  }): Promise<EmbeddingBatch> {
-    return embedMany(this.registry, params);
-  }
-
-  /**
-   * Evaluates the given `dataset` using the specified `evaluator`.
-   */
-  evaluate<
-    DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(params: EvaluatorParams<DataPoint, CustomOptions>): Promise<EvalResponses> {
-    return evaluate(this.registry, params);
-  }
-
-  /**
-   * Reranks documents from a {@link RerankerArgument} based on the provided query.
-   */
-  rerank<CustomOptions extends z.ZodTypeAny>(
-    params: RerankerParams<CustomOptions>
-  ): Promise<Array<RankedDocument>> {
-    return rerank(this.registry, params);
-  }
-
-  /**
-   * Indexes `documents` using the provided `indexer`.
-   */
-  index<CustomOptions extends z.ZodTypeAny>(
-    params: IndexerParams<CustomOptions>
-  ): Promise<void> {
-    return index(this.registry, params);
-  }
-
-  /**
-   * Retrieves documents from the `retriever` based on the provided `query`.
-   */
-  retrieve<CustomOptions extends z.ZodTypeAny>(
-    params: RetrieverParams<CustomOptions>
-  ): Promise<Array<Document>> {
-    return retrieve(this.registry, params);
   }
 
   /**
@@ -843,15 +529,8 @@ export class Genkit implements HasRegistry {
         this.options.model
       );
     }
-    if (this.options.promptDir !== null) {
-      loadPromptFolder(
-        this.registry,
-        this.options.promptDir ?? './prompts',
-        ''
-      );
-    }
     plugins.forEach((plugin) => {
-      const loadedPlugin = plugin(this);
+      const loadedPlugin = plugin(this as any);
       logger.debug(`Registering plugin ${loadedPlugin.name}...`);
       activeRegistry.registerPluginProvider(loadedPlugin.name, {
         name: loadedPlugin.name,
@@ -877,9 +556,17 @@ export class Genkit implements HasRegistry {
   /**
    * Stops all servers.
    */
-  async stopServers() {
-    await this.reflectionServer?.stop();
-    this.reflectionServer = null;
+  async stopServers() {}
+
+  prompt<
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    name: string,
+    options?: { variant?: string }
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
+    throw new Error('Method not implemented.');
   }
 }
 
@@ -891,19 +578,4 @@ export class Genkit implements HasRegistry {
  */
 export function genkit(options: GenkitOptions): Genkit {
   return new Genkit(options);
-}
-
-const shutdown = async () => {
-  logger.info('Shutting down all Genkit servers...');
-  await ReflectionServer.stopAll();
-  process.exit(0);
-};
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
-let disableReflectionApi = false;
-
-export function __disableReflectionApi() {
-  disableReflectionApi = true;
 }

@@ -25,7 +25,11 @@ import {
   runWithStreamingCallback,
   type Status,
 } from './action.js';
-import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
+import {
+  GENKIT_REFLECTION_API_SPEC_VERSION,
+  GENKIT_VERSION,
+  getEnvVar,
+} from './index.js';
 import { logger } from './logging.js';
 import type { Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
@@ -230,7 +234,7 @@ export class ReflectionServer {
 
     server.post('/api/notify', async (request, response) => {
       const { telemetryServerUrl, reflectionApiSpecVersion } = request.body;
-      if (!process.env.GENKIT_TELEMETRY_SERVER) {
+      if (!getEnvVar('GENKIT_TELEMETRY_SERVER')) {
         if (typeof telemetryServerUrl === 'string') {
           setTelemetryServerUrl(telemetryServerUrl);
           logger.debug(
@@ -330,7 +334,7 @@ export class ReflectionServer {
       );
       const fileContent = JSON.stringify(
         {
-          id: process.env.GENKIT_RUNTIME_ID || process.pid.toString(),
+          id: getEnvVar('GENKIT_RUNTIME_ID') || process.pid.toString(),
           pid: process.pid,
           reflectionServerUrl: `http://localhost:${this.port}`,
           timestamp,
