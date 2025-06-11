@@ -33,7 +33,13 @@ import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
-import { MessageSchema, genkit, z, type GenerateResponseData } from 'genkit';
+import {
+  MessageSchema,
+  dynamicTool,
+  genkit,
+  z,
+  type GenerateResponseData,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   simulateConstrainedGeneration,
@@ -490,7 +496,7 @@ export const dynamicToolCaller = ai.defineFlow(
     streamSchema: z.any(),
   },
   async (input, { sendChunk }) => {
-    const dynamicGablorkenTool = ai.dynamicTool(
+    const dynamicGablorkenTool = dynamicTool(
       {
         name: 'dynamicGablorkenTool',
         inputSchema: z.object({

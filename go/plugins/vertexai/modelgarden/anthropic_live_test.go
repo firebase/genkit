@@ -101,7 +101,7 @@ func TestAnthropicLive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("", "data:image/png;base64,"+i))))
+					ai.NewMediaPart("", "data:image/jpeg;base64,"+i))))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -180,7 +180,7 @@ func TestAnthropicLive(t *testing.T) {
 		)
 
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("Tell me a short story about a frog and a princess"),
+			ai.WithPrompt("Tell me a short story about a frog and a frog"),
 			ai.WithModel(m),
 			ai.WithTools(myStoryTool),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {

@@ -46,6 +46,7 @@ export interface ActionMetadata<
   outputJsonSchema?: JSONSchema7;
   streamSchema?: S;
   metadata?: Record<string, any>;
+  detached?: boolean;
 }
 
 /**
@@ -135,6 +136,19 @@ export type Action<
     input?: z.infer<I>,
     opts?: ActionRunOptions<z.infer<S>>
   ): StreamingResponse<O, S>;
+};
+
+/**
+ * Self-describing, validating, observable, locally and remotely callable function.
+ */
+export type DetachedAction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+  RunOptions extends ActionRunOptions<S> = ActionRunOptions<S>,
+> = {
+  __action: ActionMetadata<I, O, S>;
+  attach(registry: Registry): Action<I, O, S, RunOptions>;
 };
 
 /**
@@ -263,18 +277,28 @@ export function action<
     options: ActionFnArg<z.infer<S>>
   ) => Promise<z.infer<O>>
 ): Action<I, O, z.infer<S>> {
+  return detachedAction(config, fn).attach(registry);
+}
+
+/**
+ * Creates an action with the provided config.
+ */
+export function detachedAction<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  config: ActionParams<I, O, S>,
+  fn: (
+    input: z.infer<I>,
+    options: ActionFnArg<z.infer<S>> & { registry: Registry }
+  ) => Promise<z.infer<O>>
+): DetachedAction<I, O, z.infer<S>> {
   const actionName =
     typeof config.name === 'string'
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
-  const actionFn = async (
-    input?: I,
-    options?: ActionRunOptions<z.infer<S>>
-  ) => {
-    return (await actionFn.run(input, options)).result;
-  };
-  actionFn.__registry = registry;
-  actionFn.__action = {
+  const actionMetadata = {
     name: actionName,
     description: config.description,
     inputSchema: config.inputSchema,
@@ -284,130 +308,172 @@ export function action<
     streamSchema: config.streamSchema,
     metadata: config.metadata,
     actionType: config.actionType,
+    detached: true,
   } as ActionMetadata<I, O, S>;
-  actionFn.run = async (
-    input: z.infer<I>,
-    options?: ActionRunOptions<z.infer<S>>
-  ): Promise<ActionResult<z.infer<O>>> => {
-    input = parseSchema(input, {
-      schema: config.inputSchema,
-      jsonSchema: config.inputJsonSchema,
-    });
-    let traceId;
-    let spanId;
-    let output = await newTrace(
-      registry,
-      {
-        name: actionName,
-        labels: {
-          [SPAN_TYPE_ATTR]: 'action',
-          'genkit:metadata:subtype': config.actionType,
-          ...options?.telemetryLabels,
-        },
-      },
-      async (metadata, span) => {
-        setCustomMetadataAttributes(registry, { subtype: config.actionType });
-        if (options?.context) {
-          setCustomMetadataAttributes(registry, {
-            context: JSON.stringify(options.context),
-          });
-        }
 
-        traceId = span.spanContext().traceId;
-        spanId = span.spanContext().spanId;
-        metadata.name = actionName;
-        metadata.input = input;
+  return {
+    __action: actionMetadata,
+    attach(registry: Registry): Action<I, O, z.infer<S>> {
+      const actionFn = async (
+        input?: I,
+        options?: ActionRunOptions<z.infer<S>>
+      ) => {
+        return (await actionFn.run(input, options)).result;
+      };
+      actionFn.__registry = registry;
+      actionFn.__action = { ...actionMetadata };
+      delete actionFn.__action['detached'];
 
-        try {
-          const actionFn = () =>
-            fn(input, {
-              ...options,
-              // Context can either be explicitly set, or inherited from the parent action.
-              context: options?.context ?? getContext(registry),
-              sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
-              trace: {
-                traceId,
-                spanId,
-              },
+      actionFn.run = async (
+        input: z.infer<I>,
+        options?: ActionRunOptions<z.infer<S>>
+      ): Promise<ActionResult<z.infer<O>>> => {
+        input = parseSchema(input, {
+          schema: config.inputSchema,
+          jsonSchema: config.inputJsonSchema,
+        });
+        let traceId;
+        let spanId;
+        let output = await newTrace(
+          registry,
+          {
+            name: actionName,
+            labels: {
+              [SPAN_TYPE_ATTR]: 'action',
+              'genkit:metadata:subtype': config.actionType,
+              ...options?.telemetryLabels,
+            },
+          },
+          async (metadata, span) => {
+            setCustomMetadataAttributes(registry, {
+              subtype: config.actionType,
             });
-          // if context is explicitly passed in, we run action with the provided context,
-          // otherwise we let upstream context carry through.
-          const output = await runWithContext(
-            registry,
-            options?.context,
-            actionFn
-          );
+            if (options?.context) {
+              setCustomMetadataAttributes(registry, {
+                context: JSON.stringify(options.context),
+              });
+            }
 
-          metadata.output = JSON.stringify(output);
-          return output;
-        } catch (err) {
-          if (typeof err === 'object') {
-            (err as any).traceId = traceId;
+            traceId = span.spanContext().traceId;
+            spanId = span.spanContext().spanId;
+            metadata.name = actionName;
+            metadata.input = input;
+
+            try {
+              const actionFn = () =>
+                fn(input, {
+                  ...options,
+                  // Context can either be explicitly set, or inherited from the parent action.
+                  context: {
+                    ...registry.context,
+                    ...(options?.context ?? getContext(registry)),
+                  },
+                  sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
+                  trace: {
+                    traceId,
+                    spanId,
+                  },
+                  registry,
+                });
+              // if context is explicitly passed in, we run action with the provided context,
+              // otherwise we let upstream context carry through.
+              const output = await runWithContext(
+                registry,
+                options?.context,
+                actionFn
+              );
+
+              metadata.output = JSON.stringify(output);
+              return output;
+            } catch (err) {
+              if (typeof err === 'object') {
+                (err as any).traceId = traceId;
+              }
+              throw err;
+            }
           }
-          throw err;
-        }
+        );
+        output = parseSchema(output, {
+          schema: config.outputSchema,
+          jsonSchema: config.outputJsonSchema,
+        });
+        return {
+          result: output,
+          telemetry: {
+            traceId,
+            spanId,
+          },
+        };
+      };
+
+      actionFn.stream = (
+        input?: z.infer<I>,
+        opts?: ActionRunOptions<z.infer<S>>
+      ): StreamingResponse<O, S> => {
+        let chunkStreamController: ReadableStreamController<z.infer<S>>;
+        const chunkStream = new ReadableStream<z.infer<S>>({
+          start(controller) {
+            chunkStreamController = controller;
+          },
+          pull() {},
+          cancel() {},
+        });
+
+        const invocationPromise = actionFn
+          .run(config.inputSchema ? config.inputSchema.parse(input) : input, {
+            onChunk: ((chunk: z.infer<S>) => {
+              chunkStreamController.enqueue(chunk);
+            }) as S extends z.ZodVoid
+              ? undefined
+              : StreamingCallback<z.infer<S>>,
+            context: {
+              ...registry.context,
+              ...(opts?.context ?? getContext(registry)),
+            },
+          })
+          .then((s) => s.result)
+          .finally(() => {
+            chunkStreamController.close();
+          });
+
+        return {
+          output: invocationPromise,
+          stream: (async function* () {
+            const reader = chunkStream.getReader();
+            while (true) {
+              const chunk = await reader.read();
+              if (chunk.value) {
+                yield chunk.value;
+              }
+              if (chunk.done) {
+                break;
+              }
+            }
+            return await invocationPromise;
+          })(),
+        };
+      };
+
+      if (config.use) {
+        return actionWithMiddleware(actionFn, config.use);
       }
-    );
-    output = parseSchema(output, {
-      schema: config.outputSchema,
-      jsonSchema: config.outputJsonSchema,
-    });
-    return {
-      result: output,
-      telemetry: {
-        traceId,
-        spanId,
-      },
-    };
+      return actionFn;
+    },
   };
+}
 
-  actionFn.stream = (
-    input?: z.infer<I>,
-    opts?: ActionRunOptions<z.infer<S>>
-  ): StreamingResponse<O, S> => {
-    let chunkStreamController: ReadableStreamController<z.infer<S>>;
-    const chunkStream = new ReadableStream<z.infer<S>>({
-      start(controller) {
-        chunkStreamController = controller;
-      },
-      pull() {},
-      cancel() {},
-    });
+export function isAction(a: unknown): a is Action {
+  return (
+    typeof a === 'function' && '__action' in a && !(a as any).__action.detached
+  );
+}
 
-    const invocationPromise = actionFn
-      .run(config.inputSchema ? config.inputSchema.parse(input) : input, {
-        onChunk: ((chunk: z.infer<S>) => {
-          chunkStreamController.enqueue(chunk);
-        }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
-        context: opts?.context,
-      })
-      .then((s) => s.result)
-      .finally(() => {
-        chunkStreamController.close();
-      });
-
-    return {
-      output: invocationPromise,
-      stream: (async function* () {
-        const reader = chunkStream.getReader();
-        while (true) {
-          const chunk = await reader.read();
-          if (chunk.value) {
-            yield chunk.value;
-          }
-          if (chunk.done) {
-            break;
-          }
-        }
-        return await invocationPromise;
-      })(),
-    };
-  };
-
-  if (config.use) {
-    return actionWithMiddleware(actionFn, config.use);
-  }
-  return actionFn;
+export function isDetachedAction(a: unknown): a is DetachedAction {
+  return (
+    !!(a as DetachedAction).__action &&
+    !!(a as DetachedAction).__action.detached &&
+    typeof (a as DetachedAction).attach === 'function'
+  );
 }
 
 /**

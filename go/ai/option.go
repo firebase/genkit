@@ -47,7 +47,6 @@ type ConfigOption interface {
 	applyEmbedder(*embedderOptions) error
 	applyRetriever(*retrieverOptions) error
 	applyEvaluator(*evaluatorOptions) error
-	applyIndexer(*indexerOptions) error
 }
 
 // applyConfig applies the option to the config options.
@@ -93,11 +92,6 @@ func (o *configOptions) applyRetriever(opts *retrieverOptions) error {
 
 // applyEvaluator applies the option to the evaluate options.
 func (o *configOptions) applyEvaluator(opts *evaluatorOptions) error {
-	return o.applyConfig(&opts.configOptions)
-}
-
-// applyIndexer applies the option to the indexer options.
-func (o *configOptions) applyIndexer(opts *indexerOptions) error {
 	return o.applyConfig(&opts.configOptions)
 }
 
@@ -580,7 +574,6 @@ type DocumentOption interface {
 	applyPromptExecute(*promptExecutionOptions) error
 	applyEmbedder(*embedderOptions) error
 	applyRetriever(*retrieverOptions) error
-	applyIndexer(*indexerOptions) error
 }
 
 // applyDocument applies the option to the context options.
@@ -613,11 +606,6 @@ func (o *documentOptions) applyEmbedder(embedOpts *embedderOptions) error {
 // applyRetriever applies the option to the retrieve options.
 func (o *documentOptions) applyRetriever(retOpts *retrieverOptions) error {
 	return o.applyDocument(&retOpts.documentOptions)
-}
-
-// applyIndexer applies the option to the indexer options.
-func (o *documentOptions) applyIndexer(idxOpts *indexerOptions) error {
-	return o.applyDocument(&idxOpts.documentOptions)
 }
 
 // WithTextDocs sets the text to be used as context documents for generation or as input to an embedder.
@@ -724,31 +712,6 @@ func (o *retrieverOptions) applyRetriever(retOpts *retrieverOptions) error {
 	}
 
 	if err := o.applyDocument(&retOpts.documentOptions); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// indexerOptions holds configuration and input for an embedder request.
-type indexerOptions struct {
-	configOptions
-	documentOptions
-}
-
-// IndexerOption is an option for configuring an embedder request.
-// It applies only to [Index].
-type IndexerOption interface {
-	applyIndexer(*indexerOptions) error
-}
-
-// applyIndexer applies the option to the indexer options.
-func (o *indexerOptions) applyIndexer(idxOpts *indexerOptions) error {
-	if err := o.applyConfig(&idxOpts.configOptions); err != nil {
-		return err
-	}
-
-	if err := o.applyDocument(&idxOpts.documentOptions); err != nil {
 		return err
 	}
 
