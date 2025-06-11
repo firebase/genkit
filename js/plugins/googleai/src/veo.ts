@@ -21,7 +21,7 @@ import {
   type ModelAction,
   type ModelInfo,
   type ModelReference,
-  type Operation,
+  type ModelOperation,
 } from 'genkit/model';
 import { getApiKeyFromEnvVar } from './common.js';
 import { Operation as ApiOperation, checkOp, predictModel } from './predict.js';
@@ -95,7 +95,7 @@ function extractImage(request: GenerateRequest): string | undefined {
     ?.media?.url.split(',')[1];
 }
 
-interface ImagenInstance {
+interface VeoInstance {
   prompt: string;
   image?: { bytesBase64Encoded: string };
   mask?: { image?: { bytesBase64Encoded: string } };
@@ -154,7 +154,7 @@ export function defineVeoModel(
         };
       }
 
-      const instance: ImagenInstance = {
+      const instance: VeoInstance = {
         prompt: extractText(request),
       };
       const image = extractImage(request);
@@ -163,7 +163,7 @@ export function defineVeoModel(
       }
 
       const predictClient = predictModel<
-        ImagenInstance,
+        VeoInstance,
         ApiOperation,
         VeoParameters
       >(model.version || name, apiKey as string, 'predictLongRunning');
@@ -178,8 +178,8 @@ export function defineVeoModel(
   );
 }
 
-function toGenkitOp(apiOp: ApiOperation): Operation {
-  const res = { name: apiOp.name } as Operation;
+function toGenkitOp(apiOp: ApiOperation): ModelOperation {
+  const res = { name: apiOp.name } as ModelOperation;
   if (apiOp.done !== undefined) {
     res.done = apiOp.done;
   }
