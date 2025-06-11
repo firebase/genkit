@@ -20,8 +20,8 @@ import {
   type GenerateRequest,
   type ModelAction,
   type ModelInfo,
-  type ModelReference,
   type ModelOperation,
+  type ModelReference,
 } from 'genkit/model';
 import { getApiKeyFromEnvVar } from './common.js';
 import { Operation as ApiOperation, checkOp, predictModel } from './predict.js';
@@ -149,7 +149,7 @@ export function defineVeoModel(
       if (request.operation) {
         const newOp = await checkOp(request.operation.name, apiKey as string);
         return {
-          finishReason: 'pending',
+          finishReason: request.operation.done ? 'stop' : 'pending',
           operation: toGenkitOp(newOp),
         };
       }
@@ -170,7 +170,7 @@ export function defineVeoModel(
       const response = await predictClient([instance], toParameters(request));
 
       return {
-        finishReason: 'pending',
+        finishReason: response.done ? 'stop' : 'pending',
         operation: toGenkitOp(response),
         custom: response,
       };
