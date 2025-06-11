@@ -254,7 +254,7 @@ export class GenkitBeta extends Genkit {
    * });
    * ```
    *
-   * The status of the operation and fianal result can be obtained using {@link Genkit.checkOperation}.
+   * The status of the operation and final result can be obtained using {@link Genkit.checkOperation}.
    */
   generateOperation<
     O extends z.ZodTypeAny = z.ZodTypeAny,
