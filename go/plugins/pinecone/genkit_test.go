@@ -100,9 +100,7 @@ func TestGenkit(t *testing.T) {
 	}
 
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: PineconeRetrieverOptions{
-			K: 3,
-		},
+		ConfigSchema: PineconeRetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "embedder3",
 			Supports: &ai.MediaSupports{

@@ -233,9 +233,7 @@ func TestInit(t *testing.T) {
 	}
 	const name = "mystore"
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: RetrieverOptions{
-			K: 2,
-		},
+		ConfigSchema: RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: name,
 			Supports: &ai.MediaSupports{

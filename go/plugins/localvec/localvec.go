@@ -57,6 +57,10 @@ func DefineRetriever(g *genkit.Genkit, name string, cfg Config, retOpts *ai.Retr
 		return nil, nil, err
 	}
 
+	if retOpts != nil && retOpts.ConfigSchema == nil {
+		retOpts.ConfigSchema = RetrieverOptions{}
+	}
+
 	return ds,
 		genkit.DefineRetriever(g, provider, name, retOpts, ds.retrieve),
 		nil

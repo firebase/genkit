@@ -84,9 +84,7 @@ func main() {
 		log.Fatal(err)
 	}
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{
-			K: 3,
-		},
+		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "go-menu_items",
 			Supports: &ai.MediaSupports{

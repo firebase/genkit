@@ -97,9 +97,7 @@ func main() {
 		log.Fatal(err)
 	}
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{
-			K: 1,
-		},
+		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "simpleQa",
 			Supports: &ai.MediaSupports{
@@ -176,7 +174,8 @@ func main() {
 		}
 
 		dRequest := ai.DocumentFromText(input.Question, nil)
-		response, err := ai.Retrieve(ctx, retriever, ai.WithDocs(dRequest))
+		response, err := ai.Retrieve(ctx, retriever, ai.WithDocs(dRequest),
+			ai.WithConfig(&localvec.RetrieverOptions{K: 2}))
 		if err != nil {
 			return "", err
 		}

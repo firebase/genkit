@@ -49,10 +49,7 @@ func pineconeEx(ctx context.Context) error {
 
 	// [START defineretriever]
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: pinecone.PineconeRetrieverOptions{
-			K:         1,
-			Namespace: "Test",
-		},
+		ConfigSchema: pinecone.PineconeRetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "Pinecone",
 			Supports: &ai.MediaSupports{

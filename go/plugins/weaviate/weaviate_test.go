@@ -105,9 +105,7 @@ func TestGenkit(t *testing.T) {
 		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", emdOpts, embedder.Embed),
 	}
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: RetrieverOptions{
-			Count: 3,
-		},
+		ConfigSchema: RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "weaviate",
 			Supports: &ai.MediaSupports{

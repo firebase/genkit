@@ -50,9 +50,7 @@ func main() {
 		log.Fatal(err)
 	}
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{
-			K: 3,
-		},
+		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "menuQA",
 			Supports: &ai.MediaSupports{
@@ -168,9 +166,7 @@ func menuQA() {
 	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{
-			K: 3,
-		},
+		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "menuQA",
 			Supports: &ai.MediaSupports{
@@ -233,9 +229,7 @@ func customret() {
 	}
 
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{
-			K: 3,
-		},
+		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "menuQA",
 			Supports: &ai.MediaSupports{

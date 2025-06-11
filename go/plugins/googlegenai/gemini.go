@@ -295,18 +295,8 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOp
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
-		if req.Options != nil {
-			if optsMap, ok := req.Options.(map[string]any); ok {
-				optionsBytes, err := json.Marshal(optsMap)
-				if err != nil {
-					fmt.Println("Error marshaling options map to bytes:", err)
-				}
-				var tempConfig genai.EmbedContentConfig
-				err = json.Unmarshal(optionsBytes, &tempConfig)
-				if err == nil {
-					embedConfig = &tempConfig
-				}
-			}
+		if options, _ := req.Options.(*genai.EmbedContentConfig); options != nil {
+			embedConfig = options
 		}
 
 		for _, doc := range req.Input {
@@ -331,7 +321,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOp
 	})
 }
 
-// Generate requests a generate call to the specified model with the provided
+// Generate requests generate call to the specified model with the provided
 // configuration
 func generate(
 	ctx context.Context,
