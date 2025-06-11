@@ -67,7 +67,7 @@ func TestGoogleAILive(t *testing.T) {
 
 	g, err := genkit.Init(ctx,
 		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
-		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
+		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
 	if err != nil {
 		log.Fatal(err)
