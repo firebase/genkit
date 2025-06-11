@@ -15,6 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
+import { NodeRegistry } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -137,7 +138,7 @@ describe('validateSupport', () => {
   });
 });
 
-const registry = new Registry();
+const registry = new NodeRegistry();
 configureFormats(registry);
 
 const echoModel = defineModel(registry, { name: 'echo' }, async (req) => {
@@ -400,7 +401,7 @@ describe.only('simulateConstrainedGeneration', () => {
   let registry: Registry;
 
   beforeEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
     configureFormats(registry);
   });
 

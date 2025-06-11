@@ -381,7 +381,7 @@ function maybeRegisterDynamicTools<
         hasDynamicTools = true;
         // Create a temporary registry with dynamic tools for the duration of this
         // generate request.
-        registry = Registry.withParent(registry);
+        registry = registry.child();
       }
       registry.registerAction('tool', t as Action);
     }

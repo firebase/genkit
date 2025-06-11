@@ -96,7 +96,6 @@ import {
 import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
   GenkitError,
-  ReflectionServer,
   defineFlow,
   defineJsonSchema,
   defineSchema,
@@ -112,6 +111,7 @@ import {
   type z,
 } from '@genkit-ai/core';
 import { Channel } from '@genkit-ai/core/async';
+import { NodeRegistry, ReflectionServer } from '@genkit-ai/core/node';
 import type { HasRegistry } from '@genkit-ai/core/registry';
 import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
@@ -166,7 +166,7 @@ export class Genkit implements HasRegistry {
 
   constructor(options?: GenkitOptions) {
     this.options = options || {};
-    this.registry = new Registry();
+    this.registry = new NodeRegistry();
     if (this.options.context) {
       this.registry.context = this.options.context;
     }

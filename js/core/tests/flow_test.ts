@@ -19,6 +19,7 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, run } from '../src/flow.js';
 import { defineAction, getContext, z } from '../src/index.js';
+import { NodeRegistry } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 import { enableTelemetry } from '../src/tracing.js';
 import { TestSpanExporter } from './utils.js';
@@ -48,7 +49,7 @@ describe('flow', () => {
   beforeEach(() => {
     // Skips starting reflection server.
     delete process.env.GENKIT_ENV;
-    registry = new Registry();
+    registry = new NodeRegistry();
   });
 
   describe('runFlow', () => {
@@ -145,7 +146,7 @@ describe('flow', () => {
     let registry: Registry;
 
     beforeEach(() => {
-      registry = new Registry();
+      registry = new NodeRegistry();
     });
 
     it('should run the flow', async () => {

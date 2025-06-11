@@ -21,12 +21,13 @@ import {
   defineAction,
   runInActionRuntimeContext,
 } from '../src/action.js';
+import { NodeRegistry } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 
 describe('registry class', () => {
   var registry: Registry;
   beforeEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
   });
 
   describe('listActions', () => {
@@ -134,7 +135,7 @@ describe('registry class', () => {
     });
 
     it('returns all registered actions, including parent', async () => {
-      const child = Registry.withParent(registry);
+      const child = registry.child();
 
       const fooSomethingAction = action(
         registry,
@@ -264,7 +265,7 @@ describe('registry class', () => {
     });
 
     it('returns all registered actions, including parent', async () => {
-      const child = Registry.withParent(registry);
+      const child = registry.child();
 
       const fooSomethingAction = action(
         registry,
@@ -527,7 +528,7 @@ describe('registry class', () => {
     });
 
     it('should lookup parent registry when child missing action', async () => {
-      const childRegistry = new Registry(registry);
+      const childRegistry = registry.child();
 
       const fooAction = action(
         registry,
@@ -544,7 +545,7 @@ describe('registry class', () => {
     });
 
     it('registration on the child registry should not modify parent', async () => {
-      const childRegistry = Registry.withParent(registry);
+      const childRegistry = registry.child();
 
       assert.strictEqual(childRegistry.parent, registry);
 

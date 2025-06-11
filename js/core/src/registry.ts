@@ -15,7 +15,6 @@
  */
 
 import { Dotprompt } from 'dotprompt';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import type * as z from 'zod';
 import {
   runOutsideActionRuntimeContext,
@@ -122,14 +121,15 @@ export class Registry {
   /** Additional runtime context data for flows and tools. */
   context?: ActionContext;
 
-  constructor(parent?: Registry) {
-    if (parent) {
+  constructor(opts: { asyncStoreFactory: AsyncStoreFactory } | Registry) {
+    if (opts instanceof Registry) {
+      const parent = opts as Registry;
       this.parent = parent;
       this.apiStability = parent?.apiStability;
       this.asyncStore = parent.asyncStore;
       this.dotprompt = parent.dotprompt;
     } else {
-      this.asyncStore = new AsyncStore();
+      this.asyncStore = opts.asyncStoreFactory();
       this.dotprompt = new Dotprompt({
         schemaResolver: async (name) => {
           const resolvedSchema = await this.lookupSchema(name);
@@ -146,7 +146,16 @@ export class Registry {
   }
 
   /**
+   * Creates a new child registry overlaid onto this registry instance.
+   */
+  child(): Registry {
+    throw new Error('Method not implemented.');
+  }
+
+  /**
    * Creates a new registry overlaid onto the provided registry.
+   *
+   * @deprecated use {@link child}.
    * @param parent The parent registry.
    * @returns The new overlaid registry.
    */
@@ -438,22 +447,30 @@ export class Registry {
   }
 }
 
-/**
- * Manages AsyncLocalStorage instances in a single place.
- */
-export class AsyncStore {
-  private asls: Record<string, AsyncLocalStorage<any>> = {};
-
-  getStore<T>(key: string): T | undefined {
-    return this.asls[key]?.getStore();
+/** @deprecated available for legacy backwards compatibility reasons. */
+export function _getAsyncStoreFactory(): AsyncStoreFactory {
+  const factory = globalThis.__genkit__asyncStoreFactory;
+  if (!factory) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: 'Failed to find AsyncStoreFactory, probable misconfiguration.',
+    });
   }
 
-  run<T, R>(key: string, store: T, callback: () => R): R {
-    if (!this.asls[key]) {
-      this.asls[key] = new AsyncLocalStorage<T>();
-    }
-    return this.asls[key].run(store, callback);
-  }
+  return factory;
+}
+
+/** @deprecated available for legacy backwards compatibility reasons. */
+export function _setAsyncStoreFactory(factory: AsyncStoreFactory) {
+  globalThis.__genkit__asyncStoreFactory = factory;
+}
+
+export type AsyncStoreFactory = () => AsyncStore;
+
+export interface AsyncStore {
+  getStore<T>(key: string): T | undefined;
+
+  run<T, R>(key: string, store: T, callback: () => R): R;
 }
 
 /**

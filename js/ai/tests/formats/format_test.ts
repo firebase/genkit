@@ -15,6 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
+import { NodeRegistry } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -24,7 +25,7 @@ describe('formats', () => {
   let registry: Registry;
 
   beforeEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
     configureFormats(registry);
   });
 

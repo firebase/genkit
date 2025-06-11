@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import type { z } from 'zod';
 import { defineAction, type Action, type StreamingCallback } from './action.js';
 import type { ActionContext } from './context.js';
-import { Registry, type HasRegistry } from './registry.js';
+import {
+  Registry,
+  _getAsyncStoreFactory,
+  type HasRegistry,
+} from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
+
+const legacyRegistryAlsKey = 'legacyRegistryAls';
 
 /**
  * Flow is an observable, streamable, (optionally) strongly typed function.
@@ -132,18 +137,24 @@ function defineFlowAction<
       metadata: config.metadata,
     },
     async (input, { sendChunk, context, trace }) => {
-      return await legacyRegistryAls.run(registry, () => {
-        const ctx = sendChunk;
-        (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
-        (ctx as FlowSideChannel<z.infer<S>>).context = context;
-        (ctx as FlowSideChannel<z.infer<S>>).trace = trace;
-        return fn(input, ctx as FlowSideChannel<z.infer<S>>);
-      });
+      return await legacyRegistryAls().run(
+        legacyRegistryAlsKey,
+        registry,
+        () => {
+          const ctx = sendChunk;
+          (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
+          (ctx as FlowSideChannel<z.infer<S>>).context = context;
+          (ctx as FlowSideChannel<z.infer<S>>).trace = trace;
+          return fn(input, ctx as FlowSideChannel<z.infer<S>>);
+        }
+      );
     }
   );
 }
 
-const legacyRegistryAls = new AsyncLocalStorage<Registry>();
+function legacyRegistryAls() {
+  return _getAsyncStoreFactory()();
+}
 
 export function run<T>(
   name: string,
@@ -191,7 +202,7 @@ export function run<T>(
   }
 
   if (!registry) {
-    registry = legacyRegistryAls.getStore();
+    registry = legacyRegistryAls().getStore(legacyRegistryAlsKey);
   }
   if (!registry) {
     throw new Error(
