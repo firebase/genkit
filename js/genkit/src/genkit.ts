@@ -15,6 +15,7 @@
  */
 
 import {
+  checkOperation,
   defineHelper,
   definePartial,
   definePrompt,
@@ -71,6 +72,7 @@ import {
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
+  ModelOperation,
   defineGenerateAction,
   defineModel,
   type DefineModelOptions,
@@ -766,6 +768,29 @@ export class Genkit implements HasRegistry {
     }
     return generateStream(this.registry, options);
   }
+
+  /**
+   * Checks the status of of a given operation. Returns a new operation which will contain the updated status.
+   *
+   * ```ts
+   * let operation = await ai.generateOperation({
+   *   model: googleAI.model('veo-2.0-generate-001'),
+   *   prompt: 'A banana riding a bicycle.',
+   * });
+   *
+   * while (!operation.done) {
+   *   operation = await ai.checkOperation(operation!);
+   *   await new Promise((resolve) => setTimeout(resolve, 5000));
+   * }
+   * ```
+   *
+   * @param operation
+   * @returns
+   */
+  checkOperation(operation: ModelOperation): Promise<ModelOperation> {
+    return checkOperation(this.registry, operation);
+  }
+
   /**
    * A flow step that executes the provided function. Each run step is recorded separately in the trace.
    *

@@ -15,6 +15,7 @@
  */
 
 import {
+  assertUnstable,
   GenkitError,
   isAction,
   isDetachedAction,
@@ -43,6 +44,7 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  ModelOperation,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
@@ -340,6 +342,9 @@ export async function generate<
   registry = maybeRegisterDynamicTools(registry, resolvedOptions);
 
   const params = await toGenerateActionOptions(registry, resolvedOptions);
+  const model = await resolveModel(registry, resolvedOptions.model, {
+    warnDeprecated: true,
+  });
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
   return await runWithStreamingCallback(
@@ -360,11 +365,44 @@ export async function generate<
         tools,
       });
       return new GenerateResponse<O>(response, {
+        model: model.modelAction.__action.name,
         request: response.request ?? request,
         parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
       });
     }
   );
+}
+
+export async function generateOperation<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  registry: Registry,
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<ModelOperation> {
+  assertUnstable(registry, 'beta', 'generateOperation is a beta feature.');
+
+  options = await options;
+  const resolvedModel = await resolveModel(registry, options.model);
+  if (
+    !resolvedModel.modelAction.__action.metadata?.model.supports?.longRunning
+  ) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: `Model '${resolvedModel.modelAction.__action.name}' does not support long running operations.`,
+    });
+  }
+
+  const { operation } = await generate(registry, options);
+  if (!operation) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Model '${resolvedModel.modelAction.__action.name}' did not return an operation.`,
+    });
+  }
+  return operation;
 }
 
 function maybeRegisterDynamicTools<
