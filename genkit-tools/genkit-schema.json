@@ -734,7 +734,7 @@
           }
         },
         "operation": {
-          "$ref": "#/$defs/Operation"
+          "$ref": "#/$defs/ModelOperation"
         },
         "candidates": {
           "type": "number"
@@ -794,7 +794,7 @@
           "$ref": "#/$defs/GenerateRequest"
         },
         "operation": {
-          "$ref": "#/$defs/Operation"
+          "$ref": "#/$defs/ModelOperation"
         },
         "candidates": {
           "type": "array",
@@ -982,6 +982,53 @@
       },
       "additionalProperties": false
     },
+    "ModelOperation": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "done": {
+          "type": "boolean"
+        },
+        "request": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "model"
+          ],
+          "additionalProperties": false
+        },
+        "response": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "$ref": "#/$defs/Message"
+            },
+            "finishReason": {
+              "$ref": "#/$defs/FinishReason"
+            },
+            "raw": {}
+          },
+          "required": [
+            "finishReason"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": true
+    },
     "ModelRequest": {
       "type": "object",
       "properties": {
@@ -1071,53 +1118,6 @@
         "finishReason"
       ],
       "additionalProperties": false
-    },
-    "Operation": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "done": {
-          "type": "boolean"
-        },
-        "request": {
-          "type": "object",
-          "properties": {
-            "model": {
-              "type": "string"
-            },
-            "config": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "required": [
-            "model"
-          ],
-          "additionalProperties": false
-        },
-        "response": {
-          "type": "object",
-          "properties": {
-            "message": {
-              "$ref": "#/$defs/Message"
-            },
-            "finishReason": {
-              "$ref": "#/$defs/FinishReason"
-            },
-            "raw": {}
-          },
-          "required": [
-            "finishReason"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "additionalProperties": true
     },
     "OutputConfig": {
       "type": "object",

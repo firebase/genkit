@@ -290,8 +290,8 @@ class ModelInfo(BaseModel):
     stage: Stage | None = None
 
 
-class Request1(BaseModel):
-    """Model for request1 data."""
+class Request(BaseModel):
+    """Model for request data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     model: str
@@ -798,17 +798,6 @@ class Message(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
-class ModelResponseChunk(BaseModel):
-    """Model for modelresponsechunk data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    role: Role | None = None
-    index: Index | None = None
-    content: Content
-    custom: CustomModel | None = None
-    aggregated: Aggregated | None = None
-
-
 class Response(BaseModel):
     """Model for response data."""
 
@@ -818,14 +807,25 @@ class Response(BaseModel):
     raw: Any | None = None
 
 
-class Operation(BaseModel):
-    """Model for operation data."""
+class ModelOperation(BaseModel):
+    """Model for modeloperation data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     name: str
     done: bool | None = None
-    request: Request1 | None = None
+    request: Request | None = None
     response: Response | None = None
+
+
+class ModelResponseChunk(BaseModel):
+    """Model for modelresponsechunk data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    role: Role | None = None
+    index: Index | None = None
+    content: Content
+    custom: CustomModel | None = None
+    aggregated: Aggregated | None = None
 
 
 class RankedDocumentData(BaseModel):
@@ -847,6 +847,12 @@ class Messages(RootModel[list[Message]]):
     """Root model for messages."""
 
     root: list[Message]
+
+
+class Operation(RootModel[ModelOperation]):
+    """Root model for operation."""
+
+    root: ModelOperation
 
 
 class DocumentData(BaseModel):
@@ -903,7 +909,7 @@ class GenerateRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputConfig | None = None
     docs: list[DocumentData] | None = None
-    operation: Operation | None = None
+    operation: ModelOperation | None = None
     candidates: float | None = None
 
 
@@ -919,7 +925,7 @@ class GenerateResponse(BaseModel):
     custom: Any | None = None
     raw: Any | None = None
     request: GenerateRequest | None = None
-    operation: Operation | None = None
+    operation: ModelOperation | None = None
     candidates: list[Candidate] | None = None
 
 
@@ -953,8 +959,8 @@ class Docs(RootModel[list[DocumentData]]):
     root: list[DocumentData]
 
 
-class Request(RootModel[GenerateRequest]):
-    """Root model for request."""
+class RequestModel(RootModel[GenerateRequest]):
+    """Root model for requestmodel."""
 
     root: GenerateRequest
 
@@ -983,5 +989,5 @@ class ModelResponse(BaseModel):
     usage: Usage | None = None
     custom: CustomModel | None = None
     raw: Raw | None = None
-    request: Request | None = None
+    request: RequestModel | None = None
     operation: Operation | None = None
