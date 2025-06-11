@@ -317,7 +317,7 @@ class GenerateTelemetry implements Telemetry {
     };
     const message = output.message || output.candidates?.[0]?.message!;
 
-    if (message && message.content) {
+    if (message?.content) {
       const parts = message.content.length;
       message.content.forEach((part, partIdx) => {
         const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
