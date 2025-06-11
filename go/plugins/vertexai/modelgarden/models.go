@@ -53,4 +53,14 @@ var anthropicModels = map[string]ai.ModelInfo{
 		Supports: &internal.Multimodal,
 		Versions: []string{"claude-3-7-sonnet@20250219"},
 	},
+	"claude-opus-4": {
+		Label:    "Vertex AI Model Garden - Claude Opus 4",
+		Supports: &internal.Multimodal,
+		Versions: []string{"claude-opus-4@20250514"},
+	},
+	"claude-sonnet-4": {
+		Label:    "Vertex AI Model Garden - Claude Sonnet 4",
+		Supports: &internal.Multimodal,
+		Versions: []string{"claude-sonnet-4@20250514"},
+	},
 }
