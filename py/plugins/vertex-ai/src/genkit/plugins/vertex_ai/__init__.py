@@ -19,10 +19,7 @@
 It enables the use of Vertex AI models and services within the Genkit framework.
 """
 
-from genkit.plugins.vertex_ai.vector_search.vector_search import (
-    VertexAIVectorSearch,
-    vertexai_name,
-)
+from genkit.plugins.vertex_ai import model_garden, vector_search
 
 
 def package_name() -> str:
@@ -36,6 +33,6 @@ def package_name() -> str:
 
 __all__ = [
     package_name.__name__,
-    vertexai_name.__name__,
-    VertexAIVectorSearch.__name__,
+    vector_search.__name__,
+    model_garden.__name__,
 ]

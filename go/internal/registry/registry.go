@@ -19,6 +19,7 @@ package registry
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"sync"
 
@@ -37,12 +38,15 @@ const (
 type Registry struct {
 	tstate    *tracing.State
 	mu        sync.Mutex
+	frozen    bool           // when true, no more additions
+	parent    *Registry      // parent registry for hierarchical lookups
 	actions   map[string]any // Values follow interface core.Action but we can't reference it here.
 	plugins   map[string]any // Values follow interface genkit.Plugin but we can't reference it here.
 	values    map[string]any // Values can truly be anything.
 	Dotprompt *dotprompt.Dotprompt
 }
 
+// New creates a new root registry.
 func New() (*Registry, error) {
 	r := &Registry{
 		actions: map[string]any{},
@@ -58,6 +62,21 @@ func New() (*Registry, error) {
 		Partials: make(map[string]string),
 	})
 	return r, nil
+}
+
+// NewChild creates a new child registry that inherits from this registry.
+// Child registries are cheap to create and will fall back to the parent
+// for lookups if a value is not found in the child.
+func (r *Registry) NewChild() *Registry {
+	child := &Registry{
+		parent:    r,
+		tstate:    r.tstate,
+		actions:   map[string]any{},
+		plugins:   map[string]any{},
+		values:    map[string]any{},
+		Dotprompt: r.Dotprompt,
+	}
+	return child
 }
 
 func (r *Registry) TracingState() *tracing.State { return r.tstate }
@@ -88,11 +107,22 @@ func (r *Registry) RegisterAction(key string, action any) {
 	slog.Debug("RegisterAction", "key", key)
 }
 
-// LookupPlugin returns the plugin for the given name, or nil if there is none.
+// LookupPlugin returns the plugin for the given name.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the plugin is not found in the registry hierarchy.
 func (r *Registry) LookupPlugin(name string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.plugins[name]
+
+	if plugin, ok := r.plugins[name]; ok {
+		return plugin
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupPlugin(name)
+	}
+
+	return nil
 }
 
 // RegisterValue records an arbitrary value in the registry.
@@ -107,21 +137,45 @@ func (r *Registry) RegisterValue(name string, value any) {
 	slog.Debug("RegisterValue", "name", name)
 }
 
-// LookupValue returns the value for the given name, or nil if there is none.
+// LookupValue returns the value for the given name.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the value is not found in the registry hierarchy.
 func (r *Registry) LookupValue(name string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.values[name]
+
+	if value, ok := r.values[name]; ok {
+		return value
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupValue(name)
+	}
+
+	return nil
 }
 
-// LookupAction returns the action for the given key, or nil if there is none.
+// LookupAction returns the action for the given key.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the action is not found in the registry hierarchy.
 func (r *Registry) LookupAction(key string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.actions[key]
+
+	if action, ok := r.actions[key]; ok {
+		return action
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupAction(key)
+	}
+
+	return nil
 }
 
 // ListActions returns a list of all registered actions.
+// This includes actions from both the current registry and its parent hierarchy.
+// Child registry actions take precedence over parent actions with the same key.
 func (r *Registry) ListActions() []any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -148,10 +202,24 @@ func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 }
 
 // ListValues returns a list of values of all registered values.
+// This includes values from both the current registry and its parent hierarchy.
+// Child registry values take precedence over parent values with the same key.
 func (r *Registry) ListValues() map[string]any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.values
+
+	allValues := make(map[string]any)
+
+	if r.parent != nil {
+		parentValues := r.parent.ListValues()
+		for key, value := range parentValues {
+			allValues[key] = value
+		}
+	}
+
+	maps.Copy(allValues, r.values)
+
+	return allValues
 }
 
 // An Environment is the execution context in which the program is running.

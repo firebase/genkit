@@ -88,14 +88,34 @@ func NewToolResponsePart(r *ToolResponse) *Part {
 	return &Part{Kind: PartToolResponse, ToolResponse: r}
 }
 
+// NewResponseForToolRequest returns a Part containing the results
+// of executing the tool request part.
+func NewResponseForToolRequest(p *Part, output any) *Part {
+	if !p.IsToolRequest() {
+		return nil
+	}
+	return &Part{Kind: PartToolResponse, ToolResponse: &ToolResponse{
+		Name:   p.ToolRequest.Name,
+		Ref:    p.ToolRequest.Ref,
+		Output: output,
+	}}
+}
+
 // NewCustomPart returns a Part containing custom plugin-specific data.
 func NewCustomPart(customData map[string]any) *Part {
 	return &Part{Kind: PartCustom, Custom: customData}
 }
 
 // NewReasoningPart returns a Part containing reasoning text
-func NewReasoningPart(text string) *Part {
-	return &Part{Kind: PartReasoning, ContentType: "plain/text", Text: text}
+func NewReasoningPart(text string, signature []byte) *Part {
+	return &Part{
+		Kind:        PartReasoning,
+		ContentType: "plain/text",
+		Text:        text,
+		Metadata: map[string]any{
+			"signature": signature,
+		},
+	}
 }
 
 // IsText reports whether the [Part] contains plain text.

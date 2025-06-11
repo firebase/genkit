@@ -25,11 +25,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/invopop/jsonschema"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -357,6 +359,31 @@ func ListFlows(g *Genkit) []core.Action {
 	return flows
 }
 
+// ListTools returns a slice of all [ai.Tool] instances that are registered
+// with the Genkit instance `g`. This is useful for introspection and for
+// exposing tools to external systems like MCP servers.
+func ListTools(g *Genkit) []ai.Tool {
+	acts := g.reg.ListActions()
+	tools := []ai.Tool{}
+	for _, act := range acts {
+		action, ok := act.(core.Action)
+		if !ok {
+			continue
+		}
+		actionDesc := action.Desc()
+		if strings.HasPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/") {
+			// Extract tool name from key
+			toolName := strings.TrimPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/")
+			// Lookup the actual tool
+			tool := LookupTool(g, toolName)
+			if tool != nil {
+				tools = append(tools, tool)
+			}
+		}
+	}
+	return tools
+}
+
 // DefineModel defines a custom model implementation, registers it as a [core.Action]
 // of type Model, and returns an [ai.Model] interface.
 //
@@ -460,6 +487,50 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
 func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) ai.Tool {
 	return ai.DefineTool(g.reg, name, description, fn)
+}
+
+// DefineToolWithInputSchema defines a tool with a custom input schema that can be used by models during generation,
+// registers it as a [core.Action] of type Tool, and returns an [ai.Tool].
+//
+// This variant of [DefineTool] allows specifying a JSON Schema for the tool's input, providing more
+// control over input validation and model guidance. The input parameter to the tool function will be
+// of type `any` and should be validated/processed according to the schema.
+//
+// The `name` is the identifier the model uses to request the tool. The `description` helps the model
+// understand when to use the tool. The `inputSchema` defines the expected structure and constraints
+// of the input. The function `fn` implements the tool's logic, taking an [ai.ToolContext] and an
+// input of type `any`, and returning an output of type `Out`.
+//
+// Example:
+//
+//	// Define a custom input schema
+//	inputSchema := &jsonschema.Schema{
+//		Type:        "object",
+//		Properties: map[string]*jsonschema.Schema{
+//			"city": {Type: "string"},
+//			"unit": {Type: "string", Enum: []any{"C", "F"}},
+//		},
+//		Required: []string{"city"},
+//	}
+//
+//	// Define the tool with the schema
+//	weatherTool := genkit.DefineToolWithInputSchema(g, "getWeather",
+//		"Fetches the weather for a given city with unit preference",
+//		inputSchema,
+//		func(ctx *ai.ToolContext, input any) (string, error) {
+//			// Parse and validate input
+//			data := input.(map[string]any)
+//			city := data["city"].(string)
+//			unit := "C" // default
+//			if u, ok := data["unit"].(string); ok {
+//				unit = u
+//			}
+//			// Implementation...
+//			return fmt.Sprintf("Weather in %s: 25°%s", city, unit), nil
+//		},
+//	)
+func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema *jsonschema.Schema, fn func(ctx *ai.ToolContext, input any) (Out, error)) ai.Tool {
+	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
 }
 
 // LookupTool retrieves a registered [ai.Tool] by its name.

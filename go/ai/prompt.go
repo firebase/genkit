@@ -443,12 +443,17 @@ func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFuncti
 func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 	result := make([]*Part, len(parts))
 	for i, part := range parts {
-		if p, ok := part.(*dotprompt.TextPart); ok {
+		switch p := part.(type) {
+		case *dotprompt.TextPart:
 			if p.Text != "" {
 				result[i] = NewTextPart(p.Text)
 			}
-		} else {
-			return nil, fmt.Errorf("unsupported prompt format: %T", part)
+		case *dotprompt.MediaPart:
+			ct, err := contentType(p.Media.URL)
+			if err != nil {
+				return nil, err
+			}
+			result[i] = NewMediaPart(ct, p.Media.URL)
 		}
 	}
 	return result, nil
@@ -624,4 +629,27 @@ func variantKey(variant string) string {
 		return fmt.Sprintf(".%s", variant)
 	}
 	return ""
+}
+
+// contentType determines the MIME content type of the given data URI
+func contentType(uri string) (string, error) {
+	if uri == "" {
+		return "", errors.New("found empty URI in part")
+	}
+
+	if strings.HasPrefix(uri, "gs://") || strings.HasPrefix(uri, "http") {
+		return "", errors.New("data URI is the only media type supported")
+	}
+	if contents, isData := strings.CutPrefix(uri, "data:"); isData {
+		prefix, _, found := strings.Cut(contents, ",")
+		if !found {
+			return "", errors.New("failed to parse data URI: missing comma")
+		}
+
+		if p, isBase64 := strings.CutSuffix(prefix, ";base64"); isBase64 {
+			return p, nil
+		}
+	}
+
+	return "", errors.New("uri content type not found")
 }
