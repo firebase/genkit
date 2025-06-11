@@ -16,8 +16,10 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -48,6 +50,7 @@ func main() {
 	PromptWithExecuteOverrides(ctx, g)
 	PromptWithFunctions(ctx, g)
 	PromptWithOutputTypeDotprompt(ctx, g)
+	PromptWithMediaType(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -318,4 +321,48 @@ func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	fmt.Println(resp.Text())
+}
+
+func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
+	img, err := fetchImgAsBase64()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	prompt, err := genkit.LoadPrompt(g, "./prompts/media.prompt", "mediaspace")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if prompt == nil {
+		log.Fatal("empty prompt")
+	}
+	resp, err := prompt.Execute(ctx,
+
+		ai.WithModelName("vertexai/gemini-2.0-flash"),
+		ai.WithInput(map[string]any{"imageUrl": "data:image/png;base64," + img}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(resp.Text())
+}
+
+func fetchImgAsBase64() (string, error) {
+	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
+	resp, err := http.Get(imgUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", err
+	}
+
+	imageBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	base64string := base64.StdEncoding.EncodeToString(imageBytes)
+	return base64string, nil
 }

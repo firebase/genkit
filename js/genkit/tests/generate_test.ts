@@ -19,7 +19,7 @@ import { z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
-import { genkit, type GenkitBeta } from '../src/beta';
+import { dynamicTool, genkit, type GenkitBeta } from '../src/beta';
 import {
   defineEchoModel,
   defineProgrammableModel,
@@ -307,8 +307,15 @@ describe('generate', () => {
     let pm: ProgrammableModel;
 
     beforeEach(() => {
+      class Extra {
+        toJSON() {
+          return 'extra';
+        }
+      }
       ai = genkit({
         model: 'programmableModel',
+        // testing with a non-serializable data in the context
+        context: { something: new Extra() },
       });
       pm = defineProgrammableModel(ai);
       defineEchoModel(ai);
@@ -320,7 +327,7 @@ describe('generate', () => {
         async () => 'tool called'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -399,13 +406,59 @@ describe('generate', () => {
       );
     });
 
+    it('call the tool with context', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async (_, { context }) => JSON.stringify(context)
+      );
+
+      // first response is a tool call, the subsequent responses are just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const { messages } = await ai.generate({
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      assert.deepStrictEqual(messages[2], {
+        role: 'tool',
+        content: [
+          {
+            toolResponse: {
+              name: 'testTool',
+              output: '{"something":"extra"}',
+              ref: 'ref123',
+            },
+          },
+        ],
+      });
+    });
+
     it('calls the dynamic tool', async () => {
       const schema = {
         properties: {
           foo: { type: 'string' },
         },
       } as JSONSchema7;
-      const dynamicTestTool1 = ai.dynamicTool(
+      const dynamicTestTool1 = dynamicTool(
         {
           name: 'dynamicTestTool1',
           inputJsonSchema: schema,
@@ -422,7 +475,7 @@ describe('generate', () => {
         async () => 'tool called 2'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -529,7 +582,7 @@ describe('generate', () => {
       );
     });
 
-    it.only('interrupts the dynamic tool with no impl', async () => {
+    it('interrupts the dynamic tool with no impl', async () => {
       const schema = {
         properties: {
           foo: { type: 'string' },
@@ -541,7 +594,7 @@ describe('generate', () => {
         description: 'description',
       });
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -602,7 +655,7 @@ describe('generate', () => {
         }
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -654,7 +707,7 @@ describe('generate', () => {
         }
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -700,7 +753,7 @@ describe('generate', () => {
         async () => 'tool called'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         if (sc) {
@@ -838,7 +891,7 @@ describe('generate', () => {
         }
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {

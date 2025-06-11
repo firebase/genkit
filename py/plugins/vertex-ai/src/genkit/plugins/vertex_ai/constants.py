@@ -14,17 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Constants used by the Vertex AI plugin.
 
-"""Google Cloud Vertex AI Models for Genkit."""
+This module defines constants used throughout the Vertex AI plugin,
+including environment variable names and configuration values.
+"""
 
-
-def package_name() -> str:
-    """Get the package name for the Vertex AI models subpackage.
-
-    Returns:
-        The fully qualified package name as a string.
-    """
-    return 'genkit.plugins.vertex_ai.models'
-
-
-__all__ = ['package_name']
+GCLOUD_PROJECT = 'GCLOUD_PROJECT'
+DEFAULT_REGION = 'us-central1'

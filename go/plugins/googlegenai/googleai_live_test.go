@@ -34,21 +34,31 @@ import (
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
-// The tests here only work with an API key set to a valid value.
-var (
-	apiKey = flag.String("key", "", "Gemini API key")
-	cache  = flag.String("cache", "", "Local file to cache (large text document)")
-)
+// To run this test suite: go test -v -run TestGoogleAI
+
+var cache = flag.String("cache", "", "Local file to cache (large text document)")
+
+func requireEnv(key string) (string, bool) {
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return "", false
+	}
+
+	return value, true
+}
 
 // We can't test the DefineAll functions along with the other tests because
 // we get duplicate definitions of models.
 var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
 
 func TestGoogleAILive(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
+	apiKey, ok := requireEnv("GEMINI_API_KEY")
+	if !ok {
+		apiKey, ok = requireEnv("GOOGLE_API_KEY")
+		if !ok {
+			t.Skip("no gemini api key provided, set either GEMINI_API_KEY or GOOGLE_API_KEY in environment")
+		}
 	}
-
 	if *testAll {
 		t.Skip("-all provided")
 	}
@@ -166,6 +176,7 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+
 	t.Run("tool with json output", func(t *testing.T) {
 		type weatherQuery struct {
 			Location string `json:"location"`
@@ -293,19 +304,19 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
+					ai.NewTextPart("do you what animal is in the image?"),
+					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "donkey") {
+			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -341,8 +352,8 @@ func TestGoogleAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "donkey") {
+			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
@@ -414,7 +425,7 @@ func TestGoogleAILive(t *testing.T) {
 				Temperature: 0.4,
 				ThinkingConfig: &googlegenai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  100,
+					ThinkingBudget:  1000,
 				},
 			}),
 			ai.WithModel(m),
@@ -425,8 +436,8 @@ func TestGoogleAILive(t *testing.T) {
 		if resp == nil {
 			t.Fatal("nil response obtanied")
 		}
-		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
-			t.Fatal("thoughts tokens should not be zero or greater than 100")
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1000 {
+			t.Fatalf("thoughts tokens should not be zero or greater than 100, got: %d", resp.Usage.ThoughtsTokens)
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
@@ -539,7 +550,8 @@ func TestCacheHelper(t *testing.T) {
 }
 
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
+	// CC0 license image
+	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err
