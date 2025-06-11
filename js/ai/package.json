@@ -125,6 +125,12 @@
       "require": "./lib/formats/index.js",
       "import": "./lib/formats/index.mjs",
       "default": "./lib/formats/index.js"
+    },
+    "./node": {
+      "types": "./lib/node.d.ts",
+      "require": "./lib/node.js",
+      "import": "./lib/node.mjs",
+      "default": "./lib/node.js"
     }
   },
   "typesVersions": {
@@ -161,6 +167,9 @@
       ],
       "formats": [
         "lib/formats"
+      ],
+      "node": [
+        "lib/node"
       ]
     }
   }

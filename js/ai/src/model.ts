@@ -18,6 +18,7 @@ import {
   GenkitError,
   defineAction,
   getStreamingCallback,
+  performanceNow,
   z,
   type Action,
   type ActionMetadata,
@@ -27,7 +28,6 @@ import {
 import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { performance } from 'node:perf_hooks';
 import {
   CustomPartSchema,
   DataPartSchema,
@@ -492,12 +492,12 @@ export function defineModel<
       use: middleware,
     },
     (input) => {
-      const startTimeMs = performance.now();
+      const startTimeMs = performanceNow();
 
       return runner(input, getStreamingCallback(registry)).then((response) => {
         const timedResponse = {
           ...response,
-          latencyMs: performance.now() - startTimeMs,
+          latencyMs: performanceNow() - startTimeMs,
         };
         return timedResponse;
       });

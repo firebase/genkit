@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { getFetch } from '@genkit-ai/core';
 import { Document } from '../document.js';
 import { injectInstructions } from '../formats/index.js';
 import type {
@@ -32,7 +33,7 @@ export function downloadRequestMedia(options?: {
   filter?: (part: MediaPart) => boolean;
 }): ModelMiddleware {
   return async (req, next) => {
-    const { default: fetch } = await import('node-fetch');
+    const fetch = await getFetch();
 
     const newReq = {
       ...req,
@@ -52,7 +53,7 @@ export function downloadRequestMedia(options?: {
 
               const response = await fetch(part.media.url, {
                 size: options?.maxBytes,
-              });
+              } as any);
               if (response.status !== 200)
                 throw new Error(
                   `HTTP error downloading media '${

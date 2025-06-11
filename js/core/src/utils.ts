@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { GenkitError } from './error';
+
 /**
  * Deletes any properties with `undefined` values in the provided object.
  * Modifies the provided object.
@@ -57,7 +59,7 @@ export function stripUndefinedProps<T>(input: T): T {
  * @hidden
  */
 export function getCurrentEnv(): string {
-  return process.env.GENKIT_ENV || 'prod';
+  return getEnvVar('GENKIT_ENV') || 'prod';
 }
 
 /**
@@ -72,4 +74,49 @@ export function isDevEnv(): boolean {
  */
 export function featureMetadataPrefix(name: string) {
   return `feature:${name}`;
+}
+
+export type PerformanceNowFn = () => number;
+
+export function _getPerformanceNowFn(): PerformanceNowFn {
+  const instr = globalThis.__genkit__PerformanceNowFn;
+  if (!instr) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: 'Failed to find PerformanceNowFn, probable misconfiguration.',
+    });
+  }
+
+  return instr;
+}
+
+export function _setPerformanceNowFn(instr: PerformanceNowFn) {
+  globalThis.__genkit__PerformanceNowFn = instr;
+}
+
+/**
+ * Returns the current high resolution millisecond timestamp.
+ */
+export function performanceNow(): number {
+  return _getPerformanceNowFn()();
+}
+
+export function getEnvVar(key: string, defaultValue?: string) {
+  if (typeof process !== 'undefined') {
+    return process.env[key];
+  }
+  return defaultValue;
+}
+
+export async function getFetch(): Promise<typeof fetch> {
+  const instr = globalThis.__genkit__FetchFn;
+  if (!instr) {
+    return fetch;
+  }
+
+  return await instr;
+}
+
+export function _setFetchFn(instr: Promise<typeof fetch>) {
+  globalThis.__genkit__FetchFn = instr;
 }

@@ -38,17 +38,17 @@ const _defaultLogger = {
 };
 
 function getLogger() {
-  if (!global[loggerKey]) {
-    global[loggerKey] = _defaultLogger;
+  if (!globalThis[loggerKey]) {
+    globalThis[loggerKey] = _defaultLogger;
   }
-  return global[loggerKey];
+  return globalThis[loggerKey];
 }
 
 class Logger {
   readonly defaultLogger = _defaultLogger;
 
   init(fn: any) {
-    global[loggerKey] = fn;
+    globalThis[loggerKey] = fn;
   }
 
   info(...args: any) {

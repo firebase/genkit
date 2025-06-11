@@ -14,9 +14,17 @@
  * limitations under the License.
  */
 
+import { performance } from 'node:perf_hooks';
 import { AlsAsyncStore } from './als-async-store.js';
+import { NodeGenkitOtel } from './node-otel.js';
 import { _setAsyncStoreFactory, Registry } from './registry.js';
+import { _setGenkitOtel } from './tracing.js';
+import { _setFetchFn, _setPerformanceNowFn } from './utils.js';
 export * from './reflection.js';
+
+_setGenkitOtel(new NodeGenkitOtel());
+_setPerformanceNowFn(() => performance.now());
+_setFetchFn(import('node-fetch').then((d) => d.default as any));
 
 export class NodeRegistry extends Registry {
   constructor(parent?: NodeRegistry) {
