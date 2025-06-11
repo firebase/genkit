@@ -23,16 +23,17 @@ import (
 )
 
 func TestIndex_Success_NoDocuments(t *testing.T) {
-	ds := docStore{}
+	ds := DocStore{}
 	err := ds.Index(context.Background(), &ai.IndexerRequest{})
 	require.NoError(t, err)
 
 }
 
 func TestIndex_Fail_EmbedReturnError(t *testing.T) {
-	ds := docStore{
+	ds := DocStore{
 		config: &Config{Embedder: mockEmbedderFail{}},
 	}
+
 	req := &ai.IndexerRequest{
 		Documents: []*ai.Document{{
 			Content: []*ai.Part{{

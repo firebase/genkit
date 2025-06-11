@@ -20,20 +20,20 @@ import (
 	"strings"
 )
 
-type docStore struct {
+type DocStore struct {
 	engine *PostgresEngine
 	config *Config
 }
 
-// newDocStore instantiate a docStore
-func newDocStore(ctx context.Context, p *Postgres, cfg *Config) (*docStore, error) {
+// newDocStore instantiate a DocStore
+func newDocStore(ctx context.Context, p *Postgres, cfg *Config) (*DocStore, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if !p.initted {
 		panic("postgres.Init not called")
 	}
 
-	ds := &docStore{
+	ds := &DocStore{
 		engine: p.engine,
 		config: cfg,
 	}
@@ -69,7 +69,7 @@ func newDocStore(ctx context.Context, p *Postgres, cfg *Config) (*docStore, erro
 	return ds, nil
 }
 
-func (ds *docStore) validateConfiguration(ctx context.Context) error {
+func (ds *DocStore) validateConfiguration(ctx context.Context) error {
 	stmt := fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '%s' AND table_schema = '%s'", ds.config.TableName, ds.config.SchemaName)
 	rows, err := ds.engine.Pool.Query(ctx, stmt)
 	if err != nil {

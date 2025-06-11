@@ -75,29 +75,13 @@ type Config struct {
 
 // DefineRetriever defines a Retriever with the given configuration.
 
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (*DocStore, ai.Retriever, error) {
 	ds, err := newDocStore(ctx, p, cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return genkit.DefineRetriever(g, provider, ds.config.TableName, ds.Retrieve), nil
-}
-
-// DefineIndexer defines an Indexer with the given configuration.
-func DefineIndexer(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (ai.Indexer, error) {
-
-	ds, err := newDocStore(ctx, p, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return genkit.DefineIndexer(g, provider, ds.config.TableName, ds.Index), nil
-}
-
-// Indexer returns the indexer with the given index name.
-func Indexer(g *genkit.Genkit, name string) ai.Indexer {
-	return genkit.LookupIndexer(g, provider, name)
+	return ds, genkit.DefineRetriever(g, provider, ds.config.TableName, ds.Retrieve), nil
 }
 
 // Retriever returns the retriever with the given index name.

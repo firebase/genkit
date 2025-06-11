@@ -32,7 +32,7 @@ type RetrieverOptions struct {
 }
 
 // Retrieve returns the result of the query
-func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+func (ds *DocStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 	if req.Options == nil {
 		req.Options = &RetrieverOptions{
 			Filter:           nil,
@@ -70,7 +70,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	return res, nil
 }
 
-func (ds *docStore) query(ctx context.Context, ropt *RetrieverOptions, embbeding []float32) (*ai.RetrieverResponse, error) {
+func (ds *DocStore) query(ctx context.Context, ropt *RetrieverOptions, embbeding []float32) (*ai.RetrieverResponse, error) {
 	res := &ai.RetrieverResponse{}
 
 	query := ds.buildQuery(ropt, embbeding)
@@ -134,7 +134,7 @@ func (ds *docStore) query(ctx context.Context, ropt *RetrieverOptions, embbeding
 	return res, nil
 }
 
-func (ds *docStore) buildQuery(ropt *RetrieverOptions, embedding []float32) string {
+func (ds *DocStore) buildQuery(ropt *RetrieverOptions, embedding []float32) string {
 	operator := ropt.DistanceStrategy.operator()
 	searchFunction := ropt.DistanceStrategy.similaritySearchFunction()
 	columns := append(ds.config.MetadataColumns, ds.config.ContentColumn)
