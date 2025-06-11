@@ -242,7 +242,7 @@ export class GenkitBeta extends Genkit {
   }
 
   /**
-   * Starts a generate operation for long running generation models, tupically for
+   * Starts a generate operation for long running generation models, typically for
    * video and complex audio generation.
    *
    * See {@link GenerateOptions} for detailed information about available options.
