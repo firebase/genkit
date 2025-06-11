@@ -25,13 +25,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
-
-	"github.com/invopop/jsonschema"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/invopop/jsonschema"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -359,6 +359,31 @@ func ListFlows(g *Genkit) []core.Action {
 	return flows
 }
 
+// ListTools returns a slice of all [ai.Tool] instances that are registered
+// with the Genkit instance `g`. This is useful for introspection and for
+// exposing tools to external systems like MCP servers.
+func ListTools(g *Genkit) []ai.Tool {
+	acts := g.reg.ListActions()
+	tools := []ai.Tool{}
+	for _, act := range acts {
+		action, ok := act.(core.Action)
+		if !ok {
+			continue
+		}
+		actionDesc := action.Desc()
+		if strings.HasPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/") {
+			// Extract tool name from key
+			toolName := strings.TrimPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/")
+			// Lookup the actual tool
+			tool := LookupTool(g, toolName)
+			if tool != nil {
+				tools = append(tools, tool)
+			}
+		}
+	}
+	return tools
+}
+
 // DefineModel defines a custom model implementation, registers it as a [core.Action]
 // of type Model, and returns an [ai.Model] interface.
 //
@@ -422,6 +447,30 @@ func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.Mod
 // It returns the model instance if found, or `nil` if no model with the
 // given identifier is registered (e.g., via [DefineModel] or a plugin).
 func LookupModel(g *Genkit, provider, name string) ai.Model {
+	m := ai.LookupModel(g.reg, provider, name)
+	if m != nil {
+		return m
+	}
+
+	plugins := g.reg.ListPlugins()
+	if plugins == nil {
+		return nil
+	}
+
+	for _, plugin := range plugins {
+		p, ok := plugin.(DynamicPlugin)
+		if !ok {
+			continue
+		}
+		if p.Name() != provider {
+			continue
+		}
+		err := p.ResolveAction(g, core.ActionTypeModel, name)
+		if err != nil {
+			return nil
+		}
+	}
+
 	return ai.LookupModel(g.reg, provider, name)
 }
 

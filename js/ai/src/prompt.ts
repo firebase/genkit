@@ -694,7 +694,7 @@ async function renderDotpromptToParts<
 /**
  * Checks whether the provided object is an executable prompt.
  */
-export function isExecutablePrompt(obj: any): boolean {
+export function isExecutablePrompt(obj: any): obj is ExecutablePrompt {
   return (
     !!(obj as ExecutablePrompt)?.render &&
     !!(obj as ExecutablePrompt)?.asTool &&

@@ -18,7 +18,6 @@ package googlegenai_test
 
 import (
 	"context"
-	"flag"
 	"math"
 	"os"
 	"strings"
@@ -30,24 +29,25 @@ import (
 	"google.golang.org/genai"
 )
 
-// The tests here only work with a project set to a valid value.
-// The user running these tests must be authenticated, for example by
-// setting a valid GOOGLE_APPLICATION_CREDENTIALS environment variable.
-var (
-	projectID = flag.String("projectid", "", "VertexAI project")
-	location  = flag.String("location", "us-central1", "geographic location")
-)
+// To run this test suite: go test -v -run TestVertexAI
 
 func TestVertexAILive(t *testing.T) {
-	if *projectID == "" {
-		t.Skipf("no -projectid provided")
+	projectID, ok := requireEnv("GOOGLE_CLOUD_PROJECT")
+	if !ok {
+		t.Skipf("GOOGLE_CLOUD_PROJECT env var not set")
 	}
+	location, ok := requireEnv("GOOGLE_CLOUD_LOCATION")
+	if !ok {
+		t.Log("GOOGLE_CLOUD_LOCATION env var not set, defaulting to us-central1")
+		location = "us-central1"
+	}
+
 	ctx := context.Background()
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-1.5-flash"))
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-2.0-flash"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = (&googlegenai.VertexAI{ProjectID: *projectID, Location: *location}).Init(ctx, g)
+	err = (&googlegenai.VertexAI{ProjectID: projectID, Location: location}).Init(ctx, g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
-		if *location != "global" {
+		if location != "global" {
 			t.Skip("image generation in Vertex AI is only supported in region: global")
 		}
 		m := googlegenai.VertexAIModel(g, "gemini-2.0-flash-preview-image-generation")
@@ -330,11 +330,11 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking enabled", func(t *testing.T) {
-		if *location != "global" {
-			t.Skip("thinking in Vertex AI is only supported in region: global")
+		if location != "global" && location != "us-central1" {
+			t.Skipf("thinking in Vertex AI is only supported in these regions: [global, us-central1], got: %q", location)
 		}
 
-		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-05-20")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(
 				genai.GenerateContentConfig{
@@ -362,11 +362,11 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
-		if *location != "global" {
-			t.Skip("thinking in Vertex AI is only supported in region: global")
+		if location != "global" && location != "us-central1" {
+			t.Skipf("thinking in Vertex AI is only supported in these regions: [global, us-central1], got: %q", location)
 		}
 
-		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-05-20")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(
 				genai.GenerateContentConfig{

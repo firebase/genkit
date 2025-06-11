@@ -23,7 +23,7 @@ import type {
   ListEvalKeysResponse,
   UpdateDatasetRequest,
 } from './apis';
-import { GenerateRequestSchema } from './model';
+import { GenerateActionOptionsSchema, GenerateRequestSchema } from './model';
 
 /**
  * This file defines schema and types that are used by the Eval store.
@@ -50,6 +50,17 @@ export const ModelInferenceInputJSONSchema = zodToJsonSchema(
  */
 export const GenerateRequestJSONSchema = zodToJsonSchema(
   GenerateRequestSchema,
+  {
+    $refStrategy: 'none',
+    removeAdditionalStrategy: 'strict',
+  }
+) as JSONSchema7;
+
+/**
+ * Combined GenerateInput JSON schema to support eval-inference using models
+ */
+export const GenerateInputJSONSchema = zodToJsonSchema(
+  z.union([GenerateRequestSchema, GenerateActionOptionsSchema]),
   {
     $refStrategy: 'none',
     removeAdditionalStrategy: 'strict',

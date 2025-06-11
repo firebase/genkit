@@ -22,11 +22,10 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/invopop/jsonschema"
-
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/invopop/jsonschema"
 )
 
 var resumedCtxKey = base.NewContextKey[map[string]any]()
@@ -61,19 +60,21 @@ type Tool interface {
 	Definition() *ToolDefinition
 	// RunRaw runs this tool using the provided raw input.
 	RunRaw(ctx context.Context, input any) (any, error)
+	// Register sets the tracing state on the action and registers it with the registry.
+	Register(r *registry.Registry)
 	// Respond constructs a *Part with a ToolResponse for a given interrupted tool request.
 	Respond(toolReq *Part, outputData any, opts *RespondOptions) *Part
 	// Restart constructs a *Part with a new ToolRequest to re-trigger a tool,
-	// potentially with new input and resumedMetadata.
+	// potentially with new input and metadata.
 	Restart(toolReq *Part, opts *RestartOptions) *Part
 }
 
-// ToolInterruptError represents an intentional interruption of tool execution.
-type ToolInterruptError struct {
+// toolInterruptError represents an intentional interruption of tool execution.
+type toolInterruptError struct {
 	Metadata map[string]any
 }
 
-func (e *ToolInterruptError) Error() string {
+func (e *toolInterruptError) Error() string {
 	return "tool execution interrupted"
 }
 
@@ -113,14 +114,44 @@ type ToolContext struct {
 	OriginalInput any
 }
 
-// DefineTool defines a tool function with interrupt capability
+// DefineTool defines a tool.
 func DefineTool[In, Out any](r *registry.Registry, name, description string,
 	fn func(ctx *ToolContext, input In) (Out, error)) Tool {
+	metadata, wrappedFn := implementTool(name, description, fn)
+	toolAction := core.DefineAction(r, "", name, core.ActionTypeTool, metadata, wrappedFn)
+	return &tool{Action: toolAction}
+}
+
+// DefineToolWithInputSchema defines a tool function with a custom input schema.
+func DefineToolWithInputSchema[Out any](r *registry.Registry, name, description string,
+	inputSchema *jsonschema.Schema,
+	fn func(ctx *ToolContext, input any) (Out, error)) Tool {
+	metadata, wrappedFn := implementTool(name, description, fn)
+	toolAction := core.DefineActionWithInputSchema(r, "", name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
+	return &tool{Action: toolAction}
+}
+
+// NewTool creates a tool but does not register it in the registry. It can be passed directly to [Generate].
+func NewTool[In, Out any](name, description string,
+	fn func(ctx *ToolContext, input In) (Out, error)) Tool {
+	metadata, wrappedFn := implementTool(name, description, fn)
+	metadata["dynamic"] = true
+	toolAction := core.NewAction("", name, core.ActionTypeTool, metadata, wrappedFn)
+	return &tool{Action: toolAction}
+}
+
+// implementTool creates the metadata and wrapped function common to both DefineTool and NewTool.
+func implementTool[In, Out any](name, description string, fn func(ctx *ToolContext, input In) (Out, error)) (map[string]any, func(context.Context, In) (Out, error)) {
+	metadata := map[string]any{
+		"type":        core.ActionTypeTool,
+		"name":        name,
+		"description": description,
+	}
 	wrappedFn := func(ctx context.Context, input In) (Out, error) {
 		toolCtx := &ToolContext{
 			Context: ctx,
 			Interrupt: func(opts *InterruptOptions) error {
-				return &ToolInterruptError{
+				return &toolInterruptError{
 					Metadata: opts.Metadata,
 				}
 			},
@@ -130,41 +161,7 @@ func DefineTool[In, Out any](r *registry.Registry, name, description string,
 		return fn(toolCtx, input)
 	}
 
-	metadata := map[string]any{
-		"type":        "tool",
-		"name":        name,
-		"description": description,
-	}
-	toolAction := core.DefineAction(r, "", name, core.ActionTypeTool, metadata, wrappedFn)
-
-	return &tool{Action: toolAction}
-}
-
-// DefineToolWithInputSchema defines a tool function with a custom input schema and interrupt capability.
-// The input schema allows specifying a JSON Schema for validating tool inputs.
-func DefineToolWithInputSchema[Out any](r *registry.Registry, name, description string,
-	inputSchema *jsonschema.Schema,
-	fn func(ctx *ToolContext, input any) (Out, error)) Tool {
-	metadata := make(map[string]any)
-	metadata["type"] = "tool"
-	metadata["name"] = name
-	metadata["description"] = description
-
-	wrappedFn := func(ctx context.Context, input any) (Out, error) {
-		toolCtx := &ToolContext{
-			Context: ctx,
-			Interrupt: func(opts *InterruptOptions) error {
-				return &ToolInterruptError{
-					Metadata: opts.Metadata,
-				}
-			},
-		}
-		return fn(toolCtx, input)
-	}
-
-	toolAction := core.DefineActionWithInputSchema(r, "", name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
-
-	return &tool{Action: toolAction}
+	return metadata, wrappedFn
 }
 
 // Name returns the name of the tool.
@@ -192,6 +189,12 @@ func (t *tool) Definition() *ToolDefinition {
 // as map[string]any).
 func (t *tool) RunRaw(ctx context.Context, input any) (any, error) {
 	return runAction(ctx, t.Definition(), t.Action, input)
+}
+
+// Register sets the tracing state on the action and registers it with the registry.
+func (t *tool) Register(r *registry.Registry) {
+	t.Action.SetTracingState(r.TracingState())
+	r.RegisterAction(fmt.Sprintf("/%s/%s", core.ActionTypeTool, t.Action.Name()), t.Action)
 }
 
 // runAction runs the given action with the provided raw input and returns the output in raw format.

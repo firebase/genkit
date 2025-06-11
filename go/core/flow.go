@@ -115,6 +115,11 @@ func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In) (Out, error) 
 	return (*ActionDef[In, Out, Stream])(f).Run(ctx, input, nil)
 }
 
+// SetTracingState sets the tracing state on the flow.
+func (f *Flow[In, Out, Stream]) SetTracingState(tstate *tracing.State) {
+	(*ActionDef[In, Out, Stream])(f).SetTracingState(tstate)
+}
+
 // Stream runs the flow in the context of another flow and streams the output.
 // It returns a function whose argument function (the "yield function") will be repeatedly
 // called with the results.
