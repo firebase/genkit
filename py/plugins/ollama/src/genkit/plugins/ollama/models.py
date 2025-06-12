@@ -14,16 +14,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Models package for Ollama plugin."""
+
+from collections.abc import Callable
 from typing import Any, Literal
 
 import structlog
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel
 
 import ollama as ollama_api
 from genkit.ai import ActionRunContext
 from genkit.blocks.model import get_basic_usage_stats
 from genkit.plugins.ollama.constants import (
-    DEFAULT_OLLAMA_SERVER_URL,
     OllamaAPITypes,
 )
 from genkit.types import (
@@ -46,19 +48,39 @@ from genkit.types import (
 logger = structlog.get_logger(__name__)
 
 
+class OllamaSupports(BaseModel):
+    """Supports for Ollama models."""
+
+    tools: bool = False
+
+
 class ModelDefinition(BaseModel):
+    """Meta definition for Ollama models."""
+
     name: str
     api_type: OllamaAPITypes = 'chat'
-
-
-class EmbeddingModelDefinition(BaseModel):
-    name: str
-    dimensions: int
+    supports: OllamaSupports = OllamaSupports()
 
 
 class OllamaModel:
-    def __init__(self, client: ollama_api.AsyncClient, model_definition: ModelDefinition):
-        self.client = client
+    """Represents an Ollama language model for use with Genkit.
+
+    This class encapsulates the interaction logic for a specific Ollama model,
+    allowing it to be integrated into the Genkit framework for generative tasks.
+    """
+
+    def __init__(self, client: Callable, model_definition: ModelDefinition) -> None:
+        """Initializes the OllamaModel.
+
+        Sets up the client for communicating with the Ollama server and stores
+        the definition of the model.
+
+        Args:
+            client: A callable that returns an asynchronous Ollama client instance.
+            model_definition: The definition describing the specific Ollama model
+                to be used (e.g., its name, API type, supported features).
+        """
+        self.client = client()
         self.model_definition = model_definition
 
     async def generate(self, request: GenerateRequest, ctx: ActionRunContext | None = None) -> GenerateResponse:
@@ -110,7 +132,6 @@ class OllamaModel:
             ),
         )
 
-    # FIXME: Missing return statement.
     async def _chat_with_ollama(
         self, request: GenerateRequest, ctx: ActionRunContext | None = None
     ) -> ollama_api.ChatResponse | None:
@@ -167,6 +188,7 @@ class OllamaModel:
                         content=self._build_multimodal_chat_response(chat_response=chunk),
                     )
                 )
+            return chat_response
         else:
             return chat_response
 
@@ -182,7 +204,6 @@ class OllamaModel:
         Returns:
             The generated response.
         """
-        # FIXME: Missing return statement.
         prompt = self.build_prompt(request)
         streaming_request = self.is_streaming_request(ctx=ctx)
 
@@ -206,6 +227,7 @@ class OllamaModel:
                         content=[TextPart(text=chunk.response)],
                     )
                 )
+            return generate_response
         else:
             return generate_response
 
@@ -249,7 +271,7 @@ class OllamaModel:
 
     @staticmethod
     def build_request_options(
-        config: GenerationCommonConfig | dict,
+        config: GenerationCommonConfig | ollama_api.Options | dict,
     ) -> ollama_api.Options:
         """Build request options for the generate API.
 
@@ -267,8 +289,10 @@ class OllamaModel:
                 temperature=config.temperature,
                 num_predict=config.max_output_tokens,
             )
-        if config:
-            return ollama_api.Options(**config)
+        if isinstance(config, dict):
+            config = ollama_api.Options(**config)
+
+        return config
 
     @staticmethod
     def build_prompt(request: GenerateRequest) -> str:
@@ -338,6 +362,7 @@ class OllamaModel:
 
     @staticmethod
     def is_streaming_request(ctx: ActionRunContext | None) -> bool:
+        """Determines if streaming mode is requested."""
         return ctx and ctx.is_streaming
 
     @staticmethod
@@ -345,6 +370,19 @@ class OllamaModel:
         basic_generation_usage: GenerationUsage,
         api_response: ollama_api.GenerateResponse | ollama_api.ChatResponse,
     ) -> GenerationUsage:
+        """Extracts and calculates token usage information from an Ollama API response.
+
+        Updates a basic generation usage object with input, output, and total token counts
+        based on the details provided in the Ollama API response.
+
+        Args:
+            basic_generation_usage: An existing GenerationUsage object to update.
+            api_response: The response object received from the Ollama API,
+                containing token count details.
+
+        Returns:
+            The updated GenerationUsage object with token counts populated.
+        """
         if api_response:
             basic_generation_usage.input_tokens = api_response.prompt_eval_count or 0
             basic_generation_usage.output_tokens = api_response.eval_count or 0
@@ -369,10 +407,10 @@ def _convert_parameters(input_schema: dict[str, Any]) -> ollama_api.Tool.Functio
 
         if schema_type == 'object':
             schema.properties = {}
-            properties = input_schema['properties']
+            properties = input_schema.get('properties', [])
             for key in properties:
                 schema.properties[key] = ollama_api.Tool.Function.Parameters.Property(
-                    type=properties[key]['type'], description=properties[key]['description'] or ''
+                    type=properties[key]['type'], description=properties[key].get('description', '')
                 )
 
     return schema

@@ -4,7 +4,10 @@
 package googlegenai
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -30,7 +33,6 @@ const (
 	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
 	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
 
-	imagen2                = "imagegeneration@006"
 	imagen3Generate001     = "imagen-3.0-generate-001"
 	imagen3Generate002     = "imagen-3.0-generate-002"
 	imagen3FastGenerate001 = "imagen-3.0-fast-generate-001"
@@ -53,7 +55,6 @@ var (
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
 
-		imagen2,
 		imagen3Generate001,
 		imagen3Generate002,
 		imagen3FastGenerate001,
@@ -185,12 +186,6 @@ var (
 	}
 
 	supportedImagenModels = map[string]ai.ModelInfo{
-		imagen2: {
-			Label:    "Imagen 2",
-			Versions: []string{},
-			Supports: &Media,
-			Stage:    ai.ModelStageStable,
-		},
 		imagen3Generate001: {
 			Label:    "Imagen 3 Generate 001",
 			Versions: []string{},
@@ -262,6 +257,7 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 			Supports: m.Supports,
 		}
 	}
+
 	return models, nil
 }
 
@@ -280,4 +276,61 @@ func listEmbedders(backend genai.Backend) ([]string, error) {
 	}
 
 	return embedders, nil
+}
+
+// genaiModels collects all the available models in go-genai SDK
+// TODO: add veo models
+type genaiModels struct {
+	gemini    []string
+	imagen    []string
+	embedders []string
+}
+
+// listGenaiModels returns a list of supported models and embedders from the
+// Go Genai SDK
+func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
+	models := genaiModels{}
+	allowedModels := []string{"gemini", "gemma"}
+	allowedImagenModels := []string{"imagen"}
+
+	for item, err := range client.Models.All(ctx) {
+		var name string
+		var description string
+		if err != nil {
+			log.Fatal(err)
+		}
+		if !strings.HasPrefix(item.Name, "models/") {
+			continue
+		}
+		description = strings.ToLower(item.Description)
+		if strings.Contains(description, "deprecated") {
+			continue
+		}
+
+		name = strings.TrimPrefix(item.Name, "models/")
+		if slices.Contains(item.SupportedActions, "embedContent") {
+			models.embedders = append(models.embedders, name)
+			continue
+		}
+
+		found := slices.ContainsFunc(allowedModels, func(s string) bool {
+			return strings.Contains(name, s)
+		})
+		// filter out: Aqa, Text-bison, Chat, learnlm
+		if found {
+			models.gemini = append(models.gemini, name)
+			continue
+		}
+
+		found = slices.ContainsFunc(allowedImagenModels, func(s string) bool {
+			return strings.Contains(name, s)
+		})
+		// filter out: Aqa, Text-bison, Chat, learnlm
+		if found {
+			models.imagen = append(models.imagen, name)
+			continue
+		}
+	}
+
+	return models, nil
 }

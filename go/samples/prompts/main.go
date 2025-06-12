@@ -16,8 +16,10 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -26,6 +28,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/server"
+	"google.golang.org/genai"
 )
 
 func main() {
@@ -48,6 +51,7 @@ func main() {
 	PromptWithExecuteOverrides(ctx, g)
 	PromptWithFunctions(ctx, g)
 	PromptWithOutputTypeDotprompt(ctx, g)
+	PromptWithMediaType(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -60,7 +64,7 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 	// Define prompt with default model and system text.
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "SimplePrompt",
-		ai.WithModelName("vertexai/gemini-1.5-flash"), // Override the default model.
+		ai.WithModelName("vertexai/gemini-2.0-flash-lite"), // Override the default model.
 		ai.WithSystem("You are a helpful AI assistant named Walt. Greet the user."),
 		ai.WithPrompt("Hello, who are you?"),
 	)
@@ -111,7 +115,7 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "PromptWithOutputType",
 		ai.WithOutputType(CountryList{}),
-		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
+		ai.WithConfig(&genai.GenerateContentConfig{Temperature: genai.Ptr[float32](0.5)}),
 		ai.WithSystem("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
 		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants."),
 	)
@@ -186,7 +190,7 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 	prompt, err := genkit.DefinePrompt(
 		g, "PromptWithComplexOutputType",
 		ai.WithOutputType(countries{}),
-		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
+		ai.WithConfig(&genai.GenerateContentConfig{Temperature: genai.Ptr[float32](0.5)}),
 		ai.WithSystem("You are a geography teacher. When asked a question about geography."),
 		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants and language."),
 	)
@@ -281,7 +285,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 
 	// Call the model and add additional messages from the user.
 	resp, err := helloPrompt.Execute(ctx,
-		ai.WithModel(googlegenai.VertexAIModel(g, "gemini-2.0-pro")),
+		ai.WithModel(googlegenai.VertexAIModel(g, "gemini-2.0-flash-lite")),
 		ai.WithMessages(ai.NewUserTextMessage("And I like turtles.")),
 	)
 	if err != nil {
@@ -318,4 +322,48 @@ func PromptWithFunctions(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	fmt.Println(resp.Text())
+}
+
+func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
+	img, err := fetchImgAsBase64()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	prompt, err := genkit.LoadPrompt(g, "./prompts/media.prompt", "mediaspace")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if prompt == nil {
+		log.Fatal("empty prompt")
+	}
+	resp, err := prompt.Execute(ctx,
+
+		ai.WithModelName("vertexai/gemini-2.0-flash"),
+		ai.WithInput(map[string]any{"imageUrl": "data:image/png;base64," + img}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(resp.Text())
+}
+
+func fetchImgAsBase64() (string, error) {
+	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
+	resp, err := http.Get(imgUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", err
+	}
+
+	imageBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	base64string := base64.StdEncoding.EncodeToString(imageBytes)
+	return base64string, nil
 }
