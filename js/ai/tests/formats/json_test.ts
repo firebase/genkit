@@ -15,6 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
+import { NodeRegistry } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -29,12 +30,6 @@ import type {
 import { defineProgrammableModel, runAsync } from '../helpers.js';
 
 describe('jsonFormat', () => {
-  let registry: Registry;
-
-  beforeEach(() => {
-    registry = new Registry();
-  });
-
   const streamingTests = [
     {
       desc: 'parses complete JSON object',
@@ -141,7 +136,7 @@ describe('jsonFormat e2e', () => {
   let registry: Registry;
 
   beforeEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
     configureFormats(registry);
   });
 

@@ -117,7 +117,6 @@ export {
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
   GenkitError,
-  ReflectionServer,
   StatusCodes,
   StatusSchema,
   UserFacingError,
@@ -138,11 +137,14 @@ export {
   type JSONSchema,
   type JSONSchema7,
   type Middleware,
-  type ReflectionServerOptions,
-  type RunActionResponse,
   type Status,
   type StatusName,
   type StreamingCallback,
   type StreamingResponse,
   type TelemetryConfig,
 } from '@genkit-ai/core';
+export {
+  ReflectionServer,
+  type ReflectionServerOptions,
+  type RunActionResponse,
+} from '@genkit-ai/core/node';

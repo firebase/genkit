@@ -15,6 +15,7 @@
  */
 
 import { z, type PluginProvider } from '@genkit-ai/core';
+import { NodeRegistry } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -32,7 +33,7 @@ import {
 import { defineTool } from '../../src/tool.js';
 
 describe('toGenerateRequest', () => {
-  const registry = new Registry();
+  const registry = new NodeRegistry();
   // register tools
   const tellAFunnyJoke = defineTool(
     registry,
@@ -332,7 +333,7 @@ describe('generate', () => {
   var echoModel: ModelAction;
 
   beforeEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
     echoModel = defineModel(
       registry,
       {
@@ -407,7 +408,7 @@ describe('generate', () => {
 describe('generate', () => {
   let registry: Registry;
   beforeEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
 
     defineModel(
       registry,
@@ -432,7 +433,7 @@ describe('generate', () => {
 
   describe('generateStream', () => {
     it('should stream out chunks', async () => {
-      const registry = new Registry();
+      const registry = new NodeRegistry();
 
       defineModel(
         registry,

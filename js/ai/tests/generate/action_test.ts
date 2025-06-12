@@ -15,6 +15,7 @@
  */
 
 import { stripUndefinedProps, z } from '@genkit-ai/core';
+import { NodeRegistry } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { readFileSync } from 'fs';
@@ -58,7 +59,7 @@ describe('spec', () => {
   let pm: ProgrammableModel;
 
   beforeEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
     defineGenerateAction(registry);
     pm = defineProgrammableModel(registry);
     defineTool(

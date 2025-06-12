@@ -15,6 +15,7 @@
  */
 
 import { GenkitError, z } from '@genkit-ai/core';
+import { NodeRegistry } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -25,7 +26,7 @@ describe('reranker', () => {
   describe('defineReranker()', () => {
     let registry: Registry;
     beforeEach(() => {
-      registry = new Registry();
+      registry = new NodeRegistry();
     });
     it('reranks documents based on custom logic', async () => {
       const customReranker = defineReranker(

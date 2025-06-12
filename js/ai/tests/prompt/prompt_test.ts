@@ -15,7 +15,7 @@
  */
 
 import { runWithContext, z, type ActionContext } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import { NodeRegistry } from '@genkit-ai/core/node';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -34,7 +34,7 @@ describe('prompt', () => {
   let registry;
 
   beforeEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
 
     defineEchoModel(registry);
     defineTool(

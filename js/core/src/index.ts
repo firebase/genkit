@@ -56,7 +56,6 @@ export {
   type FlowSideChannel,
 } from './flow.js';
 export * from './plugin.js';
-export * from './reflection.js';
 export { defineJsonSchema, defineSchema, type JSONSchema } from './schema.js';
 export * from './telemetryTypes.js';
 export * from './utils.js';

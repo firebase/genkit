@@ -15,17 +15,17 @@
  */
 
 import { z } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import { NodeRegistry } from '@genkit-ai/core/node';
 import * as assert from 'assert';
 import { afterEach, describe, it } from 'node:test';
 import { defineInterrupt, defineTool } from '../src/tool.js';
 
 describe('defineInterrupt', () => {
-  let registry = new Registry();
+  let registry = new NodeRegistry();
   registry.apiStability = 'beta';
 
   afterEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
     registry.apiStability = 'beta';
   });
 
@@ -107,10 +107,10 @@ describe('defineInterrupt', () => {
 });
 
 describe('defineTool', () => {
-  let registry = new Registry();
+  let registry = new NodeRegistry();
   registry.apiStability = 'beta';
   afterEach(() => {
-    registry = new Registry();
+    registry = new NodeRegistry();
     registry.apiStability = 'beta';
   });
 
