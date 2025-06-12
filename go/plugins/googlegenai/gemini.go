@@ -159,7 +159,7 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
 		switch config.(type) {
-		case *ImagenConfig:
+		case *genai.GenerateImagesConfig:
 			return generateImage(ctx, client, name, input, cb)
 		default:
 			return generate(ctx, client, name, input, cb)

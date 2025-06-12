@@ -21,15 +21,11 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 func main() {
 	ctx := context.Background()
-
-	// Initialize Genkit with the Google AI plugin. When you pass nil for the
-	// Config parameter, the Google AI plugin will get the API key from the
-	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
-	// practice.
 	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.VertexAI{}))
 	if err != nil {
 		log.Fatal(err)
@@ -39,15 +35,15 @@ func main() {
 		r, err := genkit.Generate(ctx, g,
 			ai.WithModelName("vertexai/imagen-3.0-generate-001"),
 			ai.WithPrompt("Generate an image of %s", input),
-			ai.WithConfig(googlegenai.ImagenConfig{
-				NumberOfImages:   2,
-				NegativePrompt:   "night",
-				AspectRatio:      "9:16",
-				SafetySetting:    googlegenai.HarmBlockThresholdBlockMediumAndAbove,
-				PersonGeneration: googlegenai.AllowAllPerson,
-				Language:         string(googlegenai.ImagePromptLanguageEn),
-				AddWatermark:     true,
-				OutputMIMEType:   "image/jpeg",
+			ai.WithConfig(&genai.GenerateImagesConfig{
+				NumberOfImages:    2,
+				NegativePrompt:    "night",
+				AspectRatio:       "9:16",
+				SafetyFilterLevel: genai.SafetyFilterLevelBlockLowAndAbove,
+				PersonGeneration:  genai.PersonGenerationAllowAll,
+				Language:          genai.ImagePromptLanguageEn,
+				AddWatermark:      true,
+				OutputMIMEType:    "image/jpeg",
 			}),
 		)
 		if err != nil {
