@@ -31,8 +31,7 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "google-auth-library": "^9.14.2",
-    "@genkit-ai/core": "workspace:*"
+    "google-auth-library": "^9.14.2"
   },
   "peerDependencies": {
     "genkit": "workspace:^"
