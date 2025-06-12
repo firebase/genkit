@@ -145,6 +145,8 @@ export const ModelInfoSchema = z.object({
       constrained: z.enum(['none', 'all', 'no-tools']).optional(),
       /** Model supports controlling tool choice, e.g. forced tool calling. */
       toolChoice: z.boolean().optional(),
+      /** Model supports long running operation interface. */
+      longRunning: z.boolean().optional(),
     })
     .optional(),
   /** At which stage of development this model is.
@@ -257,6 +259,42 @@ export const OutputConfigSchema = z.object({
   constrained: z.boolean().optional(),
   contentType: z.string().optional(),
 });
+/** Model response finish reason enum. */
+export const FinishReasonSchema = z.enum([
+  'stop',
+  'length',
+  'blocked',
+  'interrupted',
+  'pending',
+  'other',
+  'unknown',
+]);
+
+/**
+ * Zod schema of a long running operation.
+ */
+export const ModelOperationSchema = z.object({
+  name: z.string(),
+  done: z.boolean().optional(),
+  request: z
+    .object({
+      model: z.string(),
+      config: z.record(z.string(), z.any()).optional(),
+    })
+    .optional(),
+  response: z
+    .object({
+      message: MessageSchema.optional(),
+      finishReason: FinishReasonSchema,
+      raw: z.unknown(),
+    })
+    .optional(),
+});
+
+/**
+ * Model operation data.
+ */
+export type ModelOperation = z.infer<typeof ModelOperationSchema>;
 
 /**
  * Output config.
@@ -271,7 +309,9 @@ export const ModelRequestSchema = z.object({
   toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   output: OutputConfigSchema.optional(),
   docs: z.array(DocumentDataSchema).optional(),
+  operation: ModelOperationSchema.optional(),
 });
+
 /** ModelRequest represents the parameters that are passed to a model when generating content. */
 export interface ModelRequest<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
@@ -325,16 +365,6 @@ export const GenerationUsageSchema = z.object({
  */
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
 
-/** Model response finish reason enum. */
-export const FinishReasonSchema = z.enum([
-  'stop',
-  'length',
-  'blocked',
-  'interrupted',
-  'other',
-  'unknown',
-]);
-
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export const CandidateSchema = z.object({
   index: z.number(),
@@ -369,6 +399,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
+  operation: ModelOperationSchema.optional(),
 });
 
 /**

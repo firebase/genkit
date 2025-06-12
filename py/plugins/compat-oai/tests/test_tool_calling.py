@@ -58,7 +58,7 @@ def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest
 
     model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
 
-    response = model.generate(sample_request)
+    response = model._generate(sample_request)
 
     part = response.message.content[0].root
 
@@ -68,7 +68,7 @@ def test_generate_with_tool_calls_executes_tools(sample_request: GenerateRequest
     assert part.tool_request.ref == 'tool123'
 
     # Assume the sample request was processed by Genkit, but a mock side effect was applied
-    response = model.generate(sample_request)
+    response = model._generate(sample_request)
 
     part = response.message.content[0].root
 
@@ -133,7 +133,7 @@ def test_generate_stream_with_tool_calls(sample_request):
     def callback(chunk: GenerateResponseChunk):
         collected_chunks.append(chunk.content[0].root)
 
-    model.generate_stream(sample_request, callback)
+    model._generate_stream(sample_request, callback)
 
     assert len(collected_chunks) == 3
     assert all(isinstance(part, ToolRequestPart) for part in collected_chunks)

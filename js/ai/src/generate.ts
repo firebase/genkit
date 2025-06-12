@@ -15,7 +15,10 @@
  */
 
 import {
+  assertUnstable,
   GenkitError,
+  isAction,
+  isDetachedAction,
   runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
@@ -41,6 +44,7 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  ModelOperation,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
@@ -52,8 +56,13 @@ import {
   type ToolRequestPart,
   type ToolResponsePart,
 } from './model.js';
-import type { ExecutablePrompt } from './prompt.js';
-import { resolveTools, toToolDefinition, type ToolArgument } from './tool.js';
+import { isExecutablePrompt } from './prompt.js';
+import {
+  isDynamicTool,
+  resolveTools,
+  toToolDefinition,
+  type ToolArgument,
+} from './tool.js';
 export { GenerateResponse, GenerateResponseChunk };
 
 /** Specifies how tools should be called by the model. */
@@ -264,15 +273,11 @@ async function toolsToActionRefs(
   for (const t of toolOpt) {
     if (typeof t === 'string') {
       tools.push(await resolveFullToolName(registry, t));
-    } else if ((t as Action).__action) {
-      tools.push(
-        `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
-      );
-    } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
-      const promptToolAction = await (t as ExecutablePrompt).asTool();
+    } else if (isAction(t) || isDynamicTool(t)) {
+      tools.push(`/${t.__action.metadata?.type}/${t.__action.name}`);
+    } else if (isExecutablePrompt(t)) {
+      const promptToolAction = await t.asTool();
       tools.push(`/prompt/${promptToolAction.__action.name}`);
-    } else if (t.name) {
-      tools.push(await resolveFullToolName(registry, t.name));
     } else {
       throw new Error(`Unable to determine type of tool: ${JSON.stringify(t)}`);
     }
@@ -337,6 +342,9 @@ export async function generate<
   registry = maybeRegisterDynamicTools(registry, resolvedOptions);
 
   const params = await toGenerateActionOptions(registry, resolvedOptions);
+  const model = await resolveModel(registry, resolvedOptions.model, {
+    warnDeprecated: true,
+  });
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
   return await runWithStreamingCallback(
@@ -357,11 +365,44 @@ export async function generate<
         tools,
       });
       return new GenerateResponse<O>(response, {
+        model: model.modelAction.__action.name,
         request: response.request ?? request,
         parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
       });
     }
   );
+}
+
+export async function generateOperation<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  registry: Registry,
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<ModelOperation> {
+  assertUnstable(registry, 'beta', 'generateOperation is a beta feature.');
+
+  options = await options;
+  const resolvedModel = await resolveModel(registry, options.model);
+  if (
+    !resolvedModel.modelAction.__action.metadata?.model.supports?.longRunning
+  ) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: `Model '${resolvedModel.modelAction.__action.name}' does not support long running operations.`,
+    });
+  }
+
+  const { operation } = await generate(registry, options);
+  if (!operation) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Model '${resolvedModel.modelAction.__action.name}' did not return an operation.`,
+    });
+  }
+  return operation;
 }
 
 function maybeRegisterDynamicTools<
@@ -370,11 +411,10 @@ function maybeRegisterDynamicTools<
 >(registry: Registry, options: GenerateOptions<O, CustomOptions>): Registry {
   let hasDynamicTools = false;
   options?.tools?.forEach((t) => {
-    if (
-      (t as Action).__action &&
-      (t as Action).__action.metadata?.type === 'tool' &&
-      (t as Action).__action.metadata?.dynamic
-    ) {
+    if (isDynamicTool(t)) {
+      if (isDetachedAction(t)) {
+        t = t.attach(registry);
+      }
       if (!hasDynamicTools) {
         hasDynamicTools = true;
         // Create a temporary registry with dynamic tools for the duration of this

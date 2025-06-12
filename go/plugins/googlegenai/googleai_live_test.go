@@ -34,21 +34,31 @@ import (
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
-// The tests here only work with an API key set to a valid value.
-var (
-	apiKey = flag.String("key", "", "Gemini API key")
-	cache  = flag.String("cache", "", "Local file to cache (large text document)")
-)
+// To run this test suite: go test -v -run TestGoogleAI
+
+var cache = flag.String("cache", "", "Local file to cache (large text document)")
+
+func requireEnv(key string) (string, bool) {
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return "", false
+	}
+
+	return value, true
+}
 
 // We can't test the DefineAll functions along with the other tests because
 // we get duplicate definitions of models.
 var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
 
 func TestGoogleAILive(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
+	apiKey, ok := requireEnv("GEMINI_API_KEY")
+	if !ok {
+		apiKey, ok = requireEnv("GOOGLE_API_KEY")
+		if !ok {
+			t.Skip("no gemini api key provided, set either GEMINI_API_KEY or GOOGLE_API_KEY in environment")
+		}
 	}
-
 	if *testAll {
 		t.Skip("-all provided")
 	}
@@ -56,8 +66,8 @@ func TestGoogleAILive(t *testing.T) {
 	ctx := context.Background()
 
 	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
-		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
+		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -68,7 +78,7 @@ func TestGoogleAILive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken, carefuly inspect the user input to determine which value from the prompt corresponds to the input structure",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
 			Over  float64
@@ -154,7 +164,7 @@ func TestGoogleAILive(t *testing.T) {
 
 	t.Run("tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
@@ -166,6 +176,7 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+
 	t.Run("tool with json output", func(t *testing.T) {
 		type weatherQuery struct {
 			Location string `json:"location"`
@@ -201,7 +212,7 @@ func TestGoogleAILive(t *testing.T) {
 	})
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3.5?"),
 			ai.WithTools(gablorkenTool),
 			ai.WithToolChoice(ai.ToolChoiceNone),
 		)
@@ -231,7 +242,7 @@ func TestGoogleAILive(t *testing.T) {
 			),
 			ai.WithPrompt("write a summary of the content"),
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
+				Version: "gemini-2.0-flash-001",
 			}))
 		if err != nil {
 			t.Fatal(err)
@@ -255,7 +266,7 @@ func TestGoogleAILive(t *testing.T) {
 
 		resp, err = genkit.Generate(ctx, g,
 			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
+				Version: "gemini-2.0-flash-001",
 			}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
@@ -293,19 +304,19 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
+					ai.NewTextPart("do you what animal is in the image?"),
+					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "donkey") {
+			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -341,8 +352,8 @@ func TestGoogleAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "donkey") {
+			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
@@ -414,7 +425,7 @@ func TestGoogleAILive(t *testing.T) {
 				Temperature: 0.4,
 				ThinkingConfig: &googlegenai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  100,
+					ThinkingBudget:  1000,
 				},
 			}),
 			ai.WithModel(m),
@@ -425,8 +436,8 @@ func TestGoogleAILive(t *testing.T) {
 		if resp == nil {
 			t.Fatal("nil response obtanied")
 		}
-		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
-			t.Fatal("thoughts tokens should not be zero or greater than 100")
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1000 {
+			t.Fatalf("thoughts tokens should not be zero or greater than 100, got: %d", resp.Usage.ThoughtsTokens)
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
@@ -539,7 +550,8 @@ func TestCacheHelper(t *testing.T) {
 }
 
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
+	// CC0 license image
+	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err
