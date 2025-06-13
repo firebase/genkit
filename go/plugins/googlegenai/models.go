@@ -4,7 +4,11 @@
 package googlegenai
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"slices"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"google.golang.org/genai"
@@ -311,6 +315,7 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 			Supports: m.Supports,
 		}
 	}
+
 	return models, nil
 }
 
@@ -334,4 +339,51 @@ func listEmbedders(backend genai.Backend) (map[string]ai.EmbedderOptions, error)
 	}
 
 	return embedders, nil
+}
+
+// genaiModels collects all the available models in go-genai SDK
+// TODO: add imagen and veo models
+type genaiModels struct {
+	gemini    []string
+	embedders []string
+}
+
+// listGenaiModels returns a list of supported models and embedders from the
+// Go Genai SDK
+func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
+	models := genaiModels{}
+	allowedModels := []string{"gemini", "gemma"}
+
+	for item, err := range client.Models.All(ctx) {
+		var name string
+		var description string
+		if err != nil {
+			log.Fatal(err)
+		}
+		if !strings.HasPrefix(item.Name, "models/") {
+			continue
+		}
+		description = strings.ToLower(item.Description)
+		if strings.Contains(description, "deprecated") {
+			continue
+		}
+
+		name = strings.TrimPrefix(item.Name, "models/")
+		if slices.Contains(item.SupportedActions, "embedContent") {
+			models.embedders = append(models.embedders, name)
+			continue
+		}
+
+		found := slices.ContainsFunc(allowedModels, func(s string) bool {
+			return strings.Contains(name, s)
+		})
+		// filter out: Aqa, Text-bison, Chat, learnlm
+		if found {
+			models.gemini = append(models.gemini, name)
+			continue
+		}
+
+		// TODO: add imagen and veo models
+	}
+	return models, nil
 }
