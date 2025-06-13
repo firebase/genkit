@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { logger } from 'genkit/logging';
 import { toDisplayPath, type PathMetadata } from 'genkit/tracing';
 import { type Telemetry } from '../metrics.js';
@@ -23,7 +24,6 @@ import {
   truncate,
   truncatePath,
 } from '../utils.js';
-import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
 class ActionTelemetry implements Telemetry {
   tick(
