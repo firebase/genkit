@@ -129,10 +129,16 @@ export class FakeTransport implements Transport {
         id: request.id,
       });
     } else if (request.method === 'tools/call') {
+      const result = {
+        ...this.callToolResult,
+      };
+      if (request.params?._meta)
+        result.content = [
+          ...(result.content || []),
+          { type: 'text', text: JSON.stringify(request.params._meta) },
+        ];
       this.onmessage?.({
-        result: {
-          ...this.callToolResult,
-        },
+        result,
         jsonrpc: '2.0',
         id: request.id,
       });
@@ -145,10 +151,22 @@ export class FakeTransport implements Transport {
         id: request.id,
       });
     } else if (request.method === 'prompts/get') {
+      const result = {
+        ...this.getPromptResult,
+      };
+      if (request.params?._meta)
+        result.messages = [
+          ...(result.messages || []),
+          {
+            role: 'assistant',
+            content: {
+              type: 'text',
+              text: JSON.stringify(request.params._meta),
+            },
+          },
+        ];
       this.onmessage?.({
-        result: {
-          ...this.getPromptResult,
-        },
+        result,
         jsonrpc: '2.0',
         id: request.id,
       });

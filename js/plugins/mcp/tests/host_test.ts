@@ -15,11 +15,11 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, genkit } from 'genkit';
+import { Genkit, genkit, ToolAction } from 'genkit';
 import { logger } from 'genkit/logging';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { GenkitMcpHost, createMcpHost } from '../src/index.js';
-import { FakeTransport, defineEchoModel } from './fakes.js';
+import { createMcpHost, GenkitMcpHost } from '../src/index.js';
+import { defineEchoModel, FakeTransport } from './fakes.js';
 
 logger.setLogLevel('debug');
 
@@ -186,6 +186,26 @@ describe('createMcpHost', () => {
         ],
       };
 
+      const tool: ToolAction = (await clientHost.getActiveTools(ai))[0];
+      const response = await tool(
+        {
+          foo: 'bar',
+        },
+        { context: { mcp: { _meta: { soMeta: true } } } }
+      );
+      assert.deepStrictEqual(response, 'yep {"foo":"bar"}{"soMeta":true}');
+    });
+
+    it('should call the tool with _meta', async () => {
+      fakeTransport.callToolResult = {
+        content: [
+          {
+            type: 'text',
+            text: 'yep {"foo":"bar"}',
+          },
+        ],
+      };
+
       const tool = (await clientHost.getActiveTools(ai))[0];
       const response = await tool({
         foo: 'bar',
@@ -312,6 +332,30 @@ describe('createMcpHost', () => {
 
       assert.deepStrictEqual(request.messages, [
         { role: 'user', content: [{ text: 'prompt says: hello' }] },
+      ]);
+    });
+
+    it('should render prompt with _meta', async () => {
+      fakeTransport.prompts.push({
+        name: 'testPrompt',
+      });
+      const prompt = await clientHost.getPrompt(
+        ai,
+        'test-server',
+        'testPrompt',
+        { model: 'echoModel', config: { temperature: 11 } }
+      );
+      assert.ok(prompt);
+      const request = await prompt.render(
+        {
+          input: 'hello',
+        },
+        { context: { mcp: { _meta: { soMeta: true } } } }
+      );
+
+      assert.deepStrictEqual(request.messages, [
+        { role: 'user', content: [{ text: 'prompt says: hello' }] },
+        { role: 'model', content: [{ text: '{"soMeta":true}' }] },
       ]);
     });
 

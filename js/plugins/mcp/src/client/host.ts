@@ -42,6 +42,13 @@ export interface McpHostOptions {
    * The key in the record is used as the identifier for the MCP server.
    */
   mcpServers?: Record<string, McpServerConfig>;
+
+  /**
+   * If true, tool responses from the MCP server will be returned in their raw
+   * MCP format. Otherwise (default), they are processed and potentially
+   * simplified for better compatibility with Genkit's typical data structures.
+   */
+  rawToolResponses?: boolean;
 }
 
 /** Internal representation of client state for logging. */
@@ -69,9 +76,11 @@ export class GenkitMcpHost {
     reject: (err: Error) => void;
   }[] = [];
   private _ready = false;
+  rawToolResponses?: boolean;
 
   constructor(options: McpHostOptions) {
     this.name = options.name || 'genkit-mcp';
+    this.rawToolResponses = options.rawToolResponses;
 
     if (options.mcpServers) {
       this.updateServers(options.mcpServers);
@@ -122,6 +131,7 @@ export class GenkitMcpHost {
         name: this.name,
         serverName: serverName,
         mcpServer: config,
+        rawToolResponses: this.rawToolResponses,
       });
       this._clients[serverName] = client;
     } catch (e) {
