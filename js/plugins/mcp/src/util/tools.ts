@@ -106,7 +106,7 @@ function createDynamicTool(
   );
   return ai.dynamicTool(
     {
-      name: `${params.name}/${tool.name}`,
+      name: `${params.serverName}/${tool.name}`,
       description: tool.description || '',
       inputJsonSchema: tool.inputSchema as JSONSchema7,
       outputSchema: z.any(),

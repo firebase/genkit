@@ -25,7 +25,7 @@ function listResourcesTool(
   params: { asDynamicTool?: boolean }
 ): ToolAction {
   const actionMetadata = {
-    name: `mcp/list_resources`,
+    name: `${host.name}/list_resources`,
     description: `list all available resources`,
     inputSchema: z
       .object({
@@ -87,7 +87,7 @@ function readResourceTool(
   params: { asDynamicTool?: boolean }
 ) {
   const actionMetadata = {
-    name: `mcp/read_resource`,
+    name: `${host.name}/read_resource`,
     description: `this tool can read resources`,
     inputSchema: z.object({
       server: z.string(),
@@ -95,7 +95,7 @@ function readResourceTool(
     }),
   };
   const fn = async ({ server, uri }) => {
-    const client = host.activeClients.find((c) => c.name === server);
+    const client = host.activeClients.find((c) => c.serverName === server);
     if (!client) {
       throw new GenkitError({
         status: 'NOT_FOUND',

@@ -26,9 +26,8 @@ import { GenkitMcpClient, McpServerConfig } from './client.js';
 
 export interface McpHostOptions {
   /**
-   * An optional name for this MCP host. This name is primarily for
-   * logging and identification purposes within Genkit.
-   * Defaults to 'genkitx-mcp'.
+   * An optional client name for this MCP host. This name is advertised to MCP Servers
+   * as the connecting client name. Defaults to 'genkit-mcp'.
    */
   name?: string;
   /**
@@ -72,7 +71,7 @@ export class GenkitMcpHost {
   private _ready = false;
 
   constructor(options: McpHostOptions) {
-    this.name = options.name || 'genkitx-mcp';
+    this.name = options.name || 'genkit-mcp';
 
     if (options.mcpServers) {
       this.updateServers(options.mcpServers);
@@ -119,7 +118,11 @@ export class GenkitMcpHost {
       `[MCP Host] Connecting to MCP server '${serverName}' in host '${this.name}'.`
     );
     try {
-      const client = new GenkitMcpClient({ ...config, name: serverName });
+      const client = new GenkitMcpClient({
+        name: this.name,
+        serverName: serverName,
+        mcpServer: config,
+      });
       this._clients[serverName] = client;
     } catch (e) {
       this.setError(serverName, {
@@ -321,6 +324,19 @@ export class GenkitMcpHost {
     }
 
     return allTools;
+  }
+
+  async getActivePrompts(ai: Genkit): Promise<ExecutablePrompt[]> {
+    await this.ready();
+    let allPrompts: ExecutablePrompt[] = [];
+
+    for (const serverName in this._clients) {
+      const client = this._clients[serverName];
+      if (client.isEnabled() && !this.hasError(serverName)) {
+        allPrompts.push(...(await client.getActivePrompts(ai)));
+      }
+    }
+    return allPrompts;
   }
 
   /**
