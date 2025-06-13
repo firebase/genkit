@@ -66,7 +66,7 @@ function registerPrompt(
     description: prompt.description || '',
     input: { jsonSchema: toSchema(prompt.arguments) },
     output: { format: 'text' },
-    messages: async (args) => {
+    messages: async (args, { context }) => {
       logger.debug(
         `[MCP] Calling MCP prompt ${params.name}/${prompt.name} with arguments`,
         JSON.stringify(args)
@@ -74,6 +74,7 @@ function registerPrompt(
       const result = await client.getPrompt({
         name: prompt.name,
         arguments: args,
+        _meta: context?.mcp?._meta,
       });
       return result.messages.map(fromMcpPromptMessage);
     },
@@ -119,6 +120,7 @@ function createExecutablePrompt<
     const result = await client.getPrompt({
       name: prompt.name,
       arguments: input as any,
+      _meta: opts?.context?.mcp?._meta,
     });
     const messages = result.messages.map(fromMcpPromptMessage);
     return {

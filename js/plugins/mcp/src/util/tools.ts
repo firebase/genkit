@@ -111,13 +111,14 @@ function createDynamicTool(
       inputJsonSchema: tool.inputSchema as JSONSchema7,
       outputSchema: z.any(),
     },
-    async (args) => {
+    async (args, { context }) => {
       logger.debug(
         `[MCP] Dynamically calling MCP tool '${params.name}/${tool.name}'`
       );
       const result = await client.callTool({
         name: tool.name,
         arguments: args,
+        _meta: context?.mcp?._meta,
       });
       if (params.rawToolResponses) return result;
       return processResult(result as CallToolResult);
