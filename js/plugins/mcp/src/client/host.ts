@@ -21,7 +21,6 @@ import {
   ToolAction,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { fetchDynamicResourceTools } from '../util/resources.js';
 import { GenkitMcpClient, McpServerConfig } from './client.js';
 
 export interface McpHostOptions {
@@ -310,7 +309,6 @@ export class GenkitMcpHost {
    */
   async getActiveTools(
     ai: Genkit,
-    opts?: { resourceTools?: boolean }
   ): Promise<ToolAction[]> {
     await this.ready();
     let allTools: ToolAction[] = [];
@@ -329,10 +327,6 @@ export class GenkitMcpHost {
         }
       }
     }
-    if (opts?.resourceTools) {
-      allTools.push(...fetchDynamicResourceTools(ai, this));
-    }
-
     return allTools;
   }
 
