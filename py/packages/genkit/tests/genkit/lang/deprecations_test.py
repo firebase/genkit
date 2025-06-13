@@ -55,7 +55,7 @@ class GeminiVersionTest(StrEnum, metaclass=deprecated_enum_metafactory(TEST_DEPR
 class TestDeprecatedEnum(unittest.TestCase):
     """Test deprecated enum members."""
 
-    def test_legacy_member_warning(self):
+    def test_legacy_member_warning(self) -> None:
         """Verify warning for legacy member with recommendation."""
         expected_regex = (
             r'GeminiVersionTest\.GEMINI_1_0_PRO is legacy; '
@@ -70,7 +70,7 @@ class TestDeprecatedEnum(unittest.TestCase):
         finally:
             warnings.simplefilter('default', DeprecationWarning)
 
-    def test_deprecated_member_with_recommendation_warning(self):
+    def test_deprecated_member_with_recommendation_warning(self) -> None:
         """Verify warning for deprecated member with recommendation."""
         expected_regex = (
             r'GeminiVersionTest\.GEMINI_1_5_PRO is deprecated; '
@@ -85,7 +85,7 @@ class TestDeprecatedEnum(unittest.TestCase):
         finally:
             warnings.simplefilter('default', DeprecationWarning)
 
-    def test_deprecated_member_without_recommendation_warning(self):
+    def test_deprecated_member_without_recommendation_warning(self) -> None:
         """Verify warning for deprecated member without recommendation."""
         expected_regex = r'GeminiVersionTest\.GEMINI_1_5_FLASH_8B is deprecated'
         warnings.simplefilter('always', DeprecationWarning)
@@ -102,7 +102,7 @@ class TestDeprecatedEnum(unittest.TestCase):
         finally:
             warnings.simplefilter('default', DeprecationWarning)
 
-    def test_supported_member_no_warning(self):
+    def test_supported_member_no_warning(self) -> None:
         """Verify no warning for a supported member."""
         member_to_test = GeminiVersionTest.GEMINI_2_0_FLASH
         with warnings.catch_warnings(record=True) as w:
@@ -116,7 +116,7 @@ class TestDeprecatedEnum(unittest.TestCase):
         self.assertEqual(member, member_to_test)
         self.assertEqual(member.value, member_to_test.value)
 
-    def test_recommended_member_no_warning(self):
+    def test_recommended_member_no_warning(self) -> None:
         """Verify no warning for a member used as a recommendation."""
         member_to_test = GeminiVersionTest.GEMINI_2_0_PRO
         with warnings.catch_warnings(record=True) as w:
@@ -130,7 +130,7 @@ class TestDeprecatedEnum(unittest.TestCase):
         self.assertEqual(member, member_to_test)
         self.assertEqual(member.value, member_to_test.value)
 
-    def test_access_via_value_no_warning(self):
+    def test_access_via_value_no_warning(self) -> None:
         """Verify no warning when accessing members via value lookup."""
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter('always')
@@ -146,7 +146,7 @@ class TestDeprecatedEnum(unittest.TestCase):
         self.assertEqual(member_leg, GeminiVersionTest.GEMINI_1_0_PRO)
         self.assertEqual(member_sup, GeminiVersionTest.GEMINI_2_0_FLASH)
 
-    def test_iteration_no_warning(self):
+    def test_iteration_no_warning(self) -> None:
         """Verify no warning when iterating over enum members."""
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter('always')

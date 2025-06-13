@@ -15,25 +15,25 @@
  */
 
 import { ValueType } from '@opentelemetry/api';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { createHash } from 'crypto';
 import {
-  GenerateRequestData,
-  GenerateResponseData,
-  GenerationUsage,
   GENKIT_VERSION,
-  MediaPart,
-  Part,
-  ToolRequestPart,
-  ToolResponsePart,
+  type GenerateRequestData,
+  type GenerateResponseData,
+  type GenerationUsage,
+  type MediaPart,
+  type Part,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { PathMetadata, toDisplayPath } from 'genkit/tracing';
+import { toDisplayPath, type PathMetadata } from 'genkit/tracing';
 import {
-  internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
-  Telemetry,
+  internalMetricNamespaceWrap,
+  type Telemetry,
 } from '../metrics.js';
 import {
   createCommonLogAttributes,
@@ -317,24 +317,26 @@ class GenerateTelemetry implements Telemetry {
     };
     const message = output.message || output.candidates?.[0]?.message!;
 
-    const parts = message.content.length;
-    message.content.forEach((part, partIdx) => {
-      const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
-      const initial = output.finishMessage
-        ? { finishMessage: truncate(output.finishMessage) }
-        : {};
-      logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
-        ...initial,
-        ...sharedMetadata,
-        content: this.toPartLogContent(part),
-        partIndex: partIdx,
-        totalParts: parts,
-        candidateIndex: 0,
-        totalCandidates: 1,
-        messageIndex: 0,
-        finishReason: output.finishReason,
+    if (message?.content) {
+      const parts = message.content.length;
+      message.content.forEach((part, partIdx) => {
+        const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
+        const initial = output.finishMessage
+          ? { finishMessage: truncate(output.finishMessage) }
+          : {};
+        logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
+          ...initial,
+          ...sharedMetadata,
+          content: this.toPartLogContent(part),
+          partIndex: partIdx,
+          totalParts: parts,
+          candidateIndex: 0,
+          totalCandidates: 1,
+          messageIndex: 0,
+          finishReason: output.finishReason,
+        });
       });
-    });
+    }
   }
 
   private toPartCounts(

@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { Attributes, ValueType } from '@opentelemetry/api';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { ValueType, type Attributes } from '@opentelemetry/api';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
-import { PathMetadata } from 'genkit/tracing';
+import type { PathMetadata } from 'genkit/tracing';
 import {
   MetricCounter,
-  Telemetry,
   internalMetricNamespaceWrap,
+  type Telemetry,
 } from '../metrics.js';
 import { createCommonLogAttributes, truncate } from '../utils.js';
 

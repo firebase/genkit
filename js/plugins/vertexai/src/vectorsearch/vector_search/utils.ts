@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GoogleAuth } from 'google-auth-library';
+import type { GoogleAuth } from 'google-auth-library';
 import { google } from 'googleapis';
 
 /**

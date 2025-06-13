@@ -17,15 +17,15 @@
 import { LoggingWinston } from '@google-cloud/logging-winston';
 import { getCurrentEnv } from 'genkit';
 import { logger } from 'genkit/logging';
-import { Writable } from 'stream';
-import { GcpTelemetryConfig } from './types.js';
+import type { Writable } from 'stream';
+import type { GcpTelemetryConfig } from './types.js';
 import { loggingDenied, loggingDeniedHelpText } from './utils.js';
 
 /**
  * Additional streams for writing log data to. Useful for unit testing.
  */
 let additionalStream: Writable;
-let useJsonFormatOverride: boolean = false;
+let useJsonFormatOverride = false;
 
 /**
  * Provides a logger for exporting Genkit debug logs to GCP Cloud
@@ -51,7 +51,7 @@ export class GcpLogger {
             }),
           };
 
-    let transports: any[] = [];
+    const transports: any[] = [];
     transports.push(
       this.shouldExport(env)
         ? new LoggingWinston({
@@ -80,7 +80,7 @@ export class GcpLogger {
   private async getErrorHandler(): Promise<(err: Error | null) => void> {
     // only log the first time
     let instructionsLogged = false;
-    let helpInstructions = await loggingDeniedHelpText();
+    const helpInstructions = await loggingDeniedHelpText();
 
     return async (err: Error | null) => {
       // Use the defaultLogger so that logs don't get swallowed by

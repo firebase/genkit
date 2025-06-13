@@ -19,13 +19,7 @@
 It enables the use of Vertex AI models and services within the Genkit framework.
 """
 
-from genkit.plugins.vertex_ai.embedding import (
-    EmbeddingModels,
-    EmbeddingsTaskType,
-)
-from genkit.plugins.vertex_ai.gemini import GeminiVersion
-from genkit.plugins.vertex_ai.imagen import ImagenOptions, ImagenVersion
-from genkit.plugins.vertex_ai.plugin_api import VertexAI, vertexai_name
+from genkit.plugins.vertex_ai import model_garden, vector_search
 
 
 def package_name() -> str:
@@ -39,11 +33,6 @@ def package_name() -> str:
 
 __all__ = [
     package_name.__name__,
-    VertexAI.__name__,
-    vertexai_name.__name__,
-    EmbeddingModels.__name__,
-    EmbeddingsTaskType.__name__,
-    GeminiVersion.__name__,
-    ImagenVersion.__name__,
-    ImagenOptions.__name__,
+    vector_search.__name__,
+    model_garden.__name__,
 ]

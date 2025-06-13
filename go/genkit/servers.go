@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -161,9 +162,7 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 				}
 
 				if existing := core.FromContext(ctx); existing != nil {
-					for k, v := range actionCtx {
-						existing[k] = v
-					}
+					maps.Copy(existing, actionCtx)
 					actionCtx = existing
 				}
 				ctx = core.WithActionContext(ctx, actionCtx)

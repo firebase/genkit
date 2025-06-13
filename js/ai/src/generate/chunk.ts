@@ -16,16 +16,14 @@
 
 import { GenkitError } from '@genkit-ai/core';
 import { extractJson } from '../extract.js';
-import {
+import type {
   GenerateResponseChunkData,
   Part,
   Role,
   ToolRequestPart,
 } from '../model.js';
 
-export interface ChunkParser<T = unknown> {
-  (chunk: GenerateResponseChunk<T>): T;
-}
+export type ChunkParser<T = unknown> = (chunk: GenerateResponseChunk<T>) => T;
 
 export class GenerateResponseChunk<T = unknown>
   implements GenerateResponseChunkData
@@ -68,6 +66,14 @@ export class GenerateResponseChunk<T = unknown>
    */
   get text(): string {
     return this.content.map((part) => part.text || '').join('');
+  }
+
+  /**
+   * Concatenates all `reasoning` parts present in the chunk with no delimiter.
+   * @returns A string of all concatenated reasoning parts.
+   */
+  get reasoning(): string {
+    return this.content.map((part) => part.reasoning || '').join('');
   }
 
   /**

@@ -46,7 +46,7 @@
   },
   "javascript": {
     "formatter": {
-      "arrowParentheses": "asNeeded",
+      "arrowParentheses": "always",
       "attributePosition": "auto",
       "bracketSpacing": true,
       "jsxQuoteStyle": "double",

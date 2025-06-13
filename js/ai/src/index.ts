@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+export { checkOperation } from './check-operation.js';
 export {
   Document,
   DocumentDataSchema,
@@ -49,13 +50,16 @@ export {
   GenerationBlockedError,
   GenerationResponseError,
   generate,
+  generateOperation,
   generateStream,
   tagAsPreamble,
   toGenerateRequest,
   type GenerateOptions,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
+  type OutputOptions,
   type ResumeOptions,
+  type ToolChoice,
 } from './generate.js';
 export { Message } from './message.js';
 export {

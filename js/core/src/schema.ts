@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import Ajv, { ErrorObject, JSONSchemaType } from 'ajv';
+import Ajv, { type ErrorObject, type JSONSchemaType } from 'ajv';
 import addFormats from 'ajv-formats';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { GenkitError } from './error.js';
-import { Registry } from './registry.js';
+import type { Registry } from './registry.js';
 const ajv = new Ajv();
 addFormats(ajv);
 

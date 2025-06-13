@@ -1081,6 +1081,9 @@ func TestDefinePartialAndHelper(t *testing.T) {
 	}
 
 	p, err := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
+	if err != nil {
+		t.Fatalf("Failed to define prompt: %v", err)
+	}
 
 	result, err := p.Execute(context.Background(), WithInput(map[string]any{
 		"name":     "User",

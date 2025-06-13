@@ -21,7 +21,7 @@ import { credentialsFromEnvironment } from './auth.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 import { TelemetryConfigs } from './telemetry/defaults.js';
-import { GcpTelemetryConfig, GcpTelemetryConfigOptions } from './types.js';
+import type { GcpTelemetryConfig, GcpTelemetryConfigOptions } from './types.js';
 
 /**
  * Enables telemetry export to the Google Cloud Observability suite.
@@ -56,4 +56,4 @@ async function configureGcpPlugin(
 
 export * from './gcpLogger.js';
 export * from './gcpOpenTelemetry.js';
-export { type GcpTelemetryConfigOptions } from './types.js';
+export type { GcpTelemetryConfigOptions } from './types.js';

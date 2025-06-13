@@ -22,13 +22,10 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
 type RetrieverFunc = func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)
-
-type IndexerFunc = func(context.Context, *IndexerRequest) error
 
 // Retriever represents a document retriever.
 type Retriever interface {
@@ -38,55 +35,18 @@ type Retriever interface {
 	Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error)
 }
 
-// Indexer represents a document indexer.
-type Indexer interface {
-	// Name returns the name of the indexer.
-	Name() string
-	// Index executes the indexing request.
-	Index(ctx context.Context, req *IndexerRequest) error
-}
-
-type indexer core.ActionDef[*IndexerRequest, struct{}, struct{}]
 type retriever core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
-
-// IndexerRequest is the data we pass to add documents to the database.
-// The Options field is specific to the actual retriever implementation.
-type IndexerRequest struct {
-	Documents []*Document `json:"documents"`
-	Options   any         `json:"options,omitempty"`
-}
-
-// DefineIndexer registers the given index function as an action, and returns an
-// [Indexer] that runs it.
-func DefineIndexer(r *registry.Registry, provider, name string, fn IndexerFunc) Indexer {
-	wrappedFn := func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
-		return struct{}{}, fn(ctx, req)
-	}
-	return (*indexer)(core.DefineAction(r, provider, name, atype.Indexer, nil, wrappedFn))
-}
-
-// LookupIndexer looks up an [Indexer] registered by [DefineIndexer].
-// It returns nil if the model was not defined.
-func LookupIndexer(r *registry.Registry, provider, name string) Indexer {
-	return (*indexer)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](r, atype.Indexer, provider, name))
-}
 
 // DefineRetriever registers the given retrieve function as an action, and returns a
 // [Retriever] that runs it.
 func DefineRetriever(r *registry.Registry, provider, name string, fn RetrieverFunc) Retriever {
-	return (*retriever)(core.DefineAction(r, provider, name, atype.Retriever, nil, fn))
+	return (*retriever)(core.DefineAction(r, provider, name, core.ActionTypeRetriever, nil, fn))
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It returns nil if the retriever was not defined.
 func LookupRetriever(r *registry.Registry, provider, name string) Retriever {
-	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, atype.Retriever, provider, name))
-}
-
-// Index runs the given [Indexer].
-func (i indexer) Index(ctx context.Context, req *IndexerRequest) error {
-	_, err := (*core.ActionDef[*IndexerRequest, struct{}, struct{}])(&i).Run(ctx, req, nil)
-	return err
+	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, provider, name))
 }
 
 // Retrieve runs the given [Retriever].
@@ -117,28 +77,6 @@ func Retrieve(ctx context.Context, r Retriever, opts ...RetrieverOption) (*Retri
 	}
 
 	return r.Retrieve(ctx, req)
-}
-
-// Index calls the indexer with the provided options.
-func Index(ctx context.Context, r Indexer, opts ...IndexerOption) error {
-	indexOpts := &indexerOptions{}
-	for _, opt := range opts {
-		err := opt.applyIndexer(indexOpts)
-		if err != nil {
-			return err
-		}
-	}
-
-	req := &IndexerRequest{
-		Documents: indexOpts.Documents,
-		Options:   indexOpts.Config,
-	}
-
-	return r.Index(ctx, req)
-}
-
-func (i indexer) Name() string {
-	return (*core.ActionDef[*IndexerRequest, struct{}, struct{}])(&i).Name()
 }
 
 func (r retriever) Name() string {

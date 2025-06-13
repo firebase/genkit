@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { NestedSpanData, TraceData } from '../types';
+import type { NestedSpanData, TraceData } from '../types';
 
 /** Transforms flat spans from the trace data into a tree of spans. */
 export function stackTraceSpans(trace: TraceData): NestedSpanData | undefined {

@@ -16,7 +16,7 @@
 
 import type { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js' with { 'resolution-mode': 'import' };
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js' with { 'resolution-mode': 'import' };
-import { Genkit } from 'genkit';
+import { GenkitError, type Genkit } from 'genkit';
 import { genkitPlugin } from 'genkit/plugin';
 import { GenkitMcpClient } from './client';
 import { GenkitMcpServer } from './server';

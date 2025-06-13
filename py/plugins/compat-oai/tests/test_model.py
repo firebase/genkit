@@ -18,17 +18,22 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from genkit.core.action._action import ActionRunContext
 from genkit.plugins.compat_oai.models import OpenAIModel
 from genkit.plugins.compat_oai.models.model_info import GPT_4
+from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.types import (
     GenerateResponse,
     GenerateResponseChunk,
+    Message,
     Role,
+    TextPart,
 )
 
 
 def test_get_messages(sample_request):
     """Test _get_messages method.
+
     Ensures the method correctly converts GenerateRequest messages into OpenAI-compatible ChatMessage format.
     """
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
@@ -42,8 +47,8 @@ def test_get_messages(sample_request):
 
 
 def test_get_openai_config(sample_request):
-    """
-    Test _get_openai_request_config method.
+    """Test _get_openai_request_config method.
+
     Ensures the method correctly constructs the OpenAI API configuration dictionary.
     """
     model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
@@ -55,10 +60,8 @@ def test_get_openai_config(sample_request):
     assert isinstance(openai_config['messages'], list)
 
 
-def test_generate(sample_request):
-    """
-    Test generate method calls OpenAI API and returns GenerateResponse.
-    """
+def test__generate(sample_request):
+    """Test generate method calls OpenAI API and returns GenerateResponse."""
     mock_message = MagicMock()
     mock_message.content = 'Hello, user!'
     mock_message.role = 'model'
@@ -70,7 +73,7 @@ def test_generate(sample_request):
     mock_client.chat.completions.create.return_value = mock_response
 
     model = OpenAIModel(model=GPT_4, client=mock_client, registry=MagicMock())
-    response = model.generate(sample_request)
+    response = model._generate(sample_request)
 
     mock_client.chat.completions.create.assert_called_once()
     assert isinstance(response, GenerateResponse)
@@ -78,7 +81,7 @@ def test_generate(sample_request):
     assert response.message.content[0].root.text == 'Hello, user!'
 
 
-def test_generate_stream(sample_request):
+def test__generate_stream(sample_request):
     """Test generate_stream method ensures it processes streamed responses correctly."""
     mock_client = MagicMock()
 
@@ -115,6 +118,54 @@ def test_generate_stream(sample_request):
     def callback(chunk: GenerateResponseChunk):
         collected_chunks.append(chunk.content[0].root.text)
 
-    model.generate_stream(sample_request, callback)
+    model._generate_stream(sample_request, callback)
 
     assert collected_chunks == ['Hello', ', world!']
+
+
+@pytest.mark.parametrize(
+    'stream',
+    [
+        True,
+        False,
+    ],
+)
+def test_generate(stream, sample_request):
+    """Tests for generate."""
+    ctx_mock = MagicMock(spec=ActionRunContext)
+    ctx_mock.is_streaming = stream
+
+    mock_response = GenerateResponse(message=Message(role=Role.MODEL, content=[TextPart(text='mocked')]))
+
+    model = OpenAIModel(model=GPT_4, client=MagicMock(), registry=MagicMock())
+    model._generate_stream = MagicMock(return_value=mock_response)
+    model._generate = MagicMock(return_value=mock_response)
+    model.normalize_config = MagicMock(return_value={})
+    response = model.generate(sample_request, ctx_mock)
+
+    assert response == mock_response
+    if stream:
+        model._generate_stream.assert_called_once()
+    else:
+        model._generate.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    'config, expected',
+    [
+        (OpenAIConfig(model='test'), OpenAIConfig(model='test')),
+        ({'model': 'test'}, OpenAIConfig(model='test')),
+        (
+            None,
+            Exception(),
+        ),
+    ],
+)
+def test_normalize_config(config, expected):
+    """Tests for _normalize_config."""
+    if isinstance(expected, Exception):
+        with pytest.raises(ValueError, match=r'Expected request.config to be a dict or OpenAIConfig, got .*'):
+            OpenAIModel.normalize_config(config)
+    else:
+        response = OpenAIModel.normalize_config(config)
+        assert response == expected

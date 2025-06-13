@@ -58,5 +58,15 @@ jobs:
       - name: Check if generated code is up to date
         run: bash .github/workflows/scripts/check-generated-go.sh
 
+      - name: Check gofmt
+        run: |
+          fmt_files=$(go fmt ./...)
+          if [ -n "$fmt_files" ]; then
+            echo "Go files are not formatted. Please run 'go fmt ./...' and commit the changes:"
+            echo "$fmt_files"
+            exit 1
+          fi
+        working-directory: ./go
+
       - name: Run tests
         run: go test -C go -v ./...

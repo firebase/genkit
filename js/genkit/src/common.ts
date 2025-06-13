@@ -31,6 +31,7 @@ export {
   PartSchema,
   RoleSchema,
   ToolCallSchema,
+  ToolInterruptError,
   ToolSchema,
   embedderActionMetadata,
   embedderRef,
@@ -52,6 +53,7 @@ export {
   type EvaluatorInfo,
   type EvaluatorParams,
   type EvaluatorReference,
+  type ExecutablePrompt,
   type GenerateOptions,
   type GenerateRequest,
   type GenerateRequestData,
@@ -76,6 +78,7 @@ export {
   type ModelReference,
   type ModelRequest,
   type ModelResponseData,
+  type OutputOptions,
   type Part,
   type PromptAction,
   type PromptConfig,
@@ -96,6 +99,7 @@ export {
   type ToolAction,
   type ToolArgument,
   type ToolCall,
+  type ToolChoice,
   type ToolConfig,
   type ToolRequest,
   type ToolRequestPart,
@@ -108,6 +112,7 @@ export {
   type SessionData,
   type SessionStore,
 } from '@genkit-ai/ai/session';
+export { dynamicTool } from '@genkit-ai/ai/tool';
 export {
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,

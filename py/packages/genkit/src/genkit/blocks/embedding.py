@@ -17,8 +17,28 @@
 """Embedding actions."""
 
 from collections.abc import Callable
+from typing import Any
 
+from genkit.ai import ActionKind
+from genkit.core.action import ActionMetadata
+from genkit.core.schema import to_json_schema
 from genkit.core.typing import EmbedRequest, EmbedResponse
 
 # type EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
 EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
+
+
+def embedder_action_metadata(
+    name: str,
+    info: dict[str, Any] | None = None,
+    config_schema: Any | None = None,
+) -> ActionMetadata:
+    """Generates an ActionMetadata for embedders."""
+    info = info if info is not None else {}
+    return ActionMetadata(
+        kind=ActionKind.EMBEDDER,
+        name=name,
+        input_json_schema=to_json_schema(EmbedRequest),
+        output_json_schema=to_json_schema(EmbedResponse),
+        metadata={'embedder': {**info, 'customOptions': to_json_schema(config_schema) if config_schema else None}},
+    )

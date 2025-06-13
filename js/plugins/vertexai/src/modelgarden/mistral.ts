@@ -16,36 +16,36 @@
 
 import { MistralGoogleCloud } from '@mistralai/mistralai-gcp';
 import {
-  AssistantMessage,
   ChatCompletionChoiceFinishReason,
-  ChatCompletionRequest,
-  ChatCompletionResponse,
-  CompletionChunk,
-  FunctionCall,
-  Tool as MistralTool,
-  SystemMessage,
-  ToolCall,
-  ToolMessage,
   ToolTypes,
-  UserMessage,
+  type AssistantMessage,
+  type ChatCompletionRequest,
+  type ChatCompletionResponse,
+  type CompletionChunk,
+  type FunctionCall,
+  type Tool as MistralTool,
+  type SystemMessage,
+  type ToolCall,
+  type ToolMessage,
+  type UserMessage,
 } from '@mistralai/mistralai-gcp/models/components';
 import {
   GENKIT_CLIENT_HEADER,
-  GenerateRequest,
   GenerationCommonConfigSchema,
-  Genkit,
-  MessageData,
-  ModelReference,
-  ModelResponseData,
-  Part,
-  Role,
-  ToolRequestPart,
   z,
+  type GenerateRequest,
+  type Genkit,
+  type MessageData,
+  type ModelReference,
+  type ModelResponseData,
+  type Part,
+  type Role,
+  type ToolRequestPart,
 } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
-  ModelAction,
   modelRef,
+  type ModelAction,
 } from 'genkit/model';
 
 /**

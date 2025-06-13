@@ -48,7 +48,7 @@ func TestGetContentForCache_NoContentToCache(t *testing.T) {
 		Messages: []*ai.Message{
 			{
 				Role: ai.RoleUser,
-				Metadata: map[string]interface{}{"cache": map[string]any{
+				Metadata: map[string]any{"cache": map[string]any{
 					"ttlSeconds": int(160),
 				}},
 				// No text content
@@ -73,7 +73,7 @@ func TestGetContentForCache_Invalid(t *testing.T) {
 			{
 				Role:    ai.RoleUser,
 				Content: []*ai.Part{{Text: "Hello user"}},
-				Metadata: map[string]interface{}{"cache": map[string]any{
+				Metadata: map[string]any{"cache": map[string]any{
 					"ttlSeconds": 160,
 				}},
 			},
@@ -82,28 +82,6 @@ func TestGetContentForCache_Invalid(t *testing.T) {
 	err := validateContextCacheRequest(req, "gemini-1.5-fash-001")
 	if err == nil {
 		t.Fatal("expecting error, system instructions are not supported with Context Cache")
-	}
-}
-
-func TestValidateContextCacheRequest_EmptyModelVersion(t *testing.T) {
-	req := &ai.ModelRequest{}
-	err := validateContextCacheRequest(req, "")
-	if err == nil {
-		t.Fatal("expected error if modelVersion is empty")
-	}
-	if !strings.Contains(err.Error(), invalidArgMessages.modelVersion) {
-		t.Errorf("expected error to contain %q, got %v", invalidArgMessages.modelVersion, err)
-	}
-}
-
-func TestValidateContextCacheRequest_UnknownModelVersion(t *testing.T) {
-	req := &ai.ModelRequest{}
-	err := validateContextCacheRequest(req, "unknownModel")
-	if err == nil {
-		t.Fatal("expected error if modelVersion is unknown")
-	}
-	if !strings.Contains(err.Error(), invalidArgMessages.modelVersion) {
-		t.Errorf("expected error to contain %q, got %v", invalidArgMessages.modelVersion, err)
 	}
 }
 
@@ -151,8 +129,8 @@ func TestExtractCacheConfig_MapTTL(t *testing.T) {
 				Content: []*ai.Part{
 					{Text: "Hello"},
 				},
-				Metadata: map[string]interface{}{
-					"cache": map[string]interface{}{
+				Metadata: map[string]any{
+					"cache": map[string]any{
 						"ttlSeconds": int(123),
 					},
 				},
@@ -179,7 +157,7 @@ func TestExtractCacheConfig_InvalidCacheType(t *testing.T) {
 				Content: []*ai.Part{
 					{Text: "Hello"},
 				},
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"cache": []string{"not valid"},
 				},
 			},

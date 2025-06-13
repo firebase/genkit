@@ -55,6 +55,7 @@ class CustomPart(BaseModel):
     data: Any | None = None
     metadata: dict[str, Any] | None = None
     custom: dict[str, Any]
+    reasoning: Any | None = None
 
 
 class Media(BaseModel):
@@ -188,6 +189,7 @@ class FinishReason(StrEnum):
     LENGTH = 'length'
     BLOCKED = 'blocked'
     INTERRUPTED = 'interrupted'
+    PENDING = 'pending'
     OTHER = 'other'
     UNKNOWN = 'unknown'
 
@@ -239,6 +241,8 @@ class GenerationUsage(BaseModel):
     input_audio_files: float | None = Field(None, alias='inputAudioFiles')
     output_audio_files: float | None = Field(None, alias='outputAudioFiles')
     custom: dict[str, float] | None = None
+    thoughts_tokens: float | None = Field(None, alias='thoughtsTokens')
+    cached_content_tokens: float | None = Field(None, alias='cachedContentTokens')
 
 
 class Constrained(StrEnum):
@@ -262,6 +266,7 @@ class Supports(BaseModel):
     context: bool | None = None
     constrained: Constrained | None = None
     tool_choice: bool | None = Field(None, alias='toolChoice')
+    long_running: bool | None = Field(None, alias='longRunning')
 
 
 class Stage(StrEnum):
@@ -283,6 +288,14 @@ class ModelInfo(BaseModel):
     config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
     supports: Supports | None = None
     stage: Stage | None = None
+
+
+class Request(BaseModel):
+    """Model for request data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model: str
+    config: dict[str, Any] | None = None
 
 
 class OutputConfig(BaseModel):
@@ -477,6 +490,12 @@ class Metadata(RootModel[dict[str, Any] | None]):
     root: dict[str, Any] | None = None
 
 
+class Reasoning(RootModel[Any]):
+    """Root model for reasoning."""
+
+    root: Any
+
+
 class Text(RootModel[Any]):
     """Root model for text."""
 
@@ -572,6 +591,7 @@ class DataPart(BaseModel):
     data: Any | None = None
     metadata: Metadata | None = None
     custom: dict[str, Any] | None = None
+    reasoning: Reasoning | None = None
 
 
 class MediaPart(BaseModel):
@@ -585,6 +605,21 @@ class MediaPart(BaseModel):
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
+    reasoning: Reasoning | None = None
+
+
+class ReasoningPart(BaseModel):
+    """Model for reasoningpart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: Data | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: str
 
 
 class TextPart(BaseModel):
@@ -598,6 +633,7 @@ class TextPart(BaseModel):
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
+    reasoning: Reasoning | None = None
 
 
 class ToolRequestPart(BaseModel):
@@ -611,6 +647,7 @@ class ToolRequestPart(BaseModel):
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
+    reasoning: Reasoning | None = None
 
 
 class ToolResponsePart(BaseModel):
@@ -624,6 +661,7 @@ class ToolResponsePart(BaseModel):
     data: Data | None = None
     metadata: Metadata | None = None
     custom: Custom | None = None
+    reasoning: Reasoning | None = None
 
 
 class EmbedResponse(BaseModel):
@@ -671,10 +709,12 @@ class Resume(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
-class Part(RootModel[TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart]):
+class Part(
+    RootModel[TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart]
+):
     """Root model for part."""
 
-    root: TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart
+    root: TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart
 
 
 class Link(BaseModel):
@@ -758,6 +798,25 @@ class Message(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
+class Response(BaseModel):
+    """Model for response data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    message: Message | None = None
+    finish_reason: FinishReason = Field(..., alias='finishReason')
+    raw: Any | None = None
+
+
+class ModelOperation(BaseModel):
+    """Model for modeloperation data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: str
+    done: bool | None = None
+    request: Request | None = None
+    response: Response | None = None
+
+
 class ModelResponseChunk(BaseModel):
     """Model for modelresponsechunk data."""
 
@@ -788,6 +847,12 @@ class Messages(RootModel[list[Message]]):
     """Root model for messages."""
 
     root: list[Message]
+
+
+class Operation(RootModel[ModelOperation]):
+    """Root model for operation."""
+
+    root: ModelOperation
 
 
 class DocumentData(BaseModel):
@@ -844,6 +909,7 @@ class GenerateRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputConfig | None = None
     docs: list[DocumentData] | None = None
+    operation: ModelOperation | None = None
     candidates: float | None = None
 
 
@@ -859,6 +925,7 @@ class GenerateResponse(BaseModel):
     custom: Any | None = None
     raw: Any | None = None
     request: GenerateRequest | None = None
+    operation: ModelOperation | None = None
     candidates: list[Candidate] | None = None
 
 
@@ -892,8 +959,8 @@ class Docs(RootModel[list[DocumentData]]):
     root: list[DocumentData]
 
 
-class Request(RootModel[GenerateRequest]):
-    """Root model for request."""
+class RequestModel(RootModel[GenerateRequest]):
+    """Root model for requestmodel."""
 
     root: GenerateRequest
 
@@ -908,6 +975,7 @@ class ModelRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputModel | None = None
     docs: Docs | None = None
+    operation: Operation | None = None
 
 
 class ModelResponse(BaseModel):
@@ -921,4 +989,5 @@ class ModelResponse(BaseModel):
     usage: Usage | None = None
     custom: CustomModel | None = None
     raw: Raw | None = None
-    request: Request | None = None
+    request: RequestModel | None = None
+    operation: Operation | None = None

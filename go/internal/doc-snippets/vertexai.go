@@ -91,14 +91,7 @@ func vertexaiEx(ctx context.Context) error {
 
 	_ = retrieveRes
 
-	var myIndexer ai.Indexer
-	var docsToIndex []*ai.Document
-
-	// [START index]
-	if err := ai.Index(ctx, myIndexer, ai.WithDocs(docsToIndex...)); err != nil {
-		return err
-	}
-	// [END index]
+	// Add indexing functionality here if needed.
 
 	return nil
 }

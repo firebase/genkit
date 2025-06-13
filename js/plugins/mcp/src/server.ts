@@ -15,11 +15,11 @@
  */
 
 import {
-  Genkit,
   GenkitError,
   Message,
-  MessageData,
-  PromptAction,
+  type Genkit,
+  type MessageData,
+  type PromptAction,
 } from 'genkit';
 import type { McpServerOptions } from './index.js';
 
@@ -43,12 +43,12 @@ import type {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
 import { logger } from 'genkit/logging';
-import { ToolAction, toToolDefinition } from 'genkit/tool';
+import { toToolDefinition, type ToolAction } from 'genkit/tool';
 export class GenkitMcpServer {
   ai: Genkit;
   options: McpServerOptions;
   server?: Server;
-  actionsResolved: boolean = false;
+  actionsResolved = false;
   toolActions: ToolAction[] = [];
   promptActions: PromptAction[] = [];
 

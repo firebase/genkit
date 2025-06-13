@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { ModelMiddleware, modelRef } from '@genkit-ai/ai/model';
+import { modelRef, type ModelMiddleware } from '@genkit-ai/ai/model';
 import { stripUndefinedProps } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { GenkitBeta, genkit, z } from '../src/beta';
-import { PromptAction } from '../src/index';
+import { genkit, z, type GenkitBeta } from '../src/beta';
+import type { PromptAction } from '../src/index';
 import {
-  ProgrammableModel,
   defineEchoModel,
   defineProgrammableModel,
   defineStaticResponseModel,
+  type ProgrammableModel,
 } from './helpers';
 
 const wrapRequest: ModelMiddleware = async (req, next) => {
@@ -1447,7 +1447,7 @@ describe('asTool', () => {
 
     // transfer to toolPrompt...
 
-    // first response be tools call, the subsequent just text response from agent b.
+    // first response is a tool call, the subsequent responses are just text response from agent b.
     let reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {
@@ -1536,7 +1536,7 @@ describe('asTool', () => {
 
     // transfer back to to agent A...
 
-    // first response be tools call, the subsequent just text response from agent a.
+    // first response is a tool call, the subsequent responses are just text response from agent a.
     reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {

@@ -19,7 +19,7 @@ import type {
   CallToolResult,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
-import { Genkit, JSONSchema7, z } from 'genkit';
+import { z, type Genkit, type JSONSchema7 } from 'genkit';
 import { logger } from 'genkit/logging';
 import type { McpClientOptions } from '../index.js';
 

@@ -56,11 +56,11 @@ func TestAnthropicLive(t *testing.T) {
 	})
 
 	t.Run("model version ok", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-opus-4")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
-				Version:     "claude-3-7-sonnet@20250219",
+				Version:     "claude-opus-4@20250514",
 			}),
 			ai.WithModel(m),
 			ai.WithSystem("talk to me like an evil pirate and say ARR several times but be very short"),
@@ -76,7 +76,7 @@ func TestAnthropicLive(t *testing.T) {
 	})
 
 	t.Run("model version nok", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-3-5-sonnet-v2")
+		m := modelgarden.AnthropicModel(g, "claude-opus-4")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&ai.GenerationCommonConfig{
 				Temperature: 1,
@@ -94,25 +94,25 @@ func TestAnthropicLive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-opus-4")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a professional image detective that talks like an evil pirate that does not like tv shows, your task is to tell the name of the character in the image but be very short"),
+			ai.WithSystem("You are a professional image detective that talks like an evil pirate that loves animals, your task is to tell the name of the animal in the image but be very short"),
 			ai.WithModel(m),
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("", "data:image/png;base64,"+i))))
+					ai.NewMediaPart("", "data:image/jpeg;base64,"+i))))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("it should've said Bluey but got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "donkey") {
+			t.Fatalf("it should've said donkey but got: %s", resp.Text())
 		}
 	})
 
 	t.Run("tools", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-opus-4")
 		myJokeTool := genkit.DefineTool(
 			g,
 			"myJoke",
@@ -135,7 +135,7 @@ func TestAnthropicLive(t *testing.T) {
 	})
 
 	t.Run("streaming", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-opus-4")
 		out := ""
 		parts := 0
 
@@ -166,7 +166,7 @@ func TestAnthropicLive(t *testing.T) {
 	})
 
 	t.Run("tools streaming", func(t *testing.T) {
-		m := modelgarden.AnthropicModel(g, "claude-3-7-sonnet")
+		m := modelgarden.AnthropicModel(g, "claude-opus-4")
 		out := ""
 		parts := 0
 
@@ -180,7 +180,7 @@ func TestAnthropicLive(t *testing.T) {
 		)
 
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("Tell me a short story about a frog and a princess"),
+			ai.WithPrompt("Tell me a short story about a frog and a fox, do no mention anything else, only the short story"),
 			ai.WithModel(m),
 			ai.WithTools(myStoryTool),
 			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
@@ -207,9 +207,9 @@ func TestAnthropicLive(t *testing.T) {
 	})
 }
 
-// Bluey rocks
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
+	// CC0 license image
+	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err
@@ -220,7 +220,6 @@ func fetchImgAsBase64() (string, error) {
 		return "", err
 	}
 
-	// keep the img in memory
 	imageBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err

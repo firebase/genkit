@@ -22,16 +22,16 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import {
+import type {
   DataPoint,
   Histogram,
   HistogramMetricData,
   ScopeMetrics,
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
-import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
+import { genkit, z, type GenerateResponseData, type Genkit } from 'genkit';
 import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import {
   GcpOpenTelemetry,
@@ -235,9 +235,6 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
-  // it('writes feature metrics for prompts')
-  // after PR #1029
-
   it('writes feature metrics for generate', async () => {
     const testModel = createTestModel(ai, 'helloModel');
     await ai.generate({ model: testModel, prompt: 'Hi' });
@@ -260,7 +257,8 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('truncates metric dimensions', async () => {
-    const testFlow = createFlow(ai, 'anExtremelyLongFlowNameThatIsTooBig');
+    const longFlowName = 'MuchTooLongFlowName'.repeat(1024);
+    const testFlow = createFlow(ai, longFlowName);
 
     await testFlow();
 
@@ -268,14 +266,9 @@ describe('GoogleCloudMetrics', () => {
 
     const requestCounter = await getCounterMetric('genkit/feature/requests');
     const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
-    assert.equal(
-      requestCounter.attributes.name,
-      'anExtremelyLongFlowNameThatIsToo'
-    );
-    assert.equal(
-      latencyHistogram.attributes.name,
-      'anExtremelyLongFlowNameThatIsToo'
-    );
+    const expectedFlowName = longFlowName.substring(0, 256);
+    assert.equal(requestCounter.attributes.name, expectedFlowName);
+    assert.equal(latencyHistogram.attributes.name, expectedFlowName);
   });
 
   it('writes action failure metrics', async () => {
@@ -792,8 +785,8 @@ describe('GoogleCloudMetrics', () => {
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getGenkitMetrics(
-    name: string = 'genkit',
-    maxAttempts: number = 100
+    name = 'genkit',
+    maxAttempts = 100
   ): Promise<ScopeMetrics | undefined> {
     var attempts = 0;
     while (attempts++ < maxAttempts) {
@@ -809,9 +802,7 @@ describe('GoogleCloudMetrics', () => {
   }
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
-  async function getExportedSpans(
-    maxAttempts: number = 200
-  ): Promise<ReadableSpan[]> {
+  async function getExportedSpans(maxAttempts = 200): Promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
     while (attempts++ < maxAttempts) {

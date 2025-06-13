@@ -22,9 +22,9 @@ import { Document, z } from 'genkit';
 import { ai } from '../genkit.js';
 import {
   AnswerOutputSchema,
-  MenuItem,
   MenuItemSchema,
   MenuQuestionInputSchema,
+  type MenuItem,
 } from '../types.js';
 import { s04_ragDataMenuPrompt } from './prompts.js';
 

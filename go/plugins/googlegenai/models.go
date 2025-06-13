@@ -4,7 +4,11 @@
 package googlegenai
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"slices"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"google.golang.org/genai"
@@ -21,6 +25,7 @@ const (
 	gemini20FlashLitePrev        = "gemini-2.0-flash-lite-preview"
 	gemini20ProExp0205           = "gemini-2.0-pro-exp-02-05"
 	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
+	gemini20FlashPrevImageGen    = "gemini-2.0-flash-preview-image-generation"
 
 	gemini25FlashPreview0417 = "gemini-2.5-flash-preview-04-17"
 
@@ -40,6 +45,7 @@ var (
 		gemini20FlashLitePrev,
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
+		gemini20FlashPrevImageGen,
 		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
@@ -55,6 +61,7 @@ var (
 		gemini20FlashLitePrev,
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
+		gemini20FlashPrevImageGen,
 		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
@@ -63,7 +70,7 @@ var (
 
 	// models with native image support generation
 	imageGenModels = []string{
-		gemini20FlashExp,
+		gemini20FlashPrevImageGen,
 	}
 
 	supportedGeminiModels = map[string]ai.ModelInfo{
@@ -132,6 +139,12 @@ var (
 		},
 		gemini20FlashThinkingExp0121: {
 			Label:    "Gemini 2.0 Flash Thinking Exp 01-21",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
+		},
+		gemini20FlashPrevImageGen: {
+			Label:    "Gemini 2.0 Flash Preview Image Generation",
 			Versions: []string{},
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
@@ -207,6 +220,7 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 			Supports: m.Supports,
 		}
 	}
+
 	return models, nil
 }
 
@@ -225,4 +239,51 @@ func listEmbedders(backend genai.Backend) ([]string, error) {
 	}
 
 	return embedders, nil
+}
+
+// genaiModels collects all the available models in go-genai SDK
+// TODO: add imagen and veo models
+type genaiModels struct {
+	gemini    []string
+	embedders []string
+}
+
+// listGenaiModels returns a list of supported models and embedders from the
+// Go Genai SDK
+func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
+	models := genaiModels{}
+	allowedModels := []string{"gemini", "gemma"}
+
+	for item, err := range client.Models.All(ctx) {
+		var name string
+		var description string
+		if err != nil {
+			log.Fatal(err)
+		}
+		if !strings.HasPrefix(item.Name, "models/") {
+			continue
+		}
+		description = strings.ToLower(item.Description)
+		if strings.Contains(description, "deprecated") {
+			continue
+		}
+
+		name = strings.TrimPrefix(item.Name, "models/")
+		if slices.Contains(item.SupportedActions, "embedContent") {
+			models.embedders = append(models.embedders, name)
+			continue
+		}
+
+		found := slices.ContainsFunc(allowedModels, func(s string) bool {
+			return strings.Contains(name, s)
+		})
+		// filter out: Aqa, Text-bison, Chat, learnlm
+		if found {
+			models.gemini = append(models.gemini, name)
+			continue
+		}
+
+		// TODO: add imagen and veo models
+	}
+	return models, nil
 }

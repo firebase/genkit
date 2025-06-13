@@ -19,8 +19,6 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
-
-	"gopkg.in/yaml.v3"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -53,6 +51,7 @@ const (
 	PartToolRequest
 	PartToolResponse
 	PartCustom
+	PartReasoning
 )
 
 // NewTextPart returns a Part containing text.
@@ -89,9 +88,34 @@ func NewToolResponsePart(r *ToolResponse) *Part {
 	return &Part{Kind: PartToolResponse, ToolResponse: r}
 }
 
+// NewResponseForToolRequest returns a Part containing the results
+// of executing the tool request part.
+func NewResponseForToolRequest(p *Part, output any) *Part {
+	if !p.IsToolRequest() {
+		return nil
+	}
+	return &Part{Kind: PartToolResponse, ToolResponse: &ToolResponse{
+		Name:   p.ToolRequest.Name,
+		Ref:    p.ToolRequest.Ref,
+		Output: output,
+	}}
+}
+
 // NewCustomPart returns a Part containing custom plugin-specific data.
 func NewCustomPart(customData map[string]any) *Part {
 	return &Part{Kind: PartCustom, Custom: customData}
+}
+
+// NewReasoningPart returns a Part containing reasoning text
+func NewReasoningPart(text string, signature []byte) *Part {
+	return &Part{
+		Kind:        PartReasoning,
+		ContentType: "plain/text",
+		Text:        text,
+		Metadata: map[string]any{
+			"signature": signature,
+		},
+	}
 }
 
 // IsText reports whether the [Part] contains plain text.
@@ -122,6 +146,11 @@ func (p *Part) IsToolResponse() bool {
 // IsCustom reports whether the [Part] contains custom plugin-specific data.
 func (p *Part) IsCustom() bool {
 	return p.Kind == PartCustom
+}
+
+// IsReasoning reports whether the [Part] contains a reasoning text
+func (p *Part) IsReasoning() bool {
+	return p.Kind == PartReasoning
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
@@ -169,6 +198,12 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 			Metadata: p.Metadata,
 		}
 		return json.Marshal(v)
+	case PartReasoning:
+		v := reasoningPart{
+			Reasoning: p.Text,
+			Metadata:  p.Metadata,
+		}
+		return json.Marshal(v)
 	default:
 		return nil, fmt.Errorf("invalid part kind %v", p.Kind)
 	}
@@ -182,6 +217,7 @@ type partSchema struct {
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
 	Custom       map[string]any `json:"custom,omitempty" yaml:"custom,omitempty"`
 	Metadata     map[string]any `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Reasoning    string         `json:"reasoning,omitempty" yaml:"reasoning,omitempty"`
 }
 
 // unmarshalPartFromSchema updates Part p based on the schema s.
@@ -223,10 +259,10 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// UnmarshalYAML implements yaml.Unmarshaler for Part.
-func (p *Part) UnmarshalYAML(value *yaml.Node) error {
+// UnmarshalYAML implements goccy/go-yaml library's InterfaceUnmarshaler interface.
+func (p *Part) UnmarshalYAML(unmarshal func(any) error) error {
 	var s partSchema
-	if err := value.Decode(&s); err != nil {
+	if err := unmarshal(&s); err != nil {
 		return err
 	}
 	p.unmarshalPartFromSchema(s)

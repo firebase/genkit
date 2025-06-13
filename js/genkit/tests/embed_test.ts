@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { Document, EmbedderAction, embedderRef } from '@genkit-ai/ai';
+import { Document, embedderRef, type EmbedderAction } from '@genkit-ai/ai';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Genkit, genkit } from '../src/genkit';
+import { genkit, type Genkit } from '../src/genkit';
 
 describe('embed', () => {
   describe('default model', () => {

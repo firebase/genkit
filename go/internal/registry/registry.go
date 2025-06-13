@@ -19,16 +19,13 @@ package registry
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
-	"slices"
 	"sync"
 
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/action"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/google/dotprompt/go/dotprompt"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"golang.org/x/exp/maps"
 )
 
 // This file implements registries of actions and other values.
@@ -41,16 +38,18 @@ const (
 type Registry struct {
 	tstate    *tracing.State
 	mu        sync.Mutex
-	frozen    bool // when true, no more additions
-	actions   map[string]action.Action
-	plugins   map[string]any // Values are of type genkit.Plugin but we can't reference it here.
+	frozen    bool           // when true, no more additions
+	parent    *Registry      // parent registry for hierarchical lookups
+	actions   map[string]any // Values follow interface core.Action but we can't reference it here.
+	plugins   map[string]any // Values follow interface genkit.Plugin but we can't reference it here.
 	values    map[string]any // Values can truly be anything.
 	Dotprompt *dotprompt.Dotprompt
 }
 
+// New creates a new root registry.
 func New() (*Registry, error) {
 	r := &Registry{
-		actions: map[string]action.Action{},
+		actions: map[string]any{},
 		plugins: map[string]any{},
 		values:  map[string]any{},
 	}
@@ -65,6 +64,21 @@ func New() (*Registry, error) {
 	return r, nil
 }
 
+// NewChild creates a new child registry that inherits from this registry.
+// Child registries are cheap to create and will fall back to the parent
+// for lookups if a value is not found in the child.
+func (r *Registry) NewChild() *Registry {
+	child := &Registry{
+		parent:    r,
+		tstate:    r.tstate,
+		actions:   map[string]any{},
+		plugins:   map[string]any{},
+		values:    map[string]any{},
+		Dotprompt: r.Dotprompt,
+	}
+	return child
+}
+
 func (r *Registry) TracingState() *tracing.State { return r.tstate }
 
 // RegisterPlugin records the plugin in the registry.
@@ -72,9 +86,6 @@ func (r *Registry) TracingState() *tracing.State { return r.tstate }
 func (r *Registry) RegisterPlugin(name string, p any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.frozen {
-		panic(fmt.Sprintf("attempt to register plugin %s in a frozen registry. Register before calling genkit.Init", name))
-	}
 	if _, ok := r.plugins[name]; ok {
 		panic(fmt.Sprintf("plugin %q is already registered", name))
 	}
@@ -86,80 +97,104 @@ func (r *Registry) RegisterPlugin(name string, p any) {
 // RegisterAction records the action in the registry.
 // It panics if an action with the same type, provider and name is already
 // registered.
-func (r *Registry) RegisterAction(typ atype.ActionType, a action.Action) {
-	key := fmt.Sprintf("/%s/%s", typ, a.Name())
+func (r *Registry) RegisterAction(key string, action any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.frozen {
-		panic(fmt.Sprintf("attempt to register action %s in a frozen registry. Register before calling genkit.Init", key))
-	}
 	if _, ok := r.actions[key]; ok {
 		panic(fmt.Sprintf("action %q is already registered", key))
 	}
-	r.actions[key] = a
-	slog.Debug("RegisterAction",
-		"type", typ,
-		"name", a.Name())
+	r.actions[key] = action
+	slog.Debug("RegisterAction", "key", key)
 }
 
-func (r *Registry) Freeze() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.frozen = true
-}
-
-// LookupPlugin returns the plugin for the given name, or nil if there is none.
+// LookupPlugin returns the plugin for the given name.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the plugin is not found in the registry hierarchy.
 func (r *Registry) LookupPlugin(name string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.plugins[name]
+
+	if plugin, ok := r.plugins[name]; ok {
+		return plugin
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupPlugin(name)
+	}
+
+	return nil
 }
 
 // RegisterValue records an arbitrary value in the registry.
 // It panics if a value with the same name is already registered.
-func (r *Registry) RegisterValue(name string, v any) {
+func (r *Registry) RegisterValue(name string, value any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.frozen {
-		panic(fmt.Sprintf("attempt to register value %s in a frozen registry. Register before calling genkit.Init", name))
-	}
 	if _, ok := r.values[name]; ok {
 		panic(fmt.Sprintf("value %q is already registered", name))
 	}
-	r.values[name] = v
-	slog.Debug("RegisterValue",
-		"name", name)
+	r.values[name] = value
+	slog.Debug("RegisterValue", "name", name)
 }
 
-// LookupValue returns the value for the given name, or nil if there is none.
+// LookupValue returns the value for the given name.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the value is not found in the registry hierarchy.
 func (r *Registry) LookupValue(name string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.values[name]
-}
 
-// LookupAction returns the action for the given key, or nil if there is none.
-func (r *Registry) LookupAction(key string) action.Action {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.actions[key]
-}
-
-// ListActions returns a list of descriptions of all registered actions.
-// The list is sorted by action name.
-func (r *Registry) ListActions() []action.Desc {
-	var ads []action.Desc
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	keys := maps.Keys(r.actions)
-	slices.Sort(keys)
-	for _, key := range keys {
-		a := r.actions[key]
-		ad := a.Desc()
-		ad.Key = key
-		ads = append(ads, ad)
+	if value, ok := r.values[name]; ok {
+		return value
 	}
-	return ads
+
+	if r.parent != nil {
+		return r.parent.LookupValue(name)
+	}
+
+	return nil
+}
+
+// LookupAction returns the action for the given key.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the action is not found in the registry hierarchy.
+func (r *Registry) LookupAction(key string) any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if action, ok := r.actions[key]; ok {
+		return action
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupAction(key)
+	}
+
+	return nil
+}
+
+// ListActions returns a list of all registered actions.
+// This includes actions from both the current registry and its parent hierarchy.
+// Child registry actions take precedence over parent actions with the same key.
+func (r *Registry) ListActions() []any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var actions []any
+	for _, v := range r.actions {
+		actions = append(actions, v)
+	}
+	return actions
+}
+
+// ListPlugins returns a list of all registered plugins.
+func (r *Registry) ListPlugins() []any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var plugins []any
+	for _, p := range r.plugins {
+		plugins = append(plugins, p)
+	}
+	return plugins
 }
 
 func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
@@ -167,10 +202,24 @@ func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 }
 
 // ListValues returns a list of values of all registered values.
+// This includes values from both the current registry and its parent hierarchy.
+// Child registry values take precedence over parent values with the same key.
 func (r *Registry) ListValues() map[string]any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.values
+
+	allValues := make(map[string]any)
+
+	if r.parent != nil {
+		parentValues := r.parent.ListValues()
+		for key, value := range parentValues {
+			allValues[key] = value
+		}
+	}
+
+	maps.Copy(allValues, r.values)
+
+	return allValues
 }
 
 // An Environment is the execution context in which the program is running.

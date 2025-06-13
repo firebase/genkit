@@ -15,23 +15,24 @@
  */
 
 import {
-  Action,
-  defineAction,
   GenkitError,
+  defineAction,
   getStreamingCallback,
   runWithStreamingCallback,
+  sentinelNoopStreamingCallback,
   stripUndefinedProps,
-  z,
+  type Action,
+  type z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
-import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
+import type { Registry } from '@genkit-ai/core/registry';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import {
   injectInstructions,
   resolveFormat,
   resolveInstructions,
 } from '../formats/index.js';
-import { Formatter } from '../formats/types.js';
+import type { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
@@ -39,24 +40,24 @@ import {
   tagAsPreamble,
 } from '../generate.js';
 import {
-  GenerateActionOptions,
   GenerateActionOptionsSchema,
-  GenerateActionOutputConfig,
-  GenerateRequest,
-  GenerateRequestSchema,
-  GenerateResponseChunkData,
   GenerateResponseChunkSchema,
-  GenerateResponseData,
   GenerateResponseSchema,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
-  ModelRequest,
-  Part,
   resolveModel,
-  Role,
+  type GenerateActionOptions,
+  type GenerateActionOutputConfig,
+  type GenerateRequest,
+  type GenerateRequestSchema,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelRequest,
+  type Part,
+  type Role,
 } from '../model.js';
-import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
+import { resolveTools, toToolDefinition, type ToolAction } from '../tool.js';
 import {
   assertValidToolNames,
   resolveResumeOption,
@@ -89,7 +90,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
           // Generate util action does not support middleware. Maybe when we add named/registered middleware....
           middleware: [],
         });
-      return sendChunk
+      return sendChunk !== sentinelNoopStreamingCallback
         ? runWithStreamingCallback(
             registry,
             (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
@@ -112,8 +113,8 @@ export async function generateHelper(
     messageIndex?: number;
   }
 ): Promise<GenerateResponseData> {
-  let currentTurn = options.currentTurn ?? 0;
-  let messageIndex = options.messageIndex ?? 0;
+  const currentTurn = options.currentTurn ?? 0;
+  const messageIndex = options.messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
@@ -321,7 +322,13 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request), {
+      const rawResponse = await dispatch(0, request);
+      if (!rawResponse.model) {
+        rawResponse.model = model.__action.name;
+      }
+
+      return new GenerateResponse(rawResponse, {
+        model: model.__action.name,
         request,
         parser: format?.handler(request.output?.schema).parseMessage,
       });
@@ -330,6 +337,11 @@ async function generate(
 
   // Throw an error if the response is not usable.
   response.assertValid();
+
+  if (response.operation) {
+    return response.toJSON();
+  }
+
   const generatedMessage = response.message!; // would have thrown if no message
 
   const toolRequests = generatedMessage.content.filter(

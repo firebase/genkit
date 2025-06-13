@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai/model';
+import type { MessageData } from '@genkit-ai/ai/model';
 import { gemini15Flash } from '@genkit-ai/vertexai';
 import { ai } from '../genkit.js';
-import { MenuItem } from '../types';
+import type { MenuItem } from '../types';
 import {
   ChatHistoryStore,
   ChatSessionInputSchema,

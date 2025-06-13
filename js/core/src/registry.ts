@@ -16,16 +16,17 @@
 
 import { Dotprompt } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import * as z from 'zod';
+import type * as z from 'zod';
 import {
-  Action,
-  ActionMetadata,
   runOutsideActionRuntimeContext,
+  type Action,
+  type ActionMetadata,
 } from './action.js';
+import { ActionContext } from './context.js';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
-import { PluginProvider } from './plugin.js';
-import { JSONSchema, toJsonSchema } from './schema.js';
+import type { PluginProvider } from './plugin.js';
+import { toJsonSchema, type JSONSchema } from './schema.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
 
@@ -118,6 +119,8 @@ export class Registry {
   readonly asyncStore: AsyncStore;
   readonly dotprompt: Dotprompt;
   readonly parent?: Registry;
+  /** Additional runtime context data for flows and tools. */
+  context?: ActionContext;
 
   constructor(parent?: Registry) {
     if (parent) {
