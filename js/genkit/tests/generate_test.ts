@@ -15,10 +15,10 @@
  */
 
 import type { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
-import { z, type JSONSchema7 } from '@genkit-ai/core';
+import { Operation, z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { ModelOperation, modelRef } from '../../ai/src/model';
+import { modelRef } from '../../ai/src/model';
 import { dynamicTool, genkit, type GenkitBeta } from '../src/beta';
 import {
   defineEchoModel,
@@ -1267,82 +1267,66 @@ describe('generate', () => {
         async () => 'tool called'
       );
 
-      pm.handleResponse = async (req, sc) => {
-        return {
-          finishReason: 'pending',
-          operation: { name: '123' },
-        };
-      };
+      ai.defineBackgroundModel({
+        name: 'bkg-model',
+        async start(_) {
+          return {
+            id: '123',
+          };
+        },
+        async check(operation) {
+          return {
+            id: '123',
+          };
+        },
+      });
 
       const { operation } = await ai.generate({
+        model: 'bkg-model',
         prompt: 'call the tool',
         tools: ['testTool'],
       });
 
+      delete (operation as any).latencyMs;
       assert.deepStrictEqual(operation, {
-        name: '123',
-        request: {
-          config: {
-            version: undefined,
-          },
-          model: 'programmableModel',
-        },
+        action: '/background-model/bkg-model',
+        id: '123',
       });
     });
 
     it('checks operation status', async () => {
-      ai.defineTool(
-        { name: 'testTool', description: 'description' },
-        async () => 'tool called'
-      );
-
       const newOp = {
-        name: '123',
+        id: '123',
         done: true,
-        response: {
+        output: {
           finishReason: 'stop',
           message: {
             role: 'model',
             content: [{ text: 'done' }],
           },
         },
-      } as ModelOperation;
+      } as Operation;
 
-      pm.handleResponse = async (req, sc) => {
-        return {
-          finishReason: 'stop',
-          operation: newOp,
-        };
-      };
+      ai.defineBackgroundModel({
+        name: 'bkg-model',
+        async start(_) {
+          return {
+            id: '123',
+          };
+        },
+        async check(operation) {
+          return { ...newOp };
+        },
+      });
 
       const operation = await ai.checkOperation({
-        name: '123',
-        request: {
-          config: {
-            version: undefined,
-          },
-          model: 'programmableModel',
-        },
+        action: '/background-model/bkg-model',
+        id: '123',
       });
 
       assert.deepStrictEqual(operation, {
         ...newOp,
-        request: {
-          config: {
-            version: undefined,
-          },
-          model: 'programmableModel',
-        },
-      });
-      assert.deepStrictEqual(pm.lastRequest, {
-        messages: [],
-        operation: {
-          name: '123',
-          request: {
-            config: {},
-            model: 'programmableModel',
-          },
-        },
+        action: '/background-model/bkg-model',
       });
     });
   });

@@ -1155,14 +1155,14 @@ ai.defineFlow('meme-of-the-day', async () => {
   }
 
   while (!operation.done) {
-    console.log('check status', operation.name);
+    console.log('check status', operation.id);
     operation = await ai.checkOperation(operation);
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 
   // operation done, download generated video to Firebae Storage
 
-  const video = operation.response?.message?.content.find((p) => !!p.media);
+  const video = operation.output?.message?.content.find((p) => !!p.media);
   if (!video) {
     throw new Error('Failed to find the generated video');
   }
