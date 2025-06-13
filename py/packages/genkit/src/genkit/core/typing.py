@@ -288,6 +288,13 @@ class ModelInfo(BaseModel):
     stage: Stage | None = None
 
 
+class Error(BaseModel):
+    """Model for error data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    message: str
+
+
 class Operation(BaseModel):
     """Model for operation data."""
 
@@ -296,6 +303,7 @@ class Operation(BaseModel):
     id: str
     done: bool | None = None
     output: Any | None = None
+    error: Error | None = None
     metadata: dict[str, Any] | None = None
 
 

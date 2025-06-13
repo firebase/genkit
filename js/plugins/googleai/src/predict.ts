@@ -21,6 +21,9 @@ export type PredictMethod = 'predict' | 'predictLongRunning';
 export interface Operation {
   name: string;
   done?: boolean;
+  error?: {
+    message: string;
+  },
   response?: {
     generateVideoResponse: {
       generatedSamples: { video: { uri: string } }[];

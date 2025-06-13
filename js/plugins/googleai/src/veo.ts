@@ -178,6 +178,11 @@ function toGenkitOp(apiOp: ApiOperation): Operation<GenerateResponseData> {
   if (apiOp.done !== undefined) {
     res.done = apiOp.done;
   }
+
+  if (apiOp.error) {
+    res.error = { message: apiOp.error.message };
+  }
+
   if (
     apiOp.response &&
     apiOp.response.generateVideoResponse &&
