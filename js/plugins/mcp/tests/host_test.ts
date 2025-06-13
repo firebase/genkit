@@ -210,9 +210,7 @@ describe('createMcpHost', () => {
         },
       });
 
-      fakeTransport.prompts.push({
-        name: 'testPrompt',
-      });
+      // Note: fakeTransport.prompts.push({ name: 'testPrompt' }); is moved to specific tests
       fakeTransport.getPromptResult = {
         messages: [
           {
@@ -230,7 +228,56 @@ describe('createMcpHost', () => {
       clientHost?.close();
     });
 
+    it('should list active prompts', async () => {
+      // Initially no prompts
+      assert.deepStrictEqual(await clientHost.getActivePrompts(ai), []);
+
+      // Add a prompt to the first transport
+      fakeTransport.prompts.push({
+        name: 'testPrompt1',
+      });
+      let activePrompts = await clientHost.getActivePrompts(ai);
+      assert.strictEqual(activePrompts.length, 1);
+      assert.deepStrictEqual(await activePrompts[0].render(), {
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                text: 'prompt says: hello',
+              },
+            ],
+          },
+        ],
+      });
+
+      // Add a second transport with another prompt
+      const fakeTransport2 = new FakeTransport();
+      fakeTransport2.prompts.push({
+        name: 'testPrompt2',
+      });
+      await clientHost.connect('test-server-2', {
+        transport: fakeTransport2,
+      });
+
+      activePrompts = await clientHost.getActivePrompts(ai);
+      assert.strictEqual(activePrompts.length, 2);
+
+      // Disable the first server
+      await clientHost.disable('test-server');
+      activePrompts = await clientHost.getActivePrompts(ai);
+      assert.strictEqual(activePrompts.length, 1);
+
+      // Enable the first server again
+      await clientHost.enable('test-server');
+      activePrompts = await clientHost.getActivePrompts(ai);
+      assert.strictEqual(activePrompts.length, 2);
+    });
+
     it('should execute prompt', async () => {
+      fakeTransport.prompts.push({
+        name: 'testPrompt',
+      });
       const prompt = await clientHost.getPrompt(
         ai,
         'test-server',
@@ -249,6 +296,9 @@ describe('createMcpHost', () => {
     });
 
     it('should render prompt', async () => {
+      fakeTransport.prompts.push({
+        name: 'testPrompt',
+      });
       const prompt = await clientHost.getPrompt(
         ai,
         'test-server',
@@ -266,6 +316,9 @@ describe('createMcpHost', () => {
     });
 
     it('should stream prompt', async () => {
+      fakeTransport.prompts.push({
+        name: 'testPrompt',
+      });
       const prompt = await clientHost.getPrompt(
         ai,
         'test-server',
@@ -343,20 +396,24 @@ describe('createMcpHost', () => {
         (await clientHost.getActiveTools(ai, { resourceTools: true })).map(
           (t) => t.__action.name
         ),
-        ['test-server/testTool', 'mcp/list_resources', 'mcp/read_resource']
+        [
+          'test-server/testTool',
+          'test-mcp-host/list_resources',
+          'test-mcp-host/read_resource',
+        ]
       );
     });
 
     it('should list resources and templates', async () => {
       const listResourcesTool = (
         await clientHost.getActiveTools(ai, { resourceTools: true })
-      ).find((t) => t.__action.name === 'mcp/list_resources');
+      ).find((t) => t.__action.name === 'test-mcp-host/list_resources');
       assert.ok(listResourcesTool);
 
       const response = await listResourcesTool({});
       assert.deepStrictEqual(response, {
         servers: {
-          'test-server': {
+          'test-mcp-host': {
             resources: [
               {
                 description: 'test resource',
@@ -388,7 +445,7 @@ describe('createMcpHost', () => {
 
       const readResourceTool = (
         await clientHost.getActiveTools(ai, { resourceTools: true })
-      ).find((t) => t.__action.name === 'mcp/read_resource');
+      ).find((t) => t.__action.name === 'test-mcp-host/read_resource');
       assert.ok(readResourceTool);
 
       const response = await readResourceTool({

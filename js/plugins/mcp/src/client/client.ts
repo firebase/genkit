@@ -26,7 +26,12 @@ import {
   ToolAction,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { fetchDynamicTools, getExecutablePrompt, transportFrom } from '../util';
+import {
+  fetchAllPrompts,
+  fetchDynamicTools,
+  getExecutablePrompt,
+  transportFrom,
+} from '../util';
 export type { SSEClientTransportOptions, StdioServerParameters, Transport };
 
 interface McpServerRef {
@@ -39,12 +44,6 @@ export interface McpServerControls {
   /** when true, the server will be stopped and its registered components will
    * not appear in lists/plugins/etc */
   disabled?: boolean;
-  /**
-   * If true, tool responses from the MCP server will be returned in their raw
-   * MCP format. Otherwise (default), they are processed and potentially
-   * simplified for better compatibility with Genkit's typical data structures.
-   */
-  rawToolResponses?: boolean;
 }
 
 export type McpStdioServerConfig = StdioServerParameters;
@@ -76,14 +75,25 @@ export type McpServerConfig = (
  * Configuration options for an individual `GenkitMcpClient` instance.
  * This defines how the client connects to a single MCP server and how it behaves.
  */
-export type McpClientOptions = McpServerConfig & {
-  /** Name for this server configuration */
+export type McpClientOptions = {
+  /** Client name to advertise to the server. */
   name: string;
+  /** Name for the server, defaults to the server's advertised name. */
+  serverName?: string;
+
   /**
    * An optional version number for this client. This is primarily for logging
    * and identification purposes. Defaults to '1.0.0'.
    */
   version?: string;
+  /**
+   * If true, tool responses from the MCP server will be returned in their raw
+   * MCP format. Otherwise (default), they are processed and potentially
+   * simplified for better compatibility with Genkit's typical data structures.
+   */
+  rawToolResponses?: boolean;
+  /** The server configuration to connect. */
+  mcpServer: McpServerConfig;
 };
 
 /**
@@ -98,6 +108,7 @@ export class GenkitMcpClient {
   _server?: McpServerRef;
 
   readonly name: string;
+  readonly suppliedServerName?: string;
   private version: string;
   private serverConfig: McpServerConfig;
   private rawToolResponses?: boolean;
@@ -111,12 +122,21 @@ export class GenkitMcpClient {
 
   constructor(options: McpClientOptions) {
     this.name = options.name;
+    this.suppliedServerName = options.serverName;
     this.version = options.version || '1.0.0';
-    this.serverConfig = { ...options };
+    this.serverConfig = options.mcpServer;
     this.rawToolResponses = !!options.rawToolResponses;
-    this.disabled = !!options.disabled;
+    this.disabled = !!options.mcpServer.disabled;
 
     this._initializeConnection();
+  }
+
+  get serverName(): string {
+    return (
+      this.suppliedServerName ??
+      this._server?.client.getServerVersion()?.name ??
+      'unknown-server'
+    );
   }
 
   /**
@@ -266,18 +286,33 @@ export class GenkitMcpClient {
     let tools: ToolAction[] = [];
 
     if (this._server) {
-      const capabilities = await this._server.client.getServerCapabilities();
+      const capabilities = this._server.client.getServerCapabilities();
       if (capabilities?.tools)
         tools.push(
           ...(await fetchDynamicTools(ai, this._server.client, {
             rawToolResponses: this.rawToolResponses,
-            serverName: this.name,
+            serverName: this.serverName,
             name: this.name,
           }))
         );
     }
 
     return tools;
+  }
+
+  async getActivePrompts(
+    ai: Genkit,
+    options?: PromptGenerateOptions
+  ): Promise<ExecutablePrompt[]> {
+    if (this._server?.client.getServerCapabilities()?.prompts) {
+      return fetchAllPrompts(this._server.client, {
+        ai,
+        serverName: this.serverName,
+        name: this.name,
+        options,
+      });
+    }
+    return [];
   }
 
   /**

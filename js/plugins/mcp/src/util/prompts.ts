@@ -184,3 +184,28 @@ export async function getExecutablePrompt(
   }
   return undefined;
 }
+
+export async function fetchAllPrompts(
+  client: Client,
+  params: {
+    name: string;
+    serverName: string;
+    ai: Genkit;
+    options?: PromptGenerateOptions;
+  }
+): Promise<ExecutablePrompt[]> {
+  let cursor: string | undefined;
+  const out: ExecutablePrompt[] = [];
+
+  while (true) {
+    const { nextCursor, prompts } = await client.listPrompts({ cursor });
+    for (const p of prompts) {
+      out.push(
+        createExecutablePrompt(client, p, { ...params, promptName: p.name })
+      );
+    }
+    cursor = nextCursor;
+    if (!cursor) break;
+  }
+  return out;
+}
