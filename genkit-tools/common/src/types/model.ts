@@ -57,7 +57,7 @@ export const OperationSchema = z.object({
   id: z.string(),
   done: z.boolean().optional(),
   output: z.any().optional(),
-  error: z.object({message: z.string()}).passthrough().optional(),
+  error: z.object({ message: z.string() }).passthrough().optional(),
   metadata: z.record(z.string(), z.any()).optional(),
 });
 

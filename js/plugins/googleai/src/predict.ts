@@ -23,7 +23,7 @@ export interface Operation {
   done?: boolean;
   error?: {
     message: string;
-  },
+  };
   response?: {
     generateVideoResponse: {
       generatedSamples: { video: { uri: string } }[];
