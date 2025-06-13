@@ -90,10 +90,10 @@ ai.defineFlow('get-file', async (q) => {
   return text;
 });
 
-ai.defineFlow('get-resouce', async (q) => {
+ai.defineFlow('update-file', async (q) => {
   const { text } = await ai.generate({
-    prompt: `list available resources (using list_resources tool) and then summarize contents of static resource 1`,
-    tools: await clientManager.getActiveTools(ai, { resourceTools: true }),
+    prompt: `Improve hello-world.txt (in '${process.cwd()}/test-workspace') by rewriting the text, making it longer, just do it, use your imagination.`,
+    tools: await clientManager.getActiveTools(ai),
   });
 
   return text;
