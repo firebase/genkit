@@ -140,11 +140,17 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		provider = vertexAIProvider
 	}
 
+	var config any
+	config = &genai.GenerateContentConfig{}
+	if mi, found := supportedImagenModels[name]; found {
+		config = &genai.GenerateImagesConfig{}
+		info = mi
+	}
 	meta := &ai.ModelInfo{
 		Label:        info.Label,
 		Supports:     info.Supports,
 		Versions:     info.Versions,
-		ConfigSchema: configToMap(genai.GenerateContentConfig{}),
+		ConfigSchema: configToMap(config),
 	}
 
 	fn := func(
@@ -152,7 +158,12 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return generate(ctx, client, name, input, cb)
+		switch config.(type) {
+		case *genai.GenerateImagesConfig:
+			return generateImage(ctx, client, name, input, cb)
+		default:
+			return generate(ctx, client, name, input, cb)
+		}
 	}
 	// the gemini api doesn't support downloading media from http(s)
 	if info.Supports.Media {
