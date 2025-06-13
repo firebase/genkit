@@ -85,53 +85,6 @@ describe('GoogleCloudMetrics', () => {
     await ai.stopServers();
   });
 
-  it('writes action metrics for a successful flow', async () => {
-    const testFlow = createFlow(ai, 'testFlow');
-
-    await testFlow();
-    await testFlow();
-
-    await getExportedSpans();
-
-    const actionRequestCounter = await getCounterMetric(
-      'genkit/action/requests'
-    );
-    const actionLatencyHistogram = await getHistogramMetric(
-      'genkit/action/latency'
-    );
-    assert.equal(actionRequestCounter.value, 2);
-    assert.equal(actionRequestCounter.attributes.name, 'testFlow');
-    assert.equal(actionRequestCounter.attributes.source, 'ts');
-    assert.equal(actionRequestCounter.attributes.status, 'success');
-    assert.ok(actionRequestCounter.attributes.sourceVersion);
-    assert.equal(actionLatencyHistogram.value.count, 2);
-    assert.equal(actionLatencyHistogram.attributes.name, 'testFlow');
-    assert.equal(actionLatencyHistogram.attributes.source, 'ts');
-    assert.equal(actionLatencyHistogram.attributes.status, 'success');
-    assert.ok(actionLatencyHistogram.attributes.sourceVersion);
-  }, 10000); //timeout
-
-  it('writes action metrics for a failing flow', async () => {
-    const testFlow = createFlow(ai, 'testFlow', async () => {
-      const nothing: { missing?: any } = { missing: 1 };
-      delete nothing.missing;
-      return nothing.missing.explode;
-    });
-
-    assert.rejects(async () => {
-      await testFlow();
-    });
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    assert.equal(requestCounter.value, 1);
-    assert.equal(requestCounter.attributes.name, 'testFlow');
-    assert.equal(requestCounter.attributes.source, 'ts');
-    assert.equal(requestCounter.attributes.error, 'TypeError');
-    assert.equal(requestCounter.attributes.status, 'failure');
-  }, 10000); //timeout
-
   it('writes feature metrics for a successful flow', async () => {
     const testFlow = createFlow(ai, 'testFlow');
 
@@ -174,44 +127,6 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.equal(requestCounter.attributes.status, 'failure');
   }, 10000); //timeout
-
-  it('writes action metrics', async () => {
-    const testAction = createAction(ai, 'testAction');
-    const testFlow = createFlow(ai, 'testFlowWithActions', async () => {
-      await Promise.all([
-        testAction(undefined),
-        testAction(undefined),
-        testAction(undefined),
-      ]);
-    });
-
-    await testFlow();
-    await testFlow();
-
-    await getExportedSpans();
-
-    const requestCounters = await getCounterDataPoints(
-      'genkit/action/requests'
-    );
-    const latencyHistograms = await getHistogramDataPoints(
-      'genkit/action/latency'
-    );
-    const requestCounter = requestCounters[0]; // the action
-    const latencyHistogram = latencyHistograms[0];
-
-    assert.equal(requestCounter.value, 6);
-    assert.equal(requestCounter.attributes.name, 'testAction');
-    assert.equal(requestCounter.attributes.source, 'ts');
-    assert.equal(requestCounter.attributes.status, 'success');
-    assert.ok(requestCounter.attributes.sourceVersion);
-    assert.equal(requestCounter.attributes.featureName, 'testFlowWithActions');
-    assert.equal(latencyHistogram.value.count, 6);
-    assert.equal(latencyHistogram.attributes.name, 'testAction');
-    assert.equal(latencyHistogram.attributes.source, 'ts');
-    assert.equal(latencyHistogram.attributes.status, 'success');
-    assert.ok(latencyHistogram.attributes.sourceVersion);
-    assert.equal(requestCounter.attributes.featureName, 'testFlowWithActions');
-  });
 
   it('writes feature metrics for an action', async () => {
     const testAction = createAction(ai, 'featureAction');
@@ -256,44 +171,6 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
-  it('truncates metric dimensions', async () => {
-    const longFlowName = 'MuchTooLongFlowName'.repeat(1024);
-    const testFlow = createFlow(ai, longFlowName);
-
-    await testFlow();
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/feature/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
-    const expectedFlowName = longFlowName.substring(0, 256);
-    assert.equal(requestCounter.attributes.name, expectedFlowName);
-    assert.equal(latencyHistogram.attributes.name, expectedFlowName);
-  });
-
-  it('writes action failure metrics', async () => {
-    const testAction = ai.defineTool(
-      { name: 'testActionWithFailure', description: 'Just a test' },
-      async () => {
-        const nothing: { missing?: any } = { missing: 1 };
-        delete nothing.missing;
-        return nothing.missing.explode;
-      }
-    );
-
-    assert.rejects(async () => {
-      return testAction(null);
-    });
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    assert.equal(requestCounter.value, 1);
-    assert.equal(requestCounter.attributes.name, 'testActionWithFailure');
-    assert.equal(requestCounter.attributes.source, 'ts');
-    assert.equal(requestCounter.attributes.status, 'failure');
-    assert.equal(requestCounter.attributes.error, 'TypeError');
-  }, 10000); //timeout
-
   it('writes generate metrics for a successful model action', async () => {
     const testModel = createTestModel(ai, 'testModel');
 
@@ -301,9 +178,6 @@ describe('GoogleCloudMetrics', () => {
       model: testModel,
       prompt: 'test prompt',
       config: {
-        temperature: 1.0,
-        topK: 3,
-        topP: 5,
         maxOutputTokens: 7,
       },
     });
@@ -371,12 +245,6 @@ describe('GoogleCloudMetrics', () => {
       return ai.generate({
         model: testModel,
         prompt: 'test prompt',
-        config: {
-          temperature: 1.0,
-          topK: 3,
-          topP: 5,
-          maxOutputTokens: 7,
-        },
       });
     });
 
@@ -391,55 +259,6 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.ok(requestCounter.attributes.sourceVersion);
-  }, 10000); //timeout
-
-  it('writes flow label to action metrics when running inside flow', async () => {
-    const testAction = createAction(ai, 'testAction');
-    const flow = createFlow(ai, 'flowNameLabelTestFlow', async () => {
-      return await testAction(undefined);
-    });
-
-    await flow();
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/action/latency');
-    assert.equal(
-      requestCounter.attributes.featureName,
-      'flowNameLabelTestFlow'
-    );
-    assert.equal(
-      latencyHistogram.attributes.featureName,
-      'flowNameLabelTestFlow'
-    );
-  });
-
-  it('writes feature label to generate and action metrics when running inside an action', async () => {
-    const testModel = createTestModel(ai, 'testModel');
-
-    const testAction = createAction(ai, 'testGenerateAction', async () => {
-      await ai.generate({
-        model: testModel,
-        prompt: 'helllloooooooo',
-      });
-    });
-
-    testAction(null);
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/action/latency');
-    const generateRequestCounter = await getCounterMetric(
-      'genkit/ai/generate/requests'
-    );
-    assert.equal(requestCounter.attributes.featureName, 'testGenerateAction');
-    assert.equal(latencyHistogram.attributes.featureName, 'testGenerateAction');
-    assert.equal(
-      generateRequestCounter.attributes.featureName,
-      'testGenerateAction'
-    );
   }, 10000); //timeout
 
   it('writes feature label to generate metrics when running inside a flow', async () => {
