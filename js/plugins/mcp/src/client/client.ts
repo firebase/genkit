@@ -217,7 +217,7 @@ export class GenkitMcpClient {
       { capabilities: { roots: { listChanged: true } } }
     );
     client.setRequestHandler(ListRootsRequestSchema, () => {
-      logger.debug(`[MCP Client] updating roots for ${this.name}`);
+      logger.debug(`[MCP Client] fetching roots for ${this.name}`);
       return { roots: this.roots || [] };
     });
 
