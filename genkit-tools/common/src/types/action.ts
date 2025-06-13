@@ -68,3 +68,14 @@ export const RunActionResponseSchema = z.object({
   genkitVersion: z.string().optional(),
 });
 export type RunActionResponse = z.infer<typeof RunActionResponseSchema>;
+
+/**
+ * Zod schema of an opration representing a background task.
+ */
+export const OperationSchema = z.object({
+  action: z.string().optional(),
+  id: z.string(),
+  done: z.boolean().optional(),
+  output: z.any().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});

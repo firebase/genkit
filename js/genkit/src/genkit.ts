@@ -72,9 +72,11 @@ import {
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
-  ModelOperation,
   defineGenerateAction,
   defineModel,
+  defineBackgroundModel,
+  type BackgroundModelAction,
+  type DefineBackgroundModelOptions,
   type DefineModelOptions,
   type GenerateResponseChunkData,
   type ModelAction,
@@ -98,6 +100,7 @@ import {
 import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
   GenkitError,
+  Operation,
   ReflectionServer,
   defineFlow,
   defineJsonSchema,
@@ -249,6 +252,15 @@ export class Genkit implements HasRegistry {
     ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema> {
     return defineModel(this.registry, options, runner);
+  }
+
+  /**
+   * Defines a new background model and adds it to the registry.
+   */
+  defineBackgroundModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: DefineBackgroundModelOptions<CustomOptionsSchema>,
+  ): BackgroundModelAction<CustomOptionsSchema> {
+    return defineBackgroundModel(this.registry, options);
   }
 
   /**
@@ -787,7 +799,7 @@ export class Genkit implements HasRegistry {
    * @param operation
    * @returns
    */
-  checkOperation(operation: ModelOperation): Promise<ModelOperation> {
+  checkOperation<T>(operation: Operation<T>): Promise<Operation<T>> {
     return checkOperation(this.registry, operation);
   }
 

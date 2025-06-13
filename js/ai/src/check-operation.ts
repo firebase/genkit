@@ -14,42 +14,27 @@
  * limitations under the License.
  */
 
-import { GenkitError } from '@genkit-ai/core';
+import { GenkitError, Operation } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
-import { GenerateRequest, ModelAction, ModelOperation } from './model';
 
-export async function checkOperation(
+export async function checkOperation<T>(
   registry: Registry,
-  operation: ModelOperation
-): Promise<ModelOperation> {
-  if (!operation.request?.model) {
+  operation: Operation<T>
+): Promise<Operation<T>> {
+  if (!operation.action) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
       message: 'Provided operation is missing original request information',
     });
   }
-  const model = (await registry.lookupAction(
-    `/model/${operation.request?.model}`
-  )) as ModelAction;
-  if (!model) {
+  const backgroundAction = await registry.lookupBackgroundAction(
+    operation.action
+  );
+  if (!backgroundAction) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
-      message: `Failed to resolve model from original request: ${operation.request?.model}`,
+      message: `Failed to resolve background action from original request: ${operation.action}`,
     });
   }
-  const request = {
-    operation,
-    messages: [],
-  } as GenerateRequest;
-  const rawResponse = await model(request);
-  if (!rawResponse.operation) {
-    throw new GenkitError({
-      status: 'FAILED_PRECONDITION',
-      message: `The model did not return expected operation information: ${JSON.stringify(rawResponse)}`,
-    });
-  }
-  return {
-    ...rawResponse.operation!,
-    request: operation.request,
-  };
+  return await backgroundAction.check(operation);
 }

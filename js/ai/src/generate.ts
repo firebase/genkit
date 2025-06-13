@@ -19,6 +19,7 @@ import {
   GenkitError,
   isAction,
   isDetachedAction,
+  Operation,
   runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
@@ -44,7 +45,7 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
-  ModelOperation,
+  GenerateResponseData,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
@@ -342,9 +343,6 @@ export async function generate<
   registry = maybeRegisterDynamicTools(registry, resolvedOptions);
 
   const params = await toGenerateActionOptions(registry, resolvedOptions);
-  const model = await resolveModel(registry, resolvedOptions.model, {
-    warnDeprecated: true,
-  });
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
   return await runWithStreamingCallback(
@@ -365,7 +363,6 @@ export async function generate<
         tools,
       });
       return new GenerateResponse<O>(response, {
-        model: model.modelAction.__action.name,
         request: response.request ?? request,
         parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
       });
@@ -381,7 +378,7 @@ export async function generateOperation<
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
-): Promise<ModelOperation> {
+): Promise<Operation<GenerateResponseData>> {
   assertUnstable(registry, 'beta', 'generateOperation is a beta feature.');
 
   options = await options;

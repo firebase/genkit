@@ -602,7 +602,6 @@
         "length",
         "blocked",
         "interrupted",
-        "pending",
         "other",
         "unknown"
       ]
@@ -733,9 +732,6 @@
             "$ref": "#/$defs/DocumentData"
           }
         },
-        "operation": {
-          "$ref": "#/$defs/ModelOperation"
-        },
         "candidates": {
           "type": "number"
         }
@@ -792,9 +788,6 @@
         "raw": {},
         "request": {
           "$ref": "#/$defs/GenerateRequest"
-        },
-        "operation": {
-          "$ref": "#/$defs/ModelOperation"
         },
         "candidates": {
           "type": "array",
@@ -962,9 +955,6 @@
             },
             "toolChoice": {
               "type": "boolean"
-            },
-            "longRunning": {
-              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -981,53 +971,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "ModelOperation": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "done": {
-          "type": "boolean"
-        },
-        "request": {
-          "type": "object",
-          "properties": {
-            "model": {
-              "type": "string"
-            },
-            "config": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "required": [
-            "model"
-          ],
-          "additionalProperties": false
-        },
-        "response": {
-          "type": "object",
-          "properties": {
-            "message": {
-              "$ref": "#/$defs/Message"
-            },
-            "finishReason": {
-              "$ref": "#/$defs/FinishReason"
-            },
-            "raw": {}
-          },
-          "required": [
-            "finishReason"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "additionalProperties": true
     },
     "ModelRequest": {
       "type": "object",
@@ -1049,9 +992,6 @@
         },
         "docs": {
           "$ref": "#/$defs/GenerateRequest/properties/docs"
-        },
-        "operation": {
-          "$ref": "#/$defs/GenerateRequest/properties/operation"
         }
       },
       "required": [
@@ -1109,9 +1049,6 @@
         },
         "request": {
           "$ref": "#/$defs/GenerateResponse/properties/request"
-        },
-        "operation": {
-          "$ref": "#/$defs/GenerateResponse/properties/operation"
         }
       },
       "required": [

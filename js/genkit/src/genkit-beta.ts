@@ -18,6 +18,7 @@ import {
   defineInterrupt,
   generateOperation,
   GenerateOptions,
+  GenerateResponseData,
   GenerationCommonConfigSchema,
   isExecutablePrompt,
   type ExecutablePrompt,
@@ -26,7 +27,6 @@ import {
 } from '@genkit-ai/ai';
 import type { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import { defineFormat } from '@genkit-ai/ai/formats';
-import { ModelOperation } from '@genkit-ai/ai/model';
 import {
   getCurrentSession,
   Session,
@@ -34,10 +34,10 @@ import {
   type SessionData,
   type SessionOptions,
 } from '@genkit-ai/ai/session';
-import type { z } from '@genkit-ai/core';
+import type { Operation, z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
-import type { Formatter } from './formats.js';
-import { Genkit, type GenkitOptions } from './genkit.js';
+import type { Formatter } from './formats';
+import { Genkit, type GenkitOptions } from './genkit';
 
 export type { GenkitOptions as GenkitBetaOptions }; // in case they drift later
 
@@ -263,7 +263,7 @@ export class GenkitBeta extends Genkit {
     opts:
       | GenerateOptions<O, CustomOptions>
       | PromiseLike<GenerateOptions<O, CustomOptions>>
-  ): Promise<ModelOperation> {
+  ): Promise<Operation<GenerateResponseData>> {
     return generateOperation(this.registry, opts);
   }
 }
