@@ -235,9 +235,6 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
-  // it('writes feature metrics for prompts')
-  // after PR #1029
-
   it('writes feature metrics for generate', async () => {
     const testModel = createTestModel(ai, 'helloModel');
     await ai.generate({ model: testModel, prompt: 'Hi' });
@@ -260,7 +257,8 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('truncates metric dimensions', async () => {
-    const testFlow = createFlow(ai, 'anExtremelyLongFlowNameThatIsTooBig');
+    const longFlowName = 'MuchTooLongFlowName'.repeat(1024);
+    const testFlow = createFlow(ai, longFlowName);
 
     await testFlow();
 
@@ -268,14 +266,9 @@ describe('GoogleCloudMetrics', () => {
 
     const requestCounter = await getCounterMetric('genkit/feature/requests');
     const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
-    assert.equal(
-      requestCounter.attributes.name,
-      'anExtremelyLongFlowNameThatIsToo'
-    );
-    assert.equal(
-      latencyHistogram.attributes.name,
-      'anExtremelyLongFlowNameThatIsToo'
-    );
+    const expectedFlowName = longFlowName.substring(0, 256);
+    assert.equal(requestCounter.attributes.name, expectedFlowName);
+    assert.equal(latencyHistogram.attributes.name, expectedFlowName);
   });
 
   it('writes action failure metrics', async () => {
