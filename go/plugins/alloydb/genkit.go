@@ -59,42 +59,36 @@ func (p *Postgres) Init(ctx context.Context, g *genkit.Genkit) error {
 
 // Config provides configuration options for [DefineIndexer] and [DefineRetriever].
 type Config struct {
-	TableName             string
-	SchemaName            string
-	ContentColumn         string
-	EmbeddingColumn       string
-	MetadataColumns       []string
-	IDColumn              string
-	MetadataJSONColumn    string
+	// TableName the table name in which documents will be stored and searched.
+	TableName string
+	// SchemaName schema name in which documents will be stored and searched.
+	SchemaName string
+	// ContentColumn column name which contains content of the document
+	ContentColumn string
+	// EmbeddingColumn column name which contains the vector
+	EmbeddingColumn string
+	// MetadataColumns a list of columns to create for custom metadata
+	MetadataColumns []string
+	// IDColumn column name which represents the identifier of the table
+	IDColumn string
+	// MetadataJSONColumn the column to store extra metadata in JSON format
+	MetadataJSONColumn string
+	// IgnoreMetadataColumns column(s) to ignore in pre-existing tables for a document's metadata. Can not be used with metadata_columns.
 	IgnoreMetadataColumns []string
-
-	Embedder        ai.Embedder // Embedder to use. Required.
-	EmbedderOptions any         // Options to pass to the embedder.
+	// Embedder to use. Required.
+	Embedder ai.Embedder
+	// EmbedderOptions options to pass to the embedder.
+	EmbedderOptions any
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (*DocStore, ai.Retriever, error) {
 	ds, err := newDocStore(ctx, p, cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return genkit.DefineRetriever(g, provider, ds.config.TableName, ds.Retrieve), nil
-}
-
-// DefineIndexer defines an Indexer with the given configuration.
-func DefineIndexer(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Config) (ai.Indexer, error) {
-	ds, err := newDocStore(ctx, p, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return genkit.DefineIndexer(g, provider, ds.config.TableName, ds.Index), nil
-}
-
-// Indexer returns the indexer with the given index name.
-func Indexer(g *genkit.Genkit, name string) ai.Indexer {
-	return genkit.LookupIndexer(g, provider, name)
+	return ds, genkit.DefineRetriever(g, provider, ds.config.TableName, ds.Retrieve), nil
 }
 
 // Retriever returns the retriever with the given index name.

@@ -97,10 +97,28 @@ Then, specify the plugin when you initialize Genkit:
     return err
   }
 
-// To retrieve from the configured table:
-retriever, err := DefineRetriever(ctx, g, postgres, cfg)
+// To index and retrieve from the configured table:
+doc, retriever, err := DefineRetriever(ctx, g, postgres, cfg)
 if err != nil {
   retrun err
+}
+
+
+ireq := &ai.IndexerRequest{
+      Documents: []*ai.Document{{
+        Content: []*ai.Part{{
+        Kind:        ai.PartText,
+        ContentType: "text/plain",
+        Text:        "The product features include...",
+        }},
+      Metadata: map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"},
+  }},
+  Options: nil
+}
+
+d1 := ai.DocumentFromText( "The product features include..." , map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"})
+if err := doc.Index(ctx, ireq); err != nil {
+    return err
 }
 
 d2 := ai.DocumentFromText( "The product features include..." , nil)

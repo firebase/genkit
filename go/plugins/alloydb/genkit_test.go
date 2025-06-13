@@ -180,7 +180,7 @@ func TestPostgres(t *testing.T) {
 		EmbedderOptions:       nil,
 	}
 
-	indexer, err := DefineIndexer(ctx, g, postgres, cfg)
+	doc, retriever, err := DefineRetriever(ctx, g, postgres, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +189,7 @@ func TestPostgres(t *testing.T) {
 		Documents: []*ai.Document{d1, d2, d3},
 		Options:   nil}
 
-	err = indexer.Index(ctx, reqIndexer)
+	err = doc.Index(ctx, reqIndexer)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -201,11 +201,6 @@ func TestPostgres(t *testing.T) {
 
 	if !rows.Next() {
 		t.Fatal("must have a single document")
-	}
-
-	retriever, err := DefineRetriever(ctx, g, postgres, cfg)
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	resp, err := retriever.Retrieve(ctx, &ai.RetrieverRequest{

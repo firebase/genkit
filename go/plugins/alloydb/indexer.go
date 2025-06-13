@@ -27,8 +27,8 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-// Index implements the genkit.Index method.
-func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
+// Index is used to index  documents .
+func (ds *DocStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	if len(req.Documents) == 0 {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	return nil
 }
 
-func (ds *docStore) generateAddDocumentsQuery(id, content, embedding string, metadata map[string]any) (string, []any, error) {
+func (ds *DocStore) generateAddDocumentsQuery(id, content, embedding string, metadata map[string]any) (string, []any, error) {
 	// Construct metadata column names if present
 	metadataColNames := ""
 	if len(ds.config.MetadataColumns) > 0 {

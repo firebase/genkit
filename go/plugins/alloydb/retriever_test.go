@@ -24,7 +24,7 @@ import (
 )
 
 func TestRetriever_Fail_WrongTypeOfOption(t *testing.T) {
-	ds := docStore{}
+	ds := DocStore{}
 	res, err := ds.Retrieve(context.Background(), &ai.RetrieverRequest{Options: struct{}{}})
 	require.Nil(t, res)
 	require.Error(t, err)
@@ -32,7 +32,7 @@ func TestRetriever_Fail_WrongTypeOfOption(t *testing.T) {
 }
 
 func TestRetriever_Fail_EmbedReturnError(t *testing.T) {
-	ds := docStore{
+	ds := DocStore{
 		config: &Config{Embedder: mockEmbedderFail{}},
 	}
 	res, err := ds.Retrieve(context.Background(), &ai.RetrieverRequest{})
