@@ -79,7 +79,7 @@ export async function lookupBackgroundAction<
     Action<I, typeof OperationSchema>
   >(key);
   if (!root) return undefined;
-  const actionName = key.substring(key.indexOf('/', 1) + 1)
+  const actionName = key.substring(key.indexOf('/', 1) + 1);
   return new BackgroundActionImpl(
     root,
     await registry.lookupAction<

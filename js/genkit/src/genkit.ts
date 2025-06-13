@@ -72,9 +72,9 @@ import {
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
+  defineBackgroundModel,
   defineGenerateAction,
   defineModel,
-  defineBackgroundModel,
   type BackgroundModelAction,
   type DefineBackgroundModelOptions,
   type DefineModelOptions,
@@ -257,8 +257,10 @@ export class Genkit implements HasRegistry {
   /**
    * Defines a new background model and adds it to the registry.
    */
-  defineBackgroundModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
-    options: DefineBackgroundModelOptions<CustomOptionsSchema>,
+  defineBackgroundModel<
+    CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: DefineBackgroundModelOptions<CustomOptionsSchema>
   ): BackgroundModelAction<CustomOptionsSchema> {
     return defineBackgroundModel(this.registry, options);
   }

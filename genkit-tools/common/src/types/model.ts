@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import { z } from 'zod';
+import { OperationSchema } from './action';
 import {
   CustomPartSchema,
   DataPartSchema,
@@ -30,7 +31,6 @@ import {
   type ToolRequestPart,
   type ToolResponsePart,
 } from './document';
-import { OperationSchema } from './action';
 export {
   CustomPartSchema,
   DataPartSchema,

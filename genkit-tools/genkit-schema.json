@@ -789,6 +789,29 @@
         "request": {
           "$ref": "#/$defs/GenerateRequest"
         },
+        "operation": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "done": {
+              "type": "boolean"
+            },
+            "output": {},
+            "metadata": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
         "candidates": {
           "type": "array",
           "items": {
@@ -1049,6 +1072,9 @@
         },
         "request": {
           "$ref": "#/$defs/GenerateResponse/properties/request"
+        },
+        "operation": {
+          "$ref": "#/$defs/GenerateResponse/properties/operation"
         }
       },
       "required": [
