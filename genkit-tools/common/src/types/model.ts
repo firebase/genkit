@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { z } from 'zod';
-import { OperationSchema } from './action';
 import {
   CustomPartSchema,
   DataPartSchema,
@@ -49,6 +48,17 @@ export {
 //
 // IMPORTANT: Keep this file in sync with genkit/ai/src/model.ts!
 //
+
+/**
+ * Zod schema of an opration representing a background task.
+ */
+export const OperationSchema = z.object({
+  action: z.string().optional(),
+  id: z.string(),
+  done: z.boolean().optional(),
+  output: z.any().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
 
 /**
  * Zod schema of message part.

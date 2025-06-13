@@ -790,27 +790,7 @@
           "$ref": "#/$defs/GenerateRequest"
         },
         "operation": {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string"
-            },
-            "id": {
-              "type": "string"
-            },
-            "done": {
-              "type": "boolean"
-            },
-            "output": {},
-            "metadata": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "required": [
-            "id"
-          ],
-          "additionalProperties": false
+          "$ref": "#/$defs/Operation"
         },
         "candidates": {
           "type": "array",
@@ -1079,6 +1059,29 @@
       },
       "required": [
         "finishReason"
+      ],
+      "additionalProperties": false
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "done": {
+          "type": "boolean"
+        },
+        "output": {},
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id"
       ],
       "additionalProperties": false
     },
