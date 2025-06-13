@@ -228,7 +228,7 @@ function checkValidDocument(
       }
       return true;
     }
-    throw new Error('Unknown multimodal embedder: ' + embedder.name);
+    return false;
   } else {
     // Not multimodal - unexpected usage.
     // Currently text-only embedders just ignore media.
@@ -250,7 +250,7 @@ export function defineVertexAIEmbedder(
   const embedder =
     SUPPORTED_EMBEDDER_MODELS[name] ??
     embedderRef({
-      name: name,
+      name: `vertexai/${name}`,
       configSchema: VertexEmbeddingConfigSchema,
       info: {
         dimensions: 768,

@@ -732,17 +732,13 @@ function fromGeminiFinishReason(
 }
 
 function toGeminiPart(part: Part): GeminiPart {
-  if (part.text) {
-    return { text: part.text };
-  } else if (part.media) {
-    return toGeminiFileDataPart(part);
-  } else if (part.toolRequest) {
-    return toGeminiToolRequestPart(part);
-  } else if (part.toolResponse) {
-    return toGeminiToolResponsePart(part);
-  } else {
-    throw new Error('unsupported type');
-  }
+  if (part.text) return { text: part.text };
+  if (part.media) return toGeminiFileDataPart(part);
+  if (part.toolRequest) return toGeminiToolRequestPart(part);
+  if (part.toolResponse) return toGeminiToolResponsePart(part);
+  if (typeof part.reasoning === 'string') return toGeminiThought(part);
+
+  throw new Error(`Unsupported Gemini part type: ${JSON.stringify(part)}`);
 }
 
 function fromGeminiInlineDataPart(part: GeminiPart): MediaPart {
@@ -763,6 +759,14 @@ function fromGeminiInlineDataPart(part: GeminiPart): MediaPart {
       contentType: mimeType,
     },
   };
+}
+
+function toGeminiThought(part: Part) {
+  const outPart: any = { thought: true };
+  if (part.metadata?.thoughtSignature)
+    outPart.thoughtSignature = part.metadata.thoughtSignature;
+  if (part.reasoning?.length) outPart.text = part.reasoning;
+  return outPart;
 }
 
 function fromGeminiFileDataPart(part: GeminiPart): MediaPart {
@@ -820,12 +824,8 @@ function fromGeminiPart(
   jsonMode: boolean,
   ref?: string
 ): Part {
-  if (part.text !== undefined) {
-    if ((part as any).thought === true) {
-      return { reasoning: part.text };
-    }
-    return { text: part.text };
-  }
+  if ('thought' in part) return fromGeminiThought(part as any);
+  if (typeof part.text === 'string') return { text: part.text };
   if (part.inlineData) return fromGeminiInlineDataPart(part);
   if (part.fileData) return fromGeminiFileDataPart(part);
   if (part.functionCall) return fromGeminiFunctionCallPart(part, ref);
@@ -858,6 +858,18 @@ export function fromGeminiCandidate(
   };
   return genkitCandidate;
 }
+
+function fromGeminiThought(part: {
+  thought: boolean;
+  text?: string;
+  thoughtSignature?: string;
+}): Part {
+  return {
+    reasoning: part.text || '',
+    metadata: { thoughtSignature: (part as any).thoughtSignature },
+  };
+}
+
 // Translate JSON schema to Vertex AI's format. Specifically, the type field needs be mapped.
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.

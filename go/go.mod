@@ -14,7 +14,7 @@ require (
 	firebase.google.com/go/v4 v4.15.2
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
-	github.com/anthropics/anthropic-sdk-go v0.2.0-beta.3
+	github.com/anthropics/anthropic-sdk-go v1.4.0
 	github.com/blues/jsonata-go v1.5.4
 	github.com/goccy/go-yaml v1.17.1
 	github.com/google/dotprompt/go v0.0.0-20250424065700-61c578cf43ac
@@ -24,6 +24,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
+	github.com/mark3labs/mcp-go v0.29.0
 	github.com/pgvector/pgvector-go v0.2.0
 	github.com/stretchr/testify v1.10.0
 	github.com/weaviate/weaviate v1.30.0
@@ -35,9 +36,14 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.36.0
 	go.opentelemetry.io/otel/trace v1.36.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
-	golang.org/x/tools v0.33.0
-	google.golang.org/api v0.236.0
-	google.golang.org/genai v1.5.0
+	golang.org/x/tools v0.32.0
+	google.golang.org/api v0.230.0
+	google.golang.org/genai v1.8.0
+)
+
+require (
+	github.com/spf13/cast v1.7.1 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 )
 
 require (

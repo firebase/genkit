@@ -38,7 +38,8 @@ func main() {
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-pro-preview-03-25")
+		// Any available Gemini model can be selected
+		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-thinking-exp-1219")
 		if m == nil {
 			return "", core.NewError(core.INVALID_ARGUMENT, "jokesFlow: failed to find model")
 		}
@@ -48,7 +49,7 @@ func main() {
 			ai.WithConfig(&googlegenai.GeminiConfig{
 				Temperature: 1.0,
 			}),
-			ai.WithPrompt(`Tell silly short jokes about %s`, input))
+			ai.WithPrompt(`Tell short jokes about %s`, input))
 		if err != nil {
 			return "", err
 		}
