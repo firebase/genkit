@@ -57,7 +57,7 @@ func (p *Postgres) Init(ctx context.Context, g *genkit.Genkit) error {
 
 }
 
-// Config provides configuration options for [DefineIndexer] and [DefineRetriever].
+// Config provides configuration options for [DefineRetriever].
 type Config struct {
 	// TableName the table name in which documents will be stored and searched.
 	TableName string
@@ -77,7 +77,7 @@ type Config struct {
 	IgnoreMetadataColumns []string
 	// Embedder to use. Required.
 	Embedder ai.Embedder
-	// EmbedderOptions options to pass to the embedder.
+	// EmbedderOptions options to pass to the Embedder.
 	EmbedderOptions any
 }
 

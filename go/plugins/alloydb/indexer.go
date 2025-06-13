@@ -27,7 +27,7 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
-// Index is used to index  documents .
+// Index is used to index documents .
 func (ds *DocStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	if len(req.Documents) == 0 {
 		return nil
