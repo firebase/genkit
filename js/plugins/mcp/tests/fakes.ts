@@ -24,6 +24,7 @@ import {
   ReadResourceResult,
   Resource,
   ResourceTemplate,
+  Root,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { Genkit } from 'genkit';
@@ -96,6 +97,7 @@ export class FakeTransport implements Transport {
   callToolResult?: CallToolResult;
   getPromptResult?: GetPromptResult;
   readResourceResult?: ReadResourceResult;
+  roots?: Root[];
 
   async start(): Promise<void> {}
 
@@ -194,6 +196,15 @@ export class FakeTransport implements Transport {
         jsonrpc: '2.0',
         id: request.id,
       });
+    } else if (request.method === 'notifications/roots/list_changed') {
+      this.onmessage?.({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'roots/list',
+      });
+    } else if ((request as any).result?.roots) {
+      this.roots = (request as any).result?.roots;
+      console.log('updated roots', this.roots);
     } else {
       throw new Error(`Unknown request method: ${request.method}`);
     }
