@@ -307,9 +307,7 @@ export class GenkitMcpHost {
    * @returns A Promise that resolves to an array of `ToolAction` from all
    * active MCP clients.
    */
-  async getActiveTools(
-    ai: Genkit,
-  ): Promise<ToolAction[]> {
+  async getActiveTools(ai: Genkit): Promise<ToolAction[]> {
     await this.ready();
     let allTools: ToolAction[] = [];
 
