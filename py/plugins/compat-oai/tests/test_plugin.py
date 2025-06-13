@@ -62,6 +62,7 @@ def test_openai_plugin_resolve_action(kind, name):
         metadata={
             'model': {
                 'label': model_info.label,
+                'supports': {'multiturn': True}
             },
         },
     )
