@@ -17,7 +17,7 @@
 import { GenkitError, Operation } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 
-export async function checkOperation<T>(
+export async function checkOperation<T = unknown>(
   registry: Registry,
   operation: Operation<T>
 ): Promise<Operation<T>> {
