@@ -26,8 +26,11 @@ import (
 
 // RetrieverOptions options for retriever
 type RetrieverOptions struct {
-	Filter           any
-	K                int
+	// Filter values to be used in the where clause. Defaults is nil
+	Filter any
+	// K the number of documents to return from search. Defaults to 4.
+	K int
+	// DistanceStrategy distance strategy to use for vector similarity search. Defaults to CosineDistance
 	DistanceStrategy DistanceStrategy
 }
 

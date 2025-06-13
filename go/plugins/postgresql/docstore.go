@@ -101,11 +101,11 @@ func (ds *DocStore) validateConfiguration(ctx context.Context) error {
 
 	ecdt, ok := mapColumnNameDataType[ds.config.EmbeddingColumn]
 	if !ok {
-		return fmt.Errorf("content column '%s' does not exist", ds.config.ContentColumn)
+		return fmt.Errorf("embeddig column '%s' does not exist", ds.config.EmbeddingColumn)
 	}
 
 	if ecdt != "USER-DEFINED" {
-		return fmt.Errorf("content column '%s' must be a type vector", ds.config.ContentColumn)
+		return fmt.Errorf("embeddig column '%s' must be a type vector", ds.config.EmbeddingColumn)
 	}
 
 	for _, mc := range ds.config.MetadataColumns {
