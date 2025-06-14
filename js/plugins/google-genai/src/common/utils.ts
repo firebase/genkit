@@ -16,11 +16,6 @@
 
 import { EmbedderReference, JSONSchema, ModelReference } from 'genkit';
 import { GenerationCommonConfigSchema } from 'genkit/model';
-import {
-  EnhancedGenerateContentResponse,
-  FunctionCall,
-  GenerateContentResponse,
-} from './types';
 
 /**
  * Finds the nearest model reference based on a provided version string.
@@ -96,87 +91,6 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
     }
   }
   return out;
-}
-
-/**
- * Extracts and concatenates the text and code output from a
- * `GenerateContentResponse` into a single string.
- *
- * @param response The `GenerateContentResponse` object from which to extract text.
- * @returns A string containing all the text and code output from the response.
- *          Returns an empty string if no candidates are present or if no text or code is found.
- */
-function getText(response: GenerateContentResponse): string {
-  return (
-    response.candidates?.[0].content?.parts
-      .map((part) => {
-        let string = '';
-        if (part.text) {
-          string += part.text;
-        }
-        if (part.executableCode) {
-          string +=
-            '\n```' +
-            part.executableCode.language +
-            '\n' +
-            part.executableCode.code +
-            '\n```\n';
-        }
-        if (part.codeExecutionResult) {
-          string += '\n```\n' + part.codeExecutionResult.output + '\n```\n';
-        }
-        return string;
-      })
-      .join('') || ''
-  );
-}
-
-/**
- * Extracts and returns an array of `FunctionCall` objects from the first candidate
- * in a `GenerateContentResponse`, if available.
- *
- * @param response The `GenerateContentResponse` object from which to extract function calls.
- * @returns An array of `FunctionCall` objects, or `undefined` if no candidates
- *          are present or if no function calls are found within the candidates.
- */
-function getFunctionCalls(
-  response: GenerateContentResponse
-): FunctionCall[] | undefined {
-  return response.candidates?.[0].content?.parts
-    .map((part) => {
-      if (part.functionCall) {
-        return part.functionCall;
-      }
-      return undefined;
-    })
-    .filter((part) => part !== undefined) as FunctionCall[] | undefined;
-}
-
-/**
- * Enhances a `GenerateContentResponse` object by adding helper functions for
- * accessing text and function calls.
- *
- * @param response The `GenerateContentResponse` object to enhance.
- * @returns The enhanced `GenerateContentResponse` object with the added helper functions.
- * @sideEffects This function modifies the input object by adding properties.
- */
-export function enhanceContentResponse(
-  response: GenerateContentResponse
-): EnhancedGenerateContentResponse {
-  (response as EnhancedGenerateContentResponse).text = () => {
-    if (response.candidates && response.candidates.length > 0) {
-      return getText(response);
-    }
-    return '';
-  };
-
-  (response as EnhancedGenerateContentResponse).functionCalls = () => {
-    if (response.candidates && response.candidates.length > 0) {
-      return getFunctionCalls(response);
-    }
-    return undefined;
-  };
-  return response as EnhancedGenerateContentResponse;
 }
 
 export function isMultiModalEmbedder(embedder: EmbedderReference): boolean {

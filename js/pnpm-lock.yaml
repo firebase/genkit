@@ -593,9 +593,6 @@ importers:
 
   plugins/google-genai:
     dependencies:
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       genkit:
         specifier: workspace:^
         version: link:../../genkit

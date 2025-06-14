@@ -67,6 +67,7 @@ export enum HarmCategory {
   HARM_CATEGORY_SEXUALLY_EXPLICIT = 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
   HARM_CATEGORY_HARASSMENT = 'HARM_CATEGORY_HARASSMENT',
   HARM_CATEGORY_DANGEROUS_CONTENT = 'HARM_CATEGORY_DANGEROUS_CONTENT',
+  HARM_CATEGORY_CIVIC_INTEGRITY = 'HARM_CATEGORY_CIVIC_INTEGRITY',
 }
 
 /**
@@ -992,33 +993,11 @@ export declare interface GenerateContentRequest {
 }
 
 /**
- * Response object wrapped with helper methods.
- *
- * @public
- */
-export interface EnhancedGenerateContentResponse
-  extends GenerateContentResponse {
-  /**
-   * Returns the text string assembled from all `Part`s of the first candidate
-   * of the response, if available.
-   * Throws if the prompt or candidate was blocked.
-   */
-  text: () => string;
-
-  /**
-   * Returns function calls found in any `Part`s of the first candidate
-   * of the response, if available.
-   * Throws if the prompt or candidate was blocked.
-   */
-  functionCalls: () => FunctionCall[] | undefined;
-}
-
-/**
  * Result from calling generateContentStream.
  * It constains both the stream and the final aggregated response.
  * @public
  */
 export interface GenerateContentStreamResult {
-  stream: AsyncGenerator<EnhancedGenerateContentResponse>;
-  response: Promise<EnhancedGenerateContentResponse>;
+  stream: AsyncGenerator<GenerateContentResponse>;
+  response: Promise<GenerateContentResponse>;
 }
