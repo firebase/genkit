@@ -131,6 +131,51 @@ describe('createMcpHost', () => {
         ['test-mcp-host2/testTool2']
       );
     });
+
+    it('updated roots', async () => {
+      // no server connected, no tools
+      assert.deepStrictEqual(
+        (await clientHost.getActiveTools(ai)).map((t) => t.__action.name),
+        []
+      );
+
+      // connect fakeTransport1
+      await clientHost.connect('test-mcp-host1', {
+        transport: fakeTransport1,
+        roots: [
+          {
+            uri: `file:///foo`,
+            name: 'foo',
+          },
+        ],
+      });
+
+      // MCP communicates roots async...
+      await new Promise((r) => setTimeout(r, 10));
+
+      assert.deepStrictEqual(fakeTransport1.roots, [
+        {
+          name: 'foo',
+          uri: 'file:///foo',
+        },
+      ]);
+
+      await clientHost.getClient('test-mcp-host1').updateRoots([
+        {
+          uri: `file:///bar`,
+          name: 'bar',
+        },
+      ]);
+      // MCP communicates roots async...
+      await new Promise((r) => setTimeout(r, 10));
+
+      assert.deepStrictEqual(fakeTransport1.roots, [
+        {
+          name: 'bar',
+          uri: 'file:///bar',
+        },
+      ]);
+    });
   });
 
   describe('tools', () => {

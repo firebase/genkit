@@ -19,6 +19,10 @@ import { SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.
 import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import {
+  ListRootsRequestSchema,
+  Root,
+} from '@modelcontextprotocol/sdk/types.js';
+import {
   ExecutablePrompt,
   Genkit,
   GenkitError,
@@ -44,6 +48,9 @@ export interface McpServerControls {
   /** when true, the server will be stopped and its registered components will
    * not appear in lists/plugins/etc */
   disabled?: boolean;
+
+  // MCP roots configuration. See: https://modelcontextprotocol.io/docs/concepts/roots
+  roots?: Root[];
 }
 
 export type McpStdioServerConfig = StdioServerParameters;
@@ -113,6 +120,7 @@ export class GenkitMcpClient {
   private serverConfig: McpServerConfig;
   private rawToolResponses?: boolean;
   private disabled: boolean;
+  private roots?: Root[];
 
   private _readyListeners: {
     resolve: () => void;
@@ -127,6 +135,7 @@ export class GenkitMcpClient {
     this.serverConfig = options.mcpServer;
     this.rawToolResponses = !!options.rawToolResponses;
     this.disabled = !!options.mcpServer.disabled;
+    this.roots = options.mcpServer.roots;
 
     this._initializeConnection();
   }
@@ -137,6 +146,11 @@ export class GenkitMcpClient {
       this._server?.client.getServerVersion()?.name ??
       'unknown-server'
     );
+  }
+
+  async updateRoots(roots: Root[]) {
+    this.roots = roots;
+    await this._server?.client.sendRootsListChanged();
   }
 
   /**
@@ -158,6 +172,9 @@ export class GenkitMcpClient {
       while (this._readyListeners.length) {
         this._readyListeners.pop()?.reject(err as Error);
       }
+    }
+    if (this.roots) {
+      await this.updateRoots(this.roots);
     }
   }
 
@@ -195,8 +212,14 @@ export class GenkitMcpClient {
 
     let error: string | undefined;
 
-    const client = new Client({ name: this.name, version: this.version });
-    client.registerCapabilities({ roots: {} });
+    const client = new Client(
+      { name: this.name, version: this.version },
+      { capabilities: { roots: { listChanged: true } } }
+    );
+    client.setRequestHandler(ListRootsRequestSchema, () => {
+      logger.debug(`[MCP Client] fetching roots for ${this.name}`);
+      return { roots: this.roots || [] };
+    });
 
     try {
       await client.connect(transport);

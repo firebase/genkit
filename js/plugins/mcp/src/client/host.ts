@@ -411,4 +411,11 @@ export class GenkitMcpHost {
   get activeClients(): GenkitMcpClient[] {
     return Object.values(this._clients).filter((c) => c.isEnabled());
   }
+
+  /**
+   * Returns the client by name.
+   */
+  getClient(name: string) {
+    return this._clients[name];
+  }
 }
