@@ -591,6 +591,34 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  plugins/google-genai:
+    dependencies:
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
+      google-auth-library:
+        specifier: ^9.14.2
+        version: 9.14.2(encoding@0.1.13)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.17.17
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      tsup:
+        specifier: ^8.3.5
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.4)(typescript@4.9.5)(yaml@2.7.0)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.19.4
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
   plugins/googleai:
     dependencies:
       '@google/generative-ai':
@@ -14358,6 +14386,33 @@ snapshots:
     optionalDependencies:
       postcss: 8.4.47
       typescript: 5.6.3
+    transitivePeerDependencies:
+      - jiti
+      - supports-color
+      - tsx
+      - yaml
+
+  tsup@8.3.5(postcss@8.4.47)(tsx@4.19.4)(typescript@4.9.5)(yaml@2.7.0):
+    dependencies:
+      bundle-require: 5.0.0(esbuild@0.24.0)
+      cac: 6.7.14
+      chokidar: 4.0.1
+      consola: 3.2.3
+      debug: 4.3.7
+      esbuild: 0.24.0
+      joycon: 3.1.1
+      picocolors: 1.1.1
+      postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.19.4)(yaml@2.7.0)
+      resolve-from: 5.0.0
+      rollup: 4.25.0
+      source-map: 0.8.0-beta.0
+      sucrase: 3.35.0
+      tinyexec: 0.3.1
+      tinyglobby: 0.2.10
+      tree-kill: 1.2.2
+    optionalDependencies:
+      postcss: 8.4.47
+      typescript: 4.9.5
     transitivePeerDependencies:
       - jiti
       - supports-color
