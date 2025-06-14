@@ -21,7 +21,7 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "echo \"No tests to run yet\" && exit 0"
+    "test": "tsx --test ./tests/**/*_test.ts"
   },
   "repository": {
     "type": "git",
