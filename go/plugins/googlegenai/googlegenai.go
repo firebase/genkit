@@ -360,7 +360,7 @@ func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
 func (ga *GoogleAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
 	switch atype {
 	case core.ActionTypeEmbedder:
-		defineEmbedder(g, ga.gclient, name)
+		defineEmbedder(g, ga.gclient, name, ai.EmbedderOptions{})
 	case core.ActionTypeModel:
 		var supports *ai.ModelSupports
 		if strings.Contains(name, "gemini") || strings.Contains(name, "gemma") {
@@ -423,7 +423,7 @@ func (v *VertexAI) ListActions(ctx context.Context) []core.ActionDesc {
 func (v *VertexAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
 	switch atype {
 	case core.ActionTypeEmbedder:
-		defineEmbedder(g, v.gclient, name)
+		defineEmbedder(g, v.gclient, name, ai.EmbedderOptions{})
 	case core.ActionTypeModel:
 		var supports *ai.ModelSupports
 		if strings.Contains(name, "gemini") {
