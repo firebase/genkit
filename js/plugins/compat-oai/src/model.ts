@@ -30,11 +30,8 @@ import { GenerationCommonConfigSchema, Message, z } from 'genkit';
 import type {
   CandidateData,
   GenerateResponseChunkData,
-  ModelAction,
-  ModelInfo,
   ToolDefinition,
 } from 'genkit/model';
-import { modelRef } from 'genkit/model';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -47,31 +44,6 @@ import type {
   ChatCompletionTool,
   CompletionChoice,
 } from 'openai/resources/index.mjs';
-
-const MODELS_SUPPORTING_OPENAI_RESPONSE_FORMAT = [
-  'gpt-4.5-preview',
-  'gpt-4o',
-  'gpt-4o-2024-05-13',
-  'gpt-4o-mini',
-  'gpt-4o-mini-2024-07-18',
-  'gpt-4-turbo',
-  'gpt-4-turbo-2024-04-09',
-  'gpt-4-turbo-preview',
-  'gpt-4-0125-preview',
-  'gpt-4-1106-preview',
-  'gpt-3.5-turbo-0125',
-  'gpt-3.5-turbo',
-  'gpt-3.5-turbo-1106',
-  'o1-preview',
-  'o1-mini',
-  'o1',
-  'o3',
-  'o3-mini',
-  'o4-mini',
-  'gpt-4.1',
-  'gpt-4.1-mini',
-  'gpt-4.1-nano',
-];
 
 export const OpenAiConfigSchema = GenerationCommonConfigSchema.extend({
   frequencyPenalty: z.number().min(-2).max(2).optional(),
@@ -87,290 +59,6 @@ export const OpenAiConfigSchema = GenerationCommonConfigSchema.extend({
 type VisualDetailLevel = z.infer<
   typeof OpenAiConfigSchema
 >['visualDetailLevel'];
-
-export const gpt45 = modelRef({
-  name: 'openai/gpt-4.5',
-  info: {
-    versions: ['gpt-4.5-preview'],
-    label: 'OpenAI - GPT-4.5',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt4o = modelRef({
-  name: 'openai/gpt-4o',
-  info: {
-    versions: ['gpt-4o', 'gpt-4o-2024-05-13'],
-    label: 'OpenAI - GPT-4o',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const o1Preview = modelRef({
-  name: 'openai/o1-preview',
-  info: {
-    versions: ['o1-preview'],
-    label: 'OpenAI - o1 Preview',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const o1Mini = modelRef({
-  name: 'openai/o1',
-  info: {
-    versions: ['o1-mini'],
-    label: 'OpenAI - o1 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const o1 = modelRef({
-  name: 'openai/o1',
-  info: {
-    versions: ['o1'],
-    label: 'OpenAI - o1',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const o3 = modelRef({
-  name: 'openai/o3',
-  info: {
-    versions: ['o3'],
-    label: 'OpenAI - o3',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const o3Mini = modelRef({
-  name: 'openai/o3-mini',
-  info: {
-    versions: ['o3-mini'],
-    label: 'OpenAI - o3 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const o4Mini = modelRef({
-  name: 'openai/o4-mini',
-  info: {
-    versions: ['o4-mini'],
-    label: 'OpenAI - o4 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt4oMini = modelRef({
-  name: 'openai/gpt-4o-mini',
-  info: {
-    versions: ['gpt-4o-mini', 'gpt-4o-mini-2024-07-18'],
-    label: 'OpenAI - GPT-4o mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt4Turbo = modelRef({
-  name: 'openai/gpt-4-turbo',
-  info: {
-    versions: [
-      'gpt-4-turbo',
-      'gpt-4-turbo-2024-04-09',
-      'gpt-4-turbo-preview',
-      'gpt-4-0125-preview',
-      'gpt-4-1106-preview',
-    ],
-    label: 'OpenAI - GPT-4 Turbo',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt4Vision = modelRef({
-  name: 'openai/gpt-4-vision',
-  info: {
-    versions: ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'],
-    label: 'OpenAI - GPT-4 Vision',
-    supports: {
-      multiturn: true,
-      tools: false,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt4 = modelRef({
-  name: 'openai/gpt-4',
-  info: {
-    versions: ['gpt-4', 'gpt-4-0613', 'gpt-4-32k', 'gpt-4-32k-0613'],
-    label: 'OpenAI - GPT-4',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt41 = modelRef({
-  name: 'openai/gpt-4.1',
-  info: {
-    versions: ['gpt-4.1'],
-    label: 'OpenAI - GPT-4.1',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt41Mini = modelRef({
-  name: 'openai/gpt-4.1-mini',
-  info: {
-    versions: ['gpt-4.1-mini'],
-    label: 'OpenAI - GPT-4.1 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt41Nano = modelRef({
-  name: 'openai/gpt-4.1-nano',
-  info: {
-    versions: ['gpt-4.1-nano'],
-    label: 'OpenAI - GPT-4.1 Nano',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const gpt35Turbo = modelRef({
-  name: 'openai/gpt-3.5-turbo',
-  info: {
-    versions: ['gpt-3.5-turbo-0125', 'gpt-3.5-turbo', 'gpt-3.5-turbo-1106'],
-    label: 'OpenAI - GPT-3.5 Turbo',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['json', 'text'],
-    },
-  },
-  configSchema: OpenAiConfigSchema,
-});
-
-export const SUPPORTED_GPT_MODELS: Record<
-  string,
-  ModelReference<typeof OpenAiConfigSchema>
-> = {
-  'gpt-4.5': gpt45,
-  'gpt-4o': gpt4o,
-  'gpt-4o-mini': gpt4oMini,
-  'gpt-4-turbo': gpt4Turbo,
-  'gpt-4-vision': gpt4Vision,
-  'gpt-4': gpt4,
-  'gpt-4.1': gpt41,
-  'gpt-4.1-mini': gpt41Mini,
-  'gpt-4.1-nano': gpt41Nano,
-  'gpt-3.5-turbo': gpt35Turbo,
-  'o1-preview': o1Preview,
-  o1: o1,
-  'o1-mini': o1Mini,
-  o3: o3,
-  'o3-mini': o3Mini,
-  'o4-mini': o4Mini,
-};
 
 export function toOpenAIRole(role: Role): ChatCompletionRole {
   switch (role) {
@@ -392,7 +80,7 @@ export function toOpenAIRole(role: Role): ChatCompletionRole {
  * @param tool The Genkit ToolDefinition to convert.
  * @returns The converted OpenAI ChatCompletionTool object.
  */
-function toOpenAiTool(tool: ToolDefinition): ChatCompletionTool {
+export function toOpenAiTool(tool: ToolDefinition): ChatCompletionTool {
   return {
     type: 'function',
     function: {
@@ -649,18 +337,15 @@ export function fromOpenAiChunkChoice(
  * @throws An error if the specified model is not supported or if an unsupported output format is requested.
  */
 export function toOpenAiRequestBody(
-  modelName: string,
+  name: string,
   request: GenerateRequest<typeof OpenAiConfigSchema>
 ) {
-  const model = SUPPORTED_GPT_MODELS[modelName];
-  if (!model) throw new Error(`Unsupported model: ${modelName}`);
   const openAiMessages = toOpenAiMessages(
     request.messages,
     request.config?.visualDetailLevel
   );
-  const mappedModelName = request.config?.version || model.version || modelName;
   const body = {
-    model: mappedModelName,
+    model: name,
     messages: openAiMessages,
     temperature: request.config?.temperature,
     max_tokens: request.config?.maxOutputTokens,
@@ -678,29 +363,14 @@ export function toOpenAiRequestBody(
   } as ChatCompletionCreateParamsNonStreaming;
 
   const response_format = request.output?.format;
-  if (
-    response_format &&
-    MODELS_SUPPORTING_OPENAI_RESPONSE_FORMAT.includes(mappedModelName)
-  ) {
-    if (
-      response_format === 'json' &&
-      model.info?.supports?.output?.includes('json')
-    ) {
-      body.response_format = {
-        type: 'json_object',
-      };
-    } else if (
-      response_format === 'text' &&
-      model.info?.supports?.output?.includes('text')
-    ) {
-      body.response_format = {
-        type: 'text',
-      };
-    } else {
-      throw new Error(
-        `${response_format} format is not supported for GPT models currently`
-      );
-    }
+  if (response_format === 'json') {
+    body.response_format = {
+      type: 'json_object',
+    };
+  } else if (response_format === 'text') {
+    body.response_format = {
+      type: 'text',
+    };
   }
   for (const key in body) {
     if (!body[key] || (Array.isArray(body[key]) && !body[key].length))
@@ -710,12 +380,13 @@ export function toOpenAiRequestBody(
 }
 
 /**
- * Creates the runner used by Genkit to interact with the GPT model.
+ * Creates the runner used by Genkit to interact with an OpenAI compatible
+ * model.
  * @param name The name of the GPT model.
  * @param client The OpenAI client instance.
  * @returns The runner that Genkit will call when the model is invoked.
  */
-export function gptRunner(name: string, client: OpenAI) {
+export function openAiModelRunner(name: string, client: OpenAI) {
   return async (
     request: GenerateRequest<typeof OpenAiConfigSchema>,
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
@@ -757,42 +428,18 @@ export function gptRunner(name: string, client: OpenAI) {
   };
 }
 
-/**
- * Defines a GPT model with the given name and OpenAI client.
- * @param name The name of the GPT model.
- * @param client The OpenAI client instance.
- * @returns The defined GPT model.
- * @throws An error if the specified model is not supported.
- */
-export function gptModel(
+export function textModel(
   ai: Genkit,
   name: string,
   client: OpenAI,
-  modelInfo?: ModelInfo,
-  modelConfig?: any
-): ModelAction<typeof OpenAiConfigSchema> {
-  const modelId = `openai/${name}`;
-  const model = SUPPORTED_GPT_MODELS[name];
-  if (!model) {
-    SUPPORTED_GPT_MODELS[name] = modelRef({
-      name: modelId,
-      info: modelInfo,
-      configSchema: modelConfig?.configSchema,
-    });
-  }
-
-  // Use the built-in model info and config schema or override if provided
-  const modelInformation = modelInfo ? modelInfo : model.info;
-  const configSchema = modelConfig
-    ? modelConfig.configSchema
-    : model.configSchema;
-
+  modelRef: ModelReference<typeof OpenAiConfigSchema>
+) {
   return ai.defineModel(
     {
-      name: modelId,
-      ...modelInformation,
-      configSchema,
+      name,
+      ...modelRef.info,
+      configSchema: modelRef.configSchema,
     },
-    gptRunner(name, client)
+    openAiModelRunner(name, client)
   );
 }

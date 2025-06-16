@@ -14,16 +14,108 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import type { GenerateRequest, GenerateResponseData, Genkit } from 'genkit';
+import type {
+  GenerateRequest,
+  GenerateResponseData,
+  Genkit,
+  ModelReference,
+} from 'genkit';
 import { GenerationCommonConfigSchema, Message, z } from 'genkit';
 import type { ModelAction } from 'genkit/model';
-import { modelRef } from 'genkit/model';
 import type OpenAI from 'openai';
 import type {
+  SpeechCreateParams,
   Transcription,
   TranscriptionCreateParams,
 } from 'openai/resources/audio/index.mjs';
+
+export const TTSConfigSchema = GenerationCommonConfigSchema.extend({
+  voice: z
+    .enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'])
+    .optional()
+    .default('alloy'),
+  speed: z.number().min(0.25).max(4.0).optional(),
+  response_format: z
+    .enum(['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'])
+    .optional(),
+});
+
+export const RESPONSE_FORMAT_MEDIA_TYPES = {
+  mp3: 'audio/mpeg',
+  opus: 'audio/opus',
+  aac: 'audio/aac',
+  flac: 'audio/flac',
+  wav: 'audio/wav',
+  pcm: 'audio/L16',
+};
+
+function toTTSRequest(
+  modelName: string,
+  request: GenerateRequest<typeof TTSConfigSchema>
+): SpeechCreateParams {
+  const mappedModelName = request.config?.version || modelName;
+  const options: SpeechCreateParams = {
+    model: mappedModelName,
+    input: new Message(request.messages[0]).text,
+    voice: request.config?.voice ?? 'alloy',
+    speed: request.config?.speed,
+    response_format: request.config?.response_format,
+  };
+  for (const k in options) {
+    if (options[k] === undefined) {
+      delete options[k];
+    }
+  }
+  return options;
+}
+
+function toGenerateResponse(
+  result: Buffer,
+  responseFormat: z.infer<typeof TTSConfigSchema>['response_format'] = 'mp3'
+): GenerateResponseData {
+  const mediaType = RESPONSE_FORMAT_MEDIA_TYPES[responseFormat];
+  return {
+    candidates: [
+      {
+        index: 0,
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [
+            {
+              media: {
+                contentType: mediaType,
+                url: `data:${mediaType};base64,${result.toString('base64')}`,
+              },
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
+
+export function ttsModel(
+  ai: Genkit,
+  name: string,
+  client: OpenAI,
+  modelRef?: ModelReference<typeof TTSConfigSchema>
+): ModelAction<typeof TTSConfigSchema> {
+  return ai.defineModel<typeof TTSConfigSchema>(
+    {
+      name,
+      ...modelRef?.info,
+      configSchema: modelRef?.configSchema,
+    },
+    async (request) => {
+      const ttsRequest = toTTSRequest(name, request);
+      const result = await client.audio.speech.create(ttsRequest);
+      const resultArrayBuffer = await result.arrayBuffer();
+      const resultBuffer = Buffer.from(new Uint8Array(resultArrayBuffer));
+      return toGenerateResponse(resultBuffer, ttsRequest.response_format);
+    }
+  );
+}
 
 export const Whisper1ConfigSchema = GenerationCommonConfigSchema.extend({
   language: z.string().optional(),
@@ -31,36 +123,6 @@ export const Whisper1ConfigSchema = GenerationCommonConfigSchema.extend({
   response_format: z
     .enum(['json', 'text', 'srt', 'verbose_json', 'vtt'])
     .optional(),
-});
-
-export const whisper1 = modelRef({
-  name: 'openai/whisper-1',
-  info: {
-    label: 'OpenAI - Whisper',
-    supports: {
-      media: true,
-      output: ['text', 'json'],
-      multiturn: false,
-      systemRole: false,
-      tools: false,
-    },
-  },
-  configSchema: Whisper1ConfigSchema,
-});
-
-export const gpt4oTranscribe = modelRef({
-  name: 'openai/gpt-4o-transcribe',
-  info: {
-    label: 'OpenAI - GPT-4o Transcribe',
-    supports: {
-      media: true,
-      output: ['text', 'json'],
-      multiturn: false,
-      systemRole: false,
-      tools: false,
-    },
-  },
-  configSchema: Whisper1ConfigSchema,
 });
 
 function toWhisper1Request(
@@ -113,7 +175,7 @@ function toWhisper1Request(
   return options;
 }
 
-function toGenerateResponse(
+function transcriptionToGenerateResponse(
   result: Transcription | string
 ): GenerateResponseData {
   return {
@@ -134,25 +196,17 @@ function toGenerateResponse(
   };
 }
 
-export const SUPPORTED_STT_MODELS = {
-  'gpt-4o-transcribe': gpt4oTranscribe,
-  'whisper-1': whisper1,
-};
-
 export function sttModel(
   ai: Genkit,
   name: string,
-  client: OpenAI
+  client: OpenAI,
+  modelRef?: ModelReference<typeof Whisper1ConfigSchema>
 ): ModelAction<typeof Whisper1ConfigSchema> {
-  const modelId = `openai/${name}`;
-  const model = SUPPORTED_STT_MODELS[name];
-  if (!model) throw new Error(`Unsupported model: ${name}`);
-
   return ai.defineModel<typeof Whisper1ConfigSchema>(
     {
-      name: modelId,
-      ...model.info,
-      configSchema: model.configSchema,
+      name,
+      ...modelRef?.info,
+      configSchema: modelRef?.configSchema,
     },
     async (request) => {
       const params = toWhisper1Request(request);
@@ -161,7 +215,7 @@ export function sttModel(
         ...params,
         stream: false,
       });
-      return toGenerateResponse(result);
+      return transcriptionToGenerateResponse(result);
     }
   );
 }

@@ -33,19 +33,18 @@ import type {
   ChatCompletionRole,
 } from 'openai/resources/index.mjs';
 
-import type { OpenAiConfigSchema } from './gpt';
+import type { OpenAiConfigSchema } from '../src/model';
 import {
   fromOpenAiChoice,
   fromOpenAiChunkChoice,
   fromOpenAiToolCall,
-  gpt4o,
-  gptModel,
-  gptRunner,
-  toOpenAIRole,
+  openAiModelRunner,
   toOpenAiMessages,
   toOpenAiRequestBody,
+  toOpenAIRole,
   toOpenAiTextAndMedia,
-} from './gpt';
+} from '../src/model';
+import { gpt4o, gptModel } from '../src/openai/gpt';
 
 jest.mock('@genkit-ai/ai/model', () => ({
   ...(jest.requireActual('@genkit-ai/ai/model') as Record<string, unknown>),
@@ -1310,7 +1309,10 @@ describe('gptRunner', () => {
         },
       },
     };
-    const runner = gptRunner('gpt-4o', openaiClient as unknown as OpenAI);
+    const runner = openAiModelRunner(
+      'gpt-4o',
+      openaiClient as unknown as OpenAI
+    );
     await runner({ messages: [] });
     expect(openaiClient.chat.completions.create).toHaveBeenCalledWith({
       model: 'gpt-4o',
@@ -1353,7 +1355,10 @@ describe('gptRunner', () => {
       },
     };
     const streamingCallback = jest.fn();
-    const runner = gptRunner('gpt-4o', openaiClient as unknown as OpenAI);
+    const runner = openAiModelRunner(
+      'gpt-4o',
+      openaiClient as unknown as OpenAI
+    );
     await runner({ messages: [] }, streamingCallback);
     expect(openaiClient.beta.chat.completions.stream).toHaveBeenCalledWith({
       model: 'gpt-4o',
@@ -1397,8 +1402,8 @@ describe('gptModel', () => {
     expect(ai.defineModel).toHaveBeenCalledWith(
       {
         name: 'openai/gpt-4.1',
-        ...require('./gpt').gpt41.info,
-        configSchema: require('./gpt').gpt41.configSchema,
+        ...require('../src/gpt').gpt41.info,
+        configSchema: require('../src/gpt').gpt41.configSchema,
       },
       expect.any(Function)
     );
@@ -1406,8 +1411,8 @@ describe('gptModel', () => {
     expect(ai.defineModel).toHaveBeenCalledWith(
       {
         name: 'openai/gpt-4.1-mini',
-        ...require('./gpt').gpt41Mini.info,
-        configSchema: require('./gpt').gpt41Mini.configSchema,
+        ...require('../src/gpt').gpt41Mini.info,
+        configSchema: require('../src/gpt').gpt41Mini.configSchema,
       },
       expect.any(Function)
     );
@@ -1415,8 +1420,8 @@ describe('gptModel', () => {
     expect(ai.defineModel).toHaveBeenCalledWith(
       {
         name: 'openai/gpt-4.1-nano',
-        ...require('./gpt').gpt41Nano.info,
-        configSchema: require('./gpt').gpt41Nano.configSchema,
+        ...require('../src/gpt').gpt41Nano.info,
+        configSchema: require('../src/gpt').gpt41Nano.configSchema,
       },
       expect.any(Function)
     );

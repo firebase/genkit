@@ -14,15 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { GenerateRequest, GenerateResponseData, Genkit } from 'genkit';
-import { GenerationCommonConfigSchema, Message, z } from 'genkit';
+import type { Genkit } from 'genkit';
+import { GenerationCommonConfigSchema, z } from 'genkit';
 import type { ModelAction } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import type OpenAI from 'openai';
-import type {
-  ImageGenerateParams,
-  ImagesResponse,
-} from 'openai/resources/images.mjs';
+import { toGenerateResponse, toImageGenerateParams } from '../image';
 
 export const DallE3ConfigSchema = GenerationCommonConfigSchema.extend({
   size: z.enum(['1024x1024', '1792x1024', '1024x1792']).optional(),
@@ -47,49 +44,6 @@ export const dallE3 = modelRef({
   configSchema: DallE3ConfigSchema,
 });
 
-function toDallE3Request(
-  request: GenerateRequest<typeof DallE3ConfigSchema>
-): ImageGenerateParams {
-  const options = {
-    model: 'dall-e-3',
-    prompt: new Message(request.messages[0]).text,
-    n: request.candidates || 1,
-    size: request.config?.size,
-    style: request.config?.style,
-    user: request.config?.user,
-    quality: request.config?.quality,
-    response_format: request.config?.response_format || 'b64_json',
-  };
-  for (const k in options) {
-    if (options[k] === undefined) {
-      delete options[k];
-    }
-  }
-  return options;
-}
-
-function toGenerateResponse(result: ImagesResponse): GenerateResponseData {
-  const candidates: GenerateResponseData['candidates'] = (
-    result.data ?? []
-  ).map((image, index) => ({
-    index: index,
-    finishReason: 'stop',
-    custom: { revisedPrompt: image.revised_prompt },
-    message: {
-      role: 'model',
-      content: [
-        {
-          media: {
-            contentType: 'image/png',
-            url: image.url || `data:image/png;base64,${image.b64_json}`,
-          },
-        },
-      ],
-    },
-  }));
-  return { candidates };
-}
-
 export function dallE3Model(
   ai: Genkit,
   client: OpenAI
@@ -101,7 +55,9 @@ export function dallE3Model(
       configSchema: dallE3.configSchema,
     },
     async (request) => {
-      const result = await client.images.generate(toDallE3Request(request));
+      const result = await client.images.generate(
+        toImageGenerateParams({ model: 'dall-e-3', ...request })
+      );
       return toGenerateResponse(result);
     }
   );

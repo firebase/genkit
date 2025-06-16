@@ -14,42 +14,62 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EmbedderInfo, embedderRef, modelRef, type Genkit } from 'genkit';
-import type { ModelInfo } from 'genkit/model';
-import { genkitPlugin } from 'genkit/plugin';
-import { OpenAI, type ClientOptions } from 'openai';
-import { sttModel, ttsModel } from './audio';
-import { embedderModel } from './embedder';
-import { textModel } from './model';
 
-export interface PluginOptions extends Partial<ClientOptions> {
-  models?: ModelDefinition[];
-  embedders?: EmbedderDefinition[];
-  name: string;
-}
-
-export enum ModelType {
-  TEXT = 'text',
-  EMBEDDER = 'embedder',
-  TEXT_TO_SPEECH = 'tts',
-  SPEECH_TO_TEXT = 'stt',
-}
-
-// Standard model definition
-export interface ModelDefinition {
-  name: string;
-  info?: ModelInfo;
-  configSchema?: any;
-  type?: Exclude<ModelType, 'embedder'>;
-}
-
-// Standard embedder definition
-export interface EmbedderDefinition {
-  name: string;
-  info?: EmbedderInfo;
-  configSchema?: any;
-  type: ModelType.EMBEDDER;
-}
+import openAICompatible, { PluginOptions } from '../index.js';
+import { dallE3 } from './dalle.js';
+import {
+  textEmbedding3Large,
+  textEmbedding3Small,
+  textEmbeddingAda002,
+} from './embedder.js';
+import {
+  SUPPORTED_GPT_MODELS,
+  gpt35Turbo,
+  gpt4,
+  gpt41,
+  gpt41Mini,
+  gpt41Nano,
+  gpt45,
+  gpt4Turbo,
+  gpt4Vision,
+  gpt4o,
+  gpt4oMini,
+  o1,
+  o1Mini,
+  o1Preview,
+  o3,
+  o3Mini,
+  o4Mini,
+} from './gpt.js';
+import { gpt4oMiniTts, tts1, tts1Hd } from './tts.js';
+import { gpt4oTranscribe, whisper1 } from './whisper.js';
+export {
+  dallE3,
+  gpt35Turbo,
+  gpt4,
+  gpt41,
+  gpt41Mini,
+  gpt41Nano,
+  gpt45,
+  gpt4Turbo,
+  gpt4Vision,
+  gpt4o,
+  gpt4oMini,
+  gpt4oMiniTts,
+  gpt4oTranscribe,
+  o1,
+  o1Mini,
+  o1Preview,
+  o3,
+  o3Mini,
+  o4Mini,
+  textEmbedding3Large,
+  textEmbedding3Small,
+  textEmbeddingAda002,
+  tts1,
+  tts1Hd,
+  whisper1,
+};
 
 /**
  * This module provides an interface to the OpenAI models through the Genkit
@@ -93,25 +113,15 @@ export interface EmbedderDefinition {
  * });
  * ```
  */
-export const openAICompatible = (options: PluginOptions) =>
-  genkitPlugin(options.name, async (ai: Genkit) => {
-    const client = new OpenAI(options);
-    const models = options.models ?? [];
-    const embedders = options.embedders ?? [];
-    // Initialize the models/embedders if provided in the options
-    [...models, ...embedders]?.map((entity) => {
-      const name = `${options.name}/${entity.name}`;
-      const type = entity.type;
-      if (type === ModelType.EMBEDDER) {
-        embedderModel(ai, name, client, embedderRef(entity));
-      } else if (type === ModelType.TEXT_TO_SPEECH) {
-        ttsModel(ai, name, client, modelRef(entity));
-      } else if (type === ModelType.SPEECH_TO_TEXT) {
-        sttModel(ai, name, client, modelRef(entity));
-      } else {
-        textModel(ai, name, client, modelRef(entity));
-      }
-    });
+export const openAI = (options?: PluginOptions) =>
+  openAICompatible({
+    name: 'openai',
+    ...options,
+    models: Object.values(SUPPORTED_GPT_MODELS).map((ref) => ({
+      name: ref.name,
+      configSchema: ref.configSchema,
+      info: ref.info,
+    })),
   });
 
-export default openAICompatible;
+export default openAI;
