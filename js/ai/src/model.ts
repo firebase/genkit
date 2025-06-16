@@ -15,6 +15,7 @@
  */
 
 import {
+  ActionFnArg,
   BackgroundAction,
   GenkitError,
   Operation,
@@ -461,10 +462,38 @@ export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
+  options: {
+    apiVersion: 'v2';
+  } & DefineModelOptions<CustomOptionsSchema>,
+  runner: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options: ActionFnArg<GenerateResponseChunkData>
+  ) => Promise<GenerateResponseData>
+): ModelAction<CustomOptionsSchema>;
+
+/**
+ * Defines a new model and adds it to the registry.
+ */
+export function defineModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
   options: DefineModelOptions<CustomOptionsSchema>,
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+    streamingCallback: StreamingCallback<GenerateResponseChunkData> | undefined
+  ) => Promise<GenerateResponseData>
+): ModelAction<CustomOptionsSchema>;
+
+export function defineModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  options: any,
+  runner: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    // GenerateRequest<CustomOptionsSchema> | DefineModelOptionsV2<CustomOptionsSchema>
+    options: any
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || options.name;
@@ -489,10 +518,16 @@ export function defineModel<
       },
       use: middleware,
     },
-    (input) => {
+    (input, ctx) => {
       const startTimeMs = performance.now();
-
-      return runner(input, getStreamingCallback(registry)).then((response) => {
+      return runner(
+        input,
+        options.apiVersion === 'v2'
+          ? ctx
+          : getStreamingCallback(registry) ||
+              (ctx.streamingRequested && ctx.sendChunk) ||
+              undefined
+      ).then((response) => {
         const timedResponse = {
           ...response,
           latencyMs: performance.now() - startTimeMs,

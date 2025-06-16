@@ -99,6 +99,7 @@ import {
 } from '@genkit-ai/ai/retriever';
 import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
+  ActionFnArg,
   GenkitError,
   Operation,
   ReflectionServer,
@@ -245,10 +246,36 @@ export class Genkit implements HasRegistry {
    * Defines a new model and adds it to the registry.
    */
   defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: {
+      apiVersion: 'v2';
+    } & DefineModelOptions<CustomOptionsSchema>,
+    runner: (
+      request: GenerateRequest<CustomOptionsSchema>,
+      options: ActionFnArg<GenerateResponseChunkData>
+    ) => Promise<GenerateResponseData>
+  ): ModelAction<CustomOptionsSchema>;
+
+  /**
+   * Defines a new model and adds it to the registry.
+   */
+  defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
     options: DefineModelOptions<CustomOptionsSchema>,
     runner: (
       request: GenerateRequest<CustomOptionsSchema>,
-      streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+      streamingCallback:
+        | StreamingCallback<GenerateResponseChunkData>
+        | undefined
+    ) => Promise<GenerateResponseData>
+  ): ModelAction<CustomOptionsSchema>;
+
+  /**
+   * Defines a new model and adds it to the registry.
+   */
+  defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: any,
+    runner: (
+      request: GenerateRequest<CustomOptionsSchema>,
+      streamingCallback: any
     ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema> {
     return defineModel(this.registry, options, runner);
