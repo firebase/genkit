@@ -280,6 +280,8 @@ export class Genkit implements HasRegistry {
       return (await promise)(input, opts);
     }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
+    executablePrompt.id = name;
+
     executablePrompt.render = async (
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>

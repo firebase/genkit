@@ -96,12 +96,18 @@ function createExecutablePrompt<
     options?: PromptGenerateOptions<any, any>;
   }
 ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
-  const callPrompt = async (
+  const callPrompt = (async (
     input?: z.infer<I>,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> => {
     logger.debug(`[MCP] Calling MCP prompt ${params.name}/${prompt.name}`);
     return params.ai.generate(callPrompt.render(input, opts));
+  }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
+
+  callPrompt.id = prompt.name;
+  callPrompt.metadata = {
+    description: prompt.description,
+    arguments: prompt.arguments,
   };
 
   callPrompt.stream = (
@@ -137,7 +143,7 @@ function createExecutablePrompt<
     });
   };
 
-  return callPrompt as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
+  return callPrompt;
 }
 
 /**
