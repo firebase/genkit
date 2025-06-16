@@ -22,6 +22,10 @@ import {
   type Action,
   type ActionMetadata,
 } from './action.js';
+import {
+  BackgroundAction,
+  lookupBackgroundAction,
+} from './background-action.js';
 import { ActionContext } from './context.js';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
@@ -41,6 +45,9 @@ export type ActionType =
   | 'flow'
   | 'indexer'
   | 'model'
+  | 'background-model'
+  | 'check-operation'
+  | 'cancel-operation'
   | 'prompt'
   | 'reranker'
   | 'retriever'
@@ -183,6 +190,17 @@ export class Registry {
     return (
       ((await this.actionsById[key]) as R) || this.parent?.lookupAction(key)
     );
+  }
+
+  /**
+   * Looks up a background action from the registry.
+   * @param key The key of the action to lookup.
+   * @returns The action.
+   */
+  async lookupBackgroundAction(
+    key: string
+  ): Promise<BackgroundAction | undefined> {
+    return lookupBackgroundAction(this, key);
   }
 
   /**

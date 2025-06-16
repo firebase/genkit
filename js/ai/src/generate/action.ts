@@ -322,26 +322,30 @@ async function generate(
         );
       };
 
-      const rawResponse = await dispatch(0, request);
-      if (!rawResponse.model) {
-        rawResponse.model = model.__action.name;
+      const modelResponse = await dispatch(0, request);
+
+      if (model.__action.actionType === 'background-model') {
+        return new GenerateResponse(
+          { operation: modelResponse },
+          {
+            request,
+            parser: format?.handler(request.output?.schema).parseMessage,
+          }
+        );
       }
 
-      return new GenerateResponse(rawResponse, {
-        model: model.__action.name,
+      return new GenerateResponse(modelResponse, {
         request,
         parser: format?.handler(request.output?.schema).parseMessage,
       });
     }
   );
-
-  // Throw an error if the response is not usable.
-  response.assertValid();
-
-  if (response.operation) {
+  if (model.__action.actionType === 'background-model') {
     return response.toJSON();
   }
 
+  // Throw an error if the response is not usable.
+  response.assertValid();
   const generatedMessage = response.message!; // would have thrown if no message
 
   const toolRequests = generatedMessage.content.filter(

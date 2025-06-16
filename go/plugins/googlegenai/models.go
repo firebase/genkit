@@ -29,9 +29,14 @@ const (
 
 	gemini25FlashPreview0417 = "gemini-2.5-flash-preview-04-17"
 
-	gemini25ProExp0325                = "gemini-2.5-pro-exp-03-25"
-	gemini25ProPreview0325            = "gemini-2.5-pro-preview-03-25"
-	gemini25ProPreview0506            = "gemini-2.5-pro-preview-05-06"
+	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
+	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
+	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
+
+	imagen3Generate001     = "imagen-3.0-generate-001"
+	imagen3Generate002     = "imagen-3.0-generate-002"
+	imagen3FastGenerate001 = "imagen-3.0-fast-generate-001"
+
 	textembedding004                  = "text-embedding-004"
 	embedding001                      = "embedding-001"
 	textembeddinggecko003             = "textembedding-gecko@003"
@@ -58,6 +63,10 @@ var (
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
+
+		imagen3Generate001,
+		imagen3Generate002,
+		imagen3FastGenerate001,
 	}
 
 	googleAIModels = []string{
@@ -74,9 +83,11 @@ var (
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
+
+		imagen3Generate002,
 	}
 
-	// models with native image support generation
+	// Gemini models with native image support generation
 	imageGenModels = []string{
 		gemini20FlashPrevImageGen,
 	}
@@ -180,6 +191,27 @@ var (
 			Versions: []string{},
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
+		},
+	}
+
+	supportedImagenModels = map[string]ai.ModelInfo{
+		imagen3Generate001: {
+			Label:    "Imagen 3 Generate 001",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
+		imagen3Generate002: {
+			Label:    "Imagen 3 Generate 002",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
+		},
+		imagen3FastGenerate001: {
+			Label:    "Imagen 3 Fast Generate 001",
+			Versions: []string{},
+			Supports: &Media,
+			Stage:    ai.ModelStageStable,
 		},
 	}
 
@@ -289,7 +321,7 @@ var (
 // listModels returns a map of supported models and their capabilities
 // based on the detected backend
 func listModels(provider string) (map[string]ai.ModelInfo, error) {
-	names := []string{}
+	var names []string
 	var prefix string
 
 	switch provider {
@@ -305,7 +337,13 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 
 	models := make(map[string]ai.ModelInfo, 0)
 	for _, n := range names {
-		m, ok := supportedGeminiModels[n]
+		var m ai.ModelInfo
+		var ok bool
+		if strings.HasPrefix(n, "image") {
+			m, ok = supportedImagenModels[n]
+		} else {
+			m, ok = supportedGeminiModels[n]
+		}
 		if !ok {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
@@ -342,9 +380,10 @@ func listEmbedders(backend genai.Backend) (map[string]ai.EmbedderOptions, error)
 }
 
 // genaiModels collects all the available models in go-genai SDK
-// TODO: add imagen and veo models
+// TODO: add veo models
 type genaiModels struct {
 	gemini    []string
+	imagen    []string
 	embedders []string
 }
 
@@ -353,6 +392,7 @@ type genaiModels struct {
 func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
 	models := genaiModels{}
 	allowedModels := []string{"gemini", "gemma"}
+	allowedImagenModels := []string{"imagen"}
 
 	for item, err := range client.Models.All(ctx) {
 		var name string
@@ -383,7 +423,15 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 			continue
 		}
 
-		// TODO: add imagen and veo models
+		found = slices.ContainsFunc(allowedImagenModels, func(s string) bool {
+			return strings.Contains(name, s)
+		})
+		// filter out: Aqa, Text-bison, Chat, learnlm
+		if found {
+			models.imagen = append(models.imagen, name)
+			continue
+		}
 	}
+
 	return models, nil
 }

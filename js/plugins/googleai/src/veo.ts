@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-import { GenkitError, z, type Genkit } from 'genkit';
 import {
+  GenerateResponseData,
+  GenkitError,
+  Operation,
+  z,
+  type Genkit,
+} from 'genkit';
+import {
+  BackgroundModelAction,
   modelRef,
   type GenerateRequest,
-  type ModelAction,
   type ModelInfo,
-  type ModelOperation,
   type ModelReference,
 } from 'genkit/model';
 import { getApiKeyFromEnvVar } from './common.js';
@@ -117,7 +122,7 @@ export function defineVeoModel(
   ai: Genkit,
   name: string,
   apiKey?: string | false
-): ModelAction {
+): BackgroundModelAction<typeof VeoConfigSchema> {
   if (apiKey !== false) {
     apiKey = apiKey || getApiKeyFromEnvVar();
     if (!apiKey) {
@@ -139,21 +144,11 @@ export function defineVeoModel(
     configSchema: VeoConfigSchema,
   });
 
-  return ai.defineModel(
-    {
-      name: modelName,
-      ...model.info,
-      configSchema: VeoConfigSchema,
-    },
-    async (request) => {
-      if (request.operation) {
-        const newOp = await checkOp(request.operation.name, apiKey as string);
-        return {
-          finishReason: request.operation.done ? 'stop' : 'pending',
-          operation: toGenkitOp(newOp),
-        };
-      }
-
+  return ai.defineBackgroundModel({
+    name: modelName,
+    ...model.info,
+    configSchema: VeoConfigSchema,
+    async start(request) {
       const instance: VeoInstance = {
         prompt: extractText(request),
       };
@@ -169,26 +164,31 @@ export function defineVeoModel(
       >(model.version || name, apiKey as string, 'predictLongRunning');
       const response = await predictClient([instance], toParameters(request));
 
-      return {
-        finishReason: response.done ? 'stop' : 'pending',
-        operation: toGenkitOp(response),
-        custom: response,
-      };
-    }
-  );
+      return toGenkitOp(response);
+    },
+    async check(operation) {
+      const newOp = await checkOp(operation.id, apiKey as string);
+      return toGenkitOp(newOp);
+    },
+  });
 }
 
-function toGenkitOp(apiOp: ApiOperation): ModelOperation {
-  const res = { name: apiOp.name } as ModelOperation;
+function toGenkitOp(apiOp: ApiOperation): Operation<GenerateResponseData> {
+  const res = { id: apiOp.name } as Operation<GenerateResponseData>;
   if (apiOp.done !== undefined) {
     res.done = apiOp.done;
   }
+
+  if (apiOp.error) {
+    res.error = { message: apiOp.error.message };
+  }
+
   if (
     apiOp.response &&
     apiOp.response.generateVideoResponse &&
     apiOp.response.generateVideoResponse.generatedSamples
   ) {
-    res.response = {
+    res.output = {
       finishReason: 'stop',
       raw: apiOp.response,
       message: {

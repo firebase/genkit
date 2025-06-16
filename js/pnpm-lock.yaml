@@ -591,6 +591,34 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  plugins/google-genai:
+    dependencies:
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
+      google-auth-library:
+        specifier: ^9.14.2
+        version: 9.14.2(encoding@0.1.13)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.17.17
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      tsup:
+        specifier: ^8.3.5
+        version: 8.3.5(postcss@8.4.47)(tsx@4.19.4)(typescript@4.9.5)(yaml@2.7.0)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.19.4
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
   plugins/googleai:
     dependencies:
       '@google/generative-ai':
@@ -903,7 +931,7 @@ importers:
         version: link:../../plugins/compat-oai
       '@genkit-ai/express':
         specifier: ^1.1.0
-        version: 1.8.0(@genkit-ai/core@1.11.1)(express@5.0.1)(genkit@genkit)
+        version: 1.8.0(@genkit-ai/core@1.12.0)(express@5.0.1)(genkit@genkit)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -1465,7 +1493,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.11.1)(@genkit-ai/core@1.11.1)
+        version: 0.10.1(@genkit-ai/ai@1.12.0)(@genkit-ai/core@1.12.0)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2747,11 +2775,11 @@ packages:
   '@firebase/webchannel-wrapper@1.0.3':
     resolution: {integrity: sha512-2xCRM9q9FlzGZCdgDMJwc0gyUkWFtkosy7Xxr6sFgQwn+wMNIWd7xIvYNauU1r64B5L5rsGKy/n9TKJ0aAFeqQ==}
 
-  '@genkit-ai/ai@1.11.1':
-    resolution: {integrity: sha512-E1rlzaShKmvTHxyYGqVaXCsekK9r516wh4XoKv+pcWVG71aWxV05qoI8zMIKFEg8SDj5oLOBYMsyoDDgyfpFqQ==}
+  '@genkit-ai/ai@1.12.0':
+    resolution: {integrity: sha512-0xNVb90JsgxmY4zEtHf4y6qgUXUCa3NfCsirEXKMSjgPYG/HRjxEQD9/qOL4LXL0WZmESJZZ5A+eTNv2TTJO1w==}
 
-  '@genkit-ai/core@1.11.1':
-    resolution: {integrity: sha512-Dfp22tsx3HDA0ZAA5gRoLdWhZzwcoVC42WMPBYCV/0WAToTuXjuwI2cv1D3bMMNZcNuuTTk4uKLuUhILaT/7QQ==}
+  '@genkit-ai/core@1.12.0':
+    resolution: {integrity: sha512-DyS47N+rzqOvVTnQOJTiRkm9ksLxnn1cR3ehRoV1AeT6q335pIpGxilelD9jEpCCKEFXTk2dtaowWWLC3Mw6uw==}
 
   '@genkit-ai/express@1.8.0':
     resolution: {integrity: sha512-Cq5BdxslixkrEJujtMQh8WoSy/gHCBE/hCjqfa6MCqy6CwYGf9p/Y5P8C00gsaf4ymnfTK4HTfLfm60GunA+Mg==}
@@ -8450,9 +8478,9 @@ snapshots:
 
   '@firebase/webchannel-wrapper@1.0.3': {}
 
-  '@genkit-ai/ai@1.11.1':
+  '@genkit-ai/ai@1.12.0':
     dependencies:
-      '@genkit-ai/core': 1.11.1
+      '@genkit-ai/core': 1.12.0
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.17.17
       colorette: 2.0.20
@@ -8464,7 +8492,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.11.1':
+  '@genkit-ai/core@1.12.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.30.1(@opentelemetry/api@1.9.0)
@@ -8487,9 +8515,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/express@1.8.0(@genkit-ai/core@1.11.1)(express@5.0.1)(genkit@genkit)':
+  '@genkit-ai/express@1.8.0(@genkit-ai/core@1.12.0)(express@5.0.1)(genkit@genkit)':
     dependencies:
-      '@genkit-ai/core': 1.11.1
+      '@genkit-ai/core': 1.12.0
       body-parser: 1.20.3
       cors: 2.8.5
       express: 5.0.1
@@ -11562,10 +11590,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.11.1)(@genkit-ai/core@1.11.1):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.12.0)(@genkit-ai/core@1.12.0):
     dependencies:
-      '@genkit-ai/ai': 1.11.1
-      '@genkit-ai/core': 1.11.1
+      '@genkit-ai/ai': 1.12.0
+      '@genkit-ai/core': 1.12.0
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.24.1
     transitivePeerDependencies:
@@ -14358,6 +14386,33 @@ snapshots:
     optionalDependencies:
       postcss: 8.4.47
       typescript: 5.6.3
+    transitivePeerDependencies:
+      - jiti
+      - supports-color
+      - tsx
+      - yaml
+
+  tsup@8.3.5(postcss@8.4.47)(tsx@4.19.4)(typescript@4.9.5)(yaml@2.7.0):
+    dependencies:
+      bundle-require: 5.0.0(esbuild@0.24.0)
+      cac: 6.7.14
+      chokidar: 4.0.1
+      consola: 3.2.3
+      debug: 4.3.7
+      esbuild: 0.24.0
+      joycon: 3.1.1
+      picocolors: 1.1.1
+      postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.19.4)(yaml@2.7.0)
+      resolve-from: 5.0.0
+      rollup: 4.25.0
+      source-map: 0.8.0-beta.0
+      sucrase: 3.35.0
+      tinyexec: 0.3.1
+      tinyglobby: 0.2.10
+      tree-kill: 1.2.2
+    optionalDependencies:
+      postcss: 8.4.47
+      typescript: 4.9.5
     transitivePeerDependencies:
       - jiti
       - supports-color

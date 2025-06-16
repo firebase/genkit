@@ -602,7 +602,6 @@
         "length",
         "blocked",
         "interrupted",
-        "pending",
         "other",
         "unknown"
       ]
@@ -733,9 +732,6 @@
             "$ref": "#/$defs/DocumentData"
           }
         },
-        "operation": {
-          "$ref": "#/$defs/ModelOperation"
-        },
         "candidates": {
           "type": "number"
         }
@@ -794,7 +790,7 @@
           "$ref": "#/$defs/GenerateRequest"
         },
         "operation": {
-          "$ref": "#/$defs/ModelOperation"
+          "$ref": "#/$defs/Operation"
         },
         "candidates": {
           "type": "array",
@@ -962,9 +958,6 @@
             },
             "toolChoice": {
               "type": "boolean"
-            },
-            "longRunning": {
-              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -981,53 +974,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "ModelOperation": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "done": {
-          "type": "boolean"
-        },
-        "request": {
-          "type": "object",
-          "properties": {
-            "model": {
-              "type": "string"
-            },
-            "config": {
-              "type": "object",
-              "additionalProperties": {}
-            }
-          },
-          "required": [
-            "model"
-          ],
-          "additionalProperties": false
-        },
-        "response": {
-          "type": "object",
-          "properties": {
-            "message": {
-              "$ref": "#/$defs/Message"
-            },
-            "finishReason": {
-              "$ref": "#/$defs/FinishReason"
-            },
-            "raw": {}
-          },
-          "required": [
-            "finishReason"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "additionalProperties": true
     },
     "ModelRequest": {
       "type": "object",
@@ -1049,9 +995,6 @@
         },
         "docs": {
           "$ref": "#/$defs/GenerateRequest/properties/docs"
-        },
-        "operation": {
-          "$ref": "#/$defs/GenerateRequest/properties/operation"
         }
       },
       "required": [
@@ -1116,6 +1059,41 @@
       },
       "required": [
         "finishReason"
+      ],
+      "additionalProperties": false
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "done": {
+          "type": "boolean"
+        },
+        "output": {},
+        "error": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "message"
+          ],
+          "additionalProperties": true
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id"
       ],
       "additionalProperties": false
     },

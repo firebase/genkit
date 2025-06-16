@@ -15,8 +15,12 @@
  */
 
 import {
+  BackgroundAction,
   GenkitError,
+  Operation,
+  OperationSchema,
   defineAction,
+  defineBackgroundAction,
   getStreamingCallback,
   z,
   type Action,
@@ -145,8 +149,6 @@ export const ModelInfoSchema = z.object({
       constrained: z.enum(['none', 'all', 'no-tools']).optional(),
       /** Model supports controlling tool choice, e.g. forced tool calling. */
       toolChoice: z.boolean().optional(),
-      /** Model supports long running operation interface. */
-      longRunning: z.boolean().optional(),
     })
     .optional(),
   /** At which stage of development this model is.
@@ -259,42 +261,6 @@ export const OutputConfigSchema = z.object({
   constrained: z.boolean().optional(),
   contentType: z.string().optional(),
 });
-/** Model response finish reason enum. */
-export const FinishReasonSchema = z.enum([
-  'stop',
-  'length',
-  'blocked',
-  'interrupted',
-  'pending',
-  'other',
-  'unknown',
-]);
-
-/**
- * Zod schema of a long running operation.
- */
-export const ModelOperationSchema = z.object({
-  name: z.string(),
-  done: z.boolean().optional(),
-  request: z
-    .object({
-      model: z.string(),
-      config: z.record(z.string(), z.any()).optional(),
-    })
-    .optional(),
-  response: z
-    .object({
-      message: MessageSchema.optional(),
-      finishReason: FinishReasonSchema,
-      raw: z.unknown(),
-    })
-    .optional(),
-});
-
-/**
- * Model operation data.
- */
-export type ModelOperation = z.infer<typeof ModelOperationSchema>;
 
 /**
  * Output config.
@@ -309,9 +275,7 @@ export const ModelRequestSchema = z.object({
   toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   output: OutputConfigSchema.optional(),
   docs: z.array(DocumentDataSchema).optional(),
-  operation: ModelOperationSchema.optional(),
 });
-
 /** ModelRequest represents the parameters that are passed to a model when generating content. */
 export interface ModelRequest<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
@@ -365,6 +329,16 @@ export const GenerationUsageSchema = z.object({
  */
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
 
+/** Model response finish reason enum. */
+export const FinishReasonSchema = z.enum([
+  'stop',
+  'length',
+  'blocked',
+  'interrupted',
+  'other',
+  'unknown',
+]);
+
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export const CandidateSchema = z.object({
   index: z.number(),
@@ -399,7 +373,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
-  operation: ModelOperationSchema.optional(),
+  operation: OperationSchema.optional(),
 });
 
 /**
@@ -450,6 +424,15 @@ export type ModelAction<
   __configSchema: CustomOptionsSchema;
 };
 
+export type BackgroundModelAction<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = BackgroundAction<
+  typeof GenerateRequestSchema,
+  typeof GenerateResponseSchema
+> & {
+  __configSchema: CustomOptionsSchema;
+};
+
 export type ModelMiddleware = SimpleMiddleware<
   z.infer<typeof GenerateRequestSchema>,
   z.infer<typeof GenerateResponseSchema>
@@ -485,23 +468,7 @@ export function defineModel<
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || options.name;
-  const middleware: ModelMiddleware[] = [
-    ...(options.use || []),
-    validateSupport(options),
-  ];
-  if (!options?.supports?.context) middleware.push(augmentWithContext());
-  const constratedSimulator = simulateConstrainedGeneration();
-  middleware.push((req, next) => {
-    if (
-      !options?.supports?.constrained ||
-      options?.supports?.constrained === 'none' ||
-      (options?.supports?.constrained === 'no-tools' &&
-        (req.tools?.length ?? 0) > 0)
-    ) {
-      return constratedSimulator(req, next);
-    }
-    return next(req);
-  });
+  const middleware = getModelMiddleware(options);
   const act = defineAction(
     registry,
     {
@@ -538,6 +505,103 @@ export function defineModel<
     __configSchema: options.configSchema || z.unknown(),
   });
   return act as ModelAction<CustomOptionsSchema>;
+}
+
+export type DefineBackgroundModelOptions<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = DefineModelOptions<CustomOptionsSchema> & {
+  start: (
+    request: GenerateRequest<CustomOptionsSchema>
+  ) => Promise<Operation<GenerateResponseData>>;
+  check: (
+    operation: Operation<GenerateResponseData>
+  ) => Promise<Operation<GenerateResponseData>>;
+  cancel?: (
+    operation: Operation<GenerateResponseData>
+  ) => Promise<Operation<GenerateResponseData>>;
+};
+
+/**
+ * Defines a new model that runs in the background.
+ */
+export function defineBackgroundModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  options: DefineBackgroundModelOptions<CustomOptionsSchema>
+): BackgroundModelAction<CustomOptionsSchema> {
+  const label = options.label || options.name;
+  const middleware = getModelMiddleware(options);
+  const act = defineBackgroundAction(registry, {
+    actionType: 'background-model',
+    name: options.name,
+    description: label,
+    inputSchema: GenerateRequestSchema,
+    outputSchema: GenerateResponseSchema,
+    metadata: {
+      model: {
+        label,
+        customOptions: options.configSchema
+          ? toJsonSchema({ schema: options.configSchema })
+          : undefined,
+        versions: options.versions,
+        supports: options.supports,
+      },
+    },
+    use: middleware,
+    async start(request) {
+      const startTimeMs = performance.now();
+      const response = await options.start(request);
+      Object.assign(response, {
+        latencyMs: performance.now() - startTimeMs,
+      });
+      return response;
+    },
+    async check(op) {
+      return options.check(op);
+    },
+    cancel: options.cancel
+      ? async (op) => {
+          if (!options.cancel) {
+            throw new GenkitError({
+              status: 'UNIMPLEMENTED',
+              message: 'cancel not implemented',
+            });
+          }
+          return options.cancel(op);
+        }
+      : undefined,
+  }) as BackgroundModelAction<CustomOptionsSchema>;
+  Object.assign(act, {
+    __configSchema: options.configSchema || z.unknown(),
+  });
+  return act;
+}
+
+function getModelMiddleware(options: {
+  use?: ModelMiddleware[];
+  name: string;
+  supports?: ModelInfo['supports'];
+}) {
+  const middleware: ModelMiddleware[] = [
+    ...(options.use || []),
+    validateSupport(options),
+  ];
+  if (!options?.supports?.context) middleware.push(augmentWithContext());
+  const constratedSimulator = simulateConstrainedGeneration();
+  middleware.push((req, next) => {
+    if (
+      !options?.supports?.constrained ||
+      options?.supports?.constrained === 'none' ||
+      (options?.supports?.constrained === 'no-tools' &&
+        (req.tools?.length ?? 0) > 0)
+    ) {
+      return constratedSimulator(req, next);
+    }
+    return next(req);
+  });
+
+  return middleware;
 }
 
 export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
@@ -694,7 +758,7 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   }
   if (typeof model === 'string') {
     modelId = model;
-    out = { modelAction: await registry.lookupAction(`/model/${model}`) };
+    out = { modelAction: await lookupModel(registry, model) };
   } else if (model.hasOwnProperty('__action')) {
     modelId = (model as ModelAction).__action.name;
     out = { modelAction: model as ModelAction };
@@ -702,9 +766,7 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
     const ref = model as ModelReference<any>;
     modelId = ref.name;
     out = {
-      modelAction: (await registry.lookupAction(
-        `/model/${ref.name}`
-      )) as ModelAction,
+      modelAction: await lookupModel(registry, ref.name),
       config: {
         ...ref.config,
       },
@@ -729,6 +791,16 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   }
 
   return out;
+}
+
+async function lookupModel(
+  registry: Registry,
+  model: string
+): Promise<ModelAction> {
+  return (
+    (await registry.lookupAction(`/model/${model}`)) ||
+    (await registry.lookupAction(`/background-model/${model}`))
+  );
 }
 
 export const GenerateActionOutputConfig = z.object({
