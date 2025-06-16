@@ -412,7 +412,7 @@ function definePromptAsync<
     name,
     renderOptionsFn,
     rendererAction,
-    metadata
+    metadata,
   });
 
   return executablePrompt;
@@ -454,7 +454,7 @@ function wrapInExecutablePrompt<
     renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
   ) => Promise<GenerateOptions>;
   rendererAction: Promise<PromptAction<I>>;
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>;
 }) {
   const executablePrompt = (async (
     input?: I,
