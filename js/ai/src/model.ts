@@ -235,7 +235,7 @@ export const GenerationCommonConfigSchema = z
       .optional(),
     stopSequences: z
       .array(z.string())
-      .length(5)
+      .max(5)
       .describe(
         'Set of character sequences (up to 5) that will stop output generation.'
       )

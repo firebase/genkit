@@ -39,7 +39,7 @@ import {
 } from './embedder.js';
 import {
   GeminiConfigSchema,
-  SUPPORTED_V15_MODELS,
+  SUPPORTED_GEMINI_MODELS,
   defineGoogleAIModel,
   gemini,
   gemini10Pro,
@@ -108,7 +108,7 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
   }
 
   if (apiVersions.includes('v1beta')) {
-    Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
       defineGoogleAIModel({
         ai,
         name,
@@ -120,7 +120,7 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
     );
   }
   if (apiVersions.includes('v1')) {
-    Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
       defineGoogleAIModel({
         ai,
         name,
