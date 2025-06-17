@@ -11,9 +11,9 @@ source .venv/bin/activate
 ```
 gcloud firestore indexes composite create \
   --project=<FIREBASE-PROJECT>\
-  --collection-group=<COLLECTION-NAME> \
+  --collection-group=films \
   --query-scope=COLLECTION \
-  --field-config=vector-config='{"dimension":"3","flat": "{}"}',field-path=<VECTOR-FIELD>
+  --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=embedding
 ```
 ## Run the sample
 

@@ -47,9 +47,6 @@ type SharedDimensions = {
   modelName?: string;
   featureName?: string;
   path?: string;
-  temperature?: number;
-  topK?: number;
-  topP?: number;
   status?: string;
   source?: string;
   sourceVersion?: string;
@@ -90,16 +87,6 @@ class GenerateTelemetry implements Telemetry {
     valueType: ValueType.INT,
   });
 
-  private inputVideos = new MetricCounter(this._N('generate/input/videos'), {
-    description: 'Counts input videos to a Genkit model.',
-    valueType: ValueType.INT,
-  });
-
-  private inputAudio = new MetricCounter(this._N('generate/input/audio'), {
-    description: 'Counts input audio files to a Genkit model.',
-    valueType: ValueType.INT,
-  });
-
   private outputCharacters = new MetricCounter(
     this._N('generate/output/characters'),
     {
@@ -115,16 +102,6 @@ class GenerateTelemetry implements Telemetry {
 
   private outputImages = new MetricCounter(this._N('generate/output/images'), {
     description: 'Count output images from a Genkit model.',
-    valueType: ValueType.INT,
-  });
-
-  private outputVideos = new MetricCounter(this._N('generate/output/videos'), {
-    description: 'Count output videos from a Genkit model.',
-    valueType: ValueType.INT,
-  });
-
-  private outputAudio = new MetricCounter(this._N('generate/output/audio'), {
-    description: 'Count output audio files from a Genkit model.',
     valueType: ValueType.INT,
   });
 
@@ -247,9 +224,6 @@ class GenerateTelemetry implements Telemetry {
     };
     logger.logStructured(`Config[${path}, ${model}]`, {
       ...sharedMetadata,
-      temperature: input.config?.temperature,
-      topK: input.config?.topK,
-      topP: input.config?.topP,
       maxOutputTokens: input.config?.maxOutputTokens,
       stopSequences: input.config?.stopSequences, // array
       source: 'ts',
@@ -456,15 +430,11 @@ class GenerateTelemetry implements Telemetry {
     this.inputTokens.add(usage.inputTokens, shared);
     this.inputCharacters.add(usage.inputCharacters, shared);
     this.inputImages.add(usage.inputImages, shared);
-    this.inputVideos.add(usage.inputVideos, shared);
-    this.inputAudio.add(usage.inputAudioFiles, shared);
 
     // outputs
     this.outputTokens.add(usage.outputTokens, shared);
     this.outputCharacters.add(usage.outputCharacters, shared);
     this.outputImages.add(usage.outputImages, shared);
-    this.outputVideos.add(usage.outputVideos, shared);
-    this.outputAudio.add(usage.outputAudioFiles, shared);
   }
 }
 

@@ -21,8 +21,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
@@ -31,25 +29,11 @@ import (
 
 const cacheContentsPerPage = 5
 
-var cacheSupportedVersions = []string{
-	"gemini-2.0-flash-lite-001",
-	"gemini-2.0-flash-001",
-
-	"gemini-1.5-flash-001",
-	"gemini-1.5-flash-002",
-
-	"gemini-1.5-pro-001",
-	"gemini-1.5-pro-002",
-}
-
 var invalidArgMessages = struct {
 	modelVersion string
 	tools        string
 	systemPrompt string
 }{
-	modelVersion: fmt.Sprintf(
-		"unsupported model version, expected: %s",
-		strings.Join(cacheSupportedVersions, ", ")),
 	tools:        "tools are not supported with context caching",
 	systemPrompt: "system prompts are not supported with context caching",
 }
@@ -85,7 +69,7 @@ func handleCache(
 		return nil, err
 	}
 
-	messages, err := getMessagesToCache(request.Messages, cs.endIndex)
+	messages, err := messagesToCache(request.Messages, cs.endIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -120,8 +104,8 @@ func handleCache(
 	return cache, nil
 }
 
-// getMessagesToCache collects all the messages that should be cached
-func getMessagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, error) {
+// messagesToCache collects all the messages that should be cached
+func messagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, error) {
 	var messagesToCache []*genai.Content
 	for i := cacheEndIdx; i >= 0; i-- {
 		m := m[i]
@@ -143,9 +127,6 @@ func getMessagesToCache(m []*ai.Message, cacheEndIdx int) ([]*genai.Content, err
 // validateContextCacheRequest checks for supported models and checks if Tools
 // are being provided in the request
 func validateContextCacheRequest(request *ai.ModelRequest, modelVersion string) error {
-	if modelVersion == "" || !slices.Contains(cacheSupportedVersions, modelVersion) {
-		return fmt.Errorf("%s", invalidArgMessages.modelVersion)
-	}
 	if len(request.Tools) > 0 {
 		return fmt.Errorf("%s", invalidArgMessages.tools)
 	}
@@ -236,9 +217,9 @@ func calculateCacheHash(content []*genai.Content) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-// setCacheMetadata writes in the metadata map the cache name used in the
+// cacheMetadata writes in the metadata map the cache name used in the
 // request
-func setCacheMetadata(m map[string]any, cc *genai.CachedContent) map[string]any {
+func cacheMetadata(m map[string]any, cc *genai.CachedContent) map[string]any {
 	// keep the original metadata if no cache was used in the request
 	if cc == nil {
 		return m

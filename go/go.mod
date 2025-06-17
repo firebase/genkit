@@ -17,7 +17,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.4.0
 	github.com/blues/jsonata-go v1.5.4
 	github.com/goccy/go-yaml v1.17.1
-	github.com/google/dotprompt/go v0.0.0-20250424065700-61c578cf43ac
+	github.com/google/dotprompt/go v0.0.0-20250611200215-bb73406b05ca
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
@@ -36,9 +36,9 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.36.0
 	go.opentelemetry.io/otel/trace v1.36.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
-	golang.org/x/tools v0.33.0
-	google.golang.org/api v0.236.0
-	google.golang.org/genai v1.8.0
+	golang.org/x/tools v0.32.0
+	google.golang.org/api v0.230.0
+	google.golang.org/genai v1.11.1
 )
 
 require (

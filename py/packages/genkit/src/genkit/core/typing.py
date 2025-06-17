@@ -189,7 +189,6 @@ class FinishReason(StrEnum):
     LENGTH = 'length'
     BLOCKED = 'blocked'
     INTERRUPTED = 'interrupted'
-    PENDING = 'pending'
     OTHER = 'other'
     UNKNOWN = 'unknown'
 
@@ -266,7 +265,6 @@ class Supports(BaseModel):
     context: bool | None = None
     constrained: Constrained | None = None
     tool_choice: bool | None = Field(None, alias='toolChoice')
-    long_running: bool | None = Field(None, alias='longRunning')
 
 
 class Stage(StrEnum):
@@ -290,12 +288,23 @@ class ModelInfo(BaseModel):
     stage: Stage | None = None
 
 
-class Request(BaseModel):
-    """Model for request data."""
+class Error(BaseModel):
+    """Model for error data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    model: str
-    config: dict[str, Any] | None = None
+    message: str
+
+
+class Operation(BaseModel):
+    """Model for operation data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    action: str | None = None
+    id: str
+    done: bool | None = None
+    output: Any | None = None
+    error: Error | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class OutputConfig(BaseModel):
@@ -798,25 +807,6 @@ class Message(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
-class Response(BaseModel):
-    """Model for response data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    message: Message | None = None
-    finish_reason: FinishReason = Field(..., alias='finishReason')
-    raw: Any | None = None
-
-
-class ModelOperation(BaseModel):
-    """Model for modeloperation data."""
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    name: str
-    done: bool | None = None
-    request: Request | None = None
-    response: Response | None = None
-
-
 class ModelResponseChunk(BaseModel):
     """Model for modelresponsechunk data."""
 
@@ -847,12 +837,6 @@ class Messages(RootModel[list[Message]]):
     """Root model for messages."""
 
     root: list[Message]
-
-
-class Operation(RootModel[ModelOperation]):
-    """Root model for operation."""
-
-    root: ModelOperation
 
 
 class DocumentData(BaseModel):
@@ -909,7 +893,6 @@ class GenerateRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputConfig | None = None
     docs: list[DocumentData] | None = None
-    operation: ModelOperation | None = None
     candidates: float | None = None
 
 
@@ -925,7 +908,7 @@ class GenerateResponse(BaseModel):
     custom: Any | None = None
     raw: Any | None = None
     request: GenerateRequest | None = None
-    operation: ModelOperation | None = None
+    operation: Operation | None = None
     candidates: list[Candidate] | None = None
 
 
@@ -959,8 +942,8 @@ class Docs(RootModel[list[DocumentData]]):
     root: list[DocumentData]
 
 
-class RequestModel(RootModel[GenerateRequest]):
-    """Root model for requestmodel."""
+class Request(RootModel[GenerateRequest]):
+    """Root model for request."""
 
     root: GenerateRequest
 
@@ -975,7 +958,6 @@ class ModelRequest(BaseModel):
     tool_choice: ToolChoice | None = Field(None, alias='toolChoice')
     output: OutputModel | None = None
     docs: Docs | None = None
-    operation: Operation | None = None
 
 
 class ModelResponse(BaseModel):
@@ -989,5 +971,5 @@ class ModelResponse(BaseModel):
     usage: Usage | None = None
     custom: CustomModel | None = None
     raw: Raw | None = None
-    request: RequestModel | None = None
+    request: Request | None = None
     operation: Operation | None = None

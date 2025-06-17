@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
@@ -27,31 +26,35 @@ import (
 
 func main() {
 	ctx := context.Background()
-
-	// Initialize Genkit with the Google AI plugin. When you pass nil for the
-	// Config parameter, the Google AI plugin will get the API key from the
-	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
-	// practice.
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.VertexAI{}))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Define a simple flow that generates jokes about a given topic with a context of bananas
-	genkit.DefineFlow(g, "contextFlow", func(ctx context.Context, input string) (string, error) {
-		resp, err := genkit.Generate(ctx, g,
-			ai.WithModelName("googleai/gemini-2.0-flash"),
-			ai.WithConfig(&genai.GenerateContentConfig{
-				Temperature: genai.Ptr[float32](1.0),
+	genkit.DefineFlow(g, "image-generation", func(ctx context.Context, input string) ([]string, error) {
+		r, err := genkit.Generate(ctx, g,
+			ai.WithModelName("vertexai/imagen-3.0-generate-001"),
+			ai.WithPrompt("Generate an image of %s", input),
+			ai.WithConfig(&genai.GenerateImagesConfig{
+				NumberOfImages:    2,
+				NegativePrompt:    "night",
+				AspectRatio:       "9:16",
+				SafetyFilterLevel: genai.SafetyFilterLevelBlockLowAndAbove,
+				PersonGeneration:  genai.PersonGenerationAllowAll,
+				Language:          genai.ImagePromptLanguageEn,
+				AddWatermark:      true,
+				OutputMIMEType:    "image/jpeg",
 			}),
-			ai.WithPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)),
-			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))
+		)
 		if err != nil {
-			return "", err
+			log.Fatal(err)
 		}
 
-		text := resp.Text()
-		return text, nil
+		var images []string
+		for _, m := range r.Message.Content {
+			images = append(images, m.Text)
+		}
+		return images, nil
 	})
 
 	<-ctx.Done()
