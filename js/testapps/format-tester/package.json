@@ -17,7 +17,7 @@
   "dependencies": {
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
-    "@opentelemetry/sdk-trace-base": "^1.25.0",
+    "@opentelemetry/sdk-trace-base": "~1.25.0",
     "genkit": "workspace:*"
   },
   "devDependencies": {
