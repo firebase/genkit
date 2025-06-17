@@ -24,7 +24,7 @@ import (
 
 func TestIndex_Success_NoDocuments(t *testing.T) {
 	ds := DocStore{}
-	err := ds.Index(context.Background(), &ai.IndexerRequest{})
+	err := ds.Index(context.Background(), nil)
 	require.NoError(t, err)
 
 }
@@ -34,17 +34,15 @@ func TestIndex_Fail_EmbedReturnError(t *testing.T) {
 		config: &Config{Embedder: mockEmbedderFail{}},
 	}
 
-	req := &ai.IndexerRequest{
-		Documents: []*ai.Document{{
-			Content: []*ai.Part{{
-				Kind:        ai.PartText,
-				ContentType: "text/plain",
-				Text:        "This is a test",
-			}},
-			Metadata: nil,
+	docs := []*ai.Document{{
+		Content: []*ai.Part{{
+			Kind:        ai.PartText,
+			ContentType: "text/plain",
+			Text:        "This is a test",
 		}},
-		Options: nil}
+		Metadata: nil,
+	}}
 
-	err := ds.Index(context.Background(), req)
+	err := ds.Index(context.Background(), docs)
 	require.Error(t, err)
 }
