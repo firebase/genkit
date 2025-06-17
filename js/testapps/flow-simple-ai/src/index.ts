@@ -988,6 +988,7 @@ ai.defineFlow(
   },
   async (query) => {
     const { media } = await ai.generate({
+      // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
         responseModalities: ['AUDIO'],
