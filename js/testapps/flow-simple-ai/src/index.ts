@@ -983,10 +983,10 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
 ai.defineFlow(
   {
     name: 'audioSimple',
-    inputSchema: z.string(),
+    inputSchema: z
       .string()
-      .default(	
-        'say that that Genkit (G pronounced as J) is an amazing Gen AI library'	
+      .default(
+        'say that that Genkit (G pronounced as J) is an amazing Gen AI library'
       ),
     outputSchema: z.object({ media: z.string() }),
   },
