@@ -70,6 +70,9 @@ Then, specify the plugin when you initialize Genkit:
 	}
 
 	g, err := genkit.Init(ctx, genkit.WithPlugins(postgres))
+  if err != nil {
+    return nil
+}
 
 // To use the table you configured when you loaded the plugin:
 
@@ -91,24 +94,18 @@ if err != nil {
   retrun err
 }
 
-ireq := &ai.IndexerRequest{
-    Documents: []*ai.Document{{
-      Content: []*ai.Part{{
-        Kind:        ai.PartText,
-        ContentType: "text/plain",
-        Text:        "The product features include...",
-      }},
-      Metadata: map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"},
-    }},
-    Options: nil
-}
+docs := []*ai.Document{{
+  Content: []*ai.Part{{
+    Kind:        ai.PartText,
+    ContentType: "text/plain",
+    Text:        "The product features include...",
+  }},
+  Metadata: map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"},
+}}
 
-
-d1 := ai.DocumentFromText( "The product features include..." , map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"})
-if err := doc.Index(ctx, ireq); err != nil {
+if err := doc.Index(ctx, docs); err != nil {
  return err
 }
-
 
 d2 := ai.DocumentFromText( "The product features include..." , nil)
 
