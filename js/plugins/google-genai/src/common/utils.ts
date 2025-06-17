@@ -18,6 +18,28 @@ import { EmbedderReference, JSONSchema, ModelReference } from 'genkit';
 import { GenerationCommonConfigSchema } from 'genkit/model';
 
 /**
+ * Safely extracts the error message from the error.
+ * @param e The error
+ * @returns The error message
+ */
+export function extractErrMsg(e: unknown): string {
+  let errorMessage = 'An unknown error occurred';
+  if (e instanceof Error) {
+    errorMessage = e.message;
+  } else if (typeof e === 'string') {
+    errorMessage = e;
+  } else {
+    // Fallback for other types
+    try {
+      errorMessage = JSON.stringify(e);
+    } catch (stringifyError) {
+      errorMessage = 'Failed to stringify error object';
+    }
+  }
+  return errorMessage;
+}
+
+/**
  * Finds the nearest model reference based on a provided version string.
  *
  * @param {string} version The version string to match against.
