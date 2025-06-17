@@ -262,9 +262,7 @@ export class Genkit implements HasRegistry {
     options: DefineModelOptions<CustomOptionsSchema>,
     runner: (
       request: GenerateRequest<CustomOptionsSchema>,
-      streamingCallback:
-        | StreamingCallback<GenerateResponseChunkData>
-        | undefined
+      streamingCallback?: StreamingCallback<GenerateResponseChunkData>
     ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema>;
 
