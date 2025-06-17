@@ -633,7 +633,9 @@ export function modelActionMetadata({
     actionType: background ? 'background-model' : 'model',
     name: name,
     inputJsonSchema: toJsonSchema({ schema: GenerateRequestSchema }),
-    outputJsonSchema: toJsonSchema({ schema: OperationSchema }),
+    outputJsonSchema: background
+      ? toJsonSchema({ schema: OperationSchema })
+      : toJsonSchema({ schema: GenerateResponseSchema }),
     metadata: {
       model: {
         ...info,
