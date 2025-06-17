@@ -59,7 +59,9 @@ export function extractOuterFeatureNameFromPath(path: string) {
     return '<unknown>';
   }
   const first = path.split('/')[1];
-  const featureName = first?.match('{(.+),t:(flow|action|prompt|dotprompt|helper)');
+  const featureName = first?.match(
+    '{(.+),t:(flow|action|prompt|dotprompt|helper)'
+  );
   return featureName ? featureName[1] : '<unknown>';
 }
 
