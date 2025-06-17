@@ -28,13 +28,13 @@ import (
 )
 
 // Index is used to index documents .
-func (ds *DocStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
-	if len(req.Documents) == 0 {
+func (ds *DocStore) Index(ctx context.Context, docs []*ai.Document) error {
+	if len(docs) == 0 {
 		return nil
 	}
 
 	ereq := &ai.EmbedRequest{
-		Input:   req.Documents,
+		Input:   docs,
 		Options: ds.config.EmbedderOptions,
 	}
 	eres, err := ds.config.Embedder.Embed(ctx, ereq)
@@ -44,7 +44,7 @@ func (ds *DocStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 
 	b := &pgx.Batch{}
 
-	for i, doc := range req.Documents {
+	for i, doc := range docs {
 		// if no metadata provided, initialize with empty map
 		if doc.Metadata == nil {
 			doc.Metadata = make(map[string]any)
