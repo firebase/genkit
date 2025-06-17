@@ -17,35 +17,34 @@ package compat_oai
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/openai/openai-go"
 	openaiGo "github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
 
 var (
 	// BasicText describes model capabilities for text-only GPT models.
-	BasicText = ai.ModelInfo{
-		Supports: &ai.ModelSupports{
-			Multiturn:  true,
-			Tools:      true,
-			SystemRole: true,
-			Media:      false,
-		},
+	BasicText = ai.ModelSupports{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      false,
 	}
 
 	// Multimodal describes model capabilities for multimodal GPT models.
-	Multimodal = ai.ModelInfo{
-		Supports: &ai.ModelSupports{
-			Multiturn:  true,
-			Tools:      true,
-			SystemRole: true,
-			Media:      true,
-			ToolChoice: true,
-		},
+	Multimodal = ai.ModelSupports{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      true,
+		ToolChoice: true,
 	}
 )
 
@@ -110,7 +109,6 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, 
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-
 		// Configure the response generator with input
 		generator := NewModelGenerator(o.client, modelName).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools, input.ToolChoice)
 
@@ -183,4 +181,71 @@ func (o *OpenAICompatible) Model(g *genkit.Genkit, name string, provider string)
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
 func (o *OpenAICompatible) IsDefinedModel(g *genkit.Genkit, name string, provider string) bool {
 	return genkit.LookupModel(g, provider, name) != nil
+}
+
+func (o *OpenAICompatible) ListActions(ctx context.Context) []core.ActionDesc {
+	actions := []core.ActionDesc{}
+
+	models, err := listOpenAIModels(ctx, o.client)
+	if err != nil {
+		return nil
+	}
+	for _, name := range models {
+		metadata := map[string]any{
+			"model": map[string]any{
+				"supports": map[string]any{
+					"media":       true,
+					"multiturn":   true,
+					"systemRole":  true,
+					"tools":       true,
+					"toolChoice":  true,
+					"constrained": true,
+				},
+			},
+			"versions": []string{},
+			"stage":    string(ai.ModelStageStable),
+		}
+		metadata["label"] = fmt.Sprintf("%s - %s", o.Provider, name)
+
+		actions = append(actions, core.ActionDesc{
+			Type:     core.ActionTypeModel,
+			Name:     fmt.Sprintf("%s/%s", o.Provider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, o.Provider, name),
+			Metadata: metadata,
+		})
+	}
+
+	return actions
+}
+
+func (o *OpenAICompatible) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+	switch atype {
+	case core.ActionTypeModel:
+		o.DefineModel(g, o.Provider, name, ai.ModelInfo{
+			Label:    fmt.Sprintf("%s - %s", o.Provider, name),
+			Stage:    ai.ModelStageStable,
+			Versions: []string{},
+			Supports: &Multimodal,
+		})
+	}
+
+	return nil
+}
+
+func listOpenAIModels(ctx context.Context, client *openai.Client) ([]string, error) {
+	models := []string{}
+	iter := client.Models.ListAutoPaging(ctx)
+	for iter.Next() {
+		m := iter.Current()
+		if m.Object != "model" {
+			continue
+		}
+		fmt.Printf("(openai) model: %s\n", m.ID)
+		models = append(models, m.ID)
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+
+	return models, nil
 }
