@@ -520,14 +520,13 @@ export function defineModel<
     },
     (input, ctx) => {
       const startTimeMs = performance.now();
-      return runner(
-        input,
+      const secondParam =
         options.apiVersion === 'v2'
           ? ctx
           : getStreamingCallback(registry) ||
-              (ctx.streamingRequested && ctx.sendChunk) ||
-              undefined
-      ).then((response) => {
+            (ctx.streamingRequested && ctx.sendChunk) ||
+            undefined;
+      return runner(input, secondParam).then((response) => {
         const timedResponse = {
           ...response,
           latencyMs: performance.now() - startTimeMs,
