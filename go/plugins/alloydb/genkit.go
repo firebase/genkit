@@ -42,15 +42,15 @@ func (p *Postgres) Init(ctx context.Context, g *genkit.Genkit) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.initted {
-		panic("postgres.Init already initted")
+		return fmt.Errorf("postgres.Init already initted")
 	}
 
 	if p.engine == nil {
-		panic("postgres.Init engine is nil")
+		return fmt.Errorf("postgres.Init engine is nil")
 	}
 
 	if p.engine.Pool == nil {
-		panic("postgres.Init engine has no pool")
+		return fmt.Errorf("postgres.Init engine has no pool")
 	}
 	p.initted = true
 	return nil
