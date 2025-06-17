@@ -320,8 +320,9 @@ function aggregateResponses(
               parts: [],
             };
           }
-          const newPart: Partial<Part> = {};
+
           for (const part of candidate.content.parts) {
+            const newPart: Partial<Part> = {};
             if (part.text) {
               newPart.text = part.text;
             }
