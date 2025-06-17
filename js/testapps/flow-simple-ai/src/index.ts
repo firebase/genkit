@@ -984,6 +984,10 @@ ai.defineFlow(
   {
     name: 'audioSimple',
     inputSchema: z.string(),
+      .string()
+      .default(	
+        'say that that Genkit (G pronounced as J) is an amazing Gen AI library'	
+      ),
     outputSchema: z.object({ media: z.string() }),
   },
   async (query) => {
