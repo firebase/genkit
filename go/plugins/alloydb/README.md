@@ -95,19 +95,17 @@ if err != nil {
   retrun err
 }
 
-ireq := &ai.IndexerRequest{
-      Documents: []*ai.Document{{
-        Content: []*ai.Part{{
-        Kind:        ai.PartText,
-        ContentType: "text/plain",
-        Text:        "The product features include...",
-        }},
-      Metadata: map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"},
-  }},
-  Options: nil
-}
 
-if err := doc.Index(ctx, ireq); err != nil {
+docs: []*ai.Document{{
+  Content: []*ai.Part{{
+  Kind:        ai.PartText,
+  ContentType: "text/plain",
+  Text:        "The product features include...",
+  }},
+  Metadata: map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"},
+}}
+
+if err := doc.Index(ctx, docs); err != nil {
     return err
 }
 
