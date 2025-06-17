@@ -71,6 +71,9 @@ Then, specify the plugin when you initialize Genkit:
 	}
 
 	g, err := genkit.Init(ctx, genkit.WithPlugins(postgres))
+  if err != nil {
+    return err
+  }
 
 // To use the table you configured when you loaded the plugin:
 
@@ -86,23 +89,11 @@ Then, specify the plugin when you initialize Genkit:
     EmbedderOptions:       nil,
   }
 
-  indexer, err := DefineIndexer(ctx, g, postgres, cfg)
-  if err != nil {
-    return err
-  }
-
-	d1 := ai.DocumentFromText( "The product features include..." , map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"})
-  err := ai.Index(ctx, indexer, ai.WithIndexerDocs(d1))
-  if err != nil {
-    return err
-  }
-
 // To index and retrieve from the configured table:
 doc, retriever, err := DefineRetriever(ctx, g, postgres, cfg)
 if err != nil {
   retrun err
 }
-
 
 ireq := &ai.IndexerRequest{
       Documents: []*ai.Document{{
@@ -116,19 +107,16 @@ ireq := &ai.IndexerRequest{
   Options: nil
 }
 
-d1 := ai.DocumentFromText( "The product features include..." , map[string]any{"source": "website", "category": "product-docs", "custom_id": "doc-123"})
 if err := doc.Index(ctx, ireq); err != nil {
     return err
 }
 
 d2 := ai.DocumentFromText( "The product features include..." , nil)
-
 resp, err := retriever.Retrieve(ctx, &ai.RetrieverRequest{
     Query: d2,
     k:5,
     filter: "source='website' AND category='product-docs'"
 })
-
 if err != nil {
     retrun err
 }
