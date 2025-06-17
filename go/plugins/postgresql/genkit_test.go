@@ -50,13 +50,10 @@ func TestInit_NoConnectionPool(t *testing.T) {
 	ctx := context.Background()
 	cfg := engineConfig{}
 	engine := &PostgresEngine{Pool: cfg.connPool}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("panic not called")
-		}
-	}()
 	gcsp := &Postgres{engine: engine}
-	_ = gcsp.Init(ctx, &genkit.Genkit{})
+	if err := gcsp.Init(ctx, &genkit.Genkit{}); err == nil {
+		t.Fatal("must fail if connection pool is nil")
+	}
 }
 
 func TestInit_AlreadyCalled(t *testing.T) {
@@ -72,12 +69,6 @@ func TestInit_AlreadyCalled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("panic not called")
-		}
-	}()
 
 	g := &genkit.Genkit{}
 
