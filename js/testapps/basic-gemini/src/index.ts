@@ -40,7 +40,7 @@ export const jokeFlow = ai.defineFlow(
       prompt: `Tell me a really funny joke about ${subject}`,
     });
     if (!llmResponse.output) {
-      throw new Error('oh no!');
+      throw new Error('Failed to generate a response from the AI model. Please check the model configuration and input data.');
     }
     return llmResponse.output!;
   }
