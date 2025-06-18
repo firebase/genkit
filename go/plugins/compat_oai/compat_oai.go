@@ -237,10 +237,6 @@ func listOpenAIModels(ctx context.Context, client *openai.Client) ([]string, err
 	iter := client.Models.ListAutoPaging(ctx)
 	for iter.Next() {
 		m := iter.Current()
-		if m.Object != "model" {
-			continue
-		}
-		fmt.Printf("(openai) model: %s\n", m.ID)
 		models = append(models, m.ID)
 	}
 	if err := iter.Err(); err != nil {
