@@ -603,7 +603,6 @@ importers:
       '@types/node':
         specifier: ^20.11.16
         version: 20.19.1
-        version: 20.17.17
       '@types/sinon':
         specifier: ^17.0.4
         version: 17.0.4
