@@ -168,6 +168,7 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 		o.openAICompatible.Opts = append(o.openAICompatible.Opts, o.Opts...)
 	}
 
+	o.openAICompatible.Provider = provider
 	if err := o.openAICompatible.Init(ctx, g); err != nil {
 		return err
 	}

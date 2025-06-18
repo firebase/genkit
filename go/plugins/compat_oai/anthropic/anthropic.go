@@ -99,6 +99,7 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) error {
 
 	// initialize OpenAICompatible
 	a.openAICompatible.Opts = a.Opts
+	a.openAICompatible.Provider = provider
 	if err := a.openAICompatible.Init(ctx, g); err != nil {
 		return err
 	}
