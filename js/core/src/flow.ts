@@ -16,8 +16,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { z } from 'zod';
-import { defineAction, type Action, type StreamingCallback } from './action.js';
-import type { ActionContext } from './context.js';
+import { ActionFnArg, defineAction, type Action } from './action.js';
 import { Registry, type HasRegistry } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
@@ -55,26 +54,8 @@ export interface FlowConfig<
  * side-channel context data. The context itself is a function, a short-cut
  * for streaming callback.
  */
-export interface FlowSideChannel<S> {
+export interface FlowSideChannel<S> extends ActionFnArg<S> {
   (chunk: S): void;
-
-  /**
-   * Streaming callback (optional).
-   */
-  sendChunk: StreamingCallback<S>;
-
-  /**
-   * Additional runtime context data (ex. auth context data).
-   */
-  context?: ActionContext;
-
-  /**
-   * Trace context containing trace and span IDs.
-   */
-  trace: {
-    traceId: string;
-    spanId: string;
-  };
 }
 
 /**
@@ -131,12 +112,18 @@ function defineFlowAction<
       streamSchema: config.streamSchema,
       metadata: config.metadata,
     },
-    async (input, { sendChunk, context, trace }) => {
+    async (
+      input,
+      { sendChunk, context, trace, abortSignal, streamingRequested }
+    ) => {
       return await legacyRegistryAls.run(registry, () => {
         const ctx = sendChunk;
         (ctx as FlowSideChannel<z.infer<S>>).sendChunk = sendChunk;
         (ctx as FlowSideChannel<z.infer<S>>).context = context;
         (ctx as FlowSideChannel<z.infer<S>>).trace = trace;
+        (ctx as FlowSideChannel<z.infer<S>>).abortSignal = abortSignal;
+        (ctx as FlowSideChannel<z.infer<S>>).streamingRequested =
+          streamingRequested;
         return fn(input, ctx as FlowSideChannel<z.infer<S>>);
       });
     }

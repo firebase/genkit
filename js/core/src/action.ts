@@ -29,6 +29,13 @@ import {
 export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
 export type { JSONSchema7 };
 
+const makeNoopAbortSignal = () =>
+  ({
+    aborted: false,
+    onabort(ev) {},
+    throwIfAborted() {},
+  }) as AbortSignal;
+
 /**
  * Action metadata.
  */
@@ -78,12 +85,22 @@ export interface ActionRunOptions<S> {
    * Additional span attributes to apply to OT spans.
    */
   telemetryLabels?: Record<string, string>;
+
+  /**
+   * Abort signal for the action request.
+   */
+  abortSignal?: AbortSignal;
 }
 
 /**
  * Options (side channel) data to pass to the model.
  */
 export interface ActionFnArg<S> {
+  /**
+   * Whether the caller of the action requested streaming.
+   */
+  streamingRequested: boolean;
+
   /**
    * Streaming callback (optional).
    */
@@ -101,6 +118,11 @@ export interface ActionFnArg<S> {
     traceId: string;
     spanId: string;
   };
+
+  /**
+   * Abort signal for the action request.
+   */
+  abortSignal: AbortSignal;
 }
 
 /**
@@ -368,12 +390,16 @@ export function detachedAction<
                     ...registry.context,
                     ...(options?.context ?? getContext(registry)),
                   },
+                  streamingRequested:
+                    !!options?.onChunk &&
+                    options.onChunk !== sentinelNoopStreamingCallback,
                   sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
                   trace: {
                     traceId,
                     spanId,
                   },
                   registry,
+                  abortSignal: options?.abortSignal ?? makeNoopAbortSignal(),
                 });
               // if context is explicitly passed in, we run action with the provided context,
               // otherwise we let upstream context carry through.

@@ -15,6 +15,7 @@
  */
 
 import {
+  ActionFnArg,
   BackgroundAction,
   GenkitError,
   Operation,
@@ -461,10 +462,37 @@ export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
+  options: {
+    apiVersion: 'v2';
+  } & DefineModelOptions<CustomOptionsSchema>,
+  runner: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options: ActionFnArg<GenerateResponseChunkData>
+  ) => Promise<GenerateResponseData>
+): ModelAction<CustomOptionsSchema>;
+
+/**
+ * Defines a new model and adds it to the registry.
+ */
+export function defineModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
   options: DefineModelOptions<CustomOptionsSchema>,
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+  ) => Promise<GenerateResponseData>
+): ModelAction<CustomOptionsSchema>;
+
+export function defineModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  options: any,
+  runner: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options: any
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || options.name;
@@ -489,10 +517,15 @@ export function defineModel<
       },
       use: middleware,
     },
-    (input) => {
+    (input, ctx) => {
       const startTimeMs = performance.now();
-
-      return runner(input, getStreamingCallback(registry)).then((response) => {
+      const secondParam =
+        options.apiVersion === 'v2'
+          ? ctx
+          : getStreamingCallback(registry) ||
+            (ctx.streamingRequested && ctx.sendChunk) ||
+            undefined;
+      return runner(input, secondParam).then((response) => {
         const timedResponse = {
           ...response,
           latencyMs: performance.now() - startTimeMs,
