@@ -1212,3 +1212,62 @@ ai.defineFlow('meme-of-the-day', async () => {
 
   return operation;
 });
+
+ai.defineFlow('photo-move-veo', async () => {
+  const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  let { operation } = await ai.generate({
+    model: googleAI.model('veo-2.0-generate-001'),
+    prompt: [
+      {
+        text: 'make it move',
+      },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${startingImage}`,
+        },
+      },
+    ],
+    config: {
+      durationSeconds: 8,
+      aspectRatio: '16:9',
+      personGeneration: 'allow_adult',
+    },
+  });
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    console.log('check status', operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  // operation done, download generated video to Firebae Storage
+
+  const video = operation.output?.message?.content.find((p) => !!p.media);
+  if (!video) {
+    throw new Error('Failed to find the generated video');
+  }
+
+  const fetch = (await import('node-fetch')).default;
+  const videoDownloadResponse = await fetch(
+    `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
+  );
+  if (
+    !videoDownloadResponse ||
+    videoDownloadResponse.status !== 200 ||
+    !videoDownloadResponse.body
+  ) {
+    throw new Error('Failed to fetch');
+  }
+
+  Readable.from(videoDownloadResponse.body).pipe(
+    fs.createWriteStream('photo.mp4')
+  );
+
+  return operation;
+});
