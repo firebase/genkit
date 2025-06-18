@@ -34,6 +34,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import {
+  MediaPart,
   MessageSchema,
   dynamicTool,
   genkit,
@@ -1187,28 +1188,16 @@ ai.defineFlow('meme-of-the-day', async () => {
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 
-  // operation done, download generated video to Firebae Storage
+  if (operation.error) {
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
 
+  // operation done, download generated video to disk
   const video = operation.output?.message?.content.find((p) => !!p.media);
   if (!video) {
     throw new Error('Failed to find the generated video');
   }
-
-  const fetch = (await import('node-fetch')).default;
-  const videoDownloadResponse = await fetch(
-    `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
-  );
-  if (
-    !videoDownloadResponse ||
-    videoDownloadResponse.status !== 200 ||
-    !videoDownloadResponse.body
-  ) {
-    throw new Error('Failed to fetch');
-  }
-
-  Readable.from(videoDownloadResponse.body).pipe(
-    fs.createWriteStream('meme-of-the-day.mp4')
-  );
+  await downloadVideo(video, 'meme-of-the-day.mp4');
 
   return operation;
 });
@@ -1230,8 +1219,8 @@ ai.defineFlow('photo-move-veo', async () => {
       },
     ],
     config: {
-      durationSeconds: 8,
-      aspectRatio: '16:9',
+      durationSeconds: 5,
+      aspectRatio: '9:16',
       personGeneration: 'allow_adult',
     },
   });
@@ -1246,13 +1235,22 @@ ai.defineFlow('photo-move-veo', async () => {
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 
-  // operation done, download generated video to disk
+  if (operation.error) {
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
 
+  // operation done, download generated video to disk
   const video = operation.output?.message?.content.find((p) => !!p.media);
   if (!video) {
     throw new Error('Failed to find the generated video');
   }
 
+  await downloadVideo(video, 'photo.mp4');
+
+  return operation;
+});
+
+async function downloadVideo(video: MediaPart, path: string) {
   const fetch = (await import('node-fetch')).default;
   const videoDownloadResponse = await fetch(
     `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
@@ -1262,12 +1260,8 @@ ai.defineFlow('photo-move-veo', async () => {
     videoDownloadResponse.status !== 200 ||
     !videoDownloadResponse.body
   ) {
-    throw new Error('Failed to fetch');
+    throw new Error('Failed to fetch video');
   }
 
-  Readable.from(videoDownloadResponse.body).pipe(
-    fs.createWriteStream('photo.mp4')
-  );
-
-  return operation;
-});
+  Readable.from(videoDownloadResponse.body).pipe(fs.createWriteStream(path));
+}
