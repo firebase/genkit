@@ -1,0 +1,97 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Build CLI Binaries
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: macos-latest
+            target: darwin-x64
+          - os: macos-13
+            target: darwin-x64-intel
+          - os: windows-latest
+            target: win32-x64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.11.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build workspace packages
+        run: |
+          cd genkit-tools
+          pnpm build:common
+          pnpm build:telemetry-server
+          pnpm build:cli
+      
+      - name: Set binary extension
+        id: binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == win32-* ]]; then
+            echo "ext=.exe" >> $GITHUB_OUTPUT
+          else
+            echo "ext=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Compile binary
+        run: |
+          cd genkit-tools/cli
+          bun build src/bin/genkit.ts \
+            --compile \
+            --target=bun \
+            --outfile dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
+      
+      - name: Test binary
+        shell: bash
+        run: |
+          cd genkit-tools/cli
+          ./dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} --version
+      
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: genkit-${{ matrix.target }}
+          path: genkit-tools/cli/dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
+          retention-days: 1
