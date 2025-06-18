@@ -22,26 +22,36 @@ const ai = genkit({
   plugins: [googleAI(), vertexAI()],
 });
 
+const jokeSubjectGenerator = ai.defineTool(
+  {
+    name: 'jokeSubjectGenerator',
+    description: 'Can be called to generate a subject for a joke',
+  },
+  async () => {
+    return 'banana';
+  }
+);
+
 export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
-    inputSchema: z.object({ subject: z.string() }),
-    outputSchema: z.object({ joke: z.string() }),
+    inputSchema: z.void(),
+    outputSchema: z.any(),
   },
-  async ({ subject }) => {
+  async () => {
     const llmResponse = await ai.generate({
       model: gemini15Flash,
       config: {
-        temperature: 0.7,
+        temperature: 2,
+        // if desired, model versions can be explicitly set
+        version: 'gemini-1.5-flash-002',
       },
       output: {
-        schema: z.object({ joke: z.string() }),
+        schema: z.object({ jokeSubject: z.string() }),
       },
-      prompt: `Tell me a really funny joke about ${subject}`,
+      tools: [jokeSubjectGenerator],
+      prompt: `come up with a subject to joke about (using the function provided)`,
     });
-    if (!llmResponse.output) {
-      throw new Error('Failed to generate a response from the AI model. Please check the model configuration and input data.');
-    }
-    return llmResponse.output!;
+    return llmResponse.output;
   }
 );
