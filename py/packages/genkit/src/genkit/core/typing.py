@@ -288,6 +288,25 @@ class ModelInfo(BaseModel):
     stage: Stage | None = None
 
 
+class Error(BaseModel):
+    """Model for error data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    message: str
+
+
+class Operation(BaseModel):
+    """Model for operation data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    action: str | None = None
+    id: str
+    done: bool | None = None
+    output: Any | None = None
+    error: Error | None = None
+    metadata: dict[str, Any] | None = None
+
+
 class OutputConfig(BaseModel):
     """Model for outputconfig data."""
 
@@ -889,6 +908,7 @@ class GenerateResponse(BaseModel):
     custom: Any | None = None
     raw: Any | None = None
     request: GenerateRequest | None = None
+    operation: Operation | None = None
     candidates: list[Candidate] | None = None
 
 
@@ -952,3 +972,4 @@ class ModelResponse(BaseModel):
     custom: CustomModel | None = None
     raw: Raw | None = None
     request: Request | None = None
+    operation: Operation | None = None

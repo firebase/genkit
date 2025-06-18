@@ -47,9 +47,6 @@ type SharedDimensions = {
   modelName?: string;
   featureName?: string;
   path?: string;
-  temperature?: number;
-  topK?: number;
-  topP?: number;
   status?: string;
   source?: string;
   sourceVersion?: string;
@@ -90,16 +87,6 @@ class GenerateTelemetry implements Telemetry {
     valueType: ValueType.INT,
   });
 
-  private inputVideos = new MetricCounter(this._N('generate/input/videos'), {
-    description: 'Counts input videos to a Genkit model.',
-    valueType: ValueType.INT,
-  });
-
-  private inputAudio = new MetricCounter(this._N('generate/input/audio'), {
-    description: 'Counts input audio files to a Genkit model.',
-    valueType: ValueType.INT,
-  });
-
   private outputCharacters = new MetricCounter(
     this._N('generate/output/characters'),
     {
@@ -115,16 +102,6 @@ class GenerateTelemetry implements Telemetry {
 
   private outputImages = new MetricCounter(this._N('generate/output/images'), {
     description: 'Count output images from a Genkit model.',
-    valueType: ValueType.INT,
-  });
-
-  private outputVideos = new MetricCounter(this._N('generate/output/videos'), {
-    description: 'Count output videos from a Genkit model.',
-    valueType: ValueType.INT,
-  });
-
-  private outputAudio = new MetricCounter(this._N('generate/output/audio'), {
-    description: 'Count output audio files from a Genkit model.',
     valueType: ValueType.INT,
   });
 
@@ -247,9 +224,6 @@ class GenerateTelemetry implements Telemetry {
     };
     logger.logStructured(`Config[${path}, ${model}]`, {
       ...sharedMetadata,
-      temperature: input.config?.temperature,
-      topK: input.config?.topK,
-      topP: input.config?.topP,
       maxOutputTokens: input.config?.maxOutputTokens,
       stopSequences: input.config?.stopSequences, // array
       source: 'ts',
@@ -286,6 +260,7 @@ class GenerateTelemetry implements Telemetry {
         logger.logStructured(`Input[${path}, ${model}] ${partCounts}`, {
           ...sharedMetadata,
           content: this.toPartLogContent(part),
+          role: msg.role,
           partIndex: partIdx,
           totalParts: parts,
           messageIndex: msgIdx,
@@ -317,24 +292,27 @@ class GenerateTelemetry implements Telemetry {
     };
     const message = output.message || output.candidates?.[0]?.message!;
 
-    const parts = message.content.length;
-    message.content.forEach((part, partIdx) => {
-      const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
-      const initial = output.finishMessage
-        ? { finishMessage: truncate(output.finishMessage) }
-        : {};
-      logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
-        ...initial,
-        ...sharedMetadata,
-        content: this.toPartLogContent(part),
-        partIndex: partIdx,
-        totalParts: parts,
-        candidateIndex: 0,
-        totalCandidates: 1,
-        messageIndex: 0,
-        finishReason: output.finishReason,
+    if (message?.content) {
+      const parts = message.content.length;
+      message.content.forEach((part, partIdx) => {
+        const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
+        const initial = output.finishMessage
+          ? { finishMessage: truncate(output.finishMessage) }
+          : {};
+        logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
+          ...initial,
+          ...sharedMetadata,
+          content: this.toPartLogContent(part),
+          role: message.role,
+          partIndex: partIdx,
+          totalParts: parts,
+          candidateIndex: 0,
+          totalCandidates: 1,
+          messageIndex: 0,
+          finishReason: output.finishReason,
+        });
       });
-    });
+    }
   }
 
   private toPartCounts(
@@ -454,15 +432,11 @@ class GenerateTelemetry implements Telemetry {
     this.inputTokens.add(usage.inputTokens, shared);
     this.inputCharacters.add(usage.inputCharacters, shared);
     this.inputImages.add(usage.inputImages, shared);
-    this.inputVideos.add(usage.inputVideos, shared);
-    this.inputAudio.add(usage.inputAudioFiles, shared);
 
     // outputs
     this.outputTokens.add(usage.outputTokens, shared);
     this.outputCharacters.add(usage.outputCharacters, shared);
     this.outputImages.add(usage.outputImages, shared);
-    this.outputVideos.add(usage.outputVideos, shared);
-    this.outputAudio.add(usage.outputAudioFiles, shared);
   }
 }
 

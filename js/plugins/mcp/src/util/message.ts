@@ -62,6 +62,8 @@ export function fromMcpPart(part: PromptMessage['content']): Part {
       };
     case 'resource':
       return {};
+    default:
+      return {};
   }
   throw new GenkitError({
     status: 'UNIMPLEMENTED',

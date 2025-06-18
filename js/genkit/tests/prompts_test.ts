@@ -1477,7 +1477,7 @@ describe('asTool', () => {
 
     // transfer to toolPrompt...
 
-    // first response be tools call, the subsequent just text response from agent b.
+    // first response is a tool call, the subsequent responses are just text response from agent b.
     let reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {
@@ -1566,7 +1566,7 @@ describe('asTool', () => {
 
     // transfer back to to agent A...
 
-    // first response be tools call, the subsequent just text response from agent a.
+    // first response is a tool call, the subsequent responses are just text response from agent a.
     reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {

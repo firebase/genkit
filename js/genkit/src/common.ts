@@ -113,10 +113,12 @@ export {
   type SessionData,
   type SessionStore,
 } from '@genkit-ai/ai/session';
+export { dynamicTool } from '@genkit-ai/ai/tool';
 export {
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
   GenkitError,
+  OperationSchema,
   ReflectionServer,
   StatusCodes,
   StatusSchema,
@@ -138,6 +140,7 @@ export {
   type JSONSchema,
   type JSONSchema7,
   type Middleware,
+  type Operation,
   type ReflectionServerOptions,
   type RunActionResponse,
   type Status,
