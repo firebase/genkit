@@ -656,16 +656,20 @@ export function modelActionMetadata({
   name,
   info,
   configSchema,
+  background,
 }: {
   name: string;
   info?: ModelInfo;
   configSchema?: z.ZodTypeAny;
+  background?: boolean;
 }): ActionMetadata {
   return {
-    actionType: 'model',
+    actionType: background ? 'background-model' : 'model',
     name: name,
     inputJsonSchema: toJsonSchema({ schema: GenerateRequestSchema }),
-    outputJsonSchema: toJsonSchema({ schema: GenerateResponseSchema }),
+    outputJsonSchema: background
+      ? toJsonSchema({ schema: OperationSchema })
+      : toJsonSchema({ schema: GenerateResponseSchema }),
     metadata: {
       model: {
         ...info,
