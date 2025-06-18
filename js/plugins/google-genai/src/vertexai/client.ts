@@ -153,7 +153,7 @@ export async function imagenPredict(
 export function getVertexAIUrl(params: {
   includeProjectAndLocation: boolean; // False for listModels, true for most others
   resourcePath: string;
-  resourceMethod?: string;
+  resourceMethod?: 'streamGenerateContent' | 'generateContent' | 'predict';
   queryParams?: string;
   clientOptions: ClientOptions;
 }): string {
