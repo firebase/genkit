@@ -296,7 +296,7 @@ describe('GoogleCloudLogs', () => {
     const testModel = createModel(ai, 'testModel', async () => {
       return {
         message: {
-          role: 'user',
+          role: 'model',
           content: [
             {
               text: 'response',
@@ -336,6 +336,7 @@ describe('GoogleCloudLogs', () => {
     await getExportedSpans();
 
     const logs = await getLogs(1, 100, logLines);
+    expect(logs.length).toEqual(8);
     const logObjectMessages = getStructuredLogMessages(logs);
     expect(logObjectMessages).toContain(
       'Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
@@ -348,6 +349,22 @@ describe('GoogleCloudLogs', () => {
     );
     expect(logObjectMessages).toContain('Input[testFlow, testFlow]');
     expect(logObjectMessages).toContain('Output[testFlow, testFlow]');
+    // Ensure the model input/output has an associated role
+    logs.map((log) => {
+      const structuredLog = JSON.parse(log as string);
+      if (
+        structuredLog.message ===
+        'Input[testFlow > sub1 > sub2 > generate > testModel, testModel] '
+      ) {
+        expect(structuredLog.role).toBe('user');
+      }
+      if (
+        structuredLog.message ===
+        'Output[testFlow > sub1 > sub2 > generate > testModel, testModel]'
+      ) {
+        expect(structuredLog.role).toBe('model');
+      }
+    });
   });
 
   it('writes user feedback log', async () => {

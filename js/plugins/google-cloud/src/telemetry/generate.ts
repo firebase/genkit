@@ -260,6 +260,7 @@ class GenerateTelemetry implements Telemetry {
         logger.logStructured(`Input[${path}, ${model}] ${partCounts}`, {
           ...sharedMetadata,
           content: this.toPartLogContent(part),
+          role: msg.role,
           partIndex: partIdx,
           totalParts: parts,
           messageIndex: msgIdx,
@@ -302,6 +303,7 @@ class GenerateTelemetry implements Telemetry {
           ...initial,
           ...sharedMetadata,
           content: this.toPartLogContent(part),
+          role: message.role,
           partIndex: partIdx,
           totalParts: parts,
           candidateIndex: 0,
