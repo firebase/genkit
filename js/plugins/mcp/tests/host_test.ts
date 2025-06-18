@@ -300,6 +300,14 @@ describe('createMcpHost', () => {
       // Add a prompt to the first transport
       fakeTransport.prompts.push({
         name: 'testPrompt1',
+        arguments: [
+          {
+            name: 'foo',
+            description: 'foo arg',
+            required: false,
+          },
+        ],
+        description: 'descr',
       });
       let activePrompts = await clientHost.getActivePrompts(ai);
       assert.strictEqual(activePrompts.length, 1);
@@ -326,17 +334,36 @@ describe('createMcpHost', () => {
       });
 
       activePrompts = await clientHost.getActivePrompts(ai);
-      assert.strictEqual(activePrompts.length, 2);
+      assert.deepStrictEqual(activePrompts[0].ref.metadata, {
+        arguments: [
+          {
+            description: 'foo arg',
+            name: 'foo',
+            required: false,
+          },
+        ],
+        description: 'descr',
+      });
+      assert.deepStrictEqual(
+        activePrompts.map((p) => p.ref.name),
+        ['testPrompt1', 'testPrompt2']
+      );
 
       // Disable the first server
       await clientHost.disable('test-server');
       activePrompts = await clientHost.getActivePrompts(ai);
-      assert.strictEqual(activePrompts.length, 1);
+      assert.deepStrictEqual(
+        activePrompts.map((p) => p.ref.name),
+        ['testPrompt2']
+      );
 
       // Enable the first server again
       await clientHost.enable('test-server');
       activePrompts = await clientHost.getActivePrompts(ai);
-      assert.strictEqual(activePrompts.length, 2);
+      assert.deepStrictEqual(
+        activePrompts.map((p) => p.ref.name),
+        ['testPrompt1', 'testPrompt2']
+      );
     });
 
     it('should execute prompt', async () => {
