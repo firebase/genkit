@@ -1246,7 +1246,7 @@ ai.defineFlow('photo-move-veo', async () => {
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 
-  // operation done, download generated video to Firebae Storage
+  // operation done, download generated video to disk
 
   const video = operation.output?.message?.content.find((p) => !!p.media);
   if (!video) {
