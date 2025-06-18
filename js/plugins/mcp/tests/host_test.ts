@@ -334,7 +334,7 @@ describe('createMcpHost', () => {
       });
 
       activePrompts = await clientHost.getActivePrompts(ai);
-      assert.deepStrictEqual(activePrompts[0].metadata, {
+      assert.deepStrictEqual(activePrompts[0].ref.metadata, {
         arguments: [
           {
             description: 'foo arg',
@@ -345,7 +345,7 @@ describe('createMcpHost', () => {
         description: 'descr',
       });
       assert.deepStrictEqual(
-        activePrompts.map((p) => p.ref),
+        activePrompts.map((p) => p.ref.name),
         ['testPrompt1', 'testPrompt2']
       );
 
@@ -353,7 +353,7 @@ describe('createMcpHost', () => {
       await clientHost.disable('test-server');
       activePrompts = await clientHost.getActivePrompts(ai);
       assert.deepStrictEqual(
-        activePrompts.map((p) => p.ref),
+        activePrompts.map((p) => p.ref.name),
         ['testPrompt2']
       );
 
@@ -361,7 +361,7 @@ describe('createMcpHost', () => {
       await clientHost.enable('test-server');
       activePrompts = await clientHost.getActivePrompts(ai);
       assert.deepStrictEqual(
-        activePrompts.map((p) => p.ref),
+        activePrompts.map((p) => p.ref.name),
         ['testPrompt1', 'testPrompt2']
       );
     });

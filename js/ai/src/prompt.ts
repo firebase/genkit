@@ -147,11 +147,8 @@ export interface ExecutablePrompt<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  /** Prompt name. */
-  ref: string;
-
-  /** Optional prompt metadata. */
-  metadata?: Record<string, any>;
+  /** Prompt reference. */
+  ref: { name: string; metadata?: Record<string, any> };
 
   /**
    * Generates a response by rendering the prompt template with given user input and then calling the model.
@@ -481,8 +478,7 @@ function wrapInExecutablePrompt<
     );
   }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
-  executablePrompt.ref = wrapOpts.name;
-  executablePrompt.metadata = wrapOpts.metadata;
+  executablePrompt.ref = { name: wrapOpts.name, metadata: wrapOpts.metadata };
 
   executablePrompt.render = async (
     input?: I,

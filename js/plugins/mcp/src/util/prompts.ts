@@ -104,10 +104,12 @@ function createExecutablePrompt<
     return params.ai.generate(callPrompt.render(input, opts));
   }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
-  callPrompt.ref = prompt.name;
-  callPrompt.metadata = {
-    description: prompt.description,
-    arguments: prompt.arguments,
+  callPrompt.ref = {
+    name: prompt.name,
+    metadata: {
+      description: prompt.description,
+      arguments: prompt.arguments,
+    },
   };
 
   callPrompt.stream = (
