@@ -91,11 +91,11 @@ describe('definePrompt', () => {
       },
     });
 
-    assert.strictEqual(prompt.id, 'hi');
+    assert.strictEqual(prompt.ref, 'hi');
     assert.deepStrictEqual(prompt.metadata, { foo: 'bar' });
 
     const lookedUpPrompt = ai.prompt('hi');
-    assert.strictEqual(lookedUpPrompt.id, 'hi');
+    assert.strictEqual(lookedUpPrompt.ref, 'hi');
     // This is a known limitation -- prompt lookup is async under the hood,
     // so we can't actually get the metadata...
     assert.deepStrictEqual(lookedUpPrompt.metadata, undefined); // ideally should be: { foo: 'bar' }

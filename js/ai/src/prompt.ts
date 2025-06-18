@@ -147,8 +147,8 @@ export interface ExecutablePrompt<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  /** Prompt id. */
-  id: string;
+  /** Prompt name. */
+  ref: string;
 
   /** Optional prompt metadata. */
   metadata?: Record<string, any>;
@@ -481,7 +481,7 @@ function wrapInExecutablePrompt<
     );
   }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
-  executablePrompt.id = wrapOpts.name;
+  executablePrompt.ref = wrapOpts.name;
   executablePrompt.metadata = wrapOpts.metadata;
 
   executablePrompt.render = async (
