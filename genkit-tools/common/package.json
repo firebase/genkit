@@ -64,61 +64,61 @@
   },
   "author": "genkit",
   "license": "Apache-2.0",
-  "types": "./lib/types/types/index.d.ts",
+  "types": "./lib/types/src/types/index.d.ts",
   "exports": {
     ".": {
-      "require": "./lib/cjs/types/index.js",
-      "import": "./lib/esm/types/index.js",
-      "types": "./lib/types/types/index.d.ts",
-      "default": "./lib/esm/types/index.js"
+      "require": "./lib/cjs/src/types/index.js",
+      "import": "./lib/esm/src/types/index.js",
+      "types": "./lib/types/src/types/index.d.ts",
+      "default": "./lib/esm/src/types/index.js"
     },
     "./eval": {
-      "types": "./lib/types/eval/index.d.ts",
-      "require": "./lib/cjs/eval/index.js",
-      "import": "./lib/esm/eval/index.js",
-      "default": "./lib/esm/eval/index.js"
+      "types": "./lib/types/src/eval/index.d.ts",
+      "require": "./lib/cjs/src/eval/index.js",
+      "import": "./lib/esm/src/eval/index.js",
+      "default": "./lib/esm/src/eval/index.js"
     },
     "./plugin": {
-      "types": "./lib/types/plugin/index.d.ts",
-      "require": "./lib/cjs/plugin/index.js",
-      "import": "./lib/esm/plugin/index.js",
-      "default": "./lib/esm/plugin/index.js"
+      "types": "./lib/types/src/plugin/index.d.ts",
+      "require": "./lib/cjs/src/plugin/index.js",
+      "import": "./lib/esm/src/plugin/index.js",
+      "default": "./lib/esm/src/plugin/index.js"
     },
     "./manager": {
-      "types": "./lib/manager/index.d.ts",
-      "require": "./lib/cjs/manager/index.js",
-      "import": "./lib/esm/manager/index.js",
-      "default": "./lib/esm/manager/index.js"
+      "types": "./lib/types/src/manager/index.d.ts",
+      "require": "./lib/cjs/src/manager/index.js",
+      "import": "./lib/esm/src/manager/index.js",
+      "default": "./lib/esm/src/manager/index.js"
     },
     "./server": {
-      "types": "./lib/server/index.d.ts",
-      "require": "./lib/cjs/server/index.js",
-      "import": "./lib/esm/server/index.js",
-      "default": "./lib/esm/server/index.js"
+      "types": "./lib/types/src/server/index.d.ts",
+      "require": "./lib/cjs/src/server/index.js",
+      "import": "./lib/esm/src/server/index.js",
+      "default": "./lib/esm/src/server/index.js"
     },
     "./utils": {
-      "types": "./lib/utils/index.d.ts",
-      "require": "./lib/cjs/utils/index.js",
-      "import": "./lib/esm/utils/index.js",
-      "default": "./lib/esm/utils/index.js"
+      "types": "./lib/types/src/utils/index.d.ts",
+      "require": "./lib/cjs/src/utils/index.js",
+      "import": "./lib/esm/src/utils/index.js",
+      "default": "./lib/esm/src/utils/index.js"
     }
   },
   "typesVersions": {
     "*": {
       "eval": [
-        "lib/types/eval"
+        "lib/types/src/eval"
       ],
       "plugin": [
-        "lib/types/plugin"
+        "lib/types/src/plugin"
       ],
       "manager": [
-        "lib/types/manager"
+        "lib/types/src/manager"
       ],
       "server": [
-        "lib/types/server"
+        "lib/types/src/server"
       ],
       "utils": [
-        "lib/types/utils"
+        "lib/types/src/utils"
       ]
     }
   }

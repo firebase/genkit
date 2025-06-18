@@ -17,7 +17,7 @@
   "scripts": {
     "build": "pnpm genversion && tsc",
     "build:watch": "tsc --watch",
-    "compile:bun": "bun build dist/bin/genkit.js --compile --minify --outfile dist/bin/genkit",
+    "compile:bun": "bun build src/bin/genkit.ts --compile --outfile dist/bin/genkit",
     "test": "jest --verbose",
     "genversion": "genversion -esf src/utils/version.ts"
   },
