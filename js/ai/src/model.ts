@@ -492,7 +492,6 @@ export function defineModel<
   options: any,
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
-    // GenerateRequest<CustomOptionsSchema> | DefineModelOptionsV2<CustomOptionsSchema>
     options: any
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
