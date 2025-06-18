@@ -1,0 +1,349 @@
+#!/usr/bin/env bash
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+
+## <script src="./readability.js"></script>
+## <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/themes/prism-okaidia.min.css" rel="stylesheet" />
+## <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-core.min.js" data-manual></script>
+## <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-bash.min.js"></script>
+## <style>body {color: #272822; background-color: #272822; font-size: 0.8em;} </style>
+
+# Configuration variables
+DOMAIN="genkit.tools"
+TRACKING_ID="UA-XXXXXXXXX-X"  # Not used when analytics is commented out
+
+: ==========================================
+:   Introduction
+: ==========================================
+
+# This script allows you to install the latest version of the
+# "genkit" command by running:
+#
+:   curl -sL $DOMAIN | bash
+#
+# If you do not want to use this script, you can manually
+# download the latest "genkit" binary.
+#
+:   curl -Lo ./genkit_bin https://$DOMAIN/bin/linux/latest
+#
+# Alternatively, you can download a specific version.
+#
+:   curl -Lo ./genkit_bin https://$DOMAIN/bin/linux/v1.12.0
+#
+# Note: On Mac, replace "linux" with "macos" in the URL.
+#
+# For full details about installation options for the Genkit CLI
+# please see our documentation.
+#   https://firebase.google.com/docs/genkit/
+#
+# Please report bugs / issues with this script on Github.
+#   https://github.com/firebase/genkit
+#
+
+: ==========================================
+:   Advanced Usage
+: ==========================================
+
+# The behavior of this script can be modified at runtime by passing environmental
+# variables to the `bash` process.
+#
+# For example, passing an argument called arg1 set to true and one called arg2 set
+# to false would look like this.
+#
+: curl -sL $DOMAIN | arg1=true arg2=false bash
+#
+# These arguments are optional, but be aware that explicitly setting them will help
+# ensure consistent behavior if / when defaults are changed.
+#
+
+: -----------------------------------------
+:  Upgrading - default: false
+: -----------------------------------------
+
+# By default, this script will not replace an existing "genkit" install.
+# If you'd like to upgrade an existing install, set the "upgrade" variable to true.
+#
+: curl -sL $DOMAIN | upgrade=true bash
+#
+# This operation could (potentially) break an existing install, so use it with caution.
+#
+
+: -----------------------------------------
+:  Uninstalling - default false
+: -----------------------------------------
+
+# You can remove the binary by passing the "uninstall" flag.
+#
+: curl -sL $DOMAIN | uninstall=true bash
+#
+# This will remove the binary file and any cached data.
+#
+
+: -----------------------------------------
+:  Analytics - default true
+: -----------------------------------------
+
+# This script reports anonymous success / failure analytics.
+# You can disable this reporting by setting the "analytics" variable to false.
+#
+: curl -sL $DOMAIN | analytics=false bash
+#
+# By default we report all data anonymously and do not collect any information
+# except platform type (Darwin, Win, etc) in the case of an unsupported platform
+# error.
+#
+
+: ==========================================
+:   Source Code
+: ==========================================
+
+# This script contains a large amount of comments so you can understand
+# how it interacts with your system. If you're not interested in the
+# technical details, you can just run the command above.
+
+# We begin by generating a unique ID for tracking the anonymous session.
+CID=$(head -80 /dev/urandom | LC_ALL=c tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+# Credit: https://gist.github.com/earthgecko/3089509
+
+# We can use this CID in all calls to the Google Analytics endpoint via
+# this reusable function.
+send_analytics_event()
+{
+    # Analytics tracking is currently disabled
+    # Uncomment the block below to enable analytics
+    
+    # if [ ! "$analytics" = "false" ]; then
+    #     curl -s https://www.google-analytics.com/collect \
+    #         -d "tid=$TRACKING_ID" \
+    #         -d "t=event" \
+    #         -d "ec=$DOMAIN" \
+    #         -d "ea=$1" \
+    #         -d "v=1" \
+    #         -d "cid=$CID" \
+    #         -o /dev/null
+    # fi
+    
+    # For now, just return success
+    return 0
+}
+
+# We send one event to count the number of times this script is ran. At the
+# end we also report success / failure, but it's possible that the script
+# will crash before we get to that point, so we manually count invocations here.
+send_analytics_event start
+
+# We try to detect any existing binaries on $PATH or two common locations.
+GENKIT_BINARY=${GENKIT_BINARY:-$(which genkit)}
+LOCAL_BINARY="$HOME/.local/bin/genkit"
+# For info about why we place the binary at this location, see
+# https://unix.stackexchange.com/a/8658
+GLOBAL_BINARY="/usr/local/bin/genkit"
+if [[ -z "$GENKIT_BINARY" ]]; then
+    if [ -e "$LOCAL_BINARY" ]; then
+        GENKIT_BINARY="$LOCAL_BINARY"
+    elif [ -e "$GLOBAL_BINARY" ]; then
+        GENKIT_BINARY="$GLOBAL_BINARY"
+    fi
+fi
+
+# If the user asked for us to uninstall genkit, then do so.
+if [ "$uninstall" = "true" ]; then
+    if [[ -z "$GENKIT_BINARY" ]]; then
+        echo "Cannot detect any Genkit CLI installations."
+        echo "Please manually remove any \"genkit\" binaries not in \$PATH."
+    else
+        # Assuming binary install, skip npm check
+        echo "-- Removing binary file..."
+        sudo rm -- "$GENKIT_BINARY"
+    fi
+    echo "-- Removing genkit cache..."
+    rm -rf ~/.cache/genkit
+
+    echo "-- genkit has been uninstalled"
+    echo "-- All Done!"
+
+    send_analytics_event uninstall
+    exit 0
+fi
+
+# We need to ensure that we don't mess up an existing "genkit"
+# install, so before doing anything we check to see if this system
+# has "genkit" installed and if so, we exit out.
+echo "-- Checking for existing genkit installation..."
+
+if [[ ! -z "$GENKIT_BINARY" ]]; then
+    INSTALLED_GENKIT_VERSION=$("$GENKIT_BINARY" --version)
+
+    # In the case of a corrupt genkit install, we wont be able to
+    # retrieve a version number, so to keep the logs correct, we refer to
+    # your existing install as either the CLI version or as a "corrupt install"
+    if [[ ! -z "$INSTALLED_GENKIT_VERSION" ]]; then
+        GENKIT_NICKNAME="genkit@$INSTALLED_GENKIT_VERSION"
+    else
+        GENKIT_NICKNAME="a corrupted genkit binary"
+    fi
+
+    # Skip npm check - assume binary install
+    # If the user didn't pass upgrade=true, then we print the command to do an upgrade and exit
+    if [ ! "$upgrade" = "true" ]; then
+        echo "Your machine has $GENKIT_NICKNAME installed."
+        echo "If you would like to upgrade your install run: curl -sL $DOMAIN | upgrade=true bash"
+
+        send_analytics_event already_installed
+        exit 0
+    else
+        # If the user did pass upgrade=true, then we allow the script to continue and overwrite the install.
+        echo "-- Your machine has $GENKIT_NICKNAME, attempting upgrade..."
+
+        send_analytics_event upgrade
+    fi
+fi
+
+echo "-- Checking your machine type..."
+
+# Now we need to detect the platform we're running on (Linux / Mac / Other)
+# so we can fetch the correct binary and place it in the correct location
+# on the machine.
+
+# We use "tr" to translate the uppercase "uname" output into lowercase
+UNAME=$(uname -s | tr '[:upper:]' '[:lower:]')
+
+# Detect architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64)     ARCH_SUFFIX="x64";;
+    aarch64|arm64) ARCH_SUFFIX="arm64";;
+    *)          ARCH_SUFFIX="x64";;  # Default to x64
+esac
+
+# Then we map the output to the names used on the Github releases page
+case "$UNAME" in
+    linux*)     MACHINE="linux-${ARCH_SUFFIX}";;
+    darwin*)    MACHINE="darwin-${ARCH_SUFFIX}";;
+    mingw*|msys*|cygwin*) MACHINE="win32-x64";;
+esac
+
+# If we never define the $MACHINE variable (because our platform is neither Mac,
+# Linux, or Windows), then we can't finish our job, so just log out a helpful message
+# and close.
+if [[ -z "$MACHINE" ]]; then
+    echo "Your operating system is not supported, if you think it should be please file a bug."
+    echo "https://github.com/firebase/genkit/"
+    echo "-- All done!"
+
+    send_analytics_event "missing_platform_${UNAME}_${ARCH}"
+    exit 0
+fi
+
+# We have enough information to generate the binary's download URL.
+DOWNLOAD_URL="https://$DOMAIN/bin/$MACHINE/latest"
+echo "-- Downloading binary from $DOWNLOAD_URL"
+
+# We use "curl" to download the binary with a flag set to follow redirects
+# (Github download URLs redirect to CDNs) and a flag to show a progress bar.
+curl -o "/tmp/genkit_standalone.tmp" -L --progress-bar $DOWNLOAD_URL
+
+GENKIT_BINARY=${GENKIT_BINARY:-$GLOBAL_BINARY}
+INSTALL_DIR=$(dirname -- "$GENKIT_BINARY")
+
+# We need to ensure that the INSTALL_DIR exists.
+# On some platforms like the Windows Subsystem for Linux it may not.
+# We created it using a non-destructive mkdir command.
+mkdir -p -- "$INSTALL_DIR" 2> /dev/null
+
+# If the directory does not exist or is not writable, we resort to sudo.
+sudo=""
+if [ ! -w "$INSTALL_DIR" ]; then
+    sudo="sudo"
+fi
+
+$sudo mkdir -p -- "$INSTALL_DIR"
+$sudo mv -f "/tmp/genkit_standalone.tmp" "$GENKIT_BINARY"
+
+# Once the download is complete, we mark the binary file as readable
+# and executable (+rx).
+echo "-- Setting permissions on binary... $GENKIT_BINARY"
+$sudo chmod +rx "$GENKIT_BINARY"
+
+# If all went well, the "genkit" binary should be located on our PATH so
+# we'll run it once, asking it to print out the version. This is helpful as
+# standalone genkit binaries do a small amount of setup on the initial run
+# so this not only allows us to make sure we got the right version, but it
+# also does the setup so the first time the developer runs the binary, it'll
+# be faster.
+VERSION=$("$GENKIT_BINARY" --version)
+
+# If no version is detected then clearly the binary failed to install for
+# some reason, so we'll log out an error message and report the failure
+# to headquarters via an analytics event.
+if [[ -z "$VERSION" ]]; then
+    echo "Something went wrong, genkit has not been installed."
+    echo "Please file a bug with your system information on Github."
+    echo "https://github.com/firebase/genkit/"
+    echo "-- All done!"
+
+    send_analytics_event failure
+    exit 1
+fi
+
+# In order for the user to be able to actually run the "genkit" command
+# without specifying the absolute location, the INSTALL_DIR path must
+# be present inside of the PATH environment variable.
+
+echo "-- Checking your PATH variable..."
+if [[ ! ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+    echo ""
+    echo "It looks like $INSTALL_DIR isn't on your PATH."
+    echo "Please add the following line to either your ~/.profile or ~/.bash_profile, then restart your terminal."
+    echo ""
+    echo "PATH=\$PATH:$INSTALL_DIR"
+    echo ""
+    echo "For more information about modifying PATHs, see https://unix.stackexchange.com/a/26059"
+    echo ""
+    send_analytics_event missing_path
+fi
+
+# We also try to upgrade the local binary if it exists.
+# This helps prevent having two mismatching versions of "genkit".
+if [[ "$GENKIT_BINARY" != "$LOCAL_BINARY" ]] && [ -e "$LOCAL_BINARY" ]; then
+  echo "-- Upgrading the local binary installation $LOCAL_BINARY..."
+  cp "$GENKIT_BINARY" "$LOCAL_BINARY" # best effort, okay if it fails.
+  chmod +x "$LOCAL_BINARY"
+fi
+
+# Since we've gotten this far we know everything succeeded. We'll just
+# let the developer know everything is ready and take our leave.
+echo "-- genkit@$VERSION is now installed"
+echo "-- All Done!"
+
+send_analytics_event success
+exit 0
+
+# ------------------------------------------
+#   Notes
+# ------------------------------------------
+#
+# This script contains hidden JavaScript which is used to improve
+# readability in the browser (via syntax highlighting, etc), right-click
+# and "View source" of this page to see the entire bash script!
+#
+# You'll also notice that we use the ":" character in the Introduction
+# which allows our copy/paste commands to be syntax highlighted, but not
+# ran. In bash : is equal to `true` and true can take infinite arguments
+# while still returning true. This turns these commands into no-ops so
+# when ran as a script, they're totally ignored.
+#
