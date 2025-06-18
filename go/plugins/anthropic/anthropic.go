@@ -25,6 +25,8 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -52,7 +54,7 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.initted {
-		return errors.New("anthropic plugin already initialized")
+		return errors.New("plugin already initialized")
 	}
 	defer func() {
 		if err != nil {
@@ -62,11 +64,10 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 
 	apiKey := a.APIKey
 	if apiKey == "" {
-		apiKey := os.Getenv("ANTHROPIC_API_KEY")
-		if apiKey == "" {
-			return fmt.Errorf("Anthropic requires setting ANTHROPIC_API_KEY in the environment")
-		}
-		fmt.Printf("api key found: %q\n", apiKey)
+		apiKey = os.Getenv("ANTHROPIC_API_KEY")
+	}
+	if apiKey == "" {
+		return fmt.Errorf("Anthropic requires setting ANTHROPIC_API_KEY in the environment")
 	}
 
 	ac := anthropic.NewClient(
@@ -76,8 +77,49 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.aclient = ac
 	a.initted = true
 
-	// TODO: list and register models
-	_, _ = listModels(ctx, &a.aclient)
+	return nil
+}
 
+func (a *Anthropic) ListActions(ctx context.Context) []core.ActionDesc {
+	actions := []core.ActionDesc{}
+
+	models, err := listModels(ctx, &a.aclient)
+	if err != nil {
+		return nil
+	}
+
+	for _, name := range models {
+		metadata := map[string]any{
+			"model": map[string]any{
+				"supports": map[string]any{
+					"media":       true,
+					"multiturn":   true,
+					"systemRole":  true,
+					"tools":       true,
+					"toolChoice":  true,
+					"constrained": true,
+				},
+			},
+			"versions": []string{},
+			"stage":    string(ai.ModelStageStable),
+		}
+		metadata["label"] = fmt.Sprintf("%s - %s", anthropicProvider, name)
+
+		actions = append(actions, core.ActionDesc{
+			Type:     core.ActionTypeModel,
+			Name:     fmt.Sprintf("%s/%s", anthropicProvider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, anthropicProvider, name),
+			Metadata: metadata,
+		})
+
+	}
+	return actions
+}
+
+func (a *Anthropic) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+	switch atype {
+	case core.ActionTypeModel:
+		// TODO: anthropic.defineModel()
+	}
 	return nil
 }

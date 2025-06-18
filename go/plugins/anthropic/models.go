@@ -18,18 +18,17 @@ package anthropic
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/firebase/genkit/go/ai"
 )
 
-func listModels(ctx context.Context, client *anthropic.Client) (map[string]ai.ModelInfo, error) {
+func listModels(ctx context.Context, client *anthropic.Client) ([]string, error) {
 	iter := client.Models.ListAutoPaging(ctx, anthropic.ModelListParams{})
+	models := []string{}
 
 	for iter.Next() {
-		modelBatch := iter.Current()
-		fmt.Printf("(model): %s\n", modelBatch.DisplayName)
+		m := iter.Current()
+		models = append(models, m.DisplayName)
 	}
 
 	if err := iter.Err(); err != nil {
