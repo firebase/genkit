@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import {
   GeminiConfigSchema,
+  GeminiTtsConfigSchema,
   KNOWN_GEMINI_MODELS,
   defineGeminiModel,
   gemini,
@@ -407,15 +408,36 @@ describe('Google AI Gemini', () => {
 
   describe('gemini() function', () => {
     it('returns a ModelReference for a known model string', () => {
-      const modelRef = gemini('gemini-2.0-flash');
-      assert.strictEqual(modelRef.name, 'googleai/gemini-2.0-flash');
-      assert.strictEqual(modelRef.info?.label, 'Google AI - Gemini 2.0 Flash');
+      const name = 'gemini-2.0-flash';
+      const modelRef = gemini(name);
+      assert.strictEqual(modelRef.name, `googleai/${name}`);
+      assert.strictEqual(modelRef.info?.supports?.multiturn, true);
+      assert.strictEqual(
+        modelRef.info?.label,
+        KNOWN_GEMINI_MODELS[name].info?.label
+      );
+      assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
+    });
+
+    it('returns a ModelReference for a tts type model string', () => {
+      const name = 'gemini-2.5-flash-preview-tts';
+      const modelRef = gemini(name);
+      assert.strictEqual(modelRef.name, `googleai/${name}`);
+      assert.strictEqual(modelRef.info?.supports?.multiturn, false);
+      assert.strictEqual(
+        modelRef.info?.label,
+        KNOWN_GEMINI_MODELS[name].info?.label
+      );
+      assert.strictEqual(modelRef.configSchema, GeminiTtsConfigSchema);
     });
 
     it('returns a ModelReference for an unknown model string', () => {
-      const modelRef = gemini('gemini-3.0-flash');
-      assert.strictEqual(modelRef.name, 'googleai/gemini-3.0-flash');
+      const name = 'gemini-3.0-flash';
+      const modelRef = gemini(name);
+      assert.strictEqual(modelRef.name, `googleai/${name}`);
+      assert.strictEqual(modelRef.info?.supports?.multiturn, true);
       assert.strictEqual(modelRef.info?.label, 'Google AI - gemini-3.0-flash');
+      assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
     });
   });
 });

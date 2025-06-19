@@ -206,250 +206,66 @@ export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
     .optional(),
 }).passthrough();
 
-const gemini15Pro = modelRef({
-  name: 'googleai/gemini-1.5-pro',
-  info: {
-    label: 'Google AI - Gemini 1.5 Pro',
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-    versions: [
-      'gemini-1.5-pro-latest',
-      'gemini-1.5-pro-001',
-      'gemini-1.5-pro-002',
-    ],
-  },
-  configSchema: GeminiConfigSchema,
-});
+// For commonRef
+type ConfigSchema = typeof GeminiConfigSchema | typeof GeminiTtsConfigSchema;
 
-const gemini15Flash = modelRef({
-  name: 'googleai/gemini-1.5-flash',
-  info: {
-    label: 'Google AI - Gemini 1.5 Flash',
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-      // @ts-ignore
-      contextCache: true,
-    },
-    versions: [
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-flash-001',
-      'gemini-1.5-flash-002',
-    ],
+const TTS_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: false,
+    media: false,
+    tools: false,
+    toolChoice: false,
+    systemRole: false,
+    constrained: 'no-tools',
   },
-  configSchema: GeminiConfigSchema,
-});
+};
 
-const gemini15Flash8b = modelRef({
-  name: 'googleai/gemini-1.5-flash-8b',
-  info: {
-    label: 'Google AI - Gemini 1.5 Flash',
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
+function commonRef(
+  name: string,
+  info?: ModelInfo,
+  configSchema: ConfigSchema = GeminiConfigSchema
+): ModelReference<ConfigSchema> {
+  return modelRef({
+    name: `googleai/${name}`,
+    info: {
+      label: `Google AI - ${name}`,
+      supports: {
+        multiturn: info?.supports?.multiturn ?? true,
+        media: info?.supports?.media ?? true,
+        tools: info?.supports?.tools ?? true,
+        toolChoice: info?.supports?.toolChoice ?? true,
+        systemRole: info?.supports?.systemRole ?? true,
+        constrained: info?.supports?.constrained ?? 'no-tools',
+      },
     },
-    versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
-  },
-  configSchema: GeminiConfigSchema,
-});
+    configSchema,
+  });
+}
 
-const gemini20Flash = modelRef({
-  name: 'googleai/gemini-2.0-flash',
-  info: {
-    label: 'Google AI - Gemini 2.0 Flash',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
-const gemini20FlashExp = modelRef({
-  name: 'googleai/gemini-2.0-flash-exp',
-  info: {
-    label: 'Google AI - Gemini 2.0 Flash (Experimental)',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
-const gemini20FlashLite = modelRef({
-  name: 'googleai/gemini-2.0-flash-lite',
-  info: {
-    label: 'Google AI - Gemini 2.0 Flash Lite',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
-const gemini20ProExp0205 = modelRef({
-  name: 'googleai/gemini-2.0-pro-exp-02-05',
-  info: {
-    label: 'Google AI - Gemini 2.0 Pro Exp 02-05',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
-const gemini25FlashPreview0417 = modelRef({
-  name: 'googleai/gemini-2.5-flash-preview-04-17',
-  info: {
-    label: 'Google AI - Gemini 2.5 Flash Preview 04-17',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
-export const gemini25FlashPreviewTts = modelRef({
-  name: 'googleai/gemini-2.5-flash-preview-tts',
-  info: {
-    label: 'Google AI - Gemini 2.5 Flash Preview TTS',
-    versions: [],
-    supports: {
-      multiturn: false,
-      media: false,
-      tools: false,
-      toolChoice: false,
-      systemRole: false,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiTtsConfigSchema,
-});
-
-const gemini25ProExp0325 = modelRef({
-  name: 'googleai/gemini-2.5-pro-exp-03-25',
-  info: {
-    label: 'Google AI - Gemini 2.5 Pro Exp 03-25',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
-const gemini25ProPreview0325 = modelRef({
-  name: 'googleai/gemini-2.5-pro-preview-03-25',
-  info: {
-    label: 'Google AI - Gemini 2.5 Pro Preview 03-25',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiConfigSchema,
-});
-
-export const gemini25ProPreviewTts = modelRef({
-  name: 'googleai/gemini-2.5-pro-preview-tts',
-  info: {
-    label: 'Google AI - Gemini 2.5 Pro Preview TTS',
-    versions: [],
-    supports: {
-      multiturn: false,
-      media: false,
-      tools: false,
-      toolChoice: false,
-      systemRole: false,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiTtsConfigSchema,
-});
-
-export const KNOWN_GEMINI_MODELS = {
-  'gemini-1.5-pro': gemini15Pro,
-  'gemini-1.5-flash': gemini15Flash,
-  'gemini-1.5-flash-8b': gemini15Flash8b,
-  'gemini-2.0-flash': gemini20Flash,
-  'gemini-2.0-flash-lite': gemini20FlashLite,
-  'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
-  'gemini-2.0-flash-exp': gemini20FlashExp,
-  'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
-  'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
-  'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
-  'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
-  'gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
+export const KNOWN_GEMINI_MODELS: Record<
+  string,
+  ModelReference<ConfigSchema>
+> = {
+  'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
+  'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
+  'gemini-2.0-pro-exp-02-05': commonRef('gemini-2.0-pro-exp-02-05'),
+  'gemini-2.0-flash-exp': commonRef('gemini-2.0-flash-exp'),
+  'gemini-2.5-pro-exp-03-25': commonRef('gemini-2.5-pro-exp-03-25'),
+  'gemini-2.5-pro-preview-03-25': commonRef('gemini-2.5-pro-preview-03-25'),
+  'gemini-2.5-flash-preview-04-17': commonRef('gemini-2.5-flash-preview-04-17'),
+  'gemini-2.5-flash-preview-tts': commonRef(
+    'gemini-2.5-flash-preview-tts',
+    TTS_MODEL_INFO,
+    GeminiTtsConfigSchema
+  ),
+  'gemini-2.5-pro-preview-tts': commonRef(
+    'gemini-2.5-pro-preview-tts',
+    TTS_MODEL_INFO,
+    GeminiTtsConfigSchema
+  ),
 } as const;
 
-export const GENERIC_GEMINI_MODEL = modelRef({
-  name: 'googleai/gemini',
-  configSchema: GeminiConfigSchema,
-  info: {
-    label: 'Google AI - Gemini',
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-});
+export const GENERIC_GEMINI_MODEL = commonRef('gemini');
 
 /**
  * Known model names, to allow code completion for convenience. Allows other model names.
@@ -480,13 +296,11 @@ export function gemini(
   return modelRef({
     name: `googleai/${version}`,
     config: options,
-    configSchema: GeminiConfigSchema,
+    configSchema: nearestModel.configSchema,
     info: {
       ...nearestModel.info,
       // If exact suffix match for a known model, use its label, otherwise create a new label
-      label: nearestModel.name.endsWith(version)
-        ? nearestModel.info?.label
-        : `Google AI - ${version}`,
+      label: `Google AI - ${version}`,
     },
   });
 }
