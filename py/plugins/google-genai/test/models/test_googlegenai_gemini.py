@@ -577,6 +577,53 @@ def test_gemini_model__create_tool(mock_convert_schema_property, gemini_model_in
                 },
             ),
         ),
+        # Test Case 11: Object with $ref at list field
+        (
+            {
+                '$defs': {
+                    'Product': {
+                        'properties': {
+                            'product_name': {
+                                'title': 'Product Name',
+                                'type': 'string',
+                            },
+                        },
+                        'required': ['product_name'],
+                        'title': 'Product',
+                        'type': 'object',
+                    },
+                },
+                'properties': {
+                    'products': {
+                        'items': {'$ref': '#/$defs/Product'},
+                        'title': 'Products',
+                        'type': 'array',
+                    },
+                },
+                'required': ['products'],
+                'title': 'Store',
+                'type': 'object',
+            },
+            None,
+            genai_types.Schema(
+                type=genai_types.Type.OBJECT,
+                properties={
+                    'products': genai_types.Schema(
+                        items=genai_types.Schema(
+                            properties={
+                                'product_name': genai_types.Schema(
+                                    type=genai_types.Type.STRING,
+                                ),
+                            },
+                            required=['product_name'],
+                            type=genai_types.Type.OBJECT,
+                        ),
+                        type=genai_types.Type.ARRAY,
+                    ),
+                },
+                required=['products'],
+            ),
+        ),
     ],
 )
 def test_gemini_model__convert_schema_property(
