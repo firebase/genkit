@@ -16,6 +16,10 @@
 
 import {
   defineInterrupt,
+  generateOperation,
+  GenerateOptions,
+  GenerateResponseData,
+  GenerationCommonConfigSchema,
   isExecutablePrompt,
   type ExecutablePrompt,
   type InterruptConfig,
@@ -24,13 +28,13 @@ import {
 import type { Chat, ChatOptions } from '@genkit-ai/ai/chat';
 import { defineFormat } from '@genkit-ai/ai/formats';
 import {
+  getCurrentSession,
   Session,
   SessionError,
-  getCurrentSession,
   type SessionData,
   type SessionOptions,
 } from '@genkit-ai/ai/session';
-import type { z } from '@genkit-ai/core';
+import type { Operation, z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
 import type { Formatter } from './formats';
 import { Genkit, type GenkitOptions } from './genkit';
@@ -235,5 +239,31 @@ export class GenkitBeta extends Genkit {
     config: InterruptConfig<I, O>
   ): ToolAction<I, O> {
     return defineInterrupt(this.registry, config);
+  }
+
+  /**
+   * Starts a generate operation for long running generation models, typically for
+   * video and complex audio generation.
+   *
+   * See {@link GenerateOptions} for detailed information about available options.
+   *
+   * ```ts
+   * const operation = await ai.generateOperation({
+   *   model: googleAI.model('veo-2.0-generate-001'),
+   *   prompt: 'A banana riding a bicycle.',
+   * });
+   * ```
+   *
+   * The status of the operation and final result can be obtained using {@link Genkit.checkOperation}.
+   */
+  generateOperation<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    opts:
+      | GenerateOptions<O, CustomOptions>
+      | PromiseLike<GenerateOptions<O, CustomOptions>>
+  ): Promise<Operation<GenerateResponseData>> {
+    return generateOperation(this.registry, opts);
   }
 }

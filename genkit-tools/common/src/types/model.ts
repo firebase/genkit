@@ -50,6 +50,18 @@ export {
 //
 
 /**
+ * Zod schema of an opration representing a background task.
+ */
+export const OperationSchema = z.object({
+  action: z.string().optional(),
+  id: z.string(),
+  done: z.boolean().optional(),
+  output: z.any().optional(),
+  error: z.object({ message: z.string() }).passthrough().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
+
+/**
  * Zod schema of message part.
  */
 export const PartSchema = z.union([
@@ -305,6 +317,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
+  operation: OperationSchema.optional(),
 });
 
 /**

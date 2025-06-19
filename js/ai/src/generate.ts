@@ -15,9 +15,11 @@
  */
 
 import {
+  assertUnstable,
   GenkitError,
   isAction,
   isDetachedAction,
+  Operation,
   runWithContext,
   runWithStreamingCallback,
   sentinelNoopStreamingCallback,
@@ -43,6 +45,7 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  GenerateResponseData,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
@@ -162,6 +165,8 @@ export interface GenerateOptions<
   use?: ModelMiddleware[];
   /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
   context?: ActionContext;
+  /** Abort signal for the generate request. */
+  abortSignal?: AbortSignal;
 }
 
 export async function toGenerateRequest(
@@ -353,6 +358,7 @@ export async function generate<
           generateHelper(registry, {
             rawRequest: params,
             middleware: resolvedOptions.use,
+            abortSignal: resolvedOptions.abortSignal,
           })
       );
       const request = await toGenerateRequest(registry, {
@@ -365,6 +371,38 @@ export async function generate<
       });
     }
   );
+}
+
+export async function generateOperation<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  registry: Registry,
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<Operation<GenerateResponseData>> {
+  assertUnstable(registry, 'beta', 'generateOperation is a beta feature.');
+
+  options = await options;
+  const resolvedModel = await resolveModel(registry, options.model);
+  if (
+    !resolvedModel.modelAction.__action.metadata?.model.supports?.longRunning
+  ) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: `Model '${resolvedModel.modelAction.__action.name}' does not support long running operations.`,
+    });
+  }
+
+  const { operation } = await generate(registry, options);
+  if (!operation) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Model '${resolvedModel.modelAction.__action.name}' did not return an operation.`,
+    });
+  }
+  return operation;
 }
 
 function maybeRegisterDynamicTools<

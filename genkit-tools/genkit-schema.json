@@ -789,6 +789,9 @@
         "request": {
           "$ref": "#/$defs/GenerateRequest"
         },
+        "operation": {
+          "$ref": "#/$defs/Operation"
+        },
         "candidates": {
           "type": "array",
           "items": {
@@ -1049,10 +1052,48 @@
         },
         "request": {
           "$ref": "#/$defs/GenerateResponse/properties/request"
+        },
+        "operation": {
+          "$ref": "#/$defs/GenerateResponse/properties/operation"
         }
       },
       "required": [
         "finishReason"
+      ],
+      "additionalProperties": false
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "done": {
+          "type": "boolean"
+        },
+        "output": {},
+        "error": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "message"
+          ],
+          "additionalProperties": true
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id"
       ],
       "additionalProperties": false
     },

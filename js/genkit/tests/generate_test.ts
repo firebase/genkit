@@ -15,7 +15,7 @@
  */
 
 import type { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
-import { z, type JSONSchema7 } from '@genkit-ai/core';
+import { Operation, z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
@@ -154,12 +154,13 @@ describe('generate', () => {
     it('rethrows response errors', async () => {
       ai.defineModel(
         {
+          apiVersion: 'v2',
           name: 'blockingModel',
         },
-        async (request, streamingCallback) => {
-          if (streamingCallback) {
+        async (request, { sendChunk, streamingRequested }) => {
+          if (streamingRequested) {
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '3',
@@ -168,7 +169,7 @@ describe('generate', () => {
               });
             });
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '2',
@@ -177,7 +178,7 @@ describe('generate', () => {
               });
             });
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '1',
@@ -1247,6 +1248,87 @@ describe('generate', () => {
           role: 'model',
         },
       ]);
+    });
+  });
+
+  describe('long running', () => {
+    let ai: GenkitBeta;
+    let pm: ProgrammableModel;
+
+    beforeEach(() => {
+      ai = genkit({
+        model: 'programmableModel',
+      });
+      pm = defineProgrammableModel(ai);
+    });
+
+    it('starts the operation', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => 'tool called'
+      );
+
+      ai.defineBackgroundModel({
+        name: 'bkg-model',
+        async start(_) {
+          return {
+            id: '123',
+          };
+        },
+        async check(operation) {
+          return {
+            id: '123',
+          };
+        },
+      });
+
+      const { operation } = await ai.generate({
+        model: 'bkg-model',
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      delete (operation as any).latencyMs;
+      assert.deepStrictEqual(operation, {
+        action: '/background-model/bkg-model',
+        id: '123',
+      });
+    });
+
+    it('checks operation status', async () => {
+      const newOp = {
+        id: '123',
+        done: true,
+        output: {
+          finishReason: 'stop',
+          message: {
+            role: 'model',
+            content: [{ text: 'done' }],
+          },
+        },
+      } as Operation;
+
+      ai.defineBackgroundModel({
+        name: 'bkg-model',
+        async start(_) {
+          return {
+            id: '123',
+          };
+        },
+        async check(operation) {
+          return { ...newOp };
+        },
+      });
+
+      const operation = await ai.checkOperation({
+        action: '/background-model/bkg-model',
+        id: '123',
+      });
+
+      assert.deepStrictEqual(operation, {
+        ...newOp,
+        action: '/background-model/bkg-model',
+      });
     });
   });
 });

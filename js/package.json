@@ -6,15 +6,15 @@
     "build:libs": "pnpm build:core && pnpm build:genkit && pnpm build:noncore ",
     "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow build",
     "build:genkit": "pnpm -F genkit build",
-    "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./plugins/**\" build",
-    "build:testapps": "pnpm -r --workspace-concurrency 0 -F \"./testapps/**\" build",
+    "build:noncore": "pnpm -r --workspace-concurrency -1 -F \"./plugins/**\" build",
+    "build:testapps": "pnpm -r --workspace-concurrency -1 -F \"./testapps/**\" build",
     "build:docsnippets": "cd doc-snippets && pnpm install && pnpm build",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:ai pack:genkit pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:ai": "cd ai && pnpm pack --pack-destination ../../dist",
     "pack:genkit": "cd genkit && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
-    "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|plugins|genkit)/**\" test && pnpm test:esm",
+    "test:all": "pnpm -r --workspace-concurrency -1 -F \"./(ai|core|plugins|genkit)/**\" test && pnpm test:esm",
     "test:esm": "cd testapps/esm && pnpm test",
     "gendocs": "pnpm build && pnpm typedoc",
     "typedoc-html": "typedoc --sortEntryPoints false --options typedoc.json"
@@ -22,12 +22,12 @@
   "devDependencies": {
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
-    "tsx": "^4.19.2",
-    "typedoc": "^0.27.5",
-    "typedoc-github-theme": "^0.2.0",
-    "typedoc-plugin-markdown": "^4.3.2",
-    "typedoc-plugin-zod": "^1.3.1",
-    "typescript": "^4.9.0"
+    "tsx": "^4.20.3",
+    "typedoc": "^0.27.9",
+    "typedoc-github-theme": "^0.2.1",
+    "typedoc-plugin-markdown": "^4.6.4",
+    "typedoc-plugin-zod": "^1.4.2",
+    "typescript": "^4.9.5"
   },
   "pnpm": {
     "overrides": {
