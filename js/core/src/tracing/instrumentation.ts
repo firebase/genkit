@@ -133,6 +133,17 @@ export async function runInNewSpan<T>(
         if (e instanceof Error) {
           otSpan.recordException(e);
         }
+
+        // Mark the first failing span as the source of failure. Prevent parent
+        // spans that catch re-thrown exceptions from also claiming to be the
+        // source.
+        if (typeof e === 'object') {
+          if (!(e as any).ignoreFailedSpan) {
+            opts.metadata.isFailedSpan = true;
+          }
+          (e as any).ignoreFailedSpan = true;
+        }
+
         throw e;
       } finally {
         otSpan.setAttributes(metadataToAttributes(opts.metadata));

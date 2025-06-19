@@ -30,8 +30,8 @@ export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 export { z } from 'zod';
 export * from './action.js';
 export {
-  OperationSchema,
   defineBackgroundAction,
+  OperationSchema,
   type BackgroundAction,
   type BackgroundActionFnArg,
   type BackgroundActionParams,
@@ -48,12 +48,12 @@ export {
   type RequestData,
 } from './context.js';
 export {
-  GenkitError,
-  UnstableApiError,
-  UserFacingError,
   assertUnstable,
+  GenkitError,
   getCallableJSON,
   getHttpStatus,
+  UnstableApiError,
+  UserFacingError,
   type StatusName,
 } from './error.js';
 export {
