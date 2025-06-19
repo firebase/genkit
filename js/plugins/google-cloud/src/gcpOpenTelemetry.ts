@@ -22,7 +22,11 @@ import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter'
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { SpanStatusCode, TraceFlags, type Span } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { type ExportResult } from '@opentelemetry/core';
+import {
+  hrTimeDuration,
+  hrTimeToMilliseconds,
+  type ExportResult,
+} from '@opentelemetry/core';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
@@ -46,6 +50,7 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
+import type { PathMetadata } from 'genkit/tracing';
 import { actionTelemetry } from './telemetry/action.js';
 import { engagementTelemetry } from './telemetry/engagement.js';
 import { featuresTelemetry } from './telemetry/feature.js';
@@ -53,6 +58,7 @@ import { generateTelemetry } from './telemetry/generate.js';
 import { pathsTelemetry } from './telemetry/path.js';
 import type { GcpTelemetryConfig } from './types.js';
 import {
+  extractErrorName,
   metricsDenied,
   metricsDeniedHelpText,
   tracingDenied,
@@ -321,8 +327,57 @@ class AdjustingTraceExporter implements SpanExporter {
   }
 
   private adjust(spans: ReadableSpan[]): ReadableSpan[] {
+    const allPaths = spans
+      .filter((span) => span.attributes['genkit:path'])
+      .map(
+        (span) =>
+          ({
+            path: span.attributes['genkit:path'] as string,
+            status:
+              (span.attributes['genkit:state'] as string) === 'error'
+                ? 'failure'
+                : 'success',
+            error: extractErrorName(span.events),
+            latency: hrTimeToMilliseconds(
+              hrTimeDuration(span.startTime, span.endTime)
+            ),
+          }) as PathMetadata
+      );
+
+    const allLeafPaths = new Set<PathMetadata>(
+      allPaths.filter((leafPath) =>
+        allPaths.every(
+          (path) =>
+            path.path === leafPath.path ||
+            !path.path.startsWith(leafPath.path) ||
+            (path.path.startsWith(leafPath.path) &&
+              path.status !== leafPath.status)
+        )
+      )
+    );
+
+    // Check if we have a failure in the root span that requires special handling
+    const rootSpan = spans.find((s) =>
+      Object.keys(s.attributes).includes('genkit:isRoot')
+    );
+    if (rootSpan) {
+      const rootSpanFailed =
+        (rootSpan.attributes['genkit:state'] as string) === 'error';
+      const anotherFailedSpan = spans.find(
+        (s) =>
+          !Object.keys(s.attributes).includes('genkit:isRoot') &&
+          s.attributes['genkit:state'] === 'error'
+      );
+      if (rootSpanFailed && !anotherFailedSpan) {
+        rootSpan.attributes['genkit:failedSpan'] =
+          rootSpan.attributes['genkit:name'];
+        rootSpan.attributes['genkit:failedPath'] =
+          rootSpan.attributes['genkit:path'];
+      }
+    }
+
     return spans.map((span) => {
-      this.tickTelemetry(span);
+      this.tickTelemetry(span, allLeafPaths);
 
       span = this.redactInputOutput(span);
       span = this.markErrorSpanAsError(span);
@@ -334,7 +389,7 @@ class AdjustingTraceExporter implements SpanExporter {
     });
   }
 
-  private tickTelemetry(span: ReadableSpan) {
+  private tickTelemetry(span: ReadableSpan, paths: Set<PathMetadata>) {
     const attributes = span.attributes;
     if (!Object.keys(attributes).includes('genkit:type')) {
       return;
@@ -343,35 +398,22 @@ class AdjustingTraceExporter implements SpanExporter {
     const type = attributes['genkit:type'] as string;
     const subtype = attributes['genkit:metadata:subtype'] as string;
     const isRoot = !!span.attributes['genkit:isRoot'];
+    const unused: Set<PathMetadata> = new Set();
 
-    pathsTelemetry.tick(span, this.logInputAndOutput, this.projectId);
     if (isRoot) {
       // Report top level feature request and latency only for root spans
       // Log input to and output from to the feature
-      featuresTelemetry.tick(span, this.logInputAndOutput, this.projectId);
+      featuresTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
+      // Report executions and latency for all flow paths only on the root span
+      pathsTelemetry.tick(span, paths, this.logInputAndOutput, this.projectId);
       // Set root status explicitly
       span.attributes['genkit:rootState'] = span.attributes['genkit:state'];
-<<<<<<< HEAD
-    } else {
-      if (type === 'action' && subtype === 'model') {
-        // Report generate metrics () for all model actions
-        generateTelemetry.tick(span, this.logInputAndOutput, this.projectId);
-      }
-      if (type === 'action' && subtype === 'tool') {
-        // TODO: Report input and output for tool actions
-      }
-      if (
-        type === 'action' ||
-        type === 'flow' ||
-        type == 'flowStep' ||
-        type == 'util'
-      ) {
-        // Report request and latency metrics for all actions
-        actionTelemetry.tick(span, this.logInputAndOutput, this.projectId);
-      }
-=======
-    }
-    if (type === 'action' && subtype === 'model') {
+    } else if (type === 'action' && subtype === 'model') {
       // Report generate metrics () for all model actions
       generateTelemetry.tick(
         span,
@@ -379,16 +421,15 @@ class AdjustingTraceExporter implements SpanExporter {
         this.logInputAndOutput,
         this.projectId
       );
-    }
-    if (type === 'action' && subtype === 'tool') {
-      // TODO: Report input and output for tool actions
-    }
-    if (
-      type === 'action' ||
-      type === 'flow' ||
-      type == 'flowStep' ||
-      type == 'util'
-    ) {
+    } else if (type === 'userEngagement') {
+      // Report user acceptance and feedback metrics
+      engagementTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
+    } else {
       // Report request and latency metrics for all actions
       actionTelemetry.tick(
         span,
@@ -396,11 +437,6 @@ class AdjustingTraceExporter implements SpanExporter {
         this.logInputAndOutput,
         this.projectId
       );
->>>>>>> 18eab117d (fix(js/plugins/google-clout): Write input and output logs for generate step)
-    }
-    if (type === 'userEngagement') {
-      // Report user acceptance and feedback metrics
-      engagementTelemetry.tick(span, this.logInputAndOutput, this.projectId);
     }
   }
 
@@ -449,9 +485,16 @@ class AdjustingTraceExporter implements SpanExporter {
   }
 
   private markFailedSpan(span: ReadableSpan): ReadableSpan {
-    if (span.attributes['genkit:isFailureSource']) {
-      span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];
-      span.attributes['genkit:failedPath'] = span.attributes['genkit:path'];
+    if (
+      span.attributes['genkit:state'] === 'error' &&
+      !span.attributes['genkit:isRoot']
+    ) {
+      if (!!span.attributes['genkit:name']) {
+        span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];
+      }
+      if (!!span.attributes['genkit:path']) {
+        span.attributes['genkit:failedPath'] = span.attributes['genkit:path'];
+      }
     }
     return span;
   }
