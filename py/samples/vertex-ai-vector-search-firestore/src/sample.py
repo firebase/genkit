@@ -24,11 +24,11 @@ from pydantic import BaseModel
 from genkit.ai import Genkit
 from genkit.blocks.document import Document
 from genkit.plugins.google_genai import VertexAI
-from genkit.plugins.vertex_ai import (
+from genkit.plugins.vertex_ai.vector_search import (
+    FirestoreRetriever,
     VertexAIVectorSearch,
     vertexai_name,
 )
-from genkit.plugins.vertex_ai.models.retriever import FirestoreRetriever
 
 LOCATION = os.getenv('LOCATION')
 PROJECT_ID = os.getenv('PROJECT_ID')
@@ -36,7 +36,7 @@ PROJECT_ID = os.getenv('PROJECT_ID')
 FIRESTORE_COLLECTION = os.getenv('FIRESTORE_COLLECTION')
 
 VECTOR_SEARCH_DEPLOYED_INDEX_ID = os.getenv('VECTOR_SEARCH_DEPLOYED_INDEX_ID')
-VECTOR_SEARCH_INDEX_ENDPOINT_PATH = os.getenv('VECVECTOR_SEARCH_INDEX_ENDPOINT_PATHTOR_SEARCH_INDEX_ENDPOINT_ID')
+VECTOR_SEARCH_INDEX_ENDPOINT_PATH = os.getenv('VECTOR_SEARCH_INDEX_ENDPOINT_PATH')
 VECTOR_SEARCH_API_ENDPOINT = os.getenv('VECTOR_SEARCH_API_ENDPOINT')
 
 firestore_client = firestore.Client(project=PROJECT_ID)

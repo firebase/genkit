@@ -1,0 +1,146 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {
+  Content,
+  GenerateContentCandidate,
+  GenerateContentRequest,
+  GenerateContentResponse,
+  GenerateContentStreamResult,
+  GenerationConfig,
+  GoogleSearchRetrievalTool,
+  Part,
+  SafetySetting,
+  TaskType,
+  TaskTypeSchema,
+  Tool,
+  ToolConfig,
+} from '../common/types';
+
+// This makes it easier to import all types from one place.
+export {
+  Content,
+  GenerateContentCandidate,
+  GenerateContentRequest,
+  GenerateContentResponse,
+  GenerateContentStreamResult,
+  GenerationConfig,
+  GoogleSearchRetrievalTool,
+  Part,
+  SafetySetting,
+  TaskTypeSchema,
+  Tool,
+  ToolConfig,
+};
+
+export interface PluginOptions {
+  /**
+   * Provide the API key to use to authenticate with the Gemini API. By
+   * default, an API key must be provided explicitly here or through the
+   * `GEMINI_API_KEY` or `GOOGLE_API_KEY` environment variables.
+   *
+   * If `false` is explicitly passed, the plugin will be configured to
+   * expect an `apiKey` option to be provided to the model config at
+   * call time.
+   **/
+  apiKey?: string | false;
+  apiVersion?: string;
+  baseUrl?: string;
+  experimental_debugTraces?: boolean;
+}
+
+/**
+ * Params passed to getGenerativeModel() or GoogleAIFileManager().
+ * @public
+ */
+export interface RequestOptions {
+  /**
+   * Request timeout in milliseconds.
+   */
+  timeout?: number;
+  /**
+   * Version of API endpoint to call (e.g. "v1" or "v1beta"). If not specified,
+   * defaults to 'v1beta'.
+   */
+  apiVersion?: string;
+  /**
+   * Additional attribution information to include in the x-goog-api-client header.
+   * Used by wrapper SDKs.
+   */
+  apiClient?: string;
+  /**
+   * Base endpoint url. Defaults to "https://generativelanguage.googleapis.com"
+   */
+  baseUrl?: string;
+  /**
+   * Custom HTTP request headers.
+   */
+  customHeaders?: Headers | Record<string, string>;
+}
+
+/**
+ * Params for calling embedContent
+ * @public
+ */
+export interface EmbedContentRequest {
+  content: Content;
+  taskType?: TaskType;
+  title?: string;
+}
+
+/**
+ * Gemini model object
+ * @public
+ */
+export interface Model {
+  name: string;
+  baseModelId: string;
+  version: string;
+  displayName: string;
+  description: string;
+  inputTokenLimit: number;
+  outputTokenLimit: number;
+  supportedGenerationMethods: string[];
+  temperature: number;
+  maxTemperature: number;
+  topP: number;
+  topK: number;
+}
+
+/**
+ * Response from calling listModels
+ * @public
+ */
+export interface ListModelsResponse {
+  models: Model[];
+  nextPageToken?: string;
+}
+
+/**
+ * Response from calling embedContent
+ * @public
+ */
+export interface EmbedContentResponse {
+  embedding: ContentEmbedding;
+}
+
+/**
+ * A single content embedding.
+ * @public
+ */
+export interface ContentEmbedding {
+  values: number[];
+}
