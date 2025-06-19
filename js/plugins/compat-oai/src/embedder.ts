@@ -17,15 +17,28 @@
 
 // import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
 
-import type { EmbedderReference, Genkit } from 'genkit';
+import type { EmbedderAction, EmbedderReference, Genkit } from 'genkit';
 import OpenAI from 'openai';
 
+/**
+ * Method to define a new Genkit Embedder that is compatibale with the Open AI
+ * Embeddings API. 
+ *
+ * @param params An object containing parameters for defining the OpenAI embedder.
+ * @param params.ai The Genkit AI instance.
+ * @param params.name The name of the embedder.
+ * @param params.client The OpenAI client instance.
+ * @param params.embedderRef Optional reference to the embedder's configuration and
+ * custom options.
+
+ * @returns the created {@link EmbedderAction}
+ */
 export function defineCompatOpenAIEmbedder(params: {
   ai: Genkit;
   name: string;
   client: OpenAI;
   embedderRef?: EmbedderReference;
-}) {
+}): EmbedderAction {
   const { ai, name, client, embedderRef } = params;
   const model = name.split('/').pop();
   return ai.defineEmbedder(

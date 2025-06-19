@@ -61,7 +61,7 @@ export interface PluginOptions extends Partial<ClientOptions> {
  *  plugins: [
  *    myOpenAICompatiblePlugin({
  *      name: 'gpt4o', // Name for this specific plugin configuration
- *      apiKey: 'your-openai-api-key',
+ *      apiKey: process.env.OPENAI_API_KEY,
  *      // For a non-OpenAI compatible endpoint:
  *      // baseURL: 'https://api.custom-llm-provider.com/v1',
  *    }),
@@ -75,7 +75,6 @@ export interface PluginOptions extends Partial<ClientOptions> {
  * });
  * ```
  */
-
 export const openAICompatible = (options: PluginOptions) =>
   genkitPlugin(options.name, async (ai: Genkit) => {
     const client = new OpenAI(options);

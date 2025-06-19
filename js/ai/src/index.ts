@@ -63,7 +63,6 @@ export {
 } from './generate.js';
 export { Message } from './message.js';
 export {
-  GenerateActionOptionsSchema,
   GenerateResponseChunkSchema,
   GenerationCommonConfigSchema,
   MessageSchema,

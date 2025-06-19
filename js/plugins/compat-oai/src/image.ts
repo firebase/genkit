@@ -28,14 +28,23 @@ import type {
   ImagesResponse,
 } from 'openai/resources/images.mjs';
 
-export function toImageGenerateParams(
+function toImageGenerateParams(
   modelName: string,
   request: GenerateRequest
 ): ImageGenerateParams {
-  const { response_format, ...restOfConfig } = request.config ?? {};
+  const {
+    temperature,
+    version: modelVersion,
+    maxOutputTokens,
+    stopSequences,
+    topK,
+    topP,
+    response_format,
+    ...restOfConfig
+  } = request.config ?? {};
 
   const options: ImageGenerateParams = {
-    model: modelName,
+    model: modelVersion ?? modelName,
     prompt: new Message(request.messages[0]).text,
     response_format: response_format || 'b64_json',
     ...restOfConfig,
@@ -48,9 +57,7 @@ export function toImageGenerateParams(
   return options;
 }
 
-export function toGenerateResponse(
-  result: ImagesResponse
-): GenerateResponseData {
+function toGenerateResponse(result: ImagesResponse): GenerateResponseData {
   const images = result.data;
   if (!images) {
     return { finishReason: 'stop' };
@@ -65,6 +72,22 @@ export function toGenerateResponse(
   }
 }
 
+/**
+ * Method to define a new Genkit Model that is compatible with Open AI
+ * Images API. 
+ *
+ * These models are to be used to create images from a user prompt.
+ *
+ * @param params An object containing parameters for defining the OpenAI
+ * image model.
+ * @param params.ai The Genkit AI instance.
+ * @param params.name The name of the model.
+ * @param params.client The OpenAI client instance.
+ * @param params.modelRef Optional reference to the model's configuration and
+ * custom options.
+
+ * @returns the created {@link ModelAction}
+ */
 export function defineCompatOpenAIImageModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {

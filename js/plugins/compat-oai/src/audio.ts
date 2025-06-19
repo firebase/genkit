@@ -29,6 +29,9 @@ import type {
   TranscriptionCreateParams,
 } from 'openai/resources/audio/index.mjs';
 
+/**
+ * Supported media formats for Audio generation
+ */
 export const RESPONSE_FORMAT_MEDIA_TYPES = {
   mp3: 'audio/mpeg',
   opus: 'audio/opus',
@@ -48,6 +51,8 @@ function toTTSRequest(
     temperature,
     maxOutputTokens,
     stopSequences,
+    topK,
+    topP,
     ...restOfConfig
   } = request.config ?? {};
 
@@ -86,6 +91,21 @@ function toGenerateResponse(
   };
 }
 
+/**
+ * Method to define a new Genkit Model that is compatible with the Open AI Audio
+ * API. 
+ *
+ * These models are to be used to create audio speech from a given request.
+ * @param params An object containing parameters for defining the OpenAI speech
+ * model.
+ * @param params.ai The Genkit AI instance.
+ * @param params.name The name of the model.
+ * @param params.client The OpenAI client instance.
+ * @param params.modelRef Optional reference to the model's configuration and
+ * custom options.
+
+ * @returns the created {@link ModelAction}
+ */
 export function defineCompatOpenAISpeechModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
@@ -136,6 +156,8 @@ function toSttRequest(
     version: modelVersion,
     maxOutputTokens,
     stopSequences,
+    topK,
+    topP,
     ...restOfConfig
   } = request.config ?? {};
 
@@ -187,6 +209,22 @@ function transcriptionToGenerateResponse(
   };
 }
 
+/**
+ * Method to define a new Genkit Model that is compatible with Open AI
+ * Transcriptions API. 
+ *
+ * These models are to be used to transcribe audio to text.
+ *
+ * @param params An object containing parameters for defining the OpenAI
+ * transcription model.
+ * @param params.ai The Genkit AI instance.
+ * @param params.name The name of the model.
+ * @param params.client The OpenAI client instance.
+ * @param params.modelRef Optional reference to the model's configuration and
+ * custom options.
+
+ * @returns the created {@link ModelAction}
+ */
 export function defineCompatOpenAITranscriptionModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {

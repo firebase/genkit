@@ -27,7 +27,11 @@ import type {
   ToolRequestPart,
 } from 'genkit';
 import { Message, z } from 'genkit';
-import type { GenerateResponseChunkData, ToolDefinition } from 'genkit/model';
+import type {
+  GenerateResponseChunkData,
+  ModelAction,
+  ToolDefinition,
+} from 'genkit/model';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -328,7 +332,8 @@ export function toOpenAIRequestBody(
   );
   const {
     temperature,
-    maxOutputTokens,
+    maxOutputTokens, // unused
+    topK, // unused
     topP: top_p,
     stopSequences: stop,
     version: modelVersion,
@@ -417,22 +422,38 @@ export function openAIModelRunner(name: string, client: OpenAI) {
   };
 }
 
+/**
+ * Method to define a new Genkit Model that is compatible with Open AI
+ * Chat Completions API. 
+ *
+ * These models are to be used to chat with a large language model.
+ *
+ * @param params An object containing parameters for defining the OpenAI
+ * Chat model.
+ * @param params.ai The Genkit AI instance.
+ * @param params.name The name of the model.
+ * @param params.client The OpenAI client instance.
+ * @param params.modelRef Optional reference to the model's configuration and
+ * custom options.
+
+ * @returns the created {@link ModelAction}
+ */
 export function defineCompatOpenAIModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
   ai: Genkit;
   name: string;
   client: OpenAI;
-  modelRef: ModelReference<CustomOptions>;
-}) {
+  modelRef?: ModelReference<CustomOptions>;
+}): ModelAction {
   const { ai, name, client, modelRef } = params;
   const model = name.split('/').pop();
 
   return ai.defineModel(
     {
       name,
-      ...modelRef.info,
-      configSchema: modelRef.configSchema,
+      ...modelRef?.info,
+      configSchema: modelRef?.configSchema,
     },
     openAIModelRunner(model!, client)
   );

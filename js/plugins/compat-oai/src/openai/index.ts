@@ -117,7 +117,7 @@ export type OpenAIPluginOptions = Exclude<PluginOptions, 'name'>;
  *
  * export default configureGenkit({
  *  plugins: [
- *    openai({ apiKey: 'your-api-key' })
+ *    openai()
  *    ... // other plugins
  *  ]
  * });
