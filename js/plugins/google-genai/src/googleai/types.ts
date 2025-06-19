@@ -16,12 +16,15 @@
 
 import {
   Content,
+  FinishReason,
   GenerateContentCandidate,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
   GenerationConfig,
   GoogleSearchRetrievalTool,
+  HarmBlockThreshold,
+  HarmCategory,
   Part,
   SafetySetting,
   TaskType,
@@ -33,12 +36,15 @@ import {
 // This makes it easier to import all types from one place.
 export {
   Content,
+  FinishReason,
   GenerateContentCandidate,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
   GenerationConfig,
   GoogleSearchRetrievalTool,
+  HarmBlockThreshold,
+  HarmCategory,
   Part,
   SafetySetting,
   TaskTypeSchema,
