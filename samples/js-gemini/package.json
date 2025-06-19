@@ -1,0 +1,26 @@
+{
+  "name": "gemini",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "npm run genkit:dev",
+    "genkit:dev": "genkit start -- npx tsx --watch src/index.ts",
+    "build": "tsc",
+    "build:watch": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "genkit": "^1.13.0",
+    "@genkit-ai/googleai": "^1.13.0",
+    "node-fetch": "3.3.2"
+  },
+  "devDependencies": {
+    "genkit-cli": "^1.13.0",
+    "typescript": "^5.5.4",
+    "tsx": "^4.20.3"
+  }
+}
