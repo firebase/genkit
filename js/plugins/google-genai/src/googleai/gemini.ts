@@ -228,7 +228,6 @@ function commonRef(
   return modelRef({
     name: `googleai/${name}`,
     info: {
-      label: `Google AI - ${name}`,
       supports: {
         multiturn: info?.supports?.multiturn ?? true,
         media: info?.supports?.media ?? true,
@@ -242,10 +241,7 @@ function commonRef(
   });
 }
 
-export const KNOWN_GEMINI_MODELS: Record<
-  string,
-  ModelReference<ConfigSchema>
-> = {
+export const KNOWN_GEMINI_MODELS = {
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
   'gemini-2.0-pro-exp-02-05': commonRef('gemini-2.0-pro-exp-02-05'),
@@ -299,8 +295,6 @@ export function gemini(
     configSchema: nearestModel.configSchema,
     info: {
       ...nearestModel.info,
-      // If exact suffix match for a known model, use its label, otherwise create a new label
-      label: `Google AI - ${version}`,
     },
   });
 }
@@ -350,7 +344,6 @@ export function defineGeminiModel({
     modelRef({
       name: `googleai/${apiModelName}`,
       info: {
-        label: `Google AI - ${apiModelName}`,
         supports: {
           multiturn: true,
           media: true,

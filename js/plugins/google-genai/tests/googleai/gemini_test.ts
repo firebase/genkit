@@ -137,10 +137,6 @@ describe('Google AI Gemini', () => {
       sinon.assert.calledOnce(mockGenkit.defineModel);
       const args = mockGenkit.defineModel.lastCall.args[0];
       assert.strictEqual(args.name, 'googleai/gemini-2.0-flash');
-      assert.strictEqual(
-        args.label,
-        KNOWN_GEMINI_MODELS['gemini-2.0-flash'].info?.label
-      );
     });
 
     it('defines a model with a custom name', () => {
@@ -151,7 +147,6 @@ describe('Google AI Gemini', () => {
       });
       const args = mockGenkit.defineModel.lastCall.args[0];
       assert.strictEqual(args.name, 'googleai/my-custom-gemini');
-      assert.strictEqual(args.label, 'Google AI - my-custom-gemini');
     });
 
     describe('API Key Handling', () => {
@@ -412,10 +407,6 @@ describe('Google AI Gemini', () => {
       const modelRef = gemini(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);
-      assert.strictEqual(
-        modelRef.info?.label,
-        KNOWN_GEMINI_MODELS[name].info?.label
-      );
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
     });
 
@@ -424,10 +415,6 @@ describe('Google AI Gemini', () => {
       const modelRef = gemini(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, false);
-      assert.strictEqual(
-        modelRef.info?.label,
-        KNOWN_GEMINI_MODELS[name].info?.label
-      );
       assert.strictEqual(modelRef.configSchema, GeminiTtsConfigSchema);
     });
 
@@ -436,7 +423,6 @@ describe('Google AI Gemini', () => {
       const modelRef = gemini(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);
-      assert.strictEqual(modelRef.info?.label, 'Google AI - gemini-3.0-flash');
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
     });
   });
