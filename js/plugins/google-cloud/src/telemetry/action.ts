@@ -29,7 +29,7 @@ class ActionTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
     logInputAndOutput: boolean,
-    projectId?: string
+    projectId?: string,
   ): void {
     if (!logInputAndOutput) {
       return;
@@ -58,7 +58,7 @@ class ActionTelemetry implements Telemetry {
           input,
           projectId,
           sessionId,
-          threadName
+          threadName,
         );
       }
       if (output) {
@@ -70,7 +70,7 @@ class ActionTelemetry implements Telemetry {
           output,
           projectId,
           sessionId,
-          threadName
+          threadName,
         );
       }
     }
@@ -84,7 +84,7 @@ class ActionTelemetry implements Telemetry {
     content: string,
     projectId?: string,
     sessionId?: string,
-    threadName?: string
+    threadName?: string,
   ) {
     const path = truncatePath(toDisplayPath(qualifiedPath));
     const sharedMetadata = {
@@ -103,4 +103,4 @@ class ActionTelemetry implements Telemetry {
 }
 
 const actionTelemetry = new ActionTelemetry();
-export { actionTelemetry };
+export {actionTelemetry};

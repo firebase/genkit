@@ -351,6 +351,7 @@ class AdjustingTraceExporter implements SpanExporter {
       featuresTelemetry.tick(span, this.logInputAndOutput, this.projectId);
       // Set root status explicitly
       span.attributes['genkit:rootState'] = span.attributes['genkit:state'];
+<<<<<<< HEAD
     } else {
       if (type === 'action' && subtype === 'model') {
         // Report generate metrics () for all model actions
@@ -368,6 +369,34 @@ class AdjustingTraceExporter implements SpanExporter {
         // Report request and latency metrics for all actions
         actionTelemetry.tick(span, this.logInputAndOutput, this.projectId);
       }
+=======
+    }
+    if (type === 'action' && subtype === 'model') {
+      // Report generate metrics () for all model actions
+      generateTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
+    }
+    if (type === 'action' && subtype === 'tool') {
+      // TODO: Report input and output for tool actions
+    }
+    if (
+      type === 'action' ||
+      type === 'flow' ||
+      type == 'flowStep' ||
+      type == 'util'
+    ) {
+      // Report request and latency metrics for all actions
+      actionTelemetry.tick(
+        span,
+        unused,
+        this.logInputAndOutput,
+        this.projectId
+      );
+>>>>>>> 18eab117d (fix(js/plugins/google-clout): Write input and output logs for generate step)
     }
     if (type === 'userEngagement') {
       // Report user acceptance and feedback metrics
