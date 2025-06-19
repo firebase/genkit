@@ -15,9 +15,17 @@
  * limitations under the License.
  */
 
-import openAICompatible, { PluginOptions } from '../index.js';
-import { dallE3 } from './dalle.js';
 import {
+  defineCompatOpenAISpeechModel,
+  defineCompatOpenAITranscriptionModel,
+} from '../audio.js';
+import { defineCompatOpenAIEmbedder } from '../embedder.js';
+import { defineCompatOpenAIImageModel } from '../image.js';
+import openAICompatible, { PluginOptions } from '../index.js';
+import { defineCompatOpenAIModel } from '../model.js';
+import { SUPPORTED_IMAGE_MODELS, dallE3 } from './dalle.js';
+import {
+  SUPPORTED_EMBEDDING_MODELS,
   textEmbedding3Large,
   textEmbedding3Small,
   textEmbeddingAda002,
@@ -41,8 +49,8 @@ import {
   o3Mini,
   o4Mini,
 } from './gpt.js';
-import { gpt4oMiniTts, tts1, tts1Hd } from './tts.js';
-import { gpt4oTranscribe, whisper1 } from './whisper.js';
+import { SUPPORTED_TTS_MODELS, gpt4oMiniTts, tts1, tts1Hd } from './tts.js';
+import { SUPPORTED_STT_MODELS, gpt4oTranscribe, whisper1 } from './whisper.js';
 export {
   dallE3,
   gpt35Turbo,
@@ -70,6 +78,8 @@ export {
   tts1Hd,
   whisper1,
 };
+
+export type OpenAIPluginOptions = Exclude<PluginOptions, 'name'>;
 
 /**
  * This module provides an interface to the OpenAI models through the Genkit
@@ -113,15 +123,47 @@ export {
  * });
  * ```
  */
-export const openAI = (options?: PluginOptions) =>
+export const openAI = (options?: OpenAIPluginOptions) =>
   openAICompatible({
     name: 'openai',
     ...options,
-    models: Object.values(SUPPORTED_GPT_MODELS).map((ref) => ({
-      name: ref.name,
-      configSchema: ref.configSchema,
-      info: ref.info,
-    })),
+    initializer: async (ai, client) => {
+      Object.values(SUPPORTED_GPT_MODELS).forEach((modelRef) =>
+        defineCompatOpenAIModel({ ai, name: modelRef.name, client, modelRef })
+      );
+      Object.values(SUPPORTED_EMBEDDING_MODELS).forEach((embedderRef) =>
+        defineCompatOpenAIEmbedder({
+          ai,
+          name: embedderRef.name,
+          client,
+          embedderRef,
+        })
+      );
+      Object.values(SUPPORTED_TTS_MODELS).forEach((modelRef) =>
+        defineCompatOpenAISpeechModel({
+          ai,
+          name: modelRef.name,
+          client,
+          modelRef,
+        })
+      );
+      Object.values(SUPPORTED_STT_MODELS).forEach((modelRef) =>
+        defineCompatOpenAITranscriptionModel({
+          ai,
+          name: modelRef.name,
+          client,
+          modelRef,
+        })
+      );
+      Object.values(SUPPORTED_IMAGE_MODELS).forEach((modelRef) =>
+        defineCompatOpenAIImageModel({
+          ai,
+          name: modelRef.name,
+          client,
+          modelRef,
+        })
+      );
+    },
   });
 
 export default openAI;

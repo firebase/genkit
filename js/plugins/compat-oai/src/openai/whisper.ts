@@ -15,11 +15,29 @@
  * limitations under the License.
  */
 
-import type { Genkit } from 'genkit';
-import type { ModelAction } from 'genkit/model';
-import { modelRef } from 'genkit/model';
-import type OpenAI from 'openai';
-import { Whisper1ConfigSchema, sttModel as compatSttModel } from '../audio';
+import { z } from 'genkit';
+import { GenerationCommonConfigSchema, modelRef } from 'genkit/model';
+
+const ChunkingStrategySchema = z.object({
+  type: z.string(),
+  prefix_padding_ms: z.number().int().optional(),
+  silence_duration_ms: z.number().int().optional(),
+  threshold: z.number().min(0).max(1.0).optional(),
+});
+export const TranscriptionConfigSchema = GenerationCommonConfigSchema.pick({
+  temperature: true,
+}).extend({
+  chunking_strategy: z
+    .union([z.literal('auto'), ChunkingStrategySchema])
+    .optional(),
+  include: z.array(z.any()).optional(),
+  language: z.string().optional(),
+  timestamp_granularities: z.array(z.enum(['word', 'segment'])).optional(),
+  response_format: z
+    .enum(['json', 'text', 'srt', 'verbose_json', 'vtt'])
+    .optional(),
+  // TODO stream support
+});
 
 export const whisper1 = modelRef({
   name: 'openai/whisper-1',
@@ -33,7 +51,7 @@ export const whisper1 = modelRef({
       tools: false,
     },
   },
-  configSchema: Whisper1ConfigSchema,
+  configSchema: TranscriptionConfigSchema,
 });
 
 export const gpt4oTranscribe = modelRef({
@@ -48,22 +66,10 @@ export const gpt4oTranscribe = modelRef({
       tools: false,
     },
   },
-  configSchema: Whisper1ConfigSchema,
+  configSchema: TranscriptionConfigSchema,
 });
 
 export const SUPPORTED_STT_MODELS = {
   'gpt-4o-transcribe': gpt4oTranscribe,
   'whisper-1': whisper1,
 };
-
-export function sttModel(
-  ai: Genkit,
-  name: string,
-  client: OpenAI
-): ModelAction<typeof Whisper1ConfigSchema> {
-  const modelId = `openai/${name}`;
-  const model = SUPPORTED_STT_MODELS[name];
-  if (!model) throw new Error(`Unsupported model: ${name}`);
-
-  return compatSttModel(ai, modelId, client, model);
-}

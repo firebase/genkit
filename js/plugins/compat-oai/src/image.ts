@@ -14,32 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { GenerateResponseData } from 'genkit';
+import type {
+  GenerateRequest,
+  GenerateResponseData,
+  Genkit,
+  ModelReference,
+} from 'genkit';
 import { Message, z } from 'genkit';
-import { GenerateRequestSchema } from 'genkit/model';
+import { ModelAction } from 'genkit/model';
+import OpenAI from 'openai';
 import type {
   ImageGenerateParams,
   ImagesResponse,
 } from 'openai/resources/images.mjs';
 
-export const ImageGenerateRequestSchema = GenerateRequestSchema.extend({
-  model: z.string(),
-  n: z.number().optional().describe('Number of images to generate'),
-});
-export type ImageGenerateRequest = z.infer<typeof ImageGenerateRequestSchema>;
-
 export function toImageGenerateParams(
-  request: ImageGenerateRequest
+  modelName: string,
+  request: GenerateRequest
 ): ImageGenerateParams {
+  const { response_format, ...restOfConfig } = request.config ?? {};
+
   const options: ImageGenerateParams = {
-    model: request.model,
+    model: modelName,
     prompt: new Message(request.messages[0]).text,
-    n: request.n || 1,
-    size: request.config?.size,
-    style: request.config?.style,
-    user: request.config?.user,
-    quality: request.config?.quality,
-    response_format: request.config?.response_format || 'b64_json',
+    response_format: response_format || 'b64_json',
+    ...restOfConfig,
   };
   for (const k in options) {
     if (options[k] === undefined) {
@@ -64,4 +63,30 @@ export function toGenerateResponse(
     }));
     return { message: { role: 'model', content } };
   }
+}
+
+export function defineCompatOpenAIImageModel<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  ai: Genkit;
+  name: string;
+  client: OpenAI;
+  modelRef?: ModelReference<CustomOptions>;
+}): ModelAction<CustomOptions> {
+  const { ai, name, client, modelRef } = params;
+  const model = name.split('/').pop();
+
+  return ai.defineModel(
+    {
+      name,
+      ...modelRef?.info,
+      configSchema: modelRef?.configSchema,
+    },
+    async (request) => {
+      const result = await client.images.generate(
+        toImageGenerateParams(model!, request)
+      );
+      return toGenerateResponse(result);
+    }
+  );
 }

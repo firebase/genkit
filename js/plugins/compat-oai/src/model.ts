@@ -26,12 +26,8 @@ import type {
   StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
-import { GenerationCommonConfigSchema, Message, z } from 'genkit';
-import type {
-  CandidateData,
-  GenerateResponseChunkData,
-  ToolDefinition,
-} from 'genkit/model';
+import { Message, z } from 'genkit';
+import type { GenerateResponseChunkData, ToolDefinition } from 'genkit/model';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -45,20 +41,9 @@ import type {
   CompletionChoice,
 } from 'openai/resources/index.mjs';
 
-export const OpenAiConfigSchema = GenerationCommonConfigSchema.extend({
-  frequencyPenalty: z.number().min(-2).max(2).optional(),
-  logitBias: z.record(z.string(), z.number().min(-100).max(100)).optional(),
-  logProbs: z.boolean().optional(),
-  presencePenalty: z.number().min(-2).max(2).optional(),
-  seed: z.number().int().optional(),
-  topLogProbs: z.number().int().min(0).max(20).optional(),
-  user: z.string().optional(),
-  visualDetailLevel: z.enum(['auto', 'low', 'high']).optional(),
-});
+const VisualDetailLevelSchema = z.enum(['auto', 'low', 'high']).optional();
 
-type VisualDetailLevel = z.infer<
-  typeof OpenAiConfigSchema
->['visualDetailLevel'];
+type VisualDetailLevel = z.infer<typeof VisualDetailLevelSchema>;
 
 export function toOpenAIRole(role: Role): ChatCompletionRole {
   switch (role) {
@@ -80,7 +65,7 @@ export function toOpenAIRole(role: Role): ChatCompletionRole {
  * @param tool The Genkit ToolDefinition to convert.
  * @returns The converted OpenAI ChatCompletionTool object.
  */
-export function toOpenAiTool(tool: ToolDefinition): ChatCompletionTool {
+export function toOpenAITool(tool: ToolDefinition): ChatCompletionTool {
   return {
     type: 'function',
     function: {
@@ -97,7 +82,7 @@ export function toOpenAiTool(tool: ToolDefinition): ChatCompletionTool {
  * @returns The corresponding OpenAI ChatCompletionContentPart.
  * @throws Error if the part contains unsupported fields for the current message role.
  */
-export function toOpenAiTextAndMedia(
+export function toOpenAITextAndMedia(
   part: Part,
   visualDetailLevel: VisualDetailLevel
 ): ChatCompletionContentPart {
@@ -126,41 +111,41 @@ export function toOpenAiTextAndMedia(
  * @param visualDetailLevel The visual detail level to use for media parts.
  * @returns The converted OpenAI ChatCompletionMessageParam array.
  */
-export function toOpenAiMessages(
+export function toOpenAIMessages(
   messages: MessageData[],
   visualDetailLevel: VisualDetailLevel = 'auto'
 ): ChatCompletionMessageParam[] {
-  const openAiMsgs: ChatCompletionMessageParam[] = [];
+  const apiMessages: ChatCompletionMessageParam[] = [];
   for (const message of messages) {
     const msg = new Message(message);
     const role = toOpenAIRole(message.role);
     switch (role) {
       case 'user':
         const content = msg.content.map((part) =>
-          toOpenAiTextAndMedia(part, visualDetailLevel)
+          toOpenAITextAndMedia(part, visualDetailLevel)
         );
         // Check if we have only text content
         const onlyTextContent = content.some((item) => item.type !== 'text');
 
         // If all items are strings, just add them as text
         if (!onlyTextContent) {
-          content.forEach((item, index) => {
+          content.forEach((item) => {
             if (item.type === 'text') {
-              openAiMsgs.push({
+              apiMessages.push({
                 role: role,
                 content: item.text,
               });
             }
           });
         } else {
-          openAiMsgs.push({
+          apiMessages.push({
             role: role,
             content: content,
           });
         }
         break;
       case 'system':
-        openAiMsgs.push({
+        apiMessages.push({
           role: role,
           content: msg.text,
         });
@@ -183,12 +168,12 @@ export function toOpenAiMessages(
             },
           }));
         if (toolCalls.length > 0) {
-          openAiMsgs.push({
+          apiMessages.push({
             role: role,
             tool_calls: toolCalls,
           });
         } else {
-          openAiMsgs.push({
+          apiMessages.push({
             role: role,
             content: msg.text,
           });
@@ -198,7 +183,7 @@ export function toOpenAiMessages(
       case 'tool': {
         const toolResponseParts = msg.toolResponseParts();
         toolResponseParts.map((part) => {
-          openAiMsgs.push({
+          apiMessages.push({
             role: role,
             tool_call_id: part.toolResponse.ref ?? '',
             content:
@@ -211,13 +196,13 @@ export function toOpenAiMessages(
       }
     }
   }
-  return openAiMsgs;
+  return apiMessages;
 }
 
 const finishReasonMap: Record<
   // OpenAI Node SDK doesn't support tool_call in the enum, but it is returned from the API
   CompletionChoice['finish_reason'] | 'tool_calls',
-  CandidateData['finishReason']
+  GenerateResponseData['finishReason']
 > = {
   length: 'length',
   stop: 'stop',
@@ -230,7 +215,7 @@ const finishReasonMap: Record<
  * @param toolCall The OpenAI tool call to convert.
  * @returns The converted Genkit ToolRequestPart.
  */
-export function fromOpenAiToolCall(
+export function fromOpenAIToolCall(
   toolCall:
     | ChatCompletionMessageToolCall
     | ChatCompletionChunk.Choice.Delta.ToolCall,
@@ -264,20 +249,19 @@ export function fromOpenAiToolCall(
 }
 
 /**
- * Converts an OpenAI message event to a Genkit CandidateData object.
+ * Converts an OpenAI message event to a Genkit GenerateResponseData object.
  * @param choice The OpenAI message event to convert.
  * @param jsonMode Whether the event is a JSON response.
- * @returns The converted Genkit CandidateData object.
+ * @returns The converted Genkit GenerateResponseData object.
  */
-export function fromOpenAiChoice(
+export function fromOpenAIChoice(
   choice: ChatCompletion.Choice,
   jsonMode = false
-): CandidateData {
+): GenerateResponseData {
   const toolRequestParts = choice.message.tool_calls?.map((toolCall) =>
-    fromOpenAiToolCall(toolCall, choice)
+    fromOpenAIToolCall(toolCall, choice)
   );
   return {
-    index: choice.index,
     finishReason: finishReasonMap[choice.finish_reason] || 'other',
     message: {
       role: 'model',
@@ -291,25 +275,24 @@ export function fromOpenAiChoice(
               : { text: choice.message.content! },
           ],
     },
-    custom: {},
   };
 }
 
 /**
- * Converts an OpenAI message stream event to a Genkit CandidateData object.
+ * Converts an OpenAI message stream event to a Genkit GenerateResponseData
+ * object.
  * @param choice The OpenAI message stream event to convert.
  * @param jsonMode Whether the event is a JSON response.
- * @returns The converted Genkit CandidateData object.
+ * @returns The converted Genkit GenerateResponseData object.
  */
-export function fromOpenAiChunkChoice(
+export function fromOpenAIChunkChoice(
   choice: ChatCompletionChunk.Choice,
   jsonMode = false
-): CandidateData {
+): GenerateResponseData {
   const toolRequestParts = choice.delta.tool_calls?.map((toolCall) =>
-    fromOpenAiToolCall(toolCall, choice)
+    fromOpenAIToolCall(toolCall, choice)
   );
   return {
-    index: choice.index,
     finishReason: choice.finish_reason
       ? finishReasonMap[choice.finish_reason] || 'other'
       : 'unknown',
@@ -325,7 +308,6 @@ export function fromOpenAiChunkChoice(
               : { text: choice.delta.content! },
           ],
     },
-    custom: {},
   };
 }
 
@@ -336,30 +318,31 @@ export function fromOpenAiChunkChoice(
  * @returns The converted OpenAI API request body.
  * @throws An error if the specified model is not supported or if an unsupported output format is requested.
  */
-export function toOpenAiRequestBody(
-  name: string,
-  request: GenerateRequest<typeof OpenAiConfigSchema>
+export function toOpenAIRequestBody(
+  modelName: string,
+  request: GenerateRequest
 ) {
-  const openAiMessages = toOpenAiMessages(
+  const messages = toOpenAIMessages(
     request.messages,
     request.config?.visualDetailLevel
   );
+  const {
+    temperature,
+    maxOutputTokens,
+    topP: top_p,
+    stopSequences: stop,
+    version: modelVersion,
+    ...restOfConfig
+  } = request.config ?? {};
+
   const body = {
-    model: name,
-    messages: openAiMessages,
-    temperature: request.config?.temperature,
-    max_tokens: request.config?.maxOutputTokens,
-    top_p: request.config?.topP,
-    stop: request.config?.stopSequences,
-    frequency_penalty: request.config?.frequencyPenalty,
-    logit_bias: request.config?.logitBias,
-    logprobs: request.config?.logProbs, // logprobs not snake case!
-    presence_penalty: request.config?.presencePenalty,
-    seed: request.config?.seed,
-    top_logprobs: request.config?.topLogProbs, // logprobs not snake case!
-    user: request.config?.user,
-    tools: request.tools?.map(toOpenAiTool),
-    n: request.candidates,
+    model: modelVersion ?? modelName,
+    messages,
+    tools: request.tools?.map(toOpenAITool),
+    temperature,
+    top_p,
+    stop,
+    ...restOfConfig, // passthrough for other config
   } as ChatCompletionCreateParamsNonStreaming;
 
   const response_format = request.output?.format;
@@ -386,13 +369,13 @@ export function toOpenAiRequestBody(
  * @param client The OpenAI client instance.
  * @returns The runner that Genkit will call when the model is invoked.
  */
-export function openAiModelRunner(name: string, client: OpenAI) {
+export function openAIModelRunner(name: string, client: OpenAI) {
   return async (
-    request: GenerateRequest<typeof OpenAiConfigSchema>,
+    request: GenerateRequest,
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
   ): Promise<GenerateResponseData> => {
     let response: ChatCompletion;
-    const body = toOpenAiRequestBody(name, request);
+    const body = toOpenAIRequestBody(name, request);
     if (streamingCallback) {
       const stream = client.beta.chat.completions.stream({
         ...body,
@@ -403,10 +386,10 @@ export function openAiModelRunner(name: string, client: OpenAI) {
       });
       for await (const chunk of stream) {
         chunk.choices?.forEach((chunk) => {
-          const c = fromOpenAiChunkChoice(chunk);
+          const c = fromOpenAIChunkChoice(chunk);
           streamingCallback({
-            index: c.index,
-            content: c.message.content,
+            index: chunk.index,
+            content: c.message?.content ?? [],
           });
         });
       }
@@ -414,10 +397,7 @@ export function openAiModelRunner(name: string, client: OpenAI) {
     } else {
       response = await client.chat.completions.create(body);
     }
-    return {
-      candidates: response.choices.map((c) =>
-        fromOpenAiChoice(c, request.output?.format === 'json')
-      ),
+    const standardResponse: GenerateResponseData = {
       usage: {
         inputTokens: response.usage?.prompt_tokens,
         outputTokens: response.usage?.completion_tokens,
@@ -425,21 +405,35 @@ export function openAiModelRunner(name: string, client: OpenAI) {
       },
       custom: response,
     };
+    if (response.choices.length === 0) {
+      return standardResponse;
+    } else {
+      const choice = response.choices[0];
+      return {
+        ...fromOpenAIChoice(choice, request.output?.format === 'json'),
+        ...standardResponse,
+      };
+    }
   };
 }
 
-export function textModel(
-  ai: Genkit,
-  name: string,
-  client: OpenAI,
-  modelRef: ModelReference<typeof OpenAiConfigSchema>
-) {
+export function defineCompatOpenAIModel<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  ai: Genkit;
+  name: string;
+  client: OpenAI;
+  modelRef: ModelReference<CustomOptions>;
+}) {
+  const { ai, name, client, modelRef } = params;
+  const model = name.split('/').pop();
+
   return ai.defineModel(
     {
       name,
       ...modelRef.info,
       configSchema: modelRef.configSchema,
     },
-    openAiModelRunner(name, client)
+    openAIModelRunner(model!, client)
   );
 }

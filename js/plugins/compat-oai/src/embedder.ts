@@ -18,23 +18,16 @@
 // import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
 
 import type { EmbedderReference, Genkit } from 'genkit';
-import { z } from 'genkit';
 import OpenAI from 'openai';
 
-export const TextEmbeddingConfigSchema = z.object({
-  dimensions: z.number().optional(),
-  encodingFormat: z.union([z.literal('float'), z.literal('base64')]).optional(),
-});
-export type TextEmbeddingGeckoConfig = z.infer<
-  typeof TextEmbeddingConfigSchema
->;
-
-export function embedderModel(
-  ai: Genkit,
-  name: string,
-  client: OpenAI,
-  embedderRef?: EmbedderReference
-) {
+export function defineCompatOpenAIEmbedder(params: {
+  ai: Genkit;
+  name: string;
+  client: OpenAI;
+  embedderRef?: EmbedderReference;
+}) {
+  const { ai, name, client, embedderRef } = params;
+  const model = name.split('/').pop();
   return ai.defineEmbedder(
     {
       name,
@@ -42,11 +35,12 @@ export function embedderModel(
       ...embedderRef?.info,
     },
     async (input, options) => {
+      const { encodingFormat: encoding_format, ...restOfConfig } = options;
       const embeddings = await client.embeddings.create({
-        model: name,
+        model: model!,
         input: input.map((d) => d.text),
-        dimensions: options?.dimensions,
-        encoding_format: options?.encodingFormat,
+        encoding_format,
+        ...restOfConfig,
       });
       return {
         embeddings: embeddings.data.map((d) => ({ embedding: d.embedding })),

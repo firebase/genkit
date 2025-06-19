@@ -14,11 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { Genkit } from 'genkit';
-import type { ModelAction } from 'genkit/model';
+import { z } from 'genkit';
 import { modelRef } from 'genkit/model';
-import type OpenAI from 'openai';
-import { TTSConfigSchema, ttsModel as compatTtsModel } from '../audio';
+
+export const SpeechConfigSchema = z.object({
+  voice: z
+    .enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'])
+    .default('alloy'),
+  speed: z.number().min(0.25).max(4.0).optional(),
+  response_format: z
+    .enum(['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'])
+    .optional(),
+});
 
 export const tts1 = modelRef({
   name: 'openai/tts-1',
@@ -32,7 +39,7 @@ export const tts1 = modelRef({
       tools: false,
     },
   },
-  configSchema: TTSConfigSchema,
+  configSchema: SpeechConfigSchema,
 });
 
 export const tts1Hd = modelRef({
@@ -47,7 +54,7 @@ export const tts1Hd = modelRef({
       tools: false,
     },
   },
-  configSchema: TTSConfigSchema,
+  configSchema: SpeechConfigSchema,
 });
 
 export const gpt4oMiniTts = modelRef({
@@ -62,7 +69,7 @@ export const gpt4oMiniTts = modelRef({
       tools: false,
     },
   },
-  configSchema: TTSConfigSchema,
+  configSchema: SpeechConfigSchema.omit({ speed: true }),
 });
 
 export const SUPPORTED_TTS_MODELS = {
@@ -70,15 +77,3 @@ export const SUPPORTED_TTS_MODELS = {
   'tts-1-hd': tts1Hd,
   'gpt-4o-mini-tts': gpt4oMiniTts,
 };
-
-export function ttsModel(
-  ai: Genkit,
-  name: string,
-  client: OpenAI
-): ModelAction<typeof TTSConfigSchema> {
-  const modelId = `openai/${name}`;
-  const model = SUPPORTED_TTS_MODELS[name];
-  if (!model) throw new Error(`Unsupported model: ${name}`);
-
-  return compatTtsModel(ai, modelId, client, model);
-}

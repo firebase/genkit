@@ -14,104 +14,74 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EmbedderInfo, embedderRef, modelRef, type Genkit } from 'genkit';
-import type { ModelInfo } from 'genkit/model';
+import { type Genkit } from 'genkit';
 import { genkitPlugin } from 'genkit/plugin';
 import { OpenAI, type ClientOptions } from 'openai';
-import { sttModel, ttsModel } from './audio';
-import { embedderModel } from './embedder';
-import { textModel } from './model';
 
 export interface PluginOptions extends Partial<ClientOptions> {
-  models?: ModelDefinition[];
-  embedders?: EmbedderDefinition[];
   name: string;
-}
-
-export enum ModelType {
-  TEXT = 'text',
-  EMBEDDER = 'embedder',
-  TEXT_TO_SPEECH = 'tts',
-  SPEECH_TO_TEXT = 'stt',
-}
-
-// Standard model definition
-export interface ModelDefinition {
-  name: string;
-  info?: ModelInfo;
-  configSchema?: any;
-  type?: Exclude<ModelType, 'embedder'>;
-}
-
-// Standard embedder definition
-export interface EmbedderDefinition {
-  name: string;
-  info?: EmbedderInfo;
-  configSchema?: any;
-  type: ModelType.EMBEDDER;
+  initializer?: (ai: Genkit, client: OpenAI) => Promise<void>;
 }
 
 /**
- * This module provides an interface to the OpenAI models through the Genkit
- * plugin system. It allows users to interact with various models by providing
- * an API key and optional configuration.
+ * This module provides the `openAICompatible` plugin factory for Genkit. It
+ * enables interaction with OpenAI-compatible API endpoints, allowing users to
+ * leverage various AI models by configuring API keys and other client options.
  *
- * The main export is the `openai` plugin, which can be configured with an API
- * key either directly or through environment variables. It initializes the
- * OpenAI client and makes available the models for use.
+ * The core export is `openAICompatible`, a function that accepts
+ * `PluginOptions` and returns a Genkit plugin.
  *
- * Exports:
- * - gpt4o: Reference to the GPT-4o model.
- * - gpt4oMini: Reference to the GPT-4o-mini model.
- * - gpt4Turbo: Reference to the GPT-4 Turbo model.
- * - gpt4Vision: Reference to the GPT-4 Vision model.
- * - gpt4: Reference to the GPT-4 model.
- * - gpt35Turbo: Reference to the GPT-3.5 Turbo model.
- * - dallE3: Reference to the DALL-E 3 model.
- * - tts1: Reference to the Text-to-speech 1 model.
- * - tts1Hd: Reference to the Text-to-speech 1 HD model.
- * - whisper: Reference to the Whisper model.
- * - textEmbedding3Large: Reference to the Text Embedding Large model.
- * - textEmbedding3Small: Reference to the Text Embedding Small model.
- * - textEmbeddingAda002: Reference to the Ada model.
- * - openai: The main plugin function to interact with OpenAI.
+ * Key `PluginOptions` include:
+ *  - `name`: A string to uniquely identify this plugin instance
+ *    (e.g., 'deepSeek', 'customOpenAI').
+ *  - `apiKey`: The API key for the service. If not provided directly, the
+ *    plugin will attempt to use the `OPENAI_API_KEY` environment variable.
+ *  - `initializer`: An optional asynchronous function for custom setup after
+ *    the OpenAI client is initialized. It receives the Genkit instance and the
+ *    OpenAI client.
+ *  - Additional properties from OpenAI's `ClientOptions` (like `baseURL`,
+ *    `timeout`, etc.) can be passed to customize the OpenAI client.
  *
- * Usage:
- * To use the models, initialize the openai plugin inside `configureGenkit` and
- * pass the configuration options. If no API key is provided in the options, the
- * environment variable `OPENAI_API_KEY` must be set.
+ * The returned plugin initializes an OpenAI client tailored to the provided
+ * options, making configured models available for use within Genkit flows.
+ *
+ * @param {PluginOptions} options - Configuration options for the plugin.
+ * @returns A Genkit plugin configured for an OpenAI-compatible service.
+ *
+ * Usage: Import `openAICompatible` (or your chosen import name for the default
+ * export) from this package (e.g., `genkitx-openai`). Then, invoke it within
+ * the `plugins` array of `configureGenkit`, providing the necessary
+ * `PluginOptions`.
  *
  * Example:
- * ```
- * import openai from 'genkitx-openai';
+ * ```typescript
+ * import myOpenAICompatiblePlugin from 'genkitx-openai'; // Default import
  *
  * export default configureGenkit({
  *  plugins: [
- *    openai({ apiKey: 'your-api-key' })
- *    ... // other plugins
- *  ]
+ *    myOpenAICompatiblePlugin({
+ *      name: 'gpt4o', // Name for this specific plugin configuration
+ *      apiKey: 'your-openai-api-key',
+ *      // For a non-OpenAI compatible endpoint:
+ *      // baseURL: 'https://api.custom-llm-provider.com/v1',
+ *    }),
+ *    myOpenAICompatiblePlugin({
+ *      name: 'localLlama',
+ *      apiKey: 'ollama', // Or specific key if required by local server
+ *      baseURL: 'http://localhost:11434/v1', // Example for Ollama
+ *    }),
+ *    // ... other plugins
+ *  ],
  * });
  * ```
  */
+
 export const openAICompatible = (options: PluginOptions) =>
   genkitPlugin(options.name, async (ai: Genkit) => {
     const client = new OpenAI(options);
-    const models = options.models ?? [];
-    const embedders = options.embedders ?? [];
-    // Initialize the models/embedders if provided in the options
-    [...models, ...embedders]?.map((entity) => {
-      const name = `${options.name}/${entity.name}`;
-      const type = entity.type;
-      if (type === ModelType.EMBEDDER) {
-        embedderModel(ai, name, client, embedderRef(entity));
-      } else if (type === ModelType.TEXT_TO_SPEECH) {
-        ttsModel(ai, name, client, modelRef(entity));
-      } else if (type === ModelType.SPEECH_TO_TEXT) {
-        sttModel(ai, name, client, modelRef(entity));
-      } else {
-        textModel(ai, name, client, modelRef(entity));
-      }
-    });
+    if (options.initializer) {
+      await options.initializer(ai, client);
+    }
   });
 
 export default openAICompatible;

@@ -15,16 +15,14 @@
  * limitations under the License.
  */
 
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  jest,
-} from '@jest/globals';
-import type { GenerateRequest, Genkit, MessageData, Part, Role } from 'genkit';
-import type { CandidateData } from 'genkit/model';
+import { describe, expect, it, jest } from '@jest/globals';
+import type {
+  GenerateRequest,
+  GenerateResponseData,
+  MessageData,
+  Part,
+  Role,
+} from 'genkit';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -33,18 +31,16 @@ import type {
   ChatCompletionRole,
 } from 'openai/resources/index.mjs';
 
-import type { OpenAiConfigSchema } from '../src/model';
 import {
-  fromOpenAiChoice,
-  fromOpenAiChunkChoice,
-  fromOpenAiToolCall,
-  openAiModelRunner,
-  toOpenAiMessages,
-  toOpenAiRequestBody,
+  fromOpenAIChoice,
+  fromOpenAIChunkChoice,
+  fromOpenAIToolCall,
+  openAIModelRunner,
+  toOpenAIMessages,
+  toOpenAIRequestBody,
   toOpenAIRole,
-  toOpenAiTextAndMedia,
+  toOpenAITextAndMedia,
 } from '../src/model';
-import { gpt4o, gptModel } from '../src/openai/gpt';
 
 jest.mock('@genkit-ai/ai/model', () => ({
   ...(jest.requireActual('@genkit-ai/ai/model') as Record<string, unknown>),
@@ -91,7 +87,7 @@ describe('toOpenAIRole', () => {
 describe('toOpenAiTextAndMedia', () => {
   it('should transform text content correctly', () => {
     const part: Part = { text: 'hi' };
-    const actualOutput = toOpenAiTextAndMedia(part, 'low');
+    const actualOutput = toOpenAITextAndMedia(part, 'low');
     expect(actualOutput).toStrictEqual({ type: 'text', text: 'hi' });
   });
 
@@ -102,7 +98,7 @@ describe('toOpenAiTextAndMedia', () => {
         url: 'https://example.com/image.jpg',
       },
     };
-    const actualOutput = toOpenAiTextAndMedia(part, 'low');
+    const actualOutput = toOpenAITextAndMedia(part, 'low');
     expect(actualOutput).toStrictEqual({
       type: 'image_url',
       image_url: {
@@ -114,7 +110,7 @@ describe('toOpenAiTextAndMedia', () => {
 
   it('should throw an error for unknown parts', () => {
     const part: Part = { data: 'hi' };
-    expect(() => toOpenAiTextAndMedia(part, 'low')).toThrowError(
+    expect(() => toOpenAITextAndMedia(part, 'low')).toThrowError(
       `Unsupported genkit part fields encountered for current message role: {"data":"hi"}`
     );
   });
@@ -258,7 +254,7 @@ describe('toOpenAiMessages', () => {
 
   for (const test of testCases) {
     it(test.should, () => {
-      const actualOutput = toOpenAiMessages(
+      const actualOutput = toOpenAIMessages(
         test.inputMessages as MessageData[]
       );
       expect(actualOutput).toStrictEqual(test.expectedOutput);
@@ -276,7 +272,7 @@ describe('fromOpenAiToolCall', () => {
         arguments: '{"topic":"bob"}',
       },
     };
-    const actualOutput = fromOpenAiToolCall(toolCall, {
+    const actualOutput = fromOpenAIToolCall(toolCall, {
       message: { tool_calls: [toolCall] },
       finish_reason: 'tool_calls',
     } as ChatCompletion.Choice);
@@ -298,7 +294,7 @@ describe('fromOpenAiToolCall', () => {
         arguments: '',
       },
     };
-    const actualOutput = fromOpenAiToolCall(toolCall, {
+    const actualOutput = fromOpenAIToolCall(toolCall, {
       message: { tool_calls: [toolCall] },
       finish_reason: 'tool_calls',
     } as ChatCompletion.Choice);
@@ -319,7 +315,7 @@ describe('fromOpenAiToolCall', () => {
     };
 
     expect(() =>
-      fromOpenAiToolCall(toolCall, {
+      fromOpenAIToolCall(toolCall, {
         message: { tool_calls: [toolCall] },
         finish_reason: 'tool_calls',
       } as ChatCompletion.Choice)
@@ -334,7 +330,7 @@ describe('fromOpenAiChoice', () => {
     should: string;
     choice: ChatCompletion.Choice;
     jsonMode?: boolean;
-    expectedOutput: CandidateData;
+    expectedOutput: GenerateResponseData;
   }[] = [
     {
       should: 'should work with text',
@@ -349,13 +345,11 @@ describe('fromOpenAiChoice', () => {
         logprobs: null,
       },
       expectedOutput: {
-        index: 0,
         finishReason: 'other',
         message: {
           role: 'model',
           content: [{ text: 'Tell a joke about dogs.' }],
         },
-        custom: {},
       },
     },
     {
@@ -372,13 +366,11 @@ describe('fromOpenAiChoice', () => {
       },
       jsonMode: true,
       expectedOutput: {
-        index: 0,
         finishReason: 'blocked',
         message: {
           role: 'model',
           content: [{ data: { json: 'test' } }],
         },
-        custom: {},
       },
     },
     {
@@ -404,7 +396,6 @@ describe('fromOpenAiChoice', () => {
         logprobs: null,
       },
       expectedOutput: {
-        index: 0,
         message: {
           role: 'model',
           content: [
@@ -418,14 +409,13 @@ describe('fromOpenAiChoice', () => {
           ],
         },
         finishReason: 'stop',
-        custom: {},
       },
     },
   ];
 
   for (const test of testCases) {
     it(test.should, () => {
-      const actualOutput = fromOpenAiChoice(test.choice, test.jsonMode);
+      const actualOutput = fromOpenAIChoice(test.choice, test.jsonMode);
       expect(actualOutput).toStrictEqual(test.expectedOutput);
     });
   }
@@ -436,7 +426,7 @@ describe('fromOpenAiChunkChoice', () => {
     should: string;
     chunkChoice: ChatCompletionChunk.Choice;
     jsonMode?: boolean;
-    expectedOutput: CandidateData;
+    expectedOutput: GenerateResponseData;
   }[] = [
     {
       should: 'should work with text',
@@ -449,13 +439,11 @@ describe('fromOpenAiChunkChoice', () => {
         finish_reason: 'whatever' as any,
       },
       expectedOutput: {
-        index: 0,
         finishReason: 'other',
         message: {
           role: 'model',
           content: [{ text: 'Tell a joke about dogs.' }],
         },
-        custom: {},
       },
     },
     {
@@ -471,13 +459,11 @@ describe('fromOpenAiChunkChoice', () => {
       },
       jsonMode: true,
       expectedOutput: {
-        index: 0,
         finishReason: 'unknown',
         message: {
           role: 'model',
           content: [{ data: { json: 'test' } }],
         },
-        custom: {},
       },
     },
     {
@@ -501,7 +487,6 @@ describe('fromOpenAiChunkChoice', () => {
         finish_reason: 'tool_calls',
       },
       expectedOutput: {
-        index: 0,
         message: {
           role: 'model',
           content: [
@@ -515,14 +500,13 @@ describe('fromOpenAiChunkChoice', () => {
           ],
         },
         finishReason: 'stop',
-        custom: {},
       },
     },
   ];
 
   for (const test of testCases) {
     it(test.should, () => {
-      const actualOutput = fromOpenAiChunkChoice(
+      const actualOutput = fromOpenAIChunkChoice(
         test.chunkChoice,
         test.jsonMode
       );
@@ -543,17 +527,18 @@ describe('toOpenAiRequestBody', () => {
         tools: [],
         output: { format: 'text' },
         config: {
-          frequencyPenalty: 0.7,
-          logitBias: {
+          topP: 1,
+          frequency_penalty: 0.7,
+          logit_bias: {
             science: 12,
             technology: 8,
             politics: -5,
             sports: 3,
           },
-          logProbs: true,
-          presencePenalty: -0.3,
+          logprobs: true,
+          presence_penalty: -0.3,
           seed: 42,
-          topLogProbs: 10,
+          top_logprobs: 10,
           user: 'exampleUser123',
         },
       },
@@ -566,6 +551,7 @@ describe('toOpenAiRequestBody', () => {
         ],
         model: 'gpt-3.5-turbo',
         response_format: { type: 'text' },
+        top_p: 1,
         frequency_penalty: 0.7,
         logit_bias: {
           science: 12,
@@ -965,9 +951,9 @@ describe('toOpenAiRequestBody', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      const actualOutput = toOpenAiRequestBody(
+      const actualOutput = toOpenAIRequestBody(
         test.modelName,
-        test.genkitRequest as GenerateRequest<typeof OpenAiConfigSchema>
+        test.genkitRequest as GenerateRequest
       );
       expect(actualOutput).toStrictEqual(test.expectedOutput);
     });
@@ -1114,18 +1100,28 @@ describe('toOpenAiRequestBody', () => {
       ],
       model: 'gpt-4',
     };
-    const actualOutput1 = toOpenAiRequestBody(
+    const actualOutput1 = toOpenAIRequestBody(
       modelName,
-      genkitRequestTextFormat as GenerateRequest<typeof OpenAiConfigSchema>
+      genkitRequestTextFormat as GenerateRequest
     );
-    const actualOutput2 = toOpenAiRequestBody(
+    const actualOutput2 = toOpenAIRequestBody(
       modelName,
-      genkitRequestJsonFormat as GenerateRequest<typeof OpenAiConfigSchema>
+      genkitRequestJsonFormat as GenerateRequest
     );
-    expect(actualOutput1).toStrictEqual(expectedOutput);
-    expect(actualOutput2).toStrictEqual(expectedOutput);
+    expect(actualOutput1).toStrictEqual({
+      ...expectedOutput,
+      response_format: {
+        type: 'text',
+      },
+    });
+    expect(actualOutput2).toStrictEqual({
+      ...expectedOutput,
+      response_format: {
+        type: 'json_object',
+      },
+    });
   });
-  it('(gpt4-vision) does NOT set response_format in openai request body', () => {
+  it('(gpt4-vision) sets response_format in openai request body', () => {
     // In either case - output.format='json' or output.format='text' - do NOT set response_format in the OpenAI request body explicitly.
     const modelName = 'gpt-4-vision';
     const genkitRequestTextFormat = {
@@ -1266,39 +1262,30 @@ describe('toOpenAiRequestBody', () => {
       ],
       model: 'gpt-4-vision',
     };
-    const actualOutput1 = toOpenAiRequestBody(
+    const actualOutput1 = toOpenAIRequestBody(
       modelName,
-      genkitRequestTextFormat as GenerateRequest<typeof OpenAiConfigSchema>
+      genkitRequestTextFormat as GenerateRequest
     );
-    const actualOutput2 = toOpenAiRequestBody(
+    const actualOutput2 = toOpenAIRequestBody(
       modelName,
-      genkitRequestJsonFormat as GenerateRequest<typeof OpenAiConfigSchema>
+      genkitRequestJsonFormat as GenerateRequest
     );
-    expect(actualOutput1).toStrictEqual(expectedOutput);
-    expect(actualOutput2).toStrictEqual(expectedOutput);
-  });
-
-  it('should throw for unknown models', () => {
-    expect(() =>
-      toOpenAiRequestBody(
-        'unknown-model',
-        {} as GenerateRequest<typeof OpenAiConfigSchema>
-      )
-    ).toThrowError('Unsupported model: unknown-model');
-  });
-
-  it('should throw if model does not support specified output format', () => {
-    expect(() =>
-      toOpenAiRequestBody('gpt-4o', {
-        messages: [],
-        tools: [],
-        output: { format: 'media' },
-      })
-    ).toThrowError('media format is not supported for GPT models currently');
+    expect(actualOutput1).toStrictEqual({
+      ...expectedOutput,
+      response_format: {
+        type: 'text',
+      },
+    });
+    expect(actualOutput2).toStrictEqual({
+      ...expectedOutput,
+      response_format: {
+        type: 'json_object',
+      },
+    });
   });
 });
 
-describe('gptRunner', () => {
+describe('openAIModelRunner', () => {
   it('should correctly run non-streaming requests', async () => {
     const openaiClient = {
       chat: {
@@ -1309,7 +1296,7 @@ describe('gptRunner', () => {
         },
       },
     };
-    const runner = openAiModelRunner(
+    const runner = openAIModelRunner(
       'gpt-4o',
       openaiClient as unknown as OpenAI
     );
@@ -1355,7 +1342,7 @@ describe('gptRunner', () => {
       },
     };
     const streamingCallback = jest.fn();
-    const runner = openAiModelRunner(
+    const runner = openAIModelRunner(
       'gpt-4o',
       openaiClient as unknown as OpenAI
     );
@@ -1367,84 +1354,5 @@ describe('gptRunner', () => {
         include_usage: true,
       },
     });
-  });
-});
-
-describe('gptModel', () => {
-  let ai: Genkit;
-
-  beforeEach(() => {
-    ai = {
-      defineModel: jest.fn(),
-    } as unknown as Genkit;
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('should correctly define supported GPT models', () => {
-    jest.spyOn(ai, 'defineModel').mockImplementation((() => ({})) as any);
-    gptModel(ai, 'gpt-4o', {} as OpenAI);
-    expect(ai.defineModel).toHaveBeenCalledWith(
-      {
-        name: gpt4o.name,
-        ...gpt4o.info,
-        configSchema: gpt4o.configSchema,
-      },
-      expect.any(Function)
-    );
-  });
-
-  it('should correctly define gpt-4.1, gpt-4.1-mini, and gpt-4.1-nano', () => {
-    jest.spyOn(ai, 'defineModel').mockImplementation((() => ({})) as any);
-    gptModel(ai, 'gpt-4.1', {} as OpenAI);
-    expect(ai.defineModel).toHaveBeenCalledWith(
-      {
-        name: 'openai/gpt-4.1',
-        ...require('../src/gpt').gpt41.info,
-        configSchema: require('../src/gpt').gpt41.configSchema,
-      },
-      expect.any(Function)
-    );
-    gptModel(ai, 'gpt-4.1-mini', {} as OpenAI);
-    expect(ai.defineModel).toHaveBeenCalledWith(
-      {
-        name: 'openai/gpt-4.1-mini',
-        ...require('../src/gpt').gpt41Mini.info,
-        configSchema: require('../src/gpt').gpt41Mini.configSchema,
-      },
-      expect.any(Function)
-    );
-    gptModel(ai, 'gpt-4.1-nano', {} as OpenAI);
-    expect(ai.defineModel).toHaveBeenCalledWith(
-      {
-        name: 'openai/gpt-4.1-nano',
-        ...require('../src/gpt').gpt41Nano.info,
-        configSchema: require('../src/gpt').gpt41Nano.configSchema,
-      },
-      expect.any(Function)
-    );
-  });
-});
-
-// Additional test to ensure toOpenAiRequestBody works for new models
-
-describe('toOpenAiRequestBody for new GPT-4.1 variants', () => {
-  const baseRequest = { messages: [] } as GenerateRequest<
-    typeof OpenAiConfigSchema
-  >;
-  it('should not throw for gpt-4.1', () => {
-    expect(() => toOpenAiRequestBody('gpt-4.1', baseRequest)).not.toThrow();
-  });
-  it('should not throw for gpt-4.1-mini', () => {
-    expect(() =>
-      toOpenAiRequestBody('gpt-4.1-mini', baseRequest)
-    ).not.toThrow();
-  });
-  it('should not throw for gpt-4.1-nano', () => {
-    expect(() =>
-      toOpenAiRequestBody('gpt-4.1-nano', baseRequest)
-    ).not.toThrow();
   });
 });

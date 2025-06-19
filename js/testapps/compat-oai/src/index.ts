@@ -15,7 +15,11 @@
  * limitations under the License.
  */
 
-import openAI, { gpt41, textEmbeddingAda002 } from '@genkit-ai/compat-oai';
+import {
+  gpt41,
+  openAI,
+  textEmbeddingAda002,
+} from '@genkit-ai/compat-oai/openai';
 import { startFlowServer } from '@genkit-ai/express';
 import dotenv from 'dotenv';
 import { GenerationCommonConfigSchema, genkit, z } from 'genkit';
@@ -24,7 +28,7 @@ import type { ModelInfo } from 'genkit/model';
 dotenv.config();
 
 const ai = genkit({
-  plugins: [openAI({ apiKey: process.env.OPENAI_API_KEY })],
+  plugins: [openAI({ apiKey: process.env.OPENAI_API_KEY, name: 'openai' })],
   model: gpt41,
 });
 
@@ -73,36 +77,37 @@ const modelInfo: ModelInfo = {
 };
 const schema = GenerationCommonConfigSchema.extend({});
 
-const aiCustom = genkit({
-  plugins: [
-    openAI({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      baseURL: 'https://api.anthropic.com/v1/',
-      models: [
-        { name: 'claude-3-7-sonnet', info: modelInfo, configSchema: schema },
-      ],
-    }),
-  ],
-});
+// const aiCustom = genkit({
+//   plugins: [
+//     openAI({
+//       name: 'anthropic',
+//       apiKey: process.env.ANTHROPIC_API_KEY,
+//       baseURL: 'https://api.anthropic.com/v1/',
+//       models: [
+//         { name: 'claude-3-7-sonnet', info: modelInfo, configSchema: schema },
+//       ],
+//     }),
+//   ],
+// });
 
-export const customModelFlow = aiCustom.defineFlow(
-  {
-    name: 'customModelFlow',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-  },
-  async (subject) => {
-    const llmResponse = await aiCustom.generate({
-      prompt: `tell me a joke about ${subject}`,
-      model: 'openai/claude-3-7-sonnet',
-      config: {
-        version: 'claude-3-7-sonnet-20250219',
-      },
-    });
-    return llmResponse.text;
-  }
-);
+// export const customModelFlow = aiCustom.defineFlow(
+//   {
+//     name: 'customModelFlow',
+//     inputSchema: z.string(),
+//     outputSchema: z.string(),
+//   },
+//   async (subject) => {
+//     const llmResponse = await aiCustom.generate({
+//       prompt: `tell me a joke about ${subject}`,
+//       model: 'openai/claude-3-7-sonnet',
+//       config: {
+//         version: 'claude-3-7-sonnet-20250219',
+//       },
+//     });
+//     return llmResponse.text;
+//   }
+// );
 
 startFlowServer({
-  flows: [jokeFlow, embedFlow, customModelFlow],
+  flows: [jokeFlow, embedFlow],
 });
