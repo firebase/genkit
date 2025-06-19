@@ -18,6 +18,7 @@ import googleAI from '@genkit-ai/googleai';
 import * as fs from 'fs';
 import { genkit, MediaPart, z } from 'genkit';
 import { Readable } from 'stream';
+import wav from 'wav';
 
 const ai = genkit({
   plugins: [
@@ -189,6 +190,72 @@ ai.defineFlow('imagen-image-generation', async (_) => {
 
   return media;
 });
+
+// TTS sample
+ai.defineFlow(
+  {
+    name: 'tts',
+    inputSchema: z
+      .string()
+      .default(
+        'say that Genkit (G pronounced as J) is an amazing Gen AI library'
+      ),
+    outputSchema: z.object({ media: z.string() }),
+  },
+  async (query) => {
+    const { media } = await ai.generate({
+      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      config: {
+        responseModalities: ['AUDIO'],
+        // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Algenib' },
+          },
+        },
+      },
+      prompt: query || 'cheerefully say: Gemini is amazing!',
+    });
+    if (!media) {
+      throw new Error('no media returned');
+    }
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    return {
+      media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
+    };
+  }
+);
+
+async function toWav(
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // This code depends on `wav` npm library.
+    const writer = new wav.Writer({
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    let bufs = [] as any[];
+    writer.on('error', reject);
+    writer.on('data', function (d) {
+      bufs.push(d);
+    });
+    writer.on('end', function () {
+      resolve(Buffer.concat(bufs).toString('base64'));
+    });
+
+    writer.write(pcmData);
+    writer.end();
+  });
+}
 
 // An example of using Ver 2 model to make a static photo move.
 ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {

@@ -14,13 +14,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "^1.13.0",
     "@genkit-ai/googleai": "^1.13.0",
-    "node-fetch": "3.3.2"
+    "genkit": "^1.13.0",
+    "node-fetch": "3.3.2",
+    "wav": "^1.0.2"
   },
   "devDependencies": {
+    "@types/wav": "^1.0.4",
     "genkit-cli": "^1.13.0",
-    "typescript": "^5.5.4",
-    "tsx": "^4.20.3"
+    "tsx": "^4.20.3",
+    "typescript": "^5.5.4"
   }
 }
