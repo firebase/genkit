@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package modelgarden
+package anthropic
 
 import (
 	"testing"

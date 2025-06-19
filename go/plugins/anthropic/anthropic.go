@@ -28,22 +28,23 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
+	aint "github.com/firebase/genkit/go/plugins/internal/anthropic"
 )
 
 const (
-	anthropicProvider    = "anthropic"
+	provider             = "anthropic"
 	anthropicLabelPrefix = "Anthropic"
 )
 
 type Anthropic struct {
-	APIKey  string // If not provided, defaults to ANTHROPIC_API_KEY
-	aclient anthropic.Client
-	mu      sync.Mutex // Mutex to control access
-	initted bool       // Whether the plugin has been initialized
+	APIKey  string           // If not provided, defaults to ANTHROPIC_API_KEY
+	aclient anthropic.Client // Anthropic client
+	mu      sync.Mutex       // Mutex to control access
+	initted bool             // Whether the plugin has been initialized
 }
 
 func (a *Anthropic) Name() string {
-	return anthropicProvider
+	return provider
 }
 
 func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
@@ -73,11 +74,18 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	ac := anthropic.NewClient(
 		option.WithAPIKey(apiKey),
 	)
-
 	a.aclient = ac
 	a.initted = true
 
 	return nil
+}
+
+func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) ai.Model {
+	return aint.DefineModel(g, a.aclient, provider, name, *info)
+}
+
+func (a *Anthropic) IsDefinedModel(g *genkit.Genkit, name string) bool {
+	return genkit.LookupModel(g, provider, name) != nil
 }
 
 func (a *Anthropic) ListActions(ctx context.Context) []core.ActionDesc {
@@ -103,12 +111,12 @@ func (a *Anthropic) ListActions(ctx context.Context) []core.ActionDesc {
 			"versions": []string{},
 			"stage":    string(ai.ModelStageStable),
 		}
-		metadata["label"] = fmt.Sprintf("%s - %s", anthropicProvider, name)
+		metadata["label"] = fmt.Sprintf("%s - %s", anthropicLabelPrefix, name)
 
 		actions = append(actions, core.ActionDesc{
 			Type:     core.ActionTypeModel,
-			Name:     fmt.Sprintf("%s/%s", anthropicProvider, name),
-			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, anthropicProvider, name),
+			Name:     fmt.Sprintf("%s/%s", provider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, provider, name),
 			Metadata: metadata,
 		})
 

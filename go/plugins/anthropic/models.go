@@ -22,6 +22,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
+// listModels returns a list of model names supported by the Anthropic client
 func listModels(ctx context.Context, client *anthropic.Client) ([]string, error) {
 	iter := client.Models.ListAutoPaging(ctx, anthropic.ModelListParams{})
 	models := []string{}
@@ -35,5 +36,5 @@ func listModels(ctx context.Context, client *anthropic.Client) ([]string, error)
 		panic(err.Error())
 	}
 
-	return nil, nil
+	return models, nil
 }

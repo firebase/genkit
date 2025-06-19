@@ -14,15 +14,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package modelgarden
+package anthropic
 
 import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal"
 )
 
-// supported anthropic models
-var anthropicModels = map[string]ai.ModelInfo{
+var AnthropicModels = map[string]ai.ModelInfo{
 	"claude-3-5-sonnet-v2": {
 		Label:    "Vertex AI Model Garden - Claude 3.5 Sonnet",
 		Supports: &internal.Multimodal,
