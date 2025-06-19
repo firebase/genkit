@@ -23,7 +23,6 @@ import * as sinon from 'sinon';
 import {
   GeminiConfigSchema,
   GeminiTtsConfigSchema,
-  KNOWN_GEMINI_MODELS,
   defineGeminiModel,
   gemini,
 } from '../../src/googleai/gemini';
