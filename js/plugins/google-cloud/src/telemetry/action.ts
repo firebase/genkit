@@ -42,7 +42,10 @@ class ActionTelemetry implements Telemetry {
       featureName = actionName;
     }
 
-    if (subtype === 'tool' && logInputAndOutput) {
+    if (
+      (subtype === 'tool' || actionName === 'generate') &&
+      logInputAndOutput
+    ) {
       const input = truncate(attributes['genkit:input'] as string);
       const output = truncate(attributes['genkit:output'] as string);
       const sessionId = attributes['genkit:sessionId'] as string;

@@ -426,7 +426,12 @@ class AdjustingTraceExporter implements SpanExporter {
     if (type === 'action' && subtype === 'tool') {
       // TODO: Report input and output for tool actions
     }
-    if (type === 'action' || type === 'flow' || type == 'flowStep') {
+    if (
+      type === 'action' ||
+      type === 'flow' ||
+      type == 'flowStep' ||
+      type == 'util'
+    ) {
       // Report request and latency metrics for all actions
       actionTelemetry.tick(
         span,
