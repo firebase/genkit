@@ -35,11 +35,16 @@ class ActionTelemetry implements Telemetry {
     if (!logInputAndOutput) {
       return;
     }
+
     const attributes = span.attributes;
     const actionName = (attributes['genkit:name'] as string) || '<unknown>';
+    const type = attributes['genkit:type'] as string;
     const subtype = attributes['genkit:metadata:subtype'] as string;
-
-    if (subtype === 'tool' || actionName === 'generate') {
+    if (
+      type === 'promptTemplate' ||
+      subtype === 'tool' ||
+      actionName === 'generate'
+    ) {
       const path = (attributes['genkit:path'] as string) || '<unknown>';
       const input = truncate(attributes['genkit:input'] as string);
       const output = truncate(attributes['genkit:output'] as string);
