@@ -176,11 +176,9 @@ func TestPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reqIndexer := &ai.IndexerRequest{
-		Documents: []*ai.Document{d1, d2, d3},
-		Options:   nil}
+	docs := []*ai.Document{d1, d2, d3}
 
-	err = doc.Index(ctx, reqIndexer)
+	err = doc.Index(ctx, docs)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
