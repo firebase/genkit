@@ -116,7 +116,6 @@ export enum DynamicRetrievalMode {
   MODE_DYNAMIC = 'MODE_DYNAMIC',
 }
 
-
 /**
  * Specifies the dynamic retrieval configuration for the given source.
  * @public
