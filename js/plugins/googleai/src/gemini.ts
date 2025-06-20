@@ -45,7 +45,6 @@ import {
   type JSONSchema,
 } from 'genkit';
 import {
-  GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   modelRef,
@@ -141,23 +140,6 @@ const VoiceConfigSchema = z
   .passthrough();
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  temperature: z
-    .number()
-    .min(0)
-    .max(2)
-    .describe(
-      GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 1.0.'
-    )
-    .optional(),
-  topP: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe(
-      GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
-    )
-    .optional(),
   apiKey: z
     .string()
     .describe('Overrides the plugin-configured API key, if specified.')
@@ -209,18 +191,6 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
-
-export const GeminiGemmaConfigSchema = GeminiConfigSchema.extend({
-  temperature: z
-    .number()
-    .min(0.0)
-    .max(1.0)
-    .describe(
-      GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 1.0.'
-    )
-    .optional(),
-}).passthrough();
 
 export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
   speechConfig: z
@@ -414,6 +384,40 @@ export const gemini25FlashPreview0417 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashLitePreview0617 = modelRef({
+  name: 'googleai/gemini-2.5-flash-lite-preview-06-17',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash Lite Preview 06-17',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25Flash = modelRef({
+  name: 'googleai/gemini-2.5-flash',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemini25FlashPreviewTts = modelRef({
   name: 'googleai/gemini-2.5-flash-preview-tts',
   info: {
@@ -448,10 +452,27 @@ export const gemini25ProExp0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25ProPreview0325 = modelRef({
-  name: 'googleai/gemini-2.5-pro-preview-03-25',
+export const gemini25ProPreview0506 = modelRef({
+  name: 'googleai/gemini-2.5-pro-preview-05-06',
   info: {
-    label: 'Google AI - Gemini 2.5 Pro Preview 03-25',
+    label: 'Google AI - Gemini 2.5 Pro Preview 05-06',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25Pro = modelRef({
+  name: 'googleai/gemini-2.5-pro',
+  info: {
+    label: 'Google AI - Gemini 2.5 Pro',
     versions: [],
     supports: {
       multiturn: true,
@@ -482,92 +503,7 @@ export const gemini25ProPreviewTts = modelRef({
   configSchema: GeminiTtsConfigSchema,
 });
 
-export const gemma312bit = modelRef({
-  name: 'googleai/gemma-3-12b-it',
-  info: {
-    label: 'Google AI - Gemma 3 12B',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiGemmaConfigSchema,
-});
-
-export const gemma31bit = modelRef({
-  name: 'googleai/gemma-3-1b-it',
-  info: {
-    label: 'Google AI - Gemma 3 1B',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiGemmaConfigSchema,
-});
-
-export const gemma327bit = modelRef({
-  name: 'googleai/gemma-3-27b-it',
-  info: {
-    label: 'Google AI - Gemma 3 27B',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiGemmaConfigSchema,
-});
-
-export const gemma34bit = modelRef({
-  name: 'googleai/gemma-3-4b-it',
-  info: {
-    label: 'Google AI - Gemma 3 4B',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiGemmaConfigSchema,
-});
-
-export const gemma3ne4bit = modelRef({
-  name: 'googleai/gemma-3n-e4b-it',
-  info: {
-    label: 'Google AI - Gemma 3n E4B',
-    versions: [],
-    supports: {
-      multiturn: true,
-      media: true,
-      tools: true,
-      toolChoice: true,
-      systemRole: true,
-      constrained: 'no-tools',
-    },
-  },
-  configSchema: GeminiGemmaConfigSchema,
-});
-
-export const SUPPORTED_GEMINI_MODELS = {
+export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
@@ -575,16 +511,15 @@ export const SUPPORTED_GEMINI_MODELS = {
   'gemini-2.0-flash': gemini20Flash,
   'gemini-2.0-flash-lite': gemini20FlashLite,
   'gemini-2.0-flash-exp': gemini20FlashExp,
+  'gemini-2.5-pro': gemini25Pro,
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
+  'gemini-2.5-pro-preview-05-06': gemini25ProPreview0325,
   'gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
+  'gemini-2.5-flash': gemini25Flash,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
+  'gemini-2.5-flash-lite-preview-06-17': gemini25FlashLitePreview0617,
   'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
-  'gemma-3-12b-it': gemma312bit,
-  'gemma-3-1b-it': gemma31bit,
-  'gemma-3-27b-it': gemma327bit,
-  'gemma-3-4b-it': gemma34bit,
-  'gemma-3n-e4b-it': gemma3ne4bit,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
@@ -602,6 +537,10 @@ export const GENERIC_GEMINI_MODEL = modelRef({
     },
   },
 });
+
+export const SUPPORTED_GEMINI_MODELS = {
+  ...SUPPORTED_V15_MODELS,
+} as const;
 
 function longestMatchingPrefix(version: string, potentialMatches: string[]) {
   return potentialMatches
