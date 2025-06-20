@@ -116,19 +116,6 @@ export enum DynamicRetrievalMode {
   MODE_DYNAMIC = 'MODE_DYNAMIC',
 }
 
-/**
- * Schema for parameters passed to {@link FunctionDeclaration.parameters}.
- */
-export declare interface FunctionDeclarationSchema {
-  /** The type of the parameter. */
-  type: SchemaType;
-  /** The format of the parameter. */
-  properties: { [k: string]: Schema };
-  /** Optional. Description of the parameter. */
-  description?: string;
-  /** Optional. Array of required parameters. */
-  required?: string[];
-}
 
 /**
  * Specifies the dynamic retrieval configuration for the given source.
@@ -144,14 +131,6 @@ export declare interface DynamicRetrievalConfig {
    * value is used.
    */
   dynamicThreshold?: number;
-}
-
-/**
- * Tool to retrieve public web data for grounding, powered by Google.
- */
-export declare interface GoogleSearchRetrieval {
-  /** Specifies the dynamic retrieval configuration for the given source. */
-  dynamicRetrievalConfig?: DynamicRetrievalConfig;
 }
 
 /**
@@ -434,17 +413,6 @@ export enum FinishReason {
 }
 
 /**
- * A single citation source.
- * @public
- */
-export declare interface CitationSource {
-  startIndex?: number;
-  endIndex?: number;
-  uri?: string;
-  license?: string;
-}
-
-/**
  * Represents a whole or partial calendar date, such as a birthday. The time of
  * day and time zone are either specified elsewhere or are insignificant. The
  * date is relative to the Gregorian Calendar. This can represent one of the
@@ -589,8 +557,8 @@ export declare interface GroundingMetadata {
  * @public
  */
 export enum ExecutableCodeLanguage {
-  LANGUAGE_UNSPECIFIED = 'language_unspecified',
-  PYTHON = 'python',
+  LANGUAGE_UNSPECIFIED = 'LANGUAGE_UNSPECIFIED',
+  PYTHON = 'PYTHON',
 }
 
 /**
@@ -621,21 +589,21 @@ export enum Outcome {
   /**
    * Unspecified status. This value should not be used.
    */
-  OUTCOME_UNSPECIFIED = 'outcome_unspecified',
+  OUTCOME_UNSPECIFIED = 'OUTCOME_UNSPECIFIED',
   /**
    * Code execution completed successfully.
    */
-  OUTCOME_OK = 'outcome_ok',
+  OUTCOME_OK = 'OUTCOME_OK',
   /**
    * Code execution finished but with a failure. `stderr` should contain the
    * reason.
    */
-  OUTCOME_FAILED = 'outcome_failed',
+  OUTCOME_FAILED = 'OUTCOME_FAILED',
   /**
    * Code execution ran for too long, and was cancelled. There may or may not
    * be a partial output present.
    */
-  OUTCOME_DEADLINE_EXCEEDED = 'outcome_deadline_exceeded',
+  OUTCOME_DEADLINE_EXCEEDED = 'OUTCOME_DEADLINE_EXCEEDED',
 }
 
 /**
