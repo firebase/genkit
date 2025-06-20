@@ -39,17 +39,21 @@ export const TranscriptionConfigSchema = GenerationCommonConfigSchema.pick({
   // TODO stream support
 });
 
+export const TRANSCRIPTION_MODEL_INFO = {
+  supports: {
+    media: true,
+    output: ['text', 'json'],
+    multiturn: false,
+    systemRole: false,
+    tools: false,
+  },
+};
+
 export const whisper1 = modelRef({
   name: 'openai/whisper-1',
   info: {
     label: 'OpenAI - Whisper',
-    supports: {
-      media: true,
-      output: ['text', 'json'],
-      multiturn: false,
-      systemRole: false,
-      tools: false,
-    },
+    ...TRANSCRIPTION_MODEL_INFO,
   },
   configSchema: TranscriptionConfigSchema,
 });
@@ -58,13 +62,7 @@ export const gpt4oTranscribe = modelRef({
   name: 'openai/gpt-4o-transcribe',
   info: {
     label: 'OpenAI - GPT-4o Transcribe',
-    supports: {
-      media: true,
-      output: ['text', 'json'],
-      multiturn: false,
-      systemRole: false,
-      tools: false,
-    },
+    ...TRANSCRIPTION_MODEL_INFO,
   },
   configSchema: TranscriptionConfigSchema,
 });
