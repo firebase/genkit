@@ -227,14 +227,14 @@ function commonRef(
 ): ModelReference<ConfigSchema> {
   return modelRef({
     name: `googleai/${name}`,
-    info: {
+    info: info ?? {
       supports: {
-        multiturn: info?.supports?.multiturn ?? true,
-        media: info?.supports?.media ?? true,
-        tools: info?.supports?.tools ?? true,
-        toolChoice: info?.supports?.toolChoice ?? true,
-        systemRole: info?.supports?.systemRole ?? true,
-        constrained: info?.supports?.constrained ?? 'no-tools',
+        multiturn: true,
+        media: true,
+        tools: true,
+        toolChoice: true,
+        systemRole: true,
+        constrained: 'no-tools',
       },
     },
     configSchema,
@@ -494,7 +494,6 @@ export function defineGeminiModel({
         safetySettings: safetySettingsFromConfig?.filter(
           (setting) => setting.category !== 'HARM_CATEGORY_UNSPECIFIED'
         ) as SafetySetting[],
-        cachedContent: undefined,
         contents: messages.map((message) => toGeminiMessage(message, model)),
       };
 
