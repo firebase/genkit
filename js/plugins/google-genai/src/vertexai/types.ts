@@ -36,21 +36,21 @@ import {
 
 // This makes it easier to import all types from one place
 export {
-  CitationMetadata,
-  Content,
   FunctionCallingMode,
-  GenerateContentCandidate,
-  GenerateContentRequest,
-  GenerateContentResponse,
-  GenerateContentStreamResult,
-  GoogleSearchRetrieval,
-  GoogleSearchRetrievalTool,
-  GroundingMetadata,
   HarmBlockThreshold,
   HarmCategory,
   TaskTypeSchema,
-  Tool,
-  ToolConfig,
+  type CitationMetadata,
+  type Content,
+  type GenerateContentCandidate,
+  type GenerateContentRequest,
+  type GenerateContentResponse,
+  type GenerateContentStreamResult,
+  type GoogleSearchRetrieval,
+  type GoogleSearchRetrievalTool,
+  type GroundingMetadata,
+  type Tool,
+  type ToolConfig,
 };
 
 /** Options for Vertex AI plugin configuration */

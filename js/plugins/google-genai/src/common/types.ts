@@ -119,7 +119,7 @@ export enum DynamicRetrievalMode {
 /**
  * Schema for parameters passed to {@link FunctionDeclaration.parameters}.
  */
-export interface FunctionDeclarationSchema {
+export declare interface FunctionDeclarationSchema {
   /** The type of the parameter. */
   type: SchemaType;
   /** The format of the parameter. */
@@ -252,7 +252,7 @@ export declare interface PromptFeedback {
 /**
  * URI based data.
  */
-export interface FileData {
+export declare interface FileData {
   /** The IANA standard MIME type of the source data. */
   mimeType: string;
   /** URI of the file. */
@@ -316,7 +316,7 @@ export enum SchemaType {
   OBJECT = 'OBJECT',
 }
 
-export interface Schema {
+export declare interface Schema {
   type?: SchemaType;
   format?: string;
   title?: string;
@@ -334,7 +334,7 @@ export interface Schema {
 /**
  * Schema for parameters passed to {@link FunctionDeclaration.parameters}.
  */
-export interface FunctionDeclarationSchema {
+export declare interface FunctionDeclarationSchema {
   /** The type of the parameter. */
   type: SchemaType;
   /** The format of the parameter. */
@@ -437,7 +437,7 @@ export enum FinishReason {
  * A single citation source.
  * @public
  */
-export interface CitationSource {
+export declare interface CitationSource {
   startIndex?: number;
   endIndex?: number;
   uri?: string;
@@ -602,7 +602,7 @@ export enum ExecutableCodeLanguage {
  *
  * @public
  */
-export interface ExecutableCode {
+export declare interface ExecutableCode {
   /**
    * Programming language of the `code`.
    */
@@ -644,7 +644,7 @@ export enum Outcome {
  * containing the `ExecutableCode`.
  * @public
  */
-export interface CodeExecutionResult {
+export declare interface CodeExecutionResult {
   /**
    * Outcome of the code execution.
    */
@@ -742,7 +742,7 @@ export declare interface GenerateContentCandidate {
  * the stream is done.
  * @public
  */
-export interface GenerateContentResponse {
+export declare interface GenerateContentResponse {
   /** Candidate responses from the model. */
   candidates?: GenerateContentCandidate[];
   /** The prompt's feedback related to the content filters. */
@@ -775,7 +775,7 @@ export declare interface FunctionDeclarationsTool {
  * Google AI Only. Enables the model to execute code as part of generation.
  * @public
  */
-export interface CodeExecutionTool {
+export declare interface CodeExecutionTool {
   /**
    * Provide an empty object to enable code execution. This field may have
    * subfields added in the future.
@@ -942,12 +942,12 @@ export declare interface GenerationConfig {
  * Safety setting that can be sent as part of request parameters.
  * @public
  */
-export interface SafetySetting {
+export declare interface SafetySetting {
   category: HarmCategory;
   threshold: HarmBlockThreshold;
 }
 
-export interface FunctionCallingConfig {
+export declare interface FunctionCallingConfig {
   /** Optional. Function calling mode. */
   mode?: FunctionCallingMode;
 
@@ -960,7 +960,7 @@ export interface FunctionCallingConfig {
 }
 
 /** This config is shared for all tools provided in the request. */
-export interface ToolConfig {
+export declare interface ToolConfig {
   /** Function calling config. */
   functionCallingConfig?: FunctionCallingConfig;
 }
@@ -998,7 +998,7 @@ export declare interface GenerateContentRequest {
  * It constains both the stream and the final aggregated response.
  * @public
  */
-export interface GenerateContentStreamResult {
+export declare interface GenerateContentStreamResult {
   stream: AsyncGenerator<GenerateContentResponse>;
   response: Promise<GenerateContentResponse>;
 }
