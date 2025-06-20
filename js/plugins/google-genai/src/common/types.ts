@@ -160,6 +160,7 @@ export declare interface GoogleSearchRetrieval {
 export declare interface GoogleSearchRetrievalTool {
   /** Optional. {@link GoogleSearchRetrieval}. */
   googleSearchRetrieval?: GoogleSearchRetrieval;
+  googleSearch?: GoogleSearchRetrieval;
 }
 
 /**
