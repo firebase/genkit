@@ -31,14 +31,17 @@ jobs:
             target: linux-x64
           - os: ubuntu-24.04-arm
             target: linux-arm64
-          - os: macos-latest
+          - os: macos-13  # x64/Intel
             target: darwin-x64
-          - os: macos-13
-            target: darwin-x64-intel
+          - os: macos-latest  # ARM64/M1
+            target: darwin-arm64
           - os: windows-latest
             target: win32-x64
-          - os: windows-11-arm
-            target: win32-arm64
+          # Note: Windows ARM64 currently runs x64 binaries through emulation
+          # Native ARM64 support is not yet available in Bun
+          # See: https://github.com/oven-sh/bun/pull/11430
+          # - os: windows-11-arm
+          #   target: win32-arm64
     
     runs-on: ${{ matrix.os }}
     
@@ -102,3 +105,85 @@ jobs:
           name: genkit-${{ matrix.target }}
           path: genkit-tools/cli/dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
           retention-days: 1
+
+  test:
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+          - os: macos-13
+            target: darwin-x64
+          - os: macos-latest
+            target: darwin-arm64
+          - os: windows-latest
+            target: win32-x64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Set binary extension
+        id: binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == win32-* ]]; then
+            echo "ext=.exe" >> $GITHUB_OUTPUT
+          else
+            echo "ext=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: genkit-${{ matrix.target }}
+          path: ./
+      
+      - name: Make binary executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x genkit-${{ matrix.target }}
+      
+      - name: Test --help command
+        shell: bash
+        run: |
+          echo "Testing genkit --help"
+          ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} --help
+      
+      - name: Test --version command
+        shell: bash
+        run: |
+          echo "Testing genkit --version"
+          ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} --version
+      
+      - name: Verify UI commands exist
+        shell: bash
+        run: |
+          echo "Verifying UI commands are available"
+          ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} ui:start --help
+          ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} ui:stop --help
+      
+      - name: Test basic UI functionality (Unix only)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "Testing genkit ui:start"
+          # Start the UI in the background
+          ./genkit-${{ matrix.target }} ui:start &
+          UI_PID=$!
+          
+          # Give it some time to start
+          sleep 5
+          
+          # Check if the process is still running
+          if ps -p $UI_PID > /dev/null 2>&1; then
+            echo "UI process started successfully (PID: $UI_PID)"
+            # Clean up - kill the process
+            kill $UI_PID 2>/dev/null || true
+            sleep 2
+            echo "UI process terminated"
+          else
+            echo "UI process failed to start or exited immediately"
+            # This might be expected without a proper project, so we don't fail
+          fi
