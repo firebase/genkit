@@ -139,7 +139,7 @@ export async function runInNewSpan<T>(
         // source.
         if (typeof e === 'object') {
           if (!(e as any).ignoreFailedSpan) {
-            opts.metadata.isFailedSpan = true;
+            opts.metadata.isFailureSource = true;
           }
           (e as any).ignoreFailedSpan = true;
         }

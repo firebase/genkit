@@ -44,7 +44,7 @@ export const SpanMetadataSchema = z.object({
   metadata: z.record(z.string(), z.string()).optional(),
   path: z.string().optional(),
   // Indicates a "leaf" span that is the source of a failure.
-  isFailedSpan: z.boolean().optional(),
+  isFailureSource: z.boolean().optional(),
 });
 export type SpanMetadata = z.infer<typeof SpanMetadataSchema>;
 

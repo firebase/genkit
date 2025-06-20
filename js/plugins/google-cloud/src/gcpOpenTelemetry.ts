@@ -420,7 +420,7 @@ class AdjustingTraceExporter implements SpanExporter {
   }
 
   private markFailedSpan(span: ReadableSpan): ReadableSpan {
-    if (span.attributes['genkit:isFailedSpan']) {
+    if (span.attributes['genkit:isFailureSource']) {
       span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];
       span.attributes['genkit:failedPath'] = span.attributes['genkit:path'];
     }

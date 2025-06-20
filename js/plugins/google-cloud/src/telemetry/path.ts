@@ -61,10 +61,10 @@ class PathsTelemetry implements Telemetry {
 
     const path = attributes['genkit:path'] as string;
 
-    const isFailedSpan = !!span.attributes['genkit:isFailedSpan'];
+    const isFailureSource = !!span.attributes['genkit:isFailureSource'];
     const state = attributes['genkit:state'] as string;
 
-    if (!path || !isFailedSpan || state !== 'error') {
+    if (!path || !isFailureSource || state !== 'error') {
       // Only tick metrics for failing, leaf spans.
       return;
     }
