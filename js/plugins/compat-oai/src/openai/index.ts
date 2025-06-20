@@ -23,61 +23,11 @@ import { defineCompatOpenAIEmbedder } from '../embedder.js';
 import { defineCompatOpenAIImageModel } from '../image.js';
 import openAICompatible, { PluginOptions } from '../index.js';
 import { defineCompatOpenAIModel } from '../model.js';
-import { SUPPORTED_IMAGE_MODELS, dallE3 } from './dalle.js';
-import {
-  SUPPORTED_EMBEDDING_MODELS,
-  textEmbedding3Large,
-  textEmbedding3Small,
-  textEmbeddingAda002,
-} from './embedder.js';
-import {
-  SUPPORTED_GPT_MODELS,
-  gpt35Turbo,
-  gpt4,
-  gpt41,
-  gpt41Mini,
-  gpt41Nano,
-  gpt45,
-  gpt4Turbo,
-  gpt4Vision,
-  gpt4o,
-  gpt4oMini,
-  o1,
-  o1Mini,
-  o1Preview,
-  o3,
-  o3Mini,
-  o4Mini,
-} from './gpt.js';
-import { SUPPORTED_TTS_MODELS, gpt4oMiniTts, tts1, tts1Hd } from './tts.js';
-import { SUPPORTED_STT_MODELS, gpt4oTranscribe, whisper1 } from './whisper.js';
-export {
-  dallE3,
-  gpt35Turbo,
-  gpt4,
-  gpt41,
-  gpt41Mini,
-  gpt41Nano,
-  gpt45,
-  gpt4Turbo,
-  gpt4Vision,
-  gpt4o,
-  gpt4oMini,
-  gpt4oMiniTts,
-  gpt4oTranscribe,
-  o1,
-  o1Mini,
-  o1Preview,
-  o3,
-  o3Mini,
-  o4Mini,
-  textEmbedding3Large,
-  textEmbedding3Small,
-  textEmbeddingAda002,
-  tts1,
-  tts1Hd,
-  whisper1,
-};
+import { SUPPORTED_IMAGE_MODELS } from './dalle.js';
+import { SUPPORTED_EMBEDDING_MODELS } from './embedder.js';
+import { SUPPORTED_GPT_MODELS } from './gpt.js';
+import { SUPPORTED_TTS_MODELS } from './tts.js';
+import { SUPPORTED_STT_MODELS } from './whisper.js';
 
 export type OpenAIPluginOptions = Exclude<PluginOptions, 'name'>;
 
@@ -91,19 +41,6 @@ export type OpenAIPluginOptions = Exclude<PluginOptions, 'name'>;
  * OpenAI client and makes available the models for use.
  *
  * Exports:
- * - gpt4o: Reference to the GPT-4o model.
- * - gpt4oMini: Reference to the GPT-4o-mini model.
- * - gpt4Turbo: Reference to the GPT-4 Turbo model.
- * - gpt4Vision: Reference to the GPT-4 Vision model.
- * - gpt4: Reference to the GPT-4 model.
- * - gpt35Turbo: Reference to the GPT-3.5 Turbo model.
- * - dallE3: Reference to the DALL-E 3 model.
- * - tts1: Reference to the Text-to-speech 1 model.
- * - tts1Hd: Reference to the Text-to-speech 1 HD model.
- * - whisper: Reference to the Whisper model.
- * - textEmbedding3Large: Reference to the Text Embedding Large model.
- * - textEmbedding3Small: Reference to the Text Embedding Small model.
- * - textEmbeddingAda002: Reference to the Ada model.
  * - openai: The main plugin function to interact with OpenAI.
  *
  * Usage:
