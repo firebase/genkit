@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -32,17 +33,60 @@ type Embedder interface {
 	Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error)
 }
 
+// EmbedderInfo represents the structure of the embedder information object.
+type EmbedderInfo struct {
+	// Friendly label for this model (e.g. "Google AI - Gemini Pro")
+	Label string `json:"label,omitempty"`
+
+	Supports *EmbedderSupports `json:"supports,omitempty"`
+
+	Dimensions int `json:"dimensions,omitempty"`
+}
+
+// EmbedderSupports represents the supported capabilities of the embedder model.
+type EmbedderSupports struct {
+	// Model can input this type of data.
+	// Expected values could be "text", "image", "video", but the struct
+	Input []string `json:"input,omitempty"`
+
+	Multilingual bool `json:"multilingual,omitempty"`
+}
+
+type EmbedderOptions struct {
+	ConfigSchema any           `json:"configSchema,omitempty"`
+	Info         *EmbedderInfo `json:"info,omitempty"`
+}
+
 // An embedder is used to convert a document to a multidimensional vector.
 type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
+
+func configToMap(config any) map[string]any {
+	schema := base.InferJSONSchema(config)
+	result := base.SchemaAsMap(schema)
+	return result
+}
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
 func DefineEmbedder(
 	r *registry.Registry,
 	provider, name string,
+	options *EmbedderOptions,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
-	return (*embedder)(core.DefineAction(r, provider, name, core.ActionTypeEmbedder, nil, embed))
+	metadata := map[string]any{}
+	metadata["type"] = "embedder"
+	metadata["info"] = options.Info
+	if options.ConfigSchema != nil {
+		metadata["embedder"] = map[string]any{"customOptions": configToMap(options.ConfigSchema)}
+	}
+	inputSchema := base.InferJSONSchema(EmbedRequest{})
+	if inputSchema.Properties != nil && options.ConfigSchema != nil {
+		if _, ok := inputSchema.Properties.Get("options"); ok {
+			inputSchema.Properties.Set("options", base.InferJSONSchema(options.ConfigSchema))
+		}
+	}
+	return (*embedder)(core.DefineActionWithInputSchema(r, provider, name, core.ActionTypeEmbedder, metadata, inputSchema, embed))
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
