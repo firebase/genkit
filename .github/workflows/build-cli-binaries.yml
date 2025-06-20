@@ -29,12 +29,16 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
           - os: macos-latest
             target: darwin-x64
           - os: macos-13
             target: darwin-x64-intel
           - os: windows-latest
             target: win32-x64
+          - os: windows-11-arm
+            target: win32-arm64
     
     runs-on: ${{ matrix.os }}
     
