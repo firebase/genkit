@@ -40,7 +40,6 @@ import {
 import {
   GeminiConfigSchema,
   SUPPORTED_GEMINI_MODELS,
-  SUPPORTED_V15_MODELS,
   defineGoogleAIModel,
   gemini,
   gemini10Pro,
@@ -51,9 +50,12 @@ import {
   gemini20FlashExp,
   gemini20FlashLite,
   gemini20ProExp0205,
+  gemini25Flash,
   gemini25FlashPreview0417,
+  gemini25FlashLitePreview0617,
+  gemini25Pro,
   gemini25ProExp0325,
-  gemini25ProPreview0325,
+  gemini25ProPreview0506,
   type GeminiConfig,
   type GeminiVersionString,
 } from './gemini.js';
@@ -81,8 +83,11 @@ export {
   gemini20FlashLite,
   gemini20ProExp0205,
   gemini25FlashPreview0417,
+  gemini25Flash,
+  gemini25FlashLitePreview0617,
   gemini25ProExp0325,
-  gemini25ProPreview0325,
+  gemini25ProPreview0506,
+  gemini25Pro,
   textEmbedding004,
   textEmbeddingGecko001,
   type GeminiConfig,
@@ -121,7 +126,7 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
   }
 
   if (apiVersions.includes('v1beta')) {
-    Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
       defineGoogleAIModel({
         ai,
         name,
@@ -133,7 +138,7 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
     );
   }
   if (apiVersions.includes('v1')) {
-    Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
       defineGoogleAIModel({
         ai,
         name,
