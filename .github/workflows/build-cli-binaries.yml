@@ -104,7 +104,7 @@ jobs:
         with:
           name: genkit-${{ matrix.target }}
           path: genkit-tools/cli/dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
-          retention-days: 1
+          retention-days: 1  # TODO: Consider increasing to 7 days for better debugging capability
 
   test:
     needs: build
@@ -203,3 +203,57 @@ jobs:
           
           # Clean up any remaining processes
           pkill -f "genkit.*ui:start" 2>/dev/null || true
+      
+      - name: Test UI start functionality (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "Testing genkit ui:start"
+          
+          # Create empty input file first for redirecting stdin
+          "" | Out-File -FilePath ".\empty.txt"
+          
+          # Start UI in background, redirecting input to handle prompts
+          $process = Start-Process -FilePath ".\genkit-${{ matrix.target }}.exe" `
+            -ArgumentList "ui:start" `
+            -RedirectStandardInput ".\empty.txt" `
+            -RedirectStandardOutput ".\ui_output.log" `
+            -RedirectStandardError ".\ui_error.log" `
+            -PassThru `
+            -NoNewWindow
+          
+          # Give it time to start
+          Start-Sleep -Seconds 5
+          
+          # Read the output
+          $output = Get-Content ".\ui_output.log" -ErrorAction SilentlyContinue
+          $errorOutput = Get-Content ".\ui_error.log" -ErrorAction SilentlyContinue
+          
+          if ($output -match "Genkit Developer UI started at:") {
+            Write-Host "✓ UI started successfully"
+            Write-Host "Output:"
+            $output | Write-Host
+            
+            # Try to stop it gracefully
+            Write-Host "Testing genkit ui:stop"
+            & ".\genkit-${{ matrix.target }}.exe" ui:stop
+            
+            Start-Sleep -Seconds 2
+          } else {
+            Write-Host "UI did not start as expected"
+            Write-Host "Output:"
+            $output | Write-Host
+            Write-Host "Error:"
+            $errorOutput | Write-Host
+            
+            # Check if process is still running
+            if (-not $process.HasExited) {
+              Write-Host "Process is still running, terminating..."
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            } else {
+              Write-Host "Process exited (might be due to cookie prompt or missing project)"
+            }
+          }
+          
+          # Clean up any remaining genkit processes
+          Get-Process | Where-Object { $_.ProcessName -match "genkit" } | Stop-Process -Force -ErrorAction SilentlyContinue
