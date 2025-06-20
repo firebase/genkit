@@ -64,14 +64,14 @@ function registerTool(
   );
   ai.defineTool(
     {
-      name: `${params.name}/${tool.name}`,
+      name: `${params.serverName}/${tool.name}`,
       description: tool.description || '',
       inputJsonSchema: tool.inputSchema as JSONSchema7,
       outputSchema: z.any(),
     },
     async (args) => {
       logger.debug(
-        `[MCP] Calling MCP tool '${params.name}/${tool.name}' with arguments`,
+        `[MCP] Calling MCP tool '${params.serverName}/${tool.name}' with arguments`,
         JSON.stringify(args)
       );
       const result = await client.callTool({
@@ -101,9 +101,6 @@ function createDynamicTool(
   tool: Tool,
   params: { serverName: string; name: string; rawToolResponses?: boolean }
 ): ToolAction {
-  logger.debug(
-    `[MCP] Registering dynamic tool '${params.name}/${tool.name}' from server '${params.serverName}'`
-  );
   return ai.dynamicTool(
     {
       name: `${params.serverName}/${tool.name}`,
@@ -113,7 +110,7 @@ function createDynamicTool(
     },
     async (args, { context }) => {
       logger.debug(
-        `[MCP] Dynamically calling MCP tool '${params.name}/${tool.name}'`
+        `[MCP] calling tool '${params.serverName}/${tool.name}' in host '${params.name}'`
       );
       const result = await client.callTool({
         name: tool.name,

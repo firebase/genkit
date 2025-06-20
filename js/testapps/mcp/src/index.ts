@@ -50,7 +50,7 @@ export const ai = genkit({
 
 logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
 
-export const clientManager = createMcpHost({
+export const mcpHost = createMcpHost({
   name: 'test-mcp-manager',
   mcpServers: {
     'git-client': {
@@ -75,7 +75,7 @@ export const clientManager = createMcpHost({
 ai.defineFlow('git-commits', async (q) => {
   const { text } = await ai.generate({
     prompt: `summarize last 5 commits in '${path.resolve(process.cwd(), '../../..')}'`,
-    tools: await clientManager.getActiveTools(ai),
+    tools: await mcpHost.getActiveTools(ai),
   });
 
   return text;
@@ -84,7 +84,7 @@ ai.defineFlow('git-commits', async (q) => {
 ai.defineFlow('get-file', async (q) => {
   const { text } = await ai.generate({
     prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
-    tools: await clientManager.getActiveTools(ai),
+    tools: await mcpHost.getActiveTools(ai),
   });
 
   return text;
@@ -93,7 +93,7 @@ ai.defineFlow('get-file', async (q) => {
 ai.defineFlow('update-file', async (q) => {
   const { text } = await ai.generate({
     prompt: `Improve hello-world.txt (in '${process.cwd()}/test-workspace') by rewriting the text, making it longer, just do it, use your imagination.`,
-    tools: await clientManager.getActiveTools(ai),
+    tools: await mcpHost.getActiveTools(ai),
   });
 
   return text;
@@ -113,16 +113,16 @@ export const controlMcp = ai.defineFlow(
     const id = clientId ?? 'git-client';
     switch (action) {
       case 'DISABLE':
-        await clientManager.disable(id);
+        await mcpHost.disable(id);
         break;
       case 'DISCONNECT':
-        await clientManager.disconnect(id);
+        await mcpHost.disconnect(id);
         break;
       case 'RECONNECT':
-        await clientManager.reconnect(id);
+        await mcpHost.reconnect(id);
         break;
       case 'ENABLE':
-        await clientManager.enable(id);
+        await mcpHost.enable(id);
         break;
     }
     return action;

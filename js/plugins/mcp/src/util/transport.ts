@@ -15,11 +15,7 @@
  */
 
 import { McpServerConfig } from '../client/client.js';
-import type {
-  SSEClientTransportOptions,
-  StdioServerParameters,
-  Transport,
-} from '../client/index.js';
+import type { StdioServerParameters, Transport } from '../client/index.js';
 
 /**
  * Creates an MCP transport instance based on the provided server configuration.
@@ -30,7 +26,10 @@ import type {
  *          (or `null` if configuration is invalid) and a string indicating the `type` of transport.
  * @throws May throw an error if essential MCP SDK components cannot be imported.
  */
-export async function transportFrom(config: McpServerConfig): Promise<{
+export async function transportFrom(
+  config: McpServerConfig,
+  sessionId?: string
+): Promise<{
   transport: Transport | null;
   type: string;
 }> {
@@ -40,16 +39,16 @@ export async function transportFrom(config: McpServerConfig): Promise<{
   }
   // Handle SSE config
   if ('url' in config && config.url) {
-    const { url, ...sseConfig } = config;
-    const { SSEClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/sse.js'
+    const { url, ...httpConfig } = config;
+    const { StreamableHTTPClientTransport } = await import(
+      '@modelcontextprotocol/sdk/client/streamableHttp.js'
     );
     return {
-      transport: new SSEClientTransport(
-        new URL(url),
-        sseConfig as SSEClientTransportOptions
-      ),
-      type: 'sse',
+      transport: new StreamableHTTPClientTransport(new URL(url), {
+        ...httpConfig,
+        sessionId,
+      }),
+      type: 'http',
     };
   }
   // Handle Stdio config
