@@ -336,7 +336,7 @@ describe('GoogleCloudLogs', () => {
     await getExportedSpans();
 
     const logs = await getLogs(1, 100, logLines);
-    expect(logs.length).toEqual(8);
+    expect(logs.length).toEqual(10);
     const logObjectMessages = getStructuredLogMessages(logs);
     expect(logObjectMessages).toContain(
       'Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
@@ -349,6 +349,12 @@ describe('GoogleCloudLogs', () => {
     );
     expect(logObjectMessages).toContain('Input[testFlow, testFlow]');
     expect(logObjectMessages).toContain('Output[testFlow, testFlow]');
+    expect(logObjectMessages).toContain(
+      'Input[testFlow > sub1 > sub2 > generate, testFlow]'
+    );
+    expect(logObjectMessages).toContain(
+      'Output[testFlow > sub1 > sub2 > generate, testFlow]'
+    );
     // Ensure the model input/output has an associated role
     logs.map((log) => {
       const structuredLog = JSON.parse(log as string);
@@ -365,6 +371,58 @@ describe('GoogleCloudLogs', () => {
         expect(structuredLog.role).toBe('model');
       }
     });
+  });
+
+  it('writes feature logs for generate without flow', async () => {
+    const testModel = createModel(ai, 'testModel', async () => {
+      return {
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: 'response',
+            },
+          ],
+        },
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 14,
+          inputCharacters: 8,
+          outputCharacters: 16,
+          inputImages: 1,
+          outputImages: 3,
+        },
+      };
+    });
+
+    await ai.generate({
+      model: testModel,
+      prompt: `a test prompt`,
+      config: {
+        temperature: 1.0,
+        topK: 3,
+        topP: 5,
+        maxOutputTokens: 7,
+      },
+    });
+
+    await getExportedSpans();
+
+    const logs = await getLogs(1, 100, logLines);
+    expect(logs.length).toEqual(7);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain(
+      'Config[generate > testModel, testModel]'
+    );
+    expect(logObjectMessages).toContain(
+      'Input[generate > testModel, testModel] '
+    );
+    expect(logObjectMessages).toContain(
+      'Output[generate > testModel, testModel] '
+    );
+    expect(logObjectMessages).toContain('Input[generate, generate]');
+    expect(logObjectMessages).toContain('Output[generate, generate]');
   });
 
   it('writes user feedback log', async () => {
