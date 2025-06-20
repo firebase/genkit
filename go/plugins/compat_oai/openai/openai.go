@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	openaiGo "github.com/openai/openai-go"
@@ -33,27 +34,27 @@ var (
 	supportedModels = map[string]ai.ModelInfo{
 		"gpt-4.1": {
 			Label:    "OpenAI GPT-4.1",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4.1", "gpt-4.1-2025-04-14"},
 		},
 		"gpt-4.1-mini": {
 			Label:    "OpenAI GPT-4.1-mini",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"},
 		},
 		"gpt-4.1-nano": {
 			Label:    "OpenAI GPT-4.1-nano",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4.1-nano", "gpt-4.1-nano-2025-04-14"},
 		},
 		openaiGo.ChatModelO3Mini: {
 			Label:    "OpenAI o3-mini",
-			Supports: compat_oai.BasicText.Supports,
+			Supports: &compat_oai.BasicText,
 			Versions: []string{"o3-mini", "o3-mini-2025-01-31"},
 		},
 		openaiGo.ChatModelO1: {
 			Label:    "OpenAI o1",
-			Supports: compat_oai.BasicText.Supports,
+			Supports: &compat_oai.BasicText,
 			Versions: []string{"o1", "o1-2024-12-17"},
 		},
 		openaiGo.ChatModelO1Preview: {
@@ -78,22 +79,22 @@ var (
 		},
 		openaiGo.ChatModelGPT4_5Preview: {
 			Label:    "OpenAI GPT-4.5-preview",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4.5-preview", "gpt-4.5-preview-2025-02-27"},
 		},
 		openaiGo.ChatModelGPT4o: {
 			Label:    "OpenAI GPT-4o",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4o", "gpt-4o-2024-11-20", "gpt-4o-2024-08-06", "gpt-4o-2024-05-13"},
 		},
 		openaiGo.ChatModelGPT4oMini: {
 			Label:    "OpenAI GPT-4o-mini",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4o-mini", "gpt-4o-mini-2024-07-18"},
 		},
 		openaiGo.ChatModelGPT4Turbo: {
 			Label:    "OpenAI GPT-4-turbo",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4-turbo", "gpt-4-turbo-2024-04-09", "gpt-4-turbo-preview", "gpt-4-0125-preview"},
 		},
 		openaiGo.ChatModelGPT4: {
@@ -167,6 +168,7 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 		o.openAICompatible.Opts = append(o.openAICompatible.Opts, o.Opts...)
 	}
 
+	o.openAICompatible.Provider = provider
 	if err := o.openAICompatible.Init(ctx, g); err != nil {
 		return err
 	}
@@ -202,4 +204,12 @@ func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, err
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {
 	return o.openAICompatible.Embedder(g, name, provider)
+}
+
+func (o *OpenAI) ListActions(ctx context.Context) []core.ActionDesc {
+	return o.openAICompatible.ListActions(ctx)
+}
+
+func (o *OpenAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+	return o.openAICompatible.ResolveAction(g, atype, name)
 }
