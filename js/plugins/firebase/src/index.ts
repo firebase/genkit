@@ -24,6 +24,7 @@ import {
   enableGoogleCloudTelemetry,
   type GcpTelemetryConfigOptions,
 } from '@genkit-ai/google-cloud';
+import { logger } from 'genkit/logging';
 export { defineFirestoreRetriever } from './firestore-retriever.js';
 
 export interface FirebaseTelemetryOptions extends GcpTelemetryConfigOptions {
@@ -39,5 +40,6 @@ export interface FirebaseTelemetryOptions extends GcpTelemetryConfigOptions {
 export async function enableFirebaseTelemetry(
   options?: FirebaseTelemetryOptions | GcpTelemetryConfigOptions
 ) {
+  logger.debug('Initializing Firebase Genkit Monitoring.');
   await enableGoogleCloudTelemetry(options);
 }
