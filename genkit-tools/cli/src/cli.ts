@@ -32,6 +32,7 @@ import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
+import { uiStartServer } from './utils/server-harness';
 import { version } from './utils/version';
 
 /**
@@ -78,6 +79,10 @@ export async function startCLI(): Promise<void> {
       }
       await record(new RunCommandEvent(commandName));
     });
+
+  if (process.argv.includes('__ui:start-server')) {
+    program.addCommand(uiStartServer);
+  }
 
   for (const command of commands) program.addCommand(command);
   for (const command of await getPluginCommands()) program.addCommand(command);

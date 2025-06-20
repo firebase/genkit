@@ -15,22 +15,14 @@
  */
 
 import { startServer } from '@genkit-ai/tools-common/server';
+import { Command } from 'commander';
 import fs from 'fs';
 import { startManager } from './manager-utils';
 
-const args = process.argv.slice(2);
-const port = Number.parseInt(args[0]) || 4100;
-redirectStdoutToFile(args[1]);
-
-async function start() {
-  const manager = await startManager(true);
-  await startServer(manager, port);
-}
-
 function redirectStdoutToFile(logFile: string) {
-  var myLogFileStream = fs.createWriteStream(logFile);
+  const myLogFileStream = fs.createWriteStream(logFile);
 
-  var originalStdout = process.stdout.write;
+  const originalStdout = process.stdout.write;
   function writeStdout() {
     originalStdout.apply(process.stdout, arguments as any);
     myLogFileStream.write.apply(myLogFileStream, arguments as any);
@@ -40,14 +32,23 @@ function redirectStdoutToFile(logFile: string) {
   process.stderr.write = process.stdout.write;
 }
 
-process.on('error', (error): void => {
-  console.log(`Error in tools process: ${error}`);
-});
-process.on('uncaughtException', (err, somethingelse) => {
-  console.log(`Uncaught error in tools process: ${err} ${somethingelse}`);
-});
-process.on('unhandledRejection', (reason, p) => {
-  console.log(`Unhandled rejection in tools process: ${reason}`);
-});
+export const uiStartServer = new Command('__ui:start-server')
+  .argument('<port>', 'Port to serve on')
+  .argument('<logFile>', 'Log file path')
+  .action(async (port: string, logFile: string) => {
+    redirectStdoutToFile(logFile);
 
-start();
+    process.on('error', (error): void => {
+      console.log(`Error in tools process: ${error}`);
+    });
+    process.on('uncaughtException', (err, somethingelse) => {
+      console.log(`Uncaught error in tools process: ${err} ${somethingelse}`);
+    });
+    process.on('unhandledRejection', (reason, p) => {
+      console.log(`Unhandled rejection in tools process: ${reason}`);
+    });
+
+    const portNum = Number.parseInt(port) || 4100;
+    const manager = await startManager(true);
+    await startServer(manager, portNum);
+  });

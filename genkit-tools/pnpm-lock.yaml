@@ -75,6 +75,9 @@ importers:
       '@types/node':
         specifier: ^20.11.19
         version: 20.19.1
+      bun-types:
+        specifier: ^1.2.16
+        version: 1.2.16
       genversion:
         specifier: ^3.2.0
         version: 3.2.0
@@ -202,6 +205,9 @@ importers:
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
+      bun-types:
+        specifier: ^1.2.16
+        version: 1.2.16
       genversion:
         specifier: ^3.2.0
         version: 3.2.0
@@ -1246,6 +1252,9 @@ packages:
 
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
+
+  bun-types@1.2.16:
+    resolution: {integrity: sha512-ciXLrHV4PXax9vHvUrkvun9VPVGOVwbbbBF/Ev1cXz12lyEZMoJpIJABOfPcN9gDJRaiKF9MVbSygLg4NXu3/A==}
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -4367,6 +4376,10 @@ snapshots:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
+
+  bun-types@1.2.16:
+    dependencies:
+      '@types/node': 20.19.1
 
   bytes@3.1.2: {}
 
