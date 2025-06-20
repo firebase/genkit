@@ -35,21 +35,21 @@ import {
 
 // This makes it easier to import all types from one place.
 export {
-  Content,
   FinishReason,
-  GenerateContentCandidate,
-  GenerateContentRequest,
-  GenerateContentResponse,
-  GenerateContentStreamResult,
-  GenerationConfig,
-  GoogleSearchRetrievalTool,
   HarmBlockThreshold,
   HarmCategory,
-  Part,
-  SafetySetting,
   TaskTypeSchema,
-  Tool,
-  ToolConfig,
+  type Content,
+  type GenerateContentCandidate,
+  type GenerateContentRequest,
+  type GenerateContentResponse,
+  type GenerateContentStreamResult,
+  type GenerationConfig,
+  type GoogleSearchRetrievalTool,
+  type Part,
+  type SafetySetting,
+  type Tool,
+  type ToolConfig,
 };
 
 export interface PluginOptions {
