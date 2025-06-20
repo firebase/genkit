@@ -85,28 +85,6 @@ func TestGetContentForCache_Invalid(t *testing.T) {
 	}
 }
 
-func TestValidateContextCacheRequest_EmptyModelVersion(t *testing.T) {
-	req := &ai.ModelRequest{}
-	err := validateContextCacheRequest(req, "")
-	if err == nil {
-		t.Fatal("expected error if modelVersion is empty")
-	}
-	if !strings.Contains(err.Error(), invalidArgMessages.modelVersion) {
-		t.Errorf("expected error to contain %q, got %v", invalidArgMessages.modelVersion, err)
-	}
-}
-
-func TestValidateContextCacheRequest_UnknownModelVersion(t *testing.T) {
-	req := &ai.ModelRequest{}
-	err := validateContextCacheRequest(req, "unknownModel")
-	if err == nil {
-		t.Fatal("expected error if modelVersion is unknown")
-	}
-	if !strings.Contains(err.Error(), invalidArgMessages.modelVersion) {
-		t.Errorf("expected error to contain %q, got %v", invalidArgMessages.modelVersion, err)
-	}
-}
-
 func TestValidateContextCacheRequest_HasTools(t *testing.T) {
 	req := &ai.ModelRequest{
 		Tools: []*ai.ToolDefinition{{Name: "someTool"}},

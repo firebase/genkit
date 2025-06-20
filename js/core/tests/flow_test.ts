@@ -303,6 +303,38 @@ describe('flow', () => {
       assert.equal(await response.output, 'bar 3 true {"user":"test-user"}');
       assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
     });
+
+    it('aborts flow via signal', async () => {
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+        },
+        async (input, { abortSignal }) => {
+          let done = false;
+          abortSignal.onabort = () => {
+            done = true;
+          };
+          while (!done) {
+            await new Promise((r) => setTimeout(r, 1));
+          }
+          return 'done ' + input;
+        }
+      );
+
+      const ctrl = new AbortController();
+      const responsePromise = testFlow('foo', {
+        abortSignal: ctrl.signal,
+      });
+
+      await new Promise((r) => setTimeout(r, 4));
+      console.log('abort');
+      ctrl.abort();
+
+      assert.equal(await responsePromise, 'done foo');
+    });
   });
 
   describe('telemetry', async () => {

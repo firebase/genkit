@@ -58,7 +58,7 @@ jest.mock('../src/auth.js', () => {
   };
 });
 
-describe('GoogleCloudLogs with truncation', () => {
+describe('GoogleCloudLogs', () => {
   let logLines = '';
   const logStream = new Writable();
   logStream._write = (chunk, encoding, next) => {
@@ -93,204 +93,171 @@ describe('GoogleCloudLogs with truncation', () => {
     await ai.stopServers();
   });
 
-  it('truncates large output logs', async () => {
-    const testModel = createModel(ai, 'testModel', async () => {
-      return {
-        message: {
-          role: 'user',
-          content: [
-            {
-              text: 'r'.repeat(130_000),
-            },
-          ],
-        },
-        finishReason: 'stop',
-        usage: {
-          inputTokens: 10,
-          outputTokens: 14,
-          inputCharacters: 8,
-          outputCharacters: 16,
-          inputImages: 1,
-          outputImages: 3,
-        },
-      };
-    });
-    const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
-      return await ai.run('sub1', async () => {
-        return await ai.run('sub2', async () => {
-          return await ai.generate({
-            model: testModel,
-            prompt: `${input} prompt`,
-            config: {
-              temperature: 1.0,
-              topK: 3,
-              topP: 5,
-              maxOutputTokens: 7,
-            },
+  describe('with truncation', () => {
+    it('truncates large output logs', async () => {
+      const testModel = createModel(ai, 'testModel', async () => {
+        return {
+          message: {
+            role: 'user',
+            content: [
+              {
+                text: 'r'.repeat(130_000),
+              },
+            ],
+          },
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 10,
+            outputTokens: 14,
+            inputCharacters: 8,
+            outputCharacters: 16,
+            inputImages: 1,
+            outputImages: 3,
+          },
+        };
+      });
+      const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
+        return await ai.run('sub1', async () => {
+          return await ai.run('sub2', async () => {
+            return await ai.generate({
+              model: testModel,
+              prompt: `${input} prompt`,
+              config: {
+                temperature: 1.0,
+                topK: 3,
+                topP: 5,
+                maxOutputTokens: 7,
+              },
+            });
           });
         });
       });
-    });
 
-    await testFlow('test');
-    await getExportedSpans();
+      await testFlow('test');
+      await getExportedSpans();
 
-    const logMessages = await getLogs(1, 100, logLines);
-    const logObjects = logMessages.map((l) => JSON.parse(l as string));
-    const logObjectMessages = logObjects.map(
-      (structuredLog) => structuredLog.message
-    );
+      const logMessages = await getLogs(1, 100, logLines);
+      const logObjects = logMessages.map((l) => JSON.parse(l as string));
+      const logObjectMessages = logObjects.map(
+        (structuredLog) => structuredLog.message
+      );
 
-    expect(logObjectMessages).toContain('Output[testFlow, testFlow]');
+      expect(logObjectMessages).toContain('Output[testFlow, testFlow]');
 
-    logObjects.map((structuredLog) => {
-      if (structuredLog.message === 'Output[testFlow, testFlow]') {
-        expect(structuredLog.content.length).toBe(128_000);
-      }
-    });
-  });
-
-  it('truncates large input logs', async () => {
-    const testModel = createModel(ai, 'testModel', async () => {
-      return {
-        message: {
-          role: 'user',
-          content: [
-            {
-              text: 'response',
-            },
-          ],
-        },
-        finishReason: 'stop',
-        usage: {
-          inputTokens: 10,
-          outputTokens: 14,
-          inputCharacters: 8,
-          outputCharacters: 16,
-          inputImages: 1,
-          outputImages: 3,
-        },
-      };
-    });
-    const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
-      return await ai.run('sub1', async () => {
-        return await ai.run('sub2', async () => {
-          return await ai.generate({
-            model: testModel,
-            prompt: `${input} prompt`,
-            config: {
-              temperature: 1.0,
-              topK: 3,
-              topP: 5,
-              maxOutputTokens: 7,
-            },
-          });
-        });
+      logObjects.map((structuredLog) => {
+        if (structuredLog.message === 'Output[testFlow, testFlow]') {
+          expect(structuredLog.content.length).toBe(128_000);
+        }
       });
     });
 
-    await testFlow('t'.repeat(130_000));
-    await getExportedSpans();
-
-    const logMessages = await getLogs(1, 100, logLines);
-    const logObjects = logMessages.map((l) => JSON.parse(l as string));
-    const logObjectMessages = logObjects.map(
-      (structuredLog) => structuredLog.message
-    );
-
-    expect(logObjectMessages).toContain('Input[testFlow, testFlow]');
-
-    logObjects.map((structuredLog) => {
-      if (structuredLog.message === 'Input[testFlow, testFlow]') {
-        expect(structuredLog.content.length).toBe(128_000);
-      }
-    });
-  });
-
-  it.only('truncates large model names', async () => {
-    const testModel = createModel(ai, 'm'.repeat(2046), async () => {
-      return {
-        message: {
-          role: 'user',
-          content: [
-            {
-              text: 'response',
-            },
-          ],
-        },
-        finishReason: 'stop',
-        usage: {
-          inputTokens: 10,
-          outputTokens: 14,
-          inputCharacters: 8,
-          outputCharacters: 16,
-          inputImages: 1,
-          outputImages: 3,
-        },
-      };
-    });
-    const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
-      return await ai.run('sub1', async () => {
-        return await ai.run('sub2', async () => {
-          return await ai.generate({
-            model: testModel,
-            prompt: `${input} prompt`,
-            config: {
-              temperature: 1.0,
-              topK: 3,
-              topP: 5,
-              maxOutputTokens: 7,
-            },
+    it('truncates large input logs', async () => {
+      const testModel = createModel(ai, 'testModel', async () => {
+        return {
+          message: {
+            role: 'user',
+            content: [
+              {
+                text: 'response',
+              },
+            ],
+          },
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 10,
+            outputTokens: 14,
+            inputCharacters: 8,
+            outputCharacters: 16,
+            inputImages: 1,
+            outputImages: 3,
+          },
+        };
+      });
+      const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
+        return await ai.run('sub1', async () => {
+          return await ai.run('sub2', async () => {
+            return await ai.generate({
+              model: testModel,
+              prompt: `${input} prompt`,
+              config: {
+                temperature: 1.0,
+                topK: 3,
+                topP: 5,
+                maxOutputTokens: 7,
+              },
+            });
           });
         });
       });
+
+      await testFlow('t'.repeat(130_000));
+      await getExportedSpans();
+
+      const logMessages = await getLogs(1, 100, logLines);
+      const logObjects = logMessages.map((l) => JSON.parse(l as string));
+      const logObjectMessages = logObjects.map(
+        (structuredLog) => structuredLog.message
+      );
+
+      expect(logObjectMessages).toContain('Input[testFlow, testFlow]');
+
+      logObjects.map((structuredLog) => {
+        if (structuredLog.message === 'Input[testFlow, testFlow]') {
+          expect(structuredLog.content.length).toBe(128_000);
+        }
+      });
     });
 
-    await testFlow('test');
-    await getExportedSpans();
+    it('truncates large model names', async () => {
+      const testModel = createModel(ai, 'm'.repeat(2046), async () => {
+        return {
+          message: {
+            role: 'user',
+            content: [
+              {
+                text: 'response',
+              },
+            ],
+          },
+          finishReason: 'stop',
+          usage: {
+            inputTokens: 10,
+            outputTokens: 14,
+            inputCharacters: 8,
+            outputCharacters: 16,
+            inputImages: 1,
+            outputImages: 3,
+          },
+        };
+      });
+      const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
+        return await ai.run('sub1', async () => {
+          return await ai.run('sub2', async () => {
+            return await ai.generate({
+              model: testModel,
+              prompt: `${input} prompt`,
+              config: {
+                temperature: 1.0,
+                topK: 3,
+                topP: 5,
+                maxOutputTokens: 7,
+              },
+            });
+          });
+        });
+      });
 
-    const logMessages = await getLogs(1, 100, logLines);
-    const logObjects = logMessages.map((l) => JSON.parse(l as string));
-    const logObjectModels = logObjects.map(
-      (structuredLog) => structuredLog.model
-    );
+      await testFlow('test');
+      await getExportedSpans();
 
-    expect(logObjectModels).toContain('m'.repeat(1024));
-  });
-});
+      const logMessages = await getLogs(1, 100, logLines);
+      const logObjects = logMessages.map((l) => JSON.parse(l as string));
+      const logObjectModels = logObjects.map(
+        (structuredLog) => structuredLog.model
+      );
 
-describe('GoogleCloudLogs', () => {
-  let logLines = '';
-  const logStream = new Writable();
-  logStream._write = (chunk, encoding, next) => {
-    logLines = logLines += chunk.toString();
-    next();
-  };
-
-  let ai: Genkit;
-
-  beforeAll(async () => {
-    process.env.GCLOUD_PROJECT = 'test';
-    process.env.GENKIT_ENV = 'dev';
-    __addTransportStreamForTesting(logStream);
-    await enableGoogleCloudTelemetry({
-      projectId: 'test',
-      forceDevExport: false,
-      metricExportIntervalMillis: 100,
-      metricExportTimeoutMillis: 100,
+      expect(logObjectModels).toContain('m'.repeat(1024));
     });
-    ai = genkit({
-      // Force GCP Plugin to use in-memory metrics exporter
-      plugins: [],
-    });
-    await waitForLogsInit(ai, logLines);
-  });
-  beforeEach(async () => {
-    logLines = '';
-    __getSpanExporterForTesting().reset();
-  });
-  afterAll(async () => {
-    await ai.stopServers();
   });
 
   it('writes path logs', async () => {
@@ -300,8 +267,9 @@ describe('GoogleCloudLogs', () => {
 
     await getExportedSpans();
 
-    const logMessages = await getLogs(1, 100, logLines);
-    assert.equal(logMessages.includes('[info] Paths[testFlow]'), true);
+    const logs = await getLogs(1, 100, logLines);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain('Paths[testFlow]');
   });
 
   it('writes error logs', async () => {
@@ -317,13 +285,10 @@ describe('GoogleCloudLogs', () => {
 
     await getExportedSpans();
 
-    const logMessages = await getLogs(1, 100, logLines);
-
-    assert.equal(
-      logMessages.includes(
-        "[error] Error[testFlow, TypeError] Cannot read properties of undefined (reading 'explode')"
-      ),
-      true
+    const logs = await getLogs(1, 100, logLines);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain(
+      "Error[testFlow, TypeError] Cannot read properties of undefined (reading 'explode')"
     );
   }, 10000); //timeout
 
@@ -331,7 +296,7 @@ describe('GoogleCloudLogs', () => {
     const testModel = createModel(ai, 'testModel', async () => {
       return {
         message: {
-          role: 'user',
+          role: 'model',
           content: [
             {
               text: 'response',
@@ -370,33 +335,36 @@ describe('GoogleCloudLogs', () => {
 
     await getExportedSpans();
 
-    const logMessages = await getLogs(1, 100, logLines);
-    assert.equal(
-      logMessages.includes(
-        '[info] Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
-      ),
-      true
+    const logs = await getLogs(1, 100, logLines);
+    expect(logs.length).toEqual(8);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain(
+      'Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
     );
-    assert.equal(
-      logMessages.includes(
-        '[info] Input[testFlow > sub1 > sub2 > generate > testModel, testModel]'
-      ),
-      true
+    expect(logObjectMessages).toContain(
+      'Input[testFlow > sub1 > sub2 > generate > testModel, testModel] '
     );
-    assert.equal(
-      logMessages.includes(
-        '[info] Output[testFlow > sub1 > sub2 > generate > testModel, testModel]'
-      ),
-      true
+    expect(logObjectMessages).toContain(
+      'Output[testFlow > sub1 > sub2 > generate > testModel, testModel] '
     );
-    assert.equal(
-      logMessages.includes('[info] Input[testFlow, testFlow]'),
-      true
-    );
-    assert.equal(
-      logMessages.includes('[info] Output[testFlow, testFlow]'),
-      true
-    );
+    expect(logObjectMessages).toContain('Input[testFlow, testFlow]');
+    expect(logObjectMessages).toContain('Output[testFlow, testFlow]');
+    // Ensure the model input/output has an associated role
+    logs.map((log) => {
+      const structuredLog = JSON.parse(log as string);
+      if (
+        structuredLog.message ===
+        'Input[testFlow > sub1 > sub2 > generate > testModel, testModel] '
+      ) {
+        expect(structuredLog.role).toBe('user');
+      }
+      if (
+        structuredLog.message ===
+        'Output[testFlow > sub1 > sub2 > generate > testModel, testModel]'
+      ) {
+        expect(structuredLog.role).toBe('model');
+      }
+    });
   });
 
   it('writes user feedback log', async () => {
@@ -416,8 +384,9 @@ describe('GoogleCloudLogs', () => {
     );
 
     await getExportedSpans();
-    const logMessages = await getLogs(1, 100, logLines);
-    assert.equal(logMessages.includes('[info] UserFeedback[flowName]'), true);
+    const logs = await getLogs(1, 100, logLines);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain('UserFeedback[flowName]');
   });
 
   it('writes user acceptance log', async () => {
@@ -433,8 +402,9 @@ describe('GoogleCloudLogs', () => {
     );
 
     await getExportedSpans();
-    const logMessages = await getLogs(1, 100, logLines);
-    assert.equal(logMessages.includes('[info] UserAcceptance[flowName]'), true);
+    const logs = await getLogs(1, 100, logLines);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain('UserAcceptance[flowName]');
   });
 
   it('writes tool input and output logs', async () => {
@@ -444,9 +414,10 @@ describe('GoogleCloudLogs', () => {
     );
     await echoTool('Helllooooo!');
     await getExportedSpans();
-    const logMessages = await getLogs(2, 100, logLines);
-    assert.ok(logMessages.includes('[info] Input[echoTool, echoTool]'));
-    assert.ok(logMessages.includes('[info] Output[echoTool, echoTool]'));
+    const logs = await getLogs(1, 100, logLines);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain('Input[echoTool, echoTool]');
+    expect(logObjectMessages).toContain('Output[echoTool, echoTool]');
   });
 });
 
@@ -531,4 +502,9 @@ async function getExportedSpans(maxAttempts = 200): Promise<ReadableSpan[]> {
     }
   }
   assert.fail(`Timed out while waiting for spans to be exported.`);
+}
+
+function getStructuredLogMessages(logs: string[]): string[] {
+  const logObjects = logs.map((l) => JSON.parse(l as string));
+  return logObjects.map((log) => log.message);
 }

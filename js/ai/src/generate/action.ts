@@ -19,7 +19,6 @@ import {
   defineAction,
   getStreamingCallback,
   runWithStreamingCallback,
-  sentinelNoopStreamingCallback,
   stripUndefinedProps,
   type Action,
   type z,
@@ -81,7 +80,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
       outputSchema: GenerateResponseSchema,
       streamSchema: GenerateResponseChunkSchema,
     },
-    async (request, { sendChunk }) => {
+    async (request, { streamingRequested, sendChunk }) => {
       const generateFn = () =>
         generate(registry, {
           rawRequest: request,
@@ -90,7 +89,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
           // Generate util action does not support middleware. Maybe when we add named/registered middleware....
           middleware: [],
         });
-      return sendChunk !== sentinelNoopStreamingCallback
+      return streamingRequested
         ? runWithStreamingCallback(
             registry,
             (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
@@ -111,6 +110,7 @@ export async function generateHelper(
     middleware?: ModelMiddleware[];
     currentTurn?: number;
     messageIndex?: number;
+    abortSignal?: AbortSignal;
   }
 ): Promise<GenerateResponseData> {
   const currentTurn = options.currentTurn ?? 0;
@@ -134,6 +134,7 @@ export async function generateHelper(
         middleware: options.middleware,
         currentTurn,
         messageIndex,
+        abortSignal: options.abortSignal,
       });
       metadata.output = JSON.stringify(output);
       return output;
@@ -230,11 +231,13 @@ async function generate(
     middleware,
     currentTurn,
     messageIndex,
+    abortSignal,
   }: {
     rawRequest: GenerateActionOptions;
     middleware: ModelMiddleware[] | undefined;
     currentTurn: number;
     messageIndex: number;
+    abortSignal?: AbortSignal;
   }
 ): Promise<GenerateResponseData> {
   const { model, tools, format } = await resolveParameters(
@@ -313,7 +316,7 @@ async function generate(
       ) => {
         if (!middleware || index === middleware.length) {
           // end of the chain, call the original model action
-          return await model(req);
+          return await model(req, { abortSignal });
         }
 
         const currentMiddleware = middleware[index];
@@ -322,12 +325,27 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request), {
+      const modelResponse = await dispatch(0, request);
+
+      if (model.__action.actionType === 'background-model') {
+        return new GenerateResponse(
+          { operation: modelResponse },
+          {
+            request,
+            parser: format?.handler(request.output?.schema).parseMessage,
+          }
+        );
+      }
+
+      return new GenerateResponse(modelResponse, {
         request,
         parser: format?.handler(request.output?.schema).parseMessage,
       });
     }
   );
+  if (model.__action.actionType === 'background-model') {
+    return response.toJSON();
+  }
 
   // Throw an error if the response is not usable.
   response.assertValid();

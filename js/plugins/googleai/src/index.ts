@@ -59,7 +59,19 @@ import {
   type GeminiConfig,
   type GeminiVersionString,
 } from './gemini.js';
+import {
+  GENERIC_IMAGEN_INFO,
+  ImagenConfigSchema,
+  defineImagenModel,
+  type KNOWN_IMAGEN_MODELS,
+} from './imagen.js';
 import { listModels } from './list-models.js';
+import {
+  GENERIC_VEO_INFO,
+  KNOWN_VEO_MODELS,
+  VeoConfigSchema,
+  defineVeoModel,
+} from './veo.js';
 export {
   gemini,
   gemini10Pro,
@@ -171,19 +183,26 @@ async function resolver(
   actionName: string,
   options?: PluginOptions
 ) {
-  switch (actionType) {
-    case 'model':
-      resolveModel(ai, actionName, options);
-      break;
-    case 'embedder':
-      resolveEmbedder(ai, actionName, options);
-      break;
-    default:
-    // no-op
+  if (actionType === 'embedder') {
+    resolveEmbedder(ai, actionName, options);
+  } else if (actionName.startsWith('veo')) {
+    // we do it this way because the request may come in for
+    // action type 'model' and action name 'veo-...'. That case should
+    // be a noop. It's just the order or model lookup.
+    if (actionType === 'background-model') {
+      defineVeoModel(ai, actionName, options?.apiKey);
+    }
+  } else if (actionType === 'model') {
+    resolveModel(ai, actionName, options);
   }
 }
 
 function resolveModel(ai: Genkit, actionName: string, options?: PluginOptions) {
+  if (actionName.startsWith('imagen')) {
+    defineImagenModel(ai, actionName, options?.apiKey);
+    return;
+  }
+
   const modelRef = gemini(actionName);
   defineGoogleAIModel({
     ai,
@@ -226,6 +245,43 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
   );
 
   return [
+    // Imagen
+    ...models
+      .filter(
+        (m) =>
+          m.supportedGenerationMethods.includes('predict') &&
+          m.name.includes('imagen')
+      )
+      // Filter out deprecated
+      .filter((m) => !m.description || !m.description.includes('deprecated'))
+      .map((m) => {
+        const name = m.name.split('/').at(-1)!;
+
+        return modelActionMetadata({
+          name: `googleai/${name}`,
+          info: { ...GENERIC_IMAGEN_INFO },
+          configSchema: ImagenConfigSchema,
+        });
+      }),
+    // Veo
+    ...models
+      .filter(
+        (m) =>
+          m.supportedGenerationMethods.includes('predictLongRunning') &&
+          m.name.includes('veo')
+      )
+      // Filter out deprecated
+      .filter((m) => !m.description || !m.description.includes('deprecated'))
+      .map((m) => {
+        const name = m.name.split('/').at(-1)!;
+
+        return modelActionMetadata({
+          name: `googleai/${name}`,
+          info: { ...GENERIC_VEO_INFO },
+          configSchema: VeoConfigSchema,
+          background: true,
+        });
+      }),
     // Models
     ...models
       .filter((m) => m.supportedGenerationMethods.includes('generateContent'))
@@ -292,9 +348,18 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPlugin {
 export type GoogleAIPlugin = {
   (params?: PluginOptions): GenkitPlugin;
   model(
-    name: GeminiVersionString,
+    name: keyof typeof SUPPORTED_GEMINI_MODELS | (`gemini-${string}` & {}),
     config?: z.infer<typeof GeminiConfigSchema>
   ): ModelReference<typeof GeminiConfigSchema>;
+  model(
+    name: KNOWN_IMAGEN_MODELS | (`imagen${string}` & {}),
+    config?: z.infer<typeof ImagenConfigSchema>
+  ): ModelReference<typeof ImagenConfigSchema>;
+  model(
+    name: KNOWN_VEO_MODELS | (`veo${string}` & {}),
+    config?: z.infer<typeof VeoConfigSchema>
+  ): ModelReference<typeof VeoConfigSchema>;
+  model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
   embedder(
     name: string,
     config?: GeminiEmbeddingConfig
@@ -305,10 +370,25 @@ export type GoogleAIPlugin = {
  * Google Gemini Developer API plugin.
  */
 export const googleAI = googleAIPlugin as GoogleAIPlugin;
-googleAI.model = (
-  name: GeminiVersionString,
-  config?: GeminiConfig
-): ModelReference<typeof GeminiConfigSchema> => {
+// provide generic implementation for the model function overloads.
+(googleAI as any).model = (
+  name: string,
+  config?: any
+): ModelReference<z.ZodTypeAny> => {
+  if (name.startsWith('imagen')) {
+    return modelRef({
+      name: `googleai/${name}`,
+      config,
+      configSchema: ImagenConfigSchema,
+    });
+  }
+  if (name.startsWith('veo')) {
+    return modelRef({
+      name: `googleai/${name}`,
+      config,
+      configSchema: VeoConfigSchema,
+    });
+  }
   return modelRef({
     name: `googleai/${name}`,
     config,
