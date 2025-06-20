@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from google.auth import default, transport
+from google import auth
 from openai import OpenAI as _OpenAI
 
 
@@ -26,10 +26,10 @@ class OpenAIClient:
         location = openai_params.get('location')
         project_id = openai_params.get('project_id')
         if project_id:
-            credentials, _ = default()
+            credentials, _ = auth.default()
         else:
-            credentials, project_id = default()
+            credentials, project_id = auth.default()
 
-        credentials.refresh(transport.requests.Request())
+        credentials.refresh(auth.transport.requests.Request())
         base_url = f'https://{location}-aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/{location}/endpoints/openapi'
         return _OpenAI(api_key=credentials.token, base_url=base_url)
