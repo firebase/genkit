@@ -27,8 +27,10 @@ const (
 	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
 	gemini20FlashPrevImageGen    = "gemini-2.0-flash-preview-image-generation"
 
+	gemini25Flash            = "gemini-2.5-flash"
 	gemini25FlashPreview0417 = "gemini-2.5-flash-preview-04-17"
 
+	gemini25Pro            = "gemini-2.5-pro"
 	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
 	gemini25ProPreview0325 = "gemini-2.5-pro-preview-03-25"
 	gemini25ProPreview0506 = "gemini-2.5-pro-preview-05-06"
@@ -50,6 +52,8 @@ var (
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
 		gemini20FlashPrevImageGen,
+		gemini25Flash,
+		gemini25Pro,
 		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
@@ -70,6 +74,8 @@ var (
 		gemini20ProExp0205,
 		gemini20FlashThinkingExp0121,
 		gemini20FlashPrevImageGen,
+		gemini25Flash,
+		gemini25Pro,
 		gemini25FlashPreview0417,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
@@ -158,6 +164,18 @@ var (
 			Versions: []string{},
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
+		},
+		gemini25Flash: {
+			Label:    "Gemini 2.5 Flash",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
+		},
+		gemini25Pro: {
+			Label:    "Gemini 2.5 Pro",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
 		},
 		gemini25FlashPreview0417: {
 			Label:    "Gemini 2.5 Flash Preview 04-17",
