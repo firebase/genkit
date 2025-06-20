@@ -14,13 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { type Genkit } from 'genkit';
+import { ActionMetadata, type Genkit } from 'genkit';
 import { genkitPlugin } from 'genkit/plugin';
+import { ActionType } from 'genkit/registry';
 import { OpenAI, type ClientOptions } from 'openai';
 
 export interface PluginOptions extends Partial<ClientOptions> {
   name: string;
   initializer?: (ai: Genkit, client: OpenAI) => Promise<void>;
+  resolver?: (
+    ai: Genkit,
+    client: OpenAI,
+    actionType: ActionType,
+    actionName: string
+  ) => Promise<void>;
+  listActions?: (client: OpenAI) => Promise<ActionMetadata[]>;
 }
 
 /**
@@ -75,12 +83,29 @@ export interface PluginOptions extends Partial<ClientOptions> {
  * });
  * ```
  */
-export const openAICompatible = (options: PluginOptions) =>
-  genkitPlugin(options.name, async (ai: Genkit) => {
-    const client = new OpenAI(options);
-    if (options.initializer) {
-      await options.initializer(ai, client);
+export const openAICompatible = (options: PluginOptions) => {
+  const client = new OpenAI(options);
+  let listActionsCache;
+  return genkitPlugin(
+    options.name,
+    async (ai: Genkit) => {
+      if (options.initializer) {
+        await options.initializer(ai, client);
+      }
+    },
+    async (ai: Genkit, actionType: ActionType, actionName: string) => {
+      if (options.resolver) {
+        await options.resolver(ai, client, actionType, actionName);
+      }
+    },
+    async () => {
+      if (options.listActions) {
+        if (listActionsCache) return listActionsCache;
+        listActionsCache = await options.listActions(client);
+        return listActionsCache;
+      }
     }
-  });
+  );
+};
 
 export default openAICompatible;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 import { z } from 'genkit';
-import { modelRef } from 'genkit/model';
+import { ModelInfo, modelRef } from 'genkit/model';
 
 export const SpeechConfigSchema = z.object({
   voice: z
@@ -27,17 +27,21 @@ export const SpeechConfigSchema = z.object({
     .optional(),
 });
 
+export const SPEECH_MODEL_INFO: ModelInfo = {
+  supports: {
+    media: false,
+    output: ['media'],
+    multiturn: false,
+    systemRole: false,
+    tools: false,
+  },
+};
+
 export const tts1 = modelRef({
   name: 'openai/tts-1',
   info: {
     label: 'OpenAI - Text-to-speech 1',
-    supports: {
-      media: false,
-      output: ['media'],
-      multiturn: false,
-      systemRole: false,
-      tools: false,
-    },
+    ...SPEECH_MODEL_INFO,
   },
   configSchema: SpeechConfigSchema,
 });
@@ -46,13 +50,7 @@ export const tts1Hd = modelRef({
   name: 'openai/tts-1-hd',
   info: {
     label: 'OpenAI - Text-to-speech 1 HD',
-    supports: {
-      media: false,
-      output: ['media'],
-      multiturn: false,
-      systemRole: false,
-      tools: false,
-    },
+    ...SPEECH_MODEL_INFO,
   },
   configSchema: SpeechConfigSchema,
 });
@@ -61,13 +59,7 @@ export const gpt4oMiniTts = modelRef({
   name: 'openai/gpt-4o-mini-tts',
   info: {
     label: 'OpenAI - GPT-4o Mini Text-to-speech',
-    supports: {
-      media: false,
-      output: ['media'],
-      multiturn: false,
-      systemRole: false,
-      tools: false,
-    },
+    ...SPEECH_MODEL_INFO,
   },
   configSchema: SpeechConfigSchema.omit({ speed: true }),
 });
