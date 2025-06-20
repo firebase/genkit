@@ -16,6 +16,7 @@
 
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
+from typing import Any
 
 from openai import Client, OpenAI as OpenAIClient
 
@@ -31,6 +32,15 @@ from genkit.plugins.compat_oai.typing import OpenAIConfig
 from genkit.plugins.ollama.models import ModelDefinition
 
 OPENAI_PLUGIN_NAME = 'openai'
+
+def default_openai_metadata(name: str) -> dict[str, Any]:
+    return {
+                'model': {
+                    'label': f"OpenAI - {name}",
+                    'supports': {'multiturn': True}
+                },
+            }
+
 
 class OpenAI(Plugin):
     """A plugin for integrating OpenAI compatible models with the Genkit framework.
@@ -102,12 +112,7 @@ class OpenAI(Plugin):
             name=f'openai/{name}',
             fn=handler,
             config_schema=OpenAIConfig,
-            metadata={
-                'model': {
-                    'label': f"OpenAI - {name}",
-                    'supports': {'multiturn': True}
-                },
-            },
+            metadata=default_openai_metadata(name)
         )
 
 
