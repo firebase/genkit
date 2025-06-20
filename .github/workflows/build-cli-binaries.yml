@@ -78,10 +78,19 @@ jobs:
           fi
       
       - name: Compile CLI binary
+        shell: bash
         run: |
           cd genkit-tools/cli
           pnpm compile:bun
-          mv dist/bin/genkit dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
+          
+          # Handle the binary name based on OS
+          if [[ "${{ matrix.os }}" == windows-* ]]; then
+            # On Windows, Bun outputs genkit.exe
+            mv dist/bin/genkit.exe "dist/bin/genkit-${{ matrix.target }}.exe"
+          else
+            # On Unix-like systems, no extension
+            mv dist/bin/genkit "dist/bin/genkit-${{ matrix.target }}"
+          fi
       
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
