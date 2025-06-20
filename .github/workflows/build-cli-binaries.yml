@@ -164,26 +164,42 @@ jobs:
           ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} ui:start --help
           ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} ui:stop --help
       
-      - name: Test basic UI functionality (Unix only)
+      - name: Test UI start functionality (Unix only)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           echo "Testing genkit ui:start"
-          # Start the UI in the background
-          ./genkit-${{ matrix.target }} ui:start &
+          
+          # Start UI in background, piping any prompts to accept them
+          (echo "" | ./genkit-${{ matrix.target }} ui:start 2>&1 | tee ui_output.log) &
           UI_PID=$!
           
-          # Give it some time to start
+          # Give it time to start
           sleep 5
           
-          # Check if the process is still running
-          if ps -p $UI_PID > /dev/null 2>&1; then
-            echo "UI process started successfully (PID: $UI_PID)"
-            # Clean up - kill the process
-            kill $UI_PID 2>/dev/null || true
+          # Check if it started successfully by looking for the expected output
+          if grep -q "Genkit Developer UI started at:" ui_output.log 2>/dev/null; then
+            echo "✓ UI started successfully"
+            cat ui_output.log
+            
+            # Try to stop it gracefully
+            echo "Testing genkit ui:stop"
+            ./genkit-${{ matrix.target }} ui:stop || true
+            
+            # Give it time to stop
             sleep 2
-            echo "UI process terminated"
           else
-            echo "UI process failed to start or exited immediately"
-            # This might be expected without a proper project, so we don't fail
+            echo "UI output:"
+            cat ui_output.log 2>/dev/null || echo "No output captured"
+            
+            # Check if process is still running
+            if ps -p $UI_PID > /dev/null 2>&1; then
+              echo "Process is running but didn't produce expected output"
+              kill $UI_PID 2>/dev/null || true
+            else
+              echo "Process exited (might be due to cookie prompt or missing project)"
+            fi
           fi
+          
+          # Clean up any remaining processes
+          pkill -f "genkit.*ui:start" 2>/dev/null || true
