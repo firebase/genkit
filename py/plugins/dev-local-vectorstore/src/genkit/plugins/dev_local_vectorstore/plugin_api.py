@@ -20,6 +20,7 @@ from typing import Any
 
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.core.action import Action
+from genkit.core.registry import ActionKind
 from genkit.types import Docs
 
 from .indexer import (
@@ -59,6 +60,14 @@ class DevLocalVectorStore(Plugin):
         """
         self._configure_dev_local_retriever(ai=ai)
         self._configure_dev_local_indexer(ai=ai)
+
+    def resolve_action(
+        self,
+        ai: GenkitRegistry,
+        kind: ActionKind,
+        name: str,
+    ) -> None:
+        ...
 
     def _configure_dev_local_retriever(self, ai: GenkitRegistry) -> Action:
         """Registers Local Vector Store retriever for provided parameters.
