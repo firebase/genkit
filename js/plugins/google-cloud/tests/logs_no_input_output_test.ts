@@ -88,17 +88,6 @@ describe('GoogleCloudLogs no I/O', () => {
     await ai.stopServers();
   });
 
-  it('writes path logs', async () => {
-    const testFlow = createFlow(ai, 'testFlow');
-
-    await testFlow();
-
-    await getExportedSpans();
-
-    const logMessages = await getLogs(1, 100, logLines);
-    assert.equal(logMessages.includes('[info] Paths[testFlow]'), true);
-  });
-
   it('writes error logs', async () => {
     const testFlow = createFlow(ai, 'testFlow', async () => {
       const nothing: { missing?: any } = { missing: 1 };
@@ -106,7 +95,7 @@ describe('GoogleCloudLogs no I/O', () => {
       return nothing.missing.explode;
     });
 
-    assert.rejects(async () => {
+    await assert.rejects(async () => {
       await testFlow();
     });
 

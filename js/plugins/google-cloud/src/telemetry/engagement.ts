@@ -18,7 +18,6 @@ import { ValueType, type Attributes } from '@opentelemetry/api';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
-import type { PathMetadata } from 'genkit/tracing';
 import {
   MetricCounter,
   internalMetricNamespaceWrap,
@@ -44,7 +43,6 @@ class EngagementTelemetry implements Telemetry {
 
   tick(
     span: ReadableSpan,
-    paths: Set<PathMetadata>,
     logInputAndOutput: boolean,
     projectId?: string
   ): void {

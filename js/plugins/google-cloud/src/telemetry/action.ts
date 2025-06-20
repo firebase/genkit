@@ -16,7 +16,7 @@
 
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { logger } from 'genkit/logging';
-import { toDisplayPath, type PathMetadata } from 'genkit/tracing';
+import { toDisplayPath } from 'genkit/tracing';
 import { type Telemetry } from '../metrics.js';
 import {
   createCommonLogAttributes,
@@ -28,7 +28,6 @@ import {
 class ActionTelemetry implements Telemetry {
   tick(
     span: ReadableSpan,
-    paths: Set<PathMetadata>,
     logInputAndOutput: boolean,
     projectId?: string
   ): void {
