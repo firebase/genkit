@@ -40,6 +40,7 @@ import {
 import {
   GeminiConfigSchema,
   SUPPORTED_GEMINI_MODELS,
+  SUPPORTED_V15_MODELS,
   defineGoogleAIModel,
   gemini,
   gemini10Pro,
@@ -50,7 +51,10 @@ import {
   gemini20FlashExp,
   gemini20FlashLite,
   gemini20ProExp0205,
+  gemini25Flash,
   gemini25FlashPreview0417,
+  gemini25FlashLitePreview,
+  gemini25Pro,
   gemini25ProExp0325,
   gemini25ProPreview0325,
   type GeminiConfig,
