@@ -15,7 +15,7 @@
  */
 
 import { GoogleAuth } from 'google-auth-library';
-import type { ClientOptions, PluginOptions } from './types.js';
+import type { ClientOptions, PluginOptions } from './types';
 export type { PluginOptions };
 
 const CLOUD_PLATFORM_OAUTH_SCOPE =
