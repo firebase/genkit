@@ -24,7 +24,6 @@ dotenv.config();
 
 const ai = genkit({
   plugins: [openAI({ apiKey: process.env.OPENAI_API_KEY, name: 'openai' })],
-  model: 'openai/gpt-4.1',
 });
 
 export const jokeFlow = ai.defineFlow(
@@ -36,6 +35,7 @@ export const jokeFlow = ai.defineFlow(
   async (subject) => {
     const llmResponse = await ai.generate({
       prompt: `tell me a joke about ${subject}`,
+      model: openAI.model('gpt-4.1'),
     });
     return llmResponse.text;
   }

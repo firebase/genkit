@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 import { z } from 'genkit';
-import { modelRef } from 'genkit/model';
+import { ModelInfo, modelRef } from 'genkit/model';
 
-export const DallE3ConfigSchema = z.object({
+export const ImageGenerationConfigSchema = z.object({
   size: z.enum(['1024x1024', '1792x1024', '1024x1792']).optional(),
   style: z.enum(['vivid', 'natural']).optional(),
   user: z.string().optional(),
@@ -26,19 +26,23 @@ export const DallE3ConfigSchema = z.object({
   response_format: z.enum(['b64_json', 'url']).optional(),
 });
 
+export const IMAGE_GENERATION_MODEL_INFO: ModelInfo = {
+  supports: {
+    media: false,
+    output: ['media'],
+    multiturn: false,
+    systemRole: false,
+    tools: false,
+  },
+};
+
 export const dallE3 = modelRef({
   name: 'openai/dall-e-3',
   info: {
     label: 'OpenAI - DALL-E 3',
-    supports: {
-      media: false,
-      output: ['media'],
-      multiturn: false,
-      systemRole: false,
-      tools: false,
-    },
+    ...IMAGE_GENERATION_MODEL_INFO,
   },
-  configSchema: DallE3ConfigSchema,
+  configSchema: ImageGenerationConfigSchema,
 });
 
 export const SUPPORTED_IMAGE_MODELS = {
