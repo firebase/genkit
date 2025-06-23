@@ -212,16 +212,45 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPlugin {
 
 export type OpenAIPlugin = {
   (params?: OpenAIPluginOptions): GenkitPlugin;
+  model(
+    name:
+      | keyof typeof SUPPORTED_GPT_MODELS
+      | (`gpt-${string}` & {})
+      | (`o${number}` & {}),
+    config?: z.infer<typeof ChatCompletionConfigSchema>
+  ): ModelReference<typeof ChatCompletionConfigSchema>;
+  model(
+    name:
+      | keyof typeof SUPPORTED_IMAGE_MODELS
+      | (`dall-e${string}` & {})
+      | (`gpt-image-${string}` & {}),
+    config?: z.infer<typeof ImageGenerationConfigSchema>
+  ): ModelReference<typeof ImageGenerationConfigSchema>;
+  model(
+    name:
+      | keyof typeof SUPPORTED_TTS_MODELS
+      | (`tts-${string}` & {})
+      | (`${string}-tts` & {}),
+    config?: z.infer<typeof SpeechConfigSchema>
+  ): ModelReference<typeof SpeechConfigSchema>;
+  model(
+    name:
+      | keyof typeof SUPPORTED_STT_MODELS
+      | (`whisper-${string}` & {})
+      | (`${string}-transcribe` & {}),
+    config?: z.infer<typeof TranscriptionConfigSchema>
+  ): ModelReference<typeof TranscriptionConfigSchema>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
+  embedder(
+    name:
+      | keyof typeof SUPPORTED_EMBEDDING_MODELS
+      | (`${string}-embedding-${string}` & {}),
+    config?: z.infer<typeof TextEmbeddingConfigSchema>
+  ): EmbedderReference<typeof TextEmbeddingConfigSchema>;
   embedder(name: string, config?: any): EmbedderReference<z.ZodTypeAny>;
 };
 
-export const openAI = openAIPlugin as OpenAIPlugin;
-// provide generic implementation for the model function overloads.
-(openAI as any).model = (
-  name: string,
-  config?: any
-): ModelReference<z.ZodTypeAny> => {
+const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   if (name.includes('gpt-image-1') || name.includes('dall-e')) {
     return modelRef({
       name: `openai/${name}`,
@@ -248,8 +277,9 @@ export const openAI = openAIPlugin as OpenAIPlugin;
     config,
     configSchema: ChatCompletionConfigSchema,
   });
-};
-openAI.embedder = (
+}) as OpenAIPlugin['model'];
+
+const embedder = ((
   name: string,
   config?: any
 ): EmbedderReference<z.ZodTypeAny> => {
@@ -258,6 +288,11 @@ openAI.embedder = (
     config,
     configSchema: TextEmbeddingConfigSchema,
   });
-};
+}) as OpenAIPlugin['embedder'];
+
+export const openAI: OpenAIPlugin = Object.assign(openAIPlugin, {
+  model,
+  embedder,
+});
 
 export default openAI;
