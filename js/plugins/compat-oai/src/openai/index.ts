@@ -212,7 +212,41 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPlugin {
 
 export type OpenAIPlugin = {
   (params?: OpenAIPluginOptions): GenkitPlugin;
+  model(
+    name:
+      | keyof typeof SUPPORTED_GPT_MODELS
+      | (`gpt-${string}` & {})
+      | (`o${number}` & {}),
+    config?: z.infer<typeof ChatCompletionConfigSchema>
+  ): ModelReference<typeof ChatCompletionConfigSchema>;
+  model(
+    name:
+      | keyof typeof SUPPORTED_IMAGE_MODELS
+      | (`dall-e${string}` & {})
+      | (`gpt-image-${string}` & {}),
+    config?: z.infer<typeof ImageGenerationConfigSchema>
+  ): ModelReference<typeof ImageGenerationConfigSchema>;
+  model(
+    name:
+      | keyof typeof SUPPORTED_TTS_MODELS
+      | (`tts-${string}` & {})
+      | (`${string}-tts` & {}),
+    config?: z.infer<typeof SpeechConfigSchema>
+  ): ModelReference<typeof SpeechConfigSchema>;
+  model(
+    name:
+      | keyof typeof SUPPORTED_STT_MODELS
+      | (`whisper-${string}` & {})
+      | (`${string}-transcribe` & {}),
+    config?: z.infer<typeof TranscriptionConfigSchema>
+  ): ModelReference<typeof TranscriptionConfigSchema>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
+  embedder(
+    name:
+      | keyof typeof SUPPORTED_EMBEDDING_MODELS
+      | (`${string}-embedding-${string}` & {}),
+    config?: z.infer<typeof TextEmbeddingConfigSchema>
+  ): EmbedderReference<typeof TextEmbeddingConfigSchema>;
   embedder(name: string, config?: any): EmbedderReference<z.ZodTypeAny>;
 };
 
@@ -249,7 +283,7 @@ export const openAI = openAIPlugin as OpenAIPlugin;
     configSchema: ChatCompletionConfigSchema,
   });
 };
-openAI.embedder = (
+(openAI as any).embedder = (
   name: string,
   config?: any
 ): EmbedderReference<z.ZodTypeAny> => {

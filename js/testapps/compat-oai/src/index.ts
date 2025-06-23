@@ -23,7 +23,7 @@ import { genkit, z } from 'genkit';
 dotenv.config();
 
 const ai = genkit({
-  plugins: [openAI({ apiKey: process.env.OPENAI_API_KEY, name: 'openai' })],
+  plugins: [openAI()],
 });
 
 export const jokeFlow = ai.defineFlow(
@@ -51,7 +51,7 @@ export const embedFlow = ai.defineFlow(
   },
   async (text) => {
     const embedding = await ai.embed({
-      embedder: 'openai/text-embedding-ada-002',
+      embedder: openAI.embedder('text-embedding-ada-002'),
       content: text,
     });
 
