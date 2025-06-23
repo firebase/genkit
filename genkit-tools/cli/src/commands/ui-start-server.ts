@@ -18,7 +18,7 @@ import { startServer } from '@genkit-ai/tools-common/server';
 import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import fs from 'fs';
-import { startManager } from './manager-utils';
+import { startManager } from '../utils/manager-utils';
 
 function redirectStdoutToFile(logFile: string) {
   const myLogFileStream = fs.createWriteStream(logFile);

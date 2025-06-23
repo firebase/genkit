@@ -32,8 +32,8 @@ import { mcp } from './commands/mcp';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
+import { uiStartServer } from './commands/ui-start-server';
 import { uiStop } from './commands/ui-stop';
-import { uiStartServer } from './utils/server-harness';
 import { version } from './utils/version';
 
 /**
