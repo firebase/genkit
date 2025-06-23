@@ -524,6 +524,52 @@ describe('GoogleCloudLogs', () => {
     expect(logObjectMessages).toContain('UserAcceptance[flowName]');
   });
 
+  it('writes prompt template input and output logs', async () => {
+    const testPrompt = ai.definePrompt(
+      {
+        name: 'testPrompt',
+        input: {
+          schema: z.object({ name: z.string() }),
+        },
+      },
+      async (input) => {
+        return {
+          messages: [
+            { role: 'user', content: [{ text: `Hello, ${input.name}` }] },
+          ],
+        };
+      }
+    );
+    const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
+      return await testPrompt.render({ name: input });
+    });
+
+    await testFlow('test');
+
+    await getExportedSpans();
+    const logs = await getLogs(1, 100, logLines);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain('Input[testFlow > render, testFlow]');
+    expect(logObjectMessages).toContain('Output[testFlow > render, testFlow]');
+    // Ensure the structured data is as expected
+    logs.map((log) => {
+      const structuredLog = JSON.parse(log as string);
+      if (structuredLog.message === 'Input[testFlow > render, testFlow]') {
+        expect(JSON.parse(structuredLog.content)).toEqual({ name: 'test' });
+      }
+      if (structuredLog.message === 'Output[testFlow > render, testFlow]') {
+        expect(JSON.parse(structuredLog.content)).toEqual({
+          messages: [
+            {
+              content: [{ text: 'Hello, test' }],
+              role: 'user',
+            },
+          ],
+        });
+      }
+    });
+  });
+
   it('writes tool input and output logs', async () => {
     const echoTool = ai.defineTool(
       { name: 'echoTool', description: 'echo' },
