@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import { z, type ModelReference } from 'genkit';
+import { z } from 'genkit';
 import { GenerationCommonConfigSchema, modelRef } from 'genkit/model';
 
 export const ChatCompletionConfigSchema = GenerationCommonConfigSchema.extend({
@@ -291,10 +291,7 @@ export const gpt35Turbo = modelRef({
   configSchema: ChatCompletionConfigSchema,
 });
 
-export const SUPPORTED_GPT_MODELS: Record<
-  string,
-  ModelReference<typeof ChatCompletionConfigSchema>
-> = {
+export const SUPPORTED_GPT_MODELS = {
   'gpt-4.5': gpt45,
   'gpt-4o': gpt4o,
   'gpt-4o-mini': gpt4oMini,

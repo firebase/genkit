@@ -250,12 +250,7 @@ export type OpenAIPlugin = {
   embedder(name: string, config?: any): EmbedderReference<z.ZodTypeAny>;
 };
 
-export const openAI = openAIPlugin as OpenAIPlugin;
-// provide generic implementation for the model function overloads.
-(openAI as any).model = (
-  name: string,
-  config?: any
-): ModelReference<z.ZodTypeAny> => {
+const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   if (name.includes('gpt-image-1') || name.includes('dall-e')) {
     return modelRef({
       name: `openai/${name}`,
@@ -282,8 +277,9 @@ export const openAI = openAIPlugin as OpenAIPlugin;
     config,
     configSchema: ChatCompletionConfigSchema,
   });
-};
-(openAI as any).embedder = (
+}) as OpenAIPlugin['model'];
+
+const embedder = ((
   name: string,
   config?: any
 ): EmbedderReference<z.ZodTypeAny> => {
@@ -292,6 +288,11 @@ export const openAI = openAIPlugin as OpenAIPlugin;
     config,
     configSchema: TextEmbeddingConfigSchema,
   });
-};
+}) as OpenAIPlugin['embedder'];
+
+export const openAI: OpenAIPlugin = Object.assign(openAIPlugin, {
+  model,
+  embedder,
+});
 
 export default openAI;
