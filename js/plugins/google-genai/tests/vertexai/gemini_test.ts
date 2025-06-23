@@ -58,7 +58,7 @@ describe('Vertex AI Gemini', () => {
 
     // Setup mock registry and asyncStore
     mockAsyncStore.getStore.returns(undefined); // Simulate no parent span
-    
+
     mockAsyncStore.run.callsFake((arg1, arg2, callback) => {
       if (typeof callback === 'function') {
         return callback();
