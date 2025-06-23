@@ -58,9 +58,7 @@ describe('Vertex AI Gemini', () => {
 
     // Setup mock registry and asyncStore
     mockAsyncStore.getStore.returns(undefined); // Simulate no parent span
-
-    // Replicate the run mock from googleai/gemini_test.ts
-    // This assumes the callback is the third argument in this test context.
+    
     mockAsyncStore.run.callsFake((arg1, arg2, callback) => {
       if (typeof callback === 'function') {
         return callback();
