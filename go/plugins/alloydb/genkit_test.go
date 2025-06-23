@@ -58,8 +58,11 @@ func TestInit_NoConnectionPool(t *testing.T) {
 }
 
 func TestInit_AlreadyCalled(t *testing.T) {
-	ctx := context.Background()
+	if !areValidFlags() {
+		t.Skip("no valid postgres flags")
+	}
 
+	ctx := context.Background()
 	pEngine, err := NewPostgresEngine(ctx,
 		WithUser(*testUsername),
 		WithPassword(*testPassword),
