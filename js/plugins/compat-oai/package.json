@@ -42,6 +42,19 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./openai": {
+      "require": "./lib/openai/index.js",
+      "import": "./lib/openai/index.mjs",
+      "types": "./lib/openai/index.d.ts",
+      "default": "./lib/openai/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "openai": [
+        "lib/openai"
+      ]
     }
   },
   "files": [

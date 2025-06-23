@@ -137,6 +137,19 @@ export async function imagenPredict(
   return response.json() as Promise<ImagenPredictResponse>;
 }
 
+// TODO(ifielker): update with 'global' and APIKey in the options.
+// See genai SDK for how to handle the apiKey
+//  if (
+//       this.clientOptions.project &&
+//       this.clientOptions.location &&
+//       this.clientOptions.location !== 'global'
+//     ) {
+//       // Regional endpoint
+//       return `https://${this.clientOptions.location}-aiplatform.googleapis.com/`;
+//     }
+//     // Global endpoint (covers 'global' location and API key usage)
+//     return `https://aiplatform.googleapis.com/`;
+
 export function getVertexAIUrl(params: {
   includeProjectAndLocation: boolean; // False for listModels, true for most others
   resourcePath: string;

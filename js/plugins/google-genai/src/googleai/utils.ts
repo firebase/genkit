@@ -14,9 +14,18 @@
  * limitations under the License.
  */
 
-/** @type {import('ts-jest').JestConfigWithTsJest} */
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  testPathIgnorePatterns: ['/node_modules/', '/lib/'],
-};
+import process from 'process';
+
+/**
+ * Retrieves an API key from environment variables.
+ *
+ * @returns The API key as a string, or `undefined` if none of the specified
+ *          environment variables are set.
+ */
+export function getApiKeyFromEnvVar(): string | undefined {
+  return (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY
+  );
+}

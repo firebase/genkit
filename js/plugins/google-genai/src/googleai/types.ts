@@ -16,12 +16,15 @@
 
 import {
   Content,
+  FinishReason,
   GenerateContentCandidate,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
   GenerationConfig,
   GoogleSearchRetrievalTool,
+  HarmBlockThreshold,
+  HarmCategory,
   Part,
   SafetySetting,
   TaskType,
@@ -32,18 +35,21 @@ import {
 
 // This makes it easier to import all types from one place.
 export {
-  Content,
-  GenerateContentCandidate,
-  GenerateContentRequest,
-  GenerateContentResponse,
-  GenerateContentStreamResult,
-  GenerationConfig,
-  GoogleSearchRetrievalTool,
-  Part,
-  SafetySetting,
+  FinishReason,
+  HarmBlockThreshold,
+  HarmCategory,
   TaskTypeSchema,
-  Tool,
-  ToolConfig,
+  type Content,
+  type GenerateContentCandidate,
+  type GenerateContentRequest,
+  type GenerateContentResponse,
+  type GenerateContentStreamResult,
+  type GenerationConfig,
+  type GoogleSearchRetrievalTool,
+  type Part,
+  type SafetySetting,
+  type Tool,
+  type ToolConfig,
 };
 
 export interface PluginOptions {
