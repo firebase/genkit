@@ -15,8 +15,8 @@
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.js';
-import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
+import type { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
+import type { StreamableHTTPClientTransportOptions } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import {
   ListRootsRequestSchema,
@@ -36,7 +36,6 @@ import {
   getExecutablePrompt,
   transportFrom,
 } from '../util';
-export type { SSEClientTransportOptions, StdioServerParameters, Transport };
 
 interface McpServerRef {
   client: Client;
@@ -53,9 +52,16 @@ export interface McpServerControls {
   roots?: Root[];
 }
 
-export type McpStdioServerConfig = StdioServerParameters;
+export type McpStdioServerConfig = StdioServerParameters & {
+  url?: never;
+  transport?: never;
+};
 
-export type McpSSEServerConfig = { url: string } & SSEClientTransportOptions;
+export type McpStreamableHttpConfig = {
+  url: string;
+  command?: never;
+  transport?: never;
+} & Omit<StreamableHTTPClientTransportOptions, 'sessionId'>;
 
 export type McpTransportServerConfig = {
   transport: Transport;
@@ -73,7 +79,7 @@ export type McpTransportServerConfig = {
  */
 export type McpServerConfig = (
   | McpStdioServerConfig
-  | McpSSEServerConfig
+  | McpStreamableHttpConfig
   | McpTransportServerConfig
 ) &
   McpServerControls;
@@ -101,6 +107,8 @@ export type McpClientOptions = {
   rawToolResponses?: boolean;
   /** The server configuration to connect. */
   mcpServer: McpServerConfig;
+  /** Manually supply a session id for HTTP streaming clients if desired. */
+  sessionId?: string;
 };
 
 /**
@@ -114,6 +122,7 @@ export type McpClientOptions = {
 export class GenkitMcpClient {
   _server?: McpServerRef;
 
+  sessionId?: string;
   readonly name: string;
   readonly suppliedServerName?: string;
   private version: string;
@@ -136,6 +145,7 @@ export class GenkitMcpClient {
     this.rawToolResponses = !!options.rawToolResponses;
     this.disabled = !!options.mcpServer.disabled;
     this.roots = options.mcpServer.roots;
+    this.sessionId = options.sessionId;
 
     this._initializeConnection();
   }
@@ -197,11 +207,12 @@ export class GenkitMcpClient {
   private async _connect() {
     if (this._server) await this._server.transport.close();
     logger.debug(
-      `[MCP Client] Connecting MCP server in client '${this.name}'.`
+      `[MCP Client] Connecting MCP server '${this.serverName}' in client '${this.name}'.`
     );
 
     const { transport, type: transportType } = await transportFrom(
-      this.serverConfig
+      this.serverConfig,
+      this.sessionId
     );
     if (!transport) {
       throw new GenkitError({
