@@ -25,16 +25,14 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	aint "github.com/firebase/genkit/go/plugins/internal/anthropic"
+	ant "github.com/firebase/genkit/go/plugins/internal/anthropic"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/vertex"
 )
 
 const (
-	provider          = "vertexai"
-	MaxNumberOfTokens = 8192
-	ToolNameRegex     = `^[a-zA-Z0-9_-]{1,64}$`
+	provider = "vertexai"
 )
 
 type Anthropic struct {
@@ -92,8 +90,8 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.initted = true
 	a.client = c
 
-	for name, mi := range aint.AnthropicModels {
-		aint.DefineModel(g, a.client, provider, name, mi)
+	for name, mi := range ant.AnthropicModels {
+		ant.DefineModel(g, a.client, provider, name, mi)
 	}
 
 	return nil
@@ -110,12 +108,12 @@ func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInf
 	var mi ai.ModelInfo
 	if info == nil {
 		var ok bool
-		mi, ok = aint.AnthropicModels[name]
+		mi, ok = ant.AnthropicModels[name]
 		if !ok {
 			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", provider, name)
 		}
 	} else {
 		mi = *info
 	}
-	return aint.DefineModel(g, a.client, provider, name, mi), nil
+	return ant.DefineModel(g, a.client, provider, name, mi), nil
 }

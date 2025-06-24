@@ -15,7 +15,7 @@
  */
 
 import { z } from 'genkit';
-import menuData from '../../data/menu.json' assert { type: 'json' };
+import menuData from '../../data/menu.json' with { type: 'json' };
 import { ai } from '../genkit.js';
 import { MenuItemSchema } from '../types.js';
 

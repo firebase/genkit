@@ -165,6 +165,8 @@ export interface GenerateOptions<
   use?: ModelMiddleware[];
   /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
   context?: ActionContext;
+  /** Abort signal for the generate request. */
+  abortSignal?: AbortSignal;
 }
 
 export async function toGenerateRequest(
@@ -356,6 +358,7 @@ export async function generate<
           generateHelper(registry, {
             rawRequest: params,
             middleware: resolvedOptions.use,
+            abortSignal: resolvedOptions.abortSignal,
           })
       );
       const request = await toGenerateRequest(registry, {

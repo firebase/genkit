@@ -38,8 +38,12 @@ const (
 )
 
 func DefineModel(g *genkit.Genkit, client anthropic.Client, provider, name string, info ai.ModelInfo) ai.Model {
+	label := "Anthropic"
+	if provider == "vertexai" {
+		label = "Vertex AI"
+	}
 	meta := &ai.ModelInfo{
-		Label:    provider + "-" + name,
+		Label:    label + "-" + name,
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
