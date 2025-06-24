@@ -15,11 +15,17 @@
  */
 
 import * as assert from 'assert';
+import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { PluginOptions } from '../../src/vertexai/types';
-import { getDerivedOptions } from '../../src/vertexai/utils';
+import {
+  extractImagenImage,
+  extractImagenMask,
+  extractText,
+  getDerivedOptions,
+} from '../../src/vertexai/utils';
 
 describe('getDerivedOptions', () => {
   const originalEnv = { ...process.env };
@@ -154,5 +160,224 @@ describe('getDerivedOptions', () => {
     );
     sinon.assert.calledOnce(mockAuthClass);
     sinon.assert.calledOnce(authInstance.getProjectId);
+  });
+});
+
+describe('extractText', () => {
+  it('should extract text from the last message', () => {
+    const request: GenerateRequest = {
+      messages: [
+        { role: 'user', content: [{ text: 'ignore this' }] },
+        { role: 'user', content: [{ text: 'Hello ' }, { text: 'World' }] },
+      ],
+    };
+    assert.strictEqual(extractText(request), 'Hello World');
+  });
+
+  it('should return empty string if last message has no text parts', () => {
+    const request: GenerateRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [{ media: { url: 'data:image/png;base64,abc' } }],
+        },
+      ],
+    };
+    assert.strictEqual(extractText(request), '');
+  });
+
+  it('should handle messages with mixed content', () => {
+    const request: GenerateRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { text: 'A ' },
+            { media: { url: 'data:image/png;base64,abc' } },
+            { text: 'B' },
+          ],
+        },
+      ],
+    };
+    assert.strictEqual(extractText(request), 'A B');
+  });
+
+  it('should return empty string for empty content array', () => {
+    const request: GenerateRequest = {
+      messages: [{ role: 'user', content: [] }],
+    };
+    assert.strictEqual(extractText(request), '');
+  });
+});
+
+describe('extractImagenImage', () => {
+  it('should extract base image from last message', () => {
+    const request: GenerateRequest = {
+      messages: [
+        { role: 'user', content: [{ text: 'test' }] },
+        {
+          role: 'user',
+          content: [
+            { text: 'An image' },
+            {
+              media: {
+                url: 'data:image/jpeg;base64,base64imagedata',
+                contentType: 'image/jpeg',
+              },
+              metadata: { type: 'base' },
+            },
+          ],
+        },
+      ],
+    };
+    assert.deepStrictEqual(extractImagenImage(request), {
+      bytesBase64Encoded: 'base64imagedata',
+    });
+  });
+
+  it('should extract image if metadata type is missing', () => {
+    const request: GenerateRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              media: {
+                url: 'data:image/png;base64,anotherimage',
+                contentType: 'image/png',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    assert.deepStrictEqual(extractImagenImage(request), {
+      bytesBase64Encoded: 'anotherimage',
+    });
+  });
+
+  it('should ignore images with metadata type mask', () => {
+    const request: GenerateRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              media: { url: 'data:image/png;base64,maskdata' },
+              metadata: { type: 'mask' },
+            },
+          ],
+        },
+      ],
+    };
+    assert.strictEqual(extractImagenImage(request), undefined);
+  });
+
+  it('should return undefined if no media in last message', () => {
+    const request: GenerateRequest = {
+      messages: [{ role: 'user', content: [{ text: 'No image here' }] }],
+    };
+    assert.strictEqual(extractImagenImage(request), undefined);
+  });
+
+  it('should return undefined if media url is not base64 data URL', () => {
+    const request: GenerateRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [{ media: { url: 'http://example.com/image.png' } }],
+        },
+      ],
+    };
+    assert.strictEqual(extractImagenImage(request), undefined);
+  });
+
+  it('should return undefined for empty messages array', () => {
+    const request: GenerateRequest = { messages: [] };
+    assert.strictEqual(extractImagenImage(request), undefined);
+  });
+});
+
+describe('extractImagenMask', () => {
+  it('should extract mask image from last message', () => {
+    const request: GenerateRequest = {
+      messages: [
+        { role: 'user', content: [{ text: 'test' }] },
+        {
+          role: 'user',
+          content: [
+            { text: 'A mask' },
+            {
+              media: {
+                url: 'data:image/png;base64,maskbytes',
+                contentType: 'image/png',
+              },
+              metadata: { type: 'mask' },
+            },
+          ],
+        },
+      ],
+    };
+    assert.deepStrictEqual(extractImagenMask(request), {
+      image: { bytesBase64Encoded: 'maskbytes' },
+    });
+  });
+
+  it('should ignore images with metadata type base', () => {
+    const request: GenerateRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              media: { url: 'data:image/jpeg;base64,basedata' },
+              metadata: { type: 'base' },
+            },
+          ],
+        },
+      ],
+    };
+    assert.strictEqual(extractImagenMask(request), undefined);
+  });
+
+  it('should ignore images with no metadata type', () => {
+    const request: GenerateRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [{ media: { url: 'data:image/jpeg;base64,imagedata' } }],
+        },
+      ],
+    };
+    assert.strictEqual(extractImagenMask(request), undefined);
+  });
+
+  it('should return undefined if no media in last message', () => {
+    const request: GenerateRequest = {
+      messages: [{ role: 'user', content: [{ text: 'No mask here' }] }],
+    };
+    assert.strictEqual(extractImagenMask(request), undefined);
+  });
+
+  it('should return undefined if media url is not base64 data URL', () => {
+    const request: GenerateRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              media: { url: 'http://example.com/mask.png' },
+              metadata: { type: 'mask' },
+            },
+          ],
+        },
+      ],
+    };
+    assert.strictEqual(extractImagenMask(request), undefined);
+  });
+
+  it('should return undefined for empty messages array', () => {
+    const request: GenerateRequest = { messages: [] };
+    assert.strictEqual(extractImagenMask(request), undefined);
   });
 });
