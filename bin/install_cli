@@ -254,7 +254,7 @@ DOWNLOAD_URL="https://$DOMAIN/bin/$MACHINE/latest"
 echo "-- Downloading binary from $DOWNLOAD_URL"
 
 # We use "curl" to download the binary with a flag set to follow redirects
-# (Github download URLs redirect to CDNs) and a flag to show a progress bar.
+# (GitHub download URLs redirect to CDNs) and a flag to show a progress bar.
 curl -o "/tmp/genkit_standalone.tmp" -L --progress-bar $DOWNLOAD_URL
 
 GENKIT_BINARY=${GENKIT_BINARY:-$GLOBAL_BINARY}
