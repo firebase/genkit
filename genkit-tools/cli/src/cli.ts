@@ -32,7 +32,10 @@ import { mcp } from './commands/mcp';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
-import { uiStartServer } from './commands/ui-start-server';
+import {
+  UI_START_SERVER_COMMAND,
+  uiStartServer,
+} from './commands/ui-start-server';
 import { uiStop } from './commands/ui-stop';
 import { version } from './utils/version';
 
@@ -82,7 +85,9 @@ export async function startCLI(): Promise<void> {
       await record(new RunCommandEvent(commandName));
     });
 
-  if (process.argv.includes('__ui:start-server')) {
+  // When running as a spawned UI server process, argv[1] will be '__ui:start-server'
+  // instead of a normal command. This allows the same binary to serve both CLI and server roles.
+  if (process.argv[1] === UI_START_SERVER_COMMAND) {
     program.addCommand(uiStartServer);
   }
 
