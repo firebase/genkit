@@ -3,7 +3,7 @@
 ## Installing the plugin
 
 ```bash
-npm i --save @genkit-ai/cloud-sql-pg
+npm i --save genkitx-cloud-sql-pg
 ```
 
 ## Using the plugin
