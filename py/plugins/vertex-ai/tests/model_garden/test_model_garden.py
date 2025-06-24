@@ -25,7 +25,7 @@ from genkit.plugins.vertex_ai.model_garden.model_garden import ModelGarden
 
 
 @pytest.fixture
-@patch('genkit.plugins.vertex_ai.model_garden.client.OpenAIClient')
+@patch('genkit.plugins.vertex_ai.model_garden.model_garden.OpenAIClient')
 def model_garden_instance(client):
     """Model Garden fixture."""
     return ModelGarden(
