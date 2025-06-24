@@ -16,3 +16,73 @@
 
 """Unittests for VertexAI Model Garden Models."""
 
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from genkit.ai import GenkitRegistry
+from genkit.plugins.compat_oai.typing import SupportedOutputFormat
+from genkit.plugins.vertex_ai.model_garden.model_garden import ModelGarden
+
+
+@pytest.fixture
+@patch('genkit.plugins.vertex_ai.model_garden.client.OpenAIClient')
+def model_garden_instance(client):
+    """Model Garden fixture."""
+    return ModelGarden(
+        model='test', location='us-central1', project_id='project', registry=MagicMock(spec=GenkitRegistry)
+    )
+
+
+@pytest.mark.parametrize(
+    'model_name, expected',
+    [
+        (
+            'meta/llama-3.1-405b-instruct-maas',
+            {
+                'name': 'ModelGarden - Meta - llama-3.1',
+                'supports': {
+                    'constrained': None,
+                    'content_type': None,
+                    'context': None,
+                    'multiturn': True,
+                    'media': False,
+                    'tools': True,
+                    'system_role': True,
+                    'output': [
+                        'json_mode',
+                        'text',
+                    ],
+                    'tool_choice': None,
+                },
+            },
+        ),
+        (
+            'meta/lazaro-model-pro-max',
+            {
+                'name': 'ModelGarden - meta/lazaro-model-pro-max',
+                'supports': {
+                    'constrained': None,
+                    'content_type': None,
+                    'context': None,
+                    'multiturn': True,
+                    'media': True,
+                    'tools': True,
+                    'system_role': True,
+                    'output': [
+                        'json_mode',
+                        'text',
+                    ],
+                    'tool_choice': None,
+                },
+            },
+        ),
+    ],
+)
+def test_get_model_info(model_name, expected, model_garden_instance):
+    """Unittest for get_model_info."""
+    model_garden_instance.name = model_name
+
+    result = model_garden_instance.get_model_info()
+
+    assert result == expected

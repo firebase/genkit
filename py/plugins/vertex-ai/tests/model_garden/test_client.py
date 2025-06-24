@@ -24,23 +24,18 @@ from genkit.plugins.vertex_ai.model_garden.client import OpenAIClient
 @patch('google.auth.default')
 @patch('google.auth.transport.requests.Request')
 @patch('openai.OpenAI')
-def test_client_initialization_with_explicit_project_id(
-    mock_openai_cls, mock_request_cls, mock_default_auth
-):
+def test_client_initialization_with_explicit_project_id(mock_openai_cls, mock_request_cls, mock_default_auth):
     """Unittests for init client."""
-    mock_location = "location"
-    mock_project_id = "project_id"
-    mock_token = "token"
+    mock_location = 'location'
+    mock_project_id = 'project_id'
+    mock_token = 'token'
 
     mock_credentials = MagicMock()
     mock_credentials.token = mock_token
 
-    mock_default_auth.return_value = (mock_credentials, "project_id")
+    mock_default_auth.return_value = (mock_credentials, 'project_id')
 
-    client_instance = OpenAIClient(
-        location=mock_location,
-        project_id=mock_project_id
-    )
+    client_instance = OpenAIClient(location=mock_location, project_id=mock_project_id)
 
     mock_default_auth.assert_called_once()
     mock_credentials.refresh.assert_called_once()
@@ -52,17 +47,15 @@ def test_client_initialization_with_explicit_project_id(
 @patch('google.auth.default')
 @patch('google.auth.transport.requests.Request')
 @patch('openai.OpenAI')
-def test_client_initialization_without_explicit_project_id(
-    mock_openai_cls, mock_request_cls, mock_default_auth
-):
+def test_client_initialization_without_explicit_project_id(mock_openai_cls, mock_request_cls, mock_default_auth):
     """Unittests for init client."""
-    mock_location = "location"
-    mock_token = "token"
+    mock_location = 'location'
+    mock_token = 'token'
 
     mock_credentials = MagicMock()
     mock_credentials.token = mock_token
 
-    mock_default_auth.return_value = (mock_credentials, "project_id")
+    mock_default_auth.return_value = (mock_credentials, 'project_id')
 
     client_instance = OpenAIClient(
         location=mock_location,
