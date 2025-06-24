@@ -1,5 +1,3 @@
-// genkit-tools/common/src/utils/errors.ts
-
 /**
  * Copyright 2024 Google LLC
  *
@@ -16,6 +14,26 @@
  * limitations under the License.
  */
 
+// Connection error codes for different runtimes
+const CONNECTION_ERROR_CODES = {
+  NODE_ECONNREFUSED: 'ECONNREFUSED',
+  BUN_CONNECTION_REFUSED: 'ConnectionRefused',
+  ECONNRESET: 'ECONNRESET',
+} as const;
+
+const CONNECTION_ERROR_PATTERNS = [
+  'ECONNREFUSED',
+  'Connection refused',
+  'ConnectionRefused',
+  'connect ECONNREFUSED',
+] as const;
+
+type ErrorWithCode = {
+  code?: string;
+  message?: string;
+  cause?: ErrorWithCode;
+};
+
 /**
  * Checks if an error is a connection refused error across Node.js and Bun runtimes.
  *
@@ -27,56 +45,55 @@ export function isConnectionRefusedError(error: unknown): boolean {
     return false;
   }
 
-  // Handle plain objects with a code property (Bun fetch errors)
-  if (typeof error === 'object' && 'code' in error) {
-    const code = (error as any).code;
-    if (
-      code === 'ECONNREFUSED' || // Node.js
-      code === 'ConnectionRefused' || // Bun
-      code === 'ECONNRESET' // Connection reset (also indicates server is down)
-    ) {
-      return true;
-    }
+  const errorCode = getErrorCode(error);
+  if (errorCode && isConnectionErrorCode(errorCode)) {
+    return true;
   }
 
-  // Handle Error instances
-  if (error instanceof Error) {
-    // Direct error code
-    if ('code' in error && typeof error.code === 'string') {
-      const code = error.code;
-      if (
-        code === 'ECONNREFUSED' ||
-        code === 'ConnectionRefused' ||
-        code === 'ECONNRESET'
-      ) {
-        return true;
-      }
-    }
-
-    // Node.js style with cause
-    if (
-      'cause' in error &&
-      error.cause &&
-      typeof error.cause === 'object' &&
-      'code' in error.cause &&
-      error.cause.code === 'ECONNREFUSED'
-    ) {
-      return true;
-    }
-
-    // Fallback: check error message
-    if (
-      error.message &&
-      (error.message.includes('ECONNREFUSED') ||
-        error.message.includes('Connection refused') ||
-        error.message.includes('ConnectionRefused') ||
-        error.message.includes('connect ECONNREFUSED'))
-    ) {
-      return true;
-    }
+  // Fallback: check error message
+  if (isErrorWithMessage(error)) {
+    return CONNECTION_ERROR_PATTERNS.some((pattern) =>
+      error.message.includes(pattern)
+    );
   }
 
   return false;
+}
+
+/**
+ * Helper function to check if a code is a connection error code.
+ */
+function isConnectionErrorCode(code: string): boolean {
+  return Object.values(CONNECTION_ERROR_CODES).includes(
+    code as (typeof CONNECTION_ERROR_CODES)[keyof typeof CONNECTION_ERROR_CODES]
+  );
+}
+
+/**
+ * Type guard to check if an error has a message property.
+ */
+function isErrorWithMessage(error: unknown): error is { message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as any).message === 'string'
+  );
+}
+
+/**
+ * Extracts error code from an object, handling nested structures.
+ */
+function extractErrorCode(obj: unknown): string | undefined {
+  if (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'code' in obj &&
+    typeof (obj as ErrorWithCode).code === 'string'
+  ) {
+    return (obj as ErrorWithCode).code;
+  }
+  return undefined;
 }
 
 /**
@@ -87,32 +104,33 @@ export function getErrorCode(error: unknown): string | undefined {
     return undefined;
   }
 
-  // Handle plain objects with a code property
-  if (
-    typeof error === 'object' &&
-    'code' in error &&
-    typeof (error as any).code === 'string'
-  ) {
-    return (error as any).code;
+  // Direct error code
+  const directCode = extractErrorCode(error);
+  if (directCode) {
+    return directCode;
   }
 
-  // Handle Error instances
-  if (error instanceof Error) {
-    // Direct error code
-    if ('code' in error && typeof error.code === 'string') {
-      return error.code;
+  // Node.js style with cause
+  if (typeof error === 'object' && error !== null && 'cause' in error) {
+    const causeCode = extractErrorCode((error as ErrorWithCode).cause);
+    if (causeCode) {
+      return causeCode;
     }
+  }
 
-    // Node.js style with cause
-    if (
-      'cause' in error &&
-      error.cause &&
-      typeof error.cause === 'object' &&
-      'code' in error.cause &&
-      typeof error.cause.code === 'string'
-    ) {
-      return error.cause.code;
-    }
+  return undefined;
+}
+
+/**
+ * Extracts error message from various error formats.
+ */
+function extractErrorMessage(error: unknown): string | undefined {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (isErrorWithMessage(error)) {
+    return error.message;
   }
 
   return undefined;
@@ -122,18 +140,14 @@ export function getErrorCode(error: unknown): string | undefined {
  * Safely extracts error details for logging.
  */
 export function getErrorDetails(error: unknown): string {
-  if (!error) {
+  if (error === null || error === undefined) {
     return 'Unknown error';
   }
 
   const code = getErrorCode(error);
+  const message = extractErrorMessage(error);
 
-  if (error instanceof Error) {
-    return code ? `${error.message} (${code})` : error.message;
-  }
-
-  if (typeof error === 'object' && 'message' in error) {
-    const message = (error as any).message;
+  if (message) {
     return code ? `${message} (${code})` : message;
   }
 
