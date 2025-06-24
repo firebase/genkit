@@ -292,7 +292,7 @@ VERSION=$("$GENKIT_BINARY" --version)
 # to headquarters via an analytics event.
 if [[ -z "$VERSION" ]]; then
     echo "Something went wrong, genkit has not been installed."
-    echo "Please file a bug with your system information on Github."
+    echo "Please file a bug with your system information on GitHub."
     echo "https://github.com/firebase/genkit/"
     echo "-- All done!"
 
