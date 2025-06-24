@@ -21,7 +21,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from genkit.ai import GenkitRegistry
-from genkit.plugins.compat_oai.typing import SupportedOutputFormat
 from genkit.plugins.vertex_ai.model_garden.model_garden import ModelGarden
 
 
