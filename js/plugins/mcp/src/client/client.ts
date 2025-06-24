@@ -375,4 +375,9 @@ export class GenkitMcpClient {
     }
     return;
   }
+
+  /** Returns the underlying MCP SDK client if one has been initialized. */
+  get mcpClient(): Client | undefined {
+    return this._server?.client;
+  }
 }
