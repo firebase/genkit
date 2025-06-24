@@ -174,9 +174,12 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 				if err != nil {
 					return true
 				}
-				// Gemini can handle these URLs
+				// Gemini can handle these URLs directly
 				return !slices.Contains(
-					[]string{"www.youtube.com", "youtube.com", "youtu.be"},
+					[]string{
+						"generativelanguage.googleapis.com", // Files API
+						"www.youtube.com", "youtube.com", "youtu.be",
+					},
 					u.Hostname(),
 				)
 			},
