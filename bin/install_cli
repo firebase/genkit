@@ -50,7 +50,7 @@ TRACKING_ID="UA-XXXXXXXXX-X"  # Not used when analytics is commented out
 # please see our documentation.
 #   https://firebase.google.com/docs/genkit/
 #
-# Please report bugs / issues with this script on Github.
+# Please report bugs / issues with this script on GitHub.
 #   https://github.com/firebase/genkit
 #
 
