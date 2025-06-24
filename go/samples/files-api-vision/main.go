@@ -18,7 +18,7 @@
 //
 // Usage:
 //   1. Set GEMINI_API_KEY environment variable
-//   3. Run: go run main.go
+//   2. Run: go run main.go
 
 package main
 
