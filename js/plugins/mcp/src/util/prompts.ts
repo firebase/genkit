@@ -66,6 +66,7 @@ function registerPrompt(
     description: prompt.description || '',
     input: { jsonSchema: toSchema(prompt.arguments) },
     output: { format: 'text' },
+    metadata: { mcp: { _meta: prompt._meta || {} } },
     messages: async (args, { context }) => {
       logger.debug(
         `[MCP] Calling MCP prompt ${params.name}/${prompt.name} with arguments`,
@@ -109,6 +110,7 @@ function createExecutablePrompt<
     metadata: {
       description: prompt.description,
       arguments: prompt.arguments,
+      mcp: { _meta: prompt._meta || {} },
     },
   };
 

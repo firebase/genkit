@@ -701,9 +701,12 @@ importers:
 
   plugins/mcp:
     dependencies:
+      '@genkit-ai/core':
+        specifier: workspace:^
+        version: link:../../core
       '@modelcontextprotocol/sdk':
-        specifier: ^1.12.0
-        version: 1.13.0
+        specifier: ^1.13.0
+        version: 1.13.1
       genkit:
         specifier: workspace:^
         version: link:../../genkit
@@ -943,7 +946,7 @@ importers:
         version: link:../../plugins/compat-oai
       '@genkit-ai/express':
         specifier: ^1.1.0
-        version: 1.8.0(@genkit-ai/core@1.13.0-rc.0)(express@5.1.0)(genkit@genkit)
+        version: 1.8.0(@genkit-ai/core@1.13.0)(express@5.1.0)(genkit@genkit)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -1572,7 +1575,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.13.0-rc.0)(@genkit-ai/core@1.13.0-rc.0)
+        version: 0.10.1(@genkit-ai/ai@1.13.0)(@genkit-ai/core@1.13.0)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -2710,11 +2713,11 @@ packages:
   '@firebase/webchannel-wrapper@1.0.3':
     resolution: {integrity: sha512-2xCRM9q9FlzGZCdgDMJwc0gyUkWFtkosy7Xxr6sFgQwn+wMNIWd7xIvYNauU1r64B5L5rsGKy/n9TKJ0aAFeqQ==}
 
-  '@genkit-ai/ai@1.13.0-rc.0':
-    resolution: {integrity: sha512-by/kExA2lmJ5wlmxMLHQrmJbjfSGOEFbRvoIlal6ioN66/AcH/2DdgfKBimU/5U2U9av7jcKGKJcRTC/SI8B5A==}
+  '@genkit-ai/ai@1.13.0':
+    resolution: {integrity: sha512-AFwQXrSfD51J3AeJjzD/k77d2ccfhLmqhPOj0YcUpCjopY+NeVobsNZRJkYOtZdnRBDDYdHDnnHBSetFg+yyYQ==}
 
-  '@genkit-ai/core@1.13.0-rc.0':
-    resolution: {integrity: sha512-izhdGHkCPHC4WKvY60VIXtWU4JjSueyuMQVuOkhGpUteH+FfrZuT40g9NDoD9yg8axAFdZGZQUSD2ZcTq2EM1Q==}
+  '@genkit-ai/core@1.13.0':
+    resolution: {integrity: sha512-L6oljw7C/fZ2JcR3/iAllXRb7gVWpZhzMHyX73e5wyI+sbgx92KM36Gh3GxC/7nEtzhUFcRmQqV5MYK1lidl0Q==}
 
   '@genkit-ai/express@1.8.0':
     resolution: {integrity: sha512-Cq5BdxslixkrEJujtMQh8WoSy/gHCBE/hCjqfa6MCqy6CwYGf9p/Y5P8C00gsaf4ymnfTK4HTfLfm60GunA+Mg==}
@@ -3358,6 +3361,10 @@ packages:
 
   '@modelcontextprotocol/sdk@1.13.0':
     resolution: {integrity: sha512-P5FZsXU0kY881F6Hbk9GhsYx02/KgWK1DYf7/tyE/1lcFKhDYPQR9iYjhQXJn+Sg6hQleMo3DB7h7+p4wgp2Lw==}
+    engines: {node: '>=18'}
+
+  '@modelcontextprotocol/sdk@1.13.1':
+    resolution: {integrity: sha512-8q6+9aF0yA39/qWT/uaIj6zTpC+Qu07DnN/lb9mjoquCJsAh6l3HyYqc9O3t2j7GilseOQOQimLg7W3By6jqvg==}
     engines: {node: '>=18'}
 
   '@modelcontextprotocol/server-everything@2025.5.12':
@@ -8216,9 +8223,9 @@ snapshots:
 
   '@firebase/webchannel-wrapper@1.0.3': {}
 
-  '@genkit-ai/ai@1.13.0-rc.0':
+  '@genkit-ai/ai@1.13.0':
     dependencies:
-      '@genkit-ai/core': 1.13.0-rc.0
+      '@genkit-ai/core': 1.13.0
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.17.17
       colorette: 2.0.20
@@ -8230,7 +8237,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.13.0-rc.0':
+  '@genkit-ai/core@1.13.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -8253,9 +8260,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/express@1.8.0(@genkit-ai/core@1.13.0-rc.0)(express@5.1.0)(genkit@genkit)':
+  '@genkit-ai/express@1.8.0(@genkit-ai/core@1.13.0)(express@5.1.0)(genkit@genkit)':
     dependencies:
-      '@genkit-ai/core': 1.13.0-rc.0
+      '@genkit-ai/core': 1.13.0
       body-parser: 1.20.3
       cors: 2.8.5
       express: 5.1.0
@@ -8886,9 +8893,25 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@modelcontextprotocol/sdk@1.13.1':
+    dependencies:
+      ajv: 6.12.6
+      content-type: 1.0.5
+      cors: 2.8.5
+      cross-spawn: 7.0.6
+      eventsource: 3.0.5
+      express: 5.1.0
+      express-rate-limit: 7.5.0(express@5.1.0)
+      pkce-challenge: 5.0.0
+      raw-body: 3.0.0
+      zod: 3.24.1
+      zod-to-json-schema: 3.24.1(zod@3.24.1)
+    transitivePeerDependencies:
+      - supports-color
+
   '@modelcontextprotocol/server-everything@2025.5.12':
     dependencies:
-      '@modelcontextprotocol/sdk': 1.13.0
+      '@modelcontextprotocol/sdk': 1.13.1
       express: 4.21.2
       zod: 3.24.1
       zod-to-json-schema: 3.24.1(zod@3.24.1)
@@ -11080,10 +11103,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.13.0-rc.0)(@genkit-ai/core@1.13.0-rc.0):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.13.0)(@genkit-ai/core@1.13.0):
     dependencies:
-      '@genkit-ai/ai': 1.13.0-rc.0
-      '@genkit-ai/core': 1.13.0-rc.0
+      '@genkit-ai/ai': 1.13.0
+      '@genkit-ai/core': 1.13.0
       openai: 4.97.0(encoding@0.1.13)(zod@3.24.1)
       zod: 3.24.1
     transitivePeerDependencies:

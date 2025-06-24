@@ -68,6 +68,7 @@ function registerTool(
       description: tool.description || '',
       inputJsonSchema: tool.inputSchema as JSONSchema7,
       outputSchema: z.any(),
+      metadata: { mcp: { _meta: tool._meta || {} } },
     },
     async (args) => {
       logger.debug(
@@ -107,6 +108,7 @@ function createDynamicTool(
       description: tool.description || '',
       inputJsonSchema: tool.inputSchema as JSONSchema7,
       outputSchema: z.any(),
+      metadata: { mcp: { _meta: tool._meta || {} } },
     },
     async (args, { context }) => {
       logger.debug(
