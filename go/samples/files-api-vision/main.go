@@ -18,7 +18,6 @@
 //
 // Usage:
 //   1. Set GEMINI_API_KEY environment variable
-//   2. Put an image file named "test.jpg" in this directory
 //   3. Run: go run main.go
 
 package main
@@ -62,7 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to upload:", err)
 	}
-	fmt.Printf("✅ Uploaded! File URI: %s\n", file.URI)
+	fmt.Printf("Uploaded! File URI: %s\n", file.URI)
 
 	// Use Files API URI directly with Genkit (now supported!)
 	fmt.Println("Analyzing image with Genkit using Files API URI...")
@@ -79,9 +78,9 @@ func main() {
 		log.Fatal("Failed to analyze:", err)
 	}
 
-	fmt.Printf("🤖 Analysis: %s\n", resp.Text())
+	fmt.Printf("Analysis: %s\n", resp.Text())
 
 	// Clean up
 	client.Files.Delete(ctx, file.Name, nil)
-	fmt.Println("✅ Cleaned up uploaded file")
+	fmt.Println("Cleaned up uploaded file")
 }
