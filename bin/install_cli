@@ -230,7 +230,7 @@ case "$ARCH" in
     *)          ARCH_SUFFIX="x64";;  # Default to x64
 esac
 
-# Then we map the output to the names used on the Github releases page
+# Then we map the output to the names used on the GitHub releases page
 case "$UNAME" in
     linux*)     MACHINE="linux-${ARCH_SUFFIX}";;
     darwin*)    MACHINE="darwin-${ARCH_SUFFIX}";;
