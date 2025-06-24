@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { ActionContext, runWithContext, z } from '@genkit-ai/core';
+import { runWithContext, z, type ActionContext } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Document } from '../../src/document.js';
-import { GenerateOptions } from '../../src/index.js';
+import type { GenerateOptions } from '../../src/index.js';
 import {
-  PromptConfig,
-  PromptGenerateOptions,
   definePrompt,
+  type PromptConfig,
+  type PromptGenerateOptions,
 } from '../../src/prompt.js';
 import { Session } from '../../src/session.js';
 import { defineTool } from '../../src/tool.js';

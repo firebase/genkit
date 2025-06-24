@@ -15,20 +15,20 @@
  */
 import { z } from 'zod';
 import {
-  CustomPart,
   CustomPartSchema,
-  DataPart,
   DataPartSchema,
   DocumentDataSchema,
-  MediaPart,
   MediaPartSchema,
   ReasoningPartSchema,
-  TextPart,
   TextPartSchema,
-  ToolRequestPart,
   ToolRequestPartSchema,
-  ToolResponsePart,
   ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from './document';
 export {
   CustomPartSchema,
@@ -48,6 +48,18 @@ export {
 //
 // IMPORTANT: Keep this file in sync with genkit/ai/src/model.ts!
 //
+
+/**
+ * Zod schema of an opration representing a background task.
+ */
+export const OperationSchema = z.object({
+  action: z.string().optional(),
+  id: z.string(),
+  done: z.boolean().optional(),
+  output: z.any().optional(),
+  error: z.object({ message: z.string() }).passthrough().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
 
 /**
  * Zod schema of message part.
@@ -305,6 +317,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
+  operation: OperationSchema.optional(),
 });
 
 /**

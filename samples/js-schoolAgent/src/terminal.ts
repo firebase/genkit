@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Message, ToolRequestPart } from 'genkit';
+import type { Message, ToolRequestPart } from 'genkit';
 import { createInterface } from 'node:readline';
 import { ai } from './genkit.js';
 import { routingAgent } from './routingAgent.js';
@@ -75,7 +75,7 @@ async function handleChatResponse(
   const toolsUsed = (await response).messages
     .slice(startMessageCount)
     .filter((m: Message) => m.role === 'model')
-    .map((m: Message) =>
+    .flatMap((m: Message) =>
       m.content
         .filter((p) => !!p.toolRequest)
         .map(
@@ -83,7 +83,6 @@ async function handleChatResponse(
             `${p.toolRequest?.name}(${JSON.stringify(p.toolRequest?.input)})`
         )
     )
-    .flat()
     .filter((t: ToolRequestPart) => !!t);
 
   console.log('\nTools Used:', toolsUsed);

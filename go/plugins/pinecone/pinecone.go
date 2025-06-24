@@ -15,7 +15,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package pinecone implements a genkit plugin for the Pinecone vector
-// database. This defines an indexer and a retriever.
+// database. This defines a retriever.
 //
 // Accessing Pinecone requires an API key, passed via [Config].
 // If the API key is the empty string, the plugin will use the
@@ -26,7 +26,7 @@
 //
 // Indexes can be partitioned into namespaces.
 // Operations that use indexes pass a namespace argument,
-// via [IndexerOptions] or [RetrieverOptions].
+// via [RetrieverOptions].
 // If the namespace is not specified the code uses the default namespace.
 package pinecone
 

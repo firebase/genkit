@@ -19,7 +19,10 @@ import { describe, it } from 'node:test';
 import { textFormatter } from '../../src/formats/text.js';
 import { GenerateResponseChunk } from '../../src/generate.js';
 import { Message } from '../../src/message.js';
-import { GenerateResponseChunkData, MessageData } from '../../src/model.js';
+import type {
+  GenerateResponseChunkData,
+  MessageData,
+} from '../../src/model.js';
 
 describe('textFormat', () => {
   const streamingTests = [

@@ -15,24 +15,23 @@
  */
 
 import {
-  Action,
   GenkitError,
   defineAction,
   getStreamingCallback,
   runWithStreamingCallback,
-  sentinelNoopStreamingCallback,
   stripUndefinedProps,
-  z,
+  type Action,
+  type z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import {
   injectInstructions,
   resolveFormat,
   resolveInstructions,
 } from '../formats/index.js';
-import { Formatter } from '../formats/types.js';
+import type { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
   GenerateResponseChunk,
@@ -40,24 +39,24 @@ import {
   tagAsPreamble,
 } from '../generate.js';
 import {
-  GenerateActionOptions,
   GenerateActionOptionsSchema,
-  GenerateActionOutputConfig,
-  GenerateRequest,
-  GenerateRequestSchema,
-  GenerateResponseChunkData,
   GenerateResponseChunkSchema,
-  GenerateResponseData,
   GenerateResponseSchema,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
-  ModelRequest,
-  Part,
-  Role,
   resolveModel,
+  type GenerateActionOptions,
+  type GenerateActionOutputConfig,
+  type GenerateRequest,
+  type GenerateRequestSchema,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelRequest,
+  type Part,
+  type Role,
 } from '../model.js';
-import { ToolAction, resolveTools, toToolDefinition } from '../tool.js';
+import { resolveTools, toToolDefinition, type ToolAction } from '../tool.js';
 import {
   assertValidToolNames,
   resolveResumeOption,
@@ -81,7 +80,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
       outputSchema: GenerateResponseSchema,
       streamSchema: GenerateResponseChunkSchema,
     },
-    async (request, { sendChunk }) => {
+    async (request, { streamingRequested, sendChunk }) => {
       const generateFn = () =>
         generate(registry, {
           rawRequest: request,
@@ -90,7 +89,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
           // Generate util action does not support middleware. Maybe when we add named/registered middleware....
           middleware: [],
         });
-      return sendChunk !== sentinelNoopStreamingCallback
+      return streamingRequested
         ? runWithStreamingCallback(
             registry,
             (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
@@ -111,10 +110,11 @@ export async function generateHelper(
     middleware?: ModelMiddleware[];
     currentTurn?: number;
     messageIndex?: number;
+    abortSignal?: AbortSignal;
   }
 ): Promise<GenerateResponseData> {
-  let currentTurn = options.currentTurn ?? 0;
-  let messageIndex = options.messageIndex ?? 0;
+  const currentTurn = options.currentTurn ?? 0;
+  const messageIndex = options.messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
@@ -134,6 +134,7 @@ export async function generateHelper(
         middleware: options.middleware,
         currentTurn,
         messageIndex,
+        abortSignal: options.abortSignal,
       });
       metadata.output = JSON.stringify(output);
       return output;
@@ -230,11 +231,13 @@ async function generate(
     middleware,
     currentTurn,
     messageIndex,
+    abortSignal,
   }: {
     rawRequest: GenerateActionOptions;
     middleware: ModelMiddleware[] | undefined;
     currentTurn: number;
     messageIndex: number;
+    abortSignal?: AbortSignal;
   }
 ): Promise<GenerateResponseData> {
   const { model, tools, format } = await resolveParameters(
@@ -313,7 +316,7 @@ async function generate(
       ) => {
         if (!middleware || index === middleware.length) {
           // end of the chain, call the original model action
-          return await model(req);
+          return await model(req, { abortSignal });
         }
 
         const currentMiddleware = middleware[index];
@@ -322,12 +325,27 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request), {
+      const modelResponse = await dispatch(0, request);
+
+      if (model.__action.actionType === 'background-model') {
+        return new GenerateResponse(
+          { operation: modelResponse },
+          {
+            request,
+            parser: format?.handler(request.output?.schema).parseMessage,
+          }
+        );
+      }
+
+      return new GenerateResponse(modelResponse, {
         request,
         parser: format?.handler(request.output?.schema).parseMessage,
       });
     }
   );
+  if (model.__action.actionType === 'background-model') {
+    return response.toJSON();
+  }
 
   // Throw an error if the response is not usable.
   response.assertValid();

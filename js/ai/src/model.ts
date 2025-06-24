@@ -15,34 +15,39 @@
  */
 
 import {
-  Action,
-  ActionMetadata,
-  defineAction,
+  ActionFnArg,
+  BackgroundAction,
   GenkitError,
+  Operation,
+  OperationSchema,
+  defineAction,
+  defineBackgroundAction,
   getStreamingCallback,
-  SimpleMiddleware,
-  StreamingCallback,
   z,
+  type Action,
+  type ActionMetadata,
+  type SimpleMiddleware,
+  type StreamingCallback,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import {
-  CustomPart,
   CustomPartSchema,
-  DataPart,
   DataPartSchema,
   DocumentDataSchema,
-  MediaPart,
   MediaPartSchema,
   ReasoningPartSchema,
-  TextPart,
   TextPartSchema,
-  ToolRequestPart,
   ToolRequestPartSchema,
-  ToolResponsePart,
   ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
 } from './document.js';
 import {
   augmentWithContext,
@@ -55,10 +60,10 @@ export {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
-  simulateConstrainedGeneration,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
+  simulateConstrainedGeneration,
   type CustomPart,
   type DataPart,
   type MediaPart,
@@ -369,6 +374,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
+  operation: OperationSchema.optional(),
 });
 
 /**
@@ -419,6 +425,15 @@ export type ModelAction<
   __configSchema: CustomOptionsSchema;
 };
 
+export type BackgroundModelAction<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = BackgroundAction<
+  typeof GenerateRequestSchema,
+  typeof GenerateResponseSchema
+> & {
+  __configSchema: CustomOptionsSchema;
+};
+
 export type ModelMiddleware = SimpleMiddleware<
   z.infer<typeof GenerateRequestSchema>,
   z.infer<typeof GenerateResponseSchema>
@@ -447,30 +462,41 @@ export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
+  options: {
+    apiVersion: 'v2';
+  } & DefineModelOptions<CustomOptionsSchema>,
+  runner: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options: ActionFnArg<GenerateResponseChunkData>
+  ) => Promise<GenerateResponseData>
+): ModelAction<CustomOptionsSchema>;
+
+/**
+ * Defines a new model and adds it to the registry.
+ */
+export function defineModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
   options: DefineModelOptions<CustomOptionsSchema>,
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
   ) => Promise<GenerateResponseData>
+): ModelAction<CustomOptionsSchema>;
+
+export function defineModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  options: any,
+  runner: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options: any
+  ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || options.name;
-  const middleware: ModelMiddleware[] = [
-    ...(options.use || []),
-    validateSupport(options),
-  ];
-  if (!options?.supports?.context) middleware.push(augmentWithContext());
-  const constratedSimulator = simulateConstrainedGeneration();
-  middleware.push((req, next) => {
-    if (
-      !options?.supports?.constrained ||
-      options?.supports?.constrained === 'none' ||
-      (options?.supports?.constrained === 'no-tools' &&
-        (req.tools?.length ?? 0) > 0)
-    ) {
-      return constratedSimulator(req, next);
-    }
-    return next(req);
-  });
+  const middleware = getModelMiddleware(options);
   const act = defineAction(
     registry,
     {
@@ -491,10 +517,15 @@ export function defineModel<
       },
       use: middleware,
     },
-    (input) => {
+    (input, ctx) => {
       const startTimeMs = performance.now();
-
-      return runner(input, getStreamingCallback(registry)).then((response) => {
+      const secondParam =
+        options.apiVersion === 'v2'
+          ? ctx
+          : getStreamingCallback(registry) ||
+            (ctx.streamingRequested && ctx.sendChunk) ||
+            undefined;
+      return runner(input, secondParam).then((response) => {
         const timedResponse = {
           ...response,
           latencyMs: performance.now() - startTimeMs,
@@ -507,6 +538,103 @@ export function defineModel<
     __configSchema: options.configSchema || z.unknown(),
   });
   return act as ModelAction<CustomOptionsSchema>;
+}
+
+export type DefineBackgroundModelOptions<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = DefineModelOptions<CustomOptionsSchema> & {
+  start: (
+    request: GenerateRequest<CustomOptionsSchema>
+  ) => Promise<Operation<GenerateResponseData>>;
+  check: (
+    operation: Operation<GenerateResponseData>
+  ) => Promise<Operation<GenerateResponseData>>;
+  cancel?: (
+    operation: Operation<GenerateResponseData>
+  ) => Promise<Operation<GenerateResponseData>>;
+};
+
+/**
+ * Defines a new model that runs in the background.
+ */
+export function defineBackgroundModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  options: DefineBackgroundModelOptions<CustomOptionsSchema>
+): BackgroundModelAction<CustomOptionsSchema> {
+  const label = options.label || options.name;
+  const middleware = getModelMiddleware(options);
+  const act = defineBackgroundAction(registry, {
+    actionType: 'background-model',
+    name: options.name,
+    description: label,
+    inputSchema: GenerateRequestSchema,
+    outputSchema: GenerateResponseSchema,
+    metadata: {
+      model: {
+        label,
+        customOptions: options.configSchema
+          ? toJsonSchema({ schema: options.configSchema })
+          : undefined,
+        versions: options.versions,
+        supports: options.supports,
+      },
+    },
+    use: middleware,
+    async start(request) {
+      const startTimeMs = performance.now();
+      const response = await options.start(request);
+      Object.assign(response, {
+        latencyMs: performance.now() - startTimeMs,
+      });
+      return response;
+    },
+    async check(op) {
+      return options.check(op);
+    },
+    cancel: options.cancel
+      ? async (op) => {
+          if (!options.cancel) {
+            throw new GenkitError({
+              status: 'UNIMPLEMENTED',
+              message: 'cancel not implemented',
+            });
+          }
+          return options.cancel(op);
+        }
+      : undefined,
+  }) as BackgroundModelAction<CustomOptionsSchema>;
+  Object.assign(act, {
+    __configSchema: options.configSchema || z.unknown(),
+  });
+  return act;
+}
+
+function getModelMiddleware(options: {
+  use?: ModelMiddleware[];
+  name: string;
+  supports?: ModelInfo['supports'];
+}) {
+  const middleware: ModelMiddleware[] = [
+    ...(options.use || []),
+    validateSupport(options),
+  ];
+  if (!options?.supports?.context) middleware.push(augmentWithContext());
+  const constratedSimulator = simulateConstrainedGeneration();
+  middleware.push((req, next) => {
+    if (
+      !options?.supports?.constrained ||
+      options?.supports?.constrained === 'none' ||
+      (options?.supports?.constrained === 'no-tools' &&
+        (req.tools?.length ?? 0) > 0)
+    ) {
+      return constratedSimulator(req, next);
+    }
+    return next(req);
+  });
+
+  return middleware;
 }
 
 export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
@@ -527,16 +655,20 @@ export function modelActionMetadata({
   name,
   info,
   configSchema,
+  background,
 }: {
   name: string;
   info?: ModelInfo;
   configSchema?: z.ZodTypeAny;
+  background?: boolean;
 }): ActionMetadata {
   return {
-    actionType: 'model',
+    actionType: background ? 'background-model' : 'model',
     name: name,
     inputJsonSchema: toJsonSchema({ schema: GenerateRequestSchema }),
-    outputJsonSchema: toJsonSchema({ schema: GenerateResponseSchema }),
+    outputJsonSchema: background
+      ? toJsonSchema({ schema: OperationSchema })
+      : toJsonSchema({ schema: GenerateResponseSchema }),
     metadata: {
       model: {
         ...info,
@@ -663,7 +795,7 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   }
   if (typeof model === 'string') {
     modelId = model;
-    out = { modelAction: await registry.lookupAction(`/model/${model}`) };
+    out = { modelAction: await lookupModel(registry, model) };
   } else if (model.hasOwnProperty('__action')) {
     modelId = (model as ModelAction).__action.name;
     out = { modelAction: model as ModelAction };
@@ -671,9 +803,7 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
     const ref = model as ModelReference<any>;
     modelId = ref.name;
     out = {
-      modelAction: (await registry.lookupAction(
-        `/model/${ref.name}`
-      )) as ModelAction,
+      modelAction: await lookupModel(registry, ref.name),
       config: {
         ...ref.config,
       },
@@ -698,6 +828,16 @@ export async function resolveModel<C extends z.ZodTypeAny = z.ZodTypeAny>(
   }
 
   return out;
+}
+
+async function lookupModel(
+  registry: Registry,
+  model: string
+): Promise<ModelAction> {
+  return (
+    (await registry.lookupAction(`/model/${model}`)) ||
+    (await registry.lookupAction(`/background-model/${model}`))
+  );
 }
 
 export const GenerateActionOutputConfig = z.object({

@@ -15,7 +15,7 @@
  */
 
 import type { PromptMessage } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
-import { MessageData, Part } from 'genkit';
+import type { MessageData, Part } from 'genkit';
 
 const ROLE_MAP = {
   user: 'user',
@@ -41,6 +41,8 @@ export function fromMcpPart(part: PromptMessage['content']): Part {
         },
       };
     case 'resource':
+      return {};
+    default:
       return {};
   }
 }

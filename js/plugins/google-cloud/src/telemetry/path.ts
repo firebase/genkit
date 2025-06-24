@@ -16,21 +16,22 @@
 
 import { ValueType } from '@opentelemetry/api';
 import { hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
-import { PathMetadata, toDisplayPath } from 'genkit/tracing';
+import { toDisplayPath } from 'genkit/tracing';
 import {
   MetricCounter,
   MetricHistogram,
-  Telemetry,
   internalMetricNamespaceWrap,
+  type Telemetry,
 } from '../metrics.js';
 import {
   createCommonLogAttributes,
   extractErrorMessage,
   extractErrorName,
   extractErrorStack,
+  extractOuterFeatureNameFromPath,
   truncatePath,
 } from '../utils.js';
 
@@ -53,77 +54,43 @@ class PathsTelemetry implements Telemetry {
 
   tick(
     span: ReadableSpan,
-    paths: Set<PathMetadata>,
     logInputAndOutput: boolean,
     projectId?: string
   ): void {
     const attributes = span.attributes;
-    const name = attributes['genkit:name'] as string;
+
     const path = attributes['genkit:path'] as string;
+
+    const isFailureSource = !!span.attributes['genkit:isFailureSource'];
+    const state = attributes['genkit:state'] as string;
+
+    if (!path || !isFailureSource || state !== 'error') {
+      // Only tick metrics for failing, leaf spans.
+      return;
+    }
+
     const sessionId = attributes['genkit:sessionId'] as string;
     const threadName = attributes['genkit:threadName'] as string;
 
-    const latencyMs = hrTimeToMilliseconds(
+    const errorName = extractErrorName(span.events) || '<unknown>';
+    const errorMessage = extractErrorMessage(span.events) || '<unknown>';
+    const errorStack = extractErrorStack(span.events) || '';
+
+    const latency = hrTimeToMilliseconds(
       hrTimeDuration(span.startTime, span.endTime)
     );
-    const state = attributes['genkit:state'] as string;
 
-    if (state === 'success') {
-      this.writePathSuccess(
-        span,
-        paths!,
-        name,
-        path,
-        latencyMs,
-        projectId,
-        sessionId,
-        threadName
-      );
-      return;
-    }
+    const pathDimensions = {
+      featureName: extractOuterFeatureNameFromPath(path),
+      status: 'failure',
+      error: errorName,
+      path: path,
+      source: 'ts',
+      sourceVersion: GENKIT_VERSION,
+    };
+    this.pathCounter.add(1, pathDimensions);
+    this.pathLatencies.record(latency, pathDimensions);
 
-    if (state === 'error') {
-      const errorName = extractErrorName(span.events) || '<unknown>';
-      const errorMessage = extractErrorMessage(span.events) || '<unknown>';
-      const errorStack = extractErrorStack(span.events) || '';
-
-      this.writePathFailure(
-        span,
-        paths!,
-        name,
-        path,
-        latencyMs,
-        errorName,
-        projectId,
-        sessionId,
-        threadName
-      );
-      this.recordError(
-        span,
-        path,
-        errorName,
-        errorMessage,
-        errorStack,
-        projectId,
-        sessionId,
-        threadName
-      );
-      return;
-    }
-
-    logger.warn(`Unknown state; ${state}`);
-  }
-
-  private recordError(
-    span: ReadableSpan,
-    path: string,
-    errorName: string,
-    errorMessage: string,
-    errorStack: string,
-    projectId?: string,
-    sessionId?: string,
-    threadName?: string
-  ) {
     const displayPath = truncatePath(toDisplayPath(path));
     logger.logStructuredError(`Error[${displayPath}, ${errorName}]`, {
       ...createCommonLogAttributes(span, projectId),
@@ -137,106 +104,6 @@ class PathsTelemetry implements Telemetry {
       sessionId,
       threadName,
     });
-  }
-
-  private writePathSuccess(
-    span: ReadableSpan,
-    paths: Set<PathMetadata>,
-    featureName: string,
-    path: string,
-    latencyMs: number,
-    projectId?: string,
-    sessionId?: string,
-    threadName?: string
-  ) {
-    this.writePathMetrics(
-      span,
-      path,
-      paths,
-      featureName,
-      latencyMs,
-      undefined,
-      projectId,
-      sessionId,
-      threadName
-    );
-  }
-
-  private writePathFailure(
-    span: ReadableSpan,
-    paths: Set<PathMetadata>,
-    featureName: string,
-    path: string,
-    latencyMs: number,
-    errorName: string,
-    projectId?: string,
-    sessionId?: string,
-    threadName?: string
-  ) {
-    this.writePathMetrics(
-      span,
-      path,
-      paths,
-      featureName,
-      latencyMs,
-      errorName,
-      projectId,
-      sessionId,
-      threadName
-    );
-  }
-
-  /** Writes all path-level metrics stored in the current flow execution. */
-  private writePathMetrics(
-    span: ReadableSpan,
-    rootPath: string,
-    paths: Set<PathMetadata>,
-    featureName: string,
-    latencyMs: number,
-    err?: string,
-    projectId?: string,
-    sessionId?: string,
-    threadName?: string
-  ) {
-    const flowPaths = Array.from(paths).filter((meta) =>
-      meta.path.includes(featureName)
-    );
-
-    if (flowPaths) {
-      logger.logStructured(`Paths[${featureName}]`, {
-        ...createCommonLogAttributes(span, projectId),
-        flowName: featureName,
-        sessionId,
-        threadName,
-        paths: flowPaths.map((p) => truncatePath(toDisplayPath(p.path))),
-      });
-
-      flowPaths.forEach((p) => this.writePathMetric(featureName, p));
-      // If we're writing a failure, but none of the stored paths have failed,
-      // this means the root flow threw the error.
-      if (err && !flowPaths.some((p) => p.status === 'failure')) {
-        this.writePathMetric(featureName, {
-          status: 'failure',
-          path: rootPath,
-          error: err,
-          latency: latencyMs,
-        });
-      }
-    }
-  }
-
-  /** Writes metrics for a single PathMetadata */
-  private writePathMetric(featureName: string, meta: PathMetadata) {
-    const pathDimensions = {
-      featureName: featureName,
-      status: meta.status,
-      error: meta.error,
-      path: meta.path,
-      source: 'ts',
-      sourceVersion: GENKIT_VERSION,
-    };
-    this.pathCounter.add(1, pathDimensions);
-    this.pathLatencies.record(meta.latency, pathDimensions);
   }
 }
 

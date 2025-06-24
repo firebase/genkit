@@ -16,7 +16,7 @@
 
 import { writeFile } from 'fs/promises';
 import { json2csv } from 'json-2-csv';
-import { EvalRun } from '../types/eval';
+import type { EvalRun } from '../types/eval';
 import { logger } from '../utils/logger';
 
 const SUPPORTED_FORMATS: Record<string, EvalExporter> = {
@@ -27,9 +27,10 @@ const SUPPORTED_FORMATS: Record<string, EvalExporter> = {
 /**
  * Interface for exporting evaluation to file.
  */
-export interface EvalExporter {
-  (evalRun: EvalRun, filePath: string): Promise<void>;
-}
+export type EvalExporter = (
+  evalRun: EvalRun,
+  filePath: string
+) => Promise<void>;
 
 /**
  * Export an evalRun to csv.
@@ -55,7 +56,7 @@ export async function toJson(evalRun: EvalRun, filePath: string) {
 
 function unpackMetricsToColumns(evalRun: EvalRun): Record<string, any>[] {
   return evalRun.results.map((result) => {
-    let record: Record<string, any> = {
+    const record: Record<string, any> = {
       ...result,
     };
     // remove metrics so that we can unnest them

@@ -16,18 +16,18 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with BigQuery.
 
-import { Document, genkit, z } from 'genkit';
 // important imports for this sample:
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import {
-  DocumentIndexer,
-  DocumentRetriever,
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
   vertexAIVectorSearch,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
+  type DocumentIndexer,
+  type DocumentRetriever,
 } from '@genkit-ai/vertexai/vectorsearch';
+import { Document, genkit, z } from 'genkit';
 // // Environment variables set with dotenv for simplicity of sample
 import {
   BIGQUERY_DATASET,

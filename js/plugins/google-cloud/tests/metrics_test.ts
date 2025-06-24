@@ -22,16 +22,16 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import {
+import type {
   DataPoint,
   Histogram,
   HistogramMetricData,
   ScopeMetrics,
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
-import { GenerateResponseData, Genkit, genkit, z } from 'genkit';
+import { genkit, z, type GenerateResponseData, type Genkit } from 'genkit';
 import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import {
   GcpOpenTelemetry,
@@ -85,53 +85,6 @@ describe('GoogleCloudMetrics', () => {
     await ai.stopServers();
   });
 
-  it('writes action metrics for a successful flow', async () => {
-    const testFlow = createFlow(ai, 'testFlow');
-
-    await testFlow();
-    await testFlow();
-
-    await getExportedSpans();
-
-    const actionRequestCounter = await getCounterMetric(
-      'genkit/action/requests'
-    );
-    const actionLatencyHistogram = await getHistogramMetric(
-      'genkit/action/latency'
-    );
-    assert.equal(actionRequestCounter.value, 2);
-    assert.equal(actionRequestCounter.attributes.name, 'testFlow');
-    assert.equal(actionRequestCounter.attributes.source, 'ts');
-    assert.equal(actionRequestCounter.attributes.status, 'success');
-    assert.ok(actionRequestCounter.attributes.sourceVersion);
-    assert.equal(actionLatencyHistogram.value.count, 2);
-    assert.equal(actionLatencyHistogram.attributes.name, 'testFlow');
-    assert.equal(actionLatencyHistogram.attributes.source, 'ts');
-    assert.equal(actionLatencyHistogram.attributes.status, 'success');
-    assert.ok(actionLatencyHistogram.attributes.sourceVersion);
-  }, 10000); //timeout
-
-  it('writes action metrics for a failing flow', async () => {
-    const testFlow = createFlow(ai, 'testFlow', async () => {
-      const nothing: { missing?: any } = { missing: 1 };
-      delete nothing.missing;
-      return nothing.missing.explode;
-    });
-
-    assert.rejects(async () => {
-      await testFlow();
-    });
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    assert.equal(requestCounter.value, 1);
-    assert.equal(requestCounter.attributes.name, 'testFlow');
-    assert.equal(requestCounter.attributes.source, 'ts');
-    assert.equal(requestCounter.attributes.error, 'TypeError');
-    assert.equal(requestCounter.attributes.status, 'failure');
-  }, 10000); //timeout
-
   it('writes feature metrics for a successful flow', async () => {
     const testFlow = createFlow(ai, 'testFlow');
 
@@ -156,9 +109,7 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes feature metrics for a failing flow', async () => {
     const testFlow = createFlow(ai, 'testFlow', async () => {
-      const nothing: { missing?: any } = { missing: 1 };
-      delete nothing.missing;
-      return nothing.missing.explode;
+      return explode();
     });
 
     assert.rejects(async () => {
@@ -174,44 +125,6 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.equal(requestCounter.attributes.status, 'failure');
   }, 10000); //timeout
-
-  it('writes action metrics', async () => {
-    const testAction = createAction(ai, 'testAction');
-    const testFlow = createFlow(ai, 'testFlowWithActions', async () => {
-      await Promise.all([
-        testAction(undefined),
-        testAction(undefined),
-        testAction(undefined),
-      ]);
-    });
-
-    await testFlow();
-    await testFlow();
-
-    await getExportedSpans();
-
-    const requestCounters = await getCounterDataPoints(
-      'genkit/action/requests'
-    );
-    const latencyHistograms = await getHistogramDataPoints(
-      'genkit/action/latency'
-    );
-    const requestCounter = requestCounters[0]; // the action
-    const latencyHistogram = latencyHistograms[0];
-
-    assert.equal(requestCounter.value, 6);
-    assert.equal(requestCounter.attributes.name, 'testAction');
-    assert.equal(requestCounter.attributes.source, 'ts');
-    assert.equal(requestCounter.attributes.status, 'success');
-    assert.ok(requestCounter.attributes.sourceVersion);
-    assert.equal(requestCounter.attributes.featureName, 'testFlowWithActions');
-    assert.equal(latencyHistogram.value.count, 6);
-    assert.equal(latencyHistogram.attributes.name, 'testAction');
-    assert.equal(latencyHistogram.attributes.source, 'ts');
-    assert.equal(latencyHistogram.attributes.status, 'success');
-    assert.ok(latencyHistogram.attributes.sourceVersion);
-    assert.equal(requestCounter.attributes.featureName, 'testFlowWithActions');
-  });
 
   it('writes feature metrics for an action', async () => {
     const testAction = createAction(ai, 'featureAction');
@@ -235,9 +148,6 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
-  // it('writes feature metrics for prompts')
-  // after PR #1029
-
   it('writes feature metrics for generate', async () => {
     const testModel = createTestModel(ai, 'helloModel');
     await ai.generate({ model: testModel, prompt: 'Hi' });
@@ -259,48 +169,6 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
-  it('truncates metric dimensions', async () => {
-    const testFlow = createFlow(ai, 'anExtremelyLongFlowNameThatIsTooBig');
-
-    await testFlow();
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/feature/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
-    assert.equal(
-      requestCounter.attributes.name,
-      'anExtremelyLongFlowNameThatIsToo'
-    );
-    assert.equal(
-      latencyHistogram.attributes.name,
-      'anExtremelyLongFlowNameThatIsToo'
-    );
-  });
-
-  it('writes action failure metrics', async () => {
-    const testAction = ai.defineTool(
-      { name: 'testActionWithFailure', description: 'Just a test' },
-      async () => {
-        const nothing: { missing?: any } = { missing: 1 };
-        delete nothing.missing;
-        return nothing.missing.explode;
-      }
-    );
-
-    assert.rejects(async () => {
-      return testAction(null);
-    });
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    assert.equal(requestCounter.value, 1);
-    assert.equal(requestCounter.attributes.name, 'testActionWithFailure');
-    assert.equal(requestCounter.attributes.source, 'ts');
-    assert.equal(requestCounter.attributes.status, 'failure');
-    assert.equal(requestCounter.attributes.error, 'TypeError');
-  }, 10000); //timeout
-
   it('writes generate metrics for a successful model action', async () => {
     const testModel = createTestModel(ai, 'testModel');
 
@@ -308,9 +176,6 @@ describe('GoogleCloudMetrics', () => {
       model: testModel,
       prompt: 'test prompt',
       config: {
-        temperature: 1.0,
-        topK: 3,
-        topP: 5,
         maxOutputTokens: 7,
       },
     });
@@ -369,21 +234,13 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes generate metrics for a failing model action', async () => {
     const testModel = createModel(ai, 'failingTestModel', async () => {
-      const nothing: { missing?: any } = { missing: 1 };
-      delete nothing.missing;
-      return nothing.missing.explode;
+      return explode();
     });
 
     assert.rejects(async () => {
       return ai.generate({
         model: testModel,
         prompt: 'test prompt',
-        config: {
-          temperature: 1.0,
-          topK: 3,
-          topP: 5,
-          maxOutputTokens: 7,
-        },
       });
     });
 
@@ -398,55 +255,6 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.ok(requestCounter.attributes.sourceVersion);
-  }, 10000); //timeout
-
-  it('writes flow label to action metrics when running inside flow', async () => {
-    const testAction = createAction(ai, 'testAction');
-    const flow = createFlow(ai, 'flowNameLabelTestFlow', async () => {
-      return await testAction(undefined);
-    });
-
-    await flow();
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/action/latency');
-    assert.equal(
-      requestCounter.attributes.featureName,
-      'flowNameLabelTestFlow'
-    );
-    assert.equal(
-      latencyHistogram.attributes.featureName,
-      'flowNameLabelTestFlow'
-    );
-  });
-
-  it('writes feature label to generate and action metrics when running inside an action', async () => {
-    const testModel = createTestModel(ai, 'testModel');
-
-    const testAction = createAction(ai, 'testGenerateAction', async () => {
-      await ai.generate({
-        model: testModel,
-        prompt: 'helllloooooooo',
-      });
-    });
-
-    testAction(null);
-
-    await getExportedSpans();
-
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/action/latency');
-    const generateRequestCounter = await getCounterMetric(
-      'genkit/ai/generate/requests'
-    );
-    assert.equal(requestCounter.attributes.featureName, 'testGenerateAction');
-    assert.equal(latencyHistogram.attributes.featureName, 'testGenerateAction');
-    assert.equal(
-      generateRequestCounter.attributes.featureName,
-      'testGenerateAction'
-    );
   }, 10000); //timeout
 
   it('writes feature label to generate metrics when running inside a flow', async () => {
@@ -497,221 +305,228 @@ describe('GoogleCloudMetrics', () => {
     }
   });
 
-  it('writes path metrics for a successful flow', async () => {
-    const flow = createFlow(ai, 'pathTestFlow', async () => {
-      await ai.run('step1', async () => {
-        return await ai.run('substep_a', async () => {
-          return await ai.run('substep_b', async () => 'res1');
+  describe('path metrics', () => {
+    it('writes no path metrics for a successful flow', async () => {
+      const flow = createFlow(ai, 'pathTestFlow', async () => {
+        await ai.run('step1', async () => {
+          return await ai.run('substep_a', async () => {
+            return await ai.run('substep_b', async () => 'res1');
+          });
         });
+        await ai.run('step2', async () => 'res2');
+        return;
       });
-      await ai.run('step2', async () => 'res2');
-      return;
+
+      await flow();
+
+      await getExportedSpans();
+
+      await assert.rejects(async () => {
+        await getCounterDataPoints('genkit/feature/path/requests');
+      });
+      await assert.rejects(async () => {
+        await getHistogramDataPoints('genkit/feature/path/latency');
+      });
     });
 
-    await flow();
+    it('writes path metrics for a failing flow with exception in root', async () => {
+      const flow = createFlow(ai, 'testFlow', async () => {
+        await ai.run('sub-action', async () => {
+          return 'done';
+        });
+        return Promise.reject(new Error('failed'));
+      });
 
-    await getExportedSpans();
+      assert.rejects(async () => {
+        await flow();
+      });
 
-    const expectedPaths = new Set([
-      '/{pathTestFlow,t:flow}/{step2,t:flowStep}',
-      '/{pathTestFlow,t:flow}/{step1,t:flowStep}/{substep_a,t:flowStep}/{substep_b,t:flowStep}',
-    ]);
-    const pathCounterPoints = await getCounterDataPoints(
-      'genkit/feature/path/requests'
-    );
-    const pathLatencyPoints = await getHistogramDataPoints(
-      'genkit/feature/path/latency'
-    );
-    const paths = new Set(
-      pathCounterPoints.map((point) => point.attributes.path)
-    );
-    assert.deepEqual(paths, expectedPaths);
-    pathCounterPoints.forEach((point) => {
-      assert.equal(point.value, 1);
-      assert.equal(point.attributes.featureName, 'pathTestFlow');
-      assert.equal(point.attributes.source, 'ts');
-      assert.equal(point.attributes.status, 'success');
-      assert.ok(point.attributes.sourceVersion);
-    });
-    pathLatencyPoints.forEach((point) => {
-      assert.equal(point.value.count, 1);
-      assert.equal(point.attributes.featureName, 'pathTestFlow');
-      assert.equal(point.attributes.source, 'ts');
-      assert.equal(point.attributes.status, 'success');
-      assert.ok(point.attributes.sourceVersion);
-    });
-  });
+      await getExportedSpans();
 
-  it('writes path metrics for a failing flow with exception in root', async () => {
-    const flow = createFlow(ai, 'testFlow', async () => {
-      await ai.run('sub-action', async () => {
+      const reqPoints = await getCounterDataPoints(
+        'genkit/feature/path/requests'
+      );
+      const reqStatuses = reqPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(reqStatuses, [['/{testFlow,t:flow}', 'failure']]);
+      const latencyPoints = await getHistogramDataPoints(
+        'genkit/feature/path/latency'
+      );
+      const latencyStatuses = latencyPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(latencyStatuses, [['/{testFlow,t:flow}', 'failure']]);
+    }, 10000); //timeout
+
+    it('writes path metrics for a failing flow with exception in subaction', async () => {
+      const flow = createFlow(ai, 'testFlow', async () => {
+        await ai.run('sub-action-1', async () => {
+          await ai.run('sub-action-2', async () => {
+            return Promise.reject(new Error('failed'));
+          });
+          return 'done';
+        });
         return 'done';
       });
-      return Promise.reject(new Error('failed'));
-    });
 
-    assert.rejects(async () => {
-      await flow();
-    });
+      assert.rejects(async () => {
+        await flow();
+      });
 
-    await getExportedSpans();
+      await getExportedSpans();
 
-    const reqPoints = await getCounterDataPoints(
-      'genkit/feature/path/requests'
-    );
-    const reqStatuses = reqPoints.map((p) => [
-      p.attributes.path,
-      p.attributes.status,
-    ]);
-    assert.deepEqual(reqStatuses, [
-      ['/{testFlow,t:flow}/{sub-action,t:flowStep}', 'success'],
-      ['/{testFlow,t:flow}', 'failure'],
-    ]);
-    const latencyPoints = await getHistogramDataPoints(
-      'genkit/feature/path/latency'
-    );
-    const latencyStatuses = latencyPoints.map((p) => [
-      p.attributes.path,
-      p.attributes.status,
-    ]);
-    assert.deepEqual(latencyStatuses, [
-      ['/{testFlow,t:flow}/{sub-action,t:flowStep}', 'success'],
-      ['/{testFlow,t:flow}', 'failure'],
-    ]);
-  }, 10000); //timeout
+      const reqPoints = await getCounterDataPoints(
+        'genkit/feature/path/requests'
+      );
+      const reqStatuses = reqPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(reqStatuses, [
+        [
+          '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
+          'failure',
+        ],
+      ]);
+      const latencyPoints = await getHistogramDataPoints(
+        'genkit/feature/path/latency'
+      );
+      const latencyStatuses = latencyPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(latencyStatuses, [
+        [
+          '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
+          'failure',
+        ],
+      ]);
+    }, 10000); //timeout
 
-  it('writes path metrics for a failing flow with exception in subaction', async () => {
-    const flow = createFlow(ai, 'testFlow', async () => {
-      await ai.run('sub-action-1', async () => {
+    it('writes path metrics for a flow with exception in action', async () => {
+      const flow = createFlow(ai, 'testFlow', async () => {
+        await ai.run('sub-action-1', async () => {
+          await ai.run('sub-action-2', async () => {
+            return 'done';
+          });
+          return Promise.reject(new Error('failed'));
+        });
+        return 'done';
+      });
+
+      assert.rejects(async () => {
+        await flow();
+      });
+
+      await getExportedSpans();
+
+      const reqPoints = await getCounterDataPoints(
+        'genkit/feature/path/requests'
+      );
+      const reqStatuses = reqPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(reqStatuses, [
+        ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'failure'],
+      ]);
+      const latencyPoints = await getHistogramDataPoints(
+        'genkit/feature/path/latency'
+      );
+      const latencyStatuses = latencyPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(latencyStatuses, [
+        ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'failure'],
+      ]);
+    }, 10000); //timeout
+
+    it('writes path metrics for a flow with an exception in a serial action', async () => {
+      const flow = createFlow(ai, 'testFlow', async () => {
+        await ai.run('sub-action-1', async () => {
+          return 'done';
+        });
         await ai.run('sub-action-2', async () => {
           return Promise.reject(new Error('failed'));
         });
         return 'done';
       });
-      return 'done';
-    });
 
-    assert.rejects(async () => {
-      await flow();
-    });
-
-    await getExportedSpans();
-
-    const reqPoints = await getCounterDataPoints(
-      'genkit/feature/path/requests'
-    );
-    const reqStatuses = reqPoints.map((p) => [
-      p.attributes.path,
-      p.attributes.status,
-    ]);
-    assert.deepEqual(reqStatuses, [
-      [
-        '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
-        'failure',
-      ],
-    ]);
-    const latencyPoints = await getHistogramDataPoints(
-      'genkit/feature/path/latency'
-    );
-    const latencyStatuses = latencyPoints.map((p) => [
-      p.attributes.path,
-      p.attributes.status,
-    ]);
-    assert.deepEqual(latencyStatuses, [
-      [
-        '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
-        'failure',
-      ],
-    ]);
-  }, 10000); //timeout
-
-  it('writes path metrics for a flow with exception in action', async () => {
-    const flow = createFlow(ai, 'testFlow', async () => {
-      await ai.run('sub-action-1', async () => {
-        await ai.run('sub-action-2', async () => {
-          return 'done';
-        });
-        return Promise.reject(new Error('failed'));
+      assert.rejects(async () => {
+        await flow();
       });
-      return 'done';
-    });
 
-    assert.rejects(async () => {
-      await flow();
-    });
+      await getExportedSpans();
 
-    await getExportedSpans();
+      const reqPoints = await getCounterDataPoints(
+        'genkit/feature/path/requests'
+      );
+      const reqStatuses = reqPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(reqStatuses, [
+        ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
+      ]);
+      const latencyPoints = await getHistogramDataPoints(
+        'genkit/feature/path/latency'
+      );
+      const latencyStatuses = latencyPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(latencyStatuses, [
+        ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
+      ]);
+    }, 10000); //timeout
 
-    const reqPoints = await getCounterDataPoints(
-      'genkit/feature/path/requests'
-    );
-    const reqStatuses = reqPoints.map((p) => [
-      p.attributes.path,
-      p.attributes.status,
-    ]);
-    assert.deepEqual(reqStatuses, [
-      [
-        '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
-        'success',
-      ],
-      ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'failure'],
-    ]);
-    const latencyPoints = await getHistogramDataPoints(
-      'genkit/feature/path/latency'
-    );
-    const latencyStatuses = latencyPoints.map((p) => [
-      p.attributes.path,
-      p.attributes.status,
-    ]);
-    assert.deepEqual(latencyStatuses, [
-      [
-        '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
-        'success',
-      ],
-      ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'failure'],
-    ]);
-  }, 10000); //timeout
-
-  it('writes path metrics for a flow with an exception in a serial action', async () => {
-    const flow = createFlow(ai, 'testFlow', async () => {
-      await ai.run('sub-action-1', async () => {
-        return 'done';
+    it('writes path metrics for a flow multiple failing actions', async () => {
+      const flow = createFlow(ai, 'testFlow', async () => {
+        await Promise.all([
+          ai.run('sub1', async () => {
+            return explode();
+          }),
+          ai.run('sub2', async () => {
+            return explode();
+          }),
+        ]);
+        return 'not failing';
       });
-      await ai.run('sub-action-2', async () => {
-        return Promise.reject(new Error('failed'));
+
+      assert.rejects(async () => {
+        await flow();
       });
-      return 'done';
-    });
 
-    assert.rejects(async () => {
-      await flow();
-    });
+      await getExportedSpans();
 
-    await getExportedSpans();
-
-    const reqPoints = await getCounterDataPoints(
-      'genkit/feature/path/requests'
-    );
-    const reqStatuses = reqPoints.map((p) => [
-      p.attributes.path,
-      p.attributes.status,
-    ]);
-    assert.deepEqual(reqStatuses, [
-      ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'success'],
-      ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
-    ]);
-    const latencyPoints = await getHistogramDataPoints(
-      'genkit/feature/path/latency'
-    );
-    const latencyStatuses = latencyPoints.map((p) => [
-      p.attributes.path,
-      p.attributes.status,
-    ]);
-    assert.deepEqual(latencyStatuses, [
-      ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'success'],
-      ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
-    ]);
-  }, 10000); //timeout
+      const reqPoints = await getCounterDataPoints(
+        'genkit/feature/path/requests'
+      );
+      const reqStatuses = reqPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(reqStatuses, [
+        ['/{testFlow,t:flow}/{sub1,t:flowStep}', 'failure'],
+        ['/{testFlow,t:flow}/{sub2,t:flowStep}', 'failure'],
+      ]);
+      const latencyPoints = await getHistogramDataPoints(
+        'genkit/feature/path/latency'
+      );
+      const latencyStatuses = latencyPoints.map((p) => [
+        p.attributes.path,
+        p.attributes.status,
+      ]);
+      assert.deepEqual(latencyStatuses, [
+        ['/{testFlow,t:flow}/{sub1,t:flowStep}', 'failure'],
+        ['/{testFlow,t:flow}/{sub2,t:flowStep}', 'failure'],
+      ]);
+    }, 10000); //timeout
+  });
 
   it('writes user feedback metrics', async () => {
     await appendSpan(
@@ -792,8 +607,8 @@ describe('GoogleCloudMetrics', () => {
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getGenkitMetrics(
-    name: string = 'genkit',
-    maxAttempts: number = 100
+    name = 'genkit',
+    maxAttempts = 100
   ): Promise<ScopeMetrics | undefined> {
     var attempts = 0;
     while (attempts++ < maxAttempts) {
@@ -809,9 +624,7 @@ describe('GoogleCloudMetrics', () => {
   }
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
-  async function getExportedSpans(
-    maxAttempts: number = 200
-  ): Promise<ReadableSpan[]> {
+  async function getExportedSpans(maxAttempts = 200): Promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
     while (attempts++ < maxAttempts) {
@@ -963,3 +776,9 @@ describe('GoogleCloudMetrics', () => {
     });
   }
 });
+
+function explode() {
+  const nothing: { missing?: any } = { missing: 1 };
+  delete nothing.missing;
+  return nothing.missing.explode;
+}

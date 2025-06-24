@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { BaseEvalDataPoint, EvalStatusEnum, Score } from 'genkit/evaluator';
+import {
+  EvalStatusEnum,
+  type BaseEvalDataPoint,
+  type Score,
+} from 'genkit/evaluator';
 
 /**
  * A simple regexp evaluator -- matches regexp from the reference against the output.

@@ -19,7 +19,7 @@
 from unittest.mock import MagicMock
 
 from genkit.ai import Genkit
-from genkit.plugins.vertex_ai import VertexAIVectorSearch
+from genkit.plugins.vertex_ai.vector_search import VertexAIVectorSearch
 
 
 def test_initialize_plugin():

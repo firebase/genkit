@@ -93,12 +93,12 @@ func TestGenkit(t *testing.T) {
 		Class:    *testClass,
 		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
 	}
-	indexer, retriever, err := DefineIndexerAndRetriever(ctx, g, classCfg)
+	ds, retriever, err := DefineRetriever(ctx, g, classCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = ai.Index(ctx, indexer, ai.WithDocs(d1, d2, d3))
+	err = Index(ctx, []*ai.Document{d1, d2, d3}, ds)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}

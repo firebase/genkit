@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai';
+import type { MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { GenkitBeta, genkit } from '../src/beta';
+import { genkit, type GenkitBeta } from '../src/beta';
 import {
-  ProgrammableModel,
   defineEchoModel,
   defineProgrammableModel,
+  type ProgrammableModel,
 } from './helpers';
 
 describe('chat', () => {
@@ -278,7 +278,7 @@ describe('preamble', () => {
 
     // transfer to agent B...
 
-    // first response be tools call, the subsequent just text response from agent b.
+    // first response is a tool call, the subsequent responses are just text response from agent b.
     let reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {
@@ -367,7 +367,7 @@ describe('preamble', () => {
 
     // transfer back to to agent A...
 
-    // first response be tools call, the subsequent just text response from agent a.
+    // first response is a tool call, the subsequent responses are just text response from agent a.
     reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {

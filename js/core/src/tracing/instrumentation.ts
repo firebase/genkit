@@ -15,16 +15,16 @@
  */
 
 import {
-  Span as ApiSpan,
-  Link,
   ROOT_CONTEXT,
   SpanStatusCode,
   trace,
+  type Span as ApiSpan,
+  type Link,
 } from '@opentelemetry/api';
 import { performance } from 'node:perf_hooks';
-import { HasRegistry, Registry } from '../registry.js';
+import type { HasRegistry, Registry } from '../registry.js';
 import { ensureBasicTelemetryInstrumentation } from '../tracing.js';
-import { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
+import type { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
 export const spanMetadataAlsKey = 'core.tracing.instrumentation.span';
 export const traceMetadataAlsKey = 'core.tracing.instrumentation.trace';
@@ -133,6 +133,17 @@ export async function runInNewSpan<T>(
         if (e instanceof Error) {
           otSpan.recordException(e);
         }
+
+        // Mark the first failing span as the source of failure. Prevent parent
+        // spans that catch re-thrown exceptions from also claiming to be the
+        // source.
+        if (typeof e === 'object') {
+          if (!(e as any).ignoreFailedSpan) {
+            opts.metadata.isFailureSource = true;
+          }
+          (e as any).ignoreFailedSpan = true;
+        }
+
         throw e;
       } finally {
         otSpan.setAttributes(metadataToAttributes(opts.metadata));

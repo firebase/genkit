@@ -18,10 +18,10 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
-  SpanProcessor,
+  type SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { logger } from './logging.js';
-import { TelemetryConfig } from './telemetryTypes.js';
+import type { TelemetryConfig } from './telemetryTypes.js';
 import {
   TraceServerExporter,
   setTelemetryServerUrl,
@@ -42,10 +42,39 @@ const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
  * @hidden
  */
 export async function ensureBasicTelemetryInstrumentation() {
+  await checkFirebaseMonitoringAutoInit();
+
   if (global[instrumentationKey]) {
     return await global[instrumentationKey];
   }
+
   await enableTelemetry({});
+}
+
+/**
+ * Checks to see if the customer is using Firebase Genkit Monitoring
+ * auto initialization via environment variable by attempting to resolve
+ * the firebase plugin.
+ *
+ * Enables Firebase Genkit Monitoring if the plugin is installed and warns
+ * if it hasn't been installed.
+ */
+async function checkFirebaseMonitoringAutoInit() {
+  if (
+    !global[instrumentationKey] &&
+    process.env.ENABLE_FIREBASE_MONITORING === 'true'
+  ) {
+    try {
+      const firebaseModule = await require('@genkit-ai/firebase');
+      firebaseModule.enableFirebaseTelemetry();
+    } catch (e) {
+      logger.warn(
+        "It looks like you're trying to enable firebase monitoring, but " +
+          "haven't installed the firebase plugin. Please run " +
+          '`npm i --save @genkit-ai/firebase` and redeploy.'
+      );
+    }
+  }
 }
 
 /**

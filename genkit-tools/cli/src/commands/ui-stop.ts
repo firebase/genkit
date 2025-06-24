@@ -15,11 +15,11 @@
  */
 
 import {
-  DevToolsInfo,
   findServersDir,
   isValidDevToolsInfo,
   logger,
   waitUntilUnresponsive,
+  type DevToolsInfo,
 } from '@genkit-ai/tools-common/utils';
 import axios from 'axios';
 import * as clc from 'colorette';

@@ -16,16 +16,21 @@
 
 import { Dotprompt } from 'dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import * as z from 'zod';
+import type * as z from 'zod';
 import {
-  Action,
-  ActionMetadata,
   runOutsideActionRuntimeContext,
+  type Action,
+  type ActionMetadata,
 } from './action.js';
+import {
+  BackgroundAction,
+  lookupBackgroundAction,
+} from './background-action.js';
+import { ActionContext } from './context.js';
 import { GenkitError } from './error.js';
 import { logger } from './logging.js';
-import { PluginProvider } from './plugin.js';
-import { JSONSchema, toJsonSchema } from './schema.js';
+import type { PluginProvider } from './plugin.js';
+import { toJsonSchema, type JSONSchema } from './schema.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
 
@@ -40,6 +45,9 @@ export type ActionType =
   | 'flow'
   | 'indexer'
   | 'model'
+  | 'background-model'
+  | 'check-operation'
+  | 'cancel-operation'
   | 'prompt'
   | 'reranker'
   | 'retriever'
@@ -118,6 +126,8 @@ export class Registry {
   readonly asyncStore: AsyncStore;
   readonly dotprompt: Dotprompt;
   readonly parent?: Registry;
+  /** Additional runtime context data for flows and tools. */
+  context?: ActionContext;
 
   constructor(parent?: Registry) {
     if (parent) {
@@ -180,6 +190,17 @@ export class Registry {
     return (
       ((await this.actionsById[key]) as R) || this.parent?.lookupAction(key)
     );
+  }
+
+  /**
+   * Looks up a background action from the registry.
+   * @param key The key of the action to lookup.
+   * @returns The action.
+   */
+  async lookupBackgroundAction(
+    key: string
+  ): Promise<BackgroundAction | undefined> {
+    return lookupBackgroundAction(this, key);
   }
 
   /**

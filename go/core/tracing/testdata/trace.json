@@ -29,8 +29,7 @@
       "status": {
         "code": 0
       },
-      "timeEvents": {
-      }
+      "timeEvents": {}
     },
     "238239e5468cb284": {
       "spanId": "238239e5468cb284",
@@ -61,8 +60,7 @@
       "status": {
         "code": 0
       },
-      "timeEvents": {
-      }
+      "timeEvents": {}
     },
     "ac10ae6a3cced65e": {
       "spanId": "ac10ae6a3cced65e",
@@ -96,8 +94,7 @@
       "status": {
         "code": 0
       },
-      "timeEvents": {
-      }
+      "timeEvents": {}
     },
     "26f0aa6dbff0fcf4": {
       "spanId": "26f0aa6dbff0fcf4",
@@ -126,8 +123,7 @@
       "status": {
         "code": 0
       },
-      "timeEvents": {
-      }
+      "timeEvents": {}
     },
     "c1f0756a2349bef7": {
       "spanId": "c1f0756a2349bef7",
@@ -149,8 +145,7 @@
       "status": {
         "code": 0
       },
-      "timeEvents": {
-      },
+      "timeEvents": {},
       "instrumentationLibrary": {
         "name": "genkit-tracer",
         "version": "v1"
