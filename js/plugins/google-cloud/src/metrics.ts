@@ -21,7 +21,6 @@ import {
   type Meter,
 } from '@opentelemetry/api';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import type { PathMetadata } from 'genkit/tracing';
 
 export const METER_NAME = 'genkit';
 export const METRIC_NAME_PREFIX = 'genkit';
@@ -119,10 +118,5 @@ function truncateDimensions(opts?: any) {
 }
 
 export interface Telemetry {
-  tick(
-    span: ReadableSpan,
-    paths: Set<PathMetadata>,
-    logIO: boolean,
-    projectId?: string
-  ): void;
+  tick(span: ReadableSpan, logIO: boolean, projectId?: string): void;
 }

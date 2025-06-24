@@ -14,9 +14,22 @@
  * limitations under the License.
  */
 
-/** @type {import('ts-jest').JestConfigWithTsJest} */
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  testPathIgnorePatterns: ['/node_modules/', '/lib/'],
-};
+import { z } from 'genkit';
+import {
+  HarmBlockThreshold,
+  HarmCategory,
+  SafetySetting,
+} from '../common/types';
+import { SafetySettingsSchema } from './gemini';
+
+export function toGeminiSafetySettings(
+  genkitSettings?: z.infer<typeof SafetySettingsSchema>[]
+): SafetySetting[] | undefined {
+  if (!genkitSettings) return undefined;
+  return genkitSettings.map((s) => {
+    return {
+      category: s.category as HarmCategory,
+      threshold: s.threshold as HarmBlockThreshold,
+    };
+  });
+}

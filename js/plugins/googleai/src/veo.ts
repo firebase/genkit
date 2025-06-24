@@ -93,17 +93,26 @@ function toParameters(
   return out;
 }
 
-function extractImage(request: GenerateRequest): string | undefined {
-  return request.messages
-    .at(-1)
-    ?.content.find((p) => !!p.media)
-    ?.media?.url.split(',')[1];
+function extractImage(request: GenerateRequest): VeoImage | undefined {
+  const media = request.messages.at(-1)?.content.find((p) => !!p.media)?.media;
+  if (media) {
+    const img = media?.url.split(',')[1];
+    return {
+      bytesBase64Encoded: img,
+      mimeType: media.contentType!,
+    };
+  }
+  return undefined;
+}
+
+interface VeoImage {
+  bytesBase64Encoded: string;
+  mimeType: string;
 }
 
 interface VeoInstance {
   prompt: string;
-  image?: { bytesBase64Encoded: string };
-  mask?: { image?: { bytesBase64Encoded: string } };
+  image?: VeoImage;
 }
 
 export const GENERIC_VEO_INFO = {
@@ -154,7 +163,7 @@ export function defineVeoModel(
       };
       const image = extractImage(request);
       if (image) {
-        instance.image = { bytesBase64Encoded: image };
+        instance.image = image;
       }
 
       const predictClient = predictModel<

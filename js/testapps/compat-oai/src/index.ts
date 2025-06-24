@@ -15,17 +15,15 @@
  * limitations under the License.
  */
 
-import openAI, { gpt41, textEmbeddingAda002 } from '@genkit-ai/compat-oai';
+import { openAI } from '@genkit-ai/compat-oai/openai';
 import { startFlowServer } from '@genkit-ai/express';
 import dotenv from 'dotenv';
-import { GenerationCommonConfigSchema, genkit, z } from 'genkit';
-import type { ModelInfo } from 'genkit/model';
+import { genkit, z } from 'genkit';
 
 dotenv.config();
 
 const ai = genkit({
-  plugins: [openAI({ apiKey: process.env.OPENAI_API_KEY })],
-  model: gpt41,
+  plugins: [openAI()],
 });
 
 export const jokeFlow = ai.defineFlow(
@@ -37,6 +35,7 @@ export const jokeFlow = ai.defineFlow(
   async (subject) => {
     const llmResponse = await ai.generate({
       prompt: `tell me a joke about ${subject}`,
+      model: openAI.model('gpt-4.1'),
     });
     return llmResponse.text;
   }
@@ -52,7 +51,7 @@ export const embedFlow = ai.defineFlow(
   },
   async (text) => {
     const embedding = await ai.embed({
-      embedder: textEmbeddingAda002,
+      embedder: openAI.embedder('text-embedding-ada-002'),
       content: text,
     });
 
@@ -60,49 +59,6 @@ export const embedFlow = ai.defineFlow(
   }
 );
 
-const modelInfo: ModelInfo = {
-  versions: ['claude-3-7-sonnet-20250219'],
-  label: 'Claude - Claude 3.7 Sonnet',
-  supports: {
-    multiturn: true,
-    tools: true,
-    media: false,
-    systemRole: true,
-    output: ['json', 'text'],
-  },
-};
-const schema = GenerationCommonConfigSchema.extend({});
-
-const aiCustom = genkit({
-  plugins: [
-    openAI({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      baseURL: 'https://api.anthropic.com/v1/',
-      models: [
-        { name: 'claude-3-7-sonnet', info: modelInfo, configSchema: schema },
-      ],
-    }),
-  ],
-});
-
-export const customModelFlow = aiCustom.defineFlow(
-  {
-    name: 'customModelFlow',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-  },
-  async (subject) => {
-    const llmResponse = await aiCustom.generate({
-      prompt: `tell me a joke about ${subject}`,
-      model: 'openai/claude-3-7-sonnet',
-      config: {
-        version: 'claude-3-7-sonnet-20250219',
-      },
-    });
-    return llmResponse.text;
-  }
-);
-
 startFlowServer({
-  flows: [jokeFlow, embedFlow, customModelFlow],
+  flows: [jokeFlow, embedFlow],
 });

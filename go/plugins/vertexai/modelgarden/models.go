@@ -21,6 +21,8 @@ import (
 	"github.com/firebase/genkit/go/plugins/internal"
 )
 
+const provider = "vertexai"
+
 // supported anthropic models
 var anthropicModels = map[string]ai.ModelInfo{
 	"claude-3-5-sonnet-v2": {

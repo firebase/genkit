@@ -260,43 +260,102 @@ describe('GoogleCloudLogs', () => {
     });
   });
 
-  it('writes path logs', async () => {
-    const testFlow = createFlow(ai, 'testFlow');
+  describe('path logs', () => {
+    it('writes error log for failed path', async () => {
+      const testFlow = createFlow(ai, 'testFlow', async () => {
+        await ai.run('sub1', async () => {
+          return 'not failing';
+        });
+        await ai.run('sub2', async () => {
+          return explode();
+        });
+        return 'never reached';
+      });
 
-    await testFlow();
+      await assert.rejects(async () => {
+        await testFlow();
+      });
 
-    await getExportedSpans();
+      await getExportedSpans();
 
-    const logs = await getLogs(1, 100, logLines);
-    const logObjectMessages = getStructuredLogMessages(logs);
-    expect(logObjectMessages).toContain('Paths[testFlow]');
+      const logs = await getLogs(1, 100, logLines);
+      const logObjectMessages = getStructuredLogMessages(logs);
+      expect(logObjectMessages).toContain(
+        "Error[testFlow > sub2, TypeError] Cannot read properties of undefined (reading 'explode')"
+      );
+      const errorLogs = logObjectMessages.filter(
+        (m) => m.indexOf('Error[') >= 0
+      );
+      expect(errorLogs).toHaveLength(1); // Only 1 error log
+    }, 10000); //timeout
+
+    it('writes error log for failed root', async () => {
+      const testFlow = createFlow(ai, 'testFlow', async () => {
+        await ai.run('sub1', async () => {
+          return 'not failing';
+        });
+        await ai.run('sub2', async () => {
+          return 'not failing';
+        });
+        return explode();
+      });
+
+      await assert.rejects(async () => {
+        await testFlow();
+      });
+
+      await getExportedSpans();
+
+      const logs = await getLogs(1, 100, logLines);
+      const logObjectMessages = getStructuredLogMessages(logs);
+      expect(logObjectMessages).toContain(
+        "Error[testFlow, TypeError] Cannot read properties of undefined (reading 'explode')"
+      );
+      const errorLogs = logObjectMessages.filter(
+        (m) => m.indexOf('Error[') >= 0
+      );
+      expect(errorLogs).toHaveLength(1); // Only 1 error log
+    }, 10000); //timeout
+
+    it('writes error log for multiple failing spans', async () => {
+      const testFlow = createFlow(ai, 'testFlow', async () => {
+        await Promise.all([
+          ai.run('sub1', async () => {
+            return explode();
+          }),
+          ai.run('sub2', async () => {
+            return explode();
+          }),
+        ]);
+        return 'not failing';
+      });
+
+      await assert.rejects(async () => {
+        await testFlow();
+      });
+
+      await getExportedSpans();
+
+      const logs = await getLogs(1, 100, logLines);
+      const logObjectMessages = getStructuredLogMessages(logs);
+      expect(logObjectMessages).toContain(
+        "Error[testFlow > sub1, TypeError] Cannot read properties of undefined (reading 'explode')"
+      );
+      expect(logObjectMessages).toContain(
+        "Error[testFlow > sub2, TypeError] Cannot read properties of undefined (reading 'explode')"
+      );
+      const errorLogs = logObjectMessages.filter(
+        (m) => m.indexOf('Error[') >= 0
+      );
+      expect(errorLogs).toHaveLength(2); // Only 2 error log
+    }, 10000); //timeout
   });
-
-  it('writes error logs', async () => {
-    const testFlow = createFlow(ai, 'testFlow', async () => {
-      const nothing: { missing?: any } = { missing: 1 };
-      delete nothing.missing;
-      return nothing.missing.explode;
-    });
-
-    assert.rejects(async () => {
-      await testFlow();
-    });
-
-    await getExportedSpans();
-
-    const logs = await getLogs(1, 100, logLines);
-    const logObjectMessages = getStructuredLogMessages(logs);
-    expect(logObjectMessages).toContain(
-      "Error[testFlow, TypeError] Cannot read properties of undefined (reading 'explode')"
-    );
-  }, 10000); //timeout
 
   it('writes generate logs', async () => {
     const testModel = createModel(ai, 'testModel', async () => {
       return {
         message: {
-          role: 'user',
+          role: 'model',
           content: [
             {
               text: 'response',
@@ -336,6 +395,7 @@ describe('GoogleCloudLogs', () => {
     await getExportedSpans();
 
     const logs = await getLogs(1, 100, logLines);
+    expect(logs.length).toEqual(9);
     const logObjectMessages = getStructuredLogMessages(logs);
     expect(logObjectMessages).toContain(
       'Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
@@ -348,6 +408,80 @@ describe('GoogleCloudLogs', () => {
     );
     expect(logObjectMessages).toContain('Input[testFlow, testFlow]');
     expect(logObjectMessages).toContain('Output[testFlow, testFlow]');
+    expect(logObjectMessages).toContain(
+      'Input[testFlow > sub1 > sub2 > generate, testFlow]'
+    );
+    expect(logObjectMessages).toContain(
+      'Output[testFlow > sub1 > sub2 > generate, testFlow]'
+    );
+    // Ensure the model input/output has an associated role
+    logs.forEach((log) => {
+      const structuredLog = JSON.parse(log as string);
+      if (
+        structuredLog.message ===
+        'Input[testFlow > sub1 > sub2 > generate > testModel, testModel] '
+      ) {
+        expect(structuredLog.role).toBe('user');
+      }
+      if (
+        structuredLog.message ===
+        'Output[testFlow > sub1 > sub2 > generate > testModel, testModel]'
+      ) {
+        expect(structuredLog.role).toBe('model');
+      }
+    });
+  });
+
+  it('writes feature logs for generate without flow', async () => {
+    const testModel = createModel(ai, 'testModel', async () => {
+      return {
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: 'response',
+            },
+          ],
+        },
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 14,
+          inputCharacters: 8,
+          outputCharacters: 16,
+          inputImages: 1,
+          outputImages: 3,
+        },
+      };
+    });
+
+    await ai.generate({
+      model: testModel,
+      prompt: `a test prompt`,
+      config: {
+        temperature: 1.0,
+        topK: 3,
+        topP: 5,
+        maxOutputTokens: 7,
+      },
+    });
+
+    await getExportedSpans();
+
+    const logs = await getLogs(1, 100, logLines);
+    expect(logs.length).toEqual(6);
+    const logObjectMessages = getStructuredLogMessages(logs);
+    expect(logObjectMessages).toContain(
+      'Config[generate > testModel, testModel]'
+    );
+    expect(logObjectMessages).toContain(
+      'Input[generate > testModel, testModel] '
+    );
+    expect(logObjectMessages).toContain(
+      'Output[generate > testModel, testModel] '
+    );
+    expect(logObjectMessages).toContain('Input[generate, generate]');
+    expect(logObjectMessages).toContain('Output[generate, generate]');
   });
 
   it('writes user feedback log', async () => {
@@ -449,7 +583,7 @@ function createModel(
 
 async function waitForLogsInit(genkit: Genkit, logLines: any) {
   await import('winston');
-  const testFlow = createFlow(genkit, 'testFlow');
+  const testFlow = createFlow(genkit, 'testLogsInitFlow');
   await testFlow();
   await getLogs(1, 100, logLines);
 }
@@ -490,4 +624,10 @@ async function getExportedSpans(maxAttempts = 200): Promise<ReadableSpan[]> {
 function getStructuredLogMessages(logs: string[]): string[] {
   const logObjects = logs.map((l) => JSON.parse(l as string));
   return logObjects.map((log) => log.message);
+}
+
+function explode() {
+  const nothing: { missing?: any } = { missing: 1 };
+  delete nothing.missing;
+  return nothing.missing.explode;
 }
