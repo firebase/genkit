@@ -72,6 +72,36 @@ describe('definePrompt', () => {
     defineEchoModel(ai);
   });
 
+  it('should define the prompt', async () => {
+    const prompt = ai.definePrompt({
+      name: 'hi',
+      metadata: { foo: 'bar' },
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
+      },
+      messages: async (input) => {
+        return [
+          {
+            role: 'user',
+            content: [{ text: `hi ${input.name}` }],
+          },
+        ];
+      },
+    });
+
+    assert.deepStrictEqual(prompt.ref, {
+      name: 'hi',
+      metadata: { foo: 'bar' },
+    });
+
+    const lookedUpPrompt = ai.prompt('hi');
+    // This is a known limitation -- prompt lookup is async under the hood,
+    // so we can't actually get the metadata...
+    assert.deepStrictEqual(lookedUpPrompt.ref, { name: 'hi' }); // ideally metadatashould be: { foo: 'bar' }
+  });
+
   it('should apply middleware to a prompt call', async () => {
     const prompt = ai.definePrompt({
       name: 'hi',

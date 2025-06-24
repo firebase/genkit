@@ -228,8 +228,8 @@ jobs:
           default: ${{ inputs.releaseType }}
           version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump genkitx-mcp version to {{version}}'
-          tag-prefix:  'genkitx-mcp@'
+          commit-message: 'chore: bump @genkit-ai/mcp version to {{version}}'
+          tag-prefix:  '@genkit-ai/mcp@'
       - name: 'js/plugins/express version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:

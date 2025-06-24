@@ -147,6 +147,9 @@ export interface ExecutablePrompt<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
+  /** Prompt reference. */
+  ref: { name: string; metadata?: Record<string, any> };
+
   /**
    * Generates a response by rendering the prompt template with given user input and then calling the model.
    *
@@ -234,7 +237,8 @@ export function definePrompt<
   return definePromptAsync(
     registry,
     `${options.name}${options.variant ? `.${options.variant}` : ''}`,
-    Promise.resolve(options)
+    Promise.resolve(options),
+    options.metadata
   );
 }
 
@@ -245,7 +249,8 @@ function definePromptAsync<
 >(
   registry: Registry,
   name: string,
-  optionsPromise: PromiseLike<PromptConfig<I, O, CustomOptions>>
+  optionsPromise: PromiseLike<PromptConfig<I, O, CustomOptions>>,
+  metadata?: Record<string, any>
 ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
   const promptCache = {} as PromptCache;
 
@@ -399,11 +404,13 @@ function definePromptAsync<
     }
   ) as Promise<ExecutablePromptAction<I>>;
 
-  const executablePrompt = wrapInExecutablePrompt(
+  const executablePrompt = wrapInExecutablePrompt({
     registry,
+    name,
     renderOptionsFn,
-    rendererAction
-  );
+    rendererAction,
+    metadata,
+  });
 
   return executablePrompt;
 }
@@ -436,23 +443,25 @@ function wrapInExecutablePrompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  registry: Registry,
+>(wrapOpts: {
+  registry: Registry;
+  name: string;
   renderOptionsFn: (
     input: z.infer<I>,
     renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
-  ) => Promise<GenerateOptions>,
-  rendererAction: Promise<PromptAction<I>>
-) {
+  ) => Promise<GenerateOptions>;
+  rendererAction: Promise<PromptAction<I>>;
+  metadata?: Record<string, any>;
+}) {
   const executablePrompt = (async (
     input?: I,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> => {
     return await runInNewSpan(
-      registry,
+      wrapOpts.registry,
       {
         metadata: {
-          name: (await rendererAction).__action.name,
+          name: (await wrapOpts.rendererAction).__action.name,
           input,
         },
         labels: {
@@ -460,8 +469,8 @@ function wrapInExecutablePrompt<
         },
       },
       async (metadata) => {
-        const output = await generate(registry, {
-          ...(await renderOptionsFn(input, opts)),
+        const output = await generate(wrapOpts.registry, {
+          ...(await wrapOpts.renderOptionsFn(input, opts)),
         });
         metadata.output = output;
         return output;
@@ -469,12 +478,14 @@ function wrapInExecutablePrompt<
     );
   }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
+  executablePrompt.ref = { name: wrapOpts.name, metadata: wrapOpts.metadata };
+
   executablePrompt.render = async (
     input?: I,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): Promise<GenerateOptions<O, CustomOptions>> => {
     return {
-      ...(await renderOptionsFn(input, opts)),
+      ...(await wrapOpts.renderOptionsFn(input, opts)),
     } as GenerateOptions<O, CustomOptions>;
   };
 
@@ -482,11 +493,14 @@ function wrapInExecutablePrompt<
     input?: I,
     opts?: PromptGenerateOptions<O, CustomOptions>
   ): GenerateStreamResponse<z.infer<O>> => {
-    return generateStream(registry, renderOptionsFn(input, opts));
+    return generateStream(
+      wrapOpts.registry,
+      wrapOpts.renderOptionsFn(input, opts)
+    );
   };
 
   executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
-    return (await rendererAction) as unknown as ToolAction<I, O>;
+    return (await wrapOpts.rendererAction) as unknown as ToolAction<I, O>;
   };
   return executablePrompt;
 }

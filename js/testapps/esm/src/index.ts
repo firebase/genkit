@@ -22,6 +22,11 @@ import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { firebaseContext } from '@genkit-ai/firebase/context';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import { googleAI } from '@genkit-ai/googleai';
+import {
+  createMcpClient,
+  createMcpHost,
+  createMcpServer,
+} from '@genkit-ai/mcp';
 import { appRoute } from '@genkit-ai/next';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { vertexAIEvaluation } from '@genkit-ai/vertexai/evaluation';
@@ -46,6 +51,9 @@ pinecone;
 chroma;
 devLocalVectorstore;
 genkitEval;
+createMcpClient;
+createMcpServer;
+createMcpHost;
 
 export const ai = genkit({});
 const hello = ai.defineFlow('hello', () => 'hello');
