@@ -308,6 +308,7 @@ describe('createMcpHost', () => {
           },
         ],
         description: 'descr',
+        _meta: { foo: true },
       });
       let activePrompts = await clientHost.getActivePrompts(ai);
       assert.strictEqual(activePrompts.length, 1);
@@ -343,6 +344,7 @@ describe('createMcpHost', () => {
           },
         ],
         description: 'descr',
+        mcp: { _meta: { foo: true } },
       });
       assert.deepStrictEqual(
         activePrompts.map((p) => p.ref.name),

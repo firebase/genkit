@@ -146,6 +146,7 @@ export class GenkitMcpServer {
           name: def.name,
           inputSchema: (def.inputSchema as any) || { type: 'object' },
           description: def.description,
+          _meta: t.__action.metadata?.mcp?._meta,
         };
       }),
     };
@@ -195,6 +196,7 @@ export class GenkitMcpServer {
           name: p.__action.name,
           description: p.__action.description,
           arguments: toMcpPromptArguments(p),
+          _meta: p.__action.metadata?.mcp?._meta,
         };
       }),
     };

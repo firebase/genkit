@@ -1,8 +1,5 @@
 # Genkit MCP
 
-> [!WARNING]  
-> This plugin is experimental, meaning it may not be supported long-term and APIs are subject to more often breaking changes.
-
 This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to:
 - Consume MCP tools, prompts, and resources as a client using `createMcpHost` or `createMcpClient`.
 - Provide Genkit tools and prompts as an MCP server using `createMcpServer`.
@@ -68,17 +65,17 @@ The `createMcpHost` function initializes a `GenkitMcpHost` instance, which handl
 
 -   **`name`**: (optional, string) A name for the MCP host plugin itself. Defaults to 'genkitx-mcp'.
 -   **`version`**: (optional, string) The version of the MCP host plugin. Defaults to "1.0.0".
+-   **`rawToolResponses`**: (optional, boolean) If `true`, tool responses from this server are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility. Defaults to `false`.
 -   **`mcpServers`**: (required, object) An object where each key is a client-side name (namespace) for an MCP server, and the value is the configuration for that server.
+    
     Each server configuration object can include:
-    -   **`rawToolResponses`**: (optional, boolean) If `true`, tool responses from this server are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility. Defaults to `false`.
     -   **`disabled`**: (optional, boolean) If `true`, this server connection will not be attempted. Defaults to `false`.
     -   One of the following server connection configurations:
         -   Parameters for launching a local server process using the stdio MCP transport.
             -   **`command`**: (required, string) Shell command path for launching the MCP server (e.g., `npx`, `python`).
             -   **`args`**: (optional, string[]) Array of string arguments to pass to the command.
             -   **`env`**: (optional, Record<string, string>) Key-value object of environment variables.
-        -   **`url`**: (string) The URL of a remote server to connect to using the SSE MCP transport.
-        -   **`serverWebsocketUrl`**: (string) The URL of a remote server to connect to using the WebSocket MCP transport.
+        -   **`url`**: (string) The URL of a remote server to connect to using the Streamable HTTP MCP transport.
         -   **`transport`**: An existing MCP transport object for connecting to the server.
 
 
@@ -127,14 +124,9 @@ The `createMcpClient` function takes an `McpClientOptions` object:
 -   **`version`**: (optional, string) Version for this client instance. Defaults to "1.0.0".
 -   Plus, all options from `McpServerConfig` (see `disabled`, `rawToolResponses`, and transport configurations under `createMcpHost` options).
 
-### Using MCP Actions (Tools, Prompts, Resources)
+### Using MCP Actions (Tools, Prompts)
 
 Both `GenkitMcpHost` (via `getActiveTools()`) and `GenkitMcpClient` (via `getActiveTools()`) discover available tools from their connected and enabled MCP server(s). These tools are standard Genkit `ToolAction` instances and can be provided to Genkit models.
-
-MCP resources are accessed via dynamically generated tools:
-- `[serverName]/list_resources`: Lists available resources.
-- `[serverName]/list_resource_templates`: Lists resource templates.
-- `[serverName]/read_resource`: Reads a specific resource by URI.
 
 MCP prompts can be fetched using `McpHost.getPrompt(serverName, promptName)` or `mcpClient.getPrompt(promptName)`. These return an `ExecutablePrompt`.
 
