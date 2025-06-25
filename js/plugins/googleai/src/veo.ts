@@ -40,9 +40,9 @@ export const VeoConfigSchema = z
   .object({
     numberOfVideos: z
       .number()
-      .describe(
-        'The number of video to generate, from 1 to 2 (inclusive). The default is 1.'
-      )
+      .min(1)
+      .max(4)
+      .describe('The number of videos to generate, between 1 and 4.')
       .optional(),
     negativePrompt: z.string().optional(),
     aspectRatio: z
@@ -57,6 +57,8 @@ export const VeoConfigSchema = z
       .optional(),
     durationSeconds: z
       .number()
+      .min(5)
+      .max(8)
       .describe('Length of each output video in seconds, between 5 and 8.')
       .optional(),
     enhance_prompt: z

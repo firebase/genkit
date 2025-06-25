@@ -112,30 +112,16 @@ const GoogleSearchRetrievalSchema = z.object({
 
 /**
  * Zod schema of Gemini model options.
- * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/medlm, for further information.
+ * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference#generationconfig, for further information.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  maxOutputTokens: z
-    .number()
-    .min(1)
-    .max(8192)
-    .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
-    .optional(),
   temperature: z
     .number()
     .min(0.0)
-    .max(1.0)
+    .max(2.0)
     .describe(
       GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 0.2.'
-    )
-    .optional(),
-  topK: z
-    .number()
-    .min(1)
-    .max(40)
-    .describe(
-      GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
+        ' The default value is 1.0.'
     )
     .optional(),
   topP: z
@@ -143,7 +129,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .min(0)
     .max(1.0)
     .describe(
-      GenerationCommonConfigDescriptions.topP + ' The default value is 0.8.'
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
     )
     .optional(),
   location: z
