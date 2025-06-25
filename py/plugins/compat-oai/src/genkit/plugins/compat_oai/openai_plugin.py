@@ -16,16 +16,30 @@
 
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
+from typing import Any
 
 from openai import Client, OpenAI as OpenAIClient
 
 from genkit.ai._plugin import Plugin
 from genkit.ai._registry import GenkitRegistry
+from genkit.core.action.types import ActionKind
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_MODELS,
+    OpenAIModel,
     OpenAIModelHandler,
 )
 from genkit.plugins.compat_oai.typing import OpenAIConfig
+from genkit.plugins.ollama.models import ModelDefinition
+
+OPENAI_PLUGIN_NAME = 'openai'
+
+def default_openai_metadata(name: str) -> dict[str, Any]:
+    return {
+                'model': {
+                    'label': f"OpenAI - {name}",
+                    'supports': {'multiturn': True}
+                },
+            }
 
 
 class OpenAI(Plugin):
@@ -68,6 +82,40 @@ class OpenAI(Plugin):
                     },
                 },
             )
+
+    def resolve_action(  # noqa: B027
+        self,
+        ai: GenkitRegistry,
+        kind: ActionKind,
+        name: str,
+    ) -> None:
+
+        if kind is not ActionKind.MODEL:
+            return None
+
+        self._define_openai_model(ai, name)
+        return None
+
+    def _define_openai_model(self, ai: GenkitRegistry, name: str) -> None:
+        """Defines and registers an OpenAI model with Genkit.
+
+        Cleans the model name, instantiates an OpenAI, and registers it
+        with the provided Genkit AI registry, including metadata about its capabilities.
+
+        Args:
+            ai: The Genkit AI registry instance.
+            name: The name of the model to be registered.
+        """
+
+        handler = OpenAIModelHandler(OpenAIModel(name, self._openai_client, ai)).generate
+        ai.define_model(
+            name=f'openai/{name}',
+            fn=handler,
+            config_schema=OpenAIConfig,
+            metadata=default_openai_metadata(name)
+        )
+
+
 
 
 def openai_model(name: str) -> str:
