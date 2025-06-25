@@ -16,7 +16,7 @@
 
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
-from typing import Any
+from typing import Any, Callable
 
 from openai import Client, OpenAI as OpenAIClient
 
@@ -24,14 +24,25 @@ from genkit.ai._plugin import Plugin
 from genkit.ai._registry import GenkitRegistry
 from genkit.core.action.types import ActionKind
 from genkit.plugins.compat_oai.models import (
+    SUPPORTED_OPENAI_COMPAT_MODELS,
     SUPPORTED_OPENAI_MODELS,
     OpenAIModel,
     OpenAIModelHandler,
 )
+from genkit.plugins.compat_oai.models.model_info import get_default_openai_model_info
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-from genkit.plugins.ollama.models import ModelDefinition
 
-OPENAI_PLUGIN_NAME = 'openai'
+
+def open_ai_name(name: str) -> str:
+    """Create a OpenAi-Compat action name.
+
+    Args:
+        name: Base name for the action.
+
+    Returns:
+        The fully qualified OpenAi-Compat action name.
+    """
+    return f'openai/{name}'
 
 def default_openai_metadata(name: str) -> dict[str, Any]:
     return {
@@ -83,6 +94,31 @@ class OpenAI(Plugin):
                 },
             )
 
+    def get_model_info(self, name: str) -> dict[str, str] | None:
+        """Retrieves metadata and supported features for the specified model.
+
+        This method looks up the model's information from a predefined list
+        of supported OpenAI-compatible models or provides default information.
+
+        Returns:
+            A dictionary containing the model's 'name' and 'supports' features,
+            or None if no information can be found (though typically, a default
+            is provided). The 'supports' key contains a dictionary representing
+            the model's capabilities (e.g., tools, streaming).
+        """
+
+        if model_supported := SUPPORTED_OPENAI_MODELS.get(name):
+            return {
+                'label': model_supported.label,
+                'supports': model_supported.supports.model_dump(exclude_none=True),
+            }
+
+        model_info = SUPPORTED_OPENAI_COMPAT_MODELS.get(name, get_default_openai_model_info(self))
+        return {
+            'label': model_info.label,
+            'supports': model_info.supports.model_dump(exclude_none=True),
+        }
+
     def resolve_action(  # noqa: B027
         self,
         ai: GenkitRegistry,
@@ -96,6 +132,17 @@ class OpenAI(Plugin):
         self._define_openai_model(ai, name)
         return None
 
+    def to_openai_compatible_model(self, name: str, ai: GenkitRegistry) -> Callable:
+        """Converts a OpenAi model into an OpenAI-compatible Genkit model function.
+
+        Returns:
+            A callable function (specifically, the `generate` method of an
+            `OpenAIModel` instance) that can be used by Genkit.
+        """
+
+        openai_model = OpenAIModelHandler(OpenAIModel(name, self._openai_client, ai))
+        return openai_model.generate
+
     def _define_openai_model(self, ai: GenkitRegistry, name: str) -> None:
         """Defines and registers an OpenAI model with Genkit.
 
@@ -107,12 +154,15 @@ class OpenAI(Plugin):
             name: The name of the model to be registered.
         """
 
-        handler = OpenAIModelHandler(OpenAIModel(name, self._openai_client, ai)).generate
+        handler = self.to_openai_compatible_model(name, ai)
+        model_info = self.get_model_info(name)
         ai.define_model(
-            name=f'openai/{name}',
+            name=open_ai_name(name),
             fn=handler,
             config_schema=OpenAIConfig,
-            metadata=default_openai_metadata(name)
+            metadata={
+                'model': model_info,
+            },
         )
 
 

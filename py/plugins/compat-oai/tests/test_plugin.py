@@ -40,7 +40,6 @@ def test_openai_plugin_initialize() -> None:
         assert registry.define_model.call_count == len(SUPPORTED_OPENAI_MODELS)
 
 
-
 @pytest.mark.parametrize(
     'kind, name',
     [
@@ -62,7 +61,16 @@ def test_openai_plugin_resolve_action(kind, name):
         metadata={
             'model': {
                 'label': model_info.label,
-                'supports': {'multiturn': True}
+                'supports': {
+                    'media': False,
+                    'multiturn': True,
+                    'output': [
+                        'json_mode',
+                        'text',
+                    ],
+                    'system_role': True,
+                    'tools': True,
+                }
             },
         },
     )
@@ -82,8 +90,6 @@ def test_openai_plugin_resolve_action_not_found(kind, name):
     plugin.resolve_action(registry, kind, name)
 
     registry.define_model.assert_called_once()
-
-
 
 
 def test_openai_model_function() -> None:
