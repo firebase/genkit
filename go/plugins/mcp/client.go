@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/mark3labs/mcp-go/client"
@@ -40,6 +41,14 @@ type SSEConfig struct {
 	HTTPClient *http.Client // Optional custom HTTP client
 }
 
+// StreamableHTTPConfig contains options for the Streamable HTTP transport
+type StreamableHTTPConfig struct {
+	BaseURL    string
+	Headers    map[string]string
+	HTTPClient *http.Client  // Optional custom HTTP client
+	Timeout    time.Duration // HTTP request timeout
+}
+
 // MCPClientOptions holds configuration for the MCPClient.
 type MCPClientOptions struct {
 	// Name for this client instance - ideally a nickname for the server
@@ -57,6 +66,9 @@ type MCPClientOptions struct {
 
 	// SSE contains config for connecting to a remote server via SSE transport
 	SSE *SSEConfig
+
+	// StreamableHTTP contains config for connecting to a remote server via Streamable HTTP transport
+	StreamableHTTP *StreamableHTTPConfig
 }
 
 // ServerRef represents an active connection to an MCP server
@@ -152,7 +164,23 @@ func (c *GenkitMCPClient) createTransport(options MCPClientOptions) (transport.I
 		return transport.NewSSE(options.SSE.BaseURL, sseOptions...)
 	}
 
-	return nil, fmt.Errorf("no valid transport configuration provided: must specify Stdio or SSE")
+	if options.StreamableHTTP != nil {
+		var streamableHTTPOptions []transport.StreamableHTTPCOption
+		if options.StreamableHTTP.Headers != nil {
+			streamableHTTPOptions = append(streamableHTTPOptions, transport.WithHTTPHeaders(options.StreamableHTTP.Headers))
+		}
+		if options.StreamableHTTP.Timeout > 0 {
+			streamableHTTPOptions = append(streamableHTTPOptions, transport.WithHTTPTimeout(options.StreamableHTTP.Timeout))
+		}
+
+		transportImpl, err := transport.NewStreamableHTTP(options.StreamableHTTP.BaseURL, streamableHTTPOptions...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create streamable HTTP transport: %w", err)
+		}
+		return transportImpl, nil
+	}
+
+	return nil, fmt.Errorf("no valid transport configuration provided: must specify Stdio, SSE, or StreamableHTTP")
 }
 
 // initializeClient initializes the MCP client connection
