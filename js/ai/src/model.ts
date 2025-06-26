@@ -39,6 +39,7 @@ import {
   DocumentDataSchema,
   MediaPartSchema,
   ReasoningPartSchema,
+  ResourcePartSchema,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
@@ -88,6 +89,7 @@ export const PartSchema = z.union([
   DataPartSchema,
   CustomPartSchema,
   ReasoningPartSchema,
+  ResourcePartSchema,
 ]);
 
 /**

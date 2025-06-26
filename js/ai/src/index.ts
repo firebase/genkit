@@ -111,6 +111,12 @@ export {
   type RerankerReference,
 } from './reranker.js';
 export {
+  defineResource,
+  type ResourceAction,
+  type ResourceFn,
+  type ResourceOptions,
+} from './resource.js';
+export {
   index,
   indexerRef,
   retrieve,

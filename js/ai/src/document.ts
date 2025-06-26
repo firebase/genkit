@@ -26,6 +26,7 @@ const EmptyPartSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
   custom: z.record(z.unknown()).optional(),
   reasoning: z.never().optional(),
+  resource: z.never().optional(),
 });
 
 /**
@@ -146,6 +147,18 @@ export const CustomPartSchema = EmptyPartSchema.extend({
  * Custom part.
  */
 export type CustomPart = z.infer<typeof CustomPartSchema>;
+
+/**
+ * Zod schema of a resource part.
+ */
+export const ResourcePartSchema = EmptyPartSchema.extend({
+  resource: z.string(),
+});
+
+/**
+ * Resource part.
+ */
+export type ResourcePart = z.infer<typeof ResourcePartSchema>;
 
 export const PartSchema = z.union([TextPartSchema, MediaPartSchema]);
 export type Part = z.infer<typeof PartSchema>;

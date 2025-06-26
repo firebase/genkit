@@ -29,6 +29,7 @@ import {
   type ModelAction,
   type ModelMiddleware,
 } from '../../src/model.js';
+import { defineResource } from '../../src/resource.js';
 import { defineTool } from '../../src/tool.js';
 
 describe('toGenerateRequest', () => {
@@ -428,6 +429,47 @@ describe('generate', () => {
       response.messages.map((m) => m.content[0].text),
       ['Testing messages', 'Testing messages']
     );
+  });
+
+  it('applies resources', async () => {
+    defineResource(
+      registry,
+      { uri: 'test://resource/{param}' },
+      ({ param }) => [{ text: 'resource' }, { text: param }]
+    );
+
+    const response = await generate(registry, {
+      model: 'echo',
+      prompt: [{ text: 'some text' }, { resource: 'test://resource/value' }],
+    });
+    assert.deepEqual(response.messages[0].content, [
+      { text: 'some text' },
+      {
+        metadata: {
+          resource: 'test://resource/{param}',
+          uri: 'test://resource/value',
+        },
+        text: 'resource',
+      },
+      {
+        metadata: {
+          resource: 'test://resource/{param}',
+          uri: 'test://resource/value',
+        },
+        text: 'value',
+      },
+    ]);
+  });
+
+  it('throws when resource not found', async () => {
+    const response = generate(registry, {
+      model: 'echo',
+      prompt: [{ text: 'some text' }, { resource: 'test://resource' }],
+    });
+    await assert.rejects(response, {
+      message:
+        'NOT_FOUND: failed to find matching resource for test://resource',
+    });
   });
 
   describe('generateStream', () => {

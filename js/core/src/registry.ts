@@ -52,7 +52,8 @@ export type ActionType =
   | 'reranker'
   | 'retriever'
   | 'tool'
-  | 'util';
+  | 'util'
+  | 'resource';
 
 /**
  * A schema is either a Zod schema or a JSON schema.
