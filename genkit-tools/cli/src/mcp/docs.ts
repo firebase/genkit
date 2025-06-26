@@ -57,8 +57,10 @@ async function maybeDownloadDocsBundle() {
 
 interface Doc {
   title: string;
+  description?: string;
   text: string;
   lang: string;
+  headers: string;
 }
 
 export async function defineDocsTool(server: McpServer) {
@@ -95,10 +97,17 @@ export async function defineDocsTool(server: McpServer) {
             Object.keys(documents)
               .filter((file) => file.startsWith(language))
               .map((file) => {
-                return ` - ${file} : ${documents[file].title}`;
+                let fileSummary = ` - File: ${file}\n   Title: ${documents[file].title}\n`;
+                if (documents[file].description) {
+                  fileSummary += `   Description: ${documents[file].description}\n`
+                }
+                if (documents[file].headers) {
+                  fileSummary += `   Headers:\n     ${documents[file].headers.split('\n').join('\n     ')}\n`
+                }
+                return fileSummary;
               })
               .join('\n') +
-            `\n\nIMPORTANT: Make sure to look up "${language}/models.mdx" file, it contains important details about how to work with models.\n\n`,
+            `\n\nIMPORTANT: if doing anything more than basic model calling, look up "${language}/models.md" file, it contains important details about how to work with models.\n\n`,
         });
       } else {
         for (const file of files) {
