@@ -84,7 +84,7 @@ async function startRuntime(telemetryServerUrl?: string) {
       process.stdin?.pipe(appProcess.stdin);
 
       appProcess.on('error', (error): void => {
-        console.log(`Error in app process: ${error}`);
+        logger.error(`Error in app process: ${error}`);
         reject(error);
         process.exitCode = 1;
       });

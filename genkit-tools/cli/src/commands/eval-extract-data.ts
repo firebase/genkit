@@ -106,7 +106,7 @@ export const evalExtractData = new Command('eval:extractData')
         );
       } else {
         logger.info(`Results will not be written to file.`);
-        console.log(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
+        logger.info(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
       }
     });
   });

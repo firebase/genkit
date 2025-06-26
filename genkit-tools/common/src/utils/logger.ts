@@ -17,6 +17,18 @@
 import * as clc from 'colorette';
 import * as winston from 'winston';
 
+const defaultTransport = new winston.transports.Console();
+
+export function forceStderr() {
+  logger.remove(defaultTransport);
+  logger.add(
+    // log to stderr to avoid
+    new winston.transports.Stream({
+      stream: process.stderr,
+    })
+  );
+}
+
 export const logger = winston.createLogger({
   level: process.env.DEBUG ? 'debug' : 'info',
   format: winston.format.printf((log) => {
@@ -40,5 +52,5 @@ export const logger = winston.createLogger({
     const level = log.level.charAt(0).toUpperCase() + log.level.slice(1);
     return `${clc.bold(levelColor(level))}: ${log.message}`;
   }),
-  transports: [new winston.transports.Console()],
+  transports: [defaultTransport],
 });

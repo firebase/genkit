@@ -44,7 +44,9 @@ export class LocalFileEvalStore implements EvalStore {
     if (!fs.existsSync(this.indexFile)) {
       fs.writeFileSync(path.resolve(this.indexFile), '');
     }
-    logger.info(`Initialized local file eval store at root: ${this.storeRoot}`);
+    logger.debug(
+      `Initialized local file eval store at root: ${this.storeRoot}`
+    );
   }
 
   static getEvalStore() {
@@ -61,7 +63,7 @@ export class LocalFileEvalStore implements EvalStore {
   async save(evalRun: EvalRun): Promise<void> {
     const fileName = this.generateFileName(evalRun.key.evalRunId);
 
-    logger.info(
+    logger.debug(
       `Saving EvalRun ${evalRun.key.evalRunId} to ` +
         path.resolve(this.storeRoot, fileName)
     );

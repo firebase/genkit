@@ -15,6 +15,7 @@
  */
 
 import { RuntimeManager } from '@genkit-ai/tools-common/manager';
+import { logger } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { defineDocsTool } from '../mcp/docs';
@@ -34,10 +35,9 @@ export async function startMcpServer(manager: RuntimeManager) {
   return new Promise(async (resolve) => {
     const transport = new StdioServerTransport();
     transport.onclose = () => {
-      console.error('sfddsfsd');
       resolve(undefined);
     };
     await server.connect(transport);
-    console.error('Genkit MCP Server running on stdio');
+    logger.info('Genkit MCP Server running on stdio');
   });
 }

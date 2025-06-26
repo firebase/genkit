@@ -18,6 +18,7 @@ import AdmZip from 'adm-zip';
 import axios from 'axios';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import path from 'path';
+import { logger } from './logger';
 
 interface DownloadAndExtractOptions {
   fileUrl: string;
@@ -49,6 +50,6 @@ export async function downloadAndExtractUiAssets({
     const zip = new AdmZip(downloadedFilePath);
     zip.extractAllTo(extractPath, true /* overwrite any existing files*/);
   } catch (error) {
-    console.error('Error downloading or extracting UI assets zip: ', error);
+    logger.error('Error downloading or extracting UI assets zip: ', error);
   }
 }

@@ -28,6 +28,7 @@ import * as apis from '../types/apis';
 import type { EnvironmentVariable } from '../types/env';
 import * as evals from '../types/eval';
 import type { PromptFrontmatter } from '../types/prompt';
+import { logger } from '../utils';
 import { PageViewEvent, ToolsRequestEvent, record } from '../utils/analytics';
 import { toolsPackage } from '../utils/package';
 import { fromMessages } from '../utils/prompt';
@@ -114,7 +115,7 @@ const loggedProcedure = t.procedure.use(async (opts) => {
 
   // fire-and-forget
   record(analyticsEvent).catch((err) => {
-    console.log(`Failed to send analytics ${err}`);
+    logger.error(`Failed to send analytics ${err}`);
   });
 
   return result;

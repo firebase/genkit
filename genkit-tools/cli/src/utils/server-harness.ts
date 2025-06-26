@@ -15,7 +15,7 @@
  */
 
 import { startServer } from '@genkit-ai/tools-common/server';
-import { findProjectRoot } from '@genkit-ai/tools-common/utils';
+import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import fs from 'fs';
 import { startManager } from './manager-utils';
 
@@ -42,13 +42,13 @@ function redirectStdoutToFile(logFile: string) {
 }
 
 process.on('error', (error): void => {
-  console.log(`Error in tools process: ${error}`);
+  logger.error(`Error in tools process: ${error}`);
 });
 process.on('uncaughtException', (err, somethingelse) => {
-  console.log(`Uncaught error in tools process: ${err} ${somethingelse}`);
+  logger.error(`Uncaught error in tools process: ${err} ${somethingelse}`);
 });
 process.on('unhandledRejection', (reason, p) => {
-  console.log(`Unhandled rejection in tools process: ${reason}`);
+  logger.error(`Unhandled rejection in tools process: ${reason}`);
 });
 
 start();

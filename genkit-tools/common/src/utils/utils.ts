@@ -248,7 +248,7 @@ export async function writeToolsInfoFile(url: string, projectRoot: string) {
     await fs.writeFile(toolsJsonPath, JSON.stringify(serverInfo, null, 2));
     logger.debug(`Tools Info file written: ${toolsJsonPath}`);
   } catch (error) {
-    logger.info('Error writing tools config', error);
+    logger.error('Error writing tools config', error);
   }
 }
 

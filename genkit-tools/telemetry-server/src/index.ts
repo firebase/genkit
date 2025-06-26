@@ -18,6 +18,7 @@ import {
   TraceDataSchema,
   TraceQueryFilterSchema,
 } from '@genkit-ai/tools-common';
+import { logger } from '@genkit-ai/tools-common/utils';
 import express from 'express';
 import type * as http from 'http';
 import type { TraceStore } from './types';
@@ -90,7 +91,7 @@ export async function startTelemetryServer(params: {
   });
 
   api.use((err: any, req: any, res: any, next: any) => {
-    console.error(err.stack);
+    logger.error(err.stack);
     const error = err as Error;
     const { message, stack } = error;
     const errorResponse = {
@@ -105,11 +106,11 @@ export async function startTelemetryServer(params: {
   });
 
   server = api.listen(params.port, () => {
-    console.error(`Telemetry API running on http://localhost:${params.port}`);
+    logger.info(`Telemetry API running on http://localhost:${params.port}`);
   });
 
   server.on('error', (error) => {
-    console.error(error);
+    logger.error(error);
   });
 
   process.on('SIGTERM', async () => await stopTelemetryApi());
@@ -123,7 +124,7 @@ export async function stopTelemetryApi() {
     new Promise<void>((resolve) => {
       if (server) {
         server.close(() => {
-          console.error('Telemetry API has succesfully shut down.');
+          logger.debug('Telemetry API has succesfully shut down.');
           resolve();
         });
       } else {

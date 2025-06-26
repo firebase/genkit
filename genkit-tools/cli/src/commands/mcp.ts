@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { findProjectRoot } from '@genkit-ai/tools-common/utils';
+import { findProjectRoot, forceStderr } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { startMcpServer } from '../mcp/server';
 import { startManager } from '../utils/manager-utils';
@@ -28,6 +28,7 @@ export const mcp = new Command('mcp')
   .option('--project-root [projectRoot]', 'Project root')
   .description('run MCP stdio server')
   .action(async (options: McpOptions) => {
+    forceStderr();
     const manager = await startManager(
       options.projectRoot ?? (await findProjectRoot()),
       true

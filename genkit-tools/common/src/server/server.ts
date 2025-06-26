@@ -98,7 +98,7 @@ export function startServer(manager: RuntimeManager, port: number) {
   });
 
   app.post('/api/__quitquitquit', (_, res) => {
-    logger.info('Shutting down tools API');
+    logger.debug('Shutting down tools API');
     res.status(200).send('Server is shutting down');
     server.close(() => {
       process.exit(0);

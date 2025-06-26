@@ -81,16 +81,18 @@ export async function runWithManager(
   try {
     await fn(manager);
   } catch (err) {
-    logger.info('Command exited with an Error:');
+    logger.error('Command exited with an Error:');
     const error = err as GenkitToolsError;
     if (typeof error.data === 'object') {
       const errorStatus = error.data as Status;
       const { code, details, message } = errorStatus;
-      logger.info(`\tCode: ${code}`);
-      logger.info(`\tMessage: ${message}`);
-      logger.info(`\tTrace: http://localhost:4200/traces/${details.traceId}\n`);
+      logger.error(`\tCode: ${code}`);
+      logger.error(`\tMessage: ${message}`);
+      logger.error(
+        `\tTrace: http://localhost:4200/traces/${details.traceId}\n`
+      );
     } else {
-      logger.info(`\tMessage: ${error.data}\n`);
+      logger.error(`\tMessage: ${error.data}\n`);
     }
     logger.error('Stack trace:');
     logger.error(`${error.stack}`);
