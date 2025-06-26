@@ -99,10 +99,10 @@ export async function defineDocsTool(server: McpServer) {
               .map((file) => {
                 let fileSummary = ` - File: ${file}\n   Title: ${documents[file].title}\n`;
                 if (documents[file].description) {
-                  fileSummary += `   Description: ${documents[file].description}\n`
+                  fileSummary += `   Description: ${documents[file].description}\n`;
                 }
                 if (documents[file].headers) {
-                  fileSummary += `   Headers:\n     ${documents[file].headers.split('\n').join('\n     ')}\n`
+                  fileSummary += `   Headers:\n     ${documents[file].headers.split('\n').join('\n     ')}\n`;
                 }
                 return fileSummary;
               })
