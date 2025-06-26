@@ -43,6 +43,11 @@ export interface ResourceOptions {
    * A description of the resource.
    */
   description?: string;
+
+  /**
+   * Resource metadata.
+   */
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -105,6 +110,7 @@ export function defineResource(
           uri: opts.uri,
           template: opts.template,
         },
+        ...opts.metadata,
       },
     },
     async (input, ctx) => {

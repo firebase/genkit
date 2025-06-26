@@ -32,6 +32,7 @@ describe('resource', () => {
       {
         uri: 'foo://bar',
         description: 'does foo things',
+        metadata: { foo: 'bar' },
       },
       () => {
         return [{ text: 'foo stuff' }];
@@ -40,6 +41,13 @@ describe('resource', () => {
 
     assert.ok(testResource);
     assert.strictEqual(testResource.__action.description, 'does foo things');
+    assert.deepStrictEqual(testResource.__action.metadata, {
+      foo: 'bar',
+      resource: {
+        template: undefined,
+        uri: 'foo://bar',
+      },
+    });
 
     assert.strictEqual(testResource.matches('foo://bar'), true);
     assert.strictEqual(testResource.matches('foo://baz'), false);
