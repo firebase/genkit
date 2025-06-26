@@ -77,7 +77,7 @@ export async function defineDocsTool(server: McpServer) {
       inputSchema: {
         language: z
           .enum(['js', 'go', 'python'])
-          .describe('which language these docs are for (deafult js).')
+          .describe('which language these docs are for (default js).')
           .default('js'),
         files: z
           .array(z.string())
@@ -89,6 +89,9 @@ export async function defineDocsTool(server: McpServer) {
     },
     async ({ language, files }) => {
       const content = [] as ContentBlock[];
+      if (!language) {
+        language = 'js';
+      }
 
       if (!files || !files.length) {
         content.push({

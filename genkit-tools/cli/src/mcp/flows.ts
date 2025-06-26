@@ -46,7 +46,7 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
   server.registerTool(
     'run_flow',
     {
-      title: 'run Flows',
+      title: 'Run Flow',
       description: 'Runs the flow with the provided input',
       inputSchema: {
         flowName: z.string().describe('name of the flow'),
