@@ -142,9 +142,9 @@ export function defineResource(
             (p.metadata as any).resource.parent = {
               uri: input.uri,
             };
-          if (opts.template) {
-            (p.metadata as any).resource.parent.template = opts.template;
-          }
+            if (opts.template) {
+              (p.metadata as any).resource.parent.template = opts.template;
+            }
           }
         } else {
           (p.metadata as any).resource = {
