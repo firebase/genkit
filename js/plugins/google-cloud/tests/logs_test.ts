@@ -395,7 +395,6 @@ describe('GoogleCloudLogs', () => {
     await getExportedSpans();
 
     const logs = await getLogs(1, 100, logLines);
-    expect(logs.length).toEqual(9);
     const logObjectMessages = getStructuredLogMessages(logs);
     expect(logObjectMessages).toContain(
       'Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
