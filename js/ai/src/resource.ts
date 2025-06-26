@@ -32,7 +32,12 @@ export interface ResourceOptions {
   /**
    * The URI of the resource. Can contain template variables.
    */
-  uri: string;
+  uri?: string;
+
+  /**
+   * The URI tempalate (ex. `my://resource/{id}`). See RFC6570 for specification.
+   */
+  template?: string;
 
   /**
    * A description of the resource.
@@ -73,21 +78,33 @@ export function defineResource(
   opts: ResourceOptions,
   fn: ResourceFn
 ): ResourceAction {
-  const template = uriTemplate(opts.uri);
-  const matcher = (input: string) => {
-    return template.fromUri(input);
-  };
+  const uri = opts.uri ?? opts.template;
+  if (!uri) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: `must specify either url or template options`,
+    });
+  }
+  const template = opts.template ? uriTemplate(opts.template) : undefined;
+  const matcher = opts.uri
+    ? (input: string) => (input === opts.uri ? {} : undefined)
+    : (input: string) => {
+        return template!.fromUri(input);
+      };
 
   const action = defineAction(
     registry,
     {
       actionType: 'resource',
-      name: opts.uri,
+      name: uri,
       description: opts.description,
       inputSchema: z.string(),
       outputSchema: z.array(PartSchema),
       metadata: {
-        template: opts.uri,
+        resource: {
+          uri: opts.uri,
+          template: opts.template,
+        },
       },
     },
     async (input, ctx) => {
@@ -95,7 +112,7 @@ export function defineResource(
       if (!templateMatch) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
-          message: `input ${input} did not match template ${opts.uri}`,
+          message: `input ${input} did not match template ${uri}`,
         });
       }
       return await fn(templateMatch, ctx);

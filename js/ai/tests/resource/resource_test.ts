@@ -55,7 +55,7 @@ describe('resource', () => {
     const testResource = defineResource(
       registry,
       {
-        uri: 'foo://bar/{baz}',
+        template: 'foo://bar/{baz}',
         description: 'does foo things',
       },
       ({ baz }) => {
@@ -80,7 +80,7 @@ describe('resource', () => {
     defineResource(
       registry,
       {
-        uri: 'foo://bar/{baz}',
+        template: 'foo://bar/{baz}',
         description: 'does foo things',
       },
       ({ baz }) => {

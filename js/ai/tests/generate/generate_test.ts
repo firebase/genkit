@@ -434,7 +434,7 @@ describe('generate', () => {
   it('applies resources', async () => {
     defineResource(
       registry,
-      { uri: 'test://resource/{param}' },
+      { template: 'test://resource/{param}' },
       ({ param }) => [{ text: 'resource' }, { text: param }]
     );
 
@@ -446,15 +446,19 @@ describe('generate', () => {
       { text: 'some text' },
       {
         metadata: {
-          resource: 'test://resource/{param}',
-          uri: 'test://resource/value',
+          resource: {
+            name: 'test://resource/{param}',
+            uri: 'test://resource/value',
+          },
         },
         text: 'resource',
       },
       {
         metadata: {
-          resource: 'test://resource/{param}',
-          uri: 'test://resource/value',
+          resource: {
+            name: 'test://resource/{param}',
+            uri: 'test://resource/value',
+          },
         },
         text: 'value',
       },
