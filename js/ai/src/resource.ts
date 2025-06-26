@@ -30,6 +30,11 @@ import { Part, PartSchema } from './model.js';
  */
 export interface ResourceOptions {
   /**
+   * Resource name.
+   */
+  name: string;
+
+  /**
    * The URI of the resource. Can contain template variables.
    */
   uri?: string;
@@ -54,7 +59,7 @@ export interface ResourceOptions {
  * A function that returns parts for a given resource.
  */
 export type ResourceFn = (
-  vars: Record<string, string>,
+  input: string,
   ctx: ActionContext
 ) => Part[] | Promise<Part[]>;
 
@@ -101,7 +106,7 @@ export function defineResource(
     registry,
     {
       actionType: 'resource',
-      name: uri,
+      name: opts.name,
       description: opts.description,
       inputSchema: z.string(),
       outputSchema: z.array(PartSchema),
@@ -121,7 +126,25 @@ export function defineResource(
           message: `input ${input} did not match template ${uri}`,
         });
       }
-      return await fn(templateMatch, ctx);
+      const parts = await fn(input, ctx);
+      parts.map((p) => {
+        if (!p.metadata) {
+          p.metadata = {};
+        }
+        if (p.metadata?.resource) {
+          (p.metadata as any).resource.parent = {
+            uri: input,
+            ...(p.metadata as any).resource.parent,
+          };
+        } else {
+          (p.metadata as any).resource = {
+            name: opts.name,
+            uri: input,
+          };
+        }
+        return p;
+      });
+      return parts;
     }
   ) as ResourceAction;
 
