@@ -32,8 +32,11 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
       for (const key of Object.keys(actions)) {
         if (key.startsWith('/flow/')) {
           flows += ' - Flow name: ' + key.substring('/flow/'.length) + '\n';
+          if (actions[key].description) {
+            flows += '   Description: ' + actions[key].description + '\n';
+          }
           flows +=
-            'Input schema: ' +
+            '   Input schema: ' +
             JSON.stringify(actions[key].inputSchema, undefined, 2) +
             '\n\n';
         }
@@ -51,8 +54,10 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
       inputSchema: {
         flowName: z.string().describe('name of the flow'),
         input: z
-          .any()
-          .describe('Flow input. Must conform to the schema.')
+          .string()
+          .describe(
+            'Flow input as JSON object encoded as string (it will be passed through `JSON.parse`). Must conform to the schema.'
+          )
           .optional(),
       },
     },
@@ -60,7 +65,7 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
       try {
         const response = await manager.runAction({
           key: `/flow/${flowName}`,
-          input,
+          input: input !== undefined ? JSON.parse(input) : undefined,
         });
         return {
           content: [
