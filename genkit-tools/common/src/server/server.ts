@@ -23,7 +23,7 @@ import os from 'os';
 import path from 'path';
 import type { GenkitToolsError } from '../manager';
 import type { RuntimeManager } from '../manager/manager';
-import { findProjectRoot, writeToolsInfoFile } from '../utils';
+import { writeToolsInfoFile } from '../utils';
 import { logger } from '../utils/logger';
 import { toolsPackage } from '../utils/package';
 import { downloadAndExtractUiAssets } from '../utils/ui-assets';
@@ -117,7 +117,7 @@ export function startServer(manager: RuntimeManager, port: number) {
     trpcExpress.createExpressMiddleware({
       router: TOOLS_SERVER_ROUTER(manager),
       maxBodySize: MAX_PAYLOAD_SIZE,
-    }) as any // x-package express version mismatch, casting to any.
+    })
   );
 
   app.all('*', (_, res) => {
@@ -141,7 +141,7 @@ export function startServer(manager: RuntimeManager, port: number) {
 
   server = app.listen(port, async () => {
     const uiUrl = 'http://localhost:' + port;
-    const projectRoot = await findProjectRoot();
+    const projectRoot = manager.projectRoot;
     logger.info(`${clc.green(clc.bold('Project root:'))} ${projectRoot}`);
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
     await writeToolsInfoFile(uiUrl, projectRoot);

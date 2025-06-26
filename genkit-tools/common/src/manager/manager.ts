@@ -54,6 +54,8 @@ interface RuntimeManagerOptions {
   telemetryServerUrl?: string;
   /** Whether to clean up unhealthy runtimes. */
   manageHealth?: boolean;
+  /** Project root dir. If not provided will be inferred from CWD. */
+  projectRoot: string;
 }
 
 export class RuntimeManager {
@@ -63,8 +65,9 @@ export class RuntimeManager {
   private eventEmitter = new EventEmitter();
 
   private constructor(
-    readonly telemetryServerUrl?: string,
-    private manageHealth = true
+    readonly telemetryServerUrl: string | undefined,
+    private manageHealth: boolean,
+    readonly projectRoot: string
   ) {}
 
   /**
@@ -73,7 +76,8 @@ export class RuntimeManager {
   static async create(options: RuntimeManagerOptions) {
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
-      options.manageHealth ?? true
+      options.manageHealth ?? true,
+      options.projectRoot
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
@@ -154,7 +158,9 @@ export class RuntimeManager {
     // TODO: Allow selecting a runtime by pid.
     const runtime = this.getMostRecentRuntime();
     if (!runtime) {
-      throw new Error('No runtimes found');
+      throw new Error(
+        'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+      );
     }
     const response = await axios
       .get(`${runtime.reflectionServerUrl}/api/actions`)
@@ -172,7 +178,9 @@ export class RuntimeManager {
     // TODO: Allow selecting a runtime by pid.
     const runtime = this.getMostRecentRuntime();
     if (!runtime) {
-      throw new Error('No runtimes found');
+      throw new Error(
+        'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+      );
     }
     if (streamingCallback) {
       const response = await axios
@@ -331,7 +339,7 @@ export class RuntimeManager {
    */
   private async setupRuntimesWatcher() {
     try {
-      const runtimesDir = await findRuntimesDir();
+      const runtimesDir = await findRuntimesDir(this.projectRoot);
       await fs.mkdir(runtimesDir, { recursive: true });
       const watcher = chokidar.watch(runtimesDir, {
         persistent: true,
@@ -355,7 +363,7 @@ export class RuntimeManager {
    */
   private async setupDevUiWatcher() {
     try {
-      const serversDir = await findServersDir();
+      const serversDir = await findServersDir(this.projectRoot);
       await fs.mkdir(serversDir, { recursive: true });
       const watcher = chokidar.watch(serversDir, {
         persistent: true,
@@ -394,7 +402,7 @@ export class RuntimeManager {
           this.filenameToDevUiMap[fileName] = toolsInfo;
         } else {
           logger.debug('Found an unhealthy tools config file', fileName);
-          await removeToolsInfoFile(fileName);
+          await removeToolsInfoFile(fileName, this.projectRoot);
         }
       } else {
         logger.error(`Unexpected file in the servers directory: ${content}`);
@@ -530,7 +538,7 @@ export class RuntimeManager {
     const runtime = this.filenameToRuntimeMap[fileName];
     if (runtime) {
       try {
-        const runtimesDir = await findRuntimesDir();
+        const runtimesDir = await findRuntimesDir(this.projectRoot);
         const runtimeFilePath = path.join(runtimesDir, fileName);
         await fs.unlink(runtimeFilePath);
       } catch (error) {

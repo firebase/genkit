@@ -15,6 +15,7 @@
  */
 
 import {
+  findProjectRoot,
   findServersDir,
   isValidDevToolsInfo,
   logger,
@@ -53,7 +54,7 @@ export const uiStart = new Command('ui:start')
     } else {
       port = await getPort({ port: makeRange(4000, 4099) });
     }
-    const serversDir = await findServersDir();
+    const serversDir = await findServersDir(await findProjectRoot());
     const toolsJsonPath = path.join(serversDir, 'tools.json');
     try {
       const toolsJsonContent = await fs.readFile(toolsJsonPath, 'utf-8');

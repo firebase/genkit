@@ -16,20 +16,17 @@
 
 import type { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
-import { logger } from '@genkit-ai/tools-common/utils';
+import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { spawn } from 'child_process';
 import { Command } from 'commander';
 import getPort, { makeRange } from 'get-port';
 import open from 'open';
-import { startMcpServer } from '../mcp/server';
 import { startManager } from '../utils/manager-utils';
 
 interface RunOptions {
   noui?: boolean;
   port?: string;
   open?: boolean;
-  mcpExperimental?: boolean;
-  mcpPort?: string;
 }
 
 /** Command to run code in dev mode and/or the Dev UI. */
@@ -38,11 +35,12 @@ export const start = new Command('start')
   .option('-n, --noui', 'do not start the Dev UI', false)
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
-  .option('--mcp-experimental', 'start MCP server (Experimental)')
-  .option('--mcp-port', 'MCP server port')
   .action(async (options: RunOptions) => {
     // Always start the manager.
-    let managerPromise: Promise<RuntimeManager> = startManager(true);
+    let managerPromise: Promise<RuntimeManager> = startManager(
+      await findProjectRoot(),
+      true
+    );
     if (!options.noui) {
       let port: number;
       if (options.port) {
@@ -64,11 +62,7 @@ export const start = new Command('start')
     }
     await managerPromise.then((manager: RuntimeManager) => {
       const telemetryServerUrl = manager?.telemetryServerUrl;
-      const promises = [startRuntime(telemetryServerUrl)];
-      if (options.mcpExperimental) {
-        promises.push(startMcpServer(options.mcpPort, manager));
-      }
-      return Promise.all(promises);
+      return startRuntime(telemetryServerUrl);
     });
   });
 

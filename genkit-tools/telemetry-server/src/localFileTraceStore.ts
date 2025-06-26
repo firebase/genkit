@@ -44,16 +44,14 @@ export class LocalFileTraceStore implements TraceStore {
     'genkit:metadata:subtype': 'prompt',
   };
 
-  constructor(options?: {
+  constructor(options: {
     filters?: Record<string, string>;
-    storeRoot?: string;
-    indexRoot?: string;
+    storeRoot: string;
+    indexRoot: string;
   }) {
-    this.storeRoot =
-      options?.storeRoot ?? path.resolve(process.cwd(), `.genkit/traces`);
+    this.storeRoot = path.resolve(options.storeRoot, `.genkit/traces`);
     fs.mkdirSync(this.storeRoot, { recursive: true });
-    this.indexRoot =
-      options?.indexRoot ?? path.resolve(process.cwd(), `.genkit/traces_idx`);
+    this.indexRoot = path.resolve(options.indexRoot, `.genkit/traces_idx`);
     fs.mkdirSync(this.indexRoot, { recursive: true });
     console.info(
       `[Telemetry Server] initialized local file trace store at root: ${this.storeRoot}`

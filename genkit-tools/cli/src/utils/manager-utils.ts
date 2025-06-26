@@ -31,14 +31,19 @@ import getPort, { makeRange } from 'get-port';
  *
  * This function is not idempotent. Typically you want to make sure it's called only once per cli instance.
  */
-export async function resolveTelemetryServer(): Promise<string> {
+export async function resolveTelemetryServer(
+  projectRoot: string
+): Promise<string> {
   let telemetryServerUrl = process.env.GENKIT_TELEMETRY_SERVER;
   if (!telemetryServerUrl) {
     const telemetryPort = await getPort({ port: makeRange(4033, 4999) });
     telemetryServerUrl = `http://localhost:${telemetryPort}`;
     await startTelemetryServer({
       port: telemetryPort,
-      traceStore: new LocalFileTraceStore(),
+      traceStore: new LocalFileTraceStore({
+        storeRoot: projectRoot,
+        indexRoot: projectRoot,
+      }),
     });
   }
   return telemetryServerUrl;
@@ -48,10 +53,15 @@ export async function resolveTelemetryServer(): Promise<string> {
  * Starts the runtime manager and its dependencies.
  */
 export async function startManager(
+  projectRoot: string,
   manageHealth?: boolean
 ): Promise<RuntimeManager> {
-  const telemetryServerUrl = await resolveTelemetryServer();
-  const manager = RuntimeManager.create({ telemetryServerUrl, manageHealth });
+  const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
+  const manager = RuntimeManager.create({
+    telemetryServerUrl,
+    manageHealth,
+    projectRoot,
+  });
   return manager;
 }
 
@@ -59,11 +69,12 @@ export async function startManager(
  * Runs the given function with a runtime manager.
  */
 export async function runWithManager(
+  projectRoot: string,
   fn: (manager: RuntimeManager) => Promise<void>
 ) {
   let manager: RuntimeManager;
   try {
-    manager = await startManager(false); // Don't manage health in this case.
+    manager = await startManager(projectRoot, false); // Don't manage health in this case.
   } catch (e) {
     process.exit(1);
   }

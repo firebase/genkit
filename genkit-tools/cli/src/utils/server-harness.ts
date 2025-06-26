@@ -15,6 +15,7 @@
  */
 
 import { startServer } from '@genkit-ai/tools-common/server';
+import { findProjectRoot } from '@genkit-ai/tools-common/utils';
 import fs from 'fs';
 import { startManager } from './manager-utils';
 
@@ -23,7 +24,7 @@ const port = Number.parseInt(args[0]) || 4100;
 redirectStdoutToFile(args[1]);
 
 async function start() {
-  const manager = await startManager(true);
+  const manager = await startManager(await findProjectRoot(), true);
   await startServer(manager, port);
 }
 

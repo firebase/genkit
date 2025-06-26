@@ -127,7 +127,13 @@ export async function notifyAnalyticsIfFirstRun(): Promise<void> {
   }
 
   console.log(ANALYTICS_NOTIFICATION);
+
+  const readline = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
   await readline.question('Press "Enter" to continue');
+  readline.close();
 
   configstore.set(NOTIFICATION_ACKED, true);
 
@@ -183,11 +189,6 @@ const GA_USER_PROPS = {
     value: toolsPackage.version,
   },
 };
-
-const readline = createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
 
 interface AnalyticsSession {
   clientId: string;

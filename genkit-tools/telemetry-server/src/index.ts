@@ -105,7 +105,7 @@ export async function startTelemetryServer(params: {
   });
 
   server = api.listen(params.port, () => {
-    console.log(`Telemetry API running on http://localhost:${params.port}`);
+    console.error(`Telemetry API running on http://localhost:${params.port}`);
   });
 
   server.on('error', (error) => {
@@ -123,7 +123,7 @@ export async function stopTelemetryApi() {
     new Promise<void>((resolve) => {
       if (server) {
         server.close(() => {
-          console.info('Telemetry API has succesfully shut down.');
+          console.error('Telemetry API has succesfully shut down.');
           resolve();
         });
       } else {
