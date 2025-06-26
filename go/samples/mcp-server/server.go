@@ -24,7 +24,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,11 +39,6 @@ import (
 )
 
 func main() {
-	// Parse command line flags for transport selection
-	var transport = flag.String("transport", "stdio", "Transport type: stdio, sse, or streamablehttp")
-	var addr = flag.String("addr", ":8080", "Address to serve on (only for sse and streamablehttp)")
-	flag.Parse()
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
@@ -150,39 +144,16 @@ func main() {
 			}, nil
 		})
 
-	// Create MCP server
+	// Start MCP server
 	server := mcp.NewMCPServer(g, mcp.MCPServerOptions{
 		Name: "text-utilities",
 	})
 
-	logger.FromContext(ctx).Info("Starting MCP server", "name", "text-utilities", "transport", *transport, "tools", server.ListRegisteredTools())
+	logger.FromContext(ctx).Info("Starting MCP server", "name", "text-utilities", "tools", server.ListRegisteredTools())
+	logger.FromContext(ctx).Info("Ready! Run: go run client.go")
 
-	// Start server with specified transport
-	switch *transport {
-	case "stdio":
-		logger.FromContext(ctx).Info("Ready! Connect with: go run client.go")
-		if err := server.ServeStdio(ctx); err != nil && err != context.Canceled {
-			logger.FromContext(ctx).Error("MCP server error", "error", err)
-			os.Exit(1)
-		}
-	case "sse":
-		logger.FromContext(ctx).Info("Ready! Server-Sent Events transport", "addr", *addr)
-		logger.FromContext(ctx).Info("Connect with: go run ../mcp-client/main.go streamablehttp")
-		if err := server.ServeSSE(ctx, *addr); err != nil && err != context.Canceled {
-			logger.FromContext(ctx).Error("MCP SSE server error", "error", err)
-			os.Exit(1)
-		}
-	case "streamablehttp":
-		logger.FromContext(ctx).Info("Attempting to start Streamable HTTP transport", "addr", *addr)
-		logger.FromContext(ctx).Info("Note: This requires a newer version of mcp-go")
-		logger.FromContext(ctx).Info("For now, you can test the Streamable HTTP client with external servers")
-		if err := server.ServeStreamableHTTP(ctx, *addr); err != nil {
-			logger.FromContext(ctx).Error("Streamable HTTP not available, falling back to SSE", "error", err)
-			os.Exit(1)
-		}
-	default:
-		logger.FromContext(ctx).Error("Invalid transport type", "transport", *transport)
-		fmt.Printf("Usage: go run server.go [-transport stdio|sse|streamablehttp] [-addr :8080]\n")
+	if err := server.ServeStdio(ctx); err != nil && err != context.Canceled {
+		logger.FromContext(ctx).Error("MCP server error", "error", err)
 		os.Exit(1)
 	}
 }
