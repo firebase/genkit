@@ -37,6 +37,7 @@ export function defineTraceTools(server: McpServer, manager: RuntimeManager) {
         const response = await manager.getTrace({ traceId });
         return {
           content: [
+            // TODO: render the trace insetad of of dumping it as is.
             { type: 'text', text: JSON.stringify(response, undefined, 2) },
           ],
         };
