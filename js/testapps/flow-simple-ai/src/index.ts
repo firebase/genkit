@@ -1280,6 +1280,9 @@ ai.defineResource(
 ai.defineFlow('resource', async () => {
   return await ai.generate({
     model: googleAI.model('gemini-2.0-flash'),
-    prompt: [{ text: 'analyze this: ' }, { resource: {uri: 'my://resource/value'} }],
+    prompt: [
+      { text: 'analyze this: ' },
+      { resource: { uri: 'my://resource/value' } },
+    ],
   });
 });
