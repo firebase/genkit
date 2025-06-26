@@ -117,7 +117,7 @@ export function startServer(manager: RuntimeManager, port: number) {
     trpcExpress.createExpressMiddleware({
       router: TOOLS_SERVER_ROUTER(manager),
       maxBodySize: MAX_PAYLOAD_SIZE,
-    })
+    }) as any // x-package express version mismatch, casting to any.
   );
 
   app.all('*', (_, res) => {

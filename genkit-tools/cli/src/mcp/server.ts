@@ -22,6 +22,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import * as clc from 'colorette';
 import express from 'express';
+import getPort, { makeRange } from 'get-port';
 import { randomUUID } from 'node:crypto';
 import { defineDocsTool } from '../mcp/docs';
 import { defineFlowTools } from './flows';
@@ -31,7 +32,9 @@ export async function startMcpServer(
   rawPort: string | undefined,
   manager?: RuntimeManager
 ) {
-  const port = rawPort ? Number.parseInt(rawPort) : 4001;
+  const port = rawPort
+    ? Number.parseInt(rawPort)
+    : await getPort({ port: makeRange(4100, 4199) });
   const server = new McpServer({
     name: 'Genkit MCP',
     version: '0.0.1',
