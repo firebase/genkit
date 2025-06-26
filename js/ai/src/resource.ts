@@ -30,9 +30,9 @@ import { Part, PartSchema } from './model.js';
  */
 export interface ResourceOptions {
   /**
-   * Resource name.
+   * Resource name. If not specified, uri or template will be used as name.
    */
-  name: string;
+  name?: string;
 
   /**
    * The URI of the resource. Can contain template variables.
@@ -55,11 +55,17 @@ export interface ResourceOptions {
   metadata?: Record<string, any>;
 }
 
+export const ResourceInputSchema = z.object({
+  uri: z.string(),
+});
+
+export type ResourceInput = z.infer<typeof ResourceInputSchema>;
+
 /**
  * A function that returns parts for a given resource.
  */
 export type ResourceFn = (
-  input: string,
+  input: ResourceInput,
   ctx: ActionContext
 ) => Part[] | Promise<Part[]>;
 
@@ -68,11 +74,11 @@ export type ResourceFn = (
  */
 export interface ResourceAction
   extends Action<
-    z.ZodString,
+    typeof ResourceInputSchema,
     z.ZodArray<typeof PartSchema>,
     z.ZodArray<typeof PartSchema>
   > {
-  matches(input: string): boolean;
+  matches(input: ResourceInput): boolean;
 }
 
 /**
@@ -106,9 +112,9 @@ export function defineResource(
     registry,
     {
       actionType: 'resource',
-      name: opts.name,
+      name: opts.name ?? uri,
       description: opts.description,
-      inputSchema: z.string(),
+      inputSchema: ResourceInputSchema,
       outputSchema: z.array(PartSchema),
       metadata: {
         resource: {
@@ -119,7 +125,7 @@ export function defineResource(
       },
     },
     async (input, ctx) => {
-      const templateMatch = matcher(input);
+      const templateMatch = matcher(input.uri);
       if (!templateMatch) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
@@ -132,15 +138,21 @@ export function defineResource(
           p.metadata = {};
         }
         if (p.metadata?.resource) {
-          (p.metadata as any).resource.parent = {
-            uri: input,
-            ...(p.metadata as any).resource.parent,
-          };
+          if (!(p.metadata as any).resource.parent) {
+            (p.metadata as any).resource.parent = {
+              uri: input.uri,
+            };
+          if (opts.template) {
+            (p.metadata as any).resource.parent.template = opts.template;
+          }
+          }
         } else {
           (p.metadata as any).resource = {
-            name: opts.name,
-            uri: input,
+            uri: input.uri,
           };
+          if (opts.template) {
+            (p.metadata as any).resource.template = opts.template;
+          }
         }
         return p;
       });
@@ -148,7 +160,7 @@ export function defineResource(
     }
   ) as ResourceAction;
 
-  action.matches = (input: string) => matcher(input) !== undefined;
+  action.matches = (input: ResourceInput) => matcher(input.uri) !== undefined;
 
   return action;
 }
@@ -158,7 +170,7 @@ export function defineResource(
  */
 export async function findMatchingResource(
   registry: Registry,
-  input: string
+  input: ResourceInput
 ): Promise<ResourceAction | undefined> {
   for (const actKeys of Object.keys(await registry.listResolvableActions())) {
     if (actKeys.startsWith('/resource/')) {

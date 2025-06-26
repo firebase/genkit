@@ -435,7 +435,7 @@ describe('generate', () => {
     defineResource(
       registry,
       { name: 'testResource', template: 'test://resource/{param}' },
-      (input) => [{ text: 'resource' }, { text: input }]
+      (input) => [{ text: 'resource' }, { text: input.uri }]
     );
 
     const response = await generate(registry, {
@@ -450,7 +450,7 @@ describe('generate', () => {
       {
         metadata: {
           resource: {
-            name: 'testResource',
+            template: 'test://resource/{param}',
             uri: 'test://resource/value',
           },
         },
@@ -459,7 +459,7 @@ describe('generate', () => {
       {
         metadata: {
           resource: {
-            name: 'testResource',
+            template: 'test://resource/{param}',
             uri: 'test://resource/value',
           },
         },
