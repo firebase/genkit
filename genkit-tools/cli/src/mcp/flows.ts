@@ -22,8 +22,8 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
   server.registerTool(
     'list_flows',
     {
-      title: 'List Flows',
-      description: 'Lists available flows',
+      title: 'List Genkit Flows',
+      description: 'Use this to discover available Genkit flows or inspect the input schema of Genkit flows to know how to successfully call them.',
     },
     async () => {
       const actions = await manager.listActions();
