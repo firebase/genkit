@@ -22,7 +22,7 @@ export function defineTraceTools(server: McpServer, manager: RuntimeManager) {
   server.registerTool(
     'get_trace',
     {
-      title: 'Get Trace',
+      title: 'Get Genkit Trace',
       description: 'Returns the trace details',
       inputSchema: {
         traceId: z
