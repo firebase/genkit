@@ -1268,7 +1268,7 @@ async function downloadVideo(video: MediaPart, path: string) {
 
 ai.defineResource(
   {
-    name: 'fgoo',
+    name: 'myResource',
     template: 'my://resource/{param}',
     description: 'provides my resource',
   },
