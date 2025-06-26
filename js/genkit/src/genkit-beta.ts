@@ -276,7 +276,6 @@ export class GenkitBeta extends Genkit {
    *
    * ```ts
    * ai.defineResource({
-   *   name: 'myResource',
    *   uri: 'my://resource/{param}',
    *   description: 'provides my resource',
    * }, async ({param}) => {
