@@ -73,7 +73,8 @@ export async function defineDocsTool(server: McpServer) {
     'lookup_genkit_docs',
     {
       title: 'Genkit Docs',
-      description: 'Use this to look up documentation for the Genkit AI framework.',
+      description:
+        'Use this to look up documentation for the Genkit AI framework.',
       inputSchema: {
         language: z
           .enum(['js', 'go', 'python'])
