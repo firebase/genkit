@@ -26,7 +26,7 @@ interface McpOptions {
 /** Command to run MCP server. */
 export const mcp = new Command('mcp')
   .option('--project-root [projectRoot]', 'Project root')
-  .description('run MCP stdio server')
+  .description('run MCP stdio server (EXPERIMENTAL, subject to change)')
   .action(async (options: McpOptions) => {
     forceStderr();
     const manager = await startManager(
