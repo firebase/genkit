@@ -505,7 +505,7 @@ async function applyResources(
       }
       const resourceParts = await resource(p.resource);
       resourceParts.forEach((r) => {
-        r.metadata = { resource: resource.__action.name, uri: p.resource };
+        r.metadata = { resource: {name: resource.__action.name, uri: p.resource }};
       });
       updatedContent.push(...resourceParts);
     }
