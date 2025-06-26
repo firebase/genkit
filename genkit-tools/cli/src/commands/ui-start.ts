@@ -126,14 +126,14 @@ async function startAndWaitUntilHealthy(
   serversDir: string
 ): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
-    const serverPath = path.join(__dirname, '../utils/server-harness.js');
     const child = spawn(
-      'node',
-      [serverPath, port.toString(), serversDir + '/devui.log'],
+      process.execPath,
+      ['__ui:start-server', port.toString(), serversDir + '/devui.log'],
       {
         stdio: ['ignore', 'ignore', 'ignore'],
       }
     );
+
     // Only print out logs from the child process to debug output.
     child.on('error', (error) => reject(error));
     child.on('exit', (code) =>

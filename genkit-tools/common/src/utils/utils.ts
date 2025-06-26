@@ -17,6 +17,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { Runtime } from '../manager/types';
+import { isConnectionRefusedError } from './errors';
 import { logger } from './logger';
 
 export interface DevToolsInfo {
@@ -145,10 +146,7 @@ export async function checkServerHealth(url: string): Promise<boolean> {
     const response = await fetch(`${url}/api/__health`);
     return response.status === 200;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.cause as any).code === 'ECONNREFUSED'
-    ) {
+    if (isConnectionRefusedError(error)) {
       return false;
     }
   }
@@ -189,10 +187,7 @@ export async function waitUntilUnresponsive(
     try {
       const health = await fetch(`${url}/api/__health`);
     } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.cause as any).code === 'ECONNREFUSED'
-      ) {
+      if (isConnectionRefusedError(error)) {
         return true;
       }
     }
