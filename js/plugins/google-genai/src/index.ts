@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-//export { googleAI } from './googleai';
-//export { vertexAI } from './vertexai';
+/**
+ * @fileoverview A description of this module.  What would someone
+ * new to your team want to know about the code in this file?
+ * (DO NOT SUBMIT as is; replace this comment.)
+ */
 
-// TODO(ifielker): remove this placeholder
-export { FunctionCallingMode } from './common/types';
+//export { googleAI } from './googleai';
+export { vertexAI } from './vertexai';
