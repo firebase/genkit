@@ -53,16 +53,18 @@ describe('resource', () => {
     assert.strictEqual(testResource.matches({ uri: 'foo://bar' }), true);
     assert.strictEqual(testResource.matches({ uri: 'foo://baz' }), false);
 
-    assert.deepStrictEqual(await testResource({ uri: 'foo://bar' }), [
-      {
-        text: 'foo stuff',
-        metadata: {
-          resource: {
-            uri: 'foo://bar',
+    assert.deepStrictEqual(await testResource({ uri: 'foo://bar' }), {
+      content: [
+        {
+          text: 'foo stuff',
+          metadata: {
+            resource: {
+              uri: 'foo://bar',
+            },
           },
         },
-      },
-    ]);
+      ],
+    });
 
     assert.ok(await registry.lookupAction('/resource/testResource'));
   });
@@ -92,17 +94,19 @@ describe('resource', () => {
       false
     );
 
-    assert.deepStrictEqual(await testResource({ uri: 'foo://bar/something' }), [
-      {
-        text: 'foo stuff foo://bar/something',
-        metadata: {
-          resource: {
-            template: 'foo://bar/{baz}',
-            uri: 'foo://bar/something',
+    assert.deepStrictEqual(await testResource({ uri: 'foo://bar/something' }), {
+      content: [
+        {
+          text: 'foo stuff foo://bar/something',
+          metadata: {
+            resource: {
+              template: 'foo://bar/{baz}',
+              uri: 'foo://bar/something',
+            },
           },
         },
-      },
-    ]);
+      ],
+    });
 
     assert.ok(await registry.lookupAction('/resource/foo://bar/{baz}'));
   });
@@ -137,32 +141,34 @@ describe('resource', () => {
 
     assert.deepStrictEqual(
       await testResource({ uri: 'file:///some/directory' }),
-      [
-        {
-          text: 'sub1',
-          metadata: {
-            resource: {
-              parent: {
-                template: 'file://{/id*}',
-                uri: 'file:///some/directory',
+      {
+        content: [
+          {
+            metadata: {
+              resource: {
+                parent: {
+                  template: 'file://{/id*}',
+                  uri: 'file:///some/directory',
+                },
+                uri: 'file:///some/directory/sub1.txt',
               },
-              uri: 'file:///some/directory/sub1.txt',
             },
+            text: 'sub1',
           },
-        },
-        {
-          text: 'sub2',
-          metadata: {
-            resource: {
-              parent: {
-                template: 'file://{/id*}',
-                uri: 'file:///some/directory',
+          {
+            metadata: {
+              resource: {
+                parent: {
+                  template: 'file://{/id*}',
+                  uri: 'file:///some/directory',
+                },
+                uri: 'file:///some/directory/sub2.txt',
               },
-              uri: 'file:///some/directory/sub2.txt',
             },
+            text: 'sub2',
           },
-        },
-      ]
+        ],
+      }
     );
   });
 

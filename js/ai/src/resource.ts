@@ -23,7 +23,7 @@ import {
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import uriTemplate from 'uri-templates';
-import { PartSchema } from './model.js';
+import { PartSchema } from './model-types.js';
 
 /**
  * Options for defining a resource.
