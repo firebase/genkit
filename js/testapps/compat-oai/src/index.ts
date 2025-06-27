@@ -41,6 +41,23 @@ export const jokeFlow = ai.defineFlow(
   }
 );
 
+export const webSearchFlow = ai.defineFlow(
+  {
+    name: 'webSearchFlow',
+    outputSchema: z.string(),
+  },
+  async () => {
+    const llmResponse = await ai.generate({
+      prompt: `What was a positive news story from today?`,
+      model: openAI.model('gpt-4o-search-preview'),
+      config: {
+        web_search_options: {},
+      },
+    });
+    return llmResponse.text;
+  }
+);
+
 //  genkit flow:run embedFlow \"hello world\"
 
 export const embedFlow = ai.defineFlow(

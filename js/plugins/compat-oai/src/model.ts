@@ -337,13 +337,18 @@ export function toOpenAIRequestBody(
     topP: top_p,
     stopSequences: stop,
     version: modelVersion,
+    tools: toolsFromConfig,
     ...restOfConfig
   } = request.config ?? {};
 
+  const tools: ChatCompletionTool[] = request.tools?.map(toOpenAITool) ?? [];
+  if (toolsFromConfig) {
+    tools.push(...(toolsFromConfig as any[]));
+  }
   const body = {
     model: modelVersion ?? modelName,
     messages,
-    tools: request.tools?.map(toOpenAITool),
+    tools: tools.length > 0 ? tools : undefined,
     temperature,
     top_p,
     stop,
@@ -408,7 +413,7 @@ export function openAIModelRunner(name: string, client: OpenAI) {
         outputTokens: response.usage?.completion_tokens,
         totalTokens: response.usage?.total_tokens,
       },
-      custom: response,
+      raw: response,
     };
     if (response.choices.length === 0) {
       return standardResponse;

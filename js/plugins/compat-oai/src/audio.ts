@@ -23,6 +23,7 @@ import type {
 import { Message, z } from 'genkit';
 import type { ModelAction } from 'genkit/model';
 import type OpenAI from 'openai';
+import { Response } from 'openai/core.mjs';
 import type {
   SpeechCreateParams,
   Transcription,
@@ -70,10 +71,12 @@ function toTTSRequest(
   return options;
 }
 
-function toGenerateResponse(
-  result: Buffer,
+async function toGenerateResponse(
+  response: Response,
   responseFormat: 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm' = 'mp3'
-): GenerateResponseData {
+): Promise<GenerateResponseData> {
+  const resultArrayBuffer = await response.arrayBuffer();
+  const resultBuffer = Buffer.from(new Uint8Array(resultArrayBuffer));
   const mediaType = RESPONSE_FORMAT_MEDIA_TYPES[responseFormat];
   return {
     message: {
@@ -82,12 +85,13 @@ function toGenerateResponse(
         {
           media: {
             contentType: mediaType,
-            url: `data:${mediaType};base64,${result.toString('base64')}`,
+            url: `data:${mediaType};base64,${resultBuffer.toString('base64')}`,
           },
         },
       ],
     },
     finishReason: 'stop',
+    raw: response,
   };
 }
 
@@ -126,9 +130,7 @@ export function defineCompatOpenAISpeechModel<
     async (request) => {
       const ttsRequest = toTTSRequest(model!, request);
       const result = await client.audio.speech.create(ttsRequest);
-      const resultArrayBuffer = await result.arrayBuffer();
-      const resultBuffer = Buffer.from(new Uint8Array(resultArrayBuffer));
-      return toGenerateResponse(resultBuffer, ttsRequest.response_format);
+      return await toGenerateResponse(result, ttsRequest.response_format);
     }
   );
 }
@@ -206,6 +208,7 @@ function transcriptionToGenerateResponse(
       ],
     },
     finishReason: 'stop',
+    raw: result,
   };
 }
 
