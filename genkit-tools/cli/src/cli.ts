@@ -28,6 +28,7 @@ import { evalFlow } from './commands/eval-flow';
 import { evalRun } from './commands/eval-run';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowRun } from './commands/flow-run';
+import { mcp } from './commands/mcp';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
@@ -50,6 +51,7 @@ const commands: Command[] = [
   evalFlow,
   config,
   start,
+  mcp,
 ];
 
 /** Main entry point for CLI. */

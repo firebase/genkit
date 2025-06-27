@@ -43,6 +43,7 @@ js/testapps/personal-testing
 last_recording.mp4
 js/testapps/flow-simple-ai/*.wav
 js/testapps/flow-simple-ai/meme-of-the-day.mp4
+js/testapps/flow-simple-ai/photo.mp4
 
 # auto-generated
 /js/core/src/__codegen

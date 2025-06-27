@@ -40,7 +40,6 @@ import {
 import {
   GeminiConfigSchema,
   SUPPORTED_GEMINI_MODELS,
-  SUPPORTED_V15_MODELS,
   defineGoogleAIModel,
   gemini,
   gemini10Pro,
@@ -64,7 +63,12 @@ import {
   type KNOWN_IMAGEN_MODELS,
 } from './imagen.js';
 import { listModels } from './list-models.js';
-import { KNOWN_VEO_MODELS, VeoConfigSchema, defineVeoModel } from './veo.js';
+import {
+  GENERIC_VEO_INFO,
+  KNOWN_VEO_MODELS,
+  VeoConfigSchema,
+  defineVeoModel,
+} from './veo.js';
 export {
   gemini,
   gemini10Pro,
@@ -116,7 +120,7 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
   }
 
   if (apiVersions.includes('v1beta')) {
-    Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
       defineGoogleAIModel({
         ai,
         name,
@@ -128,7 +132,7 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
     );
   }
   if (apiVersions.includes('v1')) {
-    Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
       defineGoogleAIModel({
         ai,
         name,
@@ -173,25 +177,23 @@ async function resolver(
   actionName: string,
   options?: PluginOptions
 ) {
-  switch (actionType) {
-    case 'model':
-      resolveModel(ai, actionName, options);
-      break;
-    case 'embedder':
-      resolveEmbedder(ai, actionName, options);
-      break;
-    default:
-    // no-op
+  if (actionType === 'embedder') {
+    resolveEmbedder(ai, actionName, options);
+  } else if (actionName.startsWith('veo')) {
+    // we do it this way because the request may come in for
+    // action type 'model' and action name 'veo-...'. That case should
+    // be a noop. It's just the order or model lookup.
+    if (actionType === 'background-model') {
+      defineVeoModel(ai, actionName, options?.apiKey);
+    }
+  } else if (actionType === 'model') {
+    resolveModel(ai, actionName, options);
   }
 }
 
 function resolveModel(ai: Genkit, actionName: string, options?: PluginOptions) {
   if (actionName.startsWith('imagen')) {
     defineImagenModel(ai, actionName, options?.apiKey);
-    return;
-  }
-  if (actionName.startsWith('veo')) {
-    defineVeoModel(ai, actionName, options?.apiKey);
     return;
   }
 
@@ -253,6 +255,25 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
           name: `googleai/${name}`,
           info: { ...GENERIC_IMAGEN_INFO },
           configSchema: ImagenConfigSchema,
+        });
+      }),
+    // Veo
+    ...models
+      .filter(
+        (m) =>
+          m.supportedGenerationMethods.includes('predictLongRunning') &&
+          m.name.includes('veo')
+      )
+      // Filter out deprecated
+      .filter((m) => !m.description || !m.description.includes('deprecated'))
+      .map((m) => {
+        const name = m.name.split('/').at(-1)!;
+
+        return modelActionMetadata({
+          name: `googleai/${name}`,
+          info: { ...GENERIC_VEO_INFO },
+          configSchema: VeoConfigSchema,
+          background: true,
         });
       }),
     // Models

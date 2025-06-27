@@ -154,12 +154,13 @@ describe('generate', () => {
     it('rethrows response errors', async () => {
       ai.defineModel(
         {
+          apiVersion: 'v2',
           name: 'blockingModel',
         },
-        async (request, streamingCallback) => {
-          if (streamingCallback) {
+        async (request, { sendChunk, streamingRequested }) => {
+          if (streamingRequested) {
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '3',
@@ -168,7 +169,7 @@ describe('generate', () => {
               });
             });
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '2',
@@ -177,7 +178,7 @@ describe('generate', () => {
               });
             });
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '1',

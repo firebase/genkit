@@ -16,11 +16,15 @@
 
 import {
   defineInterrupt,
+  defineResource,
   generateOperation,
   GenerateOptions,
   GenerateResponseData,
   GenerationCommonConfigSchema,
   isExecutablePrompt,
+  ResourceAction,
+  ResourceFn,
+  ResourceOptions,
   type ExecutablePrompt,
   type InterruptConfig,
   type ToolAction,
@@ -265,5 +269,24 @@ export class GenkitBeta extends Genkit {
       | PromiseLike<GenerateOptions<O, CustomOptions>>
   ): Promise<Operation<GenerateResponseData>> {
     return generateOperation(this.registry, opts);
+  }
+
+  /**
+   * Defines a resource. Resources can then be accessed from a genreate call.
+   *
+   * ```ts
+   * ai.defineResource({
+   *   uri: 'my://resource/{param}',
+   *   description: 'provides my resource',
+   * }, async ({param}) => {
+   *   return [{ text: `resource ${param}` }]
+   * });
+   *
+   * await ai.generate({
+   *   prompt: [{ resource: 'my://resource/value' }]
+   * })
+   */
+  defineResource(opts: ResourceOptions, fn: ResourceFn): ResourceAction {
+    return defineResource(this.registry, opts, fn);
   }
 }

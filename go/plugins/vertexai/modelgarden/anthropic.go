@@ -36,7 +36,6 @@ import (
 )
 
 const (
-	anthropicProvider = "anthropic"
 	MaxNumberOfTokens = 8192
 	ToolNameRegex     = `^[a-zA-Z0-9_-]{1,64}$`
 )
@@ -51,7 +50,7 @@ type Anthropic struct {
 }
 
 func (a *Anthropic) Name() string {
-	return anthropicProvider
+	return provider
 }
 
 func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
@@ -106,7 +105,7 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 // AnthropicModel returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined
 func AnthropicModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, anthropicProvider, name)
+	return genkit.LookupModel(g, provider, name)
 }
 
 // DefineModel adds the model to the registry
@@ -116,7 +115,7 @@ func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInf
 		var ok bool
 		mi, ok = anthropicModels[name]
 		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", anthropicProvider, name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", provider, name)
 		}
 	} else {
 		mi = *info
@@ -126,11 +125,11 @@ func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInf
 
 func defineAnthropicModel(g *genkit.Genkit, client anthropic.Client, name string, info ai.ModelInfo) ai.Model {
 	meta := &ai.ModelInfo{
-		Label:    anthropicProvider + "-" + name,
+		Label:    provider + "-" + name,
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
-	return genkit.DefineModel(g, anthropicProvider, name, meta, func(
+	return genkit.DefineModel(g, provider, name, meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

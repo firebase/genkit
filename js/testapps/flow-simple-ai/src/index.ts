@@ -34,12 +34,13 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import {
+  MediaPart,
   MessageSchema,
   dynamicTool,
   genkit,
   z,
   type GenerateResponseData,
-} from 'genkit';
+} from 'genkit/beta';
 import { logger } from 'genkit/logging';
 import {
   simulateConstrainedGeneration,
@@ -988,7 +989,7 @@ ai.defineFlow(
       .default(
         'say that that Genkit (G pronounced as J) is an amazing Gen AI library'
       ),
-    outputSchema: z.void(),
+    outputSchema: z.object({ media: z.string() }),
   },
   async (query) => {
     const { media } = await ai.generate({
@@ -1005,16 +1006,44 @@ ai.defineFlow(
       prompt: query,
     });
     if (!media) {
-      return;
+      throw new Error('no media returned');
     }
     const audioBuffer = Buffer.from(
       media.url.substring(media.url.indexOf(',') + 1),
       'base64'
     );
-    const fileName = 'out.wav';
-    await saveWaveFile(fileName, audioBuffer);
+    return {
+      media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
+    };
   }
 );
+
+async function toWav(
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.Writer({
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    let bufs = [] as any[];
+    writer.on('error', reject);
+    writer.on('data', function (d) {
+      bufs.push(d);
+    });
+    writer.on('end', function () {
+      resolve(Buffer.concat(bufs).toString('base64'));
+    });
+
+    writer.write(pcmData);
+    writer.end();
+  });
+}
 
 ai.defineFlow(
   {
@@ -1038,7 +1067,6 @@ ai.defineFlow(
     const { media } = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
-        // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
         responseModalities: ['AUDIO'],
         speechConfig: {
           multiSpeakerVoiceConfig: {
@@ -1160,13 +1188,69 @@ ai.defineFlow('meme-of-the-day', async () => {
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 
-  // operation done, download generated video to Firebae Storage
+  if (operation.error) {
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
 
+  // operation done, download generated video to disk
+  const video = operation.output?.message?.content.find((p) => !!p.media);
+  if (!video) {
+    throw new Error('Failed to find the generated video');
+  }
+  await downloadVideo(video, 'meme-of-the-day.mp4');
+
+  return operation;
+});
+
+ai.defineFlow('photo-move-veo', async () => {
+  const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  let { operation } = await ai.generate({
+    model: googleAI.model('veo-2.0-generate-001'),
+    prompt: [
+      {
+        text: 'make it move',
+      },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${startingImage}`,
+        },
+      },
+    ],
+    config: {
+      durationSeconds: 5,
+      aspectRatio: '9:16',
+      personGeneration: 'allow_adult',
+    },
+  });
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    console.log('check status', operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  if (operation.error) {
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
+
+  // operation done, download generated video to disk
   const video = operation.output?.message?.content.find((p) => !!p.media);
   if (!video) {
     throw new Error('Failed to find the generated video');
   }
 
+  await downloadVideo(video, 'photo.mp4');
+
+  return operation;
+});
+
+async function downloadVideo(video: MediaPart, path: string) {
   const fetch = (await import('node-fetch')).default;
   const videoDownloadResponse = await fetch(
     `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
@@ -1176,12 +1260,29 @@ ai.defineFlow('meme-of-the-day', async () => {
     videoDownloadResponse.status !== 200 ||
     !videoDownloadResponse.body
   ) {
-    throw new Error('Failed to fetch');
+    throw new Error('Failed to fetch video');
   }
 
-  Readable.from(videoDownloadResponse.body).pipe(
-    fs.createWriteStream('meme-of-the-day.mp4')
-  );
+  Readable.from(videoDownloadResponse.body).pipe(fs.createWriteStream(path));
+}
 
-  return operation;
+ai.defineResource(
+  {
+    name: 'myResource',
+    template: 'my://resource/{param}',
+    description: 'provides my resource',
+  },
+  async (input) => {
+    return { content: [{ text: `resource ${input}` }] };
+  }
+);
+
+ai.defineFlow('resource', async () => {
+  return await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt: [
+      { text: 'analyze this: ' },
+      { resource: { uri: 'my://resource/value' } },
+    ],
+  });
 });

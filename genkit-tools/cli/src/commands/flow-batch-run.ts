@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/tools-common/utils';
+import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
 import { runWithManager } from '../utils/manager-utils';
@@ -43,7 +43,7 @@ export const flowBatchRun = new Command('flow:batchRun')
       fileName: string,
       options: FlowBatchRunOptions
     ) => {
-      await runWithManager(async (manager) => {
+      await runWithManager(await findProjectRoot(), async (manager) => {
         const inputData = JSON.parse(await readFile(fileName, 'utf8')) as any[];
         let input = inputData;
         if (inputData.length === 0) {

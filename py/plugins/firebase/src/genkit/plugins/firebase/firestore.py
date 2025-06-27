@@ -41,6 +41,7 @@ def firestore_action_name(name: str) -> str:
 
 class FirestoreVectorStore(Plugin):
     """Firestore retriever plugin.
+
     Args:
         name: name if the retriever.
         collection: The name of the Firestore collection to query.
@@ -53,8 +54,6 @@ class FirestoreVectorStore(Plugin):
         metadata_fields: Optional list of metadata fields to include.
     """
 
-    name = 'firebaseFirestore'
-
     def __init__(
         self,
         name: str,
@@ -66,11 +65,19 @@ class FirestoreVectorStore(Plugin):
         embedder_options: dict[str, Any] | None = None,
         distance_measure: DistanceMeasure = DistanceMeasure.COSINE,
         metadata_fields: list[str] | MetadataTransformFn | None = None,
-    ):
+    ) -> None:
         """Initialize the firestore plugin.
 
         Args:
-            params: List of firestore retriever configurations.
+            name: name if the retriever.
+            collection: The name of the Firestore collection to query.
+            vector_field: The name of the field containing the vector embeddings.
+            content_field: The name of the field containing the document content, you wish to return.
+            embedder: The embedder to use with this retriever.
+            embedder_options: Optional configuration to pass to the embedder.
+            distance_measure: The distance measure to use when comparing vectors. Defaults to 'COSINE'.
+            firestore_client: The Firestore database instance from which to query.
+            metadata_fields: Optional list of metadata fields to include.
         """
         self.name = name
         self.firestore_client = firestore_client

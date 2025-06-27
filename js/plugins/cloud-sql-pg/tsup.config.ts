@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-/** @type {import('ts-jest').JestConfigWithTsJest} */
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  testPathIgnorePatterns: ['/node_modules/', '/lib/'],
-};
+import { defineConfig, Options } from 'tsup';
+import { defaultOptions } from '../../tsup.common';
+
+export default defineConfig({
+  ...(defaultOptions as Options),
+});

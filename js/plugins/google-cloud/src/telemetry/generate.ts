@@ -28,7 +28,7 @@ import {
   type ToolResponsePart,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { toDisplayPath, type PathMetadata } from 'genkit/tracing';
+import { toDisplayPath } from 'genkit/tracing';
 import {
   MetricCounter,
   MetricHistogram,
@@ -107,7 +107,6 @@ class GenerateTelemetry implements Telemetry {
 
   tick(
     span: ReadableSpan,
-    paths: Set<PathMetadata>,
     logInputAndOutput: boolean,
     projectId?: string
   ): void {
@@ -260,6 +259,7 @@ class GenerateTelemetry implements Telemetry {
         logger.logStructured(`Input[${path}, ${model}] ${partCounts}`, {
           ...sharedMetadata,
           content: this.toPartLogContent(part),
+          role: msg.role,
           partIndex: partIdx,
           totalParts: parts,
           messageIndex: msgIdx,
@@ -302,6 +302,7 @@ class GenerateTelemetry implements Telemetry {
           ...initial,
           ...sharedMetadata,
           content: this.toPartLogContent(part),
+          role: message.role,
           partIndex: partIdx,
           totalParts: parts,
           candidateIndex: 0,

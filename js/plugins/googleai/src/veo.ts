@@ -40,9 +40,9 @@ export const VeoConfigSchema = z
   .object({
     numberOfVideos: z
       .number()
-      .describe(
-        'The number of video to generate, from 1 to 2 (inclusive). The default is 1.'
-      )
+      .min(1)
+      .max(4)
+      .describe('The number of videos to generate, between 1 and 4.')
       .optional(),
     negativePrompt: z.string().optional(),
     aspectRatio: z
@@ -57,6 +57,8 @@ export const VeoConfigSchema = z
       .optional(),
     durationSeconds: z
       .number()
+      .min(5)
+      .max(8)
       .describe('Length of each output video in seconds, between 5 and 8.')
       .optional(),
     enhance_prompt: z
@@ -93,17 +95,26 @@ function toParameters(
   return out;
 }
 
-function extractImage(request: GenerateRequest): string | undefined {
-  return request.messages
-    .at(-1)
-    ?.content.find((p) => !!p.media)
-    ?.media?.url.split(',')[1];
+function extractImage(request: GenerateRequest): VeoImage | undefined {
+  const media = request.messages.at(-1)?.content.find((p) => !!p.media)?.media;
+  if (media) {
+    const img = media?.url.split(',')[1];
+    return {
+      bytesBase64Encoded: img,
+      mimeType: media.contentType!,
+    };
+  }
+  return undefined;
+}
+
+interface VeoImage {
+  bytesBase64Encoded: string;
+  mimeType: string;
 }
 
 interface VeoInstance {
   prompt: string;
-  image?: { bytesBase64Encoded: string };
-  mask?: { image?: { bytesBase64Encoded: string } };
+  image?: VeoImage;
 }
 
 export const GENERIC_VEO_INFO = {
@@ -154,7 +165,7 @@ export function defineVeoModel(
       };
       const image = extractImage(request);
       if (image) {
-        instance.image = { bytesBase64Encoded: image };
+        instance.image = image;
       }
 
       const predictClient = predictModel<
