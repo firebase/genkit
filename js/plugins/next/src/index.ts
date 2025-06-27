@@ -73,7 +73,10 @@ function appRoute<
         );
       }
       try {
-        const resp = await action.run(input, { context });
+        const resp = await action.run(input, {
+          context,
+          abortSignal: req.signal,
+        });
         return NextResponse.json({ result: resp.result });
       } catch (e) {
         // For security reasons, log the error rather than responding with it.
@@ -94,7 +97,10 @@ function appRoute<
         { status: getHttpStatus(e) }
       );
     }
-    const { output, stream } = action.stream(input, { context });
+    const { output, stream } = action.stream(input, {
+      context,
+      abortSignal: req.signal,
+    });
     const encoder = new TextEncoder();
     const { readable, writable } = new TransformStream();
 
