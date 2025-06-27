@@ -19,6 +19,7 @@ import {
   type TraceData,
   type TraceQueryFilter,
 } from '@genkit-ai/tools-common';
+import { logger } from '@genkit-ai/tools-common/utils';
 import { Mutex } from 'async-mutex';
 import fs from 'fs';
 import lockfile from 'lockfile';
@@ -44,18 +45,16 @@ export class LocalFileTraceStore implements TraceStore {
     'genkit:metadata:subtype': 'prompt',
   };
 
-  constructor(options?: {
+  constructor(options: {
     filters?: Record<string, string>;
-    storeRoot?: string;
-    indexRoot?: string;
+    storeRoot: string;
+    indexRoot: string;
   }) {
-    this.storeRoot =
-      options?.storeRoot ?? path.resolve(process.cwd(), `.genkit/traces`);
+    this.storeRoot = path.resolve(options.storeRoot, `.genkit/traces`);
     fs.mkdirSync(this.storeRoot, { recursive: true });
-    this.indexRoot =
-      options?.indexRoot ?? path.resolve(process.cwd(), `.genkit/traces_idx`);
+    this.indexRoot = path.resolve(options.indexRoot, `.genkit/traces_idx`);
     fs.mkdirSync(this.indexRoot, { recursive: true });
-    console.info(
+    logger.debug(
       `[Telemetry Server] initialized local file trace store at root: ${this.storeRoot}`
     );
     this.filters = options?.filters ?? LocalFileTraceStore.defaultFilters;
@@ -87,7 +86,7 @@ export class LocalFileTraceStore implements TraceStore {
       if (!hasRootSpan) continue;
       this.index.add(trace);
     }
-    console.log(
+    logger.info(
       `Indexed ${list.traces.length} traces in ${Date.now() - time}ms in ${this.indexRoot}`
     );
   }
