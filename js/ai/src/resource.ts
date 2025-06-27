@@ -40,7 +40,7 @@ export interface ResourceOptions {
   uri?: string;
 
   /**
-   * The URI tempalate (ex. `my://resource/{id}`). See RFC6570 for specification.
+   * The URI template (ex. `my://resource/{id}`). See RFC6570 for specification.
    */
   template?: string;
 
