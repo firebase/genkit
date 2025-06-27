@@ -36,7 +36,7 @@ describe('resource', () => {
         metadata: { foo: 'bar' },
       },
       () => {
-        return [{ text: 'foo stuff' }];
+        return { content: [{ text: 'foo stuff' }] };
       }
     );
 
@@ -75,7 +75,7 @@ describe('resource', () => {
         description: 'does foo things',
       },
       (input) => {
-        return [{ text: `foo stuff ${input.uri}` }];
+        return { content: [{ text: `foo stuff ${input.uri}` }] };
       }
     );
 
@@ -116,16 +116,18 @@ describe('resource', () => {
         description: 'does foo things',
       },
       (file) => {
-        return [
-          {
-            text: `sub1`,
-            metadata: { resource: { uri: `${file.uri}/sub1.txt` } },
-          },
-          {
-            text: `sub2`,
-            metadata: { resource: { uri: `${file.uri}/sub2.txt` } },
-          },
-        ];
+        return {
+          content: [
+            {
+              text: `sub1`,
+              metadata: { resource: { uri: `${file.uri}/sub1.txt` } },
+            },
+            {
+              text: `sub2`,
+              metadata: { resource: { uri: `${file.uri}/sub2.txt` } },
+            },
+          ],
+        };
       }
     );
     assert.strictEqual(
@@ -173,7 +175,7 @@ describe('resource', () => {
         description: 'does foo things',
       },
       (input) => {
-        return [{ text: `foo stuff ${input.uri}` }];
+        return { content: [{ text: `foo stuff ${input.uri}` }] };
       }
     );
     defineResource(
@@ -184,7 +186,7 @@ describe('resource', () => {
         description: 'does bar things',
       },
       () => {
-        return [{ text: `bar` }];
+        return { content: [{ text: `bar` }] };
       }
     );
 

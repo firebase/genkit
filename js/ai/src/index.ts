@@ -111,10 +111,14 @@ export {
   type RerankerReference,
 } from './reranker.js';
 export {
+  ResourceInputSchema,
+  ResourceOutputSchema,
   defineResource,
   type ResourceAction,
   type ResourceFn,
+  type ResourceInput,
   type ResourceOptions,
+  type ResourceOutput,
 } from './resource.js';
 export {
   index,

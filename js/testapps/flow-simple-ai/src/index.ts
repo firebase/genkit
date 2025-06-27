@@ -1273,7 +1273,7 @@ ai.defineResource(
     description: 'provides my resource',
   },
   async (input) => {
-    return [{ text: `resource ${input}` }];
+    return { content: [{ text: `resource ${input}` }] };
   }
 );
 

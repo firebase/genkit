@@ -23,7 +23,7 @@ import {
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
 import uriTemplate from 'uri-templates';
-import { Part, PartSchema } from './model.js';
+import { PartSchema } from './model.js';
 
 /**
  * Options for defining a resource.
@@ -61,23 +61,25 @@ export const ResourceInputSchema = z.object({
 
 export type ResourceInput = z.infer<typeof ResourceInputSchema>;
 
+export const ResourceOutputSchema = z.object({
+  content: z.array(PartSchema),
+});
+
+export type ResourceOutput = z.infer<typeof ResourceOutputSchema>;
+
 /**
  * A function that returns parts for a given resource.
  */
 export type ResourceFn = (
   input: ResourceInput,
   ctx: ActionContext
-) => Part[] | Promise<Part[]>;
+) => ResourceOutput | Promise<ResourceOutput>;
 
 /**
  * A resource action.
  */
 export interface ResourceAction
-  extends Action<
-    typeof ResourceInputSchema,
-    z.ZodArray<typeof PartSchema>,
-    z.ZodArray<typeof PartSchema>
-  > {
+  extends Action<typeof ResourceInputSchema, typeof ResourceOutputSchema> {
   matches(input: ResourceInput): boolean;
 }
 
@@ -103,7 +105,9 @@ export function defineResource(
   }
   const template = opts.template ? uriTemplate(opts.template) : undefined;
   const matcher = opts.uri
-    ? (input: string) => (input === opts.uri ? {} : undefined)
+    ? // TODO: normalize resource URI during comparisons
+      // foo://bar?baz=1&qux=2 and foo://bar?qux=2&baz=1 are equivalent URIs but would not match.
+      (input: string) => (input === opts.uri ? {} : undefined)
     : (input: string) => {
         return template!.fromUri(input);
       };
@@ -115,7 +119,7 @@ export function defineResource(
       name: opts.name ?? uri,
       description: opts.description,
       inputSchema: ResourceInputSchema,
-      outputSchema: z.array(PartSchema),
+      outputSchema: ResourceOutputSchema,
       metadata: {
         resource: {
           uri: opts.uri,
@@ -133,7 +137,7 @@ export function defineResource(
         });
       }
       const parts = await fn(input, ctx);
-      parts.map((p) => {
+      parts.content.map((p) => {
         if (!p.metadata) {
           p.metadata = {};
         }

@@ -504,7 +504,7 @@ async function applyResources(
         });
       }
       const resourceParts = await resource(p.resource);
-      updatedContent.push(...resourceParts);
+      updatedContent.push(...resourceParts.content);
     }
 
     updatedMessages.push({
