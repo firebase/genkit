@@ -41,9 +41,9 @@ export const jokeFlow = ai.defineFlow(
   }
 );
 
-export const toolFlow = ai.defineFlow(
+export const webSearchFlow = ai.defineFlow(
   {
-    name: 'toolFlow',
+    name: 'webSearchFlow',
     outputSchema: z.string(),
   },
   async () => {
