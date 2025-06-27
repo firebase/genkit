@@ -746,8 +746,8 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 // The `provider` and `name` form the unique identifier. The `ret` function
 // contains the logic to process an [ai.RetrieverRequest] (containing the query)
 // and return an [ai.RetrieverResponse] (containing the relevant documents).
-func DefineRetriever(g *Genkit, provider, name string, options *ai.RetrieverOptions, ret func(context.Context, *ai.RetrieverRequest) (*ai.RetrieverResponse, error)) ai.Retriever {
-	return ai.DefineRetriever(g.reg, provider, name, options, ret)
+func DefineRetriever(g *Genkit, provider, name string, opts *ai.RetrieverOptions, ret func(context.Context, *ai.RetrieverRequest) (*ai.RetrieverResponse, error)) ai.Retriever {
+	return ai.DefineRetriever(g.reg, provider, name, opts, ret)
 }
 
 // LookupRetriever retrieves a registered [ai.Retriever] by its provider and name.
@@ -764,8 +764,8 @@ func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
 // The `provider` and `name` form the unique identifier. The `embed` function
 // contains the logic to process an [ai.EmbedRequest] (containing documents or a query)
 // and return an [ai.EmbedResponse] (containing the corresponding embeddings).
-func DefineEmbedder(g *Genkit, provider string, name string, options *ai.EmbedderOptions, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
-	return ai.DefineEmbedder(g.reg, provider, name, options, embed)
+func DefineEmbedder(g *Genkit, provider string, name string, opts *ai.EmbedderOptions, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
+	return ai.DefineEmbedder(g.reg, provider, name, opts, embed)
 }
 
 // LookupEmbedder retrieves a registered [ai.Embedder] by its provider and name.

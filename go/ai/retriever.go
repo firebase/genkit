@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -35,30 +36,37 @@ type Retriever interface {
 	Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error)
 }
 
+// RetrieverInfo contains metadata about the retriever, such as its label and capabilities.
 type RetrieverInfo struct {
-	Label    string         `json:"label,omitempty"`
-	Supports *MediaSupports `json:"supports,omitempty"`
+	// Label is a user-friendly name for the retriever.
+	Label string `json:"label,omitempty"`
+	// Supports defines the capabilities of the retriever, such as media support.
+	Supports *RetrieverSupports `json:"supports,omitempty"`
 }
 
-type MediaSupports struct {
+// RetrieverSupports defines the supported capabilities of the retriever.
+type RetrieverSupports struct {
+	// Media indicates whether the retriever supports media content.
 	Media bool `json:"media,omitempty"`
 }
 
+// RetrieverOptions represents the configuration options for a retriever.
 type RetrieverOptions struct {
+	// ConfigSchema holds the configuration schema for the retriever.
 	ConfigSchema any
-	Info         *RetrieverInfo
+	// Info contains metadata about the retriever, such as its label and capabilities.
+	Info *RetrieverInfo
 }
-
 type retriever core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
 
 // DefineRetriever registers the given retrieve function as an action, and returns a
 // [Retriever] that runs it.
-func DefineRetriever(r *registry.Registry, provider, name string, options *RetrieverOptions, fn RetrieverFunc) Retriever {
+func DefineRetriever(r *registry.Registry, provider, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
 	metadata := map[string]any{}
 	metadata["type"] = "retriever"
-	metadata["info"] = options.Info
-	if options.ConfigSchema != nil {
-		metadata["retriever"] = map[string]any{"customOptions": configToMap(options.ConfigSchema)}
+	metadata["info"] = opts.Info
+	if opts.ConfigSchema != nil {
+		metadata["retriever"] = map[string]any{"customOptions": base.InferJSONSchema(opts.ConfigSchema)}
 	}
 	return (*retriever)(core.DefineAction(r, provider, name, core.ActionTypeRetriever, metadata, fn))
 }

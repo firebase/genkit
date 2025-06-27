@@ -87,7 +87,7 @@ func main() {
 		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "go-menu_items",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},

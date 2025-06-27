@@ -35,55 +35,51 @@ type Embedder interface {
 
 // EmbedderInfo represents the structure of the embedder information object.
 type EmbedderInfo struct {
-	// Friendly label for this model (e.g. "Google AI - Gemini Pro")
+	// Label is a user-friendly name for the embedder model (e.g., "Google AI - Gemini Pro").
 	Label string `json:"label,omitempty"`
-
+	// Supports defines the capabilities of the embedder, such as input types and multilingual support.
 	Supports *EmbedderSupports `json:"supports,omitempty"`
-
+	// Dimensions specifies the number of dimensions in the embedding vector.
 	Dimensions int `json:"dimensions,omitempty"`
 }
 
 // EmbedderSupports represents the supported capabilities of the embedder model.
 type EmbedderSupports struct {
-	// Model can input this type of data.
-	// Expected values could be "text", "image", "video", but the struct
+	// Input lists the types of data the model can process (e.g., "text", "image", "video").
 	Input []string `json:"input,omitempty"`
-
+	// Multilingual indicates whether the model supports multiple languages.
 	Multilingual bool `json:"multilingual,omitempty"`
 }
 
+// EmbedderOptions represents the configuration options for an embedder.
 type EmbedderOptions struct {
-	ConfigSchema any           `json:"configSchema,omitempty"`
-	Info         *EmbedderInfo `json:"info,omitempty"`
+	// ConfigSchema defines the schema for the embedder's configuration options.
+	ConfigSchema any `json:"configSchema,omitempty"`
+	// Info contains metadata about the embedder, such as its label and capabilities.
+	Info *EmbedderInfo `json:"info,omitempty"`
 }
 
 // An embedder is used to convert a document to a multidimensional vector.
 type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
-
-func configToMap(config any) map[string]any {
-	schema := base.InferJSONSchema(config)
-	result := base.SchemaAsMap(schema)
-	return result
-}
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
 func DefineEmbedder(
 	r *registry.Registry,
 	provider, name string,
-	options *EmbedderOptions,
+	opts *EmbedderOptions,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
 	metadata := map[string]any{}
 	metadata["type"] = "embedder"
-	metadata["info"] = options.Info
-	if options.ConfigSchema != nil {
-		metadata["embedder"] = map[string]any{"customOptions": configToMap(options.ConfigSchema)}
+	metadata["info"] = opts.Info
+	if opts.ConfigSchema != nil {
+		metadata["embedder"] = map[string]any{"customOptions": base.ToSchemaMap(opts.ConfigSchema)}
 	}
 	inputSchema := base.InferJSONSchema(EmbedRequest{})
-	if inputSchema.Properties != nil && options.ConfigSchema != nil {
+	if inputSchema.Properties != nil && opts.ConfigSchema != nil {
 		if _, ok := inputSchema.Properties.Get("options"); ok {
-			inputSchema.Properties.Set("options", base.InferJSONSchema(options.ConfigSchema))
+			inputSchema.Properties.Set("options", base.InferJSONSchema(opts.ConfigSchema))
 		}
 	}
 	return (*embedder)(core.DefineActionWithInputSchema(r, provider, name, core.ActionTypeEmbedder, metadata, inputSchema, embed))

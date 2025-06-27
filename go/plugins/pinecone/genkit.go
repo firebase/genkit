@@ -101,7 +101,7 @@ type PineconeRetrieverOptions struct {
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, retOpts *ai.RetrieverOptions) (*Docstore, ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, opts *ai.RetrieverOptions) (*Docstore, ai.Retriever, error) {
 	p := genkit.LookupPlugin(g, provider).(*Pinecone)
 	if p == nil {
 		return nil, nil, errors.New("pinecone plugin not found; did you call genkit.Init with the pinecone plugin")
@@ -111,7 +111,7 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, retOpts 
 	if err != nil {
 		return nil, nil, err
 	}
-	return ds, genkit.DefineRetriever(g, provider, cfg.IndexID, retOpts, ds.Retrieve), nil
+	return ds, genkit.DefineRetriever(g, provider, cfg.IndexID, opts, ds.Retrieve), nil
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.

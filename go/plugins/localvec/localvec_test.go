@@ -236,7 +236,7 @@ func TestInit(t *testing.T) {
 		ConfigSchema: RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: name,
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},

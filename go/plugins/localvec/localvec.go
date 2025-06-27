@@ -51,18 +51,18 @@ func Init() error { return nil }
 
 // DefineRetriever defines a Retriever and docStore which is also used by the retriever.
 // The name uniquely identifies the Retriever in the registry.
-func DefineRetriever(g *genkit.Genkit, name string, cfg Config, retOpts *ai.RetrieverOptions) (*DocStore, ai.Retriever, error) {
+func DefineRetriever(g *genkit.Genkit, name string, cfg Config, opts *ai.RetrieverOptions) (*DocStore, ai.Retriever, error) {
 	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if retOpts != nil && retOpts.ConfigSchema == nil {
-		retOpts.ConfigSchema = RetrieverOptions{}
+	if opts != nil && opts.ConfigSchema == nil {
+		opts.ConfigSchema = RetrieverOptions{}
 	}
 
 	return ds,
-		genkit.DefineRetriever(g, provider, name, retOpts, ds.retrieve),
+		genkit.DefineRetriever(g, provider, name, opts, ds.retrieve),
 		nil
 }
 

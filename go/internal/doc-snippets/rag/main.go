@@ -53,7 +53,7 @@ func main() {
 		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "menuQA",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},
@@ -169,7 +169,7 @@ func menuQA() {
 		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "menuQA",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},
@@ -232,7 +232,7 @@ func customret() {
 		ConfigSchema: localvec.RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "menuQA",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},
@@ -256,7 +256,7 @@ func customret() {
 		ConfigSchema: CustomMenuRetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "advancedMenuRetriever",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},

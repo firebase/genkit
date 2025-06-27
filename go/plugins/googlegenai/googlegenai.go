@@ -112,7 +112,7 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return err
 	}
 	for e, eOpts := range embedders {
-		defineEmbedder(g, ga.gclient, e, eOpts)
+		defineEmbedder(g, ga.gclient, e, &eOpts)
 	}
 
 	return nil
@@ -186,7 +186,7 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return err
 	}
 	for e, eOpts := range embedders {
-		defineEmbedder(g, v.gclient, e, eOpts)
+		defineEmbedder(g, v.gclient, e, &eOpts)
 	}
 
 	return nil
@@ -251,23 +251,23 @@ func (v *VertexAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (ga *GoogleAI) DefineEmbedder(g *genkit.Genkit, name string, embedOptions ai.EmbedderOptions) (ai.Embedder, error) {
+func (ga *GoogleAI) DefineEmbedder(g *genkit.Genkit, name string, embedOpts *ai.EmbedderOptions) (ai.Embedder, error) {
 	ga.mu.Lock()
 	defer ga.mu.Unlock()
 	if !ga.initted {
 		return nil, errors.New("GoogleAI plugin not initialized")
 	}
-	return defineEmbedder(g, ga.gclient, name, embedOptions), nil
+	return defineEmbedder(g, ga.gclient, name, embedOpts), nil
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string, embedOptions ai.EmbedderOptions) (ai.Embedder, error) {
+func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string, embedOpts *ai.EmbedderOptions) (ai.Embedder, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if !v.initted {
 		return nil, errors.New("VertexAI plugin not initialized")
 	}
-	return defineEmbedder(g, v.gclient, name, embedOptions), nil
+	return defineEmbedder(g, v.gclient, name, embedOpts), nil
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
@@ -360,7 +360,7 @@ func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
 func (ga *GoogleAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
 	switch atype {
 	case core.ActionTypeEmbedder:
-		defineEmbedder(g, ga.gclient, name, ai.EmbedderOptions{})
+		defineEmbedder(g, ga.gclient, name, &ai.EmbedderOptions{})
 	case core.ActionTypeModel:
 		var supports *ai.ModelSupports
 		if strings.Contains(name, "gemini") || strings.Contains(name, "gemma") {
@@ -423,7 +423,7 @@ func (v *VertexAI) ListActions(ctx context.Context) []core.ActionDesc {
 func (v *VertexAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
 	switch atype {
 	case core.ActionTypeEmbedder:
-		defineEmbedder(g, v.gclient, name, ai.EmbedderOptions{})
+		defineEmbedder(g, v.gclient, name, &ai.EmbedderOptions{})
 	case core.ActionTypeModel:
 		var supports *ai.ModelSupports
 		if strings.Contains(name, "gemini") {

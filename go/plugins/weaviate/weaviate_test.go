@@ -108,7 +108,7 @@ func TestGenkit(t *testing.T) {
 		ConfigSchema: RetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "weaviate",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},

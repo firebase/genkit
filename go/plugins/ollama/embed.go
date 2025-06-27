@@ -128,17 +128,13 @@ func concatenateText(doc *ai.Document) string {
 }
 
 // DefineEmbedder defines an embedder with a given server address.
-func (o *Ollama) DefineEmbedder(g *genkit.Genkit, serverAddress string, model string) ai.Embedder {
+func (o *Ollama) DefineEmbedder(g *genkit.Genkit, serverAddress string, model string, embedOpts *ai.EmbedderOptions) ai.Embedder {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
 		panic("ollama.Init not called")
 	}
-	emdOpts := &ai.EmbedderOptions{
-		Info:         &ai.EmbedderInfo{},
-		ConfigSchema: nil,
-	}
-	return genkit.DefineEmbedder(g, provider, serverAddress, emdOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, provider, serverAddress, embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		if req.Options == nil {
 			req.Options = &EmbedOptions{Model: model}
 		}

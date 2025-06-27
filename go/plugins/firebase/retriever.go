@@ -132,7 +132,7 @@ func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *fi
 		ConfigSchema: cfg,
 		Info: &ai.RetrieverInfo{
 			Label: cfg.Name,
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},

@@ -147,7 +147,7 @@ type ClassConfig struct {
 // DefineRetriever defines [ai.Retriever]
 // that use the same class.
 // The name uniquely identifies the Retriever in the registry.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig, retOpts *ai.RetrieverOptions) (*Docstore, ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig, opts *ai.RetrieverOptions) (*Docstore, ai.Retriever, error) {
 	if cfg.Embedder == nil {
 		return nil, nil, errors.New("weaviate: Embedder required")
 	}
@@ -164,7 +164,7 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig, ret
 	if err != nil {
 		return nil, nil, err
 	}
-	retriever := genkit.DefineRetriever(g, provider, cfg.Class, retOpts, ds.Retrieve)
+	retriever := genkit.DefineRetriever(g, provider, cfg.Class, opts, ds.Retrieve)
 	return ds, retriever, nil
 }
 

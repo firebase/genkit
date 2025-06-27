@@ -52,7 +52,7 @@ func pineconeEx(ctx context.Context) error {
 		ConfigSchema: pinecone.PineconeRetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "Pinecone",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},

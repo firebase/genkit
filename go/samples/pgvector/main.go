@@ -94,7 +94,7 @@ func run(g *genkit.Genkit) error {
 		ConfigSchema: nil,
 		Info: &ai.RetrieverInfo{
 			Label: "pgVector",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},

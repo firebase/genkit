@@ -103,7 +103,7 @@ func TestGenkit(t *testing.T) {
 		ConfigSchema: PineconeRetrieverOptions{},
 		Info: &ai.RetrieverInfo{
 			Label: "embedder3",
-			Supports: &ai.MediaSupports{
+			Supports: &ai.RetrieverSupports{
 				Media: false,
 			},
 		},

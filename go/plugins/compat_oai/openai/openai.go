@@ -238,7 +238,7 @@ func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (
 }
 
 func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string, modelInfo *ai.EmbedderInfo, configSchema TextEmbeddingConfig) (ai.Embedder, error) {
-	return o.openAICompatible.DefineEmbedder(g, provider, name, ai.EmbedderOptions{
+	return o.openAICompatible.DefineEmbedder(g, provider, name, &ai.EmbedderOptions{
 		Info:         modelInfo,
 		ConfigSchema: configSchema,
 	})
