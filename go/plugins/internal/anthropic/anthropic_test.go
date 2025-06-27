@@ -17,6 +17,8 @@
 package anthropic
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -120,4 +122,97 @@ func TestAnthropic(t *testing.T) {
 			t.Errorf("should have failed, got: %q", r)
 		}
 	})
+}
+
+func TestAnthropicConfig(t *testing.T) {
+	emptyConfig := ai.GenerationCommonConfig{}
+	expectedConfig := ai.GenerationCommonConfig{
+		Temperature: 0.1,
+		TopK:        1,
+	}
+
+	tests := []struct {
+		name           string
+		inputReq       *ai.ModelRequest
+		expectedConfig *ai.GenerationCommonConfig
+		expectedErr    string
+	}{
+		{
+			name: "Input is ai.GenerationCommonConfig struct",
+			inputReq: &ai.ModelRequest{
+				Config: ai.GenerationCommonConfig{
+					Temperature: 0.1,
+					TopK:        1,
+				},
+			},
+			expectedConfig: &expectedConfig,
+			expectedErr:    "",
+		},
+		{
+			name: "Input is *ai.GenerationCommonConfig struct",
+			inputReq: &ai.ModelRequest{
+				Config: &ai.GenerationCommonConfig{
+					Temperature: 0.1,
+					TopK:        1,
+				},
+			},
+			expectedConfig: &expectedConfig,
+			expectedErr:    "",
+		},
+		{
+			name: "Input is map[string]any",
+			inputReq: &ai.ModelRequest{
+				Config: map[string]any{
+					"temperature": 0.1,
+					"topK":        1,
+				},
+			},
+			expectedConfig: &expectedConfig,
+			expectedErr:    "",
+		},
+		{
+			name: "Input is map[string]any (empty)",
+			inputReq: &ai.ModelRequest{
+				Config: map[string]any{},
+			},
+			expectedConfig: &emptyConfig,
+			expectedErr:    "",
+		},
+		{
+			name: "Input is nil",
+			inputReq: &ai.ModelRequest{
+				Config: nil,
+			},
+			expectedConfig: &emptyConfig,
+			expectedErr:    "",
+		},
+		{
+			name: "Input is an unexpected type",
+			inputReq: &ai.ModelRequest{
+				Config: 123,
+			},
+			expectedConfig: &emptyConfig,
+			expectedErr:    "unexpected config type: int",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotConfig, err := configFromRequest(tt.inputReq)
+			if tt.expectedErr != "" {
+				if err == nil {
+					t.Errorf("expecting error containing %q, got nil", tt.expectedErr)
+				} else if !strings.Contains(err.Error(), tt.expectedErr) {
+					t.Errorf("expecting error to contain %q, but got: %q", tt.expectedErr, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("expected no error, got: %v", err)
+			}
+			if !reflect.DeepEqual(gotConfig, tt.expectedConfig) {
+				t.Errorf("configFromRequest() got config = %+v, want %+v", gotConfig, tt.expectedConfig)
+			}
+		})
+	}
 }

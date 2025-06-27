@@ -76,7 +76,7 @@ func generate(
 			return nil, err
 		}
 
-		r, err := anthropicToGenkitResponse(msg)
+		r, err := toGenkitResponse(msg)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +103,7 @@ func generate(
 					},
 				})
 			case anthropic.MessageStopEvent:
-				r, err := anthropicToGenkitResponse(&message)
+				r, err := toGenkitResponse(&message)
 				if err != nil {
 					return nil, err
 				}
@@ -300,6 +300,14 @@ func toAnthropicParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, err
 				return nil, fmt.Errorf("unable to parse tool response, err: %w", err)
 			}
 			blocks = append(blocks, anthropic.NewToolResultBlock(toolResp.Ref, string(output), false))
+		case p.IsReasoning():
+			signature := []byte{}
+			if p.Metadata != nil {
+				if sig, ok := p.Metadata["signature"].([]byte); ok {
+					signature = sig
+				}
+			}
+			blocks = append(blocks, anthropic.NewThinkingBlock(string(signature), p.Text))
 		default:
 			return nil, errors.New("unknown part type in the request")
 		}
@@ -308,8 +316,8 @@ func toAnthropicParts(parts []*ai.Part) ([]anthropic.ContentBlockParamUnion, err
 	return blocks, nil
 }
 
-// anthropicToGenkitResponse translates an Anthropic Message to [ai.ModelResponse]
-func anthropicToGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
+// toGenkitResponse translates an Anthropic Message to [ai.ModelResponse]
+func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 	r := ai.ModelResponse{}
 
 	switch m.StopReason {
@@ -330,6 +338,8 @@ func anthropicToGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) 
 	for _, part := range m.Content {
 		var p *ai.Part
 		switch part.AsAny().(type) {
+		case anthropic.ThinkingBlock:
+			p = ai.NewReasoningPart(part.Text, []byte(part.Signature))
 		case anthropic.TextBlock:
 			p = ai.NewTextPart(string(part.Text))
 		case anthropic.ToolUseBlock:
