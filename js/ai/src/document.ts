@@ -152,7 +152,9 @@ export type CustomPart = z.infer<typeof CustomPartSchema>;
  * Zod schema of a resource part.
  */
 export const ResourcePartSchema = EmptyPartSchema.extend({
-  resource: z.string(),
+  resource: z.object({
+    uri: z.string(),
+  }),
 });
 
 /**

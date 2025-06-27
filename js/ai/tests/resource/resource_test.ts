@@ -30,6 +30,7 @@ describe('resource', () => {
     const testResource = defineResource(
       registry,
       {
+        name: 'testResource',
         uri: 'foo://bar',
         description: 'does foo things',
         metadata: { foo: 'bar' },
@@ -49,14 +50,21 @@ describe('resource', () => {
       },
     });
 
-    assert.strictEqual(testResource.matches('foo://bar'), true);
-    assert.strictEqual(testResource.matches('foo://baz'), false);
+    assert.strictEqual(testResource.matches({ uri: 'foo://bar' }), true);
+    assert.strictEqual(testResource.matches({ uri: 'foo://baz' }), false);
 
-    assert.deepStrictEqual(await testResource('foo://bar'), [
-      { text: 'foo stuff' },
+    assert.deepStrictEqual(await testResource({ uri: 'foo://bar' }), [
+      {
+        text: 'foo stuff',
+        metadata: {
+          resource: {
+            uri: 'foo://bar',
+          },
+        },
+      },
     ]);
 
-    assert.ok(await registry.lookupAction('/resource/foo://bar'));
+    assert.ok(await registry.lookupAction('/resource/testResource'));
   });
 
   it('defines and matches templates resource uri', async () => {
@@ -66,58 +74,139 @@ describe('resource', () => {
         template: 'foo://bar/{baz}',
         description: 'does foo things',
       },
-      ({ baz }) => {
-        return [{ text: `foo stuff ${baz}` }];
+      (input) => {
+        return [{ text: `foo stuff ${input.uri}` }];
       }
     );
 
     assert.ok(testResource);
+    assert.strictEqual(testResource.__action.name, 'foo://bar/{baz}');
     assert.strictEqual(testResource.__action.description, 'does foo things');
 
-    assert.strictEqual(testResource.matches('foo://bar/something'), true);
-    assert.strictEqual(testResource.matches('foo://baz/something'), false);
+    assert.strictEqual(
+      testResource.matches({ uri: 'foo://bar/something' }),
+      true
+    );
+    assert.strictEqual(
+      testResource.matches({ uri: 'foo://baz/something' }),
+      false
+    );
 
-    assert.deepStrictEqual(await testResource('foo://bar/something'), [
-      { text: 'foo stuff something' },
+    assert.deepStrictEqual(await testResource({ uri: 'foo://bar/something' }), [
+      {
+        text: 'foo stuff foo://bar/something',
+        metadata: {
+          resource: {
+            template: 'foo://bar/{baz}',
+            uri: 'foo://bar/something',
+          },
+        },
+      },
     ]);
 
     assert.ok(await registry.lookupAction('/resource/foo://bar/{baz}'));
+  });
+
+  it('handle parent resources', async () => {
+    const testResource = defineResource(
+      registry,
+      {
+        name: 'testResource',
+        template: 'file://{/id*}',
+        description: 'does foo things',
+      },
+      (file) => {
+        return [
+          {
+            text: `sub1`,
+            metadata: { resource: { uri: `${file.uri}/sub1.txt` } },
+          },
+          {
+            text: `sub2`,
+            metadata: { resource: { uri: `${file.uri}/sub2.txt` } },
+          },
+        ];
+      }
+    );
+    assert.strictEqual(
+      testResource.matches({ uri: 'file:///some/directory' }),
+      true
+    );
+
+    assert.deepStrictEqual(
+      await testResource({ uri: 'file:///some/directory' }),
+      [
+        {
+          text: 'sub1',
+          metadata: {
+            resource: {
+              parent: {
+                template: 'file://{/id*}',
+                uri: 'file:///some/directory',
+              },
+              uri: 'file:///some/directory/sub1.txt',
+            },
+          },
+        },
+        {
+          text: 'sub2',
+          metadata: {
+            resource: {
+              parent: {
+                template: 'file://{/id*}',
+                uri: 'file:///some/directory',
+              },
+              uri: 'file:///some/directory/sub2.txt',
+            },
+          },
+        },
+      ]
+    );
   });
 
   it('finds matching resource', async () => {
     defineResource(
       registry,
       {
+        name: 'testTemplateResource',
         template: 'foo://bar/{baz}',
         description: 'does foo things',
       },
-      ({ baz }) => {
-        return [{ text: `foo stuff ${baz}` }];
+      (input) => {
+        return [{ text: `foo stuff ${input.uri}` }];
       }
     );
     defineResource(
       registry,
       {
+        name: 'testResource',
         uri: 'bar://baz',
         description: 'does bar things',
       },
-      ({ baz }) => {
+      () => {
         return [{ text: `bar` }];
       }
     );
 
-    const gotBar = await findMatchingResource(registry, 'bar://baz');
+    const gotBar = await findMatchingResource(registry, { uri: 'bar://baz' });
     assert.ok(gotBar);
-    assert.strictEqual(gotBar.__action.name, 'bar://baz');
+    assert.strictEqual(gotBar.__action.name, 'testResource');
 
-    const gotFoo = await findMatchingResource(registry, 'foo://bar/something');
+    const gotFoo = await findMatchingResource(registry, {
+      uri: 'foo://bar/something',
+    });
     assert.ok(gotFoo);
-    assert.strictEqual(gotFoo.__action.name, 'foo://bar/{baz}');
+    assert.strictEqual(gotFoo.__action.name, 'testTemplateResource');
+    assert.deepStrictEqual(gotFoo.__action.metadata, {
+      resource: {
+        template: 'foo://bar/{baz}',
+        uri: undefined,
+      },
+    });
 
-    const gotUnmatched = await findMatchingResource(
-      registry,
-      'unknown://bar/something'
-    );
+    const gotUnmatched = await findMatchingResource(registry, {
+      uri: 'unknown://bar/something',
+    });
     assert.strictEqual(gotUnmatched, undefined);
   });
 });

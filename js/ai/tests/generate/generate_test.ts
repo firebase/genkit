@@ -434,20 +434,23 @@ describe('generate', () => {
   it('applies resources', async () => {
     defineResource(
       registry,
-      { template: 'test://resource/{param}' },
-      ({ param }) => [{ text: 'resource' }, { text: param }]
+      { name: 'testResource', template: 'test://resource/{param}' },
+      (input) => [{ text: 'resource' }, { text: input.uri }]
     );
 
     const response = await generate(registry, {
       model: 'echo',
-      prompt: [{ text: 'some text' }, { resource: 'test://resource/value' }],
+      prompt: [
+        { text: 'some text' },
+        { resource: { uri: 'test://resource/value' } },
+      ],
     });
     assert.deepEqual(response.messages[0].content, [
       { text: 'some text' },
       {
         metadata: {
           resource: {
-            name: 'test://resource/{param}',
+            template: 'test://resource/{param}',
             uri: 'test://resource/value',
           },
         },
@@ -456,11 +459,11 @@ describe('generate', () => {
       {
         metadata: {
           resource: {
-            name: 'test://resource/{param}',
+            template: 'test://resource/{param}',
             uri: 'test://resource/value',
           },
         },
-        text: 'value',
+        text: 'test://resource/value',
       },
     ]);
   });
@@ -468,7 +471,7 @@ describe('generate', () => {
   it('throws when resource not found', async () => {
     const response = generate(registry, {
       model: 'echo',
-      prompt: [{ text: 'some text' }, { resource: 'test://resource' }],
+      prompt: [{ text: 'some text' }, { resource: { uri: 'test://resource' } }],
     });
     await assert.rejects(response, {
       message:

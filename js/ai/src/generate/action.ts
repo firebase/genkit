@@ -500,15 +500,10 @@ async function applyResources(
       if (!resource) {
         throw new GenkitError({
           status: 'NOT_FOUND',
-          message: `failed to find matching resource for ${p.resource}`,
+          message: `failed to find matching resource for ${p.resource.uri}`,
         });
       }
       const resourceParts = await resource(p.resource);
-      resourceParts.forEach((r) => {
-        r.metadata = {
-          resource: { name: resource.__action.name, uri: p.resource },
-        };
-      });
       updatedContent.push(...resourceParts);
     }
 
