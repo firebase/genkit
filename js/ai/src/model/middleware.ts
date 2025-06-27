@@ -239,7 +239,7 @@ export interface SimulatedConstrainedGenerationOptions {
   instructionsRenderer?: (schema: Record<string, any>) => string;
 }
 
-const DEFAULT_CONSTRAINED_GENERATION_INSTRUSCTIONS = (
+const DEFAULT_CONSTRAINED_GENERATION_INSTRUCTIONS = (
   schema: Record<string, any>
 ) => `Output should be in JSON format and conform to the following schema:
 
@@ -260,7 +260,7 @@ export function simulateConstrainedGeneration(
     if (req.output?.constrained && req.output?.schema) {
       instructions = (
         options?.instructionsRenderer ??
-        DEFAULT_CONSTRAINED_GENERATION_INSTRUSCTIONS
+        DEFAULT_CONSTRAINED_GENERATION_INSTRUCTIONS
       )(req.output?.schema);
 
       req = {
