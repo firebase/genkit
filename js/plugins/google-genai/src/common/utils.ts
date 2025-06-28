@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EmbedderReference, JSONSchema, ModelReference } from 'genkit';
+import { JSONSchema, ModelReference } from 'genkit';
 import { GenerationCommonConfigSchema } from 'genkit/model';
 
 /**
@@ -113,9 +113,4 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
     }
   }
   return out;
-}
-
-export function isMultiModalEmbedder(embedder: EmbedderReference): boolean {
-  const input = embedder.info?.supports?.input || '';
-  return (input.includes('text') && input.includes('image')) || false;
 }
