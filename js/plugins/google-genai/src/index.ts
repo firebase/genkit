@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 
-//export { googleAI } from './googleai';
+export { googleAI } from './googleai';
 export { vertexAI } from './vertexai';

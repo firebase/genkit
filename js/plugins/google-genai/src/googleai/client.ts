@@ -229,9 +229,18 @@ async function makeRequest(
   try {
     const response = await fetch(url, fetchOptions);
     if (!response.ok) {
-      const json = await response.json();
+      let errorText = await response.text();
+      let errorMessage = errorText;
+      try {
+        const json = JSON.parse(errorText);
+        if (json.error && json.error.message) {
+          errorMessage = json.error.message;
+        }
+      } catch (e) {
+        // Not JSON or expected format, use the raw text
+      }
       throw new Error(
-        `Error fetching from ${url}: [${response.status} ${response.statusText}] ${json.error.message}`
+        `Error fetching from ${url}: [${response.status} ${response.statusText}] ${errorMessage}`
       );
     }
     return response;
