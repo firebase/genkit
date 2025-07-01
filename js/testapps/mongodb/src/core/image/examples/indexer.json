@@ -1,0 +1,26 @@
+[
+  {
+    "name": "mouse",
+    "description": "An image of a computer mouse"
+  },
+  {
+    "name": "plug",
+    "description": "An image of an electrical plug"
+  },
+  {
+    "name": "sofa",
+    "description": "An image of a sofa"
+  },
+  {
+    "name": "table",
+    "description": "An image of a table"
+  },
+  {
+    "name": "lays",
+    "description": "An image of a bag of Lays chips"
+  },
+  {
+    "name": "chips",
+    "description": "An image of a bag of chips"
+  }
+]
