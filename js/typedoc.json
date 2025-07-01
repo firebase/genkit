@@ -13,7 +13,8 @@
     "plugins/ollama",
     "plugins/chroma",
     "plugins/pinecone",
-    "plugins/mcp"
+    "plugins/mcp",
+    "plugins/mongodb"
   ],
   "name": "Genkit JS API reference",
   "out": "api-refs-js",

@@ -1,0 +1,3 @@
+{
+  "request": "For collection menu, create a search index named 'item_search_index' with definition that has mappings for field: menuItemMetadata with type document and within it, field: title with type string. Also set dynamic to false."
+}
