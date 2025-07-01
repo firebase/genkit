@@ -163,7 +163,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(r *registry.Registry, provider, name string) Model {
-	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
+	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil
 	}

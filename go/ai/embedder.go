@@ -48,7 +48,7 @@ func DefineEmbedder(
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(r *registry.Registry, provider, name string) Embedder {
-	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, provider, name)
+	action := core.ResolveActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, provider, name)
 	if action == nil {
 		return nil
 	}

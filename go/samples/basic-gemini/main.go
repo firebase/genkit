@@ -19,7 +19,6 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"google.golang.org/genai"
@@ -39,14 +38,14 @@ func main() {
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		// Any available Gemini model can be selected
-		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-thinking-exp-1219")
-		if m == nil {
-			return "", core.NewError(core.INVALID_ARGUMENT, "jokesFlow: failed to find model")
-		}
+		// // Any available Gemini model can be selected
+		// m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-thinking-exp-1219")
+		// if m == nil {
+		// 	return "", core.NewError(core.INVALID_ARGUMENT, "jokesFlow: failed to find model")
+		// }
 
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModel(m),
+			ai.WithModelName("googleai/gemini-2.5-flash"),
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 				ThinkingConfig: &genai.ThinkingConfig{
