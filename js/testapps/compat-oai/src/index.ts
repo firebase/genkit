@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
 import { openAI } from '@genkit-ai/compat-oai/openai';
 import { startFlowServer } from '@genkit-ai/express';
 import dotenv from 'dotenv';
@@ -23,7 +24,7 @@ import { genkit, z } from 'genkit';
 dotenv.config();
 
 const ai = genkit({
-  plugins: [openAI()],
+  plugins: [openAI(), deepSeek({ apiKey: process.env['DEEPSEEK_API_KEY'] })],
 });
 
 export const jokeFlow = ai.defineFlow(
@@ -38,6 +39,29 @@ export const jokeFlow = ai.defineFlow(
       model: openAI.model('gpt-4.1'),
     });
     return llmResponse.text;
+  }
+);
+
+export const modelWrapFlow = ai.defineFlow(
+  {
+    name: 'modelWrapFlow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (subject, { sendChunk }) => {
+    const { stream, response } = ai.generateStream({
+      model: deepSeek.model('deepseek-chat'),
+      prompt: `tell me a fun fact about ${subject}`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.text);
+    }
+
+    const { text } = await response;
+
+    return text;
   }
 );
 
