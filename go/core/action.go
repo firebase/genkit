@@ -311,6 +311,23 @@ func (a *ActionDef[In, Out, Stream]) Desc() ActionDesc {
 	return *a.desc
 }
 
+// ResolveActionFor returns the action for the given key in the global registry,
+// or nil if there is none.
+// It panics if the action is of the wrong type.
+func ResolveActionFor[In, Out, Stream any](r *registry.Registry, typ ActionType, provider, name string) *ActionDef[In, Out, Stream] {
+	var key string
+	if provider != "" {
+		key = fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+	} else {
+		key = fmt.Sprintf("/%s/%s", typ, name)
+	}
+	a := r.ResolveAction(key)
+	if a == nil {
+		return nil
+	}
+	return a.(*ActionDef[In, Out, Stream])
+}
+
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong type.

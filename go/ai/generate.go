@@ -161,9 +161,10 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
-// It returns nil if the model was not defined.
+// It will try to resolve the model dynamically if the model is not found.
+// It returns nil if the model was not resolved.
 func LookupModel(r *registry.Registry, provider, name string) Model {
-	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
+	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil
 	}
@@ -171,7 +172,8 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 }
 
 // LookupModelByName looks up a [Model] registered by [DefineModel].
-// It returns an error if the model was not defined.
+// It will try to resolve the model dynamically if the model is not found.
+// It returns an error if the model was not resolved.
 func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	if modelName == "" {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.LookupModelByName: model not specified")

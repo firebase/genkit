@@ -179,20 +179,12 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		return nil, err
 	}
 
-	// Register default formats
-	ai.ConfigureFormats(r)
-
 	gOpts := &genkitOptions{}
 	for _, opt := range opts {
 		if err := opt.apply(gOpts); err != nil {
 			return nil, fmt.Errorf("genkit.Init: error applying options: %w", err)
 		}
 	}
-
-	ai.DefineGenerateAction(ctx, r)
-
-	r.RegisterValue("genkit/defaultModel", gOpts.DefaultModel)
-	r.RegisterValue("genkit/promptDir", gOpts.PromptDir)
 
 	g := &Genkit{reg: r}
 
@@ -203,7 +195,22 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 		r.RegisterPlugin(plugin.Name(), plugin)
 	}
 
+	r.ActionResolver = func(actionType, provider, name string) error {
+		plugins := r.ListPlugins()
+		for _, plugin := range plugins {
+			if dp, ok := plugin.(DynamicPlugin); ok && dp.Name() == provider {
+				return dp.ResolveAction(g, core.ActionType(actionType), name)
+			}
+		}
+		return nil
+	}
+
+	ai.ConfigureFormats(r)
+	ai.DefineGenerateAction(ctx, r)
 	ai.LoadPromptDir(r, gOpts.PromptDir, "")
+
+	r.RegisterValue("genkit/defaultModel", gOpts.DefaultModel)
+	r.RegisterValue("genkit/promptDir", gOpts.PromptDir)
 
 	if registry.CurrentEnvironment() == registry.EnvironmentDev {
 		errCh := make(chan error, 1)
@@ -446,31 +453,9 @@ func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.Mod
 // LookupModel retrieves a registered [ai.Model] by its provider and name.
 // It returns the model instance if found, or `nil` if no model with the
 // given identifier is registered (e.g., via [DefineModel] or a plugin).
+// It will try to resolve the model dynamically by matching the provider name;
+// this does not necessarily mean the model is valid.
 func LookupModel(g *Genkit, provider, name string) ai.Model {
-	m := ai.LookupModel(g.reg, provider, name)
-	if m != nil {
-		return m
-	}
-
-	plugins := g.reg.ListPlugins()
-	if plugins == nil {
-		return nil
-	}
-
-	for _, plugin := range plugins {
-		p, ok := plugin.(DynamicPlugin)
-		if !ok {
-			continue
-		}
-		if p.Name() != provider {
-			continue
-		}
-		err := p.ResolveAction(g, core.ActionTypeModel, name)
-		if err != nil {
-			return nil
-		}
-	}
-
 	return ai.LookupModel(g.reg, provider, name)
 }
 
@@ -771,6 +756,7 @@ func DefineEmbedder(g *Genkit, provider, name string, embed func(context.Context
 // LookupEmbedder retrieves a registered [ai.Embedder] by its provider and name.
 // It returns the embedder instance if found, or `nil` if no embedder with the
 // given identifier is registered (e.g., via [DefineEmbedder] or a plugin).
+// It will try to resolve the embedder dynamically if the embedder is not found.
 func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 	return ai.LookupEmbedder(g.reg, provider, name)
 }
