@@ -48,12 +48,21 @@
       "import": "./lib/openai/index.mjs",
       "types": "./lib/openai/index.d.ts",
       "default": "./lib/openai/index.js"
+    },
+    "./deepseek": {
+      "require": "./lib/deepseek/index.js",
+      "import": "./lib/deepseek/index.mjs",
+      "types": "./lib/deepseek/index.d.ts",
+      "default": "./lib/deepseek/index.js"
     }
   },
   "typesVersions": {
     "*": {
       "openai": [
         "lib/openai"
+      ],
+      "deepseek": [
+        "lib/deepseek"
       ]
     }
   },

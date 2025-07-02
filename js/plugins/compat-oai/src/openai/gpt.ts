@@ -15,19 +15,8 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import { GenerationCommonConfigSchema, modelRef } from 'genkit/model';
-
-export const ChatCompletionConfigSchema = GenerationCommonConfigSchema.extend({
-  frequencyPenalty: z.number().min(-2).max(2).optional(),
-  logitBias: z.record(z.string(), z.number().min(-100).max(100)).optional(),
-  logProbs: z.boolean().optional(),
-  presencePenalty: z.number().min(-2).max(2).optional(),
-  seed: z.number().int().optional(),
-  topLogProbs: z.number().int().min(0).max(20).optional(),
-  user: z.string().optional(),
-  visualDetailLevel: z.enum(['auto', 'low', 'high']).optional(),
-});
+import { modelRef } from 'genkit/model';
+import { ChatCompletionCommonConfigSchema } from '../model';
 
 export const gpt45 = modelRef({
   name: 'openai/gpt-4.5',
@@ -42,7 +31,7 @@ export const gpt45 = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt4o = modelRef({
@@ -58,7 +47,7 @@ export const gpt4o = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const o1Preview = modelRef({
@@ -74,7 +63,7 @@ export const o1Preview = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const o1Mini = modelRef({
@@ -90,7 +79,7 @@ export const o1Mini = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const o1 = modelRef({
@@ -106,7 +95,7 @@ export const o1 = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const o3 = modelRef({
@@ -122,7 +111,7 @@ export const o3 = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const o3Mini = modelRef({
@@ -138,7 +127,7 @@ export const o3Mini = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const o4Mini = modelRef({
@@ -154,7 +143,7 @@ export const o4Mini = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt4oMini = modelRef({
@@ -170,7 +159,7 @@ export const gpt4oMini = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt4Turbo = modelRef({
@@ -192,7 +181,7 @@ export const gpt4Turbo = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt4Vision = modelRef({
@@ -208,7 +197,7 @@ export const gpt4Vision = modelRef({
       output: ['text'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt4 = modelRef({
@@ -224,7 +213,7 @@ export const gpt4 = modelRef({
       output: ['text'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt41 = modelRef({
@@ -240,7 +229,7 @@ export const gpt41 = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt41Mini = modelRef({
@@ -256,7 +245,7 @@ export const gpt41Mini = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt41Nano = modelRef({
@@ -272,7 +261,7 @@ export const gpt41Nano = modelRef({
       output: ['text', 'json'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const gpt35Turbo = modelRef({
@@ -288,7 +277,7 @@ export const gpt35Turbo = modelRef({
       output: ['json', 'text'],
     },
   },
-  configSchema: ChatCompletionConfigSchema,
+  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const SUPPORTED_GPT_MODELS = {
