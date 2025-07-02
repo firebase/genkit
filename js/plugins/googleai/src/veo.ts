@@ -38,12 +38,8 @@ export type KNOWN_VEO_MODELS = 'veo-2.0-generate-001';
  */
 export const VeoConfigSchema = z
   .object({
-    numberOfVideos: z
-      .number()
-      .min(1)
-      .max(4)
-      .describe('The number of videos to generate, between 1 and 4.')
-      .optional(),
+    // NOTE: Documentation notes numberOfVideos parameter to pick the number of
+    // output videos, but this setting does not seem to work
     negativePrompt: z.string().optional(),
     aspectRatio: z
       .enum(['9:16', '16:9'])
@@ -57,6 +53,7 @@ export const VeoConfigSchema = z
       .optional(),
     durationSeconds: z
       .number()
+      .step(1)
       .min(5)
       .max(8)
       .describe('Length of each output video in seconds, between 5 and 8.')
