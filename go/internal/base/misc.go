@@ -17,9 +17,7 @@
 package base
 
 import (
-	"fmt"
 	"net/url"
-	"strings"
 )
 
 // An Environment is the execution context in which the program is running.
@@ -39,36 +37,4 @@ func Zero[T any]() T {
 // Clean returns a valid filename for id.
 func Clean(id string) string {
 	return url.PathEscape(id)
-}
-
-// ParseActionKey parses an action key in the format "/<action_type>/<provider>/<name>", "/<action_type>/<name>",
-// "<action_type>/<provider>/<name>", or "<action_type>/<name>".
-// Returns the action type, provider (empty string if not present), and name.
-// If the key format is invalid, returns an error.
-func ParseActionKey(key string) (actionType, provider, name string, err error) {
-	// Strip leading "/" if present since action keys typically start with "/"
-	keyToParse := key
-	if strings.HasPrefix(key, "/") {
-		keyToParse = key[1:]
-	}
-
-	parts := strings.Split(keyToParse, "/")
-	if len(parts) < 2 {
-		return "", "", "", fmt.Errorf("action key must have at least 2 parts, got %d", len(parts))
-	}
-
-	actionType = parts[0]
-
-	if len(parts) == 2 {
-		// Format: <action_type>/<name>
-		name = parts[1]
-	} else if len(parts) == 3 {
-		// Format: <action_type>/<provider>/<name>
-		provider = parts[1]
-		name = parts[2]
-	} else {
-		return "", "", "", fmt.Errorf("action key must have 2 or 3 parts, got %d", len(parts))
-	}
-
-	return actionType, provider, name, nil
 }

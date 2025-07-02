@@ -21,10 +21,10 @@ import (
 	"log/slog"
 	"maps"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/base"
 	"github.com/google/dotprompt/go/dotprompt"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -37,19 +37,20 @@ const (
 )
 
 // ActionResolver is a function type for resolving actions dynamically
-type ActionResolver func(actionType, provider, name string) error
+type ActionResolver = func(actionType, provider, name string) error
 
 // Registry holds all registered actions and associated types,
 // and provides methods to register, query, and look up actions.
 type Registry struct {
-	tstate         *tracing.State
-	mu             sync.Mutex
-	frozen         bool           // when true, no more additions
-	parent         *Registry      // parent registry for hierarchical lookups
-	actions        map[string]any // Values follow interface core.Action but we can't reference it here.
-	plugins        map[string]any // Values follow interface genkit.Plugin but we can't reference it here.
-	values         map[string]any // Values can truly be anything.
-	actionResolver ActionResolver // Callback function for resolving actions dynamically.
+	tstate  *tracing.State
+	mu      sync.Mutex
+	frozen  bool           // when true, no more additions
+	parent  *Registry      // parent registry for hierarchical lookups
+	actions map[string]any // Values follow interface core.Action but we can't reference it here.
+	plugins map[string]any // Values follow interface genkit.Plugin but we can't reference it here.
+	values  map[string]any // Values can truly be anything.
+
+	ActionResolver ActionResolver // Function for resolving actions dynamically.
 	Dotprompt      *dotprompt.Dotprompt
 }
 
@@ -81,7 +82,7 @@ func (r *Registry) NewChild() *Registry {
 		actions:        map[string]any{},
 		plugins:        map[string]any{},
 		values:         map[string]any{},
-		actionResolver: r.actionResolver,
+		ActionResolver: r.ActionResolver,
 		Dotprompt:      r.Dotprompt,
 	}
 	return child
@@ -183,15 +184,16 @@ func (r *Registry) LookupAction(key string) any {
 // Returns the action if found, or nil if not found.
 func (r *Registry) ResolveAction(key string) any {
 	action := r.LookupAction(key)
-	if action == nil && r.actionResolver != nil {
-		typ, provider, name, err := base.ParseActionKey(key)
+	if action == nil && r.ActionResolver != nil {
+		typ, provider, name, err := ParseActionKey(key)
 		if err != nil {
 			slog.Debug("ResolveAction: failed to parse action key", "key", key, "err", err)
 			return nil
 		}
-		err = r.actionResolver(typ, provider, name)
+		err = r.ActionResolver(typ, provider, name)
 		if err != nil {
-			slog.Debug("ResolveAction: failed to resolve action", "key", key, "err", err)
+			// TODO: Handle errors from the action resolver better.
+			slog.Error("ResolveAction: failed to resolve action", "key", key, "err", err)
 			return nil
 		}
 		action = r.LookupAction(key)
@@ -298,9 +300,31 @@ func (r *Registry) DefineHelper(name string, fn any) error {
 	return nil
 }
 
-// RegisterActionResolver sets the action resolver callback
-func (r *Registry) RegisterActionResolver(resolver ActionResolver) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.actionResolver = resolver
+// ParseActionKey parses an action key in the format "/<action_type>/<provider>/<name>" or "/<action_type>/<name>".
+// Returns the action type, provider (empty string if not present), and name.
+// If the key format is invalid, returns an error.
+func ParseActionKey(key string) (actionType, provider, name string, err error) {
+	if !strings.HasPrefix(key, "/") {
+		return "", "", "", fmt.Errorf("action key must start with '/', got %q", key)
+	}
+
+	parts := strings.Split(key[1:], "/")
+	if len(parts) < 2 {
+		return "", "", "", fmt.Errorf("action key must have at least 2 parts, got %d", len(parts))
+	}
+
+	actionType = parts[0]
+
+	if len(parts) == 2 {
+		// Format: <action_type>/<name>
+		name = parts[1]
+	} else if len(parts) == 3 {
+		// Format: <action_type>/<provider>/<name>
+		provider = parts[1]
+		name = parts[2]
+	} else {
+		return "", "", "", fmt.Errorf("action key must have 2 or 3 parts, got %d", len(parts))
+	}
+
+	return actionType, provider, name, nil
 }
