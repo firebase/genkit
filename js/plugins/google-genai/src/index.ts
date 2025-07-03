@@ -15,7 +15,4 @@
  */
 
 //export { googleAI } from './googleai';
-//export { vertexAI } from './vertexai';
-
-// TODO(ifielker): remove this placeholder
-export { FunctionCallingMode } from './common/types';
+export { vertexAI } from './vertexai';
