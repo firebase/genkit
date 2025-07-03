@@ -17,6 +17,7 @@
 
 import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
 import { openAI } from '@genkit-ai/compat-oai/openai';
+import { xAI } from '@genkit-ai/compat-oai/xai';
 import { startFlowServer } from '@genkit-ai/express';
 import dotenv from 'dotenv';
 import { genkit, z } from 'genkit';
@@ -24,7 +25,11 @@ import { genkit, z } from 'genkit';
 dotenv.config();
 
 const ai = genkit({
-  plugins: [openAI(), deepSeek({ apiKey: process.env['DEEPSEEK_API_KEY'] })],
+  plugins: [
+    openAI(),
+    deepSeek({ apiKey: process.env['DEEPSEEK_API_KEY'] }),
+    xAI({ apiKey: process.env['XAI_API_KEY'] }),
+  ],
 });
 
 export const jokeFlow = ai.defineFlow(
@@ -51,7 +56,7 @@ export const modelWrapFlow = ai.defineFlow(
   },
   async (subject, { sendChunk }) => {
     const { stream, response } = ai.generateStream({
-      model: deepSeek.model('deepseek-chat'),
+      model: xAI.model('grok-3'),
       prompt: `tell me a fun fact about ${subject}`,
     });
 

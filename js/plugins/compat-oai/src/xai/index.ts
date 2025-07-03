@@ -26,14 +26,20 @@ import { logger } from 'genkit/logging';
 import { GenkitPlugin } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
+import {
+  defineCompatOpenAIImageModel,
+  IMAGE_GENERATION_MODEL_INFO,
+  ImageGenerationCommonConfigSchema,
+} from '../image.js';
 import openAICompatible, { PluginOptions } from '../index.js';
 import {
   ChatCompletionCommonConfigSchema,
   defineCompatOpenAIModel,
 } from '../model.js';
-import { SUPPORTED_DEEPSEEK_MODELS } from './deepseek.js';
+import { SUPPORTED_IMAGE_MODELS } from './grok-image.js';
+import { SUPPORTED_LANGUAGE_MODELS } from './grok.js';
 
-export type DeepSeekPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
+export type XAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
 const resolver = async (
   ai: Genkit,
@@ -44,11 +50,11 @@ const resolver = async (
   if (actionType === 'model') {
     defineCompatOpenAIModel({
       ai,
-      name: `deepseek/${actionName}`,
+      name: `xai/${actionName}`,
       client,
     });
   } else {
-    logger.warn('Only model actions are supported by the DeepSeek plugin');
+    logger.warn('Only model actions are supported by the XAI plugin');
   }
 };
 
@@ -57,23 +63,39 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
     response.data
       .filter((model) => model.object === 'model')
       .map((model: OpenAI.Model) => {
-        return modelActionMetadata({
-          name: `deepseek/${model.id}`,
-          configSchema: ChatCompletionCommonConfigSchema,
-          info: SUPPORTED_DEEPSEEK_MODELS[model.id]?.info,
-        });
+        if (model.id.includes('image')) {
+          return modelActionMetadata({
+            name: `xai/${model.id}`,
+            configSchema: ImageGenerationCommonConfigSchema,
+            info: IMAGE_GENERATION_MODEL_INFO,
+          });
+        } else {
+          return modelActionMetadata({
+            name: `xai/${model.id}`,
+            configSchema: ChatCompletionCommonConfigSchema,
+            info: SUPPORTED_LANGUAGE_MODELS[model.id]?.info,
+          });
+        }
       })
   );
 };
 
-export function deepSeekPlugin(options?: DeepSeekPluginOptions): GenkitPlugin {
+export function xAIPlugin(options?: XAIPluginOptions): GenkitPlugin {
   return openAICompatible({
-    name: 'deepseek',
-    baseURL: 'https://api.deepseek.com',
+    name: 'xai',
+    baseURL: 'https://api.x.ai/v1',
     ...options,
     initializer: async (ai, client) => {
-      Object.values(SUPPORTED_DEEPSEEK_MODELS).forEach((modelRef) =>
+      Object.values(SUPPORTED_LANGUAGE_MODELS).forEach((modelRef) =>
         defineCompatOpenAIModel({ ai, name: modelRef.name, client, modelRef })
+      );
+      Object.values(SUPPORTED_IMAGE_MODELS).forEach((modelRef) =>
+        defineCompatOpenAIImageModel({
+          ai,
+          name: modelRef.name,
+          client,
+          modelRef,
+        })
       );
     },
     resolver,
@@ -81,55 +103,66 @@ export function deepSeekPlugin(options?: DeepSeekPluginOptions): GenkitPlugin {
   });
 }
 
-export type DeepSeekPlugin = {
-  (params?: DeepSeekPluginOptions): GenkitPlugin;
+export type XAIPlugin = {
+  (params?: XAIPluginOptions): GenkitPlugin;
   model(
-    name: keyof typeof SUPPORTED_DEEPSEEK_MODELS,
+    name: keyof typeof SUPPORTED_LANGUAGE_MODELS,
     config?: z.infer<typeof ChatCompletionCommonConfigSchema>
   ): ModelReference<typeof ChatCompletionCommonConfigSchema>;
+  model(
+    name: keyof typeof SUPPORTED_IMAGE_MODELS,
+    config?: z.infer<typeof ImageGenerationCommonConfigSchema>
+  ): ModelReference<typeof ImageGenerationCommonConfigSchema>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
 };
 
 const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
+  if (name.includes('image')) {
+    return modelRef({
+      name: `xai/${name}`,
+      config,
+      configSchema: ImageGenerationCommonConfigSchema,
+    });
+  }
   return modelRef({
-    name: `deepseek/${name}`,
+    name: `xai/${name}`,
     config,
     configSchema: ChatCompletionCommonConfigSchema,
   });
-}) as DeepSeekPlugin['model'];
+}) as XAIPlugin['model'];
 
 /**
- * This module provides an interface to the DeepSeek models through the Genkit
+ * This module provides an interface to the XAI models through the Genkit
  * plugin system. It allows users to interact with various models by providing
  * an API key and optional configuration.
  *
- * The main export is the `deepseek` plugin, which can be configured with an API
+ * The main export is the `xai` plugin, which can be configured with an API
  * key either directly or through environment variables. It initializes the
  * OpenAI client and makes available the models for use.
  *
  * Exports:
- * - deepSeek: The main plugin function to interact with DeepSeek, via OpenAI
+ * - xAI: The main plugin function to interact with XAI, via OpenAI
  *   compatible API.
  *
- * Usage: To use the models, initialize the deepseek plugin inside
+ * Usage: To use the models, initialize the xAI plugin inside
  * `configureGenkit` and pass the configuration options. If no API key is
  * provided in the options, the environment variable `OPENAI_API_KEY` must be
  * set.
  *
  * Example:
  * ```
- * import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
+ * import { xAI } from '@genkit-ai/compat-oai/xai';
  *
  * export default configureGenkit({
  *  plugins: [
- *    deepSeek()
+ *    xAI()
  *    ... // other plugins
  *  ]
  * });
  * ```
  */
-export const deepSeek: DeepSeekPlugin = Object.assign(deepSeekPlugin, {
+export const xAI: XAIPlugin = Object.assign(xAIPlugin, {
   model,
 });
 
-export default deepSeek;
+export default xAI;

@@ -1,5 +1,4 @@
 /**
- * Copyright 2024 The Fire Company
  * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,21 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { modelRef } from 'genkit/model';
+
+import { modelRef } from 'genkit';
 import {
   IMAGE_GENERATION_MODEL_INFO,
   ImageGenerationCommonConfigSchema,
 } from '../image';
 
-export const dallE3 = modelRef({
-  name: 'openai/dall-e-3',
+export const grok2Image1212 = modelRef({
+  name: 'xai/grok-2-image-1212',
   info: {
-    label: 'OpenAI - DALL-E 3',
+    label: 'xAI - Grok 2 Image 1212',
     ...IMAGE_GENERATION_MODEL_INFO,
   },
   configSchema: ImageGenerationCommonConfigSchema,
 });
 
 export const SUPPORTED_IMAGE_MODELS = {
-  'dall-e-3': dallE3,
+  'grok-2-image-1212': grok2Image1212,
 };

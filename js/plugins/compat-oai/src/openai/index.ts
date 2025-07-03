@@ -34,17 +34,17 @@ import {
   defineCompatOpenAITranscriptionModel,
 } from '../audio.js';
 import { defineCompatOpenAIEmbedder } from '../embedder.js';
-import { defineCompatOpenAIImageModel } from '../image.js';
+import {
+  defineCompatOpenAIImageModel,
+  IMAGE_GENERATION_MODEL_INFO,
+  ImageGenerationCommonConfigSchema,
+} from '../image.js';
 import openAICompatible, { PluginOptions } from '../index.js';
 import {
   ChatCompletionCommonConfigSchema,
   defineCompatOpenAIModel,
 } from '../model.js';
-import {
-  IMAGE_GENERATION_MODEL_INFO,
-  ImageGenerationConfigSchema,
-  SUPPORTED_IMAGE_MODELS,
-} from './dalle.js';
+import { SUPPORTED_IMAGE_MODELS } from './dalle.js';
 import {
   SUPPORTED_EMBEDDING_MODELS,
   TextEmbeddingConfigSchema,
@@ -109,7 +109,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
         ) {
           return modelActionMetadata({
             name: `openai/${model.id}`,
-            configSchema: ImageGenerationConfigSchema,
+            configSchema: ImageGenerationCommonConfigSchema,
             info: IMAGE_GENERATION_MODEL_INFO,
           });
         } else if (model.id.includes('tts')) {
@@ -138,35 +138,6 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
   );
 };
 
-/**
- * This module provides an interface to the OpenAI models through the Genkit
- * plugin system. It allows users to interact with various models by providing
- * an API key and optional configuration.
- *
- * The main export is the `openai` plugin, which can be configured with an API
- * key either directly or through environment variables. It initializes the
- * OpenAI client and makes available the models for use.
- *
- * Exports:
- * - openai: The main plugin function to interact with OpenAI.
- *
- * Usage:
- * To use the models, initialize the openai plugin inside `configureGenkit` and
- * pass the configuration options. If no API key is provided in the options, the
- * environment variable `OPENAI_API_KEY` must be set.
- *
- * Example:
- * ```
- * import { openAI } from '@genkit-ai/compat-oai/openai';
- *
- * export default configureGenkit({
- *  plugins: [
- *    openai()
- *    ... // other plugins
- *  ]
- * });
- * ```
- */
 export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPlugin {
   return openAICompatible({
     name: 'openai',
@@ -227,8 +198,8 @@ export type OpenAIPlugin = {
       | keyof typeof SUPPORTED_IMAGE_MODELS
       | (`dall-e${string}` & {})
       | (`gpt-image-${string}` & {}),
-    config?: z.infer<typeof ImageGenerationConfigSchema>
-  ): ModelReference<typeof ImageGenerationConfigSchema>;
+    config?: z.infer<typeof ImageGenerationCommonConfigSchema>
+  ): ModelReference<typeof ImageGenerationCommonConfigSchema>;
   model(
     name:
       | keyof typeof SUPPORTED_TTS_MODELS
@@ -258,7 +229,7 @@ const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
     return modelRef({
       name: `openai/${name}`,
       config,
-      configSchema: ImageGenerationConfigSchema,
+      configSchema: ImageGenerationCommonConfigSchema,
     });
   }
   if (name.includes('tts')) {
@@ -293,6 +264,35 @@ const embedder = ((
   });
 }) as OpenAIPlugin['embedder'];
 
+/**
+ * This module provides an interface to the OpenAI models through the Genkit
+ * plugin system. It allows users to interact with various models by providing
+ * an API key and optional configuration.
+ *
+ * The main export is the `openai` plugin, which can be configured with an API
+ * key either directly or through environment variables. It initializes the
+ * OpenAI client and makes available the models for use.
+ *
+ * Exports:
+ * - openai: The main plugin function to interact with OpenAI.
+ *
+ * Usage:
+ * To use the models, initialize the openai plugin inside `configureGenkit` and
+ * pass the configuration options. If no API key is provided in the options, the
+ * environment variable `OPENAI_API_KEY` must be set.
+ *
+ * Example:
+ * ```
+ * import { openAI } from '@genkit-ai/compat-oai/openai';
+ *
+ * export default configureGenkit({
+ *  plugins: [
+ *    openai()
+ *    ... // other plugins
+ *  ]
+ * });
+ * ```
+ */
 export const openAI: OpenAIPlugin = Object.assign(openAIPlugin, {
   model,
   embedder,
