@@ -30,6 +30,10 @@ import { flowBatchRun } from './commands/flow-batch-run';
 import { flowRun } from './commands/flow-run';
 import { mcp } from './commands/mcp';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
+import {
+  SERVER_HARNESS_COMMAND,
+  serverHarness,
+} from './commands/server-harness';
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
@@ -80,6 +84,12 @@ export async function startCLI(): Promise<void> {
       }
       await record(new RunCommandEvent(commandName));
     });
+
+  // When running as a spawned UI server process, argv[1] will be '__server-harness'
+  // instead of a normal command. This allows the same binary to serve both CLI and server roles.
+  if (process.argv[2] === SERVER_HARNESS_COMMAND) {
+    program.addCommand(serverHarness);
+  }
 
   for (const command of commands) program.addCommand(command);
   for (const command of await getPluginCommands()) program.addCommand(command);
