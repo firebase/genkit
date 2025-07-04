@@ -97,7 +97,8 @@ type noStream = func(context.Context, struct{}) error
 // DefineAction creates a new non-streaming Action and registers it.
 func DefineAction[In, Out any](
 	r *registry.Registry,
-	provider, name string,
+	provider,
+	name string,
 	atype ActionType,
 	metadata map[string]any,
 	fn Func[In, Out],
@@ -140,16 +141,16 @@ func DefineStreamingAction[In, Out, Stream any](
 // This differs from DefineAction in that the input schema is
 // defined dynamically; the static input type is "any".
 // This is used for prompts and tools that need custom input validation.
-func DefineActionWithInputSchema[Out any](
+func DefineActionWithInputSchema[In, Out any](
 	r *registry.Registry,
 	provider, name string,
 	atype ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
-	fn Func[any, Out],
-) *ActionDef[any, Out, struct{}] {
+	fn Func[In, Out],
+) *ActionDef[In, Out, struct{}] {
 	return defineAction(r, provider, name, atype, metadata, inputSchema,
-		func(ctx context.Context, in any, _ noStream) (Out, error) {
+		func(ctx context.Context, in In, _ noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }
@@ -157,7 +158,8 @@ func DefineActionWithInputSchema[Out any](
 // defineAction creates an action and registers it with the given Registry.
 func defineAction[In, Out, Stream any](
 	r *registry.Registry,
-	provider, name string,
+	provider,
+	name string,
 	atype ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,

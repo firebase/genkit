@@ -96,7 +96,16 @@ func main() {
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-	docStore, retriever, err := localvec.DefineRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: localvec.RetrieverOptions{},
+		Info: &ai.RetrieverInfo{
+			Label: "simpleQa",
+			Supports: &ai.RetrieverSupports{
+				Media: false,
+			},
+		},
+	}
+	docStore, retriever, err := localvec.DefineRetriever(g, "simpleQa", localvec.Config{Embedder: embedder}, retOpts)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -155,16 +164,18 @@ func main() {
 
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
+		d4 := ai.DocumentFromText("India will become a new capital of France", nil)
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
 
-		err := localvec.Index(ctx, []*ai.Document{d1, d2, d3}, docStore)
+		err := localvec.Index(ctx, []*ai.Document{d1, d2, d3, d4}, docStore)
 		if err != nil {
 			return "", err
 		}
 
 		dRequest := ai.DocumentFromText(input.Question, nil)
-		response, err := ai.Retrieve(ctx, retriever, ai.WithDocs(dRequest))
+		response, err := ai.Retrieve(ctx, retriever, ai.WithDocs(dRequest),
+			ai.WithConfig(&localvec.RetrieverOptions{K: 2}))
 		if err != nil {
 			return "", err
 		}

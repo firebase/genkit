@@ -160,3 +160,9 @@ func GetJsonObjectLines(text string) []string {
 	// Return the slice containing the filtered and trimmed lines.
 	return result
 }
+
+func ToSchemaMap(config any) map[string]any {
+	schema := InferJSONSchema(config)
+	result := SchemaAsMap(schema)
+	return result
+}
