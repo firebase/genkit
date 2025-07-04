@@ -23,6 +23,14 @@ async () => {
 };
 ```
 
+## Supported Models
+
+This plugin supports a wide range of models including text generation, image generation, video generation, embeddings, and more. For a comprehensive list of supported models and usage examples, see [SUPPORTED_MODELS.md](./SUPPORTED_MODELS.md).
+
+The plugin uses dynamic model discovery, so new models released through the Gemini API are often supported automatically without requiring plugin updates.
+
+## Documentation
+
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 
 Usage information and reference details can be found in [Genkit documentation](https://genkit.dev/docs/plugins/google-genai/).
