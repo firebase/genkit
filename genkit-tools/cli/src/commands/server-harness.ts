@@ -33,9 +33,9 @@ function redirectStdoutToFile(logFile: string) {
   process.stderr.write = process.stdout.write;
 }
 
-export const UI_START_SERVER_COMMAND = '__ui:start-server' as const;
+export const SERVER_HARNESS_COMMAND = '__server-harness' as const;
 
-export const uiStartServer = new Command('__ui:start-server')
+export const serverHarness = new Command('__server-harness')
   .argument('<port>', 'Port to serve on')
   .argument('<logFile>', 'Log file path')
   .action(async (port: string, logFile: string) => {

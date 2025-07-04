@@ -30,6 +30,7 @@ import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
 import open from 'open';
 import path from 'path';
+import { SERVER_HARNESS_COMMAND } from './server-harness';
 
 interface StartOptions {
   port: string;
@@ -129,7 +130,7 @@ async function startAndWaitUntilHealthy(
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      ['__ui:start-server', port.toString(), serversDir + '/devui.log'],
+      [SERVER_HARNESS_COMMAND, port.toString(), serversDir + '/devui.log'],
       {
         stdio: ['ignore', 'ignore', 'ignore'],
       }
