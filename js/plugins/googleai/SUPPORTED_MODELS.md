@@ -35,78 +35,14 @@ The following table lists many of the available models to help you get started. 
 | **Video Gen** | Veo 3 | `googleAI.model('veo-3.0-generate-003')` | Video Generation | Latest video generation model. | `If available` |
 | **Embedding** | Gemini Embedding | `googleAI.embedder('gemini-embedding-exp')` | Text Embedding | Measures relatedness of text. | `Experimental` |
 
-## Using the Models
-
-### Basic Usage
-
-```typescript
-import { googleAI } from '@genkit-ai/googleai';
-import { genkit } from 'genkit';
-
-const ai = genkit({
-  plugins: [googleAI()],
-  model: googleAI.model('gemini-2.0-flash'),
-});
-
-// Generate text
-const response = await ai.generate('Tell me about quantum computing');
-console.log(response.text);
-```
-
-### Using Specialized Models
-
-```typescript
-// Image Generation
-const imageResponse = await ai.generate({
-  model: googleAI.model('imagen-3.0-generate-002'),
-  prompt: 'A serene mountain landscape at sunset',
-});
-
-// Video Generation
-const videoResponse = await ai.generate({
-  model: googleAI.model('veo-2.0-generate-001'),
-  prompt: 'A time-lapse of clouds moving over a city skyline',
-  config: {
-    aspectRatio: '16:9',
-    durationSeconds: 8,
-  }
-});
-
-// Text-to-Speech
-const audioResponse = await ai.generate({
-  model: googleAI.model('gemini-2.5-flash-preview-tts'),
-  prompt: 'Hello, welcome to our presentation.',
-});
-```
-
-### Using Fine-tuned Models
-
-You can also use fine-tuned models by passing their ID:
-
-```typescript
-const response = await ai.generate({
-  model: googleAI.model('tunedModels/your-model-id'),
-  prompt: 'Your prompt here',
-});
-```
-
-## Model Discovery
-
-The plugin automatically discovers new models available through the Gemini API. If a model is not explicitly listed above but is available in the API, you can still use it by specifying its name:
-
-```typescript
-// Use any model available in the API
-const response = await ai.generate({
-  model: googleAI.model('some-new-model-name'),
-  prompt: 'Your prompt here',
-});
-```
-
 ## Notes
 
 - Models marked as `Preview` or `Experimental` may have limited availability or be subject to changes.
 - Video generation models (Veo) return long-running operations that need to be polled for completion.
 - Some models have specific configuration options. Check the model's documentation for details.
 - The plugin uses dynamic model discovery, so new models are often supported automatically without plugin updates.
+- You can also use fine-tuned models by passing their ID: `googleAI.model('tunedModels/your-model-id')`
+
+For usage examples and code samples, see the [README](./README.md).
 
 For the most up-to-date information about model capabilities, limitations, and pricing, please refer to the [official Google AI documentation](https://ai.google.dev/gemini-api/docs/models).
