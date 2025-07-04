@@ -87,7 +87,7 @@ export async function startCLI(): Promise<void> {
 
   // When running as a spawned UI server process, argv[1] will be '__server-harness'
   // instead of a normal command. This allows the same binary to serve both CLI and server roles.
-  if (process.argv[1] === SERVER_HARNESS_COMMAND) {
+  if (process.argv[2] === SERVER_HARNESS_COMMAND) {
     program.addCommand(serverHarness);
   }
 

@@ -47,7 +47,7 @@ export const serverHarness = new Command('__server-harness')
     process.on('uncaughtException', (err, somethingelse) => {
       logger.error(`Uncaught error in tools process: ${err} ${somethingelse}`);
     });
-    process.on('unhandledRejection', (reason, p) => {
+    process.on('unhandledRejection', (reason, _p) => {
       logger.error(`Unhandled rejection in tools process: ${reason}`);
     });
 
