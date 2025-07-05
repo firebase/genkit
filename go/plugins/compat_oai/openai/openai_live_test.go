@@ -218,10 +218,12 @@ func TestPlugin(t *testing.T) {
 	t.Run("generation config", func(t *testing.T) {
 		// Create a config with specific parameters
 		config := &openai.ChatCompletionNewParams{
-			Temperature:         openai.F(0.2),
+			Temperature:         openai.Float(0.2),
 			MaxCompletionTokens: openai.Int(50),
-			TopP:                openai.F(0.5),
-			Stop:                openai.F[openai.ChatCompletionNewParamsStopUnion](openai.ChatCompletionNewParamsStopArray{".", "!", "?"}),
+			TopP:                openai.Float(0.5),
+			Stop: openai.ChatCompletionNewParamsStopUnion{
+				OfStringArray: []string{".", "!", "?"},
+			},
 		}
 
 		resp, err := genkit.Generate(ctx, g,
