@@ -17,7 +17,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/compat_oai"
 	oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
 	"github.com/firebase/genkit/go/plugins/server"
 	"github.com/openai/openai-go"
@@ -42,7 +41,7 @@ func main() {
 		gpt4o := oai.Model(g, "gpt-4o")
 
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		config := &openai.ChatCompletionNewParams{Temperature: openai.F(0.5), MaxTokens: openai.F(int64(100))}
+		config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5), MaxTokens: openai.Int(100)}
 		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithPrompt(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
@@ -56,7 +55,7 @@ func main() {
 			return "", err
 		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		config := &compat_oai.OpenAIConfig{Temperature: 0.5}
+		config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5)}
 		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPrompt(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err

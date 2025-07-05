@@ -35,9 +35,12 @@ func mapToStruct(m map[string]any, v any) error {
 
 // ModelGenerator handles OpenAI generation requests
 type ModelGenerator struct {
-	client    *openai.Client
-	modelName string
-	request   *openai.ChatCompletionNewParams
+	client     *openai.Client
+	modelName  string
+	request    *openai.ChatCompletionNewParams
+	messages   []openai.ChatCompletionMessageParamUnion
+	tools      []openai.ChatCompletionToolParam
+	toolChoice openai.ChatCompletionToolChoiceOptionUnionParam
 	// Store any errors that occur during building
 	err error
 }
@@ -52,7 +55,7 @@ func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator 
 		client:    client,
 		modelName: modelName,
 		request: &openai.ChatCompletionNewParams{
-			Model: openai.F(modelName),
+			Model: (modelName),
 		},
 	}
 }
@@ -77,19 +80,21 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 		case ai.RoleModel:
 			oaiMessages = append(oaiMessages, openai.AssistantMessage(content))
 
-			am := openai.ChatCompletionAssistantMessageParam{
-				Role: openai.F(openai.ChatCompletionAssistantMessageParamRoleAssistant),
-			}
+			am := openai.ChatCompletionAssistantMessageParam{}
 			if msg.Content[0].Text != "" {
-				am.Content = openai.F([]openai.ChatCompletionAssistantMessageParamContentUnion{
-					openai.TextPart(msg.Content[0].Text),
+				am.Content.OfArrayOfContentParts = append(am.Content.OfArrayOfContentParts, openai.ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion{
+					OfText: &openai.ChatCompletionContentPartTextParam{
+						Text: msg.Content[0].Text,
+					},
 				})
 			}
 			toolCalls := convertToolCalls(msg.Content)
 			if len(toolCalls) > 0 {
-				am.ToolCalls = openai.F(toolCalls)
+				am.ToolCalls = (toolCalls)
 			}
-			oaiMessages = append(oaiMessages, am)
+			oaiMessages = append(oaiMessages, openai.ChatCompletionMessageParamUnion{
+				OfAssistant: &am,
+			})
 		case ai.RoleTool:
 			for _, p := range msg.Content {
 				if !p.IsToolResponse() {
@@ -106,20 +111,8 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 			oaiMessages = append(oaiMessages, openai.UserMessage(content))
 		}
 	}
-	g.request.Messages = openai.F(oaiMessages)
+	g.messages = oaiMessages
 	return g
-}
-
-// OpenaiConfig mirrors the OpenAI API configuration fields
-type OpenAIConfig struct {
-	// Maximum number of tokens to generate
-	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
-	// Temperature for sampling
-	Temperature float64 `json:"temperature,omitempty"`
-	// Top-p value for nucleus sampling
-	TopP float64 `json:"top_p,omitempty"`
-	// List of sequences where the model will stop generating
-	StopSequences []string `json:"stop_sequences,omitempty"`
 }
 
 // WithConfig adds configuration parameters from the model request
@@ -135,11 +128,11 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	var openaiConfig OpenAIConfig
+	var openaiConfig openai.ChatCompletionNewParams
 	switch cfg := config.(type) {
-	case OpenAIConfig:
+	case openai.ChatCompletionNewParams:
 		openaiConfig = cfg
-	case *OpenAIConfig:
+	case *openai.ChatCompletionNewParams:
 		openaiConfig = *cfg
 	case map[string]any:
 		if err := mapToStruct(cfg, &openaiConfig); err != nil {
@@ -151,26 +144,14 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	// Map fields from OpenaiConfig to OpenAI request
-	if openaiConfig.MaxOutputTokens != 0 {
-		g.request.MaxCompletionTokens = openai.F(int64(openaiConfig.MaxOutputTokens))
-	}
-	if len(openaiConfig.StopSequences) > 0 {
-		g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](
-			openai.ChatCompletionNewParamsStopArray(openaiConfig.StopSequences))
-	}
-	if openaiConfig.Temperature != 0 {
-		g.request.Temperature = openai.F(openaiConfig.Temperature)
-	}
-	if openaiConfig.TopP != 0 {
-		g.request.TopP = openai.F(openaiConfig.TopP)
-	}
-
+	// keep the original model in the updated config structure
+	openaiConfig.Model = g.request.Model
+	g.request = &openaiConfig
 	return g
 }
 
 // WithTools adds tools to the request
-func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolChoice) *ModelGenerator {
+func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition) *ModelGenerator {
 	if g.err != nil {
 		return g
 	}
@@ -186,12 +167,11 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolCho
 		}
 
 		toolParams = append(toolParams, openai.ChatCompletionToolParam{
-			Type: openai.F(openai.ChatCompletionToolTypeFunction),
-			Function: openai.F(shared.FunctionDefinitionParam{
-				Name:        openai.F(tool.Name),
-				Description: openai.F(tool.Description),
-				Parameters:  openai.F(openai.FunctionParameters(tool.InputSchema)),
-				Strict:      openai.F(false), // TODO: implement strict mode
+			Function: (shared.FunctionDefinitionParam{
+				Name:        tool.Name,
+				Description: openai.String(tool.Description),
+				Parameters:  openai.FunctionParameters(tool.InputSchema),
+				Strict:      openai.Bool(false), // TODO: implement strict mode
 			}),
 		})
 	}
@@ -201,16 +181,7 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolCho
 	// This is important to avoid sending an empty array in the request
 	// which is not supported by some vendor APIs
 	if len(toolParams) > 0 {
-		g.request.Tools = openai.F(toolParams)
-	}
-
-	switch choice {
-	case ai.ToolChoiceAuto:
-		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoAuto)
-	case ai.ToolChoiceRequired:
-		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoRequired)
-	case ai.ToolChoiceNone:
-		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoNone)
+		g.tools = toolParams
 	}
 
 	return g
@@ -223,9 +194,13 @@ func (g *ModelGenerator) Generate(ctx context.Context, handleChunk func(context.
 		return nil, g.err
 	}
 
-	// Ensure messages are set
-	if len(g.request.Messages.Value) == 0 {
+	if len(g.messages) == 0 {
 		return nil, fmt.Errorf("no messages provided")
+	}
+	g.request.Messages = (g.messages)
+
+	if len(g.tools) > 0 {
+		g.request.Tools = (g.tools)
 	}
 
 	if handleChunk != nil {
@@ -271,13 +246,13 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 			choice := chunk.Choices[0]
 
 			switch choice.FinishReason {
-			case openai.ChatCompletionChunkChoicesFinishReasonStop, openai.ChatCompletionChunkChoicesFinishReasonToolCalls:
+			case "tool_calls", "stop":
 				fullResponse.FinishReason = ai.FinishReasonStop
-			case openai.ChatCompletionChunkChoicesFinishReasonLength:
+			case "length":
 				fullResponse.FinishReason = ai.FinishReasonLength
-			case openai.ChatCompletionChunkChoicesFinishReasonContentFilter:
+			case "content_filter":
 				fullResponse.FinishReason = ai.FinishReasonBlocked
-			case openai.ChatCompletionChunkChoicesFinishReasonFunctionCall:
+			case "function_call":
 				fullResponse.FinishReason = ai.FinishReasonOther
 			default:
 				fullResponse.FinishReason = ai.FinishReasonUnknown
@@ -298,7 +273,7 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 			}
 
 			// when tool call is complete
-			if choice.FinishReason == openai.ChatCompletionChunkChoicesFinishReasonToolCalls && currentToolCall != nil {
+			if choice.FinishReason == "tool_calls" && currentToolCall != nil {
 				// parse accumulated arguments string
 				if currentArguments != "" {
 					currentToolCall.Input = jsonStringToMap(currentArguments)
@@ -355,13 +330,13 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 	choice := completion.Choices[0]
 
 	switch choice.FinishReason {
-	case openai.ChatCompletionChoicesFinishReasonStop, openai.ChatCompletionChoicesFinishReasonToolCalls:
+	case "stop", "tool_calls":
 		resp.FinishReason = ai.FinishReasonStop
-	case openai.ChatCompletionChoicesFinishReasonLength:
+	case "length":
 		resp.FinishReason = ai.FinishReasonLength
-	case openai.ChatCompletionChoicesFinishReasonContentFilter:
+	case "content_filter":
 		resp.FinishReason = ai.FinishReasonBlocked
-	case openai.ChatCompletionChoicesFinishReasonFunctionCall:
+	case "function_call":
 		resp.FinishReason = ai.FinishReasonOther
 	default:
 		resp.FinishReason = ai.FinishReasonUnknown
@@ -401,15 +376,14 @@ func convertToolCalls(content []*ai.Part) []openai.ChatCompletionMessageToolCall
 func convertToolCall(part *ai.Part) openai.ChatCompletionMessageToolCallParam {
 	param := openai.ChatCompletionMessageToolCallParam{
 		// NOTE: Temporarily set its name instead of its ref (i.e. call_xxxxx) since it's not defined in the ai.ToolRequest struct.
-		ID:   openai.F(part.ToolRequest.Name),
-		Type: openai.F(openai.ChatCompletionMessageToolCallTypeFunction),
-		Function: openai.F(openai.ChatCompletionMessageToolCallFunctionParam{
-			Name: openai.F(part.ToolRequest.Name),
+		ID: (part.ToolRequest.Name),
+		Function: (openai.ChatCompletionMessageToolCallFunctionParam{
+			Name: (part.ToolRequest.Name),
 		}),
 	}
 
 	if part.ToolRequest.Input != nil {
-		param.Function.Value.Arguments = openai.F(anyToJSONString(part.ToolRequest.Input))
+		param.Function.Arguments = (anyToJSONString(part.ToolRequest.Input))
 	}
 
 	return param
