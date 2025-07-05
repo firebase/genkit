@@ -77,11 +77,6 @@ var (
 			},
 			Versions: []string{"o1-mini", "o1-mini-2024-09-12"},
 		},
-		openaiGo.ChatModelGPT4_5Preview: {
-			Label:    "OpenAI GPT-4.5-preview",
-			Supports: &compat_oai.Multimodal,
-			Versions: []string{"gpt-4.5-preview", "gpt-4.5-preview-2025-02-27"},
-		},
 		openaiGo.ChatModelGPT4o: {
 			Label:    "OpenAI GPT-4o",
 			Supports: &compat_oai.Multimodal,
