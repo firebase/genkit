@@ -26,7 +26,7 @@ import type {
   StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
-import { Message, z } from 'genkit';
+import { GenerationCommonConfigSchema, Message, z } from 'genkit';
 import type {
   GenerateResponseChunkData,
   ModelAction,
@@ -48,6 +48,15 @@ import type {
 const VisualDetailLevelSchema = z.enum(['auto', 'low', 'high']).optional();
 
 type VisualDetailLevel = z.infer<typeof VisualDetailLevelSchema>;
+
+export const ChatCompletionCommonConfigSchema =
+  GenerationCommonConfigSchema.extend({
+    temperature: z.number().min(0).max(2).optional(),
+    frequencyPenalty: z.number().min(-2).max(2).optional(),
+    logProbs: z.boolean().optional(),
+    presencePenalty: z.number().min(-2).max(2).optional(),
+    topLogProbs: z.number().int().min(0).max(20).optional(),
+  });
 
 export function toOpenAIRole(role: Role): ChatCompletionRole {
   switch (role) {
@@ -335,6 +344,10 @@ export function toOpenAIRequestBody(
     maxOutputTokens, // unused
     topK, // unused
     topP: top_p,
+    frequencyPenalty: frequency_penalty,
+    logProbs: logprobs,
+    presencePenalty: presence_penalty,
+    topLogProbs: top_logprobs,
     stopSequences: stop,
     version: modelVersion,
     tools: toolsFromConfig,
@@ -352,6 +365,10 @@ export function toOpenAIRequestBody(
     temperature,
     top_p,
     stop,
+    frequency_penalty,
+    presence_penalty,
+    top_logprobs,
+    logprobs,
     ...restOfConfig, // passthrough for other config
   } as ChatCompletionCreateParamsNonStreaming;
 
