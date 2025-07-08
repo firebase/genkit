@@ -123,14 +123,14 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, 
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name string) (ai.Embedder, error) {
+func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name string, embedOpts *ai.EmbedderOptions) (ai.Embedder, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
 		return nil, errors.New("OpenAICompatible.Init not called")
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, provider, name, embedOpts, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var data openaiGo.EmbeddingNewParamsInputArrayOfStrings
 		for _, doc := range input.Input {
 			for _, p := range doc.Content {
