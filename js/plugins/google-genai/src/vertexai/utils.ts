@@ -30,10 +30,19 @@ function parseFirebaseProjectId(): string | undefined {
   }
 }
 
+let __mockDerivedOptions: ClientOptions | undefined = undefined;
+function setMockDerivedOptions(options: ClientOptions | undefined): void {
+  __mockDerivedOptions = options;
+}
+export const TEST_ONLY = { setMockDerivedOptions };
+
 export async function getDerivedOptions(
   options?: PluginOptions,
   AuthClass: typeof GoogleAuth = GoogleAuth // Injectable testing
 ): Promise<ClientOptions> {
+  if (__mockDerivedOptions) {
+    return Promise.resolve(__mockDerivedOptions);
+  }
   let authOptions = options?.googleAuth;
   let authClient: GoogleAuth;
   const providedProjectId =

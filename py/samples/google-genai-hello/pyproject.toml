@@ -20,6 +20,7 @@ dependencies = [
   "genkit",
   "genkit-plugin-google-genai",
   "genkit-plugin-google-cloud",
+  "genkit-plugin-evaluators",
   "pydantic>=2.10.5",
   "structlog>=25.2.0",
 ]
@@ -39,3 +40,6 @@ packages = ["src/google_genai_hello"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.uv.sources]
+genkit-plugin-evaluators = { workspace = true }

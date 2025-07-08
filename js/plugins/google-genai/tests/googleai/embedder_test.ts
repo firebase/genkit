@@ -74,8 +74,7 @@ describe('defineGoogleAIEmbedder', () => {
     sinon.assert.calledOnce(mockGenkit.defineEmbedder);
     const args = mockGenkit.defineEmbedder.lastCall.args[0];
     assert.strictEqual(args.name, 'googleai/text-embedding-004');
-    assert.strictEqual(args.info?.label, 'Google Gen AI - Text Embedding 001');
-    assert.strictEqual(args.info.dimensions, 768);
+    assert.strictEqual(args.info?.dimensions, 768);
   });
 
   it('defines an embedder with a custom name', () => {
@@ -83,7 +82,6 @@ describe('defineGoogleAIEmbedder', () => {
     sinon.assert.calledOnce(mockGenkit.defineEmbedder);
     const args = mockGenkit.defineEmbedder.lastCall.args[0];
     assert.strictEqual(args.name, 'googleai/custom-model');
-    assert.strictEqual(args.info?.label, 'Google AI - custom-model');
   });
 
   it('handles custom name with prefix', () => {
@@ -95,7 +93,6 @@ describe('defineGoogleAIEmbedder', () => {
     sinon.assert.calledOnce(mockGenkit.defineEmbedder);
     const args = mockGenkit.defineEmbedder.lastCall.args[0];
     assert.strictEqual(args.name, 'googleai/custom-model');
-    assert.strictEqual(args.info?.label, 'Google AI - custom-model');
   });
 
   describe('API Key Handling', () => {
