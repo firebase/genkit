@@ -21,7 +21,6 @@ import {
   type EmbedderAction,
   type EmbedderReference,
 } from 'genkit/embedder';
-import { isMultiModalEmbedder } from '../common/utils';
 import { embedContent } from './client';
 import {
   ClientOptions,
@@ -61,52 +60,135 @@ export const VertexEmbeddingConfigSchema = z.object({
 
 export type VertexEmbeddingConfig = z.infer<typeof VertexEmbeddingConfigSchema>;
 
+// for commonRef
+type ConfigSchema = typeof VertexEmbeddingConfigSchema;
+
 function commonRef(
   name: string,
   info?: EmbedderInfo
-): EmbedderReference<typeof VertexEmbeddingConfigSchema> {
+): EmbedderReference<ConfigSchema> {
   return embedderRef({
     name: `vertexai/${name}`,
     configSchema: VertexEmbeddingConfigSchema,
-    info: {
-      dimensions: info?.dimensions,
-      label: `Vertex AI - ${name}`,
+    info: info ?? {
+      dimensions: 768,
       supports: {
-        input: info?.supports?.input ?? ['text'],
+        input: ['text'],
       },
     },
   });
 }
 
-const textEmbedding005 = commonRef('text-embedding-005', { dimensions: 768 });
-const textMultilingualEmbedding002 = commonRef(
-  'text-multilingual-embedding-002',
-  { dimensions: 768 }
-);
-const multimodalEmbedding001 = commonRef('multimodalembedding@001', {
-  supports: { input: ['text', 'image', 'video'] },
-});
-const geminiEmbedding001 = commonRef('gemini-embedding-001', {
-  dimensions: 3072,
-});
-
 export const KNOWN_EMBEDDER_MODELS: Record<
   string,
-  EmbedderReference<typeof VertexEmbeddingConfigSchema>
+  EmbedderReference<ConfigSchema>
 > = {
-  'text-embedding-005': textEmbedding005,
-  'text-multilingual-embedding-002': textMultilingualEmbedding002,
-  'multimodalembedding@001': multimodalEmbedding001,
-  'gemini-embedding-001': geminiEmbedding001,
+  'text-embedding-005': commonRef('text-embedding-005'),
+  'text-multilingual-embedding-002': commonRef(
+    'text-multilingual-embedding-002'
+  ),
+  'multimodalembedding@001': commonRef('multimodalembedding@001', {
+    dimensions: 768,
+    supports: { input: ['text', 'image', 'video'] },
+  }),
+  'gemini-embedding-001': commonRef('gemini-embedding-001', {
+    dimensions: 3072,
+    supports: { input: ['text'] },
+  }),
 } as const;
 
+export function embedder(
+  version: string,
+  config: VertexEmbeddingConfig = {}
+): EmbedderReference<ConfigSchema> {
+  const name = version.split('/').at(-1);
+  if (name && KNOWN_EMBEDDER_MODELS[name]) {
+    return embedderRef({
+      name: `vertexai/${name}`,
+      configSchema: VertexEmbeddingConfigSchema,
+      config,
+      info: {
+        ...KNOWN_EMBEDDER_MODELS[name].info,
+      },
+    });
+  }
+  if (config.multimodal) {
+    // Generic multimodal embedder format
+    return embedderRef({
+      name: `vertexai/${name}`,
+      configSchema: VertexEmbeddingConfigSchema,
+      config,
+      info: {
+        dimensions: 768,
+        supports: { input: ['text', 'image', 'video'] },
+      },
+    });
+  }
+  // Generic text-only embedder format
+  return embedderRef({
+    name: `vertexai/${name}`,
+    configSchema: VertexEmbeddingConfigSchema,
+    config,
+    info: {
+      dimensions: 3072,
+      supports: { input: ['text'] },
+    },
+  });
+}
+
+export function defineVertexAIEmbedder(
+  ai: Genkit,
+  name: string,
+  clientOptions: ClientOptions
+): EmbedderAction<any> {
+  const apiModelName = name.startsWith('vertexai/')
+    ? name.substring('vertexai/'.length)
+    : name;
+
+  const ref = embedder(apiModelName);
+
+  return ai.defineEmbedder(
+    {
+      name: ref.name,
+      configSchema: ref.configSchema,
+      info: ref.info!,
+    },
+    async (input, options?: VertexEmbeddingConfig) => {
+      const embedContentRequest: EmbedContentRequest = {
+        instances: input.map((doc: Document) =>
+          toEmbeddingInstance(ref, doc, options)
+        ),
+        parameters: { outputDimensionality: options?.outputDimensionality },
+      };
+
+      const response = await embedContent(
+        apiModelName,
+        embedContentRequest,
+        clientOptions
+      );
+
+      return {
+        embeddings: response.predictions
+          .map(toEmbeddingResult)
+          .reduce((accumulator, value) => {
+            return accumulator.concat(value);
+          }, []),
+      };
+    }
+  );
+}
+
 function toEmbeddingInstance(
-  embedder: EmbedderReference,
+  embedder: EmbedderReference<ConfigSchema>,
   doc: Document,
   options?: VertexEmbeddingConfig
 ): EmbeddingInstance {
   let instance: EmbeddingInstance;
-  if (isMultiModalEmbedder(embedder)) {
+  if (
+    isMultiModalEmbedder(embedder) ||
+    embedder.config?.multimodal ||
+    options?.multimodal
+  ) {
     instance = {};
     if (doc.text) {
       instance.text = doc.text;
@@ -218,56 +300,12 @@ function toEmbeddingResult(prediction: EmbeddingPrediction): EmbeddingResult[] {
   }
 }
 
-export function defineVertexAIEmbedder(
-  ai: Genkit,
-  name: string,
-  clientOptions: ClientOptions
-): EmbedderAction<any> {
-  const apiModelName = name.startsWith('vertexai/')
-    ? name.substring('vertexai/'.length)
-    : name;
-
-  const embedder =
-    KNOWN_EMBEDDER_MODELS[apiModelName] ??
-    embedderRef({
-      name: `vertexai/${apiModelName}`,
-      configSchema: VertexEmbeddingConfigSchema,
-      info: {
-        dimensions: 768,
-        label: `Vertex AI - ${apiModelName}`,
-        supports: {
-          input: ['text', 'image', 'video'],
-        },
-      },
-    });
-
-  return ai.defineEmbedder(
-    {
-      name: embedder.name,
-      configSchema: embedder.configSchema,
-      info: embedder.info!,
-    },
-    async (input, options?: VertexEmbeddingConfig) => {
-      const embedContentRequest: EmbedContentRequest = {
-        instances: input.map((doc: Document) =>
-          toEmbeddingInstance(embedder, doc, options)
-        ),
-        parameters: { outputDimensionality: options?.outputDimensionality },
-      };
-
-      const response = await embedContent(
-        apiModelName,
-        embedContentRequest,
-        clientOptions
-      );
-
-      return {
-        embeddings: response.predictions
-          .map(toEmbeddingResult)
-          .reduce((accumulator, value) => {
-            return accumulator.concat(value);
-          }, []),
-      };
-    }
-  );
+function isMultiModalEmbedder(
+  embedder: EmbedderReference<ConfigSchema>
+): boolean {
+  if (embedder.config?.multimodal) {
+    return true;
+  }
+  const input = embedder.info?.supports?.input || '';
+  return (input.includes('text') && input.includes('image')) || false;
 }

@@ -15,13 +15,9 @@
  */
 
 import * as assert from 'assert';
-import { EmbedderReference, ModelReference } from 'genkit';
+import { ModelReference } from 'genkit';
 import { describe, it } from 'node:test';
-import {
-  cleanSchema,
-  isMultiModalEmbedder,
-  nearestModelRef,
-} from '../../src/common/utils';
+import { cleanSchema, nearestModelRef } from '../../src/common/utils';
 
 // Mock ModelReference for testing nearestModelRef
 const createMockModelRef = (
@@ -210,28 +206,5 @@ describe('cleanSchema', () => {
     };
     const cleaned = cleanSchema(schema);
     assert.deepStrictEqual(cleaned, schema);
-  });
-});
-
-describe('isMultiModalEmbedder', () => {
-  const createMockEmbedder = (
-    inputTypes: string | undefined
-  ): EmbedderReference => {
-    return {
-      name: 'test-embedder',
-      info: inputTypes
-        ? { label: 'Test Embedder', supports: { input: inputTypes } }
-        : { label: 'Test Embedder' },
-    } as any;
-  };
-
-  it('returns true for text and image support', () => {
-    const embedder = createMockEmbedder('text, image');
-    assert.strictEqual(isMultiModalEmbedder(embedder), true);
-  });
-
-  it('returns false for only text support', () => {
-    const embedder = createMockEmbedder('text');
-    assert.strictEqual(isMultiModalEmbedder(embedder), false);
   });
 });
