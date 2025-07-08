@@ -121,13 +121,17 @@ export type GoogleAIPlugin = {
       ? imagen.ImagenConfig
       : T extends gemini.TTSModelName
         ? gemini.GeminiTtsConfig
-        : gemini.GeminiConfig
+        : T extends gemini.GemmaModelName
+          ? gemini.GemmaConfig
+          : gemini.GeminiConfig
   ): // Conditional return types based on name type (same order as above)
   T extends imagen.ImagenModelName
     ? ModelReference<imagen.ImagenConfigSchemaType>
     : T extends gemini.TTSModelName
       ? ModelReference<gemini.GeminiTtsConfigSchemaType>
-      : ModelReference<gemini.GeminiConfigSchemaType>;
+      : T extends gemini.GemmaModelName
+        ? ModelReference<gemini.GemmaConfigSchemaType>
+        : ModelReference<gemini.GeminiConfigSchemaType>;
 
   embedder<T extends string>(
     name: T | KnownEmbedders,
@@ -139,12 +143,14 @@ export type GoogleAIPlugin = {
 type ModelConfig =
   | imagen.ImagenConfig
   | gemini.GeminiTtsConfig
+  | gemini.GemmaConfig
   | gemini.GeminiConfig;
 type EmbedderConfig = embedder.EmbeddingConfig;
 
 type ModelConfigSchemaType =
   | imagen.ImagenConfigSchemaType
   | gemini.GeminiTtsConfigSchemaType
+  | gemini.GemmaConfigSchemaType
   | gemini.GeminiConfigSchemaType;
 type EmbedderConfigSchemaType = embedder.EmbeddingConfigSchemaType;
 
@@ -159,7 +165,7 @@ export const googleAI = googleAIPlugin as GoogleAIPlugin;
   if (imagen.isImagenModelName(name)) {
     return imagen.model(name, config);
   }
-  // gemini.model handles both tts and default models
+  // gemini.model handles gemma, tts and default models
   return gemini.model(name, config);
 };
 googleAI.embedder = (

@@ -22,6 +22,7 @@ import {
   z,
 } from 'genkit';
 import {
+  GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
   ModelInfo,
@@ -182,6 +183,23 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       'Retrieve public web data for grounding, powered by Google Search.'
     )
     .optional(),
+  temperature: z
+    .number()
+    .min(0)
+    .max(2)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 1.0.'
+    )
+    .optional(),
+  topP: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe(
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
+    )
+    .optional(),
 }).passthrough();
 export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
 export type GeminiConfig = z.infer<GeminiConfigSchemaType>;
@@ -217,8 +235,25 @@ export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
 export type GeminiTtsConfigSchemaType = typeof GeminiTtsConfigSchema;
 export type GeminiTtsConfig = z.infer<GeminiTtsConfigSchemaType>;
 
+export const GemmaConfigSchema = GeminiConfigSchema.extend({
+  temperature: z
+    .number()
+    .min(0.0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 1.0.'
+    )
+    .optional(),
+}).passthrough();
+export type GemmaConfigSchemaType = typeof GemmaConfigSchema;
+export type GemmaConfig = z.infer<GemmaConfigSchemaType>;
+
 // This contains all the Gemini config schema types
-type ConfigSchemaType = GeminiConfigSchemaType | GeminiTtsConfigSchemaType;
+type ConfigSchemaType =
+  | GeminiConfigSchemaType
+  | GeminiTtsConfigSchemaType
+  | GemmaConfigSchemaType;
 
 function commonRef(
   name: string,
@@ -243,16 +278,25 @@ function commonRef(
 }
 
 const GENERIC_MODEL = commonRef('gemini');
-const GENERIC_TTS_MODEL = commonRef('gemini-tts', {
-  supports: {
-    multiturn: false,
-    media: false,
-    tools: false,
-    toolChoice: false,
-    systemRole: false,
-    constrained: 'no-tools',
+const GENERIC_TTS_MODEL = commonRef(
+  'gemini-tts',
+  {
+    supports: {
+      multiturn: false,
+      media: false,
+      tools: false,
+      toolChoice: false,
+      systemRole: false,
+      constrained: 'no-tools',
+    },
   },
-});
+  GeminiTtsConfigSchema
+);
+const GENERIC_GEMMA_MODEL = commonRef(
+  'gemma-generic',
+  undefined,
+  GemmaConfigSchema
+);
 
 const KNOWN_MODELS = {
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
@@ -272,6 +316,11 @@ const KNOWN_MODELS = {
     { ...GENERIC_TTS_MODEL.info },
     GeminiTtsConfigSchema
   ),
+  'gemma-3-12b-it': commonRef('gemma-3-12b-it', undefined, GemmaConfigSchema),
+  'gemma-3-1b-it': commonRef('gemma-3-1b-it', undefined, GemmaConfigSchema),
+  'gemma-3-27b-it': commonRef('gemma-3-27b-it', undefined, GemmaConfigSchema),
+  'gemma-3-4b-it': commonRef('gemma-3-4b-it', undefined, GemmaConfigSchema),
+  'gemma-3n-e4b-it': commonRef('gemma-3n-e4b-it', undefined, GemmaConfigSchema),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
@@ -279,6 +328,11 @@ export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 export type TTSModelName = `gemini-${string}-tts`;
 export function isTTSModelName(value: string): value is TTSModelName {
   return value.startsWith('gemini-') && value.endsWith('-tts');
+}
+
+export type GemmaModelName = `gemma-${string}`;
+export function isGemmaModelName(value: string): value is GemmaModelName {
+  return value.startsWith('gemma-');
 }
 
 export function model(
@@ -300,6 +354,16 @@ export function model(
       config,
       configSchema: GeminiTtsConfigSchema,
       info: { ...GENERIC_TTS_MODEL.info },
+    });
+  }
+
+  if (isGemmaModelName(name)) {
+    return modelRef({
+      name: `googleai/${name}`,
+      version: name,
+      config,
+      configSchema: GemmaConfigSchema,
+      info: { ...GENERIC_GEMMA_MODEL.info },
     });
   }
 
