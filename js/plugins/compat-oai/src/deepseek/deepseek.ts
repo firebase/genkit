@@ -17,7 +17,7 @@
 import { modelRef } from 'genkit/model';
 import { ChatCompletionCommonConfigSchema } from '../model';
 
-export const deepseekChat = modelRef({
+const deepseekChat = modelRef({
   name: 'deepseek/deepseek-chat',
   info: {
     label: 'DeepSeek - DeepSeek Chat',
