@@ -17,7 +17,7 @@
 import { modelRef } from 'genkit/model';
 import { ChatCompletionCommonConfigSchema } from '../model';
 
-export const grok3 = modelRef({
+const grok3 = modelRef({
   name: 'xai/grok-3',
   info: {
     label: 'xAI - Grok 3',
