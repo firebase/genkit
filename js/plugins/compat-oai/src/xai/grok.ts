@@ -62,7 +62,7 @@ const grok3Mini = modelRef({
   configSchema: ChatCompletionCommonConfigSchema,
 });
 
-export const grok3MiniFast = modelRef({
+const grok3MiniFast = modelRef({
   name: 'xai/grok-3-mini-fast',
   info: {
     label: 'xAI - Grok 3 Fast',
