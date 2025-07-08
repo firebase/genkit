@@ -32,7 +32,7 @@ const deepseekChat = modelRef({
   configSchema: ChatCompletionCommonConfigSchema,
 });
 
-export const deepseekReasoner = modelRef({
+const deepseekReasoner = modelRef({
   name: 'deepseek/deepseek-reasoner',
   info: {
     label: 'DeepSeek - DeepSeek Reasoner',
