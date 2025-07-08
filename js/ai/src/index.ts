@@ -115,7 +115,7 @@ export {
   ResourceOutputSchema,
   defineResource,
   dynamicResource,
-  isDynamicResource,
+  isDynamicResourceAction,
   type ResourceAction,
   type ResourceFn,
   type ResourceInput,

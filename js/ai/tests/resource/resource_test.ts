@@ -17,7 +17,13 @@
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { defineResource, findMatchingResource } from '../../src/resource.js';
+import {
+  defineResource,
+  dynamicResource,
+  findMatchingResource,
+  isDynamicResourceAction,
+} from '../../src/resource.js';
+import { defineEchoModel } from '../helpers.js';
 
 describe('resource', () => {
   let registry: Registry;
@@ -218,5 +224,40 @@ describe('resource', () => {
       uri: 'unknown://bar/something',
     });
     assert.strictEqual(gotUnmatched, undefined);
+  });
+});
+
+describe('isDynamicResourceAction', () => {
+  let registry: Registry;
+
+  beforeEach(() => {
+    registry = new Registry();
+  });
+
+  it('should recognize dynamic resource actions', () => {
+    assert.strictEqual(
+      isDynamicResourceAction(
+        defineResource(registry, { uri: 'bar://baz' }, () => ({
+          content: [{ text: `bar` }],
+        }))
+      ),
+      false
+    );
+
+    assert.strictEqual(
+      isDynamicResourceAction(defineEchoModel(registry)),
+      false
+    );
+
+    assert.strictEqual(isDynamicResourceAction('banana'), false);
+
+    assert.strictEqual(
+      isDynamicResourceAction(
+        dynamicResource({ uri: 'bar://baz' }, () => ({
+          content: [{ text: `bar` }],
+        }))
+      ),
+      true
+    );
   });
 });

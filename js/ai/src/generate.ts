@@ -58,7 +58,7 @@ import {
   type ToolResponsePart,
 } from './model.js';
 import { isExecutablePrompt } from './prompt.js';
-import { DynamicResourceAction, isDynamicResource } from './resource.js';
+import { DynamicResourceAction, isDynamicResourceAction } from './resource.js';
 import {
   isDynamicTool,
   resolveTools,
@@ -437,7 +437,7 @@ function maybeRegisterDynamicResources<
 >(registry: Registry, options: GenerateOptions<O, CustomOptions>): Registry {
   let hasDynamicResources = false;
   options?.resources?.forEach((r) => {
-    if (isDynamicResource(r)) {
+    if (isDynamicResourceAction(r)) {
       const attached = r.attach(registry);
       if (!hasDynamicResources) {
         hasDynamicResources = true;

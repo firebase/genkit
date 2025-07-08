@@ -141,11 +141,13 @@ export async function findMatchingResource(
 }
 
 /** Checks whether provided object is a dynamic resource. */
-export function isDynamicResource(t: unknown): t is DynamicResourceAction {
+export function isDynamicResourceAction(
+  t: unknown
+): t is DynamicResourceAction {
   return (
     (isDetachedAction(t) || isAction(t)) &&
     t.__action.metadata?.type === 'resource' &&
-    t.__action.metadata?.dynamic
+    !!t.__action.metadata?.dynamic
   );
 }
 
