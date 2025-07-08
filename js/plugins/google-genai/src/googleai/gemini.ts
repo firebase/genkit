@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { Genkit, GenkitError, z } from 'genkit';
+import {
+  ActionMetadata,
+  Genkit,
+  GenkitError,
+  modelActionMetadata,
+  z,
+} from 'genkit';
 import {
   GenerationCommonConfigSchema,
   ModelAction,
@@ -33,24 +39,26 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters';
-import { cleanSchema, nearestModelRef } from '../common/utils';
+import { cleanSchema } from '../common/utils';
 import {
   generateContent,
   generateContentStream,
   getGoogleAIUrl,
 } from './client';
 import {
+  ClientOptions,
   Content as GeminiMessage,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerationConfig,
+  GoogleAIPluginOptions,
   GoogleSearchRetrievalTool,
-  RequestOptions,
+  Model,
   SafetySetting,
   Tool,
   ToolConfig,
 } from './types';
-import { getApiKeyFromEnvVar } from './utils';
+import { calculateApiKey, checkApiKey, modelName } from './utils';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
@@ -175,7 +183,8 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     )
     .optional(),
 }).passthrough();
-export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
+export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
+export type GeminiConfig = z.infer<GeminiConfigSchemaType>;
 
 export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
   speechConfig: z
@@ -205,28 +214,20 @@ export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
     .passthrough()
     .optional(),
 }).passthrough();
+export type GeminiTtsConfigSchemaType = typeof GeminiTtsConfigSchema;
+export type GeminiTtsConfig = z.infer<GeminiTtsConfigSchemaType>;
 
-// For commonRef
-type ConfigSchema = typeof GeminiConfigSchema | typeof GeminiTtsConfigSchema;
-
-const TTS_MODEL_INFO: ModelInfo = {
-  supports: {
-    multiturn: false,
-    media: false,
-    tools: false,
-    toolChoice: false,
-    systemRole: false,
-    constrained: 'no-tools',
-  },
-};
+// This contains all the Gemini config schema types
+type ConfigSchemaType = GeminiConfigSchemaType | GeminiTtsConfigSchemaType;
 
 function commonRef(
   name: string,
   info?: ModelInfo,
-  configSchema: ConfigSchema = GeminiConfigSchema
-): ModelReference<ConfigSchema> {
+  configSchema: ConfigSchemaType = GeminiConfigSchema
+): ModelReference<ConfigSchemaType> {
   return modelRef({
     name: `googleai/${name}`,
+    configSchema,
     info: info ?? {
       supports: {
         multiturn: true,
@@ -235,13 +236,25 @@ function commonRef(
         toolChoice: true,
         systemRole: true,
         constrained: 'no-tools',
+        output: ['text', 'json'],
       },
     },
-    configSchema,
   });
 }
 
-export const KNOWN_GEMINI_MODELS = {
+const GENERIC_MODEL = commonRef('gemini');
+const GENERIC_TTS_MODEL = commonRef('gemini-tts', {
+  supports: {
+    multiturn: false,
+    media: false,
+    tools: false,
+    toolChoice: false,
+    systemRole: false,
+    constrained: 'no-tools',
+  },
+});
+
+const KNOWN_MODELS = {
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
   'gemini-2.0-pro-exp-02-05': commonRef('gemini-2.0-pro-exp-02-05'),
@@ -251,113 +264,92 @@ export const KNOWN_GEMINI_MODELS = {
   'gemini-2.5-flash-preview-04-17': commonRef('gemini-2.5-flash-preview-04-17'),
   'gemini-2.5-flash-preview-tts': commonRef(
     'gemini-2.5-flash-preview-tts',
-    TTS_MODEL_INFO,
+    { ...GENERIC_TTS_MODEL.info },
     GeminiTtsConfigSchema
   ),
   'gemini-2.5-pro-preview-tts': commonRef(
     'gemini-2.5-pro-preview-tts',
-    TTS_MODEL_INFO,
+    { ...GENERIC_TTS_MODEL.info },
     GeminiTtsConfigSchema
   ),
 } as const;
+export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
-export const GENERIC_GEMINI_MODEL = commonRef('gemini');
+// For conditional types in index.ts model()
+export type TTSModelName = `gemini-${string}-tts`;
+export function isTTSModelName(value: string): value is TTSModelName {
+  return value.startsWith('gemini-') && value.endsWith('-tts');
+}
 
-/**
- * Known model names, to allow code completion for convenience. Allows other model names.
- */
-export type GeminiVersionString =
-  | keyof typeof KNOWN_GEMINI_MODELS
-  | (string & {});
+export function model(
+  version: string,
+  config: GeminiConfig | GeminiTtsConfig = {}
+): ModelReference<ConfigSchemaType> {
+  const name = modelName(version);
+  if (!name) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Not able to create modelReference for empty model version',
+    });
+  }
 
-/**
- * Returns a reference to a model that can be used in generate calls.
- *
- * ```js
- * await ai.generate({
- *   prompt: 'hi',
- *   model: gemini('gemini-2.5-flash')
- * });
- * ```
- */
-export function gemini(
-  version: GeminiVersionString,
-  options: GeminiConfig = {}
-): ModelReference<typeof GeminiConfigSchema> {
-  const nearestModel = nearestModelRef(
-    version,
-    KNOWN_GEMINI_MODELS,
-    GENERIC_GEMINI_MODEL
-  );
+  if (isTTSModelName(name)) {
+    return modelRef({
+      name: `googleai/${name}`,
+      version: name,
+      config,
+      configSchema: GeminiTtsConfigSchema,
+      info: { ...GENERIC_TTS_MODEL.info },
+    });
+  }
+
   return modelRef({
-    name: `googleai/${version}`,
-    config: options,
-    configSchema: nearestModel.configSchema,
-    info: {
-      ...nearestModel.info,
-    },
+    name: `googleai/${name}`,
+    version: name,
+    config,
+    configSchema: GeminiConfigSchema,
+    info: { ...GENERIC_MODEL.info },
   });
+}
+
+// Takes a full list of models, filters for current Gemini models only
+// and returns a modelActionMetadata for each.
+export function listActions(models: Model[]): ActionMetadata[] {
+  return (
+    models
+      .filter((m) => m.supportedGenerationMethods.includes('generateContent'))
+      // Filter out deprecated
+      .filter((m) => !m.description || !m.description.includes('deprecated'))
+      .map((m) => {
+        const ref = model(m.name);
+        return modelActionMetadata({
+          name: ref.name,
+          info: ref.info,
+          configSchema: ref.configSchema,
+        });
+      })
+  );
+}
+
+export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
+  for (const name of Object.keys(KNOWN_MODELS)) {
+    defineModel(ai, name, options);
+  }
 }
 
 /**
  * Defines a new GoogleAI Gemini model.
  */
-export function defineGeminiModel({
-  ai,
-  name,
-  apiKey: apiKeyOption,
-  apiVersion,
-  baseUrl,
-  info,
-  defaultConfig,
-  debugTraces,
-}: {
-  ai: Genkit;
-  name: string;
-  apiKey?: string | false;
-  apiVersion?: string;
-  baseUrl?: string;
-  info?: ModelInfo;
-  defaultConfig?: GeminiConfig;
-  debugTraces?: boolean;
-}): ModelAction {
-  let apiKey: string | undefined;
-  // DO NOT infer API key from environment variable if plugin was configured with `{apiKey: false}`.
-  if (apiKeyOption !== false) {
-    apiKey = apiKeyOption || getApiKeyFromEnvVar();
-    if (!apiKey) {
-      throw new GenkitError({
-        status: 'FAILED_PRECONDITION',
-        message:
-          'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
-      });
-    }
-  }
-
-  const apiModelName = name.startsWith('googleai/')
-    ? name.substring('googleai/'.length)
-    : name;
-
-  const model: ModelReference<z.ZodTypeAny> =
-    KNOWN_GEMINI_MODELS[apiModelName] ??
-    modelRef({
-      name: `googleai/${apiModelName}`,
-      info: {
-        supports: {
-          multiturn: true,
-          media: true,
-          tools: true,
-          systemRole: true,
-          output: ['text', 'json'],
-        },
-        ...info,
-      },
-      configSchema: GeminiConfigSchema,
-    });
+export function defineModel(
+  ai: Genkit,
+  name: string,
+  pluginOptions?: GoogleAIPluginOptions
+): ModelAction {
+  checkApiKey(pluginOptions?.apiKey);
+  const ref = model(name);
 
   const middleware: ModelMiddleware[] = [];
-  if (model.info?.supports?.media) {
+  if (ref.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middleware.push(
       downloadRequestMedia({
@@ -385,19 +377,15 @@ export function defineGeminiModel({
 
   return ai.defineModel(
     {
-      name: model.name,
-      ...model.info,
-      configSchema: model.configSchema,
+      name: ref.name,
+      ...ref.info,
+      configSchema: ref.configSchema,
       use: middleware,
     },
     async (request, sendChunk) => {
-      const options: RequestOptions = {
-        apiVersion,
-        baseUrl,
-      };
-      const requestConfig: z.infer<typeof GeminiConfigSchema> = {
-        ...defaultConfig,
-        ...request.config,
+      const clientOptions: ClientOptions = {
+        apiVersion: pluginOptions?.apiVersion,
+        baseUrl: pluginOptions?.baseUrl,
       };
 
       // Make a copy so that modifying the request will not produce side-effects
@@ -421,6 +409,9 @@ export function defineGeminiModel({
         });
       }
 
+      const requestOptions: z.infer<ConfigSchemaType> = {
+        ...request.config,
+      };
       const {
         apiKey: apiKeyFromConfig,
         safetySettings: safetySettingsFromConfig,
@@ -430,14 +421,12 @@ export function defineGeminiModel({
         googleSearchRetrieval,
         tools: toolsFromConfig,
         ...restOfConfigOptions
-      } = requestConfig;
+      } = requestOptions;
 
       if (codeExecutionFromConfig) {
         tools.push({
           codeExecution:
-            request.config.codeExecution === true
-              ? {}
-              : request.config.codeExecution,
+            codeExecutionFromConfig === true ? {} : codeExecutionFromConfig,
         });
       }
 
@@ -484,7 +473,7 @@ export function defineGeminiModel({
         generationConfig.responseSchema = cleanSchema(request.output.schema);
       }
 
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const msg = toGeminiMessage(messages[messages.length - 1], ref);
 
       let generateContentRequest: GenerateContentRequest = {
         systemInstruction,
@@ -494,31 +483,25 @@ export function defineGeminiModel({
         safetySettings: safetySettingsFromConfig?.filter(
           (setting) => setting.category !== 'HARM_CATEGORY_UNSPECIFIED'
         ) as SafetySetting[],
-        contents: messages.map((message) => toGeminiMessage(message, model)),
+        contents: messages.map((message) => toGeminiMessage(message, ref)),
       };
 
-      const modelVersion = (versionFromConfig ||
-        model.version ||
-        apiModelName) as string;
+      const modelVersion = (versionFromConfig || ref.version) as string;
 
-      apiKey = apiKeyFromConfig || apiKey;
-      if (!apiKey) {
-        throw new GenkitError({
-          status: 'INVALID_ARGUMENT',
-          message:
-            'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
-        });
-      }
+      const generateApiKey = calculateApiKey(
+        pluginOptions?.apiKey,
+        requestOptions.apiKey
+      );
 
       const callGemini = async () => {
         let response: GenerateContentResponse;
 
         if (sendChunk) {
           const result = await generateContentStream(
-            apiKey!,
+            generateApiKey,
             modelVersion,
             generateContentRequest,
-            options
+            clientOptions
           );
 
           for await (const item of result.stream) {
@@ -533,10 +516,10 @@ export function defineGeminiModel({
           response = await result.response;
         } else {
           response = await generateContent(
-            apiKey!,
+            generateApiKey,
             modelVersion,
             generateContentRequest,
-            options
+            clientOptions
           );
         }
 
@@ -569,7 +552,7 @@ export function defineGeminiModel({
 
       // If debugTraces is enabled, we wrap the actual model call with a span, add raw
       // API params as for input.
-      return debugTraces
+      return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
             ai.registry,
             {
@@ -581,13 +564,13 @@ export function defineGeminiModel({
               metadata.input = {
                 apiEndpoint: getGoogleAIUrl({
                   resourcePath: '',
-                  requestOptions: options,
+                  clientOptions,
                 }),
                 cache: {},
                 model: modelVersion,
                 generateContentOptions: generateContentRequest,
                 parts: msg.parts,
-                options,
+                options: clientOptions,
               };
               const response = await callGemini();
               metadata.output = response.custom;
@@ -598,3 +581,5 @@ export function defineGeminiModel({
     }
   );
 }
+
+export const TEST_ONLY = { KNOWN_MODELS };
