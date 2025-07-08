@@ -33,6 +33,7 @@ export {
   ToolCallSchema,
   ToolInterruptError,
   ToolSchema,
+  dynamicResource,
   embedderActionMetadata,
   embedderRef,
   evaluatorRef,
@@ -113,7 +114,6 @@ export {
   type SessionStore,
 } from '@genkit-ai/ai/session';
 export { dynamicTool } from '@genkit-ai/ai/tool';
-export { dynamicResource } from '@genkit-ai/ai';
 export {
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
