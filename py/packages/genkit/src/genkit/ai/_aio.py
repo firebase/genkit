@@ -81,7 +81,7 @@ class Genkit(GenkitBase):
         messages: list[Message] | None = None,
         tools: list[str] | None = None,
         return_tool_requests: bool | None = None,
-        tool_choice: ToolChoice = None,
+        tool_choice: ToolChoice | None = None,
         tool_responses: list[Part] | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
         max_turns: int | None = None,

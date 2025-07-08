@@ -56,7 +56,7 @@ export const modelWrapFlow = ai.defineFlow(
   },
   async (subject, { sendChunk }) => {
     const { stream, response } = ai.generateStream({
-      model: xAI.model('grok-3'),
+      model: deepSeek.model('deepseek-chat'),
       prompt: `tell me a fun fact about ${subject}`,
     });
 

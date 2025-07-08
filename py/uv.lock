@@ -1569,6 +1569,7 @@ version = "0.1.0"
 source = { editable = "samples/google-genai-hello" }
 dependencies = [
     { name = "genkit" },
+    { name = "genkit-plugin-evaluators" },
     { name = "genkit-plugin-google-cloud" },
     { name = "genkit-plugin-google-genai" },
     { name = "pydantic" },
@@ -1578,6 +1579,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "genkit", editable = "packages/genkit" },
+    { name = "genkit-plugin-evaluators", editable = "plugins/evaluators" },
     { name = "genkit-plugin-google-cloud", editable = "plugins/google-cloud" },
     { name = "genkit-plugin-google-genai", editable = "plugins/google-genai" },
     { name = "pydantic", specifier = ">=2.10.5" },
