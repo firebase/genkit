@@ -48,6 +48,7 @@ describe('resource', () => {
         template: undefined,
         uri: 'foo://bar',
       },
+      type: 'resource',
     });
 
     assert.strictEqual(testResource.matches({ uri: 'foo://bar' }), true);
@@ -210,6 +211,7 @@ describe('resource', () => {
         template: 'foo://bar/{baz}',
         uri: undefined,
       },
+      type: 'resource',
     });
 
     const gotUnmatched = await findMatchingResource(registry, {

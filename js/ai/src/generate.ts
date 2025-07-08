@@ -58,6 +58,7 @@ import {
   type ToolResponsePart,
 } from './model.js';
 import { isExecutablePrompt } from './prompt.js';
+import { DynamicResourceAction, isDynamicResource } from './resource.js';
 import {
   isDynamicTool,
   resolveTools,
@@ -120,6 +121,8 @@ export interface GenerateOptions<
   messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
+  /** List of dynamic resources to be made available to this generate request. */
+  resources?: DynamicResourceAction[];
   /** Specifies how tools should be called by the model.  */
   toolChoice?: ToolChoice;
   /** Configuration for the generation request. */
@@ -343,6 +346,7 @@ export async function generate<
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
 
   registry = maybeRegisterDynamicTools(registry, resolvedOptions);
+  registry = maybeRegisterDynamicResources(registry, resolvedOptions);
 
   const params = await toGenerateActionOptions(registry, resolvedOptions);
 
@@ -422,6 +426,26 @@ function maybeRegisterDynamicTools<
         registry = Registry.withParent(registry);
       }
       registry.registerAction('tool', t as Action);
+    }
+  });
+  return registry;
+}
+
+function maybeRegisterDynamicResources<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(registry: Registry, options: GenerateOptions<O, CustomOptions>): Registry {
+  let hasDynamicResources = false;
+  options?.resources?.forEach((r) => {
+    if (isDynamicResource(r)) {
+      const attached = r.attach(registry);
+      if (!hasDynamicResources) {
+        hasDynamicResources = true;
+        // Create a temporary registry with dynamic tools for the duration of this
+        // generate request.
+        registry = Registry.withParent(registry);
+      }
+      registry.registerAction('resource', attached);
     }
   });
   return registry;

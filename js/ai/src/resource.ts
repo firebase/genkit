@@ -17,8 +17,11 @@
 import {
   Action,
   ActionContext,
-  defineAction,
+  detachedAction,
+  DetachedAction,
   GenkitError,
+  isAction,
+  isDetachedAction,
   z,
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
@@ -96,6 +99,64 @@ export function defineResource(
   opts: ResourceOptions,
   fn: ResourceFn
 ): ResourceAction {
+  const action = dynamicResource(opts, fn).attach(registry) as ResourceAction;
+  // when defined via defineResource it's not dynamic.
+  delete action.__action.metadata?.dynamic;
+  action.matches = createMatcher(opts.uri, opts.template);
+  registry.registerAction('resource', action);
+  return action;
+}
+
+/**
+ * A dynamic action with a `resource` type. Dynamic resources are detached actions -- not associated with any registry.
+ */
+export type DynamicResourceAction = DetachedAction<
+  typeof ResourceInputSchema,
+  typeof ResourceOutputSchema
+> & {
+  __action: {
+    metadata: {
+      type: 'resource';
+    };
+  };
+  matches(input: ResourceInput): boolean;
+};
+
+/**
+ * Finds a matching resource in the registry. If not found returns undefined.
+ */
+export async function findMatchingResource(
+  registry: Registry,
+  input: ResourceInput
+): Promise<ResourceAction | undefined> {
+  for (const actKeys of Object.keys(await registry.listResolvableActions())) {
+    if (actKeys.startsWith('/resource/')) {
+      const resource = (await registry.lookupAction(actKeys)) as ResourceAction;
+      if (resource.matches(input)) {
+        return resource;
+      }
+    }
+  }
+  return undefined;
+}
+
+/** Checks whether provided object is a dynamic resource. */
+export function isDynamicResource(t: unknown): t is DynamicResourceAction {
+  return (
+    (isDetachedAction(t) || isAction(t)) &&
+    t.__action.metadata?.type === 'resource' &&
+    t.__action.metadata?.dynamic
+  );
+}
+
+/**
+ * Defines a dynamic resource. Dynamic resources are just like regular resources but will not be
+ * registered in the Genkit registry and can be defined dynamically at runtime.
+ */
+export function dynamicResource(
+  opts: ResourceOptions,
+  fn: ResourceFn
+): DynamicResourceAction {
   const uri = opts.uri ?? opts.template;
   if (!uri) {
     throw new GenkitError({
@@ -103,17 +164,9 @@ export function defineResource(
       message: `must specify either url or template options`,
     });
   }
-  const template = opts.template ? uriTemplate(opts.template) : undefined;
-  const matcher = opts.uri
-    ? // TODO: normalize resource URI during comparisons
-      // foo://bar?baz=1&qux=2 and foo://bar?qux=2&baz=1 are equivalent URIs but would not match.
-      (input: string) => (input === opts.uri ? {} : undefined)
-    : (input: string) => {
-        return template!.fromUri(input);
-      };
+  const matcher = createMatcher(opts.uri, opts.template);
 
-  const action = defineAction(
-    registry,
+  const action = detachedAction(
     {
       actionType: 'resource',
       name: opts.name ?? uri,
@@ -126,10 +179,12 @@ export function defineResource(
           template: opts.template,
         },
         ...opts.metadata,
+        type: 'resource',
+        dynamic: true,
       },
     },
     async (input, ctx) => {
-      const templateMatch = matcher(input.uri);
+      const templateMatch = matcher(input);
       if (!templateMatch) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
@@ -162,27 +217,44 @@ export function defineResource(
       });
       return parts;
     }
-  ) as ResourceAction;
+  ) as DynamicResourceAction;
 
-  action.matches = (input: ResourceInput) => matcher(input.uri) !== undefined;
+  action.matches = matcher;
 
-  return action;
+  return {
+    __action: {
+      ...action.__action,
+      metadata: {
+        ...action.__action.metadata,
+        type: 'resource',
+      },
+    },
+    attach(registry) {
+      const bound = action.attach(registry) as ResourceAction;
+      bound.matches = matcher;
+      return bound;
+    },
+    matches: matcher,
+  } as DynamicResourceAction;
 }
 
-/**
- * Finds a matching resource in the registry. If not found returns undefined.
- */
-export async function findMatchingResource(
-  registry: Registry,
-  input: ResourceInput
-): Promise<ResourceAction | undefined> {
-  for (const actKeys of Object.keys(await registry.listResolvableActions())) {
-    if (actKeys.startsWith('/resource/')) {
-      const resource = (await registry.lookupAction(actKeys)) as ResourceAction;
-      if (resource.matches(input)) {
-        return resource;
-      }
-    }
+function createMatcher(
+  uriOpt: string | undefined,
+  templateOpt: string | undefined
+): (input: ResourceInput) => boolean {
+  // TODO: normalize resource URI during comparisons
+  // foo://bar?baz=1&qux=2 and foo://bar?qux=2&baz=1 are equivalent URIs but would not match.
+  if (uriOpt) {
+    return (input: ResourceInput) => input.uri === uriOpt;
   }
-  return undefined;
+
+  if (templateOpt) {
+    const template = uriTemplate(templateOpt);
+    return (input: ResourceInput) => template!.fromUri(input.uri) !== undefined;
+  }
+
+  throw new GenkitError({
+    status: 'INVALID_ARGUMENT',
+    message: 'must specify either url or template options',
+  });
 }
