@@ -176,7 +176,12 @@ export class ReflectionServer {
             const result = await runWithStreamingCallback(
               this.registry,
               callback,
-              () => action.run(input, { context, onChunk: callback })
+              () =>
+                action.run(input, {
+                  context,
+                  onChunk: callback,
+                  telemetryLabels,
+                })
             );
             await flushTracing();
             response.write(
