@@ -325,7 +325,7 @@ importers:
         version: link:../../genkit
       google-auth-library:
         specifier: ^9.14.2
-        version: 9.15.1(encoding@0.1.13)
+        version: 9.14.2(encoding@0.1.13)
       knex:
         specifier: ^3.1.0
         version: 3.1.0(pg@8.16.2)
@@ -344,16 +344,16 @@ importers:
         version: 8.2.3
       '@types/node':
         specifier: ^20.11.16
-        version: 20.19.1
+        version: 20.17.17
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0
       dotenv:
         specifier: ^16.4.5
-        version: 16.5.0
+        version: 16.4.5
       jest:
         specifier: ^29.7.0
-        version: 29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@4.9.5))
+        version: 29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5))
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
@@ -362,10 +362,10 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.4.0(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.1)(ts-node@10.9.2(@types/node@20.19.1)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
-        version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
+        version: 8.3.5(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.7.0)
       tsx:
         specifier: ^4.19.2
         version: 4.20.3
@@ -562,7 +562,7 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
         version: 8.3.5(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.7.0)
@@ -647,7 +647,7 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.3.5
         version: 8.3.5(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.7.0)
@@ -730,7 +730,7 @@ importers:
     dependencies:
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.2)(chromadb@1.9.2(encoding@0.1.13)(openai@4.104.0(encoding@0.1.13)(zod@3.25.67)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)(lodash@4.17.21)(pg@8.16.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.97.0(encoding@0.1.13)(zod@3.24.1)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(jsonwebtoken@9.0.2)(lodash@4.17.21)(pg@8.16.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -742,7 +742,7 @@ importers:
         version: link:../../genkit
       langchain:
         specifier: ^0.1.36
-        version: 0.1.37(@google-cloud/storage@7.16.0(encoding@0.1.13))(@pinecone-database/pinecone@2.2.2)(chromadb@1.9.2(encoding@0.1.13)(openai@4.104.0(encoding@0.1.13)(zod@3.25.67)))(encoding@0.1.13)(fast-xml-parser@4.5.3)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(lodash@4.17.21)(pdf-parse@1.1.1)(pg@8.16.2)
+        version: 0.1.37(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.97.0(encoding@0.1.13)(zod@3.24.1)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(lodash@4.17.21)(pdf-parse@1.1.1)(pg@8.16.2)
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -840,7 +840,7 @@ importers:
         version: 6.0.1
       ts-jest:
         specifier: ^29.1.2
-        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5)
+        version: 29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5)
       tsup:
         specifier: ^8.0.2
         version: 8.3.5(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.7.0)
@@ -1007,7 +1007,7 @@ importers:
         version: link:../../plugins/compat-oai
       '@genkit-ai/express':
         specifier: ^1.1.0
-        version: 1.12.0(@genkit-ai/core@1.13.0)(express@5.1.0)(genkit@genkit)
+        version: 1.12.0(@genkit-ai/core@1.14.0)(express@5.1.0)(genkit@genkit)
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -1191,7 +1191,7 @@ importers:
     devDependencies:
       '@types/pdf-parse':
         specifier: ^1.1.4
-        version: 1.1.4
+        version: 1.1.5
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
@@ -1252,7 +1252,7 @@ importers:
     devDependencies:
       '@types/pdf-parse':
         specifier: ^1.1.4
-        version: 1.1.4
+        version: 1.1.5
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -1489,7 +1489,7 @@ importers:
         version: link:../../plugins/vertexai
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.2)(chromadb@1.9.2(encoding@0.1.13)(openai@4.104.0(encoding@0.1.13)(zod@3.25.67)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)(lodash@4.17.21)(pg@8.16.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.97.0(encoding@0.1.13)(zod@3.24.1)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(jsonwebtoken@9.0.2)(lodash@4.17.21)(pg@8.16.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -1510,7 +1510,7 @@ importers:
         version: link:../../plugins/ollama
       langchain:
         specifier: ^0.1.36
-        version: 0.1.37(@google-cloud/storage@7.16.0(encoding@0.1.13))(@pinecone-database/pinecone@2.2.2)(chromadb@1.9.2(encoding@0.1.13)(openai@4.104.0(encoding@0.1.13)(zod@3.25.67)))(encoding@0.1.13)(fast-xml-parser@4.5.3)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(lodash@4.17.21)(pdf-parse@1.1.1)(pg@8.16.2)
+        version: 0.1.37(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.97.0(encoding@0.1.13)(zod@3.24.1)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(lodash@4.17.21)(pdf-parse@1.1.1)(pg@8.16.2)
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
@@ -1636,7 +1636,7 @@ importers:
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@1.13.0)(@genkit-ai/core@1.13.0)
+        version: 0.10.1(@genkit-ai/ai@1.14.0)(@genkit-ai/core@1.14.0)
     devDependencies:
       rimraf:
         specifier: ^6.0.1
@@ -1698,7 +1698,7 @@ importers:
     devDependencies:
       '@types/pdf-parse':
         specifier: ^1.1.4
-        version: 1.1.4
+        version: 1.1.5
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -1816,7 +1816,7 @@ importers:
     devDependencies:
       '@types/pdf-parse':
         specifier: ^1.1.4
-        version: 1.1.4
+        version: 1.1.5
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -2774,18 +2774,18 @@ packages:
   '@firebase/webchannel-wrapper@1.0.3':
     resolution: {integrity: sha512-2xCRM9q9FlzGZCdgDMJwc0gyUkWFtkosy7Xxr6sFgQwn+wMNIWd7xIvYNauU1r64B5L5rsGKy/n9TKJ0aAFeqQ==}
 
-  '@genkit-ai/ai@1.13.0':
-    resolution: {integrity: sha512-AFwQXrSfD51J3AeJjzD/k77d2ccfhLmqhPOj0YcUpCjopY+NeVobsNZRJkYOtZdnRBDDYdHDnnHBSetFg+yyYQ==}
+  '@genkit-ai/ai@1.14.0':
+    resolution: {integrity: sha512-m1CHgLryxMoRSGy0mu452lx2NRrz4r43HeybXk/YRKuTlSBsb5kUS9CJWXYpRU2+gQh8mx1dvlS1/oSEbvBokA==}
 
-  '@genkit-ai/core@1.13.0':
-    resolution: {integrity: sha512-L6oljw7C/fZ2JcR3/iAllXRb7gVWpZhzMHyX73e5wyI+sbgx92KM36Gh3GxC/7nEtzhUFcRmQqV5MYK1lidl0Q==}
+  '@genkit-ai/core@1.14.0':
+    resolution: {integrity: sha512-UYqvqXxEYmQp6kt5f5kUh+46UpfhuLwzd1TAsYQMhwA0qeqwgkSOxmYKzuYRoeramY6Dcg02LOIoKKhoNS7Hgg==}
 
-  '@genkit-ai/express@1.8.0':
-    resolution: {integrity: sha512-Cq5BdxslixkrEJujtMQh8WoSy/gHCBE/hCjqfa6MCqy6CwYGf9p/Y5P8C00gsaf4ymnfTK4HTfLfm60GunA+Mg==}
+  '@genkit-ai/express@1.12.0':
+    resolution: {integrity: sha512-QAxSS07dX5ovSfsUB4s90KaDnv4zg1wnoxCZCa+jBsYUyv9NvCCTsOk25xAQgGxc7xi3+MD+3AsPier5oZILIg==}
     peerDependencies:
-      '@genkit-ai/core': 1.8.0
+      '@genkit-ai/core': 1.12.0
       express: ^4.21.1
-      genkit: ^1.8.0
+      genkit: ^1.12.0
 
   '@gerrit0/mini-shiki@1.24.4':
     resolution: {integrity: sha512-YEHW1QeAg6UmxEmswiQbOVEg1CW22b1XUD/lNTliOsu0LD0wqoyleFMnmbTp697QE0pcadQiR5cVtbbAPncvpw==}
@@ -3108,9 +3108,6 @@ packages:
   '@jridgewell/set-array@1.2.1':
     resolution: {integrity: sha512-R8gLRTZeyp03ymzP/6Lil/28tGeGEzhx1q2k703KGWRAI1VdvPIXdG70VJc2pAMw3NA6JKL5hhFu1sJX0Mnn/A==}
     engines: {node: '>=6.0.0'}
-
-  '@jridgewell/sourcemap-codec@1.4.15':
-    resolution: {integrity: sha512-eF2rxCRulEKXHTRiDrDy6erMYWqNw4LPdQ8UQA4huuxaQsVeRPFl2oM8oDGxMFhJUWZf9McpLtJasDDZb/Bpeg==}
 
   '@jridgewell/sourcemap-codec@1.5.0':
     resolution: {integrity: sha512-gv3ZRaISU3fjPAgNsriBRqGWQL6quFx04YMPW/zD8XMLsU32mhCCbfbO6KZFLjvYpCZ8zyDEgqsgf+PwPaM7GQ==}
@@ -4138,8 +4135,8 @@ packages:
     resolution: {integrity: sha512-g2FXjlDX/cYuc5CiQvyU/6kkbP1JtmGzh0obW50zD7OKeILVL0NSpPWLXVfqoAGQjom2/SLLx9zHq0KXvD6mbw==}
     deprecated: This is a stub types definition. dotenv provides its own type definitions, so you do not need this installed.
 
-  '@types/estree@1.0.7':
-    resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
+  '@types/estree@1.0.6':
+    resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
 
   '@types/express-serve-static-core@4.17.43':
     resolution: {integrity: sha512-oaYtiBirUOPQGSWNGPWnzyAFJ0BP3cwvN4oWZQY+zUBwpVIGsKUkpBpSztp74drYcjavs7SKFZ4DX1V2QeN8rg==}
@@ -4196,8 +4193,8 @@ packages:
   '@types/node-fetch@2.6.11':
     resolution: {integrity: sha512-24xFj9R5+rfQJLRyM56qh+wnVSYhyXC2tkoBndtY0U+vubqNsYXGjufB2nn8Q6gt0LrARwL6UBtMCSVCwl4B1g==}
 
-  '@types/node@18.19.53':
-    resolution: {integrity: sha512-GLxgUgHhDKO1Edw9Q0lvMbiO/IQXJwJlMaqxSGBXMpPy8uhkCs2iiPFaB2Q/gmobnFkckD3rqTBMVjXdwq+nKg==}
+  '@types/node@18.19.112':
+    resolution: {integrity: sha512-i+Vukt9POdS/MBI7YrrkkI5fMfwFtOjphSmt4WXYLfwqsfr6z/HdCx7LqT9M7JktGob8WNgj8nFB4TbGNE4Cog==}
 
   '@types/node@20.17.17':
     resolution: {integrity: sha512-/WndGO4kIfMicEQLTi/mDANUu/iVUhT7KboZPdEqqHQ4aTS+3qT3U5gIqWDFV+XouorjfgGqvKILJeHhuQgFYg==}
@@ -4223,8 +4220,8 @@ packages:
   '@types/range-parser@1.2.7':
     resolution: {integrity: sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==}
 
-  '@types/react-dom@19.0.3':
-    resolution: {integrity: sha512-0Knk+HJiMP/qOZgMyNFamlIjw9OFCsyC2ZbigmEEyXXixgre6IQpm/4V+r3qH4GC1JPvRJKInw+on2rV6YZLeA==}
+  '@types/react-dom@19.1.6':
+    resolution: {integrity: sha512-4hOiT/dwO8Ko0gV1m/TJZYk3y0KBnY9vzDh7W+DH17b2HFSOGgdj33dhihPeuy3l0q23+4e+hoXHV6hCC4dCXw==}
     peerDependencies:
       '@types/react': ^19.0.0
 
@@ -4331,6 +4328,10 @@ packages:
 
   agent-base@7.1.0:
     resolution: {integrity: sha512-o/zjMZRhJxny7OyEF+Op8X+efiELC7k7yOjMzgfzVqOzXqkBkWI79YoTdOtsuWd5BWhAGAuOY/Xa6xpiaWXiNg==}
+    engines: {node: '>= 14'}
+
+  agent-base@7.1.3:
+    resolution: {integrity: sha512-jRR5wdylq8CkOe6hei19GGZnxM6rBGwFl3Bg0YItGDimvjGtAvdZk4Pu6Cl4u4Igsws4a1fd1Vq3ezrhn4KmFw==}
     engines: {node: '>= 14'}
 
   agentkeepalive@4.5.0:
@@ -4548,6 +4549,10 @@ packages:
 
   call-bind@1.0.7:
     resolution: {integrity: sha512-GHTSNSYICQ7scH7sZ+M2rFopRoLh8t2bLSW6BbgrtLsahOIB5iyAVJf9GjWK3cYTDaMj4XdBpM1cA6pIS0Kv2w==}
+    engines: {node: '>= 0.4'}
+
+  call-bind@1.0.8:
+    resolution: {integrity: sha512-oKlSFMcMwpUg2ednkhQ454wfWiU/ul3CkJe/PEHcTKuiX6RpbehUiFMXu13HalGZxfUwCQzZG747YXBn1im9ww==}
     engines: {node: '>= 0.4'}
 
   call-bound@1.0.4:
@@ -4807,15 +4812,6 @@ packages:
 
   debug@4.3.4:
     resolution: {integrity: sha512-PRWFHuSU3eDtQJPvnNY7Jcket1j0t5OuOsFzPPzsekD52Zl8qUfFIPEiswXqIvHWGVHOgX+7G/vCNNhehwxfkQ==}
-    engines: {node: '>=6.0'}
-    peerDependencies:
-      supports-color: '*'
-    peerDependenciesMeta:
-      supports-color:
-        optional: true
-
-  debug@4.3.7:
-    resolution: {integrity: sha512-Er2nc/H7RrMXZBFCEim6TCmMk02Z8vLC2Rbi1KEBggpo0fS6l0S1nnapwmIi3yW/+GOJap1Krg4w0Hg80oCqgQ==}
     engines: {node: '>=6.0'}
     peerDependencies:
       supports-color: '*'
@@ -5263,6 +5259,10 @@ packages:
     resolution: {integrity: sha512-p+ggrQw3fBwH2F5N/PAI4k/G/y1art5OxKpb2J2chwNNHM4hHuAOtivjPuirMF4KNKwTTUal/lPfL2+7h2mEcg==}
     engines: {node: '>=14'}
 
+  gaxios@6.7.1:
+    resolution: {integrity: sha512-LDODD4TMYx7XXdpwxAVRAIAuB0bzv0s+ywFonY46k126qzQHT9ygyoa9tncmOiQmmDrik65UYsEkv3lbfqQ3yQ==}
+    engines: {node: '>=14'}
+
   gcp-metadata@6.1.0:
     resolution: {integrity: sha512-Jh/AIwwgaxan+7ZUUmRLCjtchyDiqh4KjBJ5tW3plBZb5iL/BPcso8A5DlzeD9qlw0duCamnNdpFjxwaT0KyKg==}
     engines: {node: '>=14'}
@@ -5317,11 +5317,11 @@ packages:
   get-tsconfig@4.8.1:
     resolution: {integrity: sha512-k9PN+cFBmaLWtVz29SkUoqU5O0slLuHJXt/2P+tMVFT+phsSGXGkp9t3rQIqdz0e+06EHNGs3oM6ZX1s2zHxRg==}
 
-  github-from-package@0.0.0:
-    resolution: {integrity: sha512-SyHy3T1v2NUXn29OsWdxmK6RwHD+vkj3v8en8AOBZ1wBQ/hCAQ5bAQTD02kW4W9tUp/3Qh6J8r9EvntiyCmOOw==}
-
   getopts@2.3.0:
     resolution: {integrity: sha512-5eDf9fuSXwxBL6q5HX+dhDj+dslFGWzU5thZ9kNKUkcPtaPdatmUFKwHFrLb/uf/WpA4BHET+AX3Scl56cAjpA==}
+
+  github-from-package@0.0.0:
+    resolution: {integrity: sha512-SyHy3T1v2NUXn29OsWdxmK6RwHD+vkj3v8en8AOBZ1wBQ/hCAQ5bAQTD02kW4W9tUp/3Qh6J8r9EvntiyCmOOw==}
 
   glob@10.3.12:
     resolution: {integrity: sha512-TCNv8vJ+xz4QiqTpfOJA7HvYv+tNIRHKfUWw/q+v2jdgN4ebz+KY9tGx5J4rHP0o84mNP+ApH66HRX8us3Khqg==}
@@ -5449,6 +5449,10 @@ packages:
 
   https-proxy-agent@7.0.4:
     resolution: {integrity: sha512-wlwpilI7YdjSkWaQ/7omYBMTliDcmCN8OLihO6I9B86g06lMyAoqgoDpV0XqoaPOKj+0DIdAvnsWfyAAhmimcg==}
+    engines: {node: '>= 14'}
+
+  https-proxy-agent@7.0.6:
+    resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
 
   human-signals@2.1.0:
@@ -5898,8 +5902,8 @@ packages:
   kuler@2.0.0:
     resolution: {integrity: sha512-Xq9nH7KlWZmXAtodXDDRE7vs6DU1gTU8zYDHDiWLSip45Egwq3plLHzPn27NgvzL2r1LMPC1vdqh98sQxtqj4A==}
 
-  langchain@0.1.36:
-    resolution: {integrity: sha512-NTbnCL/jKWIeEI//Nm1oG8nhW3vkYWvEMr1MPotmTThTfeKfO87eV/OAzAyh6Ruy6GFs/qofRgQZGIe6XvXTNQ==}
+  langchain@0.1.37:
+    resolution: {integrity: sha512-rpaLEJtRrLYhAViEp7/aHfSkxbgSqHJ5n10tXv3o4kHP/wOin85RpTgewwvGjEaKc3797jOg+sLSk6a7e0UlMg==}
     engines: {node: '>=18'}
     peerDependencies:
       '@aws-sdk/client-s3': ^3.310.0
@@ -5907,6 +5911,7 @@ packages:
       '@aws-sdk/client-sfn': ^3.310.0
       '@aws-sdk/credential-provider-node': ^3.388.0
       '@azure/storage-blob': ^12.15.0
+      '@browserbasehq/sdk': '*'
       '@gomomento/sdk': ^1.51.1
       '@gomomento/sdk-core': ^1.51.1
       '@gomomento/sdk-web': ^1.51.1
@@ -5964,6 +5969,8 @@ packages:
       '@aws-sdk/credential-provider-node':
         optional: true
       '@azure/storage-blob':
+        optional: true
+      '@browserbasehq/sdk':
         optional: true
       '@gomomento/sdk':
         optional: true
@@ -6846,10 +6853,6 @@ packages:
     resolution: {integrity: sha512-/vxpCXddiX8NGfGO/mTafwjq4aFa/71pvamip0++IQk3zG8cbCj0fifNPrjjF1XMXUne91jL9OoxmdykoEtifQ==}
     engines: {node: '>= 10.13.0'}
 
-  reflect.getprototypeof@1.0.10:
-    resolution: {integrity: sha512-00o4I+DVrefhv+nX0ulyi3biSHCPDe+yLv5o/p6d/UVlirijB8E16FtfwSAi4g3tcqrQ4lRAqQSoFEZJehYEcw==}
-    engines: {node: '>= 0.4'}
-
   regexp.prototype.flags@1.5.4:
     resolution: {integrity: sha512-dYqgNSZbDwkaJ2ceRd9ojCGjBq+mOm9LmtXnAnEGyHhN/5R7iDW2TRw3h+o/jCFxus3P2LfWIIiwowAjANm7IA==}
     engines: {node: '>= 0.4'}
@@ -7199,6 +7202,13 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
+  tar-fs@2.1.3:
+    resolution: {integrity: sha512-090nwYJDmlhwFwEW3QQl+vaNnxsO2yVsd45eTKRBzSzu+hlb1w2K9inVq5b0ngXuLVqQ4ApvsUHHnu/zQNkWAg==}
+
+  tar-stream@2.2.0:
+    resolution: {integrity: sha512-ujeqbceABgwMZxEJnk2HDY2DlnUZ+9oEcb1KzTVfYHio0UE6dG71n60d8D2I4qNvleWrrXpmjpt7vZeF1LnMZQ==}
+    engines: {node: '>=6'}
+
   tarn@3.0.2:
     resolution: {integrity: sha512-51LAVKUSZSVfI05vjPESNc5vwqqZpbXCsU+/+wxlOrUjk2SnFTt97v9ZgQrD4YmxYW1Px6w2KjaDitCfkvgxMQ==}
     engines: {node: '>=8.0.0'}
@@ -7469,6 +7479,10 @@ packages:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
     hasBin: true
 
+  uuid@11.1.0:
+    resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
+    hasBin: true
+
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
     hasBin: true
@@ -7649,7 +7663,7 @@ snapshots:
 
   '@anthropic-ai/sdk@0.24.3(encoding@0.1.13)':
     dependencies:
-      '@types/node': 18.19.53
+      '@types/node': 18.19.112
       '@types/node-fetch': 2.6.11
       abort-controller: 3.0.0
       agentkeepalive: 4.5.0
@@ -7662,7 +7676,7 @@ snapshots:
 
   '@anthropic-ai/sdk@0.9.1(encoding@0.1.13)':
     dependencies:
-      '@types/node': 18.19.53
+      '@types/node': 18.19.112
       '@types/node-fetch': 2.6.11
       abort-controller: 3.0.0
       agentkeepalive: 4.5.0
@@ -7702,7 +7716,7 @@ snapshots:
       '@babel/traverse': 7.25.7
       '@babel/types': 7.25.7
       convert-source-map: 2.0.0
-      debug: 4.4.1
+      debug: 4.4.0
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -7870,7 +7884,7 @@ snapshots:
       '@babel/parser': 7.25.7
       '@babel/template': 7.25.7
       '@babel/types': 7.25.7
-      debug: 4.4.1
+      debug: 4.4.0
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -8411,9 +8425,9 @@ snapshots:
 
   '@firebase/webchannel-wrapper@1.0.3': {}
 
-  '@genkit-ai/ai@1.13.0':
+  '@genkit-ai/ai@1.14.0':
     dependencies:
-      '@genkit-ai/core': 1.13.0
+      '@genkit-ai/core': 1.14.0
       '@opentelemetry/api': 1.9.0
       '@types/node': 20.17.17
       colorette: 2.0.20
@@ -8421,11 +8435,12 @@ snapshots:
       json5: 2.2.3
       node-fetch: 3.3.2
       partial-json: 0.1.7
+      uri-templates: 0.2.0
       uuid: 10.0.0
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/core@1.13.0':
+  '@genkit-ai/core@1.14.0':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
@@ -8448,9 +8463,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@genkit-ai/express@1.12.0(@genkit-ai/core@1.13.0)(express@5.1.0)(genkit@genkit)':
+  '@genkit-ai/express@1.12.0(@genkit-ai/core@1.14.0)(express@5.1.0)(genkit@genkit)':
     dependencies:
-      '@genkit-ai/core': 1.13.0
+      '@genkit-ai/core': 1.14.0
       body-parser: 1.20.3
       cors: 2.8.5
       express: 5.1.0
@@ -8493,7 +8508,7 @@ snapshots:
     dependencies:
       '@googleapis/sqladmin': 27.0.0(encoding@0.1.13)
       gaxios: 6.7.1(encoding@0.1.13)
-      google-auth-library: 9.15.1(encoding@0.1.13)
+      google-auth-library: 9.14.2(encoding@0.1.13)
       p-throttle: 7.0.0
     transitivePeerDependencies:
       - encoding
@@ -8620,7 +8635,7 @@ snapshots:
       duplexify: 4.1.3
       ent: 2.2.0
       fast-xml-parser: 4.3.6
-      gaxios: 6.3.0(encoding@0.1.13)
+      gaxios: 6.7.1(encoding@0.1.13)
       google-auth-library: 9.14.2(encoding@0.1.13)
       mime: 3.0.0
       p-limit: 3.1.0
@@ -8982,22 +8997,19 @@ snapshots:
   '@jridgewell/gen-mapping@0.3.5':
     dependencies:
       '@jridgewell/set-array': 1.2.1
-      '@jridgewell/sourcemap-codec': 1.4.15
+      '@jridgewell/sourcemap-codec': 1.5.0
       '@jridgewell/trace-mapping': 0.3.25
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
   '@jridgewell/set-array@1.2.1': {}
 
-  '@jridgewell/sourcemap-codec@1.4.15': {}
-
-  '@jridgewell/sourcemap-codec@1.5.0':
-    optional: true
+  '@jridgewell/sourcemap-codec@1.5.0': {}
 
   '@jridgewell/trace-mapping@0.3.25':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.4.15
+      '@jridgewell/sourcemap-codec': 1.5.0
 
   '@jridgewell/trace-mapping@0.3.9':
     dependencies:
@@ -9007,7 +9019,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.2)(chromadb@1.9.2(encoding@0.1.13)(openai@4.104.0(encoding@0.1.13)(zod@3.25.67)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)(lodash@4.17.21)(pg@8.16.2)':
+  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.97.0(encoding@0.1.13)(zod@3.24.1)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(jsonwebtoken@9.0.2)(lodash@4.17.21)(pg@8.16.2)':
     dependencies:
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
@@ -9939,12 +9951,7 @@ snapshots:
   '@types/body-parser@1.19.5':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 20.19.1
-
-  '@types/body-parser@1.19.6':
-    dependencies:
-      '@types/connect': 3.4.38
-      '@types/node': 20.19.1
+      '@types/node': 20.17.17
 
   '@types/bunyan@1.8.9':
     dependencies:
@@ -9958,7 +9965,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 20.19.1
+      '@types/node': 20.17.17
 
   '@types/cors@2.8.17':
     dependencies:
@@ -9971,9 +9978,9 @@ snapshots:
 
   '@types/dotenv@8.2.3':
     dependencies:
-      dotenv: 16.5.0
+      dotenv: 16.4.5
 
-  '@types/estree@1.0.7': {}
+  '@types/estree@1.0.6': {}
 
   '@types/express-serve-static-core@4.17.43':
     dependencies:
@@ -10043,11 +10050,6 @@ snapshots:
       '@types/node': 20.17.17
       form-data: 4.0.0
 
-  '@types/node-fetch@2.6.12':
-    dependencies:
-      '@types/node': 20.19.1
-      form-data: 4.0.0
-
   '@types/node@18.19.112':
     dependencies:
       undici-types: 5.26.5
@@ -10066,7 +10068,7 @@ snapshots:
 
   '@types/pdf-parse@1.1.5':
     dependencies:
-      '@types/node': 20.19.1
+      '@types/node': 20.17.17
 
   '@types/pg-pool@2.0.4':
     dependencies:
@@ -10138,7 +10140,7 @@ snapshots:
 
   '@types/wav@1.0.4':
     dependencies:
-      '@types/node': 20.19.1
+      '@types/node': 20.17.17
 
   '@types/webidl-conversions@7.0.3': {}
 
@@ -10471,6 +10473,13 @@ snapshots:
       get-intrinsic: 1.2.4
       set-function-length: 1.2.2
 
+  call-bind@1.0.8:
+    dependencies:
+      call-bind-apply-helpers: 1.0.2
+      es-define-property: 1.0.1
+      get-intrinsic: 1.3.0
+      set-function-length: 1.2.2
+
   call-bound@1.0.4:
     dependencies:
       call-bind-apply-helpers: 1.0.2
@@ -10731,10 +10740,6 @@ snapshots:
     dependencies:
       ms: 2.1.2
 
-  debug@4.3.7:
-    dependencies:
-      ms: 2.1.3
-
   debug@4.4.0:
     dependencies:
       ms: 2.1.3
@@ -10900,7 +10905,7 @@ snapshots:
       object-inspect: 1.13.1
       object-keys: 1.1.1
       object.assign: 4.1.5
-      regexp.prototype.flags: 1.5.2
+      regexp.prototype.flags: 1.5.4
       safe-array-concat: 1.1.2
       safe-regex-test: 1.0.3
       string.prototype.trim: 1.2.9
@@ -11206,7 +11211,7 @@ snapshots:
       '@fastify/busboy': 3.0.0
       '@firebase/database-compat': 1.0.4
       '@firebase/database-types': 1.0.2
-      '@types/node': 22.15.17
+      '@types/node': 22.15.32
       farmhash-modern: 1.1.0
       jsonwebtoken: 9.0.2
       jwks-rsa: 3.1.0
@@ -11347,15 +11352,6 @@ snapshots:
       - encoding
       - supports-color
 
-  gcp-metadata@5.3.0(encoding@0.1.13):
-    dependencies:
-      gaxios: 5.1.3(encoding@0.1.13)
-      json-bigint: 1.0.0
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-    optional: true
-
   gcp-metadata@6.1.0(encoding@0.1.13):
     dependencies:
       gaxios: 6.3.0(encoding@0.1.13)
@@ -11364,12 +11360,12 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@1.13.0)(@genkit-ai/core@1.13.0):
+  genkitx-openai@0.10.1(@genkit-ai/ai@1.14.0)(@genkit-ai/core@1.14.0):
     dependencies:
-      '@genkit-ai/ai': 1.13.0
-      '@genkit-ai/core': 1.13.0
-      openai: 4.104.0(encoding@0.1.13)(zod@3.25.67)
-      zod: 3.25.67
+      '@genkit-ai/ai': 1.14.0
+      '@genkit-ai/core': 1.14.0
+      openai: 4.97.0(encoding@0.1.13)(zod@3.24.1)
+      zod: 3.24.1
     transitivePeerDependencies:
       - encoding
       - ws
@@ -11428,6 +11424,9 @@ snapshots:
 
   getopts@2.3.0: {}
 
+  github-from-package@0.0.0:
+    optional: true
+
   glob@10.3.12:
     dependencies:
       foreground-child: 3.1.1
@@ -11464,7 +11463,7 @@ snapshots:
     dependencies:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
-      gaxios: 6.3.0(encoding@0.1.13)
+      gaxios: 6.7.1(encoding@0.1.13)
       gcp-metadata: 6.1.0(encoding@0.1.13)
       gtoken: 7.1.0(encoding@0.1.13)
       jws: 4.0.0
@@ -11564,7 +11563,7 @@ snapshots:
 
   gtoken@7.1.0(encoding@0.1.13):
     dependencies:
-      gaxios: 6.3.0(encoding@0.1.13)
+      gaxios: 6.7.1(encoding@0.1.13)
       jws: 4.0.0
     transitivePeerDependencies:
       - encoding
@@ -11642,7 +11641,7 @@ snapshots:
   https-proxy-agent@7.0.6:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.1
+      debug: 4.4.0
     transitivePeerDependencies:
       - supports-color
 
@@ -12163,7 +12162,7 @@ snapshots:
       jest-util: 29.7.0
       natural-compare: 1.4.0
       pretty-format: 29.7.0
-      semver: 7.7.2
+      semver: 7.6.3
     transitivePeerDependencies:
       - supports-color
 
@@ -12339,11 +12338,11 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.1.37(@google-cloud/storage@7.16.0(encoding@0.1.13))(@pinecone-database/pinecone@2.2.2)(chromadb@1.9.2(encoding@0.1.13)(openai@4.104.0(encoding@0.1.13)(zod@3.25.67)))(encoding@0.1.13)(fast-xml-parser@4.5.3)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(lodash@4.17.21)(pdf-parse@1.1.1)(pg@8.16.2):
+  langchain@0.1.37(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.97.0(encoding@0.1.13)(zod@3.24.1)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(lodash@4.17.21)(pdf-parse@1.1.1)(pg@8.16.2):
     dependencies:
       '@anthropic-ai/sdk': 0.9.1(encoding@0.1.13)
-      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.2)(chromadb@1.9.2(encoding@0.1.13)(openai@4.104.0(encoding@0.1.13)(zod@3.25.67)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)(lodash@4.17.21)(pg@8.16.2)
-      '@langchain/core': 0.1.63
+      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.9.2(encoding@0.1.13)(openai@4.97.0(encoding@0.1.13)(zod@3.24.1)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(jsonwebtoken@9.0.2)(lodash@4.17.21)(pg@8.16.2)
+      '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
       '@langchain/textsplitters': 0.0.0
       binary-extensions: 2.3.0
@@ -12817,7 +12816,7 @@ snapshots:
 
   openai@4.97.0(encoding@0.1.13)(zod@3.24.1):
     dependencies:
-      '@types/node': 18.19.53
+      '@types/node': 18.19.112
       '@types/node-fetch': 2.6.11
       abort-controller: 3.0.0
       agentkeepalive: 4.5.0
@@ -13049,7 +13048,7 @@ snapshots:
       pump: 3.0.0
       rc: 1.2.8
       simple-get: 4.0.1
-      tar-fs: 2.1.1
+      tar-fs: 2.1.3
       tunnel-agent: 0.6.0
     optional: true
 
@@ -13199,13 +13198,15 @@ snapshots:
 
   rechoir@0.8.0:
     dependencies:
-      resolve: 1.22.10
+      resolve: 1.22.8
 
-  reflect.getprototypeof@1.0.10:
+  regexp.prototype.flags@1.5.4:
     dependencies:
-      call-bind: 1.0.7
+      call-bind: 1.0.8
       define-properties: 1.2.1
       es-errors: 1.3.0
+      get-proto: 1.0.1
+      gopd: 1.2.0
       set-function-name: 2.0.2
 
   require-directory@2.1.1: {}
@@ -13214,7 +13215,7 @@ snapshots:
 
   require-in-the-middle@7.3.0:
     dependencies:
-      debug: 4.3.7
+      debug: 4.4.0
       module-details-from-path: 1.0.3
       resolve: 1.22.8
     transitivePeerDependencies:
@@ -13655,6 +13656,23 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
+  tar-fs@2.1.3:
+    dependencies:
+      chownr: 1.1.4
+      mkdirp-classic: 0.5.3
+      pump: 3.0.0
+      tar-stream: 2.2.0
+    optional: true
+
+  tar-stream@2.2.0:
+    dependencies:
+      bl: 4.1.0
+      end-of-stream: 1.4.4
+      fs-constants: 1.0.0
+      inherits: 2.0.4
+      readable-stream: 3.6.2
+    optional: true
+
   tarn@3.0.2: {}
 
   teeny-request@9.0.0(encoding@0.1.13):
@@ -13719,7 +13737,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5):
+  ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(esbuild@0.24.0)(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@4.9.5)))(typescript@4.9.5):
     dependencies:
       bs-logger: 0.2.6
       ejs: 3.1.10
@@ -13737,6 +13755,7 @@ snapshots:
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
       babel-jest: 29.7.0(@babel/core@7.25.7)
+      esbuild: 0.24.0
 
   ts-jest@29.2.5(@babel/core@7.25.7)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.25.7))(jest@29.7.0(@types/node@20.17.17)(ts-node@10.9.2(@types/node@20.17.17)(typescript@5.6.3)))(typescript@5.6.3):
     dependencies:
@@ -13809,7 +13828,7 @@ snapshots:
       cac: 6.7.14
       chokidar: 4.0.1
       consola: 3.2.3
-      debug: 4.3.7
+      debug: 4.4.0
       esbuild: 0.24.0
       joycon: 3.1.1
       picocolors: 1.1.1
@@ -13818,7 +13837,7 @@ snapshots:
       rollup: 4.25.0
       source-map: 0.8.0-beta.0
       sucrase: 3.35.0
-      tinyexec: 0.3.1
+      tinyexec: 0.3.2
       tinyglobby: 0.2.10
       tree-kill: 1.2.2
     optionalDependencies:
@@ -13836,7 +13855,7 @@ snapshots:
       cac: 6.7.14
       chokidar: 4.0.1
       consola: 3.2.3
-      debug: 4.3.7
+      debug: 4.4.0
       esbuild: 0.24.0
       joycon: 3.1.1
       picocolors: 1.1.1
@@ -13845,7 +13864,7 @@ snapshots:
       rollup: 4.25.0
       source-map: 0.8.0-beta.0
       sucrase: 3.35.0
-      tinyexec: 0.3.1
+      tinyexec: 0.3.2
       tinyglobby: 0.2.10
       tree-kill: 1.2.2
     optionalDependencies:
@@ -13959,6 +13978,8 @@ snapshots:
 
   undici-types@6.19.8: {}
 
+  undici-types@6.21.0: {}
+
   unpipe@1.0.0: {}
 
   update-browserslist-db@1.1.1(browserslist@4.24.0):
@@ -13984,6 +14005,8 @@ snapshots:
   utils-merge@1.0.1: {}
 
   uuid@10.0.0: {}
+
+  uuid@11.1.0: {}
 
   uuid@8.3.2: {}
 
