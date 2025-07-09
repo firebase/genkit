@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
-import { modelRef } from 'genkit/model';
+import { ModelInfo, modelRef } from 'genkit/model';
 import { ChatCompletionCommonConfigSchema } from '../model';
+
+/** 
+ * Language models that support text -> text, tool calling, structured output
+ */
+const XAI_LANGUGAGE_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: false,
+    systemRole: true,
+    output: ['text', 'json'],
+  },
+};
 
 const grok3 = modelRef({
   name: 'xai/grok-3',
   info: {
     label: 'xAI - Grok 3',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
+    ...XAI_LANGUGAGE_MODEL_INFO,
   },
   configSchema: ChatCompletionCommonConfigSchema,
 });
@@ -36,13 +43,7 @@ const grok3Fast = modelRef({
   name: 'xai/grok-3-fast',
   info: {
     label: 'xAI - Grok 3 Fast',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
+    ...XAI_LANGUGAGE_MODEL_INFO,
   },
   configSchema: ChatCompletionCommonConfigSchema,
 });
@@ -51,13 +52,7 @@ const grok3Mini = modelRef({
   name: 'xai/grok-3-mini',
   info: {
     label: 'xAI - Grok 3 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      systemRole: true,
-      media: false,
-      output: ['text', 'json'],
-    },
+    ...XAI_LANGUGAGE_MODEL_INFO,
   },
   configSchema: ChatCompletionCommonConfigSchema,
 });
@@ -66,13 +61,7 @@ const grok3MiniFast = modelRef({
   name: 'xai/grok-3-mini-fast',
   info: {
     label: 'xAI - Grok 3 Fast',
-    supports: {
-      multiturn: true,
-      tools: true,
-      systemRole: true,
-      media: false,
-      output: ['text', 'json'],
-    },
+    ...XAI_LANGUGAGE_MODEL_INFO,
   },
   configSchema: ChatCompletionCommonConfigSchema,
 });
@@ -84,8 +73,8 @@ const grok2Vision1212 = modelRef({
     supports: {
       multiturn: false,
       tools: true,
-      systemRole: false,
       media: true,
+      systemRole: false,
       output: ['text', 'json'],
     },
   },
