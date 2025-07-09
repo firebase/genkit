@@ -136,7 +136,7 @@ export async function genkitStart(
 
     appProcess.stdout?.on('data', (data) => {
       console.log('stdout: ' + data.toString());
-      const match = data.toString().match(/Genkit Developer UI:[^ ]*([^ ]*)/);
+      const match = data.toString().match(/Genkit Developer UI:\w*([^ ]*)/);
       if (match && match.length > 1) {
         console.log('Developer UI ready, launching test ' + match[1]);
         if (done) {

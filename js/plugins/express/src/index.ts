@@ -90,6 +90,15 @@ export function expressHandler<
       return;
     }
 
+    const abortController = new AbortController();
+    request.on('close', () => {
+      abortController.abort();
+    });
+    // when/if using timeout middleware, it will emit 'timeout' event.
+    request.on('timeout', () => {
+      abortController.abort();
+    });
+
     if (request.get('Accept') === 'text/event-stream' || stream === 'true') {
       response.writeHead(200, {
         'Content-Type': 'text/plain',
@@ -108,6 +117,7 @@ export function expressHandler<
             action.run(input, {
               onChunk,
               context,
+              abortSignal: abortController.signal,
             })
         );
         response.write(
@@ -125,7 +135,10 @@ export function expressHandler<
       }
     } else {
       try {
-        const result = await action.run(input, { context });
+        const result = await action.run(input, {
+          context,
+          abortSignal: abortController.signal,
+        });
         response.setHeader('x-genkit-trace-id', result.telemetry.traceId);
         response.setHeader('x-genkit-span-id', result.telemetry.spanId);
         // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."

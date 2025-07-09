@@ -90,7 +90,16 @@ func run(g *genkit.Genkit) error {
 	}
 
 	// [START use-retr]
-	retriever := defineRetriever(g, db, embedder)
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: nil,
+		Info: &ai.RetrieverInfo{
+			Label: "pgVector",
+			Supports: &ai.RetrieverSupports{
+				Media: false,
+			},
+		},
+	}
+	retriever := defineRetriever(g, db, embedder, retOpts)
 
 	type input struct {
 		Question string
@@ -119,7 +128,7 @@ func run(g *genkit.Genkit) error {
 const provider = "pgvector"
 
 // [START retr]
-func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retriever {
+func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder, retOpts *ai.RetrieverOptions) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 		eres, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Query))
 		if err != nil {
@@ -159,7 +168,7 @@ func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retr
 		}
 		return res, nil
 	}
-	return genkit.DefineRetriever(g, provider, "shows", f)
+	return genkit.DefineRetriever(g, provider, "shows", retOpts, f)
 }
 
 // [END retr]

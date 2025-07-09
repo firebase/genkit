@@ -97,7 +97,8 @@ type noStream = func(context.Context, struct{}) error
 // DefineAction creates a new non-streaming Action and registers it.
 func DefineAction[In, Out any](
 	r *registry.Registry,
-	provider, name string,
+	provider,
+	name string,
 	atype ActionType,
 	metadata map[string]any,
 	fn Func[In, Out],
@@ -140,16 +141,16 @@ func DefineStreamingAction[In, Out, Stream any](
 // This differs from DefineAction in that the input schema is
 // defined dynamically; the static input type is "any".
 // This is used for prompts and tools that need custom input validation.
-func DefineActionWithInputSchema[Out any](
+func DefineActionWithInputSchema[In, Out any](
 	r *registry.Registry,
 	provider, name string,
 	atype ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
-	fn Func[any, Out],
-) *ActionDef[any, Out, struct{}] {
+	fn Func[In, Out],
+) *ActionDef[In, Out, struct{}] {
 	return defineAction(r, provider, name, atype, metadata, inputSchema,
-		func(ctx context.Context, in any, _ noStream) (Out, error) {
+		func(ctx context.Context, in In, _ noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }
@@ -157,7 +158,8 @@ func DefineActionWithInputSchema[Out any](
 // defineAction creates an action and registers it with the given Registry.
 func defineAction[In, Out, Stream any](
 	r *registry.Registry,
-	provider, name string,
+	provider,
+	name string,
 	atype ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
@@ -309,6 +311,23 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 // Desc returns a descriptor of the action.
 func (a *ActionDef[In, Out, Stream]) Desc() ActionDesc {
 	return *a.desc
+}
+
+// ResolveActionFor returns the action for the given key in the global registry,
+// or nil if there is none.
+// It panics if the action is of the wrong type.
+func ResolveActionFor[In, Out, Stream any](r *registry.Registry, typ ActionType, provider, name string) *ActionDef[In, Out, Stream] {
+	var key string
+	if provider != "" {
+		key = fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+	} else {
+		key = fmt.Sprintf("/%s/%s", typ, name)
+	}
+	a := r.ResolveAction(key)
+	if a == nil {
+		return nil
+	}
+	return a.(*ActionDef[In, Out, Stream])
 }
 
 // LookupActionFor returns the action for the given key in the global registry,

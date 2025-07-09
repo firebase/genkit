@@ -456,6 +456,8 @@ export function detachedAction<
               ...registry.context,
               ...(opts?.context ?? getContext(registry)),
             },
+            abortSignal: opts?.abortSignal,
+            telemetryLabels: opts?.telemetryLabels,
           })
           .then((s) => s.result)
           .finally(() => {

@@ -36,7 +36,10 @@ import {
 import { defineCompatOpenAIEmbedder } from '../embedder.js';
 import { defineCompatOpenAIImageModel } from '../image.js';
 import openAICompatible, { PluginOptions } from '../index.js';
-import { defineCompatOpenAIModel } from '../model.js';
+import {
+  ChatCompletionCommonConfigSchema,
+  defineCompatOpenAIModel,
+} from '../model.js';
 import {
   IMAGE_GENERATION_MODEL_INFO,
   ImageGenerationConfigSchema,
@@ -46,7 +49,7 @@ import {
   SUPPORTED_EMBEDDING_MODELS,
   TextEmbeddingConfigSchema,
 } from './embedder.js';
-import { ChatCompletionConfigSchema, SUPPORTED_GPT_MODELS } from './gpt.js';
+import { SUPPORTED_GPT_MODELS } from './gpt.js';
 import {
   SPEECH_MODEL_INFO,
   SpeechConfigSchema,
@@ -54,7 +57,7 @@ import {
 } from './tts.js';
 import { SUPPORTED_STT_MODELS, TranscriptionConfigSchema } from './whisper.js';
 
-export type OpenAIPluginOptions = Exclude<PluginOptions, 'name'>;
+export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
 const resolver = async (
   ai: Genkit,
@@ -127,7 +130,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
         } else {
           return modelActionMetadata({
             name: `openai/${model.id}`,
-            configSchema: ChatCompletionConfigSchema,
+            configSchema: ChatCompletionCommonConfigSchema,
             info: SUPPORTED_GPT_MODELS[model.id]?.info,
           });
         }
@@ -154,7 +157,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
  *
  * Example:
  * ```
- * import openai from 'genkitx-openai';
+ * import { openAI } from '@genkit-ai/compat-oai/openai';
  *
  * export default configureGenkit({
  *  plugins: [
@@ -217,8 +220,8 @@ export type OpenAIPlugin = {
       | keyof typeof SUPPORTED_GPT_MODELS
       | (`gpt-${string}` & {})
       | (`o${number}` & {}),
-    config?: z.infer<typeof ChatCompletionConfigSchema>
-  ): ModelReference<typeof ChatCompletionConfigSchema>;
+    config?: z.infer<typeof ChatCompletionCommonConfigSchema>
+  ): ModelReference<typeof ChatCompletionCommonConfigSchema>;
   model(
     name:
       | keyof typeof SUPPORTED_IMAGE_MODELS
@@ -275,7 +278,7 @@ const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   return modelRef({
     name: `openai/${name}`,
     config,
-    configSchema: ChatCompletionConfigSchema,
+    configSchema: ChatCompletionCommonConfigSchema,
   });
 }) as OpenAIPlugin['model'];
 

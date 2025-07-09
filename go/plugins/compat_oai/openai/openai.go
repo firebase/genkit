@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	openaiGo "github.com/openai/openai-go"
@@ -28,32 +29,44 @@ import (
 
 const provider = "openai"
 
+type TextEmbeddingConfig struct {
+	Dimensions     int                                       `json:"dimensions,omitempty"`
+	EncodingFormat openaiGo.EmbeddingNewParamsEncodingFormat `json:"encodingFormat,omitempty"`
+}
+
+// EmbedderRef represents the main structure for an embedding model's definition.
+type EmbedderRef struct {
+	Name         string
+	ConfigSchema TextEmbeddingConfig // Represents the schema, can be used for default config
+	Info         *ai.EmbedderInfo
+}
+
 var (
 	// Supported models: https://platform.openai.com/docs/models
 	supportedModels = map[string]ai.ModelInfo{
 		"gpt-4.1": {
 			Label:    "OpenAI GPT-4.1",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4.1", "gpt-4.1-2025-04-14"},
 		},
 		"gpt-4.1-mini": {
 			Label:    "OpenAI GPT-4.1-mini",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4.1-mini", "gpt-4.1-mini-2025-04-14"},
 		},
 		"gpt-4.1-nano": {
 			Label:    "OpenAI GPT-4.1-nano",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4.1-nano", "gpt-4.1-nano-2025-04-14"},
 		},
 		openaiGo.ChatModelO3Mini: {
 			Label:    "OpenAI o3-mini",
-			Supports: compat_oai.BasicText.Supports,
+			Supports: &compat_oai.BasicText,
 			Versions: []string{"o3-mini", "o3-mini-2025-01-31"},
 		},
 		openaiGo.ChatModelO1: {
 			Label:    "OpenAI o1",
-			Supports: compat_oai.BasicText.Supports,
+			Supports: &compat_oai.BasicText,
 			Versions: []string{"o1", "o1-2024-12-17"},
 		},
 		openaiGo.ChatModelO1Preview: {
@@ -78,22 +91,22 @@ var (
 		},
 		openaiGo.ChatModelGPT4_5Preview: {
 			Label:    "OpenAI GPT-4.5-preview",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4.5-preview", "gpt-4.5-preview-2025-02-27"},
 		},
 		openaiGo.ChatModelGPT4o: {
 			Label:    "OpenAI GPT-4o",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4o", "gpt-4o-2024-11-20", "gpt-4o-2024-08-06", "gpt-4o-2024-05-13"},
 		},
 		openaiGo.ChatModelGPT4oMini: {
 			Label:    "OpenAI GPT-4o-mini",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4o-mini", "gpt-4o-mini-2024-07-18"},
 		},
 		openaiGo.ChatModelGPT4Turbo: {
 			Label:    "OpenAI GPT-4-turbo",
-			Supports: compat_oai.Multimodal.Supports,
+			Supports: &compat_oai.Multimodal,
 			Versions: []string{"gpt-4-turbo", "gpt-4-turbo-2024-04-09", "gpt-4-turbo-preview", "gpt-4-0125-preview"},
 		},
 		openaiGo.ChatModelGPT4: {
@@ -118,11 +131,40 @@ var (
 		},
 	}
 
-	// Known embedders: https://platform.openai.com/docs/guides/embeddings
-	knownEmbedders = []string{
-		openaiGo.EmbeddingModelTextEmbedding3Small,
-		openaiGo.EmbeddingModelTextEmbedding3Large,
-		openaiGo.EmbeddingModelTextEmbeddingAda002,
+	supportedEmbeddingModels = map[string]EmbedderRef{
+		openaiGo.EmbeddingModelTextEmbeddingAda002: {
+			Name:         "openai/text-embedding-ada-002",
+			ConfigSchema: TextEmbeddingConfig{},
+			Info: &ai.EmbedderInfo{
+				Dimensions: 1536,
+				Label:      "Open AI - Text Embedding ADA 002",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		openaiGo.EmbeddingModelTextEmbedding3Large: {
+			Name:         "openai/text-embedding-3-large",
+			ConfigSchema: TextEmbeddingConfig{},
+			Info: &ai.EmbedderInfo{
+				Dimensions: 3072,
+				Label:      "Open AI - Text Embedding 3 Large",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		openaiGo.EmbeddingModelTextEmbedding3Small: {
+			Name:         "openai/text-embedding-3-small",
+			ConfigSchema: TextEmbeddingConfig{}, // Represents the configurable options
+			Info: &ai.EmbedderInfo{
+				Dimensions: 1536,
+				Label:      "Open AI - Text Embedding 3 Small",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
 	}
 )
 
@@ -167,6 +209,7 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 		o.openAICompatible.Opts = append(o.openAICompatible.Opts, o.Opts...)
 	}
 
+	o.openAICompatible.Provider = provider
 	if err := o.openAICompatible.Init(ctx, g); err != nil {
 		return err
 	}
@@ -179,8 +222,8 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	// define default embedders
-	for _, embedder := range knownEmbedders {
-		if _, err := o.DefineEmbedder(g, embedder); err != nil {
+	for _, embedder := range supportedEmbeddingModels {
+		if _, err := o.DefineEmbedder(g, embedder.Name, embedder.Info, embedder.ConfigSchema); err != nil {
 			return err
 		}
 	}
@@ -196,10 +239,21 @@ func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (
 	return o.openAICompatible.DefineModel(g, provider, name, info)
 }
 
-func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {
-	return o.openAICompatible.DefineEmbedder(g, provider, name)
+func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string, modelInfo *ai.EmbedderInfo, configSchema TextEmbeddingConfig) (ai.Embedder, error) {
+	return o.openAICompatible.DefineEmbedder(g, provider, name, &ai.EmbedderOptions{
+		Info:         modelInfo,
+		ConfigSchema: configSchema,
+	})
 }
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {
 	return o.openAICompatible.Embedder(g, name, provider)
+}
+
+func (o *OpenAI) ListActions(ctx context.Context) []core.ActionDesc {
+	return o.openAICompatible.ListActions(ctx)
+}
+
+func (o *OpenAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+	return o.openAICompatible.ResolveAction(g, atype, name)
 }

@@ -203,8 +203,6 @@ export const OllamaConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
   topK: z
     .number()
-    .min(1)
-    .max(40)
     .describe(
       GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
     )
