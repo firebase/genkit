@@ -16,154 +16,75 @@
 
 import {
   ActionMetadata,
-  embedderActionMetadata,
   EmbedderReference,
   Genkit,
-  modelActionMetadata,
   ModelReference,
-  z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
+import { extractErrMsg } from '../common/utils.js';
 import { listModels } from './client.js';
-import {
-  defineGoogleAIEmbedder,
-  embedder,
-  GeminiEmbeddingConfig,
-  GoogleAIEmbeddingConfigSchema,
-  KNOWN_EMBEDDER_MODELS,
-} from './embedder.js';
-import {
-  defineGeminiModel,
-  gemini,
-  GeminiConfigSchema,
-  KNOWN_GEMINI_MODELS,
-  type GeminiConfig,
-  type GeminiVersionString,
-} from './gemini.js';
-import { PluginOptions } from './types.js';
-import { getApiKeyFromEnvVar } from './utils.js';
+import { GoogleAIPluginOptions } from './types.js';
+import { calculateApiKey } from './utils.js';
 
-export { type GeminiConfig, type GeminiVersionString, type PluginOptions };
+// These are namespaced because they all intentionally have
+// functions of the same name with the same arguments.
+// (All exports from these files are used here)
+import * as embedder from './embedder.js';
+import * as gemini from './gemini.js';
+import * as imagen from './imagen.js';
 
-async function initializer(ai: Genkit, options?: PluginOptions) {
-  Object.keys(KNOWN_GEMINI_MODELS).forEach((name) =>
-    defineGeminiModel({
-      ai,
-      name,
-      apiKey: options?.apiKey,
-      apiVersion: options?.apiVersion,
-      baseUrl: options?.baseUrl,
-      debugTraces: options?.experimental_debugTraces,
-    })
-  );
+export { type EmbeddingConfig } from './embedder.js';
+export { type GeminiConfig, type GeminiTtsConfig } from './gemini.js';
+export { type ImagenConfig } from './imagen.js';
+export { type GoogleAIPluginOptions };
 
-  Object.keys(KNOWN_EMBEDDER_MODELS).forEach((name) =>
-    defineGoogleAIEmbedder(ai, name, { apiKey: options?.apiKey })
-  );
+async function initializer(ai: Genkit, options?: GoogleAIPluginOptions) {
+  imagen.defineKnownModels(ai, options);
+  gemini.defineKnownModels(ai, options);
+  embedder.defineKnownModels(ai, options);
 }
 
 async function resolver(
   ai: Genkit,
   actionType: ActionType,
   actionName: string,
-  options: PluginOptions
+  options: GoogleAIPluginOptions
 ) {
   switch (actionType) {
     case 'model':
-      resolveModel(ai, actionName, options);
+      if (imagen.isImagenModelName(actionName)) {
+        imagen.defineModel(ai, actionName, options);
+      } else {
+        gemini.defineModel(ai, actionName, options);
+      }
       break;
     case 'embedder':
-      resolveEmbedder(ai, actionName, options);
+      embedder.defineEmbedder(ai, actionName, options);
       break;
     default:
     // no-op
   }
 }
 
-function resolveModel(ai: Genkit, actionName: string, options?: PluginOptions) {
-  const modelRef = gemini(actionName);
-  defineGeminiModel({
-    ai,
-    name: modelRef.name,
-    apiKey: options?.apiKey,
-    apiVersion: options?.apiVersion,
-    baseUrl: options?.baseUrl,
-    info: {
-      ...modelRef.info,
-    },
-    debugTraces: options?.experimental_debugTraces,
-  });
-}
-
-function resolveEmbedder(
-  ai: Genkit,
-  actionName: string,
-  options: PluginOptions
-) {
-  defineGoogleAIEmbedder(ai, `googleai/${actionName}`, options);
-}
-
-async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
-  const apiKey = options?.apiKey || getApiKeyFromEnvVar();
-  if (!apiKey) {
-    // If API key is not configured we don't want to error, just return empty.
-    // In practice it will never actually reach this point without the API key,
-    // plugin initializer will fail before that.
-    logger.error(
-      'Pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.'
-    );
-    return [];
-  }
-
+async function listActions(
+  options?: GoogleAIPluginOptions
+): Promise<ActionMetadata[]> {
   try {
-    const models = await listModels(apiKey, {
+    const apiKey = calculateApiKey(options?.apiKey, undefined);
+    const allModels = await listModels(apiKey, {
       baseUrl: options?.baseUrl,
       apiVersion: options?.apiVersion,
     });
 
     return [
-      // Models
-      ...models
-        .filter((m) => m.supportedGenerationMethods.includes('generateContent'))
-        // Filter out deprecated
-        .filter((m) => !m.description || !m.description.includes('deprecated'))
-        .map((m) => {
-          const ref = gemini(
-            m.name.startsWith('models/')
-              ? m.name.substring('models/'.length)
-              : m.name
-          );
-
-          return modelActionMetadata({
-            name: ref.name,
-            info: ref.info,
-            configSchema: GeminiConfigSchema,
-          });
-        }),
-      // Embedders
-      ...models
-        .filter((m) => m.supportedGenerationMethods.includes('embedContent'))
-        // Filter out deprecated
-        .filter((m) => !m.description || !m.description.includes('deprecated'))
-        .map((m) => {
-          const name =
-            'googleai/' +
-            (m.name.startsWith('models/')
-              ? m.name.substring('models/'.length)
-              : m.name);
-
-          const ref = embedder(name);
-          return embedderActionMetadata({
-            name: ref.name,
-            info: ref.info,
-            configSchema: ref.configSchema,
-          });
-        }),
+      ...gemini.listActions(allModels),
+      ...imagen.listActions(allModels),
+      ...embedder.listActions(allModels),
     ];
   } catch (e: unknown) {
-    // Errors already logged in the client code.
+    logger.error(extractErrMsg(e));
     return [];
   }
 }
@@ -171,7 +92,7 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
 /**
  * Google Gemini Developer API plugin.
  */
-export function googleAIPlugin(options?: PluginOptions): GenkitPlugin {
+export function googleAIPlugin(options?: GoogleAIPluginOptions): GenkitPlugin {
   let listActionsCache;
   return genkitPlugin(
     'googleai',
@@ -186,47 +107,66 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPlugin {
   );
 }
 
+// All the known model names for intellisense completion
+type KnownModels = gemini.KnownModels | imagen.KnownModels;
+type KnownEmbedders = embedder.KnownModels;
+
 export type GoogleAIPlugin = {
-  (params?: PluginOptions): GenkitPlugin;
-  model(
-    name: GeminiVersionString,
-    config?: z.infer<typeof GeminiConfigSchema>
-  ): ModelReference<typeof GeminiConfigSchema>;
-  embedder(
-    name: string,
-    config?: GeminiEmbeddingConfig
-  ): EmbedderReference<typeof GoogleAIEmbeddingConfigSchema>;
+  (params?: GoogleAIPluginOptions): GenkitPlugin;
+  model<T extends string>(
+    name: T | KnownModels,
+    // Conditional config types based on name type
+    // Order matters - the default gemini should be last
+    config?: T extends imagen.ImagenModelName
+      ? imagen.ImagenConfig
+      : T extends gemini.TTSModelName
+        ? gemini.GeminiTtsConfig
+        : gemini.GeminiConfig
+  ): // Conditional return types based on name type (same order as above)
+  T extends imagen.ImagenModelName
+    ? ModelReference<imagen.ImagenConfigSchemaType>
+    : T extends gemini.TTSModelName
+      ? ModelReference<gemini.GeminiTtsConfigSchemaType>
+      : ModelReference<gemini.GeminiConfigSchemaType>;
+
+  embedder<T extends string>(
+    name: T | KnownEmbedders,
+    config?: embedder.EmbeddingConfig
+  ): EmbedderReference<embedder.EmbeddingConfigSchemaType>;
 };
+
+// Types for readability below
+type ModelConfig =
+  | imagen.ImagenConfig
+  | gemini.GeminiTtsConfig
+  | gemini.GeminiConfig;
+type EmbedderConfig = embedder.EmbeddingConfig;
+
+type ModelConfigSchemaType =
+  | imagen.ImagenConfigSchemaType
+  | gemini.GeminiTtsConfigSchemaType
+  | gemini.GeminiConfigSchemaType;
+type EmbedderConfigSchemaType = embedder.EmbeddingConfigSchemaType;
 
 /**
  * Google Gemini Developer API plugin.
  */
 export const googleAI = googleAIPlugin as GoogleAIPlugin;
-googleAI.model = (
-  name: GeminiVersionString,
-  config?: GeminiConfig
-): ModelReference<typeof GeminiConfigSchema> => {
-  let modelName = name;
-  if (name.startsWith('models/')) {
-    modelName = name.substring('models/'.length);
+(googleAI as any).model = (
+  name: string,
+  config?: ModelConfig
+): ModelReference<ModelConfigSchemaType> => {
+  if (imagen.isImagenModelName(name)) {
+    return imagen.model(name, config);
   }
-  if (name.startsWith('googleai/')) {
-    modelName = name.substring('googleai/'.length);
-  }
-  return gemini(modelName, config);
+  // gemini.model handles both tts and default models
+  return gemini.model(name, config);
 };
 googleAI.embedder = (
   name: string,
-  config?: GeminiEmbeddingConfig
-): EmbedderReference<typeof GoogleAIEmbeddingConfigSchema> => {
-  let embedderName = name;
-  if (name.startsWith('models/')) {
-    embedderName = name.substring('models/'.length);
-  }
-  if (name.startsWith('googleai/')) {
-    embedderName = name.substring('googleai/'.length);
-  }
-  return embedder(embedderName, config);
+  config?: EmbedderConfig
+): EmbedderReference<EmbedderConfigSchemaType> => {
+  return embedder.model(name, config);
 };
 
 export default googleAI;

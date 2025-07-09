@@ -18,6 +18,8 @@ import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import type { ClientOptions, ImagenInstance, PluginOptions } from './types';
 
+export { extractImagenImage, extractText } from '../common/utils.js';
+
 const CLOUD_PLATFORM_OAUTH_SCOPE =
   'https://www.googleapis.com/auth/cloud-platform';
 
@@ -91,29 +93,6 @@ export async function getDerivedOptions(
     projectId,
     authClient,
   };
-}
-
-export function extractText(request: GenerateRequest): string {
-  return request.messages
-    .at(-1)!
-    .content.map((c) => c.text || '')
-    .join('');
-}
-
-export function extractImagenImage(
-  request: GenerateRequest
-): ImagenInstance['image'] | undefined {
-  const image = request.messages
-    .at(-1)
-    ?.content.find(
-      (p) => !!p.media && (!p.metadata?.type || p.metadata?.type === 'base')
-    )
-    ?.media?.url.split(',')[1];
-
-  if (image) {
-    return { bytesBase64Encoded: image };
-  }
-  return undefined;
 }
 
 export function extractImagenMask(

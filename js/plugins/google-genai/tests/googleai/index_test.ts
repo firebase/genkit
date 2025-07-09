@@ -18,15 +18,18 @@ import * as assert from 'assert';
 import { genkit } from 'genkit';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import {
-  GoogleAIEmbeddingConfigSchema,
-  KNOWN_EMBEDDER_MODELS,
+  TEST_ONLY as EMBEDDER_TEST_ONLY,
+  EmbeddingConfigSchema,
 } from '../../src/googleai/embedder.js';
 import {
+  TEST_ONLY as GEMINI_TEST_ONLY,
   GeminiConfigSchema,
-  KNOWN_GEMINI_MODELS,
+  GeminiTtsConfigSchema,
 } from '../../src/googleai/gemini.js';
+import { ImagenConfigSchema } from '../../src/googleai/imagen.js';
 import { googleAI } from '../../src/googleai/index.js';
 import { Model } from '../../src/googleai/types.js';
+import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils.js';
 
 describe('GoogleAI Plugin', () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -51,7 +54,7 @@ describe('GoogleAI Plugin', () => {
   describe('Initializer', () => {
     it('should pre-register flagship Gemini models', async () => {
       const ai = genkit({ plugins: [googleAI()] });
-      const model1Name = Object.keys(KNOWN_GEMINI_MODELS)[0];
+      const model1Name = Object.keys(GEMINI_TEST_ONLY.KNOWN_MODELS)[0];
       const model1Path = `/model/googleai/${model1Name}`;
       const expectedBaseName = `googleai/${model1Name}`;
       const model1 = await ai.registry.lookupAction(model1Path);
@@ -61,7 +64,7 @@ describe('GoogleAI Plugin', () => {
 
     it('should register all known Gemini models', async () => {
       const ai = genkit({ plugins: [googleAI()] });
-      for (const modelName in KNOWN_GEMINI_MODELS) {
+      for (const modelName in GEMINI_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/model/googleai/${modelName}`;
         const expectedBaseName = `googleai/${modelName}`;
         const model = await ai.registry.lookupAction(modelPath);
@@ -72,7 +75,7 @@ describe('GoogleAI Plugin', () => {
 
     it('should pre-register flagship Embedder models', async () => {
       const ai = genkit({ plugins: [googleAI()] });
-      const modelKeys = Object.keys(KNOWN_EMBEDDER_MODELS);
+      const modelKeys = Object.keys(EMBEDDER_TEST_ONLY.KNOWN_MODELS);
       if (modelKeys.length > 0) {
         const model1Name = modelKeys[0];
         const model1Path = `/embedder/googleai/${model1Name}`;
@@ -88,7 +91,7 @@ describe('GoogleAI Plugin', () => {
 
     it('should register all known Embedder models', async () => {
       const ai = genkit({ plugins: [googleAI()] });
-      for (const modelName in KNOWN_EMBEDDER_MODELS) {
+      for (const modelName in EMBEDDER_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/embedder/googleai/${modelName}`;
         const expectedBaseName = `googleai/${modelName}`;
         const model = await ai.registry.lookupAction(modelPath);
@@ -105,7 +108,7 @@ describe('GoogleAI Plugin', () => {
       const pluginProvider = googleAI()(ai);
       await assert.rejects(async () => {
         await pluginProvider.initializer();
-      }, /Please pass in the API key/);
+      }, MISSING_API_KEY_ERROR);
     });
 
     it('should NOT throw from initializer if apiKey is false', async () => {
@@ -147,9 +150,8 @@ describe('GoogleAI Plugin', () => {
     });
   });
 
-  describe('Helper Functions', () => {
-    it('googleAI.model should return a ModelReference with correct schema', () => {
-      // genkit() not needed as helper functions don't depend on the instance
+  describe('googleAI.model', () => {
+    it('should return a gemini ModelReference with correct schema', () => {
       const modelName = 'gemini-2.0-flash';
       const modelRef = googleAI.model(modelName);
       assert.strictEqual(
@@ -168,38 +170,123 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
-    it('googleAI.model should handle names with googleai/ prefix', () => {
+    it('should return a TTS model reference with correct schema', () => {
+      const modelRef = googleAI.model('gemini-5.0-tts');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiTtsConfigSchema,
+        'Should have GeminiTTsConfigSchema'
+      );
+      assert.ok(
+        !modelRef.info?.supports?.multiturn,
+        'Gemini TTS model should not support multiturn'
+      );
+    });
+
+    it('should have config values for gemini TTS', () => {
+      const modelRef = googleAI.model('gemini-5.0-tts', {
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Algenib' },
+          },
+        },
+      });
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiTtsConfigSchema,
+        'Should have GeminiTTsConfigSchema'
+      );
+      assert.strictEqual(
+        modelRef.config?.speechConfig?.voiceConfig?.prebuiltVoiceConfig
+          ?.voiceName,
+        'Algenib'
+      );
+    });
+
+    it('should return an Imagen model reference with correct schema', () => {
+      const modelRef = googleAI.model('imagen-new-model');
+      assert.strictEqual(
+        modelRef.configSchema,
+        ImagenConfigSchema,
+        'Should have ImagenConfigSchema'
+      );
+    });
+
+    it('should have config values for imagen model', () => {
+      const modelRef = googleAI.model('imagen-new-model', {
+        numberOfImages: 4,
+        aspectRatio: '16:9',
+      });
+      assert.strictEqual(
+        modelRef.configSchema,
+        ImagenConfigSchema,
+        'Should have ImagenConfigSchema'
+      );
+      assert.strictEqual(
+        modelRef.config?.numberOfImages,
+        4,
+        'should have 4 images'
+      );
+      assert.strictEqual(
+        modelRef.config?.aspectRatio,
+        '16:9',
+        'should be 16:9'
+      );
+    });
+
+    it('should return a gemini model reference for unknown model names', () => {
+      const modelRef = googleAI.model('foo-model');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiConfigSchema,
+        'Should have GeminiConfigSchema'
+      );
+    });
+
+    it('should have gemini config values for unknown model', () => {
+      const modelRef = googleAI.model('foo-model', { temperature: 0.3 });
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiConfigSchema,
+        'Should have GeminiConfigSchema'
+      );
+      assert.strictEqual(modelRef.config?.temperature, 0.3);
+    });
+
+    it('should handle names with googleai/ prefix', () => {
       const modelName = 'googleai/gemini-2.0-pro';
       const modelRef = googleAI.model(modelName);
       assert.strictEqual(modelRef.name, modelName);
     });
 
-    it('googleAI.model should handle names with models/ prefix', () => {
+    it('should handle names with models/ prefix', () => {
       const modelName = 'models/gemini-2.0-pro';
       const modelRef = googleAI.model(modelName);
       assert.strictEqual(modelRef.name, 'googleai/gemini-2.0-pro');
     });
+  });
 
-    it('googleAI.embedder should return an EmbedderReference with correct schema', () => {
+  describe('googleAI.embedder', () => {
+    it('should return an EmbedderReference with correct schema', () => {
       const embedderName = 'text-embedding-004';
       const embedderRef = googleAI.embedder(embedderName);
       assert.strictEqual(embedderRef.name, `googleai/${embedderName}`);
       assert.ok(embedderRef.info, 'Should have info');
       assert.strictEqual(
         embedderRef.configSchema,
-        GoogleAIEmbeddingConfigSchema,
+        EmbeddingConfigSchema,
         'Should have GoogleAIEmbeddingConfigSchema'
       );
     });
 
-    it('googleAI.embedder should handle names with googleai/ prefix', () => {
+    it('should handle names with googleai/ prefix', () => {
       const embedderName = 'googleai/text-embedding-custom';
       const embedderRef = googleAI.embedder(embedderName);
       assert.strictEqual(embedderRef.name, embedderName);
     });
 
-    it('googleAI.embedder should handle names with models/ prefix', () => {
-      const embedderName = 'models/text-embedding-custom';
+    it('should handle names with embedders/ prefix', () => {
+      const embedderName = 'embedders/text-embedding-custom';
       const embedderRef = googleAI.embedder(embedderName);
       assert.strictEqual(embedderRef.name, 'googleai/text-embedding-custom');
     });
