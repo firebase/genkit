@@ -203,13 +203,13 @@ func runAction(ctx context.Context, def *ToolDefinition, action core.Action, inp
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling tool input for %v: %v", def.Name, err)
 	}
-	output, err := action.RunJSON(ctx, mi, nil)
+	result, err := action.RunJSON(ctx, mi, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error calling tool %v: %w", def.Name, err)
 	}
 
 	var uo any
-	err = json.Unmarshal(output, &uo)
+	err = json.Unmarshal(result.Result, &uo)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing tool output for %v: %v", def.Name, err)
 	}
