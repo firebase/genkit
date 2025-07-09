@@ -111,6 +111,18 @@ export {
   type RerankerReference,
 } from './reranker.js';
 export {
+  ResourceInputSchema,
+  ResourceOutputSchema,
+  defineResource,
+  dynamicResource,
+  isDynamicResourceAction,
+  type ResourceAction,
+  type ResourceFn,
+  type ResourceInput,
+  type ResourceOptions,
+  type ResourceOutput,
+} from './resource.js';
+export {
   index,
   indexerRef,
   retrieve,

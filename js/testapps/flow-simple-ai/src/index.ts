@@ -40,7 +40,7 @@ import {
   genkit,
   z,
   type GenerateResponseData,
-} from 'genkit';
+} from 'genkit/beta';
 import { logger } from 'genkit/logging';
 import {
   simulateConstrainedGeneration,
@@ -1265,3 +1265,24 @@ async function downloadVideo(video: MediaPart, path: string) {
 
   Readable.from(videoDownloadResponse.body).pipe(fs.createWriteStream(path));
 }
+
+ai.defineResource(
+  {
+    name: 'myResource',
+    template: 'my://resource/{param}',
+    description: 'provides my resource',
+  },
+  async (input) => {
+    return { content: [{ text: `resource ${input}` }] };
+  }
+);
+
+ai.defineFlow('resource', async () => {
+  return await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt: [
+      { text: 'analyze this: ' },
+      { resource: { uri: 'my://resource/value' } },
+    ],
+  });
+});

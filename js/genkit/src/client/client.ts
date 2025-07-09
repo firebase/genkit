@@ -40,6 +40,7 @@ export function streamFlow<O = any, S = any>({
   url,
   input,
   headers,
+  abortSignal,
 }: {
   /** URL of the deployed flow. */
   url: string;
@@ -47,6 +48,8 @@ export function streamFlow<O = any, S = any>({
   input?: any;
   /** A map of HTTP headers to be added to the HTTP call. */
   headers?: Record<string, string>;
+  /** Abort signal to abort the request. */
+  abortSignal?: AbortSignal;
 }): {
   readonly output: Promise<O>;
   readonly stream: AsyncIterable<S>;
@@ -58,6 +61,7 @@ export function streamFlow<O = any, S = any>({
     input,
     sendChunk: (c) => channel.send(c),
     headers,
+    abortSignal,
   });
   operationPromise.then(
     () => channel.close(),
@@ -75,11 +79,13 @@ async function __flowRunEnvelope({
   input,
   sendChunk,
   headers,
+  abortSignal,
 }: {
   url: string;
   input: any;
   sendChunk: (chunk: any) => void;
   headers?: Record<string, string>;
+  abortSignal?: AbortSignal;
 }) {
   const response = await fetch(url, {
     method: 'POST',
@@ -91,6 +97,7 @@ async function __flowRunEnvelope({
       'Content-Type': 'application/json',
       ...headers,
     },
+    signal: abortSignal,
   });
   if (response.status !== 200) {
     throw new Error(
@@ -155,6 +162,7 @@ export async function runFlow<O = any>({
   url,
   input,
   headers,
+  abortSignal,
 }: {
   /** URL of the deployed flow. */
   url: string;
@@ -162,6 +170,8 @@ export async function runFlow<O = any>({
   input?: any;
   /** A map of HTTP headers to be added to the HTTP call. */
   headers?: Record<string, string>;
+  /** Abort signal to abort the request. */
+  abortSignal?: AbortSignal;
 }): Promise<O> {
   const response = await fetch(url, {
     method: 'POST',
@@ -172,6 +182,7 @@ export async function runFlow<O = any>({
       'Content-Type': 'application/json',
       ...headers,
     },
+    signal: abortSignal,
   });
   if (response.status !== 200) {
     throw new Error(

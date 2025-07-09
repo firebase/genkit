@@ -35,6 +35,7 @@ export {
   ToolCallSchema,
   ToolInterruptError,
   ToolSchema,
+  dynamicResource,
   embedderActionMetadata,
   embedderRef,
   evaluatorRef,

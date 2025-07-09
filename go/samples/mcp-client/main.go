@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/logger"
@@ -250,13 +251,74 @@ func clientGetPromptExample() {
 	}
 }
 
+// MCP Client Streamable HTTP Example - connects to a server via Streamable HTTP transport
+func clientStreamableHTTPExample() {
+	ctx := context.Background()
+
+	// Initialize Genkit with Google AI
+	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+	if err != nil {
+		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
+		return
+	}
+
+	logger.FromContext(ctx).Info("Creating MCP client with Streamable HTTP transport", "server", "everything")
+	// Create and connect to MCP server using Streamable HTTP transport
+	// Note: Start the server with: npx @modelcontextprotocol/server-everything streamableHttp --port 3001
+	// This will start the server on http://localhost:3001
+	client, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
+		Name:    "mcp-everything-http",
+		Version: "1.0.0",
+		StreamableHTTP: &mcp.StreamableHTTPConfig{
+			BaseURL: "http://localhost:3001",
+			Headers: map[string]string{
+				"User-Agent": "genkit-mcp-client/1.0.0",
+			},
+			Timeout: 30 * time.Second, // Optional timeout
+		},
+	})
+	if err != nil {
+		logger.FromContext(ctx).Error("Failed to create MCP client with Streamable HTTP", "error", err)
+		return
+	}
+	logger.FromContext(ctx).Info("MCP client with Streamable HTTP created successfully", "client", "mcp-everything-http")
+
+	// Get tools and generate response
+	tools, _ := client.GetActiveTools(ctx, g)
+	logger.FromContext(ctx).Info("Found MCP tools via Streamable HTTP", "count", len(tools), "client", "mcp-everything-http")
+
+	var toolRefs []ai.ToolRef
+	for _, tool := range tools {
+		toolRefs = append(toolRefs, tool)
+	}
+
+	// Generate response using tools from the HTTP server
+	response, err := genkit.Generate(ctx, g,
+		ai.WithModelName("googleai/gemini-2.0-flash-exp"),
+		ai.WithPrompt("Use the echo tool to repeat the message 'Hello from Streamable HTTP!' and then use the add tool to calculate 15 + 27."),
+		ai.WithTools(toolRefs...),
+		ai.WithToolChoice(ai.ToolChoiceAuto),
+	)
+	if err != nil {
+		logger.FromContext(ctx).Error("Generation failed", "error", err)
+	} else {
+		logger.FromContext(ctx).Info("Generation completed", "response", response.Text())
+	}
+
+	// Disconnect from server
+	logger.FromContext(ctx).Info("Disconnecting from MCP server", "client", "mcp-everything-http")
+	client.Disconnect()
+	logger.FromContext(ctx).Info("Disconnected from MCP server", "client", "mcp-everything-http")
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go [manager|multi|client|getprompt]")
-		fmt.Println("  manager   - MCP Manager example with time server")
-		fmt.Println("  multi     - MCP Manager example with multiple servers (time and fetch)")
-		fmt.Println("  client    - MCP Client example with time server")
-		fmt.Println("  getprompt - MCP Client GetPrompt example")
+		fmt.Println("Usage: go run main.go [manager|multi|client|getprompt|streamablehttp|test]")
+		fmt.Println("  manager        - MCP Manager example with time server")
+		fmt.Println("  multi          - MCP Manager example with multiple servers (time and fetch)")
+		fmt.Println("  client         - MCP Client example with time server")
+		fmt.Println("  getprompt      - MCP Client GetPrompt example")
+		fmt.Println("  streamablehttp - MCP Client Streamable HTTP example")
 		os.Exit(1)
 	}
 
@@ -275,9 +337,12 @@ func main() {
 	case "getprompt":
 		logger.FromContext(ctx).Info("Running MCP Client GetPrompt example")
 		clientGetPromptExample()
+	case "streamablehttp":
+		logger.FromContext(ctx).Info("Running MCP Client Streamable HTTP example")
+		clientStreamableHTTPExample()
 	default:
 		fmt.Printf("Unknown example: %s\n", os.Args[1])
-		fmt.Println("Use 'manager', 'multi', 'client', or 'getprompt'")
+		fmt.Println("Use 'manager', 'multi', 'client', 'getprompt', or 'streamablehttp'")
 		os.Exit(1)
 	}
 }

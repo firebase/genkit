@@ -78,8 +78,7 @@ describe('defineVertexAIEmbedder', () => {
     sinon.assert.calledOnce(mockGenkit.defineEmbedder);
     const args = mockGenkit.defineEmbedder.lastCall.args[0];
     assert.strictEqual(args.name, 'vertexai/text-embedding-005');
-    assert.strictEqual(args.info.label, 'Vertex AI - text-embedding-005');
-    assert.strictEqual(args.info.dimensions, 768);
+    assert.strictEqual(args.info?.dimensions, 768);
   });
 
   it('defines an embedder with a custom name', () => {
@@ -87,7 +86,6 @@ describe('defineVertexAIEmbedder', () => {
     sinon.assert.calledOnce(mockGenkit.defineEmbedder);
     const args = mockGenkit.defineEmbedder.lastCall.args[0];
     assert.strictEqual(args.name, 'vertexai/custom-model');
-    assert.strictEqual(args.info.label, 'Vertex AI - custom-model');
   });
 
   describe('Embedder Functionality', () => {

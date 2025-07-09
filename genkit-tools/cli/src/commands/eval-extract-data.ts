@@ -20,6 +20,7 @@ import type {
   TraceData,
 } from '@genkit-ai/tools-common';
 import {
+  findProjectRoot,
   generateTestCaseId,
   getEvalExtractors,
   logger,
@@ -45,7 +46,7 @@ export const evalExtractData = new Command('eval:extractData')
   .option('--maxRows <maxRows>', 'maximum number of rows', '100')
   .option('--label [label]', 'label flow run in this batch')
   .action(async (flowName: string, options: EvalDatasetOptions) => {
-    await runWithManager(async (manager) => {
+    await runWithManager(await findProjectRoot(), async (manager) => {
       const extractors = await getEvalExtractors(`/flow/${flowName}`);
 
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
@@ -105,7 +106,7 @@ export const evalExtractData = new Command('eval:extractData')
         );
       } else {
         logger.info(`Results will not be written to file.`);
-        console.log(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
+        logger.info(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
       }
     });
   });

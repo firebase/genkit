@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
-import type { ClientOptions, PluginOptions } from './types';
-export type { PluginOptions };
+import type { ClientOptions, ImagenInstance, PluginOptions } from './types';
 
 const CLOUD_PLATFORM_OAUTH_SCOPE =
   'https://www.googleapis.com/auth/cloud-platform';
@@ -30,10 +30,19 @@ function parseFirebaseProjectId(): string | undefined {
   }
 }
 
+let __mockDerivedOptions: ClientOptions | undefined = undefined;
+function setMockDerivedOptions(options: ClientOptions | undefined): void {
+  __mockDerivedOptions = options;
+}
+export const TEST_ONLY = { setMockDerivedOptions };
+
 export async function getDerivedOptions(
   options?: PluginOptions,
   AuthClass: typeof GoogleAuth = GoogleAuth // Injectable testing
 ): Promise<ClientOptions> {
+  if (__mockDerivedOptions) {
+    return Promise.resolve(__mockDerivedOptions);
+  }
   let authOptions = options?.googleAuth;
   let authClient: GoogleAuth;
   const providedProjectId =
@@ -82,4 +91,41 @@ export async function getDerivedOptions(
     projectId,
     authClient,
   };
+}
+
+export function extractText(request: GenerateRequest): string {
+  return request.messages
+    .at(-1)!
+    .content.map((c) => c.text || '')
+    .join('');
+}
+
+export function extractImagenImage(
+  request: GenerateRequest
+): ImagenInstance['image'] | undefined {
+  const image = request.messages
+    .at(-1)
+    ?.content.find(
+      (p) => !!p.media && (!p.metadata?.type || p.metadata?.type === 'base')
+    )
+    ?.media?.url.split(',')[1];
+
+  if (image) {
+    return { bytesBase64Encoded: image };
+  }
+  return undefined;
+}
+
+export function extractImagenMask(
+  request: GenerateRequest
+): ImagenInstance['mask'] | undefined {
+  const mask = request.messages
+    .at(-1)
+    ?.content.find((p) => !!p.media && p.metadata?.type === 'mask')
+    ?.media?.url.split(',')[1];
+
+  if (mask) {
+    return { image: { bytesBase64Encoded: mask } };
+  }
+  return undefined;
 }

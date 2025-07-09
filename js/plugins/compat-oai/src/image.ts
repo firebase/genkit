@@ -68,7 +68,7 @@ function toGenerateResponse(result: ImagesResponse): GenerateResponseData {
         url: image.url || `data:image/png;base64,${image.b64_json}`,
       },
     }));
-    return { message: { role: 'model', content } };
+    return { message: { role: 'model', content }, raw: result };
   }
 }
 
