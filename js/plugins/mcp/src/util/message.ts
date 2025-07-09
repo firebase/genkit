@@ -15,7 +15,7 @@
  */
 
 import type { PromptMessage } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
-import { GenkitError, type MessageData, type Part } from 'genkit';
+import { type MessageData, type Part } from 'genkit';
 
 const ROLE_MAP = {
   user: 'user',
@@ -61,12 +61,12 @@ export function fromMcpPart(part: PromptMessage['content']): Part {
         },
       };
     case 'resource':
-      return {};
+      return {
+        resource: {
+          uri: part.uri as string,
+        },
+      };
     default:
       return {};
   }
-  throw new GenkitError({
-    status: 'UNIMPLEMENTED',
-    message: `Part type ${part.type} is not currently supported.`,
-  });
 }

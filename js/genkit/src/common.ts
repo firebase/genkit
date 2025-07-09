@@ -45,6 +45,7 @@ export {
   rerankerRef,
   retrieverRef,
   type DocumentData,
+  type DynamicResourceAction,
   type EmbedderAction,
   type EmbedderArgument,
   type EmbedderInfo,

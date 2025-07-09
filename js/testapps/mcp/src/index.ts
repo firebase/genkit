@@ -45,7 +45,7 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 
 export const ai = genkit({
   plugins: [googleAI()],
-  model: googleAI.model('gemini-2.5-pro-preview-03-25'),
+  model: googleAI.model('gemini-2.5-flash'),
 });
 
 logger.setLogLevel('debug'); // Set the logging level to debug for detailed output
@@ -85,6 +85,18 @@ ai.defineFlow('get-file', async (q) => {
   const { text } = await ai.generate({
     prompt: `summarize contexts of hello-world.txt (in '${process.cwd()}/test-workspace')`,
     tools: await mcpHost.getActiveTools(ai),
+  });
+
+  return text;
+});
+
+ai.defineFlow('test-resource', async (q) => {
+  const { text } = await ai.generate({
+    prompt: [
+      { text: 'analyze this: ' },
+      { resource: { uri: 'test://static/resource/1' } },
+    ],
+    resources: await mcpHost.getActiveResources(ai),
   });
 
   return text;

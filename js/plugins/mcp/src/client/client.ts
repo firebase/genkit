@@ -23,6 +23,7 @@ import {
   Root,
 } from '@modelcontextprotocol/sdk/types.js';
 import {
+  DynamicResourceAction,
   ExecutablePrompt,
   Genkit,
   GenkitError,
@@ -36,6 +37,7 @@ import {
   getExecutablePrompt,
   transportFrom,
 } from '../util';
+import { fetchDynamicResources } from '../util/resource';
 
 interface McpServerRef {
   client: Client;
@@ -334,6 +336,35 @@ export class GenkitMcpClient {
     return tools;
   }
 
+  /**
+   * Fetches all resources available through this client, if the server
+   * configuration is not disabled.
+   */
+  async getActiveResources(ai: Genkit): Promise<DynamicResourceAction[]> {
+    await this.ready();
+    let resources: DynamicResourceAction[] = [];
+
+    if (this._server) {
+      const capabilities = this._server.client.getServerCapabilities();
+      if (capabilities?.resources)
+        resources.push(
+          ...(await fetchDynamicResources(ai, this._server.client, {
+            serverName: this.serverName,
+            name: this.name,
+          }))
+        );
+    }
+
+    return resources;
+  }
+
+  /**
+   * Fetches all active prompts available through this client, if the server
+   * configuration supports prompts.
+   * @param ai The Genkit instance.
+   * @param options Optional prompt generation options.
+   * @returns A promise that resolves to an array of ExecutablePrompt.
+   */
   async getActivePrompts(
     ai: Genkit,
     options?: PromptGenerateOptions
