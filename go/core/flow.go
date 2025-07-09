@@ -101,8 +101,8 @@ func (f *Flow[In, Out, Stream]) Name() string {
 }
 
 // RunJSON runs the flow with JSON input and streaming callback and returns the output as JSON.
-func (f *Flow[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
-	return (*ActionDef[In, Out, Stream])(f).RunJSON(ctx, input, cb)
+func (f *Flow[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage], telemetryLabels map[string]string) (ActionResult[json.RawMessage], error) {
+	return (*ActionDef[In, Out, Stream])(f).RunJSON(ctx, input, cb, telemetryLabels)
 }
 
 // Desc returns the descriptor of the flow.
