@@ -168,6 +168,23 @@ ai.defineFlow(
   }
 );
 
+// Gemini reasoning example.
+ai.defineFlow('reasoning', async (_, { sendChunk }) => {
+  const { message } = await ai.generate({
+    prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
+    model: googleAI.model('gemini-2.5-pro'),
+    config: {
+      thinkingConfig: {
+        thinkingBudget: 1024,
+        includeThoughts: true,
+      },
+    },
+    onChunk: sendChunk,
+  });
+
+  return message;
+});
+
 // Image generation with Gemini.
 ai.defineFlow('gemini-image-generation', async (_, { sendChunk }) => {
   const { media } = await ai.generate({
