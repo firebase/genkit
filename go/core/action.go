@@ -154,16 +154,16 @@ func DefineStreamingAction[In, Out, Stream any](
 // This differs from DefineAction in that the input schema is
 // defined dynamically; the static input type is "any".
 // This is used for prompts and tools that need custom input validation.
-func DefineActionWithInputSchema[Out any](
+func DefineActionWithInputSchema[In, Out any](
 	r *registry.Registry,
 	provider, name string,
 	atype ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
-	fn Func[any, Out],
-) *ActionDef[any, Out, struct{}] {
+	fn Func[In, Out],
+) *ActionDef[In, Out, struct{}] {
 	return defineAction(r, provider, name, atype, metadata, inputSchema,
-		func(ctx context.Context, in any, _ noStream) (Out, error) {
+		func(ctx context.Context, in In, _ noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }
@@ -171,7 +171,8 @@ func DefineActionWithInputSchema[Out any](
 // defineAction creates an action and registers it with the given Registry.
 func defineAction[In, Out, Stream any](
 	r *registry.Registry,
-	provider, name string,
+	provider, 
+	name string,
 	atype ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
@@ -288,7 +289,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result with telemetry information.
-func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error, telemetryLabels map[string]string) (ActionResult[json.RawMessage], error) {
+func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) error, telemetryLabels map[string]string) (ActionResult[json.RawMessage], error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
 		return ActionResult[json.RawMessage]{}, NewError(INVALID_ARGUMENT, err.Error())
