@@ -170,7 +170,7 @@ func DefineActionWithInputSchema[In, Out any](
 // defineAction creates an action and registers it with the given Registry.
 func defineAction[In, Out, Stream any](
 	r *registry.Registry,
-	provider, 
+	provider,
 	name string,
 	atype ActionType,
 	metadata map[string]any,
