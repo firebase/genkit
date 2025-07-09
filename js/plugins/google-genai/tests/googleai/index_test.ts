@@ -25,6 +25,7 @@ import {
   TEST_ONLY as GEMINI_TEST_ONLY,
   GeminiConfigSchema,
   GeminiTtsConfigSchema,
+  GemmaConfigSchema,
 } from '../../src/googleai/gemini.js';
 import { ImagenConfigSchema } from '../../src/googleai/imagen.js';
 import { googleAI } from '../../src/googleai/index.js';
@@ -201,6 +202,27 @@ describe('GoogleAI Plugin', () => {
           ?.voiceName,
         'Algenib'
       );
+    });
+
+    it('should return a Gemma model reference with correct schema', () => {
+      const modelRef = googleAI.model('gemma-new-model');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GemmaConfigSchema,
+        'Should have GemmaConfigSchema'
+      );
+      assert.ok(
+        modelRef.info?.supports?.multiturn,
+        'Gemma model should support multiturn'
+      );
+    });
+
+    it('should have config values for gemma', () => {
+      const modelRef = googleAI.model('gemma-3-12b-it', {
+        temperature: 0.7,
+      });
+      assert.strictEqual(modelRef.name, 'googleai/gemma-3-12b-it');
+      assert.strictEqual(modelRef.config?.temperature, 0.7);
     });
 
     it('should return an Imagen model reference with correct schema', () => {
