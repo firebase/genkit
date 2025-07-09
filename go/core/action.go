@@ -42,7 +42,6 @@ type StreamingFunc[In, Out, Stream any] = func(context.Context, In, StreamCallba
 type StreamCallback[Stream any] = func(context.Context, Stream) error
 
 // ActionResult contains the result of an action along with telemetry information.
-// This matches the TypeScript ActionResult interface.
 type ActionResult[Out any] struct {
 	Result    Out       `json:"result"`
 	Telemetry Telemetry `json:"telemetry"`
