@@ -460,4 +460,150 @@ describe('createMcpHost', () => {
       );
     });
   });
+
+  describe('resources', () => {
+    let fakeTransport: FakeTransport;
+    let clientHost: GenkitMcpHost;
+
+    beforeEach(() => {
+      fakeTransport = new FakeTransport();
+
+      clientHost = createMcpHost({
+        name: 'test-mcp-host',
+        mcpServers: {
+          'test-server': {
+            transport: fakeTransport,
+          },
+        },
+      });
+    });
+
+    afterEach(() => {
+      clientHost?.close();
+    });
+
+    it('should list active resources', async () => {
+      // Initially no prompts
+      assert.deepStrictEqual(await clientHost.getActiveResources(ai), []);
+
+      // Add a prompt to the first transport
+      fakeTransport.resources.push({
+        name: 'testResource1',
+        uri: 'test://resource/1',
+        description: 'test resource 1',
+        _meta: { foo: true },
+      });
+      fakeTransport.resourceTemplates.push({
+        name: 'testResourceTmpl',
+        uriTemplate: 'test://resource/{id}',
+        description: 'test resource template',
+        _meta: { foo: true },
+      });
+      let activeResources = await clientHost.getActiveResources(ai);
+      assert.strictEqual(activeResources.length, 2);
+
+      // Add a second transport with another prompt
+      const fakeTransport2 = new FakeTransport();
+      fakeTransport2.resources.push({
+        name: 'testResource2',
+        uri: 'test://resource/2',
+        description: 'test resource 2',
+        _meta: { foo: true },
+      });
+      await clientHost.connect('test-server-2', {
+        transport: fakeTransport2,
+      });
+
+      activeResources = await clientHost.getActiveResources(ai);
+      assert.deepStrictEqual(activeResources[0].__action.metadata, {
+        type: 'resource',
+        dynamic: true,
+        resource: {
+          template: undefined,
+          uri: 'test://resource/1',
+        },
+        mcp: { _meta: { foo: true } },
+      });
+      assert.deepStrictEqual(
+        activeResources.map((p) => p.__action.name),
+        [
+          'test-server/testResource1',
+          'test-server/testResourceTmpl',
+          'test-server-2/testResource2',
+        ]
+      );
+
+      // Disable the first server
+      await clientHost.disable('test-server');
+      activeResources = await clientHost.getActiveResources(ai);
+      assert.deepStrictEqual(
+        activeResources.map((p) => p.__action.name),
+        ['test-server-2/testResource2']
+      );
+
+      // Enable the first server again
+      await clientHost.enable('test-server');
+      activeResources = await clientHost.getActiveResources(ai);
+      assert.deepStrictEqual(
+        activeResources.map((p) => p.__action.name),
+        [
+          'test-server/testResource1',
+          'test-server/testResourceTmpl',
+          'test-server-2/testResource2',
+        ]
+      );
+    });
+
+    it('should render resource', async () => {
+      fakeTransport.resources.push({
+        name: 'testResource1',
+        uri: 'test://resource/1',
+        description: 'test resource 1',
+        _meta: { foo: true },
+      });
+      fakeTransport.readResourceResult = {
+        contents: [
+          {
+            uri: 'test://resource/1',
+            text: 'text resource',
+          },
+          {
+            uri: 'test://resource/1',
+            blob: 'UmVzb3VyY2UgMjogVGhpcyBpcyBhIGJhc2U2NCBibG9i',
+            mimeType: 'application/png',
+          },
+        ],
+      };
+      const prompt = (await clientHost.getActiveResources(ai))[0];
+      assert.ok(prompt);
+
+      const response = await prompt.attach(ai.registry)({
+        uri: 'test://resource/1',
+      });
+
+      assert.deepStrictEqual(response, {
+        content: [
+          {
+            text: 'text resource',
+            metadata: {
+              resource: {
+                uri: 'test://resource/1',
+              },
+            },
+          },
+          {
+            media: {
+              contentType: 'application/png',
+              url: 'data:application/png;base64,UmVzb3VyY2UgMjogVGhpcyBpcyBhIGJhc2U2NCBibG9i',
+            },
+            metadata: {
+              resource: {
+                uri: 'test://resource/1',
+              },
+            },
+          },
+        ],
+      });
+    });
+  });
 });

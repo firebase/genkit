@@ -111,6 +111,7 @@ export class FakeTransport implements Transport {
           capabilities: {
             prompts: {},
             tools: {},
+            resources: {},
           },
           serverInfo: {
             name: 'mock-server',

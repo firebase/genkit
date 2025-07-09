@@ -16,6 +16,7 @@
 
 import { Root } from '@modelcontextprotocol/sdk/types.js';
 import {
+  DynamicResourceAction,
   ExecutablePrompt,
   Genkit,
   PromptGenerateOptions,
@@ -336,6 +337,61 @@ export class GenkitMcpHost {
     return allTools;
   }
 
+  /**
+   * Retrieves all resources from all connected and enabled MCP clients managed by
+   * this instance. This method waits for the host to be ready (all initial
+   * connection attempts made) before fetching resources.
+   *
+   * It iterates through each managed `GenkitMcpClient`, and if the client is
+   * not disabled, it calls the client's `getActiveResources` method to fetch its
+   * available resources. These are then aggregated into a single array.
+   *
+   * This is useful for dynamically providing a list of all available MCP resources
+   * to Genkit, for example, when setting up a Genkit plugin.
+   *
+   * @param ai The Genkit instance, used by individual clients to define dynamic
+   * resources.
+   * @returns A Promise that resolves to an array of `DynamicResourceAction` from all
+   * active MCP clients.
+   */
+  async getActiveResources(ai: Genkit): Promise<DynamicResourceAction[]> {
+    await this.ready();
+    let allResources: DynamicResourceAction[] = [];
+
+    for (const serverName in this._clients) {
+      const client = this._clients[serverName];
+      if (client.isEnabled() && !this.hasError(serverName)) {
+        try {
+          const resources = await client.getActiveResources(ai);
+          allResources.push(...resources);
+        } catch (e) {
+          logger.error(
+            `Error fetching active resources from client ${serverName}.`,
+            JSON.stringify(e)
+          );
+        }
+      }
+    }
+    return allResources;
+  }
+
+  /**
+   * Retrieves all prompts from all connected and enabled MCP clients managed by
+   * this instance. This method waits for the host to be ready (all initial
+   * connection attempts made) before fetching prompts.
+   *
+   * It iterates through each managed `GenkitMcpClient`, and if the client is
+   * not disabled, it calls the client's `getActivePrompts` method to fetch its
+   * available prompts. These are then aggregated into a single array.
+   *
+   * This is useful for dynamically providing a list of all available MCP prompts
+   * to Genkit, for example, when setting up a Genkit plugin.
+   *
+   * @param ai The Genkit instance, used by individual clients to define dynamic
+   * prompts.
+   * @returns A Promise that resolves to an array of `ExecutablePrompt` from all
+   * active MCP clients.
+   */
   async getActivePrompts(ai: Genkit): Promise<ExecutablePrompt[]> {
     await this.ready();
     let allPrompts: ExecutablePrompt[] = [];
