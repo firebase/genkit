@@ -288,7 +288,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result with telemetry information.
-func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error, telemetryLabels map[string]string) (ActionResult[json.RawMessage], error) {
+func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage], telemetryLabels map[string]string) (ActionResult[json.RawMessage], error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
 		return ActionResult[json.RawMessage]{}, NewError(INVALID_ARGUMENT, err.Error())
