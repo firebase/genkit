@@ -15,7 +15,8 @@
  */
 
 import { JSONSchema, ModelReference } from 'genkit';
-import { GenerationCommonConfigSchema } from 'genkit/model';
+import { GenerateRequest, GenerationCommonConfigSchema } from 'genkit/model';
+import { ImagenInstance } from './types';
 
 /**
  * Safely extracts the error message from the error.
@@ -37,6 +38,39 @@ export function extractErrMsg(e: unknown): string {
     }
   }
   return errorMessage;
+}
+
+/**
+ * Gets the suffix of a model string.
+ * e.g. for "models/googleai/gemini-2.5-pro" it returns just 'gemini-2.5-pro'
+ * @param name A string containing the model string with possible prefixes
+ * @returns the model string stripped of prefixes
+ */
+export function modelName(name?: string): string | undefined {
+  return name?.split('/').at(-1);
+}
+
+export function extractText(request: GenerateRequest) {
+  return request.messages
+    .at(-1)!
+    .content.map((c) => c.text || '')
+    .join('');
+}
+
+export function extractImagenImage(
+  request: GenerateRequest
+): ImagenInstance['image'] | undefined {
+  const image = request.messages
+    .at(-1)
+    ?.content.find(
+      (p) => !!p.media && (!p.metadata?.type || p.metadata?.type === 'base')
+    )
+    ?.media?.url.split(',')[1];
+
+  if (image) {
+    return { bytesBase64Encoded: image };
+  }
+  return undefined;
 }
 
 /**
