@@ -17,7 +17,7 @@
 import { ModelInfo, modelRef } from 'genkit/model';
 import { ChatCompletionCommonConfigSchema } from '../model';
 
-/** 
+/**
  * Language models that support text -> text, tool calling, structured output
  */
 const XAI_LANGUGAGE_MODEL_INFO: ModelInfo = {
