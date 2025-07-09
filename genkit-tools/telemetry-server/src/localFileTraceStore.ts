@@ -312,6 +312,12 @@ export class Index {
       indexData['status'] = rootSpan.status?.code ?? 'UNKNOWN';
     }
 
+    Object.keys(rootSpan?.attributes ?? {})
+      .filter((k) => k.startsWith('genkitx:'))
+      .forEach((k) => {
+        indexData[k] = `${rootSpan!.attributes[k]}`;
+      });
+
     try {
       lockfile.lockSync(lockFile(this.currentIndexFile));
 

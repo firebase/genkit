@@ -35,6 +35,11 @@ export const OperationSchema = z.object({
 });
 
 /**
+ * Operation data.
+ */
+export type OperationData = z.infer<typeof OperationSchema>;
+
+/**
  * Background operation.
  */
 export interface Operation<O = any> {

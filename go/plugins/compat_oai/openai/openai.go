@@ -29,6 +29,18 @@ import (
 
 const provider = "openai"
 
+type TextEmbeddingConfig struct {
+	Dimensions     int                                       `json:"dimensions,omitempty"`
+	EncodingFormat openaiGo.EmbeddingNewParamsEncodingFormat `json:"encodingFormat,omitempty"`
+}
+
+// EmbedderRef represents the main structure for an embedding model's definition.
+type EmbedderRef struct {
+	Name         string
+	ConfigSchema TextEmbeddingConfig // Represents the schema, can be used for default config
+	Info         *ai.EmbedderInfo
+}
+
 var (
 	// Supported models: https://platform.openai.com/docs/models
 	supportedModels = map[string]ai.ModelInfo{
@@ -119,11 +131,40 @@ var (
 		},
 	}
 
-	// Known embedders: https://platform.openai.com/docs/guides/embeddings
-	knownEmbedders = []string{
-		openaiGo.EmbeddingModelTextEmbedding3Small,
-		openaiGo.EmbeddingModelTextEmbedding3Large,
-		openaiGo.EmbeddingModelTextEmbeddingAda002,
+	supportedEmbeddingModels = map[string]EmbedderRef{
+		openaiGo.EmbeddingModelTextEmbeddingAda002: {
+			Name:         "openai/text-embedding-ada-002",
+			ConfigSchema: TextEmbeddingConfig{},
+			Info: &ai.EmbedderInfo{
+				Dimensions: 1536,
+				Label:      "Open AI - Text Embedding ADA 002",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		openaiGo.EmbeddingModelTextEmbedding3Large: {
+			Name:         "openai/text-embedding-3-large",
+			ConfigSchema: TextEmbeddingConfig{},
+			Info: &ai.EmbedderInfo{
+				Dimensions: 3072,
+				Label:      "Open AI - Text Embedding 3 Large",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
+		openaiGo.EmbeddingModelTextEmbedding3Small: {
+			Name:         "openai/text-embedding-3-small",
+			ConfigSchema: TextEmbeddingConfig{}, // Represents the configurable options
+			Info: &ai.EmbedderInfo{
+				Dimensions: 1536,
+				Label:      "Open AI - Text Embedding 3 Small",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+		},
 	}
 )
 
@@ -181,8 +222,8 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	// define default embedders
-	for _, embedder := range knownEmbedders {
-		if _, err := o.DefineEmbedder(g, embedder); err != nil {
+	for _, embedder := range supportedEmbeddingModels {
+		if _, err := o.DefineEmbedder(g, embedder.Name, embedder.Info, embedder.ConfigSchema); err != nil {
 			return err
 		}
 	}
@@ -198,8 +239,11 @@ func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (
 	return o.openAICompatible.DefineModel(g, provider, name, info)
 }
 
-func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string) (ai.Embedder, error) {
-	return o.openAICompatible.DefineEmbedder(g, provider, name)
+func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string, modelInfo *ai.EmbedderInfo, configSchema TextEmbeddingConfig) (ai.Embedder, error) {
+	return o.openAICompatible.DefineEmbedder(g, provider, name, &ai.EmbedderOptions{
+		Info:         modelInfo,
+		ConfigSchema: configSchema,
+	})
 }
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {

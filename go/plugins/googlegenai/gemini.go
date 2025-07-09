@@ -29,14 +29,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/base"
-	"github.com/invopop/jsonschema"
-
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"github.com/invopop/jsonschema"
 	"google.golang.org/genai"
 )
 
@@ -190,25 +189,22 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 
 // DefineEmbedder defines embeddings for the provided contents and embedder
 // model
-func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
+func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOpts *ai.EmbedderOptions) ai.Embedder {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	if embedOpts.ConfigSchema == nil {
+		embedOpts.ConfigSchema = genai.EmbedContentConfig{}
+	}
+
+	return genkit.DefineEmbedder(g, provider, name, embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
-		// check if request options matches VertexAI configuration
-		if opts, _ := req.Options.(*EmbedOptions); opts != nil {
-			if provider == googleAIProvider {
-				return nil, fmt.Errorf("wrong options provided for %s provider, got %T", provider, opts)
-			}
-			embedConfig = &genai.EmbedContentConfig{
-				Title:    opts.Title,
-				TaskType: opts.TaskType,
-			}
+		if options, _ := req.Options.(*genai.EmbedContentConfig); options != nil {
+			embedConfig = options
 		}
 
 		for _, doc := range req.Input {
@@ -233,7 +229,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 	})
 }
 
-// Generate requests a generate call to the specified model with the provided
+// Generate requests generate call to the specified model with the provided
 // configuration
 func generate(
 	ctx context.Context,
@@ -716,6 +712,7 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
+
 	switch {
 	case p.IsReasoning():
 		// TODO: go-genai does not support genai.NewPartFromThought()

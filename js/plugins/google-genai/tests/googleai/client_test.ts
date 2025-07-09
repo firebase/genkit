@@ -59,12 +59,19 @@ describe('Google AI Client', () => {
     body: any,
     ok = true,
     status = 200,
-    statusText = 'OK'
+    statusText = 'OK',
+    contentType = 'application/json'
   ) {
-    const response = new Response(JSON.stringify(body), {
-      status: ok ? status : status,
-      statusText: ok ? statusText : statusText,
-      headers: { 'Content-Type': 'application/json' },
+    const bodyString =
+      body === null || body === undefined
+        ? ''
+        : contentType === 'application/json'
+          ? JSON.stringify(body)
+          : String(body);
+    const response = new Response(bodyString, {
+      status: status,
+      statusText: statusText,
+      headers: { 'Content-Type': contentType },
     });
     fetchSpy.resolves(response);
   }
@@ -167,13 +174,46 @@ describe('Google AI Client', () => {
       });
     });
 
-    it('should throw an error if fetch fails', async () => {
+    it('should throw an error if fetch fails with JSON error', async () => {
       const errorResponse = { error: { message: 'Internal Error' } };
       mockFetchResponse(errorResponse, false, 500, 'Internal Server Error');
 
       await assert.rejects(
         listModels(apiKey),
         /Failed to fetch from .* Error fetching from .* \[500 Internal Server Error\] Internal Error/
+      );
+    });
+
+    it('should throw an error if fetch fails with non-JSON error', async () => {
+      mockFetchResponse(
+        '<html><body><h1>Server Error</h1></body></html>',
+        false,
+        500,
+        'Internal Server Error',
+        'text/html'
+      );
+
+      await assert.rejects(
+        listModels(apiKey),
+        /Failed to fetch from .* Error fetching from .* \[500 Internal Server Error\] <html><body><h1>Server Error<\/h1><\/body><\/html>/
+      );
+    });
+
+    it('should throw an error if fetch fails with empty response body', async () => {
+      mockFetchResponse(null, false, 502, 'Bad Gateway');
+
+      await assert.rejects(
+        listModels(apiKey),
+        /Failed to fetch from .* Error fetching from .* \[502 Bad Gateway\] $/
+      );
+    });
+
+    it('should throw an error on network failure', async () => {
+      fetchSpy.rejects(new Error('Network connection failed'));
+
+      await assert.rejects(
+        listModels(apiKey),
+        /Failed to fetch from .* Network connection failed/
       );
     });
 
@@ -220,7 +260,7 @@ describe('Google AI Client', () => {
       });
     });
 
-    it('should throw on API error', async () => {
+    it('should throw on API error with JSON body', async () => {
       const errorResponse = { error: { message: 'Invalid Request' } };
       mockFetchResponse(errorResponse, false, 400, 'Bad Request');
 
@@ -229,10 +269,27 @@ describe('Google AI Client', () => {
         /Failed to fetch from .* Error fetching from .* \[400 Bad Request\] Invalid Request/
       );
     });
+
+    it('should throw on API error with non-JSON body', async () => {
+      mockFetchResponse('Bad Request', false, 400, 'Bad Request', 'text/plain');
+
+      await assert.rejects(
+        generateContent(apiKey, model, request),
+        /Failed to fetch from .* Error fetching from .* \[400 Bad Request\] Bad Request/
+      );
+    });
+
+    it('should throw on network failure', async () => {
+      fetchSpy.rejects(new TypeError('Failed to fetch'));
+      await assert.rejects(
+        generateContent(apiKey, model, request),
+        /Failed to fetch from .* Failed to fetch/
+      );
+    });
   });
 
   describe('embedContent', () => {
-    const model = 'text-embedding-005'; // Embedding model names differ
+    const model = 'text-embedding-005';
     const request: EmbedContentRequest = {
       content: { role: 'user', parts: [{ text: 'test content' }] },
     };
@@ -256,6 +313,21 @@ describe('Google AI Client', () => {
         },
         body: JSON.stringify(request),
       });
+    });
+
+    it('should throw on API error with non-JSON body', async () => {
+      mockFetchResponse(
+        'Internal Server Error',
+        false,
+        500,
+        'Internal Server Error',
+        'text/plain'
+      );
+
+      await assert.rejects(
+        embedContent(apiKey, model, request),
+        /Failed to fetch from .* Error fetching from .* \[500 Internal Server Error\] Internal Server Error/
+      );
     });
   });
 
@@ -451,6 +523,15 @@ describe('Google AI Client', () => {
       } catch (e: any) {
         assert.match(e.message, /Error parsing JSON response/);
       }
+    });
+
+    it('should throw error if fetch rejects for stream', async () => {
+      fetchSpy.rejects(new Error('Stream failed to connect'));
+
+      await assert.rejects(
+        generateContentStream(apiKey, model, defaultRequest),
+        /Failed to fetch from .* Stream failed to connect/
+      );
     });
   });
 });

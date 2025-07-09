@@ -14,8 +14,5 @@
  * limitations under the License.
  */
 
-//export { googleAI } from './googleai';
-//export { vertexAI } from './vertexai';
-
-// TODO(ifielker): remove this placeholder
-export { FunctionCallingMode } from './common/types';
+export { googleAI } from './googleai';
+export { vertexAI } from './vertexai';

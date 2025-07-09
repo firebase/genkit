@@ -16,6 +16,7 @@
 
 import {
   EmbedderAction,
+  EmbedderInfo,
   EmbedderReference,
   Genkit,
   GenkitError,
@@ -50,24 +51,58 @@ export type GeminiEmbeddingConfig = z.infer<
   typeof GoogleAIEmbeddingConfigSchema
 >;
 
+// for commonRef
+type ConfigSchema = typeof GoogleAIEmbeddingConfigSchema;
+
+function commonRef(
+  name: string,
+  info?: EmbedderInfo
+): EmbedderReference<ConfigSchema> {
+  return embedderRef({
+    name: `googleai/${name}`,
+    configSchema: GoogleAIEmbeddingConfigSchema,
+    info: info ?? {
+      dimensions: 768,
+      supports: {
+        input: ['text'],
+      },
+    },
+  });
+}
+
 // TODO(ifielker): Update embedders to be current models.
 // (textEmbeddingGecko001 is outdated).
 
-const textEmbedding004 = embedderRef({
-  name: 'googleai/text-embedding-004',
-  configSchema: GoogleAIEmbeddingConfigSchema,
-  info: {
-    dimensions: 768,
-    label: 'Google Gen AI - Text Embedding 001',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const KNOWN_EMBEDDERS = {
-  'text-embedding-004': textEmbedding004,
+export const KNOWN_EMBEDDER_MODELS = {
+  'text-embedding-004': commonRef('test-embedding-004'),
 };
+
+export function embedder(
+  version: string,
+  config: GeminiEmbeddingConfig = {}
+): EmbedderReference<ConfigSchema> {
+  const name = version.split('/').at(-1);
+  if (name && KNOWN_EMBEDDER_MODELS[name]) {
+    return embedderRef({
+      name: `googleai/${name}`,
+      configSchema: GoogleAIEmbeddingConfigSchema,
+      config,
+      info: {
+        ...KNOWN_EMBEDDER_MODELS[name].info,
+      },
+    });
+  }
+  // Generic text-only embedder format
+  return embedderRef({
+    name: `googleai/${name}`,
+    configSchema: GoogleAIEmbeddingConfigSchema,
+    config,
+    info: {
+      dimensions: 768,
+      supports: { input: ['text'] },
+    },
+  });
+}
 
 export function defineGoogleAIEmbedder(
   ai: Genkit,
@@ -87,25 +122,14 @@ export function defineGoogleAIEmbedder(
           'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
       );
   }
-  const embedder: EmbedderReference =
-    KNOWN_EMBEDDERS[apiModelName] ??
-    embedderRef({
-      name: `googleai/${apiModelName}`,
-      configSchema: GoogleAIEmbeddingConfigSchema,
-      info: {
-        dimensions: 768,
-        label: `Google AI - ${apiModelName}`,
-        supports: {
-          input: ['text'],
-        },
-      },
-    });
+
+  const ref = embedder(apiModelName);
 
   return ai.defineEmbedder(
     {
-      name: embedder.name,
+      name: ref.name,
       configSchema: GoogleAIEmbeddingConfigSchema,
-      info: embedder.info!,
+      info: ref.info!,
     },
     async (input, options) => {
       if (pluginOptions.apiKey === false && !options?.apiKey) {
@@ -117,10 +141,7 @@ export function defineGoogleAIEmbedder(
       }
       const embedApiKey = options?.apiKey || apiKey!;
       const embedVersion =
-        options?.version ||
-        embedder.config?.version ||
-        embedder.version ||
-        apiModelName;
+        options?.version || ref.config?.version || ref.version || apiModelName;
       const embeddings = await Promise.all(
         input.map(async (doc) => {
           const response = await embedContent(embedApiKey, embedVersion, {

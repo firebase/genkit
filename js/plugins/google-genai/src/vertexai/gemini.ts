@@ -334,13 +334,17 @@ export function gemini(
   version: GeminiVersionString,
   options: GeminiConfig = {}
 ): ModelReference<typeof GeminiConfigSchema> {
+  const apiName = version.split('/').at(-1);
+  if (!apiName) {
+    throw new Error('Must specify version');
+  }
   const nearestModel = nearestModelRef(
-    version,
+    apiName,
     KNOWN_GEMINI_MODELS,
     GENERIC_GEMINI_MODEL
   );
   return modelRef({
-    name: `vertexai/${version}`,
+    name: `vertexai/${apiName}`,
     config: options,
     configSchema: nearestModel.configSchema,
     info: {
