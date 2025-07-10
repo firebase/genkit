@@ -41,28 +41,18 @@ function commonRef(
   });
 }
 
-const grok3 = commonRef('xai/grok-3');
-
-const grok3Fast = commonRef('xai/grok-3-fast');
-
-const grok3Mini = commonRef('xai/grok-3-mini');
-
-const grok3MiniFast = commonRef('xai/grok-3-mini-fast');
-
-const grok2Vision1212 = commonRef('xai/grok-2-vision-1212', {
-  supports: {
-    multiturn: false,
-    tools: true,
-    media: true,
-    systemRole: false,
-    output: ['text', 'json'],
-  },
-});
-
 export const SUPPORTED_LANGUAGE_MODELS = {
-  'grok-3': grok3,
-  'grok-3-fast': grok3Fast,
-  'grok-3-mini': grok3Mini,
-  'grok-3-mini-fast': grok3MiniFast,
-  'grok-2-vision-1212': grok2Vision1212,
+  'grok-3': commonRef('xai/grok-3'),
+  'grok-3-fast': commonRef('xai/grok-3-fast'),
+  'grok-3-mini': commonRef('xai/grok-3-mini'),
+  'grok-3-mini-fast': commonRef('xai/grok-3-mini-fast'),
+  'grok-2-vision-1212': commonRef('xai/grok-2-vision-1212', {
+    supports: {
+      multiturn: false,
+      tools: true,
+      media: true,
+      systemRole: false,
+      output: ['text', 'json'],
+    },
+  }),
 };
