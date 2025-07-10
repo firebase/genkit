@@ -28,7 +28,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
-	aint "github.com/firebase/genkit/go/plugins/internal/anthropic"
+	ant "github.com/firebase/genkit/go/plugins/internal/anthropic"
 )
 
 const (
@@ -81,7 +81,7 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 }
 
 func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) ai.Model {
-	return aint.DefineModel(g, a.aclient, provider, name, *info)
+	return ant.DefineModel(g, a.aclient, provider, name, *info)
 }
 
 func (a *Anthropic) IsDefinedModel(g *genkit.Genkit, name string) bool {
@@ -105,7 +105,7 @@ func (a *Anthropic) ListActions(ctx context.Context) []core.ActionDesc {
 					"systemRole":  true,
 					"tools":       true,
 					"toolChoice":  true,
-					"constrained": true,
+					"constrained": "no-tools",
 				},
 			},
 			"versions": []string{},
@@ -127,7 +127,19 @@ func (a *Anthropic) ListActions(ctx context.Context) []core.ActionDesc {
 func (a *Anthropic) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
 	switch atype {
 	case core.ActionTypeModel:
-		// TODO: anthropic.defineModel()
+		ant.DefineModel(g, a.aclient, provider, name, ai.ModelInfo{
+			Label:    fmt.Sprintf("%s - %s", anthropicLabelPrefix, name),
+			Stage:    ai.ModelStageStable,
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   true,
+				SystemRole:  true,
+				Tools:       true,
+				ToolChoice:  true,
+				Constrained: ai.ConstrainedSupportNoTools,
+			},
+		})
 	}
 	return nil
 }

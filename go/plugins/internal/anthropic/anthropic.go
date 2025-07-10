@@ -93,14 +93,12 @@ func generate(
 				return nil, err
 			}
 
+			content := []*ai.Part{}
 			switch event := event.AsAny().(type) {
 			case anthropic.ContentBlockDeltaEvent:
+				content = append(content, ai.NewTextPart(event.Delta.Text))
 				cb(ctx, &ai.ModelResponseChunk{
-					Content: []*ai.Part{
-						{
-							Text: event.Delta.Text,
-						},
-					},
+					Content: content,
 				})
 			case anthropic.MessageStopEvent:
 				r, err := toGenkitResponse(&message)
@@ -136,35 +134,14 @@ func toAnthropicRole(role ai.Role) (anthropic.MessageParamRole, error) {
 func toAnthropicRequest(model string, i *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
 	messages := make([]anthropic.MessageParam, 0)
 
-	c, err := configFromRequest(i)
+	req, err := configFromRequest(i)
 	if err != nil {
 		return nil, err
 	}
 
-	// minimum required data to perform a request
-	req := anthropic.MessageNewParams{}
-	req.Model = anthropic.Model(model)
-	req.MaxTokens = int64(MaxNumberOfTokens)
-
-	if c.MaxOutputTokens != 0 {
-		req.MaxTokens = int64(c.MaxOutputTokens)
+	if req.Model == "" {
+		return nil, errors.New("anthropic model not provided in request")
 	}
-	if c.Version != "" {
-		req.Model = anthropic.Model(c.Version)
-	}
-	if c.Temperature != 0 {
-		req.Temperature = anthropic.Float(c.Temperature)
-	}
-	if c.TopK != 0 {
-		req.TopK = anthropic.Int(int64(c.TopK))
-	}
-	if c.TopP != 0 {
-		req.TopP = anthropic.Float(float64(c.TopP))
-	}
-	if len(c.StopSequences) > 0 {
-		req.StopSequences = c.StopSequences
-	}
-
 	// configure system prompt (if given)
 	sysBlocks := []anthropic.TextBlockParam{}
 	for _, message := range i.Messages {
@@ -205,7 +182,7 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (*anthropic.MessageNew
 	}
 	req.Tools = tools
 
-	return &req, nil
+	return req, nil
 }
 
 // mapToStruct unmarshals a map[String]any to the expected type
@@ -217,14 +194,14 @@ func mapToStruct(m map[string]any, v any) error {
 	return json.Unmarshal(jsonData, v)
 }
 
-// configFromRequest converts any supported config type to [ai.GenerationCommonConfig]
-func configFromRequest(input *ai.ModelRequest) (*ai.GenerationCommonConfig, error) {
-	var result ai.GenerationCommonConfig
+// configFromRequest converts any supported config type to [anthropic.MessageNewParams]
+func configFromRequest(input *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
+	var result anthropic.MessageNewParams
 
 	switch config := input.Config.(type) {
-	case ai.GenerationCommonConfig:
+	case anthropic.MessageNewParams:
 		result = config
-	case *ai.GenerationCommonConfig:
+	case *anthropic.MessageNewParams:
 		result = *config
 	case map[string]any:
 		if err := mapToStruct(config, &result); err != nil {
