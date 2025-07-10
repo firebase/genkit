@@ -98,7 +98,6 @@ export class LocalFileEvalStore implements EvalStore {
   ): Promise<ListEvalKeysResponse> {
     logger.debug(`Listing keys for filter: ${JSON.stringify(query)}`);
     let keys = await this.getEvalsIndex().then((index) => Object.values(index));
-    console.log();
 
     if (query?.filter?.actionRef) {
       keys = keys.filter((key) => key.actionRef === query?.filter?.actionRef);
