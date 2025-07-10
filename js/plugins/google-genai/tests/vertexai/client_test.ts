@@ -62,11 +62,23 @@ describe('Vertex AI Client', () => {
     sinon.restore();
   });
 
-  function mockFetchResponse(body: any, ok = true, status = 200) {
-    const response = new Response(JSON.stringify(body), {
-      status: ok ? status : 500,
-      statusText: ok ? 'OK' : 'Internal Server Error',
-      headers: { 'Content-Type': 'application/json' },
+  function mockFetchResponse(
+    body: any,
+    ok = true,
+    status = 200,
+    statusText = 'OK',
+    contentType = 'application/json'
+  ) {
+    const bodyString =
+      body === null || body === undefined
+        ? ''
+        : contentType === 'application/json'
+          ? JSON.stringify(body)
+          : String(body);
+    const response = new Response(bodyString, {
+      status: status,
+      statusText: statusText,
+      headers: { 'Content-Type': contentType },
     });
     fetchSpy.resolves(response);
   }
@@ -143,6 +155,16 @@ describe('Vertex AI Client', () => {
     });
   });
 
+  describe('Authentication Error', () => {
+    it('should throw a specific error if getToken fails', async () => {
+      authMock.getAccessToken.rejects(new Error('Auth failed'));
+      await assert.rejects(
+        listModels(clientOptions),
+        /Unable to authenticate your request/
+      );
+    });
+  });
+
   describe('listModels', () => {
     it('should return a list of models', async () => {
       const mockModels: Model[] = [
@@ -167,35 +189,56 @@ describe('Vertex AI Client', () => {
       });
     });
 
-    it('should throw an error if fetch fails bad response', async () => {
+    it('should throw an error if fetch fails with JSON error', async () => {
       const errorResponse = { error: { message: 'Internal Error' } };
-      const response = new Response(JSON.stringify(errorResponse), {
-        status: 500,
-        statusText: 'Internal Server Error',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      fetchSpy.resolves(response);
+      mockFetchResponse(errorResponse, false, 500, 'Internal Server Error');
 
       await assert.rejects(
         listModels(clientOptions),
-        /Failed to fetch from .*: \[500 Internal Server Error\] Internal Error/
+        /Failed to fetch from .* \[500 Internal Server Error\] Internal Error/
       );
     });
 
-    it('should throw an error if fetch itself fails', async () => {
+    it('should throw an error if fetch fails with non-JSON error', async () => {
+      mockFetchResponse(
+        '<h1>Gateway Timeout</h1>',
+        false,
+        504,
+        'Gateway Timeout',
+        'text/html'
+      );
+
+      await assert.rejects(
+        listModels(clientOptions),
+        /Failed to fetch from .* \[504 Gateway Timeout\] <h1>Gateway Timeout<\/h1>/
+      );
+    });
+
+    it('should throw an error if fetch fails with empty response body', async () => {
+      mockFetchResponse(null, false, 502, 'Bad Gateway');
+
+      await assert.rejects(
+        listModels(clientOptions),
+        /Failed to fetch from .* \[502 Bad Gateway\] $/
+      );
+    });
+
+    it('should throw an error on network failure', async () => {
       fetchSpy.rejects(new Error('Network Error'));
       await assert.rejects(
         listModels(clientOptions),
-        /Error: Failed to fetch from .* Network Error/
+        /Failed to fetch from .* Network Error/
       );
     });
   });
 
   describe('generateContent', () => {
+    const request: GenerateContentRequest = {
+      contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
+    };
+    const model = 'gemini-2.0-pro';
+
     it('should return GenerateContentResponse', async () => {
-      const request: GenerateContentRequest = {
-        contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
-      };
       const mockResponse: GenerateContentResponse = {
         candidates: [
           { index: 0, content: { role: 'model', parts: [{ text: 'world' }] } },
@@ -203,11 +246,7 @@ describe('Vertex AI Client', () => {
       };
       mockFetchResponse(mockResponse);
 
-      const result = await generateContent(
-        'gemini-2.0-pro',
-        request,
-        clientOptions
-      );
+      const result = await generateContent(model, request, clientOptions);
       assert.deepStrictEqual(result, mockResponse);
 
       const expectedUrl =
@@ -223,14 +262,35 @@ describe('Vertex AI Client', () => {
         body: JSON.stringify(request),
       });
     });
+
+    it('should throw on API error with JSON body', async () => {
+      const errorResponse = { error: { message: 'Permission denied' } };
+      mockFetchResponse(errorResponse, false, 403, 'Forbidden');
+
+      await assert.rejects(
+        generateContent(model, request, clientOptions),
+        /Failed to fetch from .* \[403 Forbidden\] Permission denied/
+      );
+    });
+
+    it('should throw on API error with non-JSON body', async () => {
+      mockFetchResponse('Forbidden', false, 403, 'Forbidden', 'text/plain');
+
+      await assert.rejects(
+        generateContent(model, request, clientOptions),
+        /Failed to fetch from .* \[403 Forbidden\] Forbidden/
+      );
+    });
   });
 
   describe('embedContent', () => {
+    const request: EmbedContentRequest = {
+      instances: [{ content: 'test content' }],
+      parameters: {},
+    };
+    const model = 'text-embedding-005';
+
     it('should return EmbedContentResponse', async () => {
-      const request: EmbedContentRequest = {
-        instances: [{ content: 'test content' }],
-        parameters: {},
-      };
       const mockResponse: EmbedContentResponse = {
         predictions: [
           {
@@ -243,11 +303,7 @@ describe('Vertex AI Client', () => {
       };
       mockFetchResponse(mockResponse);
 
-      const result = await embedContent(
-        'text-embedding-005',
-        request,
-        clientOptions
-      );
+      const result = await embedContent(model, request, clientOptions);
       assert.deepStrictEqual(result, mockResponse);
 
       const expectedUrl =
@@ -263,24 +319,30 @@ describe('Vertex AI Client', () => {
         body: JSON.stringify(request),
       });
     });
+
+    it('should throw on API error non-JSON', async () => {
+      mockFetchResponse('Not Found', false, 404, 'Not Found', 'text/plain');
+      await assert.rejects(
+        embedContent(model, request, clientOptions),
+        /Failed to fetch from .* \[404 Not Found\] Not Found/
+      );
+    });
   });
 
   describe('imagenPredict', () => {
+    const request: ImagenPredictRequest = {
+      instances: [{ prompt: 'a cat' }],
+      parameters: { sampleCount: 1 },
+    };
+    const model = 'imagen-3.0-generate-002';
+
     it('should return ImagenPredictResponse', async () => {
-      const request: ImagenPredictRequest = {
-        instances: [{ prompt: 'a cat' }],
-        parameters: { sampleCount: 1 },
-      };
       const mockResponse: ImagenPredictResponse = {
         predictions: [{ bytesBase64Encoded: 'abc', mimeType: 'image/png' }],
       };
       mockFetchResponse(mockResponse);
 
-      const result = await imagenPredict(
-        'imagen-3.0-generate-002',
-        request,
-        clientOptions
-      );
+      const result = await imagenPredict(model, request, clientOptions);
       assert.deepStrictEqual(result, mockResponse);
 
       const expectedUrl =
@@ -295,6 +357,14 @@ describe('Vertex AI Client', () => {
         },
         body: JSON.stringify(request),
       });
+    });
+
+    it('should throw on API error non-JSON', async () => {
+      mockFetchResponse('Bad Request', false, 400, 'Bad Request', 'text/plain');
+      await assert.rejects(
+        imagenPredict(model, request, clientOptions),
+        /Failed to fetch from .* \[400 Bad Request\] Bad Request/
+      );
     });
   });
 
@@ -431,7 +501,7 @@ describe('Vertex AI Client', () => {
 
       await assert.rejects(
         generateContentStream('gemini-2.5-flash', request, clientOptions),
-        /Error: Failed to fetch from .*\ Network failure/
+        /Failed to fetch from .* Network failure/
       );
     });
 

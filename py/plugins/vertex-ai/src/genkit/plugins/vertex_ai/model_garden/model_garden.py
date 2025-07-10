@@ -23,8 +23,7 @@ from genkit.plugins.compat_oai.models import (
 )
 from genkit.plugins.compat_oai.models.model import OpenAIModel
 from genkit.plugins.compat_oai.typing import OpenAIConfig
-
-from .client import OpenAIClient
+from genkit.plugins.vertex_ai.model_garden.client import OpenAIClient
 
 OPENAI_COMPAT = 'openai-compat'
 MODELGARDEN_PLUGIN_NAME = 'modelgarden'

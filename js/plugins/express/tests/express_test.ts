@@ -61,8 +61,10 @@ const contextProvider: ContextProvider<Context> = (req: RequestData) => {
 describe('expressHandler', async () => {
   let server: http.Server;
   let port;
+  let abortableFlowResult;
 
   beforeEach(async () => {
+    abortableFlowResult = undefined;
     const ai = genkit({});
     const echoModel = defineEchoModel(ai);
 
@@ -114,6 +116,27 @@ describe('expressHandler', async () => {
       }
     );
 
+    const abortableFlow = ai.defineFlow(
+      {
+        name: 'abortableFlow',
+      },
+      async (_, { abortSignal, sendChunk }) => {
+        let itersLeft = 20;
+        while (itersLeft > 0 && !abortSignal.aborted) {
+          await new Promise((r) => {
+            setTimeout(r, 100);
+          });
+          sendChunk(itersLeft);
+          itersLeft--;
+        }
+        abortableFlowResult = [
+          itersLeft > 0 ? 'success' : 'failure',
+          abortSignal.aborted,
+        ];
+        return itersLeft > 0 ? 'success' : 'failure';
+      }
+    );
+
     const app = express();
     app.use(express.json());
     port = await getPort();
@@ -132,6 +155,7 @@ describe('expressHandler', async () => {
       '/echoModelWithAuth',
       expressHandler(echoModel, { contextProvider })
     );
+    app.post('/abortableFlow', expressHandler(abortableFlow));
 
     server = app.listen(port, () => {
       console.log(`Example app listening on port ${port}`);
@@ -257,6 +281,32 @@ describe('expressHandler', async () => {
       await assert.rejects(result, (err) => {
         return (err as Error).message.includes('not authorized');
       });
+    });
+
+    it('should abort a flow with auth', async () => {
+      const controller = new AbortController();
+      const response = fetch(`http://localhost:${port}/abortableFlow`, {
+        method: 'POST',
+        signal: controller.signal,
+      });
+      // TODO: make this work instead of direct fetch. For some reason doesn't work in a test,
+      // even though appears to be doing exactly the same thing.
+      /*
+      const response = runFlow({
+        url: `http://localhost:${port}/abortableFlow`,
+        abortSignal: controller.signal,
+      });
+      */
+
+      setTimeout(() => controller.abort(), 10);
+
+      await assert.rejects(response); // abort error
+
+      await new Promise((r) => {
+        setTimeout(r, 200);
+      });
+
+      assert.deepStrictEqual(abortableFlowResult, ['success', true]);
     });
   });
 

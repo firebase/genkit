@@ -19,17 +19,14 @@ import { Document, Genkit } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-import {
-  VertexEmbeddingConfig,
-  defineVertexAIEmbedder,
-} from '../../src/vertexai/embedder';
+import { EmbeddingConfig, defineEmbedder } from '../../src/vertexai/embedder';
 import {
   ClientOptions,
   EmbedContentResponse,
   EmbeddingInstance,
 } from '../../src/vertexai/types';
 
-describe('defineVertexAIEmbedder', () => {
+describe('defineEmbedder', () => {
   let mockGenkit: sinon.SinonStubbedInstance<Genkit>;
   let fetchStub: sinon.SinonStub;
   let authMock: sinon.SinonStubbedInstance<GoogleAuth>;
@@ -41,7 +38,7 @@ describe('defineVertexAIEmbedder', () => {
   };
   let embedderFunc: (
     input: Document[],
-    options?: VertexEmbeddingConfig
+    options?: EmbeddingConfig
   ) => Promise<any>;
 
   beforeEach(() => {
@@ -74,20 +71,18 @@ describe('defineVertexAIEmbedder', () => {
   }
 
   it('defines an embedder with the correct name and info for known model', () => {
-    defineVertexAIEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+    defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
     sinon.assert.calledOnce(mockGenkit.defineEmbedder);
     const args = mockGenkit.defineEmbedder.lastCall.args[0];
     assert.strictEqual(args.name, 'vertexai/text-embedding-005');
-    assert.strictEqual(args.info.label, 'Vertex AI - text-embedding-005');
-    assert.strictEqual(args.info.dimensions, 768);
+    assert.strictEqual(args.info?.dimensions, 768);
   });
 
   it('defines an embedder with a custom name', () => {
-    defineVertexAIEmbedder(mockGenkit, 'custom-model', clientOptions);
+    defineEmbedder(mockGenkit, 'custom-model', clientOptions);
     sinon.assert.calledOnce(mockGenkit.defineEmbedder);
     const args = mockGenkit.defineEmbedder.lastCall.args[0];
     assert.strictEqual(args.name, 'vertexai/custom-model');
-    assert.strictEqual(args.info.label, 'Vertex AI - custom-model');
   });
 
   describe('Embedder Functionality', () => {
@@ -95,7 +90,7 @@ describe('defineVertexAIEmbedder', () => {
     const testDoc2: Document = new Document({ content: [{ text: 'World' }] });
 
     it('calls embedContent with text-only documents', async () => {
-      defineVertexAIEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+      defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
 
       const mockResponse: EmbedContentResponse = {
         predictions: [
@@ -136,10 +131,10 @@ describe('defineVertexAIEmbedder', () => {
     });
 
     it('calls embedContent with taskType and title options', async () => {
-      defineVertexAIEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+      defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
       mockFetchResponse({ predictions: [] });
 
-      const config: VertexEmbeddingConfig = {
+      const config: EmbeddingConfig = {
         taskType: 'RETRIEVAL_DOCUMENT',
         title: 'Doc Title',
       };
@@ -153,11 +148,7 @@ describe('defineVertexAIEmbedder', () => {
     });
 
     it('handles multimodal embeddings for images (base64)', async () => {
-      defineVertexAIEmbedder(
-        mockGenkit,
-        'multimodalembedding@001',
-        clientOptions
-      );
+      defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
       const docWithImage: Document = new Document({
         content: [
           { text: 'A picture' },
@@ -182,11 +173,7 @@ describe('defineVertexAIEmbedder', () => {
     });
 
     it('handles multimodal embeddings for images (gcs)', async () => {
-      defineVertexAIEmbedder(
-        mockGenkit,
-        'multimodalembedding@001',
-        clientOptions
-      );
+      defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
       const docWithImage: Document = new Document({
         content: [
           {
@@ -205,11 +192,7 @@ describe('defineVertexAIEmbedder', () => {
     });
 
     it('handles multimodal embeddings for video', async () => {
-      defineVertexAIEmbedder(
-        mockGenkit,
-        'multimodalembedding@001',
-        clientOptions
-      );
+      defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
       const docWithVideo: Document = new Document({
         content: [
           { text: 'A video' },
@@ -277,10 +260,10 @@ describe('defineVertexAIEmbedder', () => {
     });
 
     it('passes outputDimensionality to the API call', async () => {
-      defineVertexAIEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+      defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
       mockFetchResponse({ predictions: [] });
 
-      const config: VertexEmbeddingConfig = { outputDimensionality: 256 };
+      const config: EmbeddingConfig = { outputDimensionality: 256 };
       await embedderFunc([testDoc1], config);
 
       sinon.assert.calledOnce(fetchStub);
@@ -290,11 +273,7 @@ describe('defineVertexAIEmbedder', () => {
     });
 
     it('throws on unsupported media type', async () => {
-      defineVertexAIEmbedder(
-        mockGenkit,
-        'multimodalembedding@001',
-        clientOptions
-      );
+      defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
       const docWithInvalidMedia: Document = new Document({
         content: [{ media: { url: 'a', contentType: 'application/pdf' } }],
       });

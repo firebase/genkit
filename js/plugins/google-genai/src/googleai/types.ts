@@ -25,6 +25,11 @@ import {
   GoogleSearchRetrievalTool,
   HarmBlockThreshold,
   HarmCategory,
+  ImagenInstance,
+  ImagenParameters,
+  ImagenPredictRequest,
+  ImagenPredictResponse,
+  ImagenPrediction,
   Part,
   SafetySetting,
   TaskType,
@@ -46,13 +51,18 @@ export {
   type GenerateContentStreamResult,
   type GenerationConfig,
   type GoogleSearchRetrievalTool,
+  type ImagenInstance,
+  type ImagenParameters,
+  type ImagenPredictRequest,
+  type ImagenPredictResponse,
+  type ImagenPrediction,
   type Part,
   type SafetySetting,
   type Tool,
   type ToolConfig,
 };
 
-export interface PluginOptions {
+export interface GoogleAIPluginOptions {
   /**
    * Provide the API key to use to authenticate with the Gemini API. By
    * default, an API key must be provided explicitly here or through the
@@ -69,10 +79,10 @@ export interface PluginOptions {
 }
 
 /**
- * Params passed to getGenerativeModel() or GoogleAIFileManager().
+ * Options passed to the client
  * @public
  */
-export interface RequestOptions {
+export interface ClientOptions {
   /**
    * Request timeout in milliseconds.
    */
@@ -149,4 +159,40 @@ export interface EmbedContentResponse {
  */
 export interface ContentEmbedding {
   values: number[];
+}
+
+export declare interface VeoPredictRequest {
+  instances: VeoInstance[];
+  parameters: VeoParameters;
+}
+
+export declare interface VeoParameters {
+  negativePrompt?: string;
+  aspectRatio?: string;
+  personGeneration?: string;
+  durationSeconds?: number;
+  enhancePrompt?: boolean;
+}
+
+export declare interface VeoInstance {
+  prompt: string;
+  image?: VeoImage;
+}
+
+export declare interface VeoImage {
+  bytesBase64Encoded: string;
+  mimeType: string;
+}
+
+export declare interface VeoOperation {
+  name: string;
+  done?: boolean;
+  error?: {
+    message: string;
+  };
+  response?: {
+    generateVideoResponse: {
+      generatedSamples: { video: { uri: string } }[];
+    };
+  };
 }

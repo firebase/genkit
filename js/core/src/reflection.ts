@@ -176,7 +176,12 @@ export class ReflectionServer {
             const result = await runWithStreamingCallback(
               this.registry,
               callback,
-              () => action.run(input, { context, onChunk: callback })
+              () =>
+                action.run(input, {
+                  context,
+                  onChunk: callback,
+                  telemetryLabels,
+                })
             );
             await flushTracing();
             response.write(
@@ -326,7 +331,7 @@ export class ReflectionServer {
       const timestamp = date.toISOString();
       this.runtimeFilePath = path.join(
         runtimesDir,
-        `${process.pid}-${time}.json`
+        `${process.pid}-${this.port}-${time}.json`
       );
       const fileContent = JSON.stringify(
         {

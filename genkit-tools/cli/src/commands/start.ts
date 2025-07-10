@@ -16,7 +16,7 @@
 
 import type { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
-import { logger } from '@genkit-ai/tools-common/utils';
+import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { spawn } from 'child_process';
 import { Command } from 'commander';
 import getPort, { makeRange } from 'get-port';
@@ -37,7 +37,10 @@ export const start = new Command('start')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
     // Always start the manager.
-    let managerPromise: Promise<RuntimeManager> = startManager(true);
+    let managerPromise: Promise<RuntimeManager> = startManager(
+      await findProjectRoot(),
+      true
+    );
     if (!options.noui) {
       let port: number;
       if (options.port) {
@@ -81,7 +84,7 @@ async function startRuntime(telemetryServerUrl?: string) {
       process.stdin?.pipe(appProcess.stdin);
 
       appProcess.on('error', (error): void => {
-        console.log(`Error in app process: ${error}`);
+        logger.error(`Error in app process: ${error}`);
         reject(error);
         process.exitCode = 1;
       });

@@ -24,6 +24,7 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
+  findProjectRoot,
   loadEvaluationDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
@@ -66,7 +67,7 @@ export const evalRun = new Command('eval:run')
   )
   .option('--force', 'Automatically accept all interactive prompts')
   .action(async (dataset: string, options: EvalRunCliOptions) => {
-    await runWithManager(async (manager) => {
+    await runWithManager(await findProjectRoot(), async (manager) => {
       if (!dataset) {
         throw new Error(
           'No input data passed. Specify input data using [data] argument'

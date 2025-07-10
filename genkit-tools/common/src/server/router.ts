@@ -28,6 +28,7 @@ import * as apis from '../types/apis';
 import type { EnvironmentVariable } from '../types/env';
 import * as evals from '../types/eval';
 import type { PromptFrontmatter } from '../types/prompt';
+import { logger } from '../utils';
 import { PageViewEvent, ToolsRequestEvent, record } from '../utils/analytics';
 import { toolsPackage } from '../utils/package';
 import { fromMessages } from '../utils/prompt';
@@ -114,7 +115,7 @@ const loggedProcedure = t.procedure.use(async (opts) => {
 
   // fire-and-forget
   record(analyticsEvent).catch((err) => {
-    console.log(`Failed to send analytics ${err}`);
+    logger.error(`Failed to send analytics ${err}`);
   });
 
   return result;
@@ -279,12 +280,23 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
     }),
 
     /**
-     * Get the current active Genkit Runtime. Useful for one-off requests.
-     * Currently used by the Dev UI to "poll", since IDX cannot support SSE
-     * at this time.
+     * Get the current active Genkit Runtime.
+     *
+     * Currently used by the Dev UI to "poll", since IDX cannot support SSE at
+     * this time.
      */
     getCurrentRuntime: t.procedure.query(() => {
       return manager.getMostRecentRuntime() ?? ({} as RuntimeInfo);
+    }),
+
+    /**
+     * Get all active Genkit Runtimes.
+     *
+     * Currently used by the Dev UI to "poll", since IDX cannot support SSE at
+     * this time.
+     */
+    getActiveRuntimes: t.procedure.query(() => {
+      return manager.listRuntimes();
     }),
   });
 

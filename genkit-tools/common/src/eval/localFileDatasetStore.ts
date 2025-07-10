@@ -46,7 +46,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!fs.existsSync(this.indexFile)) {
       fs.writeFileSync(path.resolve(this.indexFile), JSON.stringify({}));
     }
-    logger.info(
+    logger.debug(
       `Initialized local file dataset store at root: ${this.storeRoot}`
     );
   }
@@ -82,7 +82,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       );
     }
     const dataset = this.getDatasetFromInferenceDataset(data);
-    logger.info(`Saving Dataset to ` + filePath);
+    logger.debug(`Saving Dataset to ` + filePath);
     await writeFile(filePath, JSON.stringify(dataset));
 
     const now = new Date().toString();
@@ -127,7 +127,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     const patch = this.getDatasetFromInferenceDataset(data ?? []);
     let newSize = prevMetadata.size;
     if (patch.length > 0) {
-      logger.info(`Updating Dataset at ` + filePath);
+      logger.debug(`Updating Dataset at ` + filePath);
       newSize = await this.patchDataset(datasetId, patch, filePath);
     }
 

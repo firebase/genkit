@@ -345,7 +345,9 @@ describe('flow', () => {
     it('should create a trace', async () => {
       const testFlow = createTestFlow(registry);
 
-      const result = await testFlow('foo');
+      const result = await testFlow('foo', {
+        telemetryLabels: { custom: 'label' },
+      });
 
       assert.equal(result, 'bar foo');
       assert.strictEqual(spanExporter.exportedSpans.length, 1);
@@ -359,6 +361,32 @@ describe('flow', () => {
         'genkit:path': '/{testFlow,t:flow}',
         'genkit:state': 'success',
         'genkit:type': 'action',
+        custom: 'label',
+      });
+    });
+
+    it('should create a trace when streaming', async () => {
+      const testFlow = createTestFlow(registry);
+
+      const { output } = testFlow.stream('foo', {
+        telemetryLabels: { custom: 'label' },
+      });
+      const result = await output;
+
+      assert.equal(result, 'bar foo');
+      assert.strictEqual(spanExporter.exportedSpans.length, 1);
+      assert.strictEqual(spanExporter.exportedSpans[0].displayName, 'testFlow');
+      assert.deepStrictEqual(spanExporter.exportedSpans[0].attributes, {
+        'genkit:input': '"foo"',
+        'genkit:isRoot': true,
+        'genkit:metadata:subtype': 'flow',
+        'genkit:metadata:context': '{}',
+        'genkit:name': 'testFlow',
+        'genkit:output': '"bar foo"',
+        'genkit:path': '/{testFlow,t:flow}',
+        'genkit:state': 'success',
+        'genkit:type': 'action',
+        custom: 'label',
       });
     });
 
@@ -392,7 +420,9 @@ describe('flow', () => {
           );
         }
       );
-      const result = await testFlow('foo', { context: { user: 'pavel' } });
+      const result = await testFlow('foo', {
+        context: { user: 'pavel' },
+      });
 
       assert.equal(result, 'foo bar');
       assert.strictEqual(spanExporter.exportedSpans.length, 3);

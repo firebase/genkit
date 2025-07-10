@@ -28,6 +28,11 @@ import {
   GroundingMetadata,
   HarmBlockThreshold,
   HarmCategory,
+  ImagenInstance,
+  ImagenParameters,
+  ImagenPredictRequest,
+  ImagenPredictResponse,
+  ImagenPrediction,
   TaskType,
   TaskTypeSchema,
   Tool,
@@ -49,12 +54,17 @@ export {
   type GoogleSearchRetrieval,
   type GoogleSearchRetrievalTool,
   type GroundingMetadata,
+  type ImagenInstance,
+  type ImagenParameters,
+  type ImagenPredictRequest,
+  type ImagenPredictResponse,
+  type ImagenPrediction,
   type Tool,
   type ToolConfig,
 };
 
 /** Options for Vertex AI plugin configuration */
-export interface PluginOptions {
+export interface VertexPluginOptions {
   /** The Google Cloud project id to call. */
   projectId?: string;
   /** The Google Cloud region to call. */
@@ -212,38 +222,6 @@ export declare interface EmbedContentRequest {
 
 export declare interface EmbedContentResponse {
   predictions: EmbeddingPrediction[];
-}
-
-export declare interface ImagenPredictRequest {
-  instances: ImagenInstance[];
-  parameters: ImagenParameters;
-}
-
-export declare interface ImagenPredictResponse {
-  predictions: ImagenPrediction[];
-}
-
-export declare interface ImagenPrediction {
-  bytesBase64Encoded: string;
-  mimeType: string;
-}
-
-export declare interface ImagenInstance {
-  prompt: string;
-  image?: { bytesBase64Encoded: string };
-  mask?: { image?: { bytesBase64Encoded: string } };
-}
-
-export declare interface ImagenParameters {
-  sampleCount?: number;
-  aspectRatio?: string;
-  negativePrompt?: string;
-  seed?: number;
-  language?: string;
-  personGeneration?: string;
-  safetySetting?: string;
-  addWatermark?: boolean;
-  storageUri?: string;
 }
 
 /** Optional parameters for the embed content method. */

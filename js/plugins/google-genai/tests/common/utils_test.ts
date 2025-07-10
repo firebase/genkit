@@ -15,13 +15,9 @@
  */
 
 import * as assert from 'assert';
-import { EmbedderReference, ModelReference } from 'genkit';
+import { ModelReference } from 'genkit';
 import { describe, it } from 'node:test';
-import {
-  cleanSchema,
-  isMultiModalEmbedder,
-  nearestModelRef,
-} from '../../src/common/utils';
+import { cleanSchema } from '../../src/common/utils';
 
 // Mock ModelReference for testing nearestModelRef
 const createMockModelRef = (
@@ -41,94 +37,6 @@ const createMockModelRef = (
     },
   } as any;
 };
-
-describe('nearestModelRef', () => {
-  const knownModels = {
-    'gemini-2.0-flash': createMockModelRef('gemini-2.0-flash'),
-    'gemini-2.0-pro': createMockModelRef('gemini-2.0-pro'),
-    'gemini-2.5-flash': createMockModelRef('gemini-2.5-flash'),
-    'gemini-2.5-pro': createMockModelRef('gemini-2.5-pro'),
-  };
-  const genericModel = createMockModelRef('generic-gemini');
-
-  it('finds an exact match for a GA model', () => {
-    const model = nearestModelRef('gemini-2.0-pro', knownModels, genericModel);
-    assert.strictEqual(model.name, 'gemini-2.0-pro');
-    assert.strictEqual(model.config.version, 'gemini-2.0-pro');
-  });
-
-  it('finds an exact match for a new model', () => {
-    const model = nearestModelRef(
-      'gemini-2.5-flash',
-      knownModels,
-      genericModel
-    );
-    assert.strictEqual(model.name, 'gemini-2.5-flash');
-    assert.strictEqual(model.config.version, 'gemini-2.5-flash');
-  });
-
-  it('finds the longest prefix match for a preview version', () => {
-    const model = nearestModelRef(
-      'gemini-2.5-pro-preview-0725',
-      knownModels,
-      genericModel
-    );
-    assert.strictEqual(model.name, 'gemini-2.5-pro');
-    assert.strictEqual(model.config.version, 'gemini-2.5-pro-preview-0725');
-  });
-
-  it('finds the longest prefix match for a specific revision', () => {
-    const model = nearestModelRef(
-      'gemini-2.0-flash-002',
-      knownModels,
-      genericModel
-    );
-    assert.strictEqual(model.name, 'gemini-2.0-flash');
-    assert.strictEqual(model.config.version, 'gemini-2.0-flash-002');
-  });
-
-  it('returns generic model if no match', () => {
-    const model = nearestModelRef(
-      'unknown-model-v3',
-      knownModels,
-      genericModel
-    );
-    assert.strictEqual(model.name, 'generic-gemini');
-    assert.strictEqual(model.config.version, 'unknown-model-v3');
-  });
-
-  it('returns generic model for discontinued version', () => {
-    const model = nearestModelRef('gemini-1.0-pro', knownModels, genericModel);
-    assert.strictEqual(model.name, 'generic-gemini');
-    assert.strictEqual(model.config.version, 'gemini-1.0-pro');
-  });
-
-  it('applies options to the matched model', () => {
-    const options = { temperature: 0.5 };
-    const model = nearestModelRef(
-      'gemini-2.5-flash-latest',
-      knownModels,
-      genericModel,
-      options
-    );
-    assert.strictEqual(model.name, 'gemini-2.5-flash');
-    assert.strictEqual(model.config.version, 'gemini-2.5-flash-latest');
-    assert.strictEqual(model.config.temperature, 0.5);
-  });
-
-  it('applies options to the generic model', () => {
-    const options = { topK: 10 };
-    const model = nearestModelRef(
-      'another-unknown',
-      knownModels,
-      genericModel,
-      options
-    );
-    assert.strictEqual(model.name, 'generic-gemini');
-    assert.strictEqual(model.config.version, 'another-unknown');
-    assert.strictEqual(model.config.topK, 10);
-  });
-});
 
 describe('cleanSchema', () => {
   it('strips $schema and additionalProperties', () => {
@@ -210,28 +118,5 @@ describe('cleanSchema', () => {
     };
     const cleaned = cleanSchema(schema);
     assert.deepStrictEqual(cleaned, schema);
-  });
-});
-
-describe('isMultiModalEmbedder', () => {
-  const createMockEmbedder = (
-    inputTypes: string | undefined
-  ): EmbedderReference => {
-    return {
-      name: 'test-embedder',
-      info: inputTypes
-        ? { label: 'Test Embedder', supports: { input: inputTypes } }
-        : { label: 'Test Embedder' },
-    } as any;
-  };
-
-  it('returns true for text and image support', () => {
-    const embedder = createMockEmbedder('text, image');
-    assert.strictEqual(isMultiModalEmbedder(embedder), true);
-  });
-
-  it('returns false for only text support', () => {
-    const embedder = createMockEmbedder('text');
-    assert.strictEqual(isMultiModalEmbedder(embedder), false);
   });
 });

@@ -21,12 +21,31 @@ import type {
   ModelReference,
 } from 'genkit';
 import { Message, z } from 'genkit';
-import { ModelAction } from 'genkit/model';
+import { ModelAction, ModelInfo } from 'genkit/model';
 import OpenAI from 'openai';
 import type {
   ImageGenerateParams,
   ImagesResponse,
 } from 'openai/resources/images.mjs';
+
+export const IMAGE_GENERATION_MODEL_INFO: ModelInfo = {
+  supports: {
+    media: false,
+    output: ['media'],
+    multiturn: false,
+    systemRole: false,
+    tools: false,
+  },
+};
+
+export const ImageGenerationCommonConfigSchema = z.object({
+  size: z.enum(['1024x1024', '1792x1024', '1024x1792']).optional(),
+  style: z.enum(['vivid', 'natural']).optional(),
+  user: z.string().optional(),
+  n: z.number().int().min(1).max(10).default(1),
+  quality: z.enum(['standard', 'hd']).optional(),
+  response_format: z.enum(['b64_json', 'url']).optional(),
+});
 
 function toImageGenerateParams(
   modelName: string,
@@ -68,7 +87,7 @@ function toGenerateResponse(result: ImagesResponse): GenerateResponseData {
         url: image.url || `data:image/png;base64,${image.b64_json}`,
       },
     }));
-    return { message: { role: 'model', content } };
+    return { message: { role: 'model', content }, raw: result };
   }
 }
 

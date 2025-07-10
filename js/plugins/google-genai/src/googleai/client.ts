@@ -17,16 +17,20 @@
 import { GENKIT_CLIENT_HEADER } from 'genkit';
 import { extractErrMsg } from '../common/utils';
 import {
+  ClientOptions,
   EmbedContentRequest,
   EmbedContentResponse,
   GenerateContentCandidate,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
+  ImagenPredictRequest,
+  ImagenPredictResponse,
   ListModelsResponse,
   Model,
   Part,
-  RequestOptions,
+  VeoOperation,
+  VeoPredictRequest,
 } from './types';
 
 /**
@@ -35,21 +39,21 @@ import {
  * https://ai.google.dev/api/models#method:-models.list
  *
  * @param apiKey The API key to authenticate the request.
- * @param requestOptions Optional options to customize the request
+ * @param clientOptions Optional options to customize the request
  * @returns A promise that resolves to an array of Model objects.
  */
 export async function listModels(
   apiKey: string,
-  requestOptions?: RequestOptions
+  clientOptions?: ClientOptions
 ): Promise<Model[]> {
   const url = getGoogleAIUrl({
     resourcePath: 'models',
     queryParams: 'pageSize=1000',
-    requestOptions,
+    clientOptions,
   });
   const fetchOptions: RequestInit = {
     method: 'GET',
-    headers: getHeaders(apiKey, requestOptions),
+    headers: getHeaders(apiKey, clientOptions),
   };
   const response = await makeRequest(url, fetchOptions);
   const modelResponse = JSON.parse(await response.text()) as ListModelsResponse;
@@ -62,7 +66,7 @@ export async function listModels(
  * @param {string} apiKey The API key for authentication.
  * @param {string} model The name of the model to use for content generation.
  * @param {GenerateContentRequest} generateContentRequest The request object containing the content generation parameters.
- * @param {RequestOptions} [requestOptions] Optional request options.
+ * @param {ClientOptions} [clientOptions] Optional client options.
  * @returns {Promise<GenerateContentResponse>} A promise that resolves to the content generation response.
  * @throws {Error} If the API request fails or the response cannot be parsed.
  */
@@ -70,16 +74,16 @@ export async function generateContent(
   apiKey: string,
   model: string,
   generateContentRequest: GenerateContentRequest,
-  requestOptions?: RequestOptions
+  clientOptions?: ClientOptions
 ): Promise<GenerateContentResponse> {
   const url = getGoogleAIUrl({
     resourcePath: `models/${model}`,
     resourceMethod: 'generateContent',
-    requestOptions,
+    clientOptions,
   });
   const fetchOptions: RequestInit = {
     method: 'POST',
-    headers: getHeaders(apiKey, requestOptions),
+    headers: getHeaders(apiKey, clientOptions),
     body: JSON.stringify(generateContentRequest),
   };
   const response = await makeRequest(url, fetchOptions);
@@ -94,7 +98,7 @@ export async function generateContent(
  * @param {string} apiKey The API key for authentication.
  * @param {string} model The name of the model to use for content generation.
  * @param {GenerateContentRequest} generateContentRequest The request object containing the content generation parameters.
- * @param {RequestOptions} [requestOptions] Optional request options.
+ * @param {ClientOptions} [clientOptions] Optional client options.
  * @returns {Promise<GenerateContentStreamResult>} A promise that resolves to an object containing a both the stream and aggregated response.
  * @throws {Error} If the API request fails.
  */
@@ -102,16 +106,16 @@ export async function generateContentStream(
   apiKey: string,
   model: string,
   generateContentRequest: GenerateContentRequest,
-  requestOptions?: RequestOptions
+  clientOptions?: ClientOptions
 ): Promise<GenerateContentStreamResult> {
   const url = getGoogleAIUrl({
     resourcePath: `models/${model}`,
     resourceMethod: 'streamGenerateContent',
-    requestOptions,
+    clientOptions,
   });
   const fetchOptions: RequestInit = {
     method: 'POST',
-    headers: getHeaders(apiKey, requestOptions),
+    headers: getHeaders(apiKey, clientOptions),
     body: JSON.stringify(generateContentRequest),
   };
 
@@ -125,7 +129,7 @@ export async function generateContentStream(
  * @param {string} apiKey The API key for authentication.
  * @param {string} model The name of the model to use for content embedding.
  * @param {EmbedContentRequest} embedContentRequest The request object containing the content to embed.
- * @param {RequestOptions} [requestOptions] Optional request options.
+ * @param {ClientOptions} [clientOptions] Optional client options.
  * @returns {Promise<EmbedContentResponse>} A promise that resolves to the embedding response.
  * @throws {Error} If the API request fails or the response cannot be parsed.
  */
@@ -133,21 +137,83 @@ export async function embedContent(
   apiKey: string,
   model: string,
   embedContentRequest: EmbedContentRequest,
-  requestOptions?: RequestOptions
+  clientOptions?: ClientOptions
 ): Promise<EmbedContentResponse> {
   const url = getGoogleAIUrl({
-    resourcePath: `embedders/${model}`,
+    resourcePath: `models/${model}`,
     resourceMethod: 'embedContent',
-    requestOptions,
+    clientOptions,
   });
   const fetchOptions: RequestInit = {
     method: 'POST',
-    headers: getHeaders(apiKey, requestOptions),
+    headers: getHeaders(apiKey, clientOptions),
     body: JSON.stringify(embedContentRequest),
   };
 
   const response = await makeRequest(url, fetchOptions);
   return response.json();
+}
+
+export async function imagenPredict(
+  apiKey: string,
+  model: string,
+  imagenPredictRequest: ImagenPredictRequest,
+  clientOptions?: ClientOptions
+): Promise<ImagenPredictResponse> {
+  const url = getGoogleAIUrl({
+    resourcePath: `models/${model}`,
+    resourceMethod: 'predict',
+    clientOptions,
+  });
+
+  const fetchOptions: RequestInit = {
+    method: 'POST',
+    headers: await getHeaders(apiKey, clientOptions),
+    body: JSON.stringify(imagenPredictRequest),
+  };
+
+  const response = await makeRequest(url, fetchOptions);
+  return response.json() as Promise<ImagenPredictResponse>;
+}
+
+export async function veoPredict(
+  apiKey: string,
+  model: string,
+  veoPredictRequest: VeoPredictRequest,
+  clientOptions?: ClientOptions
+): Promise<VeoOperation> {
+  const url = getGoogleAIUrl({
+    resourcePath: `models/${model}`,
+    resourceMethod: 'predictLongRunning',
+    clientOptions,
+  });
+
+  const fetchOptions: RequestInit = {
+    method: 'POST',
+    headers: await getHeaders(apiKey, clientOptions),
+    body: JSON.stringify(veoPredictRequest),
+  };
+
+  const response = await makeRequest(url, fetchOptions);
+  return response.json() as Promise<VeoOperation>;
+}
+
+export async function checkVeoOperation(
+  apiKey: string,
+  operation: string,
+  clientOptions?: ClientOptions
+): Promise<VeoOperation> {
+  const url = getGoogleAIUrl({
+    resourcePath: operation,
+    clientOptions,
+  });
+  const fetchOptions: RequestInit = {
+    method: 'GET',
+    headers: await getHeaders(apiKey, clientOptions),
+  };
+
+  const response = await makeRequest(url, fetchOptions);
+  return response.json() as Promise<VeoOperation>;
 }
 
 /**
@@ -157,22 +223,22 @@ export async function embedContent(
  * @param params.path - The path for the URL (the part after the version)
  * @param params.task - An optional task
  * @param params.queryParams - An optional string of '&' delimited query parameters.
- * @param params.requestOptions - An optional object containing request options.
+ * @param params.clientOptions - An optional object containing client options.
  * @returns The generated Google AI URL.
  */
 export function getGoogleAIUrl(params: {
   resourcePath: string;
   resourceMethod?: string;
   queryParams?: string;
-  requestOptions?: RequestOptions;
+  clientOptions?: ClientOptions;
 }): string {
   // v1beta is the default because all the new experimental models
   // are found here but not in v1.
   const DEFAULT_API_VERSION = 'v1beta';
   const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com';
 
-  const apiVersion = params.requestOptions?.apiVersion || DEFAULT_API_VERSION;
-  const baseUrl = params.requestOptions?.baseUrl || DEFAULT_BASE_URL;
+  const apiVersion = params.clientOptions?.apiVersion || DEFAULT_API_VERSION;
+  const baseUrl = params.clientOptions?.baseUrl || DEFAULT_BASE_URL;
 
   let url = `${baseUrl}/${apiVersion}/${params.resourcePath}`;
   if (params.resourceMethod) {
@@ -191,16 +257,16 @@ export function getGoogleAIUrl(params: {
  * Constructs the headers for an API request.
  *
  * @param {string} apiKey The API key for authentication.
- * @param {RequestOptions} [requestOptions] Optional request options, containing custom headers.
+ * @param {ClientOptions} [clientOptions] Optional client options, containing custom headers.
  * @returns {HeadersInit} An object containing the headers to be included in the request.
  */
 function getHeaders(
   apiKey: string,
-  requestOptions?: RequestOptions
+  clientOptions?: ClientOptions
 ): HeadersInit {
   let customHeaders = {};
-  if (requestOptions?.customHeaders) {
-    customHeaders = structuredClone(requestOptions.customHeaders);
+  if (clientOptions?.customHeaders) {
+    customHeaders = structuredClone(clientOptions.customHeaders);
     delete customHeaders['x-goog-api-key']; // Not allowed in user settings
     delete customHeaders['x-goog-api-client']; // Not allowed in user settings
   }
@@ -229,9 +295,18 @@ async function makeRequest(
   try {
     const response = await fetch(url, fetchOptions);
     if (!response.ok) {
-      const json = await response.json();
+      let errorText = await response.text();
+      let errorMessage = errorText;
+      try {
+        const json = JSON.parse(errorText);
+        if (json.error && json.error.message) {
+          errorMessage = json.error.message;
+        }
+      } catch (e) {
+        // Not JSON or expected format, use the raw text
+      }
       throw new Error(
-        `Error fetching from ${url}: [${response.status} ${response.statusText}] ${json.error.message}`
+        `Error fetching from ${url}: [${response.status} ${response.statusText}] ${errorMessage}`
       );
     }
     return response;

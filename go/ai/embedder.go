@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -32,6 +33,32 @@ type Embedder interface {
 	Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error)
 }
 
+// EmbedderInfo represents the structure of the embedder information object.
+type EmbedderInfo struct {
+	// Label is a user-friendly name for the embedder model (e.g., "Google AI - Gemini Pro").
+	Label string `json:"label,omitempty"`
+	// Supports defines the capabilities of the embedder, such as input types and multilingual support.
+	Supports *EmbedderSupports `json:"supports,omitempty"`
+	// Dimensions specifies the number of dimensions in the embedding vector.
+	Dimensions int `json:"dimensions,omitempty"`
+}
+
+// EmbedderSupports represents the supported capabilities of the embedder model.
+type EmbedderSupports struct {
+	// Input lists the types of data the model can process (e.g., "text", "image", "video").
+	Input []string `json:"input,omitempty"`
+	// Multilingual indicates whether the model supports multiple languages.
+	Multilingual bool `json:"multilingual,omitempty"`
+}
+
+// EmbedderOptions represents the configuration options for an embedder.
+type EmbedderOptions struct {
+	// ConfigSchema defines the schema for the embedder's configuration options.
+	ConfigSchema any `json:"configSchema,omitempty"`
+	// Info contains metadata about the embedder, such as its label and capabilities.
+	Info *EmbedderInfo `json:"info,omitempty"`
+}
+
 // An embedder is used to convert a document to a multidimensional vector.
 type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 
@@ -40,15 +67,29 @@ type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 func DefineEmbedder(
 	r *registry.Registry,
 	provider, name string,
+	opts *EmbedderOptions,
 	embed func(context.Context, *EmbedRequest) (*EmbedResponse, error),
 ) Embedder {
-	return (*embedder)(core.DefineAction(r, provider, name, core.ActionTypeEmbedder, nil, embed))
+	metadata := map[string]any{}
+	metadata["type"] = "embedder"
+	metadata["info"] = opts.Info
+	if opts.ConfigSchema != nil {
+		metadata["embedder"] = map[string]any{"customOptions": base.ToSchemaMap(opts.ConfigSchema)}
+	}
+	inputSchema := base.InferJSONSchema(EmbedRequest{})
+	if inputSchema.Properties != nil && opts.ConfigSchema != nil {
+		if _, ok := inputSchema.Properties.Get("options"); ok {
+			inputSchema.Properties.Set("options", base.InferJSONSchema(opts.ConfigSchema))
+		}
+	}
+	return (*embedder)(core.DefineActionWithInputSchema(r, provider, name, core.ActionTypeEmbedder, metadata, inputSchema, embed))
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
-// It returns nil if the embedder was not defined.
+// It will try to resolve the embedder dynamically if the embedder is not found.
+// It returns nil if the embedder was not resolved.
 func LookupEmbedder(r *registry.Registry, provider, name string) Embedder {
-	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, provider, name)
+	action := core.ResolveActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, provider, name)
 	if action == nil {
 		return nil
 	}

@@ -969,3 +969,35 @@ export declare interface GenerateContentStreamResult {
   stream: AsyncGenerator<GenerateContentResponse>;
   response: Promise<GenerateContentResponse>;
 }
+
+export declare interface ImagenParameters {
+  sampleCount?: number;
+  aspectRatio?: string;
+  negativePrompt?: string; // Vertex only
+  seed?: number; // Vertex only
+  language?: string; // Vertex only
+  personGeneration?: string;
+  safetySetting?: string; // Vertex only
+  addWatermark?: boolean; // Vertex only
+  storageUri?: string; // Vertex only
+}
+
+export declare interface ImagenPredictRequest {
+  instances: ImagenInstance[];
+  parameters: ImagenParameters;
+}
+
+export declare interface ImagenPredictResponse {
+  predictions: ImagenPrediction[];
+}
+
+export declare interface ImagenPrediction {
+  bytesBase64Encoded: string;
+  mimeType: string;
+}
+
+export declare interface ImagenInstance {
+  prompt: string;
+  image?: { bytesBase64Encoded: string };
+  mask?: { image?: { bytesBase64Encoded: string } };
+}

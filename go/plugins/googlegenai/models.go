@@ -27,8 +27,10 @@ const (
 	gemini20FlashThinkingExp0121 = "gemini-2.0-flash-thinking-exp-01-21"
 	gemini20FlashPrevImageGen    = "gemini-2.0-flash-preview-image-generation"
 
-	gemini25Flash            = "gemini-2.5-flash"
-	gemini25FlashPreview0417 = "gemini-2.5-flash-preview-04-17"
+	gemini25Flash             = "gemini-2.5-flash"
+	gemini25FlashPreview0417  = "gemini-2.5-flash-preview-04-17"
+	gemini25FlashLite         = "gemini-2.5-flash-lite"
+	gemini25FlashLitePrev0617 = "gemini-2.5-flash-lite-preview-06-17"
 
 	gemini25Pro            = "gemini-2.5-pro"
 	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
@@ -38,6 +40,15 @@ const (
 	imagen3Generate001     = "imagen-3.0-generate-001"
 	imagen3Generate002     = "imagen-3.0-generate-002"
 	imagen3FastGenerate001 = "imagen-3.0-fast-generate-001"
+
+	textembedding004                  = "text-embedding-004"
+	embedding001                      = "embedding-001"
+	textembeddinggecko003             = "textembedding-gecko@003"
+	textembeddinggecko002             = "textembedding-gecko@002"
+	textembeddinggecko001             = "textembedding-gecko@001"
+	textembeddinggeckomultilingual001 = "textembedding-gecko-multilingual@001"
+	textmultilingualembedding002      = "text-multilingual-embedding-002"
+	multimodalembedding               = "multimodalembedding"
 )
 
 var (
@@ -53,8 +64,10 @@ var (
 		gemini20FlashThinkingExp0121,
 		gemini20FlashPrevImageGen,
 		gemini25Flash,
+		gemini25FlashLite,
 		gemini25Pro,
 		gemini25FlashPreview0417,
+		gemini25FlashLitePrev0617,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
@@ -75,8 +88,10 @@ var (
 		gemini20FlashThinkingExp0121,
 		gemini20FlashPrevImageGen,
 		gemini25Flash,
+		gemini25FlashLite,
 		gemini25Pro,
 		gemini25FlashPreview0417,
+		gemini25FlashLitePrev0617,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
@@ -201,6 +216,18 @@ var (
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageUnstable,
 		},
+		gemini25FlashLite: {
+			Label:    "Gemini 2.5 Flash Lite",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageStable,
+		},
+		gemini25FlashLitePrev0617: {
+			Label:    "Gemini 2.5 Flash Lite Preview 06-17",
+			Versions: []string{},
+			Supports: &Multimodal,
+			Stage:    ai.ModelStageUnstable,
+		},
 	}
 
 	supportedImagenModels = map[string]ai.ModelInfo{
@@ -225,18 +252,105 @@ var (
 	}
 
 	googleAIEmbedders = []string{
-		"text-embedding-004",
-		"embedding-001",
+		textembedding004,
+		embedding001,
+	}
+
+	googleAIEmbedderConfig = map[string]ai.EmbedderOptions{
+		textembedding004: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Google Gen AI - Text Embedding 001",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+			ConfigSchema: genai.EmbedContentConfig{},
+		},
+		embedding001: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+			ConfigSchema: genai.EmbedContentConfig{},
+		},
+		textembeddinggecko003: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Google Gen AI - Text Embedding Gecko 003",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+			ConfigSchema: genai.EmbedContentConfig{},
+		},
+		textembeddinggecko002: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Vertex AI - Text Embedding Gecko 002",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+			ConfigSchema: genai.EmbedContentConfig{},
+		},
+		textembeddinggecko001: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Vertex AI - Text Embedding Gecko 001",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+			ConfigSchema: genai.EmbedContentConfig{},
+		},
+		textembeddinggeckomultilingual001: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Vertex AI - Text Embedding Gecko Multilingual 001",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+			ConfigSchema: genai.EmbedContentConfig{},
+		},
+		textmultilingualembedding002: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Vertex AI - Text Multilingual Embedding 001",
+				Supports: &ai.EmbedderSupports{
+					Input: []string{"text"},
+				},
+			},
+			ConfigSchema: genai.EmbedContentConfig{},
+		},
+		multimodalembedding: {
+			Info: &ai.EmbedderInfo{
+				Dimensions: 768,
+				Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
+				Supports: &ai.EmbedderSupports{ // Supports object is present
+					Input: []string{
+						"text",
+						"image",
+						"video",
+					},
+				},
+			},
+			ConfigSchema: genai.EmbedContentConfig{},
+		},
 	}
 
 	vertexAIEmbedders = []string{
-		"textembedding-gecko@003",
-		"textembedding-gecko@002",
-		"textembedding-gecko@001",
-		"text-embedding-004",
-		"textembedding-gecko-multilingual@001",
-		"text-multilingual-embedding-002",
-		"multimodalembedding",
+		textembeddinggecko003,
+		textembeddinggecko002,
+		textembeddinggecko001,
+		textembedding004,
+		textembeddinggeckomultilingual001,
+		textmultilingualembedding002,
+		multimodalembedding,
 	}
 )
 
@@ -281,16 +395,21 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 
 // listEmbedders returns a list of supported embedders based on the
 // detected backend
-func listEmbedders(backend genai.Backend) ([]string, error) {
-	var embedders []string
+func listEmbedders(backend genai.Backend) (map[string]ai.EmbedderOptions, error) {
+	embeddersNames := []string{}
 
 	switch backend {
 	case genai.BackendGeminiAPI:
-		embedders = googleAIEmbedders
+		embeddersNames = googleAIEmbedders
 	case genai.BackendVertexAI:
-		embedders = vertexAIEmbedders
+		embeddersNames = vertexAIEmbedders
 	default:
 		return nil, fmt.Errorf("embedders for backend %s not found", backend)
+	}
+
+	embedders := make(map[string]ai.EmbedderOptions, 0)
+	for _, n := range embeddersNames {
+		embedders[n] = googleAIEmbedderConfig[n]
 	}
 
 	return embedders, nil

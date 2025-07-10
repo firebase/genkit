@@ -62,6 +62,11 @@ export const OperationSchema = z.object({
 });
 
 /**
+ * Operation data.
+ */
+export type OperationData = z.infer<typeof OperationSchema>;
+
+/**
  * Zod schema of message part.
  */
 export const PartSchema = z.union([

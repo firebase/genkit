@@ -42,6 +42,7 @@ import {
   GenerateActionOptionsSchema,
   GenerateResponseChunkSchema,
   GenerateResponseSchema,
+  MessageData,
   resolveModel,
   type GenerateActionOptions,
   type GenerateActionOutputConfig,
@@ -56,6 +57,7 @@ import {
   type Part,
   type Role,
 } from '../model.js';
+import { findMatchingResource } from '../resource.js';
 import { resolveTools, toToolDefinition, type ToolAction } from '../tool.js';
 import {
   assertValidToolNames,
@@ -245,6 +247,7 @@ async function generate(
     rawRequest
   );
   rawRequest = applyFormat(rawRequest, format);
+  rawRequest = await applyResources(registry, rawRequest);
 
   // check to make sure we don't have overlapping tool names *before* generation
   await assertValidToolNames(tools);
@@ -470,4 +473,48 @@ function getRoleFromPart(part: Part): Role {
   if (part.media !== undefined) return 'user';
   if (part.data !== undefined) return 'user';
   throw new Error('No recognized fields in content');
+}
+
+async function applyResources(
+  registry: Registry,
+  rawRequest: GenerateActionOptions
+): Promise<GenerateActionOptions> {
+  // quick check, if no resources bail.
+  if (!rawRequest.messages.find((m) => !!m.content.find((c) => c.resource))) {
+    return rawRequest;
+  }
+
+  const updatedMessages = [] as MessageData[];
+  for (const m of rawRequest.messages) {
+    if (!m.content.find((c) => c.resource)) {
+      updatedMessages.push(m);
+      continue;
+    }
+    const updatedContent = [] as Part[];
+    for (const p of m.content) {
+      if (!p.resource) {
+        updatedContent.push(p);
+        continue;
+      }
+      const resource = await findMatchingResource(registry, p.resource);
+      if (!resource) {
+        throw new GenkitError({
+          status: 'NOT_FOUND',
+          message: `failed to find matching resource for ${p.resource.uri}`,
+        });
+      }
+      const resourceParts = await resource(p.resource);
+      updatedContent.push(...resourceParts.content);
+    }
+
+    updatedMessages.push({
+      ...m,
+      content: updatedContent,
+    });
+  }
+
+  return {
+    ...rawRequest,
+    messages: updatedMessages,
+  };
 }
