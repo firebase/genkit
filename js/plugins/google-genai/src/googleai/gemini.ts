@@ -358,7 +358,7 @@ const KNOWN_MODELS = {
 
 export function model(
   version: string,
-  config: GeminiConfig | GeminiTtsConfig = {}
+  config: GeminiConfig | GeminiTtsConfig | GemmaConfig = {}
 ): ModelReference<ConfigSchemaType> {
   const name = checkModelName(version);
 

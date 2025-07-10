@@ -64,7 +64,7 @@ export {
 };
 
 /** Options for Vertex AI plugin configuration */
-export interface PluginOptions {
+export interface VertexPluginOptions {
   /** The Google Cloud project id to call. */
   projectId?: string;
   /** The Google Cloud region to call. */

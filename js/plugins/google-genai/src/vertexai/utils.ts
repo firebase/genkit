@@ -16,9 +16,18 @@
 
 import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
-import type { ClientOptions, ImagenInstance, PluginOptions } from './types';
+import type {
+  ClientOptions,
+  ImagenInstance,
+  VertexPluginOptions,
+} from './types';
 
-export { extractImagenImage, extractText } from '../common/utils.js';
+export {
+  checkModelName,
+  extractImagenImage,
+  extractText,
+  modelName,
+} from '../common/utils.js';
 
 const CLOUD_PLATFORM_OAUTH_SCOPE =
   'https://www.googleapis.com/auth/cloud-platform';
@@ -39,7 +48,7 @@ function setMockDerivedOptions(options: ClientOptions | undefined): void {
 export const TEST_ONLY = { setMockDerivedOptions };
 
 export async function getDerivedOptions(
-  options?: PluginOptions,
+  options?: VertexPluginOptions,
   AuthClass: typeof GoogleAuth = GoogleAuth // Injectable testing
 ): Promise<ClientOptions> {
   if (__mockDerivedOptions) {

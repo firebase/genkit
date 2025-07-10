@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Genkit, z } from 'genkit';
+import { ActionMetadata, Genkit, modelActionMetadata, z } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
@@ -31,8 +31,16 @@ import {
   ImagenParameters,
   ImagenPredictRequest,
   ImagenPrediction,
+  Model,
+  VertexPluginOptions,
 } from './types.js';
-import { extractImagenImage, extractImagenMask, extractText } from './utils';
+import {
+  checkModelName,
+  extractImagenImage,
+  extractImagenMask,
+  extractText,
+  modelName,
+} from './utils';
 
 /**
  * See https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api.
@@ -166,19 +174,20 @@ export const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
     .describe('Configuration for upscaling.')
     .optional(),
 }).passthrough();
-
-export type ImagenConfig = z.infer<typeof ImagenConfigSchema>;
+export type ImagenConfigSchemaType = typeof ImagenConfigSchema;
+export type ImagenConfig = z.infer<ImagenConfigSchemaType>;
 
 // for commonRef
-type ConfigSchema = typeof ImagenConfigSchema;
+type ConfigSchemaType = ImagenConfigSchemaType;
 
 function commonRef(
   name: string,
   info?: ModelInfo,
-  configSchema: ConfigSchema = ImagenConfigSchema
-): ModelReference<ConfigSchema> {
+  configSchema: ConfigSchemaType = ImagenConfigSchema
+): ModelReference<ConfigSchemaType> {
   return modelRef({
     name: `vertexai/${name}`,
+    configSchema,
     info: info ?? {
       supports: {
         media: true,
@@ -189,23 +198,11 @@ function commonRef(
         output: ['media'],
       },
     },
-    configSchema,
   });
 }
 
-export const KNOWN_IMAGEN_MODELS = {
-  'imagen-3.0-generate-002': commonRef('imagen-3.0-generate-002'),
-  'imagen-3.0-fast-generate-001': commonRef('imagen-3.0-fast-generate-001'),
-  'imagen-4.0-generate-preview-06-06': commonRef(
-    'imagen-4.0-generate-preview-06-06'
-  ),
-  'imagen-4.0-ultra-generate-preview-06-06': commonRef(
-    'imagen-4.0-ultra-generate-preview-06-06'
-  ),
-} as const;
-
 // Allow all the capabilities for unknown future models
-export const GENERIC_IMAGEN_MODEL = commonRef('imagen-generic', {
+const GENERIC_MODEL = commonRef('imagen', {
   supports: {
     media: true,
     multiturn: true,
@@ -215,13 +212,29 @@ export const GENERIC_IMAGEN_MODEL = commonRef('imagen-generic', {
   },
 });
 
-export function imagen(
+export const KNOWN_MODELS = {
+  'imagen-3.0-generate-002': commonRef('imagen-3.0-generate-002'),
+  'imagen-3.0-fast-generate-001': commonRef('imagen-3.0-fast-generate-001'),
+  'imagen-4.0-generate-preview-06-06': commonRef(
+    'imagen-4.0-generate-preview-06-06'
+  ),
+  'imagen-4.0-ultra-generate-preview-06-06': commonRef(
+    'imagen-4.0-ultra-generate-preview-06-06'
+  ),
+} as const;
+export type KnownModels = keyof typeof KNOWN_MODELS;
+export type ImagenModelName = `imagen=${string}`;
+export function isImagenModelName(value?: string): value is ImagenModelName {
+  return !!value?.startsWith('imagen-');
+}
+
+export function model(
   version: string,
   config: ImagenConfig = {}
 ): ModelReference<typeof ImagenConfigSchema> {
-  const name = version.split('/').at(-1);
-  if (name && KNOWN_IMAGEN_MODELS[name]) {
-    return commonRef(name).withConfig(config);
+  const name = checkModelName(version);
+  if (KNOWN_MODELS[name]) {
+    return KNOWN_MODELS[name].withConfig(config);
   }
   return modelRef({
     name: `vertexai/${name}`,
@@ -229,23 +242,47 @@ export function imagen(
     config,
     configSchema: ImagenConfigSchema,
     info: {
-      ...GENERIC_IMAGEN_MODEL.info,
+      ...GENERIC_MODEL.info,
     },
   });
 }
 
-export function defineImagenModel(
+export function listActions(models: Model[]): ActionMetadata[] {
+  return models
+    .filter((m: Model) => isImagenModelName(modelName(m.name)))
+    .map((m: Model) => {
+      const ref = model(m.name);
+      return modelActionMetadata({
+        name: ref.name,
+        info: ref.info,
+        configSchema: ref.configSchema,
+      });
+    });
+}
+
+export function defineKnownModels(
+  ai: Genkit,
+  clientOptions: ClientOptions,
+  pluginOptions?: VertexPluginOptions
+) {
+  for (const name of Object.keys(KNOWN_MODELS)) {
+    defineModel(ai, name, clientOptions, pluginOptions);
+  }
+}
+
+export function defineModel(
   ai: Genkit,
   name: string,
-  clientOptions: ClientOptions
+  clientOptions: ClientOptions,
+  pluginOptions?: VertexPluginOptions
 ): ModelAction {
-  const model = imagen(name);
+  const ref = model(name);
 
   return ai.defineModel(
     {
-      name: model.name,
-      ...model.info,
-      configSchema: ImagenConfigSchema,
+      name: ref.name,
+      ...ref.info,
+      configSchema: ref.configSchema,
     },
     async (request) => {
       const imagenPredictRequest: ImagenPredictRequest = {
@@ -260,7 +297,7 @@ export function defineImagenModel(
       };
 
       const response = await imagenPredict(
-        name,
+        ref.version as string,
         imagenPredictRequest,
         clientOptions
       );
@@ -323,4 +360,6 @@ function fromImagenPrediction(p: ImagenPrediction, i: number): CandidateData {
 export const TEST_ONLY = {
   toImagenParameters,
   fromImagenPrediction,
+  GENERIC_MODEL,
+  KNOWN_MODELS,
 };

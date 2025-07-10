@@ -120,7 +120,7 @@ export function googleAIPlugin(options?: GoogleAIPluginOptions): GenkitPlugin {
 }
 
 export type GoogleAIPlugin = {
-  (params?: GoogleAIPluginOptions): GenkitPlugin;
+  (pluginOptions?: GoogleAIPluginOptions): GenkitPlugin;
   model(
     name: gemini.KnownGemmaModels | (gemini.GemmaModelName & {}),
     config: gemini.GemmaConfig
