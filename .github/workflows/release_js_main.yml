@@ -28,7 +28,7 @@ on:
           - next
           - latest
 
-permissions: write
+permissions: write-all
 
 jobs:
   build:
