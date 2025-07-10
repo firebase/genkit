@@ -70,6 +70,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
         run: |
+          git log
           # git remote set-url --push origin https://genkit-releaser:$GITHUB_TOKEN@github.com/firebase/genkit
           # git push
           # git push --tags origin
