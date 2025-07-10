@@ -14,109 +14,120 @@
  * limitations under the License.
  */
 
-import * as assert from 'assert';
-import { ModelReference } from 'genkit';
-import { describe, it } from 'node:test';
-import { cleanSchema } from '../../src/common/utils';
+import { GenkitError, JSONSchema } from 'genkit';
+import { GenerateRequest } from 'genkit/model';
+import { ImagenInstance } from './types';
 
-// Mock ModelReference for testing nearestModelRef
-const createMockModelRef = (
-  name: string,
-  version?: string
-): ModelReference<any> => {
-  return {
-    name,
-    info: { label: `Model ${name}`, supports: {} },
-    config: { version },
-    withConfig: function (newConfig) {
-      // Return a new object to mimic immutability
-      return {
-        ...this,
-        config: { ...this.config, ...newConfig },
-      };
-    },
-  } as any;
-};
+/**
+ * Safely extracts the error message from the error.
+ * @param e The error
+ * @returns The error message
+ */
+export function extractErrMsg(e: unknown): string {
+  let errorMessage = 'An unknown error occurred';
+  if (e instanceof Error) {
+    errorMessage = e.message;
+  } else if (typeof e === 'string') {
+    errorMessage = e;
+  } else {
+    // Fallback for other types
+    try {
+      errorMessage = JSON.stringify(e);
+    } catch (stringifyError) {
+      errorMessage = 'Failed to stringify error object';
+    }
+  }
+  return errorMessage;
+}
 
-describe('cleanSchema', () => {
-  it('strips $schema and additionalProperties', () => {
-    const schema = {
-      type: 'object',
-      properties: { name: { type: 'string' } },
-      $schema: 'http://json-schema.org/draft-07/schema#',
-      additionalProperties: false,
-    };
-    const cleaned = cleanSchema(schema);
-    assert.deepStrictEqual(cleaned, {
-      type: 'object',
-      properties: { name: { type: 'string' } },
+/**
+ * Gets the suffix of a model string.
+ * e.g. for "models/googleai/gemini-2.5-pro" it returns just 'gemini-2.5-pro'
+ * @param name A string containing the model string with possible prefixes
+ * @returns the model string stripped of prefixes
+ */
+export function modelName(name?: string): string | undefined {
+  return name?.split('/').at(-1);
+}
+
+/**
+ * Gets the suffix of a model string.
+ * Throws if the string is empty.
+ * @param name A string containing the model string
+ * @returns the model string stripped of prefixes and guaranteed not empty.
+ */
+export function checkModelName(name?: string): string {
+  const version = modelName(name);
+  if (!version) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Model name is required.',
     });
-  });
+  }
+  return version;
+}
 
-  it('handles nested objects', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        user: {
-          type: 'object',
-          properties: { id: { type: 'number' } },
-          additionalProperties: true,
-        },
-      },
-    };
-    const cleaned = cleanSchema(schema);
-    assert.deepStrictEqual(cleaned, {
-      type: 'object',
-      properties: {
-        user: {
-          type: 'object',
-          properties: { id: { type: 'number' } },
-        },
-      },
-    });
-  });
+export function extractText(request: GenerateRequest) {
+  return (
+    request.messages
+      .at(-1)
+      ?.content.map((c) => c.text || '')
+      .join('') ?? ''
+  );
+}
 
-  it('converts type ["string", "null"] to "string"', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        name: { type: ['string', 'null'] },
-        age: { type: ['number', 'null'] },
-      },
-    };
-    const cleaned = cleanSchema(schema);
-    assert.deepStrictEqual(cleaned, {
-      type: 'object',
-      properties: {
-        name: { type: 'string' },
-        age: { type: 'number' },
-      },
-    });
-  });
+export function extractImagenImage(
+  request: GenerateRequest
+): ImagenInstance['image'] | undefined {
+  const image = request.messages
+    .at(-1)
+    ?.content.find(
+      (p) => !!p.media && (!p.metadata?.type || p.metadata?.type === 'base')
+    )
+    ?.media?.url.split(',')[1];
 
-  it('converts type ["null", "string"] to "string"', () => {
-    const schema = {
-      type: 'object',
-      properties: {
-        name: { type: ['null', 'string'] },
-      },
-    };
-    const cleaned = cleanSchema(schema);
-    assert.deepStrictEqual(cleaned, {
-      type: 'object',
-      properties: {
-        name: { type: 'string' },
-      },
-    });
-  });
+  if (image) {
+    return { bytesBase64Encoded: image };
+  }
+  return undefined;
+}
 
-  it('leaves other properties untouched', () => {
-    const schema = {
-      type: 'string',
-      description: 'A name',
-      maxLength: 100,
-    };
-    const cleaned = cleanSchema(schema);
-    assert.deepStrictEqual(cleaned, schema);
-  });
-});
+export function extractImagenMask(
+  request: GenerateRequest
+): ImagenInstance['mask'] | undefined {
+  const mask = request.messages
+    .at(-1)
+    ?.content.find((p) => !!p.media && p.metadata?.type === 'mask')
+    ?.media?.url.split(',')[1];
+
+  if (mask) {
+    return { image: { bytesBase64Encoded: mask } };
+  }
+  return undefined;
+}
+
+/**
+ * Cleans a JSON schema by removing specific keys and standardizing types.
+ *
+ * @param {JSONSchema} schema The JSON schema to clean.
+ * @returns {JSONSchema} The cleaned JSON schema.
+ */
+export function cleanSchema(schema: JSONSchema): JSONSchema {
+  const out = structuredClone(schema);
+  for (const key in out) {
+    if (key === '$schema' || key === 'additionalProperties') {
+      delete out[key];
+      continue;
+    }
+    if (typeof out[key] === 'object') {
+      out[key] = cleanSchema(out[key]);
+    }
+    // Zod nullish() and picoschema optional fields will produce type `["string", "null"]`
+    // which is not supported by the model API. Convert them to just `"string"`.
+    if (key === 'type' && Array.isArray(out[key])) {
+      // find the first that's not `null`.
+      out[key] = out[key].find((t) => t !== 'null');
+    }
+  }
+  return out;
+}

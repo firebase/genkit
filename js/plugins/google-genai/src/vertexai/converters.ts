@@ -33,3 +33,25 @@ export function toGeminiSafetySettings(
     };
   });
 }
+
+export function toGeminiLabels(
+  labels?: Record<string, string>
+): Record<string, string> | undefined {
+  if (!labels) {
+    return undefined;
+  }
+  const keys = Object.keys(labels);
+  const newLabels: Record<string, string> = {};
+  for (const key of keys) {
+    const value = labels[key];
+    if (!key) {
+      continue;
+    }
+    newLabels[key] = value;
+  }
+
+  if (Object.keys(newLabels).length == 0) {
+    return undefined;
+  }
+  return newLabels;
+}
