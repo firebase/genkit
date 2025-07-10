@@ -18,6 +18,16 @@ name: Build CLI Binaries
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to build (e.g., v1.0.0)'
+        required: true
+        type: string
+      upload_to_release:
+        description: 'Upload binaries to GitHub release and update latest tag'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -45,6 +55,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Validate version format
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "Error: Version '$VERSION' does not follow semantic versioning format (e.g., v1.0.0, v1.0.0-beta.1)"
+            exit 1
+          fi
+          echo "✓ Version format is valid: $VERSION"
       
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -254,3 +273,134 @@ jobs:
           
           # Clean up any remaining genkit processes
           Get-Process | Where-Object { $_.ProcessName -match "genkit" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+  create-release:
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    if: inputs.upload_to_release == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous release tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            # Generate changelog from previous tag to current
+            CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD | head -20)
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            # First release
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "- Initial release" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.version }}
+          release_name: Genkit CLI ${{ inputs.version }}
+          body: |
+            # Genkit CLI ${{ inputs.version }}
+            
+            ## Downloads
+            
+            - [Linux x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-linux-x64)
+            - [Linux ARM64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-linux-arm64)
+            - [macOS x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-darwin-x64)
+            - [macOS ARM64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-darwin-arm64)
+            - [Windows x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-win32-x64.exe)
+            
+            ## Changes
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## Installation
+            
+            ```bash
+            TODO: Add installation instructions
+            ```
+          draft: false
+          prerelease: false
+
+  upload-assets:
+    needs: [build, test, create-release]
+    runs-on: ubuntu-latest
+    if: inputs.upload_to_release == 'true'
+    strategy:
+      matrix:
+        include:
+          - target: linux-x64
+          - target: linux-arm64
+          - target: darwin-x64
+          - target: darwin-arm64
+          - target: win32-x64
+    
+    steps:
+      - name: Set binary extension
+        id: binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == win32-* ]]; then
+            echo "ext=.exe" >> $GITHUB_OUTPUT
+          else
+            echo "ext=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: genkit-${{ matrix.target }}
+          path: ./
+      
+      - name: Upload to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
+          asset_name: genkit-${{ matrix.target }}
+          asset_content_type: application/octet-stream
+
+  update-latest-tag:
+    needs: [create-release, upload-assets]
+    runs-on: ubuntu-latest
+    if: inputs.upload_to_release == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update latest tag
+        run: |
+          # Check if latest tag already points to the correct version
+          CURRENT_LATEST=$(git rev-parse latest 2>/dev/null || echo "")
+          TARGET_COMMIT=$(git rev-parse ${{ inputs.version }} 2>/dev/null || echo "")
+          
+          if [[ "$CURRENT_LATEST" == "$TARGET_COMMIT" ]]; then
+            echo "Latest tag already points to ${{ inputs.version }}"
+            exit 0
+          fi
+          
+          # Delete the existing "latest" tag if it exists
+          git tag -d latest 2>/dev/null || true
+          git push origin :refs/tags/latest 2>/dev/null || true
+          
+          # Create new "latest" tag pointing to the release tag
+          git tag latest ${{ inputs.version }}
+          git push origin latest
+          
+          echo "Updated 'latest' tag to point to ${{ inputs.version }}"
