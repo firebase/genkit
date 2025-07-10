@@ -32,6 +32,8 @@ on:
           - next
           - latest
 
+permissions: write
+
 jobs:
   build:
     name: Run build tasks
