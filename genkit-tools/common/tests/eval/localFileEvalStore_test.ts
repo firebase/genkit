@@ -23,13 +23,15 @@ import {
   jest,
 } from '@jest/globals';
 import fs from 'fs';
-import { Readable } from 'stream';
+import * as readline from 'readline';
 import { LocalFileEvalStore } from '../../src/eval/localFileEvalStore';
 import {
   EvalRunSchema,
   type EvalResult,
   type EvalStore,
 } from '../../src/types/eval';
+
+jest.mock('readline');
 
 const EVAL_RESULTS: EvalResult[] = [
   {
@@ -96,24 +98,77 @@ const EVAL_RUN_WITHOUT_ACTION = EvalRunSchema.parse({
   metricMetadata: METRICS_METADATA,
 });
 
-describe('localFileEvalStore', () => {
-  let evalStore: EvalStore;
+jest.mock('process', () => {
+  return {
+    cwd: jest.fn(() => 'store-root'),
+  };
+});
 
-  beforeEach(() => {
-    // For storeRoot setup
-    fs.existsSync = jest.fn(() => true);
-    LocalFileEvalStore.reset();
-    evalStore = LocalFileEvalStore.getEvalStore() as EvalStore;
-  });
+describe.only('localFileEvalStore', () => {
+  let evalStore: EvalStore;
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
+  describe('initialization', () => {
+    it('uses json file by default', async () => {
+      LocalFileEvalStore.reset();
+      jest.spyOn(fs, 'writeFileSync');
+      // txt index does not exists, json index does not exist
+      fs.existsSync = jest.fn(() => false);
+      evalStore = (await LocalFileEvalStore.getEvalStore()) as EvalStore;
+
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('evals/index.json'),
+        expect.anything()
+      );
+    });
+
+    it('migrates to json file if txt is found', async () => {
+      LocalFileEvalStore.reset();
+      jest.spyOn(fs, 'writeFileSync');
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      // txt index does exists, json index does not exist
+      fs.existsSync = jest
+        .fn<(path: fs.PathLike) => boolean>()
+        .mockImplementationOnce(() => true)
+        .mockImplementationOnce(() => false);
+      jest.spyOn(fs, 'createReadStream').mockReturnValue({} as any);
+      (readline.createInterface as jest.Mock).mockImplementationOnce(() => {
+        return [JSON.stringify(EVAL_RUN_WITH_ACTION.key)] as any;
+      });
+      fs.promises.unlink = jest.fn(async () => Promise.resolve(undefined));
+
+      evalStore = (await LocalFileEvalStore.getEvalStore()) as EvalStore;
+
+      expect(fs.promises.unlink).toHaveBeenCalledWith(
+        expect.stringContaining('index.txt')
+      );
+      expect(fs.promises.writeFile).toHaveBeenCalledWith(
+        expect.stringContaining('evals/index.json'),
+        JSON.stringify(
+          { [EVAL_RUN_WITH_ACTION.key.evalRunId]: EVAL_RUN_WITH_ACTION.key },
+          null,
+          2
+        )
+      );
+    });
+  });
+
   describe('save', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      LocalFileEvalStore.reset();
+      fs.existsSync = jest.fn(() => false);
+      evalStore = (await LocalFileEvalStore.getEvalStore()) as EvalStore;
+
+      fs.writeFileSync = jest.fn();
       fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
       fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
+      jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(JSON.stringify({}) as any);
     });
 
     it('writes and updates index for eval run with actionId', async () => {
@@ -123,9 +178,13 @@ describe('localFileEvalStore', () => {
         expect.stringContaining(`evals/abc1234.json`),
         JSON.stringify(EVAL_RUN_WITH_ACTION)
       );
-      expect(fs.promises.appendFile).toHaveBeenCalledWith(
-        expect.stringContaining(`evals/index.txt`),
-        JSON.stringify(EVAL_RUN_WITH_ACTION.key) + '\n'
+      const index = {
+        [EVAL_RUN_WITH_ACTION.key.evalRunId]: EVAL_RUN_WITH_ACTION.key,
+      };
+      expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('evals/index.json'),
+        JSON.stringify(index, null, 2)
       );
     });
 
@@ -136,19 +195,39 @@ describe('localFileEvalStore', () => {
         expect.stringContaining(`evals/def456.json`),
         JSON.stringify(EVAL_RUN_WITHOUT_ACTION)
       );
-      expect(fs.promises.appendFile).toHaveBeenCalledWith(
-        expect.stringContaining(`evals/index.txt`),
-        JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) + '\n'
+      const index = {
+        [EVAL_RUN_WITHOUT_ACTION.key.evalRunId]: EVAL_RUN_WITHOUT_ACTION.key,
+      };
+      expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('evals/index.json'),
+        JSON.stringify(index, null, 2)
       );
     });
   });
 
   describe('load', () => {
-    it('fetches an evalRun file by id with actionId', async () => {
-      fs.existsSync = jest.fn(() => true);
+    beforeEach(async () => {
+      LocalFileEvalStore.reset();
+      fs.existsSync = jest.fn(() => false);
+      evalStore = (await LocalFileEvalStore.getEvalStore()) as EvalStore;
+
+      fs.writeFileSync = jest.fn();
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
       fs.promises.readFile = jest.fn(async () =>
-        Promise.resolve(JSON.stringify(EVAL_RUN_WITH_ACTION) as any)
+        Promise.resolve(JSON.stringify({}) as any)
       );
+    });
+
+    it('fetches an evalRun file by id with actionId', async () => {
+      fs.existsSync = jest
+        .fn<(path: fs.PathLike) => boolean>()
+        .mockReturnValue(true);
+      jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(JSON.stringify(EVAL_RUN_WITH_ACTION) as any);
       const fetchedEvalRun = await evalStore.load(
         EVAL_RUN_WITH_ACTION.key.evalRunId
       );
@@ -156,10 +235,12 @@ describe('localFileEvalStore', () => {
     });
 
     it('fetches an evalRun file by id with no actionId', async () => {
-      fs.existsSync = jest.fn(() => true);
-      fs.promises.readFile = jest.fn(async () =>
-        Promise.resolve(JSON.stringify(EVAL_RUN_WITHOUT_ACTION) as any)
-      );
+      fs.existsSync = jest
+        .fn<(path: fs.PathLike) => boolean>()
+        .mockReturnValueOnce(true);
+      jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(JSON.stringify(EVAL_RUN_WITHOUT_ACTION) as any);
       const fetchedEvalRun = await evalStore.load(
         EVAL_RUN_WITHOUT_ACTION.key.evalRunId
       );
@@ -177,47 +258,60 @@ describe('localFileEvalStore', () => {
   });
 
   describe('delete', () => {
+    beforeEach(async () => {
+      LocalFileEvalStore.reset();
+      fs.existsSync = jest.fn(() => false);
+      evalStore = (await LocalFileEvalStore.getEvalStore()) as EvalStore;
+    });
+
     it('deletes an evalRun file by id', async () => {
       fs.existsSync = jest.fn(() => true);
       fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
       fs.promises.unlink = jest.fn(async () => Promise.resolve(undefined));
-      const mockedReadStream = Readable.from(
-        JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) +
-          '\n' +
-          JSON.stringify(EVAL_RUN_WITH_ACTION.key) +
-          '\n'
-      );
-      fs.createReadStream = jest.fn(() => mockedReadStream as any);
-
-      const response = await evalStore.delete(
-        EVAL_RUN_WITH_ACTION.key.evalRunId
+      jest.spyOn(fs.promises, 'readFile').mockResolvedValue(
+        JSON.stringify({
+          [EVAL_RUN_WITH_ACTION.key.evalRunId]: EVAL_RUN_WITH_ACTION.key,
+          [EVAL_RUN_WITHOUT_ACTION.key.evalRunId]: EVAL_RUN_WITHOUT_ACTION.key,
+        }) as any
       );
 
-      expect(response).toBeUndefined();
+      await evalStore.delete(EVAL_RUN_WITH_ACTION.key.evalRunId);
+
+      expect(fs.promises.unlink).toHaveBeenCalledWith(
+        expect.stringContaining(EVAL_RUN_WITH_ACTION.key.evalRunId)
+      );
+      const index = {
+        [EVAL_RUN_WITHOUT_ACTION.key.evalRunId]: EVAL_RUN_WITHOUT_ACTION.key,
+      };
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
-        expect.stringContaining(`evals/index.txt`),
-        JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) + '\n'
+        expect.stringContaining('evals/index.json'),
+        JSON.stringify(index, null, 2)
       );
     });
 
-    it('returns undefined if file does not exist', async () => {
+    it('does not throw if file does not exist', async () => {
       fs.existsSync = jest.fn(() => false);
+      fs.promises.unlink = jest.fn(async () => Promise.resolve(undefined));
 
-      expect(() =>
-        evalStore.delete(EVAL_RUN_WITH_ACTION.key.evalRunId)
-      ).rejects.toThrow();
+      await evalStore.delete(EVAL_RUN_WITH_ACTION.key.evalRunId);
+      expect(fs.promises.unlink).not.toHaveBeenCalled();
     });
   });
 
   describe('list', () => {
-    const EVAL_KEY_WITH_ACTION =
-      JSON.stringify(EVAL_RUN_WITH_ACTION.key) + '\n';
-    const EVAL_KEY_WITHOUT_ACTION =
-      JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) + '\n';
+    beforeEach(async () => {
+      LocalFileEvalStore.reset();
+      fs.existsSync = jest.fn(() => false);
+      evalStore = (await LocalFileEvalStore.getEvalStore()) as EvalStore;
+    });
 
     it('lists all evalRun keys from file', async () => {
-      fs.promises.readFile = jest.fn(async () =>
-        Promise.resolve((EVAL_KEY_WITH_ACTION + EVAL_KEY_WITHOUT_ACTION) as any)
+      fs.existsSync = jest.fn(() => true);
+      jest.spyOn(fs.promises, 'readFile').mockResolvedValue(
+        JSON.stringify({
+          [EVAL_RUN_WITH_ACTION.key.evalRunId]: EVAL_RUN_WITH_ACTION.key,
+          [EVAL_RUN_WITHOUT_ACTION.key.evalRunId]: EVAL_RUN_WITHOUT_ACTION.key,
+        }) as any
       );
       const fetchedEvalKeys = await evalStore.list();
 
@@ -228,8 +322,12 @@ describe('localFileEvalStore', () => {
     });
 
     it('lists all evalRun keys for a flow', async () => {
-      fs.promises.readFile = jest.fn(async () =>
-        Promise.resolve((EVAL_KEY_WITH_ACTION + EVAL_KEY_WITHOUT_ACTION) as any)
+      fs.existsSync = jest.fn(() => true);
+      jest.spyOn(fs.promises, 'readFile').mockResolvedValue(
+        JSON.stringify({
+          [EVAL_RUN_WITH_ACTION.key.evalRunId]: EVAL_RUN_WITH_ACTION.key,
+          [EVAL_RUN_WITHOUT_ACTION.key.evalRunId]: EVAL_RUN_WITHOUT_ACTION.key,
+        }) as any
       );
 
       const fetchedEvalKeys = await evalStore.list({
@@ -241,7 +339,10 @@ describe('localFileEvalStore', () => {
     });
 
     it('lists all evalRun keys from empty file', async () => {
-      fs.promises.readFile = jest.fn(async () => Promise.resolve('' as any));
+      fs.existsSync = jest.fn(() => true);
+      jest
+        .spyOn(fs.promises, 'readFile')
+        .mockResolvedValue(JSON.stringify({}) as any);
       const fetchedEvalKeys = await evalStore.list();
 
       const expectedKeys = {
