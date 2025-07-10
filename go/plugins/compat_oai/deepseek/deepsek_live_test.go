@@ -25,6 +25,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/firebase/genkit/go/plugins/compat_oai/deepseek"
+	"github.com/openai/openai-go/option"
 )
 
 func TestPlugin(t *testing.T) {
@@ -37,7 +38,9 @@ func TestPlugin(t *testing.T) {
 
 	// Initialize the DeepSeek plugin
 	oai := &deepseek.DeepSeek{
-		APIKey: apiKey,
+		Opts: []option.RequestOption{
+			option.WithAPIKey(apiKey),
+		},
 	}
 	g, err := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("deepseek/deepseek-chat"),
