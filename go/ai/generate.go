@@ -768,6 +768,8 @@ func (c *ModelResponseChunk) Text() string {
 	}
 	var sb strings.Builder
 	for _, p := range c.Content {
+		// IMPORTANT: Include both text and data parts for JSON parsing.
+		// The LLM JSON Mode is usually returned as markdown (text) rather than valid JSON data
 		if p.IsText() || p.IsData() {
 			sb.WriteString(p.Text)
 		}
