@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,16 @@
  * limitations under the License.
  */
 
-import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
-import { createMcpClient } from '@genkit-ai/mcp';
-import { genkit } from 'genkit';
-import { logger } from 'genkit/logging';
-
-logger.setLogLevel('debug');
-
-const everythingClient = createMcpClient({
-  name: 'everything',
-  version: '1.0.0',
-  serverProcess: {
-    command: 'npx',
-    args: ['@modelcontextprotocol/server-everything'],
-  },
-});
-
-const ai = genkit({
-  plugins: [googleAI(), everythingClient],
-  model: gemini15Pro,
-});
+import { SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { GenkitMcpClient, McpClientOptions } from './client.js';
+import { GenkitMcpHost, McpHostOptions } from './host.js';
+export { GenkitMcpClient, GenkitMcpHost };
+export type {
+  McpClientOptions,
+  McpHostOptions,
+  SSEClientTransportOptions,
+  StdioServerParameters,
+  Transport,
+};
