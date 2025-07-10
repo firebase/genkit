@@ -112,7 +112,6 @@ const KNOWN_MODELS = {
   'veo-2.0-generate-001': commonRef('veo-2.0-generate-001'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
-
 export type VeoModelName = `veo-${string}`;
 export function isVeoModelName(value?: string): value is VeoModelName {
   return !!value?.startsWith('veo-');

@@ -159,7 +159,6 @@ describe('GoogleAI Plugin', () => {
     const testImagenModelName = 'imagen-custom';
     const testImagenModelPath = `/model/googleai/${testImagenModelName}`;
     const testVeoModelName = 'veo-custom';
-    // CORRECTED PATH: /background-model/
     const testVeoModelPath = `/background-model/googleai/${testVeoModelName}`;
     const testEmbedderName = 'embedding-custom-001';
     const testEmbedderPath = `/embedder/googleai/${testEmbedderName}`;
