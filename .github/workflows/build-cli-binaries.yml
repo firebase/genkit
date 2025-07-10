@@ -17,9 +17,6 @@
 name: Build CLI Binaries
 
 on:
-  push:
-    branches:
-      - '@invertase/cli-binary'
   workflow_dispatch:
 
 jobs:
