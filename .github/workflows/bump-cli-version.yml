@@ -52,36 +52,8 @@ jobs:
         with:
           node-version: 20.x
           cache: 'pnpm'
-      - name: 'genkit-tools/common version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: genkit-tools/common
+      - name: Bump and Tag
         with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/tools-common version to {{version}}'
-          tag-prefix:  '@genkit-ai/tools-common@'
-      - name: 'genkit-tools/cli version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: genkit-tools/cli
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump genkit-cli version to {{version}}'
-          tag-prefix:  'genkit-cli@'
-      - name: 'genkit-tools/telemetry-server version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: genkit-tools/telemetry-server
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/telemetry-server version to {{version}}'
-          tag-prefix:  '@genkit-ai/telemetry-server@'
+          token: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+        run: |
+          js/scripts/bump_and_tag_cli.sh ${{ inputs.releaseType }} ${{ inputs.preid }}
