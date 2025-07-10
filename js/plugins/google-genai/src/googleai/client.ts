@@ -29,6 +29,8 @@ import {
   ListModelsResponse,
   Model,
   Part,
+  VeoOperation,
+  VeoPredictRequest,
 } from './types';
 
 /**
@@ -172,6 +174,46 @@ export async function imagenPredict(
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<ImagenPredictResponse>;
+}
+
+export async function veoPredict(
+  apiKey: string,
+  model: string,
+  veoPredictRequest: VeoPredictRequest,
+  clientOptions?: ClientOptions
+): Promise<VeoOperation> {
+  const url = getGoogleAIUrl({
+    resourcePath: `models/${model}`,
+    resourceMethod: 'predictLongRunning',
+    clientOptions,
+  });
+
+  const fetchOptions: RequestInit = {
+    method: 'POST',
+    headers: await getHeaders(apiKey, clientOptions),
+    body: JSON.stringify(veoPredictRequest),
+  };
+
+  const response = await makeRequest(url, fetchOptions);
+  return response.json() as Promise<VeoOperation>;
+}
+
+export async function checkVeoOperation(
+  apiKey: string,
+  operation: string,
+  clientOptions?: ClientOptions
+): Promise<VeoOperation> {
+  const url = getGoogleAIUrl({
+    resourcePath: operation,
+    clientOptions,
+  });
+  const fetchOptions: RequestInit = {
+    method: 'GET',
+    headers: await getHeaders(apiKey, clientOptions),
+  };
+
+  const response = await makeRequest(url, fetchOptions);
+  return response.json() as Promise<VeoOperation>;
 }
 
 /**

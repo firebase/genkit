@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { JSONSchema, ModelReference } from 'genkit';
+import { GenkitError, JSONSchema, ModelReference } from 'genkit';
 import { GenerateRequest, GenerationCommonConfigSchema } from 'genkit/model';
 import { ImagenInstance } from './types';
 
@@ -48,6 +48,23 @@ export function extractErrMsg(e: unknown): string {
  */
 export function modelName(name?: string): string | undefined {
   return name?.split('/').at(-1);
+}
+
+/**
+ * Gets the suffix of a model string.
+ * Throws if the string is empty.
+ * @param name A string containing the model string
+ * @returns the model string stripped of prefixes and guaranteed not empty.
+ */
+export function checkModelName(name?: string): string {
+  const version = modelName(name);
+  if (!version) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Model name is required.',
+    });
+  }
+  return version;
 }
 
 export function extractText(request: GenerateRequest) {

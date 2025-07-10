@@ -27,10 +27,17 @@ import {
   GeminiTtsConfigSchema,
   GemmaConfigSchema,
 } from '../../src/googleai/gemini.js';
-import { ImagenConfigSchema } from '../../src/googleai/imagen.js';
+import {
+  TEST_ONLY as IMAGEN_TEST_ONLY,
+  ImagenConfigSchema,
+} from '../../src/googleai/imagen.js';
 import { googleAI } from '../../src/googleai/index.js';
 import { Model } from '../../src/googleai/types.js';
 import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils.js';
+import {
+  TEST_ONLY as VEO_TEST_ONLY,
+  VeoConfigSchema,
+} from '../../src/googleai/veo.js';
 
 describe('GoogleAI Plugin', () => {
   let originalEnv: NodeJS.ProcessEnv;
@@ -67,6 +74,28 @@ describe('GoogleAI Plugin', () => {
       const ai = genkit({ plugins: [googleAI()] });
       for (const modelName in GEMINI_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/model/googleai/${modelName}`;
+        const expectedBaseName = `googleai/${modelName}`;
+        const model = await ai.registry.lookupAction(modelPath);
+        assert.ok(model, `${modelName} should be registered at ${modelPath}`);
+        assert.strictEqual(model?.__action.name, expectedBaseName);
+      }
+    });
+
+    it('should register all known Imagen models', async () => {
+      const ai = genkit({ plugins: [googleAI()] });
+      for (const modelName in IMAGEN_TEST_ONLY.KNOWN_MODELS) {
+        const modelPath = `/model/googleai/${modelName}`;
+        const expectedBaseName = `googleai/${modelName}`;
+        const model = await ai.registry.lookupAction(modelPath);
+        assert.ok(model, `${modelName} should be registered at ${modelPath}`);
+        assert.strictEqual(model?.__action.name, expectedBaseName);
+      }
+    });
+
+    it('should register all known Veo models', async () => {
+      const ai = genkit({ plugins: [googleAI()] });
+      for (const modelName in VEO_TEST_ONLY.KNOWN_MODELS) {
+        const modelPath = `/background-model/googleai/${modelName}`;
         const expectedBaseName = `googleai/${modelName}`;
         const model = await ai.registry.lookupAction(modelPath);
         assert.ok(model, `${modelName} should be registered at ${modelPath}`);
@@ -125,16 +154,50 @@ describe('GoogleAI Plugin', () => {
   });
 
   describe('Resolver via lookupAction', () => {
-    const testModelName = 'gemini-custom-pro';
-    const testModelPath = `/model/googleai/${testModelName}`;
+    const testGeminiModelName = 'gemini-custom-pro';
+    const testGeminiModelPath = `/model/googleai/${testGeminiModelName}`;
+    const testImagenModelName = 'imagen-custom';
+    const testImagenModelPath = `/model/googleai/${testImagenModelName}`;
+    const testVeoModelName = 'veo-custom';
+    // CORRECTED PATH: /background-model/
+    const testVeoModelPath = `/background-model/googleai/${testVeoModelName}`;
     const testEmbedderName = 'embedding-custom-001';
     const testEmbedderPath = `/embedder/googleai/${testEmbedderName}`;
 
     it('should register a new Gemini model when looked up', async () => {
       const ai = genkit({ plugins: [googleAI()] });
-      const model = await ai.registry.lookupAction(testModelPath);
-      assert.ok(model, `${testModelName} should be resolvable and registered`);
-      assert.strictEqual(model?.__action.name, `googleai/${testModelName}`);
+      const model = await ai.registry.lookupAction(testGeminiModelPath);
+      assert.ok(
+        model,
+        `${testGeminiModelName} should be resolvable and registered`
+      );
+      assert.strictEqual(
+        model?.__action.name,
+        `googleai/${testGeminiModelName}`
+      );
+    });
+
+    it('should register a new Imagen model when looked up', async () => {
+      const ai = genkit({ plugins: [googleAI()] });
+      const model = await ai.registry.lookupAction(testImagenModelPath);
+      assert.ok(
+        model,
+        `${testImagenModelName} should be resolvable and registered`
+      );
+      assert.strictEqual(
+        model?.__action.name,
+        `googleai/${testImagenModelName}`
+      );
+    });
+
+    it('should register a new Veo model when looked up', async () => {
+      const ai = genkit({ plugins: [googleAI()] });
+      const model = await ai.registry.lookupAction(testVeoModelPath);
+      assert.ok(
+        model,
+        `${testVeoModelName} should be resolvable and registered`
+      );
+      assert.strictEqual(model?.__action.name, `googleai/${testVeoModelName}`);
     });
 
     it('should register a new Embedder when looked up', async () => {
@@ -256,6 +319,41 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
+    it('should return a Veo model reference with correct schema', () => {
+      const modelRef = googleAI.model('veo-new-model');
+      assert.strictEqual(
+        modelRef.configSchema,
+        VeoConfigSchema,
+        'Should have VeoConfigSchema'
+      );
+      assert.ok(
+        modelRef.info?.supports?.longRunning,
+        'Veo should support longRunning'
+      );
+    });
+
+    it('should have config values for veo model', () => {
+      const modelRef = googleAI.model('veo-new-model', {
+        aspectRatio: '9:16',
+        durationSeconds: 8,
+      });
+      assert.strictEqual(
+        modelRef.configSchema,
+        VeoConfigSchema,
+        'Should have VeoConfigSchema'
+      );
+      assert.strictEqual(
+        modelRef.config?.aspectRatio,
+        '9:16',
+        'should be 9:16'
+      );
+      assert.strictEqual(
+        modelRef.config?.durationSeconds,
+        8,
+        'should be 8 seconds'
+      );
+    });
+
     it('should return a gemini model reference for unknown model names', () => {
       const modelRef = googleAI.model('foo-model');
       assert.strictEqual(
@@ -345,6 +443,14 @@ describe('GoogleAI Plugin', () => {
           supportedGenerationMethods: ['embedContent'],
         },
         {
+          name: 'models/imagen-3.0-generate-002',
+          supportedGenerationMethods: ['predict'],
+        },
+        {
+          name: 'models/veo-2.0-generate-001',
+          supportedGenerationMethods: ['predictLongRunning'],
+        },
+        {
           name: 'models/other-model',
           supportedGenerationMethods: ['other'],
         },
@@ -358,7 +464,12 @@ describe('GoogleAI Plugin', () => {
       const actionNames = actions.map((a) => a.name).sort();
       assert.deepStrictEqual(
         actionNames,
-        ['googleai/gemini-2.5-pro', 'googleai/text-embedding-004'].sort()
+        [
+          'googleai/gemini-2.5-pro',
+          'googleai/imagen-3.0-generate-002',
+          'googleai/text-embedding-004',
+          'googleai/veo-2.0-generate-001',
+        ].sort()
       );
 
       const modelAction = actions.find(
@@ -370,6 +481,16 @@ describe('GoogleAI Plugin', () => {
         (a) => a.name === 'googleai/text-embedding-004'
       );
       assert.strictEqual(embedderAction?.actionType, 'embedder');
+
+      const imagenAction = actions.find(
+        (a) => a.name === 'googleai/imagen-3.0-generate-002'
+      );
+      assert.strictEqual(imagenAction?.actionType, 'model');
+
+      const veoAction = actions.find(
+        (a) => a.name === 'googleai/veo-2.0-generate-001'
+      );
+      assert.strictEqual(veoAction?.actionType, 'model');
     });
 
     it('should filter out deprecated models', async () => {
@@ -382,6 +503,16 @@ describe('GoogleAI Plugin', () => {
         {
           name: 'models/gemini-pro-deprecated',
           supportedGenerationMethods: ['generateContent'],
+          description: 'This model is deprecated.',
+        },
+        {
+          name: 'models/imagen-deprecated',
+          supportedGenerationMethods: ['predict'],
+          description: 'This model is deprecated.',
+        },
+        {
+          name: 'models/veo-deprecated',
+          supportedGenerationMethods: ['predictLongRunning'],
           description: 'This model is deprecated.',
         },
         {
@@ -407,6 +538,7 @@ describe('GoogleAI Plugin', () => {
           status: 500,
           statusText: 'Internal Error',
           json: async () => ({ error: { message: 'API Error' } }),
+          text: async () => JSON.stringify({ error: { message: 'API Error' } }),
         });
       });
       const pluginProvider = googleAI()(ai);

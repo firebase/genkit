@@ -16,7 +16,6 @@
 
 import {
   ActionMetadata,
-  GenkitError,
   MediaPart,
   MessageData,
   modelActionMetadata,
@@ -43,6 +42,7 @@ import type {
 import {
   calculateApiKey,
   checkApiKey,
+  checkModelName,
   extractImagenImage,
   extractText,
   modelName,
@@ -129,13 +129,7 @@ export function model(
   version: string,
   config: ImagenConfig = {}
 ): ModelReference<ConfigSchemaType> {
-  const name = modelName(version);
-  if (!name) {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: 'Not able to create modelReference for empty model version',
-    });
-  }
+  const name = checkModelName(version);
   if (KNOWN_MODELS[name]) {
     return KNOWN_MODELS[name].withConfig(config);
   }

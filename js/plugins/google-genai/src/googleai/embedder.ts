@@ -21,7 +21,6 @@ import {
   EmbedderInfo,
   EmbedderReference,
   Genkit,
-  GenkitError,
   z,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
@@ -32,7 +31,7 @@ import {
   Model,
   TaskTypeSchema,
 } from './types';
-import { calculateApiKey, checkApiKey, modelName } from './utils';
+import { calculateApiKey, checkApiKey, checkModelName } from './utils';
 
 export const EmbeddingConfigSchema = z
   .object({
@@ -92,14 +91,7 @@ export function model(
   version: string,
   config: EmbeddingConfig = {}
 ): EmbedderReference<ConfigSchemaType> {
-  const name = modelName(version);
-  if (!name) {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: 'Not able to create embedderReference for empty model version',
-    });
-  }
-
+  const name = checkModelName(version);
   return embedderRef({
     name: `googleai/${name}`,
     version: name,
