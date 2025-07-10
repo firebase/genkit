@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ModelInfo, modelRef } from 'genkit/model';
+import { ModelInfo, modelRef, ModelReference } from 'genkit/model';
 import { ChatCompletionCommonConfigSchema } from '../model';
 
 /**
@@ -30,55 +30,33 @@ const XAI_LANGUGAGE_MODEL_INFO: ModelInfo = {
   },
 };
 
-const grok3 = modelRef({
-  name: 'xai/grok-3',
-  info: {
-    label: 'xAI - Grok 3',
-    ...XAI_LANGUGAGE_MODEL_INFO,
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
+function commonRef(
+  name: string,
+  info?: ModelInfo
+): ModelReference<typeof ChatCompletionCommonConfigSchema> {
+  return modelRef({
+    name,
+    configSchema: ChatCompletionCommonConfigSchema,
+    info: info ?? XAI_LANGUGAGE_MODEL_INFO,
+  });
+}
 
-const grok3Fast = modelRef({
-  name: 'xai/grok-3-fast',
-  info: {
-    label: 'xAI - Grok 3 Fast',
-    ...XAI_LANGUGAGE_MODEL_INFO,
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
+const grok3 = commonRef('xai/grok-3');
 
-const grok3Mini = modelRef({
-  name: 'xai/grok-3-mini',
-  info: {
-    label: 'xAI - Grok 3 Mini',
-    ...XAI_LANGUGAGE_MODEL_INFO,
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
+const grok3Fast = commonRef('xai/grok-3-fast');
 
-const grok3MiniFast = modelRef({
-  name: 'xai/grok-3-mini-fast',
-  info: {
-    label: 'xAI - Grok 3 Fast',
-    ...XAI_LANGUGAGE_MODEL_INFO,
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
+const grok3Mini = commonRef('xai/grok-3-mini');
 
-const grok2Vision1212 = modelRef({
-  name: 'xai/grok-2-vision-1212',
-  info: {
-    label: 'xAI - Grok 2 Vision 1212',
-    supports: {
-      multiturn: false,
-      tools: true,
-      media: true,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
+const grok3MiniFast = commonRef('xai/grok-3-mini-fast');
+
+const grok2Vision1212 = commonRef('xai/grok-2-vision-1212', {
+  supports: {
+    multiturn: false,
+    tools: true,
+    media: true,
+    systemRole: false,
+    output: ['text', 'json'],
   },
-  configSchema: ChatCompletionCommonConfigSchema,
 });
 
 export const SUPPORTED_LANGUAGE_MODELS = {
