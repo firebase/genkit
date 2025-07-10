@@ -250,7 +250,8 @@ if [[ -z "$MACHINE" ]]; then
 fi
 
 # We have enough information to generate the binary's download URL.
-DOWNLOAD_URL="https://$DOMAIN/bin/$MACHINE/latest"
+# Use GitHub releases with "latest" tag that gets updated by the workflow
+DOWNLOAD_URL="https://github.com/firebase/genkit/releases/download/latest/genkit-$MACHINE"
 echo "-- Downloading binary from $DOWNLOAD_URL"
 
 # We use "curl" to download the binary with a flag set to follow redirects
