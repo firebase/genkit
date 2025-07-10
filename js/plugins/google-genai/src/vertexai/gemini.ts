@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { Genkit, GenkitError, z } from 'genkit';
+import {
+  ActionMetadata,
+  Genkit,
+  GenkitError,
+  modelActionMetadata,
+  z,
+} from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -34,7 +40,7 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters';
-import { cleanSchema, nearestModelRef } from '../common/utils';
+import { checkModelName, cleanSchema, modelName } from '../common/utils';
 import {
   generateContent,
   generateContentStream,
@@ -48,8 +54,10 @@ import {
   GenerateContentResponse,
   GoogleSearchRetrieval,
   GoogleSearchRetrievalTool,
+  Model,
   Tool,
   ToolConfig,
+  VertexPluginOptions,
 } from './types';
 
 export const SafetySettingsSchema = z.object({
@@ -239,7 +247,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     )
     .optional(),
 }).passthrough();
-
+export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
 /**
  * Gemini model configuration options.
  *
@@ -272,18 +280,20 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
  *   }
  * ```
  */
-export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
+export type GeminiConfig = z.infer<GeminiConfigSchemaType>;
 
-// For commonRef. We can add additional schemas here.
-type ConfigSchema = typeof GeminiConfigSchema;
+// This contains all the Gemini config schema types
+type ConfigSchemaType = GeminiConfigSchemaType;
 
 function commonRef(
   name: string,
   info?: ModelInfo,
-  configSchema: ConfigSchema = GeminiConfigSchema
-): ModelReference<ConfigSchema> {
+  configSchema: ConfigSchemaType = GeminiConfigSchema
+): ModelReference<ConfigSchemaType> {
   return modelRef({
     name: `vertexai/${name}`,
+    version: name,
+    configSchema,
     info: info ?? {
       supports: {
         multiturn: true,
@@ -294,13 +304,12 @@ function commonRef(
         constrained: 'no-tools',
       },
     },
-    configSchema,
   });
 }
 
-export const GENERIC_GEMINI_MODEL = commonRef('gemini');
+export const GENERIC_MODEL = commonRef('gemini');
 
-export const KNOWN_GEMINI_MODELS = {
+export const KNOWN_MODELS = {
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
   'gemini-2.0-flash-001': commonRef('gemini-2.0-flash-001'),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
@@ -312,58 +321,75 @@ export const KNOWN_GEMINI_MODELS = {
   'gemini-2.5-pro-preview-03-25': commonRef('gemini-2.5-pro-preview-03-25'),
   'gemini-2.5-flash-preview-04-17': commonRef('gemini-2.5-flash-preview-04-17'),
 } as const;
+export type KnownModels = keyof typeof KNOWN_MODELS;
+export type GeminiModelName = `gemini-${string}`;
+export function isGeminiModelName(value?: string): value is GeminiModelName {
+  return !!value?.startsWith('gemini-') && !value.includes('embedding');
+}
 
-/**
- * Known model names, to allow code completion for convenience. Allows other model names.
- */
-export type GeminiVersionString =
-  | keyof typeof KNOWN_GEMINI_MODELS
-  | (string & {});
-
-/**
- * Returns a reference to a model that can be used in generate calls.
- *
- * ```js
- * await ai.generate({
- *   prompt: 'hi',
- *   model: gemini('gemini-2.5-flash')
- * });
- * ```
- */
-export function gemini(
-  version: GeminiVersionString,
+export function model(
+  version: string,
   options: GeminiConfig = {}
 ): ModelReference<typeof GeminiConfigSchema> {
-  const apiName = version.split('/').at(-1);
-  if (!apiName) {
-    throw new Error('Must specify version');
-  }
-  const nearestModel = nearestModelRef(
-    apiName,
-    KNOWN_GEMINI_MODELS,
-    GENERIC_GEMINI_MODEL
-  );
+  const name = checkModelName(version);
+
   return modelRef({
-    name: `vertexai/${apiName}`,
+    name: `vertexai/${name}`,
+    version: name,
     config: options,
-    configSchema: nearestModel.configSchema,
+    configSchema: GeminiConfigSchema,
     info: {
-      ...nearestModel.info,
+      ...GENERIC_MODEL.info,
     },
   });
 }
+
+export function listActions(models: Model[]): ActionMetadata[] {
+  const KNOWN_DECOMISSIONED_MODELS = [
+    'gemini-pro-vision',
+    'gemini-pro',
+    'gemini-ultra',
+    'gemini-ultra-vision',
+  ];
+
+  return models
+    .filter(
+      (m) =>
+        isGeminiModelName(modelName(m.name)) &&
+        !KNOWN_DECOMISSIONED_MODELS.includes(modelName(m.name) || '')
+    )
+    .map((m) => {
+      const ref = model(m.name);
+      return modelActionMetadata({
+        name: ref.name,
+        info: ref.info,
+        configSchema: ref.configSchema,
+      });
+    });
+}
+
+export function defineKnownModels(
+  ai: Genkit,
+  clientOptions: ClientOptions,
+  pluginOptions?: VertexPluginOptions
+) {
+  for (const name of Object.keys(KNOWN_MODELS)) {
+    defineModel(ai, name, clientOptions, pluginOptions);
+  }
+}
+
 /**
  * Define a Vertex AI Gemini model.
  */
-export function defineGeminiModel(
+export function defineModel(
   ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
-  debugTraces?: boolean
+  pluginOptions?: VertexPluginOptions
 ): ModelAction {
-  const model = gemini(name, {});
+  const ref = model(name);
   const middlewares: ModelMiddleware[] = [];
-  if (model.info?.supports?.media) {
+  if (ref.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middlewares.push(
       downloadRequestMedia({
@@ -387,9 +413,9 @@ export function defineGeminiModel(
 
   return ai.defineModel(
     {
-      name: model.name,
-      ...model.info,
-      configSchema: model.configSchema,
+      name: ref.name,
+      ...ref.info,
+      configSchema: ref.configSchema,
       use: middlewares,
     },
     async (request, sendChunk) => {
@@ -405,9 +431,7 @@ export function defineGeminiModel(
         systemInstruction = toGeminiSystemInstruction(systemMessage);
       }
 
-      const requestConfig = request.config as z.infer<
-        typeof GeminiConfigSchema
-      >;
+      const requestConfig = request.config as GeminiConfig;
 
       const {
         functionCallingConfig,
@@ -454,7 +478,7 @@ export function defineGeminiModel(
 
       if (googleSearchRetrieval) {
         // Gemini 1.5 models use googleSearchRetrieval, newer models use googleSearch.
-        if (model.name.startsWith('vertexai/gemini-1.5')) {
+        if (ref.name.startsWith('vertexai/gemini-1.5')) {
           tools.push({
             googleSearchRetrieval:
               googleSearchRetrieval as GoogleSearchRetrieval,
@@ -493,10 +517,10 @@ export function defineGeminiModel(
         tools,
         toolConfig,
         safetySettings: toGeminiSafetySettings(safetySettings),
-        contents: messages.map((message) => toGeminiMessage(message, model)),
+        contents: messages.map((message) => toGeminiMessage(message, ref)),
       };
 
-      const modelVersion = versionFromConfig || name;
+      const modelVersion = versionFromConfig || (ref.version as string);
 
       if (jsonMode && request.output?.constrained) {
         generateContentRequest.generationConfig!.responseSchema = cleanSchema(
@@ -562,8 +586,8 @@ export function defineGeminiModel(
 
       // If debugTraces is enabled, we wrap the actual model call with a span,
       // add raw API params as for input.
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
-      return debugTraces
+      const msg = toGeminiMessage(messages[messages.length - 1], ref);
+      return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
             ai.registry,
             {
@@ -593,3 +617,5 @@ export function defineGeminiModel(
     }
   );
 }
+
+export const TEST_ONLY = { KNOWN_MODELS };

@@ -29,47 +29,52 @@ import {
   EmbeddingPrediction,
   EmbeddingResult,
   TaskTypeSchema,
+  VertexPluginOptions,
   isMultimodalEmbeddingPrediction,
   isObject,
 } from './types';
+import { checkModelName } from './utils';
 
-export const VertexEmbeddingConfigSchema = z.object({
-  /**
-   * The `task_type` parameter is defined as the intended downstream application
-   * to help the model produce better quality embeddings.
-   **/
-  taskType: TaskTypeSchema.optional(),
-  title: z.string().optional(),
-  location: z.string().optional(),
-  version: z.string().optional(),
-  /**
-   * The `outputDimensionality` parameter allows you to specify the dimensionality of the embedding output.
-   * By default, the model generates embeddings with 768 dimensions.
-   * By selecting a smaller output dimensionality, users can save memory and storage space, leading to more efficient computations.
-   **/
-  outputDimensionality: z.number().min(1).optional(),
-  /**
-   * For newly released embedders this parameter provides a hint for the proper
-   * way to call the embedder. (Multimodal embedders have a different request
-   * structure than non-multimodal embedders).
-   * For well-known embedders, this value will be ignored since we will already
-   * know if it's multimodal or not.
-   */
-  multimodal: z.boolean().optional(),
-});
-
-export type VertexEmbeddingConfig = z.infer<typeof VertexEmbeddingConfigSchema>;
+export const EmbeddingConfigSchema = z
+  .object({
+    /**
+     * The `task_type` parameter is defined as the intended downstream application
+     * to help the model produce better quality embeddings.
+     **/
+    taskType: TaskTypeSchema.optional(),
+    title: z.string().optional(),
+    location: z.string().optional(),
+    version: z.string().optional(),
+    /**
+     * The `outputDimensionality` parameter allows you to specify the dimensionality of the embedding output.
+     * By default, the model generates embeddings with 768 dimensions.
+     * By selecting a smaller output dimensionality, users can save memory and storage space, leading to more efficient computations.
+     **/
+    outputDimensionality: z.number().min(1).optional(),
+    /**
+     * For newly released embedders this parameter provides a hint for the proper
+     * way to call the embedder. (Multimodal embedders have a different request
+     * structure than non-multimodal embedders).
+     * For well-known embedders, this value will be ignored since we will already
+     * know if it's multimodal or not.
+     */
+    multimodal: z.boolean().optional(),
+  })
+  .passthrough();
+export type EmbeddingConfigSchemaType = typeof EmbeddingConfigSchema;
+export type EmbeddingConfig = z.infer<EmbeddingConfigSchemaType>;
 
 // for commonRef
-type ConfigSchema = typeof VertexEmbeddingConfigSchema;
+type ConfigSchemaType = EmbeddingConfigSchemaType;
 
 function commonRef(
   name: string,
-  info?: EmbedderInfo
-): EmbedderReference<ConfigSchema> {
+  info?: EmbedderInfo,
+  configSchema: ConfigSchemaType = EmbeddingConfigSchema
+): EmbedderReference<ConfigSchemaType> {
   return embedderRef({
     name: `vertexai/${name}`,
-    configSchema: VertexEmbeddingConfigSchema,
+    configSchema,
     info: info ?? {
       dimensions: 768,
       supports: {
@@ -79,10 +84,16 @@ function commonRef(
   });
 }
 
-export const KNOWN_EMBEDDER_MODELS: Record<
-  string,
-  EmbedderReference<ConfigSchema>
-> = {
+const GENERIC_TEXT_MODEL = commonRef('text', {
+  dimensions: 3072,
+  supports: { input: ['text'] },
+});
+const GENERIC_MULTIMODAL_MODEL = commonRef('multimodal', {
+  dimensions: 768,
+  supports: { input: ['text', 'image', 'video'] },
+});
+
+export const KNOWN_MODELS = {
   'text-embedding-005': commonRef('text-embedding-005'),
   'text-multilingual-embedding-002': commonRef(
     'text-multilingual-embedding-002'
@@ -97,18 +108,19 @@ export const KNOWN_EMBEDDER_MODELS: Record<
   }),
 } as const;
 
-export function embedder(
+export function model(
   version: string,
-  config: VertexEmbeddingConfig = {}
-): EmbedderReference<ConfigSchema> {
-  const name = version.split('/').at(-1);
-  if (name && KNOWN_EMBEDDER_MODELS[name]) {
+  config: EmbeddingConfig = {}
+): EmbedderReference<ConfigSchemaType> {
+  const name = checkModelName(version);
+  if (KNOWN_MODELS[name]) {
     return embedderRef({
       name: `vertexai/${name}`,
-      configSchema: VertexEmbeddingConfigSchema,
+      version: name,
+      configSchema: EmbeddingConfigSchema,
       config,
       info: {
-        ...KNOWN_EMBEDDER_MODELS[name].info,
+        ...KNOWN_MODELS[name].info,
       },
     });
   }
@@ -116,36 +128,43 @@ export function embedder(
     // Generic multimodal embedder format
     return embedderRef({
       name: `vertexai/${name}`,
-      configSchema: VertexEmbeddingConfigSchema,
+      version: name,
+      configSchema: EmbeddingConfigSchema,
       config,
       info: {
-        dimensions: 768,
-        supports: { input: ['text', 'image', 'video'] },
+        ...GENERIC_MULTIMODAL_MODEL.info,
       },
     });
   }
   // Generic text-only embedder format
   return embedderRef({
     name: `vertexai/${name}`,
-    configSchema: VertexEmbeddingConfigSchema,
+    version: name,
+    configSchema: EmbeddingConfigSchema,
     config,
     info: {
-      dimensions: 3072,
-      supports: { input: ['text'] },
+      ...GENERIC_TEXT_MODEL.info,
     },
   });
 }
 
-export function defineVertexAIEmbedder(
+export function defineKnownModels(
+  ai: Genkit,
+  clientOptions: ClientOptions,
+  pluginOptions?: VertexPluginOptions
+) {
+  for (const name of Object.keys(KNOWN_MODELS)) {
+    defineEmbedder(ai, name, clientOptions, pluginOptions);
+  }
+}
+
+export function defineEmbedder(
   ai: Genkit,
   name: string,
-  clientOptions: ClientOptions
+  clientOptions: ClientOptions,
+  pluginOptions?: VertexPluginOptions
 ): EmbedderAction<any> {
-  const apiModelName = name.startsWith('vertexai/')
-    ? name.substring('vertexai/'.length)
-    : name;
-
-  const ref = embedder(apiModelName);
+  const ref = model(name);
 
   return ai.defineEmbedder(
     {
@@ -153,7 +172,7 @@ export function defineVertexAIEmbedder(
       configSchema: ref.configSchema,
       info: ref.info!,
     },
-    async (input, options?: VertexEmbeddingConfig) => {
+    async (input, options?: EmbeddingConfig) => {
       const embedContentRequest: EmbedContentRequest = {
         instances: input.map((doc: Document) =>
           toEmbeddingInstance(ref, doc, options)
@@ -162,7 +181,7 @@ export function defineVertexAIEmbedder(
       };
 
       const response = await embedContent(
-        apiModelName,
+        ref.version as string,
         embedContentRequest,
         clientOptions
       );
@@ -179,9 +198,9 @@ export function defineVertexAIEmbedder(
 }
 
 function toEmbeddingInstance(
-  embedder: EmbedderReference<ConfigSchema>,
+  embedder: EmbedderReference<ConfigSchemaType>,
   doc: Document,
-  options?: VertexEmbeddingConfig
+  options?: EmbeddingConfig
 ): EmbeddingInstance {
   let instance: EmbeddingInstance;
   if (
@@ -301,7 +320,7 @@ function toEmbeddingResult(prediction: EmbeddingPrediction): EmbeddingResult[] {
 }
 
 function isMultiModalEmbedder(
-  embedder: EmbedderReference<ConfigSchema>
+  embedder: EmbedderReference<ConfigSchemaType>
 ): boolean {
   if (embedder.config?.multimodal) {
     return true;
@@ -309,3 +328,5 @@ function isMultiModalEmbedder(
   const input = embedder.info?.supports?.input || '';
   return (input.includes('text') && input.includes('image')) || false;
 }
+
+export const TEST_ONLY = { KNOWN_MODELS };

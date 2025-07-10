@@ -27,16 +27,16 @@ import {
   mock,
 } from 'node:test';
 import {
-  KNOWN_EMBEDDER_MODELS,
-  VertexEmbeddingConfigSchema,
+  TEST_ONLY as EMBEDDER_TEST_ONLY,
+  EmbeddingConfigSchema,
 } from '../../src/vertexai/embedder.js';
 import {
+  TEST_ONLY as GEMINI_TEST_ONLY,
   GeminiConfigSchema,
-  KNOWN_GEMINI_MODELS,
 } from '../../src/vertexai/gemini.js';
 import {
+  TEST_ONLY as IMAGEN_TEST_ONLY,
   ImagenConfigSchema,
-  KNOWN_IMAGEN_MODELS,
 } from '../../src/vertexai/imagen.js';
 import { vertexAI } from '../../src/vertexai/index.js';
 import { TEST_ONLY as UTILS_TEST_ONLY } from '../../src/vertexai/utils.js';
@@ -59,7 +59,7 @@ describe('VertexAI Plugin', () => {
   describe('Initializer', () => {
     it('should pre-register flagship Gemini models', async () => {
       const ai = genkit({ plugins: [vertexAI()] });
-      const model1Name = Object.keys(KNOWN_GEMINI_MODELS)[0];
+      const model1Name = Object.keys(GEMINI_TEST_ONLY.KNOWN_MODELS)[0];
       const model1Path = `/model/vertexai/${model1Name}`;
       const expectedBaseName = `vertexai/${model1Name}`;
       const model1 = await ai.registry.lookupAction(model1Path);
@@ -69,7 +69,7 @@ describe('VertexAI Plugin', () => {
 
     it('should register all known Gemini models', async () => {
       const ai = genkit({ plugins: [vertexAI()] });
-      for (const modelName in KNOWN_GEMINI_MODELS) {
+      for (const modelName in GEMINI_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/model/vertexai/${modelName}`;
         const expectedBaseName = `vertexai/${modelName}`;
         const model = await ai.registry.lookupAction(modelPath);
@@ -80,7 +80,7 @@ describe('VertexAI Plugin', () => {
 
     it('should pre-register flagship Imagen models', async () => {
       const ai = genkit({ plugins: [vertexAI()] });
-      const modelKeys = Object.keys(KNOWN_IMAGEN_MODELS);
+      const modelKeys = Object.keys(IMAGEN_TEST_ONLY.KNOWN_MODELS);
       if (modelKeys.length > 0) {
         const model1Name = modelKeys[0];
         const model1Path = `/model/vertexai/${model1Name}`;
@@ -96,7 +96,7 @@ describe('VertexAI Plugin', () => {
 
     it('should register all known Imagen models', async () => {
       const ai = genkit({ plugins: [vertexAI()] });
-      for (const modelName in KNOWN_IMAGEN_MODELS) {
+      for (const modelName in IMAGEN_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/model/vertexai/${modelName}`;
         const expectedBaseName = `vertexai/${modelName}`;
         const model = await ai.registry.lookupAction(modelPath);
@@ -107,7 +107,7 @@ describe('VertexAI Plugin', () => {
 
     it('should pre-register flagship Embedder models', async () => {
       const ai = genkit({ plugins: [vertexAI()] });
-      const modelKeys = Object.keys(KNOWN_EMBEDDER_MODELS);
+      const modelKeys = Object.keys(EMBEDDER_TEST_ONLY.KNOWN_MODELS);
       if (modelKeys.length > 0) {
         const model1Name = modelKeys[0];
         const model1Path = `/embedder/vertexai/${model1Name}`;
@@ -123,7 +123,7 @@ describe('VertexAI Plugin', () => {
 
     it('should register all known Embedder models', async () => {
       const ai = genkit({ plugins: [vertexAI()] });
-      for (const modelName in KNOWN_EMBEDDER_MODELS) {
+      for (const modelName in EMBEDDER_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/embedder/vertexai/${modelName}`;
         const expectedBaseName = `vertexai/${modelName}`;
         const model = await ai.registry.lookupAction(modelPath);
@@ -234,7 +234,7 @@ describe('VertexAI Plugin', () => {
       assert.ok(embedderRef.info, 'Should have info');
       assert.strictEqual(
         embedderRef.configSchema,
-        VertexEmbeddingConfigSchema,
+        EmbeddingConfigSchema,
         'Should have VertexEmbeddingConfigSchema'
       );
     });
@@ -315,7 +315,7 @@ describe('VertexAI Plugin', () => {
 
     it('should filter out embedding models from gemini results', async () => {
       const mockModels = [
-        { name: 'publishers/google/models/gemini-1.0-pro' },
+        { name: 'publishers/google/models/gemini-2.0-pro' },
         { name: 'publishers/google/models/gemini-embedding-001' },
       ];
       fetchMock.mock.mockImplementation(async () =>
@@ -324,7 +324,7 @@ describe('VertexAI Plugin', () => {
       const pluginProvider = vertexAI()(ai);
       const actions = await pluginProvider.listActions!();
       const actionNames = actions.map((a) => a.name);
-      assert.deepStrictEqual(actionNames, ['vertexai/gemini-1.0-pro']);
+      assert.deepStrictEqual(actionNames, ['vertexai/gemini-2.0-pro']);
     });
 
     it('should handle fetch errors gracefully', async () => {
