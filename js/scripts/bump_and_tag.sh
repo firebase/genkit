@@ -11,12 +11,11 @@ PACKAGE_NAME=$2
 RELEASE_TYPE=$3
 PREID="${4:-rc}"
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-
 # import bump_version script
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . $SCRIPT_DIR/bump_version.sh
 
-COMMIT_MSG="chore: CLI version bump$NEWLINE$NEWLINE"
+COMMIT_MSG="chore: $PACKAGE_NAME version bump$NEWLINE$NEWLINE"
 
 bump_version $PACKAGE_PATH $PACKAGE_NAME
 

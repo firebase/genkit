@@ -9,9 +9,8 @@ set -x
 RELEASE_TYPE=$1
 PREID="${2:-rc}"
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-
 # import bump_version script
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . $SCRIPT_DIR/bump_version.sh
 
 COMMIT_MSG="chore: JS version bump$NEWLINE$NEWLINE"
