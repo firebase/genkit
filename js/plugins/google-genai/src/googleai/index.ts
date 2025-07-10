@@ -57,14 +57,18 @@ async function resolver(
 ) {
   switch (actionType) {
     case 'model':
-    case 'background-model':
       if (veo.isVeoModelName(actionName)) {
-        veo.defineModel(ai, actionName, options);
+        // no-op (not gemini)
       } else if (imagen.isImagenModelName(actionName)) {
         imagen.defineModel(ai, actionName, options);
       } else {
         // gemini, tts, gemma, unknown models
         gemini.defineModel(ai, actionName, options);
+      }
+      break;
+    case 'background-model':
+      if (veo.isVeoModelName(actionName)) {
+        veo.defineModel(ai, actionName, options);
       }
       break;
     case 'embedder':
