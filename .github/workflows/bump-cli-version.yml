@@ -55,6 +55,12 @@ jobs:
           node-version: 20.x
           cache: 'pnpm'
 
+      - name: Setup
+        shell: bash
+        run: |
+          git config --global user.email "genkit-releaser@google.com"
+          git config --global user.name "genkit-releaser"
+
       - name: Bump and Tag
         run: |
           js/scripts/bump_and_tag_cli.sh ${{ inputs.releaseType }} ${{ inputs.preid }}
