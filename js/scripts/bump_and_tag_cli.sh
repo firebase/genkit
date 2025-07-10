@@ -16,7 +16,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 COMMIT_MSG="chore: CLI version bump$NEWLINE$NEWLINE"
 
 bump_version genkit-tools/common @genkit-ai/tools-common
-bump_version genkit-tools/telemetry-server @genkit-ai/tools-common
+bump_version genkit-tools/telemetry-server @genkit-ai/telemetry-server
 bump_version genkit-tools/cli genkit-cli
 
 commit_and_tag
