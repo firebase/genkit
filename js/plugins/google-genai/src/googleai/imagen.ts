@@ -116,6 +116,12 @@ const GENERIC_MODEL = commonRef('imagen', {
 
 const KNOWN_MODELS = {
   'imagen-3.0-generate-002': commonRef('imagen-3.0-generate-002'),
+  'imagen-4.0-generate-preview-06-06': commonRef(
+    'imagen-4.0-generate-preview-06-06'
+  ),
+  'imagen-4.0-ultra-generate-preview-06-06': commonRef(
+    'imagen-4.0-ultra-generate-preview-06-06'
+  ),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 

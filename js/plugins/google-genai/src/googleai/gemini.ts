@@ -299,15 +299,19 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
-  'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
-  'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
-  'gemini-2.0-pro-exp-02-05': commonRef('gemini-2.0-pro-exp-02-05'),
-  'gemini-2.0-flash-exp': commonRef('gemini-2.0-flash-exp'),
-  'gemini-2.5-pro-exp-03-25': commonRef('gemini-2.5-pro-exp-03-25'),
-  'gemini-2.5-pro-preview-03-25': commonRef('gemini-2.5-pro-preview-03-25'),
-  'gemini-2.5-flash-preview-04-17': commonRef('gemini-2.5-flash-preview-04-17'),
-  'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
+  'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
+  'gemini-2.5-flash-lite-preview-06-17': commonRef(
+    'gemini-2.5-flash-lite-preview-06-17'
+  ),
+  'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
+  'gemini-2.0-flash-preview-image-generation': commonRef(
+    'gemini-2.0-flash-preview-image-generation'
+  ),
+  'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
+  'gemini-1.5-flash': commonRef('gemini-1.5-flash'),
+  'gemini-1.5-flash-8b': commonRef('gemini-1.5-flash-8b'),
+  'gemini-1.5-pro': commonRef('gemini-1.5-pro'),
 };
 export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
 export type GeminiModelName = `gemini-${string}`;

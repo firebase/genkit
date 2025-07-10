@@ -79,11 +79,9 @@ function commonRef(
 
 const GENERIC_MODEL = commonRef('embedder');
 
-// TODO(ifielker): Update embedders to be current models.
-// (textEmbeddingGecko001 is outdated).
-
 const KNOWN_MODELS = {
   'text-embedding-004': commonRef('text-embedding-004'),
+  'gemini-embedding-exp': commonRef('gemini-embedding-exp'),
 };
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
