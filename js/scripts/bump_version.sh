@@ -35,6 +35,7 @@ bump_version() {
 }
 
 commit_and_tag() {
+    git status
     git commit -a -m "$COMMIT_MSG"
 
     for TAG in "${TAGS[@]}"
