@@ -91,15 +91,10 @@ export class RuntimeManager {
   }
 
   /**
-   * Lists all active runtimes.
+   * Lists all active runtimes
    */
-  listRuntimes(): Record<string, RuntimeInfo> {
-    return Object.fromEntries(
-      Object.values(this.filenameToRuntimeMap).map((runtime) => [
-        runtime.id,
-        runtime,
-      ])
-    );
+  listRuntimes(): RuntimeInfo[] {
+    return Object.values(this.filenameToRuntimeMap);
   }
 
   /**

@@ -46,198 +46,31 @@ jobs:
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+
       - uses: pnpm/action-setup@v3
+
       - name: Set up node v20
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
           cache: 'pnpm'
-      # bump core libs
-      - name: 'js/core version bump'
-        uses: 'phips28/gh-action-bump-version@master'
+
+      - name: Setup
+        shell: bash
+        run: |
+          git config --global user.email "genkit-releaser@google.com"
+          git config --global user.name "genkit-releaser"
+
+      - name: Bump and Tag
+        run: |
+          js/scripts/bump_and_tag_js.sh ${{ inputs.releaseType }} ${{ inputs.preid }}
+
+      - name: Push
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/core
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/core version to {{version}}'
-          tag-prefix:  '@genkit-ai/core@'
-      - name: 'js/ai version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/ai
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/ai version to {{version}}'
-          tag-prefix:  '@genkit-ai/ai@'
-      - name: 'js/genkit version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/genkit
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump genkit version to {{version}}'
-          tag-prefix:  'genkit@'
-      # bump plugins
-      - name: 'js/plugins/chroma version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/chroma
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump genkitx-chromadb version to {{version}}'
-          tag-prefix:  'genkitx-chromadb@'
-      - name: 'js/plugins/dev-local-vectorstore version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/dev-local-vectorstore
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/dev-local-vectorstore version to {{version}}'
-          tag-prefix:  '@genkit-ai/dev-local-vectorstore@'
-      - name: 'js/plugins/evaluators version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/evaluators
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/evaluator version to {{version}}'
-          tag-prefix:  '@genkit-ai/evaluator@'
-      - name: 'js/plugins/firebase version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/firebase
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/firebase version to {{version}}'
-          tag-prefix:  '@genkit-ai/firebase@'
-      - name: 'js/plugins/google-cloud version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/google-cloud
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/google-cloud version to {{version}}'
-          tag-prefix:  '@genkit-ai/google-cloud@'
-      - name: 'js/plugins/googleai version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/googleai
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/googleai version to {{version}}'
-          tag-prefix:  '@genkit-ai/googleai@'
-      - name: 'js/plugins/langchain version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/langchain
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump genkitx-langchain version to {{version}}'
-          tag-prefix:  'genkitx-langchain@'
-      - name: 'js/plugins/next version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/next
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/next version to {{version}}'
-          tag-prefix:  '@genkit-ai/next@'
-      - name: 'js/plugins/ollama version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/ollama
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump genkitx-ollama version to {{version}}'
-          tag-prefix:  'genkitx-ollama@'
-      - name: 'js/plugins/pinecone version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/pinecone
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump genkitx-pinecone version to {{version}}'
-          tag-prefix:  'genkitx-pinecone@'
-      - name: 'js/plugins/vertexai version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/vertexai
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/vertexai version to {{version}}'
-          tag-prefix:  '@genkit-ai/vertexai@'
-      - name: 'js/plugins/checks version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/checks
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/checks version to {{version}}'
-          tag-prefix:  '@genkit-ai/checks@'
-      - name: 'js/plugins/mcp version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/mcp
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/mcp version to {{version}}'
-          tag-prefix:  '@genkit-ai/mcp@'
-      - name: 'js/plugins/express version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/express
-        with:
-          default: ${{ inputs.releaseType }}
-          version-type: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/express version to {{version}}'
-          tag-prefix:  '@genkit-ai/express@'
+        run: |
+          git log --tags --decorate
+          git remote set-url --push origin https://genkit-releaser:$GITHUB_TOKEN@github.com/firebase/genkit
+          git push
+          git push --tags origin

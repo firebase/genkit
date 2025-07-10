@@ -59,7 +59,7 @@ import {
   Tool,
   ToolConfig,
 } from './types';
-import { calculateApiKey, checkApiKey, modelName } from './utils';
+import { calculateApiKey, checkApiKey, checkModelName } from './utils';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
@@ -298,14 +298,28 @@ const GENERIC_GEMMA_MODEL = commonRef(
   GemmaConfigSchema
 );
 
-const KNOWN_MODELS = {
+const KNOWN_GEMINI_MODELS = {
+  'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
+  'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
+  'gemini-2.5-flash-lite-preview-06-17': commonRef(
+    'gemini-2.5-flash-lite-preview-06-17'
+  ),
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
+  'gemini-2.0-flash-preview-image-generation': commonRef(
+    'gemini-2.0-flash-preview-image-generation'
+  ),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
-  'gemini-2.0-pro-exp-02-05': commonRef('gemini-2.0-pro-exp-02-05'),
-  'gemini-2.0-flash-exp': commonRef('gemini-2.0-flash-exp'),
-  'gemini-2.5-pro-exp-03-25': commonRef('gemini-2.5-pro-exp-03-25'),
-  'gemini-2.5-pro-preview-03-25': commonRef('gemini-2.5-pro-preview-03-25'),
-  'gemini-2.5-flash-preview-04-17': commonRef('gemini-2.5-flash-preview-04-17'),
+  'gemini-1.5-flash': commonRef('gemini-1.5-flash'),
+  'gemini-1.5-flash-8b': commonRef('gemini-1.5-flash-8b'),
+  'gemini-1.5-pro': commonRef('gemini-1.5-pro'),
+};
+export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
+export type GeminiModelName = `gemini-${string}`;
+export function isGeminiModelName(value: string): value is GeminiModelName {
+  return value.startsWith('gemini-') && !value.endsWith('-tts');
+}
+
+const KNOWN_TTS_MODELS = {
   'gemini-2.5-flash-preview-tts': commonRef(
     'gemini-2.5-flash-preview-tts',
     { ...GENERIC_TTS_MODEL.info },
@@ -316,36 +330,37 @@ const KNOWN_MODELS = {
     { ...GENERIC_TTS_MODEL.info },
     GeminiTtsConfigSchema
   ),
+};
+export type KnownTtsModels = keyof typeof KNOWN_TTS_MODELS;
+export type TTSModelName = `gemini-${string}-tts`;
+export function isTTSModelName(value: string): value is TTSModelName {
+  return value.startsWith('gemini-') && value.endsWith('-tts');
+}
+
+const KNOWN_GEMMA_MODELS = {
   'gemma-3-12b-it': commonRef('gemma-3-12b-it', undefined, GemmaConfigSchema),
   'gemma-3-1b-it': commonRef('gemma-3-1b-it', undefined, GemmaConfigSchema),
   'gemma-3-27b-it': commonRef('gemma-3-27b-it', undefined, GemmaConfigSchema),
   'gemma-3-4b-it': commonRef('gemma-3-4b-it', undefined, GemmaConfigSchema),
   'gemma-3n-e4b-it': commonRef('gemma-3n-e4b-it', undefined, GemmaConfigSchema),
 } as const;
-export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
-
-// For conditional types in index.ts model()
-export type TTSModelName = `gemini-${string}-tts`;
-export function isTTSModelName(value: string): value is TTSModelName {
-  return value.startsWith('gemini-') && value.endsWith('-tts');
-}
-
+export type KnownGemmaModels = keyof typeof KNOWN_GEMMA_MODELS;
 export type GemmaModelName = `gemma-${string}`;
 export function isGemmaModelName(value: string): value is GemmaModelName {
   return value.startsWith('gemma-');
 }
 
+const KNOWN_MODELS = {
+  ...KNOWN_GEMINI_MODELS,
+  ...KNOWN_TTS_MODELS,
+  ...KNOWN_GEMMA_MODELS,
+};
+
 export function model(
   version: string,
-  config: GeminiConfig | GeminiTtsConfig = {}
+  config: GeminiConfig | GeminiTtsConfig | GemmaConfig = {}
 ): ModelReference<ConfigSchemaType> {
-  const name = modelName(version);
-  if (!name) {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: 'Not able to create modelReference for empty model version',
-    });
-  }
+  const name = checkModelName(version);
 
   if (isTTSModelName(name)) {
     return modelRef({
@@ -411,6 +426,10 @@ export function defineModel(
 ): ModelAction {
   checkApiKey(pluginOptions?.apiKey);
   const ref = model(name);
+  const clientOptions: ClientOptions = {
+    apiVersion: pluginOptions?.apiVersion,
+    baseUrl: pluginOptions?.baseUrl,
+  };
 
   const middleware: ModelMiddleware[] = [];
   if (ref.info?.supports?.media) {
@@ -447,11 +466,6 @@ export function defineModel(
       use: middleware,
     },
     async (request, sendChunk) => {
-      const clientOptions: ClientOptions = {
-        apiVersion: pluginOptions?.apiVersion,
-        baseUrl: pluginOptions?.baseUrl,
-      };
-
       // Make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
       if (messages.length === 0) throw new Error('No messages provided.');

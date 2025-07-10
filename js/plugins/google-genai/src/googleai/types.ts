@@ -160,3 +160,39 @@ export interface EmbedContentResponse {
 export interface ContentEmbedding {
   values: number[];
 }
+
+export declare interface VeoPredictRequest {
+  instances: VeoInstance[];
+  parameters: VeoParameters;
+}
+
+export declare interface VeoParameters {
+  negativePrompt?: string;
+  aspectRatio?: string;
+  personGeneration?: string;
+  durationSeconds?: number;
+  enhancePrompt?: boolean;
+}
+
+export declare interface VeoInstance {
+  prompt: string;
+  image?: VeoImage;
+}
+
+export declare interface VeoImage {
+  bytesBase64Encoded: string;
+  mimeType: string;
+}
+
+export declare interface VeoOperation {
+  name: string;
+  done?: boolean;
+  error?: {
+    message: string;
+  };
+  response?: {
+    generateVideoResponse: {
+      generatedSamples: { video: { uri: string } }[];
+    };
+  };
+}

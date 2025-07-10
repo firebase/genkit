@@ -280,12 +280,23 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
     }),
 
     /**
-     * Get the current active Genkit Runtime. Useful for one-off requests.
-     * Currently used by the Dev UI to "poll", since IDX cannot support SSE
-     * at this time.
+     * Get the current active Genkit Runtime.
+     *
+     * Currently used by the Dev UI to "poll", since IDX cannot support SSE at
+     * this time.
      */
     getCurrentRuntime: t.procedure.query(() => {
       return manager.getMostRecentRuntime() ?? ({} as RuntimeInfo);
+    }),
+
+    /**
+     * Get all active Genkit Runtimes.
+     *
+     * Currently used by the Dev UI to "poll", since IDX cannot support SSE at
+     * this time.
+     */
+    getActiveRuntimes: t.procedure.query(() => {
+      return manager.listRuntimes();
     }),
   });
 

@@ -17,14 +17,14 @@
 import * as assert from 'assert';
 import { Genkit, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
-import { AsyncLocalStorage } from 'node:async_hooks'; // Import AsyncLocalStorage
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { FinishReason } from '../../src/common/types';
 import {
   GeminiConfigSchema,
-  defineGeminiModel,
-  gemini,
+  defineModel,
+  model,
 } from '../../src/vertexai/gemini';
 import {
   ClientOptions,
@@ -137,7 +137,7 @@ describe('Vertex AI Gemini', () => {
   describe('gemini() function', () => {
     it('returns a ModelReference for a known model string', () => {
       const name = 'gemini-2.0-flash';
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = gemini(name);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -145,7 +145,7 @@ describe('Vertex AI Gemini', () => {
 
     it('returns a ModelReference for an unknown model string', () => {
       const name = 'gemini-new-model';
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = gemini(name);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn); // Defaults to generic
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -153,7 +153,7 @@ describe('Vertex AI Gemini', () => {
 
     it('applies options to the ModelReference', () => {
       const options = { temperature: 0.9, topK: 20 };
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = gemini(
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(
         'gemini-2.0-flash',
         options
       );
@@ -163,21 +163,21 @@ describe('Vertex AI Gemini', () => {
 
   describe('defineGeminiModel', () => {
     it('defines a model with the correct name', () => {
-      defineGeminiModel(mockGenkit, 'gemini-2.0-flash', defaultClientOptions);
+      defineModel(mockGenkit, 'gemini-2.0-flash', defaultClientOptions);
       sinon.assert.calledOnce(mockGenkit.defineModel);
       const args = mockGenkit.defineModel.lastCall.args[0];
       assert.strictEqual(args.name, 'vertexai/gemini-2.0-flash');
     });
 
     it('defines a model with a custom name', () => {
-      defineGeminiModel(mockGenkit, 'my-custom-gemini', defaultClientOptions);
+      defineModel(mockGenkit, 'my-custom-gemini', defaultClientOptions);
       const args = mockGenkit.defineModel.lastCall.args[0];
       assert.strictEqual(args.name, 'vertexai/my-custom-gemini');
     });
 
     describe('Model Action Callback', () => {
       beforeEach(() => {
-        defineGeminiModel(mockGenkit, 'gemini-2.5-flash', defaultClientOptions);
+        defineModel(mockGenkit, 'gemini-2.5-flash', defaultClientOptions);
       });
 
       it('throws if no messages are provided', async () => {
@@ -312,7 +312,7 @@ describe('Vertex AI Gemini', () => {
       });
 
       it('handles googleSearchRetrieval tool for gemini-1.5', async () => {
-        defineGeminiModel(mockGenkit, 'gemini-1.5-pro', defaultClientOptions);
+        defineModel(mockGenkit, 'gemini-1.5-pro', defaultClientOptions);
         mockFetchResponse(defaultApiResponse);
         const request: GenerateRequest<typeof GeminiConfigSchema> = {
           ...minimalRequest,
@@ -437,12 +437,10 @@ describe('Vertex AI Gemini', () => {
 
     describe('Debug Traces', () => {
       it('API call works with debugTraces: true', async () => {
-        defineGeminiModel(
-          mockGenkit,
-          'gemini-2.5-flash',
-          defaultClientOptions,
-          true // debugTraces
-        );
+        defineModel(mockGenkit, 'gemini-2.5-flash', defaultClientOptions, {
+          location: 'us-central1',
+          experimental_debugTraces: true,
+        });
         mockFetchResponse(defaultApiResponse);
 
         await assert.doesNotReject(modelActionCallback(minimalRequest));
@@ -450,12 +448,10 @@ describe('Vertex AI Gemini', () => {
       });
 
       it('API call works without extra logging with debugTraces: false', async () => {
-        defineGeminiModel(
-          mockGenkit,
-          'gemini-2.0-flash',
-          defaultClientOptions,
-          false // debugTraces
-        );
+        defineModel(mockGenkit, 'gemini-2.0-flash', defaultClientOptions, {
+          location: 'us-central1',
+          experimental_debugTraces: false,
+        });
         mockFetchResponse(defaultApiResponse);
 
         await assert.doesNotReject(modelActionCallback(minimalRequest));

@@ -17,6 +17,7 @@
 
 import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
 import { openAI } from '@genkit-ai/compat-oai/openai';
+import { xAI } from '@genkit-ai/compat-oai/xai';
 import { startFlowServer } from '@genkit-ai/express';
 import dotenv from 'dotenv';
 import { genkit, z } from 'genkit';
@@ -24,7 +25,11 @@ import { genkit, z } from 'genkit';
 dotenv.config();
 
 const ai = genkit({
-  plugins: [openAI(), deepSeek({ apiKey: process.env['DEEPSEEK_API_KEY'] })],
+  plugins: [
+    openAI(),
+    deepSeek({ apiKey: process.env['DEEPSEEK_API_KEY'] }),
+    xAI({ apiKey: process.env['XAI_API_KEY'] }),
+  ],
 });
 
 export const jokeFlow = ai.defineFlow(
