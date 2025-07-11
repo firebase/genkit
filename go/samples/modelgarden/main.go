@@ -43,7 +43,7 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
 			ai.WithConfig(&anthropic.MessageNewParams{
-				Temperature: 1.0,
+				Temperature: anthropic.Float(1.0),
 			}),
 			ai.WithPrompt(`Tell a short joke about %s`, input))
 		if err != nil {
