@@ -66,7 +66,7 @@ ai.defineResource(
     name: 'file',
     template: 'file://{path}',
   },
-  async ({uri}) => {
+  async ({ uri }) => {
     return {
       content: [
         {
