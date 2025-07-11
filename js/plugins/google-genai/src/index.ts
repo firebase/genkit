@@ -14,5 +14,12 @@
  * limitations under the License.
  */
 
-export { googleAI } from './googleai';
+export {
+  googleAI,
+  type EmbeddingConfig,
+  type GeminiConfig,
+  type GeminiTtsConfig,
+  type GoogleAIPluginOptions,
+  type ImagenConfig,
+} from './googleai';
 export { vertexAI } from './vertexai';

@@ -482,6 +482,40 @@ export const gemini25ProPreviewTts = modelRef({
   configSchema: GeminiTtsConfigSchema,
 });
 
+export const gemini25Pro = modelRef({
+  name: 'googleai/gemini-2.5-pro',
+  info: {
+    label: 'Google AI - Gemini 2.5 Pro',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25Flash = modelRef({
+  name: 'googleai/gemini-2.5-flash',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemma312bit = modelRef({
   name: 'googleai/gemma-3-12b-it',
   info: {
@@ -580,6 +614,8 @@ export const SUPPORTED_GEMINI_MODELS = {
   'gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
   'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
+  'gemini-2.5-flash': gemini25Flash,
+  'gemini-2.5-pro': gemini25Pro,
   'gemma-3-12b-it': gemma312bit,
   'gemma-3-1b-it': gemma31bit,
   'gemma-3-27b-it': gemma327bit,

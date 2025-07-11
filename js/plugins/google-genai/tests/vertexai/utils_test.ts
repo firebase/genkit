@@ -19,7 +19,7 @@ import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-import { PluginOptions } from '../../src/vertexai/types';
+import { VertexPluginOptions } from '../../src/vertexai/types';
 import {
   extractImagenImage,
   extractImagenMask,
@@ -69,7 +69,7 @@ describe('getDerivedOptions', () => {
   });
 
   it('should use options for projectId and location', async () => {
-    const pluginOptions: PluginOptions = {
+    const pluginOptions: VertexPluginOptions = {
       projectId: 'options-project',
       location: 'options-location',
     };
@@ -118,7 +118,7 @@ describe('getDerivedOptions', () => {
   it('should prioritize options over env vars', async () => {
     process.env.GCLOUD_PROJECT = 'env-project';
     process.env.GCLOUD_LOCATION = 'env-location';
-    const pluginOptions: PluginOptions = {
+    const pluginOptions: VertexPluginOptions = {
       projectId: 'options-project',
       location: 'options-location',
     };

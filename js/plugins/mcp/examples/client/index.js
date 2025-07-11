@@ -15,13 +15,13 @@
  */
 
 import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
+import { createMcpClient } from '@genkit-ai/mcp';
 import { genkit } from 'genkit';
 import { logger } from 'genkit/logging';
-import { mcpClient } from 'genkitx-mcp';
 
 logger.setLogLevel('debug');
 
-const everythingClient = mcpClient({
+const everythingClient = createMcpClient({
   name: 'everything',
   version: '1.0.0',
   serverProcess: {
