@@ -33,8 +33,7 @@ import (
 )
 
 const (
-	MaxNumberOfTokens = 8192
-	ToolNameRegex     = `^[a-zA-Z0-9_-]{1,64}$`
+	ToolNameRegex = `^[a-zA-Z0-9_-]{1,64}$`
 )
 
 func DefineModel(g *genkit.Genkit, client anthropic.Client, provider, name string, info ai.ModelInfo) ai.Model {

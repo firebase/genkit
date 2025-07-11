@@ -27,13 +27,12 @@ import (
 
 func TestAnthropic(t *testing.T) {
 	req := &ai.ModelRequest{
-		Config: &ai.GenerationCommonConfig{
-			MaxOutputTokens: MaxNumberOfTokens,
-			Temperature:     0.5,
-			TopK:            2,
-			TopP:            1,
-			Version:         "claude-version-3",
-			StopSequences:   []string{"tool_use"},
+		Config: &anthropic.MessageNewParams{
+			MaxTokens:     *anthropic.IntPtr(1024),
+			Temperature:   anthropic.Float(0.5),
+			TopK:          anthropic.Int(2),
+			TopP:          anthropic.Float(1.0),
+			StopSequences: []string{"tool_use"},
 		},
 		Messages: []*ai.Message{
 			ai.NewSystemTextMessage("greet the user"),
