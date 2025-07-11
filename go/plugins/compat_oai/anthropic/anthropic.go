@@ -28,61 +28,59 @@ const (
 	baseURL  = "https://api.anthropic.com/v1"
 )
 
-var (
-	// Supported models: https://docs.anthropic.com/en/docs/about-claude/models/all-models
-	supportedModels = map[string]ai.ModelInfo{
-		"claude-3-7-sonnet-20250219": {
-			Label: "Claude 3.7 Sonnet",
-			Supports: &ai.ModelSupports{
-				Multiturn:  true,
-				Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
-				SystemRole: true,
-				Media:      true,
-			},
-			Versions: []string{"claude-3-7-sonnet-latest", "claude-3-7-sonnet-20250219"},
+// Supported models: https://docs.anthropic.com/en/docs/about-claude/models/all-models
+var supportedModels = map[string]ai.ModelInfo{
+	"claude-3-7-sonnet-20250219": {
+		Label: "Claude 3.7 Sonnet",
+		Supports: &ai.ModelSupports{
+			Multiturn:  true,
+			Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
+			SystemRole: true,
+			Media:      true,
 		},
-		"claude-3-5-haiku-20241022": {
-			Label: "Claude 3.5 Haiku",
-			Supports: &ai.ModelSupports{
-				Multiturn:  true,
-				Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
-				SystemRole: true,
-				Media:      true,
-			},
-			Versions: []string{"claude-3-5-haiku-latest", "claude-3-5-haiku-20241022"},
+		Versions: []string{"claude-3-7-sonnet-latest", "claude-3-7-sonnet-20250219"},
+	},
+	"claude-3-5-haiku-20241022": {
+		Label: "Claude 3.5 Haiku",
+		Supports: &ai.ModelSupports{
+			Multiturn:  true,
+			Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
+			SystemRole: true,
+			Media:      true,
 		},
-		"claude-3-5-sonnet-20240620": {
-			Label: "Claude 3.5 Sonnet",
-			Supports: &ai.ModelSupports{
-				Multiturn:  true,
-				Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
-				SystemRole: false, // NOTE: This model does not support system role
-				Media:      true,
-			},
-			Versions: []string{"claude-3-5-sonnet-20240620"},
+		Versions: []string{"claude-3-5-haiku-latest", "claude-3-5-haiku-20241022"},
+	},
+	"claude-3-5-sonnet-20240620": {
+		Label: "Claude 3.5 Sonnet",
+		Supports: &ai.ModelSupports{
+			Multiturn:  true,
+			Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
+			SystemRole: false, // NOTE: This model does not support system role
+			Media:      true,
 		},
-		"claude-3-opus-20240229": {
-			Label: "Claude 3 Opus",
-			Supports: &ai.ModelSupports{
-				Multiturn:  true,
-				Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
-				SystemRole: false, // NOTE: This model does not support system role
-				Media:      true,
-			},
-			Versions: []string{"claude-3-opus-latest", "claude-3-opus-20240229"},
+		Versions: []string{"claude-3-5-sonnet-20240620"},
+	},
+	"claude-3-opus-20240229": {
+		Label: "Claude 3 Opus",
+		Supports: &ai.ModelSupports{
+			Multiturn:  true,
+			Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
+			SystemRole: false, // NOTE: This model does not support system role
+			Media:      true,
 		},
-		"claude-3-haiku-20240307": {
-			Label: "Claude 3 Haiku",
-			Supports: &ai.ModelSupports{
-				Multiturn:  true,
-				Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
-				SystemRole: false, // NOTE: This model does not support system role
-				Media:      true,
-			},
-			Versions: []string{"claude-3-haiku-20240307"},
+		Versions: []string{"claude-3-opus-latest", "claude-3-opus-20240229"},
+	},
+	"claude-3-haiku-20240307": {
+		Label: "Claude 3 Haiku",
+		Supports: &ai.ModelSupports{
+			Multiturn:  true,
+			Tools:      false, // NOTE: Anthropic supports tool use, but it's not compatible with the OpenAI API
+			SystemRole: false, // NOTE: This model does not support system role
+			Media:      true,
 		},
-	}
-)
+		Versions: []string{"claude-3-haiku-20240307"},
+	},
+}
 
 type Anthropic struct {
 	Opts             []option.RequestOption

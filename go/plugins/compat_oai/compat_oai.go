@@ -25,7 +25,6 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/openai/openai-go"
-	openaiGo "github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
 
@@ -59,7 +58,7 @@ type OpenAICompatible struct {
 
 	// client is the OpenAI client used for making API requests
 	// see https://github.com/openai/openai-go
-	client *openaiGo.Client
+	client *openai.Client
 
 	// Opts contains request options for the OpenAI client.
 	// Required: Must include at least WithAPIKey for authentication.
@@ -81,8 +80,8 @@ func (o *OpenAICompatible) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	// create client
-	client := openaiGo.NewClient(o.Opts...)
-	o.client = client
+	client := openai.NewClient(o.Opts...)
+	o.client = &client
 	o.initted = true
 
 	return nil
@@ -110,7 +109,7 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, 
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
 		// Configure the response generator with input
-		generator := NewModelGenerator(o.client, modelName).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools, input.ToolChoice)
+		generator := NewModelGenerator(o.client, modelName).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools)
 
 		// Generate response
 		resp, err := generator.Generate(ctx, cb)
@@ -131,17 +130,17 @@ func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name strin
 	}
 
 	return genkit.DefineEmbedder(g, provider, name, embedOpts, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
-		var data openaiGo.EmbeddingNewParamsInputArrayOfStrings
+		var data openai.EmbeddingNewParamsInputUnion
 		for _, doc := range input.Input {
 			for _, p := range doc.Content {
-				data = append(data, p.Text)
+				data.OfArrayOfStrings = append(data.OfArrayOfStrings, p.Text)
 			}
 		}
 
-		params := openaiGo.EmbeddingNewParams{
-			Input:          openaiGo.F[openaiGo.EmbeddingNewParamsInputUnion](data),
-			Model:          openaiGo.F(name),
-			EncodingFormat: openaiGo.F(openaiGo.EmbeddingNewParamsEncodingFormatFloat),
+		params := openai.EmbeddingNewParams{
+			Input:          openai.EmbeddingNewParamsInputUnion(data),
+			Model:          name,
+			EncodingFormat: openai.EmbeddingNewParamsEncodingFormatFloat,
 		}
 
 		embeddingResp, err := o.client.Embeddings.New(ctx, params)

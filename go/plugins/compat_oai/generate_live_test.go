@@ -18,12 +18,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
-	openaiClient "github.com/openai/openai-go"
+	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,14 +38,12 @@ func setupTestClient(t *testing.T) *compat_oai.ModelGenerator {
 		t.Skip("Skipping test: OPENAI_API_KEY environment variable not set")
 	}
 
-	client := openaiClient.NewClient(option.WithAPIKey(apiKey))
-	return compat_oai.NewModelGenerator(client, defaultModel)
+	client := openai.NewClient(option.WithAPIKey(apiKey))
+	return compat_oai.NewModelGenerator(&client, defaultModel)
 }
 
 func TestGenerator_Complete(t *testing.T) {
 	g := setupTestClient(t)
-
-	// define case with user and model messages
 	messages := []*ai.Message{
 		{
 			Role: ai.RoleUser,
@@ -67,13 +66,14 @@ func TestGenerator_Complete(t *testing.T) {
 	}
 
 	resp, err := g.WithMessages(messages).Generate(context.Background(), nil)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp.Message.Content)
-	assert.Equal(t, ai.RoleModel, resp.Message.Role)
-
-	t.Log("\n=== Simple Completion Response ===")
-	for _, part := range resp.Message.Content {
-		t.Logf("Content: %s", part.Text)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp.Message.Content) == 0 {
+		t.Error("empty messages content, got 0")
+	}
+	if resp.Message.Role != ai.RoleModel {
+		t.Errorf("unexpected role, got: %q, want: %q", resp.Message.Role, ai.RoleModel)
 	}
 }
 
@@ -98,17 +98,24 @@ func TestGenerator_Stream(t *testing.T) {
 	}
 
 	_, err := g.WithMessages(messages).Generate(context.Background(), handleChunk)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, chunks)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(chunks) == 0 {
+		t.Error("expecting stream chunks, got: 0")
+	}
 
 	// Verify we got the full response
 	fullText := strings.Join(chunks, "")
-	assert.Contains(t, fullText, "1")
-	assert.Contains(t, fullText, "2")
-	assert.Contains(t, fullText, "3")
-
-	t.Log("\n=== Full Streaming Response ===")
-	t.Log(strings.Join(chunks, ""))
+	if !strings.Contains(fullText, "1") {
+		t.Errorf("expecting chunk to contain: \"1\", got: %q", fullText)
+	}
+	if !strings.Contains(fullText, "2") {
+		t.Errorf("expecting chunk to contain: \"2\", got: %q", fullText)
+	}
+	if !strings.Contains(fullText, "3") {
+		t.Errorf("expecting chunk to contain: \"3\", got: %q", fullText)
+	}
 }
 
 func TestWithConfig(t *testing.T) {
@@ -116,77 +123,94 @@ func TestWithConfig(t *testing.T) {
 		name     string
 		config   any
 		err      error
-		validate func(*testing.T, *openaiClient.ChatCompletionNewParams)
+		validate func(*testing.T, *openai.ChatCompletionNewParams)
 	}{
 		{
 			name:   "nil config",
 			config: nil,
-			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
-				// For nil config, we expect all fields to be unset (not nil, but with Present=false)
-				assert.False(t, request.Temperature.Present)
-				assert.False(t, request.MaxCompletionTokens.Present)
-				assert.False(t, request.TopP.Present)
-				assert.False(t, request.Stop.Present)
+			validate: func(t *testing.T, request *openai.ChatCompletionNewParams) {
+				// For nil config, we expect config fields to be unset (not nil, but with its zero value)
+				if request.Temperature.Value != 0 {
+					t.Errorf("expecting empty in temperature, got: %v", request.Temperature.Value)
+				}
+				if request.MaxCompletionTokens.Value != 0 {
+					t.Errorf("expecting empty max completion tokens, got: %v", request.MaxCompletionTokens.Value)
+				}
+				if request.TopP.Value != 0 {
+					t.Errorf("expecting empty in topP, got: %v", request.TopP.Value)
+				}
+				if len(request.Stop.OfStringArray) != 0 {
+					t.Errorf("expecting empty stop reasons, got: %v", request.Stop)
+				}
 			},
 		},
 		{
 			name:   "empty openai config",
-			config: compat_oai.OpenAIConfig{},
-			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
-				// For empty config, we expect all fields to be unset
-				assert.False(t, request.Temperature.Present)
-				assert.False(t, request.MaxCompletionTokens.Present)
-				assert.False(t, request.TopP.Present)
-				assert.False(t, request.Stop.Present)
+			config: openai.ChatCompletionNewParams{},
+			validate: func(t *testing.T, request *openai.ChatCompletionNewParams) {
+				if request.Temperature.Value != 0 {
+					t.Errorf("expecting empty in temperature, got: %v", request.Temperature.Value)
+				}
+				if request.MaxCompletionTokens.Value != 0 {
+					t.Errorf("expecting empty max completion tokens, got: %v", request.MaxCompletionTokens.Value)
+				}
+				if request.TopP.Value != 0 {
+					t.Errorf("expecting empty in topP, got: %v", request.TopP.Value)
+				}
+				if len(request.Stop.OfStringArray) != 0 {
+					t.Errorf("expecting empty stop reasons, got: %v", request.Stop)
+				}
 			},
 		},
 		{
 			name: "valid config with all supported fields",
-			config: compat_oai.OpenAIConfig{
-				Temperature:     0.7,
-				MaxOutputTokens: 100,
-				TopP:            0.9,
-				StopSequences:   []string{"stop1", "stop2"},
+			config: openai.ChatCompletionNewParams{
+				Temperature:         openai.Float(0.7),
+				MaxCompletionTokens: openai.Int(100),
+				TopP:                openai.Float(0.9),
+				Stop: openai.ChatCompletionNewParamsStopUnion{
+					OfStringArray: []string{"stop1", "stop2"},
+				},
 			},
-			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
+			validate: func(t *testing.T, request *openai.ChatCompletionNewParams) {
 				// Check that fields are present and have correct values
-				assert.True(t, request.Temperature.Present)
-				assert.Equal(t, float64(0.7), request.Temperature.Value)
-
-				assert.True(t, request.MaxCompletionTokens.Present)
-				assert.Equal(t, int64(100), request.MaxCompletionTokens.Value)
-
-				assert.True(t, request.TopP.Present)
-				assert.Equal(t, float64(0.9), request.TopP.Value)
-
-				assert.True(t, request.Stop.Present)
-				stopArray, ok := request.Stop.Value.(openaiClient.ChatCompletionNewParamsStopArray)
-				assert.True(t, ok)
-				assert.Equal(t, openaiClient.ChatCompletionNewParamsStopArray{"stop1", "stop2"}, stopArray)
+				stopReasons := []string{"stop1, stop2"}
+				if request.Temperature.Value != 0.7 {
+					t.Errorf("expecting empty in temperature, got: %v", request.Temperature.Value)
+				}
+				if request.MaxCompletionTokens.Value != 100 {
+					t.Errorf("expecting empty max completion tokens, got: %v", request.MaxCompletionTokens.Value)
+				}
+				if request.TopP.Value != 0.9 {
+					t.Errorf("expecting empty in topP, got: %v", request.TopP.Value)
+				}
+				if slices.Equal(request.Stop.OfStringArray, stopReasons) {
+					t.Errorf("diff in stop reasons, got: %v, want: %v", request.Stop.OfStringArray, stopReasons)
+				}
 			},
 		},
 		{
 			name: "valid config as map",
 			config: map[string]any{
-				"temperature":       0.7,
-				"max_output_tokens": 100,
-				"top_p":             0.9,
-				"stop_sequences":    []string{"stop1", "stop2"},
+				"temperature":           0.7,
+				"max_completion_tokens": 100,
+				"top_p":                 0.9,
+				"stop":                  []string{"stop1", "stop2"},
 			},
-			validate: func(t *testing.T, request *openaiClient.ChatCompletionNewParams) {
-				assert.True(t, request.Temperature.Present)
-				assert.Equal(t, float64(0.7), request.Temperature.Value)
-
-				assert.True(t, request.MaxCompletionTokens.Present)
-				assert.Equal(t, int64(100), request.MaxCompletionTokens.Value)
-
-				assert.True(t, request.TopP.Present)
-				assert.Equal(t, float64(0.9), request.TopP.Value)
-
-				assert.True(t, request.Stop.Present)
-				stopArray, ok := request.Stop.Value.(openaiClient.ChatCompletionNewParamsStopArray)
-				assert.True(t, ok)
-				assert.Equal(t, openaiClient.ChatCompletionNewParamsStopArray{"stop1", "stop2"}, stopArray)
+			validate: func(t *testing.T, request *openai.ChatCompletionNewParams) {
+				stopReasons := []string{"stop1, stop2"}
+				if request.Temperature.Value != 0.7 {
+					t.Errorf("expecting empty in temperature, got: %v", request.Temperature.Value)
+				}
+				if request.MaxCompletionTokens.Value != 100 {
+					t.Errorf("expecting empty max completion tokens, got: %v", request.MaxCompletionTokens.Value)
+				}
+				if request.TopP.Value != 0.9 {
+					t.Errorf("expecting empty in topP, got: %v", request.TopP.Value)
+				}
+				if slices.Equal(request.Stop.OfStringArray, stopReasons) {
+					t.Errorf("diff in stop reasons, got: %v, want: %v", request.Stop.OfStringArray, stopReasons)
+				}
 			},
 		},
 		{
