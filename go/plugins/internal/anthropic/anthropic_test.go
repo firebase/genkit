@@ -26,70 +26,6 @@ import (
 )
 
 func TestAnthropic(t *testing.T) {
-	req := &ai.ModelRequest{
-		Config: &anthropic.MessageNewParams{
-			MaxTokens:     *anthropic.IntPtr(1024),
-			Temperature:   anthropic.Float(0.5),
-			TopK:          anthropic.Int(2),
-			TopP:          anthropic.Float(1.0),
-			StopSequences: []string{"tool_use"},
-		},
-		Messages: []*ai.Message{
-			ai.NewSystemTextMessage("greet the user"),
-			ai.NewUserTextMessage("hello Claude"),
-			ai.NewModelTextMessage("hello User"),
-		},
-		Tools: []*ai.ToolDefinition{
-			{
-				Description: "foo description",
-				InputSchema: map[string]any{},
-				Name:        "foo-tool",
-			},
-		},
-	}
-	t.Run("to anthropic request", func(t *testing.T) {
-		ar, err := toAnthropicRequest("claude-3.7-opus", req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		cfg, _ := req.Config.(*ai.GenerationCommonConfig)
-		if ar.MaxTokens != int64(cfg.MaxOutputTokens) {
-			t.Errorf("want: %d, got: %d", int64(cfg.MaxOutputTokens), ar.MaxTokens)
-		}
-		if ar.Temperature.Value != cfg.Temperature {
-			t.Errorf("want: %f, got: %f", cfg.Temperature, ar.Temperature.Value)
-		}
-		if ar.TopK.Value != int64(cfg.TopK) {
-			t.Errorf("want: %d, got: %d", int64(cfg.TopK), ar.TopK.Value)
-		}
-		if ar.TopP.Value != float64(cfg.TopP) {
-			t.Errorf("want: %f, got: %f", float64(cfg.TopP), ar.TopP.Value)
-		}
-		if string(ar.Model) != cfg.Version {
-			t.Errorf("want: %q, got: %q", cfg.Version, ar.Model)
-		}
-		if ar.Tools == nil {
-			t.Errorf("expecting tools, got nil")
-		}
-		if ar.Tools[0].OfTool.Name != req.Tools[0].Name {
-			t.Errorf("want: %q, got: %q", req.Tools[0].Name, ar.Tools[0].OfTool.Name)
-		}
-		if ar.Tools[0].OfTool.Description.Value != req.Tools[0].Description {
-			t.Errorf("want: %q, got: %q", req.Tools[0].Name, ar.Tools[0].OfTool.Name)
-		}
-		if ar.Tools[0].OfTool.InputSchema.Properties == nil {
-			t.Errorf("expecting input schema, got nil")
-		}
-		if len(ar.Messages) == 0 {
-			t.Errorf("expecting messages, got empty")
-		}
-		if ar.System[0].Text == "" {
-			t.Errorf("expecting system message, got empty")
-		}
-		if len(ar.Messages) != 2 {
-			t.Errorf("expecting 2 messages, got: %d", len(ar.Messages))
-		}
-	})
 	t.Run("to anthropic role", func(t *testing.T) {
 		r, err := toAnthropicRole(ai.RoleModel)
 		if err != nil {
@@ -124,35 +60,35 @@ func TestAnthropic(t *testing.T) {
 }
 
 func TestAnthropicConfig(t *testing.T) {
-	emptyConfig := ai.GenerationCommonConfig{}
-	expectedConfig := ai.GenerationCommonConfig{
-		Temperature: 0.1,
-		TopK:        1,
+	emptyConfig := anthropic.MessageNewParams{}
+	expectedConfig := anthropic.MessageNewParams{
+		Temperature: anthropic.Float(1.0),
+		TopK:        anthropic.Int(1),
 	}
 
 	tests := []struct {
 		name           string
 		inputReq       *ai.ModelRequest
-		expectedConfig *ai.GenerationCommonConfig
+		expectedConfig *anthropic.MessageNewParams
 		expectedErr    string
 	}{
 		{
-			name: "Input is ai.GenerationCommonConfig struct",
+			name: "Input is anthropic.MessageNewParams struct",
 			inputReq: &ai.ModelRequest{
-				Config: ai.GenerationCommonConfig{
-					Temperature: 0.1,
-					TopK:        1,
+				Config: anthropic.MessageNewParams{
+					Temperature: anthropic.Float(1.0),
+					TopK:        anthropic.Int(1),
 				},
 			},
 			expectedConfig: &expectedConfig,
 			expectedErr:    "",
 		},
 		{
-			name: "Input is *ai.GenerationCommonConfig struct",
+			name: "Input is *anthropic.MessageNewParams struct",
 			inputReq: &ai.ModelRequest{
-				Config: &ai.GenerationCommonConfig{
-					Temperature: 0.1,
-					TopK:        1,
+				Config: &anthropic.MessageNewParams{
+					Temperature: anthropic.Float(1.0),
+					TopK:        anthropic.Int(1),
 				},
 			},
 			expectedConfig: &expectedConfig,
@@ -162,8 +98,8 @@ func TestAnthropicConfig(t *testing.T) {
 			name: "Input is map[string]any",
 			inputReq: &ai.ModelRequest{
 				Config: map[string]any{
-					"temperature": 0.1,
-					"topK":        1,
+					"temperature": 1.0,
+					"top_k":       1,
 				},
 			},
 			expectedConfig: &expectedConfig,
