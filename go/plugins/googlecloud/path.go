@@ -31,6 +31,7 @@ type PathTelemetry struct {
 	// Match exact metric names from JS implementation (note: uses feature namespace)
 	pathCounter   *MetricCounter   // genkit/feature/path/requests
 	pathLatencies *MetricHistogram // genkit/feature/path/latency
+	cloudLogger   CloudLogger      // For structured logging to Google Cloud
 }
 
 // NewPathTelemetry creates a new path telemetry module with required metrics
@@ -47,7 +48,13 @@ func NewPathTelemetry() *PathTelemetry {
 			Description: "Latencies per flow path.",
 			Unit:        "ms",
 		}),
+		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
 	}
+}
+
+// SetCloudLogger implements the Telemetry interface
+func (p *PathTelemetry) SetCloudLogger(logger CloudLogger) {
+	p.cloudLogger = logger
 }
 
 // Tick processes a span for path telemetry, matching the JavaScript implementation pattern

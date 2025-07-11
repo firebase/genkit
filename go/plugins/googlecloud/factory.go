@@ -80,9 +80,10 @@ func DefaultTelemetryConfig() *TelemetryConfig {
 
 // TelemetryManager manages all telemetry modules and provides easy configuration
 type TelemetryManager struct {
-	config   *TelemetryConfig
-	modules  []Telemetry
-	exporter *enhancedTraceExporter
+	config      *TelemetryConfig
+	modules     []Telemetry
+	exporter    *enhancedTraceExporter
+	cloudLogger CloudLogger
 }
 
 // NewTelemetryManager creates a new telemetry manager with the specified configuration
@@ -91,9 +92,23 @@ func NewTelemetryManager(config *TelemetryConfig) *TelemetryManager {
 		config = DefaultTelemetryConfig()
 	}
 
+	// Create CloudLogger for structured logging to Google Cloud
+	var cloudLogger CloudLogger
+	if config.ProjectID != "" && shouldExportTelemetry(config.ForceExport) {
+		if logger, err := NewCloudLogger(config.ProjectID); err != nil {
+			slog.Warn("Failed to create CloudLogger, using no-op", "error", err)
+			cloudLogger = NewNoOpCloudLogger()
+		} else {
+			cloudLogger = logger
+		}
+	} else {
+		cloudLogger = NewNoOpCloudLogger()
+	}
+
 	manager := &TelemetryManager{
-		config:  config,
-		modules: make([]Telemetry, 0, 5),
+		config:      config,
+		modules:     make([]Telemetry, 0, 5),
+		cloudLogger: cloudLogger,
 	}
 
 	// Auto-create enabled modules
@@ -105,27 +120,37 @@ func NewTelemetryManager(config *TelemetryConfig) *TelemetryManager {
 // setupModules automatically creates and registers enabled telemetry modules
 func (tm *TelemetryManager) setupModules() {
 	if tm.config.EnableGenerate {
-		tm.modules = append(tm.modules, NewGenerateTelemetry())
+		module := NewGenerateTelemetry()
+		module.SetCloudLogger(tm.cloudLogger)
+		tm.modules = append(tm.modules, module)
 		slog.Debug("Enabled generate telemetry module")
 	}
 
 	if tm.config.EnableFeature {
-		tm.modules = append(tm.modules, NewFeatureTelemetry())
+		module := NewFeatureTelemetry()
+		module.SetCloudLogger(tm.cloudLogger)
+		tm.modules = append(tm.modules, module)
 		slog.Debug("Enabled feature telemetry module")
 	}
 
 	if tm.config.EnableAction {
-		tm.modules = append(tm.modules, NewActionTelemetry())
+		module := NewActionTelemetry()
+		module.SetCloudLogger(tm.cloudLogger)
+		tm.modules = append(tm.modules, module)
 		slog.Debug("Enabled action telemetry module")
 	}
 
 	if tm.config.EnableEngagement {
-		tm.modules = append(tm.modules, NewEngagementTelemetry())
+		module := NewEngagementTelemetry()
+		module.SetCloudLogger(tm.cloudLogger)
+		tm.modules = append(tm.modules, module)
 		slog.Debug("Enabled engagement telemetry module")
 	}
 
 	if tm.config.EnablePath {
-		tm.modules = append(tm.modules, NewPathTelemetry())
+		module := NewPathTelemetry()
+		module.SetCloudLogger(tm.cloudLogger)
+		tm.modules = append(tm.modules, module)
 		slog.Debug("Enabled path telemetry module")
 	}
 

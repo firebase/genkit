@@ -31,6 +31,7 @@ type FeatureTelemetry struct {
 	// Match exact metric names from JS implementation
 	featureCounter   *MetricCounter   // genkit/feature/requests
 	featureLatencies *MetricHistogram // genkit/feature/latency
+	cloudLogger      CloudLogger      // For structured logging to Google Cloud
 }
 
 // NewFeatureTelemetry creates a new feature telemetry module with required metrics
@@ -47,7 +48,13 @@ func NewFeatureTelemetry() *FeatureTelemetry {
 			Description: "Latencies when calling Genkit features.",
 			Unit:        "ms",
 		}),
+		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
 	}
+}
+
+// SetCloudLogger implements the Telemetry interface
+func (f *FeatureTelemetry) SetCloudLogger(logger CloudLogger) {
+	f.cloudLogger = logger
 }
 
 // Tick processes a span for feature telemetry, matching the JavaScript implementation pattern

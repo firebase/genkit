@@ -25,6 +25,7 @@ import (
 // This matches the tick pattern from the JavaScript implementation
 type Telemetry interface {
 	Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string)
+	SetCloudLogger(logger CloudLogger)
 }
 
 // SharedDimensions contains common metric dimensions used across telemetry modules

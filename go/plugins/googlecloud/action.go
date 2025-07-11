@@ -27,11 +27,19 @@ import (
 // This matches the JavaScript action.ts implementation
 type ActionTelemetry struct {
 	// Note: Unlike generate and feature telemetry, action telemetry only does logging, no metrics
+	cloudLogger CloudLogger // For structured logging to Google Cloud
 }
 
 // NewActionTelemetry creates a new action telemetry module
 func NewActionTelemetry() *ActionTelemetry {
-	return &ActionTelemetry{}
+	return &ActionTelemetry{
+		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
+	}
+}
+
+// SetCloudLogger implements the Telemetry interface
+func (a *ActionTelemetry) SetCloudLogger(logger CloudLogger) {
+	a.cloudLogger = logger
 }
 
 // Tick processes a span for action telemetry, matching the JavaScript implementation pattern

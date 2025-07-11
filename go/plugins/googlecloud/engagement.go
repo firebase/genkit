@@ -31,6 +31,7 @@ type EngagementTelemetry struct {
 	// Match exact metric names from JS implementation
 	feedbackCounter   *MetricCounter // genkit/engagement/feedback
 	acceptanceCounter *MetricCounter // genkit/engagement/acceptance
+	cloudLogger       CloudLogger    // For structured logging to Google Cloud
 }
 
 // NewEngagementTelemetry creates a new engagement telemetry module with required metrics
@@ -47,7 +48,13 @@ func NewEngagementTelemetry() *EngagementTelemetry {
 			Description: "Tracks unique flow paths per flow.",
 			Unit:        "1",
 		}),
+		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
 	}
+}
+
+// SetCloudLogger implements the Telemetry interface
+func (e *EngagementTelemetry) SetCloudLogger(logger CloudLogger) {
+	e.cloudLogger = logger
 }
 
 // Tick processes a span for engagement telemetry, matching the JavaScript implementation pattern

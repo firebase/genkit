@@ -17,6 +17,7 @@
 package googlecloud
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -41,6 +42,7 @@ type GenerateTelemetry struct {
 	outputCharacters *MetricCounter   // genkit/ai/generate/output/characters
 	outputTokens     *MetricCounter   // genkit/ai/generate/output/tokens
 	outputImages     *MetricCounter   // genkit/ai/generate/output/images
+	cloudLogger      CloudLogger      // For structured logging to Google Cloud
 }
 
 // NewGenerateTelemetry creates a new generate telemetry module with all required metrics
@@ -81,7 +83,13 @@ func NewGenerateTelemetry() *GenerateTelemetry {
 			Description: "Count output images from a Genkit model.",
 			Unit:        "1",
 		}),
+		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
 	}
+}
+
+// SetCloudLogger implements the Telemetry interface
+func (g *GenerateTelemetry) SetCloudLogger(logger CloudLogger) {
+	g.cloudLogger = logger
 }
 
 // Tick processes a span for generate telemetry, matching the JavaScript implementation pattern
@@ -138,6 +146,25 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 
 	// Extract feature name (from flow context or path)
 	featureName := truncate(g.extractFeatureName(attributes, path))
+
+	// Extract session and thread info
+	sessionId := extractStringAttribute(attributes, "genkit:sessionId")
+	threadName := extractStringAttribute(attributes, "genkit:threadName")
+
+	// Log configuration info (matches TypeScript recordGenerateActionConfigLogs)
+	if input.Config != nil {
+		g.recordGenerateActionConfigLogs(span, modelName, featureName, path, &input, projectID, sessionId, threadName)
+	}
+
+	// Log input content if available and enabled (matches TypeScript recordGenerateActionInputLogs)
+	if inputStr != "" && logInputOutput {
+		g.recordGenerateActionInputLogs(span, modelName, featureName, path, &input, projectID, sessionId, threadName)
+	}
+
+	// Log output content if available and enabled (matches TypeScript recordGenerateActionOutputLogs)
+	if outputStr != "" && logInputOutput {
+		g.recordGenerateActionOutputLogs(span, modelName, featureName, path, &output, projectID, sessionId, threadName)
+	}
 	slog.Info("GenerateTelemetry.Tick: Feature extraction debug",
 		"path", path,
 		"extracted_feature", featureName)
@@ -146,23 +173,9 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 		slog.Info("GenerateTelemetry.Tick: Using fallback feature name", "featureName", featureName)
 	}
 
-	// Extract session info
-	sessionID := extractStringAttribute(attributes, "genkit:sessionId")
-	threadName := extractStringAttribute(attributes, "genkit:threadName")
-
 	// Record metrics if we have input data
 	if inputStr != "" {
 		g.recordGenerateActionMetrics(modelName, featureName, path, &output, errName)
-		g.recordGenerateActionConfigLogs(span, modelName, featureName, path, &input, projectID, sessionID, threadName)
-
-		if logInputOutput {
-			g.recordGenerateActionInputLogs(span, modelName, featureName, path, &input, projectID, sessionID, threadName)
-		}
-	}
-
-	// Record output logs if we have output data and logging is enabled
-	if outputStr != "" && logInputOutput {
-		g.recordGenerateActionOutputLogs(span, modelName, featureName, path, &output, projectID, sessionID, threadName)
 	}
 }
 
@@ -237,7 +250,12 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		logData["stopSequences"] = input.Config.StopSequences
 	}
 
-	slog.Info(fmt.Sprintf("Config[%s, %s]", path, model), "data", logData)
+	// Send to Google Cloud Logging (matches TypeScript logger.logStructured)
+	message := fmt.Sprintf("Config[%s, %s]", path, model)
+	g.cloudLogger.LogStructured(context.Background(), message, logData)
+
+	// Also log locally for debugging
+	slog.Info(message, "data", logData)
 }
 
 // recordGenerateActionInputLogs logs input information
@@ -280,7 +298,12 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 			logData["messageIndex"] = msgIdx
 			logData["totalMessages"] = messages
 
-			slog.Info(fmt.Sprintf("Input[%s, %s] %s", path, model, partCounts), "data", logData)
+			// Send to Google Cloud Logging (matches TypeScript logger.logStructured)
+			message := fmt.Sprintf("Input[%s, %s] %s", path, model, partCounts)
+			g.cloudLogger.LogStructured(context.Background(), message, logData)
+
+			// Also log locally for debugging
+			slog.Info(message, "data", logData)
 		}
 	}
 }
@@ -335,7 +358,12 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 			logData["messageIndex"] = 0
 			logData["finishReason"] = output.FinishReason
 
-			slog.Info(fmt.Sprintf("Output[%s, %s] %s", path, model, partCounts), "data", logData)
+			// Send to Google Cloud Logging (matches TypeScript logger.logStructured)
+			message := fmt.Sprintf("Output[%s, %s] %s", path, model, partCounts)
+			g.cloudLogger.LogStructured(context.Background(), message, logData)
+
+			// Also log locally for debugging
+			slog.Info(message, "data", logData)
 		}
 	}
 }
