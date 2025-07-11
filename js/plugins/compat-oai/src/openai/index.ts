@@ -59,6 +59,8 @@ import { SUPPORTED_STT_MODELS, TranscriptionConfigSchema } from './whisper.js';
 
 export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
+const UNSUPPORTED_MODEL_MATCHERS = ['babbage', 'davinci', 'codex'];
+
 const resolver = async (
   ai: Genkit,
   client: OpenAI,
@@ -92,49 +94,51 @@ const resolver = async (
   }
 };
 
+function filterOpenAiModels(model: OpenAI.Model): boolean {
+  return !UNSUPPORTED_MODEL_MATCHERS.some((m) => model.id.includes(m));
+}
+
 const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
   return await client.models.list().then((response) =>
-    response.data
-      .filter((model) => model.object === 'model')
-      .map((model: OpenAI.Model) => {
-        if (model.id.includes('embedding')) {
-          return embedderActionMetadata({
-            name: `openai/${model.id}`,
-            configSchema: TextEmbeddingConfigSchema,
-            info: SUPPORTED_EMBEDDING_MODELS[model.id]?.info,
-          });
-        } else if (
-          model.id.includes('gpt-image-1') ||
-          model.id.includes('dall-e')
-        ) {
-          return modelActionMetadata({
-            name: `openai/${model.id}`,
-            configSchema: ImageGenerationCommonConfigSchema,
-            info: IMAGE_GENERATION_MODEL_INFO,
-          });
-        } else if (model.id.includes('tts')) {
-          return modelActionMetadata({
-            name: `openai/${model.id}`,
-            configSchema: SpeechConfigSchema,
-            info: SPEECH_MODEL_INFO,
-          });
-        } else if (
-          model.id.includes('whisper') ||
-          model.id.includes('transcribe')
-        ) {
-          return modelActionMetadata({
-            name: `openai/${model.id}`,
-            configSchema: TranscriptionConfigSchema,
-            info: SPEECH_MODEL_INFO,
-          });
-        } else {
-          return modelActionMetadata({
-            name: `openai/${model.id}`,
-            configSchema: ChatCompletionCommonConfigSchema,
-            info: SUPPORTED_GPT_MODELS[model.id]?.info,
-          });
-        }
-      })
+    response.data.filter(filterOpenAiModels).map((model: OpenAI.Model) => {
+      if (model.id.includes('embedding')) {
+        return embedderActionMetadata({
+          name: `openai/${model.id}`,
+          configSchema: TextEmbeddingConfigSchema,
+          info: SUPPORTED_EMBEDDING_MODELS[model.id]?.info,
+        });
+      } else if (
+        model.id.includes('gpt-image-1') ||
+        model.id.includes('dall-e')
+      ) {
+        return modelActionMetadata({
+          name: `openai/${model.id}`,
+          configSchema: ImageGenerationCommonConfigSchema,
+          info: IMAGE_GENERATION_MODEL_INFO,
+        });
+      } else if (model.id.includes('tts')) {
+        return modelActionMetadata({
+          name: `openai/${model.id}`,
+          configSchema: SpeechConfigSchema,
+          info: SPEECH_MODEL_INFO,
+        });
+      } else if (
+        model.id.includes('whisper') ||
+        model.id.includes('transcribe')
+      ) {
+        return modelActionMetadata({
+          name: `openai/${model.id}`,
+          configSchema: TranscriptionConfigSchema,
+          info: SPEECH_MODEL_INFO,
+        });
+      } else {
+        return modelActionMetadata({
+          name: `openai/${model.id}`,
+          configSchema: ChatCompletionCommonConfigSchema,
+          info: SUPPORTED_GPT_MODELS[model.id]?.info,
+        });
+      }
+    })
   );
 };
 

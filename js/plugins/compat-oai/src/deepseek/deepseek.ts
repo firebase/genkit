@@ -14,40 +14,29 @@
  * limitations under the License.
  */
 
-import { modelRef } from 'genkit/model';
+import { ModelInfo, modelRef, ModelReference } from 'genkit/model';
 import { ChatCompletionCommonConfigSchema } from '../model';
 
-const deepseekChat = modelRef({
-  name: 'deepseek/deepseek-chat',
-  info: {
-    label: 'DeepSeek - DeepSeek Chat',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['text', 'json'],
+function commonRef(
+  name: string,
+  info?: ModelInfo
+): ModelReference<typeof ChatCompletionCommonConfigSchema> {
+  return modelRef({
+    name,
+    configSchema: ChatCompletionCommonConfigSchema,
+    info: info ?? {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: false,
+        systemRole: true,
+        output: ['text', 'json'],
+      },
     },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-const deepseekReasoner = modelRef({
-  name: 'deepseek/deepseek-reasoner',
-  info: {
-    label: 'DeepSeek - DeepSeek Reasoner',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
+  });
+}
 
 export const SUPPORTED_DEEPSEEK_MODELS = {
-  'deepseek-reasoner': deepseekReasoner,
-  'deepseek-chat': deepseekChat,
+  'deepseek-reasoner': commonRef('deepseek/deepseek-reasoner'),
+  'deepseek-chat': commonRef('deepseek/deepseek-chat'),
 };
