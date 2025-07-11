@@ -93,6 +93,7 @@ export {
   type RerankerReference,
   type ResumeOptions,
   type RetrieverAction,
+  type ResourceAction,
   type RetrieverArgument,
   type RetrieverInfo,
   type RetrieverParams,
