@@ -207,7 +207,7 @@ export async function runEvaluation(params: {
   };
 
   logger.info('Finished evaluation, writing key...');
-  const evalStore = getEvalStore();
+  const evalStore = await getEvalStore();
   await evalStore.save(evalRun);
   return evalRun;
 }
