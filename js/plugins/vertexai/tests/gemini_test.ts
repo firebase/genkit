@@ -542,7 +542,7 @@ describe('cleanSchema', () => {
 });
 
 describe('toGeminiTool', () => {
-  it('', async () => {
+  it('converts to gemini tool', async () => {
     const got = toGeminiTool({
       name: 'foo',
       description: 'tool foo',
@@ -596,5 +596,25 @@ describe('toGeminiTool', () => {
       },
     };
     assert.deepStrictEqual(got, want);
+  });
+
+  it('converts empty object schema', async () => {
+    const got = toGeminiTool({
+      name: 'foo',
+      description: 'tool foo',
+      inputSchema: {
+        type: 'object',
+      },
+    });
+
+    assert.deepStrictEqual(got, {
+      description: 'tool foo',
+      name: 'foo',
+      parameters: {
+        properties: {},
+        required: undefined,
+        type: 'OBJECT',
+      },
+    });
   });
 });

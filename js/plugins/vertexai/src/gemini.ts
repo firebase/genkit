@@ -922,7 +922,7 @@ function convertSchemaProperty(property) {
   }
   if (propertyType === 'object') {
     const nestedProperties = {};
-    Object.keys(property.properties).forEach((key) => {
+    Object.keys(property.properties ?? {}).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
