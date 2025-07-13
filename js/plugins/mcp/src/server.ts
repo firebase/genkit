@@ -14,17 +14,6 @@
  * limitations under the License.
  */
 
-import {
-  GenkitError,
-  Message,
-  Part,
-  type Genkit,
-  type MessageData,
-  type PromptAction,
-  type ResourceAction,
-} from 'genkit';
-import type { McpServerOptions } from './index.js';
-
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js' with { 'resolution-mode': 'import' };
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js' with { 'resolution-mode': 'import' };
 import type {
@@ -50,9 +39,19 @@ import {
   Resource,
   ResourceTemplate,
 } from '@modelcontextprotocol/sdk/types.js';
+import {
+  GenkitError,
+  Message,
+  type Genkit,
+  type MessageData,
+  type Part,
+  type PromptAction,
+  type ResourceAction,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import { toJsonSchema } from 'genkit/schema';
-import { ToolAction, toToolDefinition } from 'genkit/tool';
+import { toToolDefinition, type ToolAction } from 'genkit/tool';
+import type { McpServerOptions } from './index.js';
 
 /**
  * Represents an MCP (Model Context Protocol) server that exposes Genkit tools

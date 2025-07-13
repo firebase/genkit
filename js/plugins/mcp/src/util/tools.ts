@@ -19,7 +19,7 @@ import type {
   CallToolResult,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
-import { Genkit, JSONSchema7, ToolAction, z } from 'genkit';
+import { JSONSchema7, z, type Genkit, type ToolAction } from 'genkit';
 import { logger } from 'genkit/logging';
 
 const toText = (c: CallToolResult['content']) =>
