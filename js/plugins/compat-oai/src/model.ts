@@ -23,15 +23,10 @@ import type {
   ModelReference,
   Part,
   Role,
-  StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
 import { GenerationCommonConfigSchema, Message, z } from 'genkit';
-import type {
-  GenerateResponseChunkData,
-  ModelAction,
-  ToolDefinition,
-} from 'genkit/model';
+import type { ModelAction, ToolDefinition } from 'genkit/model';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -397,51 +392,7 @@ export function toOpenAIRequestBody(
  * @returns The runner that Genkit will call when the model is invoked.
  */
 export function openAIModelRunner(name: string, client: OpenAI) {
-  return async (
-    request: GenerateRequest,
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
-  ): Promise<GenerateResponseData> => {
-    let response: ChatCompletion;
-    const body = toOpenAIRequestBody(name, request);
-    if (streamingCallback) {
-      const stream = client.beta.chat.completions.stream({
-        ...body,
-        stream: true,
-        stream_options: {
-          include_usage: true,
-        },
-      });
-      for await (const chunk of stream) {
-        chunk.choices?.forEach((chunk) => {
-          const c = fromOpenAIChunkChoice(chunk);
-          streamingCallback({
-            index: chunk.index,
-            content: c.message?.content ?? [],
-          });
-        });
-      }
-      response = await stream.finalChatCompletion();
-    } else {
-      response = await client.chat.completions.create(body);
-    }
-    const standardResponse: GenerateResponseData = {
-      usage: {
-        inputTokens: response.usage?.prompt_tokens,
-        outputTokens: response.usage?.completion_tokens,
-        totalTokens: response.usage?.total_tokens,
-      },
-      raw: response,
-    };
-    if (response.choices.length === 0) {
-      return standardResponse;
-    } else {
-      const choice = response.choices[0];
-      return {
-        ...fromOpenAIChoice(choice, request.output?.format === 'json'),
-        ...standardResponse,
-      };
-    }
-  };
+  return;
 }
 
 /**
@@ -469,14 +420,61 @@ export function defineCompatOpenAIModel<
   modelRef?: ModelReference<CustomOptions>;
 }): ModelAction {
   const { ai, name, client, modelRef } = params;
-  const model = name.split('/').pop();
+  const modelName = name.split('/').pop();
 
   return ai.defineModel(
     {
       name,
+      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    openAIModelRunner(model!, client)
+    async (request, { streamingRequested, sendChunk, abortSignal }) => {
+      let response: ChatCompletion;
+      const body = toOpenAIRequestBody(modelName!, request);
+      if (streamingRequested) {
+        const stream = client.beta.chat.completions.stream(
+          {
+            ...body,
+            stream: true,
+            stream_options: {
+              include_usage: true,
+            },
+          },
+          { signal: abortSignal }
+        );
+        for await (const chunk of stream) {
+          chunk.choices?.forEach((chunk) => {
+            const c = fromOpenAIChunkChoice(chunk);
+            sendChunk({
+              index: chunk.index,
+              content: c.message?.content ?? [],
+            });
+          });
+        }
+        response = await stream.finalChatCompletion();
+      } else {
+        response = await client.chat.completions.create(body, {
+          signal: abortSignal,
+        });
+      }
+      const standardResponse: GenerateResponseData = {
+        usage: {
+          inputTokens: response.usage?.prompt_tokens,
+          outputTokens: response.usage?.completion_tokens,
+          totalTokens: response.usage?.total_tokens,
+        },
+        raw: response,
+      };
+      if (response.choices.length === 0) {
+        return standardResponse;
+      } else {
+        const choice = response.choices[0];
+        return {
+          ...fromOpenAIChoice(choice, request.output?.format === 'json'),
+          ...standardResponse,
+        };
+      }
+    }
   );
 }
