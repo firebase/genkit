@@ -21,13 +21,11 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { getVertexAIUrl } from '../../src/vertexai/client';
 import {
-  GENERIC_IMAGEN_MODEL,
   ImagenConfig,
   ImagenConfigSchema,
-  KNOWN_IMAGEN_MODELS,
   TEST_ONLY,
-  defineImagenModel,
-  imagen,
+  defineModel,
+  model,
 } from '../../src/vertexai/imagen';
 import {
   ClientOptions,
@@ -42,42 +40,29 @@ const { toImagenParameters, fromImagenPrediction } = TEST_ONLY;
 describe('Vertex AI Imagen', () => {
   describe('KNOWN_IMAGEN_MODELS', () => {
     it('should contain non-zero number of models', () => {
-      assert.ok(Object.keys(KNOWN_IMAGEN_MODELS).length > 0);
+      assert.ok(Object.keys(TEST_ONLY.KNOWN_MODELS).length > 0);
     });
   });
 
-  describe('GENERIC_IMAGEN_MODEL', () => {
-    it('should have the correct name and supports flags', () => {
-      assert.strictEqual(GENERIC_IMAGEN_MODEL.name, 'vertexai/imagen-generic');
-      assert.deepStrictEqual(GENERIC_IMAGEN_MODEL.info?.supports, {
-        media: true,
-        multiturn: true,
-        tools: true,
-        systemRole: true,
-        output: ['media'],
-      });
-    });
-  });
-
-  describe('imagen()', () => {
+  describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
       const modelName = 'imagen-3.0-generate-002';
-      const ref = imagen(modelName);
+      const ref = model(modelName);
       assert.strictEqual(ref.name, `vertexai/${modelName}`);
       assert.ok(ref.info?.supports?.media);
     });
 
     it('should return a ModelReference for an unknown model using generic info', () => {
       const modelName = 'imagen-unknown-model';
-      const ref = imagen(modelName);
+      const ref = model(modelName);
       assert.strictEqual(ref.name, `vertexai/${modelName}`);
-      assert.deepStrictEqual(ref.info, GENERIC_IMAGEN_MODEL.info);
+      assert.deepStrictEqual(ref.info, TEST_ONLY.GENERIC_MODEL.info);
     });
 
     it('should apply config to a known model', () => {
       const modelName = 'imagen-3.0-generate-002';
       const config: ImagenConfig = { seed: 123 };
-      const ref = imagen(modelName, config);
+      const ref = model(modelName, config);
       assert.strictEqual(ref.name, `vertexai/${modelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
@@ -85,7 +70,7 @@ describe('Vertex AI Imagen', () => {
     it('should apply config to an unknown model', () => {
       const modelName = 'imagen-unknown-model';
       const config: ImagenConfig = { aspectRatio: '16:9' };
-      const ref = imagen(modelName, config);
+      const ref = model(modelName, config);
       assert.strictEqual(ref.name, `vertexai/${modelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
@@ -93,7 +78,7 @@ describe('Vertex AI Imagen', () => {
     it('should handle full model path', () => {
       const modelName =
         'projects/my-proj/locations/us-central1/models/imagen-3.0-generate-002';
-      const ref = imagen(modelName);
+      const ref = model(modelName);
       assert.strictEqual(ref.name, 'vertexai/imagen-3.0-generate-002');
     });
   });
@@ -214,7 +199,7 @@ describe('Vertex AI Imagen', () => {
     }
 
     function captureModelRunner(): (request: GenerateRequest) => Promise<any> {
-      defineImagenModel(mockAi as any, modelName, clientOptions);
+      defineModel(mockAi as any, modelName, clientOptions);
       assert.ok(mockAi.defineModel.calledOnce);
       const callArgs = mockAi.defineModel.firstCall.args;
       assert.strictEqual(callArgs[0].name, `vertexai/${modelName}`);

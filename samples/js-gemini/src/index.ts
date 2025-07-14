@@ -56,6 +56,26 @@ ai.defineFlow('multimodal-input', async () => {
   return text;
 });
 
+// YouTube videos
+ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: [
+      {
+        text: 'transcribe this video',
+      },
+      {
+        media: {
+          url: 'https://www.youtube.com/watch?v=3p1P5grjXIQ',
+          contentType: 'video/mp4',
+        },
+      },
+    ],
+  });
+
+  return text;
+});
+
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({
@@ -167,6 +187,23 @@ ai.defineFlow(
     return (await response).output!;
   }
 );
+
+// Gemini reasoning example.
+ai.defineFlow('reasoning', async (_, { sendChunk }) => {
+  const { message } = await ai.generate({
+    prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
+    model: googleAI.model('gemini-2.5-pro'),
+    config: {
+      thinkingConfig: {
+        thinkingBudget: 1024,
+        includeThoughts: true,
+      },
+    },
+    onChunk: sendChunk,
+  });
+
+  return message;
+});
 
 // Image generation with Gemini.
 ai.defineFlow('gemini-image-generation', async (_, { sendChunk }) => {

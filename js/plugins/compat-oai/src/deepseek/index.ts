@@ -66,36 +66,6 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
   );
 };
 
-/**
- * This module provides an interface to the DeepSeek models through the Genkit
- * plugin system. It allows users to interact with various models by providing
- * an API key and optional configuration.
- *
- * The main export is the `deepseek` plugin, which can be configured with an API
- * key either directly or through environment variables. It initializes the
- * OpenAI client and makes available the models for use.
- *
- * Exports:
- * - deepSeek: The main plugin function to interact with DeepSeek, via OpenAI
- *   compatible API.
- *
- * Usage: To use the models, initialize the deepseek plugin inside
- * `configureGenkit` and pass the configuration options. If no API key is
- * provided in the options, the environment variable `OPENAI_API_KEY` must be
- * set.
- *
- * Example:
- * ```
- * import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
- *
- * export default configureGenkit({
- *  plugins: [
- *    deepSeek()
- *    ... // other plugins
- *  ]
- * });
- * ```
- */
 export function deepSeekPlugin(options?: DeepSeekPluginOptions): GenkitPlugin {
   return openAICompatible({
     name: 'deepseek',
@@ -128,6 +98,36 @@ const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   });
 }) as DeepSeekPlugin['model'];
 
+/**
+ * This module provides an interface to the DeepSeek models through the Genkit
+ * plugin system. It allows users to interact with various models by providing
+ * an API key and optional configuration.
+ *
+ * The main export is the `deepseek` plugin, which can be configured with an API
+ * key either directly or through environment variables. It initializes the
+ * OpenAI client and makes available the models for use.
+ *
+ * Exports:
+ * - deepSeek: The main plugin function to interact with DeepSeek, via OpenAI
+ *   compatible API.
+ *
+ * Usage: To use the models, initialize the deepseek plugin inside
+ * `configureGenkit` and pass the configuration options. If no API key is
+ * provided in the options, the environment variable `OPENAI_API_KEY` must be
+ * set.
+ *
+ * Example:
+ * ```
+ * import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
+ *
+ * export default configureGenkit({
+ *  plugins: [
+ *    deepSeek()
+ *    ... // other plugins
+ *  ]
+ * });
+ * ```
+ */
 export const deepSeek: DeepSeekPlugin = Object.assign(deepSeekPlugin, {
   model,
 });

@@ -32,13 +32,13 @@ import {
   listModels,
 } from '../../src/googleai/client';
 import {
+  ClientOptions,
   EmbedContentRequest,
   EmbedContentResponse,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
   Model,
-  RequestOptions,
 } from '../../src/googleai/types';
 
 describe('Google AI Client', () => {
@@ -142,11 +142,11 @@ describe('Google AI Client', () => {
     });
 
     it('should use custom apiVersion and baseUrl from RequestOptions', () => {
-      const requestOptions: RequestOptions = {
+      const clientOptions: ClientOptions = {
         apiVersion: 'v1',
         baseUrl: 'https://custom.googleapis.com',
       };
-      const url = getGoogleAIUrl({ resourcePath: 'models', requestOptions });
+      const url = getGoogleAIUrl({ resourcePath: 'models', clientOptions });
       assert.strictEqual(url, 'https://custom.googleapis.com/v1/models');
     });
   });
@@ -219,10 +219,10 @@ describe('Google AI Client', () => {
 
     it('should include custom headers', async () => {
       mockFetchResponse({ models: [] });
-      const requestOptions: RequestOptions = {
+      const clientOptions: ClientOptions = {
         customHeaders: { 'X-Custom-Header': 'test' },
       };
-      await listModels(apiKey, requestOptions);
+      await listModels(apiKey, clientOptions);
 
       sinon.assert.calledOnce(fetchSpy);
       const headers = fetchSpy.firstCall.args[1].headers;
@@ -303,7 +303,7 @@ describe('Google AI Client', () => {
       const result = await embedContent(apiKey, model, request);
       assert.deepStrictEqual(result, mockResponse);
 
-      const expectedUrl = `https://generativelanguage.googleapis.com/v1beta/embedders/${model}:embedContent`;
+      const expectedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`;
       sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
         method: 'POST',
         headers: {

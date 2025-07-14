@@ -540,6 +540,39 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25Pro = modelRef({
+  name: 'vertexai/gemini-2.5-pro',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Pro',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+export const gemini25Flash = modelRef({
+  name: 'vertexai/gemini-2.5-flash',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Flash',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const GENERIC_GEMINI_MODEL = modelRef({
   name: 'vertexai/gemini',
   configSchema: GeminiConfigSchema,
@@ -570,6 +603,8 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
+  'gemini-2.5-flash': gemini25Flash,
+  'gemini-2.5-pro': gemini25Pro,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
@@ -887,7 +922,7 @@ function convertSchemaProperty(property) {
   }
   if (propertyType === 'object') {
     const nestedProperties = {};
-    Object.keys(property.properties).forEach((key) => {
+    Object.keys(property.properties ?? {}).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
