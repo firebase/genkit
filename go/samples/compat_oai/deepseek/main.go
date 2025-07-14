@@ -17,9 +17,9 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/compat_oai"
 	oai_deepseek "github.com/firebase/genkit/go/plugins/compat_oai/deepseek"
 	"github.com/firebase/genkit/go/plugins/server"
+	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
 
@@ -44,8 +44,7 @@ func main() {
 		dsChat := ds.Model(g, "deepseek-chat")
 
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
-		config := &compat_oai.OpenAIConfig{Temperature: 0.5}
-		// config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5)}
+		config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5)}
 		foo, err := genkit.Generate(ctx, g, ai.WithModel(dsChat), ai.WithPrompt(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
