@@ -17,6 +17,7 @@
 
 import type {
   GenerateRequest,
+  GenerateResponseChunkData,
   GenerateResponseData,
   Genkit,
   MessageData,
@@ -27,11 +28,7 @@ import type {
   ToolRequestPart,
 } from 'genkit';
 import { GenerationCommonConfigSchema, Message, z } from 'genkit';
-import type {
-  GenerateResponseChunkData,
-  ModelAction,
-  ToolDefinition,
-} from 'genkit/model';
+import type { ModelAction, ToolDefinition } from 'genkit/model';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -399,22 +396,29 @@ export function toOpenAIRequestBody(
 export function openAIModelRunner(name: string, client: OpenAI) {
   return async (
     request: GenerateRequest,
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+    options?: {
+      streamingRequested?: boolean;
+      sendChunk?: StreamingCallback<GenerateResponseChunkData>;
+      abortSignal?: AbortSignal;
+    }
   ): Promise<GenerateResponseData> => {
     let response: ChatCompletion;
     const body = toOpenAIRequestBody(name, request);
-    if (streamingCallback) {
-      const stream = client.beta.chat.completions.stream({
-        ...body,
-        stream: true,
-        stream_options: {
-          include_usage: true,
+    if (options?.streamingRequested) {
+      const stream = client.beta.chat.completions.stream(
+        {
+          ...body,
+          stream: true,
+          stream_options: {
+            include_usage: true,
+          },
         },
-      });
+        { signal: options?.abortSignal }
+      );
       for await (const chunk of stream) {
         chunk.choices?.forEach((chunk) => {
           const c = fromOpenAIChunkChoice(chunk);
-          streamingCallback({
+          options?.sendChunk!({
             index: chunk.index,
             content: c.message?.content ?? [],
           });
@@ -422,7 +426,9 @@ export function openAIModelRunner(name: string, client: OpenAI) {
       }
       response = await stream.finalChatCompletion();
     } else {
-      response = await client.chat.completions.create(body);
+      response = await client.chat.completions.create(body, {
+        signal: options?.abortSignal,
+      });
     }
     const standardResponse: GenerateResponseData = {
       usage: {
@@ -469,14 +475,15 @@ export function defineCompatOpenAIModel<
   modelRef?: ModelReference<CustomOptions>;
 }): ModelAction {
   const { ai, name, client, modelRef } = params;
-  const model = name.split('/').pop();
+  const modelName = name.split('/').pop();
 
   return ai.defineModel(
     {
       name,
+      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    openAIModelRunner(model!, client)
+    openAIModelRunner(modelName!, client)
   );
 }

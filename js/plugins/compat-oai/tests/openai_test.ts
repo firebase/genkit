@@ -59,6 +59,7 @@ describe('gptModel', () => {
       {
         name: gpt4o.name,
         ...gpt4o.info,
+        apiVersion: 'v2',
         configSchema: gpt4o.configSchema,
       },
       expect.any(Function)
@@ -76,6 +77,7 @@ describe('gptModel', () => {
     expect(ai.defineModel).toHaveBeenCalledWith(
       {
         name: 'openai/gpt-4.1',
+        apiVersion: 'v2',
         ...gpt41.info,
         configSchema: gpt41.configSchema,
       },
@@ -92,6 +94,7 @@ describe('gptModel', () => {
       {
         name: 'openai/gpt-4.1-mini',
         ...gpt41Mini.info,
+        apiVersion: 'v2',
         configSchema: gpt41Mini.configSchema,
       },
       expect.any(Function)
@@ -107,6 +110,7 @@ describe('gptModel', () => {
       {
         name: 'openai/gpt-4.1-nano',
         ...gpt41Nano.info,
+        apiVersion: 'v2',
         configSchema: gpt41Nano.configSchema,
       },
       expect.any(Function)
