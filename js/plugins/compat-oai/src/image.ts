@@ -122,11 +122,13 @@ export function defineCompatOpenAIImageModel<
     {
       name,
       ...modelRef?.info,
+      apiVersion: 'v2',
       configSchema: modelRef?.configSchema,
     },
-    async (request) => {
+    async (request, { abortSignal }) => {
       const result = await client.images.generate(
-        toImageGenerateParams(model!, request)
+        toImageGenerateParams(model!, request),
+        { signal: abortSignal }
       );
       return toGenerateResponse(result);
     }
