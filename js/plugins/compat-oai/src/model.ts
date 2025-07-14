@@ -385,17 +385,6 @@ export function toOpenAIRequestBody(
 }
 
 /**
- * Creates the runner used by Genkit to interact with an OpenAI compatible
- * model.
- * @param name The name of the GPT model.
- * @param client The OpenAI client instance.
- * @returns The runner that Genkit will call when the model is invoked.
- */
-export function openAIModelRunner(name: string, client: OpenAI) {
-  return;
-}
-
-/**
  * Method to define a new Genkit Model that is compatible with Open AI
  * Chat Completions API. 
  *
