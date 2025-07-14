@@ -491,10 +491,92 @@ func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOpt
 }
 
 // Generate run generate request for this model. Returns ModelResponse struct.
-// TODO: Stream GenerateData with partial JSON
 func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
 	var value Out
 	opts = append(opts, WithOutputType(value))
+
+	// Parse options to get streaming callback and output format
+	genOpts := &generateOptions{}
+	for _, opt := range opts {
+		if err := opt.applyGenerate(genOpts); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// If streaming is requested, wrap the callback to support partial JSON parsing
+	if genOpts.Stream != nil {
+		// Determine the output format
+		outputFormat := genOpts.OutputFormat
+		if outputFormat == "" && genOpts.OutputSchema != nil {
+			outputFormat = OutputFormatJSON
+		}
+
+		// Get the appropriate formatter
+		var formatter Formatter
+		var formatHandler FormatHandler
+		if outputFormat != "" {
+			var err error
+			formatter, err = resolveFormat(r, genOpts.OutputSchema, outputFormat)
+			if err == nil && formatter != nil {
+				formatHandler, err = formatter.Handler(genOpts.OutputSchema)
+				if err != nil {
+					// Log error but continue without formatter
+					formatHandler = nil
+				}
+			}
+		}
+
+		// Wrap the original streaming callback
+		originalCallback := genOpts.Stream
+		var accumulatedText string
+		
+		wrappedCallback := func(ctx context.Context, chunk *ModelResponseChunk) error {
+			// Accumulate text
+			accumulatedText += chunk.Text()
+			
+			// Store accumulated text in chunk metadata
+			if chunk.Metadata == nil {
+				chunk.Metadata = make(map[string]any)
+			}
+			chunk.Metadata["accumulatedText"] = accumulatedText
+			
+			// Try to parse using formatter if available
+			if formatHandler != nil {
+				parsedData, err := formatHandler.ParseChunk(chunk, accumulatedText)
+				if err == nil && parsedData != nil {
+					// Try to convert to the expected type
+					jsonBytes, err := json.Marshal(parsedData)
+					if err == nil {
+						var partialValue Out
+						if err := json.Unmarshal(jsonBytes, &partialValue); err == nil {
+							// Store parsed data in metadata
+							chunk.Metadata["parsedData"] = partialValue
+						}
+					}
+				}
+			}
+			
+			// Call the original callback with the enhanced chunk
+			return originalCallback(ctx, chunk)
+		}
+		
+		// Replace the streaming callback in options
+		newOpts := make([]GenerateOption, 0, len(opts))
+		for _, opt := range opts {
+			// Skip the original streaming option by checking if it's an ExecutionOption with Stream
+			if execOpt, ok := opt.(ExecutionOption); ok {
+				var tempOpts executionOptions
+				execOpt.applyExecution(&tempOpts)
+				if tempOpts.Stream != nil {
+					// Skip this option as it has streaming
+					continue
+				}
+			}
+			newOpts = append(newOpts, opt)
+		}
+		newOpts = append(newOpts, WithStreaming(wrappedCallback))
+		opts = newOpts
+	}
 
 	resp, err := Generate(ctx, r, opts...)
 	if err != nil {

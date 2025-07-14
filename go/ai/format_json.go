@@ -107,3 +107,43 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 
 	return m, nil
 }
+
+// ParseChunk parses a streaming chunk and returns parsed JSON data.
+// Based on JS version: js/ai/src/formats/json.ts parseChunk method
+func (j jsonHandler) ParseChunk(chunk *ModelResponseChunk, accumulatedText string) (interface{}, error) {
+	if chunk == nil || len(chunk.Content) == 0 {
+		return nil, nil
+	}
+
+	// Try to extract JSON from accumulated text
+	data, err := base.ExtractJSON(accumulatedText)
+	if err != nil {
+		// If extraction fails, try partial JSON parsing
+		data, err = base.ParsePartialJSON(accumulatedText)
+		if err != nil {
+			return nil, nil
+		}
+	}
+
+	// If we have a schema, validate the data
+	if j.config.Schema != nil && data != nil {
+		jsonBytes, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		
+		schemaBytes, err := json.Marshal(j.config.Schema)
+		if err != nil {
+			return nil, err
+		}
+		
+		// Only validate if we have complete JSON (not partial)
+		if base.ValidJSON(string(jsonBytes)) {
+			if err := base.ValidateRaw(jsonBytes, schemaBytes); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return data, nil
+}
