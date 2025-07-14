@@ -17,12 +17,14 @@
 
 import type {
   GenerateRequest,
+  GenerateResponseChunkData,
   GenerateResponseData,
   Genkit,
   MessageData,
   ModelReference,
   Part,
   Role,
+  StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
 import { GenerationCommonConfigSchema, Message, z } from 'genkit';
@@ -385,6 +387,70 @@ export function toOpenAIRequestBody(
 }
 
 /**
+ * Creates the runner used by Genkit to interact with an OpenAI compatible
+ * model.
+ * @param name The name of the GPT model.
+ * @param client The OpenAI client instance.
+ * @returns The runner that Genkit will call when the model is invoked.
+ */
+export function openAIModelRunner(name: string, client: OpenAI) {
+  return async (
+    request: GenerateRequest,
+    options?: {
+      streamingRequested?: boolean;
+      sendChunk?: StreamingCallback<GenerateResponseChunkData>;
+      abortSignal?: AbortSignal;
+    }
+  ): Promise<GenerateResponseData> => {
+    let response: ChatCompletion;
+    const body = toOpenAIRequestBody(name, request);
+    if (options?.streamingRequested) {
+      const stream = client.beta.chat.completions.stream(
+        {
+          ...body,
+          stream: true,
+          stream_options: {
+            include_usage: true,
+          },
+        },
+        { signal: options?.abortSignal }
+      );
+      for await (const chunk of stream) {
+        chunk.choices?.forEach((chunk) => {
+          const c = fromOpenAIChunkChoice(chunk);
+          options?.sendChunk!({
+            index: chunk.index,
+            content: c.message?.content ?? [],
+          });
+        });
+      }
+      response = await stream.finalChatCompletion();
+    } else {
+      response = await client.chat.completions.create(body, {
+        signal: options?.abortSignal,
+      });
+    }
+    const standardResponse: GenerateResponseData = {
+      usage: {
+        inputTokens: response.usage?.prompt_tokens,
+        outputTokens: response.usage?.completion_tokens,
+        totalTokens: response.usage?.total_tokens,
+      },
+      raw: response,
+    };
+    if (response.choices.length === 0) {
+      return standardResponse;
+    } else {
+      const choice = response.choices[0];
+      return {
+        ...fromOpenAIChoice(choice, request.output?.format === 'json'),
+        ...standardResponse,
+      };
+    }
+  };
+}
+
+/**
  * Method to define a new Genkit Model that is compatible with Open AI
  * Chat Completions API. 
  *
@@ -418,52 +484,6 @@ export function defineCompatOpenAIModel<
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    async (request, { streamingRequested, sendChunk, abortSignal }) => {
-      let response: ChatCompletion;
-      const body = toOpenAIRequestBody(modelName!, request);
-      if (streamingRequested) {
-        const stream = client.beta.chat.completions.stream(
-          {
-            ...body,
-            stream: true,
-            stream_options: {
-              include_usage: true,
-            },
-          },
-          { signal: abortSignal }
-        );
-        for await (const chunk of stream) {
-          chunk.choices?.forEach((chunk) => {
-            const c = fromOpenAIChunkChoice(chunk);
-            sendChunk({
-              index: chunk.index,
-              content: c.message?.content ?? [],
-            });
-          });
-        }
-        response = await stream.finalChatCompletion();
-      } else {
-        response = await client.chat.completions.create(body, {
-          signal: abortSignal,
-        });
-      }
-      const standardResponse: GenerateResponseData = {
-        usage: {
-          inputTokens: response.usage?.prompt_tokens,
-          outputTokens: response.usage?.completion_tokens,
-          totalTokens: response.usage?.total_tokens,
-        },
-        raw: response,
-      };
-      if (response.choices.length === 0) {
-        return standardResponse;
-      } else {
-        const choice = response.choices[0];
-        return {
-          ...fromOpenAIChoice(choice, request.output?.format === 'json'),
-          ...standardResponse,
-        };
-      }
-    }
+    openAIModelRunner(modelName!, client)
   );
 }
