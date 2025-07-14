@@ -550,7 +550,7 @@ describe('plugin', () => {
 });
 
 describe('toGeminiTool', () => {
-  it('', async () => {
+  it('works with a Zod schema', async () => {
     const got = toGeminiTool({
       name: 'foo',
       description: 'tool foo',
@@ -601,6 +601,24 @@ describe('toGeminiTool', () => {
         },
         required: ['simpleString', 'simpleNumber'],
         type: 'object',
+      },
+    };
+    assert.deepStrictEqual(got, want);
+  });
+  it('works with a JSON schema that has no properties', async () => {
+    const got = toGeminiTool({
+      name: 'foo',
+      description: 'tool foo',
+      inputSchema: { type: 'object' },
+    });
+
+    const want = {
+      description: 'tool foo',
+      name: 'foo',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: undefined,
       },
     };
     assert.deepStrictEqual(got, want);
