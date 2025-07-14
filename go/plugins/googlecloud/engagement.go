@@ -26,9 +26,7 @@ import (
 )
 
 // EngagementTelemetry implements telemetry collection for user engagement (feedback/acceptance)
-// This matches the JavaScript engagement.ts implementation
 type EngagementTelemetry struct {
-	// Match exact metric names from JS implementation
 	feedbackCounter   *MetricCounter // genkit/engagement/feedback
 	acceptanceCounter *MetricCounter // genkit/engagement/acceptance
 	cloudLogger       CloudLogger    // For structured logging to Google Cloud
@@ -36,7 +34,7 @@ type EngagementTelemetry struct {
 
 // NewEngagementTelemetry creates a new engagement telemetry module with required metrics
 func NewEngagementTelemetry() *EngagementTelemetry {
-	// Use the namespace wrapper from metrics.go to match JS naming
+	// Use the namespace wrapper from metrics.go
 	n := func(name string) string { return internalMetricNamespaceWrap("engagement", name) }
 
 	return &EngagementTelemetry{
@@ -57,7 +55,7 @@ func (e *EngagementTelemetry) SetCloudLogger(logger CloudLogger) {
 	e.cloudLogger = logger
 }
 
-// Tick processes a span for engagement telemetry, matching the JavaScript implementation pattern
+// Tick processes a span for engagement telemetry
 func (e *EngagementTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
@@ -146,14 +144,14 @@ func (e *EngagementTelemetry) writeUserAcceptance(span sdktrace.ReadOnlySpan, pr
 
 // Helper functions
 
-// extractTraceName extracts trace name from path using regex matching JavaScript logic
+// extractTraceName extracts trace name from path using regex
 func (e *EngagementTelemetry) extractTraceName(attributes []attribute.KeyValue) string {
 	path := extractStringAttribute(attributes, "genkit:path")
 	if path == "" || path == "<unknown>" {
 		return "<unknown>"
 	}
 
-	// Match JavaScript regex: path.match('/{(.+)}+')
+	// Extract feature name from path using regex pattern: /{(.+)}+
 	re := regexp.MustCompile(`/{(.+)}+`)
 	matches := re.FindStringSubmatch(path)
 	if len(matches) > 1 {

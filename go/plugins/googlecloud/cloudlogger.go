@@ -24,7 +24,6 @@ import (
 )
 
 // CloudLogger interface for sending structured logs to Google Cloud
-// This matches the logger.logStructured() functionality from the TypeScript implementation
 type CloudLogger interface {
 	LogStructured(ctx context.Context, message string, payload map[string]interface{})
 	LogStructuredError(ctx context.Context, message string, payload map[string]interface{})
@@ -51,7 +50,6 @@ func NewCloudLogger(projectID string) (CloudLogger, error) {
 }
 
 // LogStructured sends a structured log entry to Google Cloud Logging
-// This matches the TypeScript logger.logStructured() functionality
 func (c *gcpCloudLogger) LogStructured(ctx context.Context, message string, payload map[string]interface{}) {
 	entry := logging.Entry{
 		Severity: logging.Info,

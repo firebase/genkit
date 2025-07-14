@@ -123,7 +123,6 @@ func convertToOTelAttributes(attrs map[string]interface{}) []attribute.KeyValue 
 }
 
 // internalMetricNamespaceWrap prefixes metric names with genkit namespace
-// This matches the JavaScript implementation pattern
 func internalMetricNamespaceWrap(namespace, metricName string) string {
 	return fmt.Sprintf("genkit/%s/%s", namespace, metricName)
 }

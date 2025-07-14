@@ -212,6 +212,6 @@ const (
 	DefaultMetricInterval = 60    // seconds
 	DefaultTimeoutMillis  = 60000 // 60 seconds
 	MaxAttributeLength    = 1024
-	MaxLogContentLength   = 128000 // Match JS: 128,000 characters
-	MaxPathLength         = 4096   // Match JS: 4,096 characters for paths
+	MaxLogContentLength   = 128000 // 128,000 characters
+	MaxPathLength         = 4096   // 4,096 characters for paths
 )

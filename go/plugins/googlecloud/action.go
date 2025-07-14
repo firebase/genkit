@@ -24,7 +24,6 @@ import (
 )
 
 // ActionTelemetry implements telemetry collection for action input/output logging
-// This matches the JavaScript action.ts implementation
 type ActionTelemetry struct {
 	// Note: Unlike generate and feature telemetry, action telemetry only does logging, no metrics
 	cloudLogger CloudLogger // For structured logging to Google Cloud
@@ -42,7 +41,7 @@ func (a *ActionTelemetry) SetCloudLogger(logger CloudLogger) {
 	a.cloudLogger = logger
 }
 
-// Tick processes a span for action telemetry, matching the JavaScript implementation pattern
+// Tick processes a span for action telemetry
 func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	// Action telemetry only runs if input/output logging is enabled
 	if !logInputOutput {
@@ -57,7 +56,7 @@ func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, 
 
 	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
 
-	// Only process tool actions or generate actions (matching JavaScript logic)
+	// Only process tool actions or generate actions
 	if subtype == "tool" || actionName == "generate" {
 		path := extractStringAttribute(attributes, "genkit:path")
 		if path == "" {

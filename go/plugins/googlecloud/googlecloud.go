@@ -18,8 +18,6 @@
 // Google Cloud services.
 package googlecloud
 
-// See js/plugins/google-cloud/src/gcpOpenTelemetry.ts.
-
 import (
 	"context"
 	"errors"

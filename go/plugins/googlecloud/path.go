@@ -26,9 +26,8 @@ import (
 )
 
 // PathTelemetry implements telemetry collection for error/failure path tracking
-// This matches the JavaScript path.ts implementation
 type PathTelemetry struct {
-	// Match exact metric names from JS implementation (note: uses feature namespace)
+	// Note: uses feature namespace for path metrics
 	pathCounter   *MetricCounter   // genkit/feature/path/requests
 	pathLatencies *MetricHistogram // genkit/feature/path/latency
 	cloudLogger   CloudLogger      // For structured logging to Google Cloud
@@ -36,7 +35,7 @@ type PathTelemetry struct {
 
 // NewPathTelemetry creates a new path telemetry module with required metrics
 func NewPathTelemetry() *PathTelemetry {
-	// Note: JavaScript uses "feature" namespace for path metrics
+	// Note: uses "feature" namespace for path metrics
 	n := func(name string) string { return internalMetricNamespaceWrap("feature", name) }
 
 	return &PathTelemetry{
@@ -57,7 +56,7 @@ func (p *PathTelemetry) SetCloudLogger(logger CloudLogger) {
 	p.cloudLogger = logger
 }
 
-// Tick processes a span for path telemetry, matching the JavaScript implementation pattern
+// Tick processes a span for path telemetry
 func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 
@@ -65,7 +64,7 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 	isFailureSource := extractBoolAttribute(attributes, "genkit:isFailureSource")
 	state := extractStringAttribute(attributes, "genkit:state")
 
-	// Only process failing, leaf spans (matching JavaScript logic)
+	// Only process failing, leaf spans
 	if path == "" || !isFailureSource || state != "error" {
 		return
 	}
@@ -121,7 +120,7 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 		logData[k] = v
 	}
 
-	// Log as error level (matching JavaScript logStructuredError)
+	// Log as error level
 	slog.Error(fmt.Sprintf("Error[%s, %s]", displayPath, errorName), "data", logData)
 }
 

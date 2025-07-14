@@ -26,9 +26,7 @@ import (
 )
 
 // FeatureTelemetry implements telemetry collection for top-level feature requests
-// This matches the JavaScript feature.ts implementation
 type FeatureTelemetry struct {
-	// Match exact metric names from JS implementation
 	featureCounter   *MetricCounter   // genkit/feature/requests
 	featureLatencies *MetricHistogram // genkit/feature/latency
 	cloudLogger      CloudLogger      // For structured logging to Google Cloud
@@ -36,7 +34,7 @@ type FeatureTelemetry struct {
 
 // NewFeatureTelemetry creates a new feature telemetry module with required metrics
 func NewFeatureTelemetry() *FeatureTelemetry {
-	// Use the namespace wrapper from metrics.go to match JS naming
+	// Use the namespace wrapper from metrics.go
 	n := func(name string) string { return internalMetricNamespaceWrap("feature", name) }
 
 	return &FeatureTelemetry{
@@ -57,7 +55,7 @@ func (f *FeatureTelemetry) SetCloudLogger(logger CloudLogger) {
 	f.cloudLogger = logger
 }
 
-// Tick processes a span for feature telemetry, matching the JavaScript implementation pattern
+// Tick processes a span for feature telemetry
 func (f *FeatureTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 
@@ -188,7 +186,7 @@ func (f *FeatureTelemetry) calculateLatencyMs(span sdktrace.ReadOnlySpan) float6
 	return float64(duration.Nanoseconds()) / 1e6 // Convert to milliseconds
 }
 
-// extractErrorName extracts error information from span, matching JavaScript logic
+// extractErrorName extracts error information from span
 func (f *FeatureTelemetry) extractErrorName(span sdktrace.ReadOnlySpan) string {
 	// Check span status first
 	if span.Status().Code == codes.Error {

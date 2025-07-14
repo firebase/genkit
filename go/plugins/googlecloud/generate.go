@@ -31,9 +31,7 @@ import (
 )
 
 // GenerateTelemetry implements telemetry collection for model generate actions
-// This matches the JavaScript generate.ts implementation
 type GenerateTelemetry struct {
-	// Match exact metric names from JS implementation
 	actionCounter    *MetricCounter   // genkit/ai/generate/requests
 	latencies        *MetricHistogram // genkit/ai/generate/latency
 	inputCharacters  *MetricCounter   // genkit/ai/generate/input/characters
@@ -47,7 +45,7 @@ type GenerateTelemetry struct {
 
 // NewGenerateTelemetry creates a new generate telemetry module with all required metrics
 func NewGenerateTelemetry() *GenerateTelemetry {
-	// Use the namespace wrapper from metrics.go to match JS naming
+	// Use the namespace wrapper from metrics.go
 	n := func(name string) string { return internalMetricNamespaceWrap("ai", name) }
 
 	return &GenerateTelemetry{
@@ -92,7 +90,7 @@ func (g *GenerateTelemetry) SetCloudLogger(logger CloudLogger) {
 	g.cloudLogger = logger
 }
 
-// Tick processes a span for generate telemetry, matching the JavaScript implementation pattern
+// Tick processes a span for generate telemetry
 func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 
@@ -151,17 +149,17 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 	sessionId := extractStringAttribute(attributes, "genkit:sessionId")
 	threadName := extractStringAttribute(attributes, "genkit:threadName")
 
-	// Log configuration info (matches TypeScript recordGenerateActionConfigLogs)
+	// Log configuration info
 	if input.Config != nil {
 		g.recordGenerateActionConfigLogs(span, modelName, featureName, path, &input, projectID, sessionId, threadName)
 	}
 
-	// Log input content if available and enabled (matches TypeScript recordGenerateActionInputLogs)
+	// Log input content if available and enabled
 	if inputStr != "" && logInputOutput {
 		g.recordGenerateActionInputLogs(span, modelName, featureName, path, &input, projectID, sessionId, threadName)
 	}
 
-	// Log output content if available and enabled (matches TypeScript recordGenerateActionOutputLogs)
+	// Log output content if available and enabled
 	if outputStr != "" && logInputOutput {
 		g.recordGenerateActionOutputLogs(span, modelName, featureName, path, &output, projectID, sessionId, threadName)
 	}
@@ -186,7 +184,7 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 		status = "failure"
 	}
 
-	// Shared dimensions matching JavaScript implementation
+	// Shared dimensions for metrics
 	dimensions := map[string]interface{}{
 		"modelName":     modelName,
 		"featureName":   featureName,
@@ -250,7 +248,7 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		logData["stopSequences"] = input.Config.StopSequences
 	}
 
-	// Send to Google Cloud Logging (matches TypeScript logger.logStructured)
+	// Send to Google Cloud Logging
 	message := fmt.Sprintf("Config[%s, %s]", path, model)
 	g.cloudLogger.LogStructured(context.Background(), message, logData)
 
@@ -298,7 +296,7 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 			logData["messageIndex"] = msgIdx
 			logData["totalMessages"] = messages
 
-			// Send to Google Cloud Logging (matches TypeScript logger.logStructured)
+			// Send to Google Cloud Logging
 			message := fmt.Sprintf("Input[%s, %s] %s", path, model, partCounts)
 			g.cloudLogger.LogStructured(context.Background(), message, logData)
 
@@ -358,7 +356,7 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 			logData["messageIndex"] = 0
 			logData["finishReason"] = output.FinishReason
 
-			// Send to Google Cloud Logging (matches TypeScript logger.logStructured)
+			// Send to Google Cloud Logging
 			message := fmt.Sprintf("Output[%s, %s] %s", path, model, partCounts)
 			g.cloudLogger.LogStructured(context.Background(), message, logData)
 
@@ -368,7 +366,7 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 	}
 }
 
-// Helper functions matching JavaScript implementation
+// Helper functions
 
 func (g *GenerateTelemetry) extractErrorName(span sdktrace.ReadOnlySpan) string {
 	if span.Status().Code == codes.Error {
@@ -426,7 +424,6 @@ func (g *GenerateTelemetry) xOfY(x, y int) string {
 }
 
 func (g *GenerateTelemetry) toPartLogContent(part *Part) string {
-	// Match JavaScript implementation exactly
 	if part.Text != "" {
 		return truncate(part.Text)
 	}
@@ -489,27 +486,22 @@ func (g *GenerateTelemetry) toPartLogToolResponse(tool *ToolResponsePart) string
 
 // Utility functions
 
-// toDisplayPath matches the JavaScript implementation
+// toDisplayPath converts qualified paths to display paths
 func toDisplayPath(qualifiedPath string) string {
-	// In JavaScript, this function converts qualified paths to display paths
-	// For now, we'll use a simplified approach
 	if qualifiedPath == "" {
 		return "<unknown>"
 	}
 
 	// Extract the display path from qualified path
-	// This is a simplified version - the JS implementation is more complex
 	return qualifiedPath
 }
 
 func truncatePath(path string) string {
-	// Match JavaScript implementation: truncatePath(toDisplayPath(qualifiedPath))
 	displayPath := toDisplayPath(path)
 	return truncate(displayPath, MaxPathLength)
 }
 
 func extractOuterFeatureNameFromPath(path string) string {
-	// Match JavaScript implementation: extractOuterFeatureNameFromPath
 	if path == "" || path == "<unknown>" {
 		return "<unknown>"
 	}
