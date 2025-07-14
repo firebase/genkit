@@ -23,8 +23,8 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/firebase/genkit/go/plugins/compat_oai/deepseek"
+	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
 
@@ -195,11 +195,13 @@ func TestPlugin(t *testing.T) {
 
 	t.Run("generation config", func(t *testing.T) {
 		// Create a config with specific parameters
-		config := &compat_oai.OpenAIConfig{
-			Temperature:     0.2,
-			MaxOutputTokens: 50,
-			TopP:            0.5,
-			StopSequences:   []string{".", "!", "?"},
+		config := &openai.ChatCompletionNewParams{
+			Temperature:         openai.Float(0.2),
+			MaxCompletionTokens: openai.Int(50),
+			TopP:                openai.Float(0.5),
+			Stop: openai.ChatCompletionNewParamsStopUnion{
+				OfStringArray: []string{".", "!", "?"},
+			},
 		}
 
 		resp, err := genkit.Generate(ctx, g,
