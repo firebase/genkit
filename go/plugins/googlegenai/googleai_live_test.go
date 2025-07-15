@@ -178,7 +178,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("tool with thinking", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&genai.GenerateContentConfig{
 				ThinkingConfig: &genai.ThinkingConfig{
@@ -331,8 +331,8 @@ func TestGoogleAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(strings.ToLower(resp.Text()), "lizard") {
-			t.Fatalf("image detection failed, want: lizard, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -368,8 +368,8 @@ func TestGoogleAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
@@ -435,7 +435,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](0.4),
@@ -457,7 +457,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](0.4),
@@ -567,7 +567,7 @@ func TestCacheHelper(t *testing.T) {
 
 func fetchImgAsBase64() (string, error) {
 	// CC0 license image
-	imgUrl := "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"
+	imgUrl := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err
