@@ -30,7 +30,7 @@ While developed by the [Firebase](https://firebase.google.com) team, Genkit can 
 - [Go quickstart](https://genkit.dev/go/docs/get-started-go)
 
 > [!NOTE]
-> Genkit for Go is in alpha, so we only recommend it for prototyping.
+> Genkit for Go is in beta, so there may be breaking changes as we approach GA.
 
 ## Library key features
 
