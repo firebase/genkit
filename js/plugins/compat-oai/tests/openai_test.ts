@@ -23,11 +23,14 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import type { GenerateRequest, Genkit } from 'genkit';
+import { modelRef, type GenerateRequest, type Genkit } from 'genkit';
 import type OpenAI from 'openai';
 
-import { defineCompatOpenAIModel, toOpenAIRequestBody } from '../src/model';
-import { gpt41, gpt41Mini, gpt41Nano, gpt4o } from '../src/openai/gpt';
+import {
+  ChatCompletionCommonConfigSchema,
+  defineCompatOpenAIModel,
+  toOpenAIRequestBody,
+} from '../src/model';
 
 jest.mock('@genkit-ai/ai/model', () => ({
   ...(jest.requireActual('@genkit-ai/ai/model') as Record<string, unknown>),
@@ -53,14 +56,20 @@ describe('gptModel', () => {
       ai,
       name: 'openai/gpt-4o',
       client: {} as OpenAI,
-      modelRef: gpt4o,
+      modelRef: testModelRef('openai/gpt-4o'),
     });
     expect(ai.defineModel).toHaveBeenCalledWith(
       {
-        name: gpt4o.name,
-        ...gpt4o.info,
+        name: 'openai/gpt-4o',
+        supports: {
+          multiturn: true,
+          tools: true,
+          media: true,
+          systemRole: true,
+          output: ['text', 'json'],
+        },
+        configSchema: ChatCompletionCommonConfigSchema,
         apiVersion: 'v2',
-        configSchema: gpt4o.configSchema,
       },
       expect.any(Function)
     );
@@ -72,14 +81,20 @@ describe('gptModel', () => {
       ai,
       name: 'openai/gpt-4.1',
       client: {} as OpenAI,
-      modelRef: gpt41,
+      modelRef: testModelRef('openai/gpt-4.1'),
     });
     expect(ai.defineModel).toHaveBeenCalledWith(
       {
         name: 'openai/gpt-4.1',
+        supports: {
+          multiturn: true,
+          tools: true,
+          media: true,
+          systemRole: true,
+          output: ['text', 'json'],
+        },
+        configSchema: ChatCompletionCommonConfigSchema,
         apiVersion: 'v2',
-        ...gpt41.info,
-        configSchema: gpt41.configSchema,
       },
       expect.any(Function)
     );
@@ -88,14 +103,20 @@ describe('gptModel', () => {
       ai,
       name: 'openai/gpt-4.1-mini',
       client: {} as OpenAI,
-      modelRef: gpt41Mini,
+      modelRef: testModelRef('openai/gpt-4.1-mini'),
     });
     expect(ai.defineModel).toHaveBeenCalledWith(
       {
         name: 'openai/gpt-4.1-mini',
-        ...gpt41Mini.info,
+        supports: {
+          multiturn: true,
+          tools: true,
+          media: true,
+          systemRole: true,
+          output: ['text', 'json'],
+        },
+        configSchema: ChatCompletionCommonConfigSchema,
         apiVersion: 'v2',
-        configSchema: gpt41Mini.configSchema,
       },
       expect.any(Function)
     );
@@ -104,14 +125,20 @@ describe('gptModel', () => {
       ai,
       name: 'openai/gpt-4.1-nano',
       client: {} as OpenAI,
-      modelRef: gpt41Nano,
+      modelRef: testModelRef('openai/gpt-4.1-nano'),
     });
     expect(ai.defineModel).toHaveBeenCalledWith(
       {
         name: 'openai/gpt-4.1-nano',
-        ...gpt41Nano.info,
+        supports: {
+          multiturn: true,
+          tools: true,
+          media: true,
+          systemRole: true,
+          output: ['text', 'json'],
+        },
+        configSchema: ChatCompletionCommonConfigSchema,
         apiVersion: 'v2',
-        configSchema: gpt41Nano.configSchema,
       },
       expect.any(Function)
     );
@@ -136,3 +163,19 @@ describe('toOpenAiRequestBody for new GPT-4.1 variants', () => {
     ).not.toThrow();
   });
 });
+
+function testModelRef(name: string) {
+  return modelRef({
+    name,
+    info: {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text', 'json'],
+      },
+    },
+    configSchema: ChatCompletionCommonConfigSchema,
+  });
+}

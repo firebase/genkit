@@ -15,8 +15,12 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import { GenerationCommonConfigSchema, modelRef } from 'genkit/model';
+import { ModelReference, z } from 'genkit';
+import {
+  GenerationCommonConfigSchema,
+  ModelInfo,
+  modelRef,
+} from 'genkit/model';
 
 const ChunkingStrategySchema = z.object({
   type: z.string(),
@@ -49,25 +53,18 @@ export const TRANSCRIPTION_MODEL_INFO = {
   },
 };
 
-export const whisper1 = modelRef({
-  name: 'openai/whisper-1',
-  info: {
-    label: 'OpenAI - Whisper',
-    ...TRANSCRIPTION_MODEL_INFO,
-  },
-  configSchema: TranscriptionConfigSchema,
-});
-
-export const gpt4oTranscribe = modelRef({
-  name: 'openai/gpt-4o-transcribe',
-  info: {
-    label: 'OpenAI - GPT-4o Transcribe',
-    ...TRANSCRIPTION_MODEL_INFO,
-  },
-  configSchema: TranscriptionConfigSchema,
-});
+function commonRef(
+  name: string,
+  info?: ModelInfo
+): ModelReference<typeof TranscriptionConfigSchema> {
+  return modelRef({
+    name,
+    configSchema: TranscriptionConfigSchema,
+    info: info ?? TRANSCRIPTION_MODEL_INFO,
+  });
+}
 
 export const SUPPORTED_STT_MODELS = {
-  'gpt-4o-transcribe': gpt4oTranscribe,
-  'whisper-1': whisper1,
+  'gpt-4o-transcribe': commonRef('openai/gpt-4o-transcribe'),
+  'whisper-1': commonRef('openai/whisper-1'),
 };

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { z } from 'genkit';
+import { ModelReference, z } from 'genkit';
 import { ModelInfo, modelRef } from 'genkit/model';
 
 export const SpeechConfigSchema = z.object({
@@ -37,35 +37,23 @@ export const SPEECH_MODEL_INFO: ModelInfo = {
   },
 };
 
-export const tts1 = modelRef({
-  name: 'openai/tts-1',
-  info: {
-    label: 'OpenAI - Text-to-speech 1',
-    ...SPEECH_MODEL_INFO,
-  },
-  configSchema: SpeechConfigSchema,
-});
-
-export const tts1Hd = modelRef({
-  name: 'openai/tts-1-hd',
-  info: {
-    label: 'OpenAI - Text-to-speech 1 HD',
-    ...SPEECH_MODEL_INFO,
-  },
-  configSchema: SpeechConfigSchema,
-});
-
-export const gpt4oMiniTts = modelRef({
-  name: 'openai/gpt-4o-mini-tts',
-  info: {
-    label: 'OpenAI - GPT-4o Mini Text-to-speech',
-    ...SPEECH_MODEL_INFO,
-  },
-  configSchema: SpeechConfigSchema.omit({ speed: true }),
-});
+function commonRef<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
+  name: string,
+  configSchema: CustomOptions,
+  info?: ModelInfo
+): ModelReference<CustomOptions> {
+  return modelRef<typeof configSchema>({
+    name,
+    configSchema: configSchema ?? SpeechConfigSchema,
+    info: info ?? SPEECH_MODEL_INFO,
+  });
+}
 
 export const SUPPORTED_TTS_MODELS = {
-  'tts-1': tts1,
-  'tts-1-hd': tts1Hd,
-  'gpt-4o-mini-tts': gpt4oMiniTts,
+  'tts-1': commonRef('openai/tts-1', SpeechConfigSchema),
+  'tts-1-hd': commonRef('openai/tts-1-hd', SpeechConfigSchema),
+  'gpt-4o-mini-tts': commonRef(
+    'openai/gpt-4o-mini-tts',
+    SpeechConfigSchema.omit({ speed: true })
+  ),
 };

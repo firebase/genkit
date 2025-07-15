@@ -15,286 +15,168 @@
  * limitations under the License.
  */
 
-import { modelRef } from 'genkit/model';
+import { ModelInfo, modelRef, ModelReference } from 'genkit/model';
 import { ChatCompletionCommonConfigSchema } from '../model';
 
-export const gpt45 = modelRef({
-  name: 'openai/gpt-4.5',
-  info: {
-    versions: ['gpt-4.5-preview'],
-    label: 'OpenAI - GPT-4.5',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
+const MULTIMODAL_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: true,
+    systemRole: true,
+    output: ['text', 'json'],
   },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt4o = modelRef({
-  name: 'openai/gpt-4o',
-  info: {
-    versions: ['gpt-4o', 'gpt-4o-2024-05-13'],
-    label: 'OpenAI - GPT-4o',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const o1Preview = modelRef({
-  name: 'openai/o1-preview',
-  info: {
-    versions: ['o1-preview'],
-    label: 'OpenAI - o1 Preview',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const o1Mini = modelRef({
-  name: 'openai/o1',
-  info: {
-    versions: ['o1-mini'],
-    label: 'OpenAI - o1 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const o1 = modelRef({
-  name: 'openai/o1',
-  info: {
-    versions: ['o1'],
-    label: 'OpenAI - o1',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const o3 = modelRef({
-  name: 'openai/o3',
-  info: {
-    versions: ['o3'],
-    label: 'OpenAI - o3',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const o3Mini = modelRef({
-  name: 'openai/o3-mini',
-  info: {
-    versions: ['o3-mini'],
-    label: 'OpenAI - o3 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const o4Mini = modelRef({
-  name: 'openai/o4-mini',
-  info: {
-    versions: ['o4-mini'],
-    label: 'OpenAI - o4 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: false,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt4oMini = modelRef({
-  name: 'openai/gpt-4o-mini',
-  info: {
-    versions: ['gpt-4o-mini', 'gpt-4o-mini-2024-07-18'],
-    label: 'OpenAI - GPT-4o mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt4Turbo = modelRef({
-  name: 'openai/gpt-4-turbo',
-  info: {
-    versions: [
-      'gpt-4-turbo',
-      'gpt-4-turbo-2024-04-09',
-      'gpt-4-turbo-preview',
-      'gpt-4-0125-preview',
-      'gpt-4-1106-preview',
-    ],
-    label: 'OpenAI - GPT-4 Turbo',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt4Vision = modelRef({
-  name: 'openai/gpt-4-vision',
-  info: {
-    versions: ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'],
-    label: 'OpenAI - GPT-4 Vision',
-    supports: {
-      multiturn: true,
-      tools: false,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt4 = modelRef({
-  name: 'openai/gpt-4',
-  info: {
-    versions: ['gpt-4', 'gpt-4-0613', 'gpt-4-32k', 'gpt-4-32k-0613'],
-    label: 'OpenAI - GPT-4',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt41 = modelRef({
-  name: 'openai/gpt-4.1',
-  info: {
-    versions: ['gpt-4.1'],
-    label: 'OpenAI - GPT-4.1',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt41Mini = modelRef({
-  name: 'openai/gpt-4.1-mini',
-  info: {
-    versions: ['gpt-4.1-mini'],
-    label: 'OpenAI - GPT-4.1 Mini',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt41Nano = modelRef({
-  name: 'openai/gpt-4.1-nano',
-  info: {
-    versions: ['gpt-4.1-nano'],
-    label: 'OpenAI - GPT-4.1 Nano',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const gpt35Turbo = modelRef({
-  name: 'openai/gpt-3.5-turbo',
-  info: {
-    versions: ['gpt-3.5-turbo-0125', 'gpt-3.5-turbo', 'gpt-3.5-turbo-1106'],
-    label: 'OpenAI - GPT-3.5 Turbo',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['json', 'text'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
-
-export const SUPPORTED_GPT_MODELS = {
-  'gpt-4.5': gpt45,
-  'gpt-4o': gpt4o,
-  'gpt-4o-mini': gpt4oMini,
-  'gpt-4-turbo': gpt4Turbo,
-  'gpt-4-vision': gpt4Vision,
-  'gpt-4': gpt4,
-  'gpt-4.1': gpt41,
-  'gpt-4.1-mini': gpt41Mini,
-  'gpt-4.1-nano': gpt41Nano,
-  'gpt-3.5-turbo': gpt35Turbo,
-  'o1-preview': o1Preview,
-  o1: o1,
-  'o1-mini': o1Mini,
-  o3: o3,
-  'o3-mini': o3Mini,
-  'o4-mini': o4Mini,
 };
+
+function commonRef(
+  name: string,
+  info?: ModelInfo
+): ModelReference<typeof ChatCompletionCommonConfigSchema> {
+  return modelRef({
+    name,
+    configSchema: ChatCompletionCommonConfigSchema,
+    info: {
+      ...MULTIMODAL_MODEL_INFO,
+      ...(info ?? {}),
+    },
+  });
+}
+
+const gpt45 = commonRef('openai/gpt-4.5');
+const gpt45Preview = commonRef('openai/gpt-4.5-preview');
+
+const gpt4o = commonRef('openai/gpt-4o');
+const gpt4o20240513 = commonRef('openai/gpt-4o-2024-05-13');
+
+const o1 = commonRef('openai/o1', {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: true,
+    systemRole: false,
+    output: ['text', 'json'],
+  },
+});
+
+const o3 = commonRef('openai/o3', {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: true,
+    systemRole: false,
+    output: ['text', 'json'],
+  },
+});
+
+const o3Mini = commonRef('openai/o3-mini', {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: false,
+    systemRole: false,
+    output: ['text', 'json'],
+  },
+});
+
+const o4Mini = commonRef('openai/o4-mini', {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: true,
+    systemRole: false,
+    output: ['text', 'json'],
+  },
+});
+
+const gpt4oMini = commonRef('openai/gpt-4o-mini');
+const gpt4oMini20240718 = commonRef('openai/gpt-4o-mini-2024-07-18');
+
+const gpt4Turbo = commonRef('openai/gpt-4-turbo');
+const gpt4Turbo20240409 = commonRef('openai/gpt-4-turbo-2024-04-09');
+const gpt4TurboPreview = commonRef('openai/gpt-4-turbo-preview');
+const gpt40125Preview = commonRef('openai/gpt-4-0125-preview');
+const gpt41106Preview = commonRef('openai/gpt-4-1106-preview');
+
+const GPT_4_VISION_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: true,
+    tools: false,
+    media: true,
+    systemRole: true,
+    output: ['text'],
+  },
+};
+const gpt4Vision = commonRef('openai/gpt-4-vision', GPT_4_VISION_MODEL_INFO);
+const gpt4VisionPreview = commonRef(
+  'openai/gpt-4-vision-preview',
+  GPT_4_VISION_MODEL_INFO
+);
+const gpt41106VisionPreview = commonRef(
+  'openai/gpt-4-1106-vision-preview',
+  GPT_4_VISION_MODEL_INFO
+);
+
+const GPT_4_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: false,
+    systemRole: true,
+    output: ['text'],
+  },
+};
+const gpt4 = commonRef('openai/gpt-4', GPT_4_MODEL_INFO);
+const gpt40613 = commonRef('openai/gpt-4-0613', GPT_4_MODEL_INFO);
+const gpt432k = commonRef('openai/gpt-4-32k', GPT_4_MODEL_INFO);
+const gpt432k0613 = commonRef('openai/gpt-4-32k-0613', GPT_4_MODEL_INFO);
+
+const GPT_35_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: false,
+    systemRole: true,
+    output: ['text', 'json'],
+  },
+};
+const gpt35Turbo = commonRef('openai/gpt-3.5-turbo', GPT_35_MODEL_INFO);
+const gpt35Turbo0125 = commonRef(
+  'openai/gpt-3.5-turbo-0125',
+  GPT_35_MODEL_INFO
+);
+const gpt35Turbo1106 = commonRef(
+  'openai/gpt-3.5-turbo-1106',
+  GPT_35_MODEL_INFO
+);
+
+const ALL_GPT_MODELS = [
+  gpt45,
+  gpt45Preview,
+  gpt4o,
+  gpt4o20240513,
+  o1,
+  o3,
+  o3Mini,
+  o4Mini,
+  gpt4oMini,
+  gpt4oMini20240718,
+  gpt4Turbo,
+  gpt4Turbo20240409,
+  gpt4TurboPreview,
+  gpt40125Preview,
+  gpt41106Preview,
+  gpt4Vision,
+  gpt4VisionPreview,
+  gpt41106VisionPreview,
+  gpt4,
+  gpt40613,
+  gpt432k,
+  gpt432k0613,
+  gpt35Turbo,
+  gpt35Turbo0125,
+  gpt35Turbo1106,
+];
+
+export const SUPPORTED_GPT_MODELS = Object.fromEntries(
+  ALL_GPT_MODELS.map((ref) => [ref.name.split('openai/')[1], ref])
+);
