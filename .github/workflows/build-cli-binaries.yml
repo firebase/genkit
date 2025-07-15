@@ -125,7 +125,7 @@ jobs:
         with:
           name: genkit-${{ matrix.target }}
           path: genkit-tools/cli/dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
-          retention-days: 7  # Increased for better debugging and signing workflow
+          retention-days: 7
 
   test:
     needs: build
