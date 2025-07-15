@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/firebase/genkit/go/internal"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -30,7 +31,6 @@ type PathTelemetry struct {
 	// Note: uses feature namespace for path metrics
 	pathCounter   *MetricCounter   // genkit/feature/path/requests
 	pathLatencies *MetricHistogram // genkit/feature/path/latency
-	cloudLogger   CloudLogger      // For structured logging to Google Cloud
 }
 
 // NewPathTelemetry creates a new path telemetry module with required metrics
@@ -47,13 +47,7 @@ func NewPathTelemetry() *PathTelemetry {
 			Description: "Latencies per flow path.",
 			Unit:        "ms",
 		}),
-		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
 	}
-}
-
-// SetCloudLogger implements the Telemetry interface
-func (p *PathTelemetry) SetCloudLogger(logger CloudLogger) {
-	p.cloudLogger = logger
 }
 
 // Tick processes a span for path telemetry
@@ -93,15 +87,15 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 		"status":        "failure",
 		"error":         errorName,
 		"path":          path,
-		"source":        "go",
-		"sourceVersion": "1.0.0", // TODO: Get actual version
+		"source":        "genkit-go",
+		"sourceVersion": internal.Version,
 	}
 	p.pathCounter.Add(1, pathDimensions)
 	p.pathLatencies.Record(latencyMs, pathDimensions)
 
 	// Log structured error
 	displayPath := truncatePath(path)
-	sharedMetadata := p.createCommonLogAttributes(span, projectID)
+	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	logData := map[string]interface{}{
 		"path":          displayPath,
@@ -109,8 +103,8 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 		"name":          errorName,
 		"message":       errorMessage,
 		"stack":         errorStack,
-		"source":        "go",
-		"sourceVersion": "1.0.0",
+		"source":        "genkit-go",
+		"sourceVersion": internal.Version,
 		"sessionId":     sessionID,
 		"threadName":    threadName,
 	}
@@ -187,14 +181,4 @@ func (p *PathTelemetry) extractErrorStack(span sdktrace.ReadOnlySpan) string {
 		}
 	}
 	return ""
-}
-
-// createCommonLogAttributes creates common log attributes for correlation with traces
-func (p *PathTelemetry) createCommonLogAttributes(span sdktrace.ReadOnlySpan, projectID string) map[string]interface{} {
-	spanContext := span.SpanContext()
-	return map[string]interface{}{
-		"logging.googleapis.com/trace":         fmt.Sprintf("projects/%s/traces/%s", projectID, spanContext.TraceID().String()),
-		"logging.googleapis.com/spanId":        spanContext.SpanID().String(),
-		"logging.googleapis.com/trace_sampled": spanContext.IsSampled(),
-	}
 }

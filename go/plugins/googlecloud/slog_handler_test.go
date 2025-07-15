@@ -34,9 +34,10 @@ func TestHandler(t *testing.T) {
 		results = append(results, entryToMap(e))
 	}
 
-	if err := slogtest.TestHandler(newHandler(slog.LevelInfo, f), func() []map[string]any { return results }); err != nil {
+	if err := slogtest.TestHandler(newHandler(slog.LevelInfo, f, "test-project"), func() []map[string]any { return results }); err != nil {
 		t.Fatal(err)
 	}
+
 }
 
 func entryToMap(e logging.Entry) map[string]any {

@@ -25,69 +25,51 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // GenerateTelemetry implements telemetry collection for model generate actions
 type GenerateTelemetry struct {
-	actionCounter    *MetricCounter   // genkit/ai/generate/requests
-	latencies        *MetricHistogram // genkit/ai/generate/latency
-	inputCharacters  *MetricCounter   // genkit/ai/generate/input/characters
-	inputTokens      *MetricCounter   // genkit/ai/generate/input/tokens
-	inputImages      *MetricCounter   // genkit/ai/generate/input/images
-	outputCharacters *MetricCounter   // genkit/ai/generate/output/characters
-	outputTokens     *MetricCounter   // genkit/ai/generate/output/tokens
-	outputImages     *MetricCounter   // genkit/ai/generate/output/images
-	cloudLogger      CloudLogger      // For structured logging to Google Cloud
+	actionCounter    metric.Int64Counter   // genkit/ai/generate/requests
+	latencies        metric.Int64Histogram // genkit/ai/generate/latency
+	inputCharacters  metric.Int64Counter   // genkit/ai/generate/input/characters
+	inputTokens      metric.Int64Counter   // genkit/ai/generate/input/tokens
+	inputImages      metric.Int64Counter   // genkit/ai/generate/input/images
+	outputCharacters metric.Int64Counter   // genkit/ai/generate/output/characters
+	outputTokens     metric.Int64Counter   // genkit/ai/generate/output/tokens
+	outputImages     metric.Int64Counter   // genkit/ai/generate/output/images
 }
 
 // NewGenerateTelemetry creates a new generate telemetry module with all required metrics
 func NewGenerateTelemetry() *GenerateTelemetry {
-	// Use the namespace wrapper from metrics.go
-	n := func(name string) string { return internalMetricNamespaceWrap("ai", name) }
+	meter := otel.Meter("genkit")
+
+	// Create metrics following OpenTelemetry patterns
+	actionCounter, _ := meter.Int64Counter("genkit/ai/generate/requests", metric.WithDescription("Counts calls to genkit generate actions."), metric.WithUnit("1"))
+	latencies, _ := meter.Int64Histogram("genkit/ai/generate/latency", metric.WithDescription("Latencies when interacting with a Genkit model."), metric.WithUnit("ms"))
+	inputCharacters, _ := meter.Int64Counter("genkit/ai/generate/input/characters", metric.WithDescription("Counts input characters to any Genkit model."), metric.WithUnit("1"))
+	inputTokens, _ := meter.Int64Counter("genkit/ai/generate/input/tokens", metric.WithDescription("Counts input tokens to a Genkit model."), metric.WithUnit("1"))
+	inputImages, _ := meter.Int64Counter("genkit/ai/generate/input/images", metric.WithDescription("Counts input images to a Genkit model."), metric.WithUnit("1"))
+	outputCharacters, _ := meter.Int64Counter("genkit/ai/generate/output/characters", metric.WithDescription("Counts output characters from a Genkit model."), metric.WithUnit("1"))
+	outputTokens, _ := meter.Int64Counter("genkit/ai/generate/output/tokens", metric.WithDescription("Counts output tokens from a Genkit model."), metric.WithUnit("1"))
+	outputImages, _ := meter.Int64Counter("genkit/ai/generate/output/images", metric.WithDescription("Count output images from a Genkit model."), metric.WithUnit("1"))
 
 	return &GenerateTelemetry{
-		actionCounter: NewMetricCounter(n("generate/requests"), MetricCounterOptions{
-			Description: "Counts calls to genkit generate actions.",
-			Unit:        "1",
-		}),
-		latencies: NewMetricHistogram(n("generate/latency"), MetricHistogramOptions{
-			Description: "Latencies when interacting with a Genkit model.",
-			Unit:        "ms",
-		}),
-		inputCharacters: NewMetricCounter(n("generate/input/characters"), MetricCounterOptions{
-			Description: "Counts input characters to any Genkit model.",
-			Unit:        "1",
-		}),
-		inputTokens: NewMetricCounter(n("generate/input/tokens"), MetricCounterOptions{
-			Description: "Counts input tokens to a Genkit model.",
-			Unit:        "1",
-		}),
-		inputImages: NewMetricCounter(n("generate/input/images"), MetricCounterOptions{
-			Description: "Counts input images to a Genkit model.",
-			Unit:        "1",
-		}),
-		outputCharacters: NewMetricCounter(n("generate/output/characters"), MetricCounterOptions{
-			Description: "Counts output characters from a Genkit model.",
-			Unit:        "1",
-		}),
-		outputTokens: NewMetricCounter(n("generate/output/tokens"), MetricCounterOptions{
-			Description: "Counts output tokens from a Genkit model.",
-			Unit:        "1",
-		}),
-		outputImages: NewMetricCounter(n("generate/output/images"), MetricCounterOptions{
-			Description: "Count output images from a Genkit model.",
-			Unit:        "1",
-		}),
-		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
+		actionCounter:    actionCounter,
+		latencies:        latencies,
+		inputCharacters:  inputCharacters,
+		inputTokens:      inputTokens,
+		inputImages:      inputImages,
+		outputCharacters: outputCharacters,
+		outputTokens:     outputTokens,
+		outputImages:     outputImages,
 	}
-}
-
-// SetCloudLogger implements the Telemetry interface
-func (g *GenerateTelemetry) SetCloudLogger(logger CloudLogger) {
-	g.cloudLogger = logger
 }
 
 // Tick processes a span for generate telemetry
@@ -122,8 +104,8 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 	outputStr := extractStringAttribute(attributes, "genkit:output")
 
 	// Parse input/output JSON
-	var input GenerateRequestData
-	var output GenerateResponseData
+	var input ai.GenerateActionOptions
+	var output ai.ModelResponse
 
 	if inputStr != "" {
 		if err := json.Unmarshal([]byte(inputStr), &input); err != nil {
@@ -178,53 +160,50 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 }
 
 // recordGenerateActionMetrics records all metrics for a generate action
-func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, path string, output *GenerateResponseData, errName string) {
+func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, path string, output *ai.ModelResponse, errName string) {
 	status := "success"
 	if errName != "" {
 		status = "failure"
 	}
 
-	// Shared dimensions for metrics
-	dimensions := map[string]interface{}{
-		"modelName":     modelName,
-		"featureName":   featureName,
-		"path":          path,
-		"status":        status,
-		"source":        "go",
-		"sourceVersion": "1.0.0", // TODO: Get actual version
+	// Standard shared dimensions
+	attrs := []attribute.KeyValue{
+		attribute.String("modelName", modelName),
+		attribute.String("featureName", featureName),
+		attribute.String("path", path),
+		attribute.String("status", status),
+		attribute.String("source", "go"),
+		attribute.String("sourceVersion", internal.Version),
 	}
 
-	// Record request count
-	errorDimensions := make(map[string]interface{})
-	for k, v := range dimensions {
-		errorDimensions[k] = v
-	}
+	// Record request count with error attribute if present
+	errorAttrs := attrs
 	if errName != "" {
-		errorDimensions["error"] = errName
+		errorAttrs = append(attrs, attribute.String("error", errName))
 	}
-	g.actionCounter.Add(1, errorDimensions)
+	g.actionCounter.Add(context.Background(), 1, metric.WithAttributes(errorAttrs...))
 
 	// Record latency if available
 	if output != nil && output.LatencyMs > 0 {
-		g.latencies.Record(output.LatencyMs, dimensions)
+		g.latencies.Record(context.Background(), int64(output.LatencyMs), metric.WithAttributes(attrs...))
 	}
 
 	// Record usage metrics if available
-	if output != nil && output.Usage != nil {
-		usage := output.Usage
-		g.inputTokens.Add(usage.InputTokens, dimensions)
-		g.inputCharacters.Add(usage.InputCharacters, dimensions)
-		g.inputImages.Add(usage.InputImages, dimensions)
-		g.outputTokens.Add(usage.OutputTokens, dimensions)
-		g.outputCharacters.Add(usage.OutputCharacters, dimensions)
-		g.outputImages.Add(usage.OutputImages, dimensions)
+	if usage := output.Usage; usage != nil {
+		opt := metric.WithAttributes(attrs...)
+		g.inputTokens.Add(context.Background(), int64(usage.InputTokens), opt)
+		g.inputCharacters.Add(context.Background(), int64(usage.InputCharacters), opt)
+		g.inputImages.Add(context.Background(), int64(usage.InputImages), opt)
+		g.outputTokens.Add(context.Background(), int64(usage.OutputTokens), opt)
+		g.outputCharacters.Add(context.Background(), int64(usage.OutputCharacters), opt)
+		g.outputImages.Add(context.Background(), int64(usage.OutputImages), opt)
 	}
 }
 
 // recordGenerateActionConfigLogs logs configuration information
-func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, input *GenerateRequestData, projectID, sessionID, threadName string) {
+func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, input *ai.GenerateActionOptions, projectID, sessionID, threadName string) {
 	path := truncatePath(toDisplayPath(qualifiedPath))
-	sharedMetadata := g.createCommonLogAttributes(span, projectID)
+	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	logData := map[string]interface{}{
 		"model":         model,
@@ -234,7 +213,7 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		"sessionId":     sessionID,
 		"threadName":    threadName,
 		"source":        "go",
-		"sourceVersion": "1.0.0",
+		"sourceVersion": internal.Version,
 	}
 
 	// Add shared metadata
@@ -244,26 +223,30 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 
 	// Add config details if available
 	if input.Config != nil {
-		logData["maxOutputTokens"] = input.Config.MaxOutputTokens
-		logData["stopSequences"] = input.Config.StopSequences
+		// Config is 'any' type in ai.GenerateActionOptions, so we need to handle it differently
+		if configMap, ok := input.Config.(map[string]interface{}); ok {
+			if maxTokens, exists := configMap["maxOutputTokens"]; exists {
+				logData["maxOutputTokens"] = maxTokens
+			}
+			if stopSeqs, exists := configMap["stopSequences"]; exists {
+				logData["stopSequences"] = stopSeqs
+			}
+		}
 	}
 
-	// Send to Google Cloud Logging
+	// Send to Google Cloud Logging via slog
 	message := fmt.Sprintf("Config[%s, %s]", path, model)
-	g.cloudLogger.LogStructured(context.Background(), message, logData)
-
-	// Also log locally for debugging
 	slog.Info(message, "data", logData)
 }
 
 // recordGenerateActionInputLogs logs input information
-func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, input *GenerateRequestData, projectID, sessionID, threadName string) {
+func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, input *ai.GenerateActionOptions, projectID, sessionID, threadName string) {
 	if input.Messages == nil {
 		return
 	}
 
 	path := truncatePath(toDisplayPath(qualifiedPath))
-	sharedMetadata := g.createCommonLogAttributes(span, projectID)
+	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	baseLogData := map[string]interface{}{
 		"model":         model,
@@ -289,27 +272,24 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 			}
 
 			partCounts := g.toPartCounts(partIdx, parts, msgIdx, messages)
-			logData["content"] = g.toPartLogContent(&part)
+			logData["content"] = g.toPartLogContent(part)
 			logData["role"] = msg.Role
 			logData["partIndex"] = partIdx
 			logData["totalParts"] = parts
 			logData["messageIndex"] = msgIdx
 			logData["totalMessages"] = messages
 
-			// Send to Google Cloud Logging
+			// Send to Google Cloud Logging via slog
 			message := fmt.Sprintf("Input[%s, %s] %s", path, model, partCounts)
-			g.cloudLogger.LogStructured(context.Background(), message, logData)
-
-			// Also log locally for debugging
 			slog.Info(message, "data", logData)
 		}
 	}
 }
 
 // recordGenerateActionOutputLogs logs output information
-func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, output *GenerateResponseData, projectID, sessionID, threadName string) {
+func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, output *ai.ModelResponse, projectID, sessionID, threadName string) {
 	path := truncatePath(toDisplayPath(qualifiedPath))
-	sharedMetadata := g.createCommonLogAttributes(span, projectID)
+	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	baseLogData := map[string]interface{}{
 		"model":         model,
@@ -325,12 +305,10 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 		baseLogData[k] = v
 	}
 
-	// Handle message from either direct message or first candidate
-	var message *Message
+	// Handle message from ai.ModelResponse structure
+	var message *ai.Message
 	if output.Message != nil {
 		message = output.Message
-	} else if len(output.Candidates) > 0 && output.Candidates[0].Message != nil {
-		message = output.Candidates[0].Message
 	}
 
 	if message != nil && message.Content != nil {
@@ -347,7 +325,7 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 				logData["finishMessage"] = truncate(output.FinishMessage)
 			}
 
-			logData["content"] = g.toPartLogContent(&part)
+			logData["content"] = g.toPartLogContent(part)
 			logData["role"] = message.Role
 			logData["partIndex"] = partIdx
 			logData["totalParts"] = parts
@@ -356,11 +334,8 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 			logData["messageIndex"] = 0
 			logData["finishReason"] = output.FinishReason
 
-			// Send to Google Cloud Logging
+			// Send to Google Cloud Logging via slog
 			message := fmt.Sprintf("Output[%s, %s] %s", path, model, partCounts)
-			g.cloudLogger.LogStructured(context.Background(), message, logData)
-
-			// Also log locally for debugging
 			slog.Info(message, "data", logData)
 		}
 	}
@@ -397,15 +372,6 @@ func (g *GenerateTelemetry) extractFeatureName(attributes []attribute.KeyValue, 
 	return extractOuterFeatureNameFromPath(path)
 }
 
-func (g *GenerateTelemetry) createCommonLogAttributes(span sdktrace.ReadOnlySpan, projectID string) map[string]interface{} {
-	spanContext := span.SpanContext()
-	return map[string]interface{}{
-		"logging.googleapis.com/trace":         fmt.Sprintf("projects/%s/traces/%s", projectID, spanContext.TraceID().String()),
-		"logging.googleapis.com/spanId":        spanContext.SpanID().String(),
-		"logging.googleapis.com/trace_sampled": spanContext.IsSampled(),
-	}
-}
-
 func (g *GenerateTelemetry) toPartCounts(partOrdinal, parts, msgOrdinal, messages int) string {
 	if parts > 1 && messages > 1 {
 		return fmt.Sprintf("(part %s in message %s)", g.xOfY(partOrdinal, parts), g.xOfY(msgOrdinal, messages))
@@ -423,46 +389,50 @@ func (g *GenerateTelemetry) xOfY(x, y int) string {
 	return fmt.Sprintf("%d of %d", x+1, y)
 }
 
-func (g *GenerateTelemetry) toPartLogContent(part *Part) string {
-	if part.Text != "" {
+// toPartLogContent processes different part types correctly based on Part.Kind
+func (g *GenerateTelemetry) toPartLogContent(part *ai.Part) string {
+	switch part.Kind {
+	case ai.PartText:
 		return truncate(part.Text)
-	}
-	if part.Data != nil {
-		data, _ := json.Marshal(part.Data)
-		return truncate(string(data))
-	}
-	if part.Media != nil {
-		return g.toPartLogMedia(part.Media)
-	}
-	if part.ToolRequest != nil {
-		return g.toPartLogToolRequest(part.ToolRequest)
-	}
-	if part.ToolResponse != nil {
-		return g.toPartLogToolResponse(part.ToolResponse)
-	}
-	if part.Custom != nil {
-		data, _ := json.Marshal(part.Custom)
-		return truncate(string(data))
+	case ai.PartData:
+		return truncate(part.Text) // Data is stored in Text field
+	case ai.PartMedia:
+		return g.toPartLogMedia(part) // Media content stored in Text field
+	case ai.PartCustom:
+		if part.Custom != nil {
+			data, _ := json.Marshal(part.Custom)
+			return truncate(string(data))
+		}
+	case ai.PartToolRequest:
+		if part.ToolRequest != nil {
+			return g.toPartLogToolRequest(part.ToolRequest)
+		}
+	case ai.PartToolResponse:
+		if part.ToolResponse != nil {
+			return g.toPartLogToolResponse(part.ToolResponse)
+		}
 	}
 	return "<unknown format>"
 }
 
-func (g *GenerateTelemetry) toPartLogMedia(media *MediaPart) string {
-	if strings.HasPrefix(media.URL, "data:") {
-		splitIdx := strings.Index(media.URL, "base64,")
+func (g *GenerateTelemetry) toPartLogMedia(part *ai.Part) string {
+	// For media parts, the content is stored in the Text field
+	// and ContentType indicates the media type
+	if strings.HasPrefix(part.Text, "data:") {
+		splitIdx := strings.Index(part.Text, "base64,")
 		if splitIdx < 0 {
 			return "<unknown media format>"
 		}
-		prefix := media.URL[:splitIdx+7]
+		prefix := part.Text[:splitIdx+7]
 		hasher := sha256.New()
-		hasher.Write([]byte(media.URL[splitIdx+7:]))
+		hasher.Write([]byte(part.Text[splitIdx+7:]))
 		hashedContent := hex.EncodeToString(hasher.Sum(nil))
 		return fmt.Sprintf("%s<sha256(%s)>", prefix, hashedContent)
 	}
-	return truncate(media.URL)
+	return truncate(part.Text)
 }
 
-func (g *GenerateTelemetry) toPartLogToolRequest(tool *ToolRequestPart) string {
+func (g *GenerateTelemetry) toPartLogToolRequest(tool *ai.ToolRequest) string {
 	var inputText string
 	if str, ok := tool.Input.(string); ok {
 		inputText = str
@@ -473,7 +443,7 @@ func (g *GenerateTelemetry) toPartLogToolRequest(tool *ToolRequestPart) string {
 	return truncate(fmt.Sprintf("Tool request: %s, ref: %s, input: %s", tool.Name, tool.Ref, inputText))
 }
 
-func (g *GenerateTelemetry) toPartLogToolResponse(tool *ToolResponsePart) string {
+func (g *GenerateTelemetry) toPartLogToolResponse(tool *ai.ToolResponse) string {
 	var outputText string
 	if str, ok := tool.Output.(string); ok {
 		outputText = str
@@ -494,36 +464,4 @@ func toDisplayPath(qualifiedPath string) string {
 
 	// Extract the display path from qualified path
 	return qualifiedPath
-}
-
-func truncatePath(path string) string {
-	displayPath := toDisplayPath(path)
-	return truncate(displayPath, MaxPathLength)
-}
-
-func extractOuterFeatureNameFromPath(path string) string {
-	if path == "" || path == "<unknown>" {
-		return "<unknown>"
-	}
-
-	parts := strings.Split(path, "/")
-	if len(parts) == 0 {
-		return "<unknown>"
-	}
-
-	// Skip empty parts (caused by leading slash) and find first meaningful part
-	for _, part := range parts {
-		if part != "" {
-			// Extract feature name from pattern like "{myFlow,t:flow}"
-			if strings.HasPrefix(part, "{") && strings.Contains(part, ",t:") {
-				// Find the name before the first comma
-				commaIdx := strings.Index(part, ",")
-				if commaIdx > 1 {
-					return part[1:commaIdx] // Remove the opening { and everything after comma
-				}
-			}
-			return part // Return first non-empty part as fallback
-		}
-	}
-	return "<unknown>"
 }

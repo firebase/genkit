@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/firebase/genkit/go/internal"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -29,7 +30,6 @@ import (
 type FeatureTelemetry struct {
 	featureCounter   *MetricCounter   // genkit/feature/requests
 	featureLatencies *MetricHistogram // genkit/feature/latency
-	cloudLogger      CloudLogger      // For structured logging to Google Cloud
 }
 
 // NewFeatureTelemetry creates a new feature telemetry module with required metrics
@@ -46,13 +46,7 @@ func NewFeatureTelemetry() *FeatureTelemetry {
 			Description: "Latencies when calling Genkit features.",
 			Unit:        "ms",
 		}),
-		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
 	}
-}
-
-// SetCloudLogger implements the Telemetry interface
-func (f *FeatureTelemetry) SetCloudLogger(logger CloudLogger) {
-	f.cloudLogger = logger
 }
 
 // Tick processes a span for feature telemetry
@@ -123,11 +117,12 @@ func (f *FeatureTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool,
 
 // writeFeatureSuccess records metrics for successful feature calls
 func (f *FeatureTelemetry) writeFeatureSuccess(featureName string, latencyMs float64) {
+	// Standard shared dimensions
 	dimensions := map[string]interface{}{
 		"name":          featureName,
 		"status":        "success",
 		"source":        "go",
-		"sourceVersion": "1.0.0", // TODO: Get actual version
+		"sourceVersion": internal.Version,
 	}
 
 	f.featureCounter.Add(1, dimensions)
@@ -136,11 +131,12 @@ func (f *FeatureTelemetry) writeFeatureSuccess(featureName string, latencyMs flo
 
 // writeFeatureFailure records metrics for failed feature calls
 func (f *FeatureTelemetry) writeFeatureFailure(featureName string, latencyMs float64, errorName string) {
+	// Standard shared dimensions
 	dimensions := map[string]interface{}{
 		"name":          featureName,
 		"status":        "failure",
 		"source":        "go",
-		"sourceVersion": "1.0.0", // TODO: Get actual version
+		"sourceVersion": internal.Version,
 		"error":         errorName,
 	}
 
@@ -151,7 +147,7 @@ func (f *FeatureTelemetry) writeFeatureFailure(featureName string, latencyMs flo
 // writeLog writes structured logs for feature input/output
 func (f *FeatureTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName, qualifiedPath, content, projectID, sessionID, threadName string) {
 	path := truncatePath(qualifiedPath)
-	sharedMetadata := f.createCommonLogAttributes(span, projectID)
+	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	logData := map[string]interface{}{
 		"path":          path,
@@ -205,14 +201,4 @@ func (f *FeatureTelemetry) extractErrorName(span sdktrace.ReadOnlySpan) string {
 	}
 
 	return ""
-}
-
-// createCommonLogAttributes creates common log attributes for correlation with traces
-func (f *FeatureTelemetry) createCommonLogAttributes(span sdktrace.ReadOnlySpan, projectID string) map[string]interface{} {
-	spanContext := span.SpanContext()
-	return map[string]interface{}{
-		"logging.googleapis.com/trace":         fmt.Sprintf("projects/%s/traces/%s", projectID, spanContext.TraceID().String()),
-		"logging.googleapis.com/spanId":        spanContext.SpanID().String(),
-		"logging.googleapis.com/trace_sampled": spanContext.IsSampled(),
-	}
 }

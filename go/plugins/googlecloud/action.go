@@ -26,19 +26,11 @@ import (
 // ActionTelemetry implements telemetry collection for action input/output logging
 type ActionTelemetry struct {
 	// Note: Unlike generate and feature telemetry, action telemetry only does logging, no metrics
-	cloudLogger CloudLogger // For structured logging to Google Cloud
 }
 
 // NewActionTelemetry creates a new action telemetry module
 func NewActionTelemetry() *ActionTelemetry {
-	return &ActionTelemetry{
-		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
-	}
-}
-
-// SetCloudLogger implements the Telemetry interface
-func (a *ActionTelemetry) SetCloudLogger(logger CloudLogger) {
-	a.cloudLogger = logger
+	return &ActionTelemetry{}
 }
 
 // Tick processes a span for action telemetry
@@ -89,7 +81,7 @@ func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, 
 // writeLog writes structured logs for action input/output
 func (a *ActionTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName, qualifiedPath, content, projectID, sessionID, threadName string) {
 	path := truncatePath(qualifiedPath)
-	sharedMetadata := a.createCommonLogAttributes(span, projectID)
+	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	logData := map[string]interface{}{
 		"path":          path,
@@ -106,16 +98,4 @@ func (a *ActionTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName,
 	}
 
 	slog.Info(fmt.Sprintf("%s[%s, %s]", tag, path, featureName), "data", logData)
-}
-
-// Helper functions
-
-// createCommonLogAttributes creates common log attributes for correlation with traces
-func (a *ActionTelemetry) createCommonLogAttributes(span sdktrace.ReadOnlySpan, projectID string) map[string]interface{} {
-	spanContext := span.SpanContext()
-	return map[string]interface{}{
-		"logging.googleapis.com/trace":         fmt.Sprintf("projects/%s/traces/%s", projectID, spanContext.TraceID().String()),
-		"logging.googleapis.com/spanId":        spanContext.SpanID().String(),
-		"logging.googleapis.com/trace_sampled": spanContext.IsSampled(),
-	}
 }

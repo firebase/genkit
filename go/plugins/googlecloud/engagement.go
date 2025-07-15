@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"regexp"
 
+	"github.com/firebase/genkit/go/internal"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -29,7 +30,6 @@ import (
 type EngagementTelemetry struct {
 	feedbackCounter   *MetricCounter // genkit/engagement/feedback
 	acceptanceCounter *MetricCounter // genkit/engagement/acceptance
-	cloudLogger       CloudLogger    // For structured logging to Google Cloud
 }
 
 // NewEngagementTelemetry creates a new engagement telemetry module with required metrics
@@ -46,13 +46,7 @@ func NewEngagementTelemetry() *EngagementTelemetry {
 			Description: "Tracks unique flow paths per flow.",
 			Unit:        "1",
 		}),
-		cloudLogger: NewNoOpCloudLogger(), // Will be set via SetCloudLogger
 	}
-}
-
-// SetCloudLogger implements the Telemetry interface
-func (e *EngagementTelemetry) SetCloudLogger(logger CloudLogger) {
-	e.cloudLogger = logger
 }
 
 // Tick processes a span for engagement telemetry
@@ -88,12 +82,12 @@ func (e *EngagementTelemetry) writeUserFeedback(span sdktrace.ReadOnlySpan, proj
 		"value":         feedbackValue,
 		"hasText":       hasText,
 		"source":        "go",
-		"sourceVersion": "1.0.0", // TODO: Get actual version
+		"sourceVersion": internal.Version,
 	}
 	e.feedbackCounter.Add(1, dimensions)
 
 	// Record structured log
-	sharedMetadata := e.createCommonLogAttributes(span, projectID)
+	sharedMetadata := createCommonLogAttributes(span, projectID)
 	logData := map[string]interface{}{
 		"feedbackValue": feedbackValue,
 	}
@@ -124,12 +118,12 @@ func (e *EngagementTelemetry) writeUserAcceptance(span sdktrace.ReadOnlySpan, pr
 		"name":          name,
 		"value":         acceptanceValue,
 		"source":        "go",
-		"sourceVersion": "1.0.0", // TODO: Get actual version
+		"sourceVersion": internal.Version,
 	}
 	e.acceptanceCounter.Add(1, dimensions)
 
 	// Record structured log
-	sharedMetadata := e.createCommonLogAttributes(span, projectID)
+	sharedMetadata := createCommonLogAttributes(span, projectID)
 	logData := map[string]interface{}{
 		"acceptanceValue": acceptanceValue,
 	}
@@ -159,14 +153,4 @@ func (e *EngagementTelemetry) extractTraceName(attributes []attribute.KeyValue) 
 	}
 
 	return "<unknown>"
-}
-
-// createCommonLogAttributes creates common log attributes for correlation with traces
-func (e *EngagementTelemetry) createCommonLogAttributes(span sdktrace.ReadOnlySpan, projectID string) map[string]interface{} {
-	spanContext := span.SpanContext()
-	return map[string]interface{}{
-		"logging.googleapis.com/trace":         fmt.Sprintf("projects/%s/traces/%s", projectID, spanContext.TraceID().String()),
-		"logging.googleapis.com/spanId":        spanContext.SpanID().String(),
-		"logging.googleapis.com/trace_sampled": spanContext.IsSampled(),
-	}
 }
