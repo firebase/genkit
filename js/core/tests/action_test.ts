@@ -227,4 +227,42 @@ describe('action', () => {
 
     assert.strictEqual(response, 'traceId=true spanId=true');
   });
+
+  it('passes through the abort signal', async () => {
+    var gotAbortSignal;
+    const act = defineAction(
+      registry,
+      { name: 'child', actionType: 'custom' },
+      async (_, ctx) => {
+        gotAbortSignal = ctx.abortSignal;
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      }
+    );
+
+    const signal = new AbortController().signal;
+    await act(undefined, { abortSignal: signal });
+
+    assert.strictEqual(gotAbortSignal, signal);
+  });
+
+  it('passes through the abort signal with middleware', async () => {
+    var gotAbortSignal;
+    const act = defineAction(
+      registry,
+      {
+        name: 'child',
+        actionType: 'custom',
+        use: [async (input, next) => (await next(input + 'middle1')) + 1],
+      },
+      async (_, ctx) => {
+        gotAbortSignal = ctx.abortSignal;
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      }
+    );
+
+    const signal = new AbortController().signal;
+    await act(undefined, { abortSignal: signal });
+
+    assert.strictEqual(gotAbortSignal, signal);
+  });
 });
