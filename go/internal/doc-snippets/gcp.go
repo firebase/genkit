@@ -20,6 +20,7 @@ import (
 	"context"
 	"log"
 	"log/slog"
+	"time"
 
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlecloud"
@@ -31,17 +32,28 @@ func gcpEx(ctx context.Context) error {
 		log.Fatal(err)
 	}
 	// [START init]
-	if err := (&googlecloud.GoogleCloud{ProjectID: "your-google-cloud-project"}).Init(ctx, g); err != nil {
+	plugin := googlecloud.NewWithProjectID("your-google-cloud-project")
+	if err := plugin.Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
-	_ = googlecloud.GoogleCloud{
-		ProjectID:      "your-google-cloud-project",
-		ForceExport:    true,
-		MetricInterval: 45e9,
-		LogLevel:       slog.LevelDebug,
+	// Example with custom options
+	_ = googlecloud.NewWithProjectID("your-google-cloud-project",
+		googlecloud.WithForceExport(true),
+		googlecloud.WithMetricInterval(45*time.Second),
+		googlecloud.WithLogLevel(slog.LevelDebug),
+	)
+
+	// Example with auto-detection
+	autoPlugin, err := googlecloud.New(
+		googlecloud.WithForceExport(true),
+		googlecloud.WithLogLevel(slog.LevelDebug),
+	)
+	if err != nil {
+		return err
 	}
+	_ = autoPlugin
 
 	return nil
 }
