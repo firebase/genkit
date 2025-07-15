@@ -30,7 +30,7 @@ const { text } = await ai.generate({
 });
 ```
 
-But Genkit also lets you build stongly typed, accessible from the client, fully observable AI flows:
+Genkit also lets you build strongly typed, accessible from the client, fully observable AI flows:
 
 ```ts
 import { googleAI } from '@genkit-ai/googleai';
