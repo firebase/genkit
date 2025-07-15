@@ -107,9 +107,35 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				)
 				oaiMessages = append(oaiMessages, tm)
 			}
-		default:
+		case ai.RoleUser:
+			parts := []openai.ChatCompletionContentPartUnionParam{}
+
+			// append all text parts first
 			oaiMessages = append(oaiMessages, openai.UserMessage(content))
+
+			for _, p := range msg.Content {
+				if p.IsMedia() {
+					part := openai.ImageContentPart(
+						openai.ChatCompletionContentPartImageImageURLParam{
+							URL: p.Text,
+						})
+					parts = append(parts, part)
+					continue
+				}
+			}
+			if len(parts) > 0 {
+				oaiMessages = append(oaiMessages, openai.ChatCompletionMessageParamUnion{
+					OfUser: &openai.ChatCompletionUserMessageParam{
+						Content: openai.ChatCompletionUserMessageParamContentUnion{OfArrayOfContentParts: parts},
+					},
+				})
+			}
+
+		default:
+			// ignore parts from not supported roles
+			continue
 		}
+
 	}
 	g.messages = oaiMessages
 	return g
@@ -213,7 +239,9 @@ func (g *ModelGenerator) Generate(ctx context.Context, handleChunk func(context.
 func (g *ModelGenerator) concatenateContent(parts []*ai.Part) string {
 	content := ""
 	for _, part := range parts {
-		content += part.Text
+		if part.IsText() {
+			content += part.Text
+		}
 	}
 	return content
 }
