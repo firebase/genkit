@@ -365,7 +365,6 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 	ctx, collector := withTelemetryCapture(ctx)
 	ctx = withTelemetryLabels(ctx, telemetryLabels)
 
-	// Call Run() - NO WRAPPER SPAN!
 	output, err := a.Run(ctx, in, callback)
 	if err != nil {
 		return ActionResult[json.RawMessage]{}, err
