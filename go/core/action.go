@@ -65,6 +65,41 @@ type Action interface {
 	SetTracingState(tstate *tracing.State)
 }
 
+// Context helpers for telemetry capture and labels
+type telemetryCollector struct {
+	traceID string
+	spanID  string
+}
+
+type telemetryCollectorKey struct{}
+type telemetryLabelsKey struct{}
+
+func withTelemetryCapture(ctx context.Context) (context.Context, *telemetryCollector) {
+	collector := &telemetryCollector{}
+	return context.WithValue(ctx, telemetryCollectorKey{}, collector), collector
+}
+
+func getTelemetryFromContext(ctx context.Context) *telemetryCollector {
+	if collector, ok := ctx.Value(telemetryCollectorKey{}).(*telemetryCollector); ok {
+		return collector
+	}
+	return nil
+}
+
+func withTelemetryLabels(ctx context.Context, labels map[string]string) context.Context {
+	if labels == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, telemetryLabelsKey{}, labels)
+}
+
+func getTelemetryLabelsFromContext(ctx context.Context) map[string]string {
+	if labels, ok := ctx.Value(telemetryLabelsKey{}).(map[string]string); ok {
+		return labels
+	}
+	return nil
+}
+
 // An ActionType is the kind of an action.
 type ActionType string
 
@@ -262,6 +297,22 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 
 	return tracing.RunInNewSpan(ctx, a.tstate, a.desc.Name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
+			// Apply telemetry labels if present (backward compatible)
+			if labels := getTelemetryLabelsFromContext(ctx); labels != nil {
+				for k, v := range labels {
+					tracing.SetCustomMetadataAttr(ctx, k, v)
+				}
+			}
+
+			// Capture telemetry if collector present (backward compatible)
+			if collector := getTelemetryFromContext(ctx); collector != nil {
+				span := trace.SpanFromContext(ctx)
+				if span.SpanContext().IsValid() {
+					collector.traceID = span.SpanContext().TraceID().String()
+					collector.spanID = span.SpanContext().SpanID().String()
+				}
+			}
+
 			start := time.Now()
 			var err error
 			if err = base.ValidateValue(input, a.desc.InputSchema); err != nil {
@@ -288,7 +339,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result with telemetry information.
-func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage], telemetryLabels map[string]string) (ActionResult[json.RawMessage], error) {
+func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error, telemetryLabels map[string]string) (ActionResult[json.RawMessage], error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
 		return ActionResult[json.RawMessage]{}, NewError(INVALID_ARGUMENT, err.Error())
@@ -310,53 +361,23 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 		}
 	}
 
-	// Set telemetry labels if provided
-	if telemetryLabels != nil {
-		for k, v := range telemetryLabels {
-			tracing.SetCustomMetadataAttr(ctx, k, v)
-		}
-	}
+	// Set up telemetry capture and labels
+	ctx, collector := withTelemetryCapture(ctx)
+	ctx = withTelemetryLabels(ctx, telemetryLabels)
 
-	var telemetry Telemetry
-
-	// Run the action with telemetry collection
-	output, err := tracing.RunInNewSpan(ctx, a.tstate, a.desc.Name, "action", false, in,
-		func(ctx context.Context, input In) (Out, error) {
-			// Extract telemetry information from span context
-			span := trace.SpanFromContext(ctx)
-			if span.SpanContext().IsValid() {
-				telemetry.TraceID = span.SpanContext().TraceID().String()
-				telemetry.SpanID = span.SpanContext().SpanID().String()
-			}
-
-			start := time.Now()
-			var err error
-			if err = base.ValidateValue(input, a.desc.InputSchema); err != nil {
-				err = fmt.Errorf("invalid input: %w", err)
-			}
-			var output Out
-			if err == nil {
-				output, err = a.fn(ctx, input, callback)
-				if err == nil {
-					if err = base.ValidateValue(output, a.desc.OutputSchema); err != nil {
-						err = fmt.Errorf("invalid output: %w", err)
-					}
-				}
-			}
-			latency := time.Since(start)
-			if err != nil {
-				metrics.WriteActionFailure(ctx, a.desc.Name, latency, err)
-				return base.Zero[Out](), err
-			}
-			metrics.WriteActionSuccess(ctx, a.desc.Name, latency)
-
-			return output, nil
-		})
-
+	// Call Run() - NO WRAPPER SPAN!
+	output, err := a.Run(ctx, in, callback)
 	if err != nil {
 		return ActionResult[json.RawMessage]{}, err
 	}
 
+	// Get captured telemetry
+	telemetry := Telemetry{
+		TraceID: collector.traceID,
+		SpanID:  collector.spanID,
+	}
+
+	// Marshal output and return
 	bytes, err := json.Marshal(output)
 	if err != nil {
 		return ActionResult[json.RawMessage]{}, err
