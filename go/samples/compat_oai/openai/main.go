@@ -76,7 +76,7 @@ func main() {
 				ai.NewUserMessage(ai.NewTextPart("Hi, I'll provide you a quick request in the following message")),
 				ai.NewUserMessage(
 					ai.NewTextPart("can you tell me which animal is in the provided image?"),
-					ai.NewMediaPart("image/jpg", "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"),
+					ai.NewMediaPart("image/jpg", "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"),
 				)))
 		if err != nil {
 			return "", err

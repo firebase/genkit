@@ -100,14 +100,14 @@ func TestAnthropicLive(t *testing.T) {
 			ai.WithModel(m),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("", "data:image/jpeg;base64,"+i))))
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("", "data:image/jpg;base64,"+i))))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("it should've said donkey but got: %s", resp.Text())
+		if !strings.Contains(resp.Text(), "lizard") {
+			t.Fatalf("it should've said lizard but got: %s", resp.Text())
 		}
 	})
 
@@ -209,7 +209,7 @@ func TestAnthropicLive(t *testing.T) {
 
 func fetchImgAsBase64() (string, error) {
 	// CC0 license image
-	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
+	imgUrl := "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err
