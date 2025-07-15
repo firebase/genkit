@@ -108,7 +108,6 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				oaiMessages = append(oaiMessages, tm)
 			}
 		case ai.RoleUser:
-			// content includes all the user text parts
 			oaiMessages = append(oaiMessages, openai.UserMessage(content))
 
 			parts := []openai.ChatCompletionContentPartUnionParam{}
@@ -237,9 +236,7 @@ func (g *ModelGenerator) Generate(ctx context.Context, handleChunk func(context.
 func (g *ModelGenerator) concatenateContent(parts []*ai.Part) string {
 	content := ""
 	for _, part := range parts {
-		if part.IsText() {
-			content += part.Text
-		}
+		content += part.Text
 	}
 	return content
 }
