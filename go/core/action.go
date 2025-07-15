@@ -297,14 +297,14 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 
 	return tracing.RunInNewSpan(ctx, a.tstate, a.desc.Name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
-			// Apply telemetry labels if present (backward compatible)
+			// Apply telemetry labels if present
 			if labels := getTelemetryLabelsFromContext(ctx); labels != nil {
 				for k, v := range labels {
 					tracing.SetCustomMetadataAttr(ctx, k, v)
 				}
 			}
 
-			// Capture telemetry if collector present (backward compatible)
+			// Capture telemetry if collector present
 			if collector := getTelemetryFromContext(ctx); collector != nil {
 				span := trace.SpanFromContext(ctx)
 				if span.SpanContext().IsValid() {
