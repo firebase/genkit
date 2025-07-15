@@ -69,6 +69,7 @@ describe('gptModel', () => {
           output: ['text', 'json'],
         },
         configSchema: ChatCompletionCommonConfigSchema,
+        apiVersion: 'v2',
       },
       expect.any(Function)
     );
@@ -93,6 +94,7 @@ describe('gptModel', () => {
           output: ['text', 'json'],
         },
         configSchema: ChatCompletionCommonConfigSchema,
+        apiVersion: 'v2',
       },
       expect.any(Function)
     );
@@ -114,6 +116,7 @@ describe('gptModel', () => {
           output: ['text', 'json'],
         },
         configSchema: ChatCompletionCommonConfigSchema,
+        apiVersion: 'v2',
       },
       expect.any(Function)
     );
@@ -135,6 +138,7 @@ describe('gptModel', () => {
           output: ['text', 'json'],
         },
         configSchema: ChatCompletionCommonConfigSchema,
+        apiVersion: 'v2',
       },
       expect.any(Function)
     );
