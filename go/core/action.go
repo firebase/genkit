@@ -29,6 +29,7 @@ import (
 	"github.com/firebase/genkit/go/internal/metrics"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/invopop/jsonschema"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Func is an alias for non-streaming functions with input of type In and output of type Out.
@@ -44,8 +45,8 @@ type StreamCallback[Stream any] = func(context.Context, Stream) error
 type Action interface {
 	// Name returns the name of the action.
 	Name() string
-	// RunJSON runs the action with the given JSON input and streaming callback and returns the output as JSON.
-	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
+	// RunJSON runs the action with the given JSON input, streaming callback, and telemetry labels, returning both result and telemetry information.
+	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error, telemetryLabels map[string]string) (RunActionResult[json.RawMessage], error)
 	// Desc returns a descriptor of the action.
 	Desc() ActionDesc
 	// SetTracingState sets the tracing state on the action.
@@ -92,13 +93,24 @@ type ActionDesc struct {
 	Metadata     map[string]any     `json:"metadata"`     // Metadata for the action.
 }
 
+// ActionResult contains the result of an action along with telemetry information.
+type RunActionResult[Out any] struct {
+	Result    Out      `json:"result"`
+	Telemetry spanInfo `json:"telemetry"`
+}
+
 type noStream = func(context.Context, struct{}) error
+
+// spanInfo contains tracing information for an action execution.
+type spanInfo struct {
+	TraceID string `json:"traceId"`
+	SpanID  string `json:"spanId"`
+}
 
 // DefineAction creates a new non-streaming Action and registers it.
 func DefineAction[In, Out any](
 	r *registry.Registry,
-	provider,
-	name string,
+	provider, name string,
 	atype ActionType,
 	metadata map[string]any,
 	fn Func[In, Out],
@@ -275,16 +287,16 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 		})
 }
 
-// RunJSON runs the action with a JSON input, and returns a JSON result.
-func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
+// RunJSON runs the action with a JSON input, and returns a JSON result with telemetry information.
+func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage], telemetryLabels map[string]string) (RunActionResult[json.RawMessage], error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
-		return nil, NewError(INVALID_ARGUMENT, err.Error())
+		return RunActionResult[json.RawMessage]{}, NewError(INVALID_ARGUMENT, err.Error())
 	}
 	var in In
 	if input != nil {
 		if err := json.Unmarshal(input, &in); err != nil {
-			return nil, err
+			return RunActionResult[json.RawMessage]{}, err
 		}
 	}
 	var callback func(context.Context, Stream) error
@@ -297,15 +309,63 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 			return cb(ctx, json.RawMessage(bytes))
 		}
 	}
-	out, err := a.Run(ctx, in, callback)
-	if err != nil {
-		return nil, err
+
+	// Set telemetry labels if provided
+	if telemetryLabels != nil {
+		for k, v := range telemetryLabels {
+			tracing.SetCustomMetadataAttr(ctx, k, v)
+		}
 	}
-	bytes, err := json.Marshal(out)
+
+	var spanInfo spanInfo
+
+	// Run the action with telemetry collection
+	output, err := tracing.RunInNewSpan(ctx, a.tstate, a.desc.Name, "action", false, in,
+		func(ctx context.Context, input In) (Out, error) {
+			// Extract telemetry information from span context
+			span := trace.SpanFromContext(ctx)
+			if span.SpanContext().IsValid() {
+				spanInfo.TraceID = span.SpanContext().TraceID().String()
+				spanInfo.SpanID = span.SpanContext().SpanID().String()
+			}
+
+			start := time.Now()
+			var err error
+			if err = base.ValidateValue(input, a.desc.InputSchema); err != nil {
+				err = fmt.Errorf("invalid input: %w", err)
+			}
+			var output Out
+			if err == nil {
+				output, err = a.fn(ctx, input, callback)
+				if err == nil {
+					if err = base.ValidateValue(output, a.desc.OutputSchema); err != nil {
+						err = fmt.Errorf("invalid output: %w", err)
+					}
+				}
+			}
+			latency := time.Since(start)
+			if err != nil {
+				metrics.WriteActionFailure(ctx, a.desc.Name, latency, err)
+				return base.Zero[Out](), err
+			}
+			metrics.WriteActionSuccess(ctx, a.desc.Name, latency)
+
+			return output, nil
+		})
+
 	if err != nil {
-		return nil, err
+		return RunActionResult[json.RawMessage]{}, err
 	}
-	return json.RawMessage(bytes), nil
+
+	bytes, err := json.Marshal(output)
+	if err != nil {
+		return RunActionResult[json.RawMessage]{}, err
+	}
+
+	return RunActionResult[json.RawMessage]{
+		Result:   json.RawMessage(bytes),
+		SpanInfo: spanInfo,
+	}, nil
 }
 
 // Desc returns a descriptor of the action.
