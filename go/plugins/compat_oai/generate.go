@@ -108,11 +108,10 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				oaiMessages = append(oaiMessages, tm)
 			}
 		case ai.RoleUser:
-			parts := []openai.ChatCompletionContentPartUnionParam{}
-
-			// append all text parts first
+			// content includes all the user text parts
 			oaiMessages = append(oaiMessages, openai.UserMessage(content))
 
+			parts := []openai.ChatCompletionContentPartUnionParam{}
 			for _, p := range msg.Content {
 				if p.IsMedia() {
 					part := openai.ImageContentPart(
@@ -130,7 +129,6 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 					},
 				})
 			}
-
 		default:
 			// ignore parts from not supported roles
 			continue
