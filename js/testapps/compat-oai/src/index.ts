@@ -41,7 +41,10 @@ export const jokeFlow = ai.defineFlow(
   async (subject) => {
     const llmResponse = await ai.generate({
       prompt: `tell me a joke about ${subject}`,
-      model: openAI.model('gpt-4.1'),
+      model: xAI.model('grok-3-mini', {
+        temperature: 0.5,
+        reasoningEffort: 'low',
+      }),
     });
     return llmResponse.text;
   }

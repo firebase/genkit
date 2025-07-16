@@ -27,13 +27,14 @@ import type {
   StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
-import { GenerationCommonConfigSchema, Message, z } from 'genkit';
-import type { ModelAction, ToolDefinition } from 'genkit/model';
+import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
+import type { ModelAction, ModelInfo, ToolDefinition } from 'genkit/model';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionContentPart,
+  ChatCompletionCreateParams,
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
@@ -45,6 +46,11 @@ import type {
 const VisualDetailLevelSchema = z.enum(['auto', 'low', 'high']).optional();
 
 type VisualDetailLevel = z.infer<typeof VisualDetailLevelSchema>;
+
+export type ModelRequestBuilder = (
+  req: GenerateRequest,
+  params: ChatCompletionCreateParams
+) => void;
 
 export const ChatCompletionCommonConfigSchema =
   GenerationCommonConfigSchema.extend({
@@ -330,7 +336,8 @@ export function fromOpenAIChunkChoice(
  */
 export function toOpenAIRequestBody(
   modelName: string,
-  request: GenerateRequest
+  request: GenerateRequest,
+  requestBuilder?: ModelRequestBuilder
 ) {
   const messages = toOpenAIMessages(
     request.messages,
@@ -355,7 +362,7 @@ export function toOpenAIRequestBody(
   if (toolsFromConfig) {
     tools.push(...(toolsFromConfig as any[]));
   }
-  const body = {
+  let body = {
     model: modelVersion ?? modelName,
     messages,
     tools: tools.length > 0 ? tools : undefined,
@@ -366,9 +373,14 @@ export function toOpenAIRequestBody(
     presence_penalty,
     top_logprobs,
     logprobs,
-    ...restOfConfig, // passthrough for other config
   } as ChatCompletionCreateParamsNonStreaming;
-
+  if (requestBuilder) {
+    // If override provided, apply the override to the OpenAI request.
+    // User must control passthrough config too.
+    requestBuilder(request, body);
+  } else {
+    body = { ...body, ...restOfConfig }; // passthrough for other config
+  }
   const response_format = request.output?.format;
   if (response_format === 'json') {
     body.response_format = {
@@ -393,7 +405,11 @@ export function toOpenAIRequestBody(
  * @param client The OpenAI client instance.
  * @returns The runner that Genkit will call when the model is invoked.
  */
-export function openAIModelRunner(name: string, client: OpenAI) {
+export function openAIModelRunner(
+  name: string,
+  client: OpenAI,
+  requestBuilder?: ModelRequestBuilder
+) {
   return async (
     request: GenerateRequest,
     options?: {
@@ -403,7 +419,7 @@ export function openAIModelRunner(name: string, client: OpenAI) {
     }
   ): Promise<GenerateResponseData> => {
     let response: ChatCompletion;
-    const body = toOpenAIRequestBody(name, request);
+    const body = toOpenAIRequestBody(name, request, requestBuilder);
     if (options?.streamingRequested) {
       const stream = client.beta.chat.completions.stream(
         {
@@ -473,8 +489,9 @@ export function defineCompatOpenAIModel<
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
+  requestBuilder?: ModelRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef } = params;
+  const { ai, name, client, modelRef, requestBuilder } = params;
   const modelName = name.split('/').pop();
 
   return ai.defineModel(
@@ -484,6 +501,40 @@ export function defineCompatOpenAIModel<
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    openAIModelRunner(modelName!, client)
+    openAIModelRunner(modelName!, client, requestBuilder)
   );
+}
+
+const GENERIC_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: false,
+    media: false,
+    tools: false,
+    toolChoice: false,
+    systemRole: false,
+    constrained: 'no-tools',
+  },
+};
+
+/** ModelRef helper, with reasonable defaults for OpenAI-compatible providers */
+export function compatOaiModelRef<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: CustomOptions;
+  config?: any;
+}): ModelReference<CustomOptions> {
+  const {
+    name,
+    info = GENERIC_MODEL_INFO,
+    configSchema,
+    config = undefined,
+  } = params;
+  return modelRef({
+    name,
+    configSchema: configSchema || (ChatCompletionCommonConfigSchema as any),
+    info: info,
+    config,
+  });
 }

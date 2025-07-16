@@ -35,6 +35,7 @@ import {
   fromOpenAIChoice,
   fromOpenAIChunkChoice,
   fromOpenAIToolCall,
+  ModelRequestBuilder,
   openAIModelRunner,
   toOpenAIMessages,
   toOpenAIRequestBody,
@@ -1367,6 +1368,35 @@ describe('openAIModelRunner', () => {
         },
       },
       { signal: abortSignal }
+    );
+  });
+
+  it('should run with requestBuilder', async () => {
+    const openaiClient = {
+      chat: {
+        completions: {
+          create: jest.fn(async () => ({
+            choices: [{ message: { content: 'response' } }],
+          })),
+        },
+      },
+    };
+    const requestBuilder: ModelRequestBuilder = (req, params) => {
+      (params as any).foo = 'bar';
+    };
+    const runner = openAIModelRunner(
+      'gpt-4o',
+      openaiClient as unknown as OpenAI,
+      requestBuilder
+    );
+    await runner({ messages: [], config: { temperature: 0.1 } });
+    expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
+      {
+        model: 'gpt-4o',
+        foo: 'bar',
+        temperature: 0.1,
+      },
+      { signal: undefined }
     );
   });
 });

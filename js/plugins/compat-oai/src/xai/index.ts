@@ -18,7 +18,6 @@ import {
   ActionMetadata,
   Genkit,
   modelActionMetadata,
-  modelRef,
   ModelReference,
   z,
 } from 'genkit';
@@ -28,16 +27,17 @@ import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
 import {
   defineCompatOpenAIImageModel,
-  IMAGE_GENERATION_MODEL_INFO,
   ImageGenerationCommonConfigSchema,
 } from '../image.js';
 import openAICompatible, { PluginOptions } from '../index.js';
+import { defineCompatOpenAIModel } from '../model.js';
+import { SUPPORTED_IMAGE_MODELS, xaiImageModelRef } from './grok-image.js';
 import {
-  ChatCompletionCommonConfigSchema,
-  defineCompatOpenAIModel,
-} from '../model.js';
-import { SUPPORTED_IMAGE_MODELS } from './grok-image.js';
-import { SUPPORTED_LANGUAGE_MODELS } from './grok.js';
+  grokRequestBuilder,
+  SUPPORTED_LANGUAGE_MODELS,
+  XaiChatCompletionConfigSchema,
+  xaiModelRef,
+} from './grok.js';
 
 export type XAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
@@ -48,10 +48,13 @@ const resolver = async (
   actionName: string
 ) => {
   if (actionType === 'model') {
+    const modelRef = xaiModelRef({ name: `xai/${actionName}` });
     defineCompatOpenAIModel({
       ai,
-      name: `xai/${actionName}`,
+      name: modelRef.name,
       client,
+      modelRef,
+      requestBuilder: grokRequestBuilder,
     });
   } else {
     logger.warn('Only model actions are supported by the XAI plugin');
@@ -64,16 +67,22 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
       .filter((model) => model.object === 'model')
       .map((model: OpenAI.Model) => {
         if (model.id.includes('image')) {
+          const modelRef =
+            SUPPORTED_IMAGE_MODELS[model.id] ??
+            xaiImageModelRef({ name: `xai/${model.id}` });
           return modelActionMetadata({
-            name: `xai/${model.id}`,
-            configSchema: ImageGenerationCommonConfigSchema,
-            info: IMAGE_GENERATION_MODEL_INFO,
+            name: modelRef.name,
+            info: modelRef.info,
+            configSchema: modelRef.configSchema,
           });
         } else {
+          const modelRef =
+            SUPPORTED_LANGUAGE_MODELS[model.id] ??
+            xaiModelRef({ name: `xai/${model.id}` });
           return modelActionMetadata({
-            name: `xai/${model.id}`,
-            configSchema: ChatCompletionCommonConfigSchema,
-            info: SUPPORTED_LANGUAGE_MODELS[model.id]?.info,
+            name: modelRef.name,
+            info: modelRef.info,
+            configSchema: modelRef.configSchema,
           });
         }
       })
@@ -87,7 +96,13 @@ export function xAIPlugin(options?: XAIPluginOptions): GenkitPlugin {
     ...options,
     initializer: async (ai, client) => {
       Object.values(SUPPORTED_LANGUAGE_MODELS).forEach((modelRef) =>
-        defineCompatOpenAIModel({ ai, name: modelRef.name, client, modelRef })
+        defineCompatOpenAIModel({
+          ai,
+          name: modelRef.name,
+          client,
+          modelRef,
+          requestBuilder: grokRequestBuilder,
+        })
       );
       Object.values(SUPPORTED_IMAGE_MODELS).forEach((modelRef) =>
         defineCompatOpenAIImageModel({
@@ -107,8 +122,8 @@ export type XAIPlugin = {
   (params?: XAIPluginOptions): GenkitPlugin;
   model(
     name: keyof typeof SUPPORTED_LANGUAGE_MODELS,
-    config?: z.infer<typeof ChatCompletionCommonConfigSchema>
-  ): ModelReference<typeof ChatCompletionCommonConfigSchema>;
+    config?: z.infer<typeof XaiChatCompletionConfigSchema>
+  ): ModelReference<typeof XaiChatCompletionConfigSchema>;
   model(
     name: keyof typeof SUPPORTED_IMAGE_MODELS,
     config?: z.infer<typeof ImageGenerationCommonConfigSchema>
@@ -118,16 +133,14 @@ export type XAIPlugin = {
 
 const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   if (name.includes('image')) {
-    return modelRef({
+    return xaiImageModelRef({
       name: `xai/${name}`,
       config,
-      configSchema: ImageGenerationCommonConfigSchema,
     });
   }
-  return modelRef({
+  return xaiModelRef({
     name: `xai/${name}`,
     config,
-    configSchema: ChatCompletionCommonConfigSchema,
   });
 }) as XAIPlugin['model'];
 
