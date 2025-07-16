@@ -329,13 +329,16 @@ export class ReflectionServer {
       const date = new Date();
       const time = date.getTime();
       const timestamp = date.toISOString();
+      const runtimeId = `${process.pid}${
+        this.port !== null ? `-${this.port}` : ''
+      }`;
       this.runtimeFilePath = path.join(
         runtimesDir,
-        `${process.pid}-${this.port}-${time}.json`
+        `${runtimeId}-${time}.json`
       );
       const fileContent = JSON.stringify(
         {
-          id: process.env.GENKIT_RUNTIME_ID || process.pid.toString(),
+          id: process.env.GENKIT_RUNTIME_ID || runtimeId,
           pid: process.pid,
           reflectionServerUrl: `http://localhost:${this.port}`,
           timestamp,
