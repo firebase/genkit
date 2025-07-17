@@ -1,0 +1,345 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Promote CLI Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      rc_version:
+        description: 'RC version to promote (e.g., v1.0.0-rc.1)'
+        required: true
+        type: string
+      final_version:
+        description: 'Final version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  validate-and-promote:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate version formats
+        shell: bash
+        run: |
+          RC_VERSION="${{ inputs.rc_version }}"
+          FINAL_VERSION="${{ inputs.final_version }}"
+          
+          # Validate RC version format
+          if ! echo "$RC_VERSION" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)$' > /dev/null; then
+            echo "Error: RC version '$RC_VERSION' does not follow expected format (e.g., v1.0.0-rc.1)"
+            exit 1
+          fi
+          
+          # Validate final version format
+          if ! echo "$FINAL_VERSION" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' > /dev/null; then
+            echo "Error: Final version '$FINAL_VERSION' does not follow expected format (e.g., v1.0.0)"
+            exit 1
+          fi
+          
+          # Extract base versions for comparison
+          RC_BASE=$(echo "$RC_VERSION" | sed 's/-rc\.[0-9]*//')
+          
+          if [[ "$RC_BASE" != "$FINAL_VERSION" ]]; then
+            echo "Error: RC base version ($RC_BASE) does not match final version ($FINAL_VERSION)"
+            exit 1
+          fi
+          
+          echo "✓ Version formats are valid"
+          echo "  RC Version: $RC_VERSION"
+          echo "  Final Version: $FINAL_VERSION"
+      
+      - name: Validate signed binaries exist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RC_VERSION="${{ inputs.rc_version }}"
+          
+          echo "Checking for signed binaries in RC release: $RC_VERSION"
+          
+          # Get RC release information
+          RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RC_VERSION")
+          
+          if [[ $(echo "$RELEASE_INFO" | jq -r '.id') == "null" ]]; then
+            echo "❌ Error: RC release $RC_VERSION not found"
+            exit 1
+          fi
+          
+          # Get list of assets
+          ASSETS=$(echo "$RELEASE_INFO" | jq -r '.assets[].name' | sort)
+          
+          echo "Found assets:"
+          echo "$ASSETS"
+          echo ""
+          
+          # Expected signed binaries
+          EXPECTED_SIGNED=(
+            "genkit-linux-x64-signed"
+            "genkit-linux-arm64-signed"
+            "genkit-darwin-x64-signed"
+            "genkit-darwin-arm64-signed"
+            "genkit-win32-x64-signed.exe"
+          )
+          
+          # Check for signed binaries
+          MISSING_SIGNED=()
+          for platform in "${EXPECTED_SIGNED[@]}"; do
+            if ! echo "$ASSETS" | grep -q "^$platform$"; then
+              MISSING_SIGNED+=("$platform")
+            else
+              echo "✓ Found signed binary: $platform"
+            fi
+          done
+          
+          if [[ ${#MISSING_SIGNED[@]} -gt 0 ]]; then
+            echo ""
+            echo "❌ Missing signed binaries:"
+            printf '  - %s\n' "${MISSING_SIGNED[@]}"
+            echo ""
+            echo "Please ensure all binaries are signed before promoting to final release."
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All expected signed binaries found"
+      
+      - name: Create release directory
+        run: mkdir -p release-assets
+      
+      - name: Download signed binaries from RC
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RC_VERSION="${{ inputs.rc_version }}"
+          
+          echo "Downloading signed binaries from RC release..."
+          
+          # Expected signed binaries with their final names
+          declare -A BINARY_MAP=(
+            ["genkit-linux-x64-signed"]="genkit-linux-x64"
+            ["genkit-linux-arm64-signed"]="genkit-linux-arm64"
+            ["genkit-darwin-x64-signed"]="genkit-darwin-x64"
+            ["genkit-darwin-arm64-signed"]="genkit-darwin-arm64"
+            ["genkit-win32-x64-signed.exe"]="genkit-win32-x64.exe"
+          )
+          
+          # Download each signed binary
+          for signed_name in "${!BINARY_MAP[@]}"; do
+            final_name="${BINARY_MAP[$signed_name]}"
+            
+            echo "Downloading $signed_name as $final_name..."
+            
+            # Get download URL for the asset
+            DOWNLOAD_URL=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RC_VERSION" | \
+              jq -r ".assets[] | select(.name == \"$signed_name\") | .url")
+            
+            if [[ -z "$DOWNLOAD_URL" || "$DOWNLOAD_URL" == "null" ]]; then
+              echo "❌ Failed to get download URL for $signed_name"
+              exit 1
+            fi
+            
+            # Download the asset
+            curl -L -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              "$DOWNLOAD_URL" -o "release-assets/$final_name"
+            
+            echo "✓ Downloaded $final_name"
+          done
+          
+          echo ""
+          echo "All signed binaries downloaded successfully"
+          ls -la release-assets/
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous release tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            # Generate changelog from previous tag to current
+            CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD | head -20)
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            # First release
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "- Initial release" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check if release already exists
+        id: check_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ inputs.final_version }}")
+          
+          if [[ $(echo "$RELEASE_INFO" | jq -r '.id') != "null" ]]; then
+            echo "❌ Error: Release ${{ inputs.final_version }} already exists"
+            echo "Please choose a different version or delete the existing release first"
+            exit 1
+          fi
+          
+          echo "✓ Release ${{ inputs.final_version }} does not exist, proceeding..."
+      
+      - name: Create final release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.final_version }}
+          release_name: Genkit CLI ${{ inputs.final_version }}
+          body: |
+            # Genkit CLI ${{ inputs.final_version }}
+            
+            ## Downloads
+            
+            - [Linux x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.final_version }}/genkit-linux-x64)
+            - [Linux ARM64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.final_version }}/genkit-linux-arm64)
+            - [macOS x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.final_version }}/genkit-darwin-x64)
+            - [macOS ARM64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.final_version }}/genkit-darwin-arm64)
+            - [Windows x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.final_version }}/genkit-win32-x64.exe)
+            
+            ## Changes
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## Installation
+            
+            ### Quick Install (Recommended)
+            
+            ```bash
+            curl -sL https://genkit.tools | bash
+            ```
+            
+            ### Manual Installation
+            
+            ```bash
+            # Download the appropriate binary for your platform
+            curl -Lo genkit https://github.com/${{ github.repository }}/releases/download/${{ inputs.final_version }}/genkit-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
+            
+            # Make it executable
+            chmod +x genkit
+            
+            # Move to a directory in your PATH
+            sudo mv genkit /usr/local/bin/
+            
+            # Verify installation
+            genkit --version
+            ```
+            
+            ### Windows Installation
+            
+            ```powershell
+            # Download the Windows binary
+            Invoke-WebRequest -Uri "https://github.com/${{ github.repository }}/releases/download/${{ inputs.final_version }}/genkit-win32-x64.exe" -OutFile "genkit.exe"
+            
+            # Add to PATH or run from current directory
+            .\genkit.exe --version
+            ```
+            
+            ## Documentation
+            
+            For more information, visit [https://firebase.google.com/docs/genkit/](https://firebase.google.com/docs/genkit/)
+          draft: false
+          prerelease: false
+      
+      - name: Upload release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          UPLOAD_URL="${{ steps.create_release.outputs.upload_url }}"
+          
+          echo "Uploading binaries to final release..."
+          
+          for file in release-assets/*; do
+            filename=$(basename "$file")
+            echo "Uploading $filename..."
+            
+            curl -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@$file" \
+              "${UPLOAD_URL}?name=$filename" | jq -r '.browser_download_url'
+          done
+          
+          echo ""
+          echo "✅ All binaries uploaded successfully"
+      
+      - name: Update latest tag
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # The create-release action should have created the tag
+          # Let's fetch it first to make sure we have it
+          git fetch --tags
+          
+          # Verify the tag exists
+          if ! git rev-parse ${{ inputs.final_version }} >/dev/null 2>&1; then
+            echo "Warning: Tag ${{ inputs.final_version }} was not created by create-release action"
+            echo "Creating it manually..."
+            git tag ${{ inputs.final_version }}
+            git push origin ${{ inputs.final_version }}
+          fi
+          
+          # Delete the existing "latest" tag if it exists
+          git tag -d latest 2>/dev/null || true
+          git push origin :refs/tags/latest 2>/dev/null || true
+          
+          # Create new "latest" tag pointing to the final release tag
+          git tag latest ${{ inputs.final_version }}
+          git push origin latest
+          
+          echo "Updated 'latest' tag to point to ${{ inputs.final_version }}"
+      
+      - name: Create job summary
+        run: |
+          echo "# 🚀 Genkit CLI Release Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Promoted from:** \`${{ inputs.rc_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Final Version:** \`${{ inputs.final_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Release Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The release has been successfully promoted from RC to final!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Published Binaries:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Linux x64 (\`genkit-linux-x64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Linux ARM64 (\`genkit-linux-arm64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ macOS x64 (\`genkit-darwin-x64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ macOS ARM64 (\`genkit-darwin-arm64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Windows x64 (\`genkit-win32-x64.exe\`)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Release Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ inputs.final_version }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Download Latest](https://github.com/${{ github.repository }}/releases/latest)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Quick Install" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "curl -sL https://genkit.tools | bash" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: Build CLI Binaries
+name: Build CLI Binaries (RC)
 
 on:
   workflow_dispatch:
@@ -25,11 +25,6 @@ on:
         type: string
       create_rc:
         description: 'Create release candidate with unsigned binaries'
-        required: false
-        type: boolean
-        default: false
-      promote_rc:
-        description: 'Promote RC to final release (requires signed binaries)'
         required: false
         type: boolean
         default: false
@@ -65,7 +60,8 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ inputs.version }}"
-          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$ ]]; then
+          # Use grep for cross-platform regex matching
+          if ! echo "$VERSION" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$' > /dev/null; then
             echo "Error: Version '$VERSION' does not follow semantic versioning format (e.g., v1.0.0, v1.0.0-rc.1)"
             exit 1
           fi
@@ -283,7 +279,9 @@ jobs:
   create-rc:
     needs: [build, test]
     runs-on: ubuntu-latest
-    if: inputs.create_rc == 'true'
+    if: inputs.create_rc
+    outputs:
+      upload_url: ${{ steps.create_rc.outputs.upload_url }}
     
     steps:
       - name: Checkout code
@@ -351,7 +349,7 @@ jobs:
   upload-rc-assets:
     needs: [build, test, create-rc]
     runs-on: ubuntu-latest
-    if: inputs.create_rc == 'true'
+    if: inputs.create_rc
     strategy:
       matrix:
         include:
@@ -385,223 +383,38 @@ jobs:
         with:
           upload_url: ${{ needs.create-rc.outputs.upload_url }}
           asset_path: ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
-          asset_name: genkit-${{ matrix.target }}
+          asset_name: genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
           asset_content_type: application/octet-stream
 
-  promote-to-release:
-    needs: [build, test]
+  create-rc-summary:
+    needs: [upload-rc-assets]
     runs-on: ubuntu-latest
-    if: inputs.promote_rc == 'true'
+    if: inputs.create_rc
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      # Note: After RC creation, signed binaries should be uploaded via Kokoro
-      # before running promote_rc. The promotion assumes signed binaries are
-      # available for the final release.
-      - name: Validate signed binaries exist
+      - name: Create job summary
         run: |
-          RC_VERSION="${{ inputs.version }}"
-          FINAL_VERSION="${RC_VERSION%-rc*}"
-          
-          echo "Validating signed binaries exist for RC: $RC_VERSION"
-          echo "Will promote to final version: $FINAL_VERSION"
-          
-          # Expected platforms that should have signed binaries
-          EXPECTED_PLATFORMS=("linux-x64" "linux-arm64" "darwin-x64" "darwin-arm64" "win32-x64")
-          
-          # Check if RC release exists and get its assets
-          RELEASE_INFO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/firebase/genkit/releases/tags/$RC_VERSION")
-          
-          if [[ $(echo "$RELEASE_INFO" | jq -r '.id') == "null" ]]; then
-            echo "❌ Error: RC release $RC_VERSION not found"
-            exit 1
-          fi
-          
-          echo "✓ RC release $RC_VERSION found"
-          
-          # Get list of assets from the RC release
-          ASSETS=$(echo "$RELEASE_INFO" | jq -r '.assets[].name' | sort)
-          
-          # Check for expected signed binaries
-          MISSING_BINARIES=()
-          for platform in "${EXPECTED_PLATFORMS[@]}"; do
-            if [[ "$platform" == win32-* ]]; then
-              expected_file="genkit-$platform.exe"
-            else
-              expected_file="genkit-$platform"
-            fi
-            
-            if ! echo "$ASSETS" | grep -q "^$expected_file$"; then
-              MISSING_BINARIES+=("$expected_file")
-            else
-              echo "✓ Found signed binary: $expected_file"
-            fi
-          done
-          
-          if [[ ${#MISSING_BINARIES[@]} -gt 0 ]]; then
-            echo "❌ Missing signed binaries:"
-            printf '  - %s\n' "${MISSING_BINARIES[@]}"
-            echo ""
-            echo "Please ensure all binaries are signed before promoting to final release."
-            echo "You can trigger the signing workflow or manually upload signed binaries."
-            exit 1
-          fi
-          
-          echo "✅ All expected signed binaries found in RC release"
-      
-      - name: Generate changelog
-        id: changelog
-        run: |
-          # Get the previous release tag
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-          
-          if [[ -n "$PREVIOUS_TAG" ]]; then
-            # Generate changelog from previous tag to current
-            CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD | head -20)
-            echo "changelog<<EOF" >> $GITHUB_OUTPUT
-            echo "$CHANGELOG" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            # First release
-            echo "changelog<<EOF" >> $GITHUB_OUTPUT
-            echo "- Initial release" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Create Final Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ inputs.version }}
-          release_name: Genkit CLI ${{ inputs.version }}
-          body: |
-            # Genkit CLI ${{ inputs.version }}
-            
-            ## Downloads
-            
-            - [Linux x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-linux-x64)
-            - [Linux ARM64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-linux-arm64)
-            - [macOS x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-darwin-x64)
-            - [macOS ARM64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-darwin-arm64)
-            - [Windows x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-win32-x64.exe)
-            
-            ## Changes
-            
-            ${{ steps.changelog.outputs.changelog }}
-            
-            ## Installation
-            
-            ### Quick Install (Recommended)
-            
-            ```bash
-            curl -sL https://genkit.tools | bash
-            ```
-            
-            ### Manual Installation
-            
-            ```bash
-            # Download the appropriate binary for your platform
-            curl -Lo genkit https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
-            
-            # Make it executable
-            chmod +x genkit
-            
-            # Move to a directory in your PATH
-            sudo mv genkit /usr/local/bin/
-            
-            # Verify installation
-            genkit --version
-            ```
-            
-            ### Windows Installation
-            
-            ```powershell
-            # Download the Windows binary
-            Invoke-WebRequest -Uri "https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-win32-x64.exe" -OutFile "genkit.exe"
-            
-            # Add to PATH or run from current directory
-            .\genkit.exe --version
-            ```
-            
-            ## Documentation
-            
-            For more information, visit [https://firebase.google.com/docs/genkit/](https://firebase.google.com/docs/genkit/)
-          draft: false
-          prerelease: false
+          echo "# 🎉 Genkit CLI Release Candidate Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All binaries have been successfully built and uploaded!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Available Binaries:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Linux x64 (\`genkit-linux-x64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Linux ARM64 (\`genkit-linux-arm64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ macOS x64 (\`genkit-darwin-x64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ macOS ARM64 (\`genkit-darwin-arm64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Windows x64 (\`genkit-win32-x64.exe\`)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Release Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ inputs.version }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Download Binaries](https://github.com/${{ github.repository }}/releases/tag/${{ inputs.version }}#assets)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Test the RC binaries" >> $GITHUB_STEP_SUMMARY
+          echo "2. Sign the binaries using the manual workflow" >> $GITHUB_STEP_SUMMARY
+          echo "3. Promote to final release using the 'Promote CLI Release' workflow" >> $GITHUB_STEP_SUMMARY
 
-  upload-release-assets:
-    needs: [build, test, promote-to-release]
-    runs-on: ubuntu-latest
-    if: inputs.promote_rc == 'true'
-    strategy:
-      matrix:
-        include:
-          - target: linux-x64
-          - target: linux-arm64
-          - target: darwin-x64
-          - target: darwin-arm64
-          - target: win32-x64
-    
-    steps:
-      - name: Set binary extension
-        id: binary
-        shell: bash
-        run: |
-          if [[ "${{ matrix.target }}" == win32-* ]]; then
-            echo "ext=.exe" >> $GITHUB_OUTPUT
-          else
-            echo "ext=" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Download binary artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: genkit-${{ matrix.target }}
-          path: ./
-      
-      - name: Upload to GitHub Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.promote-to-release.outputs.upload_url }}
-          asset_path: ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
-          asset_name: genkit-${{ matrix.target }}
-          asset_content_type: application/octet-stream
-
-  update-latest-tag:
-    needs: [promote-to-release, upload-release-assets]
-    runs-on: ubuntu-latest
-    if: inputs.promote_rc == 'true'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Update latest tag
-        run: |
-          # Check if latest tag already points to the correct version
-          CURRENT_LATEST=$(git rev-parse latest 2>/dev/null || echo "")
-          TARGET_COMMIT=$(git rev-parse ${{ inputs.version }} 2>/dev/null || echo "")
-          
-          if [[ "$CURRENT_LATEST" == "$TARGET_COMMIT" ]]; then
-            echo "Latest tag already points to ${{ inputs.version }}"
-            exit 0
-          fi
-          
-          # Delete the existing "latest" tag if it exists
-          git tag -d latest 2>/dev/null || true
-          git push origin :refs/tags/latest 2>/dev/null || true
-          
-          # Create new "latest" tag pointing to the release tag
-          git tag latest ${{ inputs.version }}
-          git push origin latest
-          
-          echo "Updated 'latest' tag to point to ${{ inputs.version }}"
