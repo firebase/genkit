@@ -34,6 +34,12 @@ import { vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
 import { vertexAIRerankers } from '@genkit-ai/vertexai/rerankers';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
+import {
+  PostgresEngine,
+  postgres,
+  postgresIndexerRef,
+  postgresRetrieverRef,
+} from 'genkitx-cloud-sql-pg';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
@@ -54,6 +60,10 @@ genkitEval;
 createMcpClient;
 createMcpServer;
 createMcpHost;
+PostgresEngine;
+postgres;
+postgresRetrieverRef;
+postgresIndexerRef;
 
 export const ai = genkit({});
 const hello = ai.defineFlow('hello', () => 'hello');

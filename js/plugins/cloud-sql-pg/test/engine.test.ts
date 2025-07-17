@@ -27,7 +27,7 @@ import {
   PostgresEngine,
   PostgresEngineArgs,
   VectorStoreTableArgs,
-} from '../src/engine';
+} from '../lib/engine';
 
 dotenv.config();
 
