@@ -16,9 +16,8 @@
 
 import {
   GenkitError,
+  StreamingCallback,
   defineAction,
-  getStreamingCallback,
-  runWithStreamingCallback,
   stripUndefinedProps,
   type Action,
   type z,
@@ -83,19 +82,20 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
       streamSchema: GenerateResponseChunkSchema,
     },
     async (request, { streamingRequested, sendChunk }) => {
-      const generateFn = () =>
+      const generateFn = (
+        sendChunk?: StreamingCallback<GenerateResponseChunkData>
+      ) =>
         generate(registry, {
           rawRequest: request,
           currentTurn: 0,
           messageIndex: 0,
           // Generate util action does not support middleware. Maybe when we add named/registered middleware....
           middleware: [],
+          streamingCallback: sendChunk,
         });
       return streamingRequested
-        ? runWithStreamingCallback(
-            registry,
-            (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
-            generateFn
+        ? generateFn((c) =>
+            sendChunk(c instanceof GenerateResponseChunk ? c.toJSON() : c)
           )
         : generateFn();
     }
@@ -113,8 +113,10 @@ export async function generateHelper(
     currentTurn?: number;
     messageIndex?: number;
     abortSignal?: AbortSignal;
+    streamingCallback?: StreamingCallback<GenerateResponseChunkData>;
   }
 ): Promise<GenerateResponseData> {
+  console.log(' - -- - - -generateHelper', !!options.streamingCallback);
   const currentTurn = options.currentTurn ?? 0;
   const messageIndex = options.messageIndex ?? 0;
   // do tracing
@@ -137,6 +139,7 @@ export async function generateHelper(
         currentTurn,
         messageIndex,
         abortSignal: options.abortSignal,
+        streamingCallback: options.streamingCallback,
       });
       metadata.output = JSON.stringify(output);
       return output;
@@ -234,14 +237,17 @@ async function generate(
     currentTurn,
     messageIndex,
     abortSignal,
+    streamingCallback,
   }: {
     rawRequest: GenerateActionOptions;
     middleware: ModelMiddleware[] | undefined;
     currentTurn: number;
     messageIndex: number;
     abortSignal?: AbortSignal;
+    streamingCallback?: StreamingCallback<GenerateResponseChunkData>;
   }
 ): Promise<GenerateResponseData> {
+  console.log(' - -- - - -generate', !!streamingCallback);
   const { model, tools, format } = await resolveParameters(
     registry,
     rawRequest
@@ -300,52 +306,50 @@ async function generate(
     });
   };
 
-  const streamingCallback = getStreamingCallback(registry);
-
   // if resolving the 'resume' option above generated a tool message, stream it.
   if (resumedToolMessage && streamingCallback) {
     streamingCallback(makeChunk('tool', resumedToolMessage));
   }
 
-  const response = await runWithStreamingCallback(
-    registry,
-    streamingCallback &&
-      ((chunk: GenerateResponseChunkData) =>
-        streamingCallback(makeChunk('model', chunk))),
-    async () => {
-      const dispatch = async (
-        index: number,
-        req: z.infer<typeof GenerateRequestSchema>
-      ) => {
-        if (!middleware || index === middleware.length) {
-          // end of the chain, call the original model action
-          return await model(req, { abortSignal });
-        }
-
-        const currentMiddleware = middleware[index];
-        return currentMiddleware(req, async (modifiedReq) =>
-          dispatch(index + 1, modifiedReq || req)
-        );
-      };
-
-      const modelResponse = await dispatch(0, request);
-
-      if (model.__action.actionType === 'background-model') {
-        return new GenerateResponse(
-          { operation: modelResponse },
-          {
-            request,
-            parser: format?.handler(request.output?.schema).parseMessage,
-          }
-        );
-      }
-
-      return new GenerateResponse(modelResponse, {
-        request,
-        parser: format?.handler(request.output?.schema).parseMessage,
+  var response: GenerateResponse;
+  const dispatch = async (
+    index: number,
+    req: z.infer<typeof GenerateRequestSchema>
+  ) => {
+    if (!middleware || index === middleware.length) {
+      // end of the chain, call the original model action
+      return await model(req, {
+        abortSignal,
+        onChunk:
+          streamingCallback &&
+          (((chunk: GenerateResponseChunkData) =>
+            streamingCallback &&
+            streamingCallback(makeChunk('model', chunk))) as any),
       });
     }
-  );
+
+    const currentMiddleware = middleware[index];
+    return currentMiddleware(req, async (modifiedReq) =>
+      dispatch(index + 1, modifiedReq || req)
+    );
+  };
+
+  const modelResponse = await dispatch(0, request);
+
+  if (model.__action.actionType === 'background-model') {
+    response = new GenerateResponse(
+      { operation: modelResponse },
+      {
+        request,
+        parser: format?.handler(request.output?.schema).parseMessage,
+      }
+    );
+  } else {
+    response = new GenerateResponse(modelResponse, {
+      request,
+      parser: format?.handler(request.output?.schema).parseMessage,
+    });
+  }
   if (model.__action.actionType === 'background-model') {
     return response.toJSON();
   }
