@@ -20,11 +20,7 @@ import getPort, { makeRange } from 'get-port';
 import type { Server } from 'http';
 import path from 'path';
 import * as z from 'zod';
-import {
-  StatusCodes,
-  runWithStreamingCallback,
-  type Status,
-} from './action.js';
+import { StatusCodes, type Status } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import type { Registry } from './registry.js';
@@ -173,16 +169,11 @@ export class ReflectionServer {
             const callback = (chunk) => {
               response.write(JSON.stringify(chunk) + '\n');
             };
-            const result = await runWithStreamingCallback(
-              this.registry,
-              callback,
-              () =>
-                action.run(input, {
-                  context,
-                  onChunk: callback,
-                  telemetryLabels,
-                })
-            );
+            const result = await action.run(input, {
+              context,
+              onChunk: callback,
+              telemetryLabels,
+            });
             await flushTracing();
             response.write(
               JSON.stringify({

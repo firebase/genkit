@@ -17,13 +17,7 @@
 import bodyParser from 'body-parser';
 import cors, { type CorsOptions } from 'cors';
 import express from 'express';
-import {
-  runWithStreamingCallback,
-  type Action,
-  type ActionContext,
-  type Flow,
-  type z,
-} from 'genkit';
+import { type Action, type ActionContext, type Flow, type z } from 'genkit';
 import {
   getCallableJSON,
   getHttpStatus,
@@ -110,16 +104,11 @@ export function expressHandler<
             'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
           );
         };
-        const result = await runWithStreamingCallback(
-          action.__registry,
+        const result = await action.run(input, {
           onChunk,
-          () =>
-            action.run(input, {
-              onChunk,
-              context,
-              abortSignal: abortController.signal,
-            })
-        );
+          context,
+          abortSignal: abortController.signal,
+        });
         response.write(
           'data: ' + JSON.stringify({ result: result.result }) + streamDelimiter
         );
