@@ -15,6 +15,10 @@
  */
 
 import { checks } from '@genkit-ai/checks';
+import { openAICompatible } from '@genkit-ai/compat-oai';
+import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
+import { openAI } from '@genkit-ai/compat-oai/openai';
+import { xAI } from '@genkit-ai/compat-oai/xai';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval } from '@genkit-ai/evaluator';
 import { expressHandler } from '@genkit-ai/express';
@@ -34,6 +38,12 @@ import { vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
 import { vertexAIRerankers } from '@genkit-ai/vertexai/rerankers';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
+import {
+  PostgresEngine,
+  postgres,
+  postgresIndexerRef,
+  postgresRetrieverRef,
+} from 'genkitx-cloud-sql-pg';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
@@ -54,6 +64,14 @@ genkitEval;
 createMcpClient;
 createMcpServer;
 createMcpHost;
+PostgresEngine;
+postgres;
+postgresRetrieverRef;
+postgresIndexerRef;
+openAICompatible;
+openAI;
+xAI;
+deepSeek;
 
 export const ai = genkit({});
 const hello = ai.defineFlow('hello', () => 'hello');

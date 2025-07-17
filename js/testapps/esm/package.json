@@ -28,6 +28,8 @@
     "@genkit-ai/mcp": "workspace:*",
     "@genkit-ai/next": "workspace:^",
     "@genkit-ai/vertexai": "workspace:*",
+    "@genkit-ai/compat-oai": "workspace:*",
+    "genkitx-cloud-sql-pg": "workspace:*",
     "firebase-admin": ">=12.2",
     "genkit": "workspace:*",
     "genkitx-chromadb": "workspace:*",
