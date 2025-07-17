@@ -14,7 +14,17 @@ COMMIT_MSG="chore: version bump$NEWLINE$NEWLINE"
 
 bump_version() {
     PACKAGE_PATH=$1
-    PACKAGE_NAME=$2
+    shift
+    PACKAGE_NAME=$1
+    shift
+    TAG_PREFIXES=()
+    TAG_PREFIXES=$*
+    echo TAG_PREFIXES "${TAG_PREFIXES[*]}"
+
+    if [[ -z "${TAG_PREFIXES[*]}" ]]; then
+        TAG_PREFIXES=()
+    fi
+    TAG_PREFIXES+=("$PACKAGE_NAME@")
 
     cd $PACKAGE_PATH
     OLD_VERSION=`node -p "require('./package.json').version"`
@@ -26,8 +36,14 @@ bump_version() {
 
     COMMIT_MSG="$COMMIT_MSG$PACKAGE_NAME version from $OLD_VERSION to $NEW_VERSION$NEWLINE"
 
-    TAG="$PACKAGE_NAME@$NEW_VERSION"
-    TAGS+=("$TAG")
+
+    for TAG_PREFIX in "${TAG_PREFIXES[@]}"
+    do
+        TAG="$TAG_PREFIX$NEW_VERSION"
+        echo "add tag: $TAG"
+        TAGS+=("$TAG")
+    done
+
 
     echo " - bumped $PACKAGE_PATH $PACKAGE_NAME $OLD_VERSION -> $NEW_VERSION tag $TAG"
 

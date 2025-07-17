@@ -9,6 +9,12 @@ set -x
 RELEASE_TYPE=$1
 PREID="${2:-rc}"
 
+if [[ -z "$RELEASE_TYPE" ]]
+then
+  echo "release type (first arg) not set"
+  exit 1
+fi
+
 # import bump_version script
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . $SCRIPT_DIR/bump_version.sh
@@ -16,26 +22,26 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 COMMIT_MSG="chore: JS version bump$NEWLINE$NEWLINE"
 
 # core packages
-bump_version js/core @genkit-ai/core
-bump_version js/ai @genkit-ai/ai
+bump_version js/core @genkit-ai/core core-v
+bump_version js/ai @genkit-ai/ai ai-v
 bump_version js/genkit genkit
 
 # plugins
 bump_version js/plugins/chroma genkitx-chromadb
-bump_version js/plugins/dev-local-vectorstore @genkit-ai/dev-local-vectorstore
-bump_version js/plugins/evaluators @genkit-ai/evaluator
-bump_version js/plugins/firebase @genkit-ai/firebase
-bump_version js/plugins/google-cloud @genkit-ai/google-cloud
-bump_version js/plugins/googleai @genkit-ai/googleai
+bump_version js/plugins/dev-local-vectorstore @genkit-ai/dev-local-vectorstore dev-local-vectorstore-v
+bump_version js/plugins/evaluators @genkit-ai/evaluator evaluator-v
+bump_version js/plugins/firebase @genkit-ai/firebase firebase-v
+bump_version js/plugins/google-cloud @genkit-ai/google-cloud google-cloud-v
+bump_version js/plugins/googleai @genkit-ai/googleai googleai-v
 bump_version js/plugins/langchain genkitx-langchain
-bump_version js/plugins/next @genkit-ai/next
+bump_version js/plugins/next @genkit-ai/next next-v
 bump_version js/plugins/ollama genkitx-ollama
 bump_version js/plugins/pinecone genkitx-pinecone
-bump_version js/plugins/vertexai @genkit-ai/vertexai
-bump_version js/plugins/checks @genkit-ai/checks
-bump_version js/plugins/mcp @genkit-ai/mcp
-bump_version js/plugins/express @genkit-ai/express
+bump_version js/plugins/vertexai @genkit-ai/vertexai vertexai-v
+bump_version js/plugins/checks @genkit-ai/checks checks-v
+bump_version js/plugins/mcp @genkit-ai/mcp mcp-v
+bump_version js/plugins/express @genkit-ai/express express-v
 bump_version js/plugins/cloud-sql-pg genkitx-cloud-sql-pg
-bump_version js/plugins/compat-oai @genkit-ai/compat-oai
+bump_version js/plugins/compat-oai @genkit-ai/compat-oai compat-oai-v
 
 commit_and_tag
