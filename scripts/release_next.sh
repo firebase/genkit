@@ -104,3 +104,7 @@ cd $CURRENT
 cd  js/plugins/cloud-sql-pg
 pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
+
+cd  js/plugins/compat-oai
+pnpm publish --tag next --publish-branch next --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT

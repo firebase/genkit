@@ -112,3 +112,7 @@ cd $CURRENT
 cd  js/plugins/cloud-sql-pg
 pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
+
+cd  js/plugins/compat-oai
+pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT
