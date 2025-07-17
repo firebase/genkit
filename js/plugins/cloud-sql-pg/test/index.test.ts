@@ -33,12 +33,12 @@ import { Document } from 'genkit/retriever';
 
 // Import your actual source code
 import { v4 as uuidv4 } from 'uuid';
-import { Column, PostgresEngine } from '../lib/engine';
+import { Column, PostgresEngine } from '../src/engine';
 import {
   configurePostgresIndexer,
   configurePostgresRetriever,
-} from '../lib/index';
-import { DistanceStrategy } from '../lib/indexes';
+} from '../src/index';
+import { DistanceStrategy } from '../src/indexes';
 
 // Load environment variables
 import * as dotenv from 'dotenv';

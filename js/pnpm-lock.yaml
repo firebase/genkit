@@ -1204,6 +1204,9 @@ importers:
       '@genkit-ai/checks':
         specifier: workspace:*
         version: link:../../plugins/checks
+      '@genkit-ai/compat-oai':
+        specifier: workspace:*
+        version: link:../../plugins/compat-oai
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
