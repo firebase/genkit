@@ -15,7 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """OpenAI sample."""
-
+import pprint
 from decimal import Decimal
 
 import httpx
@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import ActionRunContext, Genkit
 from genkit.plugins.compat_oai import OpenAI, openai_model
+from genkit.plugins.vertex_ai.model_garden.client import OpenAIClient
 
 logger = structlog.get_logger(__name__)
 
@@ -50,7 +51,6 @@ def sum_two_numbers2(my_input: MyInput) -> int:
     return my_input.a + my_input.b
 
 
-@ai.flow()
 async def say_hi(name: str) -> str:
     """Say hi to a name.
 
@@ -60,12 +60,19 @@ async def say_hi(name: str) -> str:
     Returns:
         The response from the OpenAI API.
     """
-    response = await ai.generate(
-        model=openai_model('gpt-4'),
-        config={'model': 'gpt-4-0613', 'temperature': 1},
-        prompt=f'hi {name}',
-    )
-    return response.message.content[0].root.text
+    from openai import OpenAI as OpenAIClient
+    client = OpenAIClient()  # Make sure OPENAI_API_KEY is set in your environment variables
+
+    # List all models
+    models = client.models.list()
+
+    # Print each model
+    for model in models.data:
+        pprint.pprint(
+            model
+        )
+        print("-" * 50)
+    exit()
 
 
 @ai.flow()
@@ -249,9 +256,10 @@ async def generate_character(name: str, ctx: ActionRunContext):
 
 async def main() -> None:
     """Main entry point for the OpenAI sample."""
+    await say_hi('John Doe')
     await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
 
-    await logger.ainfo(await say_hi('John Doe'))
+    await logger.ainfo()
     await logger.ainfo(await say_hi_stream('John Doe'))
     await logger.ainfo(await get_weather_flow('London and Paris'))
     await logger.ainfo(await get_weather_flow_stream('London and Paris'))

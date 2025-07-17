@@ -17,12 +17,18 @@
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
 from typing import Any, Callable
+from functools import cached_property
 
-from openai import Client, OpenAI as OpenAIClient
+from openai import OpenAI as OpenAIClient
+from openai.types import Model, Embedding
 
 from genkit.ai._plugin import Plugin
 from genkit.ai._registry import GenkitRegistry
+from genkit.blocks.embedding import embedder_action_metadata
+from genkit.blocks.model import model_action_metadata
+from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
+from genkit.core.typing import GenerationCommonConfig
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
     SUPPORTED_OPENAI_MODELS,
@@ -164,6 +170,45 @@ class OpenAI(Plugin):
                 'model': model_info,
             },
         )
+
+    @cached_property
+    def list_actions(self) -> list[ActionMetadata]:
+
+
+        actions = []
+        models_ = self._openai_client.models.list()
+        models: list[Model]  = models_.data
+        # Print each model
+        for model in models:
+            _name = model.id
+            if 'embed' in _name:
+                actions.append(
+                    embedder_action_metadata(
+                        name=open_ai_name(_name),
+                        config_schema=Embedding,
+                        info={
+                            'label': f'OpenAI Embedding - {_name}',
+                            'dimensions': None,
+                            'supports': {
+                                'input': ['text'],
+                            },
+                        },
+                    )
+                )
+            else:
+                actions.append(
+                    model_action_metadata(
+                        name=open_ai_name(_name),
+                        config_schema=GenerationCommonConfig,
+                        info={
+                            'label': f'OpenAI - {_name}',
+                            'multiturn': True,
+                            'system_role': True,
+                            'tools': False,
+                        },
+                    )
+                )
+        return actions
 
 
 

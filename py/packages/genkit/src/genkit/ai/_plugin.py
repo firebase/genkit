@@ -25,6 +25,7 @@ import abc
 from genkit.core.registry import ActionKind
 
 from ._registry import GenkitRegistry
+from ..core.action import ActionMetadata
 
 
 class Plugin(abc.ABC):
@@ -75,7 +76,7 @@ class Plugin(abc.ABC):
         """
         pass
 
-    def list_actions(self) -> list[dict[str, str]]:
+    def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:

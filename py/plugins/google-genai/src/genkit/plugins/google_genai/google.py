@@ -26,6 +26,7 @@ import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
 from genkit.blocks.embedding import embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.core.action import ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
@@ -218,7 +219,7 @@ class GoogleAI(Plugin):
         )
 
     @cached_property
-    def list_actions(self) -> list[dict[str, str]]:
+    def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
@@ -413,7 +414,7 @@ class VertexAI(Plugin):
         )
 
     @cached_property
-    def list_actions(self) -> list[dict[str, str]]:
+    def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
