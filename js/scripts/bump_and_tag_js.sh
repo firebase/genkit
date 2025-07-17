@@ -33,7 +33,7 @@ bump_version js/plugins/ollama genkitx-ollama
 bump_version js/plugins/pinecone genkitx-pinecone
 bump_version js/plugins/vertexai @genkit-ai/vertexai
 bump_version js/plugins/checks @genkit-ai/checks
-bump_version js/plugins/mcp genkitx-mcp
+bump_version js/plugins/mcp @genkit-ai/mcp
 bump_version js/plugins/express @genkit-ai/express
 bump_version js/plugins/cloud-sql-pg genkitx-cloud-sql-pg
 bump_version js/plugins/compat-oai @genkit-ai/compat-oai
