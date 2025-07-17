@@ -48,7 +48,7 @@ TRACKING_ID="UA-XXXXXXXXX-X"  # Not used when analytics is commented out
 #
 # For full details about installation options for the Genkit CLI
 # please see our documentation.
-#   https://firebase.google.com/docs/genkit/
+#   https://genkit.dev
 #
 # Please report bugs / issues with this script on GitHub.
 #   https://github.com/firebase/genkit
