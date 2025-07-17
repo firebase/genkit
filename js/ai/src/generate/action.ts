@@ -116,7 +116,6 @@ export async function generateHelper(
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>;
   }
 ): Promise<GenerateResponseData> {
-  console.log(' - -- - - -generateHelper', !!options.streamingCallback);
   const currentTurn = options.currentTurn ?? 0;
   const messageIndex = options.messageIndex ?? 0;
   // do tracing
@@ -247,7 +246,6 @@ async function generate(
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>;
   }
 ): Promise<GenerateResponseData> {
-  console.log(' - -- - - -generate', !!streamingCallback);
   const { model, tools, format } = await resolveParameters(
     registry,
     rawRequest
