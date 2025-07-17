@@ -15,16 +15,16 @@
  */
 
 import { checks } from '@genkit-ai/checks';
+import { openAICompatible } from '@genkit-ai/compat-oai';
+import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
+import { openAI } from '@genkit-ai/compat-oai/openai';
+import { xAI } from '@genkit-ai/compat-oai/xai';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval } from '@genkit-ai/evaluator';
 import { expressHandler } from '@genkit-ai/express';
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { firebaseContext } from '@genkit-ai/firebase/context';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
-import { openAICompatible } from '@genkit-ai/compat-oai';
-import { openAI } from '@genkit-ai/compat-oai/openai';
-import { xAI } from '@genkit-ai/compat-oai/xai';
-import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
 import { googleAI } from '@genkit-ai/googleai';
 import {
   createMcpClient,
