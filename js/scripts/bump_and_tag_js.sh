@@ -35,5 +35,6 @@ bump_version js/plugins/vertexai @genkit-ai/vertexai
 bump_version js/plugins/checks @genkit-ai/checks
 bump_version js/plugins/mcp genkitx-mcp
 bump_version js/plugins/express @genkit-ai/express
+bump_version js/plugins/cloud-sql-pg genkitx-cloud-sql-pg
 
 commit_and_tag
