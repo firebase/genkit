@@ -18,7 +18,6 @@ import {
   ActionMetadata,
   Genkit,
   modelActionMetadata,
-  modelRef,
   ModelReference,
   z,
 } from 'genkit';
@@ -27,11 +26,13 @@ import { GenkitPlugin } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
 import openAICompatible, { PluginOptions } from '../index.js';
+import { defineCompatOpenAIModel } from '../model.js';
 import {
-  ChatCompletionCommonConfigSchema,
-  defineCompatOpenAIModel,
-} from '../model.js';
-import { SUPPORTED_DEEPSEEK_MODELS } from './deepseek.js';
+  DeepSeekChatCompletionConfigSchema,
+  deepSeekModelRef,
+  deepSeekRequestBuilder,
+  SUPPORTED_DEEPSEEK_MODELS,
+} from './deepseek.js';
 
 export type DeepSeekPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
@@ -42,10 +43,15 @@ const resolver = async (
   actionName: string
 ) => {
   if (actionType === 'model') {
+    const modelRef = deepSeekModelRef({
+      name: `deepseek/${actionName}`,
+    });
     defineCompatOpenAIModel({
       ai,
-      name: `deepseek/${actionName}`,
+      name: modelRef.name,
       client,
+      modelRef,
+      requestBuilder: deepSeekRequestBuilder,
     });
   } else {
     logger.warn('Only model actions are supported by the DeepSeek plugin');
@@ -57,10 +63,15 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
     response.data
       .filter((model) => model.object === 'model')
       .map((model: OpenAI.Model) => {
+        const modelRef =
+          SUPPORTED_DEEPSEEK_MODELS[model.id] ??
+          deepSeekModelRef({
+            name: `deepseek/${model.id}`,
+          });
         return modelActionMetadata({
-          name: `deepseek/${model.id}`,
-          configSchema: ChatCompletionCommonConfigSchema,
-          info: SUPPORTED_DEEPSEEK_MODELS[model.id]?.info,
+          name: modelRef.name,
+          info: modelRef.info,
+          configSchema: modelRef.configSchema,
         });
       })
   );
@@ -73,7 +84,13 @@ export function deepSeekPlugin(options?: DeepSeekPluginOptions): GenkitPlugin {
     ...options,
     initializer: async (ai, client) => {
       Object.values(SUPPORTED_DEEPSEEK_MODELS).forEach((modelRef) =>
-        defineCompatOpenAIModel({ ai, name: modelRef.name, client, modelRef })
+        defineCompatOpenAIModel({
+          ai,
+          name: modelRef.name,
+          client,
+          modelRef,
+          requestBuilder: deepSeekRequestBuilder,
+        })
       );
     },
     resolver,
@@ -85,16 +102,15 @@ export type DeepSeekPlugin = {
   (params?: DeepSeekPluginOptions): GenkitPlugin;
   model(
     name: keyof typeof SUPPORTED_DEEPSEEK_MODELS,
-    config?: z.infer<typeof ChatCompletionCommonConfigSchema>
-  ): ModelReference<typeof ChatCompletionCommonConfigSchema>;
+    config?: z.infer<typeof DeepSeekChatCompletionConfigSchema>
+  ): ModelReference<typeof DeepSeekChatCompletionConfigSchema>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
 };
 
 const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
-  return modelRef({
+  return deepSeekModelRef({
     name: `deepseek/${name}`,
     config,
-    configSchema: ChatCompletionCommonConfigSchema,
   });
 }) as DeepSeekPlugin['model'];
 

@@ -14,17 +14,36 @@
  * limitations under the License.
  */
 
-import { ModelInfo, modelRef, ModelReference } from 'genkit/model';
-import { ChatCompletionCommonConfigSchema } from '../model';
+import { z } from 'genkit';
+import { ModelInfo, ModelReference } from 'genkit/model';
+import {
+  ChatCompletionCommonConfigSchema,
+  ModelRequestBuilder,
+  compatOaiModelRef,
+} from '../model';
 
-function commonRef(
-  name: string,
-  info?: ModelInfo
-): ModelReference<typeof ChatCompletionCommonConfigSchema> {
-  return modelRef({
-    name,
-    configSchema: ChatCompletionCommonConfigSchema,
-    info: info ?? {
+/** DeepSeek Custom configuration schema. */
+export const DeepSeekChatCompletionConfigSchema =
+  ChatCompletionCommonConfigSchema.extend({
+    maxTokens: z.number().int().min(1).max(8192).optional(),
+  });
+
+export const deepSeekRequestBuilder: ModelRequestBuilder = (req, params) => {
+  const { maxTokens } = req.config;
+  // DeepSeek still uses max_tokens
+  params.max_tokens = maxTokens;
+};
+
+/** DeepSeek ModelRef helper, with DeepSeek specific config. */
+export function deepSeekModelRef(params: {
+  name: string;
+  info?: ModelInfo;
+  config?: any;
+}): ModelReference<typeof DeepSeekChatCompletionConfigSchema> {
+  return compatOaiModelRef({
+    ...params,
+    configSchema: DeepSeekChatCompletionConfigSchema,
+    info: params.info ?? {
       supports: {
         multiturn: true,
         tools: true,
@@ -37,6 +56,6 @@ function commonRef(
 }
 
 export const SUPPORTED_DEEPSEEK_MODELS = {
-  'deepseek-reasoner': commonRef('deepseek/deepseek-reasoner'),
-  'deepseek-chat': commonRef('deepseek/deepseek-chat'),
+  'deepseek-reasoner': deepSeekModelRef({ name: 'deepseek/deepseek-reasoner' }),
+  'deepseek-chat': deepSeekModelRef({ name: 'deepseek/deepseek-chat' }),
 };

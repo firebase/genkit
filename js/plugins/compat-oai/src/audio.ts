@@ -20,8 +20,8 @@ import type {
   Genkit,
   ModelReference,
 } from 'genkit';
-import { Message, z } from 'genkit';
-import type { ModelAction } from 'genkit/model';
+import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
+import type { ModelAction, ModelInfo } from 'genkit/model';
 import type OpenAI from 'openai';
 import { Response } from 'openai/core.mjs';
 import type {
@@ -29,6 +29,66 @@ import type {
   Transcription,
   TranscriptionCreateParams,
 } from 'openai/resources/audio/index.mjs';
+
+export type SpeechRequestBuilder = (
+  req: GenerateRequest,
+  params: SpeechCreateParams
+) => void;
+export type TranscriptionRequestBuilder = (
+  req: GenerateRequest,
+  params: TranscriptionCreateParams
+) => void;
+
+export const TRANSCRIPTION_MODEL_INFO = {
+  supports: {
+    media: true,
+    output: ['text', 'json'],
+    multiturn: false,
+    systemRole: false,
+    tools: false,
+  },
+};
+
+export const SPEECH_MODEL_INFO: ModelInfo = {
+  supports: {
+    media: false,
+    output: ['media'],
+    multiturn: false,
+    systemRole: false,
+    tools: false,
+  },
+};
+
+const ChunkingStrategySchema = z.object({
+  type: z.string(),
+  prefix_padding_ms: z.number().int().optional(),
+  silence_duration_ms: z.number().int().optional(),
+  threshold: z.number().min(0).max(1.0).optional(),
+});
+export const TranscriptionConfigSchema = GenerationCommonConfigSchema.pick({
+  temperature: true,
+}).extend({
+  chunking_strategy: z
+    .union([z.literal('auto'), ChunkingStrategySchema])
+    .optional(),
+  include: z.array(z.any()).optional(),
+  language: z.string().optional(),
+  timestamp_granularities: z.array(z.enum(['word', 'segment'])).optional(),
+  response_format: z
+    .enum(['json', 'text', 'srt', 'verbose_json', 'vtt'])
+    .optional(),
+  // TODO stream support
+});
+
+export const SpeechConfigSchema = z.object({
+  voice: z
+    .enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'])
+    .default('alloy'),
+  speed: z.number().min(0.25).max(4.0).optional(),
+  response_format: z
+    .enum(['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'])
+    .optional(),
+});
 
 /**
  * Supported media formats for Audio generation
@@ -44,7 +104,8 @@ export const RESPONSE_FORMAT_MEDIA_TYPES = {
 
 function toTTSRequest(
   modelName: string,
-  request: GenerateRequest
+  request: GenerateRequest,
+  requestBuilder?: SpeechRequestBuilder
 ): SpeechCreateParams {
   const {
     voice,
@@ -57,12 +118,19 @@ function toTTSRequest(
     ...restOfConfig
   } = request.config ?? {};
 
-  const options: SpeechCreateParams = {
+  let options: SpeechCreateParams = {
     model: modelVersion ?? modelName,
     input: new Message(request.messages[0]).text,
     voice: voice ?? 'alloy',
-    ...restOfConfig, // passthorugh rest of the config
   };
+  if (requestBuilder) {
+    requestBuilder(request, options);
+  } else {
+    options = {
+      ...options,
+      ...restOfConfig, // passthorugh rest of the config
+    };
+  }
   for (const k in options) {
     if (options[k] === undefined) {
       delete options[k];
@@ -117,8 +185,9 @@ export function defineCompatOpenAISpeechModel<
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
+  requestBuilder?: SpeechRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef } = params;
+  const { ai, name, client, modelRef, requestBuilder } = params;
 
   const model = name.split('/').pop();
   return ai.defineModel(
@@ -129,7 +198,7 @@ export function defineCompatOpenAISpeechModel<
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const ttsRequest = toTTSRequest(model!, request);
+      const ttsRequest = toTTSRequest(model!, request, requestBuilder);
       const result = await client.audio.speech.create(ttsRequest, {
         signal: abortSignal,
       });
@@ -138,9 +207,34 @@ export function defineCompatOpenAISpeechModel<
   );
 }
 
+/** Speech generation ModelRef helper, with reasonable defaults for
+ * OpenAI-compatible providers */
+export function compatOaiSpeechModelRef<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: CustomOptions;
+  config?: any;
+}) {
+  const {
+    name,
+    info = SPEECH_MODEL_INFO,
+    configSchema,
+    config = undefined,
+  } = params;
+  return modelRef({
+    name,
+    configSchema: configSchema || (SpeechConfigSchema as any),
+    info,
+    config,
+  });
+}
+
 function toSttRequest(
   modelName: string,
-  request: GenerateRequest
+  request: GenerateRequest,
+  requestBuilder?: TranscriptionRequestBuilder
 ): TranscriptionCreateParams {
   const message = new Message(request.messages[0]);
   const media = message.media;
@@ -166,13 +260,20 @@ function toSttRequest(
     ...restOfConfig
   } = request.config ?? {};
 
-  const options: TranscriptionCreateParams = {
+  let options: TranscriptionCreateParams = {
     model: modelVersion ?? modelName,
     file: mediaFile,
     prompt: message.text,
     temperature,
-    ...restOfConfig, // passthrough rest of the config
   };
+  if (requestBuilder) {
+    requestBuilder(request, options);
+  } else {
+    options = {
+      ...options,
+      ...restOfConfig, // passthrough rest of the config
+    };
+  }
   const outputFormat = request.output?.format as 'json' | 'text' | 'media';
   const customFormat = request.config?.response_format;
   if (outputFormat && customFormat) {
@@ -238,8 +339,9 @@ export function defineCompatOpenAITranscriptionModel<
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
+  requestBuilder?: TranscriptionRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef } = params;
+  const { ai, name, client, modelRef, requestBuilder } = params;
 
   return ai.defineModel(
     {
@@ -250,7 +352,7 @@ export function defineCompatOpenAITranscriptionModel<
     },
     async (request, { abortSignal }) => {
       const modelName = name.split('/').pop();
-      const params = toSttRequest(modelName!, request);
+      const params = toSttRequest(modelName!, request, requestBuilder);
       // Explicitly setting stream to false ensures we use the non-streaming overload
       const result = await client.audio.transcriptions.create(
         {
@@ -262,4 +364,28 @@ export function defineCompatOpenAITranscriptionModel<
       return transcriptionToGenerateResponse(result);
     }
   );
+}
+
+/** Transcription ModelRef helper, with reasonable defaults for
+ * OpenAI-compatible providers */
+export function compatOaiTranscriptionModelRef<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: CustomOptions;
+  config?: any;
+}) {
+  const {
+    name,
+    info = TRANSCRIPTION_MODEL_INFO,
+    configSchema,
+    config = undefined,
+  } = params;
+  return modelRef({
+    name,
+    configSchema: configSchema || (TranscriptionConfigSchema as any),
+    info,
+    config,
+  });
 }

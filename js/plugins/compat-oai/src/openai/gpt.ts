@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-import { ModelInfo, modelRef, ModelReference } from 'genkit/model';
-import { ChatCompletionCommonConfigSchema } from '../model';
+import { z } from 'genkit';
+import { ModelInfo, ModelReference } from 'genkit/model';
+import { ChatCompletionCommonConfigSchema, compatOaiModelRef } from '../model';
 
 const MULTIMODAL_MODEL_INFO: ModelInfo = {
   supports: {
@@ -28,74 +29,124 @@ const MULTIMODAL_MODEL_INFO: ModelInfo = {
   },
 };
 
-function commonRef(
-  name: string,
-  info?: ModelInfo
-): ModelReference<typeof ChatCompletionCommonConfigSchema> {
-  return modelRef({
-    name,
-    configSchema: ChatCompletionCommonConfigSchema,
-    info: {
-      ...MULTIMODAL_MODEL_INFO,
-      ...(info ?? {}),
-    },
+/** OpenAI Custom configuration schema. */
+export const OpenAIChatCompletionConfigSchema =
+  ChatCompletionCommonConfigSchema.extend({
+    store: z.boolean().optional(),
+  });
+
+/** OpenAI ModelRef helper, with OpenAI specific config. */
+export function openAIModelRef(params: {
+  name: string;
+  info?: ModelInfo;
+  config?: any;
+}): ModelReference<typeof OpenAIChatCompletionConfigSchema> {
+  return compatOaiModelRef({
+    ...params,
+    info: params.info,
+    configSchema: OpenAIChatCompletionConfigSchema,
   });
 }
 
-const gpt45 = commonRef('openai/gpt-4.5');
-const gpt45Preview = commonRef('openai/gpt-4.5-preview');
+const gpt45 = openAIModelRef({
+  name: 'openai/gpt-4.5',
+  info: MULTIMODAL_MODEL_INFO,
+});
+const gpt45Preview = openAIModelRef({
+  name: 'openai/gpt-4.5-preview',
+  info: MULTIMODAL_MODEL_INFO,
+});
 
-const gpt4o = commonRef('openai/gpt-4o');
-const gpt4o20240513 = commonRef('openai/gpt-4o-2024-05-13');
+const gpt4o = openAIModelRef({
+  name: 'openai/gpt-4o',
+  info: MULTIMODAL_MODEL_INFO,
+});
+const gpt4o20240513 = openAIModelRef({
+  name: 'openai/gpt-4o-2024-05-13',
+  info: MULTIMODAL_MODEL_INFO,
+});
 
-const o1 = commonRef('openai/o1', {
-  supports: {
-    multiturn: true,
-    tools: true,
-    media: true,
-    systemRole: false,
-    output: ['text', 'json'],
+const o1 = openAIModelRef({
+  name: 'openai/o1',
+  info: {
+    supports: {
+      multiturn: true,
+      tools: true,
+      media: true,
+      systemRole: false,
+      output: ['text', 'json'],
+    },
   },
 });
 
-const o3 = commonRef('openai/o3', {
-  supports: {
-    multiturn: true,
-    tools: true,
-    media: true,
-    systemRole: false,
-    output: ['text', 'json'],
+const o3 = openAIModelRef({
+  name: 'openai/o3',
+  info: {
+    supports: {
+      multiturn: true,
+      tools: true,
+      media: true,
+      systemRole: false,
+      output: ['text', 'json'],
+    },
   },
 });
 
-const o3Mini = commonRef('openai/o3-mini', {
-  supports: {
-    multiturn: true,
-    tools: true,
-    media: false,
-    systemRole: false,
-    output: ['text', 'json'],
+const o3Mini = openAIModelRef({
+  name: 'openai/o3-mini',
+  info: {
+    supports: {
+      multiturn: true,
+      tools: true,
+      media: false,
+      systemRole: false,
+      output: ['text', 'json'],
+    },
   },
 });
 
-const o4Mini = commonRef('openai/o4-mini', {
-  supports: {
-    multiturn: true,
-    tools: true,
-    media: true,
-    systemRole: false,
-    output: ['text', 'json'],
+const o4Mini = openAIModelRef({
+  name: 'openai/o4-mini',
+  info: {
+    supports: {
+      multiturn: true,
+      tools: true,
+      media: true,
+      systemRole: false,
+      output: ['text', 'json'],
+    },
   },
 });
 
-const gpt4oMini = commonRef('openai/gpt-4o-mini');
-const gpt4oMini20240718 = commonRef('openai/gpt-4o-mini-2024-07-18');
+const gpt4oMini = openAIModelRef({
+  name: 'openai/gpt-4o-mini',
+  info: MULTIMODAL_MODEL_INFO,
+});
+const gpt4oMini20240718 = openAIModelRef({
+  name: 'openai/gpt-4o-mini-2024-07-18',
+  info: MULTIMODAL_MODEL_INFO,
+});
 
-const gpt4Turbo = commonRef('openai/gpt-4-turbo');
-const gpt4Turbo20240409 = commonRef('openai/gpt-4-turbo-2024-04-09');
-const gpt4TurboPreview = commonRef('openai/gpt-4-turbo-preview');
-const gpt40125Preview = commonRef('openai/gpt-4-0125-preview');
-const gpt41106Preview = commonRef('openai/gpt-4-1106-preview');
+const gpt4Turbo = openAIModelRef({
+  name: 'openai/gpt-4-turbo',
+  info: MULTIMODAL_MODEL_INFO,
+});
+const gpt4Turbo20240409 = openAIModelRef({
+  name: 'openai/gpt-4-turbo-2024-04-09',
+  info: MULTIMODAL_MODEL_INFO,
+});
+const gpt4TurboPreview = openAIModelRef({
+  name: 'openai/gpt-4-turbo-preview',
+  info: MULTIMODAL_MODEL_INFO,
+});
+const gpt40125Preview = openAIModelRef({
+  name: 'openai/gpt-4-0125-preview',
+  info: MULTIMODAL_MODEL_INFO,
+});
+const gpt41106Preview = openAIModelRef({
+  name: 'openai/gpt-4-1106-preview',
+  info: MULTIMODAL_MODEL_INFO,
+});
 
 const GPT_4_VISION_MODEL_INFO: ModelInfo = {
   supports: {
@@ -106,15 +157,18 @@ const GPT_4_VISION_MODEL_INFO: ModelInfo = {
     output: ['text'],
   },
 };
-const gpt4Vision = commonRef('openai/gpt-4-vision', GPT_4_VISION_MODEL_INFO);
-const gpt4VisionPreview = commonRef(
-  'openai/gpt-4-vision-preview',
-  GPT_4_VISION_MODEL_INFO
-);
-const gpt41106VisionPreview = commonRef(
-  'openai/gpt-4-1106-vision-preview',
-  GPT_4_VISION_MODEL_INFO
-);
+const gpt4Vision = openAIModelRef({
+  name: 'openai/gpt-4-vision',
+  info: GPT_4_VISION_MODEL_INFO,
+});
+const gpt4VisionPreview = openAIModelRef({
+  name: 'openai/gpt-4-vision-preview',
+  info: GPT_4_VISION_MODEL_INFO,
+});
+const gpt41106VisionPreview = openAIModelRef({
+  name: 'openai/gpt-4-1106-vision-preview',
+  info: GPT_4_VISION_MODEL_INFO,
+});
 
 const GPT_4_MODEL_INFO: ModelInfo = {
   supports: {
@@ -125,10 +179,19 @@ const GPT_4_MODEL_INFO: ModelInfo = {
     output: ['text'],
   },
 };
-const gpt4 = commonRef('openai/gpt-4', GPT_4_MODEL_INFO);
-const gpt40613 = commonRef('openai/gpt-4-0613', GPT_4_MODEL_INFO);
-const gpt432k = commonRef('openai/gpt-4-32k', GPT_4_MODEL_INFO);
-const gpt432k0613 = commonRef('openai/gpt-4-32k-0613', GPT_4_MODEL_INFO);
+const gpt4 = openAIModelRef({ name: 'openai/gpt-4', info: GPT_4_MODEL_INFO });
+const gpt40613 = openAIModelRef({
+  name: 'openai/gpt-4-0613',
+  info: GPT_4_MODEL_INFO,
+});
+const gpt432k = openAIModelRef({
+  name: 'openai/gpt-4-32k',
+  info: GPT_4_MODEL_INFO,
+});
+const gpt432k0613 = openAIModelRef({
+  name: 'openai/gpt-4-32k-0613',
+  info: GPT_4_MODEL_INFO,
+});
 
 const GPT_35_MODEL_INFO: ModelInfo = {
   supports: {
@@ -139,15 +202,18 @@ const GPT_35_MODEL_INFO: ModelInfo = {
     output: ['text', 'json'],
   },
 };
-const gpt35Turbo = commonRef('openai/gpt-3.5-turbo', GPT_35_MODEL_INFO);
-const gpt35Turbo0125 = commonRef(
-  'openai/gpt-3.5-turbo-0125',
-  GPT_35_MODEL_INFO
-);
-const gpt35Turbo1106 = commonRef(
-  'openai/gpt-3.5-turbo-1106',
-  GPT_35_MODEL_INFO
-);
+const gpt35Turbo = openAIModelRef({
+  name: 'openai/gpt-3.5-turbo',
+  info: GPT_35_MODEL_INFO,
+});
+const gpt35Turbo0125 = openAIModelRef({
+  name: 'openai/gpt-3.5-turbo-0125',
+  info: GPT_35_MODEL_INFO,
+});
+const gpt35Turbo1106 = openAIModelRef({
+  name: 'openai/gpt-3.5-turbo-1106',
+  info: GPT_35_MODEL_INFO,
+});
 
 const ALL_GPT_MODELS = [
   gpt45,

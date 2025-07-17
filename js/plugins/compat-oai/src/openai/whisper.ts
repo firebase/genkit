@@ -15,56 +15,14 @@
  * limitations under the License.
  */
 
-import { ModelReference, z } from 'genkit';
-import {
-  GenerationCommonConfigSchema,
-  ModelInfo,
-  modelRef,
-} from 'genkit/model';
+import { compatOaiTranscriptionModelRef as openAITranscriptionModelRef } from '../audio';
 
-const ChunkingStrategySchema = z.object({
-  type: z.string(),
-  prefix_padding_ms: z.number().int().optional(),
-  silence_duration_ms: z.number().int().optional(),
-  threshold: z.number().min(0).max(1.0).optional(),
-});
-export const TranscriptionConfigSchema = GenerationCommonConfigSchema.pick({
-  temperature: true,
-}).extend({
-  chunking_strategy: z
-    .union([z.literal('auto'), ChunkingStrategySchema])
-    .optional(),
-  include: z.array(z.any()).optional(),
-  language: z.string().optional(),
-  timestamp_granularities: z.array(z.enum(['word', 'segment'])).optional(),
-  response_format: z
-    .enum(['json', 'text', 'srt', 'verbose_json', 'vtt'])
-    .optional(),
-  // TODO stream support
-});
-
-export const TRANSCRIPTION_MODEL_INFO = {
-  supports: {
-    media: true,
-    output: ['text', 'json'],
-    multiturn: false,
-    systemRole: false,
-    tools: false,
-  },
-};
-
-function commonRef(
-  name: string,
-  info?: ModelInfo
-): ModelReference<typeof TranscriptionConfigSchema> {
-  return modelRef({
-    name,
-    configSchema: TranscriptionConfigSchema,
-    info: info ?? TRANSCRIPTION_MODEL_INFO,
-  });
-}
+/** OpenAI transcription ModelRef helper, same as the OpenAI-compatible spec. */
+export { openAITranscriptionModelRef };
 
 export const SUPPORTED_STT_MODELS = {
-  'gpt-4o-transcribe': commonRef('openai/gpt-4o-transcribe'),
-  'whisper-1': commonRef('openai/whisper-1'),
+  'gpt-4o-transcribe': openAITranscriptionModelRef({
+    name: 'openai/gpt-4o-transcribe',
+  }),
+  'whisper-1': openAITranscriptionModelRef({ name: 'openai/whisper-1' }),
 };
