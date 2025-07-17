@@ -17,6 +17,7 @@
 import {
   ActionMetadata,
   Genkit,
+  GenkitError,
   modelActionMetadata,
   ModelReference,
   z,
@@ -90,9 +91,18 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
 };
 
 export function xAIPlugin(options?: XAIPluginOptions): GenkitPlugin {
+  const apiKey = options?.apiKey ?? process.env.XAI_API_KEY;
+  if (!apiKey) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message:
+        'Please pass in the API key or set the XAI_API_KEY environment variable.',
+    });
+  }
   return openAICompatible({
     name: 'xai',
     baseURL: 'https://api.x.ai/v1',
+    apiKey,
     ...options,
     initializer: async (ai, client) => {
       Object.values(SUPPORTED_LANGUAGE_MODELS).forEach((modelRef) =>
