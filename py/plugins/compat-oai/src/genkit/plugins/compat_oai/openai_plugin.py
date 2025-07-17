@@ -16,11 +16,11 @@
 
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
-from typing import Any, Callable
 from functools import cached_property
+from typing import Any, Callable
 
 from openai import OpenAI as OpenAIClient
-from openai.types import Model, Embedding
+from openai.types import Embedding, Model
 
 from genkit.ai._plugin import Plugin
 from genkit.ai._registry import GenkitRegistry

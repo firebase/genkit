@@ -24,6 +24,7 @@ import abc
 
 from genkit.core.registry import ActionKind
 
+from ..core.action import ActionMetadata
 from ._registry import GenkitRegistry
 from ..core.action import ActionMetadata
 
