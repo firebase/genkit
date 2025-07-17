@@ -27,4 +27,4 @@ bump_version genkit-tools/cli genkit-cli
 
 echo TAGS "${TAGS[*]}"
 
-echo commit_and_tag
+commit_and_tag

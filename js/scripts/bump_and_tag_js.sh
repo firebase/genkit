@@ -44,4 +44,6 @@ bump_version js/plugins/express @genkit-ai/express express-v
 bump_version js/plugins/cloud-sql-pg genkitx-cloud-sql-pg
 bump_version js/plugins/compat-oai @genkit-ai/compat-oai compat-oai-v
 
+echo TAGS "${TAGS[*]}"
+
 commit_and_tag
