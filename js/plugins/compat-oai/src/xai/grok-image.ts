@@ -14,21 +14,13 @@
  * limitations under the License.
  */
 
-import { modelRef } from 'genkit';
-import {
-  IMAGE_GENERATION_MODEL_INFO,
-  ImageGenerationCommonConfigSchema,
-} from '../image';
+import { compatOaiImageModelRef as xaiImageModelRef } from '../image';
 
-export const grok2Image1212 = modelRef({
-  name: 'xai/grok-2-image-1212',
-  info: {
-    label: 'xAI - Grok 2 Image 1212',
-    ...IMAGE_GENERATION_MODEL_INFO,
-  },
-  configSchema: ImageGenerationCommonConfigSchema,
-});
+/** XAI image generation ModelRef helper, same as the OpenAI-compatible model specification. */
+export { xaiImageModelRef };
 
 export const SUPPORTED_IMAGE_MODELS = {
-  'grok-2-image-1212': grok2Image1212,
+  'grok-2-image-1212': xaiImageModelRef({
+    name: 'xai/grok-2-image-1212',
+  }),
 };

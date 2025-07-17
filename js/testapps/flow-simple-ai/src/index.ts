@@ -1286,3 +1286,15 @@ ai.defineFlow('resource', async () => {
     ],
   });
 });
+
+ai.defineFlow('abort-signal', async (_, { sendChunk }) => {
+  const abort = new AbortController();
+  const signal = abort.signal;
+  setTimeout(() => abort.abort(), 2000);
+  return await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: [{ text: 'tell me a long joke' }],
+    onChunk: sendChunk,
+    abortSignal: signal,
+  });
+});

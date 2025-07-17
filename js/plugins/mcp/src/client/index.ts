@@ -12,19 +12,18 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
-/** @type {import('ts-jest').JestConfigWithTsJest} */
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/'],
-  testMatch: ['**/?(*.)+(spec|test).ts'],
-  transform: {
-    '^.+\\.ts$': 'ts-jest',
-  },
-  moduleFileExtensions: ['ts', 'js', 'json', 'node'],
-  coveragePathIgnorePatterns: ['/node_modules/'],
+import { SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { GenkitMcpClient, McpClientOptions } from './client.js';
+import { GenkitMcpHost, McpHostOptions } from './host.js';
+export { GenkitMcpClient, GenkitMcpHost };
+export type {
+  McpClientOptions,
+  McpHostOptions,
+  SSEClientTransportOptions,
+  StdioServerParameters,
+  Transport,
 };

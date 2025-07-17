@@ -66,6 +66,6 @@ jobs:
       shell: bash
       run: |
           cd ${{ inputs.packageDir }}
-          pnpm publish --tag ${{ inputs.releaseTag }} --publish-branch ${{ steps.extract_branch.outputs.branch }} --registry https://wombat-dressing-room.appspot.com
+          pnpm publish --tag ${{ inputs.releaseTag }} --publish-branch ${{ steps.extract_branch.outputs.branch }} --access=public --registry https://wombat-dressing-room.appspot.com
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}

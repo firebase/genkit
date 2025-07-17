@@ -29,12 +29,7 @@ import {
 export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
 export type { JSONSchema7 };
 
-const makeNoopAbortSignal = () =>
-  ({
-    aborted: false,
-    onabort(ev) {},
-    throwIfAborted() {},
-  }) as AbortSignal;
+const makeNoopAbortSignal = () => new AbortController().signal;
 
 /**
  * Action metadata.
@@ -238,8 +233,11 @@ export function actionWithMiddleware<
   action: Action<I, O, S>,
   middleware: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[]
 ): Action<I, O, S> {
-  const wrapped = (async (req: z.infer<I>) => {
-    return (await wrapped.run(req)).result;
+  const wrapped = (async (
+    req: z.infer<I>,
+    options?: ActionRunOptions<z.infer<S>>
+  ) => {
+    return (await wrapped.run(req, options)).result;
   }) as Action<I, O, S>;
   wrapped.__action = action.__action;
   wrapped.__registry = action.__registry;

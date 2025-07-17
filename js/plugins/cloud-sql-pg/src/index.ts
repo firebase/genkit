@@ -14,21 +14,20 @@
  * limitations under the License.
  */
 
-import { Genkit, z } from 'genkit';
-import { EmbedderArgument } from 'genkit/embedder';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { z, type Genkit } from 'genkit';
+import { type EmbedderArgument } from 'genkit/embedder';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 import {
   CommonRetrieverOptionsSchema,
   Document,
   indexerRef,
   retrieverRef,
 } from 'genkit/retriever';
-
 import { v4 as uuidv4 } from 'uuid';
-import { PostgresEngine } from './engine';
-import { DistanceStrategy, type QueryOptions } from './indexes';
+import { PostgresEngine } from './engine.js';
+import { DistanceStrategy, type QueryOptions } from './indexes.js';
 
-export { Column, PostgresEngine } from './engine';
+export { Column, PostgresEngine } from './engine.js';
 export {
   DistanceStrategy,
   ExactNearestNeighbor,
@@ -36,7 +35,8 @@ export {
   HNSWQueryOptions,
   IVFFlatIndex,
   IVFFlatQueryOptions,
-} from './indexes';
+} from './indexes.js';
+
 const PostgresRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   k: z.number().max(1000),
   filter: z.string().optional(),

@@ -56,6 +56,26 @@ ai.defineFlow('multimodal-input', async () => {
   return text;
 });
 
+// YouTube videos
+ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: [
+      {
+        text: 'transcribe this video',
+      },
+      {
+        media: {
+          url: 'https://www.youtube.com/watch?v=3p1P5grjXIQ',
+          contentType: 'video/mp4',
+        },
+      },
+    ],
+  });
+
+  return text;
+});
+
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({

@@ -14,58 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { z } from 'genkit';
-import { ModelInfo, modelRef } from 'genkit/model';
+import {
+  compatOaiSpeechModelRef as openAISpeechModelRef,
+  SpeechConfigSchema,
+} from '../audio';
 
-export const SpeechConfigSchema = z.object({
-  voice: z
-    .enum(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'])
-    .default('alloy'),
-  speed: z.number().min(0.25).max(4.0).optional(),
-  response_format: z
-    .enum(['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'])
-    .optional(),
-});
-
-export const SPEECH_MODEL_INFO: ModelInfo = {
-  supports: {
-    media: false,
-    output: ['media'],
-    multiturn: false,
-    systemRole: false,
-    tools: false,
-  },
-};
-
-export const tts1 = modelRef({
-  name: 'openai/tts-1',
-  info: {
-    label: 'OpenAI - Text-to-speech 1',
-    ...SPEECH_MODEL_INFO,
-  },
-  configSchema: SpeechConfigSchema,
-});
-
-export const tts1Hd = modelRef({
-  name: 'openai/tts-1-hd',
-  info: {
-    label: 'OpenAI - Text-to-speech 1 HD',
-    ...SPEECH_MODEL_INFO,
-  },
-  configSchema: SpeechConfigSchema,
-});
-
-export const gpt4oMiniTts = modelRef({
-  name: 'openai/gpt-4o-mini-tts',
-  info: {
-    label: 'OpenAI - GPT-4o Mini Text-to-speech',
-    ...SPEECH_MODEL_INFO,
-  },
-  configSchema: SpeechConfigSchema.omit({ speed: true }),
-});
+/** OpenAI speech ModelRef helper, same as the OpenAI-compatible spec. */
+export { openAISpeechModelRef };
 
 export const SUPPORTED_TTS_MODELS = {
-  'tts-1': tts1,
-  'tts-1-hd': tts1Hd,
-  'gpt-4o-mini-tts': gpt4oMiniTts,
+  'tts-1': openAISpeechModelRef({ name: 'openai/tts-1' }),
+  'tts-1-hd': openAISpeechModelRef({ name: 'openai/tts-1-hd' }),
+  'gpt-4o-mini-tts': openAISpeechModelRef({
+    name: 'openai/gpt-4o-mini-tts',
+    configSchema: SpeechConfigSchema.omit({ speed: true }),
+  }),
 };
