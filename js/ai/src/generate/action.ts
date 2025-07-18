@@ -83,7 +83,7 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
     },
     async (request, { streamingRequested, sendChunk }) => {
       const generateFn = (
-        sendChunk?: StreamingCallback<GenerateResponseChunkData>
+        sendChunk?: StreamingCallback<GenerateResponseChunk>
       ) =>
         generate(registry, {
           rawRequest: request,
@@ -94,8 +94,8 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
           streamingCallback: sendChunk,
         });
       return streamingRequested
-        ? generateFn((c) =>
-            sendChunk(c instanceof GenerateResponseChunk ? c.toJSON() : c)
+        ? generateFn((c: GenerateResponseChunk) =>
+            sendChunk(c.toJSON ? c.toJSON() : c)
           )
         : generateFn();
     }
@@ -113,7 +113,7 @@ export async function generateHelper(
     currentTurn?: number;
     messageIndex?: number;
     abortSignal?: AbortSignal;
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>;
+    streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   }
 ): Promise<GenerateResponseData> {
   const currentTurn = options.currentTurn ?? 0;
@@ -243,7 +243,7 @@ async function generate(
     currentTurn: number;
     messageIndex: number;
     abortSignal?: AbortSignal;
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>;
+    streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   }
 ): Promise<GenerateResponseData> {
   const { model, tools, format } = await resolveParameters(
