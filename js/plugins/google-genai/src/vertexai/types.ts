@@ -17,8 +17,10 @@
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
   CitationMetadata,
+  CodeExecutionTool,
   Content,
   FunctionCallingMode,
+  FunctionDeclarationsTool,
   GenerateContentCandidate,
   GenerateContentRequest,
   GenerateContentResponse,
@@ -33,10 +35,15 @@ import {
   ImagenPredictRequest,
   ImagenPredictResponse,
   ImagenPrediction,
+  RetrievalTool,
   TaskType,
   TaskTypeSchema,
   Tool,
   ToolConfig,
+  isCodeExecutionTool,
+  isFunctionDeclarationsTool,
+  isGoogleSearchRetrievalTool,
+  isRetrievalTool,
 } from '../common/types';
 
 // This makes it easier to import all types from one place
@@ -45,8 +52,14 @@ export {
   HarmBlockThreshold,
   HarmCategory,
   TaskTypeSchema,
+  isCodeExecutionTool,
+  isFunctionDeclarationsTool,
+  isGoogleSearchRetrievalTool,
+  isRetrievalTool,
   type CitationMetadata,
+  type CodeExecutionTool,
   type Content,
+  type FunctionDeclarationsTool,
   type GenerateContentCandidate,
   type GenerateContentRequest,
   type GenerateContentResponse,
@@ -59,6 +72,7 @@ export {
   type ImagenPredictRequest,
   type ImagenPredictResponse,
   type ImagenPrediction,
+  type RetrievalTool,
   type Tool,
   type ToolConfig,
 };

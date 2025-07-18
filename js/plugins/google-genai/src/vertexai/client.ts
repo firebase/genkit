@@ -224,7 +224,6 @@ async function getToken(authClient: GoogleAuth): Promise<string> {
         \n    -`auth.authenticate_user()`\
         \n- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication';
   const token = await authClient.getAccessToken().catch((e) => {
-    console.dir(e);
     throw new Error(CREDENTIAL_ERROR_MESSAGE, e);
   });
   if (!token) {

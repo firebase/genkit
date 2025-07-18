@@ -41,7 +41,7 @@ import type {
 import { TEST_ONLY as UTILS_TEST_ONLY } from '../../src/vertexai/utils.js';
 
 describe('VertexAI Plugin', () => {
-  const localMockDerivedOptions: RegionalClientOptions = {
+  const regionalMockDerivedOptions: RegionalClientOptions = {
     kind: 'regional' as const,
     location: 'us-central1',
     projectId: 'test-project',
@@ -64,9 +64,9 @@ describe('VertexAI Plugin', () => {
 
   let ai: Genkit;
 
-  // Default to local options for most tests
+  // Default to regional options for most tests
   beforeEach(() => {
-    UTILS_TEST_ONLY.setMockDerivedOptions(localMockDerivedOptions);
+    UTILS_TEST_ONLY.setMockDerivedOptions(regionalMockDerivedOptions);
     ai = genkit({ plugins: [vertexAI()] });
   });
 
@@ -350,7 +350,7 @@ describe('VertexAI Plugin', () => {
 
     describe('With Local Options', () => {
       beforeEach(() => {
-        UTILS_TEST_ONLY.setMockDerivedOptions(localMockDerivedOptions);
+        UTILS_TEST_ONLY.setMockDerivedOptions(regionalMockDerivedOptions);
         ai = genkit({ plugins: [vertexAI()] });
       });
 

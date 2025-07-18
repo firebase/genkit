@@ -140,6 +140,14 @@ export declare interface GoogleSearchRetrievalTool {
   googleSearchRetrieval?: GoogleSearchRetrieval;
   googleSearch?: GoogleSearchRetrieval;
 }
+export function isGoogleSearchRetrievalTool(
+  tool: Tool
+): tool is GoogleSearchRetrievalTool {
+  return (
+    (tool as GoogleSearchRetrievalTool).googleSearchRetrieval !== undefined ||
+    (tool as GoogleSearchRetrievalTool).googleSearch !== undefined
+  );
+}
 
 /**
  * Grounding support.
@@ -737,6 +745,11 @@ export declare interface FunctionDeclarationsTool {
    */
   functionDeclarations?: FunctionDeclaration[];
 }
+export function isFunctionDeclarationsTool(
+  tool: Tool
+): tool is FunctionDeclarationsTool {
+  return (tool as FunctionDeclarationsTool).functionDeclarations !== undefined;
+}
 
 /**
  * Google AI Only. Enables the model to execute code as part of generation.
@@ -748,6 +761,9 @@ export declare interface CodeExecutionTool {
    * subfields added in the future.
    */
   codeExecution: {};
+}
+export function isCodeExecutionTool(tool: Tool): tool is CodeExecutionTool {
+  return (tool as CodeExecutionTool).codeExecution !== undefined;
 }
 
 /**
@@ -829,6 +845,9 @@ export declare interface Retrieval {
 export declare interface RetrievalTool {
   /** Optional. {@link Retrieval}. */
   retrieval?: Retrieval;
+}
+export function isRetrievalTool(tool: Tool): tool is RetrievalTool {
+  return (tool as RetrievalTool).retrieval !== undefined;
 }
 
 /**

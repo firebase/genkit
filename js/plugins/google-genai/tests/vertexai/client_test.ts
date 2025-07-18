@@ -475,34 +475,6 @@ describe('Vertex AI Client', () => {
             });
           });
         });
-
-        // TODO: Implement token refresh if the code was modified to refresh the token.
-        // This test requires a way to simulate a token expiration and verify that a new token is requested.
-        it('should refresh token if expired (Placeholder - Requires implementation)', async () => {
-          if (!isExpress) {
-            //   // Simulate an expired token by setting the access token mock to return an expired token
-            //   // and then a valid one.
-            //   authMock.getAccessToken.onFirstCall().resolves('expired-token');
-            //   authMock.getAccessToken.onSecondCall().resolves('new-token');
-            //   // Make a request that should trigger a token refresh.
-            //   // Add your code here to check that the token is being refreshed.
-            //   const request: GenerateContentRequest = {
-            //     contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
-            //   };
-            //   const model = 'gemini-2.0-pro';
-            //   const mockResponse: GenerateContentResponse = { candidates: [] };
-            //   mockFetchResponse(mockResponse);
-            //   await generateContent(
-            //       model,
-            //       request,
-            //       currentOptions
-            //   );
-            //   // Assert that the mock getAccessToken was called twice
-            //   sinon.assert.calledTwice(authMock.getAccessToken);
-            //   // Assert that the new token was used in the request
-            //   // Add your code here to check if 'new-token' header was used.
-          }
-        });
       });
     }
   });
@@ -542,8 +514,6 @@ describe('Vertex AI Client', () => {
   });
 
   describe('generateContentStream full aggregation tests', () => {
-    // Note: These tests use regionalClientOptions, stream logic is independent of client kind
-
     function createMockStream(chunks: string[]): Response {
       const stream = new ReadableStream({
         start(controller) {

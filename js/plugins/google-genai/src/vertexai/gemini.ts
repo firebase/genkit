@@ -428,7 +428,7 @@ export function defineModel(
       use: middlewares,
     },
     async (request, sendChunk) => {
-      let clientOpt = clientOptions;
+      let clientOpt = { ...clientOptions };
 
       // Make a copy of messages to avoid side-effects
       const messages = structuredClone(request.messages);

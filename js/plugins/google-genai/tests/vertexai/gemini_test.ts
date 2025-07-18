@@ -33,6 +33,9 @@ import {
   GenerateContentResponse,
   HarmBlockThreshold,
   HarmCategory,
+  isFunctionDeclarationsTool,
+  isGoogleSearchRetrievalTool,
+  isRetrievalTool,
 } from '../../src/vertexai/types';
 
 describe('Vertex AI Gemini', () => {
@@ -194,7 +197,10 @@ describe('Vertex AI Gemini', () => {
         configApiKey?: string
       ): string {
         let baseUrl: string;
-        const projectAndLocation = `projects/${clientOptions.projectId}/locations/${clientOptions.location}`;
+        let projectAndLocation = '';
+        if (clientOptions.kind != 'express') {
+          projectAndLocation = `projects/${clientOptions.projectId}/locations/${clientOptions.location}`;
+        }
 
         if (clientOptions.kind === 'regional') {
           baseUrl = `https://${clientOptions.location}-aiplatform.googleapis.com/v1beta1/${projectAndLocation}`;
@@ -364,15 +370,16 @@ describe('Vertex AI Gemini', () => {
         );
         assert.ok(Array.isArray(apiRequest.tools));
         assert.strictEqual(apiRequest.tools?.length, 1);
-        assert.ok(apiRequest.tools?.[0].functionDeclarations);
-        assert.strictEqual(
-          apiRequest.tools?.[0].functionDeclarations?.length,
-          1
+        const tool = apiRequest.tools![0];
+        assert.ok(
+          isFunctionDeclarationsTool(tool),
+          'Expected FunctionDeclarationsTool'
         );
-        assert.strictEqual(
-          apiRequest.tools?.[0].functionDeclarations?.[0].name,
-          'myFunc'
-        );
+        if (isFunctionDeclarationsTool(tool)) {
+          assert.ok(tool.functionDeclarations);
+          assert.strictEqual(tool.functionDeclarations?.length, 1);
+          assert.strictEqual(tool.functionDeclarations?.[0].name, 'myFunc');
+        }
       });
 
       it('handles googleSearchRetrieval tool (as googleSearch)', async () => {
@@ -387,9 +394,12 @@ describe('Vertex AI Gemini', () => {
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
         );
-        const searchTool = apiRequest.tools?.find((t) => t.googleSearch);
-        assert.ok(searchTool, 'Expected googleSearch tool');
-        assert.deepStrictEqual(searchTool, { googleSearch: {} });
+        const searchTool = apiRequest.tools?.find(isGoogleSearchRetrievalTool);
+        assert.ok(searchTool, 'Expected GoogleSearchRetrievalTool');
+        if (searchTool) {
+          assert.ok(searchTool.googleSearch, 'Expected googleSearch property');
+          assert.deepStrictEqual(searchTool, { googleSearch: {} });
+        }
       });
 
       if (clientOptions.kind === 'regional') {
@@ -408,17 +418,20 @@ describe('Vertex AI Gemini', () => {
           const apiRequest: GenerateContentRequest = JSON.parse(
             fetchStub.lastCall.args[1].body
           );
-          const retrievalTool = apiRequest.tools?.find((t) => t.retrieval);
-          assert.ok(retrievalTool, 'Expected vertexRetrieval tool');
-          assert.deepStrictEqual(retrievalTool, {
-            retrieval: {
-              vertexAiSearch: {
-                datastore:
-                  'projects/test-project/locations/us-central1/collections/default_collection/dataStores/my-store',
+          const retrievalTool = apiRequest.tools?.find(isRetrievalTool);
+          assert.ok(retrievalTool, 'Expected RetrievalTool');
+          if (retrievalTool) {
+            assert.ok(retrievalTool.retrieval, 'Expected retrieval property');
+            assert.deepStrictEqual(retrievalTool, {
+              retrieval: {
+                vertexAiSearch: {
+                  datastore:
+                    'projects/test-project/locations/us-central1/collections/default_collection/dataStores/my-store',
+                },
+                disableAttribution: true,
               },
-              disableAttribution: true,
-            },
-          });
+            });
+          }
         });
       }
 
@@ -527,9 +540,15 @@ describe('Vertex AI Gemini', () => {
       const apiRequest: GenerateContentRequest = JSON.parse(
         fetchStub.lastCall.args[1].body
       );
-      const searchTool = apiRequest.tools?.find((t) => t.googleSearchRetrieval);
-      assert.ok(searchTool, 'Expected googleSearchRetrieval tool');
-      assert.deepStrictEqual(searchTool, { googleSearchRetrieval: {} });
+      const searchTool = apiRequest.tools?.find(isGoogleSearchRetrievalTool);
+      assert.ok(searchTool, 'Expected GoogleSearchRetrievalTool');
+      if (searchTool) {
+        assert.ok(
+          searchTool.googleSearchRetrieval,
+          'Expected googleSearchRetrieval property'
+        );
+        assert.deepStrictEqual(searchTool, { googleSearchRetrieval: {} });
+      }
     });
   });
 
