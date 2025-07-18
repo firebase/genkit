@@ -202,7 +202,7 @@ func (gc *GoogleCloud) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return fmt.Errorf("failed to create trace exporter: %w", err)
 	}
 
-	// Create adjusting trace exporter that handles both PII filtering and telemetry processing (matches JS)
+	// Create adjusting trace exporter that handles both PII filtering and telemetry processing
 	adjustingExporter := &AdjustingTraceExporter{
 		exporter:          baseExporter,
 		modules:           gc.modules,
@@ -248,7 +248,7 @@ func setLogHandler(projectID string, level slog.Leveler) error {
 	return nil
 }
 
-// AdjustingTraceExporter combines PII filtering and telemetry processing (matches JS AdjustingTraceExporter)
+// AdjustingTraceExporter combines PII filtering and telemetry processing
 type AdjustingTraceExporter struct {
 	exporter          sdktrace.SpanExporter
 	modules           []Telemetry
@@ -260,7 +260,7 @@ type AdjustingTraceExporter struct {
 func (e *AdjustingTraceExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	slog.Debug("Processing span batch", "span_count", len(spans), "modules_count", len(e.modules))
 
-	// Process and adjust spans (both telemetry and PII filtering) - matches JS adjust() method
+	// Process and adjust spans (both telemetry and PII filtering)
 	adjustedSpans := e.adjust(spans)
 
 	slog.Debug("Span batch processed", "spans_processed_total", e.spansProcessed)
@@ -281,7 +281,7 @@ func (e *AdjustingTraceExporter) ForceFlush(ctx context.Context) error {
 	return nil
 }
 
-// adjust processes and adjusts spans (matches JS AdjustingTraceExporter.adjust method)
+// adjust processes and adjusts spans
 func (e *AdjustingTraceExporter) adjust(spans []sdktrace.ReadOnlySpan) []sdktrace.ReadOnlySpan {
 	var adjustedSpans []sdktrace.ReadOnlySpan
 
