@@ -407,6 +407,7 @@ async function generate(
     middleware: middleware,
     currentTurn: currentTurn + 1,
     messageIndex: messageIndex + 1,
+    streamingCallback,
   });
 }
 
