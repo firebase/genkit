@@ -108,8 +108,8 @@ export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.object({
-      modelName: z.string().default('vertexai/gemini-2.5-pro-exp-03-25'),
-      modelVersion: z.string().optional().default('gemini-2.5-pro-exp-03-25'),
+      modelName: z.string().default('vertexai/gemini-2.5-pro'),
+      modelVersion: z.string().optional().default('gemini-2.5-pro'),
       subject: z.string().default('bananas'),
     }),
     outputSchema: z.string(),
@@ -963,7 +963,7 @@ ai.defineFlow('embedders-tester', async () => {
 ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   const { message } = await ai.generate({
     prompt: 'whats heavier, one kilo of steel or or one kilo of feathers',
-    model: googleAI.model('gemini-2.5-flash-preview-04-17'),
+    model: googleAI.model('gemini-2.5-flash'),
     config: {
       thinkingConfig: {
         thinkingBudget: 1024,
@@ -979,11 +979,7 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
 ai.defineFlow(
   {
     name: 'audioSimple',
-    inputSchema: z
-      .string()
-      .default(
-        'say that that Genkit (G pronounced as J) is an amazing Gen AI library'
-      ),
+    inputSchema: z.string().default('AI can be fun, eh?'),
     outputSchema: z.object({ media: z.string() }),
   },
   async (query) => {
