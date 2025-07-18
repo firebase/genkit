@@ -46,6 +46,7 @@ export {
 } from './evaluator.js';
 export {
   GenerateResponse,
+  GenerateResponseChunk,
   GenerationBlockedError,
   GenerationResponseError,
   generate,
@@ -60,7 +61,6 @@ export {
   type ResumeOptions,
   type ToolChoice,
 } from './generate.js';
-export { GenerateResponseChunk } from './generate/chunk.js';
 export { Message } from './message.js';
 export {
   GenerateResponseChunkSchema,
