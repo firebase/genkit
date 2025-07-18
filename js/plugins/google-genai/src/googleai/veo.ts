@@ -29,7 +29,7 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
-import { checkVeoOperation, veoPredict } from './client.js';
+import { veoCheckOperation, veoPredict } from './client.js';
 import {
   ClientOptions,
   GoogleAIPluginOptions,
@@ -201,7 +201,7 @@ export function defineModel(
     },
     async check(operation) {
       const apiKey = calculateApiKey(pluginOptions?.apiKey, undefined);
-      const response = await checkVeoOperation(
+      const response = await veoCheckOperation(
         apiKey,
         operation.id,
         clientOptions

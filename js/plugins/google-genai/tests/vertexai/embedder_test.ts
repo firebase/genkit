@@ -15,11 +15,12 @@
  */
 
 import * as assert from 'assert';
-import { Document, Genkit } from 'genkit';
+import { Document, Genkit, GENKIT_CLIENT_HEADER } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-import { EmbeddingConfig, defineEmbedder } from '../../src/vertexai/embedder';
+import { getVertexAIUrl } from '../../src/vertexai/client';
+import { defineEmbedder, EmbeddingConfig } from '../../src/vertexai/embedder';
 import {
   ClientOptions,
   EmbedContentResponse,
@@ -31,11 +32,26 @@ describe('defineEmbedder', () => {
   let fetchStub: sinon.SinonStub;
   let authMock: sinon.SinonStubbedInstance<GoogleAuth>;
 
-  const clientOptions: ClientOptions = {
+  const regionalClientOptions: ClientOptions = {
+    kind: 'regional',
     projectId: 'test-project',
     location: 'us-central1',
-    authClient: {} as GoogleAuth, // Will be replaced
+    authClient: {} as GoogleAuth,
   };
+
+  const globalClientOptions: ClientOptions = {
+    kind: 'global',
+    projectId: 'test-project',
+    location: 'global',
+    authClient: {} as GoogleAuth,
+    apiKey: 'test-global-api-key',
+  };
+
+  const expressClientOptions: ClientOptions = {
+    kind: 'express',
+    apiKey: 'test-express-api-key',
+  };
+
   let embedderFunc: (
     input: Document[],
     options?: EmbeddingConfig
@@ -47,7 +63,8 @@ describe('defineEmbedder', () => {
 
     authMock = sinon.createStubInstance(GoogleAuth);
     authMock.getAccessToken.resolves('test-token');
-    clientOptions.authClient = authMock as unknown as GoogleAuth;
+    regionalClientOptions.authClient = authMock as unknown as GoogleAuth;
+    globalClientOptions.authClient = authMock as unknown as GoogleAuth;
 
     mockGenkit.defineEmbedder.callsFake((config, func) => {
       embedderFunc = func;
@@ -70,127 +87,184 @@ describe('defineEmbedder', () => {
     fetchStub.resolves(response);
   }
 
-  it('defines an embedder with the correct name and info for known model', () => {
-    defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
-    sinon.assert.calledOnce(mockGenkit.defineEmbedder);
-    const args = mockGenkit.defineEmbedder.lastCall.args[0];
-    assert.strictEqual(args.name, 'vertexai/text-embedding-005');
-    assert.strictEqual(args.info?.dimensions, 768);
-  });
+  function getExpectedHeaders(
+    clientOptions: ClientOptions
+  ): Record<string, string | undefined> {
+    const headers: Record<string, string | undefined> = {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+      'User-Agent': GENKIT_CLIENT_HEADER,
+    };
+    if (clientOptions.kind !== 'express') {
+      headers['Authorization'] = 'Bearer test-token';
+      headers['x-goog-user-project'] = clientOptions.projectId;
+    }
+    return headers;
+  }
 
-  it('defines an embedder with a custom name', () => {
-    defineEmbedder(mockGenkit, 'custom-model', clientOptions);
-    sinon.assert.calledOnce(mockGenkit.defineEmbedder);
-    const args = mockGenkit.defineEmbedder.lastCall.args[0];
-    assert.strictEqual(args.name, 'vertexai/custom-model');
-  });
-
-  describe('Embedder Functionality', () => {
-    const testDoc1: Document = new Document({ content: [{ text: 'Hello' }] });
-    const testDoc2: Document = new Document({ content: [{ text: 'World' }] });
-
-    it('calls embedContent with text-only documents', async () => {
-      defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
-
-      const mockResponse: EmbedContentResponse = {
-        predictions: [
-          {
-            embeddings: {
-              values: [0.1, 0.2],
-              statistics: { token_count: 1, truncated: false },
-            },
-          },
-          {
-            embeddings: {
-              values: [0.3, 0.4],
-              statistics: { token_count: 1, truncated: false },
-            },
-          },
-        ],
-      };
-      mockFetchResponse(mockResponse);
-
-      const result = await embedderFunc([testDoc1, testDoc2]);
-
-      sinon.assert.calledOnce(fetchStub);
-      const fetchArgs = fetchStub.lastCall.args;
-      const expectedUrl =
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/test-project/locations/us-central1/publishers/google/models/text-embedding-005:predict';
-      assert.strictEqual(fetchArgs[0], expectedUrl);
-
-      // Corrected expectedRequest: Keys with undefined values are omitted by JSON.stringify
-      const expectedRequest = {
-        instances: [{ content: 'Hello' }, { content: 'World' }],
-        parameters: {}, // outputDimensionality is undefined, so key is omitted
-      };
-      assert.deepStrictEqual(JSON.parse(fetchArgs[1].body), expectedRequest);
-
-      assert.deepStrictEqual(result, {
-        embeddings: [{ embedding: [0.1, 0.2] }, { embedding: [0.3, 0.4] }],
-      });
-    });
-
-    it('calls embedContent with taskType and title options', async () => {
-      defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
-      mockFetchResponse({ predictions: [] });
-
-      const config: EmbeddingConfig = {
-        taskType: 'RETRIEVAL_DOCUMENT',
-        title: 'Doc Title',
-      };
-      await embedderFunc([testDoc1], config);
-
-      sinon.assert.calledOnce(fetchStub);
-      const fetchOptions = fetchStub.lastCall.args[1];
-      const body = JSON.parse(fetchOptions.body);
-      assert.strictEqual(body.instances[0].task_type, 'RETRIEVAL_DOCUMENT');
-      assert.strictEqual(body.instances[0].title, 'Doc Title');
-    });
-
-    it('handles multimodal embeddings for images (base64)', async () => {
-      defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
-      const docWithImage: Document = new Document({
-        content: [
-          { text: 'A picture' },
-          { media: { url: 'base64data', contentType: 'image/png' } },
-        ],
+  function runTestsForClientOptions(clientOptions: ClientOptions) {
+    describe(`with ${clientOptions.kind} client options`, () => {
+      it('defines an embedder with the correct name and info for known model', () => {
+        defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+        sinon.assert.calledOnce(mockGenkit.defineEmbedder);
+        const args = mockGenkit.defineEmbedder.lastCall.args[0];
+        assert.strictEqual(args.name, 'vertexai/text-embedding-005');
+        assert.strictEqual(args.info?.dimensions, 768);
       });
 
-      const mockResponse: EmbedContentResponse = {
-        predictions: [{ textEmbedding: [0.1], imageEmbedding: [0.2] }],
-      };
-      mockFetchResponse(mockResponse);
-
-      const result = await embedderFunc([docWithImage]);
-
-      const expectedInstance: EmbeddingInstance = {
-        text: 'A picture',
-        image: { bytesBase64Encoded: 'base64data', mimeType: 'image/png' },
-      };
-      const fetchBody = JSON.parse(fetchStub.lastCall.args[1].body);
-      assert.deepStrictEqual(fetchBody.instances[0], expectedInstance);
-      assert.deepStrictEqual(result.embeddings.length, 2);
-    });
-
-    it('handles multimodal embeddings for images (gcs)', async () => {
-      defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
-      const docWithImage: Document = new Document({
-        content: [
-          {
-            media: { url: 'gs://bucket/image.jpg', contentType: 'image/jpeg' },
-          },
-        ],
+      it('defines an embedder with a custom name', () => {
+        defineEmbedder(mockGenkit, 'custom-model', clientOptions);
+        sinon.assert.calledOnce(mockGenkit.defineEmbedder);
+        const args = mockGenkit.defineEmbedder.lastCall.args[0];
+        assert.strictEqual(args.name, 'vertexai/custom-model');
       });
-      mockFetchResponse({ predictions: [] });
-      await embedderFunc([docWithImage]);
 
-      const expectedInstance: EmbeddingInstance = {
-        image: { gcsUri: 'gs://bucket/image.jpg', mimeType: 'image/jpeg' },
-      };
-      const fetchBody = JSON.parse(fetchStub.lastCall.args[1].body);
-      assert.deepStrictEqual(fetchBody.instances[0], expectedInstance);
+      describe('Embedder Functionality', () => {
+        const testDoc1: Document = new Document({
+          content: [{ text: 'Hello' }],
+        });
+        const testDoc2: Document = new Document({
+          content: [{ text: 'World' }],
+        });
+
+        it('calls embedContent with text-only documents', async () => {
+          defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+
+          const mockResponse: EmbedContentResponse = {
+            predictions: [
+              {
+                embeddings: {
+                  values: [0.1, 0.2],
+                  statistics: { token_count: 1, truncated: false },
+                },
+              },
+              {
+                embeddings: {
+                  values: [0.3, 0.4],
+                  statistics: { token_count: 1, truncated: false },
+                },
+              },
+            ],
+          };
+          mockFetchResponse(mockResponse);
+
+          const result = await embedderFunc([testDoc1, testDoc2]);
+
+          sinon.assert.calledOnce(fetchStub);
+          const fetchArgs = fetchStub.lastCall.args;
+          const expectedUrl = getVertexAIUrl({
+            includeProjectAndLocation: true,
+            resourcePath: 'publishers/google/models/text-embedding-005',
+            resourceMethod: 'predict',
+            clientOptions,
+          });
+          assert.strictEqual(fetchArgs[0], expectedUrl);
+
+          const expectedRequest = {
+            instances: [{ content: 'Hello' }, { content: 'World' }],
+            parameters: {}, // Undefined properties are omitted
+          };
+          assert.deepStrictEqual(
+            JSON.parse(fetchArgs[1].body),
+            expectedRequest
+          );
+          assert.deepStrictEqual(
+            fetchArgs[1].headers,
+            getExpectedHeaders(clientOptions)
+          );
+
+          assert.deepStrictEqual(result, {
+            embeddings: [{ embedding: [0.1, 0.2] }, { embedding: [0.3, 0.4] }],
+          });
+        });
+
+        it('calls embedContent with taskType and title options', async () => {
+          defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+          mockFetchResponse({ predictions: [] });
+
+          const config: EmbeddingConfig = {
+            taskType: 'RETRIEVAL_DOCUMENT',
+            title: 'Doc Title',
+          };
+          await embedderFunc([testDoc1], config);
+
+          sinon.assert.calledOnce(fetchStub);
+          const fetchOptions = fetchStub.lastCall.args[1];
+          const body = JSON.parse(fetchOptions.body);
+          assert.strictEqual(body.instances[0].task_type, 'RETRIEVAL_DOCUMENT');
+          assert.strictEqual(body.instances[0].title, 'Doc Title');
+        });
+
+        it('handles multimodal embeddings for images (base64)', async () => {
+          defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
+          const docWithImage: Document = new Document({
+            content: [
+              { text: 'A picture' },
+              { media: { url: 'base64data', contentType: 'image/png' } },
+            ],
+          });
+
+          const mockResponse: EmbedContentResponse = {
+            predictions: [{ textEmbedding: [0.1], imageEmbedding: [0.2] }],
+          };
+          mockFetchResponse(mockResponse);
+
+          const result = await embedderFunc([docWithImage]);
+
+          const expectedInstance: EmbeddingInstance = {
+            text: 'A picture',
+            image: { bytesBase64Encoded: 'base64data', mimeType: 'image/png' },
+          };
+          const fetchBody = JSON.parse(fetchStub.lastCall.args[1].body);
+          assert.deepStrictEqual(fetchBody.instances[0], expectedInstance);
+          assert.deepStrictEqual(result.embeddings.length, 2);
+        });
+
+        it('handles multimodal embeddings for images (gcs)', async () => {
+          defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
+          const docWithImage: Document = new Document({
+            content: [
+              {
+                media: {
+                  url: 'gs://bucket/image.jpg',
+                  contentType: 'image/jpeg',
+                },
+              },
+            ],
+          });
+          mockFetchResponse({ predictions: [] });
+          await embedderFunc([docWithImage]);
+
+          const expectedInstance: EmbeddingInstance = {
+            image: { gcsUri: 'gs://bucket/image.jpg', mimeType: 'image/jpeg' },
+          };
+          const fetchBody = JSON.parse(fetchStub.lastCall.args[1].body);
+          assert.deepStrictEqual(fetchBody.instances[0], expectedInstance);
+        });
+
+        it('passes outputDimensionality to the API call', async () => {
+          defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+          mockFetchResponse({ predictions: [] });
+
+          const config: EmbeddingConfig = { outputDimensionality: 256 };
+          await embedderFunc([testDoc1], config);
+
+          sinon.assert.calledOnce(fetchStub);
+          const fetchOptions = fetchStub.lastCall.args[1];
+          const body = JSON.parse(fetchOptions.body);
+          assert.strictEqual(body.parameters.outputDimensionality, 256);
+        });
+      });
     });
+  }
 
+  runTestsForClientOptions(regionalClientOptions);
+  runTestsForClientOptions(globalClientOptions);
+  runTestsForClientOptions(expressClientOptions);
+
+  // Tests specific to regional (or not applicable to express)
+  describe('with regional client options only', () => {
+    const clientOptions = regionalClientOptions;
     it('handles multimodal embeddings for video', async () => {
       defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
       const docWithVideo: Document = new Document({
@@ -257,19 +331,6 @@ describe('defineEmbedder', () => {
           },
         ],
       });
-    });
-
-    it('passes outputDimensionality to the API call', async () => {
-      defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
-      mockFetchResponse({ predictions: [] });
-
-      const config: EmbeddingConfig = { outputDimensionality: 256 };
-      await embedderFunc([testDoc1], config);
-
-      sinon.assert.calledOnce(fetchStub);
-      const fetchOptions = fetchStub.lastCall.args[1];
-      const body = JSON.parse(fetchOptions.body);
-      assert.strictEqual(body.parameters.outputDimensionality, 256);
     });
 
     it('throws on unsupported media type', async () => {

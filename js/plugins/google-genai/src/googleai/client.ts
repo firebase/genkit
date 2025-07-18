@@ -198,7 +198,7 @@ export async function veoPredict(
   return response.json() as Promise<VeoOperation>;
 }
 
-export async function checkVeoOperation(
+export async function veoCheckOperation(
   apiKey: string,
   operation: string,
   clientOptions?: ClientOptions

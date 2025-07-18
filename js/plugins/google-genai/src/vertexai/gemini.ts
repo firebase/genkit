@@ -46,7 +46,7 @@ import {
   generateContentStream,
   getVertexAIUrl,
 } from './client';
-import { toGeminiSafetySettings } from './converters';
+import { toGeminiLabels, toGeminiSafetySettings } from './converters';
 import {
   ClientOptions,
   Content,
@@ -59,6 +59,7 @@ import {
   ToolConfig,
   VertexPluginOptions,
 } from './types';
+import { calculateApiKey } from './utils';
 
 export const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -123,6 +124,14 @@ const GoogleSearchRetrievalSchema = z.object({
  * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference#generationconfig, for further information.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+  apiKey: z
+    .string()
+    .describe('Overrides the plugin-configured API key, if specified.')
+    .optional(),
+  labels: z
+    .record(z.string())
+    .optional()
+    .describe('Key-value labels to attach to the request for cost tracking.'),
   temperature: z
     .number()
     .min(0.0)
@@ -419,6 +428,8 @@ export function defineModel(
       use: middlewares,
     },
     async (request, sendChunk) => {
+      let clientOpt = { ...clientOptions };
+
       // Make a copy of messages to avoid side-effects
       const messages = structuredClone(request.messages);
       if (messages.length === 0) throw new Error('No messages provided.');
@@ -431,18 +442,56 @@ export function defineModel(
         systemInstruction = toGeminiSystemInstruction(systemMessage);
       }
 
-      const requestConfig = request.config as GeminiConfig;
+      const requestConfig = { ...request.config };
 
       const {
+        apiKey: apiKeyFromConfig,
         functionCallingConfig,
         version: versionFromConfig,
         googleSearchRetrieval,
         tools: toolsFromConfig,
         vertexRetrieval,
-        location, // location can be overridden via config, take it out.
+        location,
         safetySettings,
+        labels: labelsFromConfig,
         ...restOfConfig
       } = requestConfig;
+
+      if (
+        location &&
+        clientOptions.kind != 'express' &&
+        clientOptions.location != location
+      ) {
+        // Override the location if it's specified in the request
+        if (location == 'global') {
+          clientOpt = {
+            kind: 'global',
+            location: 'global',
+            projectId: clientOptions.projectId,
+            authClient: clientOptions.authClient,
+            apiKey: clientOptions.apiKey,
+          };
+        } else {
+          clientOpt = {
+            kind: 'regional',
+            location,
+            projectId: clientOptions.projectId,
+            authClient: clientOptions.authClient,
+            apiKey: clientOptions.apiKey,
+          };
+        }
+      }
+      if (clientOptions.kind == 'express') {
+        clientOpt.apiKey = calculateApiKey(
+          clientOptions.apiKey,
+          apiKeyFromConfig
+        );
+      } else if (apiKeyFromConfig) {
+        // Regional or Global can still use APIKey for billing (not auth)
+        clientOpt.apiKey = apiKeyFromConfig;
+      }
+
+      const labels = toGeminiLabels(labelsFromConfig);
 
       const tools: Tool[] = [];
       if (request.tools?.length) {
@@ -492,10 +541,23 @@ export function defineModel(
 
       if (vertexRetrieval) {
         const _projectId =
-          vertexRetrieval.datastore.projectId || clientOptions.projectId;
+          vertexRetrieval.datastore.projectId ||
+          (clientOptions.kind != 'express'
+            ? clientOptions.projectId
+            : undefined);
         const _location =
-          vertexRetrieval.datastore.location || clientOptions.location;
+          vertexRetrieval.datastore.location ||
+          (clientOptions.kind == 'regional'
+            ? clientOptions.location
+            : undefined);
         const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
+        if (!_projectId || !_location || !_dataStoreId) {
+          throw new GenkitError({
+            status: 'INVALID_ARGUMENT',
+            message:
+              'projectId, location and datastoreId are required for vertexRetrieval and could not be determined from configuration',
+          });
+        }
         const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
         tools.push({
           retrieval: {
@@ -518,6 +580,7 @@ export function defineModel(
         toolConfig,
         safetySettings: toGeminiSafetySettings(safetySettings),
         contents: messages.map((message) => toGeminiMessage(message, ref)),
+        labels,
       };
 
       const modelVersion = versionFromConfig || (ref.version as string);
@@ -536,7 +599,7 @@ export function defineModel(
           const result = await generateContentStream(
             modelVersion,
             generateContentRequest,
-            clientOptions
+            clientOpt
           );
 
           for await (const item of result.stream) {
@@ -555,7 +618,7 @@ export function defineModel(
           response = await generateContent(
             modelVersion,
             generateContentRequest,
-            clientOptions
+            clientOpt
           );
         }
 

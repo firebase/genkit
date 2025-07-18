@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GENKIT_CLIENT_HEADER } from 'genkit';
+import { GENKIT_CLIENT_HEADER, GenkitError } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { extractErrMsg } from '../common/utils';
 import {
@@ -137,19 +137,6 @@ export async function imagenPredict(
   return response.json() as Promise<ImagenPredictResponse>;
 }
 
-// TODO(ifielker): update with 'global' and APIKey in the options.
-// See genai SDK for how to handle the apiKey
-//  if (
-//       this.clientOptions.project &&
-//       this.clientOptions.location &&
-//       this.clientOptions.location !== 'global'
-//     ) {
-//       // Regional endpoint
-//       return `https://${this.clientOptions.location}-aiplatform.googleapis.com/`;
-//     }
-//     // Global endpoint (covers 'global' location and API key usage)
-//     return `https://aiplatform.googleapis.com/`;
-
 export function getVertexAIUrl(params: {
   includeProjectAndLocation: boolean; // False for listModels, true for most others
   resourcePath: string;
@@ -160,11 +147,19 @@ export function getVertexAIUrl(params: {
   const DEFAULT_API_VERSION = 'v1beta1';
   const API_BASE_PATH = 'aiplatform.googleapis.com';
 
-  const region = params.clientOptions.location || 'us-central1';
-  const basePath = `${region}-${API_BASE_PATH}`;
+  let basePath: string;
+
+  if (params.clientOptions.kind == 'regional') {
+    basePath = `${params.clientOptions.location}-${API_BASE_PATH}`;
+  } else {
+    basePath = API_BASE_PATH;
+  }
 
   let resourcePath = params.resourcePath;
-  if (params.includeProjectAndLocation) {
+  if (
+    params.clientOptions.kind != 'express' &&
+    params.includeProjectAndLocation
+  ) {
     const parent = `projects/${params.clientOptions.projectId}/locations/${params.clientOptions.location}`;
     resourcePath = `${parent}/${params.resourcePath}`;
   }
@@ -173,24 +168,50 @@ export function getVertexAIUrl(params: {
   if (params.resourceMethod) {
     url += `:${params.resourceMethod}`;
   }
+
+  let joiner = '?';
   if (params.queryParams) {
-    url += `?${params.queryParams}`;
+    url += `${joiner}${params.queryParams}`;
+    joiner = '&';
   }
   if (params.resourceMethod === 'streamGenerateContent') {
-    url += `${params.queryParams ? '&' : '?'}alt=sse`;
+    url += `${joiner}alt=sse`;
+    joiner = '&';
+  }
+  if (params.clientOptions.kind == 'express' && !params.clientOptions.apiKey) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'missing api key',
+    });
+  }
+  if (params.clientOptions.apiKey) {
+    // Required for express, optional for others
+    url += `${joiner}key=${params.clientOptions.apiKey}`;
+    joiner = '&';
   }
   return url;
 }
 
 async function getHeaders(clientOptions: ClientOptions): Promise<HeadersInit> {
-  const token = await getToken(clientOptions.authClient);
-  const headers: HeadersInit = {
-    Authorization: `Bearer ${token}`,
-    'x-goog-user-project': clientOptions.projectId,
-    'Content-Type': 'application/json',
-    'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-  };
-  return headers;
+  if (clientOptions.kind == 'express') {
+    const headers: HeadersInit = {
+      // ApiKey is in the url query params
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+      'User-Agent': GENKIT_CLIENT_HEADER,
+    };
+    return headers;
+  } else {
+    const token = await getToken(clientOptions.authClient);
+    const headers: HeadersInit = {
+      Authorization: `Bearer ${token}`,
+      'x-goog-user-project': clientOptions.projectId,
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+      'User-Agent': GENKIT_CLIENT_HEADER,
+    };
+    return headers;
+  }
 }
 
 async function getToken(authClient: GoogleAuth): Promise<string> {
