@@ -477,9 +477,6 @@ importers:
 
   plugins/express:
     dependencies:
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       body-parser:
         specifier: ^1.20.3
         version: 1.20.3

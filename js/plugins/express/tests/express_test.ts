@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import type { RequestData } from '@genkit-ai/core';
 import * as assert from 'assert';
 import express from 'express';
 import {
@@ -25,7 +24,7 @@ import {
   type Genkit,
 } from 'genkit';
 import { runFlow, streamFlow } from 'genkit/beta/client';
-import type { ContextProvider } from 'genkit/context';
+import type { ContextProvider, RequestData } from 'genkit/context';
 import type { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import getPort from 'get-port';
 import type * as http from 'http';
