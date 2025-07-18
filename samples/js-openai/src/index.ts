@@ -28,7 +28,7 @@ const ai = genkit({
 
 ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
-    model: openAI.model('gpt-4o'),
+    model: openAI.model('o4-mini'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
   });
 
@@ -81,7 +81,10 @@ ai.defineFlow('web-search', async () => {
     },
   });
 
-  return response;
+  return {
+    text: response.text,
+    annotations: (response.raw as any)?.choices?.[0].message.annotations,
+  };
 });
 
 const getWeather = ai.defineTool(
