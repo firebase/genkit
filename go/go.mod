@@ -39,7 +39,7 @@ require (
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/tools v0.33.0
 	google.golang.org/api v0.236.0
-	google.golang.org/genai v1.11.1
+	google.golang.org/genai v1.15.0
 )
 
 require (
