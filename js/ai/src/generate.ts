@@ -21,7 +21,6 @@ import {
   isDetachedAction,
   Operation,
   runWithContext,
-  runWithStreamingCallback,
   sentinelNoopStreamingCallback,
   type Action,
   type ActionContext,
@@ -45,6 +44,7 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  GenerateResponseChunkData,
   GenerateResponseData,
   resolveModel,
   type GenerateActionOptions,
@@ -351,30 +351,25 @@ export async function generate<
   const params = await toGenerateActionOptions(registry, resolvedOptions);
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
-  return await runWithStreamingCallback(
-    registry,
-    stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
-    async () => {
-      const response = await runWithContext(
-        registry,
-        resolvedOptions.context,
-        () =>
-          generateHelper(registry, {
-            rawRequest: params,
-            middleware: resolvedOptions.use,
-            abortSignal: resolvedOptions.abortSignal,
-          })
-      );
-      const request = await toGenerateRequest(registry, {
-        ...resolvedOptions,
-        tools,
-      });
-      return new GenerateResponse<O>(response, {
-        request: response.request ?? request,
-        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
-      });
-    }
+  const streamingCallback = stripNoop(
+    resolvedOptions.onChunk ?? resolvedOptions.streamingCallback
+  ) as StreamingCallback<GenerateResponseChunkData>;
+  const response = await runWithContext(registry, resolvedOptions.context, () =>
+    generateHelper(registry, {
+      rawRequest: params,
+      middleware: resolvedOptions.use,
+      abortSignal: resolvedOptions.abortSignal,
+      streamingCallback,
+    })
   );
+  const request = await toGenerateRequest(registry, {
+    ...resolvedOptions,
+    tools,
+  });
+  return new GenerateResponse<O>(response, {
+    request: response.request ?? request,
+    parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+  });
 }
 
 export async function generateOperation<

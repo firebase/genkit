@@ -80,6 +80,9 @@ describe('model', () => {
         },
         async (_, opts) => {
           calledWithOptions = opts;
+          opts.sendChunk({
+            content: [{ text: 'success' }],
+          });
           return GENERATE_RESPONSE;
         }
       );
@@ -94,7 +97,13 @@ describe('model', () => {
       delete response.latencyMs;
       assert.deepStrictEqual(response, GENERATE_RESPONSE);
 
-      const { output } = model.stream({ messages: [] });
+      const { output, stream } = model.stream({ messages: [] });
+
+      const chunks = [] as GenerateResponseChunkData[];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
       response = await output;
 
       assert.ok(calledWithOptions!);
@@ -106,6 +115,7 @@ describe('model', () => {
       assert.strictEqual(calledWithOptions.streamingRequested, true);
       delete response.latencyMs;
       assert.deepStrictEqual(response, GENERATE_RESPONSE);
+      assert.deepStrictEqual(chunks, [{ content: [{ text: 'success' }] }]);
     });
   });
 });

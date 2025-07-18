@@ -524,5 +524,48 @@ describe('generate', () => {
         ['Testing streaming', 'Testing streaming']
       );
     });
+
+    it('should stream out chunks (v2 model)', async () => {
+      const registry = new Registry();
+
+      defineModel(
+        registry,
+        { apiVersion: 'v2', name: 'echo-streaming', supports: { tools: true } },
+        async (input, { sendChunk }) => {
+          sendChunk({ content: [{ text: 'hello, ' }] });
+          sendChunk({ content: [{ text: 'world!' }] });
+          return {
+            message: input.messages[0],
+            finishReason: 'stop',
+          };
+        }
+      );
+
+      const { response, stream } = generateStream(registry, {
+        model: 'echo-streaming',
+        prompt: 'Testing streaming',
+      });
+
+      const streamed: any[] = [];
+      for await (const chunk of stream) {
+        streamed.push(chunk.toJSON());
+      }
+      assert.deepStrictEqual(streamed, [
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'hello, ' }],
+        },
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'world!' }],
+        },
+      ]);
+      assert.deepEqual(
+        (await response).messages.map((m) => m.content[0].text),
+        ['Testing streaming', 'Testing streaming']
+      );
+    });
   });
 });
