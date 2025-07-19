@@ -14,15 +14,10 @@
  * limitations under the License.
  */
 
+import type { MessageData, ModelInfo, Part } from '@genkit-ai/shared';
 import { Document } from '../document.js';
 import { injectInstructions } from '../formats/index.js';
-import type {
-  MediaPart,
-  MessageData,
-  ModelInfo,
-  ModelMiddleware,
-  Part,
-} from '../model.js';
+import type { MediaPart, ModelMiddleware } from '../model.js';
 /**
  * Preprocess a GenerateRequest to download referenced http(s) media URLs and
  * inline them as data URIs.

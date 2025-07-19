@@ -15,9 +15,9 @@
  */
 
 import type { JSONSchema } from '@genkit-ai/core';
+import type { ModelRequest } from '@genkit-ai/shared';
 import type { GenerateResponseChunk } from '../generate.js';
 import type { Message } from '../message.js';
-import type { ModelRequest } from '../model.js';
 
 export type OutputContentTypes = 'application/json' | 'text/plain';
 

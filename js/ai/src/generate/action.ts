@@ -26,6 +26,22 @@ import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import {
+  GenerateActionOptionsSchema,
+  GenerateResponseChunkSchema,
+  GenerateResponseSchema,
+  MessageData,
+  type GenerateActionOptions,
+  type GenerateActionOutputConfig,
+  type GenerateRequest,
+  type GenerateRequestSchema,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
+  type ModelInfo,
+  type ModelRequest,
+  type Part,
+  type Role,
+} from '@genkit-ai/shared';
+import {
   injectInstructions,
   resolveFormat,
   resolveInstructions,
@@ -38,23 +54,9 @@ import {
   tagAsPreamble,
 } from '../generate.js';
 import {
-  GenerateActionOptionsSchema,
-  GenerateResponseChunkSchema,
-  GenerateResponseSchema,
-  MessageData,
   resolveModel,
-  type GenerateActionOptions,
-  type GenerateActionOutputConfig,
-  type GenerateRequest,
-  type GenerateRequestSchema,
-  type GenerateResponseChunkData,
-  type GenerateResponseData,
   type ModelAction,
-  type ModelInfo,
   type ModelMiddleware,
-  type ModelRequest,
-  type Part,
-  type Role,
 } from '../model.js';
 import { findMatchingResource } from '../resource.js';
 import { resolveTools, toToolDefinition, type ToolAction } from '../tool.js';

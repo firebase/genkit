@@ -22,9 +22,8 @@ import type {
   GenerateResponseData,
   MessageData,
   Part,
-  ToolRequestPart,
-  ToolResponsePart,
-} from '../model.js';
+} from '@genkit-ai/shared';
+import type { ToolRequestPart, ToolResponsePart } from '../model.js';
 import { isPromptAction } from '../prompt.js';
 import {
   ToolInterruptError,

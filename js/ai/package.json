@@ -28,6 +28,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/shared": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
     "@types/node": "^20.11.19",
     "colorette": "^2.0.20",

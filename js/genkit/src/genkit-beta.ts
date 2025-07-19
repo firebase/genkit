@@ -38,10 +38,11 @@ import {
   type SessionData,
   type SessionOptions,
 } from '@genkit-ai/ai/session';
-import type { Operation, z } from '@genkit-ai/core';
+import type { z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
 import type { Formatter } from './formats';
 import { Genkit, type GenkitOptions } from './genkit';
+import { Operation } from '@genkit-ai/shared';
 
 export type { GenkitOptions as GenkitBetaOptions }; // in case they drift later
 

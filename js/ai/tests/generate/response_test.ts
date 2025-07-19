@@ -16,6 +16,7 @@
 
 import { z } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import type { GenerateRequest, GenerateResponseData } from '@genkit-ai/shared';
 import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import {
@@ -24,7 +25,6 @@ import {
   GenerationResponseError,
 } from '../../src/generate.js';
 import { Message } from '../../src/message.js';
-import type { GenerateRequest, GenerateResponseData } from '../../src/model.js';
 
 describe('GenerateResponse', () => {
   describe('#toJSON()', () => {

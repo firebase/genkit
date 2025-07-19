@@ -14,14 +14,34 @@
  * limitations under the License.
  */
 
-export { checkOperation } from './check-operation.js';
 export {
-  Document,
+  BaseDataPointSchema,
   DocumentDataSchema,
+  GenerateResponseChunkSchema,
+  GenerationCommonConfigSchema,
+  MessageSchema,
+  ModelRequestSchema,
+  ModelResponseSchema,
+  PartSchema,
+  RoleSchema,
   type DocumentData,
+  type Embedding,
+  type GenerateRequest,
+  type GenerateRequestData,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
+  type GenerationUsage,
+  type MediaPart,
+  type MessageData,
+  type ModelRequest,
+  type ModelResponseData,
+  type Part,
+  type Role,
   type ToolRequest,
   type ToolResponse,
-} from './document.js';
+} from '@genkit-ai/shared';
+export { checkOperation } from './check-operation.js';
+export { Document } from './document.js';
 export {
   embed,
   embedderActionMetadata,
@@ -31,10 +51,8 @@ export {
   type EmbedderInfo,
   type EmbedderParams,
   type EmbedderReference,
-  type Embedding,
 } from './embedder.js';
 export {
-  BaseDataPointSchema,
   EvalStatusEnum,
   evaluate,
   evaluatorRef,
@@ -63,28 +81,10 @@ export {
 } from './generate.js';
 export { Message } from './message.js';
 export {
-  GenerateResponseChunkSchema,
-  GenerationCommonConfigSchema,
-  MessageSchema,
-  ModelRequestSchema,
-  ModelResponseSchema,
-  PartSchema,
-  RoleSchema,
   modelActionMetadata,
   modelRef,
-  type GenerateRequest,
-  type GenerateRequestData,
-  type GenerateResponseChunkData,
-  type GenerateResponseData,
-  type GenerationUsage,
-  type MediaPart,
-  type MessageData,
   type ModelArgument,
   type ModelReference,
-  type ModelRequest,
-  type ModelResponseData,
-  type Part,
-  type Role,
   type ToolRequestPart,
   type ToolResponsePart,
 } from './model.js';
@@ -149,4 +149,3 @@ export {
   type ToolArgument,
   type ToolConfig,
 } from './tool.js';
-export * from './types.js';

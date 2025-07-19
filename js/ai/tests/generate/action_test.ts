@@ -16,6 +16,12 @@
 
 import { stripUndefinedProps, z } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import {
+  GenerateActionOptionsSchema,
+  GenerateResponseChunkSchema,
+  GenerateResponseSchema,
+  type GenerateResponseChunkData,
+} from '@genkit-ai/shared';
 import * as assert from 'assert';
 import { readFileSync } from 'fs';
 import { beforeEach, describe, it } from 'node:test';
@@ -24,12 +30,6 @@ import {
   defineGenerateAction,
   type GenerateAction,
 } from '../../src/generate/action.js';
-import {
-  GenerateActionOptionsSchema,
-  GenerateResponseChunkSchema,
-  GenerateResponseSchema,
-  type GenerateResponseChunkData,
-} from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 import { defineProgrammableModel, type ProgrammableModel } from '../helpers.js';
 
