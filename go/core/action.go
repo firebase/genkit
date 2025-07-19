@@ -29,6 +29,7 @@ import (
 	"github.com/firebase/genkit/go/internal/metrics"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/invopop/jsonschema"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Func is an alias for non-streaming functions with input of type In and output of type Out.
@@ -40,16 +41,63 @@ type StreamingFunc[In, Out, Stream any] = func(context.Context, In, StreamCallba
 // StreamCallback is a function that is called during streaming to return the next chunk of the stream.
 type StreamCallback[Stream any] = func(context.Context, Stream) error
 
+// ActionResult contains the result of an action along with telemetry information.
+type ActionResult[Out any] struct {
+	Result    Out       `json:"result"`
+	Telemetry Telemetry `json:"telemetry"`
+}
+
+// Telemetry contains tracing information for an action execution.
+type Telemetry struct {
+	TraceID string `json:"traceId"`
+	SpanID  string `json:"spanId"`
+}
+
 // Action is the interface that all Genkit primitives (e.g. flows, models, tools) have in common.
 type Action interface {
 	// Name returns the name of the action.
 	Name() string
-	// RunJSON runs the action with the given JSON input and streaming callback and returns the output as JSON.
-	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
+	// RunJSON runs the action with the given JSON input, streaming callback, and telemetry labels, returning both result and telemetry information.
+	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error, telemetryLabels map[string]string) (ActionResult[json.RawMessage], error)
 	// Desc returns a descriptor of the action.
 	Desc() ActionDesc
 	// SetTracingState sets the tracing state on the action.
 	SetTracingState(tstate *tracing.State)
+}
+
+// Context helpers for telemetry capture and labels
+type telemetryCollector struct {
+	traceID string
+	spanID  string
+}
+
+type telemetryCollectorKey struct{}
+type telemetryLabelsKey struct{}
+
+func withTelemetryCapture(ctx context.Context) (context.Context, *telemetryCollector) {
+	collector := &telemetryCollector{}
+	return context.WithValue(ctx, telemetryCollectorKey{}, collector), collector
+}
+
+func getTelemetryFromContext(ctx context.Context) *telemetryCollector {
+	if collector, ok := ctx.Value(telemetryCollectorKey{}).(*telemetryCollector); ok {
+		return collector
+	}
+	return nil
+}
+
+func withTelemetryLabels(ctx context.Context, labels map[string]string) context.Context {
+	if labels == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, telemetryLabelsKey{}, labels)
+}
+
+func getTelemetryLabelsFromContext(ctx context.Context) map[string]string {
+	if labels, ok := ctx.Value(telemetryLabelsKey{}).(map[string]string); ok {
+		return labels
+	}
+	return nil
 }
 
 // An ActionType is the kind of an action.
@@ -97,8 +145,7 @@ type noStream = func(context.Context, struct{}) error
 // DefineAction creates a new non-streaming Action and registers it.
 func DefineAction[In, Out any](
 	r *registry.Registry,
-	provider,
-	name string,
+	provider, name string,
 	atype ActionType,
 	metadata map[string]any,
 	fn Func[In, Out],
@@ -250,6 +297,22 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 
 	return tracing.RunInNewSpan(ctx, a.tstate, a.desc.Name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
+			// Apply telemetry labels if present
+			if labels := getTelemetryLabelsFromContext(ctx); labels != nil {
+				for k, v := range labels {
+					tracing.SetCustomMetadataAttr(ctx, k, v)
+				}
+			}
+
+			// Capture telemetry if collector present
+			if collector := getTelemetryFromContext(ctx); collector != nil {
+				span := trace.SpanFromContext(ctx)
+				if span.SpanContext().IsValid() {
+					collector.traceID = span.SpanContext().TraceID().String()
+					collector.spanID = span.SpanContext().SpanID().String()
+				}
+			}
+
 			start := time.Now()
 			var err error
 			if err = base.ValidateValue(input, a.desc.InputSchema); err != nil {
@@ -275,16 +338,16 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 		})
 }
 
-// RunJSON runs the action with a JSON input, and returns a JSON result.
-func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
+// RunJSON runs the action with a JSON input, and returns a JSON result with telemetry information.
+func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error, telemetryLabels map[string]string) (ActionResult[json.RawMessage], error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
-		return nil, NewError(INVALID_ARGUMENT, err.Error())
+		return ActionResult[json.RawMessage]{}, NewError(INVALID_ARGUMENT, err.Error())
 	}
 	var in In
 	if input != nil {
 		if err := json.Unmarshal(input, &in); err != nil {
-			return nil, err
+			return ActionResult[json.RawMessage]{}, err
 		}
 	}
 	var callback func(context.Context, Stream) error
@@ -297,15 +360,32 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 			return cb(ctx, json.RawMessage(bytes))
 		}
 	}
-	out, err := a.Run(ctx, in, callback)
+
+	// Set up telemetry capture and labels
+	ctx, collector := withTelemetryCapture(ctx)
+	ctx = withTelemetryLabels(ctx, telemetryLabels)
+
+	output, err := a.Run(ctx, in, callback)
 	if err != nil {
-		return nil, err
+		return ActionResult[json.RawMessage]{}, err
 	}
-	bytes, err := json.Marshal(out)
+
+	// Get captured telemetry
+	telemetry := Telemetry{
+		TraceID: collector.traceID,
+		SpanID:  collector.spanID,
+	}
+
+	// Marshal output and return
+	bytes, err := json.Marshal(output)
 	if err != nil {
-		return nil, err
+		return ActionResult[json.RawMessage]{}, err
 	}
-	return json.RawMessage(bytes), nil
+
+	return ActionResult[json.RawMessage]{
+		Result:    json.RawMessage(bytes),
+		Telemetry: telemetry,
+	}, nil
 }
 
 // Desc returns a descriptor of the action.
