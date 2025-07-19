@@ -216,16 +216,16 @@ func TestVertexAILive(t *testing.T) {
 			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -250,24 +250,24 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the image provided"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewDataPart("data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
 		if location != "global" {
-			t.Skip("image generation in Vertex AI is only supported in region: global")
+			t.Skipf("image generation in Vertex AI is only supported in region: global, got: %s", location)
 		}
 		m := googlegenai.VertexAIModel(g, "gemini-2.0-flash-preview-image-generation")
 		resp, err := genkit.Generate(ctx, g,
