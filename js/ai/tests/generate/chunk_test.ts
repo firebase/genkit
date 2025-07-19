@@ -23,6 +23,8 @@ describe('GenerateResponseChunk', () => {
     const testChunk = new GenerateResponseChunk(
       { index: 0, role: 'model', content: [{ text: 'new' }] },
       {
+        role: 'model',
+        index: 0,
         previousChunks: [
           { index: 0, role: 'model', content: [{ text: 'old1' }] },
           { index: 0, role: 'model', content: [{ text: 'old2' }] },

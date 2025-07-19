@@ -25,8 +25,8 @@ import {
   z,
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import { PartSchema } from '@genkit-ai/shared';
 import uriTemplate from 'uri-templates';
-import { PartSchema } from './model-types.js';
 
 /**
  * Options for defining a resource.

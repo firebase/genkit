@@ -101,7 +101,6 @@ import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
   ActionFnArg,
   GenkitError,
-  Operation,
   ReflectionServer,
   defineFlow,
   defineJsonSchema,
@@ -124,6 +123,7 @@ import { logger } from './logging.js';
 import type { GenkitPlugin } from './plugin.js';
 import { Registry, type ActionType } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
+import { Operation } from '@genkit-ai/shared';
 
 /**
  * @deprecated use `ai.definePrompt({messages: fn})`

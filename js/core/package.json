@@ -26,6 +26,7 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
+    "@genkit-ai/shared": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "~1.25.0",
     "@opentelemetry/core": "~1.25.0",

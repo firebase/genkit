@@ -22,22 +22,22 @@ import {
 } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { Document, DocumentDataSchema, type DocumentData } from './document.js';
-
-/**
- * A batch (array) of embeddings.
- */
-export type EmbeddingBatch = { embedding: number[] }[];
-
-/**
- * EmbeddingSchema includes the embedding and also metadata so you know
- * which of multiple embeddings corresponds to which part of a document.
- */
-export const EmbeddingSchema = z.object({
-  embedding: z.array(z.number()),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
-export type Embedding = z.infer<typeof EmbeddingSchema>;
+import {
+  EmbedRequestSchema,
+  EmbedResponse,
+  EmbedResponseSchema,
+  EmbeddingSchema,
+  type DocumentData,
+  type Embedding,
+  type EmbeddingBatch,
+} from '@genkit-ai/shared';
+import { Document } from './document.js';
+export {
+  EmbedRequestSchema,
+  EmbeddingSchema,
+  type Embedding,
+  type EmbeddingBatch,
+};
 
 /**
  * A function used for embedder definition, encapsulates embedder implementation.
@@ -46,23 +46,6 @@ export type EmbedderFn<EmbedderOptions extends z.ZodTypeAny> = (
   input: Document[],
   embedderOpts?: z.infer<EmbedderOptions>
 ) => Promise<EmbedResponse>;
-
-/**
- * Zod schema of an embed request.
- */
-const EmbedRequestSchema = z.object({
-  input: z.array(DocumentDataSchema),
-  options: z.any().optional(),
-});
-
-/**
- * Zod schema of an embed response.
- */
-const EmbedResponseSchema = z.object({
-  embeddings: z.array(EmbeddingSchema),
-  // TODO: stats, etc.
-});
-type EmbedResponse = z.infer<typeof EmbedResponseSchema>;
 
 /**
  * Embedder action -- a subtype of {@link Action} with input/output types for embedders.

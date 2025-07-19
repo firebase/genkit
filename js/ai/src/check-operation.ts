@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { GenkitError, Operation } from '@genkit-ai/core';
+import { GenkitError } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
+import { type Operation } from '@genkit-ai/shared';
 
 export async function checkOperation<T = unknown>(
   registry: Registry,

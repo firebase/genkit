@@ -41,6 +41,9 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../core
+      '@genkit-ai/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -96,6 +99,9 @@ importers:
 
   core:
     dependencies:
+      '@genkit-ai/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -218,6 +224,9 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../core
+      '@genkit-ai/shared':
+        specifier: workspace:*
+        version: link:../shared
       uuid:
         specifier: ^10.0.0
         version: 10.0.0
