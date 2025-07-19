@@ -27,6 +27,9 @@
         },
         "reasoning": {
           "not": {}
+        },
+        "resource": {
+          "not": {}
         }
       },
       "required": [
@@ -59,6 +62,9 @@
         },
         "reasoning": {
           "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
         }
       },
       "additionalProperties": false
@@ -118,6 +124,9 @@
         },
         "reasoning": {
           "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
         }
       },
       "required": [
@@ -166,10 +175,58 @@
         },
         "reasoning": {
           "type": "string"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
         }
       },
       "required": [
         "reasoning"
+      ],
+      "additionalProperties": false
+    },
+    "ResourcePart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/CustomPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/CustomPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
+        },
+        "data": {
+          "$ref": "#/$defs/CustomPart/properties/data"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "type": "object",
+          "properties": {
+            "uri": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "uri"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "resource"
       ],
       "additionalProperties": false
     },
@@ -199,6 +256,9 @@
         },
         "reasoning": {
           "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
         }
       },
       "required": [
@@ -232,6 +292,9 @@
         },
         "reasoning": {
           "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
         }
       },
       "required": [
@@ -281,6 +344,9 @@
         },
         "reasoning": {
           "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
         }
       },
       "required": [
@@ -805,28 +871,35 @@
       "type": "object",
       "properties": {
         "version": {
-          "type": "string"
+          "type": "string",
+          "description": "A specific version of a model family, e.g. `gemini-2.0-flash` for the `googleai` family."
         },
         "temperature": {
-          "type": "number"
+          "type": "number",
+          "description": "Controls the degree of randomness in token selection. A lower value is good for a more predictable response. A higher value leads to more diverse or unexpected results."
         },
         "maxOutputTokens": {
-          "type": "number"
+          "type": "number",
+          "description": "The maximum number of tokens to include in the response."
         },
         "topK": {
-          "type": "number"
+          "type": "number",
+          "description": "The maximum number of tokens to consider when sampling."
         },
         "topP": {
-          "type": "number"
+          "type": "number",
+          "description": "Decides how many possible words to consider. A higher value means that the model looks at more possible words, even the less likely ones, which makes the generated text more diverse."
         },
         "stopSequences": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "maxItems": 5,
+          "description": "Set of character sequences (up to 5) that will stop output generation."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "GenerationUsage": {
       "type": "object",
@@ -1138,6 +1211,9 @@
         },
         {
           "$ref": "#/$defs/ReasoningPart"
+        },
+        {
+          "$ref": "#/$defs/ResourcePart"
         }
       ]
     },
