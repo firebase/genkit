@@ -331,7 +331,7 @@ export async function hasAction(params: {
   actionRef: string;
 }): Promise<boolean> {
   const { manager, actionRef } = { ...params };
-  const actionsRecord = await manager.listActions();
+  const actionsRecord = await manager.listActions({});
 
   return actionsRecord.hasOwnProperty(actionRef);
 }

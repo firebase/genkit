@@ -125,11 +125,11 @@ const loggedProcedure = t.procedure.use(async (opts) => {
 export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
   t.router({
     /** Retrieves all runnable actions. */
-    listActions: loggedProcedure.query(
-      async (): Promise<Record<string, Action>> => {
-        return manager.listActions();
-      }
-    ),
+    listActions: loggedProcedure
+      .input(apis.ListActionsRequestSchema)
+      .query(async ({ input }): Promise<Record<string, Action>> => {
+        return manager.listActions(input);
+      }),
 
     /** Runs an action. */
     runAction: loggedProcedure
