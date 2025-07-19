@@ -118,12 +118,12 @@ import {
 } from '@genkit-ai/core';
 import { Channel } from '@genkit-ai/core/async';
 import type { HasRegistry } from '@genkit-ai/core/registry';
+import { Operation } from '@genkit-ai/shared';
 import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import type { GenkitPlugin } from './plugin.js';
 import { Registry, type ActionType } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
-import { Operation } from '@genkit-ai/shared';
 
 /**
  * @deprecated use `ai.definePrompt({messages: fn})`
