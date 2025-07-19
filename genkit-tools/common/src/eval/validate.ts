@@ -128,6 +128,6 @@ async function getAction(
   manager: RuntimeManager,
   actionRef: string
 ): Promise<Action | undefined> {
-  const actions = await manager.listActions();
+  const actions = await manager.listActions({});
   return actions[actionRef];
 }

@@ -215,7 +215,7 @@ export async function runEvaluation(params: {
 export async function getAllEvaluatorActions(
   manager: RuntimeManager
 ): Promise<Action[]> {
-  const allActions = await manager.listActions();
+  const allActions = await manager.listActions({});
   const allEvaluatorActions = [];
   for (const key in allActions) {
     if (isEvaluator(key)) {
