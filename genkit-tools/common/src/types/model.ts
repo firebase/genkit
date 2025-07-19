@@ -185,7 +185,6 @@ export const ToolDefinitionSchema = z.object({
  */
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
-
 /**
  * Configuration parameter descriptions.
  */
