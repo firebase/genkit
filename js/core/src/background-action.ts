@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Operation, OperationSchema } from '@genkit-ai/shared';
 import type { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
 import { Action, ActionMetadata, defineAction, Middleware } from './action.js';
@@ -21,7 +22,6 @@ import { ActionContext } from './context.js';
 import { GenkitError } from './error.js';
 import { ActionType, Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
-import { Operation, OperationSchema } from '@genkit-ai/shared';
 
 /**
  * Background action. Unlike regular action, background action can run for a long time in the background.

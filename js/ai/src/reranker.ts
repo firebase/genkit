@@ -17,10 +17,13 @@
 import { defineAction, z, type Action } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { DocumentData, DocumentDataSchema, DocumentPart, DocumentPartSchema } from '@genkit-ai/shared';
 import {
-  Document,
-} from './retriever.js';
+  DocumentData,
+  DocumentDataSchema,
+  DocumentPart,
+  DocumentPartSchema,
+} from '@genkit-ai/shared';
+import { Document } from './retriever.js';
 
 export type RerankerFn<RerankerOptions extends z.ZodTypeAny> = (
   query: Document,
