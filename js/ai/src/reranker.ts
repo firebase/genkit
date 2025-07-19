@@ -17,12 +17,13 @@
 import { defineAction, z, type Action } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { PartSchema, type Part } from './document.js';
 import {
-  Document,
+  DocumentData,
   DocumentDataSchema,
-  type DocumentData,
-} from './retriever.js';
+  DocumentPart,
+  DocumentPartSchema,
+} from '@genkit-ai/shared';
+import { Document } from './retriever.js';
 
 export type RerankerFn<RerankerOptions extends z.ZodTypeAny> = (
   query: Document,
@@ -40,14 +41,14 @@ export const RankedDocumentMetadataSchema = z
   .passthrough(); // Allows other properties in 'metadata' with any type
 
 export const RankedDocumentDataSchema = z.object({
-  content: z.array(PartSchema),
+  content: z.array(DocumentPartSchema),
   metadata: RankedDocumentMetadataSchema,
 });
 
 export type RankedDocumentData = z.infer<typeof RankedDocumentDataSchema>;
 
 export class RankedDocument extends Document implements RankedDocumentData {
-  content: Part[];
+  content: DocumentPart[];
   metadata: { score: number } & Record<string, any>;
 
   constructor(data: RankedDocumentData) {

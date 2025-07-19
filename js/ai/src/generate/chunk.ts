@@ -15,13 +15,9 @@
  */
 
 import { GenkitError } from '@genkit-ai/core';
+import type { GenerateResponseChunkData, Part, Role } from '@genkit-ai/shared';
 import { extractJson } from '../extract.js';
-import type {
-  GenerateResponseChunkData,
-  Part,
-  Role,
-  ToolRequestPart,
-} from '../model.js';
+import type { ToolRequestPart } from '../model.js';
 
 export type ChunkParser<T = unknown> = (chunk: GenerateResponseChunk<T>) => T;
 

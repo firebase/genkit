@@ -16,8 +16,9 @@
 
 import type { JSONSchema } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
+import type { MessageData } from '@genkit-ai/shared';
 import type { OutputOptions } from '../generate.js';
-import type { MessageData, TextPart } from '../model.js';
+import type { TextPart } from '../model.js';
 import { arrayFormatter } from './array.js';
 import { enumFormatter } from './enum.js';
 import { jsonFormatter } from './json.js';

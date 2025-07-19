@@ -19,7 +19,6 @@ import {
   GenkitError,
   isAction,
   isDetachedAction,
-  Operation,
   runWithContext,
   sentinelNoopStreamingCallback,
   type Action,
@@ -30,7 +29,18 @@ import {
 import { Channel } from '@genkit-ai/core/async';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import type { DocumentData } from './document.js';
+import type {
+  DocumentData,
+  GenerateActionOptions,
+  GenerateRequest,
+  GenerateResponseChunkData,
+  GenerateResponseData,
+  GenerationCommonConfigSchema,
+  MessageData,
+  Operation,
+  Part,
+} from '@genkit-ai/shared';
+import type {} from './document.js';
 import {
   injectInstructions,
   resolveFormat,
@@ -44,16 +54,9 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
-  GenerateResponseChunkData,
-  GenerateResponseData,
   resolveModel,
-  type GenerateActionOptions,
-  type GenerateRequest,
-  type GenerationCommonConfigSchema,
-  type MessageData,
   type ModelArgument,
   type ModelMiddleware,
-  type Part,
   type ToolRequestPart,
   type ToolResponsePart,
 } from './model.js';

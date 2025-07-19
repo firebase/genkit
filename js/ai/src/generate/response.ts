@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-import { Operation } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
-import {
-  GenerationBlockedError,
-  GenerationResponseError,
-} from '../generate.js';
-import { Message, type MessageParser } from '../message.js';
 import type {
   GenerateRequest,
   GenerateResponseData,
   GenerationUsage,
   MessageData,
   ModelResponseData,
-  ToolRequestPart,
-} from '../model.js';
+  Operation,
+} from '@genkit-ai/shared';
+import {
+  GenerationBlockedError,
+  GenerationResponseError,
+} from '../generate.js';
+import { Message, type MessageParser } from '../message.js';
+import type { ToolRequestPart } from '../model.js';
 
 /**
  * GenerateResponse is the result from a `generate()` call and contains one or

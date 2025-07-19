@@ -14,21 +14,9 @@
  * limitations under the License.
  */
 
-import type { JSONSchema } from '@genkit-ai/core';
-import type { ModelRequest } from '@genkit-ai/shared';
-import type { GenerateResponseChunk } from '../generate.js';
-import type { Message } from '../message.js';
+import { defineConfig, type Options } from 'tsup';
+import { defaultOptions } from '../tsup.common';
 
-export type OutputContentTypes = 'application/json' | 'text/plain';
-
-export interface Formatter<O = unknown, CO = unknown> {
-  name: string;
-  config: ModelRequest['output'] & {
-    defaultInstructions?: false;
-  };
-  handler: (schema?: JSONSchema) => {
-    parseMessage(message: Message): O;
-    parseChunk?: (chunk: GenerateResponseChunk) => CO;
-    instructions?: string;
-  };
-}
+export default defineConfig({
+  ...(defaultOptions as Options),
+});

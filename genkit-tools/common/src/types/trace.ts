@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import * as z from 'zod';
-
-extendZodWithOpenApi(z);
 
 // NOTE: Keep this file in sync with js/core/src/tracing/types.ts!
 // Eventually tools will be source of truth for these types (by generating a
@@ -108,48 +105,44 @@ export const InstrumentationLibrarySchema = z.object({
 /**
  * Zod schema for span data.
  */
-export const SpanDataSchema = z
-  .object({
-    spanId: z.string(),
-    traceId: z.string(),
-    parentSpanId: z.string().optional(),
-    startTime: z.number(),
-    endTime: z.number(),
-    attributes: z.record(z.string(), z.unknown()),
-    displayName: z.string(),
-    links: z.array(LinkSchema).optional(),
-    instrumentationLibrary: InstrumentationLibrarySchema,
-    spanKind: z.string(),
-    sameProcessAsParentSpan: z.object({ value: z.boolean() }).optional(),
-    status: SpanStatusSchema.optional(),
-    timeEvents: z
-      .object({
-        timeEvent: z.array(TimeEventSchema).optional(),
-      })
-      .optional(),
-    truncated: z.boolean().optional(),
-  })
-  .openapi('SpanData');
+export const SpanDataSchema = z.object({
+  spanId: z.string(),
+  traceId: z.string(),
+  parentSpanId: z.string().optional(),
+  startTime: z.number(),
+  endTime: z.number(),
+  attributes: z.record(z.string(), z.unknown()),
+  displayName: z.string(),
+  links: z.array(LinkSchema).optional(),
+  instrumentationLibrary: InstrumentationLibrarySchema,
+  spanKind: z.string(),
+  sameProcessAsParentSpan: z.object({ value: z.boolean() }).optional(),
+  status: SpanStatusSchema.optional(),
+  timeEvents: z
+    .object({
+      timeEvent: z.array(TimeEventSchema).optional(),
+    })
+    .optional(),
+  truncated: z.boolean().optional(),
+});
 export type SpanData = z.infer<typeof SpanDataSchema>;
 
 /**
  * Zod schema for trace metadata.
  */
-export const TraceDataSchema = z
-  .object({
-    traceId: z.string(),
-    displayName: z.string().optional(),
-    startTime: z
-      .number()
-      .optional()
-      .describe('trace start time in milliseconds since the epoch'),
-    endTime: z
-      .number()
-      .optional()
-      .describe('end time in milliseconds since the epoch'),
-    spans: z.record(z.string(), SpanDataSchema),
-  })
-  .openapi('TraceData');
+export const TraceDataSchema = z.object({
+  traceId: z.string(),
+  displayName: z.string().optional(),
+  startTime: z
+    .number()
+    .optional()
+    .describe('trace start time in milliseconds since the epoch'),
+  endTime: z
+    .number()
+    .optional()
+    .describe('end time in milliseconds since the epoch'),
+  spans: z.record(z.string(), SpanDataSchema),
+});
 export type TraceData = z.infer<typeof TraceDataSchema>;
 
 export const NestedSpanDataSchema = SpanDataSchema.extend({

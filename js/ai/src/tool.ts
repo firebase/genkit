@@ -31,12 +31,8 @@ import {
 import type { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
-import type {
-  Part,
-  ToolDefinition,
-  ToolRequestPart,
-  ToolResponsePart,
-} from './model.js';
+import type { Part, ToolDefinition } from '@genkit-ai/shared';
+import type { ToolRequestPart, ToolResponsePart } from './model.js';
 import { isExecutablePrompt, type ExecutablePrompt } from './prompt.js';
 
 export interface Resumable<
