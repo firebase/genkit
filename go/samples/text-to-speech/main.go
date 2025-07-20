@@ -66,7 +66,7 @@ func main() {
 		return text, nil
 	})
 
-	// Define a simple flow that generates audio from a given text
+	// Define a simple flow that generates audio transcripts from a given audio
 	genkit.DefineFlow(g, "speech-to-text-flow", func(ctx context.Context, input any) (string, error) {
 		audio, err := os.Open("./genkit.wav")
 		if err != nil {
