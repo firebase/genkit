@@ -44,9 +44,7 @@ def test_openai_plugin_initialize() -> None:
 
 @pytest.mark.parametrize(
     'kind, name',
-    [
-        (ActionKind.MODEL, 'gpt-3.5-turbo')
-    ],
+    [(ActionKind.MODEL, 'gpt-3.5-turbo')],
 )
 def test_openai_plugin_resolve_action(kind, name):
     """Unit Tests for resolve action method."""
@@ -72,7 +70,7 @@ def test_openai_plugin_resolve_action(kind, name):
                     ],
                     'system_role': True,
                     'tools': True,
-                }
+                },
             },
         },
     )
@@ -85,7 +83,7 @@ def test_openai_plugin_list_actions() -> None:
         Model(id='gpt-3.5-turbo', created=1677610602, object='model', owned_by='openai'),
         Model(id='o4-mini-deep-research-2025-06-26', created=1750866121, object='model', owned_by='system'),
         Model(id='codex-mini-latest', created=1746673257, object='model', owned_by='system'),
-        Model(id='text-embedding-ada-002', created=1671217299, object='model', owned_by='openai-internal')
+        Model(id='text-embedding-ada-002', created=1671217299, object='model', owned_by='openai-internal'),
     ]
     plugin = OpenAI(api_key='test-key')
     mock_client = MagicMock()
@@ -96,7 +94,7 @@ def test_openai_plugin_list_actions() -> None:
 
     plugin._openai_client = mock_client
 
-    actions: list[ActionMetadata ] = plugin.list_actions
+    actions: list[ActionMetadata] = plugin.list_actions
     mock_client.models.list.assert_called_once()
     _ = plugin.list_actions
     mock_client.models.list.assert_called_once()
@@ -108,9 +106,7 @@ def test_openai_plugin_list_actions() -> None:
 
 @pytest.mark.parametrize(
     'kind, name',
-    [
-        (ActionKind.MODEL, "model_doesnt_exist")
-    ],
+    [(ActionKind.MODEL, 'model_doesnt_exist')],
 )
 def test_openai_plugin_resolve_action_not_found(kind, name):
     """Unit Tests for resolve action method."""

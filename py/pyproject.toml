@@ -151,6 +151,9 @@ select = [
   "F403", # wildcard imports
   "F841", # unused variables
 ]
+ignore = [
+  "E501", # line too long
+]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
