@@ -14,21 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { modelRef } from 'genkit/model';
-import {
-  IMAGE_GENERATION_MODEL_INFO,
-  ImageGenerationCommonConfigSchema,
-} from '../image';
+import { compatOaiImageModelRef as openAIImageModelRef } from '../image';
 
-export const dallE3 = modelRef({
-  name: 'openai/dall-e-3',
-  info: {
-    label: 'OpenAI - DALL-E 3',
-    ...IMAGE_GENERATION_MODEL_INFO,
-  },
-  configSchema: ImageGenerationCommonConfigSchema,
-});
+/** OpenAI image generation ModelRef helper, same as the OpenAI-compatible spec.
+ * */
+export { openAIImageModelRef };
 
 export const SUPPORTED_IMAGE_MODELS = {
-  'dall-e-3': dallE3,
+  'dall-e-3': openAIImageModelRef({ name: 'openai/dall-e-3' }),
 };

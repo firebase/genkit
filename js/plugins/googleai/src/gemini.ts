@@ -759,7 +759,7 @@ function convertSchemaProperty(property) {
   }
   if (propertyType === 'object') {
     const nestedProperties = {};
-    Object.keys(property.properties).forEach((key) => {
+    Object.keys(property.properties ?? {}).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
@@ -1158,12 +1158,13 @@ export function defineGoogleAIModel({
 
   return ai.defineModel(
     {
+      apiVersion: 'v2',
       name: model.name,
       ...model.info,
       configSchema: model.configSchema,
       use: middleware,
     },
-    async (request, sendChunk) => {
+    async (request, { streamingRequested, sendChunk, abortSignal }) => {
       const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
       if (apiVersion) {
         options.apiVersion = apiVersion;
@@ -1324,10 +1325,10 @@ export function defineGoogleAIModel({
       const callGemini = async () => {
         let response: GenerateContentResponse;
 
-        if (sendChunk) {
+        if (streamingRequested) {
           const result = await genModel
             .startChat(updatedChatRequest)
-            .sendMessageStream(msg.parts, options);
+            .sendMessageStream(msg.parts, { ...options, signal: abortSignal });
 
           const chunks = [] as GenerateContentResponse[];
           for await (const item of result.stream) {
@@ -1347,7 +1348,7 @@ export function defineGoogleAIModel({
         } else {
           const result = await genModel
             .startChat(updatedChatRequest)
-            .sendMessage(msg.parts, options);
+            .sendMessage(msg.parts, { ...options, signal: abortSignal });
 
           response = result.response;
         }
@@ -1387,7 +1388,7 @@ export function defineGoogleAIModel({
             ai.registry,
             {
               metadata: {
-                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
               },
             },
             async (metadata) => {

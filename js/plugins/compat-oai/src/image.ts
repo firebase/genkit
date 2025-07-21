@@ -20,13 +20,18 @@ import type {
   Genkit,
   ModelReference,
 } from 'genkit';
-import { Message, z } from 'genkit';
+import { Message, modelRef, z } from 'genkit';
 import { ModelAction, ModelInfo } from 'genkit/model';
 import OpenAI from 'openai';
 import type {
   ImageGenerateParams,
   ImagesResponse,
 } from 'openai/resources/images.mjs';
+
+export type ImageRequestBuilder = (
+  req: GenerateRequest,
+  params: ImageGenerateParams
+) => void;
 
 export const IMAGE_GENERATION_MODEL_INFO: ModelInfo = {
   supports: {
@@ -49,7 +54,8 @@ export const ImageGenerationCommonConfigSchema = z.object({
 
 function toImageGenerateParams(
   modelName: string,
-  request: GenerateRequest
+  request: GenerateRequest,
+  requestBuilder?: ImageRequestBuilder
 ): ImageGenerateParams {
   const {
     temperature,
@@ -62,12 +68,16 @@ function toImageGenerateParams(
     ...restOfConfig
   } = request.config ?? {};
 
-  const options: ImageGenerateParams = {
+  let options: ImageGenerateParams = {
     model: modelVersion ?? modelName,
     prompt: new Message(request.messages[0]).text,
     response_format: response_format || 'b64_json',
-    ...restOfConfig,
   };
+  if (requestBuilder) {
+    requestBuilder(request, options);
+  } else {
+    options = { ...options, ...restOfConfig };
+  }
   for (const k in options) {
     if (options[k] === undefined) {
       delete options[k];
@@ -114,21 +124,48 @@ export function defineCompatOpenAIImageModel<
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
+  requestBuilder?: ImageRequestBuilder;
 }): ModelAction<CustomOptions> {
-  const { ai, name, client, modelRef } = params;
+  const { ai, name, client, modelRef, requestBuilder } = params;
   const model = name.split('/').pop();
 
   return ai.defineModel(
     {
       name,
       ...modelRef?.info,
+      apiVersion: 'v2',
       configSchema: modelRef?.configSchema,
     },
-    async (request) => {
+    async (request, { abortSignal }) => {
       const result = await client.images.generate(
-        toImageGenerateParams(model!, request)
+        toImageGenerateParams(model!, request, requestBuilder),
+        { signal: abortSignal }
       );
       return toGenerateResponse(result);
     }
   );
+}
+
+/** Image generation ModelRef helper, with reasonable defaults for
+ * OpenAI-compatible providers */
+export function compatOaiImageModelRef<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: CustomOptions;
+  config?: any;
+}) {
+  const {
+    name,
+    info = IMAGE_GENERATION_MODEL_INFO,
+    configSchema,
+    config = undefined,
+  } = params;
+  return modelRef({
+    name,
+    configSchema: configSchema || (ImageGenerationCommonConfigSchema as any),
+    info,
+    config,
+  });
 }

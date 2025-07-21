@@ -22,7 +22,6 @@ import {
   OperationSchema,
   defineAction,
   defineBackgroundAction,
-  getStreamingCallback,
   z,
   type Action,
   type ActionMetadata,
@@ -190,9 +189,9 @@ export function defineModel<
       const secondParam =
         options.apiVersion === 'v2'
           ? ctx
-          : getStreamingCallback(registry) ||
-            (ctx.streamingRequested && ctx.sendChunk) ||
-            undefined;
+          : ctx.streamingRequested
+            ? ctx.sendChunk
+            : undefined;
       return runner(input, secondParam).then((response) => {
         const timedResponse = {
           ...response,
