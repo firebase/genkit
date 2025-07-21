@@ -17,8 +17,10 @@
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from openai.types import Model
 
 from genkit.ai._aio import Genkit
+from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.plugins.compat_oai import OpenAIConfig
 from genkit.plugins.compat_oai.models.model_info import SUPPORTED_OPENAI_MODELS
@@ -74,6 +76,34 @@ def test_openai_plugin_resolve_action(kind, name):
             },
         },
     )
+
+
+def test_openai_plugin_list_actions() -> None:
+    entries = [
+        Model(id='gpt-4-0613', created=1686588896, object='model', owned_by='openai'),
+        Model(id='gpt-4', created=1687882411, object='model', owned_by='openai'),
+        Model(id='gpt-3.5-turbo', created=1677610602, object='model', owned_by='openai'),
+        Model(id='o4-mini-deep-research-2025-06-26', created=1750866121, object='model', owned_by='system'),
+        Model(id='codex-mini-latest', created=1746673257, object='model', owned_by='system'),
+        Model(id='text-embedding-ada-002', created=1671217299, object='model', owned_by='openai-internal')
+    ]
+    plugin = OpenAI(api_key='test-key')
+    mock_client = MagicMock()
+
+    mock_result_ = MagicMock()
+    mock_result_.data = entries
+    mock_client.models.list.return_value = mock_result_
+
+    plugin._openai_client = mock_client
+
+    actions: list[ActionMetadata ] = plugin.list_actions
+    mock_client.models.list.assert_called_once()
+    _ = plugin.list_actions
+    mock_client.models.list.assert_called_once()
+
+    assert len(actions) == len(entries)
+    assert actions[0].name == 'openai/gpt-4-0613'
+    assert actions[-1].name == 'openai/text-embedding-ada-002'
 
 
 @pytest.mark.parametrize(
