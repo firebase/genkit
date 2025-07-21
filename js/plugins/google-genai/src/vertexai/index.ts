@@ -68,8 +68,8 @@ async function resolver(
 }
 
 async function listActions(options?: VertexPluginOptions) {
-  const clientOptions = await getDerivedOptions(options);
   try {
+    const clientOptions = await getDerivedOptions(options);
     const models = await listModels(clientOptions);
     return [
       ...gemini.listActions(models),

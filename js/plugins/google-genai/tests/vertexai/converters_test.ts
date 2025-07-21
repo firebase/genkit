@@ -18,7 +18,10 @@ import * as assert from 'assert';
 import { z } from 'genkit';
 import { describe, it } from 'node:test';
 import { HarmBlockThreshold, HarmCategory } from '../../src/common/types';
-import { toGeminiSafetySettings } from '../../src/vertexai/converters';
+import {
+  toGeminiLabels,
+  toGeminiSafetySettings,
+} from '../../src/vertexai/converters';
 import { SafetySettingsSchema } from '../../src/vertexai/gemini';
 
 describe('Vertex AI Converters', () => {
@@ -57,6 +60,66 @@ describe('Vertex AI Converters', () => {
       ];
 
       const result = toGeminiSafetySettings(genkitSettings);
+      assert.deepStrictEqual(result, expected);
+    });
+  });
+
+  describe('toGeminiLabels', () => {
+    it('returns undefined for undefined input', () => {
+      const result = toGeminiLabels(undefined);
+      assert.strictEqual(result, undefined);
+    });
+
+    it('returns undefined for an empty object input', () => {
+      const result = toGeminiLabels({});
+      assert.strictEqual(result, undefined);
+    });
+
+    it('converts an object with valid labels', () => {
+      const labels = {
+        env: 'production',
+        'my-label': 'my-value',
+      };
+      const result = toGeminiLabels(labels);
+      assert.deepStrictEqual(result, labels);
+    });
+
+    it('filters out empty string keys', () => {
+      const labels = {
+        env: 'dev',
+        '': 'should-be-ignored',
+        'valid-key': 'valid-value',
+      };
+      const expected = {
+        env: 'dev',
+        'valid-key': 'valid-value',
+      };
+      const result = toGeminiLabels(labels);
+      assert.deepStrictEqual(result, expected);
+    });
+
+    it('returns undefined if all keys are empty strings', () => {
+      const labels = {
+        '': 'value1',
+        ' ': 'value2', // This key is not empty string, so it will be kept
+      };
+      const expected = {
+        ' ': 'value2',
+      };
+      const result = toGeminiLabels(labels);
+      assert.deepStrictEqual(result, expected);
+    });
+
+    it('handles labels with empty values', () => {
+      const labels = {
+        key1: '',
+        key2: 'value2',
+      };
+      const expected = {
+        key1: '',
+        key2: 'value2',
+      };
+      const result = toGeminiLabels(labels);
       assert.deepStrictEqual(result, expected);
     });
   });
