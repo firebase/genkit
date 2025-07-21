@@ -329,7 +329,7 @@ describe('Google AI Veo', () => {
       const operationId = 'operations/check123';
       const pendingOp: Operation = { id: operationId, done: false };
 
-      it('should call fetch for checkVeoOperation and return updated operation', async () => {
+      it('should call fetch for veoCheckOperation and return updated operation', async () => {
         const mockResponse: VeoOperation = {
           name: operationId,
           done: true,

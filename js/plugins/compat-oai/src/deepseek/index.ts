@@ -26,7 +26,7 @@ import { logger } from 'genkit/logging';
 import { GenkitPlugin } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
-import openAICompatible, { PluginOptions } from '../index.js';
+import { openAICompatible, PluginOptions } from '../index.js';
 import { defineCompatOpenAIModel } from '../model.js';
 import {
   DeepSeekChatCompletionConfigSchema,

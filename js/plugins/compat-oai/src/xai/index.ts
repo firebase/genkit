@@ -30,7 +30,7 @@ import {
   defineCompatOpenAIImageModel,
   ImageGenerationCommonConfigSchema,
 } from '../image.js';
-import openAICompatible, { PluginOptions } from '../index.js';
+import { openAICompatible, PluginOptions } from '../index.js';
 import { defineCompatOpenAIModel } from '../model.js';
 import { SUPPORTED_IMAGE_MODELS, xaiImageModelRef } from './grok-image.js';
 import {

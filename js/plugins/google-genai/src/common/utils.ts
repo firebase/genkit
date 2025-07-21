@@ -68,10 +68,12 @@ export function checkModelName(name?: string): string {
 }
 
 export function extractText(request: GenerateRequest) {
-  return request.messages
-    .at(-1)!
-    .content.map((c) => c.text || '')
-    .join('');
+  return (
+    request.messages
+      .at(-1)
+      ?.content.map((c) => c.text || '')
+      .join('') ?? ''
+  );
 }
 
 export function extractImagenImage(

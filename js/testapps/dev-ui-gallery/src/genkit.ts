@@ -42,7 +42,7 @@ import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
-logger.setLogLevel('info');
+logger.setLogLevel('debug');
 
 enableFirebaseTelemetry({
   forceDevExport: false,
@@ -78,6 +78,12 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
     },
   ],
 };
+
+// a second instance, just for fun
+export const ai2 = genkit({
+  model: gemini15Flash,
+  plugins: [googleAI()],
+});
 
 export const ai = genkit({
   model: gemini15Flash,
