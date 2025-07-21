@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
@@ -92,6 +93,12 @@ type (
 		toolResponse *Part
 		interrupt    *Part
 	}
+
+	StartModelFunc  = core.BackgroundStartFunc[*ModelRequest, *ModelResponse] // Function to start a model background operation
+	CheckModelFunc  = core.BackgroundCheckFunc[*ModelResponse]                // Function to check model background operation status
+	CancelModelFunc = core.BackgroundCancelFunc[*ModelResponse]               // Function to cancel model background operation
+
+	BackgroundAction = core.BackgroundAction[*ModelRequest, *ModelResponse] // Background action for model operations
 )
 
 // DefineGenerateAction defines a utility generate action.
@@ -133,6 +140,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 				"tools":       info.Supports.Tools,
 				"toolChoice":  info.Supports.ToolChoice,
 				"constrained": info.Supports.Constrained,
+				"longRunning": info.Supports.LongRunning,
 			},
 			"versions": info.Versions,
 			"stage":    info.Stage,
@@ -169,6 +177,12 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 		return nil
 	}
 	return (*model)(action)
+}
+
+// LookupBackgroundModel looks up a BackgroundAction registered by [DefineBackgroundModel].
+// It returns nil if the background model was not found.
+func LookupBackgroundModel(r *registry.Registry, provider, name string) BackgroundAction {
+	return core.LookupBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name)
 }
 
 // LookupModelByName looks up a [Model] registered by [DefineModel].
@@ -1052,4 +1066,156 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 		},
 		toolMessage: toolMessage,
 	}, nil
+}
+
+// DefineBackgroundModel defines a new model that runs in the background
+func DefineBackgroundModel(
+	r *registry.Registry,
+	provider, name string,
+	options *core.BackgroundModelOptions,
+	start StartModelFunc,
+	check CheckModelFunc,
+	cancel CancelModelFunc,
+) BackgroundAction {
+	label := options.Label
+	if label == "" {
+		label = name
+	}
+
+	// Prepare metadata
+	metadata := map[string]any{
+		"model": map[string]any{
+			"label":    label,
+			"versions": options.Versions,
+			"supports": options.Supports,
+		},
+	}
+
+	if options.ConfigSchema != nil {
+		metadata["model"].(map[string]any)["customOptions"] = options.ConfigSchema
+	}
+	startFunc := func(ctx context.Context, request *ModelRequest) (*core.Operation, error) {
+		startTime := time.Now()
+
+		// Call the user's start function
+		operation, err := start(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add latency metadata
+		if operation.Metadata == nil {
+			operation.Metadata = make(map[string]any)
+		}
+		operation.Metadata["latencyMs"] = float64(time.Since(startTime).Nanoseconds()) / 1e6
+
+		return operation, nil
+	}
+
+	bgAction := core.DefineBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name, *options, metadata, startFunc,
+		func(ctx context.Context, operation *core.Operation) (*core.Operation, error) {
+			return check(ctx, operation)
+		},
+		func(ctx context.Context, operation *core.Operation) (*core.Operation, error) {
+			if cancel == nil {
+				return nil, core.NewError(core.UNIMPLEMENTED, "cancel not implemented")
+			}
+			return cancel(ctx, operation)
+		},
+	)
+
+	return bgAction
+}
+
+// GenerateOperation generates a model response as a long-running operation based on the provided options.
+// It returns an error if the model does not support long-running operations.
+//
+// This is a beta feature and requires the model to explicitly support long-running operations.
+func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation, error) {
+	genOpts := &generateOptions{}
+	for _, opt := range opts {
+		if err := opt.applyGenerate(genOpts); err != nil {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: error applying options: %v", err)
+		}
+	}
+
+	var modelName string
+	if genOpts.Model != nil {
+		modelName = genOpts.Model.Name()
+	} else {
+		modelName = genOpts.ModelName
+	}
+
+	provider, name, _ := strings.Cut(modelName, "/")
+	backAction := LookupBackgroundModel(r, provider, name)
+	if backAction == nil {
+		return nil, core.NewError(core.NOT_FOUND, "background model %q not found", modelName)
+	}
+
+	var messages []*Message
+	if genOpts.SystemFn != nil {
+		system, err := genOpts.SystemFn(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, NewSystemTextMessage(system))
+	}
+	if genOpts.MessagesFn != nil {
+		msgs, err := genOpts.MessagesFn(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, msgs...)
+	}
+	if genOpts.PromptFn != nil {
+		prompt, err := genOpts.PromptFn(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, NewUserTextMessage(prompt))
+	}
+
+	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
+		genOpts.Config = modelRef.Config()
+	}
+
+	startOps, err := backAction.Start(ctx, &ModelRequest{Messages: messages, Config: genOpts.Config})
+	if err != nil {
+		return nil, err
+	}
+
+	currentOp := startOps
+	for {
+		// Check if operation completed with error
+		if currentOp.Error != "" {
+			return nil, core.NewError(core.INTERNAL, "operation failed: %s", currentOp.Error)
+		}
+
+		// Check if operation is complete
+		if currentOp.Done {
+			break
+		}
+
+		// Wait before polling again (avoid busy waiting)
+		select {
+		case <-ctx.Done():
+			logger.FromContext(ctx).Debug("Context cancelled, stopping operation polling", "operationId", currentOp.ID)
+			return nil, ctx.Err()
+		case <-time.After(1 * time.Second): // Poll every second
+		}
+
+		// Check operation status
+		updatedOp, err := backAction.Check(ctx, currentOp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check operation status: %w", err)
+		}
+
+		currentOp = updatedOp
+	}
+
+	// Operation completed, return the final result
+	return currentOp, nil
 }

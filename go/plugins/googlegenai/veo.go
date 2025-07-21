@@ -1,0 +1,186 @@
+package googlegenai
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"github.com/invopop/jsonschema"
+	"google.golang.org/genai"
+)
+
+// defineVeoModels defines a new Veo background model for video generation.
+// using Google's Veo API through the genai client.
+func defineVeoModels(
+	g *genkit.Genkit,
+	client *genai.Client,
+	name string,
+	info ai.ModelInfo,
+) ai.BackgroundAction {
+
+	opts := core.BackgroundModelOptions{
+		Label:          info.Label,
+		Versions:       info.Versions,
+		Supports:       info.Supports,
+		ConfigSchema:   getVeoConfigSchema(),
+		SupportsCancel: false,
+	}
+	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation, error) {
+		// Extract text prompt from the request
+		prompt := extractTextFromRequest(request)
+		if prompt == "" {
+			return nil, fmt.Errorf("no text prompt found in request")
+		}
+
+		// Extract image if present (optional for Veo)
+		image := extractVeoImageFromRequest(request)
+
+		// Convert request config to Veo parameters
+		videoConfig := toVeoParameters(request)
+
+		// Call Veo GenerateVideos API
+		operation, err := client.Models.GenerateVideos(
+			ctx,
+			name,
+			prompt,
+			image,
+			&videoConfig,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("veo video generation failed: %w", err)
+		}
+
+		return fromVeoOperation(operation), nil
+	}
+
+	checkFunc := func(ctx context.Context, operation *core.Operation) (*core.Operation, error) {
+		// Check the status of the long-running video generation operation
+		veoOp, err := checkVeoOperation(ctx, client, operation)
+		if err != nil {
+			return nil, fmt.Errorf("veo operation status check failed: %w", err)
+		}
+
+		return fromVeoOperation(veoOp), nil
+	}
+
+	cancelFunc := func(ctx context.Context, operation *core.Operation) (*core.Operation, error) {
+		// Veo API doesn't currently support operation cancellation
+		return nil, core.NewError(core.UNIMPLEMENTED, "veo model operation cancellation is not supported")
+	}
+	return genkit.DefineBackgroundModel(g, googleAIProvider, name, &opts, startFunc, checkFunc, cancelFunc)
+}
+
+// extractTextFromRequest extracts the text prompt from a model request.
+func extractTextFromRequest(request *ai.ModelRequest) string {
+	if len(request.Messages) == 0 {
+		return ""
+	}
+	for _, message := range request.Messages {
+		for _, part := range message.Content {
+			if part.Text != "" {
+				return part.Text
+			}
+		}
+	}
+	return ""
+}
+
+// extractVeoImageFromRequest extracts image content from a model request for Veo.
+func extractVeoImageFromRequest(request *ai.ModelRequest) *genai.Image {
+	if len(request.Messages) == 0 {
+		return nil
+	}
+
+	for _, message := range request.Messages {
+		for _, part := range message.Content {
+			if part.IsMedia() {
+				_, data, err := uri.Data(part)
+				if err != nil {
+					return nil
+				}
+				return &genai.Image{
+					ImageBytes: data,
+					MIMEType:   part.ContentType}
+			}
+		}
+	}
+
+	return nil
+}
+
+// toVeoParameters converts model request configuration to Veo video generation parameters.
+func toVeoParameters(request *ai.ModelRequest) genai.GenerateVideosConfig {
+	params := genai.GenerateVideosConfig{}
+	if request.Config != nil {
+		if config, ok := request.Config.(*genai.GenerateVideosConfig); ok {
+			return *config
+		}
+	}
+	return params
+}
+
+// fromVeoOperation converts a Veo API operation to a Genkit core operation.
+func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *core.Operation {
+	operation := &core.Operation{
+		ID:   veoOp.Name,
+		Done: veoOp.Done,
+	}
+
+	// Handle operation errors if present
+	if veoOp.Error != nil {
+		// veoOp.Error is a map[string]any, convert to string for the operation
+		if errorMsg, ok := veoOp.Error["message"].(string); ok {
+			operation.Error = errorMsg
+		} else {
+			operation.Error = fmt.Sprintf("operation error: %v", veoOp.Error)
+		}
+	}
+
+	// Convert successful response with generated videos
+	if veoOp.Response != nil && veoOp.Response.GeneratedVideos != nil {
+		// Convert generated video samples to model response format
+		content := make([]*ai.Part, 0, len(veoOp.Response.GeneratedVideos))
+		for _, sample := range veoOp.Response.GeneratedVideos {
+			if sample.Video != nil && sample.Video.URI != "" {
+				content = append(content, ai.NewMediaPart("video/mp4", sample.Video.URI))
+			}
+		}
+
+		if len(content) > 0 {
+			response := &ai.ModelResponse{
+				Message: &ai.Message{
+					Role:    ai.RoleModel,
+					Content: content,
+				},
+				FinishReason: ai.FinishReasonStop,
+			}
+			operation.Output = response
+		}
+	}
+
+	return operation
+}
+
+// getVeoConfigSchema returns the JSON schema for Veo video generation configuration..
+func getVeoConfigSchema() *jsonschema.Schema {
+	// Use reflection to generate schema from VeoConfig struct
+	r := jsonschema.Reflector{
+		DoNotReference: true,
+		ExpandedStruct: true,
+	}
+	var config genai.GenerateVideosConfig
+	schema := r.Reflect(config)
+	return schema
+}
+
+// checkVeoOperation checks the status of a long-running Veo video generation operation..
+func checkVeoOperation(ctx context.Context, client *genai.Client, ops *core.Operation) (*genai.GenerateVideosOperation, error) {
+	genaiOps := &genai.GenerateVideosOperation{
+		Name: ops.ID,
+	}
+	operation, err := client.Operations.GetVideosOperation(ctx, genaiOps, nil)
+	return operation, err
+}

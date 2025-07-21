@@ -49,6 +49,7 @@ const (
 	textembeddinggeckomultilingual001 = "textembedding-gecko-multilingual@001"
 	textmultilingualembedding002      = "text-multilingual-embedding-002"
 	multimodalembedding               = "multimodalembedding"
+	veo20Generate001                  = "veo-2.0-generate-001"
 )
 
 var (
@@ -75,6 +76,7 @@ var (
 		imagen3Generate001,
 		imagen3Generate002,
 		imagen3FastGenerate001,
+		veo20Generate001,
 	}
 
 	googleAIModels = []string{
@@ -97,6 +99,7 @@ var (
 		gemini25ProPreview0506,
 
 		imagen3Generate002,
+		veo20Generate001,
 	}
 
 	// Gemini models with native image support generation
@@ -251,6 +254,22 @@ var (
 		},
 	}
 
+	supportedVideoModels = map[string]ai.ModelInfo{
+		veo20Generate001: {
+			Label:    "Google AI - Veo 2.0 Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageUnstable,
+		},
+	}
+
 	googleAIEmbedders = []string{
 		textembedding004,
 		embedding001,
@@ -377,6 +396,8 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 		var ok bool
 		if strings.HasPrefix(n, "image") {
 			m, ok = supportedImagenModels[n]
+		} else if strings.HasPrefix(n, "veo") {
+			m, ok = supportedVideoModels[n]
 		} else {
 			m, ok = supportedGeminiModels[n]
 		}
@@ -416,11 +437,11 @@ func listEmbedders(backend genai.Backend) (map[string]ai.EmbedderOptions, error)
 }
 
 // genaiModels collects all the available models in go-genai SDK
-// TODO: add veo models
 type genaiModels struct {
 	gemini    []string
 	imagen    []string
 	embedders []string
+	veo       []string
 }
 
 // listGenaiModels returns a list of supported models and embedders from the
@@ -429,6 +450,7 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 	models := genaiModels{}
 	allowedModels := []string{"gemini", "gemma"}
 	allowedImagenModels := []string{"imagen"}
+	allowedVideoModels := []string{"veo"}
 
 	for item, err := range client.Models.All(ctx) {
 		var name string
@@ -465,6 +487,14 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 		// filter out: Aqa, Text-bison, Chat, learnlm
 		if found {
 			models.imagen = append(models.imagen, name)
+			continue
+		}
+
+		found = slices.ContainsFunc(allowedVideoModels, func(s string) bool {
+			return strings.Contains(name, s)
+		})
+		if found {
+			models.veo = append(models.veo, name)
 			continue
 		}
 	}

@@ -104,7 +104,11 @@ func (ga *GoogleAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return err
 	}
 	for n, mi := range models {
-		defineModel(g, ga.gclient, n, mi)
+		if strings.HasPrefix(n, "veo") {
+			defineVeoModels(g, ga.gclient, n, mi)
+		} else {
+			defineModel(g, ga.gclient, n, mi)
+		}
 	}
 
 	embedders, err := listEmbedders(gc.Backend)
@@ -361,6 +365,12 @@ func (ga *GoogleAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name 
 	switch atype {
 	case core.ActionTypeEmbedder:
 		defineEmbedder(g, ga.gclient, name, &ai.EmbedderOptions{})
+	case core.ActionTypeBackgroundModel:
+		defineVeoModels(g, ga.gclient, name, ai.ModelInfo{
+			Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+			Stage:    ai.ModelStageStable,
+			Versions: []string{},
+		})
 	case core.ActionTypeModel:
 		var supports *ai.ModelSupports
 		if strings.Contains(name, "gemini") || strings.Contains(name, "gemma") {

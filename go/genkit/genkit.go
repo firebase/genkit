@@ -450,6 +450,11 @@ func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.Mod
 	return ai.DefineModel(g.reg, provider, name, info, fn)
 }
 
+func DefineBackgroundModel(g *Genkit, provider, name string, opts *core.BackgroundModelOptions, start ai.StartModelFunc,
+	check ai.CheckModelFunc, cancel ai.CancelModelFunc) ai.BackgroundAction {
+	return ai.DefineBackgroundModel(g.reg, provider, name, opts, start, check, cancel)
+}
+
 // LookupModel retrieves a registered [ai.Model] by its provider and name.
 // It returns the model instance if found, or `nil` if no model with the
 // given identifier is registered (e.g., via [DefineModel] or a plugin).
@@ -671,6 +676,11 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 //	fmt.Println(resp.Text())
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
 	return ai.Generate(ctx, g.reg, opts...)
+}
+
+// GenerateOperation performs a background model generation request)
+func GenerateOperation(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*core.Operation, error) {
+	return ai.GenerateOperation(ctx, g.reg, opts...)
 }
 
 // GenerateText performs a model generation request similar to [Generate], but
