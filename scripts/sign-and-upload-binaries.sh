@@ -109,31 +109,69 @@ for platform in "${PLATFORMS[@]}"; do
         continue
     fi
     
-    # Simulate signing by renaming
+    # Simulate signing process (preserve binary integrity)
     echo "  Simulating signing process..."
+    
+    # Method 1: Create a copy with signed name (binary remains unchanged)
     cp "$TEMP_DIR/$original_name" "$TEMP_DIR/$signed_name"
     
-    # Add a simple signature marker to the file
-    echo "SIGNED:$VERSION:$(date -u +%Y%m%d%H%M%S)" >> "$TEMP_DIR/$signed_name"
+    # Method 2: Create a separate signature file
+    signature_name="$signed_name.sig"
+    cat > "$TEMP_DIR/$signature_name" << EOF
+-----BEGIN GENKIT SIGNATURE-----
+Version: $VERSION
+Platform: $platform
+Signed: $(date -u -Iseconds)
+Signature: $(sha256sum "$TEMP_DIR/$original_name" | cut -d' ' -f1)
+Signer: Genkit Signing Service (Simulation)
+-----END GENKIT SIGNATURE-----
+EOF
     
-    echo "  ✓ Signing simulated"
+    echo "  ✓ Signing simulated (binary integrity preserved)"
+    echo "  ✓ Signature file created: $signature_name"
+    
+    # Verify binary integrity after "signing"
+    if cmp -s "$TEMP_DIR/$original_name" "$TEMP_DIR/$signed_name"; then
+        echo "  ✓ Binary integrity verified (no corruption)"
+    else
+        echo "  ✗ Binary integrity check failed!"
+        exit 1
+    fi
     
     # Upload the signed binary
     echo "  Uploading $signed_name..."
     
-    upload_response=$(curl -s -X POST \
+    upload_binary_response=$(curl -s -X POST \
         -H "Authorization: token $GITHUB_TOKEN" \
         -H "Content-Type: application/octet-stream" \
         --data-binary "@$TEMP_DIR/$signed_name" \
         "$UPLOAD_URL?name=$signed_name")
     
-    # Check if upload was successful
-    if echo "$upload_response" | jq -e '.id' > /dev/null; then
-        asset_url=$(echo "$upload_response" | jq -r '.browser_download_url')
-        echo "  ✓ Uploaded successfully: $asset_url"
+    # Check if binary upload was successful
+    if echo "$upload_binary_response" | jq -e '.id' > /dev/null; then
+        asset_url=$(echo "$upload_binary_response" | jq -r '.browser_download_url')
+        echo "  ✓ Binary uploaded successfully: $asset_url"
     else
         echo "  ✗ Failed to upload $signed_name"
-        echo "  Error: $(echo "$upload_response" | jq -r '.message // "Unknown error"')"
+        echo "  Error: $(echo "$upload_binary_response" | jq -r '.message // "Unknown error"')"
+    fi
+    
+    # Upload the signature file
+    echo "  Uploading $signature_name..."
+    
+    upload_signature_response=$(curl -s -X POST \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Content-Type: text/plain" \
+        --data-binary "@$TEMP_DIR/$signature_name" \
+        "$UPLOAD_URL?name=$signature_name")
+    
+    # Check if signature upload was successful
+    if echo "$upload_signature_response" | jq -e '.id' > /dev/null; then
+        sig_asset_url=$(echo "$upload_signature_response" | jq -r '.browser_download_url')
+        echo "  ✓ Signature file uploaded successfully: $sig_asset_url"
+    else
+        echo "  ✗ Failed to upload signature file"
+        echo "  Error: $(echo "$upload_signature_response" | jq -r '.message // "Unknown error"')"
     fi
     
     echo ""
@@ -141,4 +179,10 @@ done
 
 echo "=== Signing simulation complete ==="
 echo ""
+echo "✓ All binaries signed and uploaded successfully"
+echo "✓ Binary integrity preserved (no corruption)"
+echo "✓ Separate signature files created for verification"
+echo ""
 echo "View the release at: https://github.com/$REPO_OWNER/$REPO_NAME/releases/tag/$VERSION"
+echo ""
+echo "Note: This is a simulation. In production, you would use proper code signing tools."

@@ -28,6 +28,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   validate-and-promote:
     runs-on: ubuntu-latest
@@ -206,12 +209,10 @@ jobs:
       
       - name: Create final release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.final_version }}
-          release_name: Genkit CLI ${{ inputs.final_version }}
+          name: Genkit CLI ${{ inputs.final_version }}
           body: |
             # Genkit CLI ${{ inputs.final_version }}
             
@@ -266,28 +267,15 @@ jobs:
             For more information, visit [https://firebase.google.com/docs/genkit/](https://firebase.google.com/docs/genkit/)
           draft: false
           prerelease: false
+          files: |
+            release-assets/genkit-linux-x64
+            release-assets/genkit-linux-arm64
+            release-assets/genkit-darwin-x64
+            release-assets/genkit-darwin-arm64
+            release-assets/genkit-win32-x64.exe
+          make_latest: true
       
-      - name: Upload release assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          UPLOAD_URL="${{ steps.create_release.outputs.upload_url }}"
-          
-          echo "Uploading binaries to final release..."
-          
-          for file in release-assets/*; do
-            filename=$(basename "$file")
-            echo "Uploading $filename..."
-            
-            curl -X POST \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary "@$file" \
-              "${UPLOAD_URL}?name=$filename" | jq -r '.browser_download_url'
-          done
-          
-          echo ""
-          echo "✅ All binaries uploaded successfully"
+
       
       - name: Update latest tag
         run: |

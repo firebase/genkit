@@ -29,6 +29,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -280,8 +283,6 @@ jobs:
     needs: [build, test]
     runs-on: ubuntu-latest
     if: inputs.create_rc
-    outputs:
-      upload_url: ${{ steps.create_rc.outputs.upload_url }}
     
     steps:
       - name: Checkout code
@@ -306,14 +307,17 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
           fi
       
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      
       - name: Create Release Candidate
         id: create_rc
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.version }}
-          release_name: Genkit CLI ${{ inputs.version }} (Release Candidate)
+          name: Genkit CLI ${{ inputs.version }} (Release Candidate)
           body: |
             # Genkit CLI ${{ inputs.version }} - Release Candidate
             
@@ -321,11 +325,11 @@ jobs:
             
             ## Downloads (Unsigned - For Testing Only)
             
-            - [Linux x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-linux-x64)
-            - [Linux ARM64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-linux-arm64)
-            - [macOS x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-darwin-x64)
-            - [macOS ARM64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-darwin-arm64)
-            - [Windows x64](https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-win32-x64.exe)
+            - [Linux x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-linux-x64)
+            - [Linux ARM64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-linux-arm64)
+            - [macOS x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-darwin-x64)
+            - [macOS ARM64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-darwin-arm64)
+            - [Windows x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-win32-x64.exe)
             
             ## Changes
             
@@ -339,55 +343,23 @@ jobs:
             
             ```bash
             # Download and test the RC binary
-            curl -Lo genkit https://github.com/firebase/genkit/releases/download/${{ inputs.version }}/genkit-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
+            curl -Lo genkit https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
             chmod +x genkit
             ./genkit --version
             ```
           draft: false
           prerelease: true
+          files: |
+            release-assets/genkit-linux-x64/genkit-linux-x64
+            release-assets/genkit-linux-arm64/genkit-linux-arm64
+            release-assets/genkit-darwin-x64/genkit-darwin-x64
+            release-assets/genkit-darwin-arm64/genkit-darwin-arm64
+            release-assets/genkit-win32-x64/genkit-win32-x64.exe
 
-  upload-rc-assets:
-    needs: [build, test, create-rc]
-    runs-on: ubuntu-latest
-    if: inputs.create_rc
-    strategy:
-      matrix:
-        include:
-          - target: linux-x64
-          - target: linux-arm64
-          - target: darwin-x64
-          - target: darwin-arm64
-          - target: win32-x64
-    
-    steps:
-      - name: Set binary extension
-        id: binary
-        shell: bash
-        run: |
-          if [[ "${{ matrix.target }}" == win32-* ]]; then
-            echo "ext=.exe" >> $GITHUB_OUTPUT
-          else
-            echo "ext=" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Download binary artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: genkit-${{ matrix.target }}
-          path: ./
-      
-      - name: Upload to GitHub Release Candidate
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-rc.outputs.upload_url }}
-          asset_path: ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
-          asset_name: genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
-          asset_content_type: application/octet-stream
+
 
   create-rc-summary:
-    needs: [upload-rc-assets]
+    needs: [create-rc]
     runs-on: ubuntu-latest
     if: inputs.create_rc
     
