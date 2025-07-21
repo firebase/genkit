@@ -16,7 +16,7 @@
 
 import { z } from 'genkit';
 import { generateString } from '../common/util';
-import { ai } from '../genkit.js';
+import { ai, ai2 } from '../genkit.js';
 
 //
 // Flow - simple
@@ -24,6 +24,16 @@ import { ai } from '../genkit.js';
 
 const flowSingleStep = ai.defineFlow(
   { name: 'flowSingleStep' },
+  async (input) => {
+    return await ai.run('step1', async () => {
+      return input;
+    });
+  }
+);
+
+// and one for the other instance
+const flowSingleStep2 = ai2.defineFlow(
+  { name: 'flowSingleStep2' },
   async (input) => {
     return await ai.run('step1', async () => {
       return input;
