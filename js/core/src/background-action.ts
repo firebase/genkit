@@ -17,7 +17,7 @@
 import { Operation, OperationSchema } from '@genkit-ai/shared';
 import type { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
-import { Action, ActionMetadata, defineAction, Middleware } from './action.js';
+import { Action, ActionMetadata, Middleware, defineAction } from './action.js';
 import { ActionContext } from './context.js';
 import { GenkitError } from './error.js';
 import { ActionType, Registry } from './registry.js';
