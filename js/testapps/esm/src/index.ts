@@ -73,7 +73,12 @@ openAI;
 xAI;
 deepSeek;
 
-export const ai = genkit({});
+export const ai = genkit({
+  plugins: [
+    openAI({ apiKey: 'fake-oai-key' }),
+    googleAI({ apiKey: 'fake-goog-key' }),
+  ],
+});
 const hello = ai.defineFlow('hello', () => 'hello');
 expressHandler(hello);
 appRoute(hello);
