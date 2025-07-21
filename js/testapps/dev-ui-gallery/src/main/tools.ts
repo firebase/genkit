@@ -45,11 +45,40 @@ ai.defineTool(
   {
     name: 'getTime',
     description: 'Get the current time',
-    inputSchema: z.object({ timezone: z.string().optional() }),
+    inputSchema: z.object({
+      city: z.string().min(16),
+      state: z.string().optional(),
+      hours: z.number().multipleOf(12).min(12).max(24),
+      timezone: z.string().default('EST'),
+    }),
     outputSchema: z.object({ time: z.number() }),
   },
   async () => {
     return { time: Date.now() };
+  }
+);
+
+ai.defineTool(
+  {
+    name: 'getSomePreformattedText',
+    description: 'Gets some pre-formatted text to display on the UI.',
+    inputSchema: z.object({ message: z.string().optional() }),
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    return `Here is some pre-formatted text\n\n${input.message}\n\nWow, that's nice!`;
+  }
+);
+
+ai.defineTool(
+  {
+    name: 'getSomeMarkdown',
+    description: 'Gets some markdown formatted text to display on the UI.',
+    inputSchema: z.object({ message: z.string().optional() }),
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    return `# Rendering Markdown\nHere is some **markdown** text:\n${input.message}\nWow, that's nice!`;
   }
 );
 
