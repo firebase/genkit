@@ -16,6 +16,7 @@
 
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
+
 from typing import Any, Callable
 
 from openai import Client, OpenAI as OpenAIClient
@@ -44,13 +45,11 @@ def open_ai_name(name: str) -> str:
     """
     return f'openai/{name}'
 
+
 def default_openai_metadata(name: str) -> dict[str, Any]:
     return {
-                'model': {
-                    'label': f"OpenAI - {name}",
-                    'supports': {'multiturn': True}
-                },
-            }
+        'model': {'label': f'OpenAI - {name}', 'supports': {'multiturn': True}},
+    }
 
 
 class OpenAI(Plugin):
@@ -125,7 +124,6 @@ class OpenAI(Plugin):
         kind: ActionKind,
         name: str,
     ) -> None:
-
         if kind is not ActionKind.MODEL:
             return None
 
@@ -164,8 +162,6 @@ class OpenAI(Plugin):
                 'model': model_info,
             },
         )
-
-
 
 
 def openai_model(name: str) -> str:

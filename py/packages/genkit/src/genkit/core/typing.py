@@ -56,6 +56,7 @@ class CustomPart(BaseModel):
     metadata: dict[str, Any] | None = None
     custom: dict[str, Any]
     reasoning: Any | None = None
+    resource: Any | None = None
 
 
 class Media(BaseModel):
@@ -64,6 +65,13 @@ class Media(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     content_type: str | None = Field(None, alias='contentType')
     url: str
+
+
+class Resource1(BaseModel):
+    """Model for resource1 data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    uri: str
 
 
 class ToolRequest(BaseModel):
@@ -216,12 +224,30 @@ class GenerationCommonConfig(BaseModel):
     """Model for generationcommonconfig data."""
 
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    version: str | None = None
-    temperature: float | None = None
-    max_output_tokens: float | None = Field(None, alias='maxOutputTokens')
-    top_k: float | None = Field(None, alias='topK')
-    top_p: float | None = Field(None, alias='topP')
-    stop_sequences: list[str] | None = Field(None, alias='stopSequences')
+    version: str | None = Field(
+        None, description='A specific version of a model family, e.g. `gemini-2.0-flash` for the `googleai` family.'
+    )
+    temperature: float | None = Field(
+        None,
+        description='Controls the degree of randomness in token selection. A lower value is good for a more predictable response. A higher value leads to more diverse or unexpected results.',
+    )
+    max_output_tokens: float | None = Field(
+        None, alias='maxOutputTokens', description='The maximum number of tokens to include in the response.'
+    )
+    top_k: float | None = Field(
+        None, alias='topK', description='The maximum number of tokens to consider when sampling.'
+    )
+    top_p: float | None = Field(
+        None,
+        alias='topP',
+        description='Decides how many possible words to consider. A higher value means that the model looks at more possible words, even the less likely ones, which makes the generated text more diverse.',
+    )
+    stop_sequences: list[str] | None = Field(
+        None,
+        alias='stopSequences',
+        description='Set of character sequences (up to 5) that will stop output generation.',
+        max_length=5,
+    )
 
 
 class GenerationUsage(BaseModel):
@@ -505,6 +531,12 @@ class Reasoning(RootModel[Any]):
     root: Any
 
 
+class Resource(RootModel[Any]):
+    """Root model for resource."""
+
+    root: Any
+
+
 class Text(RootModel[Any]):
     """Root model for text."""
 
@@ -601,6 +633,7 @@ class DataPart(BaseModel):
     metadata: Metadata | None = None
     custom: dict[str, Any] | None = None
     reasoning: Reasoning | None = None
+    resource: Resource | None = None
 
 
 class MediaPart(BaseModel):
@@ -615,6 +648,7 @@ class MediaPart(BaseModel):
     metadata: Metadata | None = None
     custom: Custom | None = None
     reasoning: Reasoning | None = None
+    resource: Resource | None = None
 
 
 class ReasoningPart(BaseModel):
@@ -629,6 +663,22 @@ class ReasoningPart(BaseModel):
     metadata: Metadata | None = None
     custom: Custom | None = None
     reasoning: str
+    resource: Resource | None = None
+
+
+class ResourcePart(BaseModel):
+    """Model for resourcepart data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    text: Text | None = None
+    media: MediaModel | None = None
+    tool_request: ToolRequestModel | None = Field(None, alias='toolRequest')
+    tool_response: ToolResponseModel | None = Field(None, alias='toolResponse')
+    data: Data | None = None
+    metadata: Metadata | None = None
+    custom: Custom | None = None
+    reasoning: Reasoning | None = None
+    resource: Resource1
 
 
 class TextPart(BaseModel):
@@ -643,6 +693,7 @@ class TextPart(BaseModel):
     metadata: Metadata | None = None
     custom: Custom | None = None
     reasoning: Reasoning | None = None
+    resource: Resource | None = None
 
 
 class ToolRequestPart(BaseModel):
@@ -657,6 +708,7 @@ class ToolRequestPart(BaseModel):
     metadata: Metadata | None = None
     custom: Custom | None = None
     reasoning: Reasoning | None = None
+    resource: Resource | None = None
 
 
 class ToolResponsePart(BaseModel):
@@ -671,6 +723,7 @@ class ToolResponsePart(BaseModel):
     metadata: Metadata | None = None
     custom: Custom | None = None
     reasoning: Reasoning | None = None
+    resource: Resource | None = None
 
 
 class EmbedResponse(BaseModel):
@@ -719,11 +772,15 @@ class Resume(BaseModel):
 
 
 class Part(
-    RootModel[TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart]
+    RootModel[
+        TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart | ResourcePart
+    ]
 ):
     """Root model for part."""
 
-    root: TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart
+    root: (
+        TextPart | MediaPart | ToolRequestPart | ToolResponsePart | DataPart | CustomPart | ReasoningPart | ResourcePart
+    )
 
 
 class Link(BaseModel):

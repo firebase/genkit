@@ -59,7 +59,7 @@ python3 "${TOP_DIR}/py/bin/sanitize_schema_typing.py" "${TYPING_FILE}"
 uv run --directory "${TOP_DIR}/py" \
   ruff format "${TOP_DIR}"
 uv run --directory "${TOP_DIR}/py" \
-  ruff check --fix "${TYPING_FILE}"
+  ruff check --fix "${TYPING_FILE}" --ignore "E501"
 uv run --directory "${TOP_DIR}/py" \
   ruff format "${TOP_DIR}"
 
