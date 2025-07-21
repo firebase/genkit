@@ -291,8 +291,8 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous release tag
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          # Get the previous release tag by version ordering
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | head -2 | tail -1 2>/dev/null || echo "")
           
           if [[ -n "$PREVIOUS_TAG" ]]; then
             # Generate changelog from previous tag to current
