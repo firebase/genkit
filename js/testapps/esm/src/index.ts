@@ -73,6 +73,9 @@ openAI;
 xAI;
 deepSeek;
 
+process.env.OPENAI_API_KEY = 'fake';
+process.env.GEMINI_API_KEY = 'fake';
+
 export const ai = genkit({
   plugins: [
     openAI({ apiKey: 'fake-oai-key' }),
