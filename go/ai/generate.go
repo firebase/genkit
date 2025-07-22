@@ -106,7 +106,11 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"err", err)
 			}()
 
-			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, actionOpts,
+			return tracing.RunInNewSpan(ctx, r.TracingState(), &tracing.SpanMetadata{
+				Name:   "generate",
+				Type:   "action",
+				IsRoot: false,
+			}, actionOpts,
 				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
 					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
 				})

@@ -139,7 +139,11 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 			if datapoint.TestCaseId == "" {
 				datapoint.TestCaseId = uuid.New().String()
 			}
-			_, err := tracing.RunInNewSpan(ctx, r.TracingState(), fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
+			_, err := tracing.RunInNewSpan(ctx, r.TracingState(), &tracing.SpanMetadata{
+				Name:   fmt.Sprintf("TestCase %s", datapoint.TestCaseId),
+				Type:   "action",
+				IsRoot: false,
+			}, datapoint,
 				func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
 					traceId := trace.SpanContextFromContext(ctx).TraceID().String()
 					spanId := trace.SpanContextFromContext(ctx).SpanID().String()

@@ -19,6 +19,7 @@ package tracing
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -80,36 +81,81 @@ const (
 	spanTypeAttr = attrPrefix + ":type"
 )
 
-// RunInNewSpan runs f on input in a new span with the given name.
-// The attrs map provides the span's initial attributes.
+// SpanMetadata contains metadata information for creating properly annotated spans
+type SpanMetadata struct {
+	// Name is the span name
+	Name string
+	// IsRoot indicates if this is a root span
+	IsRoot bool
+	// Type represents the kind of span (e.g., "action", "flow", "model")
+	Type string
+	// Subtype provides more specific categorization (e.g., "tool", "model", "flow")
+	Subtype string
+	// Attributes are arbitrary key-value pairs set directly as span attributes
+	// These can have any name (e.g., "http.method": "POST", "custom.label": "value")
+	Attributes map[string]string
+	// Metadata are genkit-specific metadata that get "genkit:metadata:" prefix
+	// (e.g., "subtype": "tool" becomes "genkit:metadata:subtype": "tool")
+	Metadata map[string]string
+}
+
+// RunInNewSpan runs f on input in a new span with the provided metadata.
+// The metadata contains all span configuration including name, type, labels, etc.
 func RunInNewSpan[I, O any](
 	ctx context.Context,
 	tstate *State,
-	name, spanType string,
-	isRoot bool,
+	metadata *SpanMetadata,
 	input I,
 	f func(context.Context, I) (O, error),
 ) (O, error) {
 	// TODO: support span links.
 	log := logger.FromContext(ctx)
-	log.Debug("span start", "name", name)
-	defer log.Debug("span end", "name", name)
-	sm := &spanMetadata{
-		Name:   name,
-		Input:  input,
-		IsRoot: isRoot,
+	log.Debug("span start", "name", metadata.Name)
+	defer log.Debug("span end", "name", metadata.Name)
+
+	// Ensure metadata exists
+	if metadata == nil {
+		metadata = &SpanMetadata{}
 	}
+
+	sm := &spanMetadata{
+		Name:     metadata.Name,
+		Input:    input,
+		IsRoot:   metadata.IsRoot,
+		Type:     metadata.Type,
+		Subtype:  metadata.Subtype,
+		Metadata: metadata.Metadata,
+	}
+
 	parentSpanMeta := spanMetaKey.FromContext(ctx)
 	var parentPath string
 	if parentSpanMeta != nil {
 		parentPath = parentSpanMeta.Path
 	}
-	sm.Path = parentPath + "/" + name
-	var opts []trace.SpanStartOption
-	if spanType != "" {
-		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
+
+	// Build path with type annotations like JS: /{name,t:type}
+	sm.Path = buildAnnotatedPath(metadata.Name, parentPath, metadata.Type, metadata.Subtype)
+
+	// Add subtype decoration if subtype is specified
+	if metadata.Subtype != "" {
+		sm.Path = decoratePathWithSubtype(sm.Path, metadata.Subtype)
 	}
-	ctx, span := tstate.tracer.Start(ctx, name, opts...)
+
+	var opts []trace.SpanStartOption
+	if metadata.Type != "" {
+		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, metadata.Type)))
+	}
+
+	// Add arbitrary attributes (like TypeScript labels)
+	if metadata.Attributes != nil {
+		var attrs []attribute.KeyValue
+		for k, v := range metadata.Attributes {
+			attrs = append(attrs, attribute.String(k, v))
+		}
+		opts = append(opts, trace.WithAttributes(attrs...))
+	}
+
+	ctx, span := tstate.tracer.Start(ctx, metadata.Name, opts...)
 	defer span.End()
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()
@@ -128,7 +174,54 @@ func RunInNewSpan[I, O any](
 	sm.State = spanStateSuccess
 	sm.Output = output
 	return output, nil
+}
 
+// buildAnnotatedPath creates a path with type annotations
+// e.g., /{chatFlow,t:flow}/{generateResponse,t:action}
+func buildAnnotatedPath(name, parentPath, spanType, subtype string) string {
+	// Determine the type annotation to use
+	var typeAnnotation string
+	if subtype == "flow" {
+		typeAnnotation = ",t:flow"
+	} else if spanType != "" {
+		typeAnnotation = ",t:" + spanType
+	}
+
+	pathSegment := "{" + name + typeAnnotation + "}"
+	if parentPath == "" {
+		return "/" + pathSegment
+	}
+	return parentPath + "/" + pathSegment
+}
+
+// decoratePathWithSubtype adds subtype annotation to the final path segment
+// e.g., /{flow,t:flow}/{step,t:action} -> /{flow,t:flow}/{step,t:action,s:tool}
+func decoratePathWithSubtype(path string, subtype string) string {
+	if path == "" || subtype == "" {
+		return path
+	}
+
+	// Find the last opening brace to locate the final path segment
+	lastBraceIndex := strings.LastIndex(path, "{")
+	if lastBraceIndex == -1 {
+		return path // No braces found, nothing to decorate
+	}
+
+	// Find the closing brace after the last opening brace
+	closingBraceIndex := strings.Index(path[lastBraceIndex:], "}")
+	if closingBraceIndex == -1 {
+		return path // No closing brace found
+	}
+	closingBraceIndex += lastBraceIndex
+
+	// Extract the content of the last segment (without braces)
+	segmentContent := path[lastBraceIndex+1 : closingBraceIndex]
+
+	// Add subtype annotation
+	decoratedContent := segmentContent + ",s:" + subtype
+
+	// Rebuild the path with the decorated last segment
+	return path[:lastBraceIndex+1] + decoratedContent + path[closingBraceIndex:]
 }
 
 // spanState is the completion status of a span.
@@ -142,14 +235,17 @@ const (
 
 // spanMetadata holds genkit-specific information about a span.
 type spanMetadata struct {
-	Name   string
-	State  spanState
-	IsRoot bool
-	Input  any
-	Output any
-	Path   string // slash-separated list of names from the root span to the current one
-	mu     sync.Mutex
-	attrs  map[string]string // additional information, as key-value pairs
+	Name     string
+	State    spanState
+	IsRoot   bool
+	Input    any
+	Output   any
+	Path     string            // annotated path with type information
+	Type     string            // span type (action, flow, model, etc.)
+	Subtype  string            // span subtype (tool, model, flow, etc.)
+	Metadata map[string]string // additional custom metadata
+	mu       sync.Mutex
+	attrs    map[string]string // additional information, as key-value pairs
 }
 
 // SetAttr sets an attribute, overwriting whatever is there.
@@ -166,7 +262,7 @@ func (sm *spanMetadata) SetAttr(k, v string) {
 }
 
 // attributes returns some information about the spanMetadata
-// as a slice of OpenTelemetry attributes.
+// as a slice of OpenTelemetry attributes that genkit telemetry plugins expect.
 func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -176,10 +272,32 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 		attribute.String("genkit:input", base.JSONString(sm.Input)),
 		attribute.String("genkit:path", sm.Path),
 		attribute.String("genkit:output", base.JSONString(sm.Output)),
+		attribute.String("genkit:type", sm.Type),
+		attribute.Bool("genkit:isRoot", sm.IsRoot),
 	}
+
+	// Add genkit:type if specified
+	if sm.Type != "" {
+		kvs = append(kvs, attribute.String("genkit:type", sm.Type))
+	}
+
+	// Add genkit:metadata:subtype if specified - this is critical for telemetry modules
+	if sm.Subtype != "" {
+		kvs = append(kvs, attribute.String("genkit:metadata:subtype", sm.Subtype))
+	}
+
 	if sm.IsRoot {
 		kvs = append(kvs, attribute.Bool("genkit:isRoot", sm.IsRoot))
 	}
+
+	// Add custom metadata attributes
+	if sm.Metadata != nil {
+		for k, v := range sm.Metadata {
+			kvs = append(kvs, attribute.String(attrPrefix+":metadata:"+k, v))
+		}
+	}
+
+	// Add additional attributes
 	for k, v := range sm.attrs {
 		kvs = append(kvs, attribute.String(attrPrefix+":metadata:"+k, v))
 	}
