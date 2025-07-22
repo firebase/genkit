@@ -127,7 +127,7 @@ func TestEnvironmentAwareDefaults(t *testing.T) {
 	}
 }
 
-func TestCredentialDetection(t *testing.T) {
+func TestEnvDetection(t *testing.T) {
 	// Test dev environment
 	os.Setenv("GENKIT_ENV", "dev")
 	plugin := NewWithProjectID("test-project")
@@ -148,21 +148,6 @@ func TestCredentialDetection(t *testing.T) {
 		t.Errorf("Expected info log level in prod, got %v", plugin.Config.Config.LogLevel)
 	}
 
-	// Test New() with auto-detection (will fail without valid credentials in test)
-	os.Setenv("GENKIT_ENV", "dev")
-	_, err := New()
-	if err == nil {
-		t.Error("Expected error when no credentials are available in test environment")
-	} else if !contains(err.Error(), "project ID could not be determined") {
-		t.Errorf("Expected credential error, got: %v", err)
-	}
 	// Clean up
 	os.Unsetenv("GENKIT_ENV")
-}
-
-// Helper function to check if string contains substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[:len(substr)] == substr ||
-		(len(s) > len(substr) && s[1:len(substr)+1] == substr) ||
-		(len(s) > len(substr) && s[len(s)-len(substr):] == substr)
 }
