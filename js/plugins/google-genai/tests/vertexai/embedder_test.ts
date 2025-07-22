@@ -47,11 +47,6 @@ describe('defineEmbedder', () => {
     apiKey: 'test-global-api-key',
   };
 
-  const expressClientOptions: ClientOptions = {
-    kind: 'express',
-    apiKey: 'test-express-api-key',
-  };
-
   let embedderFunc: (
     input: Document[],
     options?: EmbeddingConfig
@@ -94,10 +89,12 @@ describe('defineEmbedder', () => {
       'Content-Type': 'application/json',
       'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
       'User-Agent': GENKIT_CLIENT_HEADER,
+      Authorization: 'Bearer test-token',
+      'x-goog-user-project':
+        clientOptions.kind != 'express' ? clientOptions.projectId : '',
     };
-    if (clientOptions.kind !== 'express') {
-      headers['Authorization'] = 'Bearer test-token';
-      headers['x-goog-user-project'] = clientOptions.projectId;
+    if (clientOptions.apiKey) {
+      headers['x-goog-api-key'] = clientOptions.apiKey;
     }
     return headers;
   }
@@ -260,7 +257,8 @@ describe('defineEmbedder', () => {
 
   runTestsForClientOptions(regionalClientOptions);
   runTestsForClientOptions(globalClientOptions);
-  runTestsForClientOptions(expressClientOptions);
+  // Express client options does not support embedders. We have
+  // tests elsewhere to test this.
 
   // Tests specific to regional (or not applicable to express)
   describe('with regional client options only', () => {

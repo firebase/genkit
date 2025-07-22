@@ -51,10 +51,11 @@ export async function listModels(
     queryParams: 'pageSize=1000',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'GET',
-    headers: getHeaders(apiKey, clientOptions),
-  };
+    apiKey,
+    clientOptions,
+  });
   const response = await makeRequest(url, fetchOptions);
   const modelResponse = JSON.parse(await response.text()) as ListModelsResponse;
   return modelResponse.models;
@@ -81,11 +82,12 @@ export async function generateContent(
     resourceMethod: 'generateContent',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(generateContentRequest),
-  };
+  });
   const response = await makeRequest(url, fetchOptions);
 
   const responseJson = (await response.json()) as GenerateContentResponse;
@@ -113,11 +115,12 @@ export async function generateContentStream(
     resourceMethod: 'streamGenerateContent',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(generateContentRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return processStream(response);
@@ -144,11 +147,12 @@ export async function embedContent(
     resourceMethod: 'embedContent',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(embedContentRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json();
@@ -166,11 +170,12 @@ export async function imagenPredict(
     clientOptions,
   });
 
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: await getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(imagenPredictRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<ImagenPredictResponse>;
@@ -188,11 +193,12 @@ export async function veoPredict(
     clientOptions,
   });
 
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: await getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(veoPredictRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<VeoOperation>;
@@ -207,10 +213,11 @@ export async function veoCheckOperation(
     resourcePath: operation,
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'GET',
-    headers: await getHeaders(apiKey, clientOptions),
-  };
+    apiKey,
+    clientOptions,
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<VeoOperation>;
@@ -251,6 +258,45 @@ export function getGoogleAIUrl(params: {
     url += `${params.queryParams ? '&' : '?'}alt=sse`;
   }
   return url;
+}
+
+function getFetchOptions(params: {
+  method: 'POST' | 'GET';
+  apiKey: string;
+  body?: string;
+  clientOptions?: ClientOptions;
+}) {
+  const fetchOptions: RequestInit = {
+    method: params.method,
+    headers: getHeaders(params.apiKey, params.clientOptions),
+  };
+  if (params.body) {
+    fetchOptions.body = params.body;
+  }
+  const signal = getAbortSignal(params.clientOptions);
+  if (signal) {
+    fetchOptions.signal = signal;
+  }
+  return fetchOptions;
+}
+
+function getAbortSignal(
+  clientOptions?: ClientOptions
+): AbortSignal | undefined {
+  const hasTimeout = (clientOptions?.timeout ?? -1) >= 0;
+  if (clientOptions?.signal !== undefined || hasTimeout) {
+    const controller = new AbortController();
+    if (hasTimeout) {
+      setTimeout(() => controller.abort(), clientOptions?.timeout);
+    }
+    if (clientOptions?.signal) {
+      clientOptions.signal.addEventListener('abort', () => {
+        controller.abort();
+      });
+    }
+    return controller.signal;
+  }
+  return undefined;
 }
 
 /**
@@ -551,3 +597,10 @@ async function getResponsePromise(
     allResponses.push(value);
   }
 }
+
+export const TEST_ONLY = {
+  getFetchOptions,
+  getAbortSignal,
+  getHeaders,
+  makeRequest,
+};

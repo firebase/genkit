@@ -192,7 +192,7 @@ describe('Google AI Imagen', () => {
         apiVersion?: string;
         baseUrl?: string;
       } = {}
-    ): (request: GenerateRequest) => Promise<any> {
+    ): (request: GenerateRequest, options: any) => Promise<any> {
       const name = defineOptions.name || modelName;
       const apiVersion = defineOptions.apiVersion;
       const baseUrl = defineOptions.baseUrl;
@@ -229,7 +229,7 @@ describe('Google AI Imagen', () => {
       mockFetchResponse(mockResponse);
 
       const modelRunner = captureModelRunner({ apiKey: defaultApiKey });
-      const result = await modelRunner(request);
+      const result = await modelRunner(request, {});
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
@@ -287,7 +287,7 @@ describe('Google AI Imagen', () => {
       });
 
       const modelRunner = captureModelRunner({ apiKey: defaultApiKey });
-      await modelRunner(request);
+      await modelRunner(request, {});
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
       assert.strictEqual(fetchArgs[1].headers['x-goog-api-key'], defaultApiKey);
@@ -305,9 +305,12 @@ describe('Google AI Imagen', () => {
         apiVersion,
         baseUrl,
       });
-      await modelRunner({
-        messages: [{ role: 'user', content: [{ text: 'A dog' }] }],
-      });
+      await modelRunner(
+        {
+          messages: [{ role: 'user', content: [{ text: 'A dog' }] }],
+        },
+        {}
+      );
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
@@ -323,9 +326,12 @@ describe('Google AI Imagen', () => {
       mockFetchResponse({ predictions: [] });
       const modelRunner = captureModelRunner({ apiKey: defaultApiKey });
       await assert.rejects(
-        modelRunner({
-          messages: [{ role: 'user', content: [{ text: 'A fish' }] }],
-        }),
+        modelRunner(
+          {
+            messages: [{ role: 'user', content: [{ text: 'A fish' }] }],
+          },
+          {}
+        ),
         /Model returned no predictions/
       );
       sinon.assert.calledOnce(fetchStub);
@@ -341,9 +347,12 @@ describe('Google AI Imagen', () => {
         resourceMethod: 'predict',
       });
       await assert.rejects(
-        modelRunner({
-          messages: [{ role: 'user', content: [{ text: 'A bird' }] }],
-        }),
+        modelRunner(
+          {
+            messages: [{ role: 'user', content: [{ text: 'A bird' }] }],
+          },
+          {}
+        ),
         new RegExp(`Failed to fetch from ${expectedUrl}: Network Error`)
       );
     });
@@ -358,9 +367,12 @@ describe('Google AI Imagen', () => {
         resourceMethod: 'predict',
       });
       await assert.rejects(
-        modelRunner({
-          messages: [{ role: 'user', content: [{ text: 'A plane' }] }],
-        }),
+        modelRunner(
+          {
+            messages: [{ role: 'user', content: [{ text: 'A plane' }] }],
+          },
+          {}
+        ),
         new RegExp(
           `Error fetching from ${expectedUrl}: \\[400 Error\\] Invalid argument`
         )
@@ -374,10 +386,13 @@ describe('Google AI Imagen', () => {
       });
 
       const modelRunner = captureModelRunner({ apiKey: false });
-      await modelRunner({
-        messages: [{ role: 'user', content: [{ text: 'A train' }] }],
-        config: { apiKey: requestApiKey },
-      });
+      await modelRunner(
+        {
+          messages: [{ role: 'user', content: [{ text: 'A train' }] }],
+          config: { apiKey: requestApiKey },
+        },
+        {}
+      );
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
@@ -388,10 +403,13 @@ describe('Google AI Imagen', () => {
       const modelRunner = captureModelRunner({ apiKey: false });
 
       await assert.rejects(
-        modelRunner({
-          messages: [{ role: 'user', content: [{ text: 'A car' }] }],
-          config: {},
-        }),
+        modelRunner(
+          {
+            messages: [{ role: 'user', content: [{ text: 'A car' }] }],
+            config: {},
+          },
+          {}
+        ),
         API_KEY_FALSE_ERROR
       );
       sinon.assert.notCalled(fetchStub);
@@ -415,9 +433,12 @@ describe('Google AI Imagen', () => {
       });
 
       const modelRunner = captureModelRunner({ apiKey: undefined }); // No apiKey passed in init
-      await modelRunner({
-        messages: [{ role: 'user', content: [{ text: 'A bike' }] }],
-      });
+      await modelRunner(
+        {
+          messages: [{ role: 'user', content: [{ text: 'A bike' }] }],
+        },
+        {}
+      );
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;

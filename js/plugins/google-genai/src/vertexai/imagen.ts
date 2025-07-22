@@ -280,11 +280,13 @@ export function defineModel(
 
   return ai.defineModel(
     {
+      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
     },
-    async (request) => {
+    async (request, { abortSignal }) => {
+      const clientOpt = { ...clientOptions, signal: abortSignal };
       const imagenPredictRequest: ImagenPredictRequest = {
         instances: [
           {
@@ -299,7 +301,7 @@ export function defineModel(
       const response = await imagenPredict(
         ref.version as string,
         imagenPredictRequest,
-        clientOptions
+        clientOpt
       );
 
       if (!response.predictions || response.predictions.length == 0) {

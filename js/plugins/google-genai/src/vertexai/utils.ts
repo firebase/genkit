@@ -249,6 +249,13 @@ export const API_KEY_FALSE_ERROR = new GenkitError({
     'VertexAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
 });
 
+export const NOT_SUPPORTED_IN_EXPRESS_ERROR = new GenkitError({
+  status: 'PERMISSION_DENIED',
+  message:
+    'This method is not supported in Vertex AI Express Mode.\n' +
+    'For more details see https://cloud.google.com/vertex-ai/generative-ai/docs/start/express-mode/vertex-ai-express-mode-api-reference',
+});
+
 /**
  * Checks and retrieves an API key based on the provided argument and environment variables.
  *
@@ -315,6 +322,31 @@ export function calculateApiKey(
     throw MISSING_API_KEY_ERROR;
   }
   return apiKey;
+}
+
+/** Vertex Express Mode lets you try a *subset* of Vertex AI features */
+export function checkIsSupported(params: {
+  clientOptions: ClientOptions;
+  resourcePath?: string;
+  resourceMethod?: string;
+}) {
+  if (params.resourcePath == '') {
+    // This is how we get a base url for metadata
+    return;
+  }
+
+  const supportedExpressMethods = [
+    'countTokens',
+    'generateContent',
+    'streamGenerateContent',
+  ];
+
+  if (
+    params.clientOptions.kind == 'express' &&
+    !supportedExpressMethods.includes(params.resourceMethod ?? '')
+  ) {
+    throw NOT_SUPPORTED_IN_EXPRESS_ERROR;
+  }
 }
 
 export function extractImagenMask(

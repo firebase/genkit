@@ -81,7 +81,7 @@ const GENERIC_MODEL = commonRef('embedder');
 
 const KNOWN_MODELS = {
   'text-embedding-004': commonRef('text-embedding-004'),
-  'gemini-embedding-exp': commonRef('gemini-embedding-exp'),
+  'gemini-embedding-001': commonRef('gemini-embedding-001'),
 };
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 

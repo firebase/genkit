@@ -91,7 +91,13 @@ export interface VertexPluginOptions {
   experimental_debugTraces?: boolean;
 }
 
-export interface RegionalClientOptions {
+interface BaseClientOptions {
+  /** timeout in milli seconds. time out value needs to be non negative. */
+  timeout?: number;
+  signal?: AbortSignal;
+}
+
+export interface RegionalClientOptions extends BaseClientOptions {
   kind: 'regional';
   location: string;
   projectId: string;
@@ -99,7 +105,7 @@ export interface RegionalClientOptions {
   apiKey?: string; // In addition to regular auth
 }
 
-export interface GlobalClientOptions {
+export interface GlobalClientOptions extends BaseClientOptions {
   kind: 'global';
   location: 'global';
   projectId: string;
@@ -107,7 +113,7 @@ export interface GlobalClientOptions {
   apiKey?: string; // In addition to regular auth
 }
 
-export interface ExpressClientOptions {
+export interface ExpressClientOptions extends BaseClientOptions {
   kind: 'express';
   apiKey: string | false | undefined; // Instead of regular auth
 }

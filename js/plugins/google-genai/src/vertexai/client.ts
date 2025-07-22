@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GENKIT_CLIENT_HEADER, GenkitError } from 'genkit';
+import { GENKIT_CLIENT_HEADER } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { extractErrMsg } from '../common/utils';
 import {
@@ -33,6 +33,7 @@ import {
   ListModelsResponse,
   Model,
 } from './types';
+import { calculateApiKey, checkIsSupported } from './utils';
 
 export async function listModels(
   clientOptions: ClientOptions
@@ -42,10 +43,10 @@ export async function listModels(
     resourcePath: 'publishers/google/models',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = await getFetchOptions({
     method: 'GET',
-    headers: await getHeaders(clientOptions),
-  };
+    clientOptions,
+  });
   const response = await makeRequest(url, fetchOptions);
   const modelResponse = (await response.json()) as ListModelsResponse;
   return modelResponse.publisherModels;
@@ -62,11 +63,11 @@ export async function generateContent(
     resourceMethod: 'generateContent',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = await getFetchOptions({
     method: 'POST',
-    headers: await getHeaders(clientOptions),
+    clientOptions,
     body: JSON.stringify(generateContentRequest),
-  };
+  });
   const response = await makeRequest(url, fetchOptions);
 
   const responseJson = (await response.json()) as GenerateContentResponse;
@@ -84,11 +85,11 @@ export async function generateContentStream(
     resourceMethod: 'streamGenerateContent',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = await getFetchOptions({
     method: 'POST',
-    headers: await getHeaders(clientOptions),
+    clientOptions,
     body: JSON.stringify(generateContentRequest),
-  };
+  });
   const response = await makeRequest(url, fetchOptions);
   return processStream(response);
 }
@@ -105,11 +106,11 @@ export async function embedContent(
     clientOptions,
   });
 
-  const fetchOptions: RequestInit = {
+  const fetchOptions = await getFetchOptions({
     method: 'POST',
-    headers: await getHeaders(clientOptions),
+    clientOptions,
     body: JSON.stringify(embedContentRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<EmbedContentResponse>;
@@ -127,11 +128,11 @@ export async function imagenPredict(
     clientOptions,
   });
 
-  const fetchOptions: RequestInit = {
+  const fetchOptions = await getFetchOptions({
     method: 'POST',
-    headers: await getHeaders(clientOptions),
+    clientOptions,
     body: JSON.stringify(imagenPredictRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<ImagenPredictResponse>;
@@ -144,6 +145,8 @@ export function getVertexAIUrl(params: {
   queryParams?: string;
   clientOptions: ClientOptions;
 }): string {
+  checkIsSupported(params);
+
   const DEFAULT_API_VERSION = 'v1beta1';
   const API_BASE_PATH = 'aiplatform.googleapis.com';
 
@@ -178,24 +181,49 @@ export function getVertexAIUrl(params: {
     url += `${joiner}alt=sse`;
     joiner = '&';
   }
-  if (params.clientOptions.kind == 'express' && !params.clientOptions.apiKey) {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: 'missing api key',
-    });
-  }
-  if (params.clientOptions.apiKey) {
-    // Required for express, optional for others
-    url += `${joiner}key=${params.clientOptions.apiKey}`;
-    joiner = '&';
-  }
   return url;
+}
+
+async function getFetchOptions(params: {
+  method: 'POST' | 'GET';
+  body?: string;
+  clientOptions: ClientOptions;
+}) {
+  const fetchOptions: RequestInit = {
+    method: params.method,
+    headers: await getHeaders(params.clientOptions),
+  };
+  if (params.body) {
+    fetchOptions.body = params.body;
+  }
+  const signal = getAbortSignal(params.clientOptions);
+  if (signal) {
+    fetchOptions.signal = signal;
+  }
+  return fetchOptions;
+}
+
+function getAbortSignal(clientOptions: ClientOptions): AbortSignal | undefined {
+  const hasTimeout = (clientOptions.timeout ?? -1) >= 0;
+  if (clientOptions.signal !== undefined || hasTimeout) {
+    const controller = new AbortController();
+    if (hasTimeout) {
+      setTimeout(() => controller.abort(), clientOptions.timeout);
+    }
+    if (clientOptions?.signal) {
+      clientOptions.signal.addEventListener('abort', () => {
+        controller.abort();
+      });
+    }
+    return controller.signal;
+  }
+  return undefined;
 }
 
 async function getHeaders(clientOptions: ClientOptions): Promise<HeadersInit> {
   if (clientOptions.kind == 'express') {
     const headers: HeadersInit = {
-      // ApiKey is in the url query params
+      'x-goog-api-key': calculateApiKey(clientOptions.apiKey, undefined),
       'Content-Type': 'application/json',
       'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
       'User-Agent': GENKIT_CLIENT_HEADER,
@@ -210,6 +238,9 @@ async function getHeaders(clientOptions: ClientOptions): Promise<HeadersInit> {
       'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
       'User-Agent': GENKIT_CLIENT_HEADER,
     };
+    if (clientOptions.apiKey) {
+      headers['x-goog-api-key'] = clientOptions.apiKey;
+    }
     return headers;
   }
 }
@@ -575,3 +606,10 @@ function aggregateGroundingMetadataForCandidate(
   }
   return groundingMetadataAggregated;
 }
+
+export const TEST_ONLY = {
+  getFetchOptions,
+  getAbortSignal,
+  getHeaders,
+  makeRequest,
+};
