@@ -17,7 +17,11 @@
 package googlecloud
 
 import (
+	"log/slog"
+	"time"
+
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/oauth2/google"
 )
 
 // Telemetry interface that all telemetry modules implement
@@ -33,3 +37,38 @@ type SharedDimensions struct {
 	Source        string
 	SourceVersion string
 }
+
+// PluginConfig represents the main plugin configuration with essential fields and nested config
+type PluginConfig struct {
+	ProjectID   string
+	Credentials *google.Credentials
+	Config      *TelemetryConfig
+}
+
+// TelemetryConfig represents all configurable telemetry settings with concrete values
+type TelemetryConfig struct {
+	// Core settings
+	ForceExport bool
+
+	// Module selection - All enabled by default for comprehensive observability
+	EnableGenerate   bool
+	EnableFeature    bool
+	EnableAction     bool
+	EnableEngagement bool
+	EnablePath       bool
+
+	// Logging settings
+	ExportInputAndOutput bool
+	LogLevel             slog.Level
+
+	// Performance settings - Environment-aware defaults
+	MetricInterval      time.Duration
+	MetricTimeoutMillis int
+	BufferSize          int
+
+	// Export settings - Environment-aware defaults
+	Export bool
+}
+
+// Option is a function that modifies TelemetryConfig
+type Option func(*TelemetryConfig)

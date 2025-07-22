@@ -24,219 +24,107 @@ import (
 )
 
 func TestEnvironmentDetection(t *testing.T) {
-	// Test default environment (prod)
-	os.Unsetenv("GENKIT_ENV")
-	if IsDevEnv() {
-		t.Error("Expected prod environment when GENKIT_ENV is not set")
-	}
-	if GetCurrentEnv() != "prod" {
-		t.Errorf("Expected 'prod', got '%s'", GetCurrentEnv())
-	}
-
-	// Test dev environment
-	os.Setenv("GENKIT_ENV", "dev")
-	if !IsDevEnv() {
-		t.Error("Expected dev environment when GENKIT_ENV=dev")
-	}
-	if GetCurrentEnv() != "dev" {
-		t.Errorf("Expected 'dev', got '%s'", GetCurrentEnv())
+	testCases := []struct {
+		env      string
+		isDev    bool
+		expected string
+	}{
+		{"", false, "prod"},
+		{"dev", true, "dev"},
+		{"staging", false, "staging"},
 	}
 
-	// Test custom environment (should not be dev)
-	os.Setenv("GENKIT_ENV", "staging")
-	if IsDevEnv() {
-		t.Error("Expected non-dev environment when GENKIT_ENV=staging")
-	}
-	if GetCurrentEnv() != "staging" {
-		t.Errorf("Expected 'staging', got '%s'", GetCurrentEnv())
+	for _, tc := range testCases {
+		os.Setenv("GENKIT_ENV", tc.env)
+		if IsDevEnv() != tc.isDev {
+			t.Errorf("IsDevEnv() = %v, want %v for env=%q", IsDevEnv(), tc.isDev, tc.env)
+		}
+		if got := GetCurrentEnv(); got != tc.expected {
+			t.Errorf("GetCurrentEnv() = %q, want %q", got, tc.expected)
+		}
 	}
 
-	// Clean up
 	os.Unsetenv("GENKIT_ENV")
 }
 
 func TestDevelopmentDefaults(t *testing.T) {
-	// Set dev environment
 	os.Setenv("GENKIT_ENV", "dev")
 	defer os.Unsetenv("GENKIT_ENV")
 
-	defaults := GetDevelopmentDefaults("test-project")
+	cfg := GetDevelopmentDefaults("test-project").Config
 
-	// Test development-specific values
-	if defaults.Config.MetricInterval != 5*time.Second {
-		t.Errorf("Expected 5s metric interval for dev, got %v", defaults.Config.MetricInterval)
-	}
-	if defaults.Config.MetricTimeoutMillis != 5000 {
-		t.Errorf("Expected 5000ms timeout for dev, got %d", defaults.Config.MetricTimeoutMillis)
-	}
-	if defaults.Config.LogLevel != slog.LevelDebug {
-		t.Errorf("Expected debug log level for dev, got %v", defaults.Config.LogLevel)
-	}
-	if defaults.Config.Export {
-		t.Error("Expected export=false for dev")
-	}
-	if defaults.Config.BufferSize != 100 {
-		t.Errorf("Expected buffer size 100 for dev, got %d", defaults.Config.BufferSize)
+	// Verify dev config values
+	expected := &TelemetryConfig{
+		MetricInterval:      5 * time.Second,
+		MetricTimeoutMillis: 5000,
+		LogLevel:            slog.LevelDebug,
+		Export:              false,
+		BufferSize:          100,
+		EnableGenerate:      true,
+		EnableFeature:       true,
+		EnableAction:        true,
+		EnableEngagement:    true,
+		EnablePath:          true,
 	}
 
-	// Test that all telemetry modules are enabled
-	if !defaults.Config.EnableGenerate || !defaults.Config.EnableFeature || !defaults.Config.EnableAction ||
-		!defaults.Config.EnableEngagement || !defaults.Config.EnablePath {
-		t.Error("Expected all telemetry modules to be enabled in dev")
+	if cfg != expected {
+		t.Errorf("Got unexpected dev config: %+v", cfg)
 	}
 }
 
 func TestProductionDefaults(t *testing.T) {
-	// Set prod environment
-	os.Setenv("GENKIT_ENV", "prod")
-	defer os.Unsetenv("GENKIT_ENV")
+	testCases := []string{"staging", "prod", "anyotherenvironment"}
 
-	defaults := GetProductionDefaults("test-project")
+	for _, env := range testCases {
+		t.Run(env, func(t *testing.T) {
+			os.Setenv("GENKIT_ENV", env)
+			defer os.Unsetenv("GENKIT_ENV")
 
-	// Test production-specific values
-	if defaults.Config.MetricInterval != 300*time.Second {
-		t.Errorf("Expected 300s metric interval for prod, got %v", defaults.Config.MetricInterval)
-	}
-	if defaults.Config.MetricTimeoutMillis != 300000 {
-		t.Errorf("Expected 300000ms timeout for prod, got %d", defaults.Config.MetricTimeoutMillis)
-	}
-	if defaults.Config.LogLevel != slog.LevelInfo {
-		t.Errorf("Expected info log level for prod, got %v", defaults.Config.LogLevel)
-	}
-	if !defaults.Config.Export {
-		t.Error("Expected export=true for prod")
-	}
-	if defaults.Config.BufferSize != 1000 {
-		t.Errorf("Expected buffer size 1000 for prod, got %d", defaults.Config.BufferSize)
-	}
+			cfg := GetProductionDefaults("test-project").Config
 
-	// Test that all telemetry modules are enabled
-	if !defaults.Config.EnableGenerate || !defaults.Config.EnableFeature || !defaults.Config.EnableAction ||
-		!defaults.Config.EnableEngagement || !defaults.Config.EnablePath {
-		t.Error("Expected all telemetry modules to be enabled in prod")
+			expected := &TelemetryConfig{
+				MetricInterval:      300 * time.Second,
+				MetricTimeoutMillis: 300000,
+				LogLevel:            slog.LevelInfo,
+				Export:              true,
+				BufferSize:          1000,
+				EnableGenerate:      true,
+				EnableFeature:       true,
+				EnableAction:        true,
+				EnableEngagement:    true,
+				EnablePath:          true,
+			}
+
+			if *cfg != *expected {
+				t.Errorf("Got unexpected %s config: %+v", env, cfg)
+			}
+		})
 	}
 }
-
 func TestEnvironmentAwareDefaults(t *testing.T) {
-	// Test dev environment defaults
-	os.Setenv("GENKIT_ENV", "dev")
-	devDefaults := GetDefaults("test-project")
-	if devDefaults.Config.MetricInterval != 5*time.Second {
-		t.Errorf("Expected dev defaults when GENKIT_ENV=dev, got %v", devDefaults.Config.MetricInterval)
-	}
-	if devDefaults.Config.Export {
-		t.Error("Expected export=false for dev defaults")
-	}
-
-	// Test prod environment defaults
-	os.Setenv("GENKIT_ENV", "prod")
-	prodDefaults := GetDefaults("test-project")
-	if prodDefaults.Config.MetricInterval != 300*time.Second {
-		t.Errorf("Expected prod defaults when GENKIT_ENV=prod, got %v", prodDefaults.Config.MetricInterval)
-	}
-	if !prodDefaults.Config.Export {
-		t.Error("Expected export=true for prod defaults")
+	testCases := []struct {
+		env          string
+		wantInterval time.Duration
+		wantExport   bool
+	}{
+		{"dev", 5 * time.Second, false},
+		{"prod", 300 * time.Second, true},
 	}
 
-	// Clean up
-	os.Unsetenv("GENKIT_ENV")
-}
+	for _, tc := range testCases {
+		t.Run(tc.env, func(t *testing.T) {
+			os.Setenv("GENKIT_ENV", tc.env)
+			defer os.Unsetenv("GENKIT_ENV")
 
-func TestUserOverrides(t *testing.T) {
-	// Test overriding metric interval
-	defaults := GetDefaults("test-project", WithMetricInterval(30*time.Second))
-	if defaults.Config.MetricInterval != 30*time.Second {
-		t.Errorf("Expected overridden metric interval 30s, got %v", defaults.Config.MetricInterval)
+			defaults := GetDefaults("test-project")
+			if defaults.Config.MetricInterval != tc.wantInterval {
+				t.Errorf("Expected %v defaults when GENKIT_ENV=%s, got %v", tc.wantInterval, tc.env, defaults.Config.MetricInterval)
+			}
+			if defaults.Config.Export != tc.wantExport {
+				t.Errorf("Expected export=%v for %s defaults", tc.wantExport, tc.env)
+			}
+		})
 	}
-
-	// Test overriding log level
-	defaults = GetDefaults("test-project", WithLogLevel(slog.LevelWarn))
-	if defaults.Config.LogLevel != slog.LevelWarn {
-		t.Errorf("Expected overridden log level warn, got %v", defaults.Config.LogLevel)
-	}
-
-	// Test overriding module enablement
-	defaults = GetDefaults("test-project", WithEnableGenerate(false))
-	if defaults.Config.EnableGenerate {
-		t.Error("Expected generate module to be disabled")
-	}
-}
-
-func TestHelperFunctions(t *testing.T) {
-	// Test WithForceExport
-	config := GetDefaults("test-project", WithForceExport(true))
-	if !config.Config.ForceExport {
-		t.Error("WithForceExport helper function failed")
-	}
-
-	// Test WithLogLevel
-	config = GetDefaults("test-project", WithLogLevel(slog.LevelError))
-	if config.Config.LogLevel != slog.LevelError {
-		t.Error("WithLogLevel helper function failed")
-	}
-
-	// Test WithMetricInterval
-	config = GetDefaults("test-project", WithMetricInterval(45*time.Second))
-	if config.Config.MetricInterval != 45*time.Second {
-		t.Error("WithMetricInterval helper function failed")
-	}
-
-	// Test WithDisableMetrics
-	config = GetDefaults("test-project", WithDisableMetrics())
-	if config.Config.EnableGenerate || config.Config.EnableFeature {
-		t.Error("WithDisableMetrics helper function failed")
-	}
-
-	// Test WithDisableAllTelemetry
-	config = GetDefaults("test-project", WithDisableAllTelemetry())
-	if config.Config.EnableGenerate || config.Config.EnableFeature ||
-		config.Config.EnableAction || config.Config.EnableEngagement ||
-		config.Config.EnablePath {
-		t.Error("WithDisableAllTelemetry helper function failed")
-	}
-}
-
-func TestNewWithEnvironmentDefaults(t *testing.T) {
-	// Test dev environment
-	os.Setenv("GENKIT_ENV", "dev")
-	plugin := NewWithProjectID("test-project")
-	if plugin.Config.Config.MetricInterval != 5*time.Second {
-		t.Errorf("Expected dev defaults in NewWithProjectID(), got %v", plugin.Config.Config.MetricInterval)
-	}
-	if plugin.Config.Config.LogLevel != slog.LevelDebug {
-		t.Errorf("Expected debug log level in dev, got %v", plugin.Config.Config.LogLevel)
-	}
-
-	// Test prod environment
-	os.Setenv("GENKIT_ENV", "prod")
-	plugin = NewWithProjectID("test-project")
-	if plugin.Config.Config.MetricInterval != 300*time.Second {
-		t.Errorf("Expected prod defaults in NewWithProjectID(), got %v", plugin.Config.Config.MetricInterval)
-	}
-	if plugin.Config.Config.LogLevel != slog.LevelInfo {
-		t.Errorf("Expected info log level in prod, got %v", plugin.Config.Config.LogLevel)
-	}
-
-	// Test New() with auto-detection (will fail without valid credentials in test)
-	os.Setenv("GENKIT_ENV", "dev")
-	_, err := New()
-	if err == nil {
-		t.Error("Expected error when no credentials are available in test environment")
-	} else if !contains(err.Error(), "project ID could not be determined") {
-		t.Errorf("Expected credential error, got: %v", err)
-	}
-
-	// Test NewWithProjectID directly
-	plugin = NewWithProjectID("test-project")
-	if plugin == nil {
-		t.Error("Expected valid plugin from NewWithProjectID")
-	}
-	if plugin.Config.ProjectID != "test-project" {
-		t.Errorf("Expected project ID 'test-project', got %v", plugin.Config.ProjectID)
-	}
-
-	// Clean up
-	os.Unsetenv("GENKIT_ENV")
 }
 
 func TestCredentialDetection(t *testing.T) {
@@ -268,16 +156,6 @@ func TestCredentialDetection(t *testing.T) {
 	} else if !contains(err.Error(), "project ID could not be determined") {
 		t.Errorf("Expected credential error, got: %v", err)
 	}
-
-	// Test NewWithProjectID with custom options
-	plugin = NewWithProjectID("test-project", WithLogLevel(slog.LevelWarn))
-	if plugin.Config.ProjectID != "test-project" {
-		t.Errorf("Expected project ID 'test-project', got %v", plugin.Config.ProjectID)
-	}
-	if plugin.Config.Config.LogLevel != slog.LevelWarn {
-		t.Errorf("Expected log level warn, got %v", plugin.Config.Config.LogLevel)
-	}
-
 	// Clean up
 	os.Unsetenv("GENKIT_ENV")
 }

@@ -18,7 +18,9 @@ package googlecloud
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc/codes"
@@ -157,4 +159,113 @@ func extractOuterFeatureNameFromPath(path string) string {
 	}
 
 	return "<unknown>"
+}
+
+// Functional option helpers for common configurations
+
+// WithForceExport sets the ForceExport flag
+func WithForceExport(forceExport bool) Option {
+	return func(c *TelemetryConfig) {
+		c.ForceExport = forceExport
+	}
+}
+
+// WithLogLevel sets the log level
+func WithLogLevel(level slog.Level) Option {
+	return func(c *TelemetryConfig) {
+		c.LogLevel = level
+	}
+}
+
+// WithExportInputAndOutput sets whether to export input/output (matches JS exportInputAndOutput)
+func WithExportInputAndOutput(enabled bool) Option {
+	return func(c *TelemetryConfig) {
+		c.ExportInputAndOutput = enabled
+	}
+}
+
+// WithMetricInterval sets the metric collection interval
+func WithMetricInterval(interval time.Duration) Option {
+	return func(c *TelemetryConfig) {
+		c.MetricInterval = interval
+	}
+}
+
+// WithMetricTimeout sets the metric timeout in milliseconds
+func WithMetricTimeout(timeoutMs int) Option {
+	return func(c *TelemetryConfig) {
+		c.MetricTimeoutMillis = timeoutMs
+	}
+}
+
+// WithBufferSize sets the buffer size
+func WithBufferSize(size int) Option {
+	return func(c *TelemetryConfig) {
+		c.BufferSize = size
+	}
+}
+
+// WithExport sets whether to export telemetry
+func WithExport(export bool) Option {
+	return func(c *TelemetryConfig) {
+		c.Export = export
+	}
+}
+
+// Module-specific options
+
+// WithEnableGenerate sets whether to enable generate module telemetry
+func WithEnableGenerate(enabled bool) Option {
+	return func(c *TelemetryConfig) {
+		c.EnableGenerate = enabled
+	}
+}
+
+// WithEnableFeature sets whether to enable feature module telemetry
+func WithEnableFeature(enabled bool) Option {
+	return func(c *TelemetryConfig) {
+		c.EnableFeature = enabled
+	}
+}
+
+// WithEnableAction sets whether to enable action module telemetry
+func WithEnableAction(enabled bool) Option {
+	return func(c *TelemetryConfig) {
+		c.EnableAction = enabled
+	}
+}
+
+// WithEnableEngagement sets whether to enable engagement module telemetry
+func WithEnableEngagement(enabled bool) Option {
+	return func(c *TelemetryConfig) {
+		c.EnableEngagement = enabled
+	}
+}
+
+// WithEnablePath sets whether to enable path module telemetry
+func WithEnablePath(enabled bool) Option {
+	return func(c *TelemetryConfig) {
+		c.EnablePath = enabled
+	}
+}
+
+// Convenience options for common configurations
+
+// WithDisableMetrics disables metric collection modules
+func WithDisableMetrics() Option {
+	return func(c *TelemetryConfig) {
+		c.EnableGenerate = false
+		c.EnableFeature = false
+	}
+}
+
+// WithDisableAllTelemetry disables all telemetry modules
+func WithDisableAllTelemetry() Option {
+	return func(c *TelemetryConfig) {
+		c.EnableGenerate = false
+		c.EnableFeature = false
+		c.EnableAction = false
+		c.EnableEngagement = false
+		c.EnablePath = false
+	}
 }
