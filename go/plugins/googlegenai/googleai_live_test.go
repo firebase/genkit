@@ -178,7 +178,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("tool with thinking", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&genai.GenerateContentConfig{
 				ThinkingConfig: &genai.ThinkingConfig{
@@ -435,7 +435,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](0.4),
@@ -457,7 +457,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](0.4),
