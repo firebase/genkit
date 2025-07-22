@@ -36,6 +36,7 @@ const filesToCopy = [
   'reranker.ts',
   'retriever.ts',
   'status.ts',
+  'trace.ts',
 ];
 
 if (!fs.existsSync(destDir)) {
