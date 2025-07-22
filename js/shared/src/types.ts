@@ -80,6 +80,19 @@ import {
   RetrieverResponseSchema,
 } from './__codegen/retriever.js';
 import { Status, StatusCodes, StatusSchema } from './__codegen/status.js';
+import {
+  InstrumentationLibrarySchema,
+  LinkSchema,
+  NestedSpanDataSchema,
+  PathMetadataSchema,
+  SpanContextSchema,
+  SpanDataSchema,
+  SpanMetadataSchema,
+  SpanStatusSchema,
+  TimeEventSchema,
+  TraceDataSchema,
+  TraceMetadataSchema,
+} from './__codegen/trace.js';
 
 /**
  * Background operation.
@@ -167,6 +180,12 @@ export type CommonRetrieverOptions = z.infer<
 >;
 export type RetrieverRequest = z.infer<typeof RetrieverRequestSchema>;
 export type RetrieverResponse = z.infer<typeof RetrieverResponseSchema>;
+export type PathMetadata = z.infer<typeof PathMetadataSchema>;
+export type TraceMetadata = z.infer<typeof TraceMetadataSchema>;
+export type SpanMetadata = z.infer<typeof SpanMetadataSchema>;
+export type SpanData = z.infer<typeof SpanDataSchema>;
+export type TraceData = z.infer<typeof TraceDataSchema>;
+export type NestedSpanData = z.infer<typeof NestedSpanDataSchema>;
 
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export type CandidateError = z.infer<typeof CandidateErrorSchema>;
@@ -198,6 +217,8 @@ export {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   GenerationUsageSchema,
+  InstrumentationLibrarySchema,
+  LinkSchema,
   MediaPartSchema,
   MediaSchema,
   MessageSchema,
@@ -205,9 +226,11 @@ export {
   ModelRequestSchema,
   ModelResponseChunkSchema,
   ModelResponseSchema,
+  NestedSpanDataSchema,
   OperationSchema,
   OutputConfigSchema,
   PartSchema,
+  PathMetadataSchema,
   RankedDocumentDataSchema,
   RankedDocumentMetadataSchema,
   ReasoningPartSchema,
@@ -217,14 +240,21 @@ export {
   RetrieverResponseSchema,
   RoleSchema,
   ScoreSchema,
+  SpanContextSchema,
+  SpanDataSchema,
+  SpanMetadataSchema,
+  SpanStatusSchema,
   Status,
   StatusCodes,
   StatusSchema,
   TextPartSchema,
+  TimeEventSchema,
   ToolDefinitionSchema,
   ToolRequestPartSchema,
   ToolRequestSchema,
   ToolResponsePartSchema,
   ToolResponseSchema,
+  TraceDataSchema,
+  TraceMetadataSchema,
   type EmbeddingBatch,
 };
