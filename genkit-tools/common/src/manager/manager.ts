@@ -149,12 +149,17 @@ export class RuntimeManager {
   /**
    * Retrieves all runnable actions.
    */
-  async listActions(): Promise<Record<string, Action>> {
-    // TODO: Allow selecting a runtime by pid.
-    const runtime = this.getMostRecentRuntime();
+  async listActions(
+    input?: apis.ListActionsRequest
+  ): Promise<Record<string, Action>> {
+    const runtime = input?.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
     if (!runtime) {
       throw new Error(
-        'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+        input?.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
     const response = await axios
@@ -170,11 +175,14 @@ export class RuntimeManager {
     input: apis.RunActionRequest,
     streamingCallback?: StreamingCallback<any>
   ): Promise<RunActionResponse> {
-    // TODO: Allow selecting a runtime by pid.
-    const runtime = this.getMostRecentRuntime();
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
     if (!runtime) {
       throw new Error(
-        'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+        input.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
     if (streamingCallback) {
