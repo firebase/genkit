@@ -47,11 +47,6 @@ jobs:
             target: darwin-arm64
           - os: windows-latest
             target: win32-x64
-          # Note: Windows ARM64 currently runs x64 binaries through emulation
-          # Native ARM64 support is not yet available in Bun
-          # See: https://github.com/oven-sh/bun/pull/11430
-          # - os: windows-11-arm
-          #   target: win32-arm64
     
     runs-on: ${{ matrix.os }}
     
@@ -63,7 +58,6 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ inputs.version }}"
-          # Use grep for cross-platform regex matching
           if ! echo "$VERSION" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$' > /dev/null; then
             echo "Error: Version '$VERSION' does not follow semantic versioning format (e.g., v1.0.0, v1.0.0-rc.1)"
             exit 1
@@ -337,7 +331,7 @@ jobs:
             
             ## Next Steps
             
-            After testing, these binaries will be signed and promoted to the final release.
+            After testing, these binaries will be promoted to the final release.
             
             ## Installation (Testing Only)
             
@@ -355,8 +349,6 @@ jobs:
             release-assets/genkit-darwin-x64/genkit-darwin-x64
             release-assets/genkit-darwin-arm64/genkit-darwin-arm64
             release-assets/genkit-win32-x64/genkit-win32-x64.exe
-
-
 
   create-rc-summary:
     needs: [create-rc]
@@ -387,6 +379,4 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📝 Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "1. Test the RC binaries" >> $GITHUB_STEP_SUMMARY
-          echo "2. Sign the binaries using the manual workflow" >> $GITHUB_STEP_SUMMARY
-          echo "3. Promote to final release using the 'Promote CLI Release' workflow" >> $GITHUB_STEP_SUMMARY
-
+          echo "2. Promote to final release using the 'Promote CLI Release (Unsigned)' workflow" >> $GITHUB_STEP_SUMMARY 

@@ -250,7 +250,7 @@ if [[ -z "$MACHINE" ]]; then
 fi
 
 # We have enough information to generate the binary's download URL.
-# Use GitHub API to find the latest non-prerelease (which will contain signed binaries)
+# Use GitHub API to find the latest non-prerelease (which will contain unsigned binaries)
 echo "-- Finding latest release..."
 LATEST_RELEASE=$(curl -sfL https://api.github.com/repos/firebase/genkit/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
@@ -263,7 +263,7 @@ fi
 
 echo "-- Latest release: $LATEST_RELEASE"
 
-# Construct the download URL for the signed binary from the latest release
+# Construct the download URL for the unsigned binary from the latest release
 DOWNLOAD_URL="https://github.com/firebase/genkit/releases/download/$LATEST_RELEASE/genkit-$MACHINE"
 
 # Check if the binary exists at this URL
