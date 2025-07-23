@@ -97,8 +97,7 @@ export async function findServersDir(projectRoot: string): Promise<string> {
  * Finds the Genkit hidden directory containing playground scripts.
  */
 export async function findPlaygroundDir(projectRoot: string): Promise<string> {
-  return projectRoot;
-  // return path.join(projectRoot, 'playground');
+  return path.join(projectRoot, 'genkit_playground');
 }
 
 /**

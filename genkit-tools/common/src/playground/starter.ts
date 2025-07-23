@@ -1,5 +1,4 @@
 export const playgroundStarterScriptName = 'starter.ts';
-export const playgroundPackagesName = 'package.json';
 
 export const playgroundStarterScript =
 `/**
@@ -24,16 +23,4 @@ import { genkit } from 'genkit';
 const ai = genkit({
   plugins: [googleAI()],
 });
-`;
-
-export const playgroundStarterPackages =
-`{
-  "name": "playground-starter",
-  "version": "1.0.0",
-  "main": "${playgroundStarterScriptName}",
-  "dependencies": {
-    "@genkit-ai/googleai": "^1.12.0",
-    "genkit": "^1.12.0"
-  }
-}
 `;

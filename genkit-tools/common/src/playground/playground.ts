@@ -16,16 +16,16 @@
 import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
-import { findPlaygroundDir, writeFileIfNotExists } from '../utils';
+import { findPlaygroundDir, logger, writeFileIfNotExists } from '../utils';
 import {
-  playgroundPackagesName,
-  playgroundStarterPackages,
   playgroundStarterScript,
   playgroundStarterScriptName,
 } from './starter';
 
 export class PlaygroundManager {
   constructor(readonly projectRoot: string) {}
+
+  private packageJsonName = 'package.json';
 
   /**
    * Writes a Genkit Typescript project to disk that can be used as a
@@ -34,37 +34,71 @@ export class PlaygroundManager {
    * @return The path to the starter script.
    */
   async createPlayground(): Promise<string> {
+    // Initialize a project in the root directory if one doesn't exist.
+    await this.npmInitIfNeeded(this.projectRoot);
+
+    // Install the minimum dependencies.
+    logger.debug(`Installing dependencies...`);
+    await this.runCommand(this.projectRoot, 'npm', [
+      'install',
+      'genkit',
+      '@genkit-ai/googleai',
+    ]);
+
+    // Generate the starter script.
     const playgroundDir = await findPlaygroundDir(this.projectRoot);
     await fs.mkdir(playgroundDir, { recursive: true });
-
-    // Generate the files
     const scriptFilePath = path.join(
       playgroundDir,
       playgroundStarterScriptName
     );
     await writeFileIfNotExists(scriptFilePath, playgroundStarterScript);
-    const packagesFilePath = path.join(playgroundDir, playgroundPackagesName);
-    await writeFileIfNotExists(packagesFilePath, playgroundStarterPackages);
-
-    // Run npm install
-    await this.runNpmInstall(playgroundDir);
 
     return scriptFilePath;
   }
 
   /**
-   * Spawns a child process to run `npm install` in a specified directory.
+   * Spawns a child process to run `npm init -y` in the given directory if
+   * `package.json` doesn't exist already.
    *
-   * @param directory The absolute path to the directory where `npm install` should be run.
+   * @param directory The absolute path to the directory where it should be run.
    * @returns A Promise that resolves when the installation is successful and rejects on error.
    */
-  runNpmInstall(directory: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const command = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-      const args = ['install'];
+  async npmInitIfNeeded(directory: string): Promise<void> {
+    const packageFilePath = path.join(directory, this.packageJsonName);
+    try {
+      await fs.access(packageFilePath);
+      logger.debug(`Found an existing project.`);
+    } catch (error: any) {
+      // File didn't exist. Create one.
+      if (error.code === 'ENOENT') {
+        logger.debug(`Creating a new project...`);
+        await this.runCommand(directory, 'npm', ['init', '-y']);
+      } else {
+        // For other errors such as permissions, rethrow to reject the Promise.
+        throw error;
+      }
+    }
+  }
 
-      // Spawn the child process.
-      const childProcess = spawn(command, args, {
+  /**
+   * Spawns a child process to run the given command with the given arguments in
+   * the given directory.
+   *
+   * @param directory The directory where the command should be run.
+   * @param command The command to run (e.g., 'npm').
+   * @param args An array of arguments for the command (e.g., ['install', 'foo']).
+   * @returns A Promise that resolves on success and rejects on error.
+   */
+  async runCommand(
+    directory: string,
+    command: string,
+    args: string[]
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const fullCommand =
+        process.platform === 'win32' ? `${command}.cmd` : command;
+      const childProcess = spawn(fullCommand, args, {
         cwd: directory,
         stdio: 'inherit',
       });
@@ -74,7 +108,11 @@ export class PlaygroundManager {
         if (code === 0) {
           resolve();
         } else {
-          reject(new Error(`npm install failed with exit code ${code}`));
+          reject(
+            new Error(
+              `Command '${command} ${args.join(' ')}' failed with exit code ${code}`
+            )
+          );
         }
       });
 
