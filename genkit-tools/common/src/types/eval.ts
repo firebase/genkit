@@ -251,7 +251,12 @@ export const DatasetSchemaSchema = z.object({
 });
 
 /** Type of dataset, useful for UI niceties. */
-export const DatasetTypeSchema = z.enum(['UNKNOWN', 'FLOW', 'MODEL']);
+export const DatasetTypeSchema = z.enum([
+  'UNKNOWN',
+  'FLOW',
+  'MODEL',
+  'EXECUTABLE_PROMPT',
+]);
 export type DatasetType = z.infer<typeof DatasetTypeSchema>;
 
 /**
