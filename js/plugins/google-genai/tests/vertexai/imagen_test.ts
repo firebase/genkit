@@ -189,11 +189,6 @@ describe('Vertex AI Imagen', () => {
       apiKey: 'test-api-key',
     };
 
-    const expressClientOptions: ClientOptions = {
-      kind: 'express',
-      apiKey: 'test-express-api-key',
-    };
-
     beforeEach(() => {
       mockAi = sinon.createStubInstance(Genkit);
       fetchStub = sinon.stub(global, 'fetch');
@@ -218,7 +213,7 @@ describe('Vertex AI Imagen', () => {
 
     function captureModelRunner(
       clientOptions: ClientOptions
-    ): (request: GenerateRequest) => Promise<any> {
+    ): (request: GenerateRequest, options: any) => Promise<any> {
       defineModel(mockAi as any, modelName, clientOptions);
       assert.ok(mockAi.defineModel.calledOnce);
       const callArgs = mockAi.defineModel.firstCall.args;
@@ -234,18 +229,17 @@ describe('Vertex AI Imagen', () => {
         'Content-Type': 'application/json',
         'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
         'User-Agent': GENKIT_CLIENT_HEADER,
+        Authorization: 'Bearer test-token',
+        'x-goog-user-project':
+          clientOptions.kind != 'express' ? clientOptions.projectId : '',
       };
-      if (clientOptions.kind !== 'express') {
-        headers['Authorization'] = 'Bearer test-token';
-        headers['x-goog-user-project'] = clientOptions.projectId;
+      if (clientOptions.apiKey) {
+        headers['x-goog-api-key'] = clientOptions.apiKey;
       }
       return headers;
     }
 
     function runTestsForClientOptions(clientOptions: ClientOptions) {
-      const keySuffix =
-        clientOptions.kind === 'express' ? `?key=${clientOptions.apiKey}` : '';
-
       const expectedUrl = getVertexAIUrl({
         includeProjectAndLocation: true,
         resourcePath: `publishers/google/models/${modelName}`,
@@ -270,17 +264,12 @@ describe('Vertex AI Imagen', () => {
         mockFetchResponse(mockResponse);
 
         const modelRunner = captureModelRunner(clientOptions);
-        const result = await modelRunner(request);
+        const result = await modelRunner(request, {});
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
         let actualUrl = fetchArgs[0];
-        if (clientOptions.kind === 'express') {
-          assert.ok(actualUrl.startsWith(expectedUrl.split('?')[0]));
-          assert.ok(actualUrl.endsWith(keySuffix));
-        } else {
-          assert.strictEqual(actualUrl, expectedUrl);
-        }
+        assert.strictEqual(actualUrl, expectedUrl);
         assert.strictEqual(fetchArgs[1].method, 'POST');
         assert.deepStrictEqual(
           fetchArgs[1].headers,
@@ -322,7 +311,7 @@ describe('Vertex AI Imagen', () => {
 
         const modelRunner = captureModelRunner(clientOptions);
         await assert.rejects(
-          modelRunner(request),
+          modelRunner(request, {}),
           /Model returned no predictions/
         );
         sinon.assert.calledOnce(fetchStub);
@@ -337,7 +326,7 @@ describe('Vertex AI Imagen', () => {
 
         const modelRunner = captureModelRunner(clientOptions);
         await assert.rejects(
-          modelRunner(request),
+          modelRunner(request, {}),
           new RegExp(
             `^Error: Failed to fetch from ${escapeRegExp(expectedUrl)}: Network Error`
           )
@@ -354,11 +343,8 @@ describe('Vertex AI Imagen', () => {
 
         const modelRunner = captureModelRunner(clientOptions);
         let expectedUrlRegex = escapeRegExp(expectedUrl);
-        if (clientOptions.kind === 'express') {
-          expectedUrlRegex = expectedUrl.split('?')[0] + '.*';
-        }
         await assert.rejects(
-          modelRunner(request),
+          modelRunner(request, {}),
           new RegExp(
             `^Error: Failed to fetch from ${expectedUrlRegex}: Error fetching from ${expectedUrlRegex}: \\[400 Error\\] ${errorMsg}`
           )
@@ -374,8 +360,7 @@ describe('Vertex AI Imagen', () => {
       runTestsForClientOptions(globalClientOptions);
     });
 
-    describe('with ExpressClientOptions', () => {
-      runTestsForClientOptions(expressClientOptions);
-    });
+    // ExpressClientOptions does not support Imagen
+    // We have 'does not support' tests elsewhere
   });
 });
