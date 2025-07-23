@@ -60,8 +60,25 @@ export const start = new Command('start')
         open(`http://localhost:${port}`);
       }
     }
-    await managerPromise.then((manager: RuntimeManager) => {
+    await managerPromise.then(async (manager: RuntimeManager) => {
       const telemetryServerUrl = manager?.telemetryServerUrl;
+
+      if (start.args.length === 0) {
+        logger.log({
+          message: `Starting Genkit Developer UI Playground...`,
+          level: 'info',
+        });
+        // Make a 'playground' directory and write a simple starter.ts file in it.
+        try {
+          const playgroundFile = await manager.createPlaygroundStarterScript();
+          start.args.push('npx', 'tsx', '--watch', playgroundFile);
+        } catch (e) {
+          logger.error({
+            message: 'Creating a playground starter script failed.',
+          });
+        }
+      }
+
       return startRuntime(telemetryServerUrl);
     });
   });

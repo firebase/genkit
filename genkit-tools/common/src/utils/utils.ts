@@ -19,6 +19,7 @@ import * as path from 'path';
 import type { Runtime } from '../manager/types';
 import { isConnectionRefusedError } from './errors';
 import { logger } from './logger';
+import { writeFile } from 'fs/promises';
 
 export interface DevToolsInfo {
   /** URL of the dev tools server. */
@@ -90,6 +91,14 @@ export async function findRuntimesDir(projectRoot: string): Promise<string> {
  */
 export async function findServersDir(projectRoot: string): Promise<string> {
   return path.join(projectRoot, '.genkit', 'servers');
+}
+
+/**
+ * Finds the Genkit hidden directory containing playground scripts.
+ */
+export async function findPlaygroundDir(projectRoot: string): Promise<string> {
+  return projectRoot;
+  // return path.join(projectRoot, 'playground');
 }
 
 /**
@@ -261,5 +270,30 @@ export async function removeToolsInfoFile(
     logger.debug(`Removed unhealthy toolsInfo file ${fileName} from manager.`);
   } catch (error) {
     logger.debug(`Failed to delete toolsInfo file: ${error}`);
+  }
+}
+
+/**
+ * If the given file path does not exist, it creates it and writes the given
+ * content to it. If the file already exists, it does nothing.
+ */
+export async function writeFileIfNotExists(
+  filePath: string,
+  content: string
+): Promise<void> {
+  try {
+    await fs.access(filePath);
+    logger.debug(`Found an existing file: ${filePath}`);
+  } catch (error: any) {
+    // File didn't exist. Create one.
+    if (error.code === 'ENOENT') {
+      // If writeFile fails, this await will throw an error, which will cause
+      // the Promise to reject.
+      await writeFile(filePath, content);
+      logger.debug(`Created a new file: ${filePath}`);
+    } else {
+      // For other errors such as permissions, rethrow to reject the Promise.
+      throw error;
+    }
   }
 }

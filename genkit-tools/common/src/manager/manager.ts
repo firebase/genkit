@@ -44,6 +44,7 @@ import {
   type RuntimeInfo,
   type StreamingCallback,
 } from './types';
+import { PlaygroundManager } from '../playground';
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;
@@ -63,12 +64,15 @@ export class RuntimeManager {
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
   private eventEmitter = new EventEmitter();
+  private playgroundManager: PlaygroundManager;
 
   private constructor(
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
     readonly projectRoot: string
-  ) {}
+  ) {
+    this.playgroundManager = new PlaygroundManager(projectRoot);
+  }
 
   /**
    * Creates a new runtime manager.
@@ -543,6 +547,16 @@ export class RuntimeManager {
         `Removed unhealthy runtime with ID ${runtime.id} from manager.`
       );
     }
+  }
+
+  /**
+   * Writes a Genkit Typescript project to disk that can be used as a
+   * playground starting point. Does nothing if one exists already.
+   *
+   * @return The path to the starter script.
+   */
+  async createPlaygroundStarterScript(): Promise<string> {
+    return this.playgroundManager.createPlayground();
   }
 }
 
