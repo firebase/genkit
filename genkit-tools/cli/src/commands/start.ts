@@ -64,18 +64,12 @@ export const start = new Command('start')
       const telemetryServerUrl = manager?.telemetryServerUrl;
 
       if (start.args.length === 0) {
-        logger.log({
-          message: `Starting Genkit Developer UI Playground...`,
-          level: 'info',
-        });
-        // Make a 'playground' directory and write a simple starter.ts file in it.
+        // Make a 'playground' starter project for the user.
         try {
           const playgroundFile = await manager.createPlaygroundStarterScript();
           start.args.push('npx', 'tsx', '--watch', playgroundFile);
         } catch (e) {
-          logger.error({
-            message: 'Creating a playground starter script failed.',
-          });
+          logger.error('⛔ Creating Developer UI Playground failed.');
         }
       }
 

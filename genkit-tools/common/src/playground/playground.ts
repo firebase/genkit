@@ -38,7 +38,6 @@ export class PlaygroundManager {
     await this.npmInitIfNeeded(this.projectRoot);
 
     // Install the minimum dependencies.
-    logger.debug(`Installing dependencies...`);
     await this.runCommand(this.projectRoot, 'npm', [
       'install',
       'genkit',
@@ -54,6 +53,8 @@ export class PlaygroundManager {
     );
     await writeFileIfNotExists(scriptFilePath, playgroundStarterScript);
 
+    logger.info('✅ Developer UI Playground initialization completed.');
+
     return scriptFilePath;
   }
 
@@ -68,11 +69,11 @@ export class PlaygroundManager {
     const packageFilePath = path.join(directory, this.packageJsonName);
     try {
       await fs.access(packageFilePath);
-      logger.debug(`Found an existing project.`);
+      logger.info('Found an existing Developer UI Playground project.');
     } catch (error: any) {
       // File didn't exist. Create one.
       if (error.code === 'ENOENT') {
-        logger.debug(`Creating a new project...`);
+        logger.info(`Creating a new Developer UI Playground project...`);
         await this.runCommand(directory, 'npm', ['init', '-y']);
       } else {
         // For other errors such as permissions, rethrow to reject the Promise.
@@ -100,7 +101,6 @@ export class PlaygroundManager {
         process.platform === 'win32' ? `${command}.cmd` : command;
       const childProcess = spawn(fullCommand, args, {
         cwd: directory,
-        stdio: 'inherit',
       });
 
       // The 'close' event signals that the process has finished.
