@@ -186,6 +186,7 @@ export type SpanMetadata = z.infer<typeof SpanMetadataSchema>;
 export type SpanData = z.infer<typeof SpanDataSchema>;
 export type TraceData = z.infer<typeof TraceDataSchema>;
 export type NestedSpanData = z.infer<typeof NestedSpanDataSchema>;
+export type Link = z.infer<typeof LinkSchema>;
 
 /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export type CandidateError = z.infer<typeof CandidateErrorSchema>;
