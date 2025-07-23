@@ -106,3 +106,29 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 
 	return m, nil
 }
+
+// ParseChunk parses a streaming chunk and returns parsed JSONL data.
+// Based on JS version: js/ai/src/formats/jsonl.ts parseChunk method
+func (j jsonlHandler) ParseChunk(chunk *ModelResponseChunk, accumulatedText string) (interface{}, error) {
+	if chunk == nil || len(chunk.Content) == 0 {
+		return nil, nil
+	}
+
+	// Extract JSON objects from accumulated text (one per line)
+	lines := base.GetJsonObjectLines(accumulatedText)
+	if len(lines) > 0 {
+		// For JSONL, return array of parsed objects
+		var items []interface{}
+		for _, line := range lines {
+			var item interface{}
+			if err := json.Unmarshal([]byte(line), &item); err == nil {
+				items = append(items, item)
+			}
+		}
+		if len(items) > 0 {
+			return items, nil
+		}
+	}
+
+	return nil, nil
+}

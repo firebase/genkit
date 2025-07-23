@@ -103,3 +103,30 @@ func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
 
 	return m, nil
 }
+
+// ParseChunk parses a streaming chunk and returns parsed array data.
+// Based on JS version: js/ai/src/formats/array.ts parseChunk method
+func (a arrayHandler) ParseChunk(chunk *ModelResponseChunk, accumulatedText string) (interface{}, error) {
+	if chunk == nil || len(chunk.Content) == 0 {
+		return nil, nil
+	}
+
+	// Try to extract array items from accumulated text
+	items := base.ExtractItems(accumulatedText)
+	if len(items) > 0 {
+		return items, nil
+	}
+
+	// If no items found, try partial JSON parsing
+	data, err := base.ParsePartialJSON(accumulatedText)
+	if err != nil {
+		return nil, nil
+	}
+
+	// Check if data is an array
+	if arr, ok := data.([]interface{}); ok {
+		return arr, nil
+	}
+
+	return nil, nil
+}
