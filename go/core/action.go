@@ -212,7 +212,6 @@ func newAction[In, Out, Stream any](
 	return &ActionDef[In, Out, Stream]{
 		tstate: tstate,
 		fn: func(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error) {
-			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
 			return fn(ctx, input, cb)
 		},
 		desc: &ActionDesc{
@@ -249,9 +248,10 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 	}()
 
 	return tracing.RunInNewSpan(ctx, a.tstate, &tracing.SpanMetadata{
-		Name:   a.desc.Name,
-		Type:   "action",
-		IsRoot: false,
+		Name:    a.desc.Name,
+		Type:    "action",            // All actions get type "action" to match TypeScript
+		Subtype: string(a.desc.Type), // The actual action type becomes the subtype
+		IsRoot:  false,
 	}, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()

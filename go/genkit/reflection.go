@@ -34,6 +34,7 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type streamingCallback[Stream any] = func(context.Context, Stream) error
@@ -435,31 +436,35 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		ctx = core.WithActionContext(ctx, runtimeContext)
 	}
 
-	// Prepare telemetry labels
-	telemetryMap := make(map[string]string)
-	telemetryMap["genkit-dev-internal"] = "true"
-
-	// Add custom telemetry labels from the request
+	// Parse telemetry labels if provided
+	var telemetryAttributes map[string]string
 	if telemetryLabels != nil {
-		var telemetryAttributes map[string]string
 		err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
 		if err != nil {
 			return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
 		}
-		for k, v := range telemetryAttributes {
-			telemetryMap[k] = v
-		}
 	}
 
-	// Call action directly with telemetry labels - no wrapper span needed!
-	result, err := action.(core.Action).RunJSON(ctx, input, cb, telemetryMap)
+	var traceID string
+	output, err := tracing.RunInNewSpan(ctx, g.reg.TracingState(), &tracing.SpanMetadata{
+		Name:            "dev-run-action-wrapper",
+		Type:            "action", // Wrapper action gets type "action"
+		IsRoot:          true,
+		TelemetryLabels: telemetryAttributes, // Set telemetry labels as attributes
+		Metadata: map[string]string{
+			"genkit-dev-internal": "true", // Mark as dev internal
+		},
+	}, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
+		return action.(core.Action).RunJSON(ctx, input, cb)
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	return &runActionResponse{
-		Result:    result.Result,
-		Telemetry: telemetry{TraceID: result.SpanInfo.TraceID},
+		Result:    output,
+		Telemetry: telemetry{TraceID: traceID},
 	}, nil
 }
 

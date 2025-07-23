@@ -202,7 +202,7 @@ func (gc *GoogleCloud) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 		return fmt.Errorf("failed to create trace exporter: %w", err)
 	}
 
-	// Create adjusting trace exporter that handles both PII filtering and telemetry processing
+	// Create adjusting trace exporter that handles both PII filtering and telemetry processing (matches JS)
 	adjustingExporter := &AdjustingTraceExporter{
 		exporter:          baseExporter,
 		modules:           gc.modules,
@@ -248,7 +248,7 @@ func setLogHandler(projectID string, level slog.Leveler) error {
 	return nil
 }
 
-// AdjustingTraceExporter combines PII filtering and telemetry processing
+// AdjustingTraceExporter combines PII filtering and telemetry processing (matches JS AdjustingTraceExporter)
 type AdjustingTraceExporter struct {
 	exporter          sdktrace.SpanExporter
 	modules           []Telemetry
@@ -260,7 +260,7 @@ type AdjustingTraceExporter struct {
 func (e *AdjustingTraceExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	slog.Debug("Processing span batch", "span_count", len(spans), "modules_count", len(e.modules))
 
-	// Process and adjust spans (both telemetry and PII filtering)
+	// Process and adjust spans (both telemetry and PII filtering) - matches JS adjust() method
 	adjustedSpans := e.adjust(spans)
 
 	slog.Debug("Span batch processed", "spans_processed_total", e.spansProcessed)
@@ -281,7 +281,7 @@ func (e *AdjustingTraceExporter) ForceFlush(ctx context.Context) error {
 	return nil
 }
 
-// adjust processes and adjusts spans
+// adjust processes and adjusts spans (matches JS AdjustingTraceExporter.adjust method)
 func (e *AdjustingTraceExporter) adjust(spans []sdktrace.ReadOnlySpan) []sdktrace.ReadOnlySpan {
 	var adjustedSpans []sdktrace.ReadOnlySpan
 
@@ -297,6 +297,7 @@ func (e *AdjustingTraceExporter) adjust(spans []sdktrace.ReadOnlySpan) []sdktrac
 		adjustedSpan = e.markFailedSpan(adjustedSpan)
 		adjustedSpan = e.markGenkitFeature(adjustedSpan)
 		adjustedSpan = e.markGenkitModel(adjustedSpan)
+		adjustedSpan = e.setRootState(adjustedSpan)
 		adjustedSpan = e.normalizeLabels(adjustedSpan)
 
 		adjustedSpans = append(adjustedSpans, adjustedSpan)
@@ -476,6 +477,35 @@ func (e *AdjustingTraceExporter) normalizeLabels(span sdktrace.ReadOnlySpan) sdk
 					Value: attr.Value,
 				}
 			}
+			return newAttrs
+		},
+	}
+}
+
+// setRootState copies genkit:state to genkit:rootState for root spans
+func (e *AdjustingTraceExporter) setRootState(span sdktrace.ReadOnlySpan) sdktrace.ReadOnlySpan {
+	var isRoot bool
+	var state string
+
+	for _, attr := range span.Attributes() {
+		if attr.Key == "genkit:isRoot" {
+			isRoot = attr.Value.AsBool()
+		}
+		if attr.Key == "genkit:state" {
+			state = attr.Value.AsString()
+		}
+	}
+
+	if !isRoot || state == "" {
+		return span
+	}
+
+	return &spanWithModifiedAttributes{
+		ReadOnlySpan: span,
+		modifyFunc: func(attrs []attribute.KeyValue) []attribute.KeyValue {
+			newAttrs := make([]attribute.KeyValue, len(attrs))
+			copy(newAttrs, attrs)
+			newAttrs = append(newAttrs, attribute.String("genkit:rootState", state))
 			return newAttrs
 		},
 	}
