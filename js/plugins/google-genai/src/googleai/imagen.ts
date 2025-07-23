@@ -89,6 +89,7 @@ function commonRef(
 ): ModelReference<ConfigSchemaType> {
   return modelRef({
     name: `googleai/${name}`,
+    version: name,
     configSchema,
     info: info ?? {
       supports: {

@@ -444,6 +444,9 @@ function aggregateResponses(
 
           for (const part of candidate.content.parts) {
             const newPart: Partial<Part> = {};
+            if (part.thought) {
+              newPart.thought = part.thought;
+            }
             if (part.text) {
               newPart.text = part.text;
             }

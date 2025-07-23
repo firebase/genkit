@@ -228,6 +228,10 @@ function toVeoParameters(
   // It's pulled out and used separately
   delete out.apiKey;
 
+  // This was used to help us figure out which model. We no longer need
+  // it here.
+  delete out.version;
+
   return out;
 }
 
