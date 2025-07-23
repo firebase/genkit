@@ -27,14 +27,30 @@ from genkit.core.action.types import ActionKind
 @pytest.mark.parametrize(
     'kind, name',
     [
-        (ActionKind.MODEL, 'test_model'),
-        (ActionKind.EMBEDDER, 'test_embedder'),
+        (ActionKind.INDEXER, 'test_indexer'),
+        (ActionKind.RETRIEVER, 'test_retriever'),
     ],
 )
 def test_action_resolve(kind, name, vectorstore_plugin_instance):
     """Test initialize method of Vectorstore plugin."""
     ai_mock = MagicMock(spec=Genkit)
     assert hasattr(vectorstore_plugin_instance, "resolve_action")
-    assert  vectorstore_plugin_instance.resolve_action(ai_mock, kind, name) is None
 
+    if kind == ActionKind.RETRIEVER:
+        vectorstore_plugin_instance._configure_dev_local_retriever = MagicMock()
 
+        assert vectorstore_plugin_instance.resolve_action(ai_mock, kind, name) is None
+
+        vectorstore_plugin_instance._configure_dev_local_retriever.assert_called_once_with(
+            ai_mock,
+            name
+        )
+    else:
+        vectorstore_plugin_instance._configure_dev_local_indexer = MagicMock()
+
+        assert vectorstore_plugin_instance.resolve_action(ai_mock, kind, name) is None
+
+        vectorstore_plugin_instance._configure_dev_local_indexer.assert_called_once_with(
+            ai_mock,
+            name
+        )
