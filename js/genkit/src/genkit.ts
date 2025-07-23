@@ -145,6 +145,8 @@ export interface GenkitOptions {
   model?: ModelArgument<any>;
   /** Additional runtime context data for flows and tools. */
   context?: ActionContext;
+  /** Display name that will be shown in developer tooling. */
+  name?: string;
 }
 
 /**
@@ -180,6 +182,7 @@ export class Genkit implements HasRegistry {
     if (isDevEnv() && !disableReflectionApi) {
       this.reflectionServer = new ReflectionServer(this.registry, {
         configuredEnvs: ['dev'],
+        name: this.options.name,
       });
       this.reflectionServer.start().catch((e) => logger.error);
     }

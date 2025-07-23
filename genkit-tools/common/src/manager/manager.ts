@@ -569,6 +569,7 @@ function isValidRuntimeInfo(data: any): data is RuntimeInfo {
     typeof data === 'object' &&
     typeof data.id === 'string' &&
     typeof data.pid === 'number' &&
+    typeof data.name === 'string' &&
     typeof data.reflectionServerUrl === 'string' &&
     typeof data.timestamp === 'string' &&
     !isNaN(Date.parse(timestamp))

@@ -81,11 +81,13 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 
 // a second instance, just for fun
 export const ai2 = genkit({
+  name: 'Instance Two',
   model: gemini15Flash,
   plugins: [googleAI()],
 });
 
 export const ai = genkit({
+  name: 'Instance One',
   model: gemini15Flash,
   // load at least one plugin representing each action type
   plugins: [
