@@ -169,7 +169,7 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 			}
 		}
 
-		out, err := a.RunJSON(ctx, body.Data, callback, nil)
+		out, err := a.RunJSON(ctx, body.Data, callback)
 		if err != nil {
 			if stream {
 				_, err = fmt.Fprintf(w, "data: {\"error\": {\"status\": \"INTERNAL\", \"message\": \"stream flow error\", \"details\": \"%v\"}}\n\n", err)
@@ -178,11 +178,11 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 			return err
 		}
 		if stream {
-			_, err = fmt.Fprintf(w, "data: {\"result\": %s}\n\n", out.Result)
+			_, err = fmt.Fprintf(w, "data: {\"result\": %s}\n\n", out)
 			return err
 		}
 
-		_, err = fmt.Fprintf(w, "{\"result\": %s}\n", out.Result)
+		_, err = fmt.Fprintf(w, "{\"result\": %s}\n", out)
 		return err
 	}
 }
