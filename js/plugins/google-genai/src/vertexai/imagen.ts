@@ -39,6 +39,7 @@ import {
   extractImagenImage,
   extractImagenMask,
   extractText,
+  extractVersion,
   modelName,
 } from './utils';
 
@@ -238,7 +239,6 @@ export function model(
   }
   return modelRef({
     name: `vertexai/${name}`,
-    version,
     config,
     configSchema: ImagenConfigSchema,
     info: {
@@ -299,7 +299,7 @@ export function defineModel(
       };
 
       const response = await imagenPredict(
-        ref.version as string,
+        extractVersion(ref),
         imagenPredictRequest,
         clientOpt
       );

@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { GenkitError, JSONSchema } from 'genkit';
+import {
+  EmbedderReference,
+  GenkitError,
+  JSONSchema,
+  ModelReference,
+  z,
+} from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { ImagenInstance } from './types';
 
@@ -38,6 +44,19 @@ export function extractErrMsg(e: unknown): string {
     }
   }
   return errorMessage;
+}
+
+/**
+ * Gets the un-prefixed model name from a modelReference
+ */
+export function extractVersion(
+  model: ModelReference<z.ZodTypeAny> | EmbedderReference<z.ZodTypeAny>
+): string {
+  return model.name.startsWith('googleai/')
+    ? model.name.substring('googleai/'.length)
+    : model.name.startsWith('vertexai/')
+      ? model.name.substring('vertexai/'.length)
+      : model.name;
 }
 
 /**

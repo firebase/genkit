@@ -43,6 +43,7 @@ import {
   checkModelName,
   extractText,
   extractVeoImage,
+  extractVersion,
   modelName,
 } from './utils.js';
 
@@ -124,7 +125,6 @@ export function model(
   const name = checkModelName(version);
   return modelRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: VeoConfigSchema,
     info: { ...GENERIC_MODEL.info },
@@ -192,7 +192,7 @@ export function defineModel(
 
       const response = await veoPredict(
         apiKey,
-        ref.version as string,
+        extractVersion(ref),
         veoPredictRequest,
         clientOptions
       );

@@ -45,6 +45,7 @@ import {
   checkModelName,
   extractImagenImage,
   extractText,
+  extractVersion,
   modelName,
 } from './utils.js';
 
@@ -89,7 +90,6 @@ function commonRef(
 ): ModelReference<ConfigSchemaType> {
   return modelRef({
     name: `googleai/${name}`,
-    version: name,
     configSchema,
     info: info ?? {
       supports: {
@@ -143,7 +143,6 @@ export function model(
 
   return modelRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: ImagenConfigSchema,
     info: {
@@ -214,7 +213,7 @@ export function defineModel(
 
       const response = await imagenPredict(
         predictApiKey,
-        ref.version as string,
+        extractVersion(ref),
         imagenPredictRequest,
         clientOpt
       );
