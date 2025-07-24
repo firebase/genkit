@@ -253,10 +253,10 @@ describe('VertexAI Plugin', () => {
 
     it('should return metadata for gemini and imagen models, filtering others', async () => {
       const mockModels = [
-        { name: 'publishers/google/models/gemini-2.5-pro' },
-        { name: 'publishers/google/models/imagen-3.0-generate-001' },
-        { name: 'publishers/google/models/text-embedding-004' },
-        { name: 'publishers/google/models/other-model' },
+        { name: 'models/gemini-2.5-pro' },
+        { name: 'models/imagen-3.0-generate-001' },
+        { name: 'models/text-embedding-004' },
+        { name: 'models/other-model' },
       ];
       fetchMock.mock.mockImplementation(async () =>
         createMockResponse(mockModels)

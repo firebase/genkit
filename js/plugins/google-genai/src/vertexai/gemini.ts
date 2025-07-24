@@ -40,7 +40,6 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters';
-import { checkModelName, cleanSchema, modelName } from '../common/utils';
 import {
   generateContent,
   generateContentStream,
@@ -59,7 +58,13 @@ import {
   ToolConfig,
   VertexPluginOptions,
 } from './types';
-import { calculateApiKey } from './utils';
+import {
+  calculateApiKey,
+  checkModelName,
+  cleanSchema,
+  extractVersion,
+  modelName,
+} from './utils';
 
 export const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -301,7 +306,6 @@ function commonRef(
 ): ModelReference<ConfigSchemaType> {
   return modelRef({
     name: `vertexai/${name}`,
-    version: name,
     configSchema,
     info: info ?? {
       supports: {
@@ -341,7 +345,6 @@ export function model(
 
   return modelRef({
     name: `vertexai/${name}`,
-    version: name,
     config: options,
     configSchema: GeminiConfigSchema,
     info: {
@@ -583,7 +586,7 @@ export function defineModel(
         labels,
       };
 
-      const modelVersion = versionFromConfig || (ref.version as string);
+      const modelVersion = versionFromConfig || extractVersion(ref);
 
       if (jsonMode && request.output?.constrained) {
         generateContentRequest.generationConfig!.responseSchema = cleanSchema(

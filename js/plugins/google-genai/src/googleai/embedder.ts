@@ -31,7 +31,12 @@ import {
   Model,
   TaskTypeSchema,
 } from './types';
-import { calculateApiKey, checkApiKey, checkModelName } from './utils';
+import {
+  calculateApiKey,
+  checkApiKey,
+  checkModelName,
+  extractVersion,
+} from './utils';
 
 export const EmbeddingConfigSchema = z
   .object({
@@ -92,7 +97,6 @@ export function model(
   const name = checkModelName(version);
   return embedderRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: GENERIC_MODEL.configSchema,
     info: {
@@ -143,7 +147,7 @@ export function defineEmbedder(
         pluginOptions?.apiKey,
         reqOptions?.apiKey
       );
-      const embedVersion = (reqOptions?.version || ref.version) as string;
+      const embedVersion = reqOptions?.version || extractVersion(ref);
 
       const embeddings = await Promise.all(
         input.map(async (doc) => {

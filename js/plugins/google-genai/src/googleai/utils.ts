@@ -20,8 +20,10 @@ import { VeoImage } from './types.js';
 
 export {
   checkModelName,
+  cleanSchema,
   extractImagenImage,
   extractText,
+  extractVersion,
   modelName,
 } from '../common/utils.js';
 

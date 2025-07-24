@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { GenkitError, JSONSchema } from 'genkit';
+import {
+  EmbedderReference,
+  GenkitError,
+  JSONSchema,
+  ModelReference,
+  z,
+} from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { ImagenInstance } from './types';
 
@@ -41,13 +47,26 @@ export function extractErrMsg(e: unknown): string {
 }
 
 /**
- * Gets the suffix of a model string.
+ * Gets the un-prefixed model name from a modelReference
+ */
+export function extractVersion(
+  model: ModelReference<z.ZodTypeAny> | EmbedderReference<z.ZodTypeAny>
+): string {
+  return model.version ? model.version : checkModelName(model.name);
+}
+
+/**
+ * Gets the model name without certain prefixes..
  * e.g. for "models/googleai/gemini-2.5-pro" it returns just 'gemini-2.5-pro'
  * @param name A string containing the model string with possible prefixes
- * @returns the model string stripped of prefixes
+ * @returns the model string stripped of certain prefixes
  */
 export function modelName(name?: string): string | undefined {
-  return name?.split('/').at(-1);
+  if (!name) return name;
+
+  // Remove any of these prefixes: (but keep tunedModels e.g.)
+  const prefixesToRemove = /models\/|embedders\/|googleai\/|vertexai\//g;
+  return name.replace(prefixesToRemove, '');
 }
 
 /**

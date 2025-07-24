@@ -82,10 +82,9 @@ describe('Vertex AI Imagen', () => {
     });
 
     it('should handle full model path', () => {
-      const modelName =
-        'projects/my-proj/locations/us-central1/models/imagen-3.0-generate-002';
+      const modelName = 'tunedModels/my-tuned-model';
       const ref = model(modelName);
-      assert.strictEqual(ref.name, 'vertexai/imagen-3.0-generate-002');
+      assert.strictEqual(ref.name, 'vertexai/tunedModels/my-tuned-model');
     });
   });
 

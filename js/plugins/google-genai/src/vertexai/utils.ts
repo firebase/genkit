@@ -28,8 +28,10 @@ import type {
 
 export {
   checkModelName,
+  cleanSchema,
   extractImagenImage,
   extractText,
+  extractVersion,
   modelName,
 } from '../common/utils.js';
 

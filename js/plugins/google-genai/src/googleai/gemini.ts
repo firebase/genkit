@@ -40,7 +40,6 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters';
-import { cleanSchema } from '../common/utils';
 import {
   generateContent,
   generateContentStream,
@@ -59,7 +58,13 @@ import {
   Tool,
   ToolConfig,
 } from './types';
-import { calculateApiKey, checkApiKey, checkModelName } from './utils';
+import {
+  calculateApiKey,
+  checkApiKey,
+  checkModelName,
+  cleanSchema,
+  extractVersion,
+} from './utils';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
@@ -360,7 +365,6 @@ export function model(
   if (isTTSModelName(name)) {
     return modelRef({
       name: `googleai/${name}`,
-      version: name,
       config,
       configSchema: GeminiTtsConfigSchema,
       info: { ...GENERIC_TTS_MODEL.info },
@@ -370,7 +374,6 @@ export function model(
   if (isGemmaModelName(name)) {
     return modelRef({
       name: `googleai/${name}`,
-      version: name,
       config,
       configSchema: GemmaConfigSchema,
       info: { ...GENERIC_GEMMA_MODEL.info },
@@ -379,7 +382,6 @@ export function model(
 
   return modelRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: GeminiConfigSchema,
     info: { ...GENERIC_MODEL.info },
@@ -562,7 +564,7 @@ export function defineModel(
         contents: messages.map((message) => toGeminiMessage(message, ref)),
       };
 
-      const modelVersion = (versionFromConfig || ref.version) as string;
+      const modelVersion = versionFromConfig || extractVersion(ref);
 
       const generateApiKey = calculateApiKey(
         pluginOptions?.apiKey,
