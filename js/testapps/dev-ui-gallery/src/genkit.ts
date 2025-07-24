@@ -87,7 +87,6 @@ export const ai2 = genkit({
 });
 
 export const ai = genkit({
-  name: 'Instance One',
   model: gemini15Flash,
   // load at least one plugin representing each action type
   plugins: [

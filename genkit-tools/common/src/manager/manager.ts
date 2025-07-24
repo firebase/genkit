@@ -444,6 +444,9 @@ export class RuntimeManager {
       );
 
       if (isValidRuntimeInfo(runtimeInfo)) {
+        if (!runtimeInfo.name) {
+          runtimeInfo.name = runtimeInfo.id;
+        }
         const fileName = path.basename(filePath);
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
           if (
@@ -567,11 +570,12 @@ function isValidRuntimeInfo(data: any): data is RuntimeInfo {
 
   return (
     typeof data === 'object' &&
+    data !== null &&
     typeof data.id === 'string' &&
     typeof data.pid === 'number' &&
-    typeof data.name === 'string' &&
     typeof data.reflectionServerUrl === 'string' &&
     typeof data.timestamp === 'string' &&
-    !isNaN(Date.parse(timestamp))
+    !isNaN(Date.parse(timestamp)) &&
+    (data.name === undefined || typeof data.name === 'string')
   );
 }
