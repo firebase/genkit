@@ -39,7 +39,7 @@ export const start = new Command('start')
     const projectRoot = await findProjectRoot();
     if (projectRoot.includes('/.Trash/')) {
       logger.warn(
-        'It appears your current project root in in the trash folder. ' +
+        'It appears your current project root is in the trash folder. ' +
           'Please make sure that you current working directory is correct.'
       );
     }
