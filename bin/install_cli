@@ -15,7 +15,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-
+# HTML rendering helpers (these are treated as HTML comments when served as web page)
 ## <script src="./readability.js"></script>
 ## <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/themes/prism-okaidia.min.css" rel="stylesheet" />
 ## <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-core.min.js" data-manual></script>
@@ -23,7 +23,7 @@
 ## <style>body {color: #272822; background-color: #272822; font-size: 0.8em;} </style>
 
 # Configuration variables
-DOMAIN="genkit.tools"
+DOMAIN="cli.genkit.dev"
 TRACKING_ID="UA-XXXXXXXXX-X"  # Not used when analytics is commented out
 
 : ==========================================
