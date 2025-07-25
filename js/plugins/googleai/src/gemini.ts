@@ -1528,6 +1528,14 @@ export function aggregateResponses(
             if (part.text) {
               newPart.text = part.text;
             }
+            if ((part as any).thought) {
+              (newPart as any).thought = (part as any).thought;
+            }
+            if ((part as any).thoughtSignature) {
+              (newPart as any).thoughtSignature = (
+                part as any
+              ).thoughtSignature;
+            }
             if (part.functionCall) {
               newPart.functionCall = part.functionCall;
             }
