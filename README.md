@@ -164,4 +164,4 @@ Contributions to Genkit are welcome and highly appreciated! See our [Contributio
 
 ## Authors
 
-Genkit is built by [Firebase](https://firebase.google.com/products/genkit) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).
+Genkit is built by [Firebase](https://firebase.google.com/) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).
