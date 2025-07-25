@@ -1,0 +1,45 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Promote CLI Release (SIGNED - DISABLED)
+
+on:
+  workflow_dispatch:
+    inputs:
+      _disabled:
+        description: 'This workflow is disabled - use the unsigned workflow instead'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Workflow Disabled
+        run: |
+          echo "❌ This signed workflow is disabled!"
+          echo ""
+          echo "Please use the unsigned workflow instead:"
+          echo "  - Workflow: 'Promote CLI Release (Unsigned)'"
+          echo "  - File: .github/workflows/promote-cli-release.yml"
+          echo ""
+          echo "This workflow is preserved for future code signing implementation."
+          echo "When code signing is ready, this workflow will be re-enabled."
+          exit 1
