@@ -19,27 +19,25 @@ import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
+import {
+  BaseDataPointSchema,
+  BaseEvalDataPoint,
+  BaseEvalDataPointSchema,
+  EvalStatusEnumSchema,
+  ScoreSchema,
+} from '@genkit-ai/shared';
 import { randomUUID } from 'crypto';
+
+export {
+  BaseDataPointSchema,
+  BaseEvalDataPointSchema,
+  EvalStatusEnumSchema,
+  ScoreSchema,
+  type BaseEvalDataPoint,
+};
 
 export const ATTR_PREFIX = 'genkit';
 export const SPAN_STATE_ATTR = ATTR_PREFIX + ':state';
-
-export const BaseDataPointSchema = z.object({
-  input: z.unknown(),
-  output: z.unknown().optional(),
-  context: z.array(z.unknown()).optional(),
-  reference: z.unknown().optional(),
-  testCaseId: z.string().optional(),
-  traceIds: z.array(z.string()).optional(),
-});
-
-// DataPoint that is to be used for actions. This needs testCaseId to be present.
-export const BaseEvalDataPointSchema = BaseDataPointSchema.extend({
-  testCaseId: z.string(),
-});
-export type BaseEvalDataPoint = z.infer<typeof BaseEvalDataPointSchema>;
-
-const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
 
 /** Enum that indicates if an evaluation has passed or failed */
 export enum EvalStatusEnum {
@@ -47,24 +45,6 @@ export enum EvalStatusEnum {
   PASS = 'PASS',
   FAIL = 'FAIL',
 }
-
-export const ScoreSchema = z.object({
-  id: z
-    .string()
-    .describe(
-      'Optional ID to differentiate different scores if applying in a single evaluation'
-    )
-    .optional(),
-  score: z.union([z.number(), z.string(), z.boolean()]).optional(),
-  status: EvalStatusEnumSchema.optional(),
-  error: z.string().optional(),
-  details: z
-    .object({
-      reasoning: z.string().optional(),
-    })
-    .passthrough()
-    .optional(),
-});
 
 // Update genkit-tools/src/utils/evals.ts if you change this value
 export const EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName';

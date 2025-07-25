@@ -30,10 +30,20 @@ import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
+import {
+  GenerateActionOptionsSchema,
+  type DocumentData,
+  type GenerateActionOptions,
+  type GenerateRequest,
+  type GenerateRequestSchema,
+  type GenerateResponseChunkSchema,
+  type GenerateResponseSchema,
+  type MessageData,
+  type Part,
+} from '@genkit-ai/shared';
 import { Message as DpMessage, PromptFunction } from 'dotprompt';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { basename, join, resolve } from 'path';
-import type { DocumentData } from './document.js';
 import {
   generate,
   generateStream,
@@ -47,18 +57,10 @@ import {
 } from './generate.js';
 import { Message } from './message.js';
 import {
-  GenerateActionOptionsSchema,
-  type GenerateActionOptions,
-  type GenerateRequest,
-  type GenerateRequestSchema,
-  type GenerateResponseChunkSchema,
-  type GenerateResponseSchema,
-  type MessageData,
   type ModelAction,
   type ModelArgument,
   type ModelMiddleware,
   type ModelReference,
-  type Part,
 } from './model.js';
 import { getCurrentSession, type Session } from './session.js';
 import type { ToolAction, ToolArgument } from './tool.js';

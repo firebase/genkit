@@ -14,37 +14,14 @@
  * limitations under the License.
  */
 
+import { Operation, OperationSchema } from '@genkit-ai/shared';
 import type { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
-import { Action, ActionMetadata, defineAction, Middleware } from './action.js';
+import { Action, ActionMetadata, Middleware, defineAction } from './action.js';
 import { ActionContext } from './context.js';
 import { GenkitError } from './error.js';
 import { ActionType, Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
-
-/**
- * Zod schema of an opration representing a background task.
- */
-export const OperationSchema = z.object({
-  action: z.string().optional(),
-  id: z.string(),
-  done: z.boolean().optional(),
-  output: z.any().optional(),
-  error: z.object({ message: z.string() }).passthrough().optional(),
-  metadata: z.record(z.string(), z.any()).optional(),
-});
-
-/**
- * Background operation.
- */
-export interface Operation<O = any> {
-  action?: string;
-  id: string;
-  done?: boolean;
-  output?: O;
-  error?: { message: string; [key: string]: unknown };
-  metadata?: Record<string, any>;
-}
 
 /**
  * Background action. Unlike regular action, background action can run for a long time in the background.

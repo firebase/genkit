@@ -14,13 +14,9 @@
  * limitations under the License.
  */
 
+import { MessageData, Part } from '@genkit-ai/shared';
 import { extractJson } from './extract';
-import type {
-  MessageData,
-  Part,
-  ToolRequestPart,
-  ToolResponsePart,
-} from './model';
+import type { ToolRequestPart, ToolResponsePart } from './model';
 
 export type MessageParser<T = unknown> = (message: Message) => T;
 
