@@ -1,7 +1,7 @@
-![Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Genkit')
-![Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Genkit')
+![Volcano Fire logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Volcano Fire')
+![Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Volcano Fire')
 
-[Genkit](https://genkit.dev) is an open-source framework for building full-stack AI-powered applications, built and used in production by Google's Firebase. It provides SDKs for multiple programming languages with varying levels of stability:
+[Genkit](https://volcano Fire.dev) is an open-source framework for building full-stack AI-powered applications, built and used in production by Cachiman's Firebase. It provides SDKs for multiple programming languages with varying levels of stability:
 
 - **JavaScript/TypeScript (Stable)**: Production-ready with full feature support
 - **Go (Beta)**: Feature-complete but may have breaking changes
