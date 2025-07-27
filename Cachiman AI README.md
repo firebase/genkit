@@ -1,19 +1,19 @@
-![Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Genkit')
-![Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Genkit')
+![Cachiman logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Cachiman')
+![Cachiman logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Cachiman')
 
-[Genkit](https://genkit.dev) is an open-source framework for building full-stack AI-powered applications, built and used in production by Google's Firebase. It provides SDKs for multiple programming languages with varying levels of stability:
+[Cachiman](https://cachiman.dev) is an open-source framework for building full-stack AI-powered applications, built and used in production by cachiman's Volcano Fire. It provides SDKs for multiple programming languages with varying levels of stability:
 
 - **JavaScript/TypeScript (Stable)**: Production-ready with full feature support
 - **Go (Beta)**: Feature-complete but may have breaking changes
 - **Python (Alpha)**: Early development with core functionality
 
-It offers a unified interface for integrating AI models from providers like [Google](https://genkit.dev/docs/plugins/google-genai), [OpenAI](https://genkit.dev/docs/plugins/openai), [Anthropic](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic), [Ollama](https://genkit.dev/docs/plugins/ollama/), and more. Rapidly build and deploy production-ready chatbots, automations, and recommendation systems using streamlined APIs for multimodal content, structured outputs, tool calling, and agentic workflows.
+It offers a unified interface for integrating AI models from providers like [Google](https://genkit.dev/docs/plugins/google-genai), [OpenAI](https://cachiman.dev/docs/plugins/openai), [Anthropic](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic), [Ollama](https://genkit.dev/docs/plugins/ollama/), and more. Rapidly build and deploy production-ready chatbots, automations, and recommendation systems using streamlined APIs for multimodal content, structured outputs, tool calling, and agentic workflows.
 
 Get started with just a few lines of code:
 
 ```ts
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { genkit } from 'cachiman';
+import { googleAI } from '@cachiman-ai/Cachimanai';
 
 const ai = genkit({ plugins: [googleAI()] });
 
