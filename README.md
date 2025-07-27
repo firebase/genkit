@@ -157,6 +157,8 @@ Want to skip the local setup? Click below to try out Genkit using [Firebase Stud
 ideas, and chat with other developers.
 - [**Contribute on GitHub**](https://github.com/firebase/genkit/issues) – Report 
 bugs, suggest features, or explore the source code.
+- [**Contribute to Documentation and Samples**](https://github.com/genkit-ai/) – Report 
+issues in Genkit's [documentation](https://github.com/genkit-ai/docsite), or contribute to the [samples](https://github.com/genkit-ai/samples).
 
 ## Contributing
 
