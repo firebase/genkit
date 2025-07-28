@@ -477,8 +477,8 @@ async function gatherEvalInput(params: {
     traceId,
   });
 
-  // Always use original input for models.
-  const input = actionType === 'model' ? state.input : extractors.input(trace);
+  // Always use original input for models and prompts.
+  const input = actionType === 'flow' ? extractors.input(trace) : state.input;
 
   const nestedSpan = stackTraceSpans(trace);
   if (!nestedSpan) {
