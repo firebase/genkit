@@ -152,12 +152,15 @@ async function startAndWaitUntilHealthy(
     );
   }
 
+  const command = `"${spawnConfig.command}"`;
+  const args = spawnConfig.args.map((arg) => `"${arg}"`);
+
   logger.debug(
-    `Spawning: ${spawnConfig.command} ${spawnConfig.args.join(' ')}`
+    `Spawning: ${command} ${args.join(' ')}`
   );
   const child = spawn(
-    spawnConfig.command,
-    spawnConfig.args,
+    command,
+    args,
     spawnConfig.options
   );
 
