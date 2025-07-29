@@ -155,14 +155,8 @@ async function startAndWaitUntilHealthy(
   const command = `"${spawnConfig.command}"`;
   const args = spawnConfig.args.map((arg) => `"${arg}"`);
 
-  logger.debug(
-    `Spawning: ${command} ${args.join(' ')}`
-  );
-  const child = spawn(
-    command,
-    args,
-    spawnConfig.options
-  );
+  logger.debug(`Spawning: ${command} ${args.join(' ')}`);
+  const child = spawn(command, args, spawnConfig.options);
 
   // Wait for the process to be ready
   return new Promise<ChildProcess>((resolve, reject) => {
