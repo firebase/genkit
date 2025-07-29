@@ -132,83 +132,74 @@ async function startAndWaitUntilHealthy(
   port: number,
   serversDir: string
 ): Promise<ChildProcess> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Detect runtime environment
-      const runtime = detectRuntime();
-      logger.debug(`Detected runtime: ${runtime.type} at ${runtime.execPath}`);
-      if (runtime.scriptPath) {
-        logger.debug(`Script path: ${runtime.scriptPath}`);
-      }
+  // Detect runtime environment
+  const runtime = detectRuntime();
+  logger.debug(`Detected runtime: ${runtime.type} at ${runtime.execPath}`);
+  if (runtime.scriptPath) {
+    logger.debug(`Script path: ${runtime.scriptPath}`);
+  }
 
-      // Build spawn configuration
-      const logPath = path.join(serversDir, 'devui.log');
-      const spawnConfig = buildServerHarnessSpawnConfig(runtime, port, logPath);
+  // Build spawn configuration
+  const logPath = path.join(serversDir, 'devui.log');
+  const spawnConfig = buildServerHarnessSpawnConfig(runtime, port, logPath);
 
-      // Validate executable path
-      const isExecutable = await validateExecutablePath(spawnConfig.command);
-      if (!isExecutable) {
-        throw new GenkitToolsError(
-          `Unable to execute command: ${spawnConfig.command}. ` +
-            `The file does not exist or is not executable.`
-        );
-      }
+  // Validate executable path
+  const isExecutable = await validateExecutablePath(spawnConfig.command);
+  if (!isExecutable) {
+    throw new GenkitToolsError(
+      `Unable to execute command: ${spawnConfig.command}. ` +
+        `The file does not exist or is not executable.`
+    );
+  }
 
-      logger.debug(
-        `Spawning: ${spawnConfig.command} ${spawnConfig.args.join(' ')}`
+  logger.debug(
+    `Spawning: ${spawnConfig.command} ${spawnConfig.args.join(' ')}`
+  );
+  const child = spawn(
+    spawnConfig.command,
+    spawnConfig.args,
+    spawnConfig.options
+  );
+
+  // Wait for the process to be ready
+  return new Promise<ChildProcess>((resolve, reject) => {
+    // Handle process events
+    child.on('error', (error) => {
+      logger.error(`Failed to start UI process: ${error.message}`);
+      reject(
+        new GenkitToolsError(`Failed to start UI process: ${error.message}`, {
+          cause: error,
+        })
       );
-      const child = spawn(
-        spawnConfig.command,
-        spawnConfig.args,
-        spawnConfig.options
-      );
+    });
 
-      // Handle process events
-      child.on('error', (error) => {
-        logger.error(`Failed to start UI process: ${error.message}`);
+    child.on('exit', (code) => {
+      const msg = `UI process exited unexpectedly with code ${code}`;
+      logger.error(msg);
+      reject(new GenkitToolsError(msg));
+    });
+
+    // Wait for the UI to become healthy
+    waitUntilHealthy(`http://localhost:${port}`, 10000 /* 10 seconds */)
+      .then((isHealthy) => {
+        if (isHealthy) {
+          child.unref();
+          resolve(child);
+        } else {
+          const msg =
+            'Timed out while waiting for UI to become healthy. ' +
+            'To view full logs, set DEBUG environment variable.';
+          logger.error(msg);
+          reject(new GenkitToolsError(msg));
+        }
+      })
+      .catch((error) => {
+        logger.error(`Health check failed: ${error.message}`);
         reject(
-          new GenkitToolsError(`Failed to start UI process: ${error.message}`, {
+          new GenkitToolsError(`Health check failed: ${error.message}`, {
             cause: error,
           })
         );
       });
-
-      child.on('exit', (code) => {
-        const msg = `UI process exited unexpectedly with code ${code}`;
-        logger.error(msg);
-        reject(new GenkitToolsError(msg));
-      });
-
-      // Wait for the UI to become healthy
-      waitUntilHealthy(`http://localhost:${port}`, 10000 /* 10 seconds */)
-        .then((isHealthy) => {
-          if (isHealthy) {
-            child.unref();
-            resolve(child);
-          } else {
-            const msg =
-              'Timed out while waiting for UI to become healthy. ' +
-              'To view full logs, set DEBUG environment variable.';
-            logger.error(msg);
-            reject(new GenkitToolsError(msg));
-          }
-        })
-        .catch((error) => {
-          logger.error(`Health check failed: ${error.message}`);
-          reject(
-            new GenkitToolsError(`Health check failed: ${error.message}`, {
-              cause: error,
-            })
-          );
-        });
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to start UI: ${msg}`);
-      reject(
-        error instanceof GenkitToolsError
-          ? error
-          : new GenkitToolsError(msg, { cause: error })
-      );
-    }
   });
 }

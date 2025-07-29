@@ -46,6 +46,15 @@ export async function validateExecutablePath(path: string): Promise<boolean> {
 }
 
 /**
+ * Validates that a port number is valid (integer between 0 and 65535)
+ * @param port - Port number to validate
+ * @returns true if the port is valid
+ */
+function isValidPort(port: number): boolean {
+  return Number.isInteger(port) && port >= 0 && port <= 65535;
+}
+
+/**
  * Builds spawn configuration for the server harness based on runtime info
  *
  * @param runtime - Runtime information from detector
@@ -73,7 +82,7 @@ export function buildServerHarnessSpawnConfig(
   if (!runtime.execPath) {
     throw new Error('Runtime execPath is required');
   }
-  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+  if (!isValidPort(port)) {
     throw new Error(
       `Invalid port number: ${port}. Must be between 0 and 65535`
     );
