@@ -453,5 +453,23 @@ describe('runtime-detector', () => {
       expect(result.scriptPath).toBe('/path/to/script.xyz');
       expect(result.isCompiledBinary).toBe(false);
     });
+
+    it('should detect Bun-compiled binary with virtual filesystem path', () => {
+      process.argv = ['/usr/local/bin/genkit', '/$bunfs/root/genkit'];
+      process.execPath = '/usr/local/bin/genkit';
+      mockedFs.existsSync.mockReturnValue(false); // Virtual path doesn't exist on real filesystem
+      Object.defineProperty(process, 'versions', {
+        value: { ...originalVersions, bun: '1.0.0' },
+        writable: true,
+        configurable: true,
+      });
+
+      const result = detectRuntime();
+
+      expect(result.type).toBe('compiled-binary');
+      expect(result.execPath).toBe('/usr/local/bin/genkit');
+      expect(result.scriptPath).toBeUndefined();
+      expect(result.isCompiledBinary).toBe(true);
+    });
   });
 });

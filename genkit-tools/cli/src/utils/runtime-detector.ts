@@ -122,10 +122,19 @@ export function detectRuntime(): RuntimeInfo {
   
   // Determine runtime type based on most reliable indicators
   if (hasBunVersion || execMatchesBun || argv0MatchesBun) {
-    // Definitely Bun
-    type = RUNTIME_BUN;
-    scriptPath = argv1;
-    isCompiledBinary = false;
+    // Check if this is a Bun-compiled binary
+    // Bun compiled binaries have virtual paths like /$bunfs/root/...
+    if (argv1 && argv1.startsWith('/$bunfs/')) {
+      // This is a Bun-compiled binary
+      type = RUNTIME_COMPILED;
+      scriptPath = undefined;
+      isCompiledBinary = true;
+    } else {
+      // Regular Bun runtime
+      type = RUNTIME_BUN;
+      scriptPath = argv1;
+      isCompiledBinary = false;
+    }
   } else if (hasNodeVersion || execMatchesNode || argv0MatchesNode) {
     // Definitely Node.js
     type = RUNTIME_NODE;

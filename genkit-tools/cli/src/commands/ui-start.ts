@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { GenkitToolsError } from '@genkit-ai/tools-common/manager';
 import {
   findProjectRoot,
   findServersDir,
@@ -30,7 +31,11 @@ import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
 import open from 'open';
 import path from 'path';
-import { SERVER_HARNESS_COMMAND } from './server-harness';
+import { detectRuntime } from '../utils/runtime-detector';
+import {
+  buildServerHarnessSpawnConfig,
+  validateExecutablePath,
+} from '../utils/spawn-config';
 
 interface StartOptions {
   port: string;
@@ -127,68 +132,83 @@ async function startAndWaitUntilHealthy(
   port: number,
   serversDir: string
 ): Promise<ChildProcess> {
-  return new Promise((resolve, reject) => {
-    // Determine how to spawn the server harness based on the runtime
-    let spawnCommand: string;
-    let spawnArgs: string[];
-
-    // Check if running under Bun
-    const isBun =
-      typeof Bun !== 'undefined' || 'bun' in (process.versions || {});
-
-    if (isBun) {
-      // Bun: Use the genkit command directly
-      // it will look like:
-      // genkit ui:start --port 4000
-      spawnCommand = process.execPath;
-      spawnArgs = [
-        SERVER_HARNESS_COMMAND,
-        port.toString(),
-        serversDir + '/devui.log',
-      ];
-    } else {
-      // we're in node, so it will look like:
-      // node <path-to-genkit-cli> ui:start --port 4000
-      spawnCommand = process.execPath;
-
-      const genkitCliScript = process.argv[1];
-      if (!genkitCliScript) {
-        throw new Error('Unable to determine genkit CLI location');
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Detect runtime environment
+      const runtime = detectRuntime();
+      logger.debug(`Detected runtime: ${runtime.type} at ${runtime.execPath}`);
+      if (runtime.scriptPath) {
+        logger.debug(`Script path: ${runtime.scriptPath}`);
       }
 
-      spawnArgs = [
-        genkitCliScript,
-        SERVER_HARNESS_COMMAND,
-        port.toString(),
-        serversDir + '/devui.log',
-      ];
-    }
+      // Build spawn configuration
+      const logPath = path.join(serversDir, 'devui.log');
+      const spawnConfig = buildServerHarnessSpawnConfig(runtime, port, logPath);
 
-    const child = spawn(spawnCommand, spawnArgs, {
-      stdio: ['ignore', 'ignore', 'ignore'],
-      // For Bun, we need shell:true to resolve 'genkit' command
-      shell: isBun,
-    });
+      // Validate executable path
+      const isExecutable = await validateExecutablePath(spawnConfig.command);
+      if (!isExecutable) {
+        throw new GenkitToolsError(
+          `Unable to execute command: ${spawnConfig.command}. ` +
+            `The file does not exist or is not executable.`
+        );
+      }
 
-    // Only print out logs from the child process to debug output.
-    child.on('error', (error) => reject(error));
-    child.on('exit', (code) =>
-      reject(new Error(`UI process exited (code ${code}) unexpectedly`))
-    );
-    waitUntilHealthy(`http://localhost:${port}`, 10000 /* 10 seconds */)
-      .then((isHealthy) => {
-        if (isHealthy) {
-          child.unref();
-          resolve(child);
-        } else {
-          reject(
-            new Error(
+      logger.debug(
+        `Spawning: ${spawnConfig.command} ${spawnConfig.args.join(' ')}`
+      );
+      const child = spawn(
+        spawnConfig.command,
+        spawnConfig.args,
+        spawnConfig.options
+      );
+
+      // Handle process events
+      child.on('error', (error) => {
+        logger.error(`Failed to start UI process: ${error.message}`);
+        reject(
+          new GenkitToolsError(`Failed to start UI process: ${error.message}`, {
+            cause: error,
+          })
+        );
+      });
+
+      child.on('exit', (code) => {
+        const msg = `UI process exited unexpectedly with code ${code}`;
+        logger.error(msg);
+        reject(new GenkitToolsError(msg));
+      });
+
+      // Wait for the UI to become healthy
+      waitUntilHealthy(`http://localhost:${port}`, 10000 /* 10 seconds */)
+        .then((isHealthy) => {
+          if (isHealthy) {
+            child.unref();
+            resolve(child);
+          } else {
+            const msg =
               'Timed out while waiting for UI to become healthy. ' +
-                'To view full logs, set DEBUG environment variable.'
-            )
+              'To view full logs, set DEBUG environment variable.';
+            logger.error(msg);
+            reject(new GenkitToolsError(msg));
+          }
+        })
+        .catch((error) => {
+          logger.error(`Health check failed: ${error.message}`);
+          reject(
+            new GenkitToolsError(`Health check failed: ${error.message}`, {
+              cause: error,
+            })
           );
-        }
-      })
-      .catch((error) => reject(error));
+        });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to start UI: ${msg}`);
+      reject(
+        error instanceof GenkitToolsError
+          ? error
+          : new GenkitToolsError(msg, { cause: error })
+      );
+    }
   });
 }
