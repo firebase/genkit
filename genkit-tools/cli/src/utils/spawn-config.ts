@@ -16,8 +16,8 @@
 
 import { type SpawnOptions } from 'child_process';
 import { access, constants } from 'fs/promises';
-import { type RuntimeInfo } from './runtime-detector';
 import { SERVER_HARNESS_COMMAND } from '../commands/server-harness';
+import { type RuntimeInfo } from './runtime-detector';
 
 /**
  * Configuration for spawning a child process
@@ -47,13 +47,13 @@ export async function validateExecutablePath(path: string): Promise<boolean> {
 
 /**
  * Builds spawn configuration for the server harness based on runtime info
- * 
+ *
  * @param runtime - Runtime information from detector
  * @param port - Port number for the server (must be valid port 0-65535)
  * @param logPath - Path to the log file
  * @returns Spawn configuration for child_process.spawn
  * @throws Error if port is invalid or runtime info is missing required fields
- * 
+ *
  * @example
  * ```typescript
  * const runtime = detectRuntime();
@@ -74,7 +74,9 @@ export function buildServerHarnessSpawnConfig(
     throw new Error('Runtime execPath is required');
   }
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
-    throw new Error(`Invalid port number: ${port}. Must be between 0 and 65535`);
+    throw new Error(
+      `Invalid port number: ${port}. Must be between 0 and 65535`
+    );
   }
   if (!logPath) {
     throw new Error('Log path is required');

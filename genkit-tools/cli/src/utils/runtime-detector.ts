@@ -81,45 +81,45 @@ function isLikelyScriptFile(path: string | undefined): boolean {
  */
 function matchesPatterns(execName: string, patterns: string[]): boolean {
   const lowerExecName = execName.toLowerCase();
-  return patterns.some(pattern => lowerExecName.includes(pattern));
+  return patterns.some((pattern) => lowerExecName.includes(pattern));
 }
 
 /**
  * Detects the current runtime environment and execution context.
  * This helps determine how to properly spawn child processes.
- * 
+ *
  * @returns Runtime information including type, paths, and platform
  * @throws Error if unable to determine executable path
  */
 export function detectRuntime(): RuntimeInfo {
   const platform = process.platform;
   const execPath = process.execPath;
-  
+
   if (!execPath || execPath.trim() === '') {
     throw new Error('Unable to determine executable path');
   }
-  
+
   const argv0 = process.argv[0];
   const argv1 = process.argv[1];
-  
+
   const execBasename = basename(execPath);
   const argv0Basename = argv0 ? basename(argv0) : '';
-  
+
   const hasBunVersion = 'bun' in (process.versions || {});
   const hasNodeVersion = 'node' in (process.versions || {});
-  
+
   const execMatchesBun = matchesPatterns(execBasename, BUN_PATTERNS);
   const execMatchesNode = matchesPatterns(execBasename, NODE_PATTERNS);
   const argv0MatchesBun = matchesPatterns(argv0Basename, BUN_PATTERNS);
   const argv0MatchesNode = matchesPatterns(argv0Basename, NODE_PATTERNS);
-  
+
   const hasScriptArg = !!argv1;
   const scriptExists = hasScriptArg && safeExistsSync(argv1);
-  
+
   let type: RuntimeType;
   let scriptPath: string | undefined;
   let isCompiledBinary: boolean;
-  
+
   // Determine runtime type based on most reliable indicators
   if (hasBunVersion || execMatchesBun || argv0MatchesBun) {
     // Check if this is a Bun-compiled binary
@@ -152,7 +152,7 @@ export function detectRuntime(): RuntimeInfo {
     scriptPath = argv1;
     isCompiledBinary = false;
   }
-  
+
   return {
     type,
     execPath,

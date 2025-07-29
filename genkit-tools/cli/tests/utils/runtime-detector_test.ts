@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import * as fs from 'fs';
 import { detectRuntime } from '../../src/utils/runtime-detector';
 
@@ -48,7 +55,10 @@ describe('runtime-detector', () => {
 
   describe('Node.js runtime detection', () => {
     it('should detect Node.js with npm global install', () => {
-      process.argv = ['/usr/bin/node', '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js'];
+      process.argv = [
+        '/usr/bin/node',
+        '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js',
+      ];
       process.execPath = '/usr/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
 
@@ -56,12 +66,17 @@ describe('runtime-detector', () => {
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
-      expect(result.scriptPath).toBe('/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js');
+      expect(result.scriptPath).toBe(
+        '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js'
+      );
       expect(result.isCompiledBinary).toBe(false);
     });
 
     it('should detect Node.js with npm link', () => {
-      process.argv = ['/usr/local/bin/node', '/Users/dev/project/node_modules/.bin/genkit'];
+      process.argv = [
+        '/usr/local/bin/node',
+        '/Users/dev/project/node_modules/.bin/genkit',
+      ];
       process.execPath = '/usr/local/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
 
@@ -69,7 +84,9 @@ describe('runtime-detector', () => {
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/local/bin/node');
-      expect(result.scriptPath).toBe('/Users/dev/project/node_modules/.bin/genkit');
+      expect(result.scriptPath).toBe(
+        '/Users/dev/project/node_modules/.bin/genkit'
+      );
       expect(result.isCompiledBinary).toBe(false);
     });
 
@@ -94,7 +111,10 @@ describe('runtime-detector', () => {
 
   describe('Bun runtime detection', () => {
     it('should detect Bun runtime via process.versions', () => {
-      process.argv = ['/usr/local/bin/bun', '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js'];
+      process.argv = [
+        '/usr/local/bin/bun',
+        '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js',
+      ];
       process.execPath = '/usr/local/bin/bun';
       mockedFs.existsSync.mockReturnValue(true);
       Object.defineProperty(process, 'versions', {
@@ -107,7 +127,9 @@ describe('runtime-detector', () => {
 
       expect(result.type).toBe('bun');
       expect(result.execPath).toBe('/usr/local/bin/bun');
-      expect(result.scriptPath).toBe('/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js');
+      expect(result.scriptPath).toBe(
+        '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js'
+      );
       expect(result.isCompiledBinary).toBe(false);
     });
 
@@ -190,15 +212,17 @@ describe('runtime-detector', () => {
   describe('Edge cases and fallback behavior', () => {
     it('should throw error when execPath is missing', () => {
       const originalExecPath = process.execPath;
-      
+
       Object.defineProperty(process, 'execPath', {
         value: '',
         writable: true,
         configurable: true,
       });
 
-      expect(() => detectRuntime()).toThrow('Unable to determine executable path');
-      
+      expect(() => detectRuntime()).toThrow(
+        'Unable to determine executable path'
+      );
+
       Object.defineProperty(process, 'execPath', {
         value: originalExecPath,
         writable: true,
@@ -208,15 +232,17 @@ describe('runtime-detector', () => {
 
     it('should throw error when execPath is whitespace only', () => {
       const originalExecPath = process.execPath;
-      
+
       Object.defineProperty(process, 'execPath', {
         value: '   ',
         writable: true,
         configurable: true,
       });
 
-      expect(() => detectRuntime()).toThrow('Unable to determine executable path');
-      
+      expect(() => detectRuntime()).toThrow(
+        'Unable to determine executable path'
+      );
+
       Object.defineProperty(process, 'execPath', {
         value: originalExecPath,
         writable: true,
@@ -243,7 +269,10 @@ describe('runtime-detector', () => {
     });
 
     it('should handle Windows paths correctly', () => {
-      process.argv = ['C:\\Program Files\\nodejs\\node.exe', 'C:\\Users\\dev\\genkit\\dist\\cli.js'];
+      process.argv = [
+        'C:\\Program Files\\nodejs\\node.exe',
+        'C:\\Users\\dev\\genkit\\dist\\cli.js',
+      ];
       process.execPath = 'C:\\Program Files\\nodejs\\node.exe';
       mockedFs.existsSync.mockReturnValue(true);
       Object.defineProperty(process, 'platform', {
