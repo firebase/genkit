@@ -36,6 +36,7 @@ import {
   type StartChatParams,
   type Tool,
   type ToolConfig,
+  type UsageMetadata,
 } from '@google/generative-ai';
 import {
   GENKIT_CLIENT_HEADER,
@@ -66,6 +67,13 @@ import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
+
+// Extra type guard to keep the compiler happy and avoid a cast to any. The
+// legacy Gemini SDK is no longer maintained, and doesn't have updated types.
+// However, the REST API returns the data we want.
+type ExtendedUsageMetadata = UsageMetadata & {
+  thoughtsTokenCount?: number;
+};
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
@@ -1385,16 +1393,18 @@ export function defineGoogleAIModel({
         const candidateData =
           candidates.map(fromJSONModeScopedGeminiCandidate) || [];
 
+        const usageMetadata = response.usageMetadata as ExtendedUsageMetadata;
+
         return {
           candidates: candidateData,
           custom: response,
           usage: {
             ...getBasicUsageStats(request.messages, candidateData),
-            inputTokens: response.usageMetadata?.promptTokenCount,
-            outputTokens: response.usageMetadata?.candidatesTokenCount,
-            totalTokens: response.usageMetadata?.totalTokenCount,
-            cachedContentTokens:
-              response.usageMetadata?.cachedContentTokenCount,
+            inputTokens: usageMetadata?.promptTokenCount,
+            outputTokens: usageMetadata?.candidatesTokenCount,
+            thoughtsTokens: usageMetadata?.thoughtsTokenCount,
+            totalTokens: usageMetadata?.totalTokenCount,
+            cachedContentTokens: usageMetadata?.cachedContentTokenCount,
           },
         };
       };

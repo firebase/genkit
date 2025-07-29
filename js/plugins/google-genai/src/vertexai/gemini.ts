@@ -643,6 +643,7 @@ export function defineModel(
             ...getBasicUsageStats(request.messages, candidateData),
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
+            thoughtsTokens: response.usageMetadata?.thoughtsTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
             cachedContentTokens:
               response.usageMetadata?.cachedContentTokenCount,
