@@ -31,6 +31,8 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
+// ResourceInput and ResourceOutput are now defined in the core package
+
 type (
 	// Model represents a model that can generate content based on a request.
 	Model interface {
@@ -399,6 +401,28 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
+	var dynamicResourceCleanup []func()
+	if len(genOpts.DynamicResources) > 0 {
+		if len(dynamicTools) == 0 {
+			// Create child registry if not already created for dynamic tools
+			r = r.NewChild()
+		}
+
+		// Attach dynamic resources (now type-safe!)
+		for _, res := range genOpts.DynamicResources {
+			cleanup := res.AttachToRegistry(r)
+			dynamicResourceCleanup = append(dynamicResourceCleanup, cleanup)
+		}
+		// No special resolver setup needed - resources registered as regular actions!
+	}
+
+	// Ensure cleanup of dynamic resources when function ends
+	defer func() {
+		for _, cleanup := range dynamicResourceCleanup {
+			cleanup()
+		}
+	}()
+
 	messages := []*Message{}
 	if genOpts.SystemFn != nil {
 		system, err := genOpts.SystemFn(ctx, nil)
@@ -476,6 +500,13 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			Restart: restartParts,
 		}
 	}
+
+	// Process resources in messages
+	processedMessages, err := processResources(ctx, r, messages)
+	if err != nil {
+		return nil, core.NewError(core.INTERNAL, "ai.Generate: error processing resources: %v", err)
+	}
+	actionOpts.Messages = processedMessages
 
 	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
 }
@@ -1057,4 +1088,108 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 		},
 		toolMessage: toolMessage,
 	}, nil
+}
+
+// processResources processes messages to replace resource parts with actual content.
+func processResources(ctx context.Context, r *registry.Registry, messages []*Message) ([]*Message, error) {
+	// Import genkit package dynamically to avoid circular dependency
+	// For now, we'll need to access resources through the registry directly
+
+	processedMessages := make([]*Message, len(messages))
+	for i, msg := range messages {
+		processedContent := []*Part{}
+
+		for _, part := range msg.Content {
+			if part.IsResource() {
+				// Find and execute the matching resource
+				resourceParts, err := executeResourcePart(ctx, r, part.Resource)
+				if err != nil {
+					return nil, fmt.Errorf("failed to process resource %q: %w", part.Resource.URI, err)
+				}
+				// Replace resource part with content parts
+				processedContent = append(processedContent, resourceParts...)
+			} else {
+				// Keep non-resource parts as-is
+				processedContent = append(processedContent, part)
+			}
+		}
+
+		processedMessages[i] = &Message{
+			Role:     msg.Role,
+			Content:  processedContent,
+			Metadata: msg.Metadata,
+		}
+	}
+
+	return processedMessages, nil
+}
+
+// findMatchingResource finds a resource action in the registry that matches the given URI.
+func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[string]string, error) {
+	// Get all actions and filter to resources (like existing FindMatchingResource)
+	allActions := r.ListActions()
+
+	for _, act := range allActions {
+		action, ok := act.(core.Action)
+		if !ok {
+			continue
+		}
+
+		desc := action.Desc()
+		if desc.Type != core.ActionTypeResource {
+			continue
+		}
+
+		// Look up the resourceAction wrapper (same pattern as genkit.FindMatchingResource)
+		resourceName := strings.TrimPrefix(desc.Key, "/resource/")
+		if resourceValue := r.LookupValue(fmt.Sprintf("resource/%s", resourceName)); resourceValue != nil {
+			// Check if this resource matches the URI
+			if matcher, ok := resourceValue.(interface {
+				Matches(string) bool
+				ExtractVariables(string) (map[string]string, error)
+			}); ok {
+				if matcher.Matches(uri) {
+					variables, err := matcher.ExtractVariables(uri)
+					if err != nil {
+						return nil, nil, fmt.Errorf("failed to extract variables: %w", err)
+					}
+					return action, variables, nil
+				}
+			}
+		}
+	}
+
+	return nil, nil, core.NewError(core.NOT_FOUND, "no resource found for URI: %s", uri)
+}
+
+// executeResourcePart finds and executes a resource, returning the content parts.
+func executeResourcePart(ctx context.Context, r *registry.Registry, resourcePart *ResourcePart) ([]*Part, error) {
+	// Direct registry lookup - no resolver indirection!
+	action, variables, err := findMatchingResource(r, resourcePart.URI)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create resource input with extracted variables
+	input := core.ResourceInput{
+		URI:       resourcePart.URI,
+		Variables: variables,
+	}
+
+	// Execute the resource action directly
+	inputJSON, _ := json.Marshal(input)
+	outputJSON, err := action.RunJSON(ctx, inputJSON, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute resource %q: %w", resourcePart.URI, err)
+	}
+
+	// Parse resource output - use a compatible structure
+	var output struct {
+		Content []*Part `json:"content"`
+	}
+	if err := json.Unmarshal(outputJSON, &output); err != nil {
+		return nil, fmt.Errorf("failed to parse resource output: %w", err)
+	}
+
+	return output.Content, nil
 }

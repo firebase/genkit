@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
 )
@@ -725,8 +726,9 @@ type generateOptions struct {
 	outputOptions
 	executionOptions
 	documentOptions
-	RespondParts []*Part // Tool responses to return from interrupted tool calls.
-	RestartParts []*Part // Tool requests to restart interrupted tools with.
+	RespondParts     []*Part                       // Tool responses to return from interrupted tool calls.
+	RestartParts     []*Part                       // Tool requests to restart interrupted tools with.
+	DynamicResources []core.DetachedResourceAction // Dynamic resources to be temporarily available during generation.
 }
 
 // GenerateOption is an option for generating a model response. It applies only to Generate().
@@ -770,6 +772,13 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 		genOpts.RestartParts = o.RestartParts
 	}
 
+	if o.DynamicResources != nil {
+		if genOpts.DynamicResources != nil {
+			return errors.New("cannot set dynamic resources more than once (WithResources)")
+		}
+		genOpts.DynamicResources = o.DynamicResources
+	}
+
 	return nil
 }
 
@@ -781,6 +790,22 @@ func WithToolResponses(parts ...*Part) GenerateOption {
 // WithToolRestarts sets the tool requests to restart interrupted tools with.
 func WithToolRestarts(parts ...*Part) GenerateOption {
 	return &generateOptions{RestartParts: parts}
+}
+
+// WithResources specifies dynamic resources to be temporarily available during generation.
+// Dynamic resources are unregistered resources that get attached to a temporary registry
+// during the generation request and cleaned up afterward.
+func WithResources(resources []core.DetachedResourceAction) GenerateOption {
+	return &withResources{resources: resources}
+}
+
+type withResources struct {
+	resources []core.DetachedResourceAction
+}
+
+func (w *withResources) applyGenerate(o *generateOptions) error {
+	o.DynamicResources = w.resources
+	return nil
 }
 
 // promptExecutionOptions are options for generating a model response by executing a prompt.

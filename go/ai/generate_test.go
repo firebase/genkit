@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
 	test_utils "github.com/firebase/genkit/go/tests/utils"
 	"github.com/google/go-cmp/cmp"
@@ -1095,4 +1096,85 @@ func TestToolInterruptsAndResume(t *testing.T) {
 			t.Error("expected generation to not be interrupted after restarting")
 		}
 	})
+}
+
+func TestResourceProcessing(t *testing.T) {
+	r, _ := registry.New()
+
+	// Create simple test resources without complex mocking
+	_ = core.DefineAction(r, "", "test-file", core.ActionTypeResource, map[string]any{},
+		func(ctx context.Context, input core.ResourceInput) (struct{ Content []*Part }, error) {
+			return struct{ Content []*Part }{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
+		})
+
+	_ = core.DefineAction(r, "", "test-api", core.ActionTypeResource, map[string]any{},
+		func(ctx context.Context, input core.ResourceInput) (struct{ Content []*Part }, error) {
+			return struct{ Content []*Part }{Content: []*Part{NewTextPart("API DATA")}}, nil
+		})
+
+	// Simple resource wrappers - use the proper core.ResourceMatcher interface
+	r.RegisterValue("resource/test-file", &testResourceMatcher{uri: "file:///test.txt"})
+	r.RegisterValue("resource/test-api", &testResourceMatcher{uri: "api://data/123"})
+
+	// Test message with resources
+	messages := []*Message{
+		NewUserMessage(
+			NewTextPart("Read this:"),
+			NewResourcePart("file:///test.txt"),
+			NewTextPart("And this:"),
+			NewResourcePart("api://data/123"),
+			NewTextPart("Done."),
+		),
+	}
+
+	// Process resources
+	processed, err := processResources(context.Background(), r, messages)
+	if err != nil {
+		t.Fatalf("resource processing failed: %v", err)
+	}
+
+	// Verify content
+	content := processed[0].Content
+	expected := []string{"Read this:", "FILE CONTENT", "And this:", "API DATA", "Done."}
+
+	if len(content) != len(expected) {
+		t.Fatalf("expected %d parts, got %d", len(expected), len(content))
+	}
+
+	for i, want := range expected {
+		if content[i].Text != want {
+			t.Fatalf("part %d: got %q, want %q", i, content[i].Text, want)
+		}
+	}
+}
+
+// Minimal implementation of core.ResourceMatcher for testing
+type testResourceMatcher struct {
+	uri string
+}
+
+func (r *testResourceMatcher) Matches(uri string) bool {
+	return r.uri == uri
+}
+
+func (r *testResourceMatcher) ExtractVariables(uri string) (map[string]string, error) {
+	return map[string]string{}, nil
+}
+
+func TestResourceProcessingError(t *testing.T) {
+	r, _ := registry.New()
+
+	// No resources registered
+	messages := []*Message{
+		NewUserMessage(NewResourcePart("missing://resource")),
+	}
+
+	_, err := processResources(context.Background(), r, messages)
+	if err == nil {
+		t.Fatal("expected error when no resources available")
+	}
+
+	if !strings.Contains(err.Error(), "no resource found for URI") {
+		t.Fatalf("wrong error: %v", err)
+	}
 }
