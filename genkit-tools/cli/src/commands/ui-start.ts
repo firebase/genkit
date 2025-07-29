@@ -152,6 +152,7 @@ async function startAndWaitUntilHealthy(
     );
   }
 
+  // Handles spaces in the command path
   const command = `"${spawnConfig.command}"`;
   const args = spawnConfig.args.map((arg) => `"${arg}"`);
 
