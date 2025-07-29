@@ -24,8 +24,8 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/resource"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/yosida95/uritemplate/v3"
 )
 
 // ResourceInput and ResourceOutput are now defined in core package
@@ -48,56 +48,10 @@ type ResourceOptions struct {
 	Metadata    map[string]any // Optional metadata
 }
 
-// uriMatcher handles URI matching for resources.
-type uriMatcher interface {
-	Matches(uri string) bool
-	ExtractVariables(uri string) (map[string]string, error)
-}
-
-// staticMatcher matches exact URIs.
-type staticMatcher struct {
-	uri string
-}
-
-func (m *staticMatcher) Matches(uri string) bool {
-	return m.uri == uri
-}
-
-func (m *staticMatcher) ExtractVariables(uri string) (map[string]string, error) {
-	if !m.Matches(uri) {
-		return nil, fmt.Errorf("URI %q does not match static URI %q", uri, m.uri)
-	}
-	return map[string]string{}, nil
-}
-
-// templateMatcher matches URI templates.
-type templateMatcher struct {
-	template *uritemplate.Template
-}
-
-func (m *templateMatcher) Matches(uri string) bool {
-	values := m.template.Match(uri)
-	return len(values) > 0
-}
-
-func (m *templateMatcher) ExtractVariables(uri string) (map[string]string, error) {
-	values := m.template.Match(uri)
-	if len(values) == 0 {
-		return nil, fmt.Errorf("URI %q does not match template", uri)
-	}
-
-	// Convert uritemplate.Values to string map
-	result := make(map[string]string)
-	for name, value := range values {
-		result[name] = value.String()
-	}
-	return result, nil
-}
-
 // resourceAction implements a resource as a core.Action.
 type resourceAction struct {
 	action  *core.ActionDef[core.ResourceInput, ResourceOutput, struct{}]
-	matcher uriMatcher
+	matcher resource.URIMatcher
 }
 
 // DefineResource defines a resource and registers it with the Genkit instance.
@@ -132,16 +86,16 @@ func DefineResource(g *Genkit, opts ResourceOptions, fn ResourceFunc) error {
 	}
 
 	// Create matcher
-	var matcher uriMatcher
+	var matcher resource.URIMatcher
 
 	if opts.URI != "" {
-		matcher = &staticMatcher{uri: opts.URI}
+		matcher = resource.NewStaticMatcher(opts.URI)
 	} else {
-		template, err := uritemplate.New(opts.Template)
+		var err error
+		matcher, err = resource.NewTemplateMatcher(opts.Template)
 		if err != nil {
 			return fmt.Errorf("invalid URI template %q: %w", opts.Template, err)
 		}
-		matcher = &templateMatcher{template: template}
 	}
 
 	// Create metadata with resource-specific information
@@ -251,7 +205,7 @@ type detachedResourceAction struct {
 	description string
 	metadata    map[string]any
 	fn          ResourceFunc
-	matcher     uriMatcher
+	matcher     resource.URIMatcher
 }
 
 // DynamicResource creates an unregistered resource action that can be temporarily
@@ -290,16 +244,16 @@ func DynamicResource(opts ResourceOptions, fn ResourceFunc) (core.DetachedResour
 	}
 
 	// Create matcher
-	var matcher uriMatcher
+	var matcher resource.URIMatcher
 
 	if opts.URI != "" {
-		matcher = &staticMatcher{uri: opts.URI}
+		matcher = resource.NewStaticMatcher(opts.URI)
 	} else {
-		template, err := uritemplate.New(opts.Template)
+		var err error
+		matcher, err = resource.NewTemplateMatcher(opts.Template)
 		if err != nil {
 			return nil, fmt.Errorf("invalid URI template %q: %w", opts.Template, err)
 		}
-		matcher = &templateMatcher{template: template}
 	}
 
 	// Create metadata
