@@ -325,12 +325,8 @@ func (d *detachedResourceAction) AttachToRegistry(r *registry.Registry) func() {
 
 	// Return cleanup function
 	return func() {
-		// Note: We can't actually unregister from the registry since it doesn't support removal
-		// In practice, this would be handled by using child registries that get discarded
 	}
 }
-
-// Legacy ResourceResolver functions removed - using direct registry lookup instead
 
 // Name returns the resource name.
 func (r *resourceAction) Name() string {
