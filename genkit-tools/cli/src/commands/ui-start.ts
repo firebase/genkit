@@ -128,13 +128,47 @@ async function startAndWaitUntilHealthy(
   serversDir: string
 ): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      process.execPath,
-      [SERVER_HARNESS_COMMAND, port.toString(), serversDir + '/devui.log'],
-      {
-        stdio: ['ignore', 'ignore', 'ignore'],
+    // Determine how to spawn the server harness based on the runtime
+    let spawnCommand: string;
+    let spawnArgs: string[];
+
+    // Check if running under Bun
+    const isBun =
+      typeof Bun !== 'undefined' || 'bun' in (process.versions || {});
+
+    if (isBun) {
+      // Bun: Use the genkit command directly
+      // it will look like:
+      // genkit ui:start --port 4000
+      spawnCommand = process.execPath;
+      spawnArgs = [
+        SERVER_HARNESS_COMMAND,
+        port.toString(),
+        serversDir + '/devui.log',
+      ];
+    } else {
+      // we're in node, so it will look like:
+      // node <path-to-genkit-cli> ui:start --port 4000
+      spawnCommand = process.execPath;
+
+      const genkitCliScript = process.argv[1];
+      if (!genkitCliScript) {
+        throw new Error('Unable to determine genkit CLI location');
       }
-    );
+
+      spawnArgs = [
+        genkitCliScript,
+        SERVER_HARNESS_COMMAND,
+        port.toString(),
+        serversDir + '/devui.log',
+      ];
+    }
+
+    const child = spawn(spawnCommand, spawnArgs, {
+      stdio: ['ignore', 'ignore', 'ignore'],
+      // For Bun, we need shell:true to resolve 'genkit' command
+      shell: isBun,
+    });
 
     // Only print out logs from the child process to debug output.
     child.on('error', (error) => reject(error));
