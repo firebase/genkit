@@ -93,7 +93,7 @@ func (v *VertexAIVectorSearch) Init(ctx context.Context, g *genkit.Genkit) (err 
 func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, opts *ai.RetrieverOptions) (ai.Retriever, error) {
 	v := genkit.LookupPlugin(g, vectorsearchProvider).(*VertexAIVectorSearch)
 	if v == nil {
-		return nil, errors.New("vectorsearch plugin not found; did you call genkit.Init with the pinecone plugin?")
+		return nil, errors.New("vectorsearch plugin not found; did you call genkit.Init with the vectorsearch plugin?")
 	}
 
 	return genkit.DefineRetriever(g, vectorsearchProvider, cfg.IndexID, opts, v.Retrieve), nil
@@ -113,7 +113,7 @@ func Index(ctx context.Context, g *genkit.Genkit, params IndexParams, documentIn
 	}
 	eres, err := params.Embedder.Embed(ctx, ereq)
 	if err != nil {
-		return fmt.Errorf("pinecone index embedding failed: %v", err)
+		return fmt.Errorf("vectorsearch index embedding failed: %v", err)
 	}
 
 	if documentIndexer == nil {
