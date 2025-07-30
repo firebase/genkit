@@ -28,9 +28,6 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-// ResourceInput and ResourceOutput are now defined in core package
-// to avoid circular dependencies
-
 // ResourceOutput with concrete ai.Part type for this package
 type ResourceOutput struct {
 	Content []*ai.Part `json:"content"` // The content parts returned by the resource
