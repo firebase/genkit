@@ -191,6 +191,9 @@ describe('GoogleCloudMetrics', () => {
     const outputTokenCounter = await getCounterMetric(
       'genkit/ai/generate/output/tokens'
     );
+    const thoughtTokenCounter = await getCounterMetric(
+      'genkit/ai/generate/thought/tokens'
+    );
     const inputCharacterCounter = await getCounterMetric(
       'genkit/ai/generate/input/characters'
     );
@@ -209,6 +212,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.value, 1);
     assert.equal(inputTokenCounter.value, 10);
     assert.equal(outputTokenCounter.value, 14);
+    assert.equal(thoughtTokenCounter.value, 5);
     assert.equal(inputCharacterCounter.value, 8);
     assert.equal(outputCharacterCounter.value, 16);
     assert.equal(inputImageCounter.value, 1);
@@ -218,6 +222,7 @@ describe('GoogleCloudMetrics', () => {
       requestCounter,
       inputTokenCounter,
       outputTokenCounter,
+      thoughtTokenCounter,
       inputCharacterCounter,
       outputCharacterCounter,
       inputImageCounter,
@@ -272,6 +277,7 @@ describe('GoogleCloudMetrics', () => {
         usage: {
           inputTokens: 10,
           outputTokens: 14,
+          thoughtsTokens: 5,
           inputCharacters: 8,
           outputCharacters: 16,
           inputImages: 1,
@@ -294,6 +300,7 @@ describe('GoogleCloudMetrics', () => {
       await getCounterMetric('genkit/ai/generate/requests'),
       await getCounterMetric('genkit/ai/generate/input/tokens'),
       await getCounterMetric('genkit/ai/generate/output/tokens'),
+      await getCounterMetric('genkit/ai/generate/thought/tokens'),
       await getCounterMetric('genkit/ai/generate/input/characters'),
       await getCounterMetric('genkit/ai/generate/output/characters'),
       await getCounterMetric('genkit/ai/generate/input/images'),
@@ -771,6 +778,7 @@ describe('GoogleCloudMetrics', () => {
           outputCharacters: 16,
           inputImages: 1,
           outputImages: 3,
+          thoughtsTokens: 5,
         },
       };
     });
