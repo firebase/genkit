@@ -1125,7 +1125,7 @@ func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[st
 			continue
 		}
 
-		// Look up the resourceAction wrapper (same pattern as genkit.FindMatchingResource)
+		// Look up the resourceAction wrapper
 		resourceName := strings.TrimPrefix(desc.Key, "/resource/")
 		if resourceValue := r.LookupValue(fmt.Sprintf("resource/%s", resourceName)); resourceValue != nil {
 			// Check if this resource matches the URI
