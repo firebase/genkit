@@ -44,9 +44,7 @@ def test_openai_plugin_initialize() -> None:
 
 @pytest.mark.parametrize(
     'kind, name',
-    [
-        (ActionKind.MODEL, 'gpt-3.5-turbo')
-    ],
+    [(ActionKind.MODEL, 'gpt-3.5-turbo')],
 )
 def test_openai_plugin_resolve_action(kind, name):
     """Unit Tests for resolve action method."""
@@ -72,7 +70,7 @@ def test_openai_plugin_resolve_action(kind, name):
                     ],
                     'system_role': True,
                     'tools': True,
-                }
+                },
             },
         },
     )
@@ -108,9 +106,7 @@ def test_openai_plugin_list_actions() -> None:
 
 @pytest.mark.parametrize(
     'kind, name',
-    [
-        (ActionKind.MODEL, "model_doesnt_exist")
-    ],
+    [(ActionKind.MODEL, 'model_doesnt_exist')],
 )
 def test_openai_plugin_resolve_action_not_found(kind, name):
     """Unit Tests for resolve action method."""

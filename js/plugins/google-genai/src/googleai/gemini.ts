@@ -40,7 +40,6 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters';
-import { cleanSchema } from '../common/utils';
 import {
   generateContent,
   generateContentStream,
@@ -59,7 +58,13 @@ import {
   Tool,
   ToolConfig,
 } from './types';
-import { calculateApiKey, checkApiKey, checkModelName } from './utils';
+import {
+  calculateApiKey,
+  checkApiKey,
+  checkModelName,
+  cleanSchema,
+  extractVersion,
+} from './utils';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
@@ -301,9 +306,7 @@ const GENERIC_GEMMA_MODEL = commonRef(
 const KNOWN_GEMINI_MODELS = {
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
-  'gemini-2.5-flash-lite-preview-06-17': commonRef(
-    'gemini-2.5-flash-lite-preview-06-17'
-  ),
+  'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
   'gemini-2.0-flash-preview-image-generation': commonRef(
     'gemini-2.0-flash-preview-image-generation'
@@ -362,7 +365,6 @@ export function model(
   if (isTTSModelName(name)) {
     return modelRef({
       name: `googleai/${name}`,
-      version: name,
       config,
       configSchema: GeminiTtsConfigSchema,
       info: { ...GENERIC_TTS_MODEL.info },
@@ -372,7 +374,6 @@ export function model(
   if (isGemmaModelName(name)) {
     return modelRef({
       name: `googleai/${name}`,
-      version: name,
       config,
       configSchema: GemmaConfigSchema,
       info: { ...GENERIC_GEMMA_MODEL.info },
@@ -381,7 +382,6 @@ export function model(
 
   return modelRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: GeminiConfigSchema,
     info: { ...GENERIC_MODEL.info },
@@ -457,12 +457,15 @@ export function defineModel(
 
   return ai.defineModel(
     {
+      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
       use: middleware,
     },
-    async (request, sendChunk) => {
+    async (request, { streamingRequested, sendChunk, abortSignal }) => {
+      const clientOpt = { ...clientOptions, signal: abortSignal };
+
       // Make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
       if (messages.length === 0) throw new Error('No messages provided.');
@@ -561,7 +564,7 @@ export function defineModel(
         contents: messages.map((message) => toGeminiMessage(message, ref)),
       };
 
-      const modelVersion = (versionFromConfig || ref.version) as string;
+      const modelVersion = versionFromConfig || extractVersion(ref);
 
       const generateApiKey = calculateApiKey(
         pluginOptions?.apiKey,
@@ -571,12 +574,12 @@ export function defineModel(
       const callGemini = async () => {
         let response: GenerateContentResponse;
 
-        if (sendChunk) {
+        if (streamingRequested) {
           const result = await generateContentStream(
             generateApiKey,
             modelVersion,
             generateContentRequest,
-            clientOptions
+            clientOpt
           );
 
           for await (const item of result.stream) {
@@ -594,7 +597,7 @@ export function defineModel(
             generateApiKey,
             modelVersion,
             generateContentRequest,
-            clientOptions
+            clientOpt
           );
         }
 
@@ -632,20 +635,20 @@ export function defineModel(
             ai.registry,
             {
               metadata: {
-                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
               },
             },
             async (metadata) => {
               metadata.input = {
                 apiEndpoint: getGoogleAIUrl({
                   resourcePath: '',
-                  clientOptions,
+                  clientOptions: clientOpt,
                 }),
                 cache: {},
                 model: modelVersion,
                 generateContentOptions: generateContentRequest,
                 parts: msg.parts,
-                options: clientOptions,
+                options: clientOpt,
               };
               const response = await callGemini();
               metadata.output = response.custom;

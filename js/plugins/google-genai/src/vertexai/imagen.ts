@@ -39,6 +39,7 @@ import {
   extractImagenImage,
   extractImagenMask,
   extractText,
+  extractVersion,
   modelName,
 } from './utils';
 
@@ -238,7 +239,6 @@ export function model(
   }
   return modelRef({
     name: `vertexai/${name}`,
-    version,
     config,
     configSchema: ImagenConfigSchema,
     info: {
@@ -280,11 +280,13 @@ export function defineModel(
 
   return ai.defineModel(
     {
+      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
     },
-    async (request) => {
+    async (request, { abortSignal }) => {
+      const clientOpt = { ...clientOptions, signal: abortSignal };
       const imagenPredictRequest: ImagenPredictRequest = {
         instances: [
           {
@@ -297,9 +299,9 @@ export function defineModel(
       };
 
       const response = await imagenPredict(
-        ref.version as string,
+        extractVersion(ref),
         imagenPredictRequest,
-        clientOptions
+        clientOpt
       );
 
       if (!response.predictions || response.predictions.length == 0) {

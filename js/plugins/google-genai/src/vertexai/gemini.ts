@@ -40,7 +40,6 @@ import {
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../common/converters';
-import { checkModelName, cleanSchema, modelName } from '../common/utils';
 import {
   generateContent,
   generateContentStream,
@@ -59,7 +58,13 @@ import {
   ToolConfig,
   VertexPluginOptions,
 } from './types';
-import { calculateApiKey } from './utils';
+import {
+  calculateApiKey,
+  checkModelName,
+  cleanSchema,
+  extractVersion,
+  modelName,
+} from './utils';
 
 export const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -301,7 +306,6 @@ function commonRef(
 ): ModelReference<ConfigSchemaType> {
   return modelRef({
     name: `vertexai/${name}`,
-    version: name,
     configSchema,
     info: info ?? {
       supports: {
@@ -319,16 +323,13 @@ function commonRef(
 export const GENERIC_MODEL = commonRef('gemini');
 
 export const KNOWN_MODELS = {
-  'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
+  'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
+  'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
+  'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.0-flash-001': commonRef('gemini-2.0-flash-001'),
+  'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
-  'gemini-2.0-flash-lite-preview-02-05': commonRef(
-    'gemini-2.0-flash-lite-preview-02-05'
-  ),
-  'gemini-2.0-pro-exp-02-05': commonRef('gemini-2.0-pro-exp-02-05'),
-  'gemini-2.5-pro-exp-03-25': commonRef('gemini-2.5-pro-exp-03-25'),
-  'gemini-2.5-pro-preview-03-25': commonRef('gemini-2.5-pro-preview-03-25'),
-  'gemini-2.5-flash-preview-04-17': commonRef('gemini-2.5-flash-preview-04-17'),
+  'gemini-2.0-flash-lite-001': commonRef('gemini-2.0-flash-lite-001'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS;
 export type GeminiModelName = `gemini-${string}`;
@@ -344,7 +345,6 @@ export function model(
 
   return modelRef({
     name: `vertexai/${name}`,
-    version: name,
     config: options,
     configSchema: GeminiConfigSchema,
     info: {
@@ -422,13 +422,14 @@ export function defineModel(
 
   return ai.defineModel(
     {
+      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
       use: middlewares,
     },
-    async (request, sendChunk) => {
-      let clientOpt = { ...clientOptions };
+    async (request, { streamingRequested, sendChunk, abortSignal }) => {
+      let clientOpt = { ...clientOptions, signal: abortSignal };
 
       // Make a copy of messages to avoid side-effects
       const messages = structuredClone(request.messages);
@@ -470,6 +471,7 @@ export function defineModel(
             projectId: clientOptions.projectId,
             authClient: clientOptions.authClient,
             apiKey: clientOptions.apiKey,
+            signal: abortSignal,
           };
         } else {
           clientOpt = {
@@ -478,6 +480,7 @@ export function defineModel(
             projectId: clientOptions.projectId,
             authClient: clientOptions.authClient,
             apiKey: clientOptions.apiKey,
+            signal: abortSignal,
           };
         }
       }
@@ -583,7 +586,7 @@ export function defineModel(
         labels,
       };
 
-      const modelVersion = versionFromConfig || (ref.version as string);
+      const modelVersion = versionFromConfig || extractVersion(ref);
 
       if (jsonMode && request.output?.constrained) {
         generateContentRequest.generationConfig!.responseSchema = cleanSchema(
@@ -595,7 +598,7 @@ export function defineModel(
         let response: GenerateContentResponse;
 
         // Handle streaming and non-streaming responses
-        if (sendChunk) {
+        if (streamingRequested) {
           const result = await generateContentStream(
             modelVersion,
             generateContentRequest,
@@ -655,7 +658,7 @@ export function defineModel(
             ai.registry,
             {
               metadata: {
-                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
               },
             },
             async (metadata) => {
@@ -663,13 +666,13 @@ export function defineModel(
                 apiEndpoint: getVertexAIUrl({
                   includeProjectAndLocation: false,
                   resourcePath: '',
-                  clientOptions,
+                  clientOptions: clientOpt,
                 }),
                 cache: {},
                 model: modelVersion,
                 generateContentOptions: generateContentRequest,
                 parts: msg.parts,
-                clientOptions,
+                options: clientOpt,
               };
               const response = await callGemini();
               metadata.output = response.custom;

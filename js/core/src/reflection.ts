@@ -46,6 +46,8 @@ export interface ReflectionServerOptions {
   bodyLimit?: string;
   /** Configured environments. Defaults to `dev`. */
   configuredEnvs?: string[];
+  /** Display name that will be shown in developer tooling. */
+  name?: string;
 }
 
 /**
@@ -331,6 +333,7 @@ export class ReflectionServer {
         {
           id: process.env.GENKIT_RUNTIME_ID || runtimeId,
           pid: process.pid,
+          name: this.options.name,
           reflectionServerUrl: `http://localhost:${this.port}`,
           timestamp,
           genkitVersion: `nodejs/${GENKIT_VERSION}`,

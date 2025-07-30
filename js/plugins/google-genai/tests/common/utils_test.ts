@@ -72,6 +72,13 @@ describe('modelName', () => {
   it('handles empty string input', () => {
     assert.strictEqual(modelName(''), '');
   });
+
+  it('keeps prefixes like tunedModels', () => {
+    assert.strictEqual(
+      modelName('tunedModels/my-tuned-model'),
+      'tunedModels/my-tuned-model'
+    );
+  });
 });
 
 describe('checkModelName', () => {

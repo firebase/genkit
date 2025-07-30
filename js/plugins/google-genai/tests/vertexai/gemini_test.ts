@@ -42,7 +42,11 @@ describe('Vertex AI Gemini', () => {
   let mockGenkit: sinon.SinonStubbedInstance<Genkit>;
   let modelActionCallback: (
     request: GenerateRequest<typeof GeminiConfigSchema>,
-    sendChunk?: (chunk: any) => void
+    options: {
+      streamingRequested?: boolean;
+      sendChunk?: (chunk: any) => void;
+      abortSignal?: AbortSignal;
+    }
   ) => Promise<any>;
 
   let fetchStub: sinon.SinonStub;
@@ -90,7 +94,7 @@ describe('Vertex AI Gemini', () => {
 
     fetchStub = sinon.stub(global, 'fetch');
 
-    mockGenkit.defineModel.callsFake((config, func) => {
+    mockGenkit.defineModel.callsFake((config: any, func: any) => {
       modelActionCallback = func;
       return { name: config.name } as any;
     });
@@ -177,7 +181,9 @@ describe('Vertex AI Gemini', () => {
         defineModel(mockGenkit, 'gemini-2.5-flash', clientOptions);
       });
 
-      function getExpectedHeaders(): Record<string, string | undefined> {
+      function getExpectedHeaders(
+        configApiKey?: string
+      ): Record<string, string | undefined> {
         const headers: Record<string, string | undefined> = {
           'Content-Type': 'application/json',
           'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
@@ -186,6 +192,12 @@ describe('Vertex AI Gemini', () => {
         if (clientOptions.kind !== 'express') {
           headers['Authorization'] = 'Bearer test-token';
           headers['x-goog-user-project'] = clientOptions.projectId;
+        } else {
+          headers['x-goog-api-key'] = clientOptions.apiKey as string;
+        }
+        if (configApiKey || clientOptions.apiKey) {
+          headers['x-goog-api-key'] =
+            configApiKey || clientOptions.apiKey || '';
         }
         return headers;
       }
@@ -193,8 +205,7 @@ describe('Vertex AI Gemini', () => {
       function getExpectedUrl(
         modelName: string,
         method: string,
-        queryParams: string[] = [],
-        configApiKey?: string
+        queryParams: string[] = []
       ): string {
         let baseUrl: string;
         let projectAndLocation = '';
@@ -213,18 +224,6 @@ describe('Vertex AI Gemini', () => {
 
         let url = `${baseUrl}/publishers/google/models/${modelName}:${method}`;
         const params = [...queryParams];
-        let effectiveApiKey = configApiKey;
-        if (!effectiveApiKey) {
-          if (clientOptions.kind === 'express') {
-            effectiveApiKey = clientOptions.apiKey as string;
-          } else {
-            effectiveApiKey = clientOptions.apiKey;
-          }
-        }
-
-        if (effectiveApiKey) {
-          params.push(`key=${effectiveApiKey}`);
-        }
 
         if (params.length > 0) {
           url += '?' + params.join('&');
@@ -234,14 +233,14 @@ describe('Vertex AI Gemini', () => {
 
       it('throws if no messages are provided', async () => {
         await assert.rejects(
-          modelActionCallback({ messages: [], config: {} }),
+          modelActionCallback({ messages: [], config: {} }, {}),
           /No messages provided/
         );
       });
 
       it('calls fetch for non-streaming requests', async () => {
         mockFetchResponse(defaultApiResponse);
-        const result = await modelActionCallback(minimalRequest);
+        const result = await modelActionCallback(minimalRequest, {});
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -273,7 +272,10 @@ describe('Vertex AI Gemini', () => {
         mockFetchStreamResponse([defaultApiResponse]);
 
         const sendChunkSpy = sinon.spy();
-        await modelActionCallback(minimalRequest, sendChunkSpy);
+        await modelActionCallback(minimalRequest, {
+          streamingRequested: true,
+          sendChunk: sendChunkSpy,
+        });
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -295,6 +297,30 @@ describe('Vertex AI Gemini', () => {
         });
       });
 
+      it('passes AbortSignal to fetch', async () => {
+        mockFetchResponse(defaultApiResponse);
+        const controller = new AbortController();
+        const abortSignal = controller.signal;
+        await modelActionCallback(minimalRequest, {
+          streamingRequested: false,
+          abortSignal,
+        });
+        sinon.assert.calledOnce(fetchStub);
+        const fetchOptions = fetchStub.lastCall.args[1];
+        assert.ok(fetchOptions.signal, 'Fetch options should have a signal');
+        assert.notStrictEqual(
+          fetchOptions.signal,
+          abortSignal,
+          'Fetch signal should be a new signal, not the original'
+        );
+
+        const fetchSignal = fetchOptions.signal;
+        const abortSpy = sinon.spy();
+        fetchSignal.addEventListener('abort', abortSpy);
+        controller.abort();
+        sinon.assert.calledOnce(abortSpy);
+      });
+
       it('handles system instructions', async () => {
         mockFetchResponse(defaultApiResponse);
         const request: GenerateRequest<typeof GeminiConfigSchema> = {
@@ -304,7 +330,7 @@ describe('Vertex AI Gemini', () => {
           ],
           config: {},
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
 
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
@@ -324,7 +350,7 @@ describe('Vertex AI Gemini', () => {
           ...minimalRequest,
           config: { temperature: 0.1, topP: 0.8, maxOutputTokens: 100 },
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
 
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
@@ -341,7 +367,7 @@ describe('Vertex AI Gemini', () => {
           ...minimalRequest,
           config: { labels: myLabels },
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
 
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
@@ -363,7 +389,7 @@ describe('Vertex AI Gemini', () => {
           ],
           config: {},
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
 
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
@@ -390,7 +416,7 @@ describe('Vertex AI Gemini', () => {
             googleSearchRetrieval: {},
           },
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
         );
@@ -414,7 +440,7 @@ describe('Vertex AI Gemini', () => {
               },
             },
           };
-          await modelActionCallback(request);
+          await modelActionCallback(request, {});
           const apiRequest: GenerateContentRequest = JSON.parse(
             fetchStub.lastCall.args[1].body
           );
@@ -448,7 +474,7 @@ describe('Vertex AI Gemini', () => {
             ],
           },
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
         );
@@ -467,7 +493,7 @@ describe('Vertex AI Gemini', () => {
           output: { format: 'json' },
           config: {},
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
         );
@@ -480,7 +506,7 @@ describe('Vertex AI Gemini', () => {
       it('throws if no candidates are returned', async () => {
         mockFetchResponse({ candidates: [] });
         await assert.rejects(
-          modelActionCallback(minimalRequest),
+          modelActionCallback(minimalRequest, {}),
           /No valid candidates returned/
         );
       });
@@ -488,19 +514,19 @@ describe('Vertex AI Gemini', () => {
       it('handles API call error', async () => {
         mockFetchResponse({ error: { message: 'API Error' } }, 400);
         await assert.rejects(
-          modelActionCallback(minimalRequest),
+          modelActionCallback(minimalRequest, {}),
           /Error fetching from .*?: \[400 Error\] API Error/
         );
       });
 
-      it('handles config.apiKey override in URL', async () => {
+      it('handles config.apiKey override', async () => {
         mockFetchResponse(defaultApiResponse);
         const overrideKey = 'override-api-key';
         const request: GenerateRequest<typeof GeminiConfigSchema> = {
           ...minimalRequest,
           config: { apiKey: overrideKey },
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
         const url = fetchArgs[0];
@@ -508,11 +534,13 @@ describe('Vertex AI Gemini', () => {
         const expectedUrl = getExpectedUrl(
           'gemini-2.5-flash',
           'generateContent',
-          [],
-          overrideKey
+          []
         );
         assert.strictEqual(url, expectedUrl);
-        assert.deepStrictEqual(fetchArgs[1].headers, getExpectedHeaders());
+        assert.deepStrictEqual(
+          fetchArgs[1].headers,
+          getExpectedHeaders(overrideKey)
+        );
       });
     });
   }
@@ -536,7 +564,7 @@ describe('Vertex AI Gemini', () => {
           googleSearchRetrieval: {},
         },
       };
-      await modelActionCallback(request);
+      await modelActionCallback(request, {});
       const apiRequest: GenerateContentRequest = JSON.parse(
         fetchStub.lastCall.args[1].body
       );

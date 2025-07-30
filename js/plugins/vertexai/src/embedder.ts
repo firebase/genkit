@@ -88,6 +88,17 @@ export const multimodalEmbedding001 = commonRef('multimodalembedding@001', [
   'image',
   'video',
 ]);
+export const geminiEmbedding001 = embedderRef({
+  name: 'vertexai/gemini-embedding-001',
+  configSchema: VertexEmbeddingConfigSchema,
+  info: {
+    dimensions: 3072,
+    label: 'Vertex AI - gemini-embedding-001',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
 
 export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   'textembedding-gecko@003': textEmbeddingGecko003,
@@ -96,6 +107,7 @@ export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   'textembedding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
   'text-multilingual-embedding-002': textMultilingualEmbedding002,
   'multimodalembedding@001': multimodalEmbedding001,
+  'gemini-embedding-001': geminiEmbedding001,
 };
 
 // https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/multimodal-embeddings-api#request_body

@@ -33,7 +33,7 @@ import {
   isMultimodalEmbeddingPrediction,
   isObject,
 } from './types';
-import { checkModelName } from './utils';
+import { checkModelName, extractVersion } from './utils';
 
 export const EmbeddingConfigSchema = z
   .object({
@@ -116,7 +116,6 @@ export function model(
   if (KNOWN_MODELS[name]) {
     return embedderRef({
       name: `vertexai/${name}`,
-      version: name,
       configSchema: EmbeddingConfigSchema,
       config,
       info: {
@@ -128,7 +127,6 @@ export function model(
     // Generic multimodal embedder format
     return embedderRef({
       name: `vertexai/${name}`,
-      version: name,
       configSchema: EmbeddingConfigSchema,
       config,
       info: {
@@ -139,7 +137,6 @@ export function model(
   // Generic text-only embedder format
   return embedderRef({
     name: `vertexai/${name}`,
-    version: name,
     configSchema: EmbeddingConfigSchema,
     config,
     info: {
@@ -181,7 +178,7 @@ export function defineEmbedder(
       };
 
       const response = await embedContent(
-        ref.version as string,
+        extractVersion(ref),
         embedContentRequest,
         clientOptions
       );

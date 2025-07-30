@@ -31,7 +31,12 @@ import {
   Model,
   TaskTypeSchema,
 } from './types';
-import { calculateApiKey, checkApiKey, checkModelName } from './utils';
+import {
+  calculateApiKey,
+  checkApiKey,
+  checkModelName,
+  extractVersion,
+} from './utils';
 
 export const EmbeddingConfigSchema = z
   .object({
@@ -81,7 +86,7 @@ const GENERIC_MODEL = commonRef('embedder');
 
 const KNOWN_MODELS = {
   'text-embedding-004': commonRef('text-embedding-004'),
-  'gemini-embedding-exp': commonRef('gemini-embedding-exp'),
+  'gemini-embedding-001': commonRef('gemini-embedding-001'),
 };
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
@@ -92,7 +97,6 @@ export function model(
   const name = checkModelName(version);
   return embedderRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: GENERIC_MODEL.configSchema,
     info: {
@@ -143,7 +147,7 @@ export function defineEmbedder(
         pluginOptions?.apiKey,
         reqOptions?.apiKey
       );
-      const embedVersion = (reqOptions?.version || ref.version) as string;
+      const embedVersion = reqOptions?.version || extractVersion(ref);
 
       const embeddings = await Promise.all(
         input.map(async (doc) => {

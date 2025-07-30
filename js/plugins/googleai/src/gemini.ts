@@ -516,6 +516,23 @@ export const gemini25Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashLite = modelRef({
+  name: 'googleai/gemini-2.5-flash-lite',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemma312bit = modelRef({
   name: 'googleai/gemma-3-12b-it',
   info: {
@@ -615,6 +632,7 @@ export const SUPPORTED_GEMINI_MODELS = {
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
   'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
   'gemini-2.5-flash': gemini25Flash,
+  'gemini-2.5-flash-lite': gemini25FlashLite,
   'gemini-2.5-pro': gemini25Pro,
   'gemma-3-12b-it': gemma312bit,
   'gemma-3-1b-it': gemma31bit,
@@ -1509,6 +1527,14 @@ export function aggregateResponses(
             const newPart: Partial<GeminiPart> = {};
             if (part.text) {
               newPart.text = part.text;
+            }
+            if ((part as any).thought) {
+              (newPart as any).thought = (part as any).thought;
+            }
+            if ((part as any).thoughtSignature) {
+              (newPart as any).thoughtSignature = (
+                part as any
+              ).thoughtSignature;
             }
             if (part.functionCall) {
               newPart.functionCall = part.functionCall;

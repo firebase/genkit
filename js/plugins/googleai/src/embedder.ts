@@ -84,9 +84,22 @@ export const textEmbedding004 = embedderRef({
   },
 });
 
+export const geminiEmbedding001 = embedderRef({
+  name: 'googleai/gemini-embedding-001',
+  configSchema: GeminiEmbeddingConfigSchema,
+  info: {
+    dimensions: 768,
+    label: 'Google Gen AI - Gemini Embedding 001',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
+
 export const SUPPORTED_MODELS = {
   'embedding-001': textEmbeddingGecko001,
   'text-embedding-004': textEmbedding004,
+  'gemini-embedding-001': geminiEmbedding001,
 };
 
 export function defineGoogleAIEmbedder(
