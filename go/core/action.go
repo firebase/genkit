@@ -67,8 +67,8 @@ const (
 	ActionTypeUtil             ActionType = "util"
 	ActionTypeCustom           ActionType = "custom"
 	ActionTypeBackgroundModel  ActionType = "background-model"
-	ActionTypeBackgroundCheck  ActionType = "check-operation"
-	ActionTypeBackgroundCancel ActionType = "cancel-operation"
+	ActionTypeCheckOperation   ActionType = "check-operation"
+	ActionTypeCancelOperation  ActionType = "cancel-operation"
 )
 
 // An ActionDef is a named, observable operation that underlies all Genkit primitives.

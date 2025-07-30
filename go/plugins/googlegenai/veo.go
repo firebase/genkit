@@ -22,7 +22,6 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
-	"github.com/invopop/jsonschema"
 	"google.golang.org/genai"
 )
 
@@ -39,7 +38,7 @@ func defineVeoModels(
 		Label:          info.Label,
 		Versions:       info.Versions,
 		Supports:       info.Supports,
-		ConfigSchema:   getVeoConfigSchema(),
+		ConfigSchema:   info.ConfigSchema,
 		SupportsCancel: false,
 	}
 	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation, error) {
@@ -176,18 +175,6 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *core.Operation {
 	}
 
 	return operation
-}
-
-// getVeoConfigSchema returns the JSON schema for Veo video generation configuration..
-func getVeoConfigSchema() *jsonschema.Schema {
-	// Use reflection to generate schema from VeoConfig struct
-	r := jsonschema.Reflector{
-		DoNotReference: true,
-		ExpandedStruct: true,
-	}
-	var config genai.GenerateVideosConfig
-	schema := r.Reflect(config)
-	return schema
 }
 
 // checkVeoOperation checks the status of a long-running Veo video generation operation..

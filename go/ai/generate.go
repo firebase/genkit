@@ -94,9 +94,9 @@ type (
 		interrupt    *Part
 	}
 
-	StartModelFunc  = core.BackgroundStartFunc[*ModelRequest, *ModelResponse] // Function to start a model background operation
-	CheckModelFunc  = core.BackgroundCheckFunc[*ModelResponse]                // Function to check model background operation status
-	CancelModelFunc = core.BackgroundCancelFunc[*ModelResponse]               // Function to cancel model background operation
+	StartModelFunc  = core.StartOperationFunc[*ModelRequest, *ModelResponse] // Function to start a model background operation
+	CheckModelFunc  = core.CheckOperationFunc[*ModelResponse]                // Function to check model operation status
+	CancelModelFunc = core.CancelOperationFunc[*ModelResponse]               // Function to cancel model operation
 
 	BackgroundAction = core.BackgroundAction[*ModelRequest, *ModelResponse] // Background action for model operations
 )
@@ -1152,8 +1152,8 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 	}
 
 	provider, name, _ := strings.Cut(modelName, "/")
-	backAction := LookupBackgroundModel(r, provider, name)
-	if backAction == nil {
+	bgAction := LookupBackgroundModel(r, provider, name)
+	if bgAction == nil {
 		return nil, core.NewError(core.NOT_FOUND, "background model %q not found", modelName)
 	}
 
@@ -1187,12 +1187,12 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 		genOpts.Config = modelRef.Config()
 	}
 
-	startOps, err := backAction.Start(ctx, &ModelRequest{Messages: messages, Config: genOpts.Config})
+	op, err := bgAction.Start(ctx, &ModelRequest{Messages: messages, Config: genOpts.Config})
 	if err != nil {
 		return nil, err
 	}
 
-	currentOp := startOps
+	currentOp := op
 	for {
 		// Check if operation completed with error
 		if currentOp.Error != "" {
@@ -1213,7 +1213,7 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 		}
 
 		// Check operation status
-		updatedOp, err := backAction.Check(ctx, currentOp)
+		updatedOp, err := bgAction.Check(ctx, currentOp)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check operation status: %w", err)
 		}

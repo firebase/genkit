@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/invopop/jsonschema"
 )
 
 // Operation represents a background task operation
@@ -34,21 +33,21 @@ type Operation struct {
 
 // BackgroundModelOptions holds configuration for defining a background model
 type BackgroundModelOptions struct {
-	Versions       []string           // Known version names for this model
-	Supports       any                // Capabilities this model supports
-	ConfigSchema   *jsonschema.Schema // Custom options schema for this model
-	Label          string             // Descriptive name for this model
-	SupportsCancel bool               // Whether the model supports cancellation
+	Versions       []string       // Known version names for this model
+	Supports       any            // Capabilities this model supports
+	ConfigSchema   map[string]any // Custom options schema for this model
+	Label          string         // Descriptive name for this model
+	SupportsCancel bool           // Whether the model supports cancellation
 }
 
-// BackgroundStartFunc starts a background operation
-type BackgroundStartFunc[In, Out any] func(ctx context.Context, input In) (*Operation, error)
+// StartOperationFunc starts a background operation
+type StartOperationFunc[In, Out any] func(ctx context.Context, input In) (*Operation, error)
 
-// BackgroundCheckFunc checks the status of a background operation
-type BackgroundCheckFunc[Out any] func(ctx context.Context, operation *Operation) (*Operation, error)
+// CheckOperationFunc checks the status of a background operation
+type CheckOperationFunc[Out any] func(ctx context.Context, operation *Operation) (*Operation, error)
 
-// BackgroundCancelFunc cancels a background operation
-type BackgroundCancelFunc[Out any] func(ctx context.Context, operation *Operation) (*Operation, error)
+// CancelOperationFunc cancels a background operation
+type CancelOperationFunc[Out any] func(ctx context.Context, operation *Operation) (*Operation, error)
 
 // BackgroundAction interface represents a background action
 type BackgroundAction[In, Out any] interface {
@@ -102,9 +101,9 @@ func DefineBackgroundAction[In, Out any](
 	provider, name string,
 	config BackgroundModelOptions,
 	metadata map[string]any,
-	start BackgroundStartFunc[In, Out],
-	check BackgroundCheckFunc[Out], // Function to check operation status
-	cancel BackgroundCancelFunc[Out], // Optional function to cancel operation
+	start StartOperationFunc[In, Out],
+	check CheckOperationFunc[Out], // Function to check operation status
+	cancel CancelOperationFunc[Out], // Optional function to cancel operation
 ) BackgroundAction[In, Out] {
 	// Create the start action - initiates the background operation
 	startAction := defineAction(r, provider, name, ActionTypeBackgroundModel, metadata, nil,
@@ -119,7 +118,7 @@ func DefineBackgroundAction[In, Out any](
 		})
 
 	// Create the check action - polls operation status
-	checkAction := defineAction(r, provider, name, ActionTypeBackgroundCheck,
+	checkAction := defineAction(r, provider, name, ActionTypeCheckOperation,
 		map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)},
 		nil,
 		func(ctx context.Context, operation *Operation, _ func(context.Context, struct{}) error) (*Operation, error) {
@@ -128,14 +127,14 @@ func DefineBackgroundAction[In, Out any](
 				return nil, err
 			}
 			// Ensure action reference is maintained
-			updatedOp.Action = fmt.Sprintf("/%s/%s", ActionTypeBackgroundCheck, name)
+			updatedOp.Action = fmt.Sprintf("/%s/%s", ActionTypeCheckOperation, name)
 			return updatedOp, nil
 		})
 
 	var cancelAction *ActionDef[*Operation, *Operation, struct{}]
 	if config.SupportsCancel && cancel != nil {
 		// Create the cancel action - cancels operation
-		cancelAction = defineAction(r, provider, name, ActionTypeBackgroundCancel,
+		cancelAction = defineAction(r, provider, name, ActionTypeCancelOperation,
 			map[string]any{"description": fmt.Sprintf("Cancel %s operation", name)},
 			nil,
 			func(ctx context.Context, operation *Operation, _ func(context.Context, struct{}) error) (*Operation, error) {
@@ -144,7 +143,7 @@ func DefineBackgroundAction[In, Out any](
 					return nil, err
 				}
 				// Ensure action reference is maintained
-				cancelledOp.Action = fmt.Sprintf("/%s/%s", ActionTypeBackgroundCancel, name)
+				cancelledOp.Action = fmt.Sprintf("/%s/%s", ActionTypeCancelOperation, name)
 				return cancelledOp, nil
 			})
 	}
@@ -168,12 +167,12 @@ func LookupBackgroundAction[In, Out any](r *registry.Registry, provider string, 
 	}
 
 	// Look up the check action - format: /check-operation/{actionName}/check
-	checkAction := ResolveActionFor[*Operation, *Operation, struct{}](r, ActionTypeBackgroundCheck, provider, name)
+	checkAction := ResolveActionFor[*Operation, *Operation, struct{}](r, ActionTypeCheckOperation, provider, name)
 	if checkAction == nil {
 		return nil
 	}
 	// Look up the cancel action (optional) - format: /cancel-operation/{actionName}/cancel
-	cancelAction := ResolveActionFor[*Operation, *Operation, struct{}](r, ActionTypeBackgroundCancel, provider, name)
+	cancelAction := ResolveActionFor[*Operation, *Operation, struct{}](r, ActionTypeCancelOperation, provider, name)
 
 	supportsCancel := cancelAction != nil
 

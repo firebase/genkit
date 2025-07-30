@@ -393,22 +393,6 @@ func TestFromVeoOperation(t *testing.T) {
 	}
 }
 
-func TestGetVeoConfigSchema(t *testing.T) {
-	t.Parallel()
-
-	schema := getVeoConfigSchema()
-	if schema == nil {
-		t.Error("getVeoConfigSchema() returned nil")
-		return
-	}
-
-	// Verify that the schema has some expected properties
-	// Note: This is a basic validation since the exact schema depends on the genai.GenerateVideosConfig struct
-	if schema.Type == "" {
-		t.Error("getVeoConfigSchema() schema.Type is nil")
-	}
-}
-
 // TestCheckVeoOperation tests the checkVeoOperation function with a mock scenario
 // Note: This is a basic structure test. In a real scenario, you'd need to mock the genai.Client
 func TestCheckVeoOperationStructure(t *testing.T) {
