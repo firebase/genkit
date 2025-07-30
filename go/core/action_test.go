@@ -54,7 +54,8 @@ func TestActionRunJSON(t *testing.T) {
 	a := defineAction(r, "test", "inc", ActionTypeCustom, nil, nil, inc)
 	input := []byte("3")
 	want := []byte("4")
-	got, err := a.RunJSON(context.Background(), input, nil)
+	output, err := a.RunJSON(context.Background(), input, nil, nil)
+	got := output.Result
 	if err != nil {
 		t.Fatal(err)
 	}

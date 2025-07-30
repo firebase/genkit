@@ -34,7 +34,6 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type streamingCallback[Stream any] = func(context.Context, Stream) error
@@ -436,30 +435,31 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		ctx = core.WithActionContext(ctx, runtimeContext)
 	}
 
-	var traceID string
-	output, err := tracing.RunInNewSpan(ctx, g.reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
-		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
-		// Set telemetry labels from payload to span
-		if telemetryLabels != nil {
-			var telemetryAttributes map[string]string
-			err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
-			if err != nil {
-				return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
-			}
-			for k, v := range telemetryAttributes {
-				tracing.SetCustomMetadataAttr(ctx, k, v)
-			}
+	// Prepare telemetry labels
+	telemetryMap := make(map[string]string)
+	telemetryMap["genkit-dev-internal"] = "true"
+
+	// Add custom telemetry labels from the request
+	if telemetryLabels != nil {
+		var telemetryAttributes map[string]string
+		err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
+		if err != nil {
+			return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
 		}
-		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
-		return action.(core.Action).RunJSON(ctx, input, cb)
-	})
+		for k, v := range telemetryAttributes {
+			telemetryMap[k] = v
+		}
+	}
+
+	// Call action directly with telemetry labels - no wrapper span needed!
+	result, err := action.(core.Action).RunJSON(ctx, input, cb, telemetryMap)
 	if err != nil {
 		return nil, err
 	}
 
 	return &runActionResponse{
-		Result:    output,
-		Telemetry: telemetry{TraceID: traceID},
+		Result:    result.Result,
+		Telemetry: telemetry{TraceID: result.Telemetry.TraceID},
 	}, nil
 }
 
