@@ -50,6 +50,9 @@ type Formatter interface {
 type FormatHandler interface {
 	// ParseMessage parses the message and returns a new formatted message.
 	ParseMessage(message *Message) (*Message, error)
+	// ParseChunk parses a streaming chunk and returns parsed data (optional).
+	// Based on JS version: js/ai/src/formats/types.ts parseChunk method
+	ParseChunk(chunk *ModelResponseChunk, accumulatedText string) (interface{}, error)
 	// Instructions returns the formatter instructions to embed in the prompt.
 	Instructions() string
 	// Config returns the output config for the model request.
