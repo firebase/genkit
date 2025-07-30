@@ -400,10 +400,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	}
 
 	if len(genOpts.DynamicResources) > 0 {
-		if len(dynamicTools) == 0 {
-			// Create child registry if not already created for dynamic tools
-			r = r.NewChild()
-		}
+		r = r.NewChild()
 
 		// Attach dynamic resources
 		for _, res := range genOpts.DynamicResources {
@@ -1080,9 +1077,6 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 
 // processResources processes messages to replace resource parts with actual content.
 func processResources(ctx context.Context, r *registry.Registry, messages []*Message) ([]*Message, error) {
-	// Import genkit package dynamically to avoid circular dependency
-	// For now, we'll need to access resources through the registry directly
-
 	processedMessages := make([]*Message, len(messages))
 	for i, msg := range messages {
 		processedContent := []*Part{}
@@ -1128,7 +1122,7 @@ func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[st
 			continue
 		}
 
-		// Look up the resourceAction wrapper (same pattern as genkit.FindMatchingResource)
+		// Look up the resourceAction wrapper
 		resourceName := strings.TrimPrefix(desc.Key, "/resource/")
 		if resourceValue := r.LookupValue(fmt.Sprintf("resource/%s", resourceName)); resourceValue != nil {
 			// Check if this resource matches the URI
@@ -1152,7 +1146,6 @@ func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[st
 
 // executeResourcePart finds and executes a resource, returning the content parts.
 func executeResourcePart(ctx context.Context, r *registry.Registry, resourcePart *ResourcePart) ([]*Part, error) {
-	// Direct registry lookup - no resolver indirection!
 	action, variables, err := findMatchingResource(r, resourcePart.URI)
 	if err != nil {
 		return nil, err
