@@ -67,7 +67,7 @@ func GetFirestoreDocumentIndexer(db *firestore.Client, collectionName string) Do
 		// Commit the batch operation.
 		if _, err := batch.Commit(ctx); err != nil {
 			if apiErr, ok := err.(*apierror.APIError); ok {
-				log.Printf("Firestore API Error: %v, DebugInfo: %v", apiErr, apiErr.Details)
+				log.Printf("Firestore API Error: %v, DebugInfo: %v", apiErr, apiErr.Details())
 			}
 			return nil, fmt.Errorf("failed to commit Firestore batch: %w", err)
 		}

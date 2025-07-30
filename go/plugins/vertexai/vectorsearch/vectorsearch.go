@@ -110,9 +110,6 @@ func Index(ctx context.Context, g *genkit.Genkit, params IndexParams, documentIn
 	var datapoints []IIndexDatapoint
 	for i, de := range eres.Embeddings {
 		id := docIds[i]
-		if err != nil {
-			return fmt.Errorf("error generating document ID: %v", err)
-		}
 		dp := IIndexDatapoint{
 			DatapointID:   id,
 			FeatureVector: de.Embedding,
