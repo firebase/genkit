@@ -405,7 +405,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			r = r.NewChild()
 		}
 
-		// Attach dynamic resources - no cleanup needed, registry disposal handles it
+		// Attach dynamic resources
 		for _, res := range genOpts.DynamicResources {
 			res.AttachToRegistry(r)
 		}
