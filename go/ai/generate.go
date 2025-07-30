@@ -1149,7 +1149,6 @@ func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[st
 
 // executeResourcePart finds and executes a resource, returning the content parts.
 func executeResourcePart(ctx context.Context, r *registry.Registry, resourcePart *ResourcePart) ([]*Part, error) {
-	// Direct registry lookup - no resolver indirection!
 	action, variables, err := findMatchingResource(r, resourcePart.URI)
 	if err != nil {
 		return nil, err
