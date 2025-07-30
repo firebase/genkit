@@ -31,8 +31,6 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-// ResourceInput and ResourceOutput are now defined in the core package
-
 type (
 	// Model represents a model that can generate content based on a request.
 	Model interface {
@@ -401,27 +399,17 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
-	var dynamicResourceCleanup []func()
 	if len(genOpts.DynamicResources) > 0 {
 		if len(dynamicTools) == 0 {
 			// Create child registry if not already created for dynamic tools
 			r = r.NewChild()
 		}
 
-		// Attach dynamic resources (now type-safe!)
+		// Attach dynamic resources - no cleanup needed, registry disposal handles it
 		for _, res := range genOpts.DynamicResources {
-			cleanup := res.AttachToRegistry(r)
-			dynamicResourceCleanup = append(dynamicResourceCleanup, cleanup)
+			res.AttachToRegistry(r)
 		}
-		// No special resolver setup needed - resources registered as regular actions!
 	}
-
-	// Ensure cleanup of dynamic resources when function ends
-	defer func() {
-		for _, cleanup := range dynamicResourceCleanup {
-			cleanup()
-		}
-	}()
 
 	messages := []*Message{}
 	if genOpts.SystemFn != nil {

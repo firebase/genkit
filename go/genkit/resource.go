@@ -301,8 +301,7 @@ func (d *detachedResourceAction) ExtractVariables(uri string) (map[string]string
 }
 
 // AttachToRegistry temporarily registers this detached resource in the given registry.
-// Returns a cleanup function that should be called to remove the resource.
-func (d *detachedResourceAction) AttachToRegistry(r *registry.Registry) func() {
+func (d *detachedResourceAction) AttachToRegistry(r *registry.Registry) {
 	// Create a regular action for this detached resource
 	action := core.DefineAction(
 		r,
@@ -322,10 +321,6 @@ func (d *detachedResourceAction) AttachToRegistry(r *registry.Registry) func() {
 	// Register as a resource
 	resourceKey := fmt.Sprintf("resource/%s", d.name)
 	r.RegisterValue(resourceKey, resourceAct)
-
-	// Return cleanup function
-	return func() {
-	}
 }
 
 // Name returns the resource name.

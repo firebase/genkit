@@ -36,9 +36,9 @@ type DetachedResourceAction interface {
 	Name() string
 	// ResourceMatcher provides URI matching
 	ResourceMatcher
-	// AttachToRegistry temporarily attaches this resource to a registry
-	// Returns a cleanup function to remove it
-	AttachToRegistry(r *registry.Registry) func()
+	// AttachToRegistry temporarily attaches this resource to a registry.
+	// The resource will be automatically cleaned up when the registry is discarded.
+	AttachToRegistry(r *registry.Registry)
 }
 
 // ResourceExecutor provides resource execution capabilities
