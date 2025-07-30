@@ -378,6 +378,8 @@ export declare interface UsageMetadata {
   totalTokenCount?: number;
   /** Optional. Number of tokens in the cached content. */
   cachedContentTokenCount?: number;
+  /** Optional. Number of tokens present in thoughts output. */
+  thoughtsTokenCount?: number;
 }
 
 export const TaskTypeSchema = z.enum([
