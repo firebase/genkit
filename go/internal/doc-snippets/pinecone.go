@@ -48,10 +48,19 @@ func pineconeEx(ctx context.Context) error {
 	var docChunks []*ai.Document
 
 	// [START defineretriever]
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: pinecone.PineconeRetrieverOptions{},
+		Info: &ai.RetrieverInfo{
+			Label: "Pinecone",
+			Supports: &ai.RetrieverSupports{
+				Media: false,
+			},
+		},
+	}
 	ds, menuRetriever, err := pinecone.DefineRetriever(ctx, g, pinecone.Config{
 		IndexID:  "menu_data",                                           // Your Pinecone index
 		Embedder: googlegenai.GoogleAIEmbedder(g, "text-embedding-004"), // Embedding model of your choice
-	})
+	}, retOpts)
 	if err != nil {
 		return err
 	}

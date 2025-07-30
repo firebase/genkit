@@ -11,7 +11,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.8.0",
+  "version": "1.15.5",
   "type": "commonjs",
   "repository": {
     "type": "git",
@@ -42,6 +42,37 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./openai": {
+      "require": "./lib/openai/index.js",
+      "import": "./lib/openai/index.mjs",
+      "types": "./lib/openai/index.d.ts",
+      "default": "./lib/openai/index.js"
+    },
+    "./deepseek": {
+      "require": "./lib/deepseek/index.js",
+      "import": "./lib/deepseek/index.mjs",
+      "types": "./lib/deepseek/index.d.ts",
+      "default": "./lib/deepseek/index.js"
+    },
+    "./xai": {
+      "require": "./lib/xai/index.js",
+      "import": "./lib/xai/index.mjs",
+      "types": "./lib/xai/index.d.ts",
+      "default": "./lib/xai/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "openai": [
+        "lib/openai"
+      ],
+      "deepseek": [
+        "lib/deepseek"
+      ],
+      "xai": [
+        "lib/xai"
+      ]
     }
   },
   "files": [

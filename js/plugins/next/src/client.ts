@@ -31,6 +31,7 @@ export interface RequestData<T> {
   url: string;
   headers?: Record<string, string>;
   input?: T;
+  abortSignal?: AbortSignal;
 }
 
 export function runFlow<A extends Action = Action>(

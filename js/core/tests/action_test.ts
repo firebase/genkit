@@ -120,6 +120,7 @@ describe('action', () => {
 
   it('runs the action with context plus registry global context', async () => {
     let passedContext;
+    let calledWithStreamingRequestedValue;
     const act = action(
       registry,
       {
@@ -128,7 +129,8 @@ describe('action', () => {
         outputSchema: z.number(),
         actionType: 'util',
       },
-      async (input, { sendChunk, context }) => {
+      async (input, { sendChunk, context, streamingRequested }) => {
+        calledWithStreamingRequestedValue = streamingRequested;
         passedContext = context;
         sendChunk(1);
         sendChunk(2);
@@ -143,6 +145,7 @@ describe('action', () => {
       context: { foo: 'bar' },
     });
 
+    assert.strictEqual(calledWithStreamingRequestedValue, false);
     assert.deepStrictEqual(passedContext, {
       foo: 'bar',
       bar: 'baz', // these come from glboal registry context
@@ -154,6 +157,7 @@ describe('action', () => {
     });
     await output;
 
+    assert.strictEqual(calledWithStreamingRequestedValue, true);
     assert.deepStrictEqual(passedContext, {
       foo2: 'bar2',
       bar2: 'baz2', // these come from glboal registry context
@@ -164,7 +168,7 @@ describe('action', () => {
     const action = defineAction(
       registry,
       { name: 'hello', actionType: 'custom' },
-      async (input, { sendChunk }) => {
+      async (input, { sendChunk, streamingRequested }) => {
         sendChunk({ count: 1 });
         sendChunk({ count: 2 });
         sendChunk({ count: 3 });
@@ -222,5 +226,43 @@ describe('action', () => {
     const response = await act(undefined);
 
     assert.strictEqual(response, 'traceId=true spanId=true');
+  });
+
+  it('passes through the abort signal', async () => {
+    var gotAbortSignal;
+    const act = defineAction(
+      registry,
+      { name: 'child', actionType: 'custom' },
+      async (_, ctx) => {
+        gotAbortSignal = ctx.abortSignal;
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      }
+    );
+
+    const signal = new AbortController().signal;
+    await act(undefined, { abortSignal: signal });
+
+    assert.strictEqual(gotAbortSignal, signal);
+  });
+
+  it('passes through the abort signal with middleware', async () => {
+    var gotAbortSignal;
+    const act = defineAction(
+      registry,
+      {
+        name: 'child',
+        actionType: 'custom',
+        use: [async (input, next) => (await next(input + 'middle1')) + 1],
+      },
+      async (_, ctx) => {
+        gotAbortSignal = ctx.abortSignal;
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      }
+    );
+
+    const signal = new AbortController().signal;
+    await act(undefined, { abortSignal: signal });
+
+    assert.strictEqual(gotAbortSignal, signal);
   });
 });

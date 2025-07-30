@@ -161,9 +161,10 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
-// It returns nil if the model was not defined.
+// It will try to resolve the model dynamically if the model is not found.
+// It returns nil if the model was not resolved.
 func LookupModel(r *registry.Registry, provider, name string) Model {
-	action := core.LookupActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
+	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil
 	}
@@ -171,7 +172,8 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 }
 
 // LookupModelByName looks up a [Model] registered by [DefineModel].
-// It returns an error if the model was not defined.
+// It will try to resolve the model dynamically if the model is not found.
+// It returns an error if the model was not resolved.
 func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
 	if modelName == "" {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.LookupModelByName: model not specified")
@@ -766,13 +768,16 @@ func (c *ModelResponseChunk) Text() string {
 	}
 	var sb strings.Builder
 	for _, p := range c.Content {
-		sb.WriteString(p.Text)
+		if p.IsText() || p.IsData() {
+			sb.WriteString(p.Text)
+		}
 	}
 	return sb.String()
 }
 
 // Text returns the contents of a [Message] as a string. It
 // returns an empty string if the message has no content.
+// If you want to get reasoning from the message, use Reasoning() instead.
 func (m *Message) Text() string {
 	if m == nil {
 		return ""
@@ -785,7 +790,9 @@ func (m *Message) Text() string {
 	}
 	var sb strings.Builder
 	for _, p := range m.Content {
-		sb.WriteString(p.Text)
+		if p.IsText() || p.IsData() {
+			sb.WriteString(p.Text)
+		}
 	}
 	return sb.String()
 }

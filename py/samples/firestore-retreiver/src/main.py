@@ -38,7 +38,7 @@ ai = Genkit(
     plugins=[
         VertexAI(),
         FirestoreVectorStore(
-            name='filmsretriever',
+            name='my_firestore_retriever',
             collection='films',
             vector_field='embedding',
             content_field='text',
@@ -96,7 +96,7 @@ async def retreive_documents():
     """Retrieves the film documents from Firestore."""
     return await ai.retrieve(
         query=Document.from_text('sci-fi film'),
-        retriever=firestore_action_name('filmsretriever'),
+        retriever=firestore_action_name('my_firestore_retriever'),
     )
 
 
@@ -106,7 +106,7 @@ async def main() -> None:
     This function demonstrates how to create and use AI flows in the
     Genkit framework.
     """
-    print(await index_documents())
+    await index_documents()
     print(await retreive_documents())
 
 

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+export { checkOperation } from './check-operation.js';
 export {
   Document,
   DocumentDataSchema,
@@ -49,6 +50,7 @@ export {
   GenerationBlockedError,
   GenerationResponseError,
   generate,
+  generateOperation,
   generateStream,
   tagAsPreamble,
   toGenerateRequest,
@@ -108,6 +110,19 @@ export {
   type RerankerParams,
   type RerankerReference,
 } from './reranker.js';
+export {
+  ResourceInputSchema,
+  ResourceOutputSchema,
+  defineResource,
+  dynamicResource,
+  isDynamicResourceAction,
+  type DynamicResourceAction,
+  type ResourceAction,
+  type ResourceFn,
+  type ResourceInput,
+  type ResourceOptions,
+  type ResourceOutput,
+} from './resource.js';
 export {
   index,
   indexerRef,

@@ -17,13 +17,7 @@
 import bodyParser from 'body-parser';
 import cors, { type CorsOptions } from 'cors';
 import express from 'express';
-import {
-  runWithStreamingCallback,
-  type Action,
-  type ActionContext,
-  type Flow,
-  type z,
-} from 'genkit';
+import { type Action, type ActionContext, type Flow, type z } from 'genkit';
 import {
   getCallableJSON,
   getHttpStatus,
@@ -90,6 +84,15 @@ export function expressHandler<
       return;
     }
 
+    const abortController = new AbortController();
+    request.on('close', () => {
+      abortController.abort();
+    });
+    // when/if using timeout middleware, it will emit 'timeout' event.
+    request.on('timeout', () => {
+      abortController.abort();
+    });
+
     if (request.get('Accept') === 'text/event-stream' || stream === 'true') {
       response.writeHead(200, {
         'Content-Type': 'text/plain',
@@ -101,15 +104,11 @@ export function expressHandler<
             'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
           );
         };
-        const result = await runWithStreamingCallback(
-          action.__registry,
+        const result = await action.run(input, {
           onChunk,
-          () =>
-            action.run(input, {
-              onChunk,
-              context,
-            })
-        );
+          context,
+          abortSignal: abortController.signal,
+        });
         response.write(
           'data: ' + JSON.stringify({ result: result.result }) + streamDelimiter
         );
@@ -125,7 +124,10 @@ export function expressHandler<
       }
     } else {
       try {
-        const result = await action.run(input, { context });
+        const result = await action.run(input, {
+          context,
+          abortSignal: abortController.signal,
+        });
         response.setHeader('x-genkit-trace-id', result.telemetry.traceId);
         response.setHeader('x-genkit-span-id', result.telemetry.spanId);
         // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."

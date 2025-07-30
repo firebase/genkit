@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"maps"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/core/tracing"
@@ -35,15 +36,22 @@ const (
 	PromptDirKey    = "genkit/promptDir"
 )
 
+// ActionResolver is a function type for resolving actions dynamically
+type ActionResolver = func(actionType, provider, name string) error
+
+// Registry holds all registered actions and associated types,
+// and provides methods to register, query, and look up actions.
 type Registry struct {
-	tstate    *tracing.State
-	mu        sync.Mutex
-	frozen    bool           // when true, no more additions
-	parent    *Registry      // parent registry for hierarchical lookups
-	actions   map[string]any // Values follow interface core.Action but we can't reference it here.
-	plugins   map[string]any // Values follow interface genkit.Plugin but we can't reference it here.
-	values    map[string]any // Values can truly be anything.
-	Dotprompt *dotprompt.Dotprompt
+	tstate  *tracing.State
+	mu      sync.Mutex
+	frozen  bool           // when true, no more additions
+	parent  *Registry      // parent registry for hierarchical lookups
+	actions map[string]any // Values follow interface core.Action but we can't reference it here.
+	plugins map[string]any // Values follow interface genkit.Plugin but we can't reference it here.
+	values  map[string]any // Values can truly be anything.
+
+	ActionResolver ActionResolver // Function for resolving actions dynamically.
+	Dotprompt      *dotprompt.Dotprompt
 }
 
 // New creates a new root registry.
@@ -69,12 +77,13 @@ func New() (*Registry, error) {
 // for lookups if a value is not found in the child.
 func (r *Registry) NewChild() *Registry {
 	child := &Registry{
-		parent:    r,
-		tstate:    r.tstate,
-		actions:   map[string]any{},
-		plugins:   map[string]any{},
-		values:    map[string]any{},
-		Dotprompt: r.Dotprompt,
+		parent:         r,
+		tstate:         r.tstate,
+		actions:        map[string]any{},
+		plugins:        map[string]any{},
+		values:         map[string]any{},
+		ActionResolver: r.ActionResolver,
+		Dotprompt:      r.Dotprompt,
 	}
 	return child
 }
@@ -90,8 +99,7 @@ func (r *Registry) RegisterPlugin(name string, p any) {
 		panic(fmt.Sprintf("plugin %q is already registered", name))
 	}
 	r.plugins[name] = p
-	slog.Debug("RegisterPlugin",
-		"name", name)
+	slog.Debug("RegisterPlugin", "name", name)
 }
 
 // RegisterAction records the action in the registry.
@@ -157,7 +165,6 @@ func (r *Registry) LookupValue(name string) any {
 
 // LookupAction returns the action for the given key.
 // It first checks the current registry, then falls back to the parent if not found.
-// Returns nil if the action is not found in the registry hierarchy.
 func (r *Registry) LookupAction(key string) any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -171,6 +178,27 @@ func (r *Registry) LookupAction(key string) any {
 	}
 
 	return nil
+}
+
+// ResolveAction looks up an action by key. If the action is not found, it attempts dynamic resolution.
+// Returns the action if found, or nil if not found.
+func (r *Registry) ResolveAction(key string) any {
+	action := r.LookupAction(key)
+	if action == nil && r.ActionResolver != nil {
+		typ, provider, name, err := ParseActionKey(key)
+		if err != nil {
+			slog.Debug("ResolveAction: failed to parse action key", "key", key, "err", err)
+			return nil
+		}
+		err = r.ActionResolver(typ, provider, name)
+		if err != nil {
+			// TODO: Handle errors from the action resolver better.
+			slog.Error("ResolveAction: failed to resolve action", "key", key, "err", err)
+			return nil
+		}
+		action = r.LookupAction(key)
+	}
+	return action
 }
 
 // ListActions returns a list of all registered actions.
@@ -212,9 +240,7 @@ func (r *Registry) ListValues() map[string]any {
 
 	if r.parent != nil {
 		parentValues := r.parent.ListValues()
-		for key, value := range parentValues {
-			allValues[key] = value
-		}
+		maps.Copy(allValues, parentValues)
 	}
 
 	maps.Copy(allValues, r.values)
@@ -272,4 +298,33 @@ func (r *Registry) DefineHelper(name string, fn any) error {
 	}
 	r.Dotprompt.Helpers[name] = fn
 	return nil
+}
+
+// ParseActionKey parses an action key in the format "/<action_type>/<provider>/<name>" or "/<action_type>/<name>".
+// Returns the action type, provider (empty string if not present), and name.
+// If the key format is invalid, returns an error.
+func ParseActionKey(key string) (actionType, provider, name string, err error) {
+	if !strings.HasPrefix(key, "/") {
+		return "", "", "", fmt.Errorf("action key must start with '/', got %q", key)
+	}
+
+	parts := strings.Split(key[1:], "/")
+	if len(parts) < 2 {
+		return "", "", "", fmt.Errorf("action key must have at least 2 parts, got %d", len(parts))
+	}
+
+	actionType = parts[0]
+
+	if len(parts) == 2 {
+		// Format: <action_type>/<name>
+		name = parts[1]
+	} else if len(parts) == 3 {
+		// Format: <action_type>/<provider>/<name>
+		provider = parts[1]
+		name = parts[2]
+	} else {
+		return "", "", "", fmt.Errorf("action key must have 2 or 3 parts, got %d", len(parts))
+	}
+
+	return actionType, provider, name, nil
 }

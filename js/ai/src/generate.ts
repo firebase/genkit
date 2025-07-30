@@ -15,11 +15,12 @@
  */
 
 import {
+  assertUnstable,
   GenkitError,
   isAction,
   isDetachedAction,
+  Operation,
   runWithContext,
-  runWithStreamingCallback,
   sentinelNoopStreamingCallback,
   type Action,
   type ActionContext,
@@ -43,6 +44,8 @@ import { GenerateResponseChunk } from './generate/chunk.js';
 import { GenerateResponse } from './generate/response.js';
 import { Message } from './message.js';
 import {
+  GenerateResponseChunkData,
+  GenerateResponseData,
   resolveModel,
   type GenerateActionOptions,
   type GenerateRequest,
@@ -55,6 +58,7 @@ import {
   type ToolResponsePart,
 } from './model.js';
 import { isExecutablePrompt } from './prompt.js';
+import { DynamicResourceAction, isDynamicResourceAction } from './resource.js';
 import {
   isDynamicTool,
   resolveTools,
@@ -117,6 +121,8 @@ export interface GenerateOptions<
   messages?: (MessageData & { content: Part[] | string | (string | Part)[] })[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
+  /** List of dynamic resources to be made available to this generate request. */
+  resources?: DynamicResourceAction[];
   /** Specifies how tools should be called by the model.  */
   toolChoice?: ToolChoice;
   /** Configuration for the generation request. */
@@ -162,6 +168,8 @@ export interface GenerateOptions<
   use?: ModelMiddleware[];
   /** Additional context (data, like e.g. auth) to be passed down to tools, prompts and other sub actions. */
   context?: ActionContext;
+  /** Abort signal for the generate request. */
+  abortSignal?: AbortSignal;
 }
 
 export async function toGenerateRequest(
@@ -338,33 +346,62 @@ export async function generate<
   const resolvedFormat = await resolveFormat(registry, resolvedOptions.output);
 
   registry = maybeRegisterDynamicTools(registry, resolvedOptions);
+  registry = maybeRegisterDynamicResources(registry, resolvedOptions);
 
   const params = await toGenerateActionOptions(registry, resolvedOptions);
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
-  return await runWithStreamingCallback(
-    registry,
-    stripNoop(resolvedOptions.onChunk ?? resolvedOptions.streamingCallback),
-    async () => {
-      const response = await runWithContext(
-        registry,
-        resolvedOptions.context,
-        () =>
-          generateHelper(registry, {
-            rawRequest: params,
-            middleware: resolvedOptions.use,
-          })
-      );
-      const request = await toGenerateRequest(registry, {
-        ...resolvedOptions,
-        tools,
-      });
-      return new GenerateResponse<O>(response, {
-        request: response.request ?? request,
-        parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
-      });
-    }
+  const streamingCallback = stripNoop(
+    resolvedOptions.onChunk ?? resolvedOptions.streamingCallback
+  ) as StreamingCallback<GenerateResponseChunkData>;
+  const response = await runWithContext(registry, resolvedOptions.context, () =>
+    generateHelper(registry, {
+      rawRequest: params,
+      middleware: resolvedOptions.use,
+      abortSignal: resolvedOptions.abortSignal,
+      streamingCallback,
+    })
   );
+  const request = await toGenerateRequest(registry, {
+    ...resolvedOptions,
+    tools,
+  });
+  return new GenerateResponse<O>(response, {
+    request: response.request ?? request,
+    parser: resolvedFormat?.handler(request.output?.schema).parseMessage,
+  });
+}
+
+export async function generateOperation<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  registry: Registry,
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<Operation<GenerateResponseData>> {
+  assertUnstable(registry, 'beta', 'generateOperation is a beta feature.');
+
+  options = await options;
+  const resolvedModel = await resolveModel(registry, options.model);
+  if (
+    !resolvedModel.modelAction.__action.metadata?.model.supports?.longRunning
+  ) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: `Model '${resolvedModel.modelAction.__action.name}' does not support long running operations.`,
+    });
+  }
+
+  const { operation } = await generate(registry, options);
+  if (!operation) {
+    throw new GenkitError({
+      status: 'FAILED_PRECONDITION',
+      message: `Model '${resolvedModel.modelAction.__action.name}' did not return an operation.`,
+    });
+  }
+  return operation;
 }
 
 function maybeRegisterDynamicTools<
@@ -384,6 +421,26 @@ function maybeRegisterDynamicTools<
         registry = Registry.withParent(registry);
       }
       registry.registerAction('tool', t as Action);
+    }
+  });
+  return registry;
+}
+
+function maybeRegisterDynamicResources<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(registry: Registry, options: GenerateOptions<O, CustomOptions>): Registry {
+  let hasDynamicResources = false;
+  options?.resources?.forEach((r) => {
+    if (isDynamicResourceAction(r)) {
+      const attached = r.attach(registry);
+      if (!hasDynamicResources) {
+        hasDynamicResources = true;
+        // Create a temporary registry with dynamic tools for the duration of this
+        // generate request.
+        registry = Registry.withParent(registry);
+      }
+      registry.registerAction('resource', attached);
     }
   });
   return registry;

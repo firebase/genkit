@@ -128,30 +128,16 @@ const GoogleSearchRetrievalSchema = z.object({
 
 /**
  * Zod schema of Gemini model options.
- * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/medlm, for further information.
+ * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference#generationconfig, for further information.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  maxOutputTokens: z
-    .number()
-    .min(1)
-    .max(8192)
-    .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
-    .optional(),
   temperature: z
     .number()
     .min(0.0)
-    .max(1.0)
+    .max(2.0)
     .describe(
       GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 0.2.'
-    )
-    .optional(),
-  topK: z
-    .number()
-    .min(1)
-    .max(40)
-    .describe(
-      GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
+        ' The default value is 1.0.'
     )
     .optional(),
   topP: z
@@ -159,7 +145,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .min(0)
     .max(1.0)
     .describe(
-      GenerationCommonConfigDescriptions.topP + ' The default value is 0.8.'
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
     )
     .optional(),
   location: z
@@ -554,6 +540,56 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25Pro = modelRef({
+  name: 'vertexai/gemini-2.5-pro',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Pro',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+export const gemini25Flash = modelRef({
+  name: 'vertexai/gemini-2.5-flash',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Flash',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25FlashLite = modelRef({
+  name: 'vertexai/gemini-2.5-flash-lite',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const GENERIC_GEMINI_MODEL = modelRef({
   name: 'vertexai/gemini',
   configSchema: GeminiConfigSchema,
@@ -584,6 +620,9 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
+  'gemini-2.5-flash': gemini25Flash,
+  'gemini-2.5-pro': gemini25Pro,
+  'gemini-2.5-flash-lite': gemini25FlashLite,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
@@ -901,7 +940,7 @@ function convertSchemaProperty(property) {
   }
   if (propertyType === 'object') {
     const nestedProperties = {};
-    Object.keys(property.properties).forEach((key) => {
+    Object.keys(property.properties ?? {}).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {

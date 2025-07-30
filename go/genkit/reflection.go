@@ -34,7 +34,6 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -302,7 +301,7 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 			json.Unmarshal(body.Context, &contextMap)
 		}
 
-		resp, err := runAction(ctx, g.reg, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
+		resp, err := runAction(ctx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 		if err != nil {
 			if stream {
 				reflectErr, err := json.Marshal(core.ToReflectionError(err))
@@ -359,7 +358,7 @@ func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error 
 // The list is sorted by action name and contains unique action names.
 func handleListActions(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		ads := listResolvableActions(g)
+		ads := listResolvableActions(r.Context(), g)
 		descMap := map[string]core.ActionDesc{}
 		for _, d := range ads {
 			descMap[d.Key] = d
@@ -390,7 +389,7 @@ func listActions(g *Genkit) []core.ActionDesc {
 }
 
 // listResolvableActions lists all the registered and resolvable actions.
-func listResolvableActions(g *Genkit) []core.ActionDesc {
+func listResolvableActions(ctx context.Context, g *Genkit) []core.ActionDesc {
 	ads := listActions(g)
 	keys := make(map[string]struct{})
 
@@ -402,7 +401,7 @@ func listResolvableActions(g *Genkit) []core.ActionDesc {
 			continue
 		}
 
-		for _, desc := range dp.ListActions() {
+		for _, desc := range dp.ListActions(ctx) {
 			if _, exists := keys[desc.Name]; !exists {
 				ads = append(ads, desc)
 				keys[desc.Name] = struct{}{}
@@ -428,9 +427,9 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
-	action, ok := reg.LookupAction(key).(core.Action)
-	if !ok {
+func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage, telemetryLabels json.RawMessage, cb streamingCallback[json.RawMessage], runtimeContext map[string]any) (*runActionResponse, error) {
+	action := g.reg.ResolveAction(key)
+	if action == nil {
 		return nil, core.NewError(core.NOT_FOUND, "action %q not found", key)
 	}
 	if runtimeContext != nil {
@@ -438,7 +437,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 	}
 
 	var traceID string
-	output, err := tracing.RunInNewSpan(ctx, reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+	output, err := tracing.RunInNewSpan(ctx, g.reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		// Set telemetry labels from payload to span
 		if telemetryLabels != nil {

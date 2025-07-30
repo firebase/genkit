@@ -127,7 +127,13 @@ export async function notifyAnalyticsIfFirstRun(): Promise<void> {
   }
 
   console.log(ANALYTICS_NOTIFICATION);
+
+  const readline = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
   await readline.question('Press "Enter" to continue');
+  readline.close();
 
   configstore.set(NOTIFICATION_ACKED, true);
 
@@ -183,11 +189,6 @@ const GA_USER_PROPS = {
     value: toolsPackage.version,
   },
 };
-
-const readline = createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
 
 interface AnalyticsSession {
   clientId: string;
@@ -273,7 +274,7 @@ async function recordInternal(
   };
 
   if (validate) {
-    logger.info(
+    logger.debug(
       `Sending Analytics for event ${event.name}`,
       joinedParams,
       body
@@ -293,7 +294,7 @@ async function recordInternal(
         logger.warn(`Analytics validation HTTP error: ${response.status}`);
       }
       const respBody = await response.text;
-      logger.info(`Analytics validation result: ${respBody}`);
+      logger.debug(`Analytics validation result: ${respBody}`);
     }
     // response.ok / response.status intentionally ignored, see comment below.
   } catch (e: unknown) {

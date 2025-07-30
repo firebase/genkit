@@ -28,6 +28,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/server"
+	"google.golang.org/genai"
 )
 
 func main() {
@@ -63,7 +64,7 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 	// Define prompt with default model and system text.
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "SimplePrompt",
-		ai.WithModelName("vertexai/gemini-1.5-flash"), // Override the default model.
+		ai.WithModelName("vertexai/gemini-2.0-flash-lite"), // Override the default model.
 		ai.WithSystem("You are a helpful AI assistant named Walt. Greet the user."),
 		ai.WithPrompt("Hello, who are you?"),
 	)
@@ -114,7 +115,7 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 	helloPrompt, err := genkit.DefinePrompt(
 		g, "PromptWithOutputType",
 		ai.WithOutputType(CountryList{}),
-		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
+		ai.WithConfig(&genai.GenerateContentConfig{Temperature: genai.Ptr[float32](0.5)}),
 		ai.WithSystem("You are a geography teacher. When asked a question about geography, return a list of countries that match the question."),
 		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants."),
 	)
@@ -189,7 +190,7 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 	prompt, err := genkit.DefinePrompt(
 		g, "PromptWithComplexOutputType",
 		ai.WithOutputType(countries{}),
-		ai.WithConfig(&googlegenai.GeminiConfig{Temperature: 0.5}),
+		ai.WithConfig(&genai.GenerateContentConfig{Temperature: genai.Ptr[float32](0.5)}),
 		ai.WithSystem("You are a geography teacher. When asked a question about geography."),
 		ai.WithPrompt("Give me the 10 biggest countries in the world by habitants and language."),
 	)
@@ -284,7 +285,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 
 	// Call the model and add additional messages from the user.
 	resp, err := helloPrompt.Execute(ctx,
-		ai.WithModel(googlegenai.VertexAIModel(g, "gemini-2.0-pro")),
+		ai.WithModel(googlegenai.VertexAIModel(g, "gemini-2.0-flash-lite")),
 		ai.WithMessages(ai.NewUserTextMessage("And I like turtles.")),
 	)
 	if err != nil {
@@ -339,7 +340,7 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 	resp, err := prompt.Execute(ctx,
 
 		ai.WithModelName("vertexai/gemini-2.0-flash"),
-		ai.WithInput(map[string]any{"imageUrl": "data:image/png;base64," + img}),
+		ai.WithInput(map[string]any{"imageUrl": "data:image/jpg;base64," + img}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -348,7 +349,7 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 }
 
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
+	imgUrl := "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err

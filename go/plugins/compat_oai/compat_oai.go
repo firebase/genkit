@@ -17,35 +17,33 @@ package compat_oai
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
-	openaiGo "github.com/openai/openai-go"
+	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 )
 
 var (
 	// BasicText describes model capabilities for text-only GPT models.
-	BasicText = ai.ModelInfo{
-		Supports: &ai.ModelSupports{
-			Multiturn:  true,
-			Tools:      true,
-			SystemRole: true,
-			Media:      false,
-		},
+	BasicText = ai.ModelSupports{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      false,
 	}
 
 	// Multimodal describes model capabilities for multimodal GPT models.
-	Multimodal = ai.ModelInfo{
-		Supports: &ai.ModelSupports{
-			Multiturn:  true,
-			Tools:      true,
-			SystemRole: true,
-			Media:      true,
-			ToolChoice: true,
-		},
+	Multimodal = ai.ModelSupports{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      true,
+		ToolChoice: true,
 	}
 )
 
@@ -60,7 +58,7 @@ type OpenAICompatible struct {
 
 	// client is the OpenAI client used for making API requests
 	// see https://github.com/openai/openai-go
-	client *openaiGo.Client
+	client *openai.Client
 
 	// Opts contains request options for the OpenAI client.
 	// Required: Must include at least WithAPIKey for authentication.
@@ -82,8 +80,8 @@ func (o *OpenAICompatible) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	// create client
-	client := openaiGo.NewClient(o.Opts...)
-	o.client = client
+	client := openai.NewClient(o.Opts...)
+	o.client = &client
 	o.initted = true
 
 	return nil
@@ -110,9 +108,8 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, 
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-
 		// Configure the response generator with input
-		generator := NewModelGenerator(o.client, modelName).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools, input.ToolChoice)
+		generator := NewModelGenerator(o.client, modelName).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools)
 
 		// Generate response
 		resp, err := generator.Generate(ctx, cb)
@@ -125,25 +122,25 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, 
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name string) (ai.Embedder, error) {
+func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name string, embedOpts *ai.EmbedderOptions) (ai.Embedder, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
 		return nil, errors.New("OpenAICompatible.Init not called")
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
-		var data openaiGo.EmbeddingNewParamsInputArrayOfStrings
+	return genkit.DefineEmbedder(g, provider, name, embedOpts, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+		var data openai.EmbeddingNewParamsInputUnion
 		for _, doc := range input.Input {
 			for _, p := range doc.Content {
-				data = append(data, p.Text)
+				data.OfArrayOfStrings = append(data.OfArrayOfStrings, p.Text)
 			}
 		}
 
-		params := openaiGo.EmbeddingNewParams{
-			Input:          openaiGo.F[openaiGo.EmbeddingNewParamsInputUnion](data),
-			Model:          openaiGo.F(name),
-			EncodingFormat: openaiGo.F(openaiGo.EmbeddingNewParamsEncodingFormatFloat),
+		params := openai.EmbeddingNewParams{
+			Input:          openai.EmbeddingNewParamsInputUnion(data),
+			Model:          name,
+			EncodingFormat: openai.EmbeddingNewParamsEncodingFormatFloat,
 		}
 
 		embeddingResp, err := o.client.Embeddings.New(ctx, params)
@@ -183,4 +180,67 @@ func (o *OpenAICompatible) Model(g *genkit.Genkit, name string, provider string)
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
 func (o *OpenAICompatible) IsDefinedModel(g *genkit.Genkit, name string, provider string) bool {
 	return genkit.LookupModel(g, provider, name) != nil
+}
+
+func (o *OpenAICompatible) ListActions(ctx context.Context) []core.ActionDesc {
+	actions := []core.ActionDesc{}
+
+	models, err := listOpenAIModels(ctx, o.client)
+	if err != nil {
+		return nil
+	}
+	for _, name := range models {
+		metadata := map[string]any{
+			"model": map[string]any{
+				"supports": map[string]any{
+					"media":       true,
+					"multiturn":   true,
+					"systemRole":  true,
+					"tools":       true,
+					"toolChoice":  true,
+					"constrained": true,
+				},
+			},
+			"versions": []string{},
+			"stage":    string(ai.ModelStageStable),
+		}
+		metadata["label"] = fmt.Sprintf("%s - %s", o.Provider, name)
+
+		actions = append(actions, core.ActionDesc{
+			Type:     core.ActionTypeModel,
+			Name:     fmt.Sprintf("%s/%s", o.Provider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, o.Provider, name),
+			Metadata: metadata,
+		})
+	}
+
+	return actions
+}
+
+func (o *OpenAICompatible) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+	switch atype {
+	case core.ActionTypeModel:
+		o.DefineModel(g, o.Provider, name, ai.ModelInfo{
+			Label:    fmt.Sprintf("%s - %s", o.Provider, name),
+			Stage:    ai.ModelStageStable,
+			Versions: []string{},
+			Supports: &Multimodal,
+		})
+	}
+
+	return nil
+}
+
+func listOpenAIModels(ctx context.Context, client *openai.Client) ([]string, error) {
+	models := []string{}
+	iter := client.Models.ListAutoPaging(ctx)
+	for iter.Next() {
+		m := iter.Current()
+		models = append(models, m.ID)
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+
+	return models, nil
 }

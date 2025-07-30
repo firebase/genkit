@@ -19,7 +19,7 @@ import { hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION, GenkitError } from 'genkit';
 import { logger } from 'genkit/logging';
-import { toDisplayPath, type PathMetadata } from 'genkit/tracing';
+import { toDisplayPath } from 'genkit/tracing';
 import {
   MetricCounter,
   MetricHistogram,
@@ -52,7 +52,6 @@ class FeaturesTelemetry implements Telemetry {
 
   tick(
     span: ReadableSpan,
-    paths: Set<PathMetadata>,
     logInputAndOutput: boolean,
     projectId?: string
   ): void {

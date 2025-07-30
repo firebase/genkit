@@ -45,6 +45,7 @@ import {
   type JSONSchema,
 } from 'genkit';
 import {
+  GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   modelRef,
@@ -140,6 +141,23 @@ const VoiceConfigSchema = z
   .passthrough();
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+  temperature: z
+    .number()
+    .min(0)
+    .max(2)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 1.0.'
+    )
+    .optional(),
+  topP: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe(
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
+    )
+    .optional(),
   apiKey: z
     .string()
     .describe('Overrides the plugin-configured API key, if specified.')
@@ -191,6 +209,18 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
+
+export const GeminiGemmaConfigSchema = GeminiConfigSchema.extend({
+  temperature: z
+    .number()
+    .min(0.0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 1.0.'
+    )
+    .optional(),
+}).passthrough();
 
 export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
   speechConfig: z
@@ -452,7 +482,143 @@ export const gemini25ProPreviewTts = modelRef({
   configSchema: GeminiTtsConfigSchema,
 });
 
-export const SUPPORTED_V15_MODELS = {
+export const gemini25Pro = modelRef({
+  name: 'googleai/gemini-2.5-pro',
+  info: {
+    label: 'Google AI - Gemini 2.5 Pro',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25Flash = modelRef({
+  name: 'googleai/gemini-2.5-flash',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25FlashLite = modelRef({
+  name: 'googleai/gemini-2.5-flash-lite',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemma312bit = modelRef({
+  name: 'googleai/gemma-3-12b-it',
+  info: {
+    label: 'Google AI - Gemma 3 12B',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiGemmaConfigSchema,
+});
+
+export const gemma31bit = modelRef({
+  name: 'googleai/gemma-3-1b-it',
+  info: {
+    label: 'Google AI - Gemma 3 1B',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiGemmaConfigSchema,
+});
+
+export const gemma327bit = modelRef({
+  name: 'googleai/gemma-3-27b-it',
+  info: {
+    label: 'Google AI - Gemma 3 27B',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiGemmaConfigSchema,
+});
+
+export const gemma34bit = modelRef({
+  name: 'googleai/gemma-3-4b-it',
+  info: {
+    label: 'Google AI - Gemma 3 4B',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiGemmaConfigSchema,
+});
+
+export const gemma3ne4bit = modelRef({
+  name: 'googleai/gemma-3n-e4b-it',
+  info: {
+    label: 'Google AI - Gemma 3n E4B',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiGemmaConfigSchema,
+});
+
+export const SUPPORTED_GEMINI_MODELS = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-flash-8b': gemini15Flash8b,
@@ -465,6 +631,14 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
   'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
+  'gemini-2.5-flash': gemini25Flash,
+  'gemini-2.5-flash-lite': gemini25FlashLite,
+  'gemini-2.5-pro': gemini25Pro,
+  'gemma-3-12b-it': gemma312bit,
+  'gemma-3-1b-it': gemma31bit,
+  'gemma-3-27b-it': gemma327bit,
+  'gemma-3-4b-it': gemma34bit,
+  'gemma-3n-e4b-it': gemma3ne4bit,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
@@ -482,10 +656,6 @@ export const GENERIC_GEMINI_MODEL = modelRef({
     },
   },
 });
-
-export const SUPPORTED_GEMINI_MODELS = {
-  ...SUPPORTED_V15_MODELS,
-} as const;
 
 function longestMatchingPrefix(version: string, potentialMatches: string[]) {
   return potentialMatches
@@ -607,7 +777,7 @@ function convertSchemaProperty(property) {
   }
   if (propertyType === 'object') {
     const nestedProperties = {};
-    Object.keys(property.properties).forEach((key) => {
+    Object.keys(property.properties ?? {}).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
@@ -1006,12 +1176,13 @@ export function defineGoogleAIModel({
 
   return ai.defineModel(
     {
+      apiVersion: 'v2',
       name: model.name,
       ...model.info,
       configSchema: model.configSchema,
       use: middleware,
     },
-    async (request, sendChunk) => {
+    async (request, { streamingRequested, sendChunk, abortSignal }) => {
       const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
       if (apiVersion) {
         options.apiVersion = apiVersion;
@@ -1172,10 +1343,10 @@ export function defineGoogleAIModel({
       const callGemini = async () => {
         let response: GenerateContentResponse;
 
-        if (sendChunk) {
+        if (streamingRequested) {
           const result = await genModel
             .startChat(updatedChatRequest)
-            .sendMessageStream(msg.parts, options);
+            .sendMessageStream(msg.parts, { ...options, signal: abortSignal });
 
           const chunks = [] as GenerateContentResponse[];
           for await (const item of result.stream) {
@@ -1195,7 +1366,7 @@ export function defineGoogleAIModel({
         } else {
           const result = await genModel
             .startChat(updatedChatRequest)
-            .sendMessage(msg.parts, options);
+            .sendMessage(msg.parts, { ...options, signal: abortSignal });
 
           response = result.response;
         }
@@ -1235,7 +1406,7 @@ export function defineGoogleAIModel({
             ai.registry,
             {
               metadata: {
-                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
               },
             },
             async (metadata) => {
@@ -1356,6 +1527,14 @@ export function aggregateResponses(
             const newPart: Partial<GeminiPart> = {};
             if (part.text) {
               newPart.text = part.text;
+            }
+            if ((part as any).thought) {
+              (newPart as any).thought = (part as any).thought;
+            }
+            if ((part as any).thoughtSignature) {
+              (newPart as any).thoughtSignature = (
+                part as any
+              ).thoughtSignature;
             }
             if (part.functionCall) {
               newPart.functionCall = part.functionCall;

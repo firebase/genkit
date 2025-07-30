@@ -18,7 +18,6 @@ package googlegenai_test
 
 import (
 	"context"
-	"flag"
 	"math"
 	"os"
 	"strings"
@@ -27,26 +26,28 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
-// The tests here only work with a project set to a valid value.
-// The user running these tests must be authenticated, for example by
-// setting a valid GOOGLE_APPLICATION_CREDENTIALS environment variable.
-var (
-	projectID = flag.String("projectid", "", "VertexAI project")
-	location  = flag.String("location", "us-central1", "geographic location")
-)
+// To run this test suite: go test -v -run TestVertexAI
 
 func TestVertexAILive(t *testing.T) {
-	if *projectID == "" {
-		t.Skipf("no -projectid provided")
+	projectID, ok := requireEnv("GOOGLE_CLOUD_PROJECT")
+	if !ok {
+		t.Skipf("GOOGLE_CLOUD_PROJECT env var not set")
 	}
+	location, ok := requireEnv("GOOGLE_CLOUD_LOCATION")
+	if !ok {
+		t.Log("GOOGLE_CLOUD_LOCATION env var not set, defaulting to us-central1")
+		location = "us-central1"
+	}
+
 	ctx := context.Background()
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-1.5-flash"))
+	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-2.0-flash"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = (&googlegenai.VertexAI{ProjectID: *projectID, Location: *location}).Init(ctx, g)
+	err = (&googlegenai.VertexAI{ProjectID: projectID, Location: location}).Init(ctx, g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,10 +161,7 @@ func TestVertexAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPrompt("write a summary of the content"),
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}))
+			ai.WithPrompt("write a summary of the content"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -183,9 +181,6 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
@@ -221,16 +216,16 @@ func TestVertexAILive(t *testing.T) {
 			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -255,29 +250,29 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the image provided"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewDataPart("data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
-		if *location != "global" {
-			t.Skip("image generation in Vertex AI is only supported in region: global")
+		if location != "global" {
+			t.Skipf("image generation in Vertex AI is only supported in region: global, got: %s", location)
 		}
 		m := googlegenai.VertexAIModel(g, "gemini-2.0-flash-preview-image-generation")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(googlegenai.GeminiConfig{
-				ResponseModalities: []googlegenai.Modality{googlegenai.ImageMode, googlegenai.TextMode},
+			ai.WithConfig(genai.GenerateContentConfig{
+				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
 			ai.WithMessages(
 				ai.NewUserTextMessage("generate an image of a dog wearing a black tejana while playing the accordion"),
@@ -335,18 +330,18 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking enabled", func(t *testing.T) {
-		if *location != "global" {
-			t.Skip("thinking in Vertex AI is only supported in region: global")
+		if location != "global" && location != "us-central1" {
+			t.Skipf("thinking in Vertex AI is only supported in these regions: [global, us-central1], got: %q", location)
 		}
 
-		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-05-20")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(
-				googlegenai.GeminiConfig{
-					Temperature: 1,
-					ThinkingConfig: &googlegenai.ThinkingConfig{
+				genai.GenerateContentConfig{
+					Temperature: genai.Ptr[float32](1),
+					ThinkingConfig: &genai.ThinkingConfig{
 						IncludeThoughts: true,
-						ThinkingBudget:  1024,
+						ThinkingBudget:  genai.Ptr[int32](1024),
 					},
 				},
 			),
@@ -367,18 +362,18 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
-		if *location != "global" {
-			t.Skip("thinking in Vertex AI is only supported in region: global")
+		if location != "global" && location != "us-central1" {
+			t.Skipf("thinking in Vertex AI is only supported in these regions: [global, us-central1], got: %q", location)
 		}
 
-		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-05-20")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(
-				googlegenai.GeminiConfig{
-					Temperature: 1,
-					ThinkingConfig: &googlegenai.ThinkingConfig{
+				genai.GenerateContentConfig{
+					Temperature: genai.Ptr[float32](1),
+					ThinkingConfig: &genai.ThinkingConfig{
 						IncludeThoughts: false,
-						ThinkingBudget:  0,
+						ThinkingBudget:  genai.Ptr[int32](0),
 					},
 				},
 			),

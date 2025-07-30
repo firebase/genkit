@@ -21,6 +21,8 @@ import (
 	"github.com/firebase/genkit/go/plugins/internal"
 )
 
+const provider = "vertexai"
+
 // supported anthropic models
 var anthropicModels = map[string]ai.ModelInfo{
 	"claude-3-5-sonnet-v2": {
@@ -52,5 +54,15 @@ var anthropicModels = map[string]ai.ModelInfo{
 		Label:    "Vertex AI Model Garden - Claude 3.7 Sonnet",
 		Supports: &internal.Multimodal,
 		Versions: []string{"claude-3-7-sonnet@20250219"},
+	},
+	"claude-opus-4": {
+		Label:    "Vertex AI Model Garden - Claude Opus 4",
+		Supports: &internal.Multimodal,
+		Versions: []string{"claude-opus-4@20250514"},
+	},
+	"claude-sonnet-4": {
+		Label:    "Vertex AI Model Garden - Claude Sonnet 4",
+		Supports: &internal.Multimodal,
+		Versions: []string{"claude-sonnet-4@20250514"},
 	},
 }

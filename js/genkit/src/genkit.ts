@@ -15,6 +15,7 @@
  */
 
 import {
+  checkOperation,
   defineHelper,
   definePartial,
   definePrompt,
@@ -71,8 +72,11 @@ import {
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
+  defineBackgroundModel,
   defineGenerateAction,
   defineModel,
+  type BackgroundModelAction,
+  type DefineBackgroundModelOptions,
   type DefineModelOptions,
   type GenerateResponseChunkData,
   type ModelAction,
@@ -95,7 +99,9 @@ import {
 } from '@genkit-ai/ai/retriever';
 import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
+  ActionFnArg,
   GenkitError,
+  Operation,
   ReflectionServer,
   defineFlow,
   defineJsonSchema,
@@ -139,6 +145,8 @@ export interface GenkitOptions {
   model?: ModelArgument<any>;
   /** Additional runtime context data for flows and tools. */
   context?: ActionContext;
+  /** Display name that will be shown in developer tooling. */
+  name?: string;
 }
 
 /**
@@ -174,6 +182,7 @@ export class Genkit implements HasRegistry {
     if (isDevEnv() && !disableReflectionApi) {
       this.reflectionServer = new ReflectionServer(this.registry, {
         configuredEnvs: ['dev'],
+        name: this.options.name,
       });
       this.reflectionServer.start().catch((e) => logger.error);
     }
@@ -240,13 +249,48 @@ export class Genkit implements HasRegistry {
    * Defines a new model and adds it to the registry.
    */
   defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: {
+      apiVersion: 'v2';
+    } & DefineModelOptions<CustomOptionsSchema>,
+    runner: (
+      request: GenerateRequest<CustomOptionsSchema>,
+      options: ActionFnArg<GenerateResponseChunkData>
+    ) => Promise<GenerateResponseData>
+  ): ModelAction<CustomOptionsSchema>;
+
+  /**
+   * Defines a new model and adds it to the registry.
+   */
+  defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
     options: DefineModelOptions<CustomOptionsSchema>,
     runner: (
       request: GenerateRequest<CustomOptionsSchema>,
       streamingCallback?: StreamingCallback<GenerateResponseChunkData>
     ) => Promise<GenerateResponseData>
+  ): ModelAction<CustomOptionsSchema>;
+
+  /**
+   * Defines a new model and adds it to the registry.
+   */
+  defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: any,
+    runner: (
+      request: GenerateRequest<CustomOptionsSchema>,
+      streamingCallback: any
+    ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema> {
     return defineModel(this.registry, options, runner);
+  }
+
+  /**
+   * Defines a new background model and adds it to the registry.
+   */
+  defineBackgroundModel<
+    CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: DefineBackgroundModelOptions<CustomOptionsSchema>
+  ): BackgroundModelAction<CustomOptionsSchema> {
+    return defineBackgroundModel(this.registry, options);
   }
 
   /**
@@ -284,6 +328,8 @@ export class Genkit implements HasRegistry {
     ): Promise<GenerateResponse<z.infer<O>>> => {
       return (await promise)(input, opts);
     }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
+
+    executablePrompt.ref = { name };
 
     executablePrompt.render = async (
       input?: I,
@@ -766,6 +812,29 @@ export class Genkit implements HasRegistry {
     }
     return generateStream(this.registry, options);
   }
+
+  /**
+   * Checks the status of of a given operation. Returns a new operation which will contain the updated status.
+   *
+   * ```ts
+   * let operation = await ai.generateOperation({
+   *   model: googleAI.model('veo-2.0-generate-001'),
+   *   prompt: 'A banana riding a bicycle.',
+   * });
+   *
+   * while (!operation.done) {
+   *   operation = await ai.checkOperation(operation!);
+   *   await new Promise((resolve) => setTimeout(resolve, 5000));
+   * }
+   * ```
+   *
+   * @param operation
+   * @returns
+   */
+  checkOperation<T>(operation: Operation<T>): Promise<Operation<T>> {
+    return checkOperation(this.registry, operation);
+  }
+
   /**
    * A flow step that executes the provided function. Each run step is recorded separately in the trace.
    *

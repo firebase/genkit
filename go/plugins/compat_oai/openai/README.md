@@ -12,9 +12,13 @@ This plugin provides a simple interface for using OpenAI's services.
 Here's a simple example of how to use the OpenAI plugin:
 
 ```go
-// import "github.com/firebase/genkit/go/plugins/compat_oai/openai"
+import (
+  // ignoring Genkit imports
+  oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
+  "github.com/openai/openai-go"
+)
 // Initialize the OpenAI plugin with your API key
-oai := openai.NewPlugin(apiKey)
+oai := &oai.OpenAI{APIKey: apiKey}
 
 // Initialize Genkit with the OpenAI plugin
 g, err := genkit.Init(ctx,
@@ -25,7 +29,7 @@ if err != nil {
     // handle errors
 }
 
-config := &ai.GenerationCommonConfig{
+config := &openai.ChatCompletionNewParams{
     // define optional config fields
 }
 

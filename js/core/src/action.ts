@@ -29,6 +29,8 @@ import {
 export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
 export type { JSONSchema7 };
 
+const makeNoopAbortSignal = () => new AbortController().signal;
+
 /**
  * Action metadata.
  */
@@ -78,12 +80,22 @@ export interface ActionRunOptions<S> {
    * Additional span attributes to apply to OT spans.
    */
   telemetryLabels?: Record<string, string>;
+
+  /**
+   * Abort signal for the action request.
+   */
+  abortSignal?: AbortSignal;
 }
 
 /**
  * Options (side channel) data to pass to the model.
  */
 export interface ActionFnArg<S> {
+  /**
+   * Whether the caller of the action requested streaming.
+   */
+  streamingRequested: boolean;
+
   /**
    * Streaming callback (optional).
    */
@@ -101,6 +113,11 @@ export interface ActionFnArg<S> {
     traceId: string;
     spanId: string;
   };
+
+  /**
+   * Abort signal for the action request.
+   */
+  abortSignal: AbortSignal;
 }
 
 /**
@@ -216,8 +233,11 @@ export function actionWithMiddleware<
   action: Action<I, O, S>,
   middleware: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[]
 ): Action<I, O, S> {
-  const wrapped = (async (req: z.infer<I>) => {
-    return (await wrapped.run(req)).result;
+  const wrapped = (async (
+    req: z.infer<I>,
+    options?: ActionRunOptions<z.infer<S>>
+  ) => {
+    return (await wrapped.run(req, options)).result;
   }) as Action<I, O, S>;
   wrapped.__action = action.__action;
   wrapped.__registry = action.__registry;
@@ -368,12 +388,16 @@ export function detachedAction<
                     ...registry.context,
                     ...(options?.context ?? getContext(registry)),
                   },
+                  streamingRequested:
+                    !!options?.onChunk &&
+                    options.onChunk !== sentinelNoopStreamingCallback,
                   sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
                   trace: {
                     traceId,
                     spanId,
                   },
                   registry,
+                  abortSignal: options?.abortSignal ?? makeNoopAbortSignal(),
                 });
               // if context is explicitly passed in, we run action with the provided context,
               // otherwise we let upstream context carry through.
@@ -430,6 +454,8 @@ export function detachedAction<
               ...registry.context,
               ...(opts?.context ?? getContext(registry)),
             },
+            abortSignal: opts?.abortSignal,
+            telemetryLabels: opts?.telemetryLabels,
           })
           .then((s) => s.result)
           .finally(() => {

@@ -61,7 +61,26 @@ export const GetTraceRequestSchema = z.object({
 
 export type GetTraceRequest = z.infer<typeof GetTraceRequestSchema>;
 
+export const ListActionsRequestSchema = z
+  .object({
+    runtimeId: z
+      .string()
+      .optional()
+      .describe(
+        'ID of the Genkit runtime to run the action on. Typically $pid-$port.'
+      ),
+  })
+  .optional();
+
+export type ListActionsRequest = z.infer<typeof ListActionsRequestSchema>;
+
 export const RunActionRequestSchema = z.object({
+  runtimeId: z
+    .string()
+    .optional()
+    .describe(
+      'ID of the Genkit runtime to run the action on. Typically $pid-$port.'
+    ),
   key: z
     .string()
     .describe('Action key that consists of the action type and ID.'),
