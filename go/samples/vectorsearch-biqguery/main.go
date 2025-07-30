@@ -79,7 +79,10 @@ func main() {
 		Location:  "${GOOGLE_CLOUD_PROJECT_LOCATION}", // Replace with your desired location
 	}
 	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.VertexAI{}, vectorsearchPlugin))
+		genkit.WithPlugins(&googlegenai.VertexAI{
+			ProjectID: vectorsearchPlugin.ProjectID,
+			Location:  vectorsearchPlugin.Location,
+		}, vectorsearchPlugin))
 
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
@@ -88,7 +91,7 @@ func main() {
 	model := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
 	// Create a BigQuery client.
-	bqClient, err := bigquery.NewClient(ctx, vectorsearchPlugin.ProjectID) // Replace with your Google Cloud project ID
+	bqClient, err := bigquery.NewClient(ctx, vectorsearchPlugin.ProjectID)
 	if err != nil {
 		log.Fatalf("failed to create BigQuery client: %v", err)
 	}
@@ -116,7 +119,7 @@ func main() {
 
 	// Define the retriever for vector search.
 	retriever, err := vectorsearch.DefineRetriever(ctx, g, vectorsearch.Config{
-		IndexID: "${VECTOR_SEARCH_INDEX_ID}", // Replace with your index ID
+		IndexID: vectorsearchParams.IndexID, // Replace with your index ID
 	})
 	if err != nil {
 		log.Fatal(err)

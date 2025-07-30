@@ -79,7 +79,10 @@ func main() {
 		Location:  "${GOOGLE_CLOUD_PROJECT_LOCATION}", // Replace with your desired location
 	}
 	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.VertexAI{}, vectorsearchPlugin))
+		genkit.WithPlugins(&googlegenai.VertexAI{
+			ProjectID: vectorsearchPlugin.ProjectID,
+			Location:  vectorsearchPlugin.Location,
+		}, vectorsearchPlugin))
 
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
@@ -87,9 +90,9 @@ func main() {
 
 	model := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 
-	databaseId := "${FIRESTORE_DATABASE_ID}"                                                               // Replace with your Firestore database ID
-	collectionName := "${FIRESTORE_COLLECTION_NAME}"                                                       // Replace with your Firestore collection name
-	firestoreClient, err := firestore.NewClientWithDatabase(ctx, vectorsearchPlugin.ProjectID, databaseId) // Replace with your Google Cloud project ID
+	databaseId := "${FIRESTORE_DATABASE_ID}"         // Replace with your Firestore database ID
+	collectionName := "${FIRESTORE_COLLECTION_NAME}" // Replace with your Firestore collection name
+	firestoreClient, err := firestore.NewClientWithDatabase(ctx, vectorsearchPlugin.ProjectID, databaseId)
 	documentIndexer := vectorsearch.GetFirestoreDocumentIndexer(firestoreClient, collectionName)
 	documentRetriever := vectorsearch.GetFirestoreDocumentRetriever(firestoreClient, collectionName)
 
@@ -110,7 +113,7 @@ func main() {
 
 	// Define the retriever for vector search.
 	retriever, err := vectorsearch.DefineRetriever(ctx, g, vectorsearch.Config{
-		IndexID: "${VECTOR_SEARCH_INDEX_ID}", // Replace with your index ID
+		IndexID: vectorsearchParams.IndexID, // Replace with your index ID
 	})
 	if err != nil {
 		log.Fatal(err)
