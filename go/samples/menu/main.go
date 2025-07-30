@@ -19,12 +19,11 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 
-	"cloud.google.com/go/firestore"
+	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
-	"github.com/firebase/genkit/go/plugins/vertexai/vectorsearch"
+	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
 // menuItem is the data model for an item on the menu.
@@ -60,67 +59,52 @@ type textMenuQuestionInput struct {
 
 func main() {
 	ctx := context.Background()
-	os.Setenv("GOOGLE_CLOUD_PROJECT", "drutuja-vvdaqs") // Set your Google Cloud project ID
-	os.Setenv("GOOGLE_CLOUD_LOCATION", "us-central1")   // Set your Google Cloud location
 	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.VertexAI{}, &vectorsearch.Vectorsearch{}))
-
+		genkit.WithPlugins(&googlegenai.VertexAI{}),
+	)
 	if err != nil {
 		log.Fatalf("failed to create Genkit: %v", err)
 	}
 
 	model := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
+	embedder := googlegenai.VertexAIEmbedder(g, "text-embedding-004")
 
-	// bqClient, err := bigquery.NewClient(ctx, "drutuja-vvdaqs") // Replace with your Google Cloud project ID
-	// if err != nil {
-	// 	log.Fatalf("failed to create BigQuery client: %v", err)
-	// }
+	if err := setup01(g, model); err != nil {
+		log.Fatal(err)
+	}
+	if err := setup02(g, model); err != nil {
+		log.Fatal(err)
+	}
+	if err := setup03(g, model); err != nil {
+		log.Fatal(err)
+	}
 
-	// Create the BigQuery Document Indexer.
-	// datasetID := "vectorsearch_docs"  // Replace with your BigQuery dataset ID.
-	// tableID := "vectorsearch_example" // Replace with your BigQuery table ID.
-	// documentIndexer := vectorsearch.GetBigQueryDocumentIndexer(bqClient, datasetID, tableID)
-	// documentRetriever := vectorsearch.GetBigQueryDocumentRetriever(bqClient, datasetID, tableID)
-
-	collectionName := "genkit-vectorsearch-docs"
-	databaseId := "genkit-vectorsearch-docs"                                                   // Replace with your Firestore collection name
-	firestoreClient, err := firestore.NewClientWithDatabase(ctx, "drutuja-vvdaqs", databaseId) // Replace with your Google Cloud project ID
-	documentIndexer := vectorsearch.GetFirestoreDocumentIndexer(firestoreClient, collectionName)
-	documentRetriever := vectorsearch.GetFirestoreDocumentRetriever(firestoreClient, collectionName)
-
-	// embedder := googlegenai.VertexAIEmbedder(g, "text-embedding-004")
-
-	// if err := setup01(g, model); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// if err := setup02(g, model); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// if err := setup03(g, model); err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// genkit.WithPlugins(&vectorsearch.Vectorsearch{
-	// 	ProjectID: "drutuja-vvdaqs", // Replace with your Google Cloud project ID
-	// 	Location:  "us-central1",    // Replace with your desired location
-	// }
-
-	// if err := v.Init(ctx, g); err != nil {
-	// 	log.Fatalf("failed to initialize vectorsearch: %v", err)
-	// }
-	retriever, err := vectorsearch.DefineRetriever(ctx, g, vectorsearch.Config{
-		IndexID: "4884595799557668864", // Replace with your index ID
-	})
+	err = localvec.Init()
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(ctx, g, retriever, model, documentIndexer, documentRetriever); err != nil {
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: localvec.RetrieverOptions{},
+		Info: &ai.RetrieverInfo{
+			Label: "go-menu_items",
+			Supports: &ai.RetrieverSupports{
+				Media: false,
+			},
+		},
+	}
+	docStore, retriever, err := localvec.DefineRetriever(g, "go-menu_items", localvec.Config{
+		Embedder: embedder,
+	}, retOpts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := setup04(ctx, g, docStore, retriever, model); err != nil {
 		log.Fatal(err)
 	}
 
-	// if err := setup05(g, model); err != nil {
-	// 	log.Fatal(err)
-	// }
+	if err := setup05(g, model); err != nil {
+		log.Fatal(err)
+	}
 
-	// <-ctx.Done()
+	<-ctx.Done()
 }
