@@ -7,9 +7,6 @@ import (
 	"os"
 	"sync"
 
-	"crypto/md5"
-	"encoding/json"
-
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -89,7 +86,8 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Retr
 }
 
 // Index indexes documents into a Vertex AI index.
-func Index(ctx context.Context, params IndexParams, v *Vectorsearch) error {
+func Index(ctx context.Context, g *genkit.Genkit, params IndexParams, documentIndexer DocumentIndexer) error {
+	v := genkit.LookupPlugin(g, vectorsearchProvider).(*Vectorsearch)
 	if len(params.Docs) == 0 {
 		return nil
 	}
@@ -104,9 +102,14 @@ func Index(ctx context.Context, params IndexParams, v *Vectorsearch) error {
 		return fmt.Errorf("pinecone index embedding failed: %v", err)
 	}
 
+	docIds, err := documentIndexer(ctx, params.Docs)
+	if err != nil {
+		return fmt.Errorf("error indexing documents: %v", err)
+	}
+
 	var datapoints []IIndexDatapoint
 	for i, de := range eres.Embeddings {
-		id, err := docID(params.Docs[i])
+		id := docIds[i]
 		if err != nil {
 			return fmt.Errorf("error generating document ID: %v", err)
 		}
@@ -129,7 +132,6 @@ func Index(ctx context.Context, params IndexParams, v *Vectorsearch) error {
 	// Upsert datapoints into the Vertex AI index.
 	err = v.UpsertDatapoints(UpsertDatapointsParams{
 		Datapoints: datapoints,
-		AuthClient: params.AuthClient,
 		ProjectID:  params.ProjectID,
 		Location:   params.Location,
 		IndexID:    params.IndexID,
@@ -141,15 +143,6 @@ func Index(ctx context.Context, params IndexParams, v *Vectorsearch) error {
 	return nil
 }
 
-// docID returns the ID to use for a Document.
-func docID(doc *ai.Document) (string, error) {
-	b, err := json.Marshal(doc)
-	if err != nil {
-		return "", fmt.Errorf("vectorsearch: error marshaling document: %v", err)
-	}
-	return fmt.Sprintf("%02x", md5.Sum(b)), nil
-}
-
 // Retrieve retrieves documents from a Vertex AI index based on a query.
 func (v *Vectorsearch) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 
@@ -157,7 +150,7 @@ func (v *Vectorsearch) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (
 
 	// Generate the embedding for the query content.
 	embeddingReq := &ai.EmbedRequest{
-		Input:   []*ai.Document{params.Content},
+		Input:   []*ai.Document{req.Query},
 		Options: params.EmbedderOptions,
 	}
 	embeddingRes, err := params.Embedder.Embed(ctx, embeddingReq)
@@ -173,9 +166,8 @@ func (v *Vectorsearch) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (
 	findNeighborsParams := FindNeighborsParams{
 		FeatureVector:    queryEmbedding,
 		NeighborCount:    params.NeighborCount,
-		AuthClient:       params.AuthClient,
-		ProjectNumber:    params.ProjectID, // Assuming ProjectID is used as ProjectNumber
-		Location:         params.Location,
+		ProjectNumber:    params.ProjectNumber,
+		Location:         v.Location,
 		IndexEndpointID:  params.IndexEndpointID,
 		PublicDomainName: params.PublicDomainName,
 		DeployedIndexID:  params.DeployedIndexID,
@@ -188,12 +180,13 @@ func (v *Vectorsearch) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (
 	}
 
 	// Extract neighbors from the response.
-	if len(findNeighborsRes.Neighbors) == 0 {
+	if len(findNeighborsRes.NearestNeighbors[0].Neighbors) == 0 {
 		return nil, nil // No neighbors found.
 	}
 
 	// Retrieve documents based on the neighbors.
-	documents, err := params.DocumentRetriever(ctx, findNeighborsRes.Neighbors, nil)
+	documentRetriever := params.DocumentRetriever
+	documents, err := documentRetriever(ctx, findNeighborsRes.NearestNeighbors[0].Neighbors, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving documents: %v", err)
 	}

@@ -12,7 +12,6 @@ type IndexParams struct {
 	Docs            []*ai.Document
 	Embedder        ai.Embedder
 	EmbedderOptions any
-	AuthClient      *google.Credentials
 	ProjectID       string
 	Location        string
 	IndexID         string
@@ -21,13 +20,16 @@ type IndexParams struct {
 // DocumentRetriever defines the interface for retrieving documents.
 type DocumentRetriever func(ctx context.Context, neighbors []Neighbor, options any) ([]*ai.Document, error)
 
+// DocumentIndexer defines the interface for indexing documents.
+type DocumentIndexer func(ctx context.Context, docs []*ai.Document) ([]string, error)
+
 // RetrieveParams represents the parameters required for retrieving documents.
 type RetrieveParams struct {
 	Content           *ai.Document
 	Embedder          ai.Embedder
 	EmbedderOptions   any
 	AuthClient        *google.Credentials
-	ProjectID         string
+	ProjectNumber     string
 	Location          string
 	IndexEndpointID   string
 	PublicDomainName  string
@@ -35,14 +37,7 @@ type RetrieveParams struct {
 	NeighborCount     int
 	Restricts         []Restrict
 	NumericRestricts  []NumericRestrict
-	DocumentRetriever DocumentRetriever
-}
-
-// Neighbor represents a single neighbor returned by the FindNeighbors API.
-type Neighbor struct {
-	DatapointID   string    `json:"datapoint_id"`
-	Distance      float64   `json:"distance"`
-	FeatureVector []float64 `json:"feature_vector"`
+	DocumentRetriever DocumentRetriever `json:"-"` // Exclude from JSON serialization
 }
 
 // IIndexDatapoint represents the structure of a datapoint.
@@ -54,25 +49,9 @@ type IIndexDatapoint struct {
 	CrowdingTag      string            `json:"crowding_tag,omitempty"`
 }
 
-// Restrict represents a restrict object.
-type Restrict struct {
-	Namespace string   `json:"namespace"`
-	AllowList []string `json:"allow_list,omitempty"`
-	DenyList  []string `json:"deny_list,omitempty"`
-}
-
-// NumericRestrict represents a numeric restrict object.
-type NumericRestrict struct {
-	Namespace   string   `json:"namespace"`
-	ValueInt    *int     `json:"value_int,omitempty"`
-	ValueFloat  *float32 `json:"value_float,omitempty"`
-	ValueDouble *float64 `json:"value_double,omitempty"`
-}
-
 // UpsertDatapointsParams represents the parameters required to upsert datapoints.
 type UpsertDatapointsParams struct {
 	Datapoints []IIndexDatapoint
-	AuthClient *google.Credentials
 	ProjectID  string
 	Location   string
 	IndexID    string
@@ -80,4 +59,58 @@ type UpsertDatapointsParams struct {
 
 type Config struct {
 	IndexID string
+}
+
+// Restrict represents a restriction for a datapoint.
+type Restrict struct {
+	Namespace string   `json:"namespace"`
+	AllowList []string `json:"allowList,omitempty"`
+	DenyList  []string `json:"denyList,omitempty"`
+}
+
+// NumericRestrict represents a numeric restriction for a datapoint.
+type NumericRestrict struct {
+	Namespace   string  `json:"namespace"`
+	ValueFloat  float32 `json:"valueFloat,omitempty"`
+	ValueInt    int64   `json:"valueInt,omitempty"`
+	ValueDouble float64 `json:"valueDouble,omitempty"`
+	Op          string  `json:"op,omitempty"`
+}
+
+type FindNeighborsResponse struct {
+	NearestNeighbors []struct {
+		Neighbors []Neighbor `json:"neighbors"`
+	} `json:"nearestNeighbors"`
+}
+
+// Neighbor represents a single neighbor found by the vector search.
+type Neighbor struct {
+	Datapoint Datapoint `json:"datapoint"`
+	Distance  float64   `json:"distance"`
+}
+
+type Datapoint struct {
+	DatapointId      string            `json:"datapointId"`
+	FeatureVector    []float32         `json:"featureVector"`
+	Restricts        []Restrict        `json:"restricts,omitempty"`
+	NumericRestricts []NumericRestrict `json:"numericRestricts,omitempty"`
+	CrowdingTag      CrowdingAttribute `json:"crowdingTag,omitempty"`
+}
+
+type CrowdingAttribute struct {
+	CrowdingAttribute string `json:"crowdingAttribute,omitempty"` // This field is optional
+}
+
+// FindNeighborsParams represents the parameters required to query the public endpoint.
+type FindNeighborsParams struct {
+	FeatureVector    []float32
+	NeighborCount    int
+	AuthClient       *google.Credentials
+	ProjectNumber    string
+	Location         string
+	IndexEndpointID  string
+	PublicDomainName string
+	DeployedIndexID  string
+	Restricts        []Restrict
+	NumericRestricts []NumericRestrict
 }

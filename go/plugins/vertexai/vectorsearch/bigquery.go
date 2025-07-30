@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
+	"time"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/firebase/genkit/go/ai"
@@ -21,12 +23,12 @@ type BigQueryDocumentRow struct {
 // GetBigQueryDocumentRetriever creates a BigQuery Document Retriever.
 // This function returns a DocumentRetriever function that retrieves documents
 // from a BigQuery table based on the provided neighbors' IDs.
-func GetBigQueryDocumentRetriever(bqClient *bigquery.Client, projectID, datasetID, tableID string) DocumentRetriever {
+func GetBigQueryDocumentRetriever(bqClient *bigquery.Client, datasetID, tableID string) DocumentRetriever {
 	return func(ctx context.Context, neighbors []Neighbor, options any) ([]*ai.Document, error) {
 		var ids []string
 		for _, neighbor := range neighbors {
-			if neighbor.DatapointID != "" {
-				ids = append(ids, neighbor.DatapointID)
+			if neighbor.Datapoint.DatapointId != "" {
+				ids = append(ids, neighbor.Datapoint.DatapointId)
 			}
 		}
 
@@ -36,7 +38,7 @@ func GetBigQueryDocumentRetriever(bqClient *bigquery.Client, projectID, datasetI
 
 		// Constructing the query with UNNEST for array parameters
 		// BigQuery expects parameters for IN clauses with UNNEST to be arrays.
-		query := fmt.Sprintf("SELECT id, content, metadata FROM `%s.%s.%s` WHERE id IN UNNEST(@ids)", projectID, datasetID, tableID)
+		query := fmt.Sprintf("SELECT id, content, metadata FROM `%s.%s.%s` WHERE id IN UNNEST(@ids)", bqClient.Project(), datasetID, tableID)
 
 		q := bqClient.Query(query)
 		q.Parameters = []bigquery.QueryParameter{
@@ -61,20 +63,62 @@ func GetBigQueryDocumentRetriever(bqClient *bigquery.Client, projectID, datasetI
 				return nil, fmt.Errorf("error reading BigQuery row: %w", err)
 			}
 
-			var metadata map[string]any
-			// Parse metadata if present
-			if row.Metadata != "" {
-				if err := json.Unmarshal([]byte(row.Metadata), &metadata); err != nil {
-					log.Printf("Failed to parse metadata for document ID %s: %v", row.ID, err)
-					// Continue even if metadata parsing fails, as content might still be valid
-				}
+			var doc ai.Document
+
+			if err := json.Unmarshal([]byte(row.Content), &doc.Content); err != nil {
+				log.Printf("Failed to parse content for document ID %s: %v", row.ID, err)
 			}
-
-			doc := ai.DocumentFromText(row.Content, metadata)
-
-			documents = append(documents, doc)
+			if err := json.Unmarshal([]byte(row.Metadata), &doc.Metadata); err != nil {
+				log.Printf("Failed to parse metadata for document ID %s: %v", row.ID, err)
+			}
+			documents = append(documents, &doc)
 		}
 
 		return documents, nil
+	}
+}
+
+func GetBigQueryDocumentIndexer(bqClient *bigquery.Client, datasetID, tableID string) func(ctx context.Context, docs []*ai.Document) ([]string, error) {
+	return func(ctx context.Context, docs []*ai.Document) ([]string, error) {
+		var ids []string
+		var rows []*BigQueryDocumentRow
+
+		// Seed the random number generator for generating unique IDs.
+		rand.Seed(time.Now().UnixNano())
+
+		for _, doc := range docs {
+			id := fmt.Sprintf("%x", rand.Int63()) // Generate a random ID.
+			ids = append(ids, id)
+
+			content, err := json.Marshal(doc.Content)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal document content: %w", err)
+			}
+
+			metadata, err := json.Marshal(doc.Metadata)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal document metadata: %w", err)
+			}
+
+			row := &BigQueryDocumentRow{
+				ID:       id,
+				Content:  string(content),
+				Metadata: string(metadata),
+			}
+			rows = append(rows, row)
+		}
+
+		// Log rows for debugging.
+		for _, row := range rows {
+			log.Printf("Inserting row: %+v", row)
+		}
+
+		// Insert rows into the BigQuery table.
+		inserter := bqClient.Dataset(datasetID).Table(tableID).Inserter()
+		if err := inserter.Put(ctx, rows); err != nil {
+			return nil, fmt.Errorf("failed to insert rows into BigQuery: %w", err)
+		}
+
+		return ids, nil
 	}
 }

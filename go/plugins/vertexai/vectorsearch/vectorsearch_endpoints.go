@@ -86,43 +86,24 @@ func (v *Vectorsearch) UpsertDatapoints(params UpsertDatapointsParams) error {
 	return nil
 }
 
-// FindNeighborsParams represents the parameters required to query the public endpoint.
-type FindNeighborsParams struct {
-	FeatureVector    []float32
-	NeighborCount    int
-	AuthClient       *google.Credentials
-	ProjectNumber    string
-	Location         string
-	IndexEndpointID  string
-	PublicDomainName string
-	DeployedIndexID  string
-	Restricts        []Restrict
-	NumericRestricts []NumericRestrict
-}
-
-// FindNeighborsResponse represents the response from the public endpoint.
-type FindNeighborsResponse struct {
-	Neighbors []Neighbor `json:"neighbors"`
-}
-
 // QueryPublicEndpoint queries a public index endpoint to find neighbors for a given feature vector.
 func (v *Vectorsearch) FindNeighbors(params FindNeighborsParams) (*FindNeighborsResponse, error) {
 	// Construct the URL for the API endpoint.
+
 	url := fmt.Sprintf("https://%s/v1/projects/%s/locations/%s/indexEndpoints/%s:findNeighbors",
 		params.PublicDomainName, params.ProjectNumber, params.Location, params.IndexEndpointID)
 
 	// Prepare the request body.
 	requestBody := map[string]interface{}{
-		"deployed_index_id": params.DeployedIndexID,
+		"deployedIndexId": params.DeployedIndexID,
 		"queries": []map[string]interface{}{
 			{
 				"datapoint": map[string]interface{}{
-					"datapoint_id":      "0",
-					"feature_vector":    params.FeatureVector,
-					"restricts":         params.Restricts,
-					"numeric_restricts": params.NumericRestricts,
+					"featureVector":    params.FeatureVector,
+					"restricts":        params.Restricts,
+					"numericRestricts": params.NumericRestricts,
 				},
-				"neighbor_count": params.NeighborCount,
+				"neighborCount": params.NeighborCount,
 			},
 		},
 	}
