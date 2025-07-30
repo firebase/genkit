@@ -297,8 +297,8 @@ func (d *detachedResourceAction) ExtractVariables(uri string) (map[string]string
 	return d.matcher.ExtractVariables(uri)
 }
 
-// AttachToRegistry temporarily registers this detached resource in the given registry.
-func (d *detachedResourceAction) AttachToRegistry(r *registry.Registry) {
+// Register temporarily registers this detached resource in the given registry.
+func (d *detachedResourceAction) Register(r *registry.Registry) {
 	// Create a regular action for this detached resource
 	action := core.DefineAction(
 		r,

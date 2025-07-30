@@ -407,7 +407,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 
 		// Attach dynamic resources
 		for _, res := range genOpts.DynamicResources {
-			res.AttachToRegistry(r)
+			res.Register(r)
 		}
 	}
 
