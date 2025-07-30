@@ -19,8 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"google.golang.org/genai"
@@ -45,13 +47,51 @@ func main() {
 			AspectRatio:     "16:9",
 			DurationSeconds: genai.Ptr(int32(5)),
 		}))
-	if resp != nil {
-		opJson, _ := json.Marshal(resp.Output)
-		fmt.Printf("%s", opJson)
-	}
 	if err != nil {
-		log.Fatalf("could not generate model response: %v", err)
+		log.Fatalf("could not start operation: %v", err)
 	}
 
-	// log.Println(resp.Text())
+	// Get the background model for status checking
+	bgAction := genkit.LookupBackgroundModel(g, "googleai", "veo-2.0-generate-001")
+	if bgAction == nil {
+		log.Fatalf("background model not found")
+	}
+
+	// Wait for operation to complete
+	currentOp := resp
+	for {
+		// Check if operation completed with error
+		if currentOp.Error != "" {
+			log.Fatalf("operation failed: %s", currentOp.Error)
+		}
+
+		// Check if operation is complete
+		if currentOp.Done {
+			break
+		}
+
+		log.Printf("Operation %s is still running...", currentOp.ID)
+
+		// Wait before polling again (avoid busy waiting)
+		select {
+		case <-ctx.Done():
+			logger.FromContext(ctx).Debug("Context cancelled, stopping operation polling", "operationId", currentOp.ID)
+			log.Fatalf("context cancelled: %v", ctx.Err())
+		case <-time.After(2 * time.Second): // Poll every 2 seconds
+		}
+
+		// Check operation status
+		updatedOp, err := bgAction.Check(ctx, currentOp)
+		if err != nil {
+			log.Fatalf("failed to check operation status: %v", err)
+		}
+
+		currentOp = updatedOp
+	}
+
+	// Operation completed, return the final result
+	if currentOp != nil {
+		opJson, _ := json.Marshal(currentOp.Output)
+		fmt.Printf("%s", opJson)
+	}
 }

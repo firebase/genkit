@@ -464,6 +464,13 @@ func LookupModel(g *Genkit, provider, name string) ai.Model {
 	return ai.LookupModel(g.reg, provider, name)
 }
 
+// LookupBackgroundModel retrieves a registered background model by its provider and name.
+// It returns the background action instance if found, or `nil` if no background model with the
+// given identifier is registered.
+func LookupBackgroundModel(g *Genkit, provider, name string) ai.BackgroundAction {
+	return ai.LookupBackgroundModel(g.reg, provider, name)
+}
+
 // DefineTool defines a tool that can be used by models during generation,
 // registers it as a [core.Action] of type Tool, and returns an [ai.ToolDef].
 // Tools allow models to interact with external systems or perform specific computations.

@@ -1134,8 +1134,6 @@ func DefineBackgroundModel(
 
 // GenerateOperation generates a model response as a long-running operation based on the provided options.
 // It returns an error if the model does not support long-running operations.
-//
-// This is a beta feature and requires the model to explicitly support long-running operations.
 func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation, error) {
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
@@ -1192,35 +1190,5 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 		return nil, err
 	}
 
-	currentOp := op
-	for {
-		// Check if operation completed with error
-		if currentOp.Error != "" {
-			return nil, core.NewError(core.INTERNAL, "operation failed: %s", currentOp.Error)
-		}
-
-		// Check if operation is complete
-		if currentOp.Done {
-			break
-		}
-
-		// Wait before polling again (avoid busy waiting)
-		select {
-		case <-ctx.Done():
-			logger.FromContext(ctx).Debug("Context cancelled, stopping operation polling", "operationId", currentOp.ID)
-			return nil, ctx.Err()
-		case <-time.After(1 * time.Second): // Poll every second
-		}
-
-		// Check operation status
-		updatedOp, err := bgAction.Check(ctx, currentOp)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check operation status: %w", err)
-		}
-
-		currentOp = updatedOp
-	}
-
-	// Operation completed, return the final result
-	return currentOp, nil
+	return op, nil
 }
