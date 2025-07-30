@@ -192,7 +192,7 @@ describe('GoogleCloudMetrics', () => {
       'genkit/ai/generate/output/tokens'
     );
     const thoughtTokenCounter = await getCounterMetric(
-      'genkit/ai/generate/thought/tokens'
+      'genkit/ai/generate/thinking/tokens'
     );
     const inputCharacterCounter = await getCounterMetric(
       'genkit/ai/generate/input/characters'
@@ -300,7 +300,7 @@ describe('GoogleCloudMetrics', () => {
       await getCounterMetric('genkit/ai/generate/requests'),
       await getCounterMetric('genkit/ai/generate/input/tokens'),
       await getCounterMetric('genkit/ai/generate/output/tokens'),
-      await getCounterMetric('genkit/ai/generate/thought/tokens'),
+      await getCounterMetric('genkit/ai/generate/thinking/tokens'),
       await getCounterMetric('genkit/ai/generate/input/characters'),
       await getCounterMetric('genkit/ai/generate/output/characters'),
       await getCounterMetric('genkit/ai/generate/input/images'),
