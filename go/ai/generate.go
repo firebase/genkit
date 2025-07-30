@@ -1080,9 +1080,6 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 
 // processResources processes messages to replace resource parts with actual content.
 func processResources(ctx context.Context, r *registry.Registry, messages []*Message) ([]*Message, error) {
-	// Import genkit package dynamically to avoid circular dependency
-	// For now, we'll need to access resources through the registry directly
-
 	processedMessages := make([]*Message, len(messages))
 	for i, msg := range messages {
 		processedContent := []*Part{}
