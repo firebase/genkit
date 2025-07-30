@@ -406,12 +406,11 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			r = r.NewChild()
 		}
 
-		// Attach dynamic resources (now type-safe!)
+		// Attach dynamic resources
 		for _, res := range genOpts.DynamicResources {
 			cleanup := res.AttachToRegistry(r)
 			dynamicResourceCleanup = append(dynamicResourceCleanup, cleanup)
 		}
-		// No special resolver setup needed - resources registered as regular actions!
 	}
 
 	// Ensure cleanup of dynamic resources when function ends
