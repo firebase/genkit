@@ -1132,6 +1132,56 @@ func DefineBackgroundModel(
 	return bgAction
 }
 
+// SupportsLongRunning checks if a model supports long-running operations by model name.
+func SupportsLongRunning(r *registry.Registry, modelName string) bool {
+	if modelName == "" {
+		return false
+	}
+
+	provider, name, found := strings.Cut(modelName, "/")
+	if !found {
+		name = provider
+		provider = ""
+	}
+
+	modelInstance := LookupModel(r, provider, name)
+	if modelInstance == nil {
+		return false
+	}
+
+	modelImpl, ok := modelInstance.(*model)
+	if !ok {
+		return false
+	}
+
+	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(modelImpl)
+	if action == nil {
+		return false
+	}
+
+	metadata := action.Desc().Metadata
+	if metadata == nil {
+		return false
+	}
+
+	modelMeta, ok := metadata["model"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	supportsMeta, ok := modelMeta["supports"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	longRunning, ok := supportsMeta["longRunning"].(bool)
+	if !ok {
+		return false
+	}
+
+	return longRunning
+}
+
 // GenerateOperation generates a model response as a long-running operation based on the provided options.
 // It returns an error if the model does not support long-running operations.
 func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation, error) {
@@ -1140,6 +1190,10 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 		if err := opt.applyGenerate(genOpts); err != nil {
 			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: error applying options: %v", err)
 		}
+	}
+
+	if !SupportsLongRunning(r, genOpts.ModelName) {
+		return nil, core.NewError(core.UNIMPLEMENTED, "model %q does not support long-running operations", genOpts.ModelName)
 	}
 
 	var modelName string
