@@ -400,10 +400,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	}
 
 	if len(genOpts.DynamicResources) > 0 {
-		if len(dynamicTools) == 0 {
-			// Create child registry if not already created for dynamic tools
-			r = r.NewChild()
-		}
+		r = r.NewChild()
 
 		// Attach dynamic resources
 		for _, res := range genOpts.DynamicResources {
