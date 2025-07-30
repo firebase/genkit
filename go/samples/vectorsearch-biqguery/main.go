@@ -74,7 +74,7 @@ type VectorsearchConfig struct {
 
 func main() {
 	ctx := context.Background()
-	vectorsearchPlugin := &vectorsearch.Vectorsearch{
+	vectorsearchPlugin := &vectorsearch.VertexAIVectorSearch{
 		ProjectID: "${GOOGLE_CLOUD_PROJECT_ID}",       // Replace with your Google Cloud project ID
 		Location:  "${GOOGLE_CLOUD_PROJECT_LOCATION}", // Replace with your desired location
 	}
@@ -120,7 +120,7 @@ func main() {
 	// Define the retriever for vector search.
 	retriever, err := vectorsearch.DefineRetriever(ctx, g, vectorsearch.Config{
 		IndexID: vectorsearchParams.IndexID, // Replace with your index ID
-	})
+	}, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

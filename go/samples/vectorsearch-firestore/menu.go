@@ -23,8 +23,8 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/vertexai/vectorsearch"
+	"google.golang.org/genai"
 )
 
 func menu(ctx context.Context, g *genkit.Genkit, retriever ai.Retriever, model ai.Model, vectorsearchParams *VectorsearchConfig) error {
@@ -47,8 +47,8 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(dataMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.3,
+		ai.WithConfig(&genai.GenerateContentConfig{
+			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)
 	if err != nil {

@@ -15,7 +15,7 @@ const (
 	vectorsearchProvider = "vectorsearch"
 )
 
-type Vectorsearch struct {
+type VertexAIVectorSearch struct {
 	ProjectID string
 	Location  string
 
@@ -24,16 +24,16 @@ type Vectorsearch struct {
 	initted bool
 }
 
-func (a *Vectorsearch) Name() string {
+func (a *VertexAIVectorSearch) Name() string {
 	return vectorsearchProvider
 }
 
 // Init initializes the VertexAI plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func (v *Vectorsearch) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (v *VertexAIVectorSearch) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	if v == nil {
-		v = &Vectorsearch{}
+		v = &VertexAIVectorSearch{}
 	}
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -42,7 +42,7 @@ func (v *Vectorsearch) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	}
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("Vectorsearch.Init: %w", err)
+			err = fmt.Errorf("VertexAIVectorSearch.Init: %w", err)
 		}
 	}()
 
@@ -76,18 +76,18 @@ func (v *Vectorsearch) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Retriever, error) {
-	v := genkit.LookupPlugin(g, vectorsearchProvider).(*Vectorsearch)
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, opts *ai.RetrieverOptions) (ai.Retriever, error) {
+	v := genkit.LookupPlugin(g, vectorsearchProvider).(*VertexAIVectorSearch)
 	if v == nil {
 		return nil, errors.New("vectorsearch plugin not found; did you call genkit.Init with the pinecone plugin?")
 	}
 
-	return genkit.DefineRetriever(g, vectorsearchProvider, cfg.IndexID, v.Retrieve), nil
+	return genkit.DefineRetriever(g, vectorsearchProvider, cfg.IndexID, opts, v.Retrieve), nil
 }
 
 // Index indexes documents into a Vertex AI index.
 func Index(ctx context.Context, g *genkit.Genkit, params IndexParams, documentIndexer DocumentIndexer) error {
-	v := genkit.LookupPlugin(g, vectorsearchProvider).(*Vectorsearch)
+	v := genkit.LookupPlugin(g, vectorsearchProvider).(*VertexAIVectorSearch)
 	if len(params.Docs) == 0 {
 		return nil
 	}
@@ -102,15 +102,19 @@ func Index(ctx context.Context, g *genkit.Genkit, params IndexParams, documentIn
 		return fmt.Errorf("pinecone index embedding failed: %v", err)
 	}
 
+	if documentIndexer == nil {
+		return fmt.Errorf("documentIndexer is not set in IndexParams")
+	}
+	// Index the documents using the provided documentIndexer.
 	docIds, err := documentIndexer(ctx, params.Docs)
 	if err != nil {
 		return fmt.Errorf("error indexing documents: %v", err)
 	}
 
-	var datapoints []IIndexDatapoint
+	var datapoints []IndexDatapoint
 	for i, de := range eres.Embeddings {
 		id := docIds[i]
-		dp := IIndexDatapoint{
+		dp := IndexDatapoint{
 			DatapointID:   id,
 			FeatureVector: de.Embedding,
 		}
@@ -141,7 +145,7 @@ func Index(ctx context.Context, g *genkit.Genkit, params IndexParams, documentIn
 }
 
 // Retrieve retrieves documents from a Vertex AI index based on a query.
-func (v *Vectorsearch) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+func (v *VertexAIVectorSearch) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 
 	params := req.Options.(*RetrieveParams)
 
@@ -183,6 +187,10 @@ func (v *Vectorsearch) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (
 
 	// Retrieve documents based on the neighbors.
 	documentRetriever := params.DocumentRetriever
+	if documentRetriever == nil {
+		return nil, fmt.Errorf("document retriever is not set in RetrieveParams")
+	}
+	// Use the document retriever to fetch documents based on the neighbors.
 	documents, err := documentRetriever(ctx, findNeighborsRes.NearestNeighbors[0].Neighbors, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving documents: %v", err)

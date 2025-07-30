@@ -40,7 +40,7 @@ func newClient(ctx context.Context) (*client, error) {
 }
 
 // UpsertDatapoints upserts datapoints into a specified index.
-func (v *Vectorsearch) UpsertDatapoints(params UpsertDatapointsParams) error {
+func (v *VertexAIVectorSearch) UpsertDatapoints(params UpsertDatapointsParams) error {
 	// Construct the URL for the API endpoint.
 	url := fmt.Sprintf("https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/indexes/%s:upsertDatapoints",
 		params.Location, params.ProjectID, params.Location, params.IndexID)
@@ -87,7 +87,7 @@ func (v *Vectorsearch) UpsertDatapoints(params UpsertDatapointsParams) error {
 }
 
 // QueryPublicEndpoint queries a public index endpoint to find neighbors for a given feature vector.
-func (v *Vectorsearch) FindNeighbors(params FindNeighborsParams) (*FindNeighborsResponse, error) {
+func (v *VertexAIVectorSearch) FindNeighbors(params FindNeighborsParams) (*FindNeighborsResponse, error) {
 	// Construct the URL for the API endpoint.
 
 	url := fmt.Sprintf("https://%s/v1/projects/%s/locations/%s/indexEndpoints/%s:findNeighbors",

@@ -78,6 +78,10 @@ func GetBigQueryDocumentRetriever(bqClient *bigquery.Client, datasetID, tableID 
 	}
 }
 
+// GetBigQueryDocumentIndexer creates a BigQuery Document Indexer.
+// This function returns a DocumentIndexer function that indexes documents
+// into a BigQuery table. It generates a random ID for each document and
+// stores the content and metadata as JSON strings.
 func GetBigQueryDocumentIndexer(bqClient *bigquery.Client, datasetID, tableID string) func(ctx context.Context, docs []*ai.Document) ([]string, error) {
 	return func(ctx context.Context, docs []*ai.Document) ([]string, error) {
 		var ids []string

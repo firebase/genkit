@@ -42,9 +42,9 @@ func (f fakeTokenSource) Token() (*oauth2.Token, error) {
 	return &cp, nil
 }
 
-func newVSWithToken(token string, tokenErr error) *Vectorsearch {
-	return &Vectorsearch{
-		// We assume Vectorsearch has an unexported field named `client *client`,
+func newVSWithToken(token string, tokenErr error) *VertexAIVectorSearch {
+	return &VertexAIVectorSearch{
+		// We assume VertexAIVectorSearch has an unexported field named `client *client`,
 		// as used in the methods being tested.
 		client: &client{
 			TokenSource: fakeTokenSource{
@@ -90,7 +90,7 @@ func TestUpsertDatapoints_SendsCorrectRequestAndSucceeds(t *testing.T) {
 		ProjectID: "my-proj",
 		Location:  "us-central1",
 		IndexID:   "idx-1",
-		Datapoints: []IIndexDatapoint{
+		Datapoints: []IndexDatapoint{
 			{
 				DatapointID:   "dp1",
 				FeatureVector: []float32{0.1, 0.2},

@@ -28,14 +28,14 @@ func (f *fakeEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.Emb
 // ---------- tests: Name ----------
 
 func TestVectorsearch_Name(t *testing.T) {
-	v := &Vectorsearch{}
+	v := &VertexAIVectorSearch{}
 	assert.Equal(t, vectorsearchProvider, v.Name())
 }
 
 // ---------- tests: Init ----------
 
 func TestInit_AlreadyInitialized(t *testing.T) {
-	v := &Vectorsearch{initted: true}
+	v := &VertexAIVectorSearch{initted: true}
 	err := v.Init(context.Background(), nil)
 	assert.Error(t, err)
 }
@@ -62,7 +62,7 @@ func TestInit_MissingProjectID_ReturnsError(t *testing.T) {
 		}
 	}()
 
-	v := &Vectorsearch{}
+	v := &VertexAIVectorSearch{}
 	err := v.Init(context.Background(), nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "requires setting GOOGLE_CLOUD_PROJECT")
@@ -76,7 +76,7 @@ func TestInit_MissingLocation_ReturnsError(t *testing.T) {
 	restoreReg := clearEnv(t, "GOOGLE_CLOUD_REGION")
 	defer restoreReg()
 
-	v := &Vectorsearch{}
+	v := &VertexAIVectorSearch{}
 	err := v.Init(context.Background(), nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "requires setting GOOGLE_CLOUD_LOCATION")
