@@ -31,8 +31,6 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-// ResourceInput and ResourceOutput are now defined in the core package
-
 type (
 	// Model represents a model that can generate content based on a request.
 	Model interface {
