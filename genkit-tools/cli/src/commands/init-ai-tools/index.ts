@@ -15,9 +15,17 @@
  */
 
 import { logger } from '@genkit-ai/tools-common/utils';
+import { checkbox } from '@inquirer/prompts';
+import * as clc from 'colorette';
 import { Command } from 'commander';
-import { InitConfigOptions } from './types';
-import { detectSupportedTools } from './utils';
+import { AIToolChoice, InitConfigOptions } from './types';
+import { AI_TOOLS, detectSupportedTools } from './utils';
+
+const AGENT_CHOICES: AIToolChoice[] = Object.values(AI_TOOLS).map((tool) => ({
+  value: tool.name,
+  name: tool.displayName,
+  checked: false,
+}));
 
 export const init = new Command('init:ai-tools')
   .description(
@@ -25,21 +33,99 @@ export const init = new Command('init:ai-tools')
   )
   .option('-y', '--yes', 'Run in non-interactive mode (experimental)')
   .action(async (options: InitConfigOptions) => {
+    logger.info('\n');
+    logger.info(
+      'This command will configure AI coding assistants to work with your Genkit app by:'
+    );
+    logger.info(
+      '• Configuring the Genkit MCP server for direct Genkit operations'
+    );
+    logger.info('• Installing context files that help AI understand:');
+    logger.info('  - Genkit app structure and common design patterns');
+    logger.info('  - Common Genkit features and how to use them');
+    logger.info('\n');
     const detectedTools = await detectSupportedTools();
     if (detectedTools.length === 0) {
       logger.info('Could not auto-detect any AI tools.');
-      // TODO: Start manual init flow
-    }
-    logger.info(
-      'Auto-detected AI tools:\n' +
-        detectedTools.map((t) => t.displayName).join('\n')
-    );
-    try {
-      for (const supportedTool of detectedTools) {
-        await supportedTool.configure(options);
+      const selections = await checkbox({
+        message: 'Which tools would you like to configure?',
+        choices: AGENT_CHOICES,
+        validate: (choices) => {
+          if (choices.length === 0) {
+            return 'Must select at least one tool.';
+          }
+          return true;
+        },
+        loop: true,
+      });
+
+      logger.info('\n');
+      logger.info('Configuring selected tools...');
+      await configureTools(selections, options);
+    } else {
+      logger.info(
+        'Auto-detected AI tools:\n' +
+          detectedTools.map((t) => t.displayName).join('\n')
+      );
+      try {
+        await configureTools(
+          detectedTools.map((t) => t.name),
+          options
+        );
+      } catch (err) {
+        logger.error(err);
+        process.exit(1);
       }
-    } catch (err) {
-      logger.error(err);
-      process.exit(1);
     }
   });
+
+async function configureTools(tools: string[], options: InitConfigOptions) {
+  // Configure each selected tool
+  let anyUpdates = false;
+
+  for (const toolName of tools) {
+    const tool = AI_TOOLS[toolName];
+    if (!tool) {
+      logger.warn(`Unknown tool: ${toolName}`);
+      continue;
+    }
+
+    const result = await tool.configure(options);
+
+    // Count updated files
+    const updatedCount = result.files.filter((f) => f.updated).length;
+    const hasChanges = updatedCount > 0;
+
+    if (hasChanges) {
+      anyUpdates = true;
+      logger.info('\n');
+      logger.info(
+        clc.green(
+          `${tool.displayName} configured - ${updatedCount} file${updatedCount > 1 ? 's' : ''} updated:`
+        )
+      );
+    } else {
+      logger.info('\n');
+      logger.info(`${tool.displayName} - all files up to date`);
+    }
+
+    // Always show the file list
+    for (const file of result.files) {
+      const status = file.updated ? '(updated)' : '(unchanged)';
+      logger.info(`•  ${file.path} ${status}`);
+    }
+  }
+  logger.info('\n');
+
+  if (anyUpdates) {
+    logger.info(clc.green('AI tools configuration complete!'));
+    logger.info('\n');
+    logger.info('Next steps:');
+    logger.info('•  Restart your AI tools to load the new configuration');
+    logger.info(
+      '•  Your AI tool should have access to Genkit documentation and tools for greater access and understanding of your app.'
+    );
+  } else {
+    logger.info(clc.green('All AI tools are already up to date.'));
+  }
+}

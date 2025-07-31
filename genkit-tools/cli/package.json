@@ -39,7 +39,7 @@
     "command-exists": "^1.2.9",
     "extract-zip": "^2.0.1",
     "get-port": "5.1.1",
-    "inquirer": "^8.2.0",
+    "@inquirer/prompts": "^7.8.0",
     "open": "^6.3.0",
     "ora": "^5.4.1"
   },
