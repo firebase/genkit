@@ -18,7 +18,6 @@ import { type SpawnOptions } from 'child_process';
 import { access, constants } from 'fs/promises';
 import { SERVER_HARNESS_COMMAND } from '../commands/server-harness';
 import { type RuntimeInfo } from './runtime-detector';
-import { logger } from '@genkit-ai/tools-common/utils';
 
 /**
  * Configuration for spawning a child process
@@ -40,9 +39,8 @@ export interface SpawnConfig {
 export async function validateExecutablePath(path: string): Promise<boolean> {
   try {
     // Remove surrounding quotes if present (handle quotation)
-    const normalizedPath = path.startsWith('"') && path.endsWith('"')
-      ? path.slice(1, -1)
-      : path;
+    const normalizedPath =
+      path.startsWith('"') && path.endsWith('"') ? path.slice(1, -1) : path;
     await access(normalizedPath, constants.F_OK | constants.X_OK);
     return true;
   } catch {
