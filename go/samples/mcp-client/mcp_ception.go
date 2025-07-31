@@ -30,17 +30,17 @@ import (
 	"github.com/firebase/genkit/go/plugins/mcp"
 )
 
-// MCP-ception Example: Genkit serves itself through MCP!
+// MCP self-hosting example: Genkit serves itself through MCP
 // 1. Start a Go MCP server that exposes Genkit resources
 // 2. Connect to that server as an MCP client
 // 3. Use the resources from the server for AI generation
 
-// Step 1: Create the MCP Server (runs in background)
+// Create the MCP Server (runs in background)
 func createMCPServer() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	logger.FromContext(ctx).Info("🚀 Starting Genkit MCP Server...")
+	logger.FromContext(ctx).Info("Starting Genkit MCP Server")
 
 	// Initialize Genkit for the server
 	g, err := genkit.Init(ctx)
@@ -56,7 +56,7 @@ func createMCPServer() {
 		}) (map[string]interface{}, error) {
 			logger.FromContext(ctx.Context).Debug("Executing genkit-brainstorm tool", "topic", input.Topic)
 
-			ideas := fmt.Sprintf(`💡 Creative Ideas for "%s":
+			ideas := fmt.Sprintf(`Creative Ideas for "%s":
 
 1. Interactive Experience: Create an immersive, hands-on workshop
 2. Digital Innovation: Develop a mobile app or web platform
@@ -69,7 +69,7 @@ func createMCPServer() {
 9. Creative Challenge: Host competitions or hackathons
 10. Multi-media Approach: Combine video, audio, and interactive elements
 
-🎯 These ideas can be mixed, matched, and customized for "%s"!`, input.Topic, input.Topic)
+These ideas can be mixed, matched, and customized for "%s".`, input.Topic, input.Topic)
 
 			return map[string]interface{}{
 				"topic": input.Topic,
@@ -124,10 +124,10 @@ Genkit follows a plugin-based architecture where models, retrievers, evaluators,
 		Version: "1.0.0",
 	})
 
-	logger.FromContext(ctx).Info("✅ Genkit MCP Server configured successfully")
-	logger.FromContext(ctx).Info("📡 Starting MCP server on stdio...")
-	logger.FromContext(ctx).Info("🔧 Tools:", "count", len(server.ListRegisteredTools()))
-	logger.FromContext(ctx).Info("📚 Resources:", "count", len(server.ListRegisteredResources()))
+	logger.FromContext(ctx).Info("Genkit MCP Server configured successfully")
+	logger.FromContext(ctx).Info("Starting MCP server on stdio")
+	logger.FromContext(ctx).Info("Registered tools", "count", len(server.ListRegisteredTools()))
+	logger.FromContext(ctx).Info("Registered resources", "count", len(server.ListRegisteredResources()))
 
 	// Start the server
 	if err := server.ServeStdio(); err != nil && err != context.Canceled {
@@ -136,12 +136,12 @@ Genkit follows a plugin-based architecture where models, retrievers, evaluators,
 	}
 }
 
-// Step 2: Create the MCP Client that connects to our server
-func mcpCeptionDemo() {
+// Create the MCP Client that connects to our server
+func mcpSelfConnection() {
 	ctx := context.Background()
 
-	logger.FromContext(ctx).Info("🎭 === MCP-CEPTION DEMO ===")
-	logger.FromContext(ctx).Info("🎯 Genkit will connect to itself via MCP!")
+	logger.FromContext(ctx).Info("MCP self-connection demo")
+	logger.FromContext(ctx).Info("Genkit will connect to itself via MCP")
 
 	// Initialize Genkit with Google AI for the client
 	g, err := genkit.Init(ctx,
@@ -152,8 +152,8 @@ func mcpCeptionDemo() {
 		log.Fatalf("Failed to initialize Genkit client: %v", err)
 	}
 
-	logger.FromContext(ctx).Info("🔌 Connecting to our own MCP server...")
-	logger.FromContext(ctx).Info("💡 Make sure to run 'go run mcp_ception.go server' in another terminal first!")
+	logger.FromContext(ctx).Info("Connecting to our own MCP server")
+	logger.FromContext(ctx).Info("Note: Server process will be spawned automatically")
 
 	// Create MCP Host that connects to our Genkit server
 	host, err := mcp.NewMCPHost(g, mcp.MCPHostOptions{
@@ -178,32 +178,32 @@ func mcpCeptionDemo() {
 	}
 
 	// Get resources from our Genkit server
-	logger.FromContext(ctx).Info("📚 Getting resources from Genkit MCP server...")
+	logger.FromContext(ctx).Info("Getting resources from Genkit MCP server")
 	resources, err := host.GetActiveResources(ctx)
 	if err != nil {
 		logger.FromContext(ctx).Error("Failed to get resources", "error", err)
 		return
 	}
 
-	logger.FromContext(ctx).Info("✅ Retrieved resources from ourselves!", "count", len(resources))
+	logger.FromContext(ctx).Info("Retrieved resources from server", "count", len(resources))
 
-	// DEBUG: Let's examine what resources we actually got
+	// Debug: examine retrieved resources
 	for i, resource := range resources {
-		logger.FromContext(ctx).Info("🔍 DEBUG Resource details", "index", i, "name", resource.Name())
+		logger.FromContext(ctx).Info("Resource details", "index", i, "name", resource.Name())
 		// Test if the resource matches our target URI
 		matches := resource.Matches("knowledge://genkit-docs")
-		logger.FromContext(ctx).Info("🔍 Resource URI matching", "matches_target_uri", matches)
+		logger.FromContext(ctx).Info("Resource URI matching", "matches_target_uri", matches)
 	}
 
 	// Get tools from our Genkit server
-	logger.FromContext(ctx).Info("🔧 Getting tools from Genkit MCP server...")
+	logger.FromContext(ctx).Info("Getting tools from Genkit MCP server")
 	tools, err := host.GetActiveTools(ctx, g)
 	if err != nil {
 		logger.FromContext(ctx).Error("Failed to get tools", "error", err)
 		return
 	}
 
-	logger.FromContext(ctx).Info("✅ Retrieved tools from ourselves!", "count", len(tools))
+	logger.FromContext(ctx).Info("Retrieved tools from server", "count", len(tools))
 
 	// Convert tools to refs
 	var toolRefs []ai.ToolRef
@@ -211,16 +211,16 @@ func mcpCeptionDemo() {
 		toolRefs = append(toolRefs, tool)
 	}
 
-	// Step 3: Use resources and tools from our own server for AI generation
-	logger.FromContext(ctx).Info("🤖 Asking AI about Genkit using our own MCP resources...")
+	// Use resources and tools from our own server for AI generation
+	logger.FromContext(ctx).Info("Asking AI about Genkit using our own MCP resources")
 
-	// THE CORRECT WAY: Use ai.NewResourcePart to explicitly reference the resource
-	logger.FromContext(ctx).Info("🔍 DEBUG Generation call", "resource_count", len(resources), "tool_count", len(toolRefs))
+	// Use ai.NewResourcePart to explicitly reference the resource
+	logger.FromContext(ctx).Info("Starting generation call", "resource_count", len(resources), "tool_count", len(toolRefs))
 
 	response, err := genkit.Generate(ctx, g,
 		ai.WithMessages(ai.NewUserMessage(
 			ai.NewTextPart("Based on this Genkit knowledge:"),
-			ai.NewResourcePart("knowledge://genkit-docs"), // ← FIXED: Explicit resource reference!
+			ai.NewResourcePart("knowledge://genkit-docs"), // Explicit resource reference
 			ai.NewTextPart("What are the key features of Genkit and what models does it support?\n\nAlso, use the brainstorm tool to generate ideas for \"AI-powered cooking assistant\""),
 		)),
 		ai.WithResources(resources), // Makes resources available for lookup
@@ -232,19 +232,19 @@ func mcpCeptionDemo() {
 		return
 	}
 
-	logger.FromContext(ctx).Info("🎉 MCP-CEPTION SUCCESS!")
-	logger.FromContext(ctx).Info("✨ Genkit used itself via MCP to answer questions!")
-	fmt.Printf("\n🤖 AI Response using our own MCP resources:\n%s\n\n", response.Text())
+	logger.FromContext(ctx).Info("MCP self-connection completed successfully")
+	logger.FromContext(ctx).Info("Genkit used itself via MCP to answer questions")
+	fmt.Printf("\nAI Response using our own MCP resources:\n%s\n\n", response.Text())
 
 	// Clean disconnect (skip for now to avoid hanging)
-	logger.FromContext(ctx).Info("✅ MCP-ception complete! 🎭")
+	logger.FromContext(ctx).Info("MCP self-connection complete")
 }
 
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: go run mcp_ception.go [server|demo]")
 		fmt.Println("  server - Run as MCP server (exposes Genkit resources)")
-		fmt.Println("  demo   - Run MCP-ception demo (connects to server)")
+		fmt.Println("  demo   - Run MCP self-connection demo (connects to server)")
 		os.Exit(1)
 	}
 
@@ -252,7 +252,7 @@ func main() {
 	case "server":
 		createMCPServer()
 	case "demo":
-		mcpCeptionDemo()
+		mcpSelfConnection()
 	default:
 		fmt.Printf("Unknown command: %s\n", os.Args[1])
 		fmt.Println("Use 'server' or 'demo'")
