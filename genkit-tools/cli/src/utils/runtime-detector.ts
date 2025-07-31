@@ -124,7 +124,10 @@ export function detectRuntime(): RuntimeInfo {
   if (hasBunVersion || execMatchesBun || argv0MatchesBun) {
     // Check if this is a Bun-compiled binary
     // Bun compiled binaries have virtual paths like /$bunfs/root/...
-    if (argv1 && argv1.startsWith('/$bunfs/')) {
+    if (
+      argv1 &&
+      (argv1.startsWith('/$bunfs/') || /^[A-Za-z]:[\\/]+~BUN[\\/]+/.test(argv1))
+    ) {
       // This is a Bun-compiled binary
       type = RUNTIME_COMPILED;
       scriptPath = undefined;
