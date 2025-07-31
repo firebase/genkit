@@ -21,13 +21,14 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/mcp"
 )
 
-// MCP Manager Example - connects to time server
+// MCP Host Example - connects to time server and demonstrates both tools and resources
 func managerExample() {
 	ctx := context.Background()
 
@@ -39,7 +40,7 @@ func managerExample() {
 	}
 
 	// Create and connect to MCP time server
-	manager, _ := mcp.NewMCPManager(mcp.MCPManagerOptions{
+	host, _ := mcp.NewMCPHost(g, mcp.MCPHostOptions{
 		Name: "time-example",
 		MCPServers: []mcp.MCPServerConfig{
 			{
@@ -56,9 +57,19 @@ func managerExample() {
 		},
 	})
 
-	// Get tools and generate response
-	tools, _ := manager.GetActiveTools(ctx, g)
+	// Get tools and resources from MCP servers
+	tools, _ := host.GetActiveTools(ctx, g)
 	logger.FromContext(ctx).Info("Found MCP tools", "count", len(tools), "example", "time")
+
+	// Get detached resources from MCP servers (not auto-registered)
+	allResources, err := host.GetActiveResources(ctx)
+	if err != nil {
+		logger.FromContext(ctx).Warn("Failed to get MCP resources", "error", err)
+	} else {
+		logger.FromContext(ctx).Info("Successfully got detached MCP resources", "count", len(allResources))
+		// Resources can be used via ai.WithResources() in generate calls
+		logger.FromContext(ctx).Info("Resources can be used in prompts via ai.WithResources()")
+	}
 
 	var toolRefs []ai.ToolRef
 	for _, tool := range tools {
@@ -78,11 +89,11 @@ func managerExample() {
 	}
 
 	// Disconnect from server
-	manager.Disconnect(ctx, "time")
+	host.Disconnect(ctx, "time")
 	logger.FromContext(ctx).Info("Disconnected from MCP server", "server", "time")
 }
 
-// MCP Manager Multi-Server Example - connects to both time and fetch servers
+// MCP Host Multi-Server Example - connects to both time and fetch servers, demonstrates tools and resources
 func multiServerManagerExample() {
 	ctx := context.Background()
 
@@ -93,8 +104,8 @@ func multiServerManagerExample() {
 		return
 	}
 
-	// Create MCP manager for multiple servers
-	manager, _ := mcp.NewMCPManager(mcp.MCPManagerOptions{
+	// Create MCP host for multiple servers
+	host, _ := mcp.NewMCPHost(g, mcp.MCPHostOptions{
 		Name: "multi-server-example",
 		MCPServers: []mcp.MCPServerConfig{
 			{
@@ -122,9 +133,17 @@ func multiServerManagerExample() {
 		},
 	})
 
-	// Get tools from all connected servers
-	tools, _ := manager.GetActiveTools(ctx, g)
+	// Get tools and resources from all connected servers
+	tools, _ := host.GetActiveTools(ctx, g)
 	logger.FromContext(ctx).Info("Found MCP tools from all servers", "count", len(tools), "servers", []string{"time", "fetch"})
+
+	// Get detached resources from all MCP servers
+	allResources2, err := host.GetActiveResources(ctx)
+	if err != nil {
+		logger.FromContext(ctx).Warn("Failed to get MCP resources from servers", "error", err)
+	} else {
+		logger.FromContext(ctx).Info("Successfully got detached MCP resources from all servers", "count", len(allResources2), "servers", []string{"time", "fetch"})
+	}
 
 	var toolRefs []ai.ToolRef
 	for _, tool := range tools {
@@ -145,8 +164,8 @@ func multiServerManagerExample() {
 	}
 
 	// Disconnect from all servers
-	manager.Disconnect(ctx, "time")
-	manager.Disconnect(ctx, "fetch")
+	host.Disconnect(ctx, "time")
+	host.Disconnect(ctx, "fetch")
 	logger.FromContext(ctx).Info("Disconnected from all MCP servers", "servers", []string{"time", "fetch"})
 }
 
@@ -311,14 +330,191 @@ func clientStreamableHTTPExample() {
 	logger.FromContext(ctx).Info("Disconnected from MCP server", "client", "mcp-everything-http")
 }
 
+// MCP Resources Example - demonstrates how to connect to servers and actually use their resources
+func resourcesExample() {
+	ctx := context.Background()
+
+	// Initialize Genkit with Google AI plugin and default model
+	g, err := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+	)
+	if err != nil {
+		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
+		return
+	}
+
+	logger.FromContext(ctx).Info("Starting MCP Resources demonstration")
+
+	// === Example 1: Connect to a server that actually provides resources ===
+	logger.FromContext(ctx).Info("Creating MCP client for everything server (has sample resources)")
+	// This server actually provides sample resources we can read
+	everythingClient, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
+		Name:    "mcp-everything",
+		Version: "1.0.0",
+		Stdio: &mcp.StdioConfig{
+			Command: "npx",
+			Args:    []string{"@modelcontextprotocol/server-everything", "stdio"},
+		},
+	})
+	if err != nil {
+		logger.FromContext(ctx).Warn("Failed to create everything MCP client (install: npm install -g @modelcontextprotocol/server-everything)", "error", err)
+	} else {
+		logger.FromContext(ctx).Info("Everything MCP client created successfully")
+
+		// Get detached resources from the everything server (without auto-registering)
+		resources, err := everythingClient.GetActiveResources(ctx)
+		if err != nil {
+			logger.FromContext(ctx).Warn("Failed to get everything server resources", "error", err)
+		} else {
+			logger.FromContext(ctx).Info("Got detached resources from everything server", "count", len(resources))
+
+			// Demonstrate the streamlined UX: use resources directly in generate calls
+			if len(resources) > 0 {
+				logger.FromContext(ctx).Info("Demonstrating streamlined resource usage...")
+
+				// Limit resources to avoid overwhelming the model (just use first 3 for demo)
+				limitedResources := resources
+				if len(resources) > 3 {
+					limitedResources = resources[:3]
+					logger.FromContext(ctx).Info("Limiting to first 3 resources for demo", "total", len(resources), "using", len(limitedResources))
+				}
+
+				// Example: Use MCP resources in an AI generation call
+				response, err := genkit.Generate(ctx, g,
+					ai.WithMessages(ai.NewUserMessage(
+						ai.NewTextPart("List the available resources and describe what each one contains."),
+						// Resource references will be resolved automatically from the detached resources
+					)),
+					ai.WithResources(limitedResources),
+				)
+				if err != nil {
+					logger.FromContext(ctx).Warn("Failed to generate with MCP resources", "error", err)
+				} else {
+					logger.FromContext(ctx).Info("Generated response using MCP resources", "response", response.Text())
+				}
+
+				// Show available resource names for reference
+				logger.FromContext(ctx).Info("Available resources:")
+				for i, resource := range resources {
+					logger.FromContext(ctx).Info("Resource available",
+						"index", i,
+						"name", resource.Name())
+					// Only show first few for demo
+					if i >= 2 {
+						logger.FromContext(ctx).Info("... and more resources available")
+						break
+					}
+				}
+			} else {
+				logger.FromContext(ctx).Info("No resources available from everything server")
+			}
+		}
+
+		// Disconnect from everything server
+		everythingClient.Disconnect()
+		logger.FromContext(ctx).Info("Disconnected from everything server")
+	}
+
+	// === Example 2: Simple resource workflow ===
+	// Create a detached resource from your own code that you can use in AI generation
+	configResource, _ := genkit.DynamicResource(genkit.ResourceOptions{
+		Name: "app-config",
+		URI:  "config://app.json",
+	}, func(ctx context.Context, input core.ResourceInput) (genkit.ResourceOutput, error) {
+		config := `{"app": "MyApp", "version": "1.0", "features": ["auth", "chat"]}`
+		return genkit.ResourceOutput{
+			Content: []*ai.Part{ai.NewTextPart(config)},
+		}, nil
+	})
+
+	// SIMPLE resource usage - just like the JS version!
+	response, err := genkit.Generate(ctx, g,
+		ai.WithMessages(
+			ai.NewUserMessageWithResource(
+				"Here's my config, what features does it have?",
+				"config://app.json",
+			),
+		),
+		ai.WithResources([]core.DetachedResourceAction{configResource}), // Pass detached resource
+	)
+
+	if err == nil {
+		logger.FromContext(ctx).Info("Resource workflow complete", "response", response.Text())
+	}
+
+	// === Example 3: Use MCP resources in AI generation ===
+	logger.FromContext(ctx).Info("Demonstrating AI generation with MCP resources")
+
+	// Create a host with multiple servers for resource access
+	host, err := mcp.NewMCPHost(g, mcp.MCPHostOptions{
+		Name: "resources-ai-example",
+		MCPServers: []mcp.MCPServerConfig{
+			{
+				Name: "filesystem",
+				Config: mcp.MCPClientOptions{
+					Name:    "mcp-filesystem",
+					Version: "1.0.0",
+					Stdio: &mcp.StdioConfig{
+						Command: "npx",
+						Args:    []string{"@modelcontextprotocol/server-filesystem", "/tmp"},
+					},
+				},
+			},
+		},
+	})
+	if err != nil {
+		logger.FromContext(ctx).Warn("Failed to create MCP host for AI example", "error", err)
+	} else {
+		// Get all detached resources
+		hostResources, err := host.GetActiveResources(ctx)
+		if err != nil {
+			logger.FromContext(ctx).Warn("Failed to get resources for AI example", "error", err)
+		} else {
+			logger.FromContext(ctx).Info("Got detached resources for AI generation", "count", len(hostResources))
+
+			// Get tools for AI generation
+			tools, _ := host.GetActiveTools(ctx, g)
+			var toolRefs []ai.ToolRef
+			for _, tool := range tools {
+				toolRefs = append(toolRefs, tool)
+			}
+
+			// Generate AI response that uses resources
+			prompt := `You have access to filesystem resources. 
+Please read the file /tmp/genkit-mcp-test.txt if it exists and tell me what you find.
+Use the available tools and resources to complete this task.`
+
+			response, err := genkit.Generate(ctx, g,
+				ai.WithPrompt(prompt),
+				ai.WithTools(toolRefs...),
+				ai.WithResources(hostResources), // Pass the detached resources!
+				ai.WithToolChoice(ai.ToolChoiceAuto),
+			)
+			if err != nil {
+				logger.FromContext(ctx).Error("AI generation with resources failed", "error", err)
+			} else {
+				logger.FromContext(ctx).Info("AI generation with resources completed", "response", response.Text())
+			}
+		}
+
+		// Disconnect from all servers
+		host.Disconnect(ctx, "filesystem")
+		logger.FromContext(ctx).Info("Disconnected from all servers in AI example")
+	}
+
+	logger.FromContext(ctx).Info("MCP Resources demonstration completed")
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go [manager|multi|client|getprompt|streamablehttp|test]")
-		fmt.Println("  manager        - MCP Manager example with time server")
-		fmt.Println("  multi          - MCP Manager example with multiple servers (time and fetch)")
+		fmt.Println("Usage: go run main.go [manager|multi|client|getprompt|streamablehttp|resources]")
+		fmt.Println("  manager        - MCP Host example with time server (tools & resources)")
+		fmt.Println("  multi          - MCP Host example with multiple servers (tools & resources)")
 		fmt.Println("  client         - MCP Client example with time server")
 		fmt.Println("  getprompt      - MCP Client GetPrompt example")
 		fmt.Println("  streamablehttp - MCP Client Streamable HTTP example")
+		fmt.Println("  resources      - MCP Resources example (filesystem & demo server)")
 		os.Exit(1)
 	}
 
@@ -326,10 +522,10 @@ func main() {
 
 	switch os.Args[1] {
 	case "manager":
-		logger.FromContext(ctx).Info("Running MCP Manager example")
+		logger.FromContext(ctx).Info("Running MCP Host example")
 		managerExample()
 	case "multi":
-		logger.FromContext(ctx).Info("Running MCP Manager multi-server example")
+		logger.FromContext(ctx).Info("Running MCP Host multi-server example")
 		multiServerManagerExample()
 	case "client":
 		logger.FromContext(ctx).Info("Running MCP Client example")
@@ -340,9 +536,12 @@ func main() {
 	case "streamablehttp":
 		logger.FromContext(ctx).Info("Running MCP Client Streamable HTTP example")
 		clientStreamableHTTPExample()
+	case "resources":
+		logger.FromContext(ctx).Info("Running MCP Resources example")
+		resourcesExample()
 	default:
 		fmt.Printf("Unknown example: %s\n", os.Args[1])
-		fmt.Println("Use 'manager', 'multi', 'client', 'getprompt', or 'streamablehttp'")
+		fmt.Println("Use 'manager', 'multi', 'client', 'getprompt', 'streamablehttp', or 'resources'")
 		os.Exit(1)
 	}
 }
