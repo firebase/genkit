@@ -15,6 +15,11 @@
  * limitations under the License.
  */
 
+import {
+  compatOaiModelRef,
+  defineCompatOpenAIModel,
+  openAICompatible,
+} from '@genkit-ai/compat-oai';
 import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
 import { openAI } from '@genkit-ai/compat-oai/openai';
 import { xAI } from '@genkit-ai/compat-oai/xai';
@@ -24,8 +29,31 @@ import { genkit, z } from 'genkit';
 
 dotenv.config();
 
+const DECLARED_MODELS = ['gemini-2.0-flash'];
+
 const ai = genkit({
-  plugins: [openAI(), deepSeek(), xAI()],
+  plugins: [
+    openAI(),
+    deepSeek(),
+    xAI(),
+    openAICompatible({
+      name: 'goog-oai',
+      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      apiKey: process.env['GEMINI_API_KEY'],
+      initializer: async (ai, client) => {
+        for (const model of DECLARED_MODELS) {
+          defineCompatOpenAIModel({
+            ai,
+            name: `goog-oai/${model}`,
+            client,
+            modelRef: compatOaiModelRef({
+              name: 'goog-oai/gemini-2.0-flash',
+            }),
+          });
+        }
+      },
+    }),
+  ],
 });
 
 export const jokeFlow = ai.defineFlow(
@@ -37,9 +65,8 @@ export const jokeFlow = ai.defineFlow(
   async (subject) => {
     const llmResponse = await ai.generate({
       prompt: `tell me a joke about ${subject}`,
-      model: xAI.model('grok-3-mini', {
-        temperature: 0.5,
-        reasoningEffort: 'low',
+      model: compatOaiModelRef({
+        name: 'goog-oai/gemini-2.0-flash',
       }),
     });
     return llmResponse.text;
@@ -85,8 +112,6 @@ export const webSearchFlow = ai.defineFlow(
     return llmResponse.text;
   }
 );
-
-//  genkit flow:run embedFlow \"hello world\"
 
 export const embedFlow = ai.defineFlow(
   {

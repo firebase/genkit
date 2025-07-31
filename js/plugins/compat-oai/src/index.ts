@@ -19,6 +19,31 @@ import { genkitPlugin } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import { OpenAI, type ClientOptions } from 'openai';
 
+export {
+  SpeechConfigSchema,
+  TranscriptionConfigSchema,
+  compatOaiSpeechModelRef,
+  compatOaiTranscriptionModelRef,
+  defineCompatOpenAISpeechModel,
+  defineCompatOpenAITranscriptionModel,
+  type SpeechRequestBuilder,
+  type TranscriptionRequestBuilder,
+} from './audio.js';
+export { defineCompatOpenAIEmbedder } from './embedder.js';
+export {
+  ImageGenerationCommonConfigSchema,
+  compatOaiImageModelRef,
+  defineCompatOpenAIImageModel,
+  type ImageRequestBuilder,
+} from './image.js';
+export {
+  ChatCompletionCommonConfigSchema,
+  compatOaiModelRef,
+  defineCompatOpenAIModel,
+  openAIModelRunner,
+  type ModelRequestBuilder,
+} from './model.js';
+
 export interface PluginOptions extends Partial<ClientOptions> {
   name: string;
   initializer?: (ai: Genkit, client: OpenAI) => Promise<void>;
@@ -98,13 +123,13 @@ export const openAICompatible = (options: PluginOptions) => {
         await options.resolver(ai, client, actionType, actionName);
       }
     },
-    async () => {
-      if (options.listActions) {
-        if (listActionsCache) return listActionsCache;
-        listActionsCache = await options.listActions(client);
-        return listActionsCache;
-      }
-    }
+    options.listActions
+      ? async () => {
+          if (listActionsCache) return listActionsCache;
+          listActionsCache = await options.listActions!(client);
+          return listActionsCache;
+        }
+      : undefined
   );
 };
 
