@@ -686,7 +686,7 @@ func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.Mo
 }
 
 // GenerateOperation performs a background model generation request)
-func GenerateOperation(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*core.Operation, error) {
+func GenerateOperation(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*core.Operation[*ai.ModelResponse], error) {
 	return ai.GenerateOperation(ctx, g.reg, opts...)
 }
 

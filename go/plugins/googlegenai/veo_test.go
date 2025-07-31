@@ -362,30 +362,26 @@ func TestFromVeoOperation(t *testing.T) {
 
 			// If we expect output, validate it's a ModelResponse with correct structure
 			if tt.expectedHasOutput && result.Output != nil {
-				modelResp, ok := result.Output.(*ai.ModelResponse)
-				if !ok {
-					t.Errorf("fromVeoOperation() Output is not *ai.ModelResponse, got %T", result.Output)
+				modelResp := result.Output
+				if modelResp.Message == nil {
+					t.Error("fromVeoOperation() ModelResponse.Message is nil")
 				} else {
-					if modelResp.Message == nil {
-						t.Error("fromVeoOperation() ModelResponse.Message is nil")
+					if modelResp.Message.Role != ai.RoleModel {
+						t.Errorf("fromVeoOperation() Message.Role = %v, want %v", modelResp.Message.Role, ai.RoleModel)
+					}
+
+					if len(modelResp.Message.Content) == 0 {
+						t.Error("fromVeoOperation() Message.Content is empty")
 					} else {
-						if modelResp.Message.Role != ai.RoleModel {
-							t.Errorf("fromVeoOperation() Message.Role = %v, want %v", modelResp.Message.Role, ai.RoleModel)
+						// Verify first content part is a media part
+						firstPart := modelResp.Message.Content[0]
+						if !firstPart.IsMedia() {
+							t.Error("fromVeoOperation() first content part is not media")
 						}
+					}
 
-						if len(modelResp.Message.Content) == 0 {
-							t.Error("fromVeoOperation() Message.Content is empty")
-						} else {
-							// Verify first content part is a media part
-							firstPart := modelResp.Message.Content[0]
-							if !firstPart.IsMedia() {
-								t.Error("fromVeoOperation() first content part is not media")
-							}
-						}
-
-						if modelResp.FinishReason != ai.FinishReasonStop {
-							t.Errorf("fromVeoOperation() FinishReason = %v, want %v", modelResp.FinishReason, ai.FinishReasonStop)
-						}
+					if modelResp.FinishReason != ai.FinishReasonStop {
+						t.Errorf("fromVeoOperation() FinishReason = %v, want %v", modelResp.FinishReason, ai.FinishReasonStop)
 					}
 				}
 			}
@@ -404,7 +400,7 @@ func TestCheckVeoOperationStructure(t *testing.T) {
 	// This test verifies the function exists and has the correct signature
 	// In a real test environment, you would mock the genai.Client and its methods
 
-	ops := &core.Operation{
+	ops := &core.Operation[*ai.ModelResponse]{
 		ID:   "operations/test-123",
 		Done: false,
 	}

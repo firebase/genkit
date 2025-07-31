@@ -1099,7 +1099,7 @@ func DefineBackgroundModel(
 	if options.ConfigSchema != nil {
 		metadata["model"].(map[string]any)["customOptions"] = options.ConfigSchema
 	}
-	startFunc := func(ctx context.Context, request *ModelRequest) (*core.Operation, error) {
+	startFunc := func(ctx context.Context, request *ModelRequest) (*core.Operation[*ModelResponse], error) {
 		startTime := time.Now()
 
 		// Call the user's start function
@@ -1118,10 +1118,10 @@ func DefineBackgroundModel(
 	}
 
 	bgAction := core.DefineBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name, *options, metadata, startFunc,
-		func(ctx context.Context, operation *core.Operation) (*core.Operation, error) {
+		func(ctx context.Context, operation *core.Operation[*ModelResponse]) (*core.Operation[*ModelResponse], error) {
 			return check(ctx, operation)
 		},
-		func(ctx context.Context, operation *core.Operation) (*core.Operation, error) {
+		func(ctx context.Context, operation *core.Operation[*ModelResponse]) (*core.Operation[*ModelResponse], error) {
 			if cancel == nil {
 				return nil, core.NewError(core.UNIMPLEMENTED, "cancel not implemented")
 			}
@@ -1184,7 +1184,7 @@ func SupportsLongRunning(r *registry.Registry, modelName string) bool {
 
 // GenerateOperation generates a model response as a long-running operation based on the provided options.
 // It returns an error if the model does not support long-running operations.
-func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation, error) {
+func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation[*ModelResponse], error) {
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
 		if err := opt.applyGenerate(genOpts); err != nil {

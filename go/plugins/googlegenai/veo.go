@@ -43,7 +43,7 @@ func defineVeoModels(
 		ConfigSchema:   info.ConfigSchema,
 		SupportsCancel: false,
 	}
-	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation, error) {
+	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
 		// Extract text prompt from the request
 		prompt := extractTextFromRequest(request)
 		if prompt == "" {
@@ -71,7 +71,7 @@ func defineVeoModels(
 		return fromVeoOperation(operation), nil
 	}
 
-	checkFunc := func(ctx context.Context, operation *core.Operation) (*core.Operation, error) {
+	checkFunc := func(ctx context.Context, operation *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
 		// Check the status of the long-running video generation operation
 		veoOp, err := checkVeoOperation(ctx, client, operation)
 		if err != nil {
@@ -81,7 +81,7 @@ func defineVeoModels(
 		return fromVeoOperation(veoOp), nil
 	}
 
-	cancelFunc := func(ctx context.Context, operation *core.Operation) (*core.Operation, error) {
+	cancelFunc := func(ctx context.Context, operation *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
 		// Veo API doesn't currently support operation cancellation
 		return nil, core.NewError(core.UNIMPLEMENTED, "veo model operation cancellation is not supported")
 	}
@@ -138,8 +138,8 @@ func toVeoParameters(request *ai.ModelRequest) genai.GenerateVideosConfig {
 }
 
 // fromVeoOperation converts a Veo API operation to a Genkit core operation.
-func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *core.Operation {
-	operation := &core.Operation{
+func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *core.Operation[*ai.ModelResponse] {
+	operation := &core.Operation[*ai.ModelResponse]{
 		ID:   veoOp.Name,
 		Done: veoOp.Done,
 	}
@@ -180,7 +180,7 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *core.Operation {
 }
 
 // checkVeoOperation checks the status of a long-running Veo video generation operation..
-func checkVeoOperation(ctx context.Context, client *genai.Client, ops *core.Operation) (*genai.GenerateVideosOperation, error) {
+func checkVeoOperation(ctx context.Context, client *genai.Client, ops *core.Operation[*ai.ModelResponse]) (*genai.GenerateVideosOperation, error) {
 	genaiOps := &genai.GenerateVideosOperation{
 		Name: ops.ID,
 	}

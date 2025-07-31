@@ -24,11 +24,11 @@ import (
 )
 
 // Operation represents a background task operation
-type Operation struct {
+type Operation[Out any] struct {
 	Action   string         `json:"action,omitempty"`   // The action that created this operation
 	ID       string         `json:"id"`                 // Unique identifier for tracking
 	Done     bool           `json:"done,omitempty"`     // Whether the operation is complete
-	Output   any            `json:"output,omitempty"`   // Result when done
+	Output   Out            `json:"output,omitempty"`   // Result when done
 	Error    error          `json:"error,omitempty"`    // Error if failed
 	Metadata map[string]any `json:"metadata,omitempty"` // Additional info
 }
@@ -43,44 +43,44 @@ type BackgroundModelOptions struct {
 }
 
 // StartOperationFunc starts a background operation
-type StartOperationFunc[In, Out any] = func(ctx context.Context, input In) (*Operation, error)
+type StartOperationFunc[In, Out any] = func(ctx context.Context, input In) (*Operation[Out], error)
 
 // CheckOperationFunc checks the status of a background operation
-type CheckOperationFunc[Out any] = func(ctx context.Context, operation *Operation) (*Operation, error)
+type CheckOperationFunc[Out any] = func(ctx context.Context, operation *Operation[Out]) (*Operation[Out], error)
 
 // CancelOperationFunc cancels a background operation
-type CancelOperationFunc[Out any] = func(ctx context.Context, operation *Operation) (*Operation, error)
+type CancelOperationFunc[Out any] = func(ctx context.Context, operation *Operation[Out]) (*Operation[Out], error)
 
 // BackgroundAction interface represents a background action
 type BackgroundAction[In, Out any] interface {
-	Start(ctx context.Context, input In) (*Operation, error)
-	Check(ctx context.Context, op *Operation) (*Operation, error)
-	Cancel(ctx context.Context, op *Operation) (*Operation, error)
+	Start(ctx context.Context, input In) (*Operation[Out], error)
+	Check(ctx context.Context, op *Operation[Out]) (*Operation[Out], error)
+	Cancel(ctx context.Context, op *Operation[Out]) (*Operation[Out], error)
 	SupportsCancel() bool
 	Name() string
 }
 
 // backgroundActionImpl implements BackgroundAction
 type backgroundActionDef[In, Out any] struct {
-	startAction    *ActionDef[In, *Operation, struct{}]
-	checkAction    *ActionDef[*Operation, *Operation, struct{}]
-	cancelAction   *ActionDef[*Operation, *Operation, struct{}]
+	startAction    *ActionDef[In, *Operation[Out], struct{}]
+	checkAction    *ActionDef[*Operation[Out], *Operation[Out], struct{}]
+	cancelAction   *ActionDef[*Operation[Out], *Operation[Out], struct{}]
 	name           string
 	supportsCancel bool
 }
 
 // Start initiates a background operation
-func (b *backgroundActionDef[In, Out]) Start(ctx context.Context, input In) (*Operation, error) {
+func (b *backgroundActionDef[In, Out]) Start(ctx context.Context, input In) (*Operation[Out], error) {
 	return b.startAction.Run(ctx, input, nil)
 }
 
 // Check polls the status of a background operation
-func (b *backgroundActionDef[In, Out]) Check(ctx context.Context, op *Operation) (*Operation, error) {
+func (b *backgroundActionDef[In, Out]) Check(ctx context.Context, op *Operation[Out]) (*Operation[Out], error) {
 	return b.checkAction.Run(ctx, op, nil)
 }
 
 // Cancel attempts to cancel a background operation
-func (b *backgroundActionDef[In, Out]) Cancel(ctx context.Context, op *Operation) (*Operation, error) {
+func (b *backgroundActionDef[In, Out]) Cancel(ctx context.Context, op *Operation[Out]) (*Operation[Out], error) {
 	if !b.supportsCancel || b.cancelAction == nil {
 		return nil, NewError(UNIMPLEMENTED, "cancel operation not supported")
 	}
@@ -109,7 +109,7 @@ func DefineBackgroundAction[In, Out any](
 ) BackgroundAction[In, Out] {
 	// Create the start action - initiates the background operation
 	startAction := defineAction(r, provider, name, ActionTypeBackgroundModel, metadata, nil,
-		func(ctx context.Context, input In, _ func(context.Context, struct{}) error) (*Operation, error) {
+		func(ctx context.Context, input In, _ func(context.Context, struct{}) error) (*Operation[Out], error) {
 			operation, err := start(ctx, input)
 			if err != nil {
 				return nil, err
@@ -123,7 +123,7 @@ func DefineBackgroundAction[In, Out any](
 	checkAction := defineAction(r, provider, name, ActionTypeCheckOperation,
 		map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)},
 		nil,
-		func(ctx context.Context, op *Operation, _ func(context.Context, struct{}) error) (*Operation, error) {
+		func(ctx context.Context, op *Operation[Out], _ func(context.Context, struct{}) error) (*Operation[Out], error) {
 			updatedOp, err := check(ctx, op)
 			if err != nil {
 				return nil, err
@@ -133,13 +133,13 @@ func DefineBackgroundAction[In, Out any](
 			return updatedOp, nil
 		})
 
-	var cancelAction *ActionDef[*Operation, *Operation, struct{}]
+	var cancelAction *ActionDef[*Operation[Out], *Operation[Out], struct{}]
 	if config.SupportsCancel && cancel != nil {
 		// Create the cancel action - cancels operation
 		cancelAction = defineAction(r, provider, name, ActionTypeCancelOperation,
 			map[string]any{"description": fmt.Sprintf("Cancel %s operation", name)},
 			nil,
-			func(ctx context.Context, op *Operation, _ func(context.Context, struct{}) error) (*Operation, error) {
+			func(ctx context.Context, op *Operation[Out], _ func(context.Context, struct{}) error) (*Operation[Out], error) {
 				cancelledOp, err := cancel(ctx, op)
 				if err != nil {
 					return nil, err
@@ -163,18 +163,18 @@ func DefineBackgroundAction[In, Out any](
 // It corresponds to the TypeScript lookupBackgroundAction function
 func LookupBackgroundAction[In, Out any](r *registry.Registry, provider string, name string) BackgroundAction[In, Out] {
 	// Look up the root/start action
-	startAction := ResolveActionFor[In, *Operation, struct{}](r, ActionTypeBackgroundModel, provider, name)
+	startAction := ResolveActionFor[In, *Operation[Out], struct{}](r, ActionTypeBackgroundModel, provider, name)
 	if startAction == nil {
 		return nil
 	}
 
 	// Look up the check action - format: /check-operation/{actionName}/check
-	checkAction := ResolveActionFor[*Operation, *Operation, struct{}](r, ActionTypeCheckOperation, provider, name)
+	checkAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, ActionTypeCheckOperation, provider, name)
 	if checkAction == nil {
 		return nil
 	}
 	// Look up the cancel action (optional) - format: /cancel-operation/{actionName}/cancel
-	cancelAction := ResolveActionFor[*Operation, *Operation, struct{}](r, ActionTypeCancelOperation, provider, name)
+	cancelAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, ActionTypeCancelOperation, provider, name)
 
 	supportsCancel := cancelAction != nil
 
