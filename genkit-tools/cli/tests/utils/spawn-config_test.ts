@@ -79,12 +79,12 @@ describe('spawn-config', () => {
           mockLogPath
         );
 
-        expect(config.command).toBe('C:\\Program Files\\nodejs\\node.exe');
+        expect(config.command).toBe('"C:\\Program Files\\nodejs\\node.exe"');
         expect(config.args).toEqual([
-          'C:\\Users\\dev\\AppData\\Roaming\\npm\\node_modules\\genkit-cli\\dist\\bin\\genkit.js',
-          SERVER_HARNESS_COMMAND,
-          '4000',
-          '/path/to/devui.log',
+          '"C:\\Users\\dev\\AppData\\Roaming\\npm\\node_modules\\genkit-cli\\dist\\bin\\genkit.js"',
+          '"' + SERVER_HARNESS_COMMAND + '"',
+          '"4000"',
+          '"/path/to/devui.log"',
         ]);
         expect(config.options.shell).toBe(true); // Shell enabled on Windows
       });
@@ -180,7 +180,7 @@ describe('spawn-config', () => {
           mockLogPath
         );
 
-        expect(config.command).toBe('C:\\Program Files\\Bun\\bun.exe');
+        expect(config.command).toBe('"C:\\Program Files\\Bun\\bun.exe"');
         expect(config.options.shell).toBe(true);
       });
     });
@@ -227,7 +227,7 @@ describe('spawn-config', () => {
           mockLogPath
         );
 
-        expect(config.command).toBe('C:\\Tools\\genkit.exe');
+        expect(config.command).toBe('"C:\\Tools\\genkit.exe"');
         expect(config.options.shell).toBe(true);
       });
 

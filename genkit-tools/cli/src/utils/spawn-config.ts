@@ -38,7 +38,10 @@ export interface SpawnConfig {
  */
 export async function validateExecutablePath(path: string): Promise<boolean> {
   try {
-    await access(path, constants.F_OK | constants.X_OK);
+    // Remove surrounding quotes if present (handle quotation)
+    const normalizedPath =
+      path.startsWith('"') && path.endsWith('"') ? path.slice(1, -1) : path;
+    await access(normalizedPath, constants.F_OK | constants.X_OK);
     return true;
   } catch {
     return false;
@@ -91,7 +94,7 @@ export function buildServerHarnessSpawnConfig(
     throw new Error('Log path is required');
   }
 
-  const command = runtime.execPath;
+  let command = runtime.execPath;
   let args: string[];
 
   if (runtime.type === 'compiled-binary') {
@@ -111,6 +114,12 @@ export function buildServerHarnessSpawnConfig(
     // Use shell on Windows for better compatibility with paths containing spaces
     shell: runtime.platform === 'win32',
   };
+
+  // Handles spaces in the command and arguments on Windows
+  if (runtime.platform === 'win32') {
+    command = `"${command}"`;
+    args = args.map((arg) => `"${arg}"`);
+  }
 
   return {
     command,
