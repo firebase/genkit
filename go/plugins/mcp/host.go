@@ -181,9 +181,3 @@ func (h *MCPHost) GetPrompt(ctx context.Context, gk *genkit.Genkit, serverName, 
 
 	return client.GetPrompt(ctx, gk, promptName, args)
 }
-
-// CreateMCPHost is a convenience function that creates a new MCPHost
-// This matches the naming convention used in the JavaScript implementation (createMcpHost)
-func CreateMCPHost(g *genkit.Genkit, options MCPHostOptions) (*MCPHost, error) {
-	return NewMCPHost(g, options)
-}
