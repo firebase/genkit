@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
 
 package core
 
@@ -27,7 +29,7 @@ type Operation struct {
 	ID       string         `json:"id"`                 // Unique identifier for tracking
 	Done     bool           `json:"done,omitempty"`     // Whether the operation is complete
 	Output   any            `json:"output,omitempty"`   // Result when done
-	Error    string         `json:"error,omitempty"`    // Error if failed
+	Error    error          `json:"error,omitempty"`    // Error if failed
 	Metadata map[string]any `json:"metadata,omitempty"` // Additional info
 }
 
@@ -41,25 +43,25 @@ type BackgroundModelOptions struct {
 }
 
 // StartOperationFunc starts a background operation
-type StartOperationFunc[In, Out any] func(ctx context.Context, input In) (*Operation, error)
+type StartOperationFunc[In, Out any] = func(ctx context.Context, input In) (*Operation, error)
 
 // CheckOperationFunc checks the status of a background operation
-type CheckOperationFunc[Out any] func(ctx context.Context, operation *Operation) (*Operation, error)
+type CheckOperationFunc[Out any] = func(ctx context.Context, operation *Operation) (*Operation, error)
 
 // CancelOperationFunc cancels a background operation
-type CancelOperationFunc[Out any] func(ctx context.Context, operation *Operation) (*Operation, error)
+type CancelOperationFunc[Out any] = func(ctx context.Context, operation *Operation) (*Operation, error)
 
 // BackgroundAction interface represents a background action
 type BackgroundAction[In, Out any] interface {
 	Start(ctx context.Context, input In) (*Operation, error)
-	Check(ctx context.Context, operation *Operation) (*Operation, error)
-	Cancel(ctx context.Context, operation *Operation) (*Operation, error)
+	Check(ctx context.Context, op *Operation) (*Operation, error)
+	Cancel(ctx context.Context, op *Operation) (*Operation, error)
 	SupportsCancel() bool
 	Name() string
 }
 
 // backgroundActionImpl implements BackgroundAction
-type backgroundActionImpl[In, Out any] struct {
+type backgroundActionDef[In, Out any] struct {
 	startAction    *ActionDef[In, *Operation, struct{}]
 	checkAction    *ActionDef[*Operation, *Operation, struct{}]
 	cancelAction   *ActionDef[*Operation, *Operation, struct{}]
@@ -68,30 +70,30 @@ type backgroundActionImpl[In, Out any] struct {
 }
 
 // Start initiates a background operation
-func (b *backgroundActionImpl[In, Out]) Start(ctx context.Context, input In) (*Operation, error) {
+func (b *backgroundActionDef[In, Out]) Start(ctx context.Context, input In) (*Operation, error) {
 	return b.startAction.Run(ctx, input, nil)
 }
 
 // Check polls the status of a background operation
-func (b *backgroundActionImpl[In, Out]) Check(ctx context.Context, operation *Operation) (*Operation, error) {
-	return b.checkAction.Run(ctx, operation, nil)
+func (b *backgroundActionDef[In, Out]) Check(ctx context.Context, op *Operation) (*Operation, error) {
+	return b.checkAction.Run(ctx, op, nil)
 }
 
 // Cancel attempts to cancel a background operation
-func (b *backgroundActionImpl[In, Out]) Cancel(ctx context.Context, operation *Operation) (*Operation, error) {
+func (b *backgroundActionDef[In, Out]) Cancel(ctx context.Context, op *Operation) (*Operation, error) {
 	if !b.supportsCancel || b.cancelAction == nil {
 		return nil, NewError(UNIMPLEMENTED, "cancel operation not supported")
 	}
-	return b.cancelAction.Run(ctx, operation, nil)
+	return b.cancelAction.Run(ctx, op, nil)
 }
 
 // SupportsCancel returns whether the action supports cancellation
-func (b *backgroundActionImpl[In, Out]) SupportsCancel() bool {
+func (b *backgroundActionDef[In, Out]) SupportsCancel() bool {
 	return b.supportsCancel
 }
 
 // Name returns the action name
-func (b *backgroundActionImpl[In, Out]) Name() string {
+func (b *backgroundActionDef[In, Out]) Name() string {
 	return b.name
 }
 
@@ -121,8 +123,8 @@ func DefineBackgroundAction[In, Out any](
 	checkAction := defineAction(r, provider, name, ActionTypeCheckOperation,
 		map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)},
 		nil,
-		func(ctx context.Context, operation *Operation, _ func(context.Context, struct{}) error) (*Operation, error) {
-			updatedOp, err := check(ctx, operation)
+		func(ctx context.Context, op *Operation, _ func(context.Context, struct{}) error) (*Operation, error) {
+			updatedOp, err := check(ctx, op)
 			if err != nil {
 				return nil, err
 			}
@@ -137,8 +139,8 @@ func DefineBackgroundAction[In, Out any](
 		cancelAction = defineAction(r, provider, name, ActionTypeCancelOperation,
 			map[string]any{"description": fmt.Sprintf("Cancel %s operation", name)},
 			nil,
-			func(ctx context.Context, operation *Operation, _ func(context.Context, struct{}) error) (*Operation, error) {
-				cancelledOp, err := cancel(ctx, operation)
+			func(ctx context.Context, op *Operation, _ func(context.Context, struct{}) error) (*Operation, error) {
+				cancelledOp, err := cancel(ctx, op)
 				if err != nil {
 					return nil, err
 				}
@@ -148,7 +150,7 @@ func DefineBackgroundAction[In, Out any](
 			})
 	}
 
-	return &backgroundActionImpl[In, Out]{
+	return &backgroundActionDef[In, Out]{
 		startAction:    startAction,
 		checkAction:    checkAction,
 		cancelAction:   cancelAction,
@@ -176,7 +178,7 @@ func LookupBackgroundAction[In, Out any](r *registry.Registry, provider string, 
 
 	supportsCancel := cancelAction != nil
 
-	bgAction := backgroundActionImpl[In, Out]{
+	bgAction := backgroundActionDef[In, Out]{
 		startAction:    startAction,
 		checkAction:    checkAction,
 		cancelAction:   cancelAction,

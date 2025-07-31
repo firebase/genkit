@@ -16,6 +16,7 @@ package googlegenai
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
@@ -209,29 +210,23 @@ func TestToVeoParameters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := toVeoParameters(tt.request)
 
-			// Compare relevant fields since direct comparison might fail due to pointers
-			if tt.expected.AspectRatio != "" {
-				if result.AspectRatio == "" || result.AspectRatio != tt.expected.AspectRatio {
-					t.Errorf("toVeoParameters() AspectRatio = %v, want %v", result.AspectRatio, tt.expected.AspectRatio)
-				}
-			} else if result.AspectRatio != "" {
-				t.Errorf("toVeoParameters() AspectRatio = %v, want nil", result.AspectRatio)
+			// Compare AspectRatio
+			if result.AspectRatio != tt.expected.AspectRatio {
+				t.Errorf("toVeoParameters() AspectRatio = %q, want %q", result.AspectRatio, tt.expected.AspectRatio)
 			}
 
-			if tt.expected.DurationSeconds != nil {
-				if result.DurationSeconds == nil || *result.DurationSeconds != *tt.expected.DurationSeconds {
-					t.Errorf("toVeoParameters() DurationSeconds = %v, want %v", result.DurationSeconds, tt.expected.DurationSeconds)
+			// Compare DurationSeconds pointers
+			if (result.DurationSeconds == nil) != (tt.expected.DurationSeconds == nil) {
+				t.Errorf("toVeoParameters() DurationSeconds nil mismatch: got %v, want %v", result.DurationSeconds, tt.expected.DurationSeconds)
+			} else if result.DurationSeconds != nil && tt.expected.DurationSeconds != nil {
+				if *result.DurationSeconds != *tt.expected.DurationSeconds {
+					t.Errorf("toVeoParameters() DurationSeconds = %v, want %v", *result.DurationSeconds, *tt.expected.DurationSeconds)
 				}
-			} else if result.DurationSeconds != nil {
-				t.Errorf("toVeoParameters() DurationSeconds = %v, want nil", result.DurationSeconds)
 			}
 
-			if tt.expected.PersonGeneration != "" {
-				if result.PersonGeneration == "" || result.PersonGeneration != tt.expected.PersonGeneration {
-					t.Errorf("toVeoParameters() PersonGeneration = %v, want %v", result.PersonGeneration, tt.expected.PersonGeneration)
-				}
-			} else if result.PersonGeneration != "" {
-				t.Errorf("toVeoParameters() PersonGeneration = %v, want nil", result.PersonGeneration)
+			// Compare PersonGeneration
+			if result.PersonGeneration != tt.expected.PersonGeneration {
+				t.Errorf("toVeoParameters() PersonGeneration = %q, want %q", result.PersonGeneration, tt.expected.PersonGeneration)
 			}
 		})
 	}
@@ -245,7 +240,7 @@ func TestFromVeoOperation(t *testing.T) {
 		veoOp             *genai.GenerateVideosOperation
 		expectedID        string
 		expectedDone      bool
-		expectedError     string
+		expectedError     error
 		expectedHasOutput bool
 	}{
 		{
@@ -256,7 +251,7 @@ func TestFromVeoOperation(t *testing.T) {
 			},
 			expectedID:        "operations/test-operation-123",
 			expectedDone:      false,
-			expectedError:     "",
+			expectedError:     nil,
 			expectedHasOutput: false,
 		},
 		{
@@ -276,7 +271,7 @@ func TestFromVeoOperation(t *testing.T) {
 			},
 			expectedID:        "operations/test-operation-456",
 			expectedDone:      true,
-			expectedError:     "",
+			expectedError:     nil,
 			expectedHasOutput: true,
 		},
 		{
@@ -291,7 +286,7 @@ func TestFromVeoOperation(t *testing.T) {
 			},
 			expectedID:        "operations/test-operation-error",
 			expectedDone:      true,
-			expectedError:     "Video generation failed due to content policy",
+			expectedError:     fmt.Errorf("%s", "Video generation failed due to content policy"),
 			expectedHasOutput: false,
 		},
 		{
@@ -307,7 +302,7 @@ func TestFromVeoOperation(t *testing.T) {
 			},
 			expectedID:        "operations/test-operation-bad-error",
 			expectedDone:      true,
-			expectedError:     "operation error: map[code:500 details:Internal error]",
+			expectedError:     fmt.Errorf("operation error: map[code:500 details:Internal error]"),
 			expectedHasOutput: false,
 		},
 		{
@@ -332,7 +327,7 @@ func TestFromVeoOperation(t *testing.T) {
 			},
 			expectedID:        "operations/test-operation-multi",
 			expectedDone:      true,
-			expectedError:     "",
+			expectedError:     nil,
 			expectedHasOutput: true,
 		},
 	}
@@ -350,8 +345,13 @@ func TestFromVeoOperation(t *testing.T) {
 				t.Errorf("fromVeoOperation() Done = %t, want %t", result.Done, tt.expectedDone)
 			}
 
-			if result.Error != tt.expectedError {
-				t.Errorf("fromVeoOperation() Error = %q, want %q", result.Error, tt.expectedError)
+			// Compare errors properly - both nil or both non-nil with same message
+			if (result.Error == nil) != (tt.expectedError == nil) {
+				t.Errorf("fromVeoOperation() Error nil mismatch: got %v, want %v", result.Error, tt.expectedError)
+			} else if result.Error != nil && tt.expectedError != nil {
+				if result.Error.Error() != tt.expectedError.Error() {
+					t.Errorf("fromVeoOperation() Error = %q, want %q", result.Error.Error(), tt.expectedError.Error())
+				}
 			}
 
 			// Check output presence

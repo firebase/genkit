@@ -61,7 +61,7 @@ func main() {
 	currentOp := resp
 	for {
 		// Check if operation completed with error
-		if currentOp.Error != "" {
+		if currentOp.Error != nil {
 			log.Fatalf("operation failed: %s", currentOp.Error)
 		}
 

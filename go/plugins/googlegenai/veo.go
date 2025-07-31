@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
 
 package googlegenai
 
@@ -146,9 +148,9 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *core.Operation {
 	if veoOp.Error != nil {
 		// veoOp.Error is a map[string]any, convert to string for the operation
 		if errorMsg, ok := veoOp.Error["message"].(string); ok {
-			operation.Error = errorMsg
+			operation.Error = fmt.Errorf("%s", errorMsg)
 		} else {
-			operation.Error = fmt.Sprintf("operation error: %v", veoOp.Error)
+			operation.Error = fmt.Errorf("operation error: %v", veoOp.Error)
 		}
 	}
 
