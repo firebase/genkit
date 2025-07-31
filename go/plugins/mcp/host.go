@@ -129,7 +129,6 @@ func (h *MCPHost) Disconnect(ctx context.Context, serverName string) error {
 func (h *MCPHost) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]ai.Tool, error) {
 	var allTools []ai.Tool
 
-	// Simple sequential iteration - fast enough for typical usage (1-5 clients)
 	for name, client := range h.clients {
 		if !client.IsEnabled() {
 			continue
