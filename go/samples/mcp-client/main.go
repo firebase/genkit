@@ -428,12 +428,11 @@ func resourcesExample() {
 		}, nil
 	})
 
-	// SIMPLE resource usage - just like the JS version!
 	response, err := genkit.Generate(ctx, g,
 		ai.WithMessages(
-			ai.NewUserMessageWithResource(
-				"Here's my config, what features does it have?",
-				"config://app.json",
+			ai.NewUserMessage(
+				ai.NewTextPart("Here's my config, what features does it have?"),
+				ai.NewResourcePart("config://app.json"),
 			),
 		),
 		ai.WithResources([]core.DetachedResourceAction{configResource}), // Pass detached resource
