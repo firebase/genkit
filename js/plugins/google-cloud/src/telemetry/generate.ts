@@ -100,6 +100,14 @@ class GenerateTelemetry implements Telemetry {
     valueType: ValueType.INT,
   });
 
+  private thinkingTokens = new MetricCounter(
+    this._N('generate/thinking/tokens'),
+    {
+      description: 'Counts thinking tokens from a Genkit model.',
+      valueType: ValueType.INT,
+    }
+  );
+
   private outputImages = new MetricCounter(this._N('generate/output/images'), {
     description: 'Count output images from a Genkit model.',
     valueType: ValueType.INT,
@@ -436,6 +444,9 @@ class GenerateTelemetry implements Telemetry {
     this.outputTokens.add(usage.outputTokens, shared);
     this.outputCharacters.add(usage.outputCharacters, shared);
     this.outputImages.add(usage.outputImages, shared);
+
+    // thoughts
+    this.thinkingTokens.add(usage.thoughtsTokens, shared);
   }
 }
 
