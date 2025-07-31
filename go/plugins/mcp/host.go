@@ -150,7 +150,6 @@ func (h *MCPHost) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]ai.T
 func (h *MCPHost) GetActiveResources(ctx context.Context) ([]core.DetachedResourceAction, error) {
 	var allResources []core.DetachedResourceAction
 
-	// Simple sequential iteration - fast enough for typical usage (1-5 clients)
 	for name, client := range h.clients {
 		if !client.IsEnabled() {
 			continue
