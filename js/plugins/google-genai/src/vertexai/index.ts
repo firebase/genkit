@@ -73,6 +73,7 @@ async function resolver(
       if (veo.isVeoModelName(actionName)) {
         veo.defineModel(ai, actionName, clientOptions, pluginOptions);
       }
+      break;
     case 'embedder':
       embedder.defineEmbedder(ai, actionName, clientOptions, pluginOptions);
       break;

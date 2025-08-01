@@ -139,11 +139,11 @@ export function defineModel(
     },
     async (request, { abortSignal }) => {
       const clientOpt = { ...clientOptions, signal: abortSignal };
-      const lyricPredictRequest = toLyriaPredictRequest(request);
+      const lyriaPredictRequest = toLyriaPredictRequest(request);
 
       const response = await lyriaPredict(
         extractVersion(ref),
-        lyricPredictRequest,
+        lyriaPredictRequest,
         clientOpt
       );
 
