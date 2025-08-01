@@ -17,7 +17,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import * as fs from 'fs/promises';
 import { SERVER_HARNESS_COMMAND } from '../../src/commands/server-harness';
-import { type RuntimeInfo } from '../../src/utils/runtime-detector';
+import { type CLIRuntimeInfo } from '../../src/utils/runtime-detector';
 import {
   buildServerHarnessSpawnConfig,
   validateExecutablePath,
@@ -35,9 +35,9 @@ describe('spawn-config', () => {
     const mockPort = 4000;
     const mockLogPath = '/path/to/devui.log';
 
-    describe('Node.js runtime', () => {
+    describe('Node.js CLI runtime', () => {
       it('should build config for Node.js with script path', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'node',
           execPath: '/usr/bin/node',
           scriptPath: '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js',
@@ -46,7 +46,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -64,7 +64,7 @@ describe('spawn-config', () => {
       });
 
       it('should build config for Node.js on Windows', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'node',
           execPath: 'C:\\Program Files\\nodejs\\node.exe',
           scriptPath:
@@ -74,7 +74,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -90,7 +90,7 @@ describe('spawn-config', () => {
       });
 
       it('should handle Node.js without script path', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'node',
           execPath: '/usr/bin/node',
           scriptPath: undefined,
@@ -99,7 +99,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -114,9 +114,9 @@ describe('spawn-config', () => {
       });
     });
 
-    describe('Bun runtime', () => {
+    describe('Bun CLI runtime', () => {
       it('should build config for Bun with script path', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'bun',
           execPath: '/usr/local/bin/bun',
           scriptPath: '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js',
@@ -125,7 +125,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -143,7 +143,7 @@ describe('spawn-config', () => {
       });
 
       it('should handle Bun without script path', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'bun',
           execPath: '/opt/homebrew/bin/bun',
           scriptPath: undefined,
@@ -152,7 +152,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -166,7 +166,7 @@ describe('spawn-config', () => {
       });
 
       it('should handle Bun on Windows', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'bun',
           execPath: 'C:\\Program Files\\Bun\\bun.exe',
           scriptPath: 'C:\\projects\\genkit\\dist\\bin\\genkit.js',
@@ -175,7 +175,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -187,7 +187,7 @@ describe('spawn-config', () => {
 
     describe('Compiled binary', () => {
       it('should build config for compiled binary', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'compiled-binary',
           execPath: '/usr/local/bin/genkit',
           scriptPath: undefined,
@@ -196,7 +196,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -213,7 +213,7 @@ describe('spawn-config', () => {
       });
 
       it('should handle compiled binary on Windows', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'compiled-binary',
           execPath: 'C:\\Tools\\genkit.exe',
           scriptPath: undefined,
@@ -222,7 +222,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -232,7 +232,7 @@ describe('spawn-config', () => {
       });
 
       it('should handle relative path compiled binary', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'compiled-binary',
           execPath: './genkit',
           scriptPath: undefined,
@@ -241,7 +241,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -257,7 +257,7 @@ describe('spawn-config', () => {
 
     describe('Edge cases', () => {
       it('should handle different port numbers', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'node',
           execPath: '/usr/bin/node',
           scriptPath: '/script.js',
@@ -266,7 +266,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           8080,
           mockLogPath
         );
@@ -275,7 +275,7 @@ describe('spawn-config', () => {
       });
 
       it('should handle paths with spaces', () => {
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'node',
           execPath: '/usr/bin/node',
           scriptPath: '/path with spaces/script.js',
@@ -284,7 +284,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           '/log path/devui.log'
         );
@@ -299,7 +299,7 @@ describe('spawn-config', () => {
 
       it('should handle very long paths', () => {
         const longPath = '/very/long/path/'.repeat(50) + 'script.js';
-        const runtime: RuntimeInfo = {
+        const cliRuntime: CLIRuntimeInfo = {
           type: 'node',
           execPath: '/usr/bin/node',
           scriptPath: longPath,
@@ -308,7 +308,7 @@ describe('spawn-config', () => {
         };
 
         const config = buildServerHarnessSpawnConfig(
-          runtime,
+          cliRuntime,
           mockPort,
           mockLogPath
         );
@@ -318,7 +318,7 @@ describe('spawn-config', () => {
     });
 
     describe('Input validation', () => {
-      const validRuntime: RuntimeInfo = {
+      const validRuntime: CLIRuntimeInfo = {
         type: 'node',
         execPath: '/usr/bin/node',
         scriptPath: '/script.js',
@@ -329,14 +329,18 @@ describe('spawn-config', () => {
       it('should throw error for null runtime', () => {
         expect(() =>
           buildServerHarnessSpawnConfig(null as any, mockPort, mockLogPath)
-        ).toThrow('Runtime info is required');
+        ).toThrow('CLI runtime info is required');
       });
 
       it('should throw error for runtime without execPath', () => {
         const invalidRuntime = { ...validRuntime, execPath: '' };
         expect(() =>
-          buildServerHarnessSpawnConfig(invalidRuntime, mockPort, mockLogPath)
-        ).toThrow('Runtime execPath is required');
+          buildServerHarnessSpawnConfig(
+            invalidRuntime as any,
+            mockPort,
+            mockLogPath
+          )
+        ).toThrow('CLI runtime execPath is required');
       });
 
       it('should throw error for invalid port numbers', () => {

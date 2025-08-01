@@ -23,7 +23,7 @@ import {
   jest,
 } from '@jest/globals';
 import * as fs from 'fs';
-import { detectRuntime } from '../../src/utils/runtime-detector';
+import { detectCLIRuntime } from '../../src/utils/runtime-detector';
 
 jest.mock('fs');
 const mockedFs = fs as jest.Mocked<typeof fs>;
@@ -53,8 +53,8 @@ describe('runtime-detector', () => {
     });
   });
 
-  describe('Node.js runtime detection', () => {
-    it('should detect Node.js with npm global install', () => {
+  describe('Node.js CLI runtime detection', () => {
+    it('should detect Node.js CLI runtime with npm global install', () => {
       process.argv = [
         '/usr/bin/node',
         '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js',
@@ -62,7 +62,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -72,7 +72,7 @@ describe('runtime-detector', () => {
       expect(result.isCompiledBinary).toBe(false);
     });
 
-    it('should detect Node.js with npm link', () => {
+    it('should detect Node.js CLI runtime with npm link', () => {
       process.argv = [
         '/usr/local/bin/node',
         '/Users/dev/project/node_modules/.bin/genkit',
@@ -80,7 +80,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/local/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/local/bin/node');
@@ -90,7 +90,7 @@ describe('runtime-detector', () => {
       expect(result.isCompiledBinary).toBe(false);
     });
 
-    it('should detect Node.js with direct execution', () => {
+    it('should detect Node.js CLI runtime with direct execution', () => {
       process.argv = ['node', './dist/bin/genkit.js'];
       process.execPath = '/usr/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
@@ -100,7 +100,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -109,8 +109,8 @@ describe('runtime-detector', () => {
     });
   });
 
-  describe('Bun runtime detection', () => {
-    it('should detect Bun runtime via process.versions', () => {
+  describe('Bun CLI runtime detection', () => {
+    it('should detect Bun CLI runtime via process.versions', () => {
       process.argv = [
         '/usr/local/bin/bun',
         '/usr/lib/node_modules/genkit-cli/dist/bin/genkit.js',
@@ -123,7 +123,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('bun');
       expect(result.execPath).toBe('/usr/local/bin/bun');
@@ -133,7 +133,7 @@ describe('runtime-detector', () => {
       expect(result.isCompiledBinary).toBe(false);
     });
 
-    it('should detect Bun runtime via execPath', () => {
+    it('should detect Bun CLI runtime via execPath', () => {
       process.argv = ['/opt/homebrew/bin/bun', './genkit.js'];
       process.execPath = '/opt/homebrew/bin/bun';
       mockedFs.existsSync.mockReturnValue(true);
@@ -144,7 +144,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('bun');
       expect(result.execPath).toBe('/opt/homebrew/bin/bun');
@@ -164,7 +164,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('compiled-binary');
       expect(result.execPath).toBe('/usr/local/bin/genkit');
@@ -182,7 +182,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('compiled-binary');
       expect(result.execPath).toBe('/usr/local/bin/genkit');
@@ -200,7 +200,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('compiled-binary');
       expect(result.execPath).toBe('./genkit');
@@ -219,8 +219,8 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      expect(() => detectRuntime()).toThrow(
-        'Unable to determine executable path'
+      expect(() => detectCLIRuntime()).toThrow(
+        'Unable to determine CLI runtime executable path'
       );
 
       Object.defineProperty(process, 'execPath', {
@@ -239,8 +239,8 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      expect(() => detectRuntime()).toThrow(
-        'Unable to determine executable path'
+      expect(() => detectCLIRuntime()).toThrow(
+        'Unable to determine CLI runtime executable path'
       );
 
       Object.defineProperty(process, 'execPath', {
@@ -250,7 +250,7 @@ describe('runtime-detector', () => {
       });
     });
 
-    it('should fall back to node when runtime cannot be determined', () => {
+    it('should fall back to node when CLI runtime cannot be determined', () => {
       process.argv = ['/some/unknown/runtime', '/some/script.js'];
       process.execPath = '/some/unknown/runtime';
       mockedFs.existsSync.mockReturnValue(true);
@@ -260,7 +260,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/some/unknown/runtime');
@@ -281,7 +281,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('C:\\Program Files\\nodejs\\node.exe');
@@ -300,7 +300,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.platform).toBe('darwin');
     });
@@ -312,7 +312,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/bin/node';
       mockedFs.existsSync.mockReturnValue(false);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -330,7 +330,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('compiled-binary');
       expect(result.execPath).toBe('/usr/bin/genkit');
@@ -343,7 +343,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/bin/node';
       mockedFs.existsSync.mockReturnValue(false);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -358,7 +358,7 @@ describe('runtime-detector', () => {
         throw new Error('Permission denied');
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -371,7 +371,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -384,7 +384,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/bin/node18';
       mockedFs.existsSync.mockReturnValue(true);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node18');
@@ -397,7 +397,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/local/bin/bun1.0';
       mockedFs.existsSync.mockReturnValue(true);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('bun');
       expect(result.execPath).toBe('/usr/local/bin/bun1.0');
@@ -415,7 +415,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -429,7 +429,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -442,7 +442,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/bin/node');
@@ -455,7 +455,7 @@ describe('runtime-detector', () => {
       process.execPath = '/usr/local/bin/node';
       mockedFs.existsSync.mockReturnValue(true);
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('node');
       expect(result.execPath).toBe('/usr/local/bin/node');
@@ -474,7 +474,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       // Should correctly detect as Node.js based on version info
       expect(result.type).toBe('node');
@@ -493,7 +493,7 @@ describe('runtime-detector', () => {
         configurable: true,
       });
 
-      const result = detectRuntime();
+      const result = detectCLIRuntime();
 
       expect(result.type).toBe('compiled-binary');
       expect(result.execPath).toBe('/usr/local/bin/genkit');

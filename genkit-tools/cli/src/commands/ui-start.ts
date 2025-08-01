@@ -31,7 +31,7 @@ import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
 import open from 'open';
 import path from 'path';
-import { detectRuntime } from '../utils/runtime-detector';
+import { detectCLIRuntime } from '../utils/runtime-detector';
 import {
   buildServerHarnessSpawnConfig,
   validateExecutablePath,
@@ -133,15 +133,17 @@ async function startAndWaitUntilHealthy(
   serversDir: string
 ): Promise<ChildProcess> {
   // Detect runtime environment
-  const runtime = detectRuntime();
-  logger.debug(`Detected runtime: ${runtime.type} at ${runtime.execPath}`);
-  if (runtime.scriptPath) {
-    logger.debug(`Script path: ${runtime.scriptPath}`);
+  const cliRuntime = detectCLIRuntime();
+  logger.debug(
+    `Detected CLI runtime: ${cliRuntime.type} at ${cliRuntime.execPath}`
+  );
+  if (cliRuntime.scriptPath) {
+    logger.debug(`Script path: ${cliRuntime.scriptPath}`);
   }
 
   // Build spawn configuration
   const logPath = path.join(serversDir, 'devui.log');
-  const spawnConfig = buildServerHarnessSpawnConfig(runtime, port, logPath);
+  const spawnConfig = buildServerHarnessSpawnConfig(cliRuntime, port, logPath);
 
   // Validate executable path
   const isExecutable = await validateExecutablePath(spawnConfig.command);

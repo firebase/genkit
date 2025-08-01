@@ -27,16 +27,16 @@ const BUN_PATTERNS = ['bun'];
 const SCRIPT_EXTENSIONS = ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'];
 
 /**
- * Runtime types supported by the detector
+ * CLI runtime types supported by the detector
  */
-export type RuntimeType = 'node' | 'bun' | 'compiled-binary';
+export type CLIRuntimeType = 'node' | 'bun' | 'compiled-binary';
 
 /**
- * Information about the runtime environment
+ * Information about the CLI runtime environment
  */
-export interface RuntimeInfo {
-  /** Type of runtime or execution mode */
-  type: RuntimeType;
+export interface CLIRuntimeInfo {
+  /** Type of CLI runtime or execution mode */
+  type: CLIRuntimeType;
   /** Path to the executable (node, bun, or the compiled binary itself) */
   execPath: string;
   /** Path to the script being executed (undefined for compiled binaries) */
@@ -85,18 +85,18 @@ function matchesPatterns(execName: string, patterns: string[]): boolean {
 }
 
 /**
- * Detects the current runtime environment and execution context.
+ * Detects the current CLI runtime environment and execution context.
  * This helps determine how to properly spawn child processes.
  *
- * @returns Runtime information including type, paths, and platform
- * @throws Error if unable to determine executable path
+ * @returns CLI runtime information including type, paths, and platform
+ * @throws Error if unable to determine CLI runtime executable path
  */
-export function detectRuntime(): RuntimeInfo {
+export function detectCLIRuntime(): CLIRuntimeInfo {
   const platform = process.platform;
   const execPath = process.execPath;
 
   if (!execPath || execPath.trim() === '') {
-    throw new Error('Unable to determine executable path');
+    throw new Error('Unable to determine CLI runtime executable path');
   }
 
   const argv0 = process.argv[0];
@@ -116,7 +116,7 @@ export function detectRuntime(): RuntimeInfo {
   const hasScriptArg = !!argv1;
   const scriptExists = hasScriptArg && safeExistsSync(argv1);
 
-  let type: RuntimeType;
+  let type: CLIRuntimeType;
   let scriptPath: string | undefined;
   let isCompiledBinary: boolean;
 

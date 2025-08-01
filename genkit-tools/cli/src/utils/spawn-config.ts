@@ -17,7 +17,7 @@
 import { type SpawnOptions } from 'child_process';
 import { access, constants } from 'fs/promises';
 import { SERVER_HARNESS_COMMAND } from '../commands/server-harness';
-import { type RuntimeInfo } from './runtime-detector';
+import { type CLIRuntimeInfo } from './runtime-detector';
 
 /**
  * Configuration for spawning a child process
@@ -60,7 +60,7 @@ function isValidPort(port: number): boolean {
 /**
  * Builds spawn configuration for the server harness based on runtime info
  *
- * @param runtime - Runtime information from detector
+ * @param cliRuntime - CLI runtime information from detector
  * @param port - Port number for the server (must be valid port 0-65535)
  * @param logPath - Path to the log file
  * @returns Spawn configuration for child_process.spawn
@@ -68,22 +68,22 @@ function isValidPort(port: number): boolean {
  *
  * @example
  * ```typescript
- * const runtime = detectRuntime();
- * const config = buildServerHarnessSpawnConfig(runtime, 4000, '/path/to/log');
+ * const cliRuntime = detectRuntime();
+ * const config = buildServerHarnessSpawnConfig(cliRuntime, 4000, '/path/to/log');
  * const child = spawn(config.command, config.args, config.options);
  * ```
  */
 export function buildServerHarnessSpawnConfig(
-  runtime: RuntimeInfo,
+  cliRuntime: CLIRuntimeInfo,
   port: number,
   logPath: string
 ): SpawnConfig {
   // Validate inputs
-  if (!runtime) {
-    throw new Error('Runtime info is required');
+  if (!cliRuntime) {
+    throw new Error('CLI runtime info is required');
   }
-  if (!runtime.execPath) {
-    throw new Error('Runtime execPath is required');
+  if (!cliRuntime.execPath) {
+    throw new Error('CLI runtime execPath is required');
   }
   if (!isValidPort(port)) {
     throw new Error(
@@ -94,16 +94,21 @@ export function buildServerHarnessSpawnConfig(
     throw new Error('Log path is required');
   }
 
-  let command = runtime.execPath;
+  let command = cliRuntime.execPath;
   let args: string[];
 
-  if (runtime.type === 'compiled-binary') {
+  if (cliRuntime.type === 'compiled-binary') {
     // For compiled binaries, execute directly with arguments
     args = [SERVER_HARNESS_COMMAND, port.toString(), logPath];
   } else {
     // For interpreted runtimes (Node.js, Bun), include script path if available
-    args = runtime.scriptPath
-      ? [runtime.scriptPath, SERVER_HARNESS_COMMAND, port.toString(), logPath]
+    args = cliRuntime.scriptPath
+      ? [
+          cliRuntime.scriptPath,
+          SERVER_HARNESS_COMMAND,
+          port.toString(),
+          logPath,
+        ]
       : [SERVER_HARNESS_COMMAND, port.toString(), logPath];
   }
 
@@ -112,11 +117,11 @@ export function buildServerHarnessSpawnConfig(
     stdio: ['ignore', 'ignore', 'ignore'] as const,
     detached: false,
     // Use shell on Windows for better compatibility with paths containing spaces
-    shell: runtime.platform === 'win32',
+    shell: cliRuntime.platform === 'win32',
   };
 
   // Handles spaces in the command and arguments on Windows
-  if (runtime.platform === 'win32') {
+  if (cliRuntime.platform === 'win32') {
     command = `"${command}"`;
     args = args.map((arg) => `"${arg}"`);
   }
