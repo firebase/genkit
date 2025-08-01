@@ -14,10 +14,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: Build CLI Binaries
+name: Build CLI Binaries (RC)
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to build (e.g., v1.0.0, v1.0.0-rc.1)'
+        required: true
+        type: string
+      create_rc:
+        description: 'Create release candidate with unsigned binaries'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -34,17 +47,22 @@ jobs:
             target: darwin-arm64
           - os: windows-latest
             target: win32-x64
-          # Note: Windows ARM64 currently runs x64 binaries through emulation
-          # Native ARM64 support is not yet available in Bun
-          # See: https://github.com/oven-sh/bun/pull/11430
-          # - os: windows-11-arm
-          #   target: win32-arm64
     
     runs-on: ${{ matrix.os }}
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Validate version format
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          if ! echo "$VERSION" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$' > /dev/null; then
+            echo "Error: Version '$VERSION' does not follow semantic versioning format (e.g., v1.0.0, v1.0.0-rc.1)"
+            exit 1
+          fi
+          echo "✓ Version format is valid: $VERSION"
       
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -101,7 +119,7 @@ jobs:
         with:
           name: genkit-${{ matrix.target }}
           path: genkit-tools/cli/dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
-          retention-days: 1  # TODO: Consider increasing to 7 days for better debugging capability
+          retention-days: 7
 
   test:
     needs: build
@@ -254,3 +272,111 @@ jobs:
           
           # Clean up any remaining genkit processes
           Get-Process | Where-Object { $_.ProcessName -match "genkit" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+  create-rc:
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    if: inputs.create_rc
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous release tag by version ordering
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | head -2 | tail -1 2>/dev/null || echo "")
+          
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            # Generate changelog from previous tag to current
+            CHANGELOG=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD | head -20)
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            # First release
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "- Initial release" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      
+      - name: Create Release Candidate
+        id: create_rc
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: Genkit CLI ${{ inputs.version }} (Release Candidate)
+          body: |
+            # Genkit CLI ${{ inputs.version }} - Release Candidate
+            
+            ⚠️ **This is a release candidate with unsigned binaries for testing purposes.**
+            
+            ## Downloads (Unsigned - For Testing Only)
+            
+            - [Linux x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-linux-x64)
+            - [Linux ARM64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-linux-arm64)
+            - [macOS x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-darwin-x64)
+            - [macOS ARM64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-darwin-arm64)
+            - [Windows x64](https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-win32-x64.exe)
+            
+            ## Changes
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## Next Steps
+            
+            After testing, these binaries will be promoted to the final release.
+            
+            ## Installation (Testing Only)
+            
+            ```bash
+            # Download and test the RC binary
+            curl -Lo genkit https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}/genkit-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/')
+            chmod +x genkit
+            ./genkit --version
+            ```
+          draft: false
+          prerelease: true
+          files: |
+            release-assets/genkit-linux-x64/genkit-linux-x64
+            release-assets/genkit-linux-arm64/genkit-linux-arm64
+            release-assets/genkit-darwin-x64/genkit-darwin-x64
+            release-assets/genkit-darwin-arm64/genkit-darwin-arm64
+            release-assets/genkit-win32-x64/genkit-win32-x64.exe
+
+  create-rc-summary:
+    needs: [create-rc]
+    runs-on: ubuntu-latest
+    if: inputs.create_rc
+    
+    steps:
+      - name: Create job summary
+        run: |
+          echo "# 🎉 Genkit CLI Release Candidate Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All binaries have been successfully built and uploaded!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Available Binaries:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Linux x64 (\`genkit-linux-x64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Linux ARM64 (\`genkit-linux-arm64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ macOS x64 (\`genkit-darwin-x64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ macOS ARM64 (\`genkit-darwin-arm64\`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✓ Windows x64 (\`genkit-win32-x64.exe\`)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Release Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ inputs.version }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Download Binaries](https://github.com/${{ github.repository }}/releases/tag/${{ inputs.version }}#assets)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Test the RC binaries" >> $GITHUB_STEP_SUMMARY
+          echo "2. Promote to final release using the 'Promote CLI Release (Unsigned)' workflow" >> $GITHUB_STEP_SUMMARY 

@@ -15,7 +15,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-
+# HTML rendering helpers (these are treated as HTML comments when served as web page)
 ## <script src="./readability.js"></script>
 ## <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/themes/prism-okaidia.min.css" rel="stylesheet" />
 ## <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-core.min.js" data-manual></script>
@@ -23,7 +23,7 @@
 ## <style>body {color: #272822; background-color: #272822; font-size: 0.8em;} </style>
 
 # Configuration variables
-DOMAIN="genkit.tools"
+DOMAIN="cli.genkit.dev"
 TRACKING_ID="UA-XXXXXXXXX-X"  # Not used when analytics is commented out
 
 : ==========================================
@@ -250,12 +250,49 @@ if [[ -z "$MACHINE" ]]; then
 fi
 
 # We have enough information to generate the binary's download URL.
-DOWNLOAD_URL="https://$DOMAIN/bin/$MACHINE/latest"
+# Use GitHub API to find the latest non-prerelease (which will contain unsigned binaries)
+echo "-- Finding latest release..."
+LATEST_RELEASE=$(curl -sfL https://api.github.com/repos/firebase/genkit/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+if [[ -z "$LATEST_RELEASE" ]]; then
+  echo "Error: Unable to find the latest genkit release."
+  echo "This might be because no releases have been published yet."
+  echo "Please check https://github.com/firebase/genkit/releases for available releases."
+  exit 1
+fi
+
+echo "-- Latest release: $LATEST_RELEASE"
+
+# Construct the download URL for the unsigned binary from the latest release
+DOWNLOAD_URL="https://github.com/firebase/genkit/releases/download/$LATEST_RELEASE/genkit-$MACHINE"
+
+# Check if the binary exists at this URL
+if ! curl -sfI "$DOWNLOAD_URL" >/dev/null 2>&1; then
+  echo "Error: Binary not found at $DOWNLOAD_URL"
+  echo "This might be because:"
+  echo "  - The release doesn't include binaries for your platform ($MACHINE)"
+  echo "  - The binaries haven't been uploaded yet"
+  echo "Please check https://github.com/firebase/genkit/releases for available downloads."
+  exit 1
+fi
+
 echo "-- Downloading binary from $DOWNLOAD_URL"
 
 # We use "curl" to download the binary with a flag set to follow redirects
 # (GitHub download URLs redirect to CDNs) and a flag to show a progress bar.
-curl -o "/tmp/genkit_standalone.tmp" -L --progress-bar $DOWNLOAD_URL
+if ! curl -o "/tmp/genkit_standalone.tmp" -L --progress-bar $DOWNLOAD_URL; then
+  echo ""
+  echo "Error: Failed to download the genkit binary."
+  echo "Please check your internet connection and try again."
+  exit 1
+fi
+
+# Verify the downloaded file is not empty
+if [[ ! -s "/tmp/genkit_standalone.tmp" ]]; then
+  echo "Error: Downloaded file is empty."
+  echo "This might indicate a problem with the release or network connection."
+  exit 1
+fi
 
 GENKIT_BINARY=${GENKIT_BINARY:-$GLOBAL_BINARY}
 INSTALL_DIR=$(dirname -- "$GENKIT_BINARY")
