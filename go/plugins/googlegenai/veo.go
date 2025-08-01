@@ -75,14 +75,13 @@ func defineVeoModels(
 		return nil, core.NewError(core.UNKNOWN, "veo model operation cancellation is not supported")
 	}
 	opts := ai.BackgroundModelOptions[*ai.ModelRequest, *ai.ModelResponse]{
-		Label:          info.Label,
-		Versions:       info.Versions,
-		Supports:       info.Supports,
-		ConfigSchema:   info.ConfigSchema,
-		SupportsCancel: false,
-		Start:          startFunc,
-		Check:          checkFunc,
-		Cancel:         cancelFunc,
+		Label:        info.Label,
+		Versions:     info.Versions,
+		Supports:     info.Supports,
+		ConfigSchema: info.ConfigSchema,
+		Start:        startFunc,
+		Check:        checkFunc,
+		Cancel:       cancelFunc,
 	}
 	return genkit.DefineBackgroundModel(g, googleAIProvider, name, &opts)
 }
