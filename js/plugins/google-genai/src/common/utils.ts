@@ -18,11 +18,12 @@ import {
   EmbedderReference,
   GenkitError,
   JSONSchema,
+  MediaPart,
   ModelReference,
+  Part,
   z,
 } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
-import { ImagenInstance } from './types';
 
 /**
  * Safely extracts the error message from the error.
@@ -64,8 +65,9 @@ export function extractVersion(
 export function modelName(name?: string): string | undefined {
   if (!name) return name;
 
-  // Remove any of these prefixes: (but keep tunedModels e.g.)
-  const prefixesToRemove = /models\/|embedders\/|googleai\/|vertexai\//g;
+  // Remove any of these prefixes:
+  const prefixesToRemove =
+    /background-model\/|model\/|models\/|embedders\/|googleai\/|vertexai\//g;
   return name.replace(prefixesToRemove, '');
 }
 
@@ -95,20 +97,114 @@ export function extractText(request: GenerateRequest) {
   );
 }
 
-export function extractImagenImage(
-  request: GenerateRequest
-): ImagenInstance['image'] | undefined {
-  const image = request.messages
-    .at(-1)
-    ?.content.find(
-      (p) => !!p.media && (!p.metadata?.type || p.metadata?.type === 'base')
-    )
-    ?.media?.url.split(',')[1];
+const KNOWN_MIME_TYPES = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  mp4: 'video/mp4',
+  pdf: 'application/pdf',
+};
 
-  if (image) {
-    return { bytesBase64Encoded: image };
+export function extractMimeType(url?: string): string {
+  if (!url) {
+    return '';
   }
-  return undefined;
+
+  const dataPrefix = 'data:';
+  if (!url.startsWith(dataPrefix)) {
+    // Not a data url, try suffix
+    url.lastIndexOf('.');
+    const key = url.substring(url.lastIndexOf('.') + 1);
+    if (Object.keys(KNOWN_MIME_TYPES).includes(key)) {
+      return KNOWN_MIME_TYPES[key];
+    }
+    return '';
+  }
+
+  const commaIndex = url.indexOf(',');
+  if (commaIndex == -1) {
+    // Invalid - missing separator
+    return '';
+  }
+
+  // The part between 'data:' and the comma
+  let mimeType = url.substring(dataPrefix.length, commaIndex);
+  const base64Marker = ';base64';
+  if (mimeType.endsWith(base64Marker)) {
+    mimeType = mimeType.substring(0, mimeType.length - base64Marker.length);
+  }
+
+  return mimeType.trim();
+}
+
+export function checkSupportedMimeType(
+  media: MediaPart['media'],
+  supportedTypes: string[]
+) {
+  if (!supportedTypes.includes(media.contentType ?? '')) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: `Invalid mimeType for ${displayUrl(media.url)}: "${media.contentType}". Supported mimeTypes: ${supportedTypes.join(', ')}`,
+    });
+  }
+}
+
+/**
+ *
+ * @param url The url to show (e.g. in an error message)
+ * @returns The appropriately  sized url
+ */
+export function displayUrl(url: string): string {
+  if (url.length <= 50) {
+    return url;
+  }
+
+  return url.substring(0, 25) + '...' + url.substring(url.length - 25);
+}
+
+/**
+ *
+ * @param request A generate request to extract from
+ * @param metadataType The media must have metadata matching this type if isDefault is false
+ * @param isDefault 'true' allows missing metadata type to match as well.
+ * @returns
+ */
+export function extractMedia(
+  request: GenerateRequest,
+  params: {
+    metadataType?: string;
+    /* Is there is no metadata type, it will match if isDefault is true */
+    isDefault?: boolean;
+  }
+): MediaPart['media'] | undefined {
+  const predicate = (part: Part) => {
+    const media = part.media;
+    if (!media) {
+      return false;
+    }
+    if (params.metadataType || params.isDefault) {
+      // We need to check the metadata type
+      const metadata = part.metadata;
+      if (!metadata?.type) {
+        return !!params.isDefault;
+      } else {
+        return metadata.type == params.metadataType;
+      }
+    }
+    return true;
+  };
+
+  const media = request.messages.at(-1)?.content.find(predicate)?.media;
+
+  // Add the mimeType
+  if (media && !media?.contentType) {
+    return {
+      url: media.url,
+      contentType: extractMimeType(media.url),
+    };
+  }
+
+  return media;
 }
 
 /**

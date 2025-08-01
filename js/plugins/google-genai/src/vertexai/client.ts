@@ -31,9 +31,14 @@ import {
   ImagenPredictRequest,
   ImagenPredictResponse,
   ListModelsResponse,
+  LyriaPredictRequest,
+  LyriaPredictResponse,
   Model,
+  VeoOperation,
+  VeoOperationRequest,
+  VeoPredictRequest,
 } from './types';
-import { calculateApiKey, checkIsSupported } from './utils';
+import { calculateApiKey, checkSupportedResourceMethod } from './utils';
 
 export async function listModels(
   clientOptions: ClientOptions
@@ -94,33 +99,11 @@ export async function generateContentStream(
   return processStream(response);
 }
 
-export async function embedContent(
+async function internalPredict(
   model: string,
-  embedContentRequest: EmbedContentRequest,
+  body: string,
   clientOptions: ClientOptions
-): Promise<EmbedContentResponse> {
-  const url = getVertexAIUrl({
-    includeProjectAndLocation: true,
-    resourcePath: `publishers/google/models/${model}`,
-    resourceMethod: 'predict', // embedContent is a Vertex API predict call
-    clientOptions,
-  });
-
-  const fetchOptions = await getFetchOptions({
-    method: 'POST',
-    clientOptions,
-    body: JSON.stringify(embedContentRequest),
-  });
-
-  const response = await makeRequest(url, fetchOptions);
-  return response.json() as Promise<EmbedContentResponse>;
-}
-
-export async function imagenPredict(
-  model: string,
-  imagenPredictRequest: ImagenPredictRequest,
-  clientOptions: ClientOptions
-): Promise<ImagenPredictResponse> {
+): Promise<Response> {
   const url = getVertexAIUrl({
     includeProjectAndLocation: true,
     resourcePath: `publishers/google/models/${model}`,
@@ -131,21 +114,102 @@ export async function imagenPredict(
   const fetchOptions = await getFetchOptions({
     method: 'POST',
     clientOptions,
-    body: JSON.stringify(imagenPredictRequest),
+    body,
+  });
+
+  return await makeRequest(url, fetchOptions);
+}
+
+export async function embedContent(
+  model: string,
+  embedContentRequest: EmbedContentRequest,
+  clientOptions: ClientOptions
+): Promise<EmbedContentResponse> {
+  const response = await internalPredict(
+    model,
+    JSON.stringify(embedContentRequest),
+    clientOptions
+  );
+  return response.json() as Promise<EmbedContentResponse>;
+}
+
+export async function imagenPredict(
+  model: string,
+  imagenPredictRequest: ImagenPredictRequest,
+  clientOptions: ClientOptions
+): Promise<ImagenPredictResponse> {
+  const response = await internalPredict(
+    model,
+    JSON.stringify(imagenPredictRequest),
+    clientOptions
+  );
+  return response.json() as Promise<ImagenPredictResponse>;
+}
+
+export async function lyriaPredict(
+  model: string,
+  lyriaPredictRequest: LyriaPredictRequest,
+  clientOptions: ClientOptions
+): Promise<LyriaPredictResponse> {
+  const response = await internalPredict(
+    model,
+    JSON.stringify(lyriaPredictRequest),
+    clientOptions
+  );
+  return response.json() as Promise<LyriaPredictResponse>;
+}
+
+export async function veoPredict(
+  model: string,
+  veoPredictRequest: VeoPredictRequest,
+  clientOptions: ClientOptions
+): Promise<VeoOperation> {
+  const url = getVertexAIUrl({
+    includeProjectAndLocation: true,
+    resourcePath: `publishers/google/models/${model}`,
+    resourceMethod: 'predictLongRunning',
+    clientOptions,
+  });
+
+  const fetchOptions = await getFetchOptions({
+    method: 'POST',
+    clientOptions,
+    body: JSON.stringify(veoPredictRequest),
   });
 
   const response = await makeRequest(url, fetchOptions);
-  return response.json() as Promise<ImagenPredictResponse>;
+  return response.json() as Promise<VeoOperation>;
+}
+
+export async function veoCheckOperation(
+  model: string,
+  veoOperationRequest: VeoOperationRequest,
+  clientOptions: ClientOptions
+): Promise<VeoOperation> {
+  const url = getVertexAIUrl({
+    includeProjectAndLocation: true,
+    resourcePath: `publishers/google/models/${model}`,
+    resourceMethod: 'fetchPredictOperation',
+    clientOptions,
+  });
+  const fetchOptions = await getFetchOptions({
+    method: 'POST',
+    clientOptions,
+    body: JSON.stringify(veoOperationRequest),
+  });
+
+  const response = await makeRequest(url, fetchOptions);
+  return response.json() as Promise<VeoOperation>;
 }
 
 export function getVertexAIUrl(params: {
   includeProjectAndLocation: boolean; // False for listModels, true for most others
   resourcePath: string;
-  resourceMethod?: 'streamGenerateContent' | 'generateContent' | 'predict';
+  resourceMethod?: string;
   queryParams?: string;
   clientOptions: ClientOptions;
 }): string {
-  checkIsSupported(params);
+  checkSupportedResourceMethod(params);
 
   const DEFAULT_API_VERSION = 'v1beta1';
   const API_BASE_PATH = 'aiplatform.googleapis.com';
