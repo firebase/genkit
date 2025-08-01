@@ -1,0 +1,33 @@
+{
+  "name": "mongodb",
+  "version": "1.0.0",
+  "main": "./lib/src/index.js",
+  "scripts": {
+    "dev": "npx tsx --watch src/index.ts",
+    "start": "genkit start -- pnpm dev",
+    "compile": "tsc",
+    "build": "pnpm build:clean && pnpm compile",
+    "build:clean": "rimraf ./lib",
+    "build:watch": "tsc --watch",
+    "build-and-run": "pnpm build && node lib/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "genkit": "workspace:*",
+    "genkitx-mongodb": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
+    "file-type-checker": "^1.1.2",
+    "llm-chunk": "^0.0.1",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/pdf-parse": "^1.1.4",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.3.3"
+  }
+}

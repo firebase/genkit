@@ -1,0 +1,3 @@
+{
+  "question": "Create a vector search index: 'item' for its path called as 'item'. Let similarity be 'euclidian' and number of dimensions must be 768"
+}
