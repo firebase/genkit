@@ -92,6 +92,12 @@ type (
 		toolResponse *Part
 		interrupt    *Part
 	}
+
+	//StartModelFunc  = core.StartOperationFunc[*ModelRequest, *ModelResponse] // Function to start a model background operation
+	//CheckModelFunc  = core.CheckOperationFunc[*ModelResponse]                // Function to check model operation status
+	//CancelModelFunc = core.CancelOperationFunc[*ModelResponse]               // Function to cancel model operation
+
+	BackgroundModel = core.BackgroundAction[*ModelRequest, *ModelResponse] // Background action for model operations
 )
 
 // DefineGenerateAction defines a utility generate action.
@@ -133,6 +139,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 				"tools":       info.Supports.Tools,
 				"toolChoice":  info.Supports.ToolChoice,
 				"constrained": info.Supports.Constrained,
+				"longRunning": info.Supports.LongRunning,
 			},
 			"versions": info.Versions,
 			"stage":    info.Stage,
@@ -169,6 +176,12 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 		return nil
 	}
 	return (*model)(action)
+}
+
+// LookupBackgroundModel looks up a BackgroundAction registered by [DefineBackgroundModel].
+// It returns nil if the background model was not found.
+func LookupBackgroundModel(r *registry.Registry, provider, name string) BackgroundModel {
+	return core.LookupBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name)
 }
 
 // LookupModelByName looks up a [Model] registered by [DefineModel].
@@ -1057,4 +1070,147 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 		},
 		toolMessage: toolMessage,
 	}, nil
+}
+
+// DefineBackgroundModel defines a new model that runs in the background
+func DefineBackgroundModel(
+	r *registry.Registry,
+	provider, name string,
+	opts *BackgroundModelOptions[*ModelRequest, *ModelResponse],
+) BackgroundModel {
+	label := opts.Label
+	if label == "" {
+		label = name
+	}
+	metadata := map[string]any{
+		"model": map[string]any{
+			"label":    label,
+			"versions": opts.Versions,
+			"supports": opts.Supports,
+		},
+	}
+
+	if opts.ConfigSchema != nil {
+		metadata["model"].(map[string]any)["customOptions"] = opts.ConfigSchema
+	}
+
+	bgAction := core.DefineBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name, opts.Metadata,
+		opts.Start, opts.Check, opts.Cancel)
+
+	return bgAction
+}
+
+// SupportsLongRunning checks if a model supports long-running operations by model name.
+func SupportsLongRunning(r *registry.Registry, modelName string) bool {
+	if modelName == "" {
+		return false
+	}
+
+	provider, name, found := strings.Cut(modelName, "/")
+	if !found {
+		name = provider
+		provider = ""
+	}
+
+	modelInstance := LookupModel(r, provider, name)
+	if modelInstance == nil {
+		return false
+	}
+
+	modelImpl, ok := modelInstance.(*model)
+	if !ok {
+		return false
+	}
+
+	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(modelImpl)
+	if action == nil {
+		return false
+	}
+
+	metadata := action.Desc().Metadata
+	if metadata == nil {
+		return false
+	}
+
+	modelMeta, ok := metadata["model"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	supportsMeta, ok := modelMeta["supports"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	longRunning, ok := supportsMeta["longRunning"].(bool)
+	if !ok {
+		return false
+	}
+
+	return longRunning
+}
+
+// GenerateOperation generates a model response as a long-running operation based on the provided options.
+// It returns an error if the model does not support long-running operations.
+func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation[*ModelResponse], error) {
+	genOpts := &generateOptions{}
+	for _, opt := range opts {
+		if err := opt.applyGenerate(genOpts); err != nil {
+			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: error applying options: %v", err)
+		}
+	}
+
+	if !SupportsLongRunning(r, genOpts.ModelName) {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support long-running operations", genOpts.ModelName)
+	}
+
+	var modelName string
+	if genOpts.Model != nil {
+		modelName = genOpts.Model.Name()
+	} else {
+		modelName = genOpts.ModelName
+	}
+
+	provider, name, _ := strings.Cut(modelName, "/")
+	bgAction := LookupBackgroundModel(r, provider, name)
+	if bgAction == nil {
+		return nil, core.NewError(core.NOT_FOUND, "background model %q not found", modelName)
+	}
+
+	var messages []*Message
+	if genOpts.SystemFn != nil {
+		system, err := genOpts.SystemFn(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, NewSystemTextMessage(system))
+	}
+	if genOpts.MessagesFn != nil {
+		msgs, err := genOpts.MessagesFn(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, msgs...)
+	}
+	if genOpts.PromptFn != nil {
+		prompt, err := genOpts.PromptFn(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		messages = append(messages, NewUserTextMessage(prompt))
+	}
+
+	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
+		genOpts.Config = modelRef.Config()
+	}
+
+	op, err := bgAction.Start(ctx, &ModelRequest{Messages: messages, Config: genOpts.Config})
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
 }
