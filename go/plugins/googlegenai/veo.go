@@ -34,15 +34,8 @@ func defineVeoModels(
 	client *genai.Client,
 	name string,
 	info ai.ModelInfo,
-) ai.BackgroundAction {
+) ai.BackgroundModel {
 
-	opts := core.BackgroundModelOptions{
-		Label:          info.Label,
-		Versions:       info.Versions,
-		Supports:       info.Supports,
-		ConfigSchema:   info.ConfigSchema,
-		SupportsCancel: false,
-	}
 	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
 		// Extract text prompt from the request
 		prompt := extractTextFromRequest(request)
@@ -50,13 +43,10 @@ func defineVeoModels(
 			return nil, fmt.Errorf("no text prompt found in request")
 		}
 
-		// Extract image if present (optional for Veo)
 		image := extractVeoImageFromRequest(request)
 
-		// Convert request config to Veo parameters
 		videoConfig := toVeoParameters(request)
 
-		// Call Veo GenerateVideos API
 		operation, err := client.Models.GenerateVideos(
 			ctx,
 			name,
@@ -72,7 +62,6 @@ func defineVeoModels(
 	}
 
 	checkFunc := func(ctx context.Context, operation *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
-		// Check the status of the long-running video generation operation
 		veoOp, err := checkVeoOperation(ctx, client, operation)
 		if err != nil {
 			return nil, fmt.Errorf("veo operation status check failed: %w", err)
@@ -83,9 +72,19 @@ func defineVeoModels(
 
 	cancelFunc := func(ctx context.Context, operation *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
 		// Veo API doesn't currently support operation cancellation
-		return nil, core.NewError(core.UNIMPLEMENTED, "veo model operation cancellation is not supported")
+		return nil, core.NewError(core.UNKNOWN, "veo model operation cancellation is not supported")
 	}
-	return genkit.DefineBackgroundModel(g, googleAIProvider, name, &opts, startFunc, checkFunc, cancelFunc)
+	opts := ai.BackgroundModelOptions[*ai.ModelRequest, *ai.ModelResponse]{
+		Label:          info.Label,
+		Versions:       info.Versions,
+		Supports:       info.Supports,
+		ConfigSchema:   info.ConfigSchema,
+		SupportsCancel: false,
+		Start:          startFunc,
+		Check:          checkFunc,
+		Cancel:         cancelFunc,
+	}
+	return genkit.DefineBackgroundModel(g, googleAIProvider, name, &opts)
 }
 
 // extractTextFromRequest extracts the text prompt from a model request.

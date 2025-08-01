@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
@@ -94,11 +93,11 @@ type (
 		interrupt    *Part
 	}
 
-	StartModelFunc  = core.StartOperationFunc[*ModelRequest, *ModelResponse] // Function to start a model background operation
-	CheckModelFunc  = core.CheckOperationFunc[*ModelResponse]                // Function to check model operation status
-	CancelModelFunc = core.CancelOperationFunc[*ModelResponse]               // Function to cancel model operation
+	//StartModelFunc  = core.StartOperationFunc[*ModelRequest, *ModelResponse] // Function to start a model background operation
+	//CheckModelFunc  = core.CheckOperationFunc[*ModelResponse]                // Function to check model operation status
+	//CancelModelFunc = core.CancelOperationFunc[*ModelResponse]               // Function to cancel model operation
 
-	BackgroundAction = core.BackgroundAction[*ModelRequest, *ModelResponse] // Background action for model operations
+	BackgroundModel = core.BackgroundAction[*ModelRequest, *ModelResponse] // Background action for model operations
 )
 
 // DefineGenerateAction defines a utility generate action.
@@ -181,7 +180,7 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 
 // LookupBackgroundModel looks up a BackgroundAction registered by [DefineBackgroundModel].
 // It returns nil if the background model was not found.
-func LookupBackgroundModel(r *registry.Registry, provider, name string) BackgroundAction {
+func LookupBackgroundModel(r *registry.Registry, provider, name string) BackgroundModel {
 	return core.LookupBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name)
 }
 
@@ -1077,57 +1076,26 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 func DefineBackgroundModel(
 	r *registry.Registry,
 	provider, name string,
-	options *core.BackgroundModelOptions,
-	start StartModelFunc,
-	check CheckModelFunc,
-	cancel CancelModelFunc,
-) BackgroundAction {
-	label := options.Label
+	opts *BackgroundModelOptions[*ModelRequest, *ModelResponse],
+) BackgroundModel {
+	label := opts.Label
 	if label == "" {
 		label = name
 	}
-
-	// Prepare metadata
 	metadata := map[string]any{
 		"model": map[string]any{
 			"label":    label,
-			"versions": options.Versions,
-			"supports": options.Supports,
+			"versions": opts.Versions,
+			"supports": opts.Supports,
 		},
 	}
 
-	if options.ConfigSchema != nil {
-		metadata["model"].(map[string]any)["customOptions"] = options.ConfigSchema
-	}
-	startFunc := func(ctx context.Context, request *ModelRequest) (*core.Operation[*ModelResponse], error) {
-		startTime := time.Now()
-
-		// Call the user's start function
-		operation, err := start(ctx, request)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add latency metadata
-		if operation.Metadata == nil {
-			operation.Metadata = make(map[string]any)
-		}
-		operation.Metadata["latencyMs"] = float64(time.Since(startTime).Nanoseconds()) / 1e6
-
-		return operation, nil
+	if opts.ConfigSchema != nil {
+		metadata["model"].(map[string]any)["customOptions"] = opts.ConfigSchema
 	}
 
-	bgAction := core.DefineBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name, *options, metadata, startFunc,
-		func(ctx context.Context, operation *core.Operation[*ModelResponse]) (*core.Operation[*ModelResponse], error) {
-			return check(ctx, operation)
-		},
-		func(ctx context.Context, operation *core.Operation[*ModelResponse]) (*core.Operation[*ModelResponse], error) {
-			if cancel == nil {
-				return nil, core.NewError(core.UNIMPLEMENTED, "cancel not implemented")
-			}
-			return cancel(ctx, operation)
-		},
-	)
+	bgAction := core.DefineBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name, opts.Metadata,
+		opts.Start, opts.Check, opts.Cancel)
 
 	return bgAction
 }
@@ -1193,7 +1161,7 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 	}
 
 	if !SupportsLongRunning(r, genOpts.ModelName) {
-		return nil, core.NewError(core.UNIMPLEMENTED, "model %q does not support long-running operations", genOpts.ModelName)
+		return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support long-running operations", genOpts.ModelName)
 	}
 
 	var modelName string

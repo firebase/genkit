@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"google.golang.org/genai"
@@ -75,7 +74,6 @@ func main() {
 		// Wait before polling again (avoid busy waiting)
 		select {
 		case <-ctx.Done():
-			logger.FromContext(ctx).Debug("Context cancelled, stopping operation polling", "operationId", currentOp.ID)
 			log.Fatalf("context cancelled: %v", ctx.Err())
 		case <-time.After(2 * time.Second): // Poll every 2 seconds
 		}
