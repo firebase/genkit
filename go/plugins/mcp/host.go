@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -31,25 +32,26 @@ type MCPServerConfig struct {
 	Config MCPClientOptions
 }
 
-// MCPManagerOptions holds configuration for MCPManager
-type MCPManagerOptions struct {
-	// Name for this manager instance - used for logging and identification
+// MCPHostOptions holds configuration for MCPHost
+type MCPHostOptions struct {
+	// Name for this host instance - used for logging and identification
 	Name string
-	// Version number for this manager (defaults to "1.0.0" if empty)
+	// Version number for this host (defaults to "1.0.0" if empty)
 	Version string
 	// MCPServers is an array of server configurations
 	MCPServers []MCPServerConfig
 }
 
-// MCPManager manages connections to multiple MCP servers
-type MCPManager struct {
+// MCPHost manages connections to multiple MCP servers
+// This matches the naming convention used in the JavaScript implementation
+type MCPHost struct {
 	name    string
 	version string
 	clients map[string]*GenkitMCPClient // Internal map for efficient lookups
 }
 
-// NewMCPManager creates a new MCPManager with the given options
-func NewMCPManager(options MCPManagerOptions) (*MCPManager, error) {
+// NewMCPHost creates a new MCPHost with the given options
+func NewMCPHost(g *genkit.Genkit, options MCPHostOptions) (*MCPHost, error) {
 	// Set default values
 	if options.Name == "" {
 		options.Name = "genkit-mcp"
@@ -58,7 +60,7 @@ func NewMCPManager(options MCPManagerOptions) (*MCPManager, error) {
 		options.Version = "1.0.0"
 	}
 
-	manager := &MCPManager{
+	host := &MCPHost{
 		name:    options.Name,
 		version: options.Version,
 		clients: make(map[string]*GenkitMCPClient),
@@ -67,25 +69,26 @@ func NewMCPManager(options MCPManagerOptions) (*MCPManager, error) {
 	// Connect to all servers synchronously during initialization
 	ctx := context.Background()
 	for _, serverConfig := range options.MCPServers {
-		if err := manager.Connect(ctx, serverConfig.Name, serverConfig.Config); err != nil {
-			logger.FromContext(ctx).Error("Failed to connect to MCP server", "server", serverConfig.Name, "manager", manager.name, "error", err)
+		if err := host.Connect(ctx, g, serverConfig.Name, serverConfig.Config); err != nil {
+			logger.FromContext(ctx).Error("Failed to connect to MCP server", "server", serverConfig.Name, "host", host.name, "error", err)
 			// Continue with other servers
 		}
 	}
 
-	return manager, nil
+	return host, nil
 }
 
 // Connect connects to a single MCP server with the provided configuration
-func (m *MCPManager) Connect(ctx context.Context, serverName string, config MCPClientOptions) error {
+// and automatically registers tools, prompts, and resources from the server
+func (h *MCPHost) Connect(ctx context.Context, g *genkit.Genkit, serverName string, config MCPClientOptions) error {
 	// If a client with this name already exists, disconnect it first
-	if existingClient, exists := m.clients[serverName]; exists {
+	if existingClient, exists := h.clients[serverName]; exists {
 		if err := existingClient.Disconnect(); err != nil {
-			logger.FromContext(ctx).Warn("Error disconnecting existing MCP client", "server", serverName, "manager", m.name, "error", err)
+			logger.FromContext(ctx).Warn("Error disconnecting existing MCP client", "server", serverName, "host", h.name, "error", err)
 		}
 	}
 
-	logger.FromContext(ctx).Info("Connecting to MCP server", "server", serverName, "manager", m.name)
+	logger.FromContext(ctx).Info("Connecting to MCP server", "server", serverName, "host", h.name)
 
 	// Set the server name in the config
 	if config.Name == "" {
@@ -98,37 +101,42 @@ func (m *MCPManager) Connect(ctx context.Context, serverName string, config MCPC
 		return fmt.Errorf("error connecting to server %s: %w", serverName, err)
 	}
 
-	m.clients[serverName] = client
+	h.clients[serverName] = client
+
+	// Auto-register tools and prompts from the connected server
+	if _, err := client.GetActiveTools(ctx, g); err != nil {
+		logger.FromContext(ctx).Warn("Failed to register tools from server", "server", serverName, "error", err)
+	}
+
 	return nil
 }
 
 // Disconnect disconnects from a specific MCP server
-func (m *MCPManager) Disconnect(ctx context.Context, serverName string) error {
-	client, exists := m.clients[serverName]
+func (h *MCPHost) Disconnect(ctx context.Context, serverName string) error {
+	client, exists := h.clients[serverName]
 	if !exists {
 		return fmt.Errorf("no client found with name '%s'", serverName)
 	}
 
-	logger.FromContext(ctx).Info("Disconnecting MCP server", "server", serverName, "manager", m.name)
+	logger.FromContext(ctx).Info("Disconnecting MCP server", "server", serverName, "host", h.name)
 
 	err := client.Disconnect()
-	delete(m.clients, serverName)
+	delete(h.clients, serverName)
 	return err
 }
 
 // GetActiveTools retrieves all tools from all connected and enabled MCP clients
-func (m *MCPManager) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]ai.Tool, error) {
+func (h *MCPHost) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]ai.Tool, error) {
 	var allTools []ai.Tool
 
-	// Simple sequential iteration - fast enough for typical usage (1-5 clients)
-	for name, client := range m.clients {
+	for name, client := range h.clients {
 		if !client.IsEnabled() {
 			continue
 		}
 
 		tools, err := client.GetActiveTools(ctx, gk)
 		if err != nil {
-			logger.FromContext(ctx).Error("Error fetching tools from MCP client", "client", name, "manager", m.name, "error", err)
+			logger.FromContext(ctx).Error("Error fetching tools from MCP client", "client", name, "host", h.name, "error", err)
 			continue
 		}
 
@@ -138,9 +146,29 @@ func (m *MCPManager) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]a
 	return allTools, nil
 }
 
+// GetActiveResources retrieves detached resources from all connected and enabled MCP clients
+func (h *MCPHost) GetActiveResources(ctx context.Context) ([]core.DetachedResourceAction, error) {
+	var allResources []core.DetachedResourceAction
+
+	for name, client := range h.clients {
+		if !client.IsEnabled() {
+			continue
+		}
+
+		resources, err := client.GetActiveResources(ctx)
+		if err != nil {
+			logger.FromContext(ctx).Error("Error fetching resources from MCP client", "client", name, "host", h.name, "error", err)
+			continue
+		}
+		allResources = append(allResources, resources...)
+	}
+
+	return allResources, nil
+}
+
 // GetPrompt retrieves a specific prompt from a specific server
-func (m *MCPManager) GetPrompt(ctx context.Context, gk *genkit.Genkit, serverName, promptName string, args map[string]string) (*ai.Prompt, error) {
-	client, exists := m.clients[serverName]
+func (h *MCPHost) GetPrompt(ctx context.Context, gk *genkit.Genkit, serverName, promptName string, args map[string]string) (*ai.Prompt, error) {
+	client, exists := h.clients[serverName]
 	if !exists {
 		return nil, fmt.Errorf("no client found with name '%s'", serverName)
 	}
