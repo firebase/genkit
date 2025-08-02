@@ -40,7 +40,7 @@ export enum FunctionCallingMode {
 }
 
 /**
- * The reason why the reponse is blocked.
+ * The reason why the response is blocked.
  */
 export enum BlockReason {
   /** Unspecified block reason. */
@@ -156,7 +156,7 @@ export declare interface GroundingSupport {
   /** Optional. Segment of the content this support belongs to. */
   segment?: GroundingSupportSegment;
   /**
-   * Optional. A arrau of indices (into {@link GroundingChunk}) specifying the
+   * Optional. A array of indices (into {@link GroundingChunk}) specifying the
    * citations associated with the claim. For instance [1,3,4] means
    * that grounding_chunk[1], grounding_chunk[3],
    * grounding_chunk[4] are the retrieved content attributed to the claim.
@@ -441,7 +441,7 @@ export declare interface GoogleDate {
   year?: number;
   /**
    * Month of the date. Must be from 1 to 12, or 0 to specify a year without a
-   * monthi and day.
+   * month and day.
    */
   month?: number;
   /**
@@ -983,7 +983,7 @@ export declare interface GenerateContentRequest {
 
 /**
  * Result from calling generateContentStream.
- * It constains both the stream and the final aggregated response.
+ * It contains both the stream and the final aggregated response.
  * @public
  */
 export declare interface GenerateContentStreamResult {
