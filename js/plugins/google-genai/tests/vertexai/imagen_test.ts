@@ -22,6 +22,10 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { getVertexAIUrl } from '../../src/vertexai/client';
 import {
+  fromImagenResponse,
+  toImagenPredictRequest,
+} from '../../src/vertexai/converters';
+import {
   ImagenConfig,
   ImagenConfigSchema,
   TEST_ONLY,
@@ -34,9 +38,6 @@ import {
   ImagenPredictResponse,
   ImagenPrediction,
 } from '../../src/vertexai/types.js';
-import * as utils from '../../src/vertexai/utils';
-
-const { toImagenParameters, fromImagenPrediction } = TEST_ONLY;
 
 // Helper function to escape special characters for use in a RegExp
 function escapeRegExp(string) {
@@ -85,85 +86,6 @@ describe('Vertex AI Imagen', () => {
       const modelName = 'tunedModels/my-tuned-model';
       const ref = model(modelName);
       assert.strictEqual(ref.name, 'vertexai/tunedModels/my-tuned-model');
-    });
-  });
-
-  describe('toImagenParameters', () => {
-    const baseRequest: GenerateRequest<typeof ImagenConfigSchema> = {
-      messages: [],
-    };
-
-    it('should set default sampleCount to 1 if candidates is not provided', () => {
-      const result = toImagenParameters(baseRequest);
-      assert.strictEqual(result.sampleCount, 1);
-    });
-
-    it('should use request.candidates for sampleCount', () => {
-      const request: GenerateRequest<typeof ImagenConfigSchema> = {
-        ...baseRequest,
-        candidates: 3,
-      };
-      const result = toImagenParameters(request);
-      assert.strictEqual(result.sampleCount, 3);
-    });
-
-    it('should include config parameters', () => {
-      const request: GenerateRequest<typeof ImagenConfigSchema> = {
-        ...baseRequest,
-        config: {
-          seed: 12345,
-          aspectRatio: '16:9',
-          negativePrompt: 'No red colors',
-        },
-      };
-      const result = toImagenParameters(request);
-      assert.strictEqual(result.sampleCount, 1);
-      assert.strictEqual(result.negativePrompt, 'No red colors');
-      assert.strictEqual(result.seed, 12345);
-      assert.strictEqual(result.aspectRatio, '16:9');
-    });
-
-    it('should omit undefined or null config parameters', () => {
-      const request: GenerateRequest<typeof ImagenConfigSchema> = {
-        ...baseRequest,
-        config: {
-          negativePrompt: undefined,
-          seed: null as any,
-          aspectRatio: '1:1',
-        },
-      };
-      const result = toImagenParameters(request);
-      assert.strictEqual(result.sampleCount, 1);
-      assert.strictEqual(result.hasOwnProperty('negativePrompt'), false);
-      assert.strictEqual(result.hasOwnProperty('seed'), false);
-      assert.strictEqual(result.aspectRatio, '1:1');
-    });
-  });
-
-  describe('fromImagenPrediction', () => {
-    it('should convert ImagenPrediction to CandidateData', () => {
-      const prediction: ImagenPrediction = {
-        bytesBase64Encoded: 'dGVzdGJ5dGVz',
-        mimeType: 'image/png',
-      };
-      const index = 2;
-      const result = fromImagenPrediction(prediction, index);
-
-      assert.deepStrictEqual(result, {
-        index: 2,
-        finishReason: 'stop',
-        message: {
-          role: 'model',
-          content: [
-            {
-              media: {
-                url: 'data:image/png;base64,dGVzdGJ5dGVz',
-                contentType: 'image/png',
-              },
-            },
-          ],
-        },
-      });
     });
   });
 
@@ -275,28 +197,19 @@ describe('Vertex AI Imagen', () => {
           getExpectedHeaders(clientOptions)
         );
 
-        const prompt = utils.extractText(request);
-        // extractImagenImage and extractImagenMask return undefined,
-        // so JSON.stringify will omit these keys.
-        const expectedInstance: any = {
-          prompt,
-        };
-        const expectedImagenPredictRequest: ImagenPredictRequest = {
-          instances: [expectedInstance],
-          parameters: toImagenParameters(request),
-        };
+        const expectedImagenPredictRequest: ImagenPredictRequest =
+          toImagenPredictRequest(request);
 
         assert.deepStrictEqual(
           JSON.parse(fetchArgs[1].body),
           expectedImagenPredictRequest
         );
 
-        const expectedCandidates = mockResponse.predictions!.map((p, i) =>
-          fromImagenPrediction(p, i)
-        );
+        const expectedResponse = fromImagenResponse(mockResponse, request);
+        const expectedCandidates = expectedResponse.candidates;
         assert.deepStrictEqual(result.candidates, expectedCandidates);
         assert.deepStrictEqual(result.usage, {
-          ...getBasicUsageStats(request.messages, expectedCandidates),
+          ...getBasicUsageStats(request.messages, expectedCandidates as any),
           custom: { generations: 2 },
         });
         assert.deepStrictEqual(result.custom, mockResponse);

@@ -15,21 +15,21 @@
  */
 
 import { GenkitError } from 'genkit';
-import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import type {
   ClientOptions,
   ExpressClientOptions,
   GlobalClientOptions,
-  ImagenInstance,
   RegionalClientOptions,
   VertexPluginOptions,
 } from './types';
 
 export {
   checkModelName,
+  checkSupportedMimeType,
   cleanSchema,
-  extractImagenImage,
+  extractMedia,
+  extractMimeType,
   extractText,
   extractVersion,
   modelName,
@@ -327,7 +327,7 @@ export function calculateApiKey(
 }
 
 /** Vertex Express Mode lets you try a *subset* of Vertex AI features */
-export function checkIsSupported(params: {
+export function checkSupportedResourceMethod(params: {
   clientOptions: ClientOptions;
   resourcePath?: string;
   resourceMethod?: string;
@@ -349,18 +349,4 @@ export function checkIsSupported(params: {
   ) {
     throw NOT_SUPPORTED_IN_EXPRESS_ERROR;
   }
-}
-
-export function extractImagenMask(
-  request: GenerateRequest
-): ImagenInstance['mask'] | undefined {
-  const mask = request.messages
-    .at(-1)
-    ?.content.find((p) => !!p.media && p.metadata?.type === 'mask')
-    ?.media?.url.split(',')[1];
-
-  if (mask) {
-    return { image: { bytesBase64Encoded: mask } };
-  }
-  return undefined;
 }

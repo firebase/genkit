@@ -33,10 +33,10 @@ import {
 import type { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
-  GenerateResponseChunk,
   GenerationResponseError,
   tagAsPreamble,
 } from '../generate.js';
+import { GenerateResponseChunk } from '../generate/chunk.js';
 import {
   GenerateActionOptionsSchema,
   GenerateResponseChunkSchema,

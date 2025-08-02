@@ -503,8 +503,6 @@ describe('fromGeminiCandidate', () => {
         },
       },
     },
-    // NOTE: This test will fail until the bug in fromGeminiFileData is fixed.
-    // The code currently checks for .url instead of .fileUri.
     {
       should: 'should transform gemini candidate (fileData) correctly',
       geminiCandidate: {
