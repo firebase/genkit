@@ -39,6 +39,10 @@ export enum FunctionCallingMode {
   NONE = 'NONE',
 }
 
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 /**
  * The reason why the response is blocked.
  */

@@ -17,13 +17,20 @@
 import {
   EmbedderReference,
   GenkitError,
+  Part as GenkitPart,
   JSONSchema,
   MediaPart,
   ModelReference,
-  Part,
   z,
 } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
+import {
+  GenerateContentCandidate,
+  GenerateContentResponse,
+  GenerateContentStreamResult,
+  Part,
+  isObject,
+} from './types';
 
 /**
  * Safely extracts the error message from the error.
@@ -177,7 +184,7 @@ export function extractMedia(
     isDefault?: boolean;
   }
 ): MediaPart['media'] | undefined {
-  const predicate = (part: Part) => {
+  const predicate = (part: GenkitPart) => {
     const media = part.media;
     if (!media) {
       return false;
@@ -231,4 +238,232 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
     }
   }
   return out;
+}
+
+/**
+ * Processes the streaming body of a Response object. It decodes the stream as
+ * UTF-8 text, parses JSON objects from specially formatted lines (e.g., "data: {}"),
+ * and returns both an async generator for individual responses and a promise
+ * that resolves to the aggregated final response.
+ *
+ * @param response The Response object with a streaming body.
+ * @returns An object containing:
+ *  - stream: An AsyncGenerator yielding each GenerateContentResponse.
+ *  - response: A Promise resolving to the aggregated GenerateContentResponse.
+ */
+export function processStream(response: Response): GenerateContentStreamResult {
+  if (!response.body) {
+    throw new Error('Error processing stream because response.body not found');
+  }
+  const inputStream = response.body.pipeThrough(
+    new TextDecoderStream('utf8', { fatal: true })
+  );
+  const responseStream = getResponseStream(inputStream);
+  const [stream1, stream2] = responseStream.tee();
+  return {
+    stream: generateResponseSequence(stream1),
+    response: getResponsePromise(stream2),
+  };
+}
+
+function getResponseStream(
+  inputStream: ReadableStream<string>
+): ReadableStream<GenerateContentResponse> {
+  const responseLineRE = /^data: (.*)(?:\n\n|\r\r|\r\n\r\n)/;
+  const reader = inputStream.getReader();
+  const stream = new ReadableStream<GenerateContentResponse>({
+    start(controller) {
+      let currentText = '';
+      return pump();
+      function pump(): Promise<(() => Promise<void>) | undefined> {
+        return reader
+          .read()
+          .then(({ value, done }) => {
+            if (done) {
+              if (currentText.trim()) {
+                controller.error(new Error('Failed to parse stream'));
+                return;
+              }
+              controller.close();
+              return;
+            }
+
+            currentText += value;
+            let match = currentText.match(responseLineRE);
+            let parsedResponse: GenerateContentResponse;
+            while (match) {
+              try {
+                parsedResponse = JSON.parse(match[1]);
+              } catch (e) {
+                controller.error(
+                  new Error(`Error parsing JSON response: "${match[1]}"`)
+                );
+                return;
+              }
+              controller.enqueue(parsedResponse);
+              currentText = currentText.substring(match[0].length);
+              match = currentText.match(responseLineRE);
+            }
+            return pump();
+          })
+          .catch((e: Error) => {
+            let err = e;
+            err.stack = e.stack;
+            if (err.name === 'AbortError') {
+              err = new Error('Request aborted when reading from the stream');
+            } else {
+              err = new Error('Error reading from the stream');
+            }
+            throw err;
+          });
+      }
+    },
+  });
+  return stream;
+}
+
+async function* generateResponseSequence(
+  stream: ReadableStream<GenerateContentResponse>
+): AsyncGenerator<GenerateContentResponse> {
+  const reader = stream.getReader();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+    yield value;
+  }
+}
+
+async function getResponsePromise(
+  stream: ReadableStream<GenerateContentResponse>
+): Promise<GenerateContentResponse> {
+  const allResponses: GenerateContentResponse[] = [];
+  const reader = stream.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      return aggregateResponses(allResponses);
+    }
+    allResponses.push(value);
+  }
+}
+
+function aggregateResponses(
+  responses: GenerateContentResponse[]
+): GenerateContentResponse {
+  const lastResponse = responses.at(-1);
+  if (lastResponse === undefined) {
+    throw new Error(
+      'Error aggregating stream chunks because the final response in stream chunk is undefined'
+    );
+  }
+  const aggregatedResponse: GenerateContentResponse = {};
+  if (lastResponse.promptFeedback) {
+    aggregatedResponse.promptFeedback = lastResponse.promptFeedback;
+  }
+  for (const response of responses) {
+    for (const candidate of response.candidates ?? []) {
+      const index = candidate.index;
+      if (index === undefined) {
+        console.warn('Candidate missing index, skipping:', candidate);
+        continue;
+      }
+      if (!aggregatedResponse.candidates) {
+        aggregatedResponse.candidates = [];
+      }
+      if (!aggregatedResponse.candidates[index]) {
+        aggregatedResponse.candidates[index] = {
+          index,
+        } as GenerateContentCandidate;
+      }
+      const aggregatedCandidate = aggregatedResponse.candidates[index];
+      aggregateMetadata(aggregatedCandidate, candidate, 'citationMetadata');
+      aggregateMetadata(aggregatedCandidate, candidate, 'groundingMetadata');
+      if (candidate.safetyRatings?.length) {
+        aggregatedCandidate.safetyRatings = (
+          aggregatedCandidate.safetyRatings ?? []
+        ).concat(candidate.safetyRatings);
+      }
+      if (candidate.finishReason !== undefined) {
+        aggregatedCandidate.finishReason = candidate.finishReason;
+      }
+      if (candidate.finishMessage !== undefined) {
+        aggregatedCandidate.finishMessage = candidate.finishMessage;
+      }
+
+      if (candidate.avgLogprobs !== undefined) {
+        aggregatedCandidate.avgLogprobs = candidate.avgLogprobs;
+      }
+      if (candidate.logprobsResult !== undefined) {
+        aggregatedCandidate.logprobsResult = candidate.logprobsResult;
+      }
+
+      /**
+       * Candidates should always have content and parts, but this handles
+       * possible malformed responses.
+       */
+      if (candidate.content && candidate.content.parts) {
+        if (!aggregatedCandidate.content) {
+          aggregatedCandidate.content = {
+            role: candidate.content.role || 'user',
+            parts: [],
+          };
+        }
+
+        for (const part of candidate.content.parts) {
+          const newPart: Partial<Part> = {};
+          if (part.thought) {
+            newPart.thought = part.thought;
+          }
+          if (part.text) {
+            newPart.text = part.text;
+          }
+          if (part.functionCall) {
+            newPart.functionCall = part.functionCall;
+          }
+          if (part.executableCode) {
+            newPart.executableCode = part.executableCode;
+          }
+          if (part.codeExecutionResult) {
+            newPart.codeExecutionResult = part.codeExecutionResult;
+          }
+          if (Object.keys(newPart).length === 0) {
+            newPart.text = '';
+          }
+          aggregatedCandidate.content.parts.push(newPart as Part);
+        }
+      }
+    }
+    if (response.usageMetadata) {
+      aggregatedResponse.usageMetadata = response.usageMetadata;
+    }
+  }
+  return aggregatedResponse;
+}
+
+function aggregateMetadata<K extends keyof GenerateContentCandidate>(
+  aggCandidate: GenerateContentCandidate,
+  chunkCandidate: GenerateContentCandidate,
+  fieldName: K
+) {
+  const chunkObj = chunkCandidate[fieldName];
+  const aggObj = aggCandidate[fieldName];
+  if (chunkObj === undefined) return; // Nothing to do
+
+  if (aggObj === undefined) {
+    aggCandidate[fieldName] = chunkObj;
+    return;
+  }
+
+  if (isObject(chunkObj)) {
+    for (const k of Object.keys(chunkObj)) {
+      if (Array.isArray(aggObj[k]) && Array.isArray(chunkObj[k])) {
+        aggObj[k] = aggObj[k].concat(chunkObj[k]);
+      } else {
+        // last one wins, also handles only one being an array.
+        aggObj[k] = chunkObj[k] ?? aggObj[k];
+      }
+    }
+  }
 }
