@@ -93,11 +93,28 @@ type (
 		interrupt    *Part
 	}
 
-	//StartModelFunc  = core.StartOperationFunc[*ModelRequest, *ModelResponse] // Function to start a model background operation
-	//CheckModelFunc  = core.CheckOperationFunc[*ModelResponse]                // Function to check model operation status
-	//CancelModelFunc = core.CancelOperationFunc[*ModelResponse]               // Function to cancel model operation
-
 	BackgroundModel = core.BackgroundAction[*ModelRequest, *ModelResponse] // Background action for model operations
+
+	// StartOperationFunc starts a background operation
+	StartOperationFunc[In, Out any] = func(ctx context.Context, input In) (*core.Operation[Out], error)
+
+	// CheckOperationFunc checks the status of a background operation
+	CheckOperationFunc[Out any] = func(ctx context.Context, operation *core.Operation[Out]) (*core.Operation[Out], error)
+
+	// CancelOperationFunc cancels a background operation
+	CancelOperationFunc[Out any] = func(ctx context.Context, operation *core.Operation[Out]) (*core.Operation[Out], error)
+
+	// BackgroundModelOptions holds configuration for defining a background model
+	BackgroundModelOptions struct {
+		Versions     []string       `json:"versions,omitempty"`
+		Supports     *ModelSupports `json:"supports,omitempty"`
+		ConfigSchema map[string]any `json:"configSchema,omitempty"`
+		Metadata     map[string]any `json:"metadata,omitempty"`
+		Label        string         `json:"label,omitempty"`
+		Start        StartOperationFunc[*ModelRequest, *ModelResponse]
+		Check        CheckOperationFunc[*ModelResponse]
+		Cancel       CancelOperationFunc[*ModelResponse]
+	}
 )
 
 // DefineGenerateAction defines a utility generate action.
@@ -1076,7 +1093,7 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 func DefineBackgroundModel(
 	r *registry.Registry,
 	provider, name string,
-	opts *BackgroundModelOptions[*ModelRequest, *ModelResponse],
+	opts *BackgroundModelOptions,
 ) BackgroundModel {
 	label := opts.Label
 	if label == "" {
@@ -1091,7 +1108,12 @@ func DefineBackgroundModel(
 	}
 
 	if opts.ConfigSchema != nil {
-		metadata["model"].(map[string]any)["customOptions"] = opts.ConfigSchema
+		metadata["customOptions"] = opts.ConfigSchema
+		if metadata["model"] == nil {
+			metadata["model"] = make(map[string]any)
+		}
+		modelMeta := metadata["model"].(map[string]any)
+		modelMeta["customOptions"] = opts.ConfigSchema
 	}
 
 	bgAction := core.DefineBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name, opts.Metadata,

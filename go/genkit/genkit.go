@@ -450,7 +450,7 @@ func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.Mod
 	return ai.DefineModel(g.reg, provider, name, info, fn)
 }
 
-func DefineBackgroundModel(g *Genkit, provider, name string, opts *ai.BackgroundModelOptions[*ai.ModelRequest, *ai.ModelResponse]) ai.BackgroundModel {
+func DefineBackgroundModel(g *Genkit, provider, name string, opts *ai.BackgroundModelOptions) ai.BackgroundModel {
 	return ai.DefineBackgroundModel(g.reg, provider, name, opts)
 }
 

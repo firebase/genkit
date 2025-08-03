@@ -74,7 +74,7 @@ func defineVeoModels(
 		// Veo API doesn't currently support operation cancellation
 		return nil, core.NewError(core.UNKNOWN, "veo model operation cancellation is not supported")
 	}
-	opts := ai.BackgroundModelOptions[*ai.ModelRequest, *ai.ModelResponse]{
+	opts := ai.BackgroundModelOptions{
 		Label:        info.Label,
 		Versions:     info.Versions,
 		Supports:     info.Supports,

@@ -18,12 +18,6 @@
 
 package ai
 
-import (
-	"context"
-
-	"github.com/firebase/genkit/go/core"
-)
-
 type BaseDataPoint struct {
 	Context    map[string]any `json:"context,omitempty"`
 	Input      map[string]any `json:"input,omitempty"`
@@ -403,25 +397,4 @@ type TraceMetadata struct {
 	FeatureName string          `json:"featureName,omitempty"`
 	Paths       []*PathMetadata `json:"paths,omitempty"`
 	Timestamp   float64         `json:"timestamp,omitempty"`
-}
-
-// StartOperationFunc starts a background operation
-type StartOperationFunc[In, Out any] = func(ctx context.Context, input In) (*core.Operation[Out], error)
-
-// CheckOperationFunc checks the status of a background operation
-type CheckOperationFunc[Out any] = func(ctx context.Context, operation *core.Operation[Out]) (*core.Operation[Out], error)
-
-// CancelOperationFunc cancels a background operation
-type CancelOperationFunc[Out any] = func(ctx context.Context, operation *core.Operation[Out]) (*core.Operation[Out], error)
-
-// BackgroundModelOptions holds configuration for defining a background model
-type BackgroundModelOptions[In, Out any] struct {
-	Versions     []string       `json:"versions,omitempty"`
-	Supports     *ModelSupports `json:"supports,omitempty"`
-	ConfigSchema map[string]any `json:"configSchema,omitempty"`
-	Metadata     map[string]any `json:"metadata,omitempty"`
-	Label        string         `json:"label,omitempty"`
-	Start        StartOperationFunc[In, Out]
-	Check        CheckOperationFunc[Out]
-	Cancel       CancelOperationFunc[Out]
 }
