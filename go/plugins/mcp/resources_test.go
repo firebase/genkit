@@ -162,11 +162,12 @@ func TestMCPTemplateEdgeCases(t *testing.T) {
 			description:  "URL decoding occurs during variable extraction",
 		},
 		{
-			name:        "URI with query parameters",
-			templateURI: "api://search/{query}",
-			testURI:     "api://search/hello?limit=10&offset=0",
-			expectMatch: false, // Most template matchers don't handle query params
-			description: "Query parameters should not match simple template",
+			name:         "URI with query parameters",
+			templateURI:  "api://search/{query}",
+			testURI:      "api://search/hello?limit=10&offset=0",
+			expectMatch:  true, // Query parameters are stripped before matching
+			expectedVars: map[string]string{"query": "hello"},
+			description:  "Query parameters are stripped, template matches path portion",
 		},
 		{
 			name:        "case sensitivity",
@@ -184,11 +185,12 @@ func TestMCPTemplateEdgeCases(t *testing.T) {
 			description:  "Duplicate variable names have buggy behavior (should return 'users', not '')",
 		},
 		{
-			name:        "empty variable value",
-			templateURI: "api://{service}/data",
-			testURI:     "api:///data", // Empty service name
-			expectMatch: false,         // Shouldn't match
-			description: "Empty variable values DO match (security concern)",
+			name:         "empty variable value",
+			templateURI:  "api://{service}/data",
+			testURI:      "api:///data", // Empty service name
+			expectMatch:  true,          // RFC 6570 allows empty variables
+			expectedVars: map[string]string{"service": ""},
+			description:  "Empty variable values are valid per RFC 6570",
 		},
 		{
 			name:        "nested path variables",
@@ -201,6 +203,30 @@ func TestMCPTemplateEdgeCases(t *testing.T) {
 				"filename":  "readme.md",
 			},
 			description: "Should handle multiple path segments",
+		},
+		{
+			name:         "trailing slash in URI (common user issue)",
+			templateURI:  "api://users/{id}",
+			testURI:      "api://users/123/", // User adds trailing slash
+			expectMatch:  true,               // Fixed! Trailing slashes are now stripped
+			expectedVars: map[string]string{"id": "123"},
+			description:  "Trailing slashes are stripped for better UX",
+		},
+		{
+			name:         "URI with fragment (common in docs/web)",
+			templateURI:  "docs://page/{id}",
+			testURI:      "docs://page/intro#section1", // Common in documentation
+			expectMatch:  true,                         // Fixed! Fragments are now stripped
+			expectedVars: map[string]string{"id": "intro"},
+			description:  "URI fragments are stripped like query parameters",
+		},
+		{
+			name:         "file extension in template",
+			templateURI:  "file://docs/{filename}",
+			testURI:      "file://docs/README.md",
+			expectMatch:  true,
+			expectedVars: map[string]string{"filename": "README.md"},
+			description:  "File extensions should be captured in variables",
 		},
 	}
 
