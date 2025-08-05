@@ -103,7 +103,7 @@ func (d *DeepSeek) ListActions(ctx context.Context) []core.ActionDesc {
 		metadata := map[string]any{
 			"model": map[string]any{
 				"supports": map[string]any{
-					"media":       true,
+					"media":       false, // official deepseek models do not support media content
 					"multiturn":   true,
 					"systemRole":  true,
 					"tools":       true,
@@ -298,7 +298,18 @@ func toDeepSeekParts(parts []*ai.Part, role ai.Role) ([]deepseek.ChatCompletionM
 func toDeepSeekPart(p *ai.Part, r ai.Role) (deepseek.ChatCompletionMessage, error) {
 	role := toDeepSeekRole(r)
 	switch {
-	// TODO: add reasoning parts.. same part is used for both text response and reasoning
+	case p.IsReasoning():
+		content := ""
+		if p.Metadata != nil {
+			if c, ok := p.Metadata["content"].(string); ok {
+				content = c
+			}
+		}
+		return deepseek.ChatCompletionMessage{
+			Role:             toDeepSeekRole(r),
+			Content:          content,
+			ReasoningContent: p.Text,
+		}, nil
 	case p.IsText():
 		return deepseek.ChatCompletionMessage{
 			Content: p.Text,
@@ -341,6 +352,7 @@ func toDeepSeekToolChoice(choice ai.ToolChoice) string {
 	return "none"
 }
 
+// translateResponse translates a [deepseek.ChatCompletionResponse] to an [ai.ModelResponse]
 func translateResponse(resp *deepseek.ChatCompletionResponse) *ai.ModelResponse {
 	var r *ai.ModelResponse
 	if len(resp.Choices) > 0 {
@@ -361,9 +373,9 @@ func translateResponse(resp *deepseek.ChatCompletionResponse) *ai.ModelResponse 
 	return r
 }
 
+// translateCandidate translates a [deepseek.Choice] to an [ai.ModelResponse]
 func translateCandidate(cand deepseek.Choice) *ai.ModelResponse {
 	m := &ai.ModelResponse{}
-
 	switch cand.FinishReason {
 	case "stop":
 		m.FinishReason = ai.FinishReasonStop
@@ -375,9 +387,26 @@ func translateCandidate(cand deepseek.Choice) *ai.ModelResponse {
 		m.FinishReason = ai.FinishReasonOther
 	case "insufficient_system_resource":
 		m.FinishReason = ai.FinishReasonOther
+	default:
+		m.FinishReason = ai.FinishReasonOther
 	}
 
-	return nil
+	msg := &ai.Message{}
+	msg.Role = ai.Role(cand.Message.Role)
+
+	var p *ai.Part
+	// there's only one part in [deepseek.Choice], it could be either text or reasoning
+	if cand.Message.ReasoningContent != "" {
+		p = ai.NewReasoningPart(cand.Message.ReasoningContent, map[string]any{
+			"content": cand.Message.Content,
+		})
+	} else {
+		p = ai.NewTextPart(cand.Message.Content)
+	}
+
+	msg.Content = append(msg.Content, p)
+	m.Message = msg
+	return m
 }
 
 // configFromRequest ensures a valid DeepSeek configuration is used
