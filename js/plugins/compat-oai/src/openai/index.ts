@@ -41,7 +41,11 @@ import {
 } from '../image.js';
 import { openAICompatible, PluginOptions } from '../index.js';
 import { defineCompatOpenAIModel } from '../model.js';
-import { openAIImageModelRef, SUPPORTED_IMAGE_MODELS } from './dalle.js';
+import {
+  gptImage1RequestBuilder,
+  openAIImageModelRef,
+  SUPPORTED_IMAGE_MODELS,
+} from './dalle.js';
 import {
   SUPPORTED_EMBEDDING_MODELS,
   TextEmbeddingConfigSchema,
@@ -205,6 +209,9 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPlugin {
           name: modelRef.name,
           client,
           modelRef,
+          requestBuilder: modelRef.name.includes('gpt-image-1')
+            ? gptImage1RequestBuilder
+            : undefined,
         })
       );
     },
