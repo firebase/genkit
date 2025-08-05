@@ -23,7 +23,7 @@
 ## <style>body {color: #272822; background-color: #272822; font-size: 0.8em;} </style>
 
 # Configuration variables
-DOMAIN="genkit.tools"
+DOMAIN="cli.genkit.dev"
 TRACKING_ID="UA-XXXXXXXXX-X"  # Not used when analytics is commented out
 
 : ==========================================
