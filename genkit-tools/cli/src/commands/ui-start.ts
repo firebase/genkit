@@ -38,7 +38,7 @@ import {
 } from '../utils/spawn-config';
 
 interface StartOptions {
-  port: string;
+  port?: string;
   open?: boolean;
 }
 
@@ -47,7 +47,7 @@ export const uiStart = new Command('ui:start')
   .description(
     'start the Developer UI which connects to runtimes in the same directory'
   )
-  .option('-p, --port <number>', 'Port to serve on (defaults to 4000')
+  .option('-p, --port <number>', 'Port to serve on (defaults to 4000)')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: StartOptions) => {
     let port: number;
