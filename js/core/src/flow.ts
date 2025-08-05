@@ -156,10 +156,12 @@ export function run<T>(
   let func;
   let input;
   let registry: Registry | undefined;
+  let hasInput = false;
   if (typeof funcOrInput === 'function') {
     func = funcOrInput;
   } else {
     input = funcOrInput;
+    hasInput = true;
   }
   if (typeof fnOrRegistry === 'function') {
     func = fnOrRegistry;
@@ -199,7 +201,7 @@ export function run<T>(
     },
     async (meta) => {
       meta.input = input;
-      const output = arguments.length === 3 ? await func(input) : await func();
+      const output = hasInput ? await func(input) : await func();
       meta.output = JSON.stringify(output);
       return output;
     }
