@@ -134,18 +134,20 @@ for platform in "${PLATFORMS[@]}"; do
     echo "," >> "$METADATA_FILE"
   fi
   
-  # Determine binary name
+  # Determine binary names
   if [[ "$platform" == "win32-x64" ]]; then
     binary_name="latest.exe"
+    versioned_binary_name="genkit.exe"
   else
     binary_name="latest"
+    versioned_binary_name="genkit"
   fi
   
   cat >> "$METADATA_FILE" << EOF
     "$platform": {
-      "url": "https://cli.genkit.dev/bin/$platform/$binary_name",
+      "url": "https://cli.genkit.dev/$CHANNEL/bin/$platform/$binary_name",
       "version": "$VERSION",
-      "versionedUrl": "https://cli.genkit.dev/bin/$platform/v$VERSION/genkit"
+      "versionedUrl": "https://cli.genkit.dev/$CHANNEL/bin/$platform/v$VERSION/$versioned_binary_name"
     }
 EOF
 done
