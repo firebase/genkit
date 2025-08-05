@@ -28,6 +28,8 @@ import { listModels } from './client.js';
 import * as embedder from './embedder.js';
 import * as gemini from './gemini.js';
 import * as imagen from './imagen.js';
+import * as lyria from './lyria.js';
+import * as veo from './veo.js';
 
 import { VertexPluginOptions } from './types.js';
 import { getDerivedOptions } from './utils.js';
@@ -35,11 +37,15 @@ import { getDerivedOptions } from './utils.js';
 export { type EmbeddingConfig } from './embedder.js';
 export { type GeminiConfig } from './gemini.js';
 export { type ImagenConfig } from './imagen.js';
+export { type LyriaConfig } from './lyria.js';
 export { type VertexPluginOptions } from './types.js';
+export { type VeoConfig } from './veo.js';
 
 async function initializer(ai: Genkit, pluginOptions?: VertexPluginOptions) {
   const clientOptions = await getDerivedOptions(pluginOptions);
+  veo.defineKnownModels(ai, clientOptions, pluginOptions);
   imagen.defineKnownModels(ai, clientOptions, pluginOptions);
+  lyria.defineKnownModels(ai, clientOptions, pluginOptions);
   gemini.defineKnownModels(ai, clientOptions, pluginOptions);
   embedder.defineKnownModels(ai, clientOptions, pluginOptions);
 }
@@ -53,10 +59,19 @@ async function resolver(
   const clientOptions = await getDerivedOptions(pluginOptions);
   switch (actionType) {
     case 'model':
-      if (imagen.isImagenModelName(actionName)) {
+      if (lyria.isLyriaModelName(actionName)) {
+        lyria.defineModel(ai, actionName, clientOptions, pluginOptions);
+      } else if (imagen.isImagenModelName(actionName)) {
         imagen.defineModel(ai, actionName, clientOptions, pluginOptions);
+      } else if (veo.isVeoModelName(actionName)) {
+        // no-op (not gemini)
       } else {
         gemini.defineModel(ai, actionName, clientOptions, pluginOptions);
+      }
+      break;
+    case 'background-model':
+      if (veo.isVeoModelName(actionName)) {
+        veo.defineModel(ai, actionName, clientOptions, pluginOptions);
       }
       break;
     case 'embedder':
@@ -74,6 +89,8 @@ async function listActions(options?: VertexPluginOptions) {
     return [
       ...gemini.listActions(models),
       ...imagen.listActions(models),
+      ...lyria.listActions(models),
+      ...veo.listActions(models),
       // We don't list embedders here
     ];
   } catch (e: unknown) {
@@ -110,6 +127,14 @@ export type VertexAIPlugin = {
     name: imagen.KnownModels | (imagen.ImagenModelName & {}),
     config?: imagen.ImagenConfig
   ): ModelReference<imagen.ImagenConfigSchemaType>;
+  model(
+    name: lyria.KnownModels | (lyria.LyriaModelName & {}),
+    config: lyria.LyriaConfig
+  ): ModelReference<lyria.LyriaConfigSchemaType>;
+  model(
+    name: veo.KnownModels | (veo.VeoModelName & {}),
+    config: veo.VeoConfig
+  ): ModelReference<veo.VeoConfigSchemaType>;
   model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
 
   embedder(
@@ -130,6 +155,12 @@ export const vertexAI = vertexAIPlugin as VertexAIPlugin;
 ): ModelReference<z.ZodTypeAny> => {
   if (imagen.isImagenModelName(name)) {
     return imagen.model(name, config);
+  }
+  if (lyria.isLyriaModelName(name)) {
+    return lyria.model(name, config);
+  }
+  if (veo.isVeoModelName(name)) {
+    return veo.model(name, config);
   }
   // gemini and unknown model families
   return gemini.model(name, config);
