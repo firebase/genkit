@@ -130,7 +130,7 @@ if [[ -n "$GITHUB_RUN_ID" ]]; then
     echo "Downloading artifact: genkit-$platform"
     if [[ "$DRY_RUN" == "false" ]]; then
       # Use gh CLI to download the artifact
-      if gh run download "$GITHUB_RUN_ID" -n "genkit-$platform" -R firebase/genkit 2>/dev/null; then
+      if gh run download "$GITHUB_RUN_ID" -n "genkit-$platform" -R firebase/genkit; then
         # The artifact is downloaded as a directory, move the binary to the current directory
         if [[ -f "genkit-$platform" ]]; then
           mv "genkit-$platform" .
