@@ -49,7 +49,7 @@ export const ImageGenerationCommonConfigSchema = z.object({
   user: z.string().optional(),
   n: z.number().int().min(1).max(10).default(1),
   quality: z.enum(['standard', 'hd']).optional(),
-  response_format: z.enum(['b64_json', 'url']).optional(),
+  response_format: z.enum(['b64_json', 'url']).default('b64_json').optional(),
 });
 
 function toImageGenerateParams(
@@ -164,7 +164,8 @@ export function compatOaiImageModelRef<
   } = params;
   return modelRef({
     name,
-    configSchema: configSchema || (ImageGenerationCommonConfigSchema as any),
+    configSchema:
+      configSchema || (ImageGenerationCommonConfigSchema as z.AnyZodObject),
     info,
     config,
   });
