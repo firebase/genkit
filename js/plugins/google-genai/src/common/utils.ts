@@ -310,7 +310,10 @@ function getResponseStream(
             let err = e;
             err.stack = e.stack;
             if (err.name === 'AbortError') {
-              err = new Error('Request aborted when reading from the stream');
+              err = new GenkitError({
+                status: 'ABORTED',
+                message: 'Request aborted when reading from the stream',
+              });
             } else {
               err = new Error('Error reading from the stream');
             }
