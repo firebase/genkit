@@ -19,6 +19,7 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -151,6 +152,33 @@ func (p *Part) IsCustom() bool {
 // IsReasoning reports whether the [Part] contains a reasoning text
 func (p *Part) IsReasoning() bool {
 	return p.Kind == PartReasoning
+}
+
+// IsImage reports whether the [Part] contains an image.
+func (p *Part) IsImage() bool {
+	if p == nil || !p.IsMedia() {
+		return false
+	}
+	return IsImageContentType(p.ContentType) ||
+		strings.HasPrefix(p.Text, "data:image/")
+}
+
+// IsVideo reports whether the [Part] contains a video.
+func (p *Part) IsVideo() bool {
+	if p == nil || !p.IsMedia() {
+		return false
+	}
+	return IsVideoContentType(p.ContentType) ||
+		strings.HasPrefix(p.Text, "data:video/")
+}
+
+// IsAudio reports whether the [Part] contains an audio file.
+func (p *Part) IsAudio() bool {
+	if p == nil || !p.IsMedia() {
+		return false
+	}
+	return IsAudioContentType(p.ContentType) ||
+		strings.HasPrefix(p.Text, "data:audio/")
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
@@ -290,4 +318,25 @@ func DocumentFromText(text string, metadata map[string]any) *Document {
 		},
 		Metadata: metadata,
 	}
+}
+
+// IsImageContentType checks if the content type represents an image.
+// Like Genkit JS, checks both content type and data URL prefix.
+func IsImageContentType(contentType string) bool {
+	return strings.HasPrefix(contentType, "image/") ||
+		strings.HasPrefix(contentType, "data:image/")
+}
+
+// IsVideoContentType checks if the content type represents a video.
+// Like Genkit JS, checks both content type and data URL prefix.
+func IsVideoContentType(contentType string) bool {
+	return strings.HasPrefix(contentType, "video/") ||
+		strings.HasPrefix(contentType, "data:video/")
+}
+
+// IsAudioContentType checks if the content type represents an audio file.
+// Like Genkit JS, checks both content type and data URL prefix.
+func IsAudioContentType(contentType string) bool {
+	return strings.HasPrefix(contentType, "audio/") ||
+		strings.HasPrefix(contentType, "data:audio/")
 }

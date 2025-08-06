@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
@@ -159,6 +160,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		simulateSystemPrompt(info, nil),
 		augmentWithContext(info, nil),
 		validateSupport(name, info),
+		addAutomaticTelemetry(), // Add automatic timing and character counting
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
@@ -1057,4 +1059,209 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 		},
 		toolMessage: toolMessage,
 	}, nil
+}
+
+// addAutomaticTelemetry creates middleware that automatically measures latency and calculates character and media counts.
+// This replicates the automatic telemetry behavior from Genkit JS, including counting images, videos, and audio files.
+func addAutomaticTelemetry() ModelMiddleware {
+	return func(fn ModelFunc) ModelFunc {
+		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			// Measure latency automatically like Genkit JS
+			startTime := time.Now()
+
+			// Call the underlying model function
+			resp, err := fn(ctx, req, cb)
+			if err != nil {
+				return nil, err
+			}
+
+			// Calculate latency
+			latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
+			if resp.LatencyMs == 0 {
+				resp.LatencyMs = latencyMs
+			}
+
+			// Calculate character and media counts automatically if Usage is available
+			if resp.Usage != nil {
+				if resp.Usage.InputCharacters == 0 {
+					resp.Usage.InputCharacters = calculateInputCharacters(req)
+				}
+				if resp.Usage.OutputCharacters == 0 {
+					resp.Usage.OutputCharacters = calculateOutputCharacters(resp)
+				}
+				if resp.Usage.InputImages == 0 {
+					resp.Usage.InputImages = calculateInputImages(req)
+				}
+				if resp.Usage.OutputImages == 0 {
+					resp.Usage.OutputImages = calculateOutputImages(resp)
+				}
+				if resp.Usage.InputVideos == 0 {
+					resp.Usage.InputVideos = float64(calculateInputVideos(req))
+				}
+				if resp.Usage.OutputVideos == 0 {
+					resp.Usage.OutputVideos = float64(calculateOutputVideos(resp))
+				}
+				if resp.Usage.InputAudioFiles == 0 {
+					resp.Usage.InputAudioFiles = float64(calculateInputAudio(req))
+				}
+				if resp.Usage.OutputAudioFiles == 0 {
+					resp.Usage.OutputAudioFiles = float64(calculateOutputAudio(resp))
+				}
+			} else {
+				// Create GenerationUsage if it doesn't exist
+				resp.Usage = &GenerationUsage{
+					InputCharacters:  calculateInputCharacters(req),
+					OutputCharacters: calculateOutputCharacters(resp),
+					InputImages:      calculateInputImages(req),
+					OutputImages:     calculateOutputImages(resp),
+					InputVideos:      float64(calculateInputVideos(req)),
+					OutputVideos:     float64(calculateOutputVideos(resp)),
+					InputAudioFiles:  float64(calculateInputAudio(req)),
+					OutputAudioFiles: float64(calculateOutputAudio(resp)),
+				}
+			}
+
+			return resp, nil
+		}
+	}
+}
+
+// calculateInputCharacters counts the total characters in the input request.
+func calculateInputCharacters(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	totalChars := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.Text != "" {
+				totalChars += len(part.Text)
+			}
+		}
+	}
+	return totalChars
+}
+
+// calculateOutputCharacters counts the total characters in the output response.
+func calculateOutputCharacters(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	totalChars := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.Text != "" {
+			totalChars += len(part.Text)
+		}
+	}
+	return totalChars
+}
+
+// calculateInputImages counts the total number of images in the input request.
+func calculateInputImages(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	imageCount := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.IsImage() {
+				imageCount++
+			}
+		}
+	}
+	return imageCount
+}
+
+// calculateOutputImages counts the total number of images in the output response.
+func calculateOutputImages(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	imageCount := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.IsImage() {
+			imageCount++
+		}
+	}
+	return imageCount
+}
+
+// calculateInputVideos counts the total number of videos in the input request.
+func calculateInputVideos(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	videoCount := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.IsVideo() {
+				videoCount++
+			}
+		}
+	}
+	return videoCount
+}
+
+// calculateOutputVideos counts the total number of videos in the output response.
+func calculateOutputVideos(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	videoCount := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.IsVideo() {
+			videoCount++
+		}
+	}
+	return videoCount
+}
+
+// calculateInputAudio counts the total number of audio files in the input request.
+func calculateInputAudio(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	audioCount := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.IsAudio() {
+				audioCount++
+			}
+		}
+	}
+	return audioCount
+}
+
+// calculateOutputAudio counts the total number of audio files in the output response.
+func calculateOutputAudio(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	audioCount := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.IsAudio() {
+			audioCount++
+		}
+	}
+	return audioCount
 }

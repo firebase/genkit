@@ -20,11 +20,13 @@ package tracing
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"strings"
-	"sync"
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -72,10 +74,33 @@ type State struct {
 }
 
 func NewState() *State {
+	// Check if already set up an SDK TracerProvider globally
+	if globalTP := otel.GetTracerProvider(); globalTP != nil {
+		slog.Debug("tracing.NewState: Found existing global TracerProvider",
+			"type", fmt.Sprintf("%T", globalTP))
+
+		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
+			slog.Info("tracing.NewState: Reusing existing SDK TracerProvider - respecting developer's telemetry setup")
+			return &State{
+				tp:     sdkTP,
+				tracer: sdkTP.Tracer("genkit-tracer"),
+			}
+		}
+		// non-SDK TracerProvider has already been set (like noop or custom)
+		// We can't register span processors with it, so we need our own
+		slog.Debug("tracing.NewState: Existing TracerProvider is not SDK, creating our own")
+	} else {
+		slog.Debug("tracing.NewState: No existing global TracerProvider found")
+	}
+
+	// Fallback: Create our own SDK TracerProvider and set it as global
+	slog.Info("tracing.NewState: Creating new SDK TracerProvider and setting as global for external library compatibility")
 	tp := sdktrace.NewTracerProvider()
+	otel.SetTracerProvider(tp) // Set as global so external libraries can use it
+
 	return &State{
 		tp:     tp,
-		tracer: tp.Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1")),
+		tracer: tp.Tracer("genkit-tracer"),
 	}
 }
 
@@ -161,7 +186,6 @@ func RunInNewSpan[I, O any](
 		Type:     metadata.Type,
 		Subtype:  metadata.Subtype,
 		Metadata: metadata.Metadata,
-		mu:       sync.Mutex{},
 	}
 
 	// Get parent span path from context
@@ -279,14 +303,11 @@ type spanMetadata struct {
 	Type     string            // span type (action, flow, model, etc.)
 	Subtype  string            // span subtype (tool, model, flow, etc.)
 	Metadata map[string]string // additional custom metadata
-	mu       sync.Mutex
 }
 
 // attributes returns some information about the spanMetadata
 // as a slice of OpenTelemetry attributes that genkit telemetry plugins expect.
 func (sm *spanMetadata) attributes() []attribute.KeyValue {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
 	kvs := []attribute.KeyValue{
 		attribute.String("genkit:name", sm.Name),
 		attribute.String("genkit:state", string(sm.State)),

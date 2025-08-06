@@ -185,11 +185,25 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 
 	// Record latency if available
 	if output != nil && output.LatencyMs > 0 {
+		slog.Info("GenerateTelemetry.Tick: Recording latency", "latencyMs", output.LatencyMs)
 		g.latencies.Record(context.Background(), int64(output.LatencyMs), metric.WithAttributes(attrs...))
+	} else {
+		if output == nil {
+			slog.Warn("GenerateTelemetry.Tick: No latency - output is nil")
+		} else {
+			slog.Warn("GenerateTelemetry.Tick: No latency - LatencyMs is 0", "latencyMs", output.LatencyMs)
+		}
 	}
 
 	// Record usage metrics if available
 	if usage := output.Usage; usage != nil {
+		slog.Info("GenerateTelemetry.Tick: Recording usage metrics",
+			"inputTokens", usage.InputTokens,
+			"inputCharacters", usage.InputCharacters,
+			"inputImages", usage.InputImages,
+			"outputTokens", usage.OutputTokens,
+			"outputCharacters", usage.OutputCharacters,
+			"outputImages", usage.OutputImages)
 		opt := metric.WithAttributes(attrs...)
 		g.inputTokens.Add(context.Background(), int64(usage.InputTokens), opt)
 		g.inputCharacters.Add(context.Background(), int64(usage.InputCharacters), opt)
@@ -197,6 +211,8 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 		g.outputTokens.Add(context.Background(), int64(usage.OutputTokens), opt)
 		g.outputCharacters.Add(context.Background(), int64(usage.OutputCharacters), opt)
 		g.outputImages.Add(context.Background(), int64(usage.OutputImages), opt)
+	} else {
+		slog.Warn("GenerateTelemetry.Tick: No usage data available", "output_is_nil", output == nil)
 	}
 }
 

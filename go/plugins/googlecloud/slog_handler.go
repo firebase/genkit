@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sync"
 	"time"
 
 	"cloud.google.com/go/logging"
@@ -31,7 +30,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Enhanced handler with error handling and recovery capabilities
+// Enhanced handler with error handling
 type handler struct {
 	level              slog.Leveler
 	handleEntry        func(logging.Entry)
@@ -39,9 +38,6 @@ type handler struct {
 	projectID          string
 	fallbackHandler    slog.Handler
 	instructionsLogged bool
-	instructionsMutex  sync.Mutex
-	recoveryInProgress bool
-	recoveryMutex      sync.Mutex
 }
 
 func newHandler(level slog.Leveler, f func(logging.Entry), projectID string) *handler {
@@ -55,12 +51,10 @@ func newHandler(level slog.Leveler, f func(logging.Entry), projectID string) *ha
 	})
 
 	return &handler{
-		level:              level,
-		handleEntry:        f,
-		projectID:          projectID,
-		fallbackHandler:    fallbackHandler,
-		instructionsLogged: false,
-		recoveryInProgress: false,
+		level:           level,
+		handleEntry:     f,
+		projectID:       projectID,
+		fallbackHandler: fallbackHandler,
 	}
 }
 
@@ -70,25 +64,21 @@ func (h *handler) Enabled(ctx context.Context, level slog.Level) bool {
 
 func (h *handler) WithAttrs(as []slog.Attr) slog.Handler {
 	return &handler{
-		level:              h.level,
-		handleEntry:        h.handleEntry,
-		goa:                h.goa.WithAttrs(as),
-		projectID:          h.projectID,
-		fallbackHandler:    h.fallbackHandler,
-		instructionsLogged: false,
-		recoveryInProgress: false,
+		level:           h.level,
+		handleEntry:     h.handleEntry,
+		goa:             h.goa.WithAttrs(as),
+		projectID:       h.projectID,
+		fallbackHandler: h.fallbackHandler,
 	}
 }
 
 func (h *handler) WithGroup(name string) slog.Handler {
 	return &handler{
-		level:              h.level,
-		handleEntry:        h.handleEntry,
-		goa:                h.goa.WithGroup(name),
-		projectID:          h.projectID,
-		fallbackHandler:    h.fallbackHandler,
-		instructionsLogged: false,
-		recoveryInProgress: false,
+		level:           h.level,
+		handleEntry:     h.handleEntry,
+		goa:             h.goa.WithGroup(name),
+		projectID:       h.projectID,
+		fallbackHandler: h.fallbackHandler,
 	}
 }
 
@@ -162,19 +152,13 @@ func (h *handler) handleError(err error) {
 		))
 	}
 
-	// Attempt immediate recovery
-	go h.attemptRecovery()
 }
 
 // logPermissionError logs helpful permission error messages (only once)
 func (h *handler) logPermissionError(err error) {
-	h.instructionsMutex.Lock()
-	defer h.instructionsMutex.Unlock()
-
 	if !h.instructionsLogged {
 		h.instructionsLogged = true
 		helpText := loggingDeniedHelpText(h.projectID)
-
 		errorMsg := fmt.Sprintf("Unable to send logs to Google Cloud: %v\n\n%s\n", err, helpText)
 
 		h.fallbackHandler.Handle(context.Background(), slog.NewRecord(
@@ -184,43 +168,6 @@ func (h *handler) logPermissionError(err error) {
 			0,
 		))
 	}
-}
-
-// attemptRecovery tries to reinitialize the logging connection immediately
-func (h *handler) attemptRecovery() {
-	h.recoveryMutex.Lock()
-	defer h.recoveryMutex.Unlock()
-
-	if h.recoveryInProgress {
-		return
-	}
-
-	h.recoveryInProgress = true
-	defer func() { h.recoveryInProgress = false }()
-
-	// Try to create a new logging client immediately
-	newClient, err := logging.NewClient(context.Background(), "projects/"+h.projectID)
-	if err != nil {
-		// Log failure but don't retry
-		h.fallbackHandler.Handle(context.Background(), slog.NewRecord(
-			time.Now(),
-			slog.LevelWarn,
-			fmt.Sprintf("Failed to recover GCP logging connection: %v", err),
-			0,
-		))
-		return
-	}
-
-	// Successfully recovered - update handler
-	h.handleEntry = newClient.Logger("genkit_log").Log
-	h.instructionsLogged = false // Allow instructions to be shown again if needed
-
-	h.fallbackHandler.Handle(context.Background(), slog.NewRecord(
-		time.Now(),
-		slog.LevelInfo,
-		"Successfully recovered GCP logging connection",
-		0,
-	))
 }
 
 func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entry {
