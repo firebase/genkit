@@ -254,7 +254,7 @@ export const API_KEY_FALSE_ERROR = new GenkitError({
 export const NOT_SUPPORTED_IN_EXPRESS_ERROR = new GenkitError({
   status: 'PERMISSION_DENIED',
   message:
-    'This method is not supported in Vertex AI Express Mode.\n' +
+    'This method or model is not supported in Vertex AI Express Mode.\n' +
     'For more details see https://cloud.google.com/vertex-ai/generative-ai/docs/start/express-mode/vertex-ai-express-mode-api-reference',
 });
 
@@ -343,10 +343,9 @@ export function checkSupportedResourceMethod(params: {
     'streamGenerateContent',
   ];
 
-  if (
-    params.clientOptions.kind == 'express' &&
-    !supportedExpressMethods.includes(params.resourceMethod ?? '')
-  ) {
+  if (params.clientOptions.kind === 'express' &&
+      (!supportedExpressMethods.includes(params.resourceMethod ?? '') ||
+      params.resourcePath?.includes('endpoints/'))) {
     throw NOT_SUPPORTED_IN_EXPRESS_ERROR;
   }
 }

@@ -37,7 +37,7 @@ import type {
   GlobalClientOptions,
   RegionalClientOptions,
 } from '../../src/vertexai/types.js';
-import { TEST_ONLY as UTILS_TEST_ONLY } from '../../src/vertexai/utils.js';
+import { NOT_SUPPORTED_IN_EXPRESS_ERROR, TEST_ONLY as UTILS_TEST_ONLY } from '../../src/vertexai/utils.js';
 
 describe('VertexAI Plugin', () => {
   const regionalMockDerivedOptions: RegionalClientOptions = {
@@ -60,6 +60,9 @@ describe('VertexAI Plugin', () => {
     kind: 'express' as const,
     apiKey: 'test-express-api-key',
   };
+  const notSupportedInExpressErrorMessage = {
+    message: NOT_SUPPORTED_IN_EXPRESS_ERROR.message
+  }
 
   let ai: Genkit;
 
@@ -580,7 +583,7 @@ describe('VertexAI Plugin', () => {
           await embedAction({
             input: [{ content: [{ text: 'test' }] }],
           });
-        }, /This method is not supported in Vertex AI Express Mode/);
+        }, notSupportedInExpressErrorMessage);
       });
 
       it('should not support Imagen predict', async () => {
@@ -595,7 +598,7 @@ describe('VertexAI Plugin', () => {
             messages: [{ role: 'user', content: [{ text: 'a cat' }] }],
             config: {},
           } as GenerateRequest);
-        }, /This method is not supported in Vertex AI Express Mode/);
+        }, notSupportedInExpressErrorMessage);
       });
     });
   });
