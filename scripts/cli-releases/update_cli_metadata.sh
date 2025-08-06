@@ -16,6 +16,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set -e
+set -x
 
 # Script to update CLI metadata in GCS
 # Usage: update_cli_metadata.sh [options]
@@ -29,7 +30,7 @@ set -e
 # Default values
 CHANNEL="next"
 VERSION=""
-BUCKET="genkit-cli-binaries"
+BUCKET="genkit-assets-cli"
 DRY_RUN=false
 
 # Parse command line arguments
@@ -101,7 +102,11 @@ cd "$TMP_DIR"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Create metadata JSON
-METADATA_FILE="metadata-$CHANNEL.json"
+if [[ "$CHANNEL" == "prod" ]]; then
+  METADATA_FILE="latest.json"
+else
+  METADATA_FILE="$CHANNEL.json"
+fi
 echo "Generating metadata file: $METADATA_FILE"
 
 # Try to download existing metadata to preserve release history
@@ -145,9 +150,9 @@ for platform in "${PLATFORMS[@]}"; do
   
   cat >> "$METADATA_FILE" << EOF
     "$platform": {
-      "url": "https://cli.genkit.dev/$CHANNEL/bin/$platform/$binary_name",
+      "url": "https://storage.googleapis.com/genkit-assets-cli/$CHANNEL/$platform/$binary_name",
       "version": "$VERSION",
-      "versionedUrl": "https://cli.genkit.dev/$CHANNEL/bin/$platform/v$VERSION/$versioned_binary_name"
+      "versionedUrl": "https://storage.googleapis.com/genkit-assets-cli/$CHANNEL/$platform/v$VERSION/$versioned_binary_name"
     }
 EOF
 done
@@ -180,9 +185,7 @@ if [[ "$DRY_RUN" == "false" ]]; then
          -h "Content-Type:application/json" \
          cp "$METADATA_FILE" "$METADATA_PATH"
   
-  # Make the file publicly readable
-  gsutil acl ch -u AllUsers:R "$METADATA_PATH"
-  
+ 
   echo ""
   echo "Metadata uploaded successfully!"
 else
@@ -193,4 +196,4 @@ echo ""
 echo "=== Metadata update complete ==="
 echo ""
 echo "Metadata is now available at:"
-echo "  https://cli.genkit.dev/$METADATA_FILE"
+echo "  https://storage.googleapis.com/genkit-assets-cli/$METADATA_FILE"

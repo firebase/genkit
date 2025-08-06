@@ -23,8 +23,10 @@
 ## <style>body {color: #272822; background-color: #272822; font-size: 0.8em;} </style>
 
 # Configuration variables
+channel="${channel:-prod}"
 DOMAIN="cli.genkit.dev"
-TRACKING_ID="UA-XXXXXXXXX-X"  # Not used when analytics is commented out
+BIN_URL="https://storage.googleapis.com/genkit-assets-cli"
+TRACKING_ID="G-VE2GNRL789"
 
 : ==========================================
 :   Introduction
@@ -38,11 +40,11 @@ TRACKING_ID="UA-XXXXXXXXX-X"  # Not used when analytics is commented out
 # If you do not want to use this script, you can manually
 # download the latest "genkit" binary.
 #
-:   curl -Lo ./genkit_bin https://$DOMAIN/bin/linux/latest
+:   curl -Lo ./genkit_bin https://$BIN_URL/$channel/linux/latest
 #
 # Alternatively, you can download a specific version.
 #
-:   curl -Lo ./genkit_bin https://$DOMAIN/bin/linux/v1.12.0
+:   curl -Lo ./genkit_bin https://$BIN_URL/$channel/linux/v1.12.0
 #
 # Note: On Mac, replace "linux" with "macos" in the URL.
 #
@@ -122,20 +124,17 @@ CID=$(head -80 /dev/urandom | LC_ALL=c tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n
 # We can use this CID in all calls to the Google Analytics endpoint via
 # this reusable function.
 send_analytics_event()
-{
-    # Analytics tracking is currently disabled
-    # Uncomment the block below to enable analytics
-    
-    # if [ ! "$analytics" = "false" ]; then
-    #     curl -s https://www.google-analytics.com/collect \
-    #         -d "tid=$TRACKING_ID" \
-    #         -d "t=event" \
-    #         -d "ec=$DOMAIN" \
-    #         -d "ea=$1" \
-    #         -d "v=1" \
-    #         -d "cid=$CID" \
-    #         -o /dev/null
-    # fi
+{   
+    if [ ! "$analytics" = "false" ]; then
+        curl -s https://www.google-analytics.com/collect \
+            -d "tid=$TRACKING_ID" \
+            -d "t=event" \
+            -d "ec=$DOMAIN" \
+            -d "ea=$1" \
+            -d "v=1" \
+            -d "cid=$CID" \
+            -o /dev/null
+    fi
     
     # For now, just return success
     return 0
@@ -250,12 +249,21 @@ if [[ -z "$MACHINE" ]]; then
 fi
 
 # We have enough information to generate the binary's download URL.
-DOWNLOAD_URL="https://$DOMAIN/bin/$MACHINE/latest"
+DOWNLOAD_URL="$BIN_URL/$channel/$MACHINE/latest"
 echo "-- Downloading binary from $DOWNLOAD_URL"
 
 # We use "curl" to download the binary with a flag set to follow redirects
 # (GitHub download URLs redirect to CDNs) and a flag to show a progress bar.
-curl -o "/tmp/genkit_standalone.tmp" -L --progress-bar $DOWNLOAD_URL
+curl -o "/tmp/genkit_standalone.tmp" --fail -L --progress-bar $DOWNLOAD_URL
+if [ $? -ne 0 ]; then
+    echo "Something went wrong. Failed to download binary from $DOWNLOAD_URL"
+    echo "Please file a bug with your system information on GitHub."
+    echo "https://github.com/firebase/genkit/"
+
+    send_analytics_event download_failure
+
+    exit 1
+fi
 
 GENKIT_BINARY=${GENKIT_BINARY:-$GLOBAL_BINARY}
 INSTALL_DIR=$(dirname -- "$GENKIT_BINARY")
@@ -296,7 +304,7 @@ if [[ -z "$VERSION" ]]; then
     echo "https://github.com/firebase/genkit/"
     echo "-- All done!"
 
-    send_analytics_event failure
+    send_analytics_event binary_check_failure
     exit 1
 fi
 

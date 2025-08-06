@@ -16,6 +16,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set -e
+set -x
 
 # Script to promote CLI binaries from GitHub artifacts to GCS
 # Usage: promote_cli_gcs.sh [options]
@@ -33,7 +34,7 @@ GITHUB_RUN_ID=""
 GITHUB_TAG=""
 CHANNEL="next"
 VERSION=""
-BUCKET="genkit-cli-binaries"
+BUCKET="genkit-assets-cli"
 DRY_RUN=false
 
 # Parse command line arguments
@@ -131,14 +132,16 @@ if [[ -n "$GITHUB_RUN_ID" ]]; then
     if [[ "$DRY_RUN" == "false" ]]; then
       # Use gh CLI to download the artifact
       if gh run download "$GITHUB_RUN_ID" -n "genkit-$platform" -R firebase/genkit; then
+        continue
         # The artifact is downloaded as a directory, move the binary to the current directory
-        if [[ -f "genkit-$platform" ]]; then
-          mv "genkit-$platform" .
-        elif [[ -f "genkit-$platform.exe" ]]; then
-          mv "genkit-$platform.exe" .
-        fi
+        # if [[ -f "genkit-$platform" ]]; then
+        #   mv "genkit-$platform" .
+        # elif [[ -f "genkit-$platform.exe" ]]; then
+        #   mv "genkit-$platform.exe" .
+        # fi
       else
-        echo "Warning: Failed to download genkit-$platform"
+        echo "Error: Failed to download genkit-$platform"
+        exit 1
       fi
     else
       echo "[DRY RUN] Would download: genkit-$platform"
@@ -159,7 +162,8 @@ elif [[ -n "$GITHUB_TAG" ]]; then
     echo "Downloading release asset: genkit-$platform$ext"
     if [[ "$DRY_RUN" == "false" ]]; then
       gh release download "$GITHUB_TAG" -p "genkit-$platform$ext" -R firebase/genkit || {
-        echo "Warning: Failed to download genkit-$platform$ext"
+        echo "Error: Failed to download genkit-$platform$ext"
+        exit 1
       }
     else
       echo "[DRY RUN] Would download: genkit-$platform$ext"
@@ -187,12 +191,12 @@ for platform in "${PLATFORMS[@]}"; do
   
   # Check if file exists
   if [[ ! -f "$source_file" ]]; then
-    echo "Warning: $source_file not found, skipping..."
-    continue
+    echo "Error: $source_file not found, skipping..."
+    exit 1
   fi
   
   # Upload versioned binary
-  versioned_path="gs://$BUCKET/$CHANNEL/bin/$platform/v$VERSION/$binary_name"
+  versioned_path="gs://$BUCKET/$CHANNEL/$platform/v$VERSION/$binary_name"
   echo "Uploading $source_file to $versioned_path"
   if [[ "$DRY_RUN" == "false" ]]; then
     gsutil -h "Cache-Control:public, max-age=3600" cp "$source_file" "$versioned_path"
@@ -201,7 +205,7 @@ for platform in "${PLATFORMS[@]}"; do
   fi
   
   # Upload/copy as latest
-  latest_path="gs://$BUCKET/$CHANNEL/bin/$platform/$latest_name"
+  latest_path="gs://$BUCKET/$CHANNEL/$platform/$latest_name"
   echo "Copying to $latest_path"
   if [[ "$DRY_RUN" == "false" ]]; then
     gsutil -h "Cache-Control:public, max-age=300" cp "$source_file" "$latest_path"
