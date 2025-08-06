@@ -16,11 +16,10 @@
 
 import { logger } from '@genkit-ai/tools-common/utils';
 import commandExists from 'command-exists';
-import { readFileSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import path from 'path';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
-import { initOrReplaceFile } from '../utils';
+import { getGenkitContext, initOrReplaceFile } from '../utils';
 
 // Define constants at the module level for clarity and reuse.
 const GENKIT_EXT_DIR = path.join('.gemini', 'extensions', 'genkit');
@@ -85,26 +84,9 @@ export const gemini: AIToolModule = {
     // Part 2: Generate GENKIT.md file.
 
     logger.info('Copying the GENKIT.md file to extension folder...');
-    const genkitContext = getFeatureContent();
+    const genkitContext = getGenkitContext();
     const baseResult = await initOrReplaceFile(GENKIT_MD_PATH, genkitContext);
     files.push({ path: GENKIT_MD_PATH, updated: baseResult.updated });
     return { files };
   },
 };
-
-/**
- * Get raw prompt content for a specific feature (without wrapper)
- * Used internally for hash calculation
- */
-function getFeatureContent(): string {
-  const contextPath = path.resolve(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    'context',
-    'GENKIT.md'
-  );
-  const content = readFileSync(contextPath, 'utf8');
-  return content;
-}

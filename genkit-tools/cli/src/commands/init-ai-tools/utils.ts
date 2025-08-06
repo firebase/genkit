@@ -18,8 +18,13 @@ import { existsSync, readFileSync } from 'fs';
 import { gemini } from './ai-tools/gemini';
 import { AIToolModule } from './types';
 
+import * as crypto from 'crypto';
 import { writeFile } from 'fs/promises';
-import * as inquirer from 'inquirer';
+import path from 'path';
+import { claude } from './ai-tools/claude';
+
+const GENKIT_TAG_REGEX =
+  /<genkit_prompts(?:\s+hash="([^"]+)")?>([\s\S]*?)<\/genkit_prompts>/;
 /*
  * Deeply compares two JSON-serializable objects.
  * It's a simplified version of a deep equal function, sufficient for comparing the structure
@@ -57,6 +62,7 @@ export function deepEqual(a: any, b: any): boolean {
 
 export const AI_TOOLS: Record<string, AIToolModule> = {
   gemini,
+  claude,
 };
 
 export async function detectSupportedTools(): Promise<AIToolModule[]> {
@@ -95,18 +101,73 @@ export async function initOrReplaceFile(
 }
 
 /**
- * Shows a confirmation prompt.
+ * Update a file with Genkit prompts section, preserving user content
+ * Used for files like CLAUDE.md.
  */
-export async function confirm(args: {
-  default?: boolean;
-  message?: string;
-}): Promise<boolean> {
-  const message = args.message ?? `Do you wish to continue?`;
-  const answer = await inquirer.prompt({
-    type: 'confirm',
-    name: 'confirm',
-    message,
-    default: args.default,
-  });
-  return answer.confirm;
+export async function updateContentInPlace(
+  filePath: string,
+  content: string,
+  options?: { hash: string }
+): Promise<{ updated: boolean }> {
+  const newHash = options?.hash ?? calculateHash(content);
+  const newSection = `<genkit_prompts hash="${newHash}">
+<!-- Genkit Context - Auto-generated, do not edit -->
+${content}
+</genkit_prompts>`;
+
+  let currentContent = '';
+  const fileExists = existsSync(filePath);
+  if (fileExists) {
+    currentContent = readFileSync(filePath, 'utf-8');
+  }
+
+  // Check if section exists and has same hash
+  const match = currentContent.match(GENKIT_TAG_REGEX);
+  if (match && match[1] === newHash) {
+    return { updated: false };
+  }
+
+  // Generate final content
+  let finalContent: string;
+  if (!currentContent) {
+    // New file
+    finalContent = newSection;
+  } else if (match) {
+    // Replace existing section
+    finalContent =
+      currentContent.substring(0, match.index!) +
+      newSection +
+      currentContent.substring(match.index! + match[0].length);
+  } else {
+    // Append to existing file
+    const separator = currentContent.endsWith('\n') ? '\n' : '\n\n';
+    finalContent = currentContent + separator + newSection;
+  }
+
+  await writeFile(filePath, finalContent);
+  return { updated: true };
+}
+
+export function calculateHash(content: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(content.trim())
+    .digest('hex')
+    .substring(0, 8);
+}
+
+/**
+ * Get raw prompt content for Genkit
+ */
+export function getGenkitContext(): string {
+  const contextPath = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'context',
+    'GENKIT.md'
+  );
+  const content = readFileSync(contextPath, 'utf8');
+  return content;
 }

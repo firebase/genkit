@@ -45,7 +45,34 @@ export const init = new Command('init:ai-tools')
     logger.info('  - Common Genkit features and how to use them');
     logger.info('\n');
     const detectedTools = await detectSupportedTools();
-    if (detectedTools.length === 0) {
+    if (detectedTools.length > 0) {
+      logger.info(
+        'Auto-detected AI tools:\n' +
+          detectedTools.map((t) => t.displayName).join('\n')
+      );
+      try {
+        const selections = await checkbox({
+          message: 'Which tools would you like to configure?',
+          choices: AGENT_CHOICES.map((c) => {
+            if (detectedTools.some((t) => t.name === c.value)) {
+              return { ...c, checked: true };
+            }
+            return c;
+          }),
+          validate: (choices) => {
+            if (choices.length === 0) {
+              return 'Must select at least one tool.';
+            }
+            return true;
+          },
+          loop: true,
+        });
+        await configureTools(selections, options);
+      } catch (err) {
+        logger.error(err);
+        process.exit(1);
+      }
+    } else {
       logger.info('Could not auto-detect any AI tools.');
       const selections = await checkbox({
         message: 'Which tools would you like to configure?',
@@ -62,20 +89,6 @@ export const init = new Command('init:ai-tools')
       logger.info('\n');
       logger.info('Configuring selected tools...');
       await configureTools(selections, options);
-    } else {
-      logger.info(
-        'Auto-detected AI tools:\n' +
-          detectedTools.map((t) => t.displayName).join('\n')
-      );
-      try {
-        await configureTools(
-          detectedTools.map((t) => t.name),
-          options
-        );
-      } catch (err) {
-        logger.error(err);
-        process.exit(1);
-      }
     }
   });
 
