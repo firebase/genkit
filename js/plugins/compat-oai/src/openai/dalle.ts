@@ -32,6 +32,7 @@ export const SUPPORTED_IMAGE_MODELS = {
     configSchema: ImageGenerationCommonConfigSchema.omit({
       response_format: true,
     }).extend({
+      size: z.enum(['1024x1024', '1536x1024', '1024x1536', 'auto']).optional(),
       background: z.enum(['transparent', 'opaque', 'auto']).optional(),
       moderation: z.enum(['low', 'auto']).optional(),
       output_compression: z.number().int().min(1).max(100).optional(),
