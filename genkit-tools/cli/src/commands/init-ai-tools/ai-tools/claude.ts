@@ -15,7 +15,6 @@
  */
 
 import { logger } from '@genkit-ai/tools-common/utils';
-import commandExists from 'command-exists';
 import { existsSync, readFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
@@ -33,11 +32,6 @@ const GENKIT_PROMPT_PATH = 'GENKIT.md';
 export const claude: AIToolModule = {
   name: 'claude',
   displayName: 'Claude Code',
-
-  async detect(): Promise<boolean> {
-    const cliFound = await commandExists('claude');
-    return !!cliFound;
-  },
 
   /**
    * Configures Claude Code with Genkit context.

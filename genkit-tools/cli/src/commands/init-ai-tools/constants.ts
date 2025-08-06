@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,4 +14,11 @@
  * limitations under the License.
  */
 
-export { init } from './command';
+import { claude } from './ai-tools/claude';
+import { gemini } from './ai-tools/gemini';
+import { AIToolModule } from './types';
+
+export const AI_TOOLS: Record<string, AIToolModule> = {
+  gemini,
+  claude,
+};

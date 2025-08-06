@@ -15,7 +15,6 @@
  */
 
 import { logger } from '@genkit-ai/tools-common/utils';
-import commandExists from 'command-exists';
 import { mkdir } from 'fs/promises';
 import path from 'path';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
@@ -46,11 +45,6 @@ const GENKIT_EXTENSION_CONFIG = {
 export const gemini: AIToolModule = {
   name: 'gemini',
   displayName: 'Gemini CLI',
-
-  async detect(): Promise<boolean> {
-    const cliFound = await commandExists('gemini');
-    return !!cliFound;
-  },
 
   /**
    * Configures the Gemini CLI extension for Genkit.

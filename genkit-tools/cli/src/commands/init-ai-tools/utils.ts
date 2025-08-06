@@ -15,13 +15,10 @@
  */
 
 import { existsSync, readFileSync } from 'fs';
-import { gemini } from './ai-tools/gemini';
-import { AIToolModule } from './types';
 
 import * as crypto from 'crypto';
 import { writeFile } from 'fs/promises';
 import path from 'path';
-import { claude } from './ai-tools/claude';
 
 const GENKIT_TAG_REGEX =
   /<genkit_prompts(?:\s+hash="([^"]+)")?>([\s\S]*?)<\/genkit_prompts>/;
@@ -58,24 +55,6 @@ export function deepEqual(a: any, b: any): boolean {
   }
 
   return true;
-}
-
-export const AI_TOOLS: Record<string, AIToolModule> = {
-  gemini,
-  claude,
-};
-
-export async function detectSupportedTools(): Promise<AIToolModule[]> {
-  const tools: AIToolModule[] = [];
-  for (const entry of Object.values(AI_TOOLS)) {
-    if (entry.detect) {
-      const detected = await entry.detect();
-      if (detected) {
-        tools.push(entry);
-      }
-    }
-  }
-  return tools;
 }
 
 /**
@@ -148,6 +127,9 @@ ${content}
   return { updated: true };
 }
 
+/**
+ * Generate hash for embedded content.
+ */
 export function calculateHash(content: string): string {
   return crypto
     .createHash('sha256')

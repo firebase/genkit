@@ -31,11 +31,6 @@ export interface AIToolModule {
   displayName: string;
 
   /**
-   * Detect whether this AI tool is installed/configured in the user workspace.
-   */
-  detect?: () => Promise<boolean>;
-
-  /**
    * Configure the AI tool with Genkit context
    * @param configOptions Any user-specified config options
    * @returns Result object with update status and list of files created/updated
