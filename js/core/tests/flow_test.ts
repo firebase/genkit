@@ -337,6 +337,24 @@ describe('flow', () => {
     });
   });
 
+  describe('run', () => {
+    it('should run the action', async () => {
+      const act = async () => 'bar';
+
+      const result = await run('action', act, registry);
+
+      assert.equal(result, 'bar');
+    });
+
+    it('should run the action with input', async () => {
+      const act = async (input: string) => `${input} bar`;
+
+      const result = await run('action', 'foo', act, registry);
+
+      assert.equal(result, 'foo bar');
+    });
+  });
+
   describe('telemetry', async () => {
     beforeEach(() => {
       spanExporter.exportedSpans = [];
