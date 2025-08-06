@@ -43,6 +43,7 @@ import {
   isCodeExecutionTool,
   isFunctionDeclarationsTool,
   isGoogleSearchRetrievalTool,
+  isObject,
   isRetrievalTool,
 } from '../common/types';
 
@@ -55,6 +56,7 @@ export {
   isCodeExecutionTool,
   isFunctionDeclarationsTool,
   isGoogleSearchRetrievalTool,
+  isObject,
   isRetrievalTool,
   type CitationMetadata,
   type CodeExecutionTool,
@@ -217,10 +219,6 @@ export declare interface MultimodalEmbeddingPrediction {
   textEmbedding?: number[];
   imageEmbedding?: number[];
   videoEmbeddings?: VideoEmbedding[];
-}
-
-export function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 export function isMultimodalEmbeddingPrediction(

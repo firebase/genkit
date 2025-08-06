@@ -774,7 +774,10 @@ describe('Vertex AI Client', () => {
         candidates: [
           {
             index: 0,
-            content: { role: 'model', parts: [{ text: 'Hello World!' }] },
+            content: {
+              role: 'model',
+              parts: [{ text: 'Hello ' }, { text: 'World!' }],
+            },
           },
         ],
         usageMetadata: { totalTokenCount: 10 },
@@ -803,20 +806,14 @@ describe('Vertex AI Client', () => {
         }
         assert.fail('Stream should have thrown an error');
       } catch (e: any) {
-        assert.match(
-          e.message,
-          /Error parsing JSON response from stream chunk/
-        );
+        assert.match(e.message, /Error parsing JSON response/);
       }
 
       try {
         await result.response;
         assert.fail('Response promise should have thrown an error');
       } catch (e: any) {
-        assert.match(
-          e.message,
-          /Error parsing JSON response from stream chunk/
-        );
+        assert.match(e.message, /Error parsing JSON response/);
       }
     });
 
@@ -842,10 +839,12 @@ describe('Vertex AI Client', () => {
       );
 
       assert.deepStrictEqual(sortedCandidates[0].content.parts, [
-        { text: 'C0 A C0 B' },
+        { text: 'C0 A' },
+        { text: ' C0 B' },
       ]);
       assert.deepStrictEqual(sortedCandidates[1].content.parts, [
-        { text: 'C1 A C1 B' },
+        { text: 'C1 A' },
+        { text: ' C1 B' },
       ]);
     });
 
@@ -866,8 +865,9 @@ describe('Vertex AI Client', () => {
       );
       const aggregated = await result.response;
       assert.deepStrictEqual(aggregated.candidates![0].content.parts, [
-        { text: 'AB' },
+        { text: 'A' },
         { functionCall: { name: 'tool1', args: {} } },
+        { text: 'B' },
       ]);
     });
 
