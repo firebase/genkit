@@ -25,7 +25,7 @@ from genkit.types import EvalStatusEnum, Score
 
 
 class GenkitMetricType(StrEnum):
-    """Enumeration of GenkitMetricType values."""
+    """Enumeration of GenkitMetricType values. UNDO THIS"""
 
     REGEX = ('REGEX',)
     DEEP_EQUAL = ('DEEP_EQUAL',)
