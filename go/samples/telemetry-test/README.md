@@ -23,17 +23,18 @@ cd simple
 go run simple_joke.go
 ```
 
+```bash
+# Simple joke flow
+curl -X POST http://localhost:3400/jokeFlow -H 'Content-Type: application/json' -d '{"data": "cats"}'
+```
+
 3. Run kitchen sink demo:
 ```bash
 cd kitchen_sink  
 go run kitchen_sink.go
 ```
 
-4. Test APIs:
 ```bash
-# Simple joke flow
-curl -X POST http://localhost:3400/jokeFlow -H 'Content-Type: application/json' -d '{"data": "cats"}'
-
 # Image analysis flow  
 curl -X POST http://localhost:3400/imageFlow -H 'Content-Type: application/json' -d '{"data": {"imageUrl": "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png", "prompt": "What logo is this?"}}'
 
