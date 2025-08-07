@@ -16,9 +16,11 @@
 
 import { claude } from './ai-tools/claude';
 import { gemini } from './ai-tools/gemini';
+import { generic } from './ai-tools/generic';
 import { AIToolModule } from './types';
 
 export const AI_TOOLS: Record<string, AIToolModule> = {
   gemini,
   claude,
+  generic,
 };
