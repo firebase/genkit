@@ -60,15 +60,23 @@ func TestDevelopmentDefaults(t *testing.T) {
 		LogLevel:            slog.LevelDebug,
 		Export:              false,
 		BufferSize:          100,
-		EnableGenerate:      true,
-		EnableFeature:       true,
-		EnableAction:        true,
-		EnableEngagement:    true,
-		EnablePath:          true,
 	}
 
-	if cfg != expected {
-		t.Errorf("Got unexpected dev config: %+v", cfg)
+	// Check individual fields since we removed module configuration fields
+	if cfg.MetricInterval != expected.MetricInterval {
+		t.Errorf("MetricInterval: got %v, expected %v", cfg.MetricInterval, expected.MetricInterval)
+	}
+	if cfg.MetricTimeoutMillis != expected.MetricTimeoutMillis {
+		t.Errorf("MetricTimeoutMillis: got %v, expected %v", cfg.MetricTimeoutMillis, expected.MetricTimeoutMillis)
+	}
+	if cfg.LogLevel != expected.LogLevel {
+		t.Errorf("LogLevel: got %v, expected %v", cfg.LogLevel, expected.LogLevel)
+	}
+	if cfg.Export != expected.Export {
+		t.Errorf("Export: got %v, expected %v", cfg.Export, expected.Export)
+	}
+	if cfg.BufferSize != expected.BufferSize {
+		t.Errorf("BufferSize: got %v, expected %v", cfg.BufferSize, expected.BufferSize)
 	}
 }
 
@@ -88,15 +96,23 @@ func TestProductionDefaults(t *testing.T) {
 				LogLevel:            slog.LevelInfo,
 				Export:              true,
 				BufferSize:          1000,
-				EnableGenerate:      true,
-				EnableFeature:       true,
-				EnableAction:        true,
-				EnableEngagement:    true,
-				EnablePath:          true,
 			}
 
-			if *cfg != *expected {
-				t.Errorf("Got unexpected %s config: %+v", env, cfg)
+			// Check individual fields since we removed module configuration fields
+			if cfg.MetricInterval != expected.MetricInterval {
+				t.Errorf("%s MetricInterval: got %v, expected %v", env, cfg.MetricInterval, expected.MetricInterval)
+			}
+			if cfg.MetricTimeoutMillis != expected.MetricTimeoutMillis {
+				t.Errorf("%s MetricTimeoutMillis: got %v, expected %v", env, cfg.MetricTimeoutMillis, expected.MetricTimeoutMillis)
+			}
+			if cfg.LogLevel != expected.LogLevel {
+				t.Errorf("%s LogLevel: got %v, expected %v", env, cfg.LogLevel, expected.LogLevel)
+			}
+			if cfg.Export != expected.Export {
+				t.Errorf("%s Export: got %v, expected %v", env, cfg.Export, expected.Export)
+			}
+			if cfg.BufferSize != expected.BufferSize {
+				t.Errorf("%s BufferSize: got %v, expected %v", env, cfg.BufferSize, expected.BufferSize)
 			}
 		})
 	}

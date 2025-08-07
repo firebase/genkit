@@ -53,13 +53,6 @@ func GetDevelopmentDefaults(projectID string, opts ...Option) *PluginConfig {
 		// Core settings
 		ForceExport: false,
 
-		// Enable all modules by default for comprehensive observability
-		EnableGenerate:   true,
-		EnableFeature:    true,
-		EnableAction:     true,
-		EnableEngagement: true,
-		EnablePath:       true,
-
 		// Logging settings
 		ExportInputAndOutput: true,
 		LogLevel:             slog.LevelDebug, // More verbose for development
@@ -90,13 +83,6 @@ func GetProductionDefaults(projectID string, opts ...Option) *PluginConfig {
 	config := &TelemetryConfig{
 		// Core settings
 		ForceExport: false,
-
-		// Enable all modules by default for comprehensive observability
-		EnableGenerate:   true,
-		EnableFeature:    true,
-		EnableAction:     true,
-		EnableEngagement: true,
-		EnablePath:       true,
 
 		// Logging settings
 		ExportInputAndOutput: true,

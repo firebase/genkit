@@ -70,6 +70,58 @@ func NewWithProjectID(projectID string, options ...Option) *GoogleCloud {
 	return &GoogleCloud{Config: config}
 }
 
+// NewWithConfig creates a new GoogleCloud plugin with a pre-configured TelemetryConfig.
+// This is useful when you want to pass configuration as a struct instead of functional options.
+func NewWithConfig(projectID string, telemetryConfig *TelemetryConfig) *GoogleCloud {
+	config := &PluginConfig{
+		ProjectID:   projectID,
+		Credentials: nil, // Will be auto-detected
+		Config:      telemetryConfig,
+	}
+
+	return &GoogleCloud{Config: config}
+}
+
+// EnableGoogleCloudTelemetry creates a Google Cloud telemetry plugin with simple struct-based configuration.
+func EnableGoogleCloudTelemetry(options ...*GoogleCloudTelemetryOptions) *GoogleCloud {
+	var opts *GoogleCloudTelemetryOptions
+	if len(options) > 0 && options[0] != nil {
+		opts = options[0]
+	} else {
+		opts = &GoogleCloudTelemetryOptions{}
+	}
+
+	// Auto-detect project ID if not provided
+	projectID := opts.ProjectID
+	if projectID == "" {
+		if envProjectID := os.Getenv("GOOGLE_CLOUD_PROJECT"); envProjectID != "" {
+			projectID = envProjectID
+		}
+	}
+
+	// Build simplified configuration
+	config := &TelemetryConfig{
+		ForceExport:          opts.ForceExport,
+		ExportInputAndOutput: opts.ExportInputAndOutput,
+		LogLevel:             slog.LevelInfo,
+	}
+
+	// Set environment-aware performance defaults
+	if IsDevEnv() {
+		config.MetricInterval = 5 * time.Second
+		config.MetricTimeoutMillis = 5000
+		config.BufferSize = 100
+		config.Export = opts.ForceExport // Only export in dev if forced
+	} else {
+		config.MetricInterval = 300 * time.Second
+		config.MetricTimeoutMillis = 300000
+		config.BufferSize = 1000
+		config.Export = true // Always export in production
+	}
+
+	return NewWithConfig(projectID, config)
+}
+
 // GoogleCloud is a Genkit plugin for comprehensive telemetry using Google Cloud services.
 type GoogleCloud struct {
 	Config   *PluginConfig
@@ -82,39 +134,19 @@ func (gc *GoogleCloud) Name() string {
 	return provider
 }
 
-// setupModules automatically creates and registers enabled telemetry modules
+// setupModules creates and registers all telemetry modules for comprehensive observability
 func (gc *GoogleCloud) setupModules() {
-	gc.modules = make([]Telemetry, 0, 5)
-
-	if gc.Config.Config.EnableGenerate {
-		module := NewGenerateTelemetry()
-		gc.modules = append(gc.modules, module)
-		slog.Debug("Enabled generate telemetry module")
+	// All modules are enabled by default for comprehensive observability
+	// This matches the JavaScript approach of opinionated defaults
+	gc.modules = []Telemetry{
+		NewGenerateTelemetry(),
+		NewFeatureTelemetry(),
+		NewActionTelemetry(),
+		NewEngagementTelemetry(),
+		NewPathTelemetry(),
 	}
 
-	if gc.Config.Config.EnableFeature {
-		module := NewFeatureTelemetry()
-		gc.modules = append(gc.modules, module)
-		slog.Debug("Enabled feature telemetry module")
-	}
-
-	if gc.Config.Config.EnableAction {
-		module := NewActionTelemetry()
-		gc.modules = append(gc.modules, module)
-		slog.Debug("Enabled action telemetry module")
-	}
-
-	if gc.Config.Config.EnableEngagement {
-		module := NewEngagementTelemetry()
-		gc.modules = append(gc.modules, module)
-		slog.Debug("Enabled engagement telemetry module")
-	}
-
-	if gc.Config.Config.EnablePath {
-		module := NewPathTelemetry()
-		gc.modules = append(gc.modules, module)
-		slog.Debug("Enabled path telemetry module")
-	}
+	slog.Debug("Enabled all telemetry modules for comprehensive observability")
 
 	slog.Info("Telemetry modules initialized", "modules", len(gc.modules))
 }

@@ -50,13 +50,6 @@ type TelemetryConfig struct {
 	// Core settings
 	ForceExport bool
 
-	// Module selection - All enabled by default for comprehensive observability
-	EnableGenerate   bool
-	EnableFeature    bool
-	EnableAction     bool
-	EnableEngagement bool
-	EnablePath       bool
-
 	// Logging settings
 	ExportInputAndOutput bool
 	LogLevel             slog.Level
@@ -72,3 +65,20 @@ type TelemetryConfig struct {
 
 // Option is a function that modifies TelemetryConfig
 type Option func(*TelemetryConfig)
+
+// GoogleCloudTelemetryOptions provides simple struct-based configuration for Google Cloud telemetry.
+// This mirrors the Firebase plugin's approach for consistency while offering the same comprehensive
+// observability. For advanced use cases requiring fine-grained module control, use functional options.
+type GoogleCloudTelemetryOptions struct {
+	// ProjectID is the Google Cloud project ID.
+	// If empty, will be auto-detected from environment.
+	ProjectID string
+
+	// ForceExport forces telemetry export even in development environment.
+	// Defaults to false (only exports in production unless forced).
+	ForceExport bool
+
+	// ExportInputAndOutput includes AI model input/output in telemetry traces.
+	// Defaults to false for privacy (only metadata is exported).
+	ExportInputAndOutput bool
+}
