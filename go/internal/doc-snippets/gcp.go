@@ -19,8 +19,6 @@ package snippets
 import (
 	"context"
 	"log"
-	"log/slog"
-	"time"
 
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlecloud"
@@ -32,27 +30,25 @@ func gcpEx(ctx context.Context) error {
 		log.Fatal(err)
 	}
 	// [START init]
-	plugin := googlecloud.NewWithProjectID("your-google-cloud-project")
+	plugin := googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
+		ProjectID: "your-google-cloud-project",
+	})
 	if err := plugin.Init(ctx, g); err != nil {
 		return err
 	}
 	// [END init]
 
-	// Example with custom options
-	_ = googlecloud.NewWithProjectID("your-google-cloud-project",
-		googlecloud.WithForceExport(true),
-		googlecloud.WithMetricInterval(45*time.Second),
-		googlecloud.WithLogLevel(slog.LevelDebug),
-	)
+	// Example with struct-based configuration (recommended)
+	_ = googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
+		ProjectID:            "your-google-cloud-project",
+		ForceExport:          true,
+		ExportInputAndOutput: true,
+	})
 
-	// Example with auto-detection
-	autoPlugin, err := googlecloud.New(
-		googlecloud.WithForceExport(true),
-		googlecloud.WithLogLevel(slog.LevelDebug),
-	)
-	if err != nil {
-		return err
-	}
+	// Example with auto-detection using simple config
+	autoPlugin := googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
+		ForceExport: true,
+	})
 	_ = autoPlugin
 
 	return nil

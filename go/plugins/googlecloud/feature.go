@@ -93,7 +93,10 @@ func (f *FeatureTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool,
 		}
 		f.writeFeatureFailure(name, latencyMs, errorName)
 	default:
-		if state != "" {
+		// Warn for both unknown states and missing/empty states
+		if state == "" {
+			slog.Warn("Unknown feature state", "state", "<missing>", "feature", name)
+		} else {
 			slog.Warn("Unknown feature state", "state", state, "feature", name)
 		}
 		return

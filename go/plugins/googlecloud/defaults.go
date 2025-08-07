@@ -39,16 +39,16 @@ func IsDevEnv() bool {
 
 // GetDefaults automatically switches between dev and prod defaults based on environment
 // Matches TypeScript's PluginConfigs.defaults() function
-func GetDefaults(projectID string, opts ...Option) *PluginConfig {
+func GetDefaults(projectID string) *PluginConfig {
 	if IsDevEnv() {
-		return GetDevelopmentDefaults(projectID, opts...)
+		return GetDevelopmentDefaults(projectID)
 	}
-	return GetProductionDefaults(projectID, opts...)
+	return GetProductionDefaults(projectID)
 }
 
 // GetDevelopmentDefaults provides development-specific defaults
 // Matches TypeScript's PluginConfigs.developmentDefaults() function
-func GetDevelopmentDefaults(projectID string, opts ...Option) *PluginConfig {
+func GetDevelopmentDefaults(projectID string) *PluginConfig {
 	config := &TelemetryConfig{
 		// Core settings
 		ForceExport: false,
@@ -66,11 +66,6 @@ func GetDevelopmentDefaults(projectID string, opts ...Option) *PluginConfig {
 		Export: false, // Don't export in dev (matches TypeScript export: false)
 	}
 
-	// Apply functional options
-	for _, opt := range opts {
-		opt(config)
-	}
-
 	return &PluginConfig{
 		ProjectID: projectID,
 		Config:    config,
@@ -79,7 +74,7 @@ func GetDevelopmentDefaults(projectID string, opts ...Option) *PluginConfig {
 
 // GetProductionDefaults provides production-specific defaults
 // Matches TypeScript's PluginConfigs.productionDefaults() function
-func GetProductionDefaults(projectID string, opts ...Option) *PluginConfig {
+func GetProductionDefaults(projectID string) *PluginConfig {
 	config := &TelemetryConfig{
 		// Core settings
 		ForceExport: false,
@@ -95,11 +90,6 @@ func GetProductionDefaults(projectID string, opts ...Option) *PluginConfig {
 
 		// Export settings - Always export in production
 		Export: true, // Always export in prod (matches TypeScript export: true)
-	}
-
-	// Apply functional options
-	for _, opt := range opts {
-		opt(config)
 	}
 
 	return &PluginConfig{

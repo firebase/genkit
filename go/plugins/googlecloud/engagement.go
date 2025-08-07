@@ -145,8 +145,8 @@ func (e *EngagementTelemetry) extractTraceName(attributes []attribute.KeyValue) 
 		return "<unknown>"
 	}
 
-	// Extract feature name from path using regex pattern: /{(.+)}+
-	re := regexp.MustCompile(`/{(.+)}+`)
+	// Extract the final action name from path using regex pattern to find the last /{...}
+	re := regexp.MustCompile(`/{([^}]+)}[^}]*$`)
 	matches := re.FindStringSubmatch(path)
 	if len(matches) > 1 {
 		return matches[1]

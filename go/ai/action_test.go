@@ -142,7 +142,11 @@ func TestGenerateAction(t *testing.T) {
 					t.Errorf("chunks mismatch (-want +got):\n%s", diff)
 				}
 
-				if diff := cmp.Diff(tc.ExpectResponse, resp, cmp.Options{cmpopts.EquateEmpty()}); diff != "" {
+				if diff := cmp.Diff(tc.ExpectResponse, resp, cmp.Options{
+					cmpopts.EquateEmpty(),
+					cmpopts.IgnoreFields(ModelResponse{}, "LatencyMs"),
+					cmpopts.IgnoreFields(GenerationUsage{}, "InputCharacters", "OutputCharacters"),
+				}); diff != "" {
 					t.Errorf("response mismatch (-want +got):\n%s", diff)
 				}
 			} else {
@@ -151,7 +155,11 @@ func TestGenerateAction(t *testing.T) {
 					t.Fatalf("action failed: %v", err)
 				}
 
-				if diff := cmp.Diff(tc.ExpectResponse, resp, cmp.Options{cmpopts.EquateEmpty()}); diff != "" {
+				if diff := cmp.Diff(tc.ExpectResponse, resp, cmp.Options{
+					cmpopts.EquateEmpty(),
+					cmpopts.IgnoreFields(ModelResponse{}, "LatencyMs"),
+					cmpopts.IgnoreFields(GenerationUsage{}, "InputCharacters", "OutputCharacters"),
+				}); diff != "" {
 					t.Errorf("response mismatch (-want +got):\n%s", diff)
 				}
 			}

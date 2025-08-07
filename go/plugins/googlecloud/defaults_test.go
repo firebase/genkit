@@ -146,22 +146,22 @@ func TestEnvironmentAwareDefaults(t *testing.T) {
 func TestEnvDetection(t *testing.T) {
 	// Test dev environment
 	os.Setenv("GENKIT_ENV", "dev")
-	plugin := NewWithProjectID("test-project")
-	if plugin.Config.Config.MetricInterval != 5*time.Second {
-		t.Errorf("Expected dev defaults in NewWithProjectID(), got %v", plugin.Config.Config.MetricInterval)
+	config := GetDefaults("test-project")
+	if config.Config.MetricInterval != 5*time.Second {
+		t.Errorf("Expected dev defaults, got %v", config.Config.MetricInterval)
 	}
-	if plugin.Config.Config.LogLevel != slog.LevelDebug {
-		t.Errorf("Expected debug log level in dev, got %v", plugin.Config.Config.LogLevel)
+	if config.Config.LogLevel != slog.LevelDebug {
+		t.Errorf("Expected debug log level in dev, got %v", config.Config.LogLevel)
 	}
 
 	// Test prod environment
 	os.Setenv("GENKIT_ENV", "prod")
-	plugin = NewWithProjectID("test-project")
-	if plugin.Config.Config.MetricInterval != 300*time.Second {
-		t.Errorf("Expected prod defaults in NewWithProjectID(), got %v", plugin.Config.Config.MetricInterval)
+	config = GetDefaults("test-project")
+	if config.Config.MetricInterval != 300*time.Second {
+		t.Errorf("Expected prod defaults, got %v", config.Config.MetricInterval)
 	}
-	if plugin.Config.Config.LogLevel != slog.LevelInfo {
-		t.Errorf("Expected info log level in prod, got %v", plugin.Config.Config.LogLevel)
+	if config.Config.LogLevel != slog.LevelInfo {
+		t.Errorf("Expected info log level in prod, got %v", config.Config.LogLevel)
 	}
 
 	// Clean up

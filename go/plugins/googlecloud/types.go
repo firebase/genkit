@@ -63,9 +63,6 @@ type TelemetryConfig struct {
 	Export bool
 }
 
-// Option is a function that modifies TelemetryConfig
-type Option func(*TelemetryConfig)
-
 // GoogleCloudTelemetryOptions provides simple struct-based configuration for Google Cloud telemetry.
 // This mirrors the Firebase plugin's approach for consistency while offering the same comprehensive
 // observability. For advanced use cases requiring fine-grained module control, use functional options.

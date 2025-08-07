@@ -43,33 +43,6 @@ import (
 
 const provider = "googlecloud"
 
-// New creates a new GoogleCloud plugin instance with environment-aware defaults and automatic credential detection.
-// This is the main entry point for the Google Cloud telemetry plugin.
-// If credential auto-detection fails, use NewWithProjectID() instead.
-func New(options ...Option) (*GoogleCloud, error) {
-	// Try to auto-detect credentials and project ID
-	envConfig, err := CredentialsFromEnvironment()
-	if err != nil {
-		return nil, fmt.Errorf("failed to auto-detect Google Cloud credentials: %w\n\nHelp: %s\n\nAlternatively, use NewWithProjectID() if you know your project ID.",
-			err, getCredentialHelpText())
-	}
-
-	// Get environment-aware defaults with user overrides
-	config := GetDefaults(envConfig.ProjectID, options...)
-	config.Credentials = envConfig.Credentials
-
-	return &GoogleCloud{Config: config}, nil
-}
-
-// NewWithProjectID creates a new GoogleCloud plugin with the specified project ID.
-// This is a convenience function for when you already know the project ID.
-func NewWithProjectID(projectID string, options ...Option) *GoogleCloud {
-	// Get environment-aware defaults with user overrides
-	config := GetDefaults(projectID, options...)
-
-	return &GoogleCloud{Config: config}
-}
-
 // NewWithConfig creates a new GoogleCloud plugin with a pre-configured TelemetryConfig.
 // This is useful when you want to pass configuration as a struct instead of functional options.
 func NewWithConfig(projectID string, telemetryConfig *TelemetryConfig) *GoogleCloud {

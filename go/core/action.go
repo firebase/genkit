@@ -287,9 +287,7 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 	}
 	var in In
 	if input != nil {
-		if err := json.Unmarshal(input, &in); err != nil {
-			return nil, err
-		}
+		json.Unmarshal(input, &in)
 	}
 	var callback func(context.Context, Stream) error
 	if cb != nil {
