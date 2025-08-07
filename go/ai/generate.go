@@ -1065,7 +1065,6 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 func addAutomaticTelemetry() ModelMiddleware {
 	return func(fn ModelFunc) ModelFunc {
 		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-			// Measure latency automatically like Genkit JS
 			startTime := time.Now()
 
 			// Call the underlying model function
