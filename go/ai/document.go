@@ -321,21 +321,18 @@ func DocumentFromText(text string, metadata map[string]any) *Document {
 }
 
 // IsImageContentType checks if the content type represents an image.
-// Like Genkit JS, checks both content type and data URL prefix.
 func IsImageContentType(contentType string) bool {
 	return strings.HasPrefix(contentType, "image/") ||
 		strings.HasPrefix(contentType, "data:image/")
 }
 
 // IsVideoContentType checks if the content type represents a video.
-// Like Genkit JS, checks both content type and data URL prefix.
 func IsVideoContentType(contentType string) bool {
 	return strings.HasPrefix(contentType, "video/") ||
 		strings.HasPrefix(contentType, "data:video/")
 }
 
 // IsAudioContentType checks if the content type represents an audio file.
-// Like Genkit JS, checks both content type and data URL prefix.
 func IsAudioContentType(contentType string) bool {
 	return strings.HasPrefix(contentType, "audio/") ||
 		strings.HasPrefix(contentType, "data:audio/")
