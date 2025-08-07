@@ -1062,7 +1062,6 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 }
 
 // addAutomaticTelemetry creates middleware that automatically measures latency and calculates character and media counts.
-// This replicates the automatic telemetry behavior from Genkit JS, including counting images, videos, and audio files.
 func addAutomaticTelemetry() ModelMiddleware {
 	return func(fn ModelFunc) ModelFunc {
 		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
