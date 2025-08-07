@@ -76,26 +76,11 @@ func NewGenerateTelemetry() *GenerateTelemetry {
 func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 
-	// DEBUG: Log all spans being processed
-	slog.Info("GenerateTelemetry.Tick: Processing span",
-		"span_name", span.Name(),
-		"span_kind", span.SpanKind(),
-		"attributes_count", len(attributes))
-
-	// DEBUG: Log specific attributes we're looking for
-	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
-	spanName := extractStringAttribute(attributes, "genkit:name")
-	slog.Info("GenerateTelemetry.Tick: Key attributes",
-		"subtype", subtype,
-		"genkit:name", spanName)
-
 	// Only process spans that are model actions (genkit:metadata:subtype = "model")
+	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
 	if subtype != "model" {
-		slog.Info("GenerateTelemetry.Tick: Skipping span - not a model action", "subtype", subtype)
 		return
 	}
-
-	slog.Info("GenerateTelemetry.Tick: Processing model span!", "subtype", subtype)
 
 	// Extract key span data
 	modelName := truncate(extractStringAttribute(attributes, "genkit:name"), 1024)
@@ -145,12 +130,8 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 	if outputStr != "" && logInputOutput {
 		g.recordGenerateActionOutputLogs(span, modelName, featureName, path, &output, projectID, sessionId, threadName)
 	}
-	slog.Info("GenerateTelemetry.Tick: Feature extraction debug",
-		"path", path,
-		"extracted_feature", featureName)
 	if featureName == "" || featureName == "<unknown>" {
 		featureName = "generate"
-		slog.Info("GenerateTelemetry.Tick: Using fallback feature name", "featureName", featureName)
 	}
 
 	// Record metrics if we have input data
@@ -185,25 +166,11 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 
 	// Record latency if available
 	if output != nil && output.LatencyMs > 0 {
-		slog.Info("GenerateTelemetry.Tick: Recording latency", "latencyMs", output.LatencyMs)
 		g.latencies.Record(context.Background(), int64(output.LatencyMs), metric.WithAttributes(attrs...))
-	} else {
-		if output == nil {
-			slog.Warn("GenerateTelemetry.Tick: No latency - output is nil")
-		} else {
-			slog.Warn("GenerateTelemetry.Tick: No latency - LatencyMs is 0", "latencyMs", output.LatencyMs)
-		}
 	}
 
 	// Record usage metrics if available
 	if usage := output.Usage; usage != nil {
-		slog.Info("GenerateTelemetry.Tick: Recording usage metrics",
-			"inputTokens", usage.InputTokens,
-			"inputCharacters", usage.InputCharacters,
-			"inputImages", usage.InputImages,
-			"outputTokens", usage.OutputTokens,
-			"outputCharacters", usage.OutputCharacters,
-			"outputImages", usage.OutputImages)
 		opt := metric.WithAttributes(attrs...)
 		g.inputTokens.Add(context.Background(), int64(usage.InputTokens), opt)
 		g.inputCharacters.Add(context.Background(), int64(usage.InputCharacters), opt)

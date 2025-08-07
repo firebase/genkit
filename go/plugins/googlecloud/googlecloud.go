@@ -156,24 +156,6 @@ func (gc *GoogleCloud) detectResource(ctx context.Context) error {
 	return nil
 }
 
-// getCredentialHelpText returns helpful error message for credential configuration
-func getCredentialHelpText() string {
-	return `To configure Google Cloud credentials, you can:
-
-1. Set the GCLOUD_SERVICE_ACCOUNT_CREDS environment variable:
-   export GCLOUD_SERVICE_ACCOUNT_CREDS='{"type":"service_account",...}'
-
-2. Use Application Default Credentials (ADC):
-   gcloud auth application-default login
-
-3. Set the GOOGLE_APPLICATION_CREDENTIALS environment variable:
-   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
-
-4. On Google Cloud Platform, credentials are automatically detected.
-
-For more information, see: https://cloud.google.com/docs/authentication/getting-started`
-}
-
 // Init initializes comprehensive telemetry using Google Cloud services.
 // Uses environment-aware defaults (dev vs prod) for optimal configuration.
 // In the dev environment, this does nothing unless [ForceExport] is true.

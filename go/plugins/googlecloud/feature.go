@@ -53,31 +53,16 @@ func NewFeatureTelemetry() *FeatureTelemetry {
 func (f *FeatureTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 
-	// DEBUG: Log what spans we're seeing
-	isRoot := extractBoolAttribute(attributes, "genkit:isRoot")
-	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
-	spanName := extractStringAttribute(attributes, "genkit:name")
-	state := extractStringAttribute(attributes, "genkit:state")
-
-	slog.Info("FeatureTelemetry.Tick: Processing span",
-		"span_name", span.Name(),
-		"isRoot", isRoot,
-		"subtype", subtype,
-		"genkit:name", spanName,
-		"genkit:state", state)
-
 	// Only process root spans - these represent top-level features
+	isRoot := extractBoolAttribute(attributes, "genkit:isRoot")
 	if !isRoot {
-		slog.Info("FeatureTelemetry.Tick: Skipping non-root span", "isRoot", isRoot)
 		return
 	}
-
-	slog.Info("FeatureTelemetry.Tick: Processing root span as feature!", "isRoot", isRoot)
 
 	// Extract key span data
 	name := extractStringAttribute(attributes, "genkit:name")
 	path := extractStringAttribute(attributes, "genkit:path")
-	// state already extracted above for debug logging
+	state := extractStringAttribute(attributes, "genkit:state")
 
 	// Calculate latency from span timing
 	latencyMs := f.calculateLatencyMs(span)

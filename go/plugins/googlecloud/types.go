@@ -66,6 +66,10 @@ type TelemetryConfig struct {
 // GoogleCloudTelemetryOptions provides simple struct-based configuration for Google Cloud telemetry.
 // This mirrors the Firebase plugin's approach for consistency while offering the same comprehensive
 // observability. For advanced use cases requiring fine-grained module control, use functional options.
+//
+// Environment Variables:
+// - GENKIT_ENV: Set to "dev" to disable export unless ForceExport is true
+// - GOOGLE_CLOUD_PROJECT: Auto-detected project ID if ProjectID is not set
 type GoogleCloudTelemetryOptions struct {
 	// ProjectID is the Google Cloud project ID.
 	// If empty, will be auto-detected from environment.

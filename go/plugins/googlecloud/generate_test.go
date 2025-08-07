@@ -35,8 +35,7 @@ func TestGenerateTelemetry_PipelineIntegration(t *testing.T) {
 	genTel := NewGenerateTelemetry()
 	f := newTestFixture(t, genTel)
 
-	// Set up log capture
-	logBuf := setupLogCapture(t)
+	// Set up test
 
 	// Create realistic generate input/output JSON for span attributes
 	inputJSON := `{"model":"googleai/gemini-2.5-flash","config":{"maxOutputTokens":100,"temperature":0.7},"messages":[{"content":[{"text":"What is the capital of France?"}],"role":"user"}]}`
@@ -57,13 +56,6 @@ func TestGenerateTelemetry_PipelineIntegration(t *testing.T) {
 	)
 
 	span.End() // This triggers the pipeline
-
-	// Get captured logs
-	logOutput := logBuf.String()
-
-	// Verify generate telemetry worked
-	assert.Contains(t, logOutput, "GenerateTelemetry.Tick: Processing model span!")
-	assert.Contains(t, logOutput, "subtype=model")
 
 	// Verify the span was exported
 	spans := f.waitAndGetSpans()
@@ -295,7 +287,6 @@ func TestGenerateTelemetry_FilteringLogic(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			genTel := NewGenerateTelemetry()
 			f := newTestFixture(t, genTel)
-			logBuf := setupLogCapture(t)
 
 			// Create minimal valid input for processing
 			inputJSON := `{"model":"googleai/gemini-2.5-flash"}`
@@ -313,16 +304,6 @@ func TestGenerateTelemetry_FilteringLogic(t *testing.T) {
 			)
 
 			span.End()
-
-			// Check logs for processing
-			logOutput := logBuf.String()
-
-			if tc.expectProcessing {
-				assert.Contains(t, logOutput, "GenerateTelemetry.Tick: Processing model span!", "Expected model span processing")
-			} else {
-				assert.Contains(t, logOutput, "GenerateTelemetry.Tick: Skipping span - not a model action", "Expected span to be skipped")
-				assert.NotContains(t, logOutput, "Processing model span!", "Should not process non-model spans")
-			}
 
 			// Verify span was processed by pipeline
 			spans := f.waitAndGetSpans()
@@ -382,7 +363,6 @@ func TestGenerateTelemetry_JSONParsingEdgeCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			genTel := NewGenerateTelemetry()
 			f := newTestFixture(t, genTel)
-			logBuf := setupLogCapture(t)
 
 			ctx := context.Background()
 			_, span := f.tracer.Start(ctx, "test-span")
@@ -412,11 +392,6 @@ func TestGenerateTelemetry_JSONParsingEdgeCases(t *testing.T) {
 				assert.Panics(t, testFunc, "Expected panic for malformed data")
 			} else {
 				assert.NotPanics(t, testFunc, "Should handle malformed JSON gracefully")
-
-				logOutput := logBuf.String()
-				if tc.expectLogs {
-					assert.Contains(t, logOutput, "GenerateTelemetry.Tick: Processing model span!", "Expected processing logs")
-				}
 			}
 		})
 	}
@@ -461,7 +436,6 @@ func TestGenerateTelemetry_FeatureNameExtraction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			genTel := NewGenerateTelemetry()
 			f := newTestFixture(t, genTel)
-			logBuf := setupLogCapture(t)
 
 			// Create minimal valid input for processing
 			inputJSON := `{"model":"googleai/gemini-2.5-flash"}`
@@ -483,12 +457,6 @@ func TestGenerateTelemetry_FeatureNameExtraction(t *testing.T) {
 
 			span.SetAttributes(attrs...)
 			span.End()
-
-			// Check logs for feature name usage
-			logOutput := logBuf.String()
-			if tc.expectedFeature == "generate" {
-				assert.Contains(t, logOutput, "Using fallback feature name", "Expected fallback usage")
-			}
 
 			// Verify span was processed
 			spans := f.waitAndGetSpans()

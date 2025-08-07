@@ -25,6 +25,10 @@ import (
 
 // FirebaseTelemetryOptions provides configuration for Firebase telemetry.
 // Uses a simple, opinionated approach focused on ease of use and comprehensive observability.
+//
+// Environment Variables:
+// - GENKIT_ENV: Set to "dev" to disable export unless ForceExport is true
+// - FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT: Auto-detected project ID if ProjectID is not set
 type FirebaseTelemetryOptions struct {
 	// ProjectID is the Firebase/Google Cloud project ID.
 	// If empty, will be read from FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT environment variables.
@@ -77,17 +81,6 @@ func buildTelemetryPlugin(options *FirebaseTelemetryOptions) *googlecloud.Google
 	// Use default options if none provided
 	if options == nil {
 		options = &FirebaseTelemetryOptions{}
-	}
-
-	// Check for environment-based configuration
-	if os.Getenv("ENABLE_FIREBASE_MONITORING") == "true" {
-		// Apply default production-ready settings when enabled via environment
-		if options.ProjectID == "" {
-			options.ProjectID = resolveFirebaseProjectID("")
-		}
-		// Force export when explicitly enabled via environment
-		options.ForceExport = true
-		slog.Info("Firebase monitoring enabled via ENABLE_FIREBASE_MONITORING environment variable")
 	}
 
 	// Resolve project ID from options or environment

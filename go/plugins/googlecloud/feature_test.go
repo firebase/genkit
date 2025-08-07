@@ -26,9 +26,6 @@ func TestFeatureTelemetry_PipelineIntegration(t *testing.T) {
 	featureTel := NewFeatureTelemetry()
 	f := newTestFixture(t, featureTel)
 
-	// Set up log capture
-	logBuf := setupLogCapture(t)
-
 	// Create span using the TracerProvider - this triggers the full pipeline
 	ctx := context.Background()
 	_, span := f.tracer.Start(ctx, "test-feature-span")
@@ -41,12 +38,6 @@ func TestFeatureTelemetry_PipelineIntegration(t *testing.T) {
 	)
 
 	span.End() // This triggers the pipeline
-
-	// Get captured logs
-	logOutput := logBuf.String()
-
-	// Verify feature telemetry worked - should see debug logs
-	assert.Contains(t, logOutput, "FeatureTelemetry.Tick: Processing root span as feature!")
 
 	// Verify the span was exported
 	spans := f.waitAndGetSpans()
@@ -235,10 +226,9 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 	f := newTestFixture(t, featureTel)
 
 	testCases := []struct {
-		name         string
-		attrs        map[string]interface{}
-		expectLog    bool
-		expectedText string
+		name      string
+		attrs     map[string]interface{}
+		expectLog bool
 	}{
 		{
 			name: "successful root span",
@@ -248,8 +238,7 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:path":   "/{chatFlow,t:flow}/{generateResponse,t:action}",
 				"genkit:state":  "success",
 			},
-			expectLog:    true,
-			expectedText: "FeatureTelemetry.Tick: Processing root span as feature!",
+			expectLog: true,
 		},
 		{
 			name: "failed root span",
@@ -259,8 +248,7 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:path":   "/{codeAssistant,t:flow}/{suggestCode,t:action}",
 				"genkit:state":  "error",
 			},
-			expectLog:    true,
-			expectedText: "FeatureTelemetry.Tick: Processing root span as feature!",
+			expectLog: true,
 		},
 		{
 			name: "non-root span skipped",
@@ -269,8 +257,7 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:name":   "subAction",
 				"genkit:state":  "success",
 			},
-			expectLog:    true,
-			expectedText: "FeatureTelemetry.Tick: Skipping non-root span",
+			expectLog: true,
 		},
 		{
 			name: "unknown state",
@@ -279,8 +266,7 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:name":   "testFeature",
 				"genkit:state":  "unknown",
 			},
-			expectLog:    true,
-			expectedText: "Unknown feature state",
+			expectLog: true,
 		},
 		{
 			name: "missing state attribute",
@@ -288,17 +274,13 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:isRoot": true,
 				"genkit:name":   "testFeature",
 			},
-			expectLog:    true,
-			expectedText: "Unknown feature state",
+			expectLog: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			f.mockExporter.Reset()
-
-			// Set up log capture
-			logBuf := setupLogCapture(t)
 
 			// Create span using the TracerProvider - this triggers the full pipeline
 			ctx := context.Background()
@@ -321,18 +303,9 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 
 			span.End() // This triggers the pipeline including feature telemetry
 
-			// Get captured logs
-			logOutput := logBuf.String()
-
 			// Verify spans were processed
 			spans := f.waitAndGetSpans()
 			assert.Len(t, spans, 1)
-
-			// Check logging behavior
-			if tc.expectLog {
-				assert.Contains(t, logOutput, tc.expectedText,
-					"Expected log containing %q but got: %q", tc.expectedText, logOutput)
-			}
 		})
 	}
 }

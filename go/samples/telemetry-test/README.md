@@ -14,7 +14,6 @@ This sample demonstrates Firebase telemetry integration with Genkit Go.
 ```bash
 export FIREBASE_PROJECT_ID="your-project-id"
 export GEMINI_API_KEY="your-api-key"
-export ENABLE_FIREBASE_MONITORING=true
 ```
 
 2. Run simple demo:
