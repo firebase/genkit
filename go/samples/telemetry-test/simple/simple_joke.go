@@ -33,7 +33,7 @@ func main() {
 
 	// Initialize Genkit with Firebase telemetry and Google AI
 	g, err := genkit.Init(ctx, genkit.WithPlugins(
-		firebase.FirebaseTelemetry(), // 🔥 Firebase telemetry - zero config!
+		firebase.FirebaseTelemetry(),
 		&googlegenai.GoogleAI{},
 	))
 	if err != nil {
