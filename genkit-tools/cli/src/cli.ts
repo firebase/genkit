@@ -28,6 +28,7 @@ import { evalFlow } from './commands/eval-flow';
 import { evalRun } from './commands/eval-run';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowRun } from './commands/flow-run';
+import { initAiTools } from './commands/init-ai-tools/index';
 import { mcp } from './commands/mcp';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import {
@@ -53,6 +54,7 @@ const commands: Command[] = [
   evalExtractData,
   evalRun,
   evalFlow,
+  initAiTools,
   config,
   start,
   mcp,
