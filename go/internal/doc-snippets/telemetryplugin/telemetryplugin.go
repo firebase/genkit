@@ -54,7 +54,7 @@ type Config struct {
 
 func Init(cfg Config) error {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
+	_, err := genkit.Init(ctx)
 	if err != nil {
 		return err
 	}

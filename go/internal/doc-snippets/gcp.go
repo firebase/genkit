@@ -25,31 +25,27 @@ import (
 )
 
 func gcpEx(ctx context.Context) error {
-	g, err := genkit.Init(ctx)
+	_, err := genkit.Init(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// [START init]
-	plugin := googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
+	googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
 		ProjectID: "your-google-cloud-project",
 	})
-	if err := plugin.Init(ctx, g); err != nil {
-		return err
-	}
 	// [END init]
 
 	// Example with struct-based configuration (recommended)
-	_ = googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
-		ProjectID:            "your-google-cloud-project",
-		ForceExport:          true,
-		ExportInputAndOutput: true,
+	googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
+		ProjectID:                    "your-google-cloud-project",
+		ForceDevExport:               true,
+		DisableLoggingInputAndOutput: false,
 	})
 
 	// Example with auto-detection using simple config
-	autoPlugin := googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
-		ForceExport: true,
+	googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
+		ForceDevExport: true,
 	})
-	_ = autoPlugin
 
 	return nil
 }
