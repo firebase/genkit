@@ -37,7 +37,9 @@ import {
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
+import { update } from './commands/update';
 import { version } from './utils/version';
+import { isRunningFromBinary } from './utils/utils';
 
 /**
  * All commands need to be directly registered in this list.
@@ -57,6 +59,10 @@ const commands: Command[] = [
   start,
   mcp,
 ];
+
+if (isRunningFromBinary()) {
+  commands.push(update);
+}
 
 /** Main entry point for CLI. */
 export async function startCLI(): Promise<void> {
