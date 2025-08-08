@@ -144,6 +144,9 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 	if mi, found := supportedImagenModels[name]; found {
 		config = &genai.GenerateImagesConfig{}
 		info = mi
+	} else if vi, fnd := supportedVideoModels[name]; fnd {
+		config = &genai.GenerateVideosConfig{}
+		info = vi
 	}
 	meta := &ai.ModelInfo{
 		Label:        info.Label,

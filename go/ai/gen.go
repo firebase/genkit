@@ -228,6 +228,7 @@ type ModelSupports struct {
 	SystemRole  bool               `json:"systemRole,omitempty"`
 	ToolChoice  bool               `json:"toolChoice,omitempty"`
 	Tools       bool               `json:"tools,omitempty"`
+	LongRunning bool               `json:"longRunning,omitempty"`
 }
 
 type ConstrainedSupport string
