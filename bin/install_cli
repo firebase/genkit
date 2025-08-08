@@ -6,11 +6,6 @@
 ## <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-bash.min.js"></script>
 ## <style>body {color: #272822; background-color: #272822; font-size: 0.8em;} </style>
 
-# Configuration variables
-channel="${channel:-prod}"
-BIN_URL="https://storage.googleapis.com/genkit-assets-cli"
-TRACKING_ID="G-VE2GNRL789"
-
 : ==========================================
 :   Introduction
 : ==========================================
@@ -101,6 +96,9 @@ TRACKING_ID="G-VE2GNRL789"
 :   Source Code
 : ==========================================
 
+# Options: prod, next
+channel="${channel:-prod}"
+
 # This script contains a large amount of comments so you can understand
 # how it interacts with your system. If you're not interested in the
 # technical details, you can just run the command above.
@@ -111,6 +109,8 @@ CID=$(head -80 /dev/urandom | LC_ALL=c tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n
 
 # We can use this CID in all calls to the Google Analytics endpoint via
 # this reusable function.
+TRACKING_ID="G-VE2GNRL789"
+
 send_analytics_event()
 {   
     if [ ! "$analytics" = "false" ]; then
