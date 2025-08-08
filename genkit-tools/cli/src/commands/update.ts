@@ -20,8 +20,40 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+
 interface UpdateOptions {
   force?: boolean;
+  check?: boolean;
+}
+
+/**
+ * Interface for update check result
+ */
+export interface UpdateCheckResult {
+  hasUpdate: boolean;
+  currentVersion: string;
+  latestVersion: string;
+}
+
+/**
+ * Checks if a new version is available (exported for use in other modules)
+ */
+export async function checkForUpdates(): Promise<UpdateCheckResult> {
+  const currentVersion = require('../../package.json').version;
+  const latestVersion = await getLatestVersion();
+
+  // Remove 'v' prefix if present for comparison
+  const cleanLatestVersion = latestVersion.startsWith('v')
+    ? latestVersion.substring(1)
+    : latestVersion;
+
+  const hasUpdate = cleanLatestVersion !== currentVersion;
+
+  return {
+    hasUpdate,
+    currentVersion,
+    latestVersion: cleanLatestVersion
+  };
 }
 
 /**
@@ -199,7 +231,25 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
 export const update = new Command('update')
   .description('update the genkit CLI to the latest version (binary installations only)')
   .option('-f, --force', 'force update even if already on latest version')
+  .option('-c, --check', 'check for updates without installing')
   .action(async (options: UpdateOptions) => {
+    // Handle --check flag
+    if (options.check) {
+      try {
+        const result = await checkForUpdates();
+        if (result.hasUpdate) {
+          logger.info(`Update available: ${clc.bold(result.currentVersion)} → ${clc.bold(result.latestVersion)}`);
+          logger.info(`${clc.green('✓')} New version found!`);
+        } else {
+          logger.info(`${clc.green('✓')} Already on the latest version: ${clc.bold(result.currentVersion)}`);
+        }
+        return;
+      } catch (error: any) {
+        logger.error(`${clc.red('Failed to check for updates:')} ${error.message}`);
+        process.exit(1);
+      }
+    }
+
     try {
       logger.info('Checking for updates...');
       const latestVersion = await getLatestVersion();
