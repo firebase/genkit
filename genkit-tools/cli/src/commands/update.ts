@@ -20,6 +20,9 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+interface UpdateOptions {
+  force?: boolean;
+}
 
 /**
  * Gets available CLI versions from GitHub tags
@@ -126,7 +129,7 @@ async function getLatestVersion(): Promise<string> {
 /**
  * Downloads and installs the latest binary
  */
-async function downloadAndInstall(version: string): Promise<void> {
+async function downloadAndInstall(version: string, force: boolean): Promise<void> {
   const { platform, arch } = getPlatformInfo();
   const execPath = process.execPath;
   const backupPath = `${execPath}.backup`;
@@ -195,18 +198,23 @@ async function downloadAndInstall(version: string): Promise<void> {
 
 export const update = new Command('update')
   .description('update the genkit CLI to the latest version (binary installations only)')
-  .action(async () => {
+  .option('-f, --force', 'force update even if already on latest version')
+  .action(async (options: UpdateOptions) => {
     try {
       logger.info('Checking for updates...');
       const latestVersion = await getLatestVersion();
       const currentVersion = require('../../package.json').version;
-      if (latestVersion === `v${currentVersion}`) {
+
+      if (options.force) {
+        logger.info(`${clc.yellow('!')} Force updating to ${clc.bold(latestVersion)}...`);
+      } else if (latestVersion !== `v${currentVersion}`) {
+        logger.info(`Update available: ${clc.bold(currentVersion)} → ${clc.bold(latestVersion)}`);
+      } else {
         logger.info(`${clc.green('✓')} Already on the latest version: ${clc.bold(currentVersion)}`);
         return;
       }
 
-      logger.info(`Update available: ${clc.bold(currentVersion)} → ${clc.bold(latestVersion)}`);
-      await downloadAndInstall(latestVersion);
+      await downloadAndInstall(latestVersion, options.force || false);
     } catch (error: any) {
       logger.error(`${clc.red('Update failed:')} ${error.message}`);
       process.exit(1);
