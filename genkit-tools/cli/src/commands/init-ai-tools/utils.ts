@@ -23,9 +23,10 @@ import path from 'path';
 const GENKIT_TAG_REGEX =
   /<genkit_prompts(?:\s+hash="([^"]+)")?>([\s\S]*?)<\/genkit_prompts>/;
 /*
- * Deeply compares two JSON-serializable objects.
- * It's a simplified version of a deep equal function, sufficient for comparing the structure
- * of the gemini-extension.json file. It doesn't handle special cases like RegExp, Date, or functions.
+ * Deeply compares two JSON-serializable objects. It's a simplified version of a
+ * deep equal function, sufficient for comparing the structure of the
+ * gemini-extension.json file. It doesn't handle special cases like RegExp,
+ * Date, or functions.
  */
 export function deepEqual(a: any, b: any): boolean {
   if (a === b) {
@@ -58,8 +59,8 @@ export function deepEqual(a: any, b: any): boolean {
 }
 
 /**
- * Replace an entire prompt file (no user content to preserve)
- * Used for files we fully own like Cursor and Gemini configs
+ * Replace an entire prompt file (no user content to preserve). Used for files
+ * we fully own like GENKIT.md.
  */
 export async function initOrReplaceFile(
   filePath: string,

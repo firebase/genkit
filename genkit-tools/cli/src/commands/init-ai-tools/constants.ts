@@ -19,6 +19,11 @@ import { gemini } from './ai-tools/gemini';
 import { generic } from './ai-tools/generic';
 import { AIToolModule } from './types';
 
+/** Shared location for the GENKIT.md context file */
+export const GENKIT_PROMPT_PATH = 'GENKIT.md';
+
+/** Set of all supported AI tools that can be configured (incl. a generic
+ * configuration) */
 export const AI_TOOLS: Record<string, AIToolModule> = {
   gemini,
   claude,

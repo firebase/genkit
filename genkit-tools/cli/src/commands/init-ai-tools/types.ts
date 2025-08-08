@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+/** Return type of a configuration result, denoting the set of files processed.
+ * */
 export interface AIToolConfigResult {
   files: Array<{
     path: string;
@@ -21,11 +23,13 @@ export interface AIToolConfigResult {
   }>;
 }
 
+/** `init:ai-tools` config options. */
 export interface InitConfigOptions {
   // yes (non-interactive) mode.
   yesMode: boolean;
 }
 
+/** Interface for supported AI tools */
 export interface AIToolModule {
   name: string;
   displayName: string;
@@ -38,6 +42,7 @@ export interface AIToolModule {
   configure(configOptions?: InitConfigOptions): Promise<AIToolConfigResult>;
 }
 
+/** Type to denote user's selection from interactive menu */
 export interface AIToolChoice {
   value: string;
   name: string;

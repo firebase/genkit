@@ -27,7 +27,11 @@ const AGENT_CHOICES: AIToolChoice[] = Object.values(AI_TOOLS).map((tool) => ({
   checked: false,
 }));
 
-export const init = new Command('init:ai-tools')
+/**
+ * Initializes selected AI tools with Genkit MCP server and Genkit framework
+ * context to improve output quality when using those tools.
+ */
+export const initAiTools = new Command('init:ai-tools')
   .description(
     'initialize AI tools in a workspace with helpful context related to the Genkit framework'
   )

@@ -17,6 +17,7 @@
 import { logger } from '@genkit-ai/tools-common/utils';
 import { existsSync, readFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
+import { GENKIT_PROMPT_PATH } from '../constants';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import {
   calculateHash,
@@ -27,8 +28,8 @@ import {
 
 const CLAUDE_MCP_PATH = '.mcp.json';
 const CLAUDE_PROMPT_PATH = 'CLAUDE.md';
-const GENKIT_PROMPT_PATH = 'GENKIT.md';
 
+/** Configuration module for Claude Code */
 export const claude: AIToolModule = {
   name: 'claude',
   displayName: 'Claude Code',
@@ -36,7 +37,7 @@ export const claude: AIToolModule = {
   /**
    * Configures Claude Code with Genkit context.
    *
-   * - .claude/settings.local.json: Merges with existing config (preserves user settings)
+   * - .mcp.json: Merges with existing MCP config
    * - CLAUDE.local.md: Updates Firebase section only (preserves user content)
    */
   async configure(options?: InitConfigOptions): Promise<AIToolConfigResult> {

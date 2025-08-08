@@ -15,18 +15,17 @@
  */
 
 import { logger } from '@genkit-ai/tools-common/utils';
+import { GENKIT_PROMPT_PATH } from '../constants';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import { getGenkitContext, initOrReplaceFile } from '../utils';
 
-// Define constants at the module level for clarity and reuse.
-const GENKIT_MD_PATH = 'GENKIT.md';
-
+/** Configuration module for GENKIT.md context file for generic use */
 export const generic: AIToolModule = {
   name: 'generic',
-  displayName: 'Simple GENKIT.md file',
+  displayName: 'GENKIT.md file for generic use',
 
   /**
-   * Configures the Gemini CLI extension for Genkit.
+   * Configures a GENKIT.md file for Genkit.
    */
   async configure(options?: InitConfigOptions): Promise<AIToolConfigResult> {
     const files: AIToolConfigResult['files'] = [];
@@ -34,8 +33,11 @@ export const generic: AIToolModule = {
     // Generate GENKIT.md file.
     logger.info('Updating GENKIT.md...');
     const genkitContext = getGenkitContext();
-    const baseResult = await initOrReplaceFile(GENKIT_MD_PATH, genkitContext);
-    files.push({ path: GENKIT_MD_PATH, updated: baseResult.updated });
+    const baseResult = await initOrReplaceFile(
+      GENKIT_PROMPT_PATH,
+      genkitContext
+    );
+    files.push({ path: GENKIT_PROMPT_PATH, updated: baseResult.updated });
     logger.info('\n');
     logger.info(
       'GENKIT.md updated. Provide this file as context with your AI tool.'

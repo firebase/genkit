@@ -17,12 +17,13 @@
 import { logger } from '@genkit-ai/tools-common/utils';
 import { mkdir } from 'fs/promises';
 import path from 'path';
+import { GENKIT_PROMPT_PATH } from '../constants';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import { getGenkitContext, initOrReplaceFile } from '../utils';
 
 // Define constants at the module level for clarity and reuse.
 const GENKIT_EXT_DIR = path.join('.gemini', 'extensions', 'genkit');
-const GENKIT_MD_PATH = path.join(GENKIT_EXT_DIR, 'GENKIT.md');
+const GENKIT_MD_REL_PATH = path.join('..', '..', '..', 'GENKIT.md');
 const GENKIT_EXTENSION_CONFIG = {
   name: 'genkit',
   version: '1.0.0',
@@ -39,9 +40,10 @@ const GENKIT_EXTENSION_CONFIG = {
       ],
     },
   },
-  contextFileName: './GENKIT.md',
+  contextFileName: GENKIT_MD_REL_PATH,
 };
 
+/** Configuration module for Gemini CLI */
 export const gemini: AIToolModule = {
   name: 'gemini',
   displayName: 'Gemini CLI',
@@ -50,9 +52,20 @@ export const gemini: AIToolModule = {
    * Configures the Gemini CLI extension for Genkit.
    */
   async configure(options?: InitConfigOptions): Promise<AIToolConfigResult> {
+    // TODO(ssbushi): Support option to install as file import vs extension
     const files: AIToolConfigResult['files'] = [];
 
-    // Part 1: Configure the main gemini-extension.json file, and gemini config directory if needed.
+    // Part 1: Generate GENKIT.md file.
+
+    logger.info('Copying the GENKIT.md file...');
+    const genkitContext = getGenkitContext();
+    const baseResult = await initOrReplaceFile(
+      GENKIT_PROMPT_PATH,
+      genkitContext
+    );
+    files.push({ path: GENKIT_PROMPT_PATH, updated: baseResult.updated });
+
+    // Part 2: Configure the main gemini-extension.json file, and gemini config directory if needed.
     logger.info('Configuring extentions files in user workspace...');
     await mkdir(GENKIT_EXT_DIR, { recursive: true });
     const extensionPath = path.join(GENKIT_EXT_DIR, 'gemini-extension.json');
@@ -75,12 +88,6 @@ export const gemini: AIToolModule = {
     }
     files.push({ path: extensionPath, updated: extensionUpdated });
 
-    // Part 2: Generate GENKIT.md file.
-
-    logger.info('Copying the GENKIT.md file to extension folder...');
-    const genkitContext = getGenkitContext();
-    const baseResult = await initOrReplaceFile(GENKIT_MD_PATH, genkitContext);
-    files.push({ path: GENKIT_MD_PATH, updated: baseResult.updated });
     return { files };
   },
 };
