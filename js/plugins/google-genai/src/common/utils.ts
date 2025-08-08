@@ -367,11 +367,7 @@ function aggregateResponses(
   }
   for (const response of responses) {
     for (const candidate of response.candidates ?? []) {
-      const index = candidate.index;
-      if (index === undefined) {
-        console.warn('Candidate missing index, skipping:', candidate);
-        continue;
-      }
+      const index = candidate.index ?? 0;
       if (!aggregatedResponse.candidates) {
         aggregatedResponse.candidates = [];
       }
