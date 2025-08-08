@@ -1,0 +1,3 @@
+{
+  "request": "For the collection menu, drop indexes: item_search_index and item_vector_index"
+}

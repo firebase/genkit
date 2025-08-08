@@ -1,0 +1,3 @@
+{
+  "request": "For collection image, create a vector search index named 'image_vector_index' for the field embedding. Let dimensions be 1408 and similarity be euclidian"
+}
