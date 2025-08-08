@@ -24,6 +24,7 @@ import * as path from 'path';
 interface UpdateOptions {
   force?: boolean;
   check?: boolean;
+  list?: boolean;
 }
 
 /**
@@ -231,8 +232,37 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
 export const update = new Command('update')
   .description('update the genkit CLI to the latest version (binary installations only)')
   .option('-f, --force', 'force update even if already on latest version')
+  .option('-l, --list', 'list available versions')
   .option('-c, --check', 'check for updates without installing')
   .action(async (options: UpdateOptions) => {
+    // Handle --list flag
+    if (options.list) {
+      try {
+        logger.info('Fetching available versions...');
+        const versions = await getAvailableVersions();
+        const currentVersion = require('../../package.json').version;
+        if (versions.length === 0) {
+          logger.info('No versions found.');
+          return;
+        }
+        logger.info(`\nAvailable genkit CLI versions:`);
+        logger.info(`${clc.dim('─'.repeat(40))}`);
+        for (const version of versions) {
+          const isCurrent = version === currentVersion;
+          const prefix = isCurrent ? clc.green('●') : ' ';
+          const versionText = isCurrent ? clc.bold(clc.green(version)) : version;
+          const suffix = isCurrent ? clc.dim(' (current)') : '';
+          logger.info(`${prefix} ${versionText}${suffix}`);
+        }
+        logger.info(`${clc.dim('─'.repeat(40))}`);
+        logger.info(`Found ${clc.bold(versions.length.toString())} versions`);
+        return;
+      } catch (error: any) {
+        logger.error(`${clc.red('Failed to list versions:')} ${error.message}`);
+        process.exit(1);
+      }
+    }
+
     // Handle --check flag
     if (options.check) {
       try {
