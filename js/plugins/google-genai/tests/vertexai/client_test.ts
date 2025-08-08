@@ -74,8 +74,8 @@ describe('Vertex AI Client', () => {
   };
 
   const notSupportedInExpressErrorMessage = {
-    message: NOT_SUPPORTED_IN_EXPRESS_ERROR.message
-  }
+    message: NOT_SUPPORTED_IN_EXPRESS_ERROR.message,
+  };
 
   beforeEach(() => {
     fetchSpy = sinon.stub(global, 'fetch');
@@ -161,7 +161,8 @@ describe('Vertex AI Client', () => {
       it('should build URL for generateContent with tuned model with project', () => {
         const url = getVertexAIUrl({
           includeProjectAndLocation: false,
-          resourcePath: 'projects/project1/locations/location1/endpoints/12345678',
+          resourcePath:
+            'projects/project1/locations/location1/endpoints/12345678',
           resourceMethod: 'generateContent',
           clientOptions: opts,
         });
@@ -200,7 +201,8 @@ describe('Vertex AI Client', () => {
       it('should build URL for streamGenerateContent with tuned model with project', () => {
         const url = getVertexAIUrl({
           includeProjectAndLocation: false,
-          resourcePath: 'projects/project1/locations/location1/endpoints/12345678',
+          resourcePath:
+            'projects/project1/locations/location1/endpoints/12345678',
           resourceMethod: 'streamGenerateContent',
           clientOptions: opts,
         });
@@ -560,10 +562,7 @@ describe('Vertex AI Client', () => {
               );
               assert.deepStrictEqual(result, mockResponse);
 
-              const expectedUrl = getResourceUrl(
-                tunedModel,
-                'generateContent'
-              );
+              const expectedUrl = getResourceUrl(tunedModel, 'generateContent');
               sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
                 method: 'POST',
                 headers: getExpectedHeaders(),
@@ -716,7 +715,7 @@ describe('Vertex AI Client', () => {
 
               const expectedUrl = getResourceUrl(
                 model,
-                'fetchPredictOperation',
+                'fetchPredictOperation'
               );
               sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
                 method: 'POST',

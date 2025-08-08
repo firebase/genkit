@@ -37,7 +37,10 @@ import type {
   GlobalClientOptions,
   RegionalClientOptions,
 } from '../../src/vertexai/types.js';
-import { NOT_SUPPORTED_IN_EXPRESS_ERROR, TEST_ONLY as UTILS_TEST_ONLY } from '../../src/vertexai/utils.js';
+import {
+  NOT_SUPPORTED_IN_EXPRESS_ERROR,
+  TEST_ONLY as UTILS_TEST_ONLY,
+} from '../../src/vertexai/utils.js';
 
 describe('VertexAI Plugin', () => {
   const regionalMockDerivedOptions: RegionalClientOptions = {
@@ -61,8 +64,8 @@ describe('VertexAI Plugin', () => {
     apiKey: 'test-express-api-key',
   };
   const notSupportedInExpressErrorMessage = {
-    message: NOT_SUPPORTED_IN_EXPRESS_ERROR.message
-  }
+    message: NOT_SUPPORTED_IN_EXPRESS_ERROR.message,
+  };
 
   let ai: Genkit;
 

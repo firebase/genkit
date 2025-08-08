@@ -343,9 +343,11 @@ export function checkSupportedResourceMethod(params: {
     'streamGenerateContent',
   ];
 
-  if (params.clientOptions.kind === 'express' &&
-      (!supportedExpressMethods.includes(params.resourceMethod ?? '') ||
-      params.resourcePath?.includes('endpoints/'))) {
+  if (
+    params.clientOptions.kind === 'express' &&
+    (!supportedExpressMethods.includes(params.resourceMethod ?? '') ||
+      params.resourcePath?.includes('endpoints/'))
+  ) {
     throw NOT_SUPPORTED_IN_EXPRESS_ERROR;
   }
 }
