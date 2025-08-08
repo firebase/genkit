@@ -8,6 +8,8 @@ This document provides rules and examples for building with the Genkit API in No
 
 - ONLY follow the specified project structure if starting a new project. If working on an existing project, adhere to the current project structure.
 
+- ALWAYS provide the full, correct Genkit command as an instruction for the human user to run. Do not run Genkit commands (e.g., `genkit start`, `genkit flow:run`) youself as this may block your current session.
+
 ## Core Setup
 
 1.  **Initialize Project**

@@ -23,7 +23,7 @@ import { getGenkitContext, initOrReplaceFile } from '../utils';
 
 // Define constants at the module level for clarity and reuse.
 const GENKIT_EXT_DIR = path.join('.gemini', 'extensions', 'genkit');
-const GENKIT_MD_REL_PATH = path.join('..', '..', '..', 'GENKIT.md');
+const GENKIT_MD_REL_PATH = path.join('..', '..', '..', GENKIT_PROMPT_PATH);
 const GENKIT_EXTENSION_CONFIG = {
   name: 'genkit',
   version: '1.0.0',
