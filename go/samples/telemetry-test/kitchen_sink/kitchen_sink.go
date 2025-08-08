@@ -40,11 +40,13 @@ type SearchResult struct {
 func main() {
 	ctx := context.Background()
 
-	// Initialize Genkit with Firebase telemetry
+	// Initialize Firebase telemetry
+	firebase.EnableFirebaseTelemetry(&firebase.FirebaseTelemetryOptions{
+		ForceDevExport: true, // Force telemetry export in development
+	})
+
+	// Initialize Genkit with plugins
 	g, err := genkit.Init(ctx, genkit.WithPlugins(
-		firebase.FirebaseTelemetry(&firebase.FirebaseTelemetryOptions{
-			ForceExport: true, // Force telemetry export in development
-		}),
 		&googlegenai.GoogleAI{},
 	))
 	if err != nil {
@@ -133,31 +135,31 @@ func main() {
 	})
 
 	// Start the server
-	fmt.Println("🚀 Kitchen Sink Telemetry Demo")
-	fmt.Println("📊 Firebase telemetry with various scenarios:")
+	fmt.Println("Kitchen Sink Telemetry Demo")
+	fmt.Println("Firebase telemetry with various scenarios:")
 	fmt.Println("   • Tool calls and function execution")
 	fmt.Println("   • Multi-step RAG operations")
 	fmt.Println("   • Batch processing flows")
 	fmt.Println("")
-	fmt.Println("🌐 Server: http://localhost:3400")
+	fmt.Println("Server: http://localhost:3400")
 	fmt.Println("")
 	fmt.Println("Test endpoints:")
 	fmt.Println()
-	fmt.Println("💬 Text + Tools:")
-	fmt.Println(`curl -X POST http://localhost:3400/textFlow -H 'Content-Type: application/json' -d '"machine learning"'`)
+	fmt.Println("Text + Tools:")
+	fmt.Println(`curl -X POST http://localhost:3400/textFlow -H 'Content-Type: application/json' -d '{"data": "machine learning"}'`)
 	fmt.Println()
-	fmt.Println("🖼️  Image Analysis:")
+	fmt.Println("Image Analysis:")
 	fmt.Println(`curl -X POST http://localhost:3400/imageFlow -H 'Content-Type: application/json' -d '{"data": {"imageUrl": "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png", "prompt": "What logo is this?"}}'`)
 	fmt.Println()
-	fmt.Println("📦 Batch Processing:")
+	fmt.Println("Batch Processing:")
 	fmt.Println(`curl -X POST http://localhost:3400/batchFlow -H 'Content-Type: application/json' -d '{"data": ["AI", "robotics", "quantum"]}'`)
 
 	mux := http.NewServeMux()
 	for _, flow := range genkit.ListFlows(g) {
-		fmt.Printf("✅ Registered flow: %s\n", flow.Name())
+		fmt.Printf("Registered flow: %s\n", flow.Name())
 		mux.HandleFunc("POST /"+flow.Name(), genkit.Handler(flow))
 	}
 
-	fmt.Println("\n🔥 All telemetry modules active - check Google Cloud Console!")
+	fmt.Println("\nAll telemetry modules active - check Google Cloud Console!")
 	log.Fatal(server.Start(ctx, "127.0.0.1:3400", mux))
 }

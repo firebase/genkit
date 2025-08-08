@@ -31,11 +31,13 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Initialize Genkit with Firebase telemetry and Google AI
+	// Initialize Firebase telemetry
+	firebase.EnableFirebaseTelemetry(&firebase.FirebaseTelemetryOptions{
+		ForceDevExport: true, // Force telemetry export in development
+	})
+
+	// Initialize Genkit with plugins
 	g, err := genkit.Init(ctx, genkit.WithPlugins(
-		firebase.FirebaseTelemetry(&firebase.FirebaseTelemetryOptions{
-			ForceExport: true, // Force telemetry export in development
-		}),
 		&googlegenai.GoogleAI{},
 	))
 	if err != nil {
@@ -59,16 +61,15 @@ func main() {
 	})
 
 	// Start the server
-	fmt.Println("🚀 Simple Joke Flow with Firebase Telemetry")
-	fmt.Println("📊 All 5 telemetry modules enabled automatically")
-	fmt.Println("🌐 Server: http://localhost:3400")
+	fmt.Println("Simple Joke Flow with Firebase Telemetry")
+	fmt.Println("Server: http://localhost:3400")
 	fmt.Println("")
 	fmt.Println("Test with:")
 	fmt.Println(`curl -X POST http://localhost:3400/jokeFlow -H 'Content-Type: application/json' -d '{"data": "cats"}'`)
 
 	mux := http.NewServeMux()
 	for _, flow := range genkit.ListFlows(g) {
-		fmt.Printf("✅ Registered flow: %s\n", flow.Name())
+		fmt.Printf("Registered flow: %s\n", flow.Name())
 		mux.HandleFunc("POST /"+flow.Name(), genkit.Handler(flow))
 	}
 

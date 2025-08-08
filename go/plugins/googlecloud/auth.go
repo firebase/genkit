@@ -139,27 +139,6 @@ func ResolveCurrentPrincipal() (*GcpPrincipal, error) {
 	return principal, nil
 }
 
-// NewFromEnvironment creates a GoogleCloud plugin instance with auto-detected credentials
-func NewFromEnvironment() (*GoogleCloud, error) {
-	authConfig, err := CredentialsFromEnvironment()
-	if err != nil {
-		return nil, fmt.Errorf("failed to configure credentials: %w", err)
-	}
-
-	if authConfig.ProjectID == "" {
-		return nil, fmt.Errorf("project ID could not be determined from credentials")
-	}
-
-	// Get environment-aware defaults and set the project ID
-	config := GetDefaults(authConfig.ProjectID)
-	config.ProjectID = authConfig.ProjectID
-	config.Credentials = authConfig.Credentials
-
-	return &GoogleCloud{
-		Config: config,
-	}, nil
-}
-
 // extractServiceAccountEmail extracts the service account email from Google credentials
 func extractServiceAccountEmail(creds *google.Credentials) string {
 	if creds == nil {

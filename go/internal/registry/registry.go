@@ -26,7 +26,6 @@ import (
 
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/google/dotprompt/go/dotprompt"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // This file implements registries of actions and other values.
@@ -223,10 +222,6 @@ func (r *Registry) ListPlugins() []any {
 		plugins = append(plugins, p)
 	}
 	return plugins
-}
-
-func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	r.tstate.RegisterSpanProcessor(sp)
 }
 
 // ListValues returns a list of values of all registered values.

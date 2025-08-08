@@ -34,18 +34,17 @@ type FirebaseTelemetryOptions struct {
 	// If empty, will be read from FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT environment variables.
 	ProjectID string
 
-	// ForceExport forces telemetry export even in development environment.
+	// ForceDevExport forces telemetry export even in development environment.
 	// Defaults to false (only exports in production unless forced).
-	ForceExport bool
+	ForceDevExport bool
 
-	// ExportInputAndOutput includes AI model input/output in telemetry traces.
-	// Defaults to false for privacy (only metadata is exported).
-	ExportInputAndOutput bool
+	// DisableLoggingInputAndOutput disables input/output logging.
+	// Defaults to false (input/output logging enabled).
+	DisableLoggingInputAndOutput bool
 }
 
-// FirebaseTelemetry creates a Google Cloud telemetry plugin configured for Firebase.
-// This enables comprehensive telemetry export to Genkit Monitoring, backed by the Google Cloud
-// Observability suite (Cloud Logging, Metrics, and Trace).
+// EnableFirebaseTelemetry enables comprehensive telemetry export to Genkit Monitoring,
+// backed by the Google Cloud Observability suite (Cloud Logging, Metrics, and Trace).
 //
 // This function uses opinionated defaults designed for Firebase applications:
 // - All telemetry modules are automatically enabled for comprehensive observability
@@ -53,29 +52,31 @@ type FirebaseTelemetryOptions struct {
 // - Simple configuration focused on the most commonly needed options
 // - Automatic project ID detection from Firebase/Google Cloud environment variables
 //
-// For more granular control over individual telemetry modules, use the googlecloud plugin directly.
+// For more granular control over individual telemetry modules, use googlecloud.EnableGoogleCloudTelemetry directly.
 //
 // Example usage:
 //
 //	// Zero-config (auto-detects everything, all modules enabled)
-//	g, err := genkit.Init(ctx, genkit.WithPlugins(firebase.FirebaseTelemetry()))
+//	firebase.EnableFirebaseTelemetry()
+//	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 //
 //	// With configuration (all modules still enabled)
-//	g, err := genkit.Init(ctx, genkit.WithPlugins(firebase.FirebaseTelemetry(&firebase.FirebaseTelemetryOptions{
+//	firebase.EnableFirebaseTelemetry(&firebase.FirebaseTelemetryOptions{
 //		ProjectID:            "my-firebase-project",
 //		ForceExport:          true,
 //		ExportInputAndOutput: true,
-//	})))
-func FirebaseTelemetry(options ...*FirebaseTelemetryOptions) *googlecloud.GoogleCloud {
+//	})
+//	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+func EnableFirebaseTelemetry(options ...*FirebaseTelemetryOptions) {
 	var opts *FirebaseTelemetryOptions
 	if len(options) > 0 && options[0] != nil {
 		opts = options[0]
 	}
-	return buildTelemetryPlugin(opts)
+	initializeTelemetry(opts)
 }
 
-// buildTelemetryPlugin is the internal function that actually creates the plugin.
-func buildTelemetryPlugin(options *FirebaseTelemetryOptions) *googlecloud.GoogleCloud {
+// initializeTelemetry is the internal function that sets up Firebase telemetry.
+func initializeTelemetry(options *FirebaseTelemetryOptions) {
 	slog.Debug("Initializing Firebase Genkit Monitoring.")
 
 	// Use default options if none provided
@@ -92,13 +93,11 @@ func buildTelemetryPlugin(options *FirebaseTelemetryOptions) *googlecloud.Google
 	// Convert Firebase options to Google Cloud options
 	// Firebase provides opinionated defaults with all telemetry modules enabled for comprehensive observability
 	gcOptions := &googlecloud.GoogleCloudTelemetryOptions{
-		ProjectID:            projectID,
-		ForceExport:          options.ForceExport,
-		ExportInputAndOutput: options.ExportInputAndOutput,
+		ProjectID:                    projectID,
+		ForceDevExport:               options.ForceDevExport,
+		DisableLoggingInputAndOutput: options.DisableLoggingInputAndOutput,
 	}
-
-	// Use the simplified Google Cloud telemetry API
-	return googlecloud.EnableGoogleCloudTelemetry(gcOptions)
+	googlecloud.EnableGoogleCloudTelemetry(gcOptions)
 }
 
 // resolveFirebaseProjectID resolves the Firebase project ID from various sources.

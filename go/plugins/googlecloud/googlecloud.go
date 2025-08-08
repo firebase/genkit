@@ -29,9 +29,12 @@ import (
 	"cloud.google.com/go/logging"
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core/tracing"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/option"
+
 	"github.com/firebase/genkit/go/internal"
-	"go.opentelemetry.io/contrib/detectors/gcp"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -43,20 +46,22 @@ import (
 
 const provider = "googlecloud"
 
-// NewWithConfig creates a new GoogleCloud plugin with a pre-configured TelemetryConfig.
-// This is useful when you want to pass configuration as a struct instead of functional options.
-func NewWithConfig(projectID string, telemetryConfig *TelemetryConfig) *GoogleCloud {
-	config := &PluginConfig{
-		ProjectID:   projectID,
-		Credentials: nil, // Will be auto-detected
-		Config:      telemetryConfig,
-	}
-
-	return &GoogleCloud{Config: config}
-}
-
-// EnableGoogleCloudTelemetry creates a Google Cloud telemetry plugin with simple struct-based configuration.
-func EnableGoogleCloudTelemetry(options ...*GoogleCloudTelemetryOptions) *GoogleCloud {
+// EnableGoogleCloudTelemetry enables comprehensive telemetry export to Google Cloud Observability suite.
+// This directly initializes telemetry without requiring plugin registration.
+//
+// Example usage:
+//
+//	// Zero-config (auto-detects project ID)
+//	googlecloud.EnableGoogleCloudTelemetry()
+//	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+//
+//	// With configuration
+//	googlecloud.EnableGoogleCloudTelemetry(&googlecloud.GoogleCloudTelemetryOptions{
+//		ProjectID:      "my-project",
+//		ForceDevExport: true,
+//	})
+//	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+func EnableGoogleCloudTelemetry(options ...*GoogleCloudTelemetryOptions) {
 	var opts *GoogleCloudTelemetryOptions
 	if len(options) > 0 && options[0] != nil {
 		opts = options[0]
@@ -64,6 +69,11 @@ func EnableGoogleCloudTelemetry(options ...*GoogleCloudTelemetryOptions) *Google
 		opts = &GoogleCloudTelemetryOptions{}
 	}
 
+	initializeTelemetry(opts)
+}
+
+// initializeTelemetry is the internal function that sets up Google Cloud telemetry directly.
+func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 	// Auto-detect project ID if not provided
 	projectID := opts.ProjectID
 	if projectID == "" {
@@ -72,150 +82,108 @@ func EnableGoogleCloudTelemetry(options ...*GoogleCloudTelemetryOptions) *Google
 		}
 	}
 
-	// Build simplified configuration
-	config := &TelemetryConfig{
-		ForceExport:          opts.ForceExport,
-		ExportInputAndOutput: opts.ExportInputAndOutput,
-		LogLevel:             slog.LevelInfo,
+	// Set metric intervals with user overrides or environment-aware defaults
+	metricInterval := 5 * time.Second
+	if os.Getenv("GENKIT_ENV") != "dev" {
+		metricInterval = 300 * time.Second
+	}
+	if opts.MetricExportIntervalMillis != nil {
+		metricInterval = time.Duration(*opts.MetricExportIntervalMillis) * time.Millisecond
 	}
 
-	// Set environment-aware performance defaults
-	if IsDevEnv() {
-		config.MetricInterval = 5 * time.Second
-		config.MetricTimeoutMillis = 5000
-		config.BufferSize = 100
-		config.Export = opts.ForceExport // Only export in dev if forced
-	} else {
-		config.MetricInterval = 300 * time.Second
-		config.MetricTimeoutMillis = 300000
-		config.BufferSize = 1000
-		config.Export = true // Always export in production
-	}
-
-	return NewWithConfig(projectID, config)
-}
-
-// GoogleCloud is a Genkit plugin for comprehensive telemetry using Google Cloud services.
-type GoogleCloud struct {
-	Config   *PluginConfig
-	modules  []Telemetry
-	resource *resource.Resource
-}
-
-// Name returns the name of the plugin.
-func (gc *GoogleCloud) Name() string {
-	return provider
-}
-
-// setupModules creates and registers all telemetry modules for comprehensive observability
-func (gc *GoogleCloud) setupModules() {
-	// All modules are enabled by default for comprehensive observability
-	// This matches the JavaScript approach of opinionated defaults
-	gc.modules = []Telemetry{
-		NewGenerateTelemetry(),
-		NewFeatureTelemetry(),
-		NewActionTelemetry(),
-		NewEngagementTelemetry(),
-		NewPathTelemetry(),
-	}
-
-	slog.Debug("Enabled all telemetry modules for comprehensive observability")
-
-	slog.Info("Telemetry modules initialized", "modules", len(gc.modules))
-}
-
-// detectResource auto-detects GCP resource information
-func (gc *GoogleCloud) detectResource(ctx context.Context) error {
-	// Start with a base resource
-	baseResource := resource.NewWithAttributes(
+	logLevel := slog.LevelInfo
+	basicResource := resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceName("genkit"),
-		semconv.ServiceVersion(internal.Version), // Use actual Genkit version
+		semconv.ServiceVersion(internal.Version),
 	)
 
-	// Auto-detect GCP environment (GCE, GKE, Cloud Functions, App Engine, etc.)
-	detector := gcp.NewDetector()
-	detectedResource, err := detector.Detect(ctx)
-	if err != nil {
-		// Use base resource as fallback
-		gc.resource = baseResource
-		return fmt.Errorf("GCP resource detection failed, using default: %w", err)
+	var spanProcessors []sdktrace.SpanProcessor
+
+	// Add telemetry server processor for dev UI if configured
+	if telemetryProcessor := tracing.CreateTelemetryServerProcessor(); telemetryProcessor != nil {
+		spanProcessors = append(spanProcessors, telemetryProcessor)
 	}
 
-	// Merge base resource with detected GCP resource
-	gc.resource, err = resource.Merge(baseResource, detectedResource)
-	if err != nil {
-		gc.resource = baseResource
-		return fmt.Errorf("failed to merge resources, using default: %w", err)
-	}
+	// If we should export and traces are not disabled, add Google Cloud exporter
+	shouldExport := opts.ForceDevExport || os.Getenv("GENKIT_ENV") != "dev"
+	if shouldExport && !opts.DisableTraces {
+		var traceOpts []texporter.Option
+		traceOpts = append(traceOpts, texporter.WithProjectID(projectID))
 
-	// Log detected resource information for debugging
-	attrs := gc.resource.Attributes()
-	slog.Info("Detected GCP resource", "attributes", attrs)
-
-	return nil
-}
-
-// Init initializes comprehensive telemetry using Google Cloud services.
-// Uses environment-aware defaults (dev vs prod) for optimal configuration.
-// In the dev environment, this does nothing unless [ForceExport] is true.
-func (gc *GoogleCloud) Init(ctx context.Context, g *genkit.Genkit) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("googlecloud.Init: %w", err)
+		if opts.Credentials != nil {
+			traceOpts = append(traceOpts, texporter.WithTraceClientOptions([]option.ClientOption{option.WithCredentials(opts.Credentials)}))
 		}
-	}()
 
-	if gc.Config.ProjectID == "" {
-		return fmt.Errorf("config missing ProjectID")
+		baseExporter, err := texporter.New(traceOpts...)
+		if err != nil {
+			slog.Error("Failed to create Google Cloud trace exporter", "error", err)
+			return
+		}
+
+		// Set up telemetry modules for processing
+		modules := []Telemetry{
+			NewGenerateTelemetry(),
+			NewFeatureTelemetry(),
+			NewActionTelemetry(),
+			NewEngagementTelemetry(),
+			NewPathTelemetry(),
+		}
+
+		// Create adjusting trace exporter that handles both PII filtering and telemetry processing
+		adjustingExporter := &AdjustingTraceExporter{
+			exporter:          baseExporter,
+			modules:           modules,
+			logInputAndOutput: !opts.DisableLoggingInputAndOutput, // Default true, disable if flag set
+			projectId:         projectID,
+		}
+
+		spanProcessors = append(spanProcessors, sdktrace.NewBatchSpanProcessor(adjustingExporter))
+
+		// Set up metrics and logging
+		if !opts.DisableMetrics {
+			if err := setMeterProvider(projectID, metricInterval, opts.Credentials); err != nil {
+				slog.Error("Failed to set up Google Cloud metrics", "error", err)
+			}
+		}
+		if err := setLogHandler(projectID, logLevel, opts.Credentials); err != nil {
+			slog.Error("Failed to set up Google Cloud logging", "error", err)
+		}
+
+		slog.Info("Google Cloud telemetry fully initialized", "project_id", projectID, "modules", len(modules))
+	} else {
+		slog.Info("Google Cloud telemetry resource configured, export disabled in dev environment", "project_id", projectID)
 	}
 
-	shouldExport := gc.Config.Config.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
-	if !shouldExport {
-		return nil
+	var tpOptions []sdktrace.TracerProviderOption
+	tpOptions = append(tpOptions, sdktrace.WithResource(basicResource))
+
+	if opts.Sampler != nil {
+		tpOptions = append(tpOptions, sdktrace.WithSampler(opts.Sampler))
 	}
 
-	// Auto-detect GCP resource information
-	if err := gc.detectResource(ctx); err != nil {
-		slog.Warn("Failed to detect GCP resource, using default", "error", err)
+	for _, processor := range spanProcessors {
+		tpOptions = append(tpOptions, sdktrace.WithSpanProcessor(processor))
 	}
 
-	// Set up telemetry modules based on configuration
-	gc.setupModules()
+	tp := sdktrace.NewTracerProvider(tpOptions...)
+	otel.SetTracerProvider(tp) // Set as global TracerProvider
 
-	// Create the final destination trace exporter
-	baseExporter, err := texporter.New(texporter.WithProjectID(gc.Config.ProjectID))
-	if err != nil {
-		return fmt.Errorf("failed to create trace exporter: %w", err)
-	}
-
-	// Create adjusting trace exporter that handles both PII filtering and telemetry processing
-	adjustingExporter := &AdjustingTraceExporter{
-		exporter:          baseExporter,
-		modules:           gc.modules,
-		logInputAndOutput: gc.Config.Config.ExportInputAndOutput,
-		projectId:         gc.Config.ProjectID,
-	}
-
-	// Create span processor with adjusting exporter
-	spanProcessor := sdktrace.NewBatchSpanProcessor(adjustingExporter)
-
-	// Register the adjusting span processor
-	genkit.RegisterSpanProcessor(g, spanProcessor)
-
-	slog.Info("GoogleCloud plugin initialized with telemetry modules",
-		"project_id", gc.Config.ProjectID,
-		"modules", len(gc.modules))
-
-	// Set up metrics and logging
-	if err := setMeterProvider(gc.Config.ProjectID, gc.Config.Config.MetricInterval); err != nil {
-		return err
-	}
-	return setLogHandler(gc.Config.ProjectID, gc.Config.Config.LogLevel)
+	slog.Info("Created TracerProvider immediately with all processors", "processors", len(spanProcessors))
 }
 
-func setMeterProvider(projectID string, interval time.Duration) error {
-	mexp, err := mexporter.New(mexporter.WithProjectID(projectID))
+func setMeterProvider(projectID string, interval time.Duration, credentials *google.Credentials) error {
+	var metricOpts []mexporter.Option
+	metricOpts = append(metricOpts, mexporter.WithProjectID(projectID))
+
+	if credentials != nil {
+		clientOpts := []option.ClientOption{option.WithCredentials(credentials)}
+		for _, opt := range clientOpts {
+			metricOpts = append(metricOpts, mexporter.WithMonitoringClientOptions(opt))
+		}
+	}
+
+	mexp, err := mexporter.New(metricOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to create metrics exporter: %w", err)
 	}
@@ -225,8 +193,13 @@ func setMeterProvider(projectID string, interval time.Duration) error {
 	return nil
 }
 
-func setLogHandler(projectID string, level slog.Leveler) error {
-	c, err := logging.NewClient(context.Background(), "projects/"+projectID)
+func setLogHandler(projectID string, level slog.Leveler, credentials *google.Credentials) error {
+	var clientOpts []option.ClientOption
+	if credentials != nil {
+		clientOpts = append(clientOpts, option.WithCredentials(credentials))
+	}
+
+	c, err := logging.NewClient(context.Background(), "projects/"+projectID, clientOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to create logging client: %w", err)
 	}

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -69,8 +70,7 @@ func isErrorAlreadyMarked(err error) bool {
 
 // State holds OpenTelemetry values for creating traces.
 type State struct {
-	tp     *sdktrace.TracerProvider // references Stores
-	tracer trace.Tracer             // returned from tp.Tracer(), cached
+	tracer trace.Tracer // cached tracer for creating spans
 }
 
 func NewState() *State {
@@ -82,7 +82,6 @@ func NewState() *State {
 		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
 			slog.Info("tracing.NewState: Reusing existing SDK TracerProvider - respecting developer's telemetry setup")
 			return &State{
-				tp:     sdkTP,
 				tracer: sdkTP.Tracer("genkit-tracer"),
 			}
 		}
@@ -93,45 +92,77 @@ func NewState() *State {
 		slog.Debug("tracing.NewState: No existing global TracerProvider found")
 	}
 
-	// Fallback: Create our own SDK TracerProvider and set it as global
-	slog.Info("tracing.NewState: Creating new SDK TracerProvider and setting as global for external library compatibility")
+	// No telemetry plugin configured - create an SDK TracerProvider to support
+	// potential telemetry registration later (e.g., in tests or dev scenarios)
+	slog.Info("tracing.NewState: No telemetry configured, creating SDK TracerProvider for potential telemetry")
+
+	// Create an SDK TracerProvider so that WriteTelemetryImmediate/WriteTelemetryBatch can work
 	tp := sdktrace.NewTracerProvider()
-	otel.SetTracerProvider(tp) // Set as global so external libraries can use it
+	otel.SetTracerProvider(tp)
 
 	return &State{
-		tp:     tp,
 		tracer: tp.Tracer("genkit-tracer"),
 	}
 }
 
-func (ts *State) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	ts.tp.RegisterSpanProcessor(sp)
+// CreateTelemetryServerProcessor creates a span processor for the telemetry server
+// This enables integration with Genkit's development UI for trace visualization
+// Returns nil if no telemetry server is configured
+func CreateTelemetryServerProcessor() sdktrace.SpanProcessor {
+	// Check if telemetry server URL is configured
+	if serverURL := os.Getenv("GENKIT_TELEMETRY_SERVER"); serverURL != "" {
+		// Create telemetry server exporter for dev UI integration
+		exporter := NewHTTPTelemetryClient(serverURL)
+
+		// Use simple processor for dev (immediate export) or batch for prod
+		if os.Getenv("GENKIT_ENV") == "dev" {
+			return sdktrace.NewSimpleSpanProcessor(newTelemetryServerExporter(exporter))
+		} else {
+			return sdktrace.NewBatchSpanProcessor(newTelemetryServerExporter(exporter))
+		}
+	}
+
+	// Return nil if no telemetry server is configured
+	return nil
 }
 
-// WriteTelemetryImmediate adds a telemetry server to the tracingState.
-// Traces are saved immediately as they are finshed.
+// WriteTelemetryImmediate adds a telemetry server to the global TracerProvider.
+// Traces are saved immediately as they are finished.
 // Use this for a gtrace.Store with a fast Save method,
 // such as one that writes to a file.
 func (ts *State) WriteTelemetryImmediate(client TelemetryClient) {
-	e := newTraceServerExporter(client)
-	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
-	ts.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
-	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
-	// Confirmed for OTel packages as of v1.24.0.
-	// Also requires traceStoreExporter.Shutdown to be a no-op.
+	e := newTelemetryServerExporter(client)
+	// Register with global TracerProvider if it's an SDK TracerProvider
+	if globalTP := otel.GetTracerProvider(); globalTP != nil {
+		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
+			sdkTP.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+			slog.Debug("Registered immediate telemetry processor with global TracerProvider")
+		} else {
+			slog.Warn("Cannot register telemetry processor: global TracerProvider is not SDK")
+		}
+	}
 }
 
-// WriteTelemetryBatch adds a telemetry server to the tracingState.
+// WriteTelemetryBatch adds a telemetry server to the global TracerProvider.
 // Traces are batched before being sent for processing.
 // Use this for a gtrace.Store with a potentially expensive Save method,
 // such as one that makes an RPC.
+//
 // Callers must invoke the returned function at the end of the program to flush the final batch
 // and perform other cleanup.
 func (ts *State) WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
-	e := newTraceServerExporter(client)
-	// Adding a BatchSpanProcessor is like using the WithBatcher option.
-	ts.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
-	return ts.tp.Shutdown
+	e := newTelemetryServerExporter(client)
+	// Register with global TracerProvider if it's an SDK TracerProvider
+	if globalTP := otel.GetTracerProvider(); globalTP != nil {
+		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
+			sdkTP.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
+			slog.Debug("Registered batch telemetry processor with global TracerProvider")
+			return sdkTP.Shutdown
+		} else {
+			slog.Warn("Cannot register telemetry processor: global TracerProvider is not SDK")
+		}
+	}
+	return func(context.Context) error { return nil } // No-op shutdown
 }
 
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.

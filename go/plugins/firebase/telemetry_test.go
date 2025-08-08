@@ -21,20 +21,14 @@ import (
 
 func TestEnableFirebaseTelemetry(t *testing.T) {
 	// Test zero config doesn't crash
-	plugin := FirebaseTelemetry()
-	if plugin == nil || plugin.Name() != "googlecloud" {
-		t.Error("Expected valid googlecloud plugin")
-	}
+	EnableFirebaseTelemetry()
 
 	// Test with options doesn't crash
 	options := &FirebaseTelemetryOptions{
-		ProjectID:   "test-project",
-		ForceExport: true,
+		ProjectID:      "test-project",
+		ForceDevExport: true,
 	}
-	plugin = FirebaseTelemetry(options)
-	if plugin == nil || plugin.Name() != "googlecloud" {
-		t.Error("Expected valid googlecloud plugin with options")
-	}
+	EnableFirebaseTelemetry(options)
 }
 
 func TestProjectIDResolution(t *testing.T) {

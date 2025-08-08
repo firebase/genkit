@@ -30,7 +30,9 @@ import (
 	// Import the OpenTelemetry libraries.
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	// [END import]
 )
 
@@ -65,8 +67,16 @@ func Init(cfg Config) error {
 	// [END shouldexport]
 
 	// [START registerspanexporter]
+	// Create TracerProvider with custom span processor
 	spanProcessor := trace.NewBatchSpanProcessor(YourCustomSpanExporter{})
-	genkit.RegisterSpanProcessor(g, spanProcessor)
+	tp := trace.NewTracerProvider(
+		trace.WithSpanProcessor(spanProcessor),
+		trace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("your-service"),
+		)),
+	)
+	otel.SetTracerProvider(tp)
 	// [END registerspanexporter]
 
 	// [START registermetricexporter]

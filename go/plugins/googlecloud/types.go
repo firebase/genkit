@@ -17,9 +17,6 @@
 package googlecloud
 
 import (
-	"log/slog"
-	"time"
-
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/oauth2/google"
 )
@@ -38,34 +35,8 @@ type SharedDimensions struct {
 	SourceVersion string
 }
 
-// PluginConfig represents the main plugin configuration with essential fields and nested config
-type PluginConfig struct {
-	ProjectID   string
-	Credentials *google.Credentials
-	Config      *TelemetryConfig
-}
-
-// TelemetryConfig represents all configurable telemetry settings with concrete values
-type TelemetryConfig struct {
-	// Core settings
-	ForceExport bool
-
-	// Logging settings
-	ExportInputAndOutput bool
-	LogLevel             slog.Level
-
-	// Performance settings - Environment-aware defaults
-	MetricInterval      time.Duration
-	MetricTimeoutMillis int
-	BufferSize          int
-
-	// Export settings - Environment-aware defaults
-	Export bool
-}
-
-// GoogleCloudTelemetryOptions provides simple struct-based configuration for Google Cloud telemetry.
-// This mirrors the Firebase plugin's approach for consistency while offering the same comprehensive
-// observability. For advanced use cases requiring fine-grained module control, use functional options.
+// GoogleCloudTelemetryOptions provides comprehensive configuration for Google Cloud telemetry.
+// Matches the JavaScript Google Cloud plugin options for full compatibility.
 //
 // Environment Variables:
 // - GENKIT_ENV: Set to "dev" to disable export unless ForceExport is true
@@ -75,11 +46,37 @@ type GoogleCloudTelemetryOptions struct {
 	// If empty, will be auto-detected from environment.
 	ProjectID string
 
-	// ForceExport forces telemetry export even in development environment.
-	// Defaults to false (only exports in production unless forced).
-	ForceExport bool
+	// Credentials for authenticating with Google Cloud.
+	// If nil, uses Application Default Credentials (ADC).
+	// Primarily intended for use in environments outside of GCP.
+	// On GCP, credentials will typically be inferred from the environment via ADC.
+	Credentials *google.Credentials
 
-	// ExportInputAndOutput includes AI model input/output in telemetry traces.
-	// Defaults to false for privacy (only metadata is exported).
-	ExportInputAndOutput bool
+	// Sampler controls trace sampling. If nil, uses AlwaysOnSampler.
+	// Examples: AlwaysOnSampler, AlwaysOffSampler, TraceIdRatioBasedSampler
+	Sampler sdktrace.Sampler
+
+	// MetricExportIntervalMillis controls metrics export frequency.
+	// Google Cloud requires minimum 5000ms. Defaults to 5000 (dev) or 300000 (prod).
+	MetricExportIntervalMillis *int
+
+	// MetricExportTimeoutMillis controls metrics export timeout.
+	// Defaults to match MetricExportIntervalMillis.
+	MetricExportTimeoutMillis *int
+
+	// DisableMetrics disables metric export to Google Cloud.
+	// Traces and logs may still be exported. Defaults to false.
+	DisableMetrics bool
+
+	// DisableTraces disables trace export to Google Cloud.
+	// Metrics and logs may still be exported. Defaults to false.
+	DisableTraces bool
+
+	// DisableLoggingInputAndOutput disables input/output logging.
+	// Defaults to false (input/output logging enabled).
+	DisableLoggingInputAndOutput bool
+
+	// ForceDevExport forces telemetry export even in development environment.
+	// Defaults to false (only exports in production unless forced).
+	ForceDevExport bool
 }
