@@ -415,7 +415,6 @@ describe('Google AI Client', () => {
           },
         ],
         usageMetadata: { totalTokenCount: 10 },
-        promptFeedback: undefined,
       });
 
       const expectedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
