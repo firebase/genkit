@@ -84,15 +84,14 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		var z Out
 		return z, fmt.Errorf("flow.Run(%q): must be called from a flow", name)
 	}
-	return tracing.RunInNewSpan(ctx, fc.tracingState, name, "flowStep", false, nil, func(ctx context.Context, _ any) (Out, error) {
-		tracing.SetCustomMetadataAttr(ctx, "genkit:name", name)
-		tracing.SetCustomMetadataAttr(ctx, "genkit:type", "flowStep")
-		o, err := fn()
-		if err != nil {
-			return base.Zero[Out](), err
-		}
-		return o, nil
-	})
+	return tracing.RunInNewSpan(ctx, fc.tracingState, &tracing.SpanMetadata{
+		Name:   name,
+		Type:   "flowStep", // Flow steps get type "flowStep" to match TypeScript
+		IsRoot: false,
+	}, struct{}{},
+		func(ctx context.Context, _ struct{}) (Out, error) {
+			return fn()
+		})
 }
 
 // Name returns the name of the flow.

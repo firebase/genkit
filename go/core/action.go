@@ -212,7 +212,6 @@ func newAction[In, Out, Stream any](
 	return &ActionDef[In, Out, Stream]{
 		tstate: tstate,
 		fn: func(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error) {
-			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
 			return fn(ctx, input, cb)
 		},
 		desc: &ActionDesc{
@@ -248,7 +247,12 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 			"err", err)
 	}()
 
-	return tracing.RunInNewSpan(ctx, a.tstate, a.desc.Name, "action", false, input,
+	return tracing.RunInNewSpan(ctx, a.tstate, &tracing.SpanMetadata{
+		Name:    a.desc.Name,
+		Type:    "action",            // All actions get type "action" to match TypeScript
+		Subtype: string(a.desc.Type), // The actual action type becomes the subtype
+		IsRoot:  false,
+	}, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error
@@ -283,9 +287,7 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 	}
 	var in In
 	if input != nil {
-		if err := json.Unmarshal(input, &in); err != nil {
-			return nil, err
-		}
+		json.Unmarshal(input, &in)
 	}
 	var callback func(context.Context, Stream) error
 	if cb != nil {

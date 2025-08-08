@@ -25,13 +25,3 @@
 // This package is primarily intended for Genkit internals and for plugins.
 // Genkit applications should use the genkit package.
 package core
-
-import (
-	"github.com/firebase/genkit/go/internal/registry"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-)
-
-// RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
-func RegisterSpanProcessor(r *registry.Registry, sp sdktrace.SpanProcessor) {
-	r.RegisterSpanProcessor(sp)
-}

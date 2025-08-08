@@ -28,20 +28,20 @@ import (
 	otrace "go.opentelemetry.io/otel/trace"
 )
 
-// A traceServerExporter is an OpenTelemetry SpanExporter that
+// A telemetryServerExporter is an OpenTelemetry SpanExporter that
 // writes spans to the telemetry server.
-type traceServerExporter struct {
+type telemetryServerExporter struct {
 	client TelemetryClient
 }
 
-func newTraceServerExporter(client TelemetryClient) *traceServerExporter {
-	return &traceServerExporter{client}
+func newTelemetryServerExporter(client TelemetryClient) *telemetryServerExporter {
+	return &telemetryServerExporter{client}
 }
 
 // ExportSpans implements [go.opentelemetry.io/otel/sdk/trace.SpanExporter.ExportSpans].
 // It saves the spans to e's TraceStore.
 // Saving is not atomic: it is possible that some but not all spans will be saved.
-func (e *traceServerExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
+func (e *telemetryServerExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	if e.client == nil {
 		slog.Debug("telemetry server is not configured, trace not saved")
 		return nil
@@ -178,7 +178,7 @@ func convertStatus(s sdktrace.Status) Status {
 }
 
 // ExportSpans implements [go.opentelemetry.io/otel/sdk/trace.SpanExporter.Shutdown].
-func (e *traceServerExporter) Shutdown(ctx context.Context) error {
+func (e *telemetryServerExporter) Shutdown(ctx context.Context) error {
 	// NOTE: In the current implementation, this function is never called on the store in the
 	// dev environment. To get that to happen, the Shutdown method on the TracerProvider must
 	// be called. See tracing.go.
