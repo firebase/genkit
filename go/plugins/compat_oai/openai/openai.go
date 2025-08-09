@@ -44,6 +44,21 @@ type EmbedderRef struct {
 var (
 	// Supported models: https://platform.openai.com/docs/models
 	supportedModels = map[string]ai.ModelInfo{
+		"gpt-5": {
+			Label:    "OpenAI GPT-5",
+			Supports: &compat_oai.Multimodal,
+			Versions: []string{"gpt-5", "gpt-5-2025-08-07", "gpt-5-chat-latest"},
+		},
+		"gpt-5-mini": {
+			Label:    "OpenAI GPT-5-mini",
+			Supports: &compat_oai.Multimodal,
+			Versions: []string{"gpt-5-mini", "gpt-5-mini-2025-08-07"},
+		},
+		"gpt-5-nano": {
+			Label:    "OpenAI GPT-5-nano",
+			Supports: &compat_oai.Multimodal,
+			Versions: []string{"gpt-5-nano", "gpt-5-nano-2025-08-07"},
+		},
 		"gpt-4.1": {
 			Label:    "OpenAI GPT-4.1",
 			Supports: &compat_oai.Multimodal,
