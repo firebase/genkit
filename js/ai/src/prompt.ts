@@ -333,8 +333,7 @@ function definePromptAsync<
           },
         });
 
-        // Fix for issue #3348: Preserve AbortSignal objects intact
-
+        // Fix for issue #3348: Preserve AbortSignal object
         // AbortSignal needs its prototype chain and shouldn't be processed by stripUndefinedProps
         if (renderOptions?.abortSignal) {
           opts.abortSignal = renderOptions.abortSignal;
