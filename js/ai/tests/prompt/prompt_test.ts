@@ -46,7 +46,7 @@ describe('prompt', () => {
       },
       async () => 'a'
     );
-    
+
     // Define a special model to test AbortSignal preservation
     defineModel(
       registry,
@@ -858,8 +858,15 @@ describe('prompt', () => {
 
     // Verify the AbortSignal is preserved in the rendered options
     assert.ok(rendered.abortSignal, 'AbortSignal should be preserved');
-    assert.strictEqual(rendered.abortSignal, timeoutSignal, 'Should be the exact same AbortSignal instance');
-    assert.ok(rendered.abortSignal instanceof AbortSignal, 'Should be an AbortSignal instance');
+    assert.strictEqual(
+      rendered.abortSignal,
+      timeoutSignal,
+      'Should be the exact same AbortSignal instance'
+    );
+    assert.ok(
+      rendered.abortSignal instanceof AbortSignal,
+      'Should be an AbortSignal instance'
+    );
 
     // Test manual AbortController
     const controller = new AbortController();
@@ -868,8 +875,15 @@ describe('prompt', () => {
     });
 
     assert.ok(rendered2.abortSignal, 'Manual AbortSignal should be preserved');
-    assert.strictEqual(rendered2.abortSignal, controller.signal, 'Should be the exact same manual AbortSignal instance');
-    assert.ok(rendered2.abortSignal instanceof AbortSignal, 'Manual AbortSignal should be an AbortSignal instance');
+    assert.strictEqual(
+      rendered2.abortSignal,
+      controller.signal,
+      'Should be the exact same manual AbortSignal instance'
+    );
+    assert.ok(
+      rendered2.abortSignal instanceof AbortSignal,
+      'Manual AbortSignal should be an AbortSignal instance'
+    );
   });
 });
 

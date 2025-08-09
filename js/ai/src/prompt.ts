@@ -314,7 +314,6 @@ function definePromptAsync<
           docs = resolvedOptions.docs;
         }
 
-
         const opts: GenerateOptions = stripUndefinedProps({
           model: resolvedOptions.model,
           maxTurns: resolvedOptions.maxTurns,
