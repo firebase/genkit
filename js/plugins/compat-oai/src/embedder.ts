@@ -40,7 +40,7 @@ export function defineCompatOpenAIEmbedder(params: {
   embedderRef?: EmbedderReference;
 }): EmbedderAction {
   const { ai, name, client, embedderRef } = params;
-  const model = name.split('/').pop();
+  const model = name.split('/').slice(1).join('/');
   return ai.defineEmbedder(
     {
       name,

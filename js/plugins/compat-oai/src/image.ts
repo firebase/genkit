@@ -127,7 +127,7 @@ export function defineCompatOpenAIImageModel<
   requestBuilder?: ImageRequestBuilder;
 }): ModelAction<CustomOptions> {
   const { ai, name, client, modelRef, requestBuilder } = params;
-  const model = name.split('/').pop();
+  const model = name.split('/').slice(1).join('/');
 
   return ai.defineModel(
     {

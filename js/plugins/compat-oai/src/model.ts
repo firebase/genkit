@@ -492,7 +492,7 @@ export function defineCompatOpenAIModel<
   requestBuilder?: ModelRequestBuilder;
 }): ModelAction {
   const { ai, name, client, modelRef, requestBuilder } = params;
-  const modelName = name.split('/').pop();
+  const modelName = name.split('/').slice(1).join('/');
 
   return ai.defineModel(
     {

@@ -189,7 +189,7 @@ export function defineCompatOpenAISpeechModel<
 }): ModelAction {
   const { ai, name, client, modelRef, requestBuilder } = params;
 
-  const model = name.split('/').pop();
+  const model = name.split('/').slice(1).join('/');
   return ai.defineModel(
     {
       name,
@@ -351,7 +351,7 @@ export function defineCompatOpenAITranscriptionModel<
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const modelName = name.split('/').pop();
+      const modelName = name.split('/').slice(1).join('/');
       const params = toSttRequest(modelName!, request, requestBuilder);
       // Explicitly setting stream to false ensures we use the non-streaming overload
       const result = await client.audio.transcriptions.create(
