@@ -58,11 +58,8 @@ const commands: Command[] = [
   config,
   start,
   mcp,
+  update,
 ];
-
-if (isRunningFromBinary()) {
-  commands.push(update);
-}
 
 /** Main entry point for CLI. */
 export async function startCLI(): Promise<void> {

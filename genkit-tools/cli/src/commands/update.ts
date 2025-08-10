@@ -20,6 +20,9 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { isRunningFromBinary } from '../utils/utils';
+import { execSync } from 'child_process';
+const packageJson = require('../../package.json');
 
 interface UpdateOptions {
   force?: boolean;
@@ -163,6 +166,27 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
   const execPath = process.execPath;
   const backupPath = `${execPath}.backup`;
 
+  // If not running from a binary, we should install using npm
+  if (!isRunningFromBinary()) {
+    let command = '';
+
+    // Check if current genkit installation is local
+    const localGenkit = execSync('npm list ' + packageJson.name).toString();
+    if (localGenkit) {
+      command = `npm install -g genkit@${version}`;
+    }
+
+    const globalGenkit = execSync('npm list -g ' + packageJson.name).toString();
+    if (globalGenkit) {
+      command = `npm install -g genkit@${version}`;
+    }
+
+    logger.info('Running using npm, downloading using npm...');
+    execSync(command);
+    logger.info(`Successfully updated to ${clc.bold(version)}`);
+    return;
+  }
+
   // Create backup of current binary
   logger.info('Creating backup of current binary...');
   fs.copyFileSync(execPath, backupPath);
@@ -226,7 +250,7 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
 }
 
 export const update = new Command('update')
-  .description('update the genkit CLI to the latest version (binary installations only)')
+  .description('update the genkit CLI to the latest version')
   .option('-f, --force', 'force update even if already on latest version')
   .option('-l, --list', 'list available versions')
   .option('-c, --check', 'check for updates without installing')
