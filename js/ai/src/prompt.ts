@@ -331,6 +331,12 @@ function definePromptAsync<
             ...renderOptions?.config,
           },
         });
+
+        // Fix for issue #3348: Preserve AbortSignal object
+        // AbortSignal needs its prototype chain and shouldn't be processed by stripUndefinedProps
+        if (renderOptions?.abortSignal) {
+          opts.abortSignal = renderOptions.abortSignal;
+        }
         // if config is empty and it was not explicitly passed in, we delete it, don't want {}
         if (Object.keys(opts.config).length === 0 && !renderOptions?.config) {
           delete opts.config;
