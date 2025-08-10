@@ -60,13 +60,13 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
 /**
  * Gets available CLI versions from GitHub tags
  */
-async function getAvailableVersions(): Promise<string[]> {
+async function getAvailableVersions(skipRC: boolean = true): Promise<string[]> {
   try {
     const response = await axios.get(
       'https://api.github.com/repos/firebase/genkit/tags?per_page=100'
     );
     const tags: any[] = response.data;
-    // Filter tags that contain CLI versions (tools-common-v, telemetry-server-v, or genkit-cli)
+    // Filter tags that contain CLI versions (tools-common-v)
     // These tags typically indicate CLI releases
     const cliVersionTags = tags.filter(tag => {
       const tagName = tag.name;
@@ -80,17 +80,13 @@ async function getAvailableVersions(): Promise<string[]> {
       const tagName = tag.name;
       // Extract version from different tag patterns
       if (tagName.includes('tools-common-v')) {
+        if (skipRC && /-rc\.\d+$/.test(tagName)) {
+          // Skip release candidates if skipRC is true
+          continue;
+        }
+
         const version = tagName.replace('tools-common-v', '');
         versions.add(version);
-      } else if (tagName.includes('telemetry-server-v')) {
-        const version = tagName.replace('telemetry-server-v', '');
-        versions.add(version);
-      } else if (tagName.includes('genkit-cli')) {
-        // Handle genkit-cli specific tags if they exist
-        const versionMatch = tagName.match(/(\d+\.\d+\.\d+)/);
-        if (versionMatch) {
-          versions.add(versionMatch[1]);
-        }
       }
     }
     // Convert to array and sort by semantic version (newest first)
