@@ -28,6 +28,7 @@ interface UpdateOptions {
   force?: boolean;
   check?: boolean;
   list?: boolean;
+  version?: string;
 }
 
 /**
@@ -37,6 +38,13 @@ export interface UpdateCheckResult {
   hasUpdate: boolean;
   currentVersion: string;
   latestVersion: string;
+}
+
+/**
+ * Validates a version string
+ */
+function validateVersion(version: string): boolean {
+  return /^v?\d+\.\d+\.\d+$/.test(version);
 }
 
 /**
@@ -254,6 +262,13 @@ export const update = new Command('update')
   .option('-f, --force', 'force update even if already on latest version')
   .option('-l, --list', 'list available versions')
   .option('-c, --check', 'check for updates without installing')
+  .option('-v, --version <version>', 'install a specific version', (value) => {
+    if (!validateVersion(value)) {
+      logger.error(`Invalid version format: ${value}`);
+      process.exit(1);
+    }
+    return value;
+  })
   .action(async (options: UpdateOptions) => {
     // Handle --list flag
     if (options.list) {
@@ -302,19 +317,20 @@ export const update = new Command('update')
 
     try {
       logger.info('Checking for updates...');
-      const latestVersion = await getLatestVersion();
+
+      let version = options.version || await getLatestVersion();
       const currentVersion = require('../../package.json').version;
 
       if (options.force) {
-        logger.info(`${clc.yellow('!')} Force updating to ${clc.bold(latestVersion)}...`);
-      } else if (latestVersion !== `v${currentVersion}`) {
-        logger.info(`Update available: ${clc.bold(currentVersion)} → ${clc.bold(latestVersion)}`);
+        logger.info(`${clc.yellow('!')} Force updating to ${clc.bold(version)}...`);
+      } else if (version !== `v${currentVersion}`) {
+        logger.info(`Update available: ${clc.bold(currentVersion)} → ${clc.bold(version)}`);
       } else {
         logger.info(`${clc.green('✓')} Already on the latest version: ${clc.bold(currentVersion)}`);
         return;
       }
 
-      await downloadAndInstall(latestVersion, options.force || false);
+      await downloadAndInstall(version, options.force || false);
     } catch (error: any) {
       logger.error(`${clc.red('Update failed:')} ${error.message}`);
       process.exit(1);
