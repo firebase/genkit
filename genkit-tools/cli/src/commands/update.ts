@@ -224,7 +224,7 @@ async function downloadAndInstall(
   if (!runtime.isCompiledBinary) {
     let command = '';
 
-    if (runningFromNpmLocally()) {
+    if (await runningFromNpmLocally()) {
       command = `npm install ${name}@${version}`;
     } else {
       command = `npm install -g ${name}@${version}`;
