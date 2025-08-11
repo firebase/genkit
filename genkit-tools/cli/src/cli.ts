@@ -37,9 +37,8 @@ import {
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
-import { update } from './commands/update';
+import { showUpdateNotification, update } from './commands/update';
 import { version } from './utils/version';
-import { isRunningFromBinary } from './utils/utils';
 
 /**
  * All commands need to be directly registered in this list.
@@ -87,6 +86,14 @@ export async function startCLI(): Promise<void> {
       }
       await record(new RunCommandEvent(commandName));
     });
+
+  // Check for updates and show notification if available
+  // Run this synchronously to ensure it shows before command execution
+  try {
+    await showUpdateNotification();
+  } catch {
+    // Silently ignore errors - update notifications shouldn't break the CLI
+  }
 
   // When running as a spawned UI server process, argv[1] will be '__server-harness'
   // instead of a normal command. This allows the same binary to serve both CLI and server roles.

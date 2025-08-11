@@ -19,7 +19,7 @@
     "build:watch": "tsc --watch",
     "compile:bun": "bun build src/bin/genkit.ts --compile --outfile dist/bin/genkit --minify",
     "test": "jest --verbose",
-    "genversion": "genversion -esf src/utils/version.ts"
+    "genversion": "genversion -esf --property name,version src/utils/version.ts"
   },
   "repository": {
     "type": "git",

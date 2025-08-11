@@ -20,15 +20,17 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { isRunningFromBinary } from '../utils/utils';
 import { execSync } from 'child_process';
-const packageJson = require('../../package.json');
+import { readConfig, writeConfig } from '../utils/config';
+import { isRunningFromBinary, runningFromNpmLocally } from '../utils/utils';
+import { name, version } from '../utils/version';
 
 interface UpdateOptions {
   force?: boolean;
   check?: boolean;
   list?: boolean;
   version?: string;
+  quiet?: boolean;
 }
 
 /**
@@ -178,20 +180,15 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
   if (!isRunningFromBinary()) {
     let command = '';
 
-    // Check if current genkit installation is local
-    const localGenkit = execSync('npm list ' + packageJson.name).toString();
-    if (localGenkit) {
-      command = `npm install -g genkit@${version}`;
-    }
-
-    const globalGenkit = execSync('npm list -g ' + packageJson.name).toString();
-    if (globalGenkit) {
-      command = `npm install -g genkit@${version}`;
+    if (runningFromNpmLocally()) {
+      command = `npm install ${name}@${version}`;
+    } else {
+      command = `npm install -g ${name}@${version}`;
     }
 
     logger.info('Running using npm, downloading using npm...');
     execSync(command);
-    logger.info(`Successfully updated to ${clc.bold(version)}`);
+    logger.info(`${clc.green('✓')} Successfully updated to ${clc.bold(version)}`);
     return;
   }
 
@@ -257,6 +254,43 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
   }
 }
 
+/**
+ * Shows an update notification if a new version is available.
+ * This function is designed to be called from the CLI entry point.
+ * It can be disabled by the user's configuration or environment variable.
+ */
+export async function showUpdateNotification(): Promise<void> {
+  try {
+    // Check if notifications are disabled via environment variable or config
+    if (process.env.GENKIT_QUIET === 'true') {
+      return;
+    }
+
+    const config = readConfig();
+    if (config.notificationsDisabled) {
+      return;
+    }
+
+    // Check for updates
+    const result = await checkForUpdates();
+
+    if (result.hasUpdate) {
+      const isBinary = isRunningFromBinary();
+
+      // Merge all notification lines into a single message for concise output
+      console.log(
+        `\n${clc.yellow('📦 Update available:')} ${clc.bold(result.currentVersion)} → ${clc.bold(clc.green(result.latestVersion))}\n` +
+        `${clc.dim('Run')} ${clc.bold('genkit update')} ${clc.dim('to upgrade')}\n` +
+        `${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('to disable these notifications')}\n`
+      );
+    }
+
+  } catch {
+    // Silently fail - update notifications shouldn't break the CLI
+    // We don't want to show errors for network issues, etc.
+  }
+}
+
 export const update = new Command('update')
   .description('update the genkit CLI to the latest version')
   .option('-f, --force', 'force update even if already on latest version')
@@ -269,13 +303,33 @@ export const update = new Command('update')
     }
     return value;
   })
+  .option('--quiet', 'toggle update notifications on/off')
   .action(async (options: UpdateOptions) => {
+    // Handle --quiet flag
+    if (options.quiet) {
+      const config = readConfig();
+      const wasDisabled = config.notificationsDisabled;
+
+      // Toggle the notification setting
+      config.notificationsDisabled = !wasDisabled;
+      writeConfig(config);
+
+      if (config.notificationsDisabled) {
+        logger.info(`${clc.green('✓')} Update notifications have been ${clc.bold('disabled')}`);
+        logger.info(`${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('again to re-enable them')}`);
+      } else {
+        logger.info(`${clc.green('✓')} Update notifications have been ${clc.bold('enabled')}`);
+        logger.info(`${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('to disable them')}`);
+      }
+      return;
+    }
+
     // Handle --list flag
     if (options.list) {
       try {
         logger.info('Fetching available versions...');
         const versions = await getAvailableVersions();
-        const currentVersion = require('../../package.json').version;
+        const currentVersion = version;
         if (versions.length === 0) {
           logger.info('No versions found.');
           return;
