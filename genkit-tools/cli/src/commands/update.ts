@@ -24,7 +24,7 @@ import * as path from 'path';
 import { readConfig, writeConfig } from '../utils/config';
 import { detectCLIRuntime } from '../utils/runtime-detector';
 import { runningFromNpmLocally } from '../utils/utils';
-import { name, version } from '../utils/version';
+import { name, version as currentVersion } from '../utils/version';
 
 interface UpdateOptions {
   force?: boolean;
@@ -54,7 +54,6 @@ function validateVersion(version: string): boolean {
  * Checks if a new version is available (exported for use in other modules)
  */
 export async function checkForUpdates(): Promise<UpdateCheckResult> {
-  const currentVersion = version;
   const latestVersion = await getLatestVersion();
 
   // Remove 'v' prefix if present for comparison
@@ -392,7 +391,6 @@ export const update = new Command('update')
       try {
         logger.info('Fetching available versions...');
         const versions = await getAvailableVersions();
-        const currentVersion = version;
         if (versions.length === 0) {
           logger.info('No versions found.');
           return;
