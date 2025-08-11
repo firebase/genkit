@@ -48,6 +48,7 @@ import {
   VeoOperationRequest,
   VeoPredictRequest,
 } from '../../src/vertexai/types';
+import { NOT_SUPPORTED_IN_EXPRESS_ERROR } from '../../src/vertexai/utils';
 
 describe('Vertex AI Client', () => {
   let fetchSpy: sinon.SinonStub;
@@ -70,6 +71,10 @@ describe('Vertex AI Client', () => {
   const expressClientOptions: ClientOptions = {
     kind: 'express',
     apiKey: 'test-api-key',
+  };
+
+  const notSupportedInExpressErrorMessage = {
+    message: NOT_SUPPORTED_IN_EXPRESS_ERROR.message,
   };
 
   beforeEach(() => {
@@ -140,6 +145,33 @@ describe('Vertex AI Client', () => {
         );
       });
 
+      it('should build URL for generateContent with tuned model without project', () => {
+        const url = getVertexAIUrl({
+          includeProjectAndLocation: true,
+          resourcePath: 'endpoints/12345678',
+          resourceMethod: 'generateContent',
+          clientOptions: opts,
+        });
+        assert.strictEqual(
+          url,
+          'https://us-east1-aiplatform.googleapis.com/v1beta1/projects/test-proj/locations/us-east1/endpoints/12345678:generateContent'
+        );
+      });
+
+      it('should build URL for generateContent with tuned model with project', () => {
+        const url = getVertexAIUrl({
+          includeProjectAndLocation: false,
+          resourcePath:
+            'projects/project1/locations/location1/endpoints/12345678',
+          resourceMethod: 'generateContent',
+          clientOptions: opts,
+        });
+        assert.strictEqual(
+          url,
+          'https://us-east1-aiplatform.googleapis.com/v1beta1/projects/project1/locations/location1/endpoints/12345678:generateContent'
+        );
+      });
+
       it('should build URL for streamGenerateContent', () => {
         const url = getVertexAIUrl({
           includeProjectAndLocation: true,
@@ -150,6 +182,33 @@ describe('Vertex AI Client', () => {
         assert.strictEqual(
           url,
           'https://us-east1-aiplatform.googleapis.com/v1beta1/projects/test-proj/locations/us-east1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse'
+        );
+      });
+
+      it('should build URL for streamGenerateContent with tuned model without project', () => {
+        const url = getVertexAIUrl({
+          includeProjectAndLocation: true,
+          resourcePath: 'endpoints/12345678',
+          resourceMethod: 'streamGenerateContent',
+          clientOptions: opts,
+        });
+        assert.strictEqual(
+          url,
+          'https://us-east1-aiplatform.googleapis.com/v1beta1/projects/test-proj/locations/us-east1/endpoints/12345678:streamGenerateContent?alt=sse'
+        );
+      });
+
+      it('should build URL for streamGenerateContent with tuned model with project', () => {
+        const url = getVertexAIUrl({
+          includeProjectAndLocation: false,
+          resourcePath:
+            'projects/project1/locations/location1/endpoints/12345678',
+          resourceMethod: 'streamGenerateContent',
+          clientOptions: opts,
+        });
+        assert.strictEqual(
+          url,
+          'https://us-east1-aiplatform.googleapis.com/v1beta1/projects/project1/locations/location1/endpoints/12345678:streamGenerateContent?alt=sse'
         );
       });
 
@@ -253,7 +312,7 @@ describe('Vertex AI Client', () => {
             resourcePath: 'publishers/google/models',
             clientOptions: opts,
           });
-        }, /This method is not supported in Vertex AI Express Mode/);
+        }, notSupportedInExpressErrorMessage);
       });
 
       it('should not support predict', () => {
@@ -264,7 +323,7 @@ describe('Vertex AI Client', () => {
             resourceMethod: 'predict',
             clientOptions: opts,
           });
-        }, /This method is not supported in Vertex AI Express Mode/);
+        }, notSupportedInExpressErrorMessage);
       });
 
       it('should not support predictLongRunning', () => {
@@ -275,7 +334,7 @@ describe('Vertex AI Client', () => {
             resourceMethod: 'predictLongRunning',
             clientOptions: opts,
           });
-        }, /This method is not supported in Vertex AI Express Mode/);
+        }, notSupportedInExpressErrorMessage);
       });
 
       it('should build URL for generateContent', () => {
@@ -302,6 +361,17 @@ describe('Vertex AI Client', () => {
           url,
           'https://aiplatform.googleapis.com/v1beta1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse'
         );
+      });
+
+      it('should not support tuned models for generateContent', () => {
+        assert.throws(() => {
+          return getVertexAIUrl({
+            includeProjectAndLocation: true,
+            resourcePath: 'endpoints/12345678',
+            resourceMethod: 'generateContent',
+            clientOptions: opts,
+          });
+        }, notSupportedInExpressErrorMessage);
       });
 
       it('should handle queryParams', () => {
@@ -378,29 +448,40 @@ describe('Vertex AI Client', () => {
           return `https://${domain}/v1beta1/${path}`;
         };
 
-        const getResourceUrl = (
-          model: string,
-          method: string,
-          isLongRunning = false
-        ) => {
+        const getResourceUrl = (model: string, method: string) => {
           const isStreaming = method.includes('streamGenerateContent');
+          const isTuned = model.includes('endpoints/');
           let url;
 
           if (isExpress) {
-            url = `https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${model}:${method}`;
-            if (isStreaming) {
-              url += `?alt=sse`;
+            let resourcePath;
+            if (isTuned) {
+              resourcePath = model;
+            } else {
+              resourcePath = `publishers/google/models/${model}`;
             }
+            url = `https://aiplatform.googleapis.com/v1beta1/${resourcePath}:${method}`;
           } else {
             const domain =
               currentOptions.kind === 'regional'
                 ? `${location}-aiplatform.googleapis.com`
                 : 'aiplatform.googleapis.com';
-            const projectLocationPrefix = `projects/${projectId}/locations/${location}`;
-            url = `https://${domain}/v1beta1/${projectLocationPrefix}/publishers/google/models/${model}:${method}`;
-            if (isStreaming) {
-              url += `?alt=sse`;
+
+            let resourcePath;
+            if (isTuned) {
+              if (model.startsWith('projects/')) {
+                resourcePath = model;
+              } else {
+                resourcePath = `projects/${projectId}/locations/${location}/${model}`;
+              }
+            } else {
+              resourcePath = `projects/${projectId}/locations/${location}/publishers/google/models/${model}`;
             }
+            url = `https://${domain}/v1beta1/${resourcePath}:${method}`;
+          }
+
+          if (isStreaming) {
+            url += `?alt=sse`;
           }
           return url;
         };
@@ -432,7 +513,7 @@ describe('Vertex AI Client', () => {
             it('should throw with unsupported for Express', async () => {
               await assert.rejects(
                 listModels(currentOptions),
-                /This method is not supported in Vertex AI Express Mode/
+                notSupportedInExpressErrorMessage
               );
             });
           }
@@ -443,8 +524,9 @@ describe('Vertex AI Client', () => {
             contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
           };
           const model = 'gemini-2.0-pro';
+          const tunedModel = 'endpoints/123456789';
 
-          it('should return GenerateContentResponse', async () => {
+          it('should return GenerateContentResponse for published model', async () => {
             const mockResponse: GenerateContentResponse = { candidates: [] };
             mockFetchResponse(mockResponse);
 
@@ -461,6 +543,32 @@ describe('Vertex AI Client', () => {
               headers: getExpectedHeaders(),
               body: JSON.stringify(request),
             });
+          });
+
+          it('should return GenerateContentResponse for tuned model', async () => {
+            if (isExpress) {
+              await assert.rejects(
+                generateContent(tunedModel, request, currentOptions),
+                notSupportedInExpressErrorMessage
+              );
+            } else {
+              const mockResponse: GenerateContentResponse = { candidates: [] };
+              mockFetchResponse(mockResponse);
+
+              const result = await generateContent(
+                tunedModel,
+                request,
+                currentOptions
+              );
+              assert.deepStrictEqual(result, mockResponse);
+
+              const expectedUrl = getResourceUrl(tunedModel, 'generateContent');
+              sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
+                method: 'POST',
+                headers: getExpectedHeaders(),
+                body: JSON.stringify(request),
+              });
+            }
           });
 
           it('should throw on API error', async () => {
@@ -498,7 +606,7 @@ describe('Vertex AI Client', () => {
             it('should throw with unsupported for Express', async () => {
               await assert.rejects(
                 embedContent(model, request, currentOptions),
-                /This method is not supported in Vertex AI Express Mode/
+                notSupportedInExpressErrorMessage
               );
             });
           }
@@ -527,7 +635,7 @@ describe('Vertex AI Client', () => {
             it('should throw with unsupported for Express', async () => {
               await assert.rejects(
                 imagenPredict(model, request, currentOptions),
-                /This method is not supported in Vertex AI Express Mode/
+                notSupportedInExpressErrorMessage
               );
             });
           }
@@ -556,7 +664,7 @@ describe('Vertex AI Client', () => {
             it('should throw with unsupported for Express', async () => {
               await assert.rejects(
                 lyriaPredict(model, request, currentOptions),
-                /This method is not supported in Vertex AI Express Mode/
+                notSupportedInExpressErrorMessage
               );
             });
           }
@@ -574,11 +682,7 @@ describe('Vertex AI Client', () => {
               mockFetchResponse(mockResponse);
               await veoPredict(model, request, currentOptions);
 
-              const expectedUrl = getResourceUrl(
-                model,
-                'predictLongRunning',
-                true
-              );
+              const expectedUrl = getResourceUrl(model, 'predictLongRunning');
               sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
                 method: 'POST',
                 headers: getExpectedHeaders(),
@@ -589,7 +693,7 @@ describe('Vertex AI Client', () => {
             it('should throw with unsupported for Express', async () => {
               await assert.rejects(
                 veoPredict(model, request, currentOptions),
-                /This method is not supported in Vertex AI Express Mode/
+                notSupportedInExpressErrorMessage
               );
             });
           }
@@ -611,8 +715,7 @@ describe('Vertex AI Client', () => {
 
               const expectedUrl = getResourceUrl(
                 model,
-                'fetchPredictOperation',
-                true
+                'fetchPredictOperation'
               );
               sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
                 method: 'POST',
@@ -624,17 +727,21 @@ describe('Vertex AI Client', () => {
             it('should throw with unsupported for Express', async () => {
               await assert.rejects(
                 veoCheckOperation(model, request, currentOptions),
-                /This method is not supported in Vertex AI Express Mode/
+                notSupportedInExpressErrorMessage
               );
             });
           }
         });
 
         describe('generateContentStream', () => {
-          it('should process stream', async () => {
-            const request: GenerateContentRequest = {
-              contents: [{ role: 'user', parts: [{ text: 'stream' }] }],
-            };
+          const model = 'gemini-2.5-flash';
+          const tunedModel = 'endpoints/123456789';
+
+          const request: GenerateContentRequest = {
+            contents: [{ role: 'user', parts: [{ text: 'stream' }] }],
+          };
+
+          function mockStream() {
             const chunks = [
               'data: {"candidates": [{"index": 0, "content": {"role": "model", "parts": [{"text": "Hello "}]}}]}\n\n',
             ];
@@ -651,22 +758,42 @@ describe('Vertex AI Client', () => {
                 headers: { 'Content-Type': 'application/json' },
               })
             );
+          }
 
-            await generateContentStream(
-              'gemini-2.5-flash',
-              request,
-              currentOptions
-            );
+          it('should process stream for published model', async () => {
+            mockStream();
 
-            const expectedUrl = getResourceUrl(
-              'gemini-2.5-flash',
-              'streamGenerateContent'
-            );
+            await generateContentStream(model, request, currentOptions);
+
+            const expectedUrl = getResourceUrl(model, 'streamGenerateContent');
             sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
               method: 'POST',
               headers: getExpectedHeaders(),
               body: JSON.stringify(request),
             });
+          });
+
+          it('should process stream for tuned model', async () => {
+            if (isExpress) {
+              await assert.rejects(
+                generateContentStream(tunedModel, request, currentOptions),
+                notSupportedInExpressErrorMessage
+              );
+            } else {
+              mockStream();
+
+              await generateContentStream(tunedModel, request, currentOptions);
+
+              const expectedUrl = getResourceUrl(
+                tunedModel,
+                'streamGenerateContent'
+              );
+              sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
+                method: 'POST',
+                headers: getExpectedHeaders(),
+                body: JSON.stringify(request),
+              });
+            }
           });
         });
       });
