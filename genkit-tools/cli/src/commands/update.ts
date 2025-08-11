@@ -53,7 +53,7 @@ function validateVersion(version: string): boolean {
  * Checks if a new version is available (exported for use in other modules)
  */
 export async function checkForUpdates(): Promise<UpdateCheckResult> {
-  const currentVersion = require('../../package.json').version;
+  const currentVersion = version;
   const latestVersion = await getLatestVersion();
 
   // Remove 'v' prefix if present for comparison
@@ -71,48 +71,85 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
 }
 
 /**
- * Gets available CLI versions from GitHub tags
+ * Interface for the Google Cloud Storage latest.json response
+ */
+interface GCSLatestResponse {
+  channel: string;
+  latestVersion: string;
+  lastUpdated: string;
+  platforms: {
+    [key: string]: {
+      url: string;
+      version: string;
+      versionedUrl: string;
+    };
+  };
+}
+
+/**
+ * Interface for npm registry response
+ */
+interface NpmRegistryResponse {
+  'dist-tags': {
+    latest: string;
+    [key: string]: string;
+  };
+  versions: {
+    [version: string]: any;
+  };
+}
+
+/**
+ * Gets available CLI versions from npm registry for non-binary installations
+ */
+async function getAvailableVersionsFromNpm(): Promise<string[]> {
+  try {
+    const response = await axios.get(`https://registry.npmjs.org/${name}`);
+    const data: NpmRegistryResponse = response.data;
+
+    // Get all version numbers and sort them
+    const versions = Object.keys(data.versions);
+
+    // Filter out pre-release versions and sort by semantic version (newest first)
+    return versions
+      .filter(version => !/-/.test(version)) // Remove pre-release versions
+      .sort((a, b) => {
+        const parseVersion = (v: string) => v.split('.').map(Number);
+        const [aMajor, aMinor, aPatch] = parseVersion(a);
+        const [bMajor, bMinor, bPatch] = parseVersion(b);
+        if (bMajor !== aMajor) return bMajor - aMajor;
+        if (bMinor !== aMinor) return bMinor - aMinor;
+        return bPatch - aPatch;
+      });
+  } catch (error) {
+    throw new Error(`Failed to fetch npm versions: ${error}`);
+  }
+}
+
+/**
+ * Gets available CLI versions from Google Cloud Storage for binary installations
+ */
+async function getAvailableVersionsFromGCS(): Promise<string[]> {
+  try {
+    const response = await axios.get('https://storage.googleapis.com/genkit-assets-cli/latest.json');
+    const data: GCSLatestResponse = response.data;
+
+    // For now, we only return the latest version from GCS
+    // In the future, we could implement a way to get all available versions
+    return [data.latestVersion];
+  } catch (error) {
+    throw new Error(`Failed to fetch GCS versions: ${error}`);
+  }
+}
+
+/**
+ * Gets available CLI versions based on installation type
  */
 async function getAvailableVersions(skipRC: boolean = true): Promise<string[]> {
-  try {
-    const response = await axios.get(
-      'https://api.github.com/repos/firebase/genkit/tags?per_page=100'
-    );
-    const tags: any[] = response.data;
-    // Filter tags that contain CLI versions (tools-common-v)
-    // These tags typically indicate CLI releases
-    const cliVersionTags = tags.filter(tag => {
-      const tagName = tag.name;
-      return tagName.includes('tools-common-v') ||
-             tagName.includes('telemetry-server-v') ||
-             tagName.includes('genkit-cli');
-    });
-    // Extract version numbers and deduplicate
-    const versions = new Set<string>();
-    for (const tag of cliVersionTags) {
-      const tagName = tag.name;
-      // Extract version from different tag patterns
-      if (tagName.includes('tools-common-v')) {
-        if (skipRC && /-rc\.\d+$/.test(tagName)) {
-          // Skip release candidates if skipRC is true
-          continue;
-        }
-
-        const version = tagName.replace('tools-common-v', '');
-        versions.add(version);
-      }
-    }
-    // Convert to array and sort by semantic version (newest first)
-    return Array.from(versions).sort((a, b) => {
-      const parseVersion = (v: string) => v.split('.').map(Number);
-      const [aMajor, aMinor, aPatch] = parseVersion(a);
-      const [bMajor, bMinor, bPatch] = parseVersion(b);
-      if (bMajor !== aMajor) return bMajor - aMajor;
-      if (bMinor !== aMinor) return bMinor - aMinor;
-      return bPatch - aPatch;
-    });
-  } catch (error) {
-    throw new Error(`Failed to fetch available versions: ${error}`);
+  if (isRunningFromBinary()) {
+    return await getAvailableVersionsFromGCS();
+  } else {
+    return await getAvailableVersionsFromNpm();
   }
 }
 /**
@@ -153,7 +190,7 @@ function getPlatformInfo(): { platform: string; arch: string } {
 }
 
 /**
- * Gets the latest version from GitHub releases
+ * Gets the latest version based on installation type
  */
 async function getLatestVersion(): Promise<string> {
   try {
@@ -373,7 +410,7 @@ export const update = new Command('update')
       logger.info('Checking for updates...');
 
       let version = options.version || await getLatestVersion();
-      const currentVersion = require('../../package.json').version;
+      const currentVersion = version;
 
       if (options.force) {
         logger.info(`${clc.yellow('!')} Force updating to ${clc.bold(version)}...`);
