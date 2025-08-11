@@ -55,18 +55,12 @@ function validateVersion(version: string): boolean {
  */
 export async function checkForUpdates(): Promise<UpdateCheckResult> {
   const latestVersion = await getLatestVersion();
-
-  // Remove 'v' prefix if present for comparison
-  const cleanLatestVersion = latestVersion.startsWith('v')
-    ? latestVersion.substring(1)
-    : latestVersion;
-
-  const hasUpdate = cleanLatestVersion !== currentVersion;
+  const hasUpdate = latestVersion !== currentVersion;
 
   return {
     hasUpdate,
     currentVersion,
-    latestVersion: cleanLatestVersion,
+    latestVersion,
   };
 }
 
@@ -202,7 +196,7 @@ async function getLatestVersion(): Promise<string> {
       throw new Error('No versions found');
     }
     // Return the first version (newest) with 'v' prefix for consistency
-    return `v${versions[0]}`;
+    return versions[0];
   } catch (error) {
     throw new Error(`Failed to fetch latest version: ${error}`);
   }
@@ -401,8 +395,8 @@ export const update = new Command('update')
           const isCurrent = version === currentVersion;
           const prefix = isCurrent ? clc.green('●') : ' ';
           const versionText = isCurrent
-            ? clc.bold(clc.green(version))
-            : version;
+            ? clc.bold(clc.green(`v${version}`))
+            : `v${version}`;
           const suffix = isCurrent ? clc.dim(' (current)') : '';
           logger.info(`${prefix} ${versionText}${suffix}`);
         }
@@ -421,12 +415,11 @@ export const update = new Command('update')
         const result = await checkForUpdates();
         if (result.hasUpdate) {
           logger.info(
-            `Update available: ${clc.bold(result.currentVersion)} → ${clc.bold(result.latestVersion)}`
+            `Update available: v${clc.bold(result.currentVersion)} → v${clc.bold(result.latestVersion)}`
           );
-          logger.info(`${clc.green('✓')} New version found!`);
         } else {
           logger.info(
-            `${clc.green('✓')} You're using the latest version: ${clc.bold(result.currentVersion)}`
+            `${clc.green('✓')} You're using the latest version: v${clc.bold(result.currentVersion)}`
           );
         }
         return;
@@ -439,24 +432,29 @@ export const update = new Command('update')
     }
 
     try {
-      logger.info('Checking for updates...');
-
       let version = options.version || (await getLatestVersion());
       const currentVersion = version;
 
       if (options.force) {
         logger.info(
-          `${clc.yellow('!')} Force updating to ${clc.bold(version)}...`
+          `${clc.yellow('!')} Forcing installation of v${clc.bold(version)}...`
         );
-      } else if ((await checkForUpdates()).hasUpdate) {
+      } else if (options.version) {
         logger.info(
-          `Update available: ${clc.bold(currentVersion)} → ${clc.bold(version)}`
+          `Installing v${clc.bold(version)}...`
         );
       } else {
-        logger.info(
-          `${clc.green('✓')} Already on the latest version: ${clc.bold(currentVersion)}`
-        );
-        return;
+        logger.info('Checking for updates...');
+        if ((await checkForUpdates()).hasUpdate) {
+          logger.info(
+            `Update available: v${clc.bold(currentVersion)} → v${clc.bold(version)}`
+          );
+        } else {
+          logger.info(
+            `${clc.green('✓')} Already on the latest version: v${clc.bold(currentVersion)}`
+          );
+          return;
+        }
       }
 
       await downloadAndInstall(version, options.force || false);
