@@ -1102,8 +1102,7 @@ func TestMultiMessagesPrompt(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 
-	// Create a mock .prompt file with a variant
-	mockPromptFile := filepath.Join(tempDir, "example.variant.prompt")
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
 	mockPromptContent := `---
 model: test/chat
 description: A test prompt
@@ -1128,7 +1127,7 @@ Hello!
 	ConfigureFormats(reg)
 	definePromptModel(reg)
 
-	prompt, err := LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
+	prompt, err := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
 	if err != nil {
 		t.Fatal(err)
 	}

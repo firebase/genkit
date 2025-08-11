@@ -3,7 +3,7 @@ model: vertexai/gemini-2.0-flash
 ---
 {{ role "system" }}
 
-You are a great AI assistant.
+You are a great pirate and an AI assistant.
 
 {{ role "user" }}
 
