@@ -260,6 +260,32 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'With NONE, the model is prohibited from making function calls.'
     )
     .optional(),
+  thinkingConfig: z
+    .object({
+      includeThoughts: z
+        .boolean()
+        .describe(
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only if the model supports ' +
+            'thought and thoughts are available.'
+        )
+        .optional(),
+      thinkingBudget: z
+        .number()
+        .min(0)
+        .max(24576)
+        .describe(
+          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+            '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
+            'dependent. The thinking budget parameter gives the model guidance ' +
+            'on the number of thinking tokens it can use when generating a ' +
+            'response. A greater number of tokens is typically associated with ' +
+            'more detailed thinking, which is needed for solving more complex ' +
+            'tasks. '
+        )
+        .optional(),
+    })
+    .optional(),
 }).passthrough();
 export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
 /**
