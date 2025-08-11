@@ -426,7 +426,7 @@ export const update = new Command('update')
           logger.info(`${clc.green('✓')} New version found!`);
         } else {
           logger.info(
-            `${clc.green('✓')} Already on the latest version: ${clc.bold(result.currentVersion)}`
+            `${clc.green('✓')} You're using the latest version: ${clc.bold(result.currentVersion)}`
           );
         }
         return;
@@ -448,7 +448,7 @@ export const update = new Command('update')
         logger.info(
           `${clc.yellow('!')} Force updating to ${clc.bold(version)}...`
         );
-      } else if (version !== `v${currentVersion}`) {
+      } else if ((await checkForUpdates()).hasUpdate) {
         logger.info(
           `Update available: ${clc.bold(currentVersion)} → ${clc.bold(version)}`
         );
