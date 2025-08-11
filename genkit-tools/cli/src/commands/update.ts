@@ -15,15 +15,15 @@
  */
 import { logger } from '@genkit-ai/tools-common/utils';
 import axios from 'axios';
+import { execSync } from 'child_process';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { execSync } from 'child_process';
 import { readConfig, writeConfig } from '../utils/config';
-import { runningFromNpmLocally } from '../utils/utils';
 import { detectCLIRuntime } from '../utils/runtime-detector';
+import { runningFromNpmLocally } from '../utils/utils';
 import { name, version } from '../utils/version';
 
 interface UpdateOptions {
@@ -67,7 +67,7 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
   return {
     hasUpdate,
     currentVersion,
-    latestVersion: cleanLatestVersion
+    latestVersion: cleanLatestVersion,
   };
 }
 
@@ -113,7 +113,7 @@ async function getAvailableVersionsFromNpm(): Promise<string[]> {
 
     // Filter out pre-release versions and sort by semantic version (newest first)
     return versions
-      .filter(version => !/-/.test(version)) // Remove pre-release versions
+      .filter((version) => !/-/.test(version)) // Remove pre-release versions
       .sort((a, b) => {
         const parseVersion = (v: string) => v.split('.').map(Number);
         const [aMajor, aMinor, aPatch] = parseVersion(a);
@@ -132,7 +132,9 @@ async function getAvailableVersionsFromNpm(): Promise<string[]> {
  */
 async function getAvailableVersionsFromGCS(): Promise<string[]> {
   try {
-    const response = await axios.get('https://storage.googleapis.com/genkit-assets-cli/latest.json');
+    const response = await axios.get(
+      'https://storage.googleapis.com/genkit-assets-cli/latest.json'
+    );
     const data: GCSLatestResponse = response.data;
 
     // For now, we only return the latest version from GCS
@@ -210,7 +212,10 @@ async function getLatestVersion(): Promise<string> {
 /**
  * Downloads and installs the latest binary
  */
-async function downloadAndInstall(version: string, force: boolean): Promise<void> {
+async function downloadAndInstall(
+  version: string,
+  force: boolean
+): Promise<void> {
   const { platform, arch } = getPlatformInfo();
   const execPath = process.execPath;
   const backupPath = `${execPath}.backup`;
@@ -228,7 +233,9 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
 
     logger.info('Running using npm, downloading using npm...');
     execSync(command);
-    logger.info(`${clc.green('✓')} Successfully updated to ${clc.bold(version)}`);
+    logger.info(
+      `${clc.green('✓')} Successfully updated to ${clc.bold(version)}`
+    );
     return;
   }
 
@@ -240,7 +247,9 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
     // Construct machine identifier and download URL
     const machine = `${platform}-${arch}`;
     const fileName = 'genkit'; // All platforms use 'genkit' in the URL path
-    const cleanVersion = version.startsWith('v') ? version.substring(1) : version;
+    const cleanVersion = version.startsWith('v')
+      ? version.substring(1)
+      : version;
 
     // Use the same URL structure as the install_cli script
     const channel = 'prod'; // Default to prod channel
@@ -256,7 +265,10 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
 
     // Save directly to a temporary file (no zip extraction needed)
     const tempDir = os.tmpdir();
-    const tempBinaryPath = path.join(tempDir, `genkit-update-${Date.now()}${platform === 'win32' ? '.exe' : ''}`);
+    const tempBinaryPath = path.join(
+      tempDir,
+      `genkit-update-${Date.now()}${platform === 'win32' ? '.exe' : ''}`
+    );
 
     const writer = fs.createWriteStream(tempBinaryPath);
     response.data.pipe(writer);
@@ -280,9 +292,12 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
     fs.unlinkSync(tempBinaryPath);
     fs.unlinkSync(backupPath);
 
-    logger.info(`${clc.green('✓')} Successfully updated to ${clc.bold(version)}`);
-    logger.info('Restart your terminal or run the command again to use the new version.');
-
+    logger.info(
+      `${clc.green('✓')} Successfully updated to ${clc.bold(version)}`
+    );
+    logger.info(
+      'Restart your terminal or run the command again to use the new version.'
+    );
   } catch (error) {
     // Restore backup if update failed
     if (fs.existsSync(backupPath)) {
@@ -321,11 +336,10 @@ export async function showUpdateNotification(): Promise<void> {
       // Merge all notification lines into a single message for concise output
       console.log(
         `\n${clc.yellow('📦 Update available:')} ${clc.bold(result.currentVersion)} → ${clc.bold(clc.green(result.latestVersion))}\n` +
-        `${clc.dim('Run')} ${clc.bold('genkit update')} ${clc.dim('to upgrade')}\n` +
-        `${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('to disable these notifications')}\n`
+          `${clc.dim('Run')} ${clc.bold('genkit update')} ${clc.dim('to upgrade')}\n` +
+          `${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('to disable these notifications')}\n`
       );
     }
-
   } catch {
     // Silently fail - update notifications shouldn't break the CLI
     // We don't want to show errors for network issues, etc.
@@ -356,11 +370,19 @@ export const update = new Command('update')
       writeConfig(config);
 
       if (config.notificationsDisabled) {
-        logger.info(`${clc.green('✓')} Update notifications have been ${clc.bold('disabled')}`);
-        logger.info(`${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('again to re-enable them')}`);
+        logger.info(
+          `${clc.green('✓')} Update notifications have been ${clc.bold('disabled')}`
+        );
+        logger.info(
+          `${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('again to re-enable them')}`
+        );
       } else {
-        logger.info(`${clc.green('✓')} Update notifications have been ${clc.bold('enabled')}`);
-        logger.info(`${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('to disable them')}`);
+        logger.info(
+          `${clc.green('✓')} Update notifications have been ${clc.bold('enabled')}`
+        );
+        logger.info(
+          `${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('to disable them')}`
+        );
       }
       return;
     }
@@ -380,7 +402,9 @@ export const update = new Command('update')
         for (const version of versions) {
           const isCurrent = version === currentVersion;
           const prefix = isCurrent ? clc.green('●') : ' ';
-          const versionText = isCurrent ? clc.bold(clc.green(version)) : version;
+          const versionText = isCurrent
+            ? clc.bold(clc.green(version))
+            : version;
           const suffix = isCurrent ? clc.dim(' (current)') : '';
           logger.info(`${prefix} ${versionText}${suffix}`);
         }
@@ -398,14 +422,20 @@ export const update = new Command('update')
       try {
         const result = await checkForUpdates();
         if (result.hasUpdate) {
-          logger.info(`Update available: ${clc.bold(result.currentVersion)} → ${clc.bold(result.latestVersion)}`);
+          logger.info(
+            `Update available: ${clc.bold(result.currentVersion)} → ${clc.bold(result.latestVersion)}`
+          );
           logger.info(`${clc.green('✓')} New version found!`);
         } else {
-          logger.info(`${clc.green('✓')} Already on the latest version: ${clc.bold(result.currentVersion)}`);
+          logger.info(
+            `${clc.green('✓')} Already on the latest version: ${clc.bold(result.currentVersion)}`
+          );
         }
         return;
       } catch (error: any) {
-        logger.error(`${clc.red('Failed to check for updates:')} ${error.message}`);
+        logger.error(
+          `${clc.red('Failed to check for updates:')} ${error.message}`
+        );
         process.exit(1);
       }
     }
@@ -413,15 +443,21 @@ export const update = new Command('update')
     try {
       logger.info('Checking for updates...');
 
-      let version = options.version || await getLatestVersion();
+      let version = options.version || (await getLatestVersion());
       const currentVersion = version;
 
       if (options.force) {
-        logger.info(`${clc.yellow('!')} Force updating to ${clc.bold(version)}...`);
+        logger.info(
+          `${clc.yellow('!')} Force updating to ${clc.bold(version)}...`
+        );
       } else if (version !== `v${currentVersion}`) {
-        logger.info(`Update available: ${clc.bold(currentVersion)} → ${clc.bold(version)}`);
+        logger.info(
+          `Update available: ${clc.bold(currentVersion)} → ${clc.bold(version)}`
+        );
       } else {
-        logger.info(`${clc.green('✓')} Already on the latest version: ${clc.bold(currentVersion)}`);
+        logger.info(
+          `${clc.green('✓')} Already on the latest version: ${clc.bold(currentVersion)}`
+        );
         return;
       }
 
