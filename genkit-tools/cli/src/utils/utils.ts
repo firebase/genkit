@@ -1,20 +1,10 @@
-import path from "path";
 import { execSync } from "child_process";
-import { name } from "./version";
 
 /**
- * Detects if the CLI is running from a compiled binary vs npm package.
- * When running from a binary (via bun compile or similar), process.execPath
- * will point to the binary executable rather than node/bun runtime.
+ * Detects if the CLI is running from a local npm package vs global npm package.
+ * When running from a local npm package, process.execPath
+ * will point to the node runtime rather than the global node_modules location.
  */
-export function isRunningFromBinary(): boolean {
-  const execPath = process.execPath;
-  const execName = path.basename(execPath);
-  // If running from npm/yarn/pnpm, execPath typically points to node
-  // If running from binary, execPath points to the actual binary
-  return !execName.includes('node') && !execName.includes('bun');
-}
-
 export function runningFromNpmLocally(): boolean {
     // Check if running from a global node_modules location
     const globalNodeModules = execSync('npm root -g').toString().trim();

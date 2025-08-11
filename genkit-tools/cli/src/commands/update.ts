@@ -22,7 +22,8 @@ import * as os from 'os';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { readConfig, writeConfig } from '../utils/config';
-import { isRunningFromBinary, runningFromNpmLocally } from '../utils/utils';
+import { runningFromNpmLocally } from '../utils/utils';
+import { detectCLIRuntime } from '../utils/runtime-detector';
 import { name, version } from '../utils/version';
 
 interface UpdateOptions {
@@ -146,7 +147,8 @@ async function getAvailableVersionsFromGCS(): Promise<string[]> {
  * Gets available CLI versions based on installation type
  */
 async function getAvailableVersions(skipRC: boolean = true): Promise<string[]> {
-  if (isRunningFromBinary()) {
+  const runtime = detectCLIRuntime();
+  if (runtime.isCompiledBinary) {
     return await getAvailableVersionsFromGCS();
   } else {
     return await getAvailableVersionsFromNpm();
@@ -212,9 +214,10 @@ async function downloadAndInstall(version: string, force: boolean): Promise<void
   const { platform, arch } = getPlatformInfo();
   const execPath = process.execPath;
   const backupPath = `${execPath}.backup`;
+  const runtime = detectCLIRuntime();
 
   // If not running from a binary, we should install using npm
-  if (!isRunningFromBinary()) {
+  if (!runtime.isCompiledBinary) {
     let command = '';
 
     if (runningFromNpmLocally()) {
@@ -312,7 +315,8 @@ export async function showUpdateNotification(): Promise<void> {
     const result = await checkForUpdates();
 
     if (result.hasUpdate) {
-      const isBinary = isRunningFromBinary();
+      const runtime = detectCLIRuntime();
+      const isBinary = runtime.isCompiledBinary;
 
       // Merge all notification lines into a single message for concise output
       console.log(
