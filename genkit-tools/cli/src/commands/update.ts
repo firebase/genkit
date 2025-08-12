@@ -23,7 +23,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { readConfig, writeConfig } from '../utils/config';
 import { detectCLIRuntime } from '../utils/runtime-detector';
-import { runningFromNpmLocally } from '../utils/utils';
+import { detectGlobalPackageManager, PACKAGE_MANAGERS, runningFromNpmLocally } from '../utils/package-manager-detector';
 import { version as currentVersion, name } from '../utils/version';
 
 interface UpdateOptions {
@@ -204,12 +204,12 @@ function getPlatformInfo(): { platform: string; arch: string } {
  */
 async function downloadAndInstall(
   version: string,
-  force: boolean
 ): Promise<void> {
   const { platform, arch } = getPlatformInfo();
   const execPath = process.execPath;
   const backupPath = `${execPath}.backup`;
   const runtime = detectCLIRuntime();
+  const pm = await detectGlobalPackageManager() || PACKAGE_MANAGERS.npm;
 
   // If not running from a binary, we should install using npm
   if (!runtime.isCompiledBinary) {
@@ -218,7 +218,7 @@ async function downloadAndInstall(
     if (await runningFromNpmLocally()) {
       command = `npm install ${name}@${version}`;
     } else {
-      command = `npm install -g ${name}@${version}`;
+      command = `${pm?.globalInstallCommand} ${name}@${version}`;
     }
 
     logger.info('Running using npm, downloading using npm...');
@@ -320,9 +320,6 @@ export async function showUpdateNotification(): Promise<void> {
     const result = await checkForUpdates();
 
     if (result.hasUpdate) {
-      const runtime = detectCLIRuntime();
-      const isBinary = runtime.isCompiledBinary;
-
       // Merge all notification lines into a single message for concise output
       console.log(
         `\n${clc.yellow('📦 Update available:')} ${clc.bold(result.currentVersion)} → ${clc.bold(clc.green(result.latestVersion))}\n` +
@@ -421,7 +418,7 @@ export const update = new Command('update')
         }
       }
 
-      await downloadAndInstall(version, options.force || false);
+      await downloadAndInstall(version);
     } catch (error: any) {
       logger.error(`${clc.red('Update failed:')} ${error.message}`);
       process.exit(1);
