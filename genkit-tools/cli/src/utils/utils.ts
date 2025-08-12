@@ -21,18 +21,34 @@ import { exec } from 'child_process';
  * When running from a local npm package, process.execPath
  * will point to the node runtime rather than the global node_modules location.
  */
+import * as path from 'path';
+
+/**
+ * Determines if the CLI is running from a local npm install (e.g., npx, local node_modules/.bin)
+ * vs a global npm install. This checks the location of the entry script (process.argv[1])
+ * to see if it resides within the global node_modules directory.
+ *
+ * Returns:
+ *   - true: if running from a local install (including npx, local node_modules, or dev)
+ *   - false: if running from a global npm install
+ *
+ * Note: This is a heuristic and may not be 100% accurate in all edge cases.
+ */
 export function runningFromNpmLocally(): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    exec('npm root -g', (error, stdout, stderr) => {
+  return new Promise((resolve) => {
+    exec('npm root -g', (error, stdout) => {
       if (error) {
         // If we can't determine, assume local for safety
         resolve(true);
         return;
       }
       const globalNodeModules = stdout.toString().trim();
-      const execPath = process.execPath;
-      // If the execPath is inside the global node_modules directory, it's global
-      if (execPath.startsWith(globalNodeModules)) {
+
+      // process.argv[1] is the entry script (e.g., .../node_modules/.bin/genkit or .../bin/genkit.js)
+      const entryScript = process.argv[1] ? path.resolve(process.argv[1]) : '';
+
+      // If the entry script is inside the global node_modules directory, it's global
+      if (entryScript && entryScript.startsWith(globalNodeModules)) {
         resolve(false); // running globally, not locally
       } else {
         // Otherwise, assume it's local (e.g., npx, local install, or dev)
