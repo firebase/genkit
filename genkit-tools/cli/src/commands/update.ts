@@ -24,12 +24,11 @@ import * as path from 'path';
 import { readConfig, writeConfig } from '../utils/config';
 import { detectCLIRuntime } from '../utils/runtime-detector';
 import { runningFromNpmLocally } from '../utils/utils';
-import { name, version as currentVersion } from '../utils/version';
+import { version as currentVersion, name } from '../utils/version';
 
 interface UpdateOptions {
   force?: boolean;
   check?: boolean;
-  list?: boolean;
   version?: string;
   quiet?: boolean;
 }
@@ -96,7 +95,9 @@ interface NpmRegistryResponse {
 /**
  * Gets available CLI versions from npm registry for non-binary installations
  */
-async function getAvailableVersionsFromNpm(): Promise<string[]> {
+async function getAvailableVersionsFromNpm(
+  ignoreRC: boolean = true
+): Promise<string[]> {
   try {
     const response = await axios.get(`https://registry.npmjs.org/${name}`);
     const data: NpmRegistryResponse = response.data;
@@ -106,7 +107,7 @@ async function getAvailableVersionsFromNpm(): Promise<string[]> {
 
     // Filter out pre-release versions and sort by semantic version (newest first)
     return versions
-      .filter((version) => !/-/.test(version)) // Remove pre-release versions
+      .filter((version) => !/-/.test(version) || !ignoreRC) // Remove pre-release versions
       .sort((a, b) => {
         const parseVersion = (v: string) => v.split('.').map(Number);
         const [aMajor, aMinor, aPatch] = parseVersion(a);
@@ -121,9 +122,9 @@ async function getAvailableVersionsFromNpm(): Promise<string[]> {
 }
 
 /**
- * Gets available CLI versions from Google Cloud Storage for binary installations
+ * Gets latest CLI version from Google Cloud Storage for binary installations
  */
-async function getAvailableVersionsFromGCS(): Promise<string[]> {
+async function getLatestVersionFromGCS(): Promise<string[]> {
   try {
     const response = await axios.get(
       'https://storage.googleapis.com/genkit-assets-cli/latest.json'
@@ -139,14 +140,26 @@ async function getAvailableVersionsFromGCS(): Promise<string[]> {
 }
 
 /**
- * Gets available CLI versions based on installation type
+ * Gets latest CLI version based on installation type
  */
-async function getAvailableVersions(skipRC: boolean = true): Promise<string[]> {
+async function getLatestVersion(): Promise<string> {
   const runtime = detectCLIRuntime();
+  let versions: string[] = [];
+
   if (runtime.isCompiledBinary) {
-    return await getAvailableVersionsFromGCS();
+    versions = await getLatestVersionFromGCS();
   } else {
-    return await getAvailableVersionsFromNpm();
+    versions = await getAvailableVersionsFromNpm();
+  }
+
+  try {
+    if (versions.length === 0) {
+      throw new Error('No versions found');
+    }
+    // Return the first version (newest) with 'v' prefix for consistency
+    return versions[0];
+  } catch (error) {
+    throw new Error(`Failed to fetch latest version: ${error}`);
   }
 }
 /**
@@ -184,22 +197,6 @@ function getPlatformInfo(): { platform: string; arch: string } {
   }
 
   return { platform: platformName, arch: archName };
-}
-
-/**
- * Gets the latest version based on installation type
- */
-async function getLatestVersion(): Promise<string> {
-  try {
-    const versions = await getAvailableVersions();
-    if (versions.length === 0) {
-      throw new Error('No versions found');
-    }
-    // Return the first version (newest) with 'v' prefix for consistency
-    return versions[0];
-  } catch (error) {
-    throw new Error(`Failed to fetch latest version: ${error}`);
-  }
 }
 
 /**
@@ -342,7 +339,6 @@ export async function showUpdateNotification(): Promise<void> {
 export const update = new Command('update')
   .description('update the genkit CLI to the latest version')
   .option('-f, --force', 'force update even if already on latest version')
-  .option('-l, --list', 'list available versions')
   .option('-c, --check', 'check for updates without installing')
   .option('-v, --version <version>', 'install a specific version', (value) => {
     if (!validateVersion(value)) {
@@ -380,35 +376,6 @@ export const update = new Command('update')
       return;
     }
 
-    // Handle --list flag
-    if (options.list) {
-      try {
-        logger.info('Fetching available versions...');
-        const versions = await getAvailableVersions();
-        if (versions.length === 0) {
-          logger.info('No versions found.');
-          return;
-        }
-        logger.info(`\nAvailable genkit CLI versions:`);
-        logger.info(`${clc.dim('─'.repeat(40))}`);
-        for (const version of versions) {
-          const isCurrent = version === currentVersion;
-          const prefix = isCurrent ? clc.green('●') : ' ';
-          const versionText = isCurrent
-            ? clc.bold(clc.green(`v${version}`))
-            : `v${version}`;
-          const suffix = isCurrent ? clc.dim(' (current)') : '';
-          logger.info(`${prefix} ${versionText}${suffix}`);
-        }
-        logger.info(`${clc.dim('─'.repeat(40))}`);
-        logger.info(`Found ${clc.bold(versions.length.toString())} versions`);
-        return;
-      } catch (error: any) {
-        logger.error(`${clc.red('Failed to list versions:')} ${error.message}`);
-        process.exit(1);
-      }
-    }
-
     // Handle --check flag
     if (options.check) {
       try {
@@ -440,9 +407,7 @@ export const update = new Command('update')
           `${clc.yellow('!')} Forcing installation of v${clc.bold(version)}...`
         );
       } else if (options.version) {
-        logger.info(
-          `Installing v${clc.bold(version)}...`
-        );
+        logger.info(`Installing v${clc.bold(version)}...`);
       } else {
         logger.info('Checking for updates...');
         if ((await checkForUpdates()).hasUpdate) {
