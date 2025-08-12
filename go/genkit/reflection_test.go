@@ -42,10 +42,8 @@ func dec(_ context.Context, x int) (int, error) {
 
 func TestReflectionServer(t *testing.T) {
 	t.Run("server startup and shutdown", func(t *testing.T) {
-		g, err := Init(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+		g := Init(context.Background())
+
 		tc := tracing.NewTestOnlyTelemetryClient()
 		g.reg.TracingState().WriteTelemetryImmediate(tc)
 
@@ -83,10 +81,8 @@ func TestReflectionServer(t *testing.T) {
 }
 
 func TestServeMux(t *testing.T) {
-	g, err := Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := Init(context.Background())
+
 	tc := tracing.NewTestOnlyTelemetryClient()
 	g.reg.TracingState().WriteTelemetryImmediate(tc)
 

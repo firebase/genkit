@@ -33,14 +33,11 @@ import (
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx,
+	g := genkit.Init(ctx,
 		genkit.WithDefaultModel("vertexai/gemini-2.0-flash"),
 		genkit.WithPlugins(&googlegenai.VertexAI{}),
 		genkit.WithPromptDir("prompts"),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	SimplePrompt(ctx, g)
 	PromptWithInput(ctx, g)

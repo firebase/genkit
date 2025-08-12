@@ -40,13 +40,10 @@ func TestPlugin(t *testing.T) {
 	oai := &compat_oai.OpenAI{
 		APIKey: apiKey,
 	}
-	g, err := genkit.Init(context.Background(),
+	g := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("openai/gpt-4o-mini"),
 		genkit.WithPlugins(oai),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	t.Log("genkit initialized")
 
 	// Define a tool for calculating gablorkens
