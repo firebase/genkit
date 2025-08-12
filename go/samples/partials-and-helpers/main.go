@@ -51,7 +51,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p, err := genkit.DefinePrompt(g, "test", ai.WithPrompt(`{{> header}} {{uppercase @greeting}}`))
+	p := genkit.DefinePrompt(g, "test", ai.WithPrompt(`{{> header}} {{uppercase @greeting}}`))
 
 	result, err := p.Execute(ctx)
 	if err != nil {

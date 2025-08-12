@@ -42,23 +42,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	defaultPrompt, err := genkit.DefinePrompt(g, "defaultInstructions",
+	defaultPrompt := genkit.DefinePrompt(g, "defaultInstructions",
 		ai.WithPrompt("Generate a children's book story character about someone named {{name}}."),
 		ai.WithOutputType([]StoryCharacter{}),
 		ai.WithOutputFormat(ai.OutputFormatJSONL),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	customPrompt, err := genkit.DefinePrompt(g, "customInstructions",
+	customPrompt := genkit.DefinePrompt(g, "customInstructions",
 		ai.WithPrompt("Generate a children's book story character about someone named {{name}}."),
 		ai.WithOutputInstructions("The output should be JSON and match the schema of the following object: "+
 			"{name: string, age: number, homeTown: string, profession: string}"),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	genkit.DefineFlow(g, "defaultInstructionsFlow", func(ctx context.Context, _ any) ([]*StoryCharacter, error) {
 		resp, err := defaultPrompt.Execute(ctx, ai.WithInput(StoryCharacter{Name: "Willy the Pig"}))

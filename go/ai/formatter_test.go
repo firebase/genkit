@@ -305,7 +305,7 @@ func TestConstrainedGenerate(t *testing.T) {
 			Tools:  []*ToolDefinition{},
 		}
 
-		p, err := DefinePrompt(r, "formatPrompt",
+		p := DefinePrompt(r, "formatPrompt",
 			WithPrompt("generate json"),
 			WithModel(formatModel),
 			WithOutputType(struct {
@@ -313,9 +313,6 @@ func TestConstrainedGenerate(t *testing.T) {
 			}{}),
 			WithCustomConstrainedOutput(),
 		)
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		res, err := p.Execute(
 			context.Background(),

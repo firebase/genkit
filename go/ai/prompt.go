@@ -41,11 +41,11 @@ type Prompt struct {
 }
 
 // DefinePrompt creates and registers a new Prompt.
-func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Prompt, error) {
+func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prompt {
 	pOpts := &promptOptions{}
 	for _, opt := range opts {
 		if err := opt.applyPrompt(pOpts); err != nil {
-			return nil, fmt.Errorf("ai.DefinePrompt: error applying options: %w", err)
+			panic(fmt.Errorf("ai.DefinePrompt: error applying options: %w", err))
 		}
 	}
 
@@ -85,7 +85,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 
 	p.action = *core.DefineActionWithInputSchema(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
-	return p, nil
+	return p
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
@@ -591,11 +591,7 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	key := promptKey(name, variant, namespace)
-	prompt, err := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
-	if err != nil {
-		slog.Error("Failed to register dotprompt", "file", sourceFile, "error", err)
-		return nil, err
-	}
+	prompt := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
 
 	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
 

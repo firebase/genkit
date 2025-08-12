@@ -109,15 +109,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
+	simpleQaPrompt := genkit.DefinePrompt(g, "simpleQaPrompt",
 		ai.WithModelName("googleai/gemini-2.0-flash"),
 		ai.WithPrompt(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// Dummy evaluator for testing
 	evalOptions := ai.EvaluatorOptions{

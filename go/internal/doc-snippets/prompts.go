@@ -83,7 +83,7 @@ func pr03() error {
 	type HelloPromptInput struct {
 		UserName string
 	}
-	helloPrompt, err := genkit.DefinePrompt(
+	helloPrompt := genkit.DefinePrompt(
 		g,
 		"helloPrompt",
 		ai.WithModel(model),

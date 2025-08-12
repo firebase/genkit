@@ -76,25 +76,18 @@ func TestOutputFormat(t *testing.T) {
 			}
 
 			if test.output == nil {
-				_, err = DefinePrompt(
+				DefinePrompt(
 					reg, "aModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputFormat(test.format),
 				)
 			} else {
-				_, err = DefinePrompt(
+				DefinePrompt(
 					reg, "bModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputType(test.output),
 					WithOutputFormat(test.format),
 				)
-			}
-			if err != nil {
-				if test.err {
-					t.Logf("got expected error %v", err)
-					return
-				}
-				t.Fatal(err)
 			}
 		})
 	}
@@ -138,12 +131,12 @@ func TestInputFormat(t *testing.T) {
 			var p *Prompt
 
 			if test.inputType != nil {
-				p, err = DefinePrompt(reg, test.name,
+				p = DefinePrompt(reg, test.name,
 					WithPrompt(test.templateText),
 					WithInputType(test.inputType),
 				)
 			} else {
-				p, err = DefinePrompt(reg, test.name, WithPrompt(test.templateText))
+				p = DefinePrompt(reg, test.name, WithPrompt(test.templateText))
 			}
 
 			if err != nil {
@@ -565,10 +558,7 @@ func TestValidPrompt(t *testing.T) {
 				opts = append(opts, WithPromptFn(test.promptFn))
 			}
 
-			p, err := DefinePrompt(reg, test.name, opts...)
-			if err != nil {
-				t.Fatal(err)
-			}
+			p := DefinePrompt(reg, test.name, opts...)
 
 			output, err := p.Execute(context.Background(), test.executeOptions...)
 			if err != nil {
@@ -622,10 +612,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	testModel := DefineModel(reg, "options/test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
-		p, err := DefinePrompt(reg, "TestExecute", WithInputType(InputOutput{}), WithPrompt("TestExecute"))
-		if err != nil {
-			t.Fatal(err)
-		}
+		p := DefinePrompt(reg, "TestExecute", WithInputType(InputOutput{}), WithPrompt("TestExecute"))
 
 		streamText := ""
 		resp, err := p.Execute(
@@ -651,10 +638,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	})
 
 	t.Run("WithModelName", func(t *testing.T) {
-		p, err := DefinePrompt(reg, "TestModelname", WithInputType(InputOutput{}), WithPrompt("TestModelname"))
-		if err != nil {
-			t.Fatal(err)
-		}
+		p := DefinePrompt(reg, "TestModelname", WithInputType(InputOutput{}), WithPrompt("TestModelname"))
 
 		resp, err := p.Execute(
 			context.Background(),
@@ -784,10 +768,7 @@ func TestDefaultsOverride(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			p, err := DefinePrompt(reg, test.name, test.define...)
-			if err != nil {
-				t.Fatal(err)
-			}
+			p := DefinePrompt(reg, test.name, test.define...)
 
 			output, err := p.Execute(
 				context.Background(),
@@ -1080,10 +1061,7 @@ func TestDefinePartialAndHelper(t *testing.T) {
 		t.Fatalf("Expected error defining helper with duplicate name")
 	}
 
-	p, err := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
-	if err != nil {
-		t.Fatalf("Failed to define prompt: %v", err)
-	}
+	p := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
 
 	result, err := p.Execute(context.Background(), WithInput(map[string]any{
 		"name":     "User",
