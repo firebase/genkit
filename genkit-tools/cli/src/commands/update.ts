@@ -19,11 +19,12 @@ import { execSync } from 'child_process';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import * as fs from 'fs';
+import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
 import { readConfig, writeConfig } from '../utils/config';
+import { PACKAGE_MANAGERS, PackageManager } from '../utils/global';
 import { detectCLIRuntime } from '../utils/runtime-detector';
-import { detectGlobalPackageManager, PACKAGE_MANAGERS, runningFromNpmLocally } from '../utils/package-manager-detector';
 import { version as currentVersion, name } from '../utils/version';
 
 interface UpdateOptions {
@@ -200,28 +201,65 @@ function getPlatformInfo(): { platform: string; arch: string } {
 }
 
 /**
+ * Prompts the user to select a package manager for updating Genkit CLI.
+ * Returns the selected PackageManager object.
+ */
+async function inquirePackageManager(): Promise<PackageManager> {
+  const choices = Object.keys(PACKAGE_MANAGERS).map((key) => ({
+    name: PACKAGE_MANAGERS[key].type,
+    value: key,
+  }));
+
+  const { selected } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'selected',
+      message: 'Which package manager do you want to use to update Genkit CLI?',
+      choices,
+      default: PACKAGE_MANAGERS.npm.type,
+    },
+  ]);
+
+  return PACKAGE_MANAGERS[selected];
+}
+
+/**
+ * Checks if the CLI is running from a global package manager install
+ */
+async function inquireRunningFromGlobalInstall(): Promise<boolean> {
+  const { selected } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'selected',
+      message: 'Are you running Genkit CLI from a global install?',
+      default: true,
+    },
+  ]);
+
+  return selected;
+}
+
+/**
  * Downloads and installs the latest binary
  */
-async function downloadAndInstall(
-  version: string,
-): Promise<void> {
+async function downloadAndInstall(version: string): Promise<void> {
   const { platform, arch } = getPlatformInfo();
   const execPath = process.execPath;
   const backupPath = `${execPath}.backup`;
   const runtime = detectCLIRuntime();
-  const pm = await detectGlobalPackageManager() || PACKAGE_MANAGERS.npm;
+  const pm = await inquirePackageManager();
 
-  // If not running from a binary, we should install using npm
+  // If not running from a binary, we should install using package manager
   if (!runtime.isCompiledBinary) {
     let command = '';
 
-    if (await runningFromNpmLocally()) {
-      command = `npm install ${name}@${version}`;
-    } else {
+    if (await inquireRunningFromGlobalInstall()) {
       command = `${pm?.globalInstallCommand} ${name}@${version}`;
+    } else {
+      command = `${pm?.localInstallCommand} ${name}@${version}`;
     }
 
-    logger.info('Running using npm, downloading using npm...');
+    logger.info(`Running using ${pm?.type}, downloading using ${pm?.type}...`);
     execSync(command);
     logger.info(
       `${clc.green('✓')} Successfully updated to ${clc.bold(version)}`
