@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,27 +14,10 @@
  * limitations under the License.
  */
 
-export {
-  SPAN_TYPE_ATTR,
-  SpanContextSchema,
-  SpanDataSchema,
-  SpanMetadataSchema,
-  SpanStatusSchema,
-  TimeEventSchema,
-  TraceDataSchema,
-  TraceMetadataSchema,
-  TraceServerExporter,
-  appendSpan,
-  enableTelemetry,
-  flushTracing,
-  runInNewSpan,
-  setCustomMetadataAttribute,
-  setCustomMetadataAttributes,
-  setTelemetryServerUrl,
-  toDisplayPath,
-  type PathMetadata,
-  type SpanData,
-  type SpanMetadata,
-  type TraceData,
-  type TraceMetadata,
-} from '@genkit-ai/core/tracing';
+import { initNodeAsyncContext } from './node-async-context.js';
+import { initNodeTelemetry } from './tracing/node.js';
+
+export function initNodeFeatures() {
+  initNodeAsyncContext();
+  initNodeTelemetry();
+}

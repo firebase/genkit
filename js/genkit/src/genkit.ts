@@ -889,7 +889,7 @@ export class Genkit implements HasRegistry {
    * return `undefined`.
    */
   currentContext(): ActionContext | undefined {
-    return getContext(this);
+    return getContext();
   }
 
   /**

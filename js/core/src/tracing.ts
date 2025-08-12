@@ -14,29 +14,17 @@
  * limitations under the License.
  */
 
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import {
-  BatchSpanProcessor,
-  SimpleSpanProcessor,
-  type SpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
+import { GenkitError } from './error.js';
 import { logger } from './logging.js';
 import type { TelemetryConfig } from './telemetryTypes.js';
-import {
-  TraceServerExporter,
-  setTelemetryServerUrl,
-} from './tracing/exporter.js';
-import { isDevEnv } from './utils.js';
 
 export * from './tracing/exporter.js';
 export * from './tracing/instrumentation.js';
-export * from './tracing/processor.js';
 export * from './tracing/types.js';
 
-let telemetrySDK: NodeSDK | null = null;
-let nodeOtelConfig: TelemetryConfig | null = null;
-
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
+const enableTelemetryFnKey = '__GENKIT_ENABLE_TELEMETRY_FN';
+const flushTracingFnKey = '__GENKIT_FLUSH_TELEMETRY_FN';
 
 /**
  * @hidden
@@ -77,72 +65,47 @@ async function checkFirebaseMonitoringAutoInit() {
   }
 }
 
+export type EnableTelemetryFn = (
+  telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
+) => Promise<void>;
+
+function getEnableTelemetryFn(): EnableTelemetryFn {
+  if (global[enableTelemetryFnKey]) {
+    return global[enableTelemetryFnKey];
+  }
+  throw new GenkitError({
+    status: 'FAILED_PRECONDITION',
+    message: 'EnableTelemetryFn is not initialized.',
+  });
+}
+
+export function setEnableTelemetryFn(fn: EnableTelemetryFn) {
+  global[enableTelemetryFnKey] = fn;
+}
+
+export type FlushTracingFn = () => Promise<void>;
+
+function getFlushTracingFn(): FlushTracingFn {
+  if (global[flushTracingFnKey]) {
+    return global[flushTracingFnKey];
+  }
+  throw new GenkitError({
+    status: 'FAILED_PRECONDITION',
+    message: 'FlushTracingFn is not initialized.',
+  });
+}
+
+export function setFlushTracingFn(fn: FlushTracingFn) {
+  global[flushTracingFnKey] = fn;
+}
+
 /**
  * Enables tracing and metrics open telemetry configuration.
  */
 export async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
-  if (process.env.GENKIT_TELEMETRY_SERVER) {
-    setTelemetryServerUrl(process.env.GENKIT_TELEMETRY_SERVER);
-  }
-  global[instrumentationKey] =
-    telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
-
-  telemetryConfig =
-    telemetryConfig instanceof Promise
-      ? await telemetryConfig
-      : telemetryConfig;
-
-  nodeOtelConfig = telemetryConfig || {};
-
-  const processors: SpanProcessor[] = [createTelemetryServerProcessor()];
-  if (nodeOtelConfig.traceExporter) {
-    throw new Error('Please specify spanProcessors instead.');
-  }
-  if (nodeOtelConfig.spanProcessors) {
-    processors.push(...nodeOtelConfig.spanProcessors);
-  }
-  if (nodeOtelConfig.spanProcessor) {
-    processors.push(nodeOtelConfig.spanProcessor);
-    delete nodeOtelConfig.spanProcessor;
-  }
-  nodeOtelConfig.spanProcessors = processors;
-  telemetrySDK = new NodeSDK(nodeOtelConfig);
-  telemetrySDK.start();
-  process.on('SIGTERM', async () => await cleanUpTracing());
-}
-
-export async function cleanUpTracing(): Promise<void> {
-  if (!telemetrySDK) {
-    return;
-  }
-
-  // Metrics are not flushed as part of the shutdown operation. If metrics
-  // are enabled, we need to manually flush them *before* the reader
-  // receives shutdown order.
-  await maybeFlushMetrics();
-  await telemetrySDK.shutdown();
-  logger.debug('OpenTelemetry SDK shut down.');
-  telemetrySDK = null;
-}
-
-/**
- * Creates a new SpanProcessor for exporting data to the telemetry server.
- */
-function createTelemetryServerProcessor(): SpanProcessor {
-  const exporter = new TraceServerExporter();
-  return isDevEnv()
-    ? new SimpleSpanProcessor(exporter)
-    : new BatchSpanProcessor(exporter);
-}
-
-/** Flush metrics if present. */
-function maybeFlushMetrics(): Promise<void> {
-  if (nodeOtelConfig?.metricReader) {
-    return nodeOtelConfig.metricReader.forceFlush();
-  }
-  return Promise.resolve();
+  return getEnableTelemetryFn()(telemetryConfig);
 }
 
 /**
@@ -151,7 +114,5 @@ function maybeFlushMetrics(): Promise<void> {
  * @hidden
  */
 export async function flushTracing() {
-  if (nodeOtelConfig?.spanProcessors) {
-    await Promise.all(nodeOtelConfig.spanProcessors.map((p) => p.forceFlush()));
-  }
+  return getFlushTracingFn()();
 }

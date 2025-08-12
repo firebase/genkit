@@ -27,11 +27,6 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/context-async-hooks": "~1.25.0",
-    "@opentelemetry/core": "~1.25.0",
-    "@opentelemetry/sdk-metrics": "~1.25.0",
-    "@opentelemetry/sdk-node": "^0.52.0",
-    "@opentelemetry/sdk-trace-base": "~1.25.0",
     "@types/json-schema": "^7.0.15",
     "ajv": "^8.12.0",
     "ajv-formats": "^3.0.1",
@@ -92,6 +87,12 @@
       "require": "./lib/schema.js",
       "import": "./lib/schema.mjs",
       "default": "./lib/schema.js"
+    },
+    "./node": {
+      "types": "./lib/node.d.ts",
+      "require": "./lib/node.js",
+      "import": "./lib/node.mjs",
+      "default": "./lib/node.js"
     }
   },
   "typesVersions": {
@@ -116,6 +117,9 @@
       ],
       "schema": [
         "lib/schema"
+      ],
+      "node": [
+        "lib/node"
       ]
     }
   }

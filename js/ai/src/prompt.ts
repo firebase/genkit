@@ -308,7 +308,7 @@ function definePromptAsync<
         if (typeof resolvedOptions.docs === 'function') {
           docs = await resolvedOptions.docs(input, {
             state: session?.state,
-            context: renderOptions?.context || getContext(registry) || {},
+            context: renderOptions?.context || getContext() || {},
           });
         } else {
           docs = resolvedOptions.docs;
@@ -524,7 +524,7 @@ async function renderSystemPrompt<
       content: normalizeParts(
         await options.system(input, {
           state: session?.state,
-          context: renderOptions?.context || getContext(registry) || {},
+          context: renderOptions?.context || getContext() || {},
         })
       ),
     });
@@ -570,7 +570,7 @@ async function renderMessages<
       messages.push(
         ...(await options.messages(input, {
           state: session?.state,
-          context: renderOptions?.context || getContext(registry) || {},
+          context: renderOptions?.context || getContext() || {},
           history: renderOptions?.messages,
         }))
       );
@@ -584,7 +584,7 @@ async function renderMessages<
       const rendered = await promptCache.messages({
         input,
         context: {
-          ...(renderOptions?.context || getContext(registry)),
+          ...(renderOptions?.context || getContext()),
           state: session?.state,
         },
         messages: renderOptions?.messages?.map((m) =>
@@ -625,7 +625,7 @@ async function renderUserPrompt<
       content: normalizeParts(
         await options.prompt(input, {
           state: session?.state,
-          context: renderOptions?.context || getContext(registry) || {},
+          context: renderOptions?.context || getContext() || {},
         })
       ),
     });
@@ -695,7 +695,7 @@ async function renderDotpromptToParts<
   const renderred = await promptFn({
     input,
     context: {
-      ...(renderOptions?.context || getContext(registry)),
+      ...(renderOptions?.context || getContext()),
       state: session?.state,
     },
   });

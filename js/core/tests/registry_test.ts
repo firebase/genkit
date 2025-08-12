@@ -21,7 +21,10 @@ import {
   defineAction,
   runInActionRuntimeContext,
 } from '../src/action.js';
+import { initNodeAsyncContext } from '../src/node-async-context.js';
 import { Registry } from '../src/registry.js';
+
+initNodeAsyncContext();
 
 describe('registry class', () => {
   var registry: Registry;
@@ -125,7 +128,7 @@ describe('registry class', () => {
         },
       });
 
-      const action = await runInActionRuntimeContext(registry, () =>
+      const action = await runInActionRuntimeContext(() =>
         registry.lookupAction('/model/foo/something')
       );
 
@@ -255,7 +258,7 @@ describe('registry class', () => {
         },
       });
 
-      const action = await runInActionRuntimeContext(registry, () =>
+      const action = await runInActionRuntimeContext(() =>
         registry.lookupAction('/model/foo/something')
       );
 

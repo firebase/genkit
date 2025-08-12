@@ -15,6 +15,7 @@
  */
 
 import { runWithContext, z, type ActionContext } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
@@ -29,6 +30,8 @@ import {
 import { Session } from '../../src/session.js';
 import { defineTool } from '../../src/tool.js';
 import { defineEchoModel } from '../helpers.js';
+
+initNodeFeatures();
 
 describe('prompt', () => {
   let registry;
@@ -775,7 +778,7 @@ describe('prompt', () => {
           ? session.run(() => p(test.input, test.inputOptions))
           : p(test.input, test.inputOptions);
 
-      const { text } = await runWithContext(registry, test.context, sessionFn);
+      const { text } = await runWithContext(test.context, sessionFn);
 
       assert.strictEqual(text, test.wantTextOutput);
 
@@ -785,9 +788,7 @@ describe('prompt', () => {
           : p.render(test.input, test.inputOptions);
 
       assert.deepStrictEqual(
-        stripUndefined(
-          await runWithContext(registry, test.context, sessionRenderFn)
-        ),
+        stripUndefined(await runWithContext(test.context, sessionRenderFn)),
         test.wantRendered
       );
     });

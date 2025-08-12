@@ -354,7 +354,7 @@ export async function generate<
   const streamingCallback = stripNoop(
     resolvedOptions.onChunk ?? resolvedOptions.streamingCallback
   ) as StreamingCallback<GenerateResponseChunkData>;
-  const response = await runWithContext(registry, resolvedOptions.context, () =>
+  const response = await runWithContext(resolvedOptions.context, () =>
     generateHelper(registry, {
       rawRequest: params,
       middleware: resolvedOptions.use,

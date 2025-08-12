@@ -29,6 +29,7 @@ export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 export { z } from 'zod';
 export * from './action.js';
+export { getAsyncContext } from './async-context.js';
 export {
   OperationSchema,
   defineBackgroundAction,
