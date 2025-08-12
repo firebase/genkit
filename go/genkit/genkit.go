@@ -576,7 +576,7 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //	}
 //
 //	// Define the prompt
-//	capitalPrompt, err := genkit.DefinePrompt(g, "findCapital",
+//	capitalPrompt := genkit.DefinePrompt(g, "findCapital",
 //		ai.WithDescription("Finds the capital of a country."),
 //		ai.WithModelName("googleai/gemini-1.5-flash"), // Specify the model
 //		ai.WithSystem("You are a helpful geography assistant."),
@@ -585,9 +585,6 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		ai.WithOutputType(GeoOutput{}),
 //		ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 0.5}),
 //	)
-//	if err != nil {
-//		log.Fatalf("DefinePrompt failed: %v", err)
-//	}
 //
 //	// Option 1: Render + Generate (using default input "USA")
 //	actionOpts, err := capitalPrompt.Render(ctx, nil) // nil input uses default
@@ -614,7 +611,7 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of France: %s\n", out2.Capital) // Output: Capital of France: Paris
-func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) (*ai.Prompt, error) {
+func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) *ai.Prompt {
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
