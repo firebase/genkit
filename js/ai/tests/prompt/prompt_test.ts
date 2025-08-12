@@ -21,6 +21,7 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Document } from '../../src/document.js';
 import type { GenerateOptions } from '../../src/index.js';
+import { defineModel } from '../../src/model.js';
 import {
   definePrompt,
   type PromptConfig,
@@ -44,6 +45,26 @@ describe('prompt', () => {
         description: 'toolA descr',
       },
       async () => 'a'
+    );
+
+    // Define a special model to test AbortSignal preservation
+    defineModel(
+      registry,
+      {
+        name: 'abortTestModel',
+        apiVersion: 'v2',
+      },
+      async (request, opts) => {
+        // Store the abortSignal for verification
+        (defineModel as any).__test__lastAbortSignal = request.abortSignal;
+        return {
+          message: {
+            role: 'model',
+            content: [{ text: 'AbortSignal preserved correctly' }],
+          },
+          finishReason: 'stop',
+        };
+      }
     );
   });
 
@@ -819,6 +840,49 @@ describe('prompt', () => {
     assert.deepStrictEqual(
       toJsonSchema({ schema: generateRequest.output?.schema }),
       toJsonSchema({ schema: schema1 })
+    );
+  });
+
+  it('preserves AbortSignal objects through the rendering pipeline', async () => {
+    // Test AbortSignal.timeout()
+    const timeoutSignal = AbortSignal.timeout(1000);
+    const prompt = definePrompt(registry, {
+      name: 'abortTestPrompt',
+      model: 'abortTestModel',
+      prompt: 'test message',
+    });
+
+    const rendered = await prompt.render(undefined, {
+      abortSignal: timeoutSignal,
+    });
+
+    // Verify the AbortSignal is preserved in the rendered options
+    assert.ok(rendered.abortSignal, 'AbortSignal should be preserved');
+    assert.strictEqual(
+      rendered.abortSignal,
+      timeoutSignal,
+      'Should be the exact same AbortSignal instance'
+    );
+    assert.ok(
+      rendered.abortSignal instanceof AbortSignal,
+      'Should be an AbortSignal instance'
+    );
+
+    // Test manual AbortController
+    const controller = new AbortController();
+    const rendered2 = await prompt.render(undefined, {
+      abortSignal: controller.signal,
+    });
+
+    assert.ok(rendered2.abortSignal, 'Manual AbortSignal should be preserved');
+    assert.strictEqual(
+      rendered2.abortSignal,
+      controller.signal,
+      'Should be the exact same manual AbortSignal instance'
+    );
+    assert.ok(
+      rendered2.abortSignal instanceof AbortSignal,
+      'Manual AbortSignal should be an AbortSignal instance'
     );
   });
 });

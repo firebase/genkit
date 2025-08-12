@@ -19,6 +19,31 @@ import { genkitPlugin } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import { OpenAI, type ClientOptions } from 'openai';
 
+export {
+  SpeechConfigSchema,
+  TranscriptionConfigSchema,
+  compatOaiSpeechModelRef,
+  compatOaiTranscriptionModelRef,
+  defineCompatOpenAISpeechModel,
+  defineCompatOpenAITranscriptionModel,
+  type SpeechRequestBuilder,
+  type TranscriptionRequestBuilder,
+} from './audio.js';
+export { defineCompatOpenAIEmbedder } from './embedder.js';
+export {
+  ImageGenerationCommonConfigSchema,
+  compatOaiImageModelRef,
+  defineCompatOpenAIImageModel,
+  type ImageRequestBuilder,
+} from './image.js';
+export {
+  ChatCompletionCommonConfigSchema,
+  compatOaiModelRef,
+  defineCompatOpenAIModel,
+  openAIModelRunner,
+  type ModelRequestBuilder,
+} from './model.js';
+
 export interface PluginOptions extends Partial<ClientOptions> {
   name: string;
   initializer?: (ai: Genkit, client: OpenAI) => Promise<void>;
@@ -84,27 +109,29 @@ export interface PluginOptions extends Partial<ClientOptions> {
  * ```
  */
 export const openAICompatible = (options: PluginOptions) => {
-  const client = new OpenAI(options);
   let listActionsCache;
   return genkitPlugin(
     options.name,
     async (ai: Genkit) => {
       if (options.initializer) {
+        const client = new OpenAI(options);
         await options.initializer(ai, client);
       }
     },
     async (ai: Genkit, actionType: ActionType, actionName: string) => {
       if (options.resolver) {
+        const client = new OpenAI(options);
         await options.resolver(ai, client, actionType, actionName);
       }
     },
-    async () => {
-      if (options.listActions) {
-        if (listActionsCache) return listActionsCache;
-        listActionsCache = await options.listActions(client);
-        return listActionsCache;
-      }
-    }
+    options.listActions
+      ? async () => {
+          if (listActionsCache) return listActionsCache;
+          const client = new OpenAI(options);
+          listActionsCache = await options.listActions!(client);
+          return listActionsCache;
+        }
+      : undefined
   );
 };
 
