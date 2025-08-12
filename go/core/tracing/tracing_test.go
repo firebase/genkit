@@ -257,10 +257,10 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 			metadata: &SpanMetadata{
 				Name:    "chatFlow",
 				IsRoot:  true,
-				Type:    "action", // Flows get type "action" to match TypeScript
+				Type:    "action", // Flows get type "action"
 				Subtype: "flow",   // Flow type goes into subtype
 			},
-			expectedType:    "action", // Updated to match TypeScript
+			expectedType:    "action",
 			expectedSubtype: "flow",
 			expectedPath:    "/{chatFlow,t:action,s:flow}", // Updated path
 		},

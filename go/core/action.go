@@ -250,7 +250,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 	// Create span metadata and inject flow name if we're in a flow context
 	spanMetadata := &tracing.SpanMetadata{
 		Name:    a.desc.Name,
-		Type:    "action",            // All actions get type "action" to match TypeScript
+		Type:    "action",
 		Subtype: string(a.desc.Type), // The actual action type becomes the subtype
 		// IsRoot will be automatically determined in tracing.go based on parent span presence
 	}
