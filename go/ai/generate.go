@@ -243,6 +243,11 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	}
 	model, _ := m.(*model)
 
+	// Validate long-running support if requested
+	if opts.LongRunning && !SupportsLongRunning(r, opts.Model) {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support long-running operations", opts.Model)
+	}
+
 	resumeOutput, err := handleResumeOption(ctx, r, opts)
 	if err != nil {
 		return nil, err
@@ -338,13 +343,60 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		Output:     &outputCfg,
 	}
 
-	fn := core.ChainMiddleware(mw...)(model.Generate)
+	var fn ModelFunc
+	if opts.LongRunning {
+		provider, name, _ := strings.Cut(opts.Model, "/")
+		bgAction := LookupBackgroundModel(r, provider, name)
+		if bgAction == nil {
+			return nil, core.NewError(core.NOT_FOUND, "background model %q not found", opts.Model)
+		}
+
+		// Create a wrapper function that calls the background model but returns a ModelResponse with operation
+		fn = func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			op, err := bgAction.Start(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+
+			// Return response with operation
+			operationMap := map[string]any{
+				"action": op.Action,
+				"id":     op.ID,
+				"done":   op.Done,
+			}
+			if op.Output != nil {
+				operationMap["output"] = op.Output
+			}
+			if op.Error != nil {
+				operationMap["error"] = map[string]any{
+					"message": op.Error.Error(),
+				}
+			}
+			if op.Metadata != nil {
+				operationMap["metadata"] = op.Metadata
+			}
+
+			return &ModelResponse{
+				Operation: operationMap,
+				Request:   req,
+			}, nil
+		}
+	} else {
+		fn = model.Generate
+	}
+
+	fn = core.ChainMiddleware(mw...)(fn)
 
 	currentTurn := 0
 	for {
 		resp, err := fn(ctx, req, cb)
 		if err != nil {
 			return nil, err
+		}
+
+		// If this is a long-running operation response, return it immediately without further processing
+		if resp.Operation != nil {
+			return resp, nil
 		}
 
 		if formatHandler != nil {
@@ -491,6 +543,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		Config:             genOpts.Config,
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
+		LongRunning:        genOpts.LongRunning,
 		ReturnToolRequests: genOpts.ReturnToolRequests != nil && *genOpts.ReturnToolRequests,
 		Output: &GenerateActionOutputConfig{
 			JsonSchema:   genOpts.OutputSchema,
@@ -1172,66 +1225,68 @@ func SupportsLongRunning(r *registry.Registry, modelName string) bool {
 	return longRunning
 }
 
-// GenerateOperation generates a model response as a long-running operation based on the provided options.
-// It returns an error if the model does not support long-running operations.
+// GenerateOperation generates a model response as a long-running operation based on the provided options. s.
 func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation[*ModelResponse], error) {
-	genOpts := &generateOptions{}
-	for _, opt := range opts {
-		if err := opt.applyGenerate(genOpts); err != nil {
-			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: error applying options: %v", err)
-		}
-	}
 
-	if !SupportsLongRunning(r, genOpts.ModelName) {
-		return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support long-running operations", genOpts.ModelName)
-	}
+	opts = append(opts, WithLongRunning())
 
-	var modelName string
-	if genOpts.Model != nil {
-		modelName = genOpts.Model.Name()
-	} else {
-		modelName = genOpts.ModelName
-	}
-
-	provider, name, _ := strings.Cut(modelName, "/")
-	bgAction := LookupBackgroundModel(r, provider, name)
-	if bgAction == nil {
-		return nil, core.NewError(core.NOT_FOUND, "background model %q not found", modelName)
-	}
-
-	var messages []*Message
-	if genOpts.SystemFn != nil {
-		system, err := genOpts.SystemFn(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		messages = append(messages, NewSystemTextMessage(system))
-	}
-	if genOpts.MessagesFn != nil {
-		msgs, err := genOpts.MessagesFn(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		messages = append(messages, msgs...)
-	}
-	if genOpts.PromptFn != nil {
-		prompt, err := genOpts.PromptFn(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		messages = append(messages, NewUserTextMessage(prompt))
-	}
-
-	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
-		genOpts.Config = modelRef.Config()
-	}
-
-	op, err := bgAction.Start(ctx, &ModelRequest{Messages: messages, Config: genOpts.Config})
+	resp, err := Generate(ctx, r, opts...)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.Operation == nil {
+		return nil, core.NewError(core.FAILED_PRECONDITION, "model did not return an operation")
+	}
+
+	var action string
+	if v, ok := resp.Operation["action"].(string); ok {
+		action = v
+	} else {
+		return nil, core.NewError(core.INTERNAL, "operation missing or invalid 'action' field")
+	}
+	var id string
+	if v, ok := resp.Operation["id"].(string); ok {
+		id = v
+	} else {
+		return nil, core.NewError(core.INTERNAL, "operation missing or invalid 'id' field")
+	}
+	var done bool
+	if v, ok := resp.Operation["done"].(bool); ok {
+		done = v
+	} else {
+		return nil, core.NewError(core.INTERNAL, "operation missing or invalid 'done' field")
+	}
+	var metadata map[string]any
+	if v, ok := resp.Operation["metadata"].(map[string]any); ok {
+		metadata = v
+	}
+
+	op := &core.Operation[*ModelResponse]{
+		Action:   action,
+		ID:       id,
+		Done:     done,
+		Metadata: metadata,
+	}
+
+	if op.Done {
+		if output, ok := resp.Operation["output"]; ok {
+			if modelResp, ok := output.(*ModelResponse); ok {
+				op.Output = modelResp
+			} else {
+				op.Output = resp
+			}
+		} else {
+			op.Output = resp
+		}
+	}
+
+	if errorData, ok := resp.Operation["error"]; ok {
+		if errorMap, ok := errorData.(map[string]any); ok {
+			if message, ok := errorMap["message"].(string); ok {
+				op.Error = errors.New(message)
+			}
+		}
 	}
 
 	return op, nil

@@ -18,10 +18,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"google.golang.org/genai"
@@ -87,9 +92,93 @@ func main() {
 		currentOp = updatedOp
 	}
 
-	// Operation completed, return the final result
 	if currentOp != nil {
 		opJson, _ := json.Marshal(currentOp.Output)
 		fmt.Printf("%s", opJson)
+
+		// Download the generated video
+		if err := downloadGeneratedVideo(ctx, currentOp); err != nil {
+			log.Printf("Failed to download video: %v", err)
+		} else {
+			fmt.Println("Video successfully downloaded to veo3_video.mp4")
+		}
 	}
+}
+
+// For testing purpose need to be removed if needed
+// downloadGeneratedVideo downloads the generated video from the operation result
+func downloadGeneratedVideo(ctx context.Context, operation *core.Operation[*ai.ModelResponse]) error {
+	// Get the API key from environment
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("GOOGLE_API_KEY")
+	}
+	if apiKey == "" {
+		return fmt.Errorf("no API key found. Please set GEMINI_API_KEY or GOOGLE_API_KEY environment variable")
+	}
+
+	// Parse the operation output to extract video URL
+	if operation.Output == nil {
+		return fmt.Errorf("operation output is nil")
+	}
+
+	modelResponse := operation.Output
+	if modelResponse.Message == nil {
+		return fmt.Errorf("model response message is nil")
+	}
+
+	// Find the media part in the message content
+	var videoURL string
+	for _, part := range modelResponse.Message.Content {
+		if part.IsMedia() && part.Text != "" {
+			videoURL = part.Text
+			break
+		}
+	}
+
+	if videoURL == "" {
+		return fmt.Errorf("no video URL found in the operation output")
+	}
+
+	// Append API key to the URL if it's not already there
+	downloadURL := videoURL
+	if !strings.Contains(downloadURL, "key=") {
+		separator := "&"
+		if !strings.Contains(downloadURL, "?") {
+			separator = "?"
+		}
+		downloadURL = fmt.Sprintf("%s%skey=%s", videoURL, separator, apiKey)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to download video: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download video: HTTP %d", resp.StatusCode)
+	}
+
+	// Create the output file
+	filename := "veo3_video.mp4"
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %v", err)
+	}
+	defer file.Close()
+
+	// Copy the video content to the file
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write video data to file: %v", err)
+	}
+
+	return nil
 }
