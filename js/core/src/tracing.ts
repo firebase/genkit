@@ -23,8 +23,7 @@ export * from './tracing/instrumentation.js';
 export * from './tracing/types.js';
 
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
-const enableTelemetryFnKey = '__GENKIT_ENABLE_TELEMETRY_FN';
-const flushTracingFnKey = '__GENKIT_FLUSH_TELEMETRY_FN';
+const telemetryProviderKey = '__GENKIT_TELEMETRY_PROVIDER';
 
 /**
  * @hidden
@@ -65,38 +64,24 @@ async function checkFirebaseMonitoringAutoInit() {
   }
 }
 
-export type EnableTelemetryFn = (
-  telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
-) => Promise<void>;
+export interface TelemetryProvider {
+  enableTelemetry(
+    telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
+  ): Promise<void>;
+  flushTracing(): Promise<void>;
+}
 
-function getEnableTelemetryFn(): EnableTelemetryFn {
-  if (global[enableTelemetryFnKey]) {
-    return global[enableTelemetryFnKey];
+function getTelemetryProvider(): TelemetryProvider {
+  if (global[telemetryProviderKey]) {
+    return global[telemetryProviderKey];
   }
   throw new GenkitError({
     status: 'FAILED_PRECONDITION',
-    message: 'EnableTelemetryFn is not initialized.',
+    message: 'TelemetryProvider is not initialized.',
   });
 }
-
-export function setEnableTelemetryFn(fn: EnableTelemetryFn) {
-  global[enableTelemetryFnKey] = fn;
-}
-
-export type FlushTracingFn = () => Promise<void>;
-
-function getFlushTracingFn(): FlushTracingFn {
-  if (global[flushTracingFnKey]) {
-    return global[flushTracingFnKey];
-  }
-  throw new GenkitError({
-    status: 'FAILED_PRECONDITION',
-    message: 'FlushTracingFn is not initialized.',
-  });
-}
-
-export function setFlushTracingFn(fn: FlushTracingFn) {
-  global[flushTracingFnKey] = fn;
+export function setTelemetryProvider(provider: TelemetryProvider) {
+  global[telemetryProviderKey] = provider;
 }
 
 /**
@@ -105,7 +90,7 @@ export function setFlushTracingFn(fn: FlushTracingFn) {
 export async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
-  return getEnableTelemetryFn()(telemetryConfig);
+  return getTelemetryProvider().enableTelemetry(telemetryConfig);
 }
 
 /**
@@ -114,5 +99,5 @@ export async function enableTelemetry(
  * @hidden
  */
 export async function flushTracing() {
-  return getFlushTracingFn()();
+  return getTelemetryProvider().flushTracing();
 }

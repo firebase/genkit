@@ -22,7 +22,7 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { logger } from '../logging.js';
 import type { TelemetryConfig } from '../telemetryTypes.js';
-import { setEnableTelemetryFn, setFlushTracingFn } from '../tracing.js';
+import { setTelemetryProvider } from '../tracing.js';
 import {
   TraceServerExporter,
   setTelemetryServerUrl,
@@ -35,8 +35,10 @@ let nodeOtelConfig: TelemetryConfig | null = null;
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
 
 export function initNodeTelemetry() {
-  setEnableTelemetryFn(enableTelemetry);
-  setFlushTracingFn(flushTracing);
+  setTelemetryProvider({
+    enableTelemetry,
+    flushTracing,
+  });
 }
 
 /**
