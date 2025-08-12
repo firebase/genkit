@@ -170,6 +170,12 @@ export interface GenerateOptions<
   context?: ActionContext;
   /** Abort signal for the generate request. */
   abortSignal?: AbortSignal;
+  /**
+   * Additional metadata describing the GenerateOptions, used by tooling. If
+   * this is an instance of a rendered dotprompt, will contain any prompt
+   * metadata contained in the original frontmatter.
+   **/
+  metadata?: Record<string, any>;
 }
 
 export async function toGenerateRequest(

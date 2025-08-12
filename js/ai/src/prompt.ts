@@ -330,6 +330,11 @@ function definePromptAsync<
             ...resolvedOptions?.config,
             ...renderOptions?.config,
           },
+          metadata: resolvedOptions.metadata?.metadata
+            ? {
+                prompt: resolvedOptions.metadata?.metadata,
+              }
+            : undefined,
         });
         // if config is empty and it was not explicitly passed in, we delete it, don't want {}
         if (Object.keys(opts.config).length === 0 && !renderOptions?.config) {
@@ -822,6 +827,18 @@ function loadPrompt(
         delete promptMetadata.input.schema.description;
       }
 
+      const metadata = {
+        ...promptMetadata.metadata,
+        type: 'prompt',
+        prompt: {
+          ...promptMetadata,
+          template: parsedPrompt.template,
+        },
+      };
+      if (promptMetadata.raw?.['metadata']) {
+        metadata['metadata'] = { ...promptMetadata.raw?.['metadata'] };
+      }
+
       return {
         name: registryDefinitionKey(name, variant ?? undefined, ns),
         model: promptMetadata.model,
@@ -835,14 +852,7 @@ function loadPrompt(
         input: {
           jsonSchema: promptMetadata.input?.schema,
         },
-        metadata: {
-          ...promptMetadata.metadata,
-          type: 'prompt',
-          prompt: {
-            ...promptMetadata,
-            template: parsedPrompt.template,
-          },
-        },
+        metadata,
         maxTurns: promptMetadata.raw?.['maxTurns'],
         toolChoice: promptMetadata.raw?.['toolChoice'],
         returnToolRequests: promptMetadata.raw?.['returnToolRequests'],
