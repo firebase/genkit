@@ -330,6 +330,11 @@ function definePromptAsync<
             ...resolvedOptions?.config,
             ...renderOptions?.config,
           },
+          metadata: resolvedOptions.metadata?.metadata
+            ? {
+                prompt: resolvedOptions.metadata?.metadata,
+              }
+            : undefined,
         });
 
         // Fix for issue #3348: Preserve AbortSignal object
@@ -828,6 +833,18 @@ function loadPrompt(
         delete promptMetadata.input.schema.description;
       }
 
+      const metadata = {
+        ...promptMetadata.metadata,
+        type: 'prompt',
+        prompt: {
+          ...promptMetadata,
+          template: parsedPrompt.template,
+        },
+      };
+      if (promptMetadata.raw?.['metadata']) {
+        metadata['metadata'] = { ...promptMetadata.raw?.['metadata'] };
+      }
+
       return {
         name: registryDefinitionKey(name, variant ?? undefined, ns),
         model: promptMetadata.model,
@@ -841,14 +858,7 @@ function loadPrompt(
         input: {
           jsonSchema: promptMetadata.input?.schema,
         },
-        metadata: {
-          ...promptMetadata.metadata,
-          type: 'prompt',
-          prompt: {
-            ...promptMetadata,
-            template: parsedPrompt.template,
-          },
-        },
+        metadata,
         maxTurns: promptMetadata.raw?.['maxTurns'],
         toolChoice: promptMetadata.raw?.['toolChoice'],
         returnToolRequests: promptMetadata.raw?.['returnToolRequests'],
