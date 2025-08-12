@@ -127,7 +127,7 @@ export function defineCompatOpenAIImageModel<
   requestBuilder?: ImageRequestBuilder;
 }): ModelAction<CustomOptions> {
   const { ai, name, client, modelRef, requestBuilder } = params;
-  const model = name.split('/').pop();
+  const modelName = name.substring(name.indexOf('/') + 1);
 
   return ai.defineModel(
     {
@@ -138,7 +138,7 @@ export function defineCompatOpenAIImageModel<
     },
     async (request, { abortSignal }) => {
       const result = await client.images.generate(
-        toImageGenerateParams(model!, request, requestBuilder),
+        toImageGenerateParams(modelName!, request, requestBuilder),
         { signal: abortSignal }
       );
       return toGenerateResponse(result);
