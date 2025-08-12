@@ -65,6 +65,9 @@ func TestEvaluators(t *testing.T) {
 		}
 
 		evalAction := genkit.LookupEvaluator(g, "genkitEval/deep_equal")
+		if evalAction == nil {
+			t.Fatal("evalAction is nil")
+		}
 		resp, err := evalAction.Evaluate(ctx, &testRequest)
 		if err != nil {
 			t.Fatal(err)
