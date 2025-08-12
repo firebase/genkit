@@ -77,7 +77,7 @@ func TestInit_AlreadyCalled(t *testing.T) {
 	g := &genkit.Genkit{}
 
 	gcsp := &Postgres{engine: pEngine}
-	g, err = genkit.Init(ctx, genkit.WithPlugins(gcsp))
+	g = genkit.Init(ctx, genkit.WithPlugins(gcsp))
 
 	err = gcsp.Init(ctx, g)
 	if err == nil {
@@ -108,10 +108,7 @@ func TestPostgres(t *testing.T) {
 		engine: pEngine,
 	}
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(postgres))
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(postgres))
 
 	// Create test schema and table
 	_, err = pEngine.Pool.Exec(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", SchemaName))

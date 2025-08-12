@@ -26,10 +26,7 @@ import (
 )
 
 func TestFakeEmbedder(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
 	embed := New()
 	emdOpts := &ai.EmbedderOptions{

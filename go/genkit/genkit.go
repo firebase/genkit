@@ -139,7 +139,7 @@ func WithPromptDir(dir string) GenkitOption {
 //		ctx := context.Background()
 //
 //		// Assumes a prompt file at ./prompts/jokePrompt.prompt
-//		g, err := genkit.Init(ctx,
+//		g := genkit.Init(ctx,
 //			genkit.WithPlugins(&googlegenai.GoogleAI{}),
 //			genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 //			genkit.WithPromptDir("./prompts"),
@@ -170,26 +170,22 @@ func WithPromptDir(dir string) GenkitOption {
 //		}
 //		log.Println("Generated joke:", resp.Text())
 //	}
-func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
+func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-
-	r, err := registry.New()
-	if err != nil {
-		return nil, err
-	}
 
 	gOpts := &genkitOptions{}
 	for _, opt := range opts {
 		if err := opt.apply(gOpts); err != nil {
-			return nil, fmt.Errorf("genkit.Init: error applying options: %w", err)
+			panic(fmt.Errorf("genkit.Init: error applying options: %w", err))
 		}
 	}
 
+	r := registry.New()
 	g := &Genkit{reg: r}
 
 	for _, plugin := range gOpts.Plugins {
 		if err := plugin.Init(ctx, g); err != nil {
-			return nil, fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err)
+			panic(fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err))
 		}
 		r.RegisterPlugin(plugin.Name(), plugin)
 	}
@@ -226,15 +222,15 @@ func Init(ctx context.Context, opts ...GenkitOption) (*Genkit, error) {
 
 		select {
 		case err := <-errCh:
-			return nil, fmt.Errorf("genkit.Init: reflection server startup failed: %w", err)
+			panic(fmt.Errorf("genkit.Init: reflection server startup failed: %w", err))
 		case <-serverStartCh:
 			slog.Debug("reflection server started successfully")
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			panic(ctx.Err())
 		}
 	}
 
-	return g, nil
+	return g
 }
 
 // DefineFlow defines a non-streaming flow, registers it as a [core.Action] of type Flow,
@@ -916,8 +912,8 @@ func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 
 // DefinePartial wraps DefinePartial to register a partial template with the given name and source.
 // Partials can be referenced in templates with the syntax {{>partialName}}.
-func DefinePartial(g *Genkit, name string, source string) error {
-	return g.reg.DefinePartial(name, source)
+func DefinePartial(g *Genkit, name string, source string) {
+	g.reg.DefinePartial(name, source)
 }
 
 // DefineHelper wraps DefineHelper to register a helper function with the given name.
@@ -932,8 +928,8 @@ func DefinePartial(g *Genkit, name string, source string) error {
 // In a template, you would use it as:
 //
 //	{{uppercase "hello"}} => "HELLO"
-func DefineHelper(g *Genkit, name string, fn any) error {
-	return g.reg.DefineHelper(name, fn)
+func DefineHelper(g *Genkit, name string, fn any) {
+	g.reg.DefineHelper(name, fn)
 }
 
 // DefineFormat defines a new [ai.Formatter] and registers it in the registry.

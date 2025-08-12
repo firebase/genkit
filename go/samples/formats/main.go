@@ -34,13 +34,10 @@ type StoryCharacter struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx,
+	g := genkit.Init(ctx,
 		genkit.WithPlugins(&googlegenai.VertexAI{}),
 		genkit.WithDefaultModel("vertexai/gemini-2.0-flash"),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	defaultPrompt := genkit.DefinePrompt(g, "defaultInstructions",
 		ai.WithPrompt("Generate a children's book story character about someone named {{name}}."),

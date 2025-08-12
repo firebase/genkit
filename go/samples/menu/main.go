@@ -60,12 +60,7 @@ type textMenuQuestionInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.VertexAI{}),
-	)
-	if err != nil {
-		log.Fatalf("failed to create Genkit: %v", err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.VertexAI{}))
 
 	model := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
 	embedder := googlegenai.VertexAIEmbedder(g, "text-embedding-004")
@@ -80,10 +75,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = localvec.Init()
-	if err != nil {
+	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
+
 	retOpts := &ai.RetrieverOptions{
 		ConfigSchema: core.InferSchemaMap(localvec.RetrieverOptions{}),
 		Label:        "go-menu_items",
