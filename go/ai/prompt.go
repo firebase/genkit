@@ -54,6 +54,11 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prom
 		promptOptions: *pOpts,
 	}
 
+	var modelName string
+	if pOpts.Model != nil {
+		modelName = pOpts.Model.Name()
+	}
+
 	if modelRef, ok := pOpts.Model.(ModelRef); ok && pOpts.Config == nil {
 		pOpts.Config = modelRef.Config()
 	}
@@ -73,7 +78,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prom
 		"prompt": map[string]any{
 			"name":         name,
 			"description":  p.Description,
-			"model":        p.Model.Name(),
+			"model":        modelName,
 			"config":       p.Config,
 			"input":        map[string]any{"schema": p.InputSchema},
 			"output":       map[string]any{"schema": p.OutputSchema},
