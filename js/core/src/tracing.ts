@@ -81,6 +81,7 @@ function getTelemetryProvider(): TelemetryProvider {
   });
 }
 export function setTelemetryProvider(provider: TelemetryProvider) {
+  if (global[telemetryProviderKey]) return;
   global[telemetryProviderKey] = provider;
 }
 

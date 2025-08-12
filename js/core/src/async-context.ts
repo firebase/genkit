@@ -16,18 +16,27 @@
 
 import { GenkitError } from './error.js';
 
+const asyncContextKey = '__genkit_AsyncContext';
+
+/**
+ * @hidden
+ */
 export function getAsyncContext(): AsyncContext {
-  if (!global.__genkit_AsyncContext) {
+  if (!global[asyncContextKey]) {
     throw new GenkitError({
       status: 'FAILED_PRECONDITION',
       message: 'Async context is not initialized.',
     });
   }
-  return global.__genkit_AsyncContext;
+  return global[asyncContextKey];
 }
 
+/**
+ * @hidden
+ */
 export function setAsyncContext(context: AsyncContext) {
-  global.__genkit_AsyncContext = context;
+  if (global[asyncContextKey]) return;
+  global[asyncContextKey] = context;
 }
 
 /**
