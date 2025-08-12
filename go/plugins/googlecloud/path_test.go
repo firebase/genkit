@@ -181,7 +181,7 @@ func TestPathTelemetry_MetricCapture(t *testing.T) {
 					expectedAttrs := map[string]interface{}{
 						"featureName": tc.expectedFeatureName,
 						"status":      "failure",
-						"source":      "genkit-go",
+						"source":      "go",
 					}
 					if tc.expectedError != "" {
 						expectedAttrs["error"] = tc.expectedError
@@ -198,7 +198,7 @@ func TestPathTelemetry_MetricCapture(t *testing.T) {
 					expectedAttrs := map[string]interface{}{
 						"featureName": tc.expectedFeatureName,
 						"status":      "failure",
-						"source":      "genkit-go",
+						"source":      "go",
 					}
 					if tc.expectedError != "" {
 						expectedAttrs["error"] = tc.expectedError

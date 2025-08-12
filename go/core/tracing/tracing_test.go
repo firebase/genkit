@@ -239,10 +239,10 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 		{
 			name:     "Tool action span",
 			spanName: "myTool",
-			isRoot:   false,
+			isRoot:   true,
 			metadata: &SpanMetadata{
 				Name:    "myTool",
-				IsRoot:  false,
+				IsRoot:  false, // Input says false, but no parent = auto-root
 				Type:    "action",
 				Subtype: "tool",
 			},
@@ -267,10 +267,10 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 		{
 			name:     "Model action span",
 			spanName: "generate",
-			isRoot:   false,
+			isRoot:   true,
 			metadata: &SpanMetadata{
 				Name:    "generate",
-				IsRoot:  false,
+				IsRoot:  false, // Input says false, but no parent = auto-root
 				Type:    "action",
 				Subtype: "model",
 			},
@@ -281,10 +281,10 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 		{
 			name:     "Nil metadata",
 			spanName: "testSpan",
-			isRoot:   false,
+			isRoot:   true,
 			metadata: &SpanMetadata{
 				Name:   "testSpan",
-				IsRoot: false,
+				IsRoot: false, // Input says false, but no parent = auto-root
 			},
 			expectedType:    "",
 			expectedSubtype: "",

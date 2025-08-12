@@ -41,9 +41,13 @@ type GenerateTelemetry struct {
 	inputCharacters  metric.Int64Counter   // genkit/ai/generate/input/characters
 	inputTokens      metric.Int64Counter   // genkit/ai/generate/input/tokens
 	inputImages      metric.Int64Counter   // genkit/ai/generate/input/images
+	inputVideos      metric.Int64Counter   // genkit/ai/generate/input/videos
+	inputAudio       metric.Int64Counter   // genkit/ai/generate/input/audio
 	outputCharacters metric.Int64Counter   // genkit/ai/generate/output/characters
 	outputTokens     metric.Int64Counter   // genkit/ai/generate/output/tokens
 	outputImages     metric.Int64Counter   // genkit/ai/generate/output/images
+	outputVideos     metric.Int64Counter   // genkit/ai/generate/output/videos
+	outputAudio      metric.Int64Counter   // genkit/ai/generate/output/audio
 }
 
 // NewGenerateTelemetry creates a new generate telemetry module with all required metrics
@@ -56,9 +60,13 @@ func NewGenerateTelemetry() *GenerateTelemetry {
 	inputCharacters, _ := meter.Int64Counter("genkit/ai/generate/input/characters", metric.WithDescription("Counts input characters to any Genkit model."), metric.WithUnit("1"))
 	inputTokens, _ := meter.Int64Counter("genkit/ai/generate/input/tokens", metric.WithDescription("Counts input tokens to a Genkit model."), metric.WithUnit("1"))
 	inputImages, _ := meter.Int64Counter("genkit/ai/generate/input/images", metric.WithDescription("Counts input images to a Genkit model."), metric.WithUnit("1"))
+	inputVideos, _ := meter.Int64Counter("genkit/ai/generate/input/videos", metric.WithDescription("Counts input videos to a Genkit model."), metric.WithUnit("1"))
+	inputAudio, _ := meter.Int64Counter("genkit/ai/generate/input/audio", metric.WithDescription("Counts input audio files to a Genkit model."), metric.WithUnit("1"))
 	outputCharacters, _ := meter.Int64Counter("genkit/ai/generate/output/characters", metric.WithDescription("Counts output characters from a Genkit model."), metric.WithUnit("1"))
 	outputTokens, _ := meter.Int64Counter("genkit/ai/generate/output/tokens", metric.WithDescription("Counts output tokens from a Genkit model."), metric.WithUnit("1"))
 	outputImages, _ := meter.Int64Counter("genkit/ai/generate/output/images", metric.WithDescription("Count output images from a Genkit model."), metric.WithUnit("1"))
+	outputVideos, _ := meter.Int64Counter("genkit/ai/generate/output/videos", metric.WithDescription("Count output videos from a Genkit model."), metric.WithUnit("1"))
+	outputAudio, _ := meter.Int64Counter("genkit/ai/generate/output/audio", metric.WithDescription("Count output audio files from a Genkit model."), metric.WithUnit("1"))
 
 	return &GenerateTelemetry{
 		actionCounter:    actionCounter,
@@ -66,9 +74,13 @@ func NewGenerateTelemetry() *GenerateTelemetry {
 		inputCharacters:  inputCharacters,
 		inputTokens:      inputTokens,
 		inputImages:      inputImages,
+		inputVideos:      inputVideos,
+		inputAudio:       inputAudio,
 		outputCharacters: outputCharacters,
 		outputTokens:     outputTokens,
 		outputImages:     outputImages,
+		outputVideos:     outputVideos,
+		outputAudio:      outputAudio,
 	}
 }
 
@@ -76,8 +88,8 @@ func NewGenerateTelemetry() *GenerateTelemetry {
 func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 
-	// Only process spans that are model actions (genkit:metadata:subtype = "model")
 	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
+	// Only process spans that are model actions (genkit:metadata:subtype = "model")
 	if subtype != "model" {
 		return
 	}
@@ -95,14 +107,12 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 	if inputStr != "" {
 		if err := json.Unmarshal([]byte(inputStr), &input); err != nil {
 			// If JSON parsing fails, continue without input data
-			slog.Debug("Failed to parse generate input JSON", "error", err)
 		}
 	}
 
 	if outputStr != "" {
 		if err := json.Unmarshal([]byte(outputStr), &output); err != nil {
 			// If JSON parsing fails, continue without output data
-			slog.Debug("Failed to parse generate output JSON", "error", err)
 		}
 	}
 
@@ -175,9 +185,13 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 		g.inputTokens.Add(context.Background(), int64(usage.InputTokens), opt)
 		g.inputCharacters.Add(context.Background(), int64(usage.InputCharacters), opt)
 		g.inputImages.Add(context.Background(), int64(usage.InputImages), opt)
+		g.inputVideos.Add(context.Background(), int64(usage.InputVideos), opt)
+		g.inputAudio.Add(context.Background(), int64(usage.InputAudioFiles), opt)
 		g.outputTokens.Add(context.Background(), int64(usage.OutputTokens), opt)
 		g.outputCharacters.Add(context.Background(), int64(usage.OutputCharacters), opt)
 		g.outputImages.Add(context.Background(), int64(usage.OutputImages), opt)
+		g.outputVideos.Add(context.Background(), int64(usage.OutputVideos), opt)
+		g.outputAudio.Add(context.Background(), int64(usage.OutputAudioFiles), opt)
 	} else {
 		slog.Warn("GenerateTelemetry.Tick: No usage data available", "output_is_nil", output == nil)
 	}
@@ -216,6 +230,10 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 			}
 		}
 	}
+
+	// Add source tracking
+	logData["source"] = "go"
+	logData["sourceVersion"] = internal.Version
 
 	// Send to Google Cloud Logging via slog
 	message := fmt.Sprintf("Config[%s, %s]", path, model)
@@ -352,7 +370,8 @@ func (g *GenerateTelemetry) extractFeatureName(attributes []attribute.KeyValue, 
 	}
 
 	// Extract from path as fallback
-	return extractOuterFeatureNameFromPath(path)
+	pathFeature := extractOuterFeatureNameFromPath(path)
+	return pathFeature
 }
 
 func (g *GenerateTelemetry) toPartCounts(partOrdinal, parts, msgOrdinal, messages int) string {

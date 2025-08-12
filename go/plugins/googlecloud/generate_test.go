@@ -24,9 +24,13 @@ func TestNewGenerateTelemetry(t *testing.T) {
 	assert.NotNil(t, genTel.inputCharacters)
 	assert.NotNil(t, genTel.inputTokens)
 	assert.NotNil(t, genTel.inputImages)
+	assert.NotNil(t, genTel.inputVideos)
+	assert.NotNil(t, genTel.inputAudio)
 	assert.NotNil(t, genTel.outputCharacters)
 	assert.NotNil(t, genTel.outputTokens)
 	assert.NotNil(t, genTel.outputImages)
+	assert.NotNil(t, genTel.outputVideos)
+	assert.NotNil(t, genTel.outputAudio)
 }
 
 // TestGenerateTelemetry_PipelineIntegration verifies that generate telemetry
@@ -79,6 +83,10 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 		expectedOutputTokens int64
 		expectedInputImages  int64
 		expectedOutputImages int64
+		expectedInputVideos  int64
+		expectedOutputVideos int64
+		expectedInputAudio   int64
+		expectedOutputAudio  int64
 	}{
 		{
 			name: "successful generation captures all metrics",
@@ -98,6 +106,10 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 			expectedOutputTokens: 8,
 			expectedInputImages:  1,
 			expectedOutputImages: 0,
+			expectedInputVideos:  0,
+			expectedOutputVideos: 0,
+			expectedInputAudio:   0,
+			expectedOutputAudio:  0,
 		},
 		{
 			name: "failed generation captures error metrics",
@@ -106,11 +118,38 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 				"genkit:metadata:subtype": "model",
 				"genkit:path":             "/{errorFlow,t:flow}/{generate,t:action}",
 			},
-			inputJSON:          `{"model":"googleai/gemini-2.5-flash","messages":[{"content":[{"text":"Invalid prompt"}],"role":"user"}]}`,
-			outputJSON:         `{"usage":{"inputCharacters":14}}`,
-			expectMetrics:      true,
-			expectedStatus:     "failure",
-			expectedInputChars: 14, // Length of "Invalid prompt"
+			inputJSON:            `{"model":"googleai/gemini-2.5-flash","messages":[{"content":[{"text":"Invalid prompt"}],"role":"user"}]}`,
+			outputJSON:           `{"usage":{"inputCharacters":14}}`,
+			expectMetrics:        true,
+			expectedStatus:       "failure",
+			expectedInputChars:   14, // Length of "Invalid prompt"
+			expectedInputVideos:  0,
+			expectedOutputVideos: 0,
+			expectedInputAudio:   0,
+			expectedOutputAudio:  0,
+		},
+		{
+			name: "generation with video and audio captures multimedia metrics",
+			attrs: map[string]string{
+				"genkit:name":             "googleai/gemini-2.0-pro-flash",
+				"genkit:metadata:subtype": "model",
+				"genkit:path":             "/{multimediaFlow,t:flow}/{generate,t:action}",
+			},
+			inputJSON:            `{"model":"googleai/gemini-2.5-flash","messages":[{"content":[{"text":"Analyze this video and audio"}],"role":"user"}]}`,
+			outputJSON:           `{"message":{"content":[{"text":"Analysis complete"}],"role":"model"},"usage":{"inputTokens":5,"outputTokens":3,"inputCharacters":26,"outputCharacters":17,"inputImages":0,"outputImages":1,"inputVideos":2,"outputVideos":0,"inputAudioFiles":1,"outputAudioFiles":0},"latencyMs":1250.3}`,
+			expectMetrics:        true,
+			expectedStatus:       "success",
+			expectedLatency:      1250.3,
+			expectedInputChars:   26,
+			expectedOutputChars:  17,
+			expectedInputTokens:  5,
+			expectedOutputTokens: 3,
+			expectedInputImages:  0,
+			expectedOutputImages: 1,
+			expectedInputVideos:  2,
+			expectedOutputVideos: 0,
+			expectedInputAudio:   1,
+			expectedOutputAudio:  0,
 		},
 		{
 			name: "non-model span captures no metrics",
@@ -228,6 +267,48 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 					assert.NotNil(t, inputImageMetric, "Expected input/images metric")
 					if inputImageMetric != nil {
 						verifyCounterMetricValue(t, inputImageMetric, tc.expectedInputImages)
+					}
+				}
+
+				if tc.expectedOutputImages > 0 {
+					outputImageMetric := findMetric(&resourceMetrics, "genkit/ai/generate/output/images")
+					assert.NotNil(t, outputImageMetric, "Expected output/images metric")
+					if outputImageMetric != nil {
+						verifyCounterMetricValue(t, outputImageMetric, tc.expectedOutputImages)
+					}
+				}
+
+				// Verify video metrics
+				if tc.expectedInputVideos > 0 {
+					inputVideoMetric := findMetric(&resourceMetrics, "genkit/ai/generate/input/videos")
+					assert.NotNil(t, inputVideoMetric, "Expected input/videos metric")
+					if inputVideoMetric != nil {
+						verifyCounterMetricValue(t, inputVideoMetric, tc.expectedInputVideos)
+					}
+				}
+
+				if tc.expectedOutputVideos > 0 {
+					outputVideoMetric := findMetric(&resourceMetrics, "genkit/ai/generate/output/videos")
+					assert.NotNil(t, outputVideoMetric, "Expected output/videos metric")
+					if outputVideoMetric != nil {
+						verifyCounterMetricValue(t, outputVideoMetric, tc.expectedOutputVideos)
+					}
+				}
+
+				// Verify audio metrics
+				if tc.expectedInputAudio > 0 {
+					inputAudioMetric := findMetric(&resourceMetrics, "genkit/ai/generate/input/audio")
+					assert.NotNil(t, inputAudioMetric, "Expected input/audio metric")
+					if inputAudioMetric != nil {
+						verifyCounterMetricValue(t, inputAudioMetric, tc.expectedInputAudio)
+					}
+				}
+
+				if tc.expectedOutputAudio > 0 {
+					outputAudioMetric := findMetric(&resourceMetrics, "genkit/ai/generate/output/audio")
+					assert.NotNil(t, outputAudioMetric, "Expected output/audio metric")
+					if outputAudioMetric != nil {
+						verifyCounterMetricValue(t, outputAudioMetric, tc.expectedOutputAudio)
 					}
 				}
 

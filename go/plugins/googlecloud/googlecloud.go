@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"cloud.google.com/go/logging"
@@ -35,6 +37,7 @@ import (
 
 	"github.com/firebase/genkit/go/internal"
 
+	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -84,7 +87,7 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 
 	// Set metric intervals with user overrides or environment-aware defaults
 	metricInterval := 5 * time.Second
-	if os.Getenv("GENKIT_ENV") != "dev" {
+	if os.Getenv("GENKIT_ENV") != "dev" && !opts.ForceDevExport {
 		metricInterval = 300 * time.Second
 	}
 	if opts.MetricExportIntervalMillis != nil {
@@ -92,11 +95,31 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 	}
 
 	logLevel := slog.LevelInfo
-	basicResource := resource.NewWithAttributes(
+
+	// Create base resource with fallback values
+	baseResource := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.ServiceName("genkit"),
+		semconv.ServiceName("genkit"), // Fallback if detection fails
 		semconv.ServiceVersion(internal.Version),
 	)
+
+	// Auto-detect service name from environment
+	detectedResource, err := resource.New(context.Background(),
+		resource.WithDetectors(gcp.NewDetector()), // Detects GCP service names
+		resource.WithFromEnv(),                    // Detects from env vars like OTEL_SERVICE_NAME
+		resource.WithProcess(),                    // Detects from process name as fallback
+	)
+	if err != nil {
+		slog.Warn("Failed to detect resource information, using defaults", "error", err)
+		detectedResource = resource.Empty()
+	}
+
+	// Merge detected resource with base resource
+	finalResource, err := resource.Merge(baseResource, detectedResource)
+	if err != nil {
+		slog.Warn("Failed to merge resource information, using base resource", "error", err)
+		finalResource = baseResource
+	}
 
 	var spanProcessors []sdktrace.SpanProcessor
 
@@ -117,7 +140,7 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 
 		baseExporter, err := texporter.New(traceOpts...)
 		if err != nil {
-			slog.Error("Failed to create Google Cloud trace exporter", "error", err)
+			slog.Error("Failed to create Google Cloud trace exporter", "error", err, "error_type", fmt.Sprintf("%T", err))
 			return
 		}
 
@@ -137,26 +160,30 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 			logInputAndOutput: !opts.DisableLoggingInputAndOutput, // Default true, disable if flag set
 			projectId:         projectID,
 		}
-
-		spanProcessors = append(spanProcessors, sdktrace.NewBatchSpanProcessor(adjustingExporter))
+		batchProcessor := sdktrace.NewBatchSpanProcessor(adjustingExporter)
+		spanProcessors = append(spanProcessors, batchProcessor)
 
 		// Set up metrics and logging
 		if !opts.DisableMetrics {
+			slog.Debug("Setting up metrics provider...")
 			if err := setMeterProvider(projectID, metricInterval, opts.Credentials); err != nil {
 				slog.Error("Failed to set up Google Cloud metrics", "error", err)
 			}
+			slog.Debug("Metrics provider setup complete")
 		}
+		slog.Debug("Setting up log handler...")
+		// Re-enabled for production use
 		if err := setLogHandler(projectID, logLevel, opts.Credentials); err != nil {
 			slog.Error("Failed to set up Google Cloud logging", "error", err)
 		}
-
+		slog.Debug("Log handler setup complete")
 		slog.Info("Google Cloud telemetry fully initialized", "project_id", projectID, "modules", len(modules))
 	} else {
 		slog.Info("Google Cloud telemetry resource configured, export disabled in dev environment", "project_id", projectID)
 	}
 
 	var tpOptions []sdktrace.TracerProviderOption
-	tpOptions = append(tpOptions, sdktrace.WithResource(basicResource))
+	tpOptions = append(tpOptions, sdktrace.WithResource(finalResource))
 
 	if opts.Sampler != nil {
 		tpOptions = append(tpOptions, sdktrace.WithSampler(opts.Sampler))
@@ -169,7 +196,10 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 	tp := sdktrace.NewTracerProvider(tpOptions...)
 	otel.SetTracerProvider(tp) // Set as global TracerProvider
 
-	slog.Info("Created TracerProvider immediately with all processors", "processors", len(spanProcessors))
+	slog.Info("Google Cloud telemetry TracerProvider configured", "processors", len(spanProcessors))
+
+	// Set up graceful shutdown handling
+	setupGracefulShutdown(tp)
 }
 
 func setMeterProvider(projectID string, interval time.Duration, credentials *google.Credentials) error {
@@ -218,15 +248,12 @@ type AdjustingTraceExporter struct {
 }
 
 func (e *AdjustingTraceExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
-	slog.Debug("Processing span batch", "span_count", len(spans), "modules_count", len(e.modules))
-
 	// Process and adjust spans (both telemetry and PII filtering)
 	adjustedSpans := e.adjust(spans)
 
-	slog.Debug("Span batch processed", "spans_processed_total", e.spansProcessed)
-
 	// Forward adjusted spans to base exporter
-	return e.exporter.ExportSpans(ctx, adjustedSpans)
+	err := e.exporter.ExportSpans(ctx, adjustedSpans)
+	return err
 }
 
 func (e *AdjustingTraceExporter) Shutdown(ctx context.Context) error {
@@ -478,4 +505,30 @@ type spanWithModifiedAttributes struct {
 
 func (s *spanWithModifiedAttributes) Attributes() []attribute.KeyValue {
 	return s.modifyFunc(s.ReadOnlySpan.Attributes())
+}
+
+// setupGracefulShutdown sets up signal handlers to flush telemetry on process exit
+func setupGracefulShutdown(tp *sdktrace.TracerProvider) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		slog.Info("Received shutdown signal, flushing telemetry...")
+
+		// Force flush all spans before exit (5 second timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := tp.ForceFlush(ctx); err != nil {
+			slog.Error("Failed to flush spans during shutdown", "error", err)
+		}
+
+		if err := tp.Shutdown(ctx); err != nil {
+			slog.Error("Failed to shutdown TracerProvider", "error", err)
+		}
+
+		slog.Info("Telemetry shutdown complete")
+		os.Exit(0)
+	}()
 }

@@ -87,7 +87,7 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 		"status":        "failure",
 		"error":         errorName,
 		"path":          path,
-		"source":        "genkit-go",
+		"source":        "go",
 		"sourceVersion": internal.Version,
 	}
 	p.pathCounter.Add(1, pathDimensions)
@@ -103,7 +103,7 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 		"name":          errorName,
 		"message":       errorMessage,
 		"stack":         errorStack,
-		"source":        "genkit-go",
+		"source":        "go",
 		"sourceVersion": internal.Version,
 		"sessionId":     sessionID,
 		"threadName":    threadName,

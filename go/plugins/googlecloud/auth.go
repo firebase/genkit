@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 
 	"golang.org/x/oauth2/google"
@@ -56,7 +55,6 @@ func CredentialsFromEnvironment() (*GcpAuthConfig, error) {
 
 	// Check for GCLOUD_SERVICE_ACCOUNT_CREDS environment variable
 	if credsJSON := os.Getenv("GCLOUD_SERVICE_ACCOUNT_CREDS"); credsJSON != "" {
-		slog.Debug("Retrieving credentials from GCLOUD_SERVICE_ACCOUNT_CREDS")
 
 		// Parse the service account credentials
 		var serviceAccountCreds map[string]interface{}
@@ -78,7 +76,6 @@ func CredentialsFromEnvironment() (*GcpAuthConfig, error) {
 		}
 	} else {
 		// Fall back to Application Default Credentials (ADC)
-		slog.Debug("Using Application Default Credentials (ADC)")
 
 		creds, err := google.FindDefaultCredentials(ctx)
 		if err != nil {
@@ -113,12 +110,11 @@ func ResolveCurrentPrincipal() (*GcpPrincipal, error) {
 	// Try environment credentials first
 	envConfig, err := CredentialsFromEnvironment()
 	if err != nil {
-		slog.Debug("Could not retrieve credentials from environment", "error", err)
 
 		// Try ADC fallback
 		adcCreds, adcErr := google.FindDefaultCredentials(ctx)
 		if adcErr != nil {
-			slog.Debug("Could not retrieve credentials from ADC", "error", adcErr)
+
 			return principal, fmt.Errorf("could not resolve credentials from environment or ADC: %w", err)
 		}
 

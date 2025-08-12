@@ -247,12 +247,23 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 			"err", err)
 	}()
 
-	return tracing.RunInNewSpan(ctx, a.tstate, &tracing.SpanMetadata{
+	// Create span metadata and inject flow name if we're in a flow context
+	spanMetadata := &tracing.SpanMetadata{
 		Name:    a.desc.Name,
 		Type:    "action",            // All actions get type "action" to match TypeScript
 		Subtype: string(a.desc.Type), // The actual action type becomes the subtype
-		IsRoot:  false,
-	}, input,
+		// IsRoot will be automatically determined in tracing.go based on parent span presence
+	}
+
+	// Auto-inject flow name if we're in a flow context
+	if flowName := FlowNameFromContext(ctx); flowName != "" {
+		if spanMetadata.Metadata == nil {
+			spanMetadata.Metadata = make(map[string]string)
+		}
+		spanMetadata.Metadata["flow:name"] = flowName
+	}
+
+	return tracing.RunInNewSpan(ctx, a.tstate, spanMetadata, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error

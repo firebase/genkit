@@ -74,22 +74,16 @@ type State struct {
 }
 
 func NewState() *State {
-	// Check if already set up an SDK TracerProvider globally
+	// ALWAYS use the global TracerProvider if one exists
+	// This ensures we connect to any telemetry setup (like Google Cloud/Firebase)
 	if globalTP := otel.GetTracerProvider(); globalTP != nil {
-		slog.Debug("tracing.NewState: Found existing global TracerProvider",
-			"type", fmt.Sprintf("%T", globalTP))
-
+		slog.Debug("tracing.NewState: Found existing global TracerProvider", "type", fmt.Sprintf("%T", globalTP))
 		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
-			slog.Info("tracing.NewState: Reusing existing SDK TracerProvider - respecting developer's telemetry setup")
 			return &State{
 				tracer: sdkTP.Tracer("genkit-tracer"),
 			}
 		}
-		// non-SDK TracerProvider has already been set (like noop or custom)
-		// We can't register span processors with it, so we need our own
-		slog.Debug("tracing.NewState: Existing TracerProvider is not SDK, creating our own")
-	} else {
-		slog.Debug("tracing.NewState: No existing global TracerProvider found")
+		slog.Debug("tracing.NewState: non-SDK TracerProvider found, not using it since it may not provide ExportSpans method")
 	}
 
 	// No telemetry plugin configured - create an SDK TracerProvider to support
@@ -210,18 +204,26 @@ func RunInNewSpan[I, O any](
 		metadata = &SpanMetadata{}
 	}
 
+	// Get parent span metadata to determine if this is a root span
+	parentSM := spanMetaKey.FromContext(ctx)
+	isRoot := metadata.IsRoot // Explicit override if set
+	if !isRoot && parentSM == nil {
+		// Match TypeScript logic: if no parent span exists, this is a root span
+		isRoot = true
+	}
+
 	sm := &spanMetadata{
 		Name:     metadata.Name,
 		Input:    input,
-		IsRoot:   metadata.IsRoot,
+		IsRoot:   isRoot,
 		Type:     metadata.Type,
 		Subtype:  metadata.Subtype,
 		Metadata: metadata.Metadata,
 	}
 
-	// Get parent span path from context
+	// Get parent span path from context (reuse parentSM from above)
 	var parentPath string
-	if parentSM := spanMetaKey.FromContext(ctx); parentSM != nil {
+	if parentSM != nil {
 		parentPath = parentSM.Path
 	}
 
@@ -244,10 +246,13 @@ func RunInNewSpan[I, O any](
 	}
 
 	ctx, span := tstate.tracer.Start(ctx, metadata.Name, opts...)
-	defer span.End()
+	defer func() {
+		span.End()
+	}()
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() {
-		span.SetAttributes(sm.attributes()...)
+		attrs := sm.attributes()
+		span.SetAttributes(attrs...)
 	}()
 
 	ctx = spanMetaKey.NewContext(ctx, sm)
