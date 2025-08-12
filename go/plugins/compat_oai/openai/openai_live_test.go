@@ -65,7 +65,7 @@ func TestPlugin(t *testing.T) {
 	t.Run("embedder", func(t *testing.T) {
 		// define embedder
 		embedder := oai.Embedder(g, "text-embedding-3-small")
-		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
+		res, err := genkit.Embed(ctx, g, ai.WithEmbedder(embedder), ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}

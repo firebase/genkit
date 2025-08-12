@@ -31,7 +31,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/invopop/jsonschema"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -403,8 +402,8 @@ func ListTools(g *Genkit) []ai.Tool {
 //
 // Example:
 //
-//	echoModel := genkit.DefineModel(g, "custom", "echo",
-//		&ai.ModelInfo{
+//	echoModel := genkit.DefineModel(g, "custom/echo",
+//		&ai.ModelOptions{
 //			Label:    "Echo Model",
 //			Supports: &ai.ModelSupports{Multiturn: true},
 //		},
@@ -446,8 +445,8 @@ func ListTools(g *Genkit) []ai.Tool {
 //			return resp, nil
 //		},
 //	)
-func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.ModelFunc) ai.Model {
-	return ai.DefineModel(g.reg, provider, name, info, fn)
+func DefineModel(g *Genkit, name string, opts *ai.ModelOptions, fn ai.ModelFunc) ai.Model {
+	return ai.DefineModel(g.reg, name, opts, fn)
 }
 
 // LookupModel retrieves a registered [ai.Model] by its provider and name.
@@ -455,8 +454,8 @@ func DefineModel(g *Genkit, provider, name string, info *ai.ModelInfo, fn ai.Mod
 // given identifier is registered (e.g., via [DefineModel] or a plugin).
 // It will try to resolve the model dynamically by matching the provider name;
 // this does not necessarily mean the model is valid.
-func LookupModel(g *Genkit, provider, name string) ai.Model {
-	return ai.LookupModel(g.reg, provider, name)
+func LookupModel(g *Genkit, name string) ai.Model {
+	return ai.LookupModel(g.reg, name)
 }
 
 // DefineTool defines a tool that can be used by models during generation,
@@ -513,13 +512,16 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *a
 // Example:
 //
 //	// Define a custom input schema
-//	inputSchema := &jsonschema.Schema{
-//		Type:        "object",
-//		Properties: map[string]*jsonschema.Schema{
-//			"city": {Type: "string"},
-//			"unit": {Type: "string", Enum: []any{"C", "F"}},
+//	inputSchema := map[string]any{
+//		"type": "object",
+//		"properties": map[string]any{
+//			"city": map[string]any{"type": "string"},
+//			"unit": map[string]any{
+//				"type": "string",
+//				"enum": []any{"C", "F"},
+//			},
 //		},
-//		Required: []string{"city"},
+//		"required": []string{"city"},
 //	}
 //
 //	// Define the tool with the schema
@@ -538,7 +540,7 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *a
 //			return fmt.Sprintf("Weather in %s: 25°%s", city, unit), nil
 //		},
 //	)
-func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema *jsonschema.Schema, fn func(ctx *ai.ToolContext, input any) (Out, error)) ai.Tool {
+func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema map[string]any, fn func(ctx *ai.ToolContext, input any) (Out, error)) ai.Tool {
 	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
 }
 
@@ -723,6 +725,49 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 	return ai.GenerateData[Out](ctx, g.reg, opts...)
 }
 
+// Retrieve performs a document retrieval request using a flexible set of options
+// provided via [ai.RetrieverOption] arguments. It's a convenient way to retrieve
+// relevant documents from registered retrievers without directly calling the
+// retriever instance.
+//
+// Example:
+//
+//	resp, err := genkit.Retrieve(ctx, g,
+//		ai.WithRetriever("myRetriever"),
+//		ai.WithTextDocs("What is the capital of France?"),
+//	)
+//	if err != nil {
+//		log.Fatalf("Retrieve failed: %v", err)
+//	}
+//
+//	for _, doc := range resp.Documents {
+//		fmt.Printf("Document: %+v\n", doc)
+//	}
+func Retrieve(ctx context.Context, g *Genkit, opts ...ai.RetrieverOption) (*ai.RetrieverResponse, error) {
+	return ai.Retrieve(ctx, g.reg, opts...)
+}
+
+// Embed performs an embedding request using a flexible set of options
+// provided via [ai.EmbedderOption] arguments. It's a convenient way to generate
+// embeddings from registered embedders without directly calling the embedder instance.
+//
+// Example:
+//
+//	resp, err := genkit.Embed(ctx, g,
+//		ai.WithEmbedder("myEmbedder"),
+//		ai.WithTextDocs("Hello, world!"),
+//	)
+//	if err != nil {
+//		log.Fatalf("Embed failed: %v", err)
+//	}
+//
+//	for i, embedding := range resp.Embeddings {
+//		fmt.Printf("Embedding %d: %v\n", i, embedding.Embedding)
+//	}
+func Embed(ctx context.Context, g *Genkit, opts ...ai.EmbedderOption) (*ai.EmbedResponse, error) {
+	return ai.Embed(ctx, g.reg, opts...)
+}
+
 // DefineRetriever defines a custom retriever implementation, registers it as a
 // [core.Action] of type Retriever, and returns an [ai.Retriever].
 // Retrievers are used to find documents relevant to a given query, often by
@@ -731,34 +776,34 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 // The `provider` and `name` form the unique identifier. The `ret` function
 // contains the logic to process an [ai.RetrieverRequest] (containing the query)
 // and return an [ai.RetrieverResponse] (containing the relevant documents).
-func DefineRetriever(g *Genkit, provider, name string, opts *ai.RetrieverOptions, ret func(context.Context, *ai.RetrieverRequest) (*ai.RetrieverResponse, error)) ai.Retriever {
-	return ai.DefineRetriever(g.reg, provider, name, opts, ret)
+func DefineRetriever(g *Genkit, name string, opts *ai.RetrieverOptions, ret func(context.Context, *ai.RetrieverRequest) (*ai.RetrieverResponse, error)) ai.Retriever {
+	return ai.DefineRetriever(g.reg, name, opts, ret)
 }
 
 // LookupRetriever retrieves a registered [ai.Retriever] by its provider and name.
 // It returns the retriever instance if found, or `nil` if no retriever with the
 // given identifier is registered (e.g., via [DefineRetriever] or a plugin).
-func LookupRetriever(g *Genkit, provider, name string) ai.Retriever {
-	return ai.LookupRetriever(g.reg, provider, name)
+func LookupRetriever(g *Genkit, name string) ai.Retriever {
+	return ai.LookupRetriever(g.reg, name)
 }
 
 // DefineEmbedder defines a custom text embedding implementation, registers it as a
 // [core.Action] of type Embedder, and returns an [ai.Embedder].
 // Embedders convert text documents or queries into numerical vector representations (embeddings).
 //
-// The `provider` and `name` form the unique identifier. The `embed` function
-// contains the logic to process an [ai.EmbedRequest] (containing documents or a query)
+// The `provider` and `name` are specified in the `opts` parameter which forms the unique identifier.
+// The `embed` function contains the logic to process an [ai.EmbedRequest] (containing documents or a query)
 // and return an [ai.EmbedResponse] (containing the corresponding embeddings).
-func DefineEmbedder(g *Genkit, provider string, name string, opts *ai.EmbedderOptions, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
-	return ai.DefineEmbedder(g.reg, provider, name, opts, embed)
+func DefineEmbedder(g *Genkit, name string, opts *ai.EmbedderOptions, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
+	return ai.DefineEmbedder(g.reg, name, opts, embed)
 }
 
 // LookupEmbedder retrieves a registered [ai.Embedder] by its provider and name.
 // It returns the embedder instance if found, or `nil` if no embedder with the
 // given identifier is registered (e.g., via [DefineEmbedder] or a plugin).
 // It will try to resolve the embedder dynamically if the embedder is not found.
-func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
-	return ai.LookupEmbedder(g.reg, provider, name)
+func LookupEmbedder(g *Genkit, name string) ai.Embedder {
+	return ai.LookupEmbedder(g.reg, name)
 }
 
 // LookupPlugin retrieves a registered plugin instance by its name.
@@ -782,8 +827,8 @@ func LookupPlugin(g *Genkit, name string) Plugin {
 // metadata about the evaluator ([ai.EvaluatorOptions]). The `eval` function
 // implements the logic to score a single test case and returns the results
 // in an [ai.EvaluatorCallbackResponse].
-func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) (ai.Evaluator, error) {
-	return ai.DefineEvaluator(g.reg, provider, name, options, eval)
+func DefineEvaluator(g *Genkit, name string, opts *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) ai.Evaluator {
+	return ai.DefineEvaluator(g.reg, name, opts, eval)
 }
 
 // DefineBatchEvaluator defines an evaluator that processes the entire dataset at once,
@@ -797,16 +842,16 @@ func DefineEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOpti
 // metadata about the evaluator ([ai.EvaluatorOptions]). The `eval` function
 // implements the logic to score the dataset and returns the aggregated results
 // in an [ai.EvaluatorResponse].
-func DefineBatchEvaluator(g *Genkit, provider, name string, options *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) (ai.Evaluator, error) {
-	return ai.DefineBatchEvaluator(g.reg, provider, name, options, eval)
+func DefineBatchEvaluator(g *Genkit, name string, opts *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) ai.Evaluator {
+	return ai.DefineBatchEvaluator(g.reg, name, opts, eval)
 }
 
 // LookupEvaluator retrieves a registered [ai.Evaluator] by its provider and name.
 // It returns the evaluator instance if found, or `nil` if no evaluator with the
 // given identifier is registered (e.g., via [DefineEvaluator], [DefineBatchEvaluator],
 // or a plugin).
-func LookupEvaluator(g *Genkit, provider, name string) ai.Evaluator {
-	return ai.LookupEvaluator(g.reg, provider, name)
+func LookupEvaluator(g *Genkit, name string) ai.Evaluator {
+	return ai.LookupEvaluator(g.reg, name)
 }
 
 // LoadPromptDir loads all `.prompt` files from the specified directory `dir`

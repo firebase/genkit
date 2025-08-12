@@ -43,6 +43,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/evaluators"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
@@ -97,12 +98,10 @@ func main() {
 		log.Fatal(err)
 	}
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "simpleQa",
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(localvec.RetrieverOptions{}),
+		Label:        "simpleQa",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 	docStore, retriever, err := localvec.DefineRetriever(g, "simpleQa", localvec.Config{Embedder: embedder}, retOpts)
@@ -126,7 +125,8 @@ func main() {
 		Definition:  "Just says true or false randomly",
 		IsBilled:    false,
 	}
-	genkit.DefineEvaluator(g, "custom", "simpleEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+
+	genkit.DefineEvaluator(g, core.NewName("custom", "simpleEvaluator"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
 		m := make(map[string]any)
 		m["reasoning"] = "No good reason"
 		score := ai.Score{
@@ -142,7 +142,7 @@ func main() {
 		return &callbackResponse, nil
 	})
 
-	genkit.DefineBatchEvaluator(g, "custom", "simpleBatchEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
+	genkit.DefineBatchEvaluator(g, core.NewName("custom", "simpleBatchEvaluator"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
 		var evalResponses []ai.EvaluationResult
 		for _, datapoint := range req.Dataset {
 			m := make(map[string]any)
@@ -174,7 +174,9 @@ func main() {
 		}
 
 		dRequest := ai.DocumentFromText(input.Question, nil)
-		response, err := ai.Retrieve(ctx, retriever, ai.WithDocs(dRequest),
+		response, err := genkit.Retrieve(ctx, g,
+			ai.WithRetriever(retriever),
+			ai.WithDocs(dRequest),
 			ai.WithConfig(&localvec.RetrieverOptions{K: 2}))
 		if err != nil {
 			return "", err

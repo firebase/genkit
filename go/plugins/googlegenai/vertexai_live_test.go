@@ -126,7 +126,8 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder,
+		res, err := genkit.Embed(ctx, g,
+			ai.WithEmbedder(embedder),
 			ai.WithTextDocs("time flies like an arrow", "fruit flies like a banana"),
 		)
 		if err != nil {

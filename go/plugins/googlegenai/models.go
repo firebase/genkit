@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"google.golang.org/genai"
 )
 
@@ -104,7 +105,7 @@ var (
 		gemini20FlashPrevImageGen,
 	}
 
-	supportedGeminiModels = map[string]ai.ModelInfo{
+	supportedGeminiModels = map[string]ai.ModelOptions{
 		gemini15Flash: {
 			Label: "Gemini 1.5 Flash",
 			Versions: []string{
@@ -230,7 +231,7 @@ var (
 		},
 	}
 
-	supportedImagenModels = map[string]ai.ModelInfo{
+	supportedImagenModels = map[string]ai.ModelOptions{
 		imagen3Generate001: {
 			Label:    "Imagen 3 Generate 001",
 			Versions: []string{},
@@ -258,88 +259,72 @@ var (
 
 	googleAIEmbedderConfig = map[string]ai.EmbedderOptions{
 		textembedding004: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Google Gen AI - Text Embedding 001",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Google Gen AI - Text Embedding 001",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
+			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		embedding001: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
+			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko003: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Google Gen AI - Text Embedding Gecko 003",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Google Gen AI - Text Embedding Gecko 003",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
+			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko002: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Vertex AI - Text Embedding Gecko 002",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Vertex AI - Text Embedding Gecko 002",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
+			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko001: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Vertex AI - Text Embedding Gecko 001",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Vertex AI - Text Embedding Gecko 001",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
+			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggeckomultilingual001: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Vertex AI - Text Embedding Gecko Multilingual 001",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Vertex AI - Text Embedding Gecko Multilingual 001",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
+			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textmultilingualembedding002: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Vertex AI - Text Multilingual Embedding 001",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Vertex AI - Text Multilingual Embedding 001",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
+			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		multimodalembedding: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
-				Supports: &ai.EmbedderSupports{ // Supports object is present
-					Input: []string{
-						"text",
-						"image",
-						"video",
-					},
+			Dimensions: 768,
+			Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{
+					"text",
+					"image",
+					"video",
 				},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
+			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 	}
 
@@ -356,7 +341,7 @@ var (
 
 // listModels returns a map of supported models and their capabilities
 // based on the detected backend
-func listModels(provider string) (map[string]ai.ModelInfo, error) {
+func listModels(provider string) (map[string]ai.ModelOptions, error) {
 	var names []string
 	var prefix string
 
@@ -371,9 +356,9 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 		return nil, fmt.Errorf("unknown provider detected %s", provider)
 	}
 
-	models := make(map[string]ai.ModelInfo, 0)
+	models := make(map[string]ai.ModelOptions, 0)
 	for _, n := range names {
-		var m ai.ModelInfo
+		var m ai.ModelOptions
 		var ok bool
 		if strings.HasPrefix(n, "image") {
 			m, ok = supportedImagenModels[n]
@@ -383,10 +368,12 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 		if !ok {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
-		models[n] = ai.ModelInfo{
-			Label:    prefix + " - " + m.Label,
-			Versions: m.Versions,
-			Supports: m.Supports,
+		models[n] = ai.ModelOptions{
+			Label:        prefix + " - " + m.Label,
+			Versions:     m.Versions,
+			Supports:     m.Supports,
+			ConfigSchema: m.ConfigSchema,
+			Stage:        m.Stage,
 		}
 	}
 

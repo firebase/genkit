@@ -33,7 +33,7 @@ func pr01() {
 		log.Fatal(err)
 	}
 
-	model := genkit.LookupModel(g, "googleai", "gemini-1.5-flash")
+	model := genkit.LookupModel(g, "googleai/gemini-1.5-flash")
 
 	// [START pr01]
 	genkit.Generate(context.Background(), g,
@@ -57,7 +57,7 @@ func pr02() {
 		log.Fatal(err)
 	}
 
-	model := genkit.LookupModel(g, "googleai", "gemini-1.5-flash")
+	model := genkit.LookupModel(g, "googleai/gemini-1.5-flash")
 
 	// [START pr02]
 	response, err := genkit.GenerateText(context.Background(), g,
@@ -77,7 +77,7 @@ func pr03() error {
 		log.Fatal(err)
 	}
 
-	model := genkit.LookupModel(g, "googleai", "gemini-1.5-flash")
+	model := genkit.LookupModel(g, "googleai/gemini-1.5-flash")
 
 	// [START pr03_1]
 	type HelloPromptInput struct {

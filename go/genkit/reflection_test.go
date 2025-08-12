@@ -90,8 +90,8 @@ func TestServeMux(t *testing.T) {
 	tc := tracing.NewTestOnlyTelemetryClient()
 	g.reg.TracingState().WriteTelemetryImmediate(tc)
 
-	core.DefineAction(g.reg, "test", "inc", "custom", nil, inc)
-	core.DefineAction(g.reg, "test", "dec", "custom", nil, dec)
+	core.DefineAction(g.reg, "test/inc", core.ActionTypeCustom, nil, inc)
+	core.DefineAction(g.reg, "test/dec", core.ActionTypeCustom, nil, dec)
 
 	ts := httptest.NewServer(serveMux(g))
 	defer ts.Close()
@@ -205,7 +205,7 @@ func TestServeMux(t *testing.T) {
 			}
 			return x, nil
 		}
-		core.DefineStreamingAction(g.reg, "test", "streaming", core.ActionTypeCustom, nil, streamingInc)
+		core.DefineStreamingAction(g.reg, "test/streaming", core.ActionTypeCustom, nil, streamingInc)
 
 		body := `{"key": "/custom/test/streaming", "input": 3}`
 		req, err := http.NewRequest("POST", ts.URL+"/api/runAction?stream=true", strings.NewReader(body))

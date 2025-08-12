@@ -45,8 +45,8 @@ func Init() error {
 	// [START definemodel]
 	name := "my-model"
 	genkit.DefineModel(g,
-		providerID, name,
-		&ai.ModelInfo{
+		name,
+		&ai.ModelOptions{
 			Label: name,
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,  // Does the model support multi-turn chats?

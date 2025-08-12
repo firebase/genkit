@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
@@ -59,16 +60,14 @@ func TestLocalVec(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 	emdOpts := &ai.EmbedderOptions{
-		Info: &ai.EmbedderInfo{
-			Dimensions: 32,
-			Label:      "",
-			Supports: &ai.EmbedderSupports{
-				Input: []string{"text"},
-			},
+		Dimensions: 32,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
 		},
 		ConfigSchema: nil,
 	}
-	embedAction := genkit.DefineEmbedder(g, "fake", "embedder1", emdOpts, embedder.Embed)
+	embedAction := genkit.DefineEmbedder(g, "fake/embedder1", emdOpts, embedder.Embed)
 	ds, err := newDocStore(t.TempDir(), "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -132,16 +131,14 @@ func TestPersistentIndexing(t *testing.T) {
 	embedder.Register(d3, v3)
 
 	emdOpts := &ai.EmbedderOptions{
-		Info: &ai.EmbedderInfo{
-			Dimensions: 32,
-			Label:      "",
-			Supports: &ai.EmbedderSupports{
-				Input: []string{"text"},
-			},
+		Dimensions: 32,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
 		},
 		ConfigSchema: nil,
 	}
-	embedAction := genkit.DefineEmbedder(g, "fake", "embedder2", emdOpts, embedder.Embed)
+	embedAction := genkit.DefineEmbedder(g, "fake/embedder2", emdOpts, embedder.Embed)
 
 	tDir := t.TempDir()
 
@@ -218,27 +215,23 @@ func TestInit(t *testing.T) {
 		t.Fatal(err)
 	}
 	emdOpts := &ai.EmbedderOptions{
-		Info: &ai.EmbedderInfo{
-			Dimensions: 768,
-			Label:      "",
-			Supports: &ai.EmbedderSupports{
-				Input: []string{"text"},
-			},
+		Dimensions: 768,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
 		},
 		ConfigSchema: nil,
 	}
-	embedder := genkit.DefineEmbedder(g, "fake", "e", emdOpts, fakeembedder.New().Embed)
+	embedder := genkit.DefineEmbedder(g, "fake/embedder3", emdOpts, fakeembedder.New().Embed)
 	if err := Init(); err != nil {
 		t.Fatal(err)
 	}
 	const name = "mystore"
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: RetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: name,
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(RetrieverOptions{}),
+		Label:        name,
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 	_, ret, err := DefineRetriever(g, name, Config{Embedder: embedder}, retOpts)

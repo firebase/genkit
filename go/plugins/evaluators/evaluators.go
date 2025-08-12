@@ -14,6 +14,7 @@ import (
 
 	jsonata "github.com/blues/jsonata-go"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -78,7 +79,7 @@ func (ge *GenkitEval) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	return nil
 }
 
-func ConfigureMetric(g *genkit.Genkit, metric MetricConfig) (ai.Evaluator, error) {
+func ConfigureMetric(g *genkit.Genkit, metric MetricConfig) ai.Evaluator {
 	switch metric.MetricType {
 	case EvaluatorDeepEqual:
 		return configureDeepEqualEvaluator(g)
@@ -91,13 +92,13 @@ func ConfigureMetric(g *genkit.Genkit, metric MetricConfig) (ai.Evaluator, error
 	}
 }
 
-func configureRegexEvaluator(g *genkit.Genkit) (ai.Evaluator, error) {
+func configureRegexEvaluator(g *genkit.Genkit) ai.Evaluator {
 	evalOptions := ai.EvaluatorOptions{
 		DisplayName: "RegExp",
 		Definition:  "Tests output against the regexp provided as reference",
 		IsBilled:    false,
 	}
-	evaluator, err := genkit.DefineEvaluator(g, provider, "regex", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+	return genkit.DefineEvaluator(g, core.NewName(provider, "regex"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
 		dataPoint := req.Input
 		var score ai.Score
 		if dataPoint.Output == nil {
@@ -137,19 +138,15 @@ func configureRegexEvaluator(g *genkit.Genkit) (ai.Evaluator, error) {
 		}
 		return &callbackResponse, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return evaluator, nil
 }
 
-func configureDeepEqualEvaluator(g *genkit.Genkit) (ai.Evaluator, error) {
+func configureDeepEqualEvaluator(g *genkit.Genkit) ai.Evaluator {
 	evalOptions := ai.EvaluatorOptions{
 		DisplayName: "Deep Equal",
 		Definition:  "Tests equality of output against the provided reference",
 		IsBilled:    false,
 	}
-	evaluator, err := genkit.DefineEvaluator(g, provider, "deep_equal", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+	return genkit.DefineEvaluator(g, core.NewName(provider, "deepEqual"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
 		dataPoint := req.Input
 		var score ai.Score
 		if dataPoint.Output == nil {
@@ -176,19 +173,15 @@ func configureDeepEqualEvaluator(g *genkit.Genkit) (ai.Evaluator, error) {
 		}
 		return &callbackResponse, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return evaluator, nil
 }
 
-func configureJsonataEvaluator(g *genkit.Genkit) (ai.Evaluator, error) {
+func configureJsonataEvaluator(g *genkit.Genkit) ai.Evaluator {
 	evalOptions := ai.EvaluatorOptions{
 		DisplayName: "JSONata",
 		Definition:  "Tests JSONata expression (provided in reference) against output",
 		IsBilled:    false,
 	}
-	evaluator, err := genkit.DefineEvaluator(g, provider, "jsonata", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+	return genkit.DefineEvaluator(g, core.NewName(provider, "jsonata"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
 		dataPoint := req.Input
 		var score ai.Score
 		if dataPoint.Output == nil {
@@ -223,8 +216,4 @@ func configureJsonataEvaluator(g *genkit.Genkit) (ai.Evaluator, error) {
 		}
 		return &callbackResponse, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-	return evaluator, nil
 }

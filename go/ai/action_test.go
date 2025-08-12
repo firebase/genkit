@@ -70,7 +70,7 @@ func defineProgrammableModel(r *registry.Registry) *programmableModel {
 		Tools:     true,
 		Multiturn: true,
 	}
-	DefineModel(r, "", "programmableModel", &ModelInfo{Supports: supports}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+	DefineModel(r, "programmableModel", &ModelOptions{Supports: supports}, func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 		return pm.Generate(ctx, r, req, &ToolConfig{MaxTurns: 5}, cb)
 	})
 	return pm

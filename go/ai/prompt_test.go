@@ -167,8 +167,8 @@ type HelloPromptInput struct {
 }
 
 func definePromptModel(reg *registry.Registry) Model {
-	return DefineModel(reg, "test", "chat",
-		&ModelInfo{Supports: &ModelSupports{
+	return DefineModel(reg, "test/chat",
+		&ModelOptions{Supports: &ModelSupports{
 			Tools:      true,
 			Multiturn:  true,
 			ToolChoice: true,
@@ -619,7 +619,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 
 	ConfigureFormats(reg)
 
-	testModel := DefineModel(reg, "options", "test", nil, testGenerate)
+	testModel := DefineModel(reg, "options/test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
 		p, err := DefinePrompt(reg, "TestExecute", WithInputType(InputOutput{}), WithPrompt("TestExecute"))
@@ -679,7 +679,7 @@ func TestDefaultsOverride(t *testing.T) {
 	// Set up default formats
 	ConfigureFormats(reg)
 
-	testModel := DefineModel(reg, "defineoptions", "test", nil, testGenerate)
+	testModel := DefineModel(reg, "defineoptions/test", nil, testGenerate)
 	model := definePromptModel(reg)
 
 	tests := []struct {
@@ -876,8 +876,8 @@ Hello, {{name}}!
 		t.Fatal("Input schema is nil")
 	}
 
-	if prompt.action.Desc().InputSchema.Type != "object" {
-		t.Errorf("Expected input schema type 'object', got '%s'", prompt.action.Desc().InputSchema.Type)
+	if prompt.action.Desc().InputSchema["type"] != "object" {
+		t.Errorf("Expected input schema type 'object', got '%s'", prompt.action.Desc().InputSchema["type"])
 	}
 
 	promptMetadata, ok := prompt.action.Desc().Metadata["prompt"].(map[string]any)
