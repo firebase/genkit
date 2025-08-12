@@ -22,6 +22,7 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
@@ -50,12 +51,10 @@ func main() {
 		log.Fatal(err)
 	}
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "menuQA",
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(localvec.RetrieverOptions{}),
+		Label:        "menuQA",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 
@@ -166,12 +165,10 @@ func menuQA() {
 	model := googlegenai.VertexAIModel(g, "gemini-1.5-flash")
 
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "menuQA",
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(localvec.RetrieverOptions{}),
+		Label:        "menuQA",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 
@@ -229,12 +226,10 @@ func customret() {
 	}
 
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: localvec.RetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "menuQA",
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(localvec.RetrieverOptions{}),
+		Label:        "menuQA",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 
@@ -253,19 +248,14 @@ func customret() {
 		PreRerankK int
 	}
 	genRetOpts := &ai.RetrieverOptions{
-		ConfigSchema: CustomMenuRetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "advancedMenuRetriever",
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(CustomMenuRetrieverOptions{}),
+		Label:        "advancedMenuRetriever",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 	advancedMenuRetriever := genkit.DefineRetriever(
-		g,
-		"custom",
-		"advancedMenuRetriever",
-		genRetOpts,
+		g, core.NewName("custom", "advancedMenuRetriever"), genRetOpts,
 		func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 			// Handle options passed using our custom type.
 			opts, _ := req.Options.(CustomMenuRetrieverOptions)

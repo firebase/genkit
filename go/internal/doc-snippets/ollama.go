@@ -47,7 +47,7 @@ func ollamaEx(ctx context.Context) error {
 			Name: name,
 			Type: "chat", // "chat" or "generate"
 		},
-		&ai.ModelInfo{
+		&ai.ModelOptions{
 			Label: name,
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,

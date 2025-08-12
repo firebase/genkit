@@ -26,7 +26,7 @@ func TestConstrainedGenerate(t *testing.T) {
 	JSON := "\n{\"foo\": \"bar\"}\n"
 	JSONmd := "```json" + JSON + "```"
 
-	modelInfo := ModelInfo{
+	modelInfo := ModelOptions{
 		Label: modelName,
 		Supports: &ModelSupports{
 			Multiturn:   true,
@@ -38,7 +38,7 @@ func TestConstrainedGenerate(t *testing.T) {
 		Versions: []string{"echo-001", "echo-002"},
 	}
 
-	formatModel := DefineModel(r, "test", "format", &modelInfo, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+	formatModel := DefineModel(r, "test/format", &modelInfo, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
 				Content: []*Part{NewTextPart("stream!")},

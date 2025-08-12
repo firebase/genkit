@@ -64,7 +64,7 @@ func googleaiEx(ctx context.Context) error {
 	// [END embedder]
 
 	// [START embed]
-	embedRes, err := ai.Embed(ctx, embeddingModel, ai.WithTextDocs(userInput))
+	embedRes, err := genkit.Embed(ctx, g, ai.WithEmbedder(embeddingModel), ai.WithTextDocs(userInput))
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func googleaiEx(ctx context.Context) error {
 	var myRetriever ai.Retriever
 
 	// [START retrieve]
-	retrieveRes, err := ai.Retrieve(ctx, myRetriever, ai.WithTextDocs(userInput))
+	retrieveRes, err := genkit.Retrieve(ctx, g, ai.WithRetriever(myRetriever), ai.WithTextDocs(userInput))
 	if err != nil {
 		return err
 	}

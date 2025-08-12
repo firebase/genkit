@@ -83,7 +83,8 @@ Answer this customer's question:
 
 	genkit.DefineFlow(g, "s04_ragMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
-			resp, err := ai.Retrieve(ctx, retriever,
+			resp, err := genkit.Retrieve(ctx, g,
+				ai.WithRetriever(retriever),
 				ai.WithTextDocs(input.Question),
 				ai.WithConfig(&localvec.RetrieverOptions{
 					K: 3,

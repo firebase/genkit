@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/openai/openai-go/option"
@@ -29,7 +30,7 @@ const (
 )
 
 // Supported models: https://docs.anthropic.com/en/docs/about-claude/models/all-models
-var supportedModels = map[string]ai.ModelInfo{
+var supportedModels = map[string]ai.ModelOptions{
 	"claude-3-7-sonnet-20250219": {
 		Label: "Claude 3.7 Sonnet",
 		Supports: &ai.ModelSupports{
@@ -103,8 +104,8 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	// define default models
-	for model, info := range supportedModels {
-		if _, err := a.DefineModel(g, model, info); err != nil {
+	for model, opts := range supportedModels {
+		if _, err := a.DefineModel(g, model, opts); err != nil {
 			return err
 		}
 	}
@@ -113,9 +114,9 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) error {
 }
 
 func (a *Anthropic) Model(g *genkit.Genkit, name string) ai.Model {
-	return a.openAICompatible.Model(g, name, provider)
+	return a.openAICompatible.Model(g, core.NewName(provider, name))
 }
 
-func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, error) {
-	return a.openAICompatible.DefineModel(g, provider, name, info)
+func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts ai.ModelOptions) (ai.Model, error) {
+	return a.openAICompatible.DefineModel(g, provider, name, opts)
 }

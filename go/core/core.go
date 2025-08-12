@@ -27,6 +27,7 @@
 package core
 
 import (
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -34,4 +35,10 @@ import (
 // RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
 func RegisterSpanProcessor(r *registry.Registry, sp sdktrace.SpanProcessor) {
 	r.RegisterSpanProcessor(sp)
+}
+
+// InferSchemaMap infers a JSON schema from a Go value and converts it to a map.
+func InferSchemaMap(value any) map[string]any {
+	schema := base.InferJSONSchema(value)
+	return base.SchemaAsMap(schema)
 }

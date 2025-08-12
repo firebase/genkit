@@ -54,11 +54,6 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 		promptOptions: *pOpts,
 	}
 
-	modelName := p.ModelName
-	if modelName == "" && p.Model != nil {
-		modelName = p.Model.Name()
-	}
-
 	if modelRef, ok := pOpts.Model.(ModelRef); ok && pOpts.Config == nil {
 		pOpts.Config = modelRef.Config()
 	}
@@ -73,18 +68,14 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 		tools = append(tools, value.Name())
 	}
 
-	var inputSchema map[string]any
-	if p.InputSchema != nil {
-		inputSchema = base.SchemaAsMap(p.InputSchema)
-	}
-
 	promptMeta := map[string]any{
+		"type": core.ActionTypeExecutablePrompt,
 		"prompt": map[string]any{
 			"name":         name,
 			"description":  p.Description,
-			"model":        modelName,
+			"model":        p.Model.Name(),
 			"config":       p.Config,
-			"input":        map[string]any{"schema": inputSchema},
+			"input":        map[string]any{"schema": p.InputSchema},
 			"output":       map[string]any{"schema": p.OutputSchema},
 			"defaultInput": p.DefaultInput,
 			"tools":        tools,
@@ -92,7 +83,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, "", name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineActionWithInputSchema(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p, nil
 }
@@ -100,7 +91,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, name string) *Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, "", name)
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, name)
 	if action == nil {
 		return nil
 	}
@@ -150,10 +141,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		actionOpts.ToolChoice = genOpts.ToolChoice
 	}
 
-	modelName := genOpts.ModelName
-	if modelName == "" && genOpts.Model != nil {
-		modelName = genOpts.Model.Name()
-	}
+	modelName := genOpts.Model.Name()
 	if modelName != "" {
 		actionOpts.Model = modelName
 	}
@@ -294,18 +282,13 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		tools = append(tools, t.Name())
 	}
 
-	modelName := p.ModelName
-	if modelName == "" && p.Model != nil {
-		modelName = p.Model.Name()
-	}
-
 	config := p.Config
 	if modelRef, ok := p.Model.(ModelRef); ok && config == nil {
 		config = modelRef.Config()
 	}
 
 	return &GenerateActionOptions{
-		Model:              modelName,
+		Model:              p.Model.Name(),
 		Config:             config,
 		ToolChoice:         p.ToolChoice,
 		MaxTurns:           p.MaxTurns,
@@ -568,8 +551,8 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 			configOptions: configOptions{
 				Config: (map[string]any)(metadata.Config),
 			},
-			ModelName: metadata.Model,
-			Tools:     toolRefs,
+			Model: NewModelRef(metadata.Model, nil),
+			Tools: toolRefs,
 		},
 		DefaultInput: metadata.Input.Default,
 		Metadata:     promptOptMetadata,
@@ -589,6 +572,10 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	if inputSchema, ok := metadata.Input.Schema.(*jsonschema.Schema); ok {
+		opts.InputSchema = base.SchemaAsMap(inputSchema)
+	}
+
+	if inputSchema, ok := metadata.Input.Schema.(map[string]any); ok {
 		opts.InputSchema = inputSchema
 	}
 

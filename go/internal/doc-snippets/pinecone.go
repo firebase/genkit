@@ -21,6 +21,7 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/pinecone"
@@ -49,12 +50,10 @@ func pineconeEx(ctx context.Context) error {
 
 	// [START defineretriever]
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: pinecone.PineconeRetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "Pinecone",
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(pinecone.PineconeRetrieverOptions{}),
+		Label:        "Pinecone",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 	ds, menuRetriever, err := pinecone.DefineRetriever(ctx, g, pinecone.Config{

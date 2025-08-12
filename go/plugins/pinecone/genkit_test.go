@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
@@ -84,28 +85,24 @@ func TestGenkit(t *testing.T) {
 		t.Fatal(err)
 	}
 	emdOpts := &ai.EmbedderOptions{
-		Info: &ai.EmbedderInfo{
-			Dimensions: 768,
-			Label:      "",
-			Supports: &ai.EmbedderSupports{
-				Input: []string{"text"},
-			},
+		Dimensions: 768,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
 		},
 		ConfigSchema: nil,
 	}
 
 	cfg := Config{
 		IndexID:  *testIndex,
-		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", emdOpts, embedder.Embed),
+		Embedder: genkit.DefineEmbedder(g, "fake/embedder3", emdOpts, embedder.Embed),
 	}
 
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: PineconeRetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "embedder3",
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(PineconeRetrieverOptions{}),
+		Label:        "embedder3",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 
@@ -147,7 +144,8 @@ func TestGenkit(t *testing.T) {
 		K:         2,
 		Namespace: namespace,
 	}
-	retrieverResp, err := ai.Retrieve(ctx, retriever,
+	retrieverResp, err := genkit.Retrieve(ctx, g,
+		ai.WithRetriever(retriever),
 		ai.WithDocs(d1),
 		ai.WithConfig(retrieverOptions))
 	if err != nil {

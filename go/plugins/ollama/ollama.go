@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 )
@@ -57,20 +58,20 @@ var (
 	}
 )
 
-func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.ModelInfo) ai.Model {
+func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.ModelOptions) ai.Model {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
 		panic("ollama.Init not called")
 	}
-	var mi ai.ModelInfo
+	var modelOpts ai.ModelOptions
 
-	if info != nil {
-		mi = *info
+	if opts != nil {
+		modelOpts = *opts
 	} else {
 		// Check if the model supports tools (must be a chat model and in the supported list)
 		supportsTools := model.Type == "chat" && slices.Contains(toolSupportedModels, model.Name)
-		mi = ai.ModelInfo{
+		modelOpts = ai.ModelOptions{
 			Label: model.Name,
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
@@ -81,24 +82,24 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, info *ai.M
 			Versions: []string{},
 		}
 	}
-	meta := &ai.ModelInfo{
+	meta := &ai.ModelOptions{
 		Label:    "Ollama - " + model.Name,
-		Supports: mi.Supports,
+		Supports: modelOpts.Supports,
 		Versions: []string{},
 	}
 	gen := &generator{model: model, serverAddress: o.ServerAddress}
-	return genkit.DefineModel(g, provider, model.Name, meta, gen.generate)
+	return genkit.DefineModel(g, core.NewName(provider, model.Name), meta, gen.generate)
 }
 
 // IsDefinedModel reports whether a model is defined.
 func IsDefinedModel(g *genkit.Genkit, name string) bool {
-	return genkit.LookupModel(g, provider, name) != nil
+	return genkit.LookupModel(g, core.NewName(provider, name)) != nil
 }
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not configured.
 func Model(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, provider, name)
+	return genkit.LookupModel(g, core.NewName(provider, name))
 }
 
 // ModelDefinition represents a model with its name and type.
