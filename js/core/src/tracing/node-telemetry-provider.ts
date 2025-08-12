@@ -29,8 +29,6 @@ import { TraceServerExporter, setTelemetryServerUrl } from './exporter.js';
 let telemetrySDK: NodeSDK | null = null;
 let nodeOtelConfig: TelemetryConfig | null = null;
 
-const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
-
 export function initNodeTelemetryProvider() {
   setTelemetryProvider({
     enableTelemetry,
@@ -47,8 +45,6 @@ async function enableTelemetry(
   if (process.env.GENKIT_TELEMETRY_SERVER) {
     setTelemetryServerUrl(process.env.GENKIT_TELEMETRY_SERVER);
   }
-  global[instrumentationKey] =
-    telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
 
   telemetryConfig =
     telemetryConfig instanceof Promise

@@ -90,6 +90,8 @@ export function setTelemetryProvider(provider: TelemetryProvider) {
 export async function enableTelemetry(
   telemetryConfig: TelemetryConfig | Promise<TelemetryConfig>
 ) {
+  global[instrumentationKey] =
+    telemetryConfig instanceof Promise ? telemetryConfig : Promise.resolve();
   return getTelemetryProvider().enableTelemetry(telemetryConfig);
 }
 
