@@ -243,10 +243,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	}
 	model, _ := m.(*model)
 
-	// Validate long-running support if requested
-	if opts.LongRunning && !SupportsLongRunning(r, opts.Model) {
-		return nil, core.NewError(core.INVALID_ARGUMENT, "model %q does not support long-running operations", opts.Model)
-	}
+	isLongRunning := SupportsLongRunning(r, opts.Model)
 
 	resumeOutput, err := handleResumeOption(ctx, r, opts)
 	if err != nil {
@@ -344,7 +341,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 	}
 
 	var fn ModelFunc
-	if opts.LongRunning {
+	if isLongRunning {
 		provider, name, _ := strings.Cut(opts.Model, "/")
 		bgAction := LookupBackgroundModel(r, provider, name)
 		if bgAction == nil {
@@ -543,7 +540,6 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		Config:             genOpts.Config,
 		ToolChoice:         genOpts.ToolChoice,
 		Docs:               genOpts.Documents,
-		LongRunning:        genOpts.LongRunning,
 		ReturnToolRequests: genOpts.ReturnToolRequests != nil && *genOpts.ReturnToolRequests,
 		Output: &GenerateActionOutputConfig{
 			JsonSchema:   genOpts.OutputSchema,
@@ -1227,8 +1223,6 @@ func SupportsLongRunning(r *registry.Registry, modelName string) bool {
 
 // GenerateOperation generates a model response as a long-running operation based on the provided options. s.
 func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation[*ModelResponse], error) {
-
-	opts = append(opts, WithLongRunning())
 
 	resp, err := Generate(ctx, r, opts...)
 	if err != nil {

@@ -727,7 +727,6 @@ type generateOptions struct {
 	documentOptions
 	RespondParts []*Part // Tool responses to return from interrupted tool calls.
 	RestartParts []*Part // Tool requests to restart interrupted tools with.
-	LongRunning  bool    // Whether to use long-running operation mode.
 }
 
 // GenerateOption is an option for generating a model response. It applies only to Generate().
@@ -771,16 +770,7 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 		genOpts.RestartParts = o.RestartParts
 	}
 
-	if o.LongRunning {
-		genOpts.LongRunning = true
-	}
-
 	return nil
-}
-
-// WithLongRunning sets the generation to use long-running operation mode.
-func WithLongRunning() GenerateOption {
-	return &generateOptions{LongRunning: true}
 }
 
 // WithToolResponses sets the tool responses to return from interrupted tool calls.

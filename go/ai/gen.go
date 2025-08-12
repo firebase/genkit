@@ -123,7 +123,6 @@ const (
 type GenerateActionOptions struct {
 	Config             any                         `json:"config,omitempty"`
 	Docs               []*Document                 `json:"docs,omitempty"`
-	LongRunning        bool                        `json:"longRunning,omitempty"`
 	MaxTurns           int                         `json:"maxTurns,omitempty"`
 	Messages           []*Message                  `json:"messages,omitempty"`
 	Model              string                      `json:"model,omitempty"`
