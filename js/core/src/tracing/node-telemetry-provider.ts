@@ -23,11 +23,8 @@ import {
 import { logger } from '../logging.js';
 import type { TelemetryConfig } from '../telemetryTypes.js';
 import { setTelemetryProvider } from '../tracing.js';
-import {
-  TraceServerExporter,
-  setTelemetryServerUrl,
-} from './exporter.js';
 import { isDevEnv } from '../utils.js';
+import { TraceServerExporter, setTelemetryServerUrl } from './exporter.js';
 
 let telemetrySDK: NodeSDK | null = null;
 let nodeOtelConfig: TelemetryConfig | null = null;
