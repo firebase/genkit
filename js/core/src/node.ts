@@ -15,9 +15,9 @@
  */
 
 import { initNodeAsyncContext } from './node-async-context.js';
-import { initNodeTelemetry } from './tracing/node-telemetry-provider.js';
+import { initNodeTelemetryProvider } from './tracing/node-telemetry-provider.js';
 
 export function initNodeFeatures() {
   initNodeAsyncContext();
-  initNodeTelemetry();
+  initNodeTelemetryProvider();
 }

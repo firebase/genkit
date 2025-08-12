@@ -34,7 +34,7 @@ let nodeOtelConfig: TelemetryConfig | null = null;
 
 const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
 
-export function initNodeTelemetry() {
+export function initNodeTelemetryProvider() {
   setTelemetryProvider({
     enableTelemetry,
     flushTracing,
