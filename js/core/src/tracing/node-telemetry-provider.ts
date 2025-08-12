@@ -26,7 +26,7 @@ import { setTelemetryProvider } from '../tracing.js';
 import {
   TraceServerExporter,
   setTelemetryServerUrl,
-} from '../tracing/exporter.js';
+} from './exporter.js';
 import { isDevEnv } from '../utils.js';
 
 let telemetrySDK: NodeSDK | null = null;
