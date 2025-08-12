@@ -111,50 +111,46 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
 
-	genOpts := &promptExecutionOptions{}
+	execOpts := &promptExecutionOptions{}
 	for _, opt := range opts {
-		if err := opt.applyPromptExecute(genOpts); err != nil {
+		if err := opt.applyPromptExecute(execOpts); err != nil {
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
 
-	p.MessagesFn = mergeMessagesFn(p.MessagesFn, genOpts.MessagesFn)
+	p.MessagesFn = mergeMessagesFn(p.MessagesFn, execOpts.MessagesFn)
 
 	// Render() should populate all data from the prompt. Prompt fields should
 	// *not* be referenced in this function as it may have been loaded from
 	// the registry and is missing the options passed in at definition.
-	actionOpts, err := p.Render(ctx, genOpts.Input)
+	actionOpts, err := p.Render(ctx, execOpts.Input)
 	if err != nil {
 		return nil, err
 	}
 
-	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
-		genOpts.Config = modelRef.Config()
+	if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {
+		execOpts.Config = modelRef.Config()
 	}
-	if genOpts.Config != nil {
-		actionOpts.Config = genOpts.Config
+	if execOpts.Config != nil {
+		actionOpts.Config = execOpts.Config
 	}
-	if len(genOpts.Documents) > 0 {
-		actionOpts.Docs = genOpts.Documents
+	if len(execOpts.Documents) > 0 {
+		actionOpts.Docs = execOpts.Documents
 	}
-	if genOpts.ToolChoice != "" {
-		actionOpts.ToolChoice = genOpts.ToolChoice
+	if execOpts.ToolChoice != "" {
+		actionOpts.ToolChoice = execOpts.ToolChoice
 	}
-
-	modelName := genOpts.Model.Name()
-	if modelName != "" {
-		actionOpts.Model = modelName
+	if execOpts.Model != nil {
+		actionOpts.Model = execOpts.Model.Name()
 	}
-
-	if genOpts.MaxTurns != 0 {
-		actionOpts.MaxTurns = genOpts.MaxTurns
+	if execOpts.MaxTurns != 0 {
+		actionOpts.MaxTurns = execOpts.MaxTurns
 	}
-
-	if genOpts.ReturnToolRequests != nil {
-		actionOpts.ReturnToolRequests = *genOpts.ReturnToolRequests
+	if execOpts.ReturnToolRequests != nil {
+		actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
 	}
 
-	return GenerateWithRequest(ctx, p.registry, actionOpts, genOpts.Middleware, genOpts.Stream)
+	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
 
 // Render renders the prompt template based on user input.
