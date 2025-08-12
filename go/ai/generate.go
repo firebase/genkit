@@ -837,7 +837,7 @@ func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts
 				}
 
 				toolDef := tool.Definition()
-				if toolDef.OutputSchema != nil && len(toolDef.OutputSchema) > 0 {
+				if len(toolDef.OutputSchema) > 0 {
 					outputBytes, err := json.Marshal(respondPart.ToolResponse.Output)
 					if err != nil {
 						return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: failed to marshal tool output for validation: %v", err)
