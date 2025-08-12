@@ -288,8 +288,13 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		config = modelRef.Config()
 	}
 
+	var modelName string
+	if p.Model != nil {
+		modelName = p.Model.Name()
+	}
+
 	return &GenerateActionOptions{
-		Model:              p.Model.Name(),
+		Model:              modelName,
 		Config:             config,
 		ToolChoice:         p.ToolChoice,
 		MaxTurns:           p.MaxTurns,

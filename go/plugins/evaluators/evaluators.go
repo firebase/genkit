@@ -146,7 +146,7 @@ func configureDeepEqualEvaluator(g *genkit.Genkit) ai.Evaluator {
 		Definition:  "Tests equality of output against the provided reference",
 		IsBilled:    false,
 	}
-	return genkit.DefineEvaluator(g, core.NewName(provider, "deepEqual"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+	return genkit.DefineEvaluator(g, core.NewName(provider, "deep_equal"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
 		dataPoint := req.Input
 		var score ai.Score
 		if dataPoint.Output == nil {

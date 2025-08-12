@@ -131,16 +131,9 @@ func TestInputFormat(t *testing.T) {
 			var p *Prompt
 
 			if test.inputType != nil {
-				p = DefinePrompt(reg, test.name,
-					WithPrompt(test.templateText),
-					WithInputType(test.inputType),
-				)
+				p = DefinePrompt(reg, test.name, WithPrompt(test.templateText), WithInputType(test.inputType))
 			} else {
 				p = DefinePrompt(reg, test.name, WithPrompt(test.templateText))
-			}
-
-			if err != nil {
-				t.Fatal(err)
 			}
 
 			req, err := p.Render(context.Background(), test.input)
