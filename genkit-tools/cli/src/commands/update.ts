@@ -222,10 +222,42 @@ async function downloadAndInstall(
     }
 
     logger.info('Running using npm, downloading using npm...');
-    execSync(command);
-    logger.info(
-      `${clc.green('✓')} Successfully updated to ${clc.bold(version)}`
-    );
+
+    try {
+      // Use child process to avoid self-updating issues
+      execSync(command, {
+        stdio: 'inherit', // Show npm output to user
+        timeout: 300000, // 5 minute timeout
+      });
+      logger.info(
+        `${clc.green('✓')} Successfully updated to ${clc.bold(version)}`
+      );
+    } catch (error: any) {
+      // Handle npm installation errors gracefully
+      if (error.status === 1) {
+        logger.error(
+          `${clc.red('npm installation failed:')} The command '${command}' exited with code 1.`
+        );
+        logger.info(
+          `${clc.dim('Try running the command manually:')} ${clc.bold(command)}`
+        );
+        process.exit(1);
+      } else if (error.signal === 'SIGTERM') {
+        logger.error(
+          `${clc.red('npm installation timed out:')} The installation took longer than 5 minutes.`
+        );
+        logger.info(
+          `${clc.dim('Try running the command manually:')} ${clc.bold(command)}`
+        );
+        process.exit(1);
+      } else {
+        logger.error(`${clc.red('npm installation failed:')} ${error.message}`);
+        logger.info(
+          `${clc.dim('Try running the command manually:')} ${clc.bold(command)}`
+        );
+        process.exit(1);
+      }
+    }
     return;
   }
 
