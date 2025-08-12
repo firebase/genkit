@@ -400,7 +400,6 @@ export const update = new Command('update')
 
     try {
       let version = options.version || (await getLatestVersion());
-      const currentVersion = version;
 
       if (options.force) {
         logger.info(
