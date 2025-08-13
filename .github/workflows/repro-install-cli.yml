@@ -9,6 +9,8 @@ jobs:
     container:
       image: ubuntu:22.04
     steps:
+      - name: Checkout repository (to use local installer script)
+        uses: actions/checkout@v4
       - name: Print environment info
         run: |
           id
@@ -22,9 +24,10 @@ jobs:
         run: |
           useradd -m runner
           su - runner -c 'set -x; curl -sL cli.genkit.dev | bash' || true
-      - name: Workaround (user-local install)
+      - name: Workaround (user-local install using local script)
         run: |
-          su - runner -c 'set -x; mkdir -p ~/.local/bin && curl -sL cli.genkit.dev | GENKIT_BINARY=$HOME/.local/bin/genkit bash && ~/.local/bin/genkit --version'
+          echo "Using workspace: $GITHUB_WORKSPACE"
+          su - runner -c "set -x; mkdir -p ~/.local/bin && GENKIT_BINARY=\$HOME/.local/bin/genkit upgrade=true bash $GITHUB_WORKSPACE/bin/install_cli && ~/.local/bin/genkit --version"
       - name: Show where genkit installed
         run: |
           su - runner -c 'command -v genkit || true; ls -l ~/.local/bin/genkit || true'

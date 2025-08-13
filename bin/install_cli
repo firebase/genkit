@@ -134,18 +134,21 @@ send_analytics_event()
 # will crash before we get to that point, so we manually count invocations here.
 send_analytics_event start
 
+# Capture any user-provided desired install target, but keep detection separate.
+DESIRED_BINARY="$GENKIT_BINARY"
+
 # We try to detect any existing binaries on $PATH or two common locations.
-GENKIT_BINARY=${GENKIT_BINARY:-$(which genkit)}
+EXISTING_BINARY="$(command -v genkit 2>/dev/null)"
 LOCAL_BINARY="$HOME/.local/bin/genkit"
 # For info about why we place the binary at this location, see
 # https://unix.stackexchange.com/a/8658
 GLOBAL_BINARY="/usr/local/bin/genkit"
-if [[ -z "$GENKIT_BINARY" ]]; then
-    if [ -e "$LOCAL_BINARY" ]; then
-        GENKIT_BINARY="$LOCAL_BINARY"
-    elif [ -e "$GLOBAL_BINARY" ]; then
-        GENKIT_BINARY="$GLOBAL_BINARY"
-    fi
+if [[ -z "$EXISTING_BINARY" ]]; then
+	if [ -e "$LOCAL_BINARY" ]; then
+		EXISTING_BINARY="$LOCAL_BINARY"
+	elif [ -e "$GLOBAL_BINARY" ]; then
+		EXISTING_BINARY="$GLOBAL_BINARY"
+	fi
 fi
 
 # If the user asked for us to uninstall genkit, then do so.
@@ -156,7 +159,17 @@ if [ "$uninstall" = "true" ]; then
     else
         # Assuming binary install, skip npm check
         echo "-- Removing binary file..."
-        sudo rm -- "$GENKIT_BINARY"
+        uninstall_sudo=""
+        effective_uid=${EUID-}
+        if [ -z "$effective_uid" ]; then
+            effective_uid=$(id -u)
+        fi
+        if [ "$effective_uid" -ne 0 ] && [ ! -w "$(dirname -- \"$GENKIT_BINARY\")" ]; then
+            if command -v sudo >/dev/null 2>&1; then
+                uninstall_sudo="sudo"
+            fi
+        fi
+        $uninstall_sudo rm -- "$GENKIT_BINARY"
     fi
     echo "-- Removing genkit cache..."
     rm -rf ~/.cache/genkit
@@ -173,8 +186,13 @@ fi
 # has "genkit" installed and if so, we exit out.
 echo "-- Checking for existing genkit installation..."
 
-if [[ ! -z "$GENKIT_BINARY" ]]; then
-    INSTALLED_GENKIT_VERSION=$("$GENKIT_BINARY" --version)
+if [[ ! -z "$EXISTING_BINARY" ]]; then
+	# Only treat as installed if the detected binary actually exists and is executable
+	if [ -x "$EXISTING_BINARY" ]; then
+		INSTALLED_GENKIT_VERSION=$("$EXISTING_BINARY" --version)
+	else
+		INSTALLED_GENKIT_VERSION=""
+	fi
 
     # In the case of a corrupt genkit install, we wont be able to
     # retrieve a version number, so to keep the logs correct, we refer to
@@ -254,7 +272,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-GENKIT_BINARY=${GENKIT_BINARY:-$GLOBAL_BINARY}
+# Determine install target: prefer user-provided location, otherwise global default.
+GENKIT_BINARY=${DESIRED_BINARY:-$GLOBAL_BINARY}
 INSTALL_DIR=$(dirname -- "$GENKIT_BINARY")
 
 # We need to ensure that the INSTALL_DIR exists.
@@ -262,10 +281,25 @@ INSTALL_DIR=$(dirname -- "$GENKIT_BINARY")
 # We created it using a non-destructive mkdir command.
 mkdir -p -- "$INSTALL_DIR" 2> /dev/null
 
-# If the directory does not exist or is not writable, we resort to sudo.
+# If the directory does not exist or is not writable, we resort to sudo when available.
 sudo=""
 if [ ! -w "$INSTALL_DIR" ]; then
-    sudo="sudo"
+    # Determine effective UID (works in shells where $EUID is not set)
+    effective_uid=${EUID-}
+    if [ -z "$effective_uid" ]; then
+        effective_uid=$(id -u)
+    fi
+    if [ "$effective_uid" -eq 0 ]; then
+        sudo=""  # already root
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo="sudo"
+    else
+        echo "-- '$INSTALL_DIR' is not writable and 'sudo' is not available; falling back to a user-local install."
+        GENKIT_BINARY="$LOCAL_BINARY"
+        INSTALL_DIR=$(dirname -- "$GENKIT_BINARY")
+        mkdir -p -- "$INSTALL_DIR" 2> /dev/null
+        sudo=""
+    fi
 fi
 
 $sudo mkdir -p -- "$INSTALL_DIR"
