@@ -106,8 +106,10 @@ export type ToolAction<
 export type DynamicToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<I, O, z.ZodTypeAny, ToolRunOptions> &
-  Resumable<I, O> & {
+> = Action<I, O, z.ZodTypeAny, ToolRunOptions> & {
+  /** @deprecated no-op, for backwards compatibility only. */
+  attach(registry: Registry): ToolAction<I, O>;
+} & Resumable<I, O> & {
     __action: {
       metadata: {
         type: 'tool';
@@ -450,7 +452,8 @@ export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       }
       return interrupt();
     }
-  );
+  ) as DynamicToolAction<I, O>;
   implementTool(a as any, config);
-  return a as DynamicToolAction<I, O>;
+  a.attach = (_: Registry) => a;
+  return a;
 }

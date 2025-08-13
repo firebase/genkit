@@ -106,15 +106,14 @@ export function defineResource(
 /**
  * A dynamic action with a `resource` type. Dynamic resources are detached actions -- not associated with any registry.
  */
-export type DynamicResourceAction = Action<
-  typeof ResourceInputSchema,
-  typeof ResourceOutputSchema
-> & {
+export type DynamicResourceAction = ResourceAction & {
   __action: {
     metadata: {
       type: 'resource';
     };
   };
+  /** @deprecated no-op, for backwards compatibility only. */
+  attach(registry: Registry): ResourceAction;
   matches(input: ResourceInput): boolean;
 };
 
@@ -172,6 +171,7 @@ export function dynamicResource(
         },
         ...opts.metadata,
         type: 'resource',
+        dynamic: true,
       },
     },
     async (input, ctx) => {
@@ -208,10 +208,11 @@ export function dynamicResource(
       });
       return parts;
     }
-  ) as ResourceAction;
+  ) as DynamicResourceAction;
 
   act.matches = matcher;
-  return act as DynamicResourceAction;
+  act.attach = (_: Registry) => act;
+  return act;
 }
 
 function createMatcher(
