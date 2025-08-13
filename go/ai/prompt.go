@@ -502,12 +502,10 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
-				r.DefinePartial(partialName, string(source))
+				r.RegisterPartial(partialName, string(source))
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
-				if _, err := LoadPrompt(r, dir, filename, namespace); err != nil {
-					return err
-				}
+				LoadPrompt(r, dir, filename, namespace)
 			}
 		}
 	}
@@ -515,7 +513,7 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 }
 
 // LoadPrompt loads a single prompt into the registry.
-func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt, error) {
+func LoadPrompt(r *registry.Registry, dir, filename, namespace string) *Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
 
@@ -523,19 +521,19 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	source, err := os.ReadFile(sourceFile)
 	if err != nil {
 		slog.Error("Failed to read prompt file", "file", sourceFile, "error", err)
-		return nil, nil
+		return nil
 	}
 
 	parsedPrompt, err := r.Dotprompt.Parse(string(source))
 	if err != nil {
 		slog.Error("Failed to parse file as dotprompt", "file", sourceFile, "error", err)
-		return nil, nil
+		return nil
 	}
 
 	metadata, err := r.Dotprompt.RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
 	if err != nil {
 		slog.Error("Failed to render dotprompt metadata", "file", sourceFile, "error", err)
-		return nil, nil
+		return nil
 	}
 
 	toolRefs := make([]ToolRef, len(metadata.Tools))
@@ -603,7 +601,7 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 
 	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
 
-	return prompt, nil
+	return prompt
 }
 
 // promptKey generates a unique key for the prompt in the registry.

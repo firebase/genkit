@@ -1003,8 +1003,8 @@ func TestDefinePartialAndHelper(t *testing.T) {
 
 	model := definePromptModel(reg)
 
-	reg.DefinePartial("header", "Welcome {{name}}!")
-	reg.DefineHelper("uppercase", func(s string) string {
+	reg.RegisterPartial("header", "Welcome {{name}}!")
+	reg.RegisterHelper("uppercase", func(s string) string {
 		return strings.ToUpper(s)
 	})
 

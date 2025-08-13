@@ -136,10 +136,8 @@ func PromptWithOutputTypeDotprompt(ctx context.Context, g *genkit.Genkit) {
 	type countries struct {
 		Countries []countryData `json:"countries"`
 	}
-	prompt, err := genkit.LoadPrompt(g, "./prompts/countries.prompt", "countries")
-	if err != nil {
-		log.Fatal(err)
-	}
+
+	prompt := genkit.LoadPrompt(g, "./prompts/countries.prompt", "countries")
 	if prompt == nil {
 		fmt.Printf("empty prompt")
 		return
@@ -303,15 +301,11 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal(err)
 	}
 
-	prompt, err := genkit.LoadPrompt(g, "./prompts/media.prompt", "mediaspace")
-	if err != nil {
-		log.Fatal(err)
-	}
+	prompt := genkit.LoadPrompt(g, "./prompts/media.prompt", "mediaspace")
 	if prompt == nil {
 		log.Fatal("empty prompt")
 	}
 	resp, err := prompt.Execute(ctx,
-
 		ai.WithModelName("vertexai/gemini-2.0-flash"),
 		ai.WithInput(map[string]any{"imageUrl": "data:image/jpg;base64," + img}),
 	)

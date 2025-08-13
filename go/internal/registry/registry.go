@@ -264,8 +264,8 @@ func CurrentEnvironment() Environment {
 	return EnvironmentProd
 }
 
-// DefinePartial adds the partial to the list of partials to the dotprompt instance
-func (r *Registry) DefinePartial(name string, source string) {
+// RegisterPartial adds the partial to the list of partials to the dotprompt instance
+func (r *Registry) RegisterPartial(name string, source string) {
 	if r.Dotprompt == nil {
 		r.Dotprompt = dotprompt.NewDotprompt(nil)
 	}
@@ -278,8 +278,8 @@ func (r *Registry) DefinePartial(name string, source string) {
 	r.Dotprompt.Partials[name] = source
 }
 
-// DefineHelper adds a helper function to the dotprompt instance
-func (r *Registry) DefineHelper(name string, fn any) {
+// RegisterHelper adds a helper function to the dotprompt instance
+func (r *Registry) RegisterHelper(name string, fn any) {
 	if r.Dotprompt == nil {
 		r.Dotprompt = dotprompt.NewDotprompt(nil)
 	}

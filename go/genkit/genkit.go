@@ -895,7 +895,7 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) error {
 //	// Execute the loaded prompt
 //	resp, err := customPrompt.Execute(ctx, ai.WithInput(map[string]any{"text": "some data"}))
 //	// ... handle response and error ...
-func LoadPrompt(g *Genkit, path string, namespace string) (*ai.Prompt, error) {
+func LoadPrompt(g *Genkit, path string, namespace string) *ai.Prompt {
 	dir, filename := filepath.Split(path)
 	if dir != "" {
 		dir = filepath.Clean(dir)
@@ -918,7 +918,7 @@ func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
 // DefinePartial wraps DefinePartial to register a partial template with the given name and source.
 // Partials can be referenced in templates with the syntax {{>partialName}}.
 func DefinePartial(g *Genkit, name string, source string) {
-	g.reg.DefinePartial(name, source)
+	g.reg.RegisterPartial(name, source)
 }
 
 // DefineHelper wraps DefineHelper to register a helper function with the given name.
@@ -934,7 +934,7 @@ func DefinePartial(g *Genkit, name string, source string) {
 //
 //	{{uppercase "hello"}} => "HELLO"
 func DefineHelper(g *Genkit, name string, fn any) {
-	g.reg.DefineHelper(name, fn)
+	g.reg.RegisterHelper(name, fn)
 }
 
 // DefineFormat defines a new [ai.Formatter] and registers it in the registry.
