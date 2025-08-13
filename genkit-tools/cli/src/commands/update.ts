@@ -247,10 +247,10 @@ async function downloadAndInstall(version: string): Promise<void> {
   const execPath = process.execPath;
   const backupPath = `${execPath}.backup`;
   const runtime = detectCLIRuntime();
-  const pm = await inquirePackageManager();
 
   // If not running from a binary, we should install using package manager
   if (!runtime.isCompiledBinary) {
+    const pm = await inquirePackageManager();
     let command = '';
 
     if (await inquireRunningFromGlobalInstall()) {
