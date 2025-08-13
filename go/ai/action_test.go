@@ -91,10 +91,7 @@ func TestGenerateAction(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			ctx := context.Background()
 
-			r, err := registry.New()
-			if err != nil {
-				t.Fatalf("failed to create registry: %v", err)
-			}
+			r := registry.New()
 			ConfigureFormats(r)
 
 			pm := defineProgrammableModel(r)

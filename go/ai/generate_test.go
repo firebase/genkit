@@ -33,7 +33,7 @@ type StructuredResponse struct {
 	Location string
 }
 
-var r, _ = registry.New()
+var r = registry.New()
 
 func init() {
 	// Set up default formats

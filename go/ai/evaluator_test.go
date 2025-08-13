@@ -88,17 +88,11 @@ var testRequest = EvaluatorRequest{
 }
 
 func TestSimpleEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
-	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	evaluator := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
 
-	resp, err := evalAction.Evaluate(context.Background(), &testRequest)
+	resp, err := evaluator.Evaluate(context.Background(), &testRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,20 +115,14 @@ func TestSimpleEvaluator(t *testing.T) {
 }
 
 func TestOptionsRequired(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
 	_ = DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
 	_ = DefineBatchEvaluator(r, "test/testBatchEvaluator", &evalOpts, testBatchEvalFunc)
 }
 
 func TestFailingEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
 	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testFailingEvalFunc)
 
@@ -152,10 +140,7 @@ func TestFailingEvaluator(t *testing.T) {
 }
 
 func TestLookupEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
 	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
 	batchEvalAction := DefineBatchEvaluator(r, "test/testBatchEvaluator", &evalOpts, testBatchEvalFunc)
@@ -169,10 +154,7 @@ func TestLookupEvaluator(t *testing.T) {
 }
 
 func TestEvaluate(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
 	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
 
@@ -199,10 +181,7 @@ func TestEvaluate(t *testing.T) {
 }
 
 func TestBatchEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
 	evalAction := DefineBatchEvaluator(r, "test/testBatchEvaluator", &evalOpts, testBatchEvalFunc)
 
