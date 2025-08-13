@@ -70,10 +70,7 @@ func TestOutputFormat(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			reg, err := registry.New()
-			if err != nil {
-				t.Fatal(err)
-			}
+			reg := registry.New()
 
 			if test.output == nil {
 				DefinePrompt(
@@ -94,10 +91,7 @@ func TestOutputFormat(t *testing.T) {
 }
 
 func TestInputFormat(t *testing.T) {
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg := registry.New()
 
 	type hello struct {
 		Name string `json:"name"`
@@ -222,10 +216,7 @@ func definePromptModel(reg *registry.Registry) Model {
 }
 
 func TestValidPrompt(t *testing.T) {
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg := registry.New()
 
 	ConfigureFormats(reg)
 
@@ -595,10 +586,7 @@ func testGenerate(ctx context.Context, req *ModelRequest, cb func(context.Contex
 }
 
 func TestOptionsPatternExecute(t *testing.T) {
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg := registry.New()
 
 	ConfigureFormats(reg)
 
@@ -649,10 +637,8 @@ func TestOptionsPatternExecute(t *testing.T) {
 }
 
 func TestDefaultsOverride(t *testing.T) {
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg := registry.New()
+
 	// Set up default formats
 	ConfigureFormats(reg)
 
@@ -832,10 +818,7 @@ Hello, {{name}}!
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call loadPrompt
 	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
@@ -865,10 +848,7 @@ Hello, {{name}}!
 
 func TestLoadPrompt_FileNotFound(t *testing.T) {
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call loadPrompt with a non-existent file
 	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
@@ -893,10 +873,7 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call loadPrompt
 	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
@@ -927,10 +904,7 @@ Hello, {{name}}!
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call loadPrompt
 	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
@@ -985,10 +959,7 @@ Hello, {{name}}!
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call LoadPromptFolder
 	LoadPromptDir(reg, tempDir, "test-namespace")
@@ -1027,32 +998,15 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 // and using both partials and helpers.
 func TestDefinePartialAndHelper(t *testing.T) {
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 	ConfigureFormats(reg)
 
 	model := definePromptModel(reg)
 
-	if err = reg.DefinePartial("header", "Welcome {{name}}!"); err != nil {
-		t.Fatalf("Failed to define partial: %v", err)
-	}
-	if err = reg.DefineHelper("uppercase", func(s string) string {
+	reg.DefinePartial("header", "Welcome {{name}}!")
+	reg.DefineHelper("uppercase", func(s string) string {
 		return strings.ToUpper(s)
-	}); err != nil {
-		t.Fatalf("Failed to define helper: %v", err)
-	}
-
-	// Duplicate partial and helper definitions should return an error
-	if err = reg.DefinePartial("header", "Welcome {{name}}!"); err == nil {
-		t.Fatalf("Expected error defining partial with duplicate name")
-	}
-	if err = reg.DefineHelper("uppercase", func(s string) string {
-		return ""
-	}); err == nil {
-		t.Fatalf("Expected error defining helper with duplicate name")
-	}
+	})
 
 	p := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
 

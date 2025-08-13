@@ -498,9 +498,7 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
-				if err = r.DefinePartial(partialName, string(source)); err != nil {
-					return err
-				}
+				r.DefinePartial(partialName, string(source))
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
 				if _, err := LoadPrompt(r, dir, filename, namespace); err != nil {
