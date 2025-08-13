@@ -175,8 +175,8 @@ func defineAction[In, Out, Stream any](
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
 	a := newAction(r, name, atype, metadata, inputSchema, fn)
-	provider, name := ParseName(name)
-	key := NewKey(atype, provider, name)
+	provider, id := ParseName(name)
+	key := NewKey(atype, provider, id)
 	r.RegisterAction(key, a)
 	return a
 }
@@ -323,8 +323,8 @@ func (a *ActionDef[In, Out, Stream]) Desc() ActionDesc {
 // or nil if there is none.
 // It panics if the action is of the wrong type.
 func ResolveActionFor[In, Out, Stream any](r *registry.Registry, atype ActionType, name string) *ActionDef[In, Out, Stream] {
-	provider, name := ParseName(name)
-	key := NewKey(atype, provider, name)
+	provider, id := ParseName(name)
+	key := NewKey(atype, provider, id)
 	a := r.ResolveAction(key)
 	if a == nil {
 		return nil
@@ -336,8 +336,8 @@ func ResolveActionFor[In, Out, Stream any](r *registry.Registry, atype ActionTyp
 // or nil if there is none.
 // It panics if the action is of the wrong type.
 func LookupActionFor[In, Out, Stream any](r *registry.Registry, atype ActionType, name string) *ActionDef[In, Out, Stream] {
-	provider, name := ParseName(name)
-	key := NewKey(atype, provider, name)
+	provider, id := ParseName(name)
+	key := NewKey(atype, provider, id)
 	a := r.LookupAction(key)
 	if a == nil {
 		return nil

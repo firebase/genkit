@@ -42,6 +42,10 @@ type Prompt struct {
 
 // DefinePrompt creates and registers a new Prompt.
 func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prompt {
+	if name == "" {
+		panic("ai.DefinePrompt: name is required")
+	}
+
 	pOpts := &promptOptions{}
 	for _, opt := range opts {
 		if err := opt.applyPrompt(pOpts); err != nil {
@@ -567,11 +571,11 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 		opts.ToolChoice = toolChoice
 	}
 
-	if maxTurns, ok := metadata.Raw["maxTurns"].(int); !ok {
+	if maxTurns, ok := metadata.Raw["maxTurns"].(int); ok {
 		opts.MaxTurns = maxTurns
 	}
 
-	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); !ok {
+	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); ok {
 		opts.ReturnToolRequests = &returnToolRequests
 	}
 

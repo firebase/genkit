@@ -523,7 +523,7 @@ func TestDownloadRequestMedia(t *testing.T) {
 func TestAugmentWithContext(t *testing.T) {
 	testCases := []struct {
 		name         string
-		info         *ModelOptions
+		opts         *ModelOptions
 		options      *AugmentWithContextOptions
 		input        *ModelRequest
 		expected     *ModelRequest
@@ -531,7 +531,7 @@ func TestAugmentWithContext(t *testing.T) {
 	}{
 		{
 			name: "model supports context, should bypass middleware",
-			info: &ModelOptions{Supports: &ModelSupports{Context: true}},
+			opts: &ModelOptions{Supports: &ModelSupports{Context: true}},
 			input: &ModelRequest{
 				Messages: []*Message{
 					NewSystemTextMessage("You are a narrator."),
@@ -547,7 +547,7 @@ func TestAugmentWithContext(t *testing.T) {
 		},
 		{
 			name: "no docs, should bypass middleware",
-			info: &ModelOptions{Supports: &ModelSupports{Context: false}},
+			opts: &ModelOptions{Supports: &ModelSupports{Context: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
 					NewSystemTextMessage("You are a narrator."),
@@ -563,7 +563,7 @@ func TestAugmentWithContext(t *testing.T) {
 		},
 		{
 			name: "no user messages, should bypass middleware",
-			info: &ModelOptions{Supports: &ModelSupports{Context: false}},
+			opts: &ModelOptions{Supports: &ModelSupports{Context: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
 					NewSystemTextMessage("You are a narrator."),
@@ -577,7 +577,7 @@ func TestAugmentWithContext(t *testing.T) {
 		},
 		{
 			name: "context already present , should bypass middleware",
-			info: &ModelOptions{Supports: &ModelSupports{Context: false}},
+			opts: &ModelOptions{Supports: &ModelSupports{Context: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
 					NewSystemTextMessage("You are a narrator."),
@@ -595,7 +595,7 @@ func TestAugmentWithContext(t *testing.T) {
 		},
 		{
 			name: "context not present multiple docs present , should get augment",
-			info: &ModelOptions{Supports: &ModelSupports{Context: false}},
+			opts: &ModelOptions{Supports: &ModelSupports{Context: false}},
 			input: &ModelRequest{
 				Messages: []*Message{
 					NewSystemTextMessage("You are a narrator."),
@@ -624,7 +624,7 @@ func TestAugmentWithContext(t *testing.T) {
 		},
 		{
 			name: "custom preface for middleware",
-			info: &ModelOptions{Supports: &ModelSupports{Context: false}},
+			opts: &ModelOptions{Supports: &ModelSupports{Context: false}},
 			options: &AugmentWithContextOptions{
 				Preface: func() *string {
 					s := "\n\nCustom Preface : Use the following information to complete your task:\n\n"
@@ -656,7 +656,7 @@ func TestAugmentWithContext(t *testing.T) {
 		},
 		{
 			name: "custom item template for middleware",
-			info: &ModelOptions{Supports: &ModelSupports{Context: false}},
+			opts: &ModelOptions{Supports: &ModelSupports{Context: false}},
 			options: &AugmentWithContextOptions{
 				ItemTemplate: func(d Document, index int, options *AugmentWithContextOptions) string {
 					out := "- The new context is doc3"
@@ -696,7 +696,7 @@ func TestAugmentWithContext(t *testing.T) {
 				}
 				return &ModelResponse{}, nil
 			}
-			middleware := augmentWithContext(tc.info, tc.options)
+			middleware := augmentWithContext(tc.opts, tc.options)
 			_, _ = middleware(next)(context.Background(), tc.input, nil)
 		})
 	}
