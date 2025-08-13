@@ -28,7 +28,7 @@ import { detectCLIRuntime } from '../utils/runtime-detector';
 import { version as currentVersion, name } from '../utils/version';
 
 interface UpdateOptions {
-  force?: boolean;
+  reinstall?: boolean;
   check?: boolean;
   version?: string;
   quiet?: boolean;
@@ -373,7 +373,7 @@ export async function showUpdateNotification(): Promise<void> {
 
 export const update = new Command('update')
   .description('update the genkit CLI to the latest version')
-  .option('-f, --force', 'force update even if already on latest version')
+  .option('-r, --reinstall', 'reinstall current version')
   .option('-c, --check', 'check for updates without installing')
   .option('-v, --version <version>', 'install a specific version', (value) => {
     if (!validateVersion(value)) {
@@ -434,17 +434,19 @@ export const update = new Command('update')
     }
 
     try {
-      let version = options.version || (await getLatestVersion());
+      let version = options.version;
 
-      if (options.force) {
-        logger.info(
-          `${clc.yellow('!')} Forcing installation of v${clc.bold(version)}...`
-        );
-      } else if (options.version) {
+      if (options.reinstall) {
+        version = currentVersion;
+
+        logger.info(`${clc.yellow('!')} Reinstalling v${clc.bold(version)}...`);
+      } else if (version) {
         logger.info(`Installing v${clc.bold(version)}...`);
       } else {
         logger.info('Checking for updates...');
         if ((await checkForUpdates()).hasUpdate) {
+          version = await getLatestVersion();
+
           logger.info(
             `Update available: v${clc.bold(currentVersion)} → v${clc.bold(version)}`
           );
