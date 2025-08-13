@@ -149,12 +149,17 @@ export class RuntimeManager {
   /**
    * Retrieves all runnable actions.
    */
-  async listActions(): Promise<Record<string, Action>> {
-    // TODO: Allow selecting a runtime by pid.
-    const runtime = this.getMostRecentRuntime();
+  async listActions(
+    input?: apis.ListActionsRequest
+  ): Promise<Record<string, Action>> {
+    const runtime = input?.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
     if (!runtime) {
       throw new Error(
-        'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+        input?.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
     const response = await axios
@@ -170,11 +175,14 @@ export class RuntimeManager {
     input: apis.RunActionRequest,
     streamingCallback?: StreamingCallback<any>
   ): Promise<RunActionResponse> {
-    // TODO: Allow selecting a runtime by pid.
-    const runtime = this.getMostRecentRuntime();
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
     if (!runtime) {
       throw new Error(
-        'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+        input.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
     if (streamingCallback) {
@@ -436,6 +444,9 @@ export class RuntimeManager {
       );
 
       if (isValidRuntimeInfo(runtimeInfo)) {
+        if (!runtimeInfo.name) {
+          runtimeInfo.name = runtimeInfo.id;
+        }
         const fileName = path.basename(filePath);
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
           if (
@@ -559,10 +570,12 @@ function isValidRuntimeInfo(data: any): data is RuntimeInfo {
 
   return (
     typeof data === 'object' &&
+    data !== null &&
     typeof data.id === 'string' &&
     typeof data.pid === 'number' &&
     typeof data.reflectionServerUrl === 'string' &&
     typeof data.timestamp === 'string' &&
-    !isNaN(Date.parse(timestamp))
+    !isNaN(Date.parse(timestamp)) &&
+    (data.name === undefined || typeof data.name === 'string')
   );
 }

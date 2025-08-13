@@ -40,7 +40,11 @@ describe('Google AI Gemini', () => {
 
   let modelActionCallback: (
     request: GenerateRequest<typeof GeminiConfigSchema>,
-    sendChunk?: (chunk: any) => void
+    options: {
+      streamingRequested?: boolean;
+      sendChunk?: (chunk: any) => void;
+      abortSignal?: AbortSignal;
+    }
   ) => Promise<any>;
 
   let fetchStub: sinon.SinonStub;
@@ -62,14 +66,16 @@ describe('Google AI Gemini', () => {
       lookupAction: () => undefined,
       lookupFlow: () => undefined,
       generateTraceId: () => 'test-trace-id',
-      asyncStore: mockAsyncStore, // Provide the mock asyncStore
+      asyncStore: mockAsyncStore,
     };
 
     fetchStub = sinon.stub(global, 'fetch');
 
-    mockGenkit.defineModel.callsFake((config, func) => {
-      modelActionCallback = func;
-      return { name: config.name } as any;
+    mockGenkit.defineModel.callsFake((config: any, callback: any) => {
+      modelActionCallback = callback;
+      return {
+        name: config.name,
+      } as any;
     });
   });
 
@@ -153,7 +159,7 @@ describe('Google AI Gemini', () => {
           apiKey: 'plugin-key',
         });
         mockFetchResponse(defaultApiResponse);
-        await modelActionCallback(minimalRequest);
+        await modelActionCallback(minimalRequest, {});
         sinon.assert.calledOnce(fetchStub);
         const fetchOptions = fetchStub.lastCall.args[1];
         assert.strictEqual(
@@ -166,7 +172,7 @@ describe('Google AI Gemini', () => {
         process.env.GEMINI_API_KEY = 'gemini-key';
         defineModel(mockGenkit, 'gemini-2.0-flash');
         mockFetchResponse(defaultApiResponse);
-        await modelActionCallback(minimalRequest);
+        await modelActionCallback(minimalRequest, {});
         const fetchOptions = fetchStub.lastCall.args[1];
         assert.strictEqual(
           fetchOptions.headers['x-goog-api-key'],
@@ -177,7 +183,7 @@ describe('Google AI Gemini', () => {
       it('throws if apiKey is false and not in call config', async () => {
         defineModel(mockGenkit, 'gemini-2.0-flash', { apiKey: false });
         await assert.rejects(
-          modelActionCallback(minimalRequest),
+          modelActionCallback(minimalRequest, {}),
           /GoogleAI plugin was initialized with \{apiKey: false\}/
         );
         sinon.assert.notCalled(fetchStub);
@@ -190,7 +196,7 @@ describe('Google AI Gemini', () => {
           ...minimalRequest,
           config: { apiKey: 'call-time-key' },
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
         const fetchOptions = fetchStub.lastCall.args[1];
         assert.strictEqual(
           fetchOptions.headers['x-goog-api-key'],
@@ -206,7 +212,9 @@ describe('Google AI Gemini', () => {
 
       it('calls fetch for non-streaming requests', async () => {
         mockFetchResponse(defaultApiResponse);
-        await modelActionCallback(minimalRequest);
+        await modelActionCallback(minimalRequest, {
+          streamingRequested: false,
+        });
         sinon.assert.calledOnce(fetchStub);
 
         const fetchArgs = fetchStub.lastCall.args;
@@ -229,7 +237,10 @@ describe('Google AI Gemini', () => {
         mockFetchStreamResponse([defaultApiResponse]);
 
         const sendChunkSpy = sinon.spy();
-        await modelActionCallback(minimalRequest, sendChunkSpy);
+        await modelActionCallback(minimalRequest, {
+          streamingRequested: true,
+          sendChunk: sendChunkSpy,
+        });
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -249,6 +260,30 @@ describe('Google AI Gemini', () => {
         });
       });
 
+      it('passes AbortSignal to fetch', async () => {
+        mockFetchResponse(defaultApiResponse);
+        const controller = new AbortController();
+        const abortSignal = controller.signal;
+        await modelActionCallback(minimalRequest, {
+          streamingRequested: false,
+          abortSignal,
+        });
+        sinon.assert.calledOnce(fetchStub);
+        const fetchOptions = fetchStub.lastCall.args[1];
+        assert.ok(fetchOptions.signal, 'Fetch options should have a signal');
+        assert.notStrictEqual(
+          fetchOptions.signal,
+          abortSignal,
+          'Fetch signal should be a new signal, not the original'
+        );
+
+        const fetchSignal = fetchOptions.signal;
+        const abortSpy = sinon.spy();
+        fetchSignal.addEventListener('abort', abortSpy);
+        controller.abort();
+        sinon.assert.calledOnce(abortSpy);
+      });
+
       it('handles system instructions', async () => {
         mockFetchResponse(defaultApiResponse);
         const request: GenerateRequest<typeof GeminiConfigSchema> = {
@@ -257,7 +292,7 @@ describe('Google AI Gemini', () => {
             { role: 'user', content: [{ text: 'Hello' }] },
           ],
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
 
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
@@ -288,7 +323,7 @@ describe('Google AI Gemini', () => {
             googleSearchRetrieval: {},
           },
         };
-        await modelActionCallback(request);
+        await modelActionCallback(request, {});
 
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
@@ -310,7 +345,7 @@ describe('Google AI Gemini', () => {
       it('throws if no candidates are returned', async () => {
         mockFetchResponse({ candidates: [] });
         await assert.rejects(
-          modelActionCallback(minimalRequest),
+          modelActionCallback(minimalRequest, {}),
           /No valid candidates returned/
         );
       });
@@ -318,7 +353,7 @@ describe('Google AI Gemini', () => {
       it('throws on fetch error', async () => {
         fetchStub.rejects(new Error('Network error'));
         await assert.rejects(
-          modelActionCallback(minimalRequest),
+          modelActionCallback(minimalRequest, {}),
           /Failed to fetch/
         );
       });
@@ -332,7 +367,7 @@ describe('Google AI Gemini', () => {
         });
 
         mockFetchResponse(defaultApiResponse);
-        await assert.doesNotReject(modelActionCallback(minimalRequest));
+        await assert.doesNotReject(modelActionCallback(minimalRequest, {}));
         sinon.assert.calledOnce(fetchStub);
       });
 
@@ -343,7 +378,7 @@ describe('Google AI Gemini', () => {
         });
 
         mockFetchResponse(defaultApiResponse);
-        await assert.doesNotReject(modelActionCallback(minimalRequest));
+        await assert.doesNotReject(modelActionCallback(minimalRequest, {}));
         sinon.assert.calledOnce(fetchStub);
       });
     });

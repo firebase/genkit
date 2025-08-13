@@ -36,9 +36,16 @@ export const start = new Command('start')
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
+    const projectRoot = await findProjectRoot();
+    if (projectRoot.includes('/.Trash/')) {
+      logger.warn(
+        'It appears your current project root is in the trash folder. ' +
+          'Please make sure that you current working directory is correct.'
+      );
+    }
     // Always start the manager.
     let managerPromise: Promise<RuntimeManager> = startManager(
-      await findProjectRoot(),
+      projectRoot,
       true
     );
     if (!options.noui) {

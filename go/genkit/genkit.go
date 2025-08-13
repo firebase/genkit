@@ -767,7 +767,12 @@ func LookupEmbedder(g *Genkit, provider, name string) ai.Embedder {
 // The caller is responsible for type-asserting the returned value to the
 // specific plugin type.
 func LookupPlugin(g *Genkit, name string) Plugin {
-	return g.reg.LookupPlugin(name).(Plugin)
+	switch p := g.reg.LookupPlugin(name).(type) {
+	case Plugin:
+		return p
+	default:
+		return nil
+	}
 }
 
 // DefineEvaluator defines an evaluator that processes test cases one by one,

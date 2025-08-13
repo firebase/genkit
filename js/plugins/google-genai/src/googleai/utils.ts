@@ -16,12 +16,14 @@
 
 import { GenerateRequest, GenkitError } from 'genkit';
 import process from 'process';
-import { VeoImage } from './types.js';
+import { extractMedia } from '../common/utils.js';
+import { ImagenInstance, VeoImage } from './types.js';
 
 export {
   checkModelName,
-  extractImagenImage,
+  cleanSchema,
   extractText,
+  extractVersion,
   modelName,
 } from '../common/utils.js';
 
@@ -138,6 +140,20 @@ export function extractVeoImage(
         message: 'content type is required for images',
       });
     }
+  }
+  return undefined;
+}
+
+export function extractImagenImage(
+  request: GenerateRequest
+): ImagenInstance['image'] | undefined {
+  const image = extractMedia(request, {
+    metadataType: 'base',
+    isDefault: true,
+  })?.url.split(',')[1];
+
+  if (image) {
+    return { bytesBase64Encoded: image };
   }
   return undefined;
 }

@@ -1,0 +1,28 @@
+---
+model: googleai/gemini-2.0-flash
+config:
+  temperature: 0.4
+  safetySettings:
+    - category: HARM_CATEGORY_HATE_SPEECH
+      threshold: BLOCK_ONLY_HIGH
+    - category: HARM_CATEGORY_DANGEROUS_CONTENT
+      threshold: BLOCK_ONLY_HIGH
+    - category: HARM_CATEGORY_HARASSMENT
+      threshold: BLOCK_ONLY_HIGH
+    - category: HARM_CATEGORY_SEXUALLY_EXPLICIT
+      threshold: BLOCK_ONLY_HIGH
+input:
+  schema:
+    thingOne: string
+    thingTwo: string
+  default:
+    persona: java
+---
+
+Compare {{thingOne}} to {{thingTwo}}.
+
+Instructions:
+
+1. Use a markdown table with the first column for {{thingOne}} and the second for {{thingTwo}}.
+1. Include approximately 5 rows.
+1. Use appropriate styling, markup, etc as needed.

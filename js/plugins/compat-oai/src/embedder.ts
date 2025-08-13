@@ -40,7 +40,8 @@ export function defineCompatOpenAIEmbedder(params: {
   embedderRef?: EmbedderReference;
 }): EmbedderAction {
   const { ai, name, client, embedderRef } = params;
-  const model = name.split('/').pop();
+  const modelName = name.substring(name.indexOf('/') + 1);
+
   return ai.defineEmbedder(
     {
       name,
@@ -50,7 +51,7 @@ export function defineCompatOpenAIEmbedder(params: {
     async (input, options) => {
       const { encodingFormat: encoding_format, ...restOfConfig } = options;
       const embeddings = await client.embeddings.create({
-        model: model!,
+        model: modelName!,
         input: input.map((d) => d.text),
         encoding_format,
         ...restOfConfig,

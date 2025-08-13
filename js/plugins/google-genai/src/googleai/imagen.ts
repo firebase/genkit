@@ -45,6 +45,7 @@ import {
   checkModelName,
   extractImagenImage,
   extractText,
+  extractVersion,
   modelName,
 } from './utils.js';
 
@@ -142,7 +143,6 @@ export function model(
 
   return modelRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: ImagenConfigSchema,
     info: {
@@ -189,11 +189,13 @@ export function defineModel(
 
   return ai.defineModel(
     {
+      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
     },
-    async (request) => {
+    async (request, { abortSignal }) => {
+      const clientOpt = { ...clientOptions, signal: abortSignal };
       const imagenPredictRequest: ImagenPredictRequest = {
         instances: [
           {
@@ -211,9 +213,9 @@ export function defineModel(
 
       const response = await imagenPredict(
         predictApiKey,
-        ref.version as string,
+        extractVersion(ref),
         imagenPredictRequest,
-        clientOptions
+        clientOpt
       );
 
       if (!response.predictions || response.predictions.length == 0) {

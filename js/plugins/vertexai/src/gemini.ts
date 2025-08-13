@@ -17,6 +17,7 @@
 import {
   FunctionCallingMode,
   FunctionDeclarationSchemaType,
+  UsageMetadata,
   type Content,
   type FunctionDeclaration,
   type Part as GeminiPart,
@@ -63,10 +64,16 @@ import {
 } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
-
 import type { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
+
+// Extra type guard to keep the compiler happy and avoid a cast to any. The
+// legacy Gemini SDK is no longer maintained, and doesn't have updated types.
+// However, the REST API returns the data we want.
+type ExtendedUsageMetadata = UsageMetadata & {
+  thoughtsTokenCount?: number;
+};
 
 export const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -253,6 +260,29 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .optional(),
+  thinkingConfig: z
+    .object({
+      includeThoughts: z
+        .boolean()
+        .describe(
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only when available.'
+        )
+        .optional(),
+      thinkingBudget: z
+        .number()
+        .min(0)
+        .max(24576)
+        .describe(
+          'The thinking budget parameter gives the model guidance on the ' +
+            'number of thinking tokens it can use when generating a response. ' +
+            'A greater number of tokens is typically associated with more detailed ' +
+            'thinking, which is needed for solving more complex tasks. ' +
+            'Setting the thinking budget to 0 disables thinking.'
+        )
+        .optional(),
+    })
     .optional(),
 }).passthrough();
 
@@ -573,6 +603,23 @@ export const gemini25Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashLite = modelRef({
+  name: 'vertexai/gemini-2.5-flash-lite',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const GENERIC_GEMINI_MODEL = modelRef({
   name: 'vertexai/gemini',
   configSchema: GeminiConfigSchema,
@@ -605,6 +652,7 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
   'gemini-2.5-flash': gemini25Flash,
   'gemini-2.5-pro': gemini25Pro,
+  'gemini-2.5-flash-lite': gemini25FlashLite,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
@@ -1258,16 +1306,18 @@ export function defineGeminiModel({
           fromGeminiCandidate(c, jsonMode)
         );
 
+        const usageMetadata = response.usageMetadata as ExtendedUsageMetadata;
+
         return {
           candidates: candidateData,
           custom: response,
           usage: {
             ...getBasicUsageStats(request.messages, candidateData),
-            inputTokens: response.usageMetadata?.promptTokenCount,
-            outputTokens: response.usageMetadata?.candidatesTokenCount,
-            totalTokens: response.usageMetadata?.totalTokenCount,
-            cachedContentTokens:
-              response.usageMetadata?.cachedContentTokenCount,
+            inputTokens: usageMetadata?.promptTokenCount,
+            outputTokens: usageMetadata?.candidatesTokenCount,
+            totalTokens: usageMetadata?.totalTokenCount,
+            thoughtsTokens: usageMetadata?.thoughtsTokenCount,
+            cachedContentTokens: usageMetadata?.cachedContentTokenCount,
           },
         };
       };

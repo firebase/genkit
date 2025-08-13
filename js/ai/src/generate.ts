@@ -170,6 +170,12 @@ export interface GenerateOptions<
   context?: ActionContext;
   /** Abort signal for the generate request. */
   abortSignal?: AbortSignal;
+  /**
+   * Additional metadata describing the GenerateOptions, used by tooling. If
+   * this is an instance of a rendered dotprompt, will contain any prompt
+   * metadata contained in the original frontmatter.
+   **/
+  metadata?: Record<string, any>;
 }
 
 export async function toGenerateRequest(
@@ -354,7 +360,7 @@ export async function generate<
   const streamingCallback = stripNoop(
     resolvedOptions.onChunk ?? resolvedOptions.streamingCallback
   ) as StreamingCallback<GenerateResponseChunkData>;
-  const response = await runWithContext(registry, resolvedOptions.context, () =>
+  const response = await runWithContext(resolvedOptions.context, () =>
     generateHelper(registry, {
       rawRequest: params,
       middleware: resolvedOptions.use,

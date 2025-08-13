@@ -49,7 +49,7 @@ export const ImageGenerationCommonConfigSchema = z.object({
   user: z.string().optional(),
   n: z.number().int().min(1).max(10).default(1),
   quality: z.enum(['standard', 'hd']).optional(),
-  response_format: z.enum(['b64_json', 'url']).optional(),
+  response_format: z.enum(['b64_json', 'url']).default('b64_json').optional(),
 });
 
 function toImageGenerateParams(
@@ -127,7 +127,7 @@ export function defineCompatOpenAIImageModel<
   requestBuilder?: ImageRequestBuilder;
 }): ModelAction<CustomOptions> {
   const { ai, name, client, modelRef, requestBuilder } = params;
-  const model = name.split('/').pop();
+  const modelName = name.substring(name.indexOf('/') + 1);
 
   return ai.defineModel(
     {
@@ -138,7 +138,7 @@ export function defineCompatOpenAIImageModel<
     },
     async (request, { abortSignal }) => {
       const result = await client.images.generate(
-        toImageGenerateParams(model!, request, requestBuilder),
+        toImageGenerateParams(modelName!, request, requestBuilder),
         { signal: abortSignal }
       );
       return toGenerateResponse(result);
@@ -164,7 +164,8 @@ export function compatOaiImageModelRef<
   } = params;
   return modelRef({
     name,
-    configSchema: configSchema || (ImageGenerationCommonConfigSchema as any),
+    configSchema:
+      configSchema || (ImageGenerationCommonConfigSchema as z.AnyZodObject),
     info,
     config,
   });

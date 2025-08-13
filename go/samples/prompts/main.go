@@ -43,6 +43,7 @@ func main() {
 	}
 
 	SimplePrompt(ctx, g)
+	PromptWithMultiMessage(ctx, g)
 	PromptWithInput(ctx, g)
 	PromptWithOutputType(ctx, g)
 	PromptWithComplexOutputType(ctx, g)
@@ -217,6 +218,21 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 	fmt.Println(string(pretty))
 }
 
+func PromptWithMultiMessage(ctx context.Context, g *genkit.Genkit) {
+	prompt, err := genkit.LoadPrompt(g, "./prompts/multi-msg.prompt", "multi-space")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if prompt == nil {
+		log.Fatal("empty prompt")
+	}
+	resp, err := prompt.Execute(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(resp.Text())
+}
+
 func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
@@ -340,7 +356,7 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 	resp, err := prompt.Execute(ctx,
 
 		ai.WithModelName("vertexai/gemini-2.0-flash"),
-		ai.WithInput(map[string]any{"imageUrl": "data:image/png;base64," + img}),
+		ai.WithInput(map[string]any{"imageUrl": "data:image/jpg;base64," + img}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -349,7 +365,7 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 }
 
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
+	imgUrl := "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err

@@ -16,31 +16,16 @@
 
 import { ActionMetadata, Genkit, modelActionMetadata, z } from 'genkit';
 import {
-  CandidateData,
-  GenerateRequest,
   GenerationCommonConfigSchema,
   ModelAction,
   ModelInfo,
   ModelReference,
-  getBasicUsageStats,
   modelRef,
 } from 'genkit/model';
 import { imagenPredict } from './client';
-import {
-  ClientOptions,
-  ImagenParameters,
-  ImagenPredictRequest,
-  ImagenPrediction,
-  Model,
-  VertexPluginOptions,
-} from './types.js';
-import {
-  checkModelName,
-  extractImagenImage,
-  extractImagenMask,
-  extractText,
-  modelName,
-} from './utils';
+import { fromImagenResponse, toImagenPredictRequest } from './converters';
+import { ClientOptions, Model, VertexPluginOptions } from './types.js';
+import { checkModelName, extractVersion, modelName } from './utils';
 
 /**
  * See https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api.
@@ -214,6 +199,8 @@ const GENERIC_MODEL = commonRef('imagen', {
 
 export const KNOWN_MODELS = {
   'imagen-3.0-generate-002': commonRef('imagen-3.0-generate-002'),
+  'imagen-3.0-generate-001': commonRef('imagen-3.0-generate-001'),
+  'imagen-3.0-capability-001': commonRef('imagen-3.0-capability-001'),
   'imagen-3.0-fast-generate-001': commonRef('imagen-3.0-fast-generate-001'),
   'imagen-4.0-generate-preview-06-06': commonRef(
     'imagen-4.0-generate-preview-06-06'
@@ -238,7 +225,6 @@ export function model(
   }
   return modelRef({
     name: `vertexai/${name}`,
-    version,
     config,
     configSchema: ImagenConfigSchema,
     info: {
@@ -280,26 +266,19 @@ export function defineModel(
 
   return ai.defineModel(
     {
+      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
     },
-    async (request) => {
-      const imagenPredictRequest: ImagenPredictRequest = {
-        instances: [
-          {
-            prompt: extractText(request),
-            image: extractImagenImage(request),
-            mask: extractImagenMask(request),
-          },
-        ],
-        parameters: toImagenParameters(request),
-      };
+    async (request, { abortSignal }) => {
+      const clientOpt = { ...clientOptions, signal: abortSignal };
+      const imagenPredictRequest = toImagenPredictRequest(request);
 
       const response = await imagenPredict(
-        ref.version as string,
+        extractVersion(ref),
         imagenPredictRequest,
-        clientOptions
+        clientOpt
       );
 
       if (!response.predictions || response.predictions.length == 0) {
@@ -308,58 +287,12 @@ export function defineModel(
         );
       }
 
-      const candidates = response.predictions.map(fromImagenPrediction);
-
-      return {
-        candidates,
-        usage: {
-          ...getBasicUsageStats(request.messages, candidates),
-          custom: { generations: candidates.length },
-        },
-        custom: response,
-      };
+      return fromImagenResponse(response, request);
     }
   );
 }
 
-function toImagenParameters(
-  request: GenerateRequest<typeof ImagenConfigSchema>
-): ImagenParameters {
-  const params = {
-    sampleCount: request.candidates ?? 1,
-    ...request?.config,
-  };
-
-  for (const k in params) {
-    if (!params[k]) delete params[k];
-  }
-
-  return params;
-}
-
-function fromImagenPrediction(p: ImagenPrediction, i: number): CandidateData {
-  const b64data = p.bytesBase64Encoded;
-  const mimeType = p.mimeType;
-  return {
-    index: i,
-    finishReason: 'stop',
-    message: {
-      role: 'model',
-      content: [
-        {
-          media: {
-            url: `data:${mimeType};base64,${b64data}`,
-            contentType: mimeType,
-          },
-        },
-      ],
-    },
-  };
-}
-
 export const TEST_ONLY = {
-  toImagenParameters,
-  fromImagenPrediction,
   GENERIC_MODEL,
   KNOWN_MODELS,
 };

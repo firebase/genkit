@@ -172,7 +172,7 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   }
 
   const fn = ((input) => {
-    setCustomMetadataAttributes(registry, { subtype: 'tool' });
+    setCustomMetadataAttributes({ subtype: 'tool' });
     return action(input);
   }) as ToolAction<I, O>;
   fn.__action = {

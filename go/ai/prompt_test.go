@@ -849,7 +849,6 @@ output:
   schema:
     type: string
 ---
-
 Hello, {{name}}!
 `
 	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
@@ -1096,5 +1095,45 @@ func TestDefinePartialAndHelper(t *testing.T) {
 	testOutput := "Welcome User!HELLO"
 	if result.Request.Messages[0].Content[0].Text != testOutput {
 		t.Errorf("got %q want %q", result.Request.Messages[0].Content[0].Text, testOutput)
+	}
+}
+
+func TestMultiMessagesPrompt(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+---
+{{ role "system" }}
+
+You are a pirate!
+
+{{ role "user" }}
+Hello!
+`
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	// Initialize a mock registry
+	reg, err := registry.New()
+	if err != nil {
+		t.Fatalf("Failed to create registry: %v", err)
+	}
+	ConfigureFormats(reg)
+	definePromptModel(reg)
+
+	prompt, err := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = prompt.Execute(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("Failed to execute prompt: %v", err)
 	}
 }

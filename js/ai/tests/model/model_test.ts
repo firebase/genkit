@@ -19,6 +19,7 @@ import {
   sentinelNoopStreamingCallback,
   StreamingCallback,
 } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import assert from 'assert';
 import { Registry } from 'genkit/registry';
 import { describe, it } from 'node:test';
@@ -27,6 +28,8 @@ import {
   GenerateResponseChunkData,
   GenerateResponseData,
 } from '../../src/model.js';
+
+initNodeFeatures();
 
 const GENERATE_RESPONSE = {
   finishReason: 'stop',

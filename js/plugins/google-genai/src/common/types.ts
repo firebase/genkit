@@ -39,8 +39,12 @@ export enum FunctionCallingMode {
   NONE = 'NONE',
 }
 
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 /**
- * The reason why the reponse is blocked.
+ * The reason why the response is blocked.
  */
 export enum BlockReason {
   /** Unspecified block reason. */
@@ -140,6 +144,14 @@ export declare interface GoogleSearchRetrievalTool {
   googleSearchRetrieval?: GoogleSearchRetrieval;
   googleSearch?: GoogleSearchRetrieval;
 }
+export function isGoogleSearchRetrievalTool(
+  tool: Tool
+): tool is GoogleSearchRetrievalTool {
+  return (
+    (tool as GoogleSearchRetrievalTool).googleSearchRetrieval !== undefined ||
+    (tool as GoogleSearchRetrievalTool).googleSearch !== undefined
+  );
+}
 
 /**
  * Grounding support.
@@ -148,7 +160,7 @@ export declare interface GroundingSupport {
   /** Optional. Segment of the content this support belongs to. */
   segment?: GroundingSupportSegment;
   /**
-   * Optional. A arrau of indices (into {@link GroundingChunk}) specifying the
+   * Optional. A array of indices (into {@link GroundingChunk}) specifying the
    * citations associated with the claim. For instance [1,3,4] means
    * that grounding_chunk[1], grounding_chunk[3],
    * grounding_chunk[4] are the retrieved content attributed to the claim.
@@ -370,6 +382,8 @@ export declare interface UsageMetadata {
   totalTokenCount?: number;
   /** Optional. Number of tokens in the cached content. */
   cachedContentTokenCount?: number;
+  /** Optional. Number of tokens present in thoughts output. */
+  thoughtsTokenCount?: number;
 }
 
 export const TaskTypeSchema = z.enum([
@@ -431,7 +445,7 @@ export declare interface GoogleDate {
   year?: number;
   /**
    * Month of the date. Must be from 1 to 12, or 0 to specify a year without a
-   * monthi and day.
+   * month and day.
    */
   month?: number;
   /**
@@ -737,6 +751,11 @@ export declare interface FunctionDeclarationsTool {
    */
   functionDeclarations?: FunctionDeclaration[];
 }
+export function isFunctionDeclarationsTool(
+  tool: Tool
+): tool is FunctionDeclarationsTool {
+  return (tool as FunctionDeclarationsTool).functionDeclarations !== undefined;
+}
 
 /**
  * Google AI Only. Enables the model to execute code as part of generation.
@@ -748,6 +767,9 @@ export declare interface CodeExecutionTool {
    * subfields added in the future.
    */
   codeExecution: {};
+}
+export function isCodeExecutionTool(tool: Tool): tool is CodeExecutionTool {
+  return (tool as CodeExecutionTool).codeExecution !== undefined;
 }
 
 /**
@@ -829,6 +851,9 @@ export declare interface Retrieval {
 export declare interface RetrievalTool {
   /** Optional. {@link Retrieval}. */
   retrieval?: Retrieval;
+}
+export function isRetrievalTool(tool: Tool): tool is RetrievalTool {
+  return (tool as RetrievalTool).retrieval !== undefined;
 }
 
 /**
@@ -962,7 +987,7 @@ export declare interface GenerateContentRequest {
 
 /**
  * Result from calling generateContentStream.
- * It constains both the stream and the final aggregated response.
+ * It contains both the stream and the final aggregated response.
  * @public
  */
 export declare interface GenerateContentStreamResult {

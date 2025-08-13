@@ -36,6 +36,7 @@ import {
   type StartChatParams,
   type Tool,
   type ToolConfig,
+  type UsageMetadata,
 } from '@google/generative-ai';
 import {
   GENKIT_CLIENT_HEADER,
@@ -66,6 +67,13 @@ import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
+
+// Extra type guard to keep the compiler happy and avoid a cast to any. The
+// legacy Gemini SDK is no longer maintained, and doesn't have updated types.
+// However, the REST API returns the data we want.
+type ExtendedUsageMetadata = UsageMetadata & {
+  thoughtsTokenCount?: number;
+};
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
@@ -206,6 +214,29 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .describe(
       'Retrieve public web data for grounding, powered by Google Search.'
     )
+    .optional(),
+  thinkingConfig: z
+    .object({
+      includeThoughts: z
+        .boolean()
+        .describe(
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only when available.'
+        )
+        .optional(),
+      thinkingBudget: z
+        .number()
+        .min(0)
+        .max(24576)
+        .describe(
+          'The thinking budget parameter gives the model guidance on the ' +
+            'number of thinking tokens it can use when generating a response. ' +
+            'A greater number of tokens is typically associated with more detailed ' +
+            'thinking, which is needed for solving more complex tasks. ' +
+            'Setting the thinking budget to 0 disables thinking.'
+        )
+        .optional(),
+    })
     .optional(),
 }).passthrough();
 export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
@@ -516,6 +547,23 @@ export const gemini25Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25FlashLite = modelRef({
+  name: 'googleai/gemini-2.5-flash-lite',
+  info: {
+    label: 'Google AI - Gemini 2.5 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const gemma312bit = modelRef({
   name: 'googleai/gemma-3-12b-it',
   info: {
@@ -615,6 +663,7 @@ export const SUPPORTED_GEMINI_MODELS = {
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
   'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
   'gemini-2.5-flash': gemini25Flash,
+  'gemini-2.5-flash-lite': gemini25FlashLite,
   'gemini-2.5-pro': gemini25Pro,
   'gemma-3-12b-it': gemma312bit,
   'gemma-3-1b-it': gemma31bit,
@@ -1367,16 +1416,18 @@ export function defineGoogleAIModel({
         const candidateData =
           candidates.map(fromJSONModeScopedGeminiCandidate) || [];
 
+        const usageMetadata = response.usageMetadata as ExtendedUsageMetadata;
+
         return {
           candidates: candidateData,
           custom: response,
           usage: {
             ...getBasicUsageStats(request.messages, candidateData),
-            inputTokens: response.usageMetadata?.promptTokenCount,
-            outputTokens: response.usageMetadata?.candidatesTokenCount,
-            totalTokens: response.usageMetadata?.totalTokenCount,
-            cachedContentTokens:
-              response.usageMetadata?.cachedContentTokenCount,
+            inputTokens: usageMetadata?.promptTokenCount,
+            outputTokens: usageMetadata?.candidatesTokenCount,
+            thoughtsTokens: usageMetadata?.thoughtsTokenCount,
+            totalTokens: usageMetadata?.totalTokenCount,
+            cachedContentTokens: usageMetadata?.cachedContentTokenCount,
           },
         };
       };
@@ -1509,6 +1560,14 @@ export function aggregateResponses(
             const newPart: Partial<GeminiPart> = {};
             if (part.text) {
               newPart.text = part.text;
+            }
+            if ((part as any).thought) {
+              (newPart as any).thought = (part as any).thought;
+            }
+            if ((part as any).thoughtSignature) {
+              (newPart as any).thoughtSignature = (
+                part as any
+              ).thoughtSignature;
             }
             if (part.functionCall) {
               newPart.functionCall = part.functionCall;
