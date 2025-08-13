@@ -982,14 +982,10 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 	reg := &registry.Registry{}
 
 	// Call LoadPromptFolder with a non-existent directory
-	err := LoadPromptDir(reg, "./nonexistent", "test-namespace")
-	if err == nil {
-		t.Fatalf("Error should returned")
-	}
+	LoadPromptDir(reg, "", "test-namespace")
 
 	// Verify that no prompts were registered
-	prompt := LookupPrompt(reg, "example")
-	if prompt != nil {
+	if prompt := LookupPrompt(reg, "example"); prompt != nil {
 		t.Fatalf("Prompt should not have been registered for a non-existent directory")
 	}
 }

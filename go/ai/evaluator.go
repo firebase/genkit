@@ -31,6 +31,9 @@ import (
 // EvaluatorFunc is the function type for evaluator implementations.
 type EvaluatorFunc = func(context.Context, *EvaluatorCallbackRequest) (*EvaluatorCallbackResponse, error)
 
+// BatchEvaluatorFunc is the function type for batch evaluator implementations.
+type BatchEvaluatorFunc = func(context.Context, *EvaluatorRequest) (*EvaluatorResponse, error)
+
 // Evaluator represents a evaluator action.
 type Evaluator interface {
 	// Name returns the name of the evaluator.
@@ -210,7 +213,7 @@ func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, 
 // returns a [Evaluator] that runs it. This method provide the full
 // [EvaluatorRequest] to the callback function, giving more flexibilty to the
 // user for processing the data, such as batching or parallelization.
-func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, batchEval func(context.Context, *EvaluatorRequest) (*EvaluatorResponse, error)) Evaluator {
+func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
 	if name == "" {
 		panic("ai.DefineBatchEvaluator: batch evaluator name is required")
 	}
@@ -228,7 +231,7 @@ func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOpti
 		},
 	}
 
-	return (*evaluator)(core.DefineAction(r, name, core.ActionTypeEvaluator, metadata, batchEval))
+	return (*evaluator)(core.DefineAction(r, name, core.ActionTypeEvaluator, metadata, fn))
 }
 
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].

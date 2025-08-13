@@ -489,7 +489,7 @@ func LookupModel(g *Genkit, name string) ai.Model {
 //	}
 //
 //	fmt.Println(resp.Text()) // Might output something like "The weather in Paris is Sunny, 25°C."
-func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *ai.ToolContext, input In) (Out, error)) ai.Tool {
+func DefineTool[In, Out any](g *Genkit, name, description string, fn ai.ToolFunc[In, Out]) ai.Tool {
 	return ai.DefineTool(g.reg, name, description, fn)
 }
 
@@ -536,7 +536,7 @@ func DefineTool[In, Out any](g *Genkit, name, description string, fn func(ctx *a
 //			return fmt.Sprintf("Weather in %s: 25°%s", city, unit), nil
 //		},
 //	)
-func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema map[string]any, fn func(ctx *ai.ToolContext, input any) (Out, error)) ai.Tool {
+func DefineToolWithInputSchema[Out any](g *Genkit, name, description string, inputSchema map[string]any, fn ai.ToolFunc[any, Out]) ai.Tool {
 	return ai.DefineToolWithInputSchema(g.reg, name, description, inputSchema, fn)
 }
 
@@ -769,8 +769,8 @@ func Embed(ctx context.Context, g *Genkit, opts ...ai.EmbedderOption) (*ai.Embed
 // The `provider` and `name` form the unique identifier. The `ret` function
 // contains the logic to process an [ai.RetrieverRequest] (containing the query)
 // and return an [ai.RetrieverResponse] (containing the relevant documents).
-func DefineRetriever(g *Genkit, name string, opts *ai.RetrieverOptions, ret func(context.Context, *ai.RetrieverRequest) (*ai.RetrieverResponse, error)) ai.Retriever {
-	return ai.DefineRetriever(g.reg, name, opts, ret)
+func DefineRetriever(g *Genkit, name string, opts *ai.RetrieverOptions, fn ai.RetrieverFunc) ai.Retriever {
+	return ai.DefineRetriever(g.reg, name, opts, fn)
 }
 
 // LookupRetriever retrieves a registered [ai.Retriever] by its provider and name.
@@ -787,8 +787,8 @@ func LookupRetriever(g *Genkit, name string) ai.Retriever {
 // The `provider` and `name` are specified in the `opts` parameter which forms the unique identifier.
 // The `embed` function contains the logic to process an [ai.EmbedRequest] (containing documents or a query)
 // and return an [ai.EmbedResponse] (containing the corresponding embeddings).
-func DefineEmbedder(g *Genkit, name string, opts *ai.EmbedderOptions, embed func(context.Context, *ai.EmbedRequest) (*ai.EmbedResponse, error)) ai.Embedder {
-	return ai.DefineEmbedder(g.reg, name, opts, embed)
+func DefineEmbedder(g *Genkit, name string, opts *ai.EmbedderOptions, fn ai.EmbedderFunc) ai.Embedder {
+	return ai.DefineEmbedder(g.reg, name, opts, fn)
 }
 
 // LookupEmbedder retrieves a registered [ai.Embedder] by its provider and name.
@@ -825,8 +825,8 @@ func LookupPlugin(g *Genkit, name string) Plugin {
 // metadata about the evaluator ([ai.EvaluatorOptions]). The `eval` function
 // implements the logic to score a single test case and returns the results
 // in an [ai.EvaluatorCallbackResponse].
-func DefineEvaluator(g *Genkit, name string, opts *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error)) ai.Evaluator {
-	return ai.DefineEvaluator(g.reg, name, opts, eval)
+func DefineEvaluator(g *Genkit, name string, opts *ai.EvaluatorOptions, fn ai.EvaluatorFunc) ai.Evaluator {
+	return ai.DefineEvaluator(g.reg, name, opts, fn)
 }
 
 // DefineBatchEvaluator defines an evaluator that processes the entire dataset at once,
@@ -840,8 +840,8 @@ func DefineEvaluator(g *Genkit, name string, opts *ai.EvaluatorOptions, eval fun
 // metadata about the evaluator ([ai.EvaluatorOptions]). The `eval` function
 // implements the logic to score the dataset and returns the aggregated results
 // in an [ai.EvaluatorResponse].
-func DefineBatchEvaluator(g *Genkit, name string, opts *ai.EvaluatorOptions, eval func(context.Context, *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error)) ai.Evaluator {
-	return ai.DefineBatchEvaluator(g.reg, name, opts, eval)
+func DefineBatchEvaluator(g *Genkit, name string, opts *ai.EvaluatorOptions, fn ai.BatchEvaluatorFunc) ai.Evaluator {
+	return ai.DefineBatchEvaluator(g.reg, name, opts, fn)
 }
 
 // LookupEvaluator retrieves a registered [ai.Evaluator] by its provider and name.
@@ -866,8 +866,8 @@ func LookupEvaluator(g *Genkit, name string) ai.Evaluator {
 // This function is often called implicitly by [Init] using the directory specified
 // by [WithPromptDir], but can be called explicitly to load prompts from other
 // locations or with different namespaces.
-func LoadPromptDir(g *Genkit, dir string, namespace string) error {
-	return ai.LoadPromptDir(g.reg, dir, namespace)
+func LoadPromptDir(g *Genkit, dir string, namespace string) {
+	ai.LoadPromptDir(g.reg, dir, namespace)
 }
 
 // LoadPrompt loads a single `.prompt` file specified by `path` into the registry,

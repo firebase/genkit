@@ -453,7 +453,7 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 }
 
 // LoadPromptDir loads prompts and partials from the input directory for the given namespace.
-func LoadPromptDir(r *registry.Registry, dir string, namespace string) error {
+func LoadPromptDir(r *registry.Registry, dir string, namespace string) {
 	useDefaultDir := false
 	if dir == "" {
 		dir = "./prompts"
@@ -463,37 +463,35 @@ func LoadPromptDir(r *registry.Registry, dir string, namespace string) error {
 	path, err := filepath.Abs(dir)
 	if err != nil {
 		if !useDefaultDir {
-			return fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err)
+			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
 		}
 		slog.Debug("default prompt directory not found, skipping loading .prompt files", "dir", dir)
-		return nil
+		return
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if !useDefaultDir {
-			return fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err)
+			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
 		}
 		slog.Debug("Default prompt directory not found, skipping loading .prompt files", "dir", dir)
-		return nil
+		return
 	}
 
-	return loadPromptDir(r, path, namespace)
+	loadPromptDir(r, path, namespace)
 }
 
 // loadPromptDir recursively loads prompts and partials from the directory.
-func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
+func loadPromptDir(r *registry.Registry, dir string, namespace string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("failed to read prompt directory structure: %w", err)
+		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
 	}
 
 	for _, entry := range entries {
 		filename := entry.Name()
 		path := filepath.Join(dir, filename)
 		if entry.IsDir() {
-			if err := loadPromptDir(r, path, namespace); err != nil {
-				return err
-			}
+			loadPromptDir(r, path, namespace)
 		} else if strings.HasSuffix(filename, ".prompt") {
 			if strings.HasPrefix(filename, "_") {
 				partialName := strings.TrimSuffix(filename[1:], ".prompt")
@@ -509,7 +507,6 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 			}
 		}
 	}
-	return nil
 }
 
 // LoadPrompt loads a single prompt into the registry.
