@@ -31,10 +31,7 @@ func TestInit(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(ctx)
 
 	firebaseApp, _ := firebasev4.NewApp(ctx, nil)
 
@@ -76,7 +73,7 @@ func TestInit(t *testing.T) {
 				ProjectId: tt.projectId,
 				App:       tt.app,
 			}
-			err = f.Init(ctx, g)
+			err := f.Init(ctx, g)
 
 			if tt.expectedError != "" {
 				if err == nil || err.Error() != tt.expectedError {

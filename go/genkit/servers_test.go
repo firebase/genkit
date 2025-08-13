@@ -36,10 +36,7 @@ func FakeContextProvider(ctx context.Context, req core.RequestData) (core.Action
 }
 
 func TestHandler(t *testing.T) {
-	g, err := Init(context.Background())
-	if err != nil {
-		t.Fatalf("failed to initialize Genkit: %v", err)
-	}
+	g := Init(context.Background())
 
 	echoFlow := DefineFlow(g, "echo", func(ctx context.Context, input string) (string, error) {
 		return input, nil
@@ -191,10 +188,7 @@ func TestHandler(t *testing.T) {
 }
 
 func TestStreamingHandler(t *testing.T) {
-	g, err := Init(context.Background())
-	if err != nil {
-		t.Fatalf("failed to initialize Genkit: %v", err)
-	}
+	g := Init(context.Background())
 
 	streamingFlow := DefineStreamingFlow(g, "streaming",
 		func(ctx context.Context, input string, cb func(context.Context, string) error) (string, error) {

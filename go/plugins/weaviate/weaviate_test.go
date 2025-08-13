@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
@@ -44,10 +45,7 @@ func TestGenkit(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(context.Background())
 
 	// Make two very similar vectors and one different vector.
 	// Arrange for a fake embedder to return those vectors
@@ -90,27 +88,23 @@ func TestGenkit(t *testing.T) {
 	}
 
 	emdOpts := &ai.EmbedderOptions{
-		Info: &ai.EmbedderInfo{
-			Dimensions: 768,
-			Label:      "",
-			Supports: &ai.EmbedderSupports{
-				Input: []string{"text"},
-			},
+		Dimensions: 768,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
 		},
 		ConfigSchema: nil,
 	}
 
 	classCfg := ClassConfig{
 		Class:    *testClass,
-		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", emdOpts, embedder.Embed),
+		Embedder: genkit.DefineEmbedder(g, "fake/embedder3", emdOpts, embedder.Embed),
 	}
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: RetrieverOptions{},
-		Info: &ai.RetrieverInfo{
-			Label: "weaviate",
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(RetrieverOptions{}),
+		Label:        "weaviate",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 	ds, retriever, err := DefineRetriever(ctx, g, classCfg, retOpts)
@@ -127,7 +121,8 @@ func TestGenkit(t *testing.T) {
 		Count:        2,
 		MetadataKeys: []string{"name"},
 	}
-	retrieverResp, err := ai.Retrieve(ctx, retriever,
+	retrieverResp, err := genkit.Retrieve(ctx, g,
+		ai.WithRetriever(retriever),
 		ai.WithDocs(d1),
 		ai.WithConfig(retrieverOptions))
 	if err != nil {

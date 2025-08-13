@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -89,12 +90,12 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Co
 		return nil, nil, err
 	}
 
-	return ds, genkit.DefineRetriever(g, provider, ds.config.TableName, nil, ds.Retrieve), nil
+	return ds, genkit.DefineRetriever(g, core.NewName(provider, ds.config.TableName), &ai.RetrieverOptions{}, ds.Retrieve), nil
 }
 
 // Retriever returns the retriever with the given index name.
 func Retriever(g *genkit.Genkit, name string) ai.Retriever {
-	return genkit.LookupRetriever(g, provider, name)
+	return genkit.LookupRetriever(g, core.NewName(provider, name))
 }
 
 /* +++++++++++++++++++++++

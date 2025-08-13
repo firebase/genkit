@@ -42,11 +42,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	g, err := genkit.Init(ctx)
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
-		os.Exit(1)
-	}
+	g := genkit.Init(ctx)
 
 	// Tool 1: Encode/decode text
 	genkit.DefineTool(g, "text_encode", "Encode or decode text using various methods",

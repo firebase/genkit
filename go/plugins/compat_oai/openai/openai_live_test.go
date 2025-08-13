@@ -40,13 +40,10 @@ func TestPlugin(t *testing.T) {
 	oai := &compat_oai.OpenAI{
 		APIKey: apiKey,
 	}
-	g, err := genkit.Init(context.Background(),
+	g := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("openai/gpt-4o-mini"),
 		genkit.WithPlugins(oai),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	t.Log("genkit initialized")
 
 	// Define a tool for calculating gablorkens
@@ -65,7 +62,7 @@ func TestPlugin(t *testing.T) {
 	t.Run("embedder", func(t *testing.T) {
 		// define embedder
 		embedder := oai.Embedder(g, "text-embedding-3-small")
-		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
+		res, err := genkit.Embed(ctx, g, ai.WithEmbedder(embedder), ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}

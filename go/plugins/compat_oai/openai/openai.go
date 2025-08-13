@@ -38,12 +38,14 @@ type TextEmbeddingConfig struct {
 type EmbedderRef struct {
 	Name         string
 	ConfigSchema TextEmbeddingConfig // Represents the schema, can be used for default config
-	Info         *ai.EmbedderInfo
+	Label        string
+	Supports     *ai.EmbedderSupports
+	Dimensions   int
 }
 
 var (
 	// Supported models: https://platform.openai.com/docs/models
-	supportedModels = map[string]ai.ModelInfo{
+	supportedModels = map[string]ai.ModelOptions{
 		"gpt-4.1": {
 			Label:    "OpenAI GPT-4.1",
 			Supports: &compat_oai.Multimodal,
@@ -130,34 +132,28 @@ var (
 		openaiGo.EmbeddingModelTextEmbeddingAda002: {
 			Name:         "openai/text-embedding-ada-002",
 			ConfigSchema: TextEmbeddingConfig{},
-			Info: &ai.EmbedderInfo{
-				Dimensions: 1536,
-				Label:      "Open AI - Text Embedding ADA 002",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions:   1536,
+			Label:        "Open AI - Text Embedding ADA 002",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
 		},
 		openaiGo.EmbeddingModelTextEmbedding3Large: {
 			Name:         "openai/text-embedding-3-large",
 			ConfigSchema: TextEmbeddingConfig{},
-			Info: &ai.EmbedderInfo{
-				Dimensions: 3072,
-				Label:      "Open AI - Text Embedding 3 Large",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions:   3072,
+			Label:        "Open AI - Text Embedding 3 Large",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
 		},
 		openaiGo.EmbeddingModelTextEmbedding3Small: {
 			Name:         "openai/text-embedding-3-small",
 			ConfigSchema: TextEmbeddingConfig{}, // Represents the configurable options
-			Info: &ai.EmbedderInfo{
-				Dimensions: 1536,
-				Label:      "Open AI - Text Embedding 3 Small",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions:   1536,
+			Label:        "Open AI - Text Embedding 3 Small",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
 		},
 	}
@@ -210,15 +206,21 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	// define default models
-	for model, info := range supportedModels {
-		if _, err := o.DefineModel(g, model, info); err != nil {
+	for model, opts := range supportedModels {
+		if _, err := o.DefineModel(g, model, opts); err != nil {
 			return err
 		}
 	}
 
 	// define default embedders
 	for _, embedder := range supportedEmbeddingModels {
-		if _, err := o.DefineEmbedder(g, embedder.Name, embedder.Info, embedder.ConfigSchema); err != nil {
+		opts := &ai.EmbedderOptions{
+			ConfigSchema: core.InferSchemaMap(embedder.ConfigSchema),
+			Label:        embedder.Label,
+			Supports:     embedder.Supports,
+			Dimensions:   embedder.Dimensions,
+		}
+		if _, err := o.DefineEmbedder(g, embedder.Name, opts); err != nil {
 			return err
 		}
 	}
@@ -227,22 +229,19 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 }
 
 func (o *OpenAI) Model(g *genkit.Genkit, name string) ai.Model {
-	return o.openAICompatible.Model(g, name, provider)
+	return o.openAICompatible.Model(g, core.NewName(provider, name))
 }
 
-func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, error) {
-	return o.openAICompatible.DefineModel(g, provider, name, info)
+func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, opts ai.ModelOptions) (ai.Model, error) {
+	return o.openAICompatible.DefineModel(g, provider, name, opts)
 }
 
-func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string, modelInfo *ai.EmbedderInfo, configSchema TextEmbeddingConfig) (ai.Embedder, error) {
-	return o.openAICompatible.DefineEmbedder(g, provider, name, &ai.EmbedderOptions{
-		Info:         modelInfo,
-		ConfigSchema: configSchema,
-	})
+func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string, opts *ai.EmbedderOptions) (ai.Embedder, error) {
+	return o.openAICompatible.DefineEmbedder(g, provider, name, opts)
 }
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {
-	return o.openAICompatible.Embedder(g, name, provider)
+	return o.openAICompatible.Embedder(g, core.NewName(provider, name))
 }
 
 func (o *OpenAI) ListActions(ctx context.Context) []core.ActionDesc {

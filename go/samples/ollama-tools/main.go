@@ -45,11 +45,7 @@ func main() {
 		ServerAddress: "http://localhost:11434", // Default Ollama server address
 	}
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(ollamaPlugin))
-	if err != nil {
-		fmt.Printf("Failed to initialize Genkit: %v\n", err)
-		return
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(ollamaPlugin))
 
 	// Define the Ollama model
 	model := ollamaPlugin.DefineModel(g,

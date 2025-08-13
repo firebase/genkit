@@ -78,10 +78,7 @@ func (c *GenkitMCPClient) createGenkitPrompt(g *genkit.Genkit, promptName string
 		promptOpts = append(promptOpts, ai.WithMessages(messages...))
 	}
 
-	prompt, err := genkit.DefinePrompt(g, promptName, promptOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to define prompt %s: %w", promptName, err)
-	}
+	prompt := genkit.DefinePrompt(g, promptName, promptOpts...)
 
 	return prompt, nil
 }

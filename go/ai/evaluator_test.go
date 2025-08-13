@@ -66,7 +66,7 @@ var testFailingEvalFunc = func(ctx context.Context, req *EvaluatorCallbackReques
 	return nil, errors.New("i give up")
 }
 
-var evalOptions = EvaluatorOptions{
+var evalOpts = EvaluatorOptions{
 	DisplayName: "Test Evaluator",
 	Definition:  "Returns pass score for all",
 	IsBilled:    false,
@@ -88,17 +88,11 @@ var testRequest = EvaluatorRequest{
 }
 
 func TestSimpleEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
-	evalAction, err := DefineEvaluator(r, "test", "testEvaluator", &evalOptions, testEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	evaluator := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
 
-	resp, err := evalAction.Evaluate(context.Background(), &testRequest)
+	resp, err := evaluator.Evaluate(context.Background(), &testRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,31 +115,16 @@ func TestSimpleEvaluator(t *testing.T) {
 }
 
 func TestOptionsRequired(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
-	_, err = DefineEvaluator(r, "test", "testEvaluator", nil, testEvalFunc)
-	if err == nil {
-		t.Errorf("expected error, got nil")
-	}
-	_, err = DefineBatchEvaluator(r, "test", "testBatchEvaluator", nil, testBatchEvalFunc)
-	if err == nil {
-		t.Errorf("expected error, got nil")
-	}
+	_ = DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
+	_ = DefineBatchEvaluator(r, "test/testBatchEvaluator", &evalOpts, testBatchEvalFunc)
 }
 
 func TestFailingEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
-	evalAction, err := DefineEvaluator(r, "test", "testEvaluator", &evalOptions, testFailingEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testFailingEvalFunc)
 
 	resp, err := evalAction.Evaluate(context.Background(), &testRequest)
 	if err != nil {
@@ -161,38 +140,23 @@ func TestFailingEvaluator(t *testing.T) {
 }
 
 func TestLookupEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
-	evalAction, err := DefineEvaluator(r, "test", "testEvaluator", &evalOptions, testEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	batchEvalAction, err := DefineBatchEvaluator(r, "test", "testBatchEvaluator", &evalOptions, testBatchEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
+	batchEvalAction := DefineBatchEvaluator(r, "test/testBatchEvaluator", &evalOpts, testBatchEvalFunc)
 
-	if got, want := LookupEvaluator(r, "test", "testEvaluator"), evalAction; got != want {
+	if got, want := LookupEvaluator(r, "test/testEvaluator"), evalAction; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got, want := LookupEvaluator(r, "test", "testBatchEvaluator"), batchEvalAction; got != want {
+	if got, want := LookupEvaluator(r, "test/testBatchEvaluator"), batchEvalAction; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
 
 func TestEvaluate(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
-	evalAction, err := DefineEvaluator(r, "test", "testEvaluator", &evalOptions, testEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
 
 	resp, err := Evaluate(context.Background(), evalAction,
 		WithDataset(dataset...),
@@ -217,15 +181,9 @@ func TestEvaluate(t *testing.T) {
 }
 
 func TestBatchEvaluator(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 
-	evalAction, err := DefineBatchEvaluator(r, "test", "testBatchEvaluator", &evalOptions, testBatchEvalFunc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	evalAction := DefineBatchEvaluator(r, "test/testBatchEvaluator", &evalOpts, testBatchEvalFunc)
 
 	resp, err := evalAction.Evaluate(context.Background(), &testRequest)
 	if err != nil {

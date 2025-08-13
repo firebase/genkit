@@ -43,14 +43,11 @@ func TestVertexAILive(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-2.0-flash"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = (&googlegenai.VertexAI{ProjectID: projectID, Location: location}).Init(ctx, g)
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(ctx,
+		genkit.WithDefaultModel("vertexai/gemini-2.0-flash"),
+		genkit.WithPlugins(&googlegenai.VertexAI{ProjectID: projectID, Location: location}),
+	)
+
 	embedder := googlegenai.VertexAIEmbedder(g, "textembedding-gecko@003")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
@@ -126,7 +123,8 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder,
+		res, err := genkit.Embed(ctx, g,
+			ai.WithEmbedder(embedder),
 			ai.WithTextDocs("time flies like an arrow", "fruit flies like a banana"),
 		)
 		if err != nil {

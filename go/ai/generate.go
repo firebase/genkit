@@ -31,72 +31,84 @@ import (
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
-type (
-	// Model represents a model that can generate content based on a request.
-	Model interface {
-		// Name returns the registry name of the model.
-		Name() string
-		// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
-		Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error)
-	}
+// Model represents a model that can generate content based on a request.
+type Model interface {
+	// Name returns the registry name of the model.
+	Name() string
+	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
+	Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error)
+}
 
-	// ModelArg is the interface for model arguments.
-	ModelArg interface {
-		Name() string
-	}
+// ModelArg is the interface for model arguments. It can either be the retriever action itself or a reference to be looked up.
+type ModelArg interface {
+	Name() string
+}
 
-	// ModelRef is a struct to hold model name and configuration.
-	ModelRef struct {
-		name   string
-		config any
-	}
+// ModelRef is a struct to hold model name and configuration.
+type ModelRef struct {
+	name   string
+	config any
+}
 
-	// ToolConfig handles configuration around tool calls during generation.
-	ToolConfig struct {
-		MaxTurns           int  // Maximum number of tool call iterations before erroring.
-		ReturnToolRequests bool // Whether to return tool requests instead of making the tool calls and continuing the generation.
-	}
+// ToolConfig handles configuration around tool calls during generation.
+type ToolConfig struct {
+	MaxTurns           int  // Maximum number of tool call iterations before erroring.
+	ReturnToolRequests bool // Whether to return tool requests instead of making the tool calls and continuing the generation.
+}
 
-	// ModelFunc is a streaming function that takes in a ModelRequest and generates a ModelResponse, optionally streaming ModelResponseChunks.
-	ModelFunc = core.StreamingFunc[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+// ModelFunc is a streaming function that takes in a ModelRequest and generates a ModelResponse, optionally streaming ModelResponseChunks.
+type ModelFunc = core.StreamingFunc[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-	// ModelStreamCallback is a stream callback of a ModelAction.
-	ModelStreamCallback = func(context.Context, *ModelResponseChunk) error
+// ModelStreamCallback is a stream callback of a ModelAction.
+type ModelStreamCallback = func(context.Context, *ModelResponseChunk) error
 
-	// ModelMiddleware is middleware for model generate requests that takes in a ModelFunc, does something, then returns another ModelFunc.
-	ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+// ModelMiddleware is middleware for model generate requests that takes in a ModelFunc, does something, then returns another ModelFunc.
+type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-	// model is an action with functions specific to model generation such as Generate().
-	model core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+// model is an action with functions specific to model generation such as Generate().
+type model core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
-	// generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
-	generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
+// generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
+type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
 
-	// result is a generic struct for parallel operation results with index, value, and error.
-	result[T any] struct {
-		index int
-		value T
-		err   error
-	}
+// result is a generic struct for parallel operation results with index, value, and error.
+type result[T any] struct {
+	index int
+	value T
+	err   error
+}
 
-	// resumeOptionOutput is the return type for resolveResumeOption.
-	resumeOptionOutput struct {
-		revisedRequest      *GenerateActionOptions
-		interruptedResponse *ModelResponse
-		toolMessage         *Message
-	}
+// resumeOptionOutput is the return type for resolveResumeOption.
+type resumeOptionOutput struct {
+	revisedRequest      *GenerateActionOptions
+	interruptedResponse *ModelResponse
+	toolMessage         *Message
+}
 
-	// resumedToolRequestOutput is the return type for resolveResumedToolRequest.
-	resumedToolRequestOutput struct {
-		toolRequest  *Part
-		toolResponse *Part
-		interrupt    *Part
-	}
-)
+// resumedToolRequestOutput is the return type for resolveResumedToolRequest.
+type resumedToolRequestOutput struct {
+	toolRequest  *Part
+	toolResponse *Part
+	interrupt    *Part
+}
+
+// ModelOptions represents the configuration options for a model.
+type ModelOptions struct {
+	// ConfigSchema is the JSON schema for the model's config.
+	ConfigSchema map[string]any `json:"configSchema,omitempty"`
+	// Label is a user-friendly name for the model.
+	Label string `json:"label,omitempty"`
+	// Stage indicates the maturity stage of the model.
+	Stage ModelStage `json:"stage,omitempty"`
+	// Supports defines the capabilities of the model.
+	Supports *ModelSupports `json:"supports,omitempty"`
+	// Versions lists the available versions of the model.
+	Versions []string `json:"versions,omitempty"`
+}
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "", "generate", core.ActionTypeUtil, nil,
+	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", actionOpts))
@@ -114,86 +126,67 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 }
 
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
-func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, fn ModelFunc) Model {
-	if info == nil {
-		// Always make sure there's at least minimal metadata.
-		info = &ModelInfo{
-			Label:    name,
-			Supports: &ModelSupports{},
-			Versions: []string{},
+func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+	if name == "" {
+		panic("ai.DefineModel: name is required")
+	}
+
+	if opts == nil {
+		opts = &ModelOptions{
+			Label: name,
 		}
+	}
+	if opts.Supports == nil {
+		opts.Supports = &ModelSupports{}
 	}
 
 	metadata := map[string]any{
+		"type": core.ActionTypeModel,
 		"model": map[string]any{
+			"label": opts.Label,
 			"supports": map[string]any{
-				"media":       info.Supports.Media,
-				"multiturn":   info.Supports.Multiturn,
-				"systemRole":  info.Supports.SystemRole,
-				"tools":       info.Supports.Tools,
-				"toolChoice":  info.Supports.ToolChoice,
-				"constrained": info.Supports.Constrained,
+				"media":       opts.Supports.Media,
+				"context":     opts.Supports.Context,
+				"multiturn":   opts.Supports.Multiturn,
+				"systemRole":  opts.Supports.SystemRole,
+				"tools":       opts.Supports.Tools,
+				"toolChoice":  opts.Supports.ToolChoice,
+				"constrained": opts.Supports.Constrained,
+				"output":      opts.Supports.Output,
+				"contentType": opts.Supports.ContentType,
 			},
-			"versions": info.Versions,
-			"stage":    info.Stage,
+			"versions":      opts.Versions,
+			"stage":         opts.Stage,
+			"customOptions": opts.ConfigSchema,
 		},
 	}
-	if info.Label != "" {
-		metadata["label"] = info.Label
-	}
-	if info.ConfigSchema != nil {
-		metadata["customOptions"] = info.ConfigSchema
-		if metadata["model"] == nil {
-			metadata["model"] = make(map[string]any)
+
+	inputSchema := core.InferSchemaMap(ModelRequest{})
+	if inputSchema != nil && opts.ConfigSchema != nil {
+		if _, ok := inputSchema["config"]; ok {
+			inputSchema["config"] = opts.ConfigSchema
 		}
-		modelMeta := metadata["model"].(map[string]any)
-		modelMeta["customOptions"] = info.ConfigSchema
 	}
 
 	mws := []ModelMiddleware{
-		simulateSystemPrompt(info, nil),
-		augmentWithContext(info, nil),
-		validateSupport(name, info),
+		simulateSystemPrompt(opts, nil),
+		augmentWithContext(opts, nil),
+		validateSupport(name, opts),
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return (*model)(core.DefineStreamingAction(r, provider, name, core.ActionTypeModel, metadata, fn))
+	return (*model)(core.DefineStreamingActionWithInputSchema(r, name, core.ActionTypeModel, metadata, inputSchema, fn))
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It will try to resolve the model dynamically if the model is not found.
 // It returns nil if the model was not resolved.
-func LookupModel(r *registry.Registry, provider, name string) Model {
-	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, provider, name)
+func LookupModel(r *registry.Registry, name string) Model {
+	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, name)
 	if action == nil {
 		return nil
 	}
 	return (*model)(action)
-}
-
-// LookupModelByName looks up a [Model] registered by [DefineModel].
-// It will try to resolve the model dynamically if the model is not found.
-// It returns an error if the model was not resolved.
-func LookupModelByName(r *registry.Registry, modelName string) (Model, error) {
-	if modelName == "" {
-		return nil, core.NewError(core.INVALID_ARGUMENT, "ai.LookupModelByName: model not specified")
-	}
-
-	provider, name, found := strings.Cut(modelName, "/")
-	if !found {
-		name = provider
-		provider = ""
-	}
-
-	model := LookupModel(r, provider, name)
-	if model == nil {
-		if provider == "" {
-			return nil, core.NewError(core.NOT_FOUND, "ai.LookupModelByName: model %q not found", name)
-		}
-		return nil, core.NewError(core.NOT_FOUND, "ai.LookupModelByName: model %q by provider %q not found", name, provider)
-	}
-
-	return model, nil
 }
 
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
@@ -207,11 +200,10 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		}
 	}
 
-	m, err := LookupModelByName(r, opts.Model)
-	if err != nil {
-		return nil, err
+	m := LookupModel(r, opts.Model)
+	if m == nil {
+		return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: model %q not found", opts.Model)
 	}
-	model, _ := m.(*model)
 
 	resumeOutput, err := handleResumeOption(ctx, r, opts)
 	if err != nil {
@@ -279,7 +271,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && model.SupportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && m.(*model).SupportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -308,7 +300,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		Output:     &outputCfg,
 	}
 
-	fn := core.ChainMiddleware(mw...)(model.Generate)
+	fn := core.ChainMiddleware(mw...)(m.Generate)
 
 	currentTurn := 0
 	for {
@@ -370,8 +362,6 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	var modelName string
 	if genOpts.Model != nil {
 		modelName = genOpts.Model.Name()
-	} else {
-		modelName = genOpts.ModelName
 	}
 
 	var dynamicTools []Tool
@@ -802,12 +792,12 @@ func NewModelRef(name string, config any) ModelRef {
 	return ModelRef{name: name, config: config}
 }
 
-// Name returns the name of the ModelRef.
+// Name returns the name of the model.
 func (m ModelRef) Name() string {
 	return m.name
 }
 
-// ModelConfig returns the configuration of a ModelRef.
+// Config returns the configuration to use by default for this model.
 func (m ModelRef) Config() any {
 	return m.config
 }
@@ -852,7 +842,7 @@ func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts
 				}
 
 				toolDef := tool.Definition()
-				if toolDef.OutputSchema != nil && len(toolDef.OutputSchema) > 0 {
+				if len(toolDef.OutputSchema) > 0 {
 					outputBytes, err := json.Marshal(respondPart.ToolResponse.Output)
 					if err != nil {
 						return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: failed to marshal tool output for validation: %v", err)

@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 
 	// Import Genkit and the Google AI plugin
 	"github.com/firebase/genkit/go/ai"
@@ -18,13 +17,10 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx,
+	g := genkit.Init(ctx,
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithPromptDir("prompts"),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	type greetingStyle struct {
 		Style    string `json:"style"`

@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -66,18 +65,12 @@ func TestGoogleAILive(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx,
+	g := genkit.Init(ctx,
 		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken, carefuly inspect the user input to determine which value from the prompt corresponds to the input structure",
 		func(ctx *ai.ToolContext, input struct {
@@ -90,7 +83,7 @@ func TestGoogleAILive(t *testing.T) {
 	)
 
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
+		res, err := genkit.Embed(ctx, g, ai.WithEmbedder(embedder), ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}

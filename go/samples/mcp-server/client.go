@@ -31,11 +31,7 @@ func client() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
-		return
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Connect to server
 	client, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{

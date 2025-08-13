@@ -23,6 +23,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/invopop/jsonschema"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -133,7 +134,7 @@ func (c *GenkitMCPClient) registerTool(ctx context.Context, g *genkit.Genkit, mc
 		g,
 		namespacedToolName,
 		mcpTool.Description,
-		inputSchemaForAI,
+		base.SchemaAsMap(inputSchemaForAI),
 		toolFunc,
 	)
 
