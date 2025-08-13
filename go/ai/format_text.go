@@ -51,3 +51,8 @@ func (t textHandler) Instructions() string {
 func (t textHandler) ParseMessage(m *Message) (*Message, error) {
 	return m, nil
 }
+
+// ParseChunk for text format simply returns the accumulated text
+func (t textHandler) ParseChunk(chunk *ModelResponseChunk, accumulatedText string) (interface{}, error) {
+	return accumulatedText, nil
+}
