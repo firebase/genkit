@@ -224,6 +224,10 @@ export class Registry {
       );
     }
     this.actionsById[key] = action;
+    if (action.__registry) {
+      logger.error(`ERROR: ${key} already registered.`);
+    }
+    action.__registry = this;
   }
 
   /**

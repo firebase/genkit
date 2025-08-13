@@ -15,13 +15,11 @@
  */
 
 import {
+  action,
   Action,
   ActionContext,
-  detachedAction,
-  DetachedAction,
   GenkitError,
   isAction,
-  isDetachedAction,
   z,
 } from '@genkit-ai/core';
 import { Registry } from '@genkit-ai/core/registry';
@@ -99,9 +97,7 @@ export function defineResource(
   opts: ResourceOptions,
   fn: ResourceFn
 ): ResourceAction {
-  const action = dynamicResource(opts, fn).attach(registry) as ResourceAction;
-  // when defined via defineResource it's not dynamic.
-  delete action.__action.metadata?.dynamic;
+  const action = dynamicResource(opts, fn);
   action.matches = createMatcher(opts.uri, opts.template);
   registry.registerAction('resource', action);
   return action;
@@ -110,7 +106,7 @@ export function defineResource(
 /**
  * A dynamic action with a `resource` type. Dynamic resources are detached actions -- not associated with any registry.
  */
-export type DynamicResourceAction = DetachedAction<
+export type DynamicResourceAction = Action<
   typeof ResourceInputSchema,
   typeof ResourceOutputSchema
 > & {
@@ -141,14 +137,8 @@ export async function findMatchingResource(
 }
 
 /** Checks whether provided object is a dynamic resource. */
-export function isDynamicResourceAction(
-  t: unknown
-): t is DynamicResourceAction {
-  return (
-    (isDetachedAction(t) || isAction(t)) &&
-    t.__action.metadata?.type === 'resource' &&
-    !!t.__action.metadata?.dynamic
-  );
+export function isDynamicResourceAction(t: unknown): t is ResourceAction {
+  return isAction(t) && !t.__registry;
 }
 
 /**
@@ -168,7 +158,7 @@ export function dynamicResource(
   }
   const matcher = createMatcher(opts.uri, opts.template);
 
-  const action = detachedAction(
+  const act = action(
     {
       actionType: 'resource',
       name: opts.name ?? uri,
@@ -182,7 +172,6 @@ export function dynamicResource(
         },
         ...opts.metadata,
         type: 'resource',
-        dynamic: true,
       },
     },
     async (input, ctx) => {
@@ -219,25 +208,10 @@ export function dynamicResource(
       });
       return parts;
     }
-  ) as DynamicResourceAction;
+  ) as ResourceAction;
 
-  action.matches = matcher;
-
-  return {
-    __action: {
-      ...action.__action,
-      metadata: {
-        ...action.__action.metadata,
-        type: 'resource',
-      },
-    },
-    attach(registry) {
-      const bound = action.attach(registry) as ResourceAction;
-      bound.matches = matcher;
-      return bound;
-    },
-    matches: matcher,
-  } as DynamicResourceAction;
+  act.matches = matcher;
+  return act as DynamicResourceAction;
 }
 
 function createMatcher(
