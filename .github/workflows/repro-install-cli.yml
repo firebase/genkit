@@ -1,0 +1,32 @@
+name: Repro install_cli without sudo
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  repro:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+    steps:
+      - name: Print environment info
+        run: |
+          id
+          uname -a
+          echo "PATH=$PATH"
+      - name: Install curl
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y curl ca-certificates
+      - name: Reproduce failure (no sudo, non-root)
+        run: |
+          useradd -m runner
+          su - runner -c 'set -x; curl -sL cli.genkit.dev | bash' || true
+      - name: Workaround (user-local install)
+        run: |
+          su - runner -c 'set -x; mkdir -p ~/.local/bin && curl -sL cli.genkit.dev | GENKIT_BINARY=$HOME/.local/bin/genkit bash && ~/.local/bin/genkit --version'
+      - name: Show where genkit installed
+        run: |
+          su - runner -c 'command -v genkit || true; ls -l ~/.local/bin/genkit || true'
+
+
