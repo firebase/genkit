@@ -31,7 +31,6 @@ describe('action', () => {
 
   it('applies middleware', async () => {
     const act = action(
-      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -56,7 +55,6 @@ describe('action', () => {
 
   it('returns telemetry info', async () => {
     const act = action(
-      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -92,7 +90,6 @@ describe('action', () => {
   it('run the action with options', async () => {
     let passedContext;
     const act = action(
-      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -125,7 +122,6 @@ describe('action', () => {
     let passedContext;
     let calledWithStreamingRequestedValue;
     const act = action(
-      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -143,6 +139,7 @@ describe('action', () => {
     );
 
     registry.context = { bar: 'baz' };
+    act.__registry = registry;
 
     await act.run('1234', {
       context: { foo: 'bar' },

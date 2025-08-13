@@ -15,17 +15,15 @@
  */
 
 import {
+  action,
   assertUnstable,
   defineAction,
-  detachedAction,
   isAction,
-  isDetachedAction,
   stripUndefinedProps,
   z,
   type Action,
   type ActionContext,
   type ActionRunOptions,
-  type DetachedAction,
   type JSONSchema7,
 } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
@@ -108,8 +106,10 @@ export type ToolAction<
 export type DynamicToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = DetachedAction<I, O, z.ZodTypeAny, ToolRunOptions> &
-  Resumable<I, O> & {
+> = Action<I, O, z.ZodTypeAny, ToolRunOptions> & {
+  /** @deprecated no-op, for backwards compatibility only. */
+  attach(registry: Registry): ToolAction<I, O>;
+} & Resumable<I, O> & {
     __action: {
       metadata: {
         type: 'tool';
@@ -153,12 +153,7 @@ export interface ToolConfig<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 export type ToolArgument<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> =
-  | string
-  | ToolAction<I, O>
-  | DynamicToolAction<I, O>
-  | Action<I, O>
-  | ExecutablePrompt<any, any, any>;
+> = string | ToolAction<I, O> | Action<I, O> | ExecutablePrompt<any, any, any>;
 
 /**
  * Converts an action to a tool action by setting the appropriate metadata.
@@ -387,12 +382,8 @@ export function isToolResponse(part: Part): part is ToolResponsePart {
   return !!part.toolResponse;
 }
 
-export function isDynamicTool(t: unknown): t is DynamicToolAction {
-  return (
-    (isDetachedAction(t) || isAction(t)) &&
-    t.__action.metadata?.type === 'tool' &&
-    t.__action.metadata?.dynamic
-  );
+export function isDynamicTool(t: unknown): t is ToolAction {
+  return isAction(t) && !t.__registry;
 }
 
 export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
@@ -427,9 +418,11 @@ export class ToolInterruptError extends Error {
  * Interrupts current tool execution causing tool request to be returned in the generation response.
  * Should only be called within a tool.
  */
-function interruptTool(registry: Registry) {
+function interruptTool(registry?: Registry) {
   return (metadata?: Record<string, any>): never => {
-    assertUnstable(registry, 'beta', 'Tool interrupts are a beta feature.');
+    if (registry) {
+      assertUnstable(registry, 'beta', 'Tool interrupts are a beta feature.');
+    }
     throw new ToolInterruptError(metadata);
   };
 }
@@ -442,7 +435,7 @@ export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: ToolConfig<I, O>,
   fn?: ToolFn<I, O>
 ): DynamicToolAction<I, O> {
-  const a = detachedAction(
+  const a = action(
     {
       ...config,
       actionType: 'tool',
@@ -459,20 +452,8 @@ export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       }
       return interrupt();
     }
-  );
+  ) as DynamicToolAction<I, O>;
   implementTool(a as any, config);
-  return {
-    __action: {
-      ...a.__action,
-      metadata: {
-        ...a.__action.metadata,
-        type: 'tool',
-      },
-    },
-    attach(registry) {
-      const bound = a.attach(registry);
-      implementTool(bound as ToolAction<I, O>, config);
-      return bound;
-    },
-  } as DynamicToolAction<I, O>;
+  a.attach = (_: Registry) => a;
+  return a;
 }
