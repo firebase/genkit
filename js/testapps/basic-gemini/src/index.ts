@@ -40,6 +40,7 @@ export const jokeFlow = ai.defineFlow(
   },
   async () => {
     const llmResponse = await ai.generate({
+      name: 'joke-creator',
       model: gemini15Flash,
       config: {
         temperature: 2,
