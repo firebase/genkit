@@ -59,9 +59,6 @@ func main() {
 
 	genkit.DefineFlow(g, "media", func(ctx context.Context, subject string) (string, error) {
 		gpt4oMini := oai.Model(g, "gpt-4o-mini")
-		if err != nil {
-			return "", err
-		}
 		config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5)}
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(gpt4oMini),
