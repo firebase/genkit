@@ -20,11 +20,14 @@ import {
   GenkitError,
   Operation,
   OperationSchema,
+  action,
   defineAction,
-  defineBackgroundAction,
+  backgroundAction,
+  registerBackgroundAction,
   z,
   type Action,
   type ActionMetadata,
+  type ActionParams,
   type SimpleMiddleware,
   type StreamingCallback,
 } from '@genkit-ai/core';
@@ -122,6 +125,56 @@ export type DefineModelOptions<
   use?: ModelMiddleware[];
 };
 
+export function model<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+  options: DefineModelOptions<CustomOptionsSchema>,
+  runner: (
+    request: GenerateRequest<CustomOptionsSchema>,
+    options: ActionFnArg<GenerateResponseChunkData>
+  ) => Promise<GenerateResponseData>
+): ModelAction<CustomOptionsSchema> {
+  const act = action(modelActionOptions(options), (input, ctx) => {
+    const startTimeMs = performance.now();
+    return runner(input, ctx).then((response) => {
+      const timedResponse = {
+        ...response,
+        latencyMs: performance.now() - startTimeMs,
+      };
+      return timedResponse;
+    });
+  });
+  Object.assign(act, {
+    __configSchema: options.configSchema || z.unknown(),
+  });
+  return act as ModelAction<CustomOptionsSchema>;
+}
+
+function modelActionOptions<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  options: DefineModelOptions<CustomOptionsSchema>
+): ActionParams<typeof GenerateRequestSchema, typeof GenerateResponseSchema> {
+  const label = options.label || options.name;
+  const middleware = getModelMiddleware(options);
+  return {
+    actionType: 'model',
+    name: options.name,
+    description: label,
+    inputSchema: GenerateRequestSchema,
+    outputSchema: GenerateResponseSchema,
+    metadata: {
+      model: {
+        label,
+        customOptions: options.configSchema
+          ? toJsonSchema({ schema: options.configSchema })
+          : undefined,
+        versions: options.versions,
+        supports: options.supports,
+      },
+    },
+    use: middleware,
+  };
+}
+
 /**
  * Defines a new model and adds it to the registry.
  */
@@ -162,28 +215,9 @@ export function defineModel<
     options: any
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
-  const label = options.label || options.name;
-  const middleware = getModelMiddleware(options);
   const act = defineAction(
     registry,
-    {
-      actionType: 'model',
-      name: options.name,
-      description: label,
-      inputSchema: GenerateRequestSchema,
-      outputSchema: GenerateResponseSchema,
-      metadata: {
-        model: {
-          label,
-          customOptions: options.configSchema
-            ? toJsonSchema({ schema: options.configSchema })
-            : undefined,
-          versions: options.versions,
-          supports: options.supports,
-        },
-      },
-      use: middleware,
-    },
+    modelActionOptions(options),
     (input, ctx) => {
       const startTimeMs = performance.now();
       const secondParam =
@@ -221,6 +255,7 @@ export type DefineBackgroundModelOptions<
   ) => Promise<Operation<GenerateResponseData>>;
 };
 
+
 /**
  * Defines a new model that runs in the background.
  */
@@ -230,9 +265,21 @@ export function defineBackgroundModel<
   registry: Registry,
   options: DefineBackgroundModelOptions<CustomOptionsSchema>
 ): BackgroundModelAction<CustomOptionsSchema> {
+  const act = backgroundModel(options);
+  registerBackgroundAction(registry, act);
+  return act;
+}
+/**
+ * Defines a new model that runs in the background.
+ */
+export function backgroundModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  options: DefineBackgroundModelOptions<CustomOptionsSchema>
+): BackgroundModelAction<CustomOptionsSchema> {
   const label = options.label || options.name;
   const middleware = getModelMiddleware(options);
-  const act = defineBackgroundAction(registry, {
+  const act = backgroundAction({
     actionType: 'background-model',
     name: options.name,
     description: label,

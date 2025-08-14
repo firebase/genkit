@@ -431,6 +431,17 @@ function interruptTool(registry?: Registry) {
  * Defines a dynamic tool. Dynamic tools are just like regular tools but will not be registered in the
  * Genkit registry and can be defined dynamically at runtime.
  */
+export function tool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  config: ToolConfig<I, O>,
+  fn?: ToolFn<I, O>
+): ToolAction<I, O> {
+  return dynamicTool(config, fn);
+}
+
+/**
+ * Defines a dynamic tool. Dynamic tools are just like regular tools but will not be registered in the
+ * Genkit registry and can be defined dynamically at runtime.
+ */
 export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: ToolConfig<I, O>,
   fn?: ToolFn<I, O>
