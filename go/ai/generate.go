@@ -92,6 +92,29 @@ type (
 		toolResponse *Part
 		interrupt    *Part
 	}
+
+	BackgroundModel = core.BackgroundAction[*ModelRequest, *ModelResponse] // Background action for model operations
+
+	// StartOperationFunc starts a background operation
+	StartOperationFunc[In, Out any] = func(ctx context.Context, input In) (*core.Operation[Out], error)
+
+	// CheckOperationFunc checks the status of a background operation
+	CheckOperationFunc[Out any] = func(ctx context.Context, operation *core.Operation[Out]) (*core.Operation[Out], error)
+
+	// CancelOperationFunc cancels a background operation
+	CancelOperationFunc[Out any] = func(ctx context.Context, operation *core.Operation[Out]) (*core.Operation[Out], error)
+
+	// BackgroundModelOptions holds configuration for defining a background model
+	BackgroundModelOptions struct {
+		Versions     []string       `json:"versions,omitempty"`
+		Supports     *ModelSupports `json:"supports,omitempty"`
+		ConfigSchema map[string]any `json:"configSchema,omitempty"`
+		Metadata     map[string]any `json:"metadata,omitempty"`
+		Label        string         `json:"label,omitempty"`
+		Start        StartOperationFunc[*ModelRequest, *ModelResponse]
+		Check        CheckOperationFunc[*ModelResponse]
+		Cancel       CancelOperationFunc[*ModelResponse]
+	}
 )
 
 // DefineGenerateAction defines a utility generate action.
@@ -133,6 +156,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 				"tools":       info.Supports.Tools,
 				"toolChoice":  info.Supports.ToolChoice,
 				"constrained": info.Supports.Constrained,
+				"longRunning": info.Supports.LongRunning,
 			},
 			"versions": info.Versions,
 			"stage":    info.Stage,
@@ -169,6 +193,12 @@ func LookupModel(r *registry.Registry, provider, name string) Model {
 		return nil
 	}
 	return (*model)(action)
+}
+
+// LookupBackgroundModel looks up a BackgroundAction registered by [DefineBackgroundModel].
+// It returns nil if the background model was not found.
+func LookupBackgroundModel(r *registry.Registry, provider, name string) BackgroundModel {
+	return core.LookupBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name)
 }
 
 // LookupModelByName looks up a [Model] registered by [DefineModel].
@@ -212,6 +242,8 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		return nil, err
 	}
 	model, _ := m.(*model)
+
+	isLongRunning := SupportsLongRunning(r, opts.Model)
 
 	resumeOutput, err := handleResumeOption(ctx, r, opts)
 	if err != nil {
@@ -308,13 +340,60 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		Output:     &outputCfg,
 	}
 
-	fn := core.ChainMiddleware(mw...)(model.Generate)
+	var fn ModelFunc
+	if isLongRunning {
+		provider, name, _ := strings.Cut(opts.Model, "/")
+		bgAction := LookupBackgroundModel(r, provider, name)
+		if bgAction == nil {
+			return nil, core.NewError(core.NOT_FOUND, "background model %q not found", opts.Model)
+		}
+
+		// Create a wrapper function that calls the background model but returns a ModelResponse with operation
+		fn = func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			op, err := bgAction.Start(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+
+			// Return response with operation
+			operationMap := map[string]any{
+				"action": op.Action,
+				"id":     op.ID,
+				"done":   op.Done,
+			}
+			if op.Output != nil {
+				operationMap["output"] = op.Output
+			}
+			if op.Error != nil {
+				operationMap["error"] = map[string]any{
+					"message": op.Error.Error(),
+				}
+			}
+			if op.Metadata != nil {
+				operationMap["metadata"] = op.Metadata
+			}
+
+			return &ModelResponse{
+				Operation: operationMap,
+				Request:   req,
+			}, nil
+		}
+	} else {
+		fn = model.Generate
+	}
+
+	fn = core.ChainMiddleware(mw...)(fn)
 
 	currentTurn := 0
 	for {
 		resp, err := fn(ctx, req, cb)
 		if err != nil {
 			return nil, err
+		}
+
+		// If this is a long-running operation response, return it immediately without further processing
+		if resp.Operation != nil {
+			return resp, nil
 		}
 
 		if formatHandler != nil {
@@ -1057,4 +1136,152 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 		},
 		toolMessage: toolMessage,
 	}, nil
+}
+
+// DefineBackgroundModel defines a new model that runs in the background
+func DefineBackgroundModel(
+	r *registry.Registry,
+	provider, name string,
+	opts *BackgroundModelOptions,
+) BackgroundModel {
+	label := opts.Label
+	if label == "" {
+		label = name
+	}
+	metadata := map[string]any{
+		"model": map[string]any{
+			"label":    label,
+			"versions": opts.Versions,
+			"supports": opts.Supports,
+		},
+	}
+
+	if opts.ConfigSchema != nil {
+		metadata["customOptions"] = opts.ConfigSchema
+		if metadata["model"] == nil {
+			metadata["model"] = make(map[string]any)
+		}
+		modelMeta := metadata["model"].(map[string]any)
+		modelMeta["customOptions"] = opts.ConfigSchema
+	}
+
+	bgAction := core.DefineBackgroundAction[*ModelRequest, *ModelResponse](r, provider, name, opts.Metadata,
+		opts.Start, opts.Check, opts.Cancel)
+
+	return bgAction
+}
+
+// SupportsLongRunning checks if a model supports long-running operations by model name.
+func SupportsLongRunning(r *registry.Registry, modelName string) bool {
+	if modelName == "" {
+		return false
+	}
+
+	provider, name, found := strings.Cut(modelName, "/")
+	if !found {
+		name = provider
+		provider = ""
+	}
+
+	modelInstance := LookupModel(r, provider, name)
+	if modelInstance == nil {
+		return false
+	}
+
+	modelImpl, ok := modelInstance.(*model)
+	if !ok {
+		return false
+	}
+
+	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(modelImpl)
+	if action == nil {
+		return false
+	}
+
+	metadata := action.Desc().Metadata
+	if metadata == nil {
+		return false
+	}
+
+	modelMeta, ok := metadata["model"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	supportsMeta, ok := modelMeta["supports"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	longRunning, ok := supportsMeta["longRunning"].(bool)
+	if !ok {
+		return false
+	}
+
+	return longRunning
+}
+
+// GenerateOperation generates a model response as a long-running operation based on the provided options. s.
+func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*core.Operation[*ModelResponse], error) {
+
+	resp, err := Generate(ctx, r, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Operation == nil {
+		return nil, core.NewError(core.FAILED_PRECONDITION, "model did not return an operation")
+	}
+
+	var action string
+	if v, ok := resp.Operation["action"].(string); ok {
+		action = v
+	} else {
+		return nil, core.NewError(core.INTERNAL, "operation missing or invalid 'action' field")
+	}
+	var id string
+	if v, ok := resp.Operation["id"].(string); ok {
+		id = v
+	} else {
+		return nil, core.NewError(core.INTERNAL, "operation missing or invalid 'id' field")
+	}
+	var done bool
+	if v, ok := resp.Operation["done"].(bool); ok {
+		done = v
+	} else {
+		return nil, core.NewError(core.INTERNAL, "operation missing or invalid 'done' field")
+	}
+	var metadata map[string]any
+	if v, ok := resp.Operation["metadata"].(map[string]any); ok {
+		metadata = v
+	}
+
+	op := &core.Operation[*ModelResponse]{
+		Action:   action,
+		ID:       id,
+		Done:     done,
+		Metadata: metadata,
+	}
+
+	if op.Done {
+		if output, ok := resp.Operation["output"]; ok {
+			if modelResp, ok := output.(*ModelResponse); ok {
+				op.Output = modelResp
+			} else {
+				op.Output = resp
+			}
+		} else {
+			op.Output = resp
+		}
+	}
+
+	if errorData, ok := resp.Operation["error"]; ok {
+		if errorMap, ok := errorData.(map[string]any); ok {
+			if message, ok := errorMap["message"].(string); ok {
+				op.Error = errors.New(message)
+			}
+		}
+	}
+
+	return op, nil
 }
