@@ -253,9 +253,7 @@ async function downloadAndInstall(version: string): Promise<void> {
     // Check if the requested version is available on npm
     const availableVersions = await getAvailableVersionsFromNpm();
     if (!availableVersions.includes(version.replace(/^v/, ''))) {
-      logger.error(
-        `Version ${clc.bold(version)} is not available on npm.`
-      );
+      logger.error(`Version v${clc.bold(version)} is not available on npm.`);
       process.exit(1);
     }
 
@@ -271,7 +269,7 @@ async function downloadAndInstall(version: string): Promise<void> {
     logger.info(`Running using ${pm?.type}, downloading using ${pm?.type}...`);
     execSync(command, { stdio: 'inherit' });
     logger.info(
-      `${clc.green('✓')} Successfully updated to ${clc.bold(version)}`
+      `${clc.green('✓')} Successfully updated to v${clc.bold(version)}`
     );
     return;
   }
@@ -292,7 +290,7 @@ async function downloadAndInstall(version: string): Promise<void> {
     const channel = 'prod'; // Default to prod channel
     const downloadUrl = `https://storage.googleapis.com/genkit-assets-cli/${channel}/${machine}/v${cleanVersion}/${fileName}`;
 
-    logger.info(`Downloading ${clc.bold(version)} for ${machine}...`);
+    logger.info(`Downloading v${clc.bold(version)} for ${machine}...`);
 
     const response = await axios({
       method: 'GET',
@@ -330,10 +328,7 @@ async function downloadAndInstall(version: string): Promise<void> {
     fs.unlinkSync(backupPath);
 
     logger.info(
-      `${clc.green('✓')} Successfully updated to ${clc.bold(version)}`
-    );
-    logger.info(
-      'Restart your terminal or run the command again to use the new version.'
+      `${clc.green('✓')} Successfully updated to v${clc.bold(version)}`
     );
   } catch (error) {
     // Restore backup if update failed
