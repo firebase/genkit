@@ -121,7 +121,7 @@ describe('model', () => {
       assert.deepStrictEqual(response, GENERATE_RESPONSE);
       assert.deepStrictEqual(chunks, [{ content: [{ text: 'success' }] }]);
     });
-    
+
     it('defines a dynamic model', async () => {
       let calledWithOptions: ActionFnArg<GenerateResponseChunkData> | undefined;
       const testModel = model(
@@ -167,5 +167,5 @@ describe('model', () => {
       assert.deepStrictEqual(response, GENERATE_RESPONSE);
       assert.deepStrictEqual(chunks, [{ content: [{ text: 'success' }] }]);
     });
-    });
+  });
 });

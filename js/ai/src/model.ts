@@ -21,8 +21,8 @@ import {
   Operation,
   OperationSchema,
   action,
-  defineAction,
   backgroundAction,
+  defineAction,
   registerBackgroundAction,
   z,
   type Action,
@@ -254,7 +254,6 @@ export type DefineBackgroundModelOptions<
     operation: Operation<GenerateResponseData>
   ) => Promise<Operation<GenerateResponseData>>;
 };
-
 
 /**
  * Defines a new model that runs in the background.

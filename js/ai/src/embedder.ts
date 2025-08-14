@@ -20,8 +20,8 @@ import {
   z,
   type Action,
   type ActionFnArg,
-  type ActionParams,
   type ActionMetadata,
+  type ActionParams,
 } from '@genkit-ai/core';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
@@ -131,7 +131,9 @@ export function embedder<ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny>(
 
 function embedderActionOptions<
   ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
->(options: EmbedderOptions<ConfigSchema>): ActionParams<typeof EmbedRequestSchema, typeof EmbedResponseSchema> {
+>(
+  options: EmbedderOptions<ConfigSchema>
+): ActionParams<typeof EmbedRequestSchema, typeof EmbedResponseSchema> {
   return {
     actionType: 'embedder',
     name: options.name,
@@ -159,14 +161,11 @@ export function defineEmbedder<
   options: EmbedderOptions<ConfigSchema>,
   runner: EmbedderFn<ConfigSchema>
 ) {
-  const embedder = defineAction(
-    registry,
-    embedderActionOptions(options),
-    (i) =>
-      runner(
-        i.input.map((dd) => new Document(dd)),
-        i.options
-      )
+  const embedder = defineAction(registry, embedderActionOptions(options), (i) =>
+    runner(
+      i.input.map((dd) => new Document(dd)),
+      i.options
+    )
   );
   const ewm = withMetadata(
     embedder as Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
