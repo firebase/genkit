@@ -66,6 +66,7 @@ export async function startCLI(): Promise<void> {
     .name('genkit')
     .description('Genkit CLI')
     .version(version)
+    .option('--no-update-notification', 'Do not show update notification')
     .hook('preAction', async (_, actionCommand) => {
       await notifyAnalyticsIfFirstRun();
 
@@ -87,12 +88,19 @@ export async function startCLI(): Promise<void> {
       await record(new RunCommandEvent(commandName));
     });
 
-  // Check for updates and show notification if available
+  // Parse argv early to get global options
+  program.parseOptions(process.argv);
+
+  // Check for updates and show notification if available,
+  // unless --no-update-notification is set
   // Run this synchronously to ensure it shows before command execution
-  try {
-    await showUpdateNotification();
-  } catch {
-    // Silently ignore errors - update notifications shouldn't break the CLI
+  const opts = program.opts();
+  if (!opts.noUpdateNotification) {
+    try {
+      await showUpdateNotification();
+    } catch {
+      // Silently ignore errors - update notifications shouldn't break the CLI
+    }
   }
 
   // When running as a spawned UI server process, argv[1] will be '__server-harness'
