@@ -232,12 +232,12 @@ func (o *OpenAI) Model(g *genkit.Genkit, name string) ai.Model {
 	return o.openAICompatible.Model(g, core.NewName(provider, name))
 }
 
-func (o *OpenAI) DefineModel(g *genkit.Genkit, name string, opts ai.ModelOptions) (ai.Model, error) {
-	return o.openAICompatible.DefineModel(g, provider, name, opts)
+func (o *OpenAI) DefineModel(g *genkit.Genkit, id string, opts ai.ModelOptions) (ai.Model, error) {
+	return o.openAICompatible.DefineModel(g, provider, id, opts)
 }
 
-func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, name string, opts *ai.EmbedderOptions) (ai.Embedder, error) {
-	return o.openAICompatible.DefineEmbedder(g, provider, name, opts)
+func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, id string, opts *ai.EmbedderOptions) (ai.Embedder, error) {
+	return o.openAICompatible.DefineEmbedder(g, provider, id, opts)
 }
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {

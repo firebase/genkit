@@ -113,10 +113,10 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) error {
 	return nil
 }
 
-func (a *Anthropic) Model(g *genkit.Genkit, name string) ai.Model {
-	return a.openAICompatible.Model(g, core.NewName(provider, name))
+func (a *Anthropic) Model(g *genkit.Genkit, id string) ai.Model {
+	return a.openAICompatible.Model(g, core.NewName(provider, id))
 }
 
-func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts ai.ModelOptions) (ai.Model, error) {
-	return a.openAICompatible.DefineModel(g, provider, name, opts)
+func (a *Anthropic) DefineModel(g *genkit.Genkit, id string, opts ai.ModelOptions) (ai.Model, error) {
+	return a.openAICompatible.DefineModel(g, provider, id, opts)
 }

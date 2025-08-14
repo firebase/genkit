@@ -93,7 +93,7 @@ func (o *OpenAICompatible) Name() string {
 }
 
 // DefineModel defines a model in the registry
-func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, opts ai.ModelOptions) (ai.Model, error) {
+func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, id string, opts ai.ModelOptions) (ai.Model, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
@@ -101,9 +101,9 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, name string, 
 	}
 
 	// Strip provider prefix if present to check against supportedModels
-	modelName := strings.TrimPrefix(name, provider+"/")
+	modelName := strings.TrimPrefix(id, provider+"/")
 
-	return genkit.DefineModel(g, core.NewName(provider, name), &opts, func(
+	return genkit.DefineModel(g, core.NewName(provider, id), &opts, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

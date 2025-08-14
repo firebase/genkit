@@ -503,28 +503,28 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		if err != nil {
 			return nil, err
 		}
-		schema.MinItems = genai.Ptr[int64](i)
+		schema.MinItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maxItems"]; ok {
 		i, err := strconv.ParseInt(v.(string), 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		schema.MaxItems = genai.Ptr[int64](i)
+		schema.MaxItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maximum"]; ok {
 		i, err := strconv.ParseFloat(v.(string), 64)
 		if err != nil {
 			return nil, err
 		}
-		schema.Maximum = genai.Ptr[float64](i)
+		schema.Maximum = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["minimum"]; ok {
 		i, err := strconv.ParseFloat(v.(string), 64)
 		if err != nil {
 			return nil, err
 		}
-		schema.Minimum = genai.Ptr[float64](i)
+		schema.Minimum = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
 		schema.Enum = castToStringArray(v.([]any))

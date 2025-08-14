@@ -364,20 +364,20 @@ func ParseKey(key string) (ActionType, string, string) {
 	return ActionType(parts[1]), parts[2], name
 }
 
-// NewName creates a new action name for the given provider and name.
-func NewName(provider, name string) string {
+// NewName creates a new action name for the given provider and id.
+func NewName(provider, id string) string {
 	if provider != "" {
-		return fmt.Sprintf("%s/%s", provider, name)
+		return fmt.Sprintf("%s/%s", provider, id)
 	}
-	return name
+	return id
 }
 
-// ParseName parses a action name into a provider and name.
+// ParseName parses an action name into a provider and id.
 func ParseName(name string) (string, string) {
 	parts := strings.Split(name, "/")
 	if len(parts) < 2 {
 		return "", name
 	}
-	actualName := strings.Join(parts[1:], "/")
-	return parts[0], actualName
+	id := strings.Join(parts[1:], "/")
+	return parts[0], id
 }
