@@ -250,6 +250,15 @@ async function downloadAndInstall(version: string): Promise<void> {
 
   // If not running from a binary, we should install using package manager
   if (!runtime.isCompiledBinary) {
+    // Check if the requested version is available on npm
+    const availableVersions = await getAvailableVersionsFromNpm();
+    if (!availableVersions.includes(version.replace(/^v/, ''))) {
+      logger.error(
+        `Version ${clc.bold(version)} is not available on npm.`
+      );
+      process.exit(1);
+    }
+
     const pm = await inquirePackageManager();
     let command = '';
 
@@ -260,7 +269,7 @@ async function downloadAndInstall(version: string): Promise<void> {
     }
 
     logger.info(`Running using ${pm?.type}, downloading using ${pm?.type}...`);
-    execSync(command);
+    execSync(command, { stdio: 'inherit' });
     logger.info(
       `${clc.green('✓')} Successfully updated to ${clc.bold(version)}`
     );
@@ -441,6 +450,13 @@ export const update = new Command('update')
 
         logger.info(`${clc.yellow('!')} Reinstalling v${clc.bold(version)}...`);
       } else if (version) {
+        if (version === currentVersion) {
+          logger.info(
+            `${clc.green('✓')} Already using version v${clc.bold(version)}.`
+          );
+          return;
+        }
+
         logger.info(`Installing v${clc.bold(version)}...`);
       } else {
         logger.info('Checking for updates...');
