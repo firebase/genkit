@@ -224,7 +224,7 @@ export class Genkit implements HasRegistry {
     config: ToolConfig<I, O>,
     fn?: ToolFn<I, O>
   ): ToolAction<I, O> {
-    return dynamicTool(config, fn).attach(this.registry) as ToolAction<I, O>;
+    return dynamicTool(config, fn) as ToolAction<I, O>;
   }
 
   /**
@@ -889,7 +889,7 @@ export class Genkit implements HasRegistry {
    * return `undefined`.
    */
   currentContext(): ActionContext | undefined {
-    return getContext(this);
+    return getContext();
   }
 
   /**

@@ -199,7 +199,7 @@ for platform in "${PLATFORMS[@]}"; do
   versioned_path="gs://$BUCKET/$CHANNEL/$platform/v$VERSION/$binary_name"
   echo "Uploading $source_file to $versioned_path"
   if [[ "$DRY_RUN" == "false" ]]; then
-    gsutil -h "Cache-Control:public, max-age=3600" cp "$source_file" "$versioned_path"
+    gsutil -h "Cache-Control:public, max-age=3600" cp -n "$source_file" "$versioned_path"
   else
     echo "[DRY RUN] Would upload to: $versioned_path"
   fi
@@ -208,7 +208,7 @@ for platform in "${PLATFORMS[@]}"; do
   latest_path="gs://$BUCKET/$CHANNEL/$platform/$latest_name"
   echo "Copying to $latest_path"
   if [[ "$DRY_RUN" == "false" ]]; then
-    gsutil -h "Cache-Control:public, max-age=300" cp "$source_file" "$latest_path"
+    gsutil -h "Cache-Control:public, max-age=300" cp -n "$source_file" "$latest_path"
   else
     echo "[DRY RUN] Would copy to: $latest_path"
   fi
@@ -217,9 +217,4 @@ for platform in "${PLATFORMS[@]}"; do
 done
 
 echo "=== Promotion complete ==="
-echo ""
-echo "Binaries are now available at:"
-echo "  Latest: https://cli.genkit.dev/bin/{platform}/latest"
-echo "  Versioned: https://cli.genkit.dev/bin/{platform}/v$VERSION/genkit"
-echo ""
 echo "Run update_cli_metadata.sh to update the metadata files."

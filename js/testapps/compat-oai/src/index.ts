@@ -29,7 +29,7 @@ import { genkit, z } from 'genkit';
 
 dotenv.config();
 
-const DECLARED_MODELS = ['gemini-2.0-flash'];
+const DECLARED_MODELS = ['z-ai/glm-4.5-air:free'];
 
 const ai = genkit({
   plugins: [
@@ -37,17 +37,17 @@ const ai = genkit({
     deepSeek(),
     xAI(),
     openAICompatible({
-      name: 'goog-oai',
-      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-      apiKey: process.env['GEMINI_API_KEY'],
+      name: 'openrouter',
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: process.env['OPENROUTER_API_KEY'],
       initializer: async (ai, client) => {
         for (const model of DECLARED_MODELS) {
           defineCompatOpenAIModel({
             ai,
-            name: `goog-oai/${model}`,
+            name: `openrouter/${model}`,
             client,
             modelRef: compatOaiModelRef({
-              name: 'goog-oai/gemini-2.0-flash',
+              name: `openrouter/${model}`,
             }),
           });
         }
@@ -66,7 +66,7 @@ export const jokeFlow = ai.defineFlow(
     const llmResponse = await ai.generate({
       prompt: `tell me a joke about ${subject}`,
       model: compatOaiModelRef({
-        name: 'goog-oai/gemini-2.0-flash',
+        name: 'openrouter/z-ai/glm-4.5-air:free',
       }),
     });
     return llmResponse.text;
