@@ -239,19 +239,13 @@ fi
 DOWNLOAD_URL="https://storage.googleapis.com/genkit-assets-cli/$channel/$MACHINE/latest"
 echo "-- Downloading binary from $DOWNLOAD_URL"
 
-# Download the binary, but capture HTTP status code to detect 404s (package not found)
-HTTP_STATUS=$(curl -w "%{http_code}" -o "/tmp/genkit_standalone.tmp" --fail -L --progress-bar "$DOWNLOAD_URL" 2>/dev/null)
-CURL_EXIT_CODE=$?
-
-if [ $CURL_EXIT_CODE -ne 0 ] || [ "$HTTP_STATUS" = "404" ]; then
-    # Check if the user requested a specific version (by checking if DOWNLOAD_URL contains /v[0-9])
-    if [[ "$DOWNLOAD_URL" =~ /v[0-9]+\.[0-9]+\.[0-9]+/ ]] || [[ "$HTTP_STATUS" = "404" ]]; then
-        echo "Package not found. The requested version does not exist for your platform."
-    else
-        echo "Something went wrong. Failed to download binary from $DOWNLOAD_URL"
-        echo "Please file a bug with your system information on GitHub."
-        echo "https://github.com/firebase/genkit/"
-    fi
+# We use "curl" to download the binary with a flag set to follow redirects
+# (GitHub download URLs redirect to CDNs) and a flag to show a progress bar.
+curl -o "/tmp/genkit_standalone.tmp" --fail -L --progress-bar $DOWNLOAD_URL
+if [ $? -ne 0 ]; then
+    echo "Something went wrong. Failed to download binary from $DOWNLOAD_URL"
+    echo "Please file a bug with your system information on GitHub."
+    echo "https://github.com/firebase/genkit/"
 
     send_analytics_event download_failure
 
