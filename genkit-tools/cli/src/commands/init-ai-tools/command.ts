@@ -22,12 +22,14 @@ import { claude } from './ai-tools/claude';
 import { cursor } from './ai-tools/cursor';
 import { gemini } from './ai-tools/gemini';
 import { generic } from './ai-tools/generic';
+import { studio } from './ai-tools/studio';
 import { AIToolChoice, AIToolModule, InitConfigOptions } from './types';
 
 /** Set of all supported AI tools that can be configured (incl. a generic
  * configuration) */
 export const AI_TOOLS: Record<string, AIToolModule> = {
   gemini,
+  studio,
   claude,
   cursor,
   generic,
