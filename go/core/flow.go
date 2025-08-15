@@ -43,12 +43,13 @@ var flowContextKey = base.NewContextKey[*flowContext]()
 // flowContext is a context that contains the tracing state for a flow.
 type flowContext struct {
 	tracingState *tracing.State
+	flowName     string
 }
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]) *Flow[In, Out, struct{}] {
 	return (*Flow[In, Out, struct{}])(DefineAction(r, "", name, ActionTypeFlow, nil, func(ctx context.Context, input In) (Out, error) {
-		fc := &flowContext{tracingState: r.TracingState()}
+		fc := &flowContext{tracingState: r.TracingState(), flowName: name}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input)
 	}))
@@ -65,7 +66,7 @@ func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]
 // Otherwise, it should ignore the callback and just return a result.
 func DefineStreamingFlow[In, Out, Stream any](r *registry.Registry, name string, fn StreamingFunc[In, Out, Stream]) *Flow[In, Out, Stream] {
 	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, "", name, ActionTypeFlow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
-		fc := &flowContext{tracingState: r.TracingState()}
+		fc := &flowContext{tracingState: r.TracingState(), flowName: name}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input, cb)
 	}))
@@ -84,15 +85,14 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		var z Out
 		return z, fmt.Errorf("flow.Run(%q): must be called from a flow", name)
 	}
-	return tracing.RunInNewSpan(ctx, fc.tracingState, name, "flowStep", false, nil, func(ctx context.Context, _ any) (Out, error) {
-		tracing.SetCustomMetadataAttr(ctx, "genkit:name", name)
-		tracing.SetCustomMetadataAttr(ctx, "genkit:type", "flowStep")
-		o, err := fn()
-		if err != nil {
-			return base.Zero[Out](), err
-		}
-		return o, nil
-	})
+	return tracing.RunInNewSpan(ctx, fc.tracingState, &tracing.SpanMetadata{
+		Name:   name,
+		Type:   "flowStep",
+		IsRoot: false,
+	}, struct{}{},
+		func(ctx context.Context, _ struct{}) (Out, error) {
+			return fn()
+		})
 }
 
 // Name returns the name of the flow.
@@ -153,3 +153,11 @@ func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In) func(func(
 }
 
 var errStop = errors.New("stop")
+
+// FlowNameFromContext returns the flow name from context if we're in a flow, empty string otherwise.
+func FlowNameFromContext(ctx context.Context) string {
+	if fc := flowContextKey.FromContext(ctx); fc != nil {
+		return fc.flowName
+	}
+	return ""
+}

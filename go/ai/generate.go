@@ -23,10 +23,10 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
-	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -106,10 +106,19 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"err", err)
 			}()
 
-			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, actionOpts,
-				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
-					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
-				})
+			// Get registry and middleware from context (set by ai.Generate)
+			registryToUse := r // fallback to original registry
+			if ctxRegistry := ctx.Value("genkit:registry"); ctxRegistry != nil {
+				registryToUse = ctxRegistry.(*registry.Registry)
+			}
+
+			var middleware []ModelMiddleware
+			if ctxMiddleware := ctx.Value("genkit:middleware"); ctxMiddleware != nil {
+				middleware = ctxMiddleware.([]ModelMiddleware)
+			}
+
+			// Use registry and middleware from context (includes dynamic tools)
+			return GenerateWithRequest(ctx, registryToUse, actionOpts, middleware, cb)
 		}))
 }
 
@@ -154,6 +163,7 @@ func DefineModel(r *registry.Registry, provider, name string, info *ModelInfo, f
 		simulateSystemPrompt(info, nil),
 		augmentWithContext(info, nil),
 		validateSupport(name, info),
+		addAutomaticTelemetry(), // Add automatic timing and character counting
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
@@ -477,7 +487,18 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
-	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
+	// Call the registered generate action instead of GenerateWithRequest directly
+	// This ensures proper span hierarchy: flow -> generate -> model
+	generateAction := core.ResolveActionFor[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeUtil, "", "generate")
+	if generateAction == nil {
+		return nil, core.NewError(core.INTERNAL, "generate action not found")
+	}
+
+	// Pass the modified registry and middleware through context for the action to use
+	ctxWithData := context.WithValue(ctx, "genkit:registry", r)
+	ctxWithData = context.WithValue(ctxWithData, "genkit:middleware", genOpts.Middleware)
+
+	return generateAction.Run(ctxWithData, actionOpts, genOpts.Stream)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
@@ -1057,4 +1078,207 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 		},
 		toolMessage: toolMessage,
 	}, nil
+}
+
+// addAutomaticTelemetry creates middleware that automatically measures latency and calculates character and media counts.
+func addAutomaticTelemetry() ModelMiddleware {
+	return func(fn ModelFunc) ModelFunc {
+		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			startTime := time.Now()
+
+			// Call the underlying model function
+			resp, err := fn(ctx, req, cb)
+			if err != nil {
+				return nil, err
+			}
+
+			// Calculate latency
+			latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
+			if resp.LatencyMs == 0 {
+				resp.LatencyMs = latencyMs
+			}
+
+			// Calculate character and media counts automatically if Usage is available
+			if resp.Usage != nil {
+				if resp.Usage.InputCharacters == 0 {
+					resp.Usage.InputCharacters = calculateInputCharacters(req)
+				}
+				if resp.Usage.OutputCharacters == 0 {
+					resp.Usage.OutputCharacters = calculateOutputCharacters(resp)
+				}
+				if resp.Usage.InputImages == 0 {
+					resp.Usage.InputImages = calculateInputImages(req)
+				}
+				if resp.Usage.OutputImages == 0 {
+					resp.Usage.OutputImages = calculateOutputImages(resp)
+				}
+				if resp.Usage.InputVideos == 0 {
+					resp.Usage.InputVideos = float64(calculateInputVideos(req))
+				}
+				if resp.Usage.OutputVideos == 0 {
+					resp.Usage.OutputVideos = float64(calculateOutputVideos(resp))
+				}
+				if resp.Usage.InputAudioFiles == 0 {
+					resp.Usage.InputAudioFiles = float64(calculateInputAudio(req))
+				}
+				if resp.Usage.OutputAudioFiles == 0 {
+					resp.Usage.OutputAudioFiles = float64(calculateOutputAudio(resp))
+				}
+			} else {
+				// Create GenerationUsage if it doesn't exist
+				resp.Usage = &GenerationUsage{
+					InputCharacters:  calculateInputCharacters(req),
+					OutputCharacters: calculateOutputCharacters(resp),
+					InputImages:      calculateInputImages(req),
+					OutputImages:     calculateOutputImages(resp),
+					InputVideos:      float64(calculateInputVideos(req)),
+					OutputVideos:     float64(calculateOutputVideos(resp)),
+					InputAudioFiles:  float64(calculateInputAudio(req)),
+					OutputAudioFiles: float64(calculateOutputAudio(resp)),
+				}
+			}
+
+			return resp, nil
+		}
+	}
+}
+
+// calculateInputCharacters counts the total characters in the input request.
+func calculateInputCharacters(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	totalChars := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.Text != "" {
+				totalChars += len(part.Text)
+			}
+		}
+	}
+	return totalChars
+}
+
+// calculateOutputCharacters counts the total characters in the output response.
+func calculateOutputCharacters(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	totalChars := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.Text != "" {
+			totalChars += len(part.Text)
+		}
+	}
+	return totalChars
+}
+
+// calculateInputImages counts the total number of images in the input request.
+func calculateInputImages(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	imageCount := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.IsImage() {
+				imageCount++
+			}
+		}
+	}
+	return imageCount
+}
+
+// calculateOutputImages counts the total number of images in the output response.
+func calculateOutputImages(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	imageCount := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.IsImage() {
+			imageCount++
+		}
+	}
+	return imageCount
+}
+
+// calculateInputVideos counts the total number of videos in the input request.
+func calculateInputVideos(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	videoCount := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.IsVideo() {
+				videoCount++
+			}
+		}
+	}
+	return videoCount
+}
+
+// calculateOutputVideos counts the total number of videos in the output response.
+func calculateOutputVideos(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	videoCount := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.IsVideo() {
+			videoCount++
+		}
+	}
+	return videoCount
+}
+
+// calculateInputAudio counts the total number of audio files in the input request.
+func calculateInputAudio(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	audioCount := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.IsAudio() {
+				audioCount++
+			}
+		}
+	}
+	return audioCount
+}
+
+// calculateOutputAudio counts the total number of audio files in the output response.
+func calculateOutputAudio(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	audioCount := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.IsAudio() {
+			audioCount++
+		}
+	}
+	return audioCount
 }

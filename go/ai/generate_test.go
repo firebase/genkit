@@ -38,6 +38,8 @@ var r, _ = registry.New()
 func init() {
 	// Set up default formats
 	ConfigureFormats(r)
+	// Register the generate action that Generate() function expects
+	DefineGenerateAction(context.Background(), r)
 }
 
 // echoModel attributes
