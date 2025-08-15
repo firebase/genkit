@@ -16,13 +16,14 @@
 
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { embedderActionMetadata } from '../../ai/src';
-import { genkit, modelActionMetadata, type GenkitBeta } from '../src/beta';
+import { genkit, type GenkitBeta } from '../src/beta';
 import {
   GenkitPluginV2,
   backgroundModel,
+  embedderActionMetadata,
   genkitPlugin,
   model,
+  modelActionMetadata,
 } from '../src/plugin';
 
 const v1Plugin = genkitPlugin(

@@ -17,9 +17,13 @@
 import type { Action, ActionMetadata, BackgroundAction } from '@genkit-ai/core';
 import type { Genkit } from './genkit.js';
 import type { ActionType } from './registry.js';
-export { embedder } from '@genkit-ai/ai/embedder';
+export { embedder, embedderActionMetadata } from '@genkit-ai/ai/embedder';
 export { evaluator } from '@genkit-ai/ai/evaluator';
-export { backgroundModel, model } from '@genkit-ai/ai/model';
+export {
+  backgroundModel,
+  model,
+  modelActionMetadata,
+} from '@genkit-ai/ai/model';
 
 export interface PluginProvider {
   name: string;
