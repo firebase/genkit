@@ -34,6 +34,7 @@ export {
   OperationSchema,
   backgroundAction,
   defineBackgroundAction,
+  isBackgroundAction,
   registerBackgroundAction,
   type BackgroundAction,
   type BackgroundActionFnArg,
