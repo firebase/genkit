@@ -399,11 +399,11 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
-	if len(genOpts.DynamicResources) > 0 {
+	if len(genOpts.Resources) > 0 {
 		r = r.NewChild()
 
-		// Attach dynamic resources
-		for _, res := range genOpts.DynamicResources {
+		// Attach resources
+		for _, res := range genOpts.Resources {
 			res.Register(r)
 		}
 	}

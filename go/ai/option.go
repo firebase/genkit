@@ -107,6 +107,7 @@ type commonGenOptions struct {
 	Model              ModelArg          // Model to use.
 	MessagesFn         MessagesFn        // Function to generate messages.
 	Tools              []ToolRef         // References to tools to use.
+	Resources          []Resource        // Resources to be temporarily available during generation.
 	ToolChoice         ToolChoice        // Whether tool calls are required, disabled, or optional.
 	MaxTurns           int               // Maximum number of tool call iterations.
 	ReturnToolRequests *bool             // Whether to return tool requests instead of making the tool calls and continuing the generation.
@@ -153,6 +154,13 @@ func (o *commonGenOptions) applyCommonGen(opts *commonGenOptions) error {
 			return errors.New("cannot set tools more than once (WithTools)")
 		}
 		opts.Tools = o.Tools
+	}
+
+	if o.Resources != nil {
+		if opts.Resources != nil {
+			return errors.New("cannot set resources more than once (WithResources)")
+		}
+		opts.Resources = o.Resources
 	}
 
 	if o.ToolChoice != "" {
@@ -725,9 +733,8 @@ type generateOptions struct {
 	outputOptions
 	executionOptions
 	documentOptions
-	RespondParts     []*Part    // Tool responses to return from interrupted tool calls.
-	RestartParts     []*Part    // Tool requests to restart interrupted tools with.
-	DynamicResources []Resource // Dynamic resources to be temporarily available during generation.
+	RespondParts []*Part // Tool responses to return from interrupted tool calls.
+	RestartParts []*Part // Tool requests to restart interrupted tools with.
 }
 
 // GenerateOption is an option for generating a model response. It applies only to Generate().
@@ -771,13 +778,6 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 		genOpts.RestartParts = o.RestartParts
 	}
 
-	if o.DynamicResources != nil {
-		if genOpts.DynamicResources != nil {
-			return errors.New("cannot set dynamic resources more than once (WithResources)")
-		}
-		genOpts.DynamicResources = o.DynamicResources
-	}
-
 	return nil
 }
 
@@ -791,10 +791,10 @@ func WithToolRestarts(parts ...*Part) GenerateOption {
 	return &generateOptions{RestartParts: parts}
 }
 
-// WithResources specifies dynamic resources to be temporarily available during generation.
-// Dynamic resources are unregistered resources that get attached to a temporary registry
+// WithResources specifies resources to be temporarily available during generation.
+// Resources are unregistered resources that get attached to a temporary registry
 // during the generation request and cleaned up afterward.
-func WithResources(resources []Resource) GenerateOption {
+func WithResources(resources []Resource) CommonGenOption {
 	return &withResources{resources: resources}
 }
 
@@ -802,9 +802,21 @@ type withResources struct {
 	resources []Resource
 }
 
-func (w *withResources) applyGenerate(o *generateOptions) error {
-	o.DynamicResources = w.resources
+func (w *withResources) applyCommonGen(o *commonGenOptions) error {
+	o.Resources = w.resources
 	return nil
+}
+
+func (w *withResources) applyPrompt(o *promptOptions) error {
+	return w.applyCommonGen(&o.commonGenOptions)
+}
+
+func (w *withResources) applyGenerate(o *generateOptions) error {
+	return w.applyCommonGen(&o.commonGenOptions)
+}
+
+func (w *withResources) applyPromptExecute(o *promptExecutionOptions) error {
+	return w.applyCommonGen(&o.commonGenOptions)
 }
 
 // promptExecutionOptions are options for generating a model response by executing a prompt.
