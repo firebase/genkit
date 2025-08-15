@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/invopop/jsonschema"
 	"github.com/mark3labs/mcp-go/client"
@@ -175,18 +174,11 @@ func (c *GenkitMCPClient) createToolFunction(mcpTool mcp.Tool) func(*ai.ToolCont
 			return nil, err
 		}
 
-		// Log the MCP tool call request
-		logger.FromContext(ctx).Debug("Calling MCP tool", "tool", currentMCPTool.Name, "args", callToolArgs)
-
 		// Create and execute the MCP tool call request
 		mcpResult, err := executeToolCall(ctx, client, currentMCPTool.Name, callToolArgs)
 		if err != nil {
-			logger.FromContext(ctx).Error("MCP tool call failed", "tool", currentMCPTool.Name, "error", err)
 			return nil, fmt.Errorf("failed to call tool %s: %w", currentMCPTool.Name, err)
 		}
-
-		// Log the MCP tool call response
-		logger.FromContext(ctx).Debug("MCP tool call succeeded", "tool", currentMCPTool.Name, "result", mcpResult)
 
 		return mcpResult, nil
 	}
@@ -243,20 +235,11 @@ func executeToolCall(ctx context.Context, client *client.Client, toolName string
 		},
 	}
 
-	// Log the raw MCP request
-	reqBytes, _ := json.MarshalIndent(callReq, "", "  ")
-	logger.FromContext(ctx).Debug("Raw MCP request", "request", string(reqBytes))
-
 	result, err := client.CallTool(ctx, callReq)
 
 	if err != nil {
-		logger.FromContext(ctx).Error("Raw MCP server error", "error", err)
 		return nil, err
 	}
-
-	// Log the raw MCP response
-	respBytes, _ := json.MarshalIndent(result, "", "  ")
-	logger.FromContext(ctx).Debug("Raw MCP response", "response", string(respBytes))
 
 	return result, nil
 }

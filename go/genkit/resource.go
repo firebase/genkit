@@ -105,3 +105,20 @@ func ListResources(g *Genkit) []ai.Resource {
 	}
 	return resources
 }
+
+// ListResources returns a slice of all resource actions
+func ListResources(g *Genkit) []core.Action {
+	acts := g.reg.ListActions()
+	resources := []core.Action{}
+	for _, act := range acts {
+		action, ok := act.(core.Action)
+		if !ok {
+			continue
+		}
+		actionDesc := action.Desc()
+		if actionDesc.Type == core.ActionTypeResource {
+			resources = append(resources, action)
+		}
+	}
+	return resources
+}
