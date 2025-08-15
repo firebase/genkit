@@ -46,6 +46,7 @@ export {
 
 export interface PluginOptions extends Partial<ClientOptions> {
   name: string;
+  precondition?: () => Promise<void>;
   initializer?: (ai: Genkit, client: OpenAI) => Promise<void>;
   resolver?: (
     ai: Genkit,
@@ -113,12 +114,21 @@ export const openAICompatible = (options: PluginOptions) => {
   return genkitPlugin(
     options.name,
     async (ai: Genkit) => {
+      if (options.precondition) {
+        await options.precondition();
+      }
+
       if (options.initializer) {
         const client = new OpenAI(options);
         await options.initializer(ai, client);
       }
     },
     async (ai: Genkit, actionType: ActionType, actionName: string) => {
+
+      if (options.precondition) {
+        await options.precondition();
+      }
+
       if (options.resolver) {
         const client = new OpenAI(options);
         await options.resolver(ai, client, actionType, actionName);
@@ -127,6 +137,11 @@ export const openAICompatible = (options: PluginOptions) => {
     options.listActions
       ? async () => {
           if (listActionsCache) return listActionsCache;
+
+          if (options.precondition) {
+            await options.precondition();
+          }
+
           const client = new OpenAI(options);
           listActionsCache = await options.listActions!(client);
           return listActionsCache;
