@@ -18,10 +18,10 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { genkit, type GenkitBeta } from '../src/beta';
 import {
-  GenkitPluginV2,
   backgroundModel,
   embedderActionMetadata,
   genkitPlugin,
+  genkitPluginV2,
   model,
   modelActionMetadata,
 } from '../src/plugin';
@@ -76,7 +76,7 @@ const v1Plugin = genkitPlugin(
   }
 );
 
-const v2Plugin = {
+const v2Plugin = genkitPluginV2({
   name: 'myV2Plugin',
   resolve(actionType, name) {
     switch (actionType) {
@@ -115,7 +115,7 @@ const v2Plugin = {
       }),
     ];
   },
-} as GenkitPluginV2;
+});
 
 describe('session', () => {
   let ai: GenkitBeta;

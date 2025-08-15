@@ -35,6 +35,7 @@ export interface PluginProvider {
 export type ResolvableAction = Action | BackgroundAction;
 
 export interface GenkitPluginV2 {
+  version: 'v2';
   name: string;
   resolve: (
     actionType: ActionType,
@@ -43,9 +44,7 @@ export interface GenkitPluginV2 {
   list?: () => ActionMetadata[] | Promise<ActionMetadata[]>;
 }
 
-export type GenkitPluginV1 = (genkit: Genkit) => PluginProvider;
-
-export type GenkitPlugin = GenkitPluginV2 | GenkitPluginV1;
+export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
 
 export type PluginInit = (genkit: Genkit) => void | Promise<void>;
 
@@ -81,4 +80,10 @@ export function genkitPlugin<T extends PluginInit>(
       return [];
     },
   });
+}
+
+export function genkitPluginV2(
+  options: Omit<GenkitPluginV2, 'version'>
+): GenkitPluginV2 {
+  return { ...options, version: 'v2' };
 }

@@ -124,7 +124,7 @@ import { Channel } from '@genkit-ai/core/async';
 import type { HasRegistry } from '@genkit-ai/core/registry';
 import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import type { GenkitPlugin, GenkitPluginV1 } from './plugin.js';
+import type { GenkitPlugin, GenkitPluginV2 } from './plugin.js';
 import { Registry, type ActionType } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
@@ -141,7 +141,7 @@ export type PromptFn<
  */
 export interface GenkitOptions {
   /** List of plugins to load. */
-  plugins?: GenkitPlugin[];
+  plugins?: (GenkitPlugin | GenkitPluginV2)[];
   /** Directory where dotprompts are stored. */
   promptDir?: string;
   /** Default model to use if no model is specified. */
@@ -963,7 +963,7 @@ export class Genkit implements HasRegistry {
           },
         });
       } else {
-        const loadedPlugin = (plugin as GenkitPluginV1)(this);
+        const loadedPlugin = (plugin as GenkitPlugin)(this);
         logger.debug(`Registering plugin ${loadedPlugin.name}...`);
         activeRegistry.registerPluginProvider(loadedPlugin.name, {
           name: loadedPlugin.name,
