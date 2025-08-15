@@ -129,6 +129,7 @@ type GenerateActionOptions struct {
 	Output             *GenerateActionOutputConfig `json:"output,omitempty"`
 	Resume             *GenerateActionResume       `json:"resume,omitempty"`
 	ReturnToolRequests bool                        `json:"returnToolRequests,omitempty"`
+	StepName           string                      `json:"stepName,omitempty"`
 	ToolChoice         ToolChoice                  `json:"toolChoice,omitempty"`
 	Tools              []string                    `json:"tools,omitempty"`
 }
