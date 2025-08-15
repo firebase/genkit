@@ -15,10 +15,13 @@
  */
 
 import { z } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { afterEach, describe, it } from 'node:test';
 import { defineInterrupt, defineTool } from '../src/tool.js';
+
+initNodeFeatures();
 
 describe('defineInterrupt', () => {
   let registry = new Registry();

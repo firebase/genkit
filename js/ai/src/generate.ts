@@ -18,7 +18,6 @@ import {
   assertUnstable,
   GenkitError,
   isAction,
-  isDetachedAction,
   Operation,
   runWithContext,
   sentinelNoopStreamingCallback,
@@ -58,7 +57,7 @@ import {
   type ToolResponsePart,
 } from './model.js';
 import { isExecutablePrompt } from './prompt.js';
-import { DynamicResourceAction, isDynamicResourceAction } from './resource.js';
+import { isDynamicResourceAction, ResourceAction } from './resource.js';
 import {
   isDynamicTool,
   resolveTools,
@@ -122,7 +121,7 @@ export interface GenerateOptions<
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
   /** List of dynamic resources to be made available to this generate request. */
-  resources?: DynamicResourceAction[];
+  resources?: ResourceAction[];
   /** Specifies how tools should be called by the model.  */
   toolChoice?: ToolChoice;
   /** Configuration for the generation request. */
@@ -170,6 +169,12 @@ export interface GenerateOptions<
   context?: ActionContext;
   /** Abort signal for the generate request. */
   abortSignal?: AbortSignal;
+  /**
+   * Additional metadata describing the GenerateOptions, used by tooling. If
+   * this is an instance of a rendered dotprompt, will contain any prompt
+   * metadata contained in the original frontmatter.
+   **/
+  metadata?: Record<string, any>;
 }
 
 export async function toGenerateRequest(
@@ -354,7 +359,7 @@ export async function generate<
   const streamingCallback = stripNoop(
     resolvedOptions.onChunk ?? resolvedOptions.streamingCallback
   ) as StreamingCallback<GenerateResponseChunkData>;
-  const response = await runWithContext(registry, resolvedOptions.context, () =>
+  const response = await runWithContext(resolvedOptions.context, () =>
     generateHelper(registry, {
       rawRequest: params,
       middleware: resolvedOptions.use,
@@ -411,9 +416,6 @@ function maybeRegisterDynamicTools<
   let hasDynamicTools = false;
   options?.tools?.forEach((t) => {
     if (isDynamicTool(t)) {
-      if (isDetachedAction(t)) {
-        t = t.attach(registry);
-      }
       if (!hasDynamicTools) {
         hasDynamicTools = true;
         // Create a temporary registry with dynamic tools for the duration of this
@@ -433,14 +435,13 @@ function maybeRegisterDynamicResources<
   let hasDynamicResources = false;
   options?.resources?.forEach((r) => {
     if (isDynamicResourceAction(r)) {
-      const attached = r.attach(registry);
       if (!hasDynamicResources) {
         hasDynamicResources = true;
         // Create a temporary registry with dynamic tools for the duration of this
         // generate request.
         registry = Registry.withParent(registry);
       }
-      registry.registerAction('resource', attached);
+      registry.registerAction('resource', r);
     }
   });
   return registry;

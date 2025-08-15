@@ -15,6 +15,7 @@
  */
 
 import { z, type PluginProvider } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -31,6 +32,8 @@ import {
 } from '../../src/model.js';
 import { defineResource } from '../../src/resource.js';
 import { defineTool } from '../../src/tool.js';
+
+initNodeFeatures();
 
 describe('toGenerateRequest', () => {
   const registry = new Registry();
