@@ -18,205 +18,57 @@ package genkit
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/core/resource"
-	"github.com/firebase/genkit/go/internal/registry"
 )
-
-// ResourceOutput with concrete ai.Part type for this package
-type ResourceOutput struct {
-	Content []*ai.Part `json:"content"` // The content parts returned by the resource
-}
-
-// ResourceFunc is a function that loads content for a resource.
-type ResourceFunc func(context.Context, core.ResourceInput) (ResourceOutput, error)
-
-// ResourceOptions configures a resource definition.
-type ResourceOptions struct {
-	Name        string         // Required: unique name for the resource
-	URI         string         // Static URI (mutually exclusive with Template)
-	Template    string         // URI template (mutually exclusive with URI)
-	Description string         // Optional description
-	Metadata    map[string]any // Optional metadata
-}
-
-// resourceAction implements a resource as a core.Action.
-type resourceAction struct {
-	action  *core.ActionDef[core.ResourceInput, ResourceOutput, struct{}]
-	matcher resource.URIMatcher
-}
 
 // DefineResource defines a resource and registers it with the Genkit instance.
 // Resources provide content that can be referenced in prompts via URI.
 //
 // Example:
 //
-//	DefineResource(g, ResourceOptions{
-//	  Name: "company-docs",
+//	DefineResource(g, "company-docs", ai.ResourceOptions{
 //	  URI: "file:///docs/handbook.pdf",
 //	  Description: "Company handbook",
-//	}, func(ctx context.Context, input core.ResourceInput) (ResourceOutput, error) {
+//	}, func(ctx context.Context, input ai.ResourceInput) (ai.ResourceOutput, error) {
 //	  content, err := os.ReadFile("/docs/handbook.pdf")
 //	  if err != nil {
-//	    return ResourceOutput{}, err
+//	    return ai.ResourceOutput{}, err
 //	  }
-//	  return ResourceOutput{
+//	  return ai.ResourceOutput{
 //	    Content: []*ai.Part{ai.NewTextPart(string(content))},
 //	  }, nil
 //	})
-func DefineResource(g *Genkit, opts ResourceOptions, fn ResourceFunc) error {
-	if opts.Name == "" {
-		return fmt.Errorf("resource name is required")
-	}
-
-	// Validate URI/Template options
-	if opts.URI != "" && opts.Template != "" {
-		return fmt.Errorf("cannot specify both URI and Template")
-	}
-	if opts.URI == "" && opts.Template == "" {
-		return fmt.Errorf("must specify either URI or Template")
-	}
-
-	// Create matcher
-	var matcher resource.URIMatcher
-
-	if opts.URI != "" {
-		matcher = resource.NewStaticMatcher(opts.URI)
-	} else {
-		var err error
-		matcher, err = resource.NewTemplateMatcher(opts.Template)
-		if err != nil {
-			return fmt.Errorf("invalid URI template %q: %w", opts.Template, err)
-		}
-	}
-
-	// Create metadata with resource-specific information
-	metadata := make(map[string]any)
-	if opts.Metadata != nil {
-		for k, v := range opts.Metadata {
-			metadata[k] = v
-		}
-	}
-	metadata["description"] = opts.Description
-	metadata["resource"] = map[string]any{
-		"uri":      opts.URI,
-		"template": opts.Template,
-	}
-
-	// Define the action
-	action := core.DefineAction(
-		g.reg,
-		"", // no provider for resources
-		opts.Name,
-		core.ActionTypeResource,
-		metadata,
-		fn,
-	)
-
-	// Wrap in resourceAction for resource-specific functionality
-	resourceAct := &resourceAction{
-		action:  action,
-		matcher: matcher,
-	}
-
-	// Register as a resource (in addition to action registration)
-	// This allows resource lookup by URI
-	g.reg.RegisterValue(fmt.Sprintf("resource/%s", opts.Name), resourceAct)
-
-	return nil
+func DefineResource(g *Genkit, resourceName string, opts ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
+	// Delegate to ai implementation
+	return ai.DefineResource(g.reg, resourceName, opts, fn)
 }
 
 // FindMatchingResource finds a resource that matches the given URI.
-func FindMatchingResource(g *Genkit, uri string) (*resourceAction, core.ResourceInput, error) {
-	actions := g.reg.ListActions()
-
-	for _, act := range actions {
-		action, ok := act.(core.Action)
-		if !ok {
-			continue
-		}
-
-		desc := action.Desc()
-		if desc.Type != core.ActionTypeResource {
-			continue
-		}
-
-		// Look up the resourceAction wrapper
-		resourceName := strings.TrimPrefix(desc.Key, "/resource/")
-		if resourceAct := g.reg.LookupValue(fmt.Sprintf("resource/%s", resourceName)); resourceAct != nil {
-			if ra, ok := resourceAct.(*resourceAction); ok {
-				if ra.matcher.Matches(uri) {
-					variables, err := ra.matcher.ExtractVariables(uri)
-					if err != nil {
-						return nil, core.ResourceInput{}, err
-					}
-					return ra, core.ResourceInput{URI: uri, Variables: variables}, nil
-				}
-			}
-		}
-	}
-
-	return nil, core.ResourceInput{}, fmt.Errorf("no resource found for URI %q", uri)
+func FindMatchingResource(g *Genkit, uri string) (ai.Resource, ai.ResourceInput, error) {
+	// Delegate to ai implementation
+	return ai.FindMatchingResource(g.reg, uri)
 }
 
-// Matches reports whether this resource matches the given URI.
-func (r *resourceAction) Matches(uri string) bool {
-	return r.matcher.Matches(uri)
+// ExecuteResource is a helper to execute an ai.Resource.
+func ExecuteResource(ctx context.Context, resource ai.Resource, input ai.ResourceInput) (ai.ResourceOutput, error) {
+	// Delegate to ai implementation
+	return resource.Execute(ctx, input)
 }
 
-// Execute runs the resource function with the given input.
-func (r *resourceAction) Execute(ctx context.Context, input core.ResourceInput) (ResourceOutput, error) {
-	// Marshal input to JSON for action call
-	inputJSON, err := json.Marshal(input)
-	if err != nil {
-		return ResourceOutput{}, fmt.Errorf("failed to marshal resource input: %w", err)
-	}
-
-	output, err := r.action.RunJSON(ctx, inputJSON, nil)
-	if err != nil {
-		return ResourceOutput{}, err
-	}
-
-	// Convert back from JSON to ResourceOutput
-	var result ResourceOutput
-	if err := json.Unmarshal(output, &result); err != nil {
-		return ResourceOutput{}, fmt.Errorf("failed to unmarshal resource output: %w", err)
-	}
-	return result, nil
-}
-
-// ExtractVariables extracts variables from a URI using this resource's template.
-func (r *resourceAction) ExtractVariables(uri string) (map[string]string, error) {
-	return r.matcher.ExtractVariables(uri)
-}
-
-// detachedResourceAction represents a resource action that isn't registered in any registry.
-// It can be temporarily attached during generation and implements core.DetachedResourceAction.
-type detachedResourceAction struct {
-	name        string
-	description string
-	metadata    map[string]any
-	fn          ResourceFunc
-	matcher     resource.URIMatcher
-}
-
-// DynamicResource creates an unregistered resource action that can be temporarily
+// NewResource creates an unregistered resource action that can be temporarily
 // attached during generation via WithResources option.
 //
 // Example:
 //
-//	dynamicRes := DynamicResource(ResourceOptions{
-//	  Name: "user-data",
+//	dynamicRes := NewResource("user-data", ai.ResourceOptions{
 //	  Template: "user://profile/{id}",
-//	}, func(ctx context.Context, input core.ResourceInput) (ResourceOutput, error) {
+//	}, func(ctx context.Context, input ai.ResourceInput) (ai.ResourceOutput, error) {
 //	  userID := input.Variables["id"]
 //	  // Load user data dynamically...
-//	  return ResourceOutput{Content: []*ai.Part{ai.NewTextPart(userData)}}, nil
+//	  return ai.ResourceOutput{Content: []*ai.Part{ai.NewTextPart(userData)}}, nil
 //	})
 //
 //	// Use in generation:
@@ -225,102 +77,31 @@ type detachedResourceAction struct {
 //	    ai.NewTextPart("Analyze this user:"),
 //	    ai.NewResourcePart("user://profile/123"),
 //	  }),
-//	  ai.WithResources([]core.DetachedResourceAction{dynamicRes}),
+//	  ai.WithResources([]ai.Resource{dynamicRes}),
 //	)
-func DynamicResource(opts ResourceOptions, fn ResourceFunc) (core.DetachedResourceAction, error) {
-	if opts.Name == "" {
-		return nil, fmt.Errorf("resource name is required")
-	}
+func NewResource(resourceName string, opts ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
+	// Delegate to ai implementation
+	return ai.NewResource(resourceName, opts, fn)
+}
 
-	// Validate URI/Template options
-	if opts.URI != "" && opts.Template != "" {
-		return nil, fmt.Errorf("cannot specify both URI and Template")
-	}
-	if opts.URI == "" && opts.Template == "" {
-		return nil, fmt.Errorf("must specify either URI or Template")
-	}
-
-	// Create matcher
-	var matcher resource.URIMatcher
-
-	if opts.URI != "" {
-		matcher = resource.NewStaticMatcher(opts.URI)
-	} else {
-		var err error
-		matcher, err = resource.NewTemplateMatcher(opts.Template)
-		if err != nil {
-			return nil, fmt.Errorf("invalid URI template %q: %w", opts.Template, err)
+// ListResources returns a slice of all resource actions
+func ListResources(g *Genkit) []ai.Resource {
+	acts := g.reg.ListActions()
+	resources := []ai.Resource{}
+	for _, act := range acts {
+		action, ok := act.(core.Action)
+		if !ok {
+			continue
+		}
+		actionDesc := action.Desc()
+		if actionDesc.Type == core.ActionTypeResource {
+			// Look up the resource wrapper
+			if resourceValue := g.reg.LookupValue(fmt.Sprintf("resource/%s", actionDesc.Name)); resourceValue != nil {
+				if resource, ok := resourceValue.(ai.Resource); ok {
+					resources = append(resources, resource)
+				}
+			}
 		}
 	}
-
-	// Create metadata
-	metadata := make(map[string]any)
-	if opts.Metadata != nil {
-		for k, v := range opts.Metadata {
-			metadata[k] = v
-		}
-	}
-	metadata["description"] = opts.Description
-	metadata["resource"] = map[string]any{
-		"uri":      opts.URI,
-		"template": opts.Template,
-	}
-	metadata["dynamic"] = true
-
-	return &detachedResourceAction{
-		name:        opts.Name,
-		description: opts.Description,
-		metadata:    metadata,
-		fn:          fn,
-		matcher:     matcher,
-	}, nil
-}
-
-// Name returns the resource name.
-func (d *detachedResourceAction) Name() string {
-	return d.name
-}
-
-// Matches reports whether this resource matches the given URI.
-func (d *detachedResourceAction) Matches(uri string) bool {
-	return d.matcher.Matches(uri)
-}
-
-// Execute runs the resource function with the given input.
-func (d *detachedResourceAction) Execute(ctx context.Context, input core.ResourceInput) (ResourceOutput, error) {
-	return d.fn(ctx, input)
-}
-
-// ExtractVariables extracts variables from a URI using this resource's template.
-// This is primarily for testing purposes.
-func (d *detachedResourceAction) ExtractVariables(uri string) (map[string]string, error) {
-	return d.matcher.ExtractVariables(uri)
-}
-
-// Register temporarily registers this detached resource in the given registry.
-func (d *detachedResourceAction) Register(r *registry.Registry) {
-	// Create a regular action for this detached resource
-	action := core.DefineAction(
-		r,
-		"", // no provider
-		d.name,
-		core.ActionTypeResource,
-		d.metadata,
-		d.fn,
-	)
-
-	// Create resource action wrapper
-	resourceAct := &resourceAction{
-		action:  action,
-		matcher: d.matcher,
-	}
-
-	// Register as a resource
-	resourceKey := fmt.Sprintf("resource/%s", d.name)
-	r.RegisterValue(resourceKey, resourceAct)
-}
-
-// Name returns the resource name.
-func (r *resourceAction) Name() string {
-	return r.action.Name()
+	return resources
 }

@@ -1103,12 +1103,20 @@ func TestResourceProcessing(t *testing.T) {
 
 	// Create simple test resources without complex mocking
 	_ = core.DefineAction(r, "", "test-file", core.ActionTypeResource, map[string]any{},
+<<<<<<< Updated upstream
 		func(ctx context.Context, input core.ResourceInput) (struct{ Content []*Part }, error) {
+=======
+		func(ctx context.Context, input ResourceInput) (struct{ Content []*Part }, error) {
+>>>>>>> Stashed changes
 			return struct{ Content []*Part }{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
 		})
 
 	_ = core.DefineAction(r, "", "test-api", core.ActionTypeResource, map[string]any{},
+<<<<<<< Updated upstream
 		func(ctx context.Context, input core.ResourceInput) (struct{ Content []*Part }, error) {
+=======
+		func(ctx context.Context, input ResourceInput) (struct{ Content []*Part }, error) {
+>>>>>>> Stashed changes
 			return struct{ Content []*Part }{Content: []*Part{NewTextPart("API DATA")}}, nil
 		})
 

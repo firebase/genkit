@@ -1152,7 +1152,11 @@ func executeResourcePart(ctx context.Context, r *registry.Registry, resourcePart
 	}
 
 	// Create resource input with extracted variables
+<<<<<<< Updated upstream
 	input := core.ResourceInput{
+=======
+	input := ResourceInput{
+>>>>>>> Stashed changes
 		URI:       resourcePart.URI,
 		Variables: variables,
 	}

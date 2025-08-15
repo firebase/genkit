@@ -726,9 +726,15 @@ type generateOptions struct {
 	outputOptions
 	executionOptions
 	documentOptions
+<<<<<<< Updated upstream
 	RespondParts     []*Part                       // Tool responses to return from interrupted tool calls.
 	RestartParts     []*Part                       // Tool requests to restart interrupted tools with.
 	DynamicResources []core.DetachedResourceAction // Dynamic resources to be temporarily available during generation.
+=======
+	RespondParts     []*Part    // Tool responses to return from interrupted tool calls.
+	RestartParts     []*Part    // Tool requests to restart interrupted tools with.
+	DynamicResources []Resource // Dynamic resources to be temporarily available during generation.
+>>>>>>> Stashed changes
 }
 
 // GenerateOption is an option for generating a model response. It applies only to Generate().
@@ -795,12 +801,20 @@ func WithToolRestarts(parts ...*Part) GenerateOption {
 // WithResources specifies dynamic resources to be temporarily available during generation.
 // Dynamic resources are unregistered resources that get attached to a temporary registry
 // during the generation request and cleaned up afterward.
+<<<<<<< Updated upstream
 func WithResources(resources []core.DetachedResourceAction) GenerateOption {
+=======
+func WithResources(resources []Resource) GenerateOption {
+>>>>>>> Stashed changes
 	return &withResources{resources: resources}
 }
 
 type withResources struct {
+<<<<<<< Updated upstream
 	resources []core.DetachedResourceAction
+=======
+	resources []Resource
+>>>>>>> Stashed changes
 }
 
 func (w *withResources) applyGenerate(o *generateOptions) error {
