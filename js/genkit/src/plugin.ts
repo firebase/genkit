@@ -14,15 +14,34 @@
  * limitations under the License.
  */
 
-import type { ActionMetadata } from '@genkit-ai/core';
+import type { Action, ActionMetadata, BackgroundAction } from '@genkit-ai/core';
 import type { Genkit } from './genkit.js';
 import type { ActionType } from './registry.js';
+export { embedder, embedderActionMetadata } from '@genkit-ai/ai/embedder';
+export { evaluator } from '@genkit-ai/ai/evaluator';
+export {
+  backgroundModel,
+  model,
+  modelActionMetadata,
+} from '@genkit-ai/ai/model';
 
 export interface PluginProvider {
   name: string;
   initializer: () => void | Promise<void>;
   resolver?: (action: ActionType, target: string) => Promise<void>;
   listActions?: () => Promise<ActionMetadata[]>;
+}
+
+export type ResolvableAction = Action | BackgroundAction;
+
+export interface GenkitPluginV2 {
+  version: 'v2';
+  name: string;
+  resolve: (
+    actionType: ActionType,
+    name: string
+  ) => ResolvableAction | undefined | Promise<ResolvableAction | undefined>;
+  list?: () => ActionMetadata[] | Promise<ActionMetadata[]>;
 }
 
 export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
@@ -61,4 +80,14 @@ export function genkitPlugin<T extends PluginInit>(
       return [];
     },
   });
+}
+
+export function genkitPluginV2(
+  options: Omit<GenkitPluginV2, 'version'>
+): GenkitPluginV2 {
+  return { ...options, version: 'v2' };
+}
+
+export function isPluginV2(plugin: unknown): plugin is GenkitPluginV2 {
+  return (plugin as GenkitPluginV2).version === 'v2';
 }

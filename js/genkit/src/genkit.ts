@@ -107,7 +107,10 @@ import {
   defineJsonSchema,
   defineSchema,
   getContext,
+  isAction,
+  isBackgroundAction,
   isDevEnv,
+  registerBackgroundAction,
   run,
   type Action,
   type ActionContext,
@@ -121,7 +124,11 @@ import { Channel } from '@genkit-ai/core/async';
 import type { HasRegistry } from '@genkit-ai/core/registry';
 import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import type { GenkitPlugin } from './plugin.js';
+import {
+  isPluginV2,
+  type GenkitPlugin,
+  type GenkitPluginV2,
+} from './plugin.js';
 import { Registry, type ActionType } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
@@ -138,7 +145,7 @@ export type PromptFn<
  */
 export interface GenkitOptions {
   /** List of plugins to load. */
-  plugins?: GenkitPlugin[];
+  plugins?: (GenkitPlugin | GenkitPluginV2)[];
   /** Directory where dotprompts are stored. */
   promptDir?: string;
   /** Default model to use if no model is specified. */
@@ -224,7 +231,7 @@ export class Genkit implements HasRegistry {
     config: ToolConfig<I, O>,
     fn?: ToolFn<I, O>
   ): ToolAction<I, O> {
-    return dynamicTool(config, fn).attach(this.registry) as ToolAction<I, O>;
+    return dynamicTool(config, fn) as ToolAction<I, O>;
   }
 
   /**
@@ -889,7 +896,7 @@ export class Genkit implements HasRegistry {
    * return `undefined`.
    */
   currentContext(): ActionContext | undefined {
-    return getContext(this);
+    return getContext();
   }
 
   /**
@@ -916,26 +923,69 @@ export class Genkit implements HasRegistry {
       );
     }
     plugins.forEach((plugin) => {
-      const loadedPlugin = plugin(this);
-      logger.debug(`Registering plugin ${loadedPlugin.name}...`);
-      activeRegistry.registerPluginProvider(loadedPlugin.name, {
-        name: loadedPlugin.name,
-        async initializer() {
-          logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
-          await loadedPlugin.initializer();
-        },
-        async resolver(action: ActionType, target: string) {
-          if (loadedPlugin.resolver) {
-            await loadedPlugin.resolver(action, target);
-          }
-        },
-        async listActions() {
-          if (loadedPlugin.listActions) {
-            return await loadedPlugin.listActions();
-          }
-          return [];
-        },
-      });
+      if (isPluginV2(plugin)) {
+        logger.debug(`Registering v2 plugin ${plugin.name}...`);
+        activeRegistry.registerPluginProvider(plugin.name, {
+          name: plugin.name,
+          async initializer() {
+            logger.debug(`Initializing plugin ${plugin.name}:`);
+          },
+          async resolver(action: ActionType, target: string) {
+            const resolvedAction = await plugin.resolve(action, target);
+            if (resolvedAction) {
+              if (isBackgroundAction(resolvedAction)) {
+                registerBackgroundAction(activeRegistry, resolvedAction);
+              } else if (isAction(resolvedAction)) {
+                if (!resolvedAction.__action.actionType) {
+                  throw new GenkitError({
+                    status: 'INVALID_ARGUMENT',
+                    message:
+                      'Action type is missing for ' +
+                      resolvedAction.__action.name,
+                  });
+                }
+                activeRegistry.registerAction(
+                  resolvedAction.__action.actionType,
+                  resolvedAction
+                );
+              } else {
+                throw new GenkitError({
+                  status: 'INVALID_ARGUMENT',
+                  message:
+                    'Unkown action type returned from plugin ' + plugin.name,
+                });
+              }
+            }
+          },
+          async listActions() {
+            if (typeof plugin.list === 'function') {
+              return await plugin.list();
+            }
+            return [];
+          },
+        });
+      } else {
+        const loadedPlugin = (plugin as GenkitPlugin)(this);
+        logger.debug(`Registering plugin ${loadedPlugin.name}...`);
+        activeRegistry.registerPluginProvider(loadedPlugin.name, {
+          name: loadedPlugin.name,
+          async initializer() {
+            logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
+            await loadedPlugin.initializer();
+          },
+          async resolver(action: ActionType, target: string) {
+            if (loadedPlugin.resolver) {
+              await loadedPlugin.resolver(action, target);
+            }
+          },
+          async listActions() {
+            if (loadedPlugin.listActions) {
+              return await loadedPlugin.listActions();
+            }
+            return [];
+          },
+        });
+      }
     });
   }
 

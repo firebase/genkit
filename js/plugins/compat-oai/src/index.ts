@@ -109,23 +109,25 @@ export interface PluginOptions extends Partial<ClientOptions> {
  * ```
  */
 export const openAICompatible = (options: PluginOptions) => {
-  const client = new OpenAI(options);
   let listActionsCache;
   return genkitPlugin(
     options.name,
     async (ai: Genkit) => {
       if (options.initializer) {
+        const client = new OpenAI(options);
         await options.initializer(ai, client);
       }
     },
     async (ai: Genkit, actionType: ActionType, actionName: string) => {
       if (options.resolver) {
+        const client = new OpenAI(options);
         await options.resolver(ai, client, actionType, actionName);
       }
     },
     options.listActions
       ? async () => {
           if (listActionsCache) return listActionsCache;
+          const client = new OpenAI(options);
           listActionsCache = await options.listActions!(client);
           return listActionsCache;
         }

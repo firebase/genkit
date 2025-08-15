@@ -188,8 +188,8 @@ export function defineCompatOpenAISpeechModel<
   requestBuilder?: SpeechRequestBuilder;
 }): ModelAction {
   const { ai, name, client, modelRef, requestBuilder } = params;
+  const modelName = name.substring(name.indexOf('/') + 1);
 
-  const model = name.split('/').pop();
   return ai.defineModel(
     {
       name,
@@ -198,7 +198,7 @@ export function defineCompatOpenAISpeechModel<
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const ttsRequest = toTTSRequest(model!, request, requestBuilder);
+      const ttsRequest = toTTSRequest(modelName!, request, requestBuilder);
       const result = await client.audio.speech.create(ttsRequest, {
         signal: abortSignal,
       });
@@ -351,7 +351,8 @@ export function defineCompatOpenAITranscriptionModel<
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const modelName = name.split('/').pop();
+      const modelName = name.substring(name.indexOf('/') + 1);
+
       const params = toSttRequest(modelName!, request, requestBuilder);
       // Explicitly setting stream to false ensures we use the non-streaming overload
       const result = await client.audio.transcriptions.create(
