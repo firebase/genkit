@@ -32,7 +32,9 @@ export * from './action.js';
 export { getAsyncContext } from './async-context.js';
 export {
   OperationSchema,
+  backgroundAction,
   defineBackgroundAction,
+  registerBackgroundAction,
   type BackgroundAction,
   type BackgroundActionFnArg,
   type BackgroundActionParams,
@@ -59,6 +61,7 @@ export {
 } from './error.js';
 export {
   defineFlow,
+  flow,
   run,
   type Flow,
   type FlowConfig,

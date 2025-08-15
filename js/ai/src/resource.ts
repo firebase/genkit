@@ -144,6 +144,17 @@ export function isDynamicResourceAction(t: unknown): t is ResourceAction {
  * Defines a dynamic resource. Dynamic resources are just like regular resources but will not be
  * registered in the Genkit registry and can be defined dynamically at runtime.
  */
+export function resource(
+  opts: ResourceOptions,
+  fn: ResourceFn
+): ResourceAction {
+  return dynamicResource(opts, fn);
+}
+
+/**
+ * Defines a dynamic resource. Dynamic resources are just like regular resources but will not be
+ * registered in the Genkit registry and can be defined dynamically at runtime.
+ */
 export function dynamicResource(
   opts: ResourceOptions,
   fn: ResourceFn
