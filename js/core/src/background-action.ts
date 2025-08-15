@@ -353,3 +353,7 @@ export function backgroundAction<
 
   return new BackgroundActionImpl(startAction, checkAction, cancelAction);
 }
+
+export function isBackgroundAction(a: unknown): a is BackgroundAction {
+  return a instanceof BackgroundActionImpl;
+}

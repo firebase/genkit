@@ -107,7 +107,10 @@ import {
   defineJsonSchema,
   defineSchema,
   getContext,
+  isAction,
+  isBackgroundAction,
   isDevEnv,
+  registerBackgroundAction,
   run,
   type Action,
   type ActionContext,
@@ -121,7 +124,7 @@ import { Channel } from '@genkit-ai/core/async';
 import type { HasRegistry } from '@genkit-ai/core/registry';
 import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import type { GenkitPlugin } from './plugin.js';
+import type { GenkitPlugin, GenkitPluginV1 } from './plugin.js';
 import { Registry, type ActionType } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
@@ -916,26 +919,71 @@ export class Genkit implements HasRegistry {
       );
     }
     plugins.forEach((plugin) => {
-      const loadedPlugin = plugin(this);
-      logger.debug(`Registering plugin ${loadedPlugin.name}...`);
-      activeRegistry.registerPluginProvider(loadedPlugin.name, {
-        name: loadedPlugin.name,
-        async initializer() {
-          logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
-          await loadedPlugin.initializer();
-        },
-        async resolver(action: ActionType, target: string) {
-          if (loadedPlugin.resolver) {
-            await loadedPlugin.resolver(action, target);
-          }
-        },
-        async listActions() {
-          if (loadedPlugin.listActions) {
-            return await loadedPlugin.listActions();
-          }
-          return [];
-        },
-      });
+      const isV2 =
+        typeof plugin === 'object' && typeof plugin.resolve === 'function';
+      if (isV2) {
+        logger.debug(`Registering v2 plugin ${plugin.name}...`);
+        activeRegistry.registerPluginProvider(plugin.name, {
+          name: plugin.name,
+          async initializer() {
+            logger.debug(`Initializing plugin ${plugin.name}:`);
+          },
+          async resolver(action: ActionType, target: string) {
+            const resolvedAction = await plugin.resolve(action, target);
+            if (resolvedAction) {
+              if (isBackgroundAction(resolvedAction)) {
+                registerBackgroundAction(activeRegistry, resolvedAction);
+              } else if (isAction(resolvedAction)) {
+                if (!resolvedAction.__action.actionType) {
+                  throw new GenkitError({
+                    status: 'INVALID_ARGUMENT',
+                    message:
+                      'Action type is missing for ' +
+                      resolvedAction.__action.name,
+                  });
+                }
+                activeRegistry.registerAction(
+                  resolvedAction.__action.actionType,
+                  resolvedAction
+                );
+              } else {
+                throw new GenkitError({
+                  status: 'INVALID_ARGUMENT',
+                  message:
+                    'Unkown action type returned from plugin ' + plugin.name,
+                });
+              }
+            }
+          },
+          async listActions() {
+            if (typeof plugin.list === 'function') {
+              return await plugin.list();
+            }
+            return [];
+          },
+        });
+      } else {
+        const loadedPlugin = (plugin as GenkitPluginV1)(this);
+        logger.debug(`Registering plugin ${loadedPlugin.name}...`);
+        activeRegistry.registerPluginProvider(loadedPlugin.name, {
+          name: loadedPlugin.name,
+          async initializer() {
+            logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
+            await loadedPlugin.initializer();
+          },
+          async resolver(action: ActionType, target: string) {
+            if (loadedPlugin.resolver) {
+              await loadedPlugin.resolver(action, target);
+            }
+          },
+          async listActions() {
+            if (loadedPlugin.listActions) {
+              return await loadedPlugin.listActions();
+            }
+            return [];
+          },
+        });
+      }
     });
   }
 

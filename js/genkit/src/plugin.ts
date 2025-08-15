@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-import type { ActionMetadata } from '@genkit-ai/core';
+import type { Action, ActionMetadata, BackgroundAction } from '@genkit-ai/core';
 import type { Genkit } from './genkit.js';
 import type { ActionType } from './registry.js';
+export { embedder } from '@genkit-ai/ai/embedder';
+export { evaluator } from '@genkit-ai/ai/evaluator';
+export { backgroundModel, model } from '@genkit-ai/ai/model';
 
 export interface PluginProvider {
   name: string;
@@ -25,7 +28,20 @@ export interface PluginProvider {
   listActions?: () => Promise<ActionMetadata[]>;
 }
 
-export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
+export type ResolvableAction = Action | BackgroundAction;
+
+export interface GenkitPluginV2 {
+  name: string;
+  resolve: (
+    actionType: ActionType,
+    name: string
+  ) => ResolvableAction | undefined | Promise<ResolvableAction | undefined>;
+  list?: () => ActionMetadata[] | Promise<ActionMetadata[]>;
+}
+
+export type GenkitPluginV1 = (genkit: Genkit) => PluginProvider;
+
+export type GenkitPlugin = GenkitPluginV2 | GenkitPluginV1;
 
 export type PluginInit = (genkit: Genkit) => void | Promise<void>;
 
