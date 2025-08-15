@@ -29,6 +29,7 @@ export const BaseDataPointSchema = z.object({
   output: z.unknown().optional(),
   context: z.array(z.unknown()).optional(),
   reference: z.unknown().optional(),
+  custom: z.record(z.string(), z.unknown()).optional(),
   testCaseId: z.string().optional(),
   traceIds: z.array(z.string()).optional(),
 });

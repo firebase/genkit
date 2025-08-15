@@ -479,6 +479,13 @@ async function gatherEvalInput(params: {
 
   // Always use original input for models and prompts.
   const input = actionType === 'flow' ? extractors.input(trace) : state.input;
+  let custom = undefined;
+  if (actionType === 'executable-prompt') {
+    const promptTrace = await manager.getTrace({
+      traceId: traceIds[0],
+    });
+    custom = { renderedPrompt: extractors.output(promptTrace) };
+  }
 
   const nestedSpan = stackTraceSpans(trace);
   if (!nestedSpan) {
@@ -487,6 +494,7 @@ async function gatherEvalInput(params: {
       input,
       error: `Unable to extract any spans from trace ${traceId}`,
       reference: state.reference,
+      custom,
       traceIds: traceIds,
     };
   }
@@ -498,6 +506,7 @@ async function gatherEvalInput(params: {
       error:
         getSpanErrorMessage(nestedSpan) ?? `Unknown error in trace ${traceId}`,
       reference: state.reference,
+      custom,
       traceIds: traceIds,
     };
   }
@@ -515,6 +524,7 @@ async function gatherEvalInput(params: {
     error,
     context: Array.isArray(context) ? context : [context],
     reference: state.reference,
+    custom,
     traceIds: traceIds,
   };
 }

@@ -134,6 +134,7 @@ export const EvalInputSchema = z.object({
   error: z.string().optional(),
   context: z.array(z.any()).optional(),
   reference: z.any().optional(),
+  custom: z.record(z.string(), z.any()).optional(),
   traceIds: z.array(z.string()),
 });
 export type EvalInput = z.infer<typeof EvalInputSchema>;

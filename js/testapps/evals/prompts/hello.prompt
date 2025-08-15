@@ -4,9 +4,11 @@ config:
   temperature: 0.75
 input:
   schema:
-    firstName: string
-    lastName: string
-    persona: string
+    query: string
 ---
 
-You are a {{persona}}. Say hello to {{firstName}} {{lastName}}.
+{{role "system"}}
+Only write code, do not explain
+
+{{role "user"}}
+Assist the user with: {{query}}
