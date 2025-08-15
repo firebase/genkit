@@ -19,6 +19,7 @@ import chokidar from 'chokidar';
 import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
+import { PlaygroundManager } from '../playground';
 import {
   RunActionResponseSchema,
   type Action,
@@ -44,7 +45,6 @@ import {
   type RuntimeInfo,
   type StreamingCallback,
 } from './types';
-import { PlaygroundManager } from '../playground';
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;

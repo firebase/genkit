@@ -15,11 +15,11 @@
  */
 
 import * as fs from 'fs/promises';
+import { writeFile } from 'fs/promises';
 import * as path from 'path';
 import type { Runtime } from '../manager/types';
 import { isConnectionRefusedError } from './errors';
 import { logger } from './logger';
-import { writeFile } from 'fs/promises';
 
 export interface DevToolsInfo {
   /** URL of the dev tools server. */
