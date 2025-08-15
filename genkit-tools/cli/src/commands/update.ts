@@ -96,7 +96,7 @@ interface NpmRegistryResponse {
 /**
  * Gets available CLI versions from npm registry for non-binary installations
  */
-async function getAvailableVersionsFromNpm(
+export async function getAvailableVersionsFromNpm(
   ignoreRC: boolean = true
 ): Promise<string[]> {
   try {
@@ -125,7 +125,7 @@ async function getAvailableVersionsFromNpm(
 /**
  * Gets latest CLI version from Google Cloud Storage for binary installations
  */
-async function getLatestVersionFromGCS(): Promise<string[]> {
+export async function getLatestVersionFromGCS(): Promise<string[]> {
   try {
     const response = await axios.get(
       'https://storage.googleapis.com/genkit-assets-cli/latest.json'
