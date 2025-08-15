@@ -124,7 +124,11 @@ import { Channel } from '@genkit-ai/core/async';
 import type { HasRegistry } from '@genkit-ai/core/registry';
 import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import type { GenkitPlugin, GenkitPluginV2 } from './plugin.js';
+import {
+  isPluginV2,
+  type GenkitPlugin,
+  type GenkitPluginV2,
+} from './plugin.js';
 import { Registry, type ActionType } from './registry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
@@ -919,9 +923,7 @@ export class Genkit implements HasRegistry {
       );
     }
     plugins.forEach((plugin) => {
-      const isV2 =
-        typeof plugin === 'object' && typeof plugin.resolve === 'function';
-      if (isV2) {
+      if (isPluginV2(plugin)) {
         logger.debug(`Registering v2 plugin ${plugin.name}...`);
         activeRegistry.registerPluginProvider(plugin.name, {
           name: plugin.name,

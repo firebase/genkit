@@ -87,3 +87,7 @@ export function genkitPluginV2(
 ): GenkitPluginV2 {
   return { ...options, version: 'v2' };
 }
+
+export function isPluginV2(plugin: unknown): plugin is GenkitPluginV2 {
+  return (plugin as GenkitPluginV2).version === 'v2';
+}
