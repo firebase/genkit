@@ -20,12 +20,11 @@ import {
   embedderActionMetadata,
   embedderRef,
   EmbedderReference,
-  Genkit,
   modelActionMetadata,
   ModelReference,
   z,
 } from 'genkit';
-import { GenkitPlugin } from 'genkit/plugin';
+import { GenkitPluginV2, ResolvableAction } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
 import {
@@ -66,23 +65,25 @@ export type OpenAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 const UNSUPPORTED_MODEL_MATCHERS = ['babbage', 'davinci', 'codex'];
 
 const resolver = async (
-  ai: Genkit,
   client: OpenAI,
   actionType: ActionType,
   actionName: string
 ) => {
   if (actionType === 'embedder') {
-    defineCompatOpenAIEmbedder({ ai, name: `openai/${actionName}`, client });
+    return defineCompatOpenAIEmbedder({ name: `openai/${actionName}`, client });
   } else if (
     actionName.includes('gpt-image-1') ||
     actionName.includes('dall-e')
   ) {
     const modelRef = openAIImageModelRef({ name: `openai/${actionName}` });
-    defineCompatOpenAIImageModel({ ai, name: modelRef.name, client, modelRef });
+    return defineCompatOpenAIImageModel({
+      name: modelRef.name,
+      client,
+      modelRef,
+    });
   } else if (actionName.includes('tts')) {
     const modelRef = openAISpeechModelRef({ name: `openai/${actionName}` });
-    defineCompatOpenAISpeechModel({
-      ai,
+    return defineCompatOpenAISpeechModel({
       name: modelRef.name,
       client,
       modelRef,
@@ -94,16 +95,14 @@ const resolver = async (
     const modelRef = openAITranscriptionModelRef({
       name: `openai/${actionName}`,
     });
-    defineCompatOpenAITranscriptionModel({
-      ai,
+    return defineCompatOpenAITranscriptionModel({
       name: modelRef.name,
       client,
       modelRef,
     });
   } else {
     const modelRef = openAIModelRef({ name: `openai/${actionName}` });
-    defineCompatOpenAIModel({
-      ai,
+    return defineCompatOpenAIModel({
       name: modelRef.name,
       client,
       modelRef,
@@ -171,49 +170,57 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
   );
 };
 
-export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPlugin {
+export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2 {
   return openAICompatible({
     name: 'openai',
     ...options,
-    initializer: async (ai, client) => {
-      Object.values(SUPPORTED_GPT_MODELS).forEach((modelRef) =>
-        defineCompatOpenAIModel({ ai, name: modelRef.name, client, modelRef })
+    initializer: async (client) => {
+      const models = [] as ResolvableAction[];
+      models.push(
+        ...Object.values(SUPPORTED_GPT_MODELS).map((modelRef) =>
+          defineCompatOpenAIModel({ name: modelRef.name, client, modelRef })
+        )
       );
-      Object.values(SUPPORTED_EMBEDDING_MODELS).forEach((embedderRef) =>
-        defineCompatOpenAIEmbedder({
-          ai,
-          name: embedderRef.name,
-          client,
-          embedderRef,
-        })
+      models.push(
+        ...Object.values(SUPPORTED_EMBEDDING_MODELS).map((embedderRef) =>
+          defineCompatOpenAIEmbedder({
+            name: embedderRef.name,
+            client,
+            embedderRef,
+          })
+        )
       );
-      Object.values(SUPPORTED_TTS_MODELS).forEach((modelRef) =>
-        defineCompatOpenAISpeechModel({
-          ai,
-          name: modelRef.name,
-          client,
-          modelRef,
-        })
+      models.push(
+        ...Object.values(SUPPORTED_TTS_MODELS).map((modelRef) =>
+          defineCompatOpenAISpeechModel({
+            name: modelRef.name,
+            client,
+            modelRef,
+          })
+        )
       );
-      Object.values(SUPPORTED_STT_MODELS).forEach((modelRef) =>
-        defineCompatOpenAITranscriptionModel({
-          ai,
-          name: modelRef.name,
-          client,
-          modelRef,
-        })
+      models.push(
+        ...Object.values(SUPPORTED_STT_MODELS).map((modelRef) =>
+          defineCompatOpenAITranscriptionModel({
+            name: modelRef.name,
+            client,
+            modelRef,
+          })
+        )
       );
-      Object.values(SUPPORTED_IMAGE_MODELS).forEach((modelRef) =>
-        defineCompatOpenAIImageModel({
-          ai,
-          name: modelRef.name,
-          client,
-          modelRef,
-          requestBuilder: modelRef.name.includes('gpt-image-1')
-            ? gptImage1RequestBuilder
-            : undefined,
-        })
+      models.push(
+        ...Object.values(SUPPORTED_IMAGE_MODELS).map((modelRef) =>
+          defineCompatOpenAIImageModel({
+            name: modelRef.name,
+            client,
+            modelRef,
+            requestBuilder: modelRef.name.includes('gpt-image-1')
+              ? gptImage1RequestBuilder
+              : undefined,
+          })
+        )
       );
+      return models;
     },
     resolver,
     listActions,
@@ -221,7 +228,7 @@ export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPlugin {
 }
 
 export type OpenAIPlugin = {
-  (params?: OpenAIPluginOptions): GenkitPlugin;
+  (params?: OpenAIPluginOptions): GenkitPluginV2;
   model(
     name:
       | keyof typeof SUPPORTED_GPT_MODELS

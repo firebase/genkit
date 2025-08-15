@@ -17,7 +17,8 @@
 
 // import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
 
-import type { EmbedderAction, EmbedderReference, Genkit } from 'genkit';
+import type { EmbedderAction, EmbedderReference } from 'genkit';
+import { embedder } from 'genkit/plugin';
 import OpenAI from 'openai';
 
 /**
@@ -34,25 +35,24 @@ import OpenAI from 'openai';
  * @returns the created {@link EmbedderAction}
  */
 export function defineCompatOpenAIEmbedder(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   embedderRef?: EmbedderReference;
 }): EmbedderAction {
-  const { ai, name, client, embedderRef } = params;
+  const { name, client, embedderRef } = params;
   const modelName = name.substring(name.indexOf('/') + 1);
 
-  return ai.defineEmbedder(
+  return embedder(
     {
       name,
       configSchema: embedderRef?.configSchema,
       ...embedderRef?.info,
     },
-    async (input, options) => {
-      const { encodingFormat: encoding_format, ...restOfConfig } = options;
+    async (req) => {
+      const { encodingFormat: encoding_format, ...restOfConfig } = req.options;
       const embeddings = await client.embeddings.create({
         model: modelName!,
-        input: input.map((d) => d.text),
+        input: req.input.map((d) => d.text),
         encoding_format,
         ...restOfConfig,
       });
