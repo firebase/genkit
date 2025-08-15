@@ -61,7 +61,8 @@ $HOME/go/bin/addlicense \
   -ignore '**/pnpm-lock.yaml' \
   -ignore '.nx/**/*' \
   -ignore '.trunk/**/*' \
-  -ignore '*.toml' \
+  -ignore '**/*.toml' \
+  -ignore '**/*.nix' \
   "$TOP_DIR"
 
 uv run --directory "${PY_DIR}" liccheck
