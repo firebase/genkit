@@ -27,7 +27,6 @@ export {
   appendSpan,
   enableTelemetry,
   flushTracing,
-  newTrace,
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,

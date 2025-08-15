@@ -58,12 +58,23 @@ export async function generateContent(
   generateContentRequest: GenerateContentRequest,
   clientOptions: ClientOptions
 ): Promise<GenerateContentResponse> {
-  const url = getVertexAIUrl({
-    includeProjectAndLocation: true,
-    resourcePath: `publishers/google/models/${model}`,
-    resourceMethod: 'generateContent',
-    clientOptions,
-  });
+  let url: string;
+  if (model.includes('endpoints/')) {
+    // Tuned model
+    url = getVertexAIUrl({
+      includeProjectAndLocation: !model.startsWith('projects/'),
+      resourcePath: model,
+      resourceMethod: 'generateContent',
+      clientOptions,
+    });
+  } else {
+    url = getVertexAIUrl({
+      includeProjectAndLocation: true,
+      resourcePath: `publishers/google/models/${model}`,
+      resourceMethod: 'generateContent',
+      clientOptions,
+    });
+  }
   const fetchOptions = await getFetchOptions({
     method: 'POST',
     clientOptions,
@@ -80,12 +91,23 @@ export async function generateContentStream(
   generateContentRequest: GenerateContentRequest,
   clientOptions: ClientOptions
 ): Promise<GenerateContentStreamResult> {
-  const url = getVertexAIUrl({
-    includeProjectAndLocation: true,
-    resourcePath: `publishers/google/models/${model}`,
-    resourceMethod: 'streamGenerateContent',
-    clientOptions,
-  });
+  let url: string;
+  if (model.includes('endpoints/')) {
+    // Tuned model
+    url = getVertexAIUrl({
+      includeProjectAndLocation: !model.startsWith('projects/'),
+      resourcePath: model,
+      resourceMethod: 'streamGenerateContent',
+      clientOptions,
+    });
+  } else {
+    url = getVertexAIUrl({
+      includeProjectAndLocation: true,
+      resourcePath: `publishers/google/models/${model}`,
+      resourceMethod: 'streamGenerateContent',
+      clientOptions,
+    });
+  }
   const fetchOptions = await getFetchOptions({
     method: 'POST',
     clientOptions,
