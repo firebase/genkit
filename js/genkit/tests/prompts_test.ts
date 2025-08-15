@@ -1145,6 +1145,11 @@ describe('prompt', () => {
       returnToolRequests: true,
       toolChoice: 'required',
       tools: ['toolA', 'toolB'],
+      metadata: {
+        prompt: {
+          foo: 'bar',
+        },
+      },
     });
   });
 

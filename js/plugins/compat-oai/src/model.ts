@@ -492,7 +492,7 @@ export function defineCompatOpenAIModel<
   requestBuilder?: ModelRequestBuilder;
 }): ModelAction {
   const { ai, name, client, modelRef, requestBuilder } = params;
-  const modelName = name.split('/').pop();
+  const modelName = name.substring(name.indexOf('/') + 1);
 
   return ai.defineModel(
     {
@@ -507,12 +507,11 @@ export function defineCompatOpenAIModel<
 
 const GENERIC_MODEL_INFO: ModelInfo = {
   supports: {
-    multiturn: false,
-    media: false,
-    tools: false,
-    toolChoice: false,
-    systemRole: false,
-    constrained: 'no-tools',
+    multiturn: true,
+    media: true,
+    tools: true,
+    toolChoice: true,
+    systemRole: true,
   },
 };
 

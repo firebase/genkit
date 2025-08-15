@@ -15,6 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -36,6 +37,8 @@ import {
   type AugmentWithContextOptions,
 } from '../../src/model/middleware.js';
 import { defineProgrammableModel } from '../helpers.js';
+
+initNodeFeatures();
 
 describe('validateSupport', () => {
   const examples: Record<string, GenerateRequest> = {

@@ -110,6 +110,8 @@ function commonRef(
 const GENERIC_MODEL = commonRef('veo');
 
 const KNOWN_MODELS = {
+  'veo-3.0-generate-preview': commonRef('veo-3.0-generate-preview'),
+  'veo-3.0-fast-generate-preview': commonRef('veo-3.0-fast-generate-preview'),
   'veo-2.0-generate-001': commonRef('veo-2.0-generate-001'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete

@@ -16,6 +16,7 @@
 
 
 """OpenAI OpenAI API Compatible Plugin for Genkit."""
+
 from functools import cached_property
 from typing import Any, Callable
 
@@ -172,17 +173,17 @@ class OpenAI(Plugin):
     def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
-                Returns:
-                    list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
-                        - name (str): The name of the action or model.
-                        - kind (ActionKind): The type or category of the action.
-                        - info (dict): The metadata dictionary describing the model configuration and properties.
-                        - config_schema (type): The schema class used for validating the model's configuration.
+        Returns:
+            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
+                - name (str): The name of the action or model.
+                - kind (ActionKind): The type or category of the action.
+                - info (dict): The metadata dictionary describing the model configuration and properties.
+                - config_schema (type): The schema class used for validating the model's configuration.
         """
 
         actions = []
         models_ = self._openai_client.models.list()
-        models: list[Model]  = models_.data
+        models: list[Model] = models_.data
         # Print each model
         for model in models:
             _name = model.id
@@ -214,8 +215,6 @@ class OpenAI(Plugin):
                     )
                 )
         return actions
-
-
 
 
 def openai_model(name: str) -> str:
