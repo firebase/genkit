@@ -291,10 +291,6 @@ async function downloadAndInstall(version: string): Promise<void> {
     return;
   }
 
-  // Create backup of current binary
-  logger.info('Creating backup of current binary...');
-  fs.copyFileSync(execPath, backupPath);
-
   try {
     // Construct machine identifier and download URL
     const machine = `${platform}-${arch}`;
@@ -307,13 +303,27 @@ async function downloadAndInstall(version: string): Promise<void> {
     const channel = 'prod'; // Default to prod channel
     const downloadUrl = `https://storage.googleapis.com/genkit-assets-cli/${channel}/${machine}/v${cleanVersion}/${fileName}`;
 
-    logger.info(`Downloading v${clc.bold(version)} for ${machine}...`);
+    let response;
+    try {
+      response = await axios({
+        method: 'GET',
+        url: downloadUrl,
+        responseType: 'stream',
+        validateStatus: (status) => status >= 200 && status < 300, // Only resolve for 2xx
+      });
+    } catch (err: any) {
+      if (err.response && err.response.status === 404) {
+        logger.error(`Version v${clc.bold(version)} can not be found.`);
+        process.exit(1);
+      }
+      throw err;
+    }
 
-    const response = await axios({
-      method: 'GET',
-      url: downloadUrl,
-      responseType: 'stream',
-    });
+    // Create backup of current binary
+    logger.info('Creating backup of current binary...');
+    fs.copyFileSync(execPath, backupPath);
+
+    logger.info(`Downloading v${clc.bold(version)} for ${machine}...`);
 
     // Save directly to a temporary file (no zip extraction needed)
     const tempDir = os.tmpdir();
