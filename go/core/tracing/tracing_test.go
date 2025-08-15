@@ -262,7 +262,7 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 			},
 			expectedType:    "action",
 			expectedSubtype: "flow",
-			expectedPath:    "/{chatFlow,t:action,s:flow}", // Updated path
+			expectedPath:    "/{chatFlow,t:flow}", // Flows use simplified t:flow format
 		},
 		{
 			name:     "Model action span",
@@ -386,7 +386,7 @@ func TestNestedSpanPaths(t *testing.T) {
 						return "", nil
 					}
 
-					expectedPath := "/{chatFlow,t:action,s:flow}/{myTool,t:action,s:tool}"
+					expectedPath := "/{chatFlow,t:flow}/{myTool,t:action,s:tool}"
 					if sm.Path != expectedPath {
 						t.Errorf("Expected nested path %q, got %q", expectedPath, sm.Path)
 					}
@@ -424,64 +424,86 @@ func TestIsFailureSourceOnError(t *testing.T) {
 	t.Log("isFailureSource functionality verified - error propagated correctly")
 }
 
-// TestProductionFlowIsRootProblem demonstrates that production flows get IsRoot=false
-func TestProductionFlowIsRootProblem(t *testing.T) {
+// TestRootSpanAutoDetection tests that spans are automatically marked as root when no parent exists
+func TestRootSpanAutoDetection(t *testing.T) {
 	tstate := NewState()
 	ctx := context.Background()
 
-	// Simulate what happens when user calls flow.Run() in production
-	// This goes through ActionDef.Run() which hardcodes IsRoot: false
+	t.Run("span with no parent should be marked as root", func(t *testing.T) {
+		_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+			Name:    "topLevelFlow",
+			Type:    "action",
+			Subtype: "flow",
+			IsRoot:  false, // Even when explicitly set to false, should be overridden
+		}, "input", func(ctx context.Context, input string) (string, error) {
+			sm := spanMetaKey.FromContext(ctx)
+			if sm == nil {
+				t.Fatal("Expected span metadata in context")
+			}
 
-	// Production flow call simulation
-	_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
-		Name:    "userFlow", // User's flow name
-		Type:    "action",   // ActionDef.Run sets this
-		Subtype: "flow",     // ActionDef.Run sets this
-		IsRoot:  false,      // ← ActionDef.Run HARDCODES this to false!
-	}, "production_input", func(ctx context.Context, input string) (string, error) {
-		// Check what the span metadata shows
-		sm := spanMetaKey.FromContext(ctx)
-		if sm == nil {
-			t.Fatal("Expected span metadata in context")
+			if !sm.IsRoot {
+				t.Error("Span with no parent should be automatically marked as root")
+			}
+
+			return "output", nil
+		})
+
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
 		}
-
-		// This is the PROBLEM: Production flows are NOT marked as root
-		if sm.IsRoot {
-			t.Error("Production flow should NOT be marked as root (this is the bug!)")
-		} else {
-			t.Log("✅ Confirmed: Production flows get IsRoot=false (this is wrong for telemetry)")
-		}
-
-		return "production_output", nil
 	})
 
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	t.Run("span with explicit IsRoot=true should be marked as root", func(t *testing.T) {
+		_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+			Name:   "explicitRootFlow",
+			Type:   "action",
+			IsRoot: true, // Explicitly set to true
+		}, "input", func(ctx context.Context, input string) (string, error) {
+			sm := spanMetaKey.FromContext(ctx)
+			if sm == nil {
+				t.Fatal("Expected span metadata in context")
+			}
 
-	// Dev UI call simulation (what works correctly)
-	_, err = RunInNewSpan(ctx, tstate, &SpanMetadata{
-		Name:   "dev-run-action-wrapper", // Dev UI wrapper name
-		Type:   "action",
-		IsRoot: true, // ← Dev UI EXPLICITLY sets this to true
-	}, "dev_input", func(ctx context.Context, input string) (string, error) {
-		sm := spanMetaKey.FromContext(ctx)
-		if sm == nil {
-			t.Fatal("Expected span metadata in context")
+			if !sm.IsRoot {
+				t.Error("Span with explicit IsRoot=true should be marked as root")
+			}
+
+			return "output", nil
+		})
+
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
 		}
-
-		if !sm.IsRoot {
-			t.Error("Dev UI wrapper should be marked as root")
-		} else {
-			t.Log("✅ Confirmed: Dev UI gets IsRoot=true (this works correctly)")
-		}
-
-		return "dev_output", nil
 	})
 
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	t.Run("nested span should not be marked as root", func(t *testing.T) {
+		_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+			Name:   "parentFlow",
+			Type:   "action",
+			IsRoot: true,
+		}, "input", func(ctx context.Context, input string) (string, error) {
+			// This is a nested span - should NOT be root
+			_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+				Name:   "childAction",
+				Type:   "action",
+				IsRoot: false,
+			}, input, func(ctx context.Context, input string) (string, error) {
+				sm := spanMetaKey.FromContext(ctx)
+				if sm == nil {
+					t.Fatal("Expected span metadata in context")
+				}
 
-	t.Log("🔍 CONCLUSION: Production flows miss IsRoot=true, breaking telemetry!")
+				if sm.IsRoot {
+					t.Error("Nested span should NOT be marked as root")
+				}
+
+				return "nested_output", nil
+			})
+			return "parent_output", err
+		})
+
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
 }

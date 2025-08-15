@@ -17,6 +17,7 @@
 package googlecloud
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -24,6 +25,7 @@ import (
 	"github.com/firebase/genkit/go/internal"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // EngagementTelemetry implements telemetry collection for user engagement (feedback/acceptance)
@@ -54,20 +56,22 @@ func (e *EngagementTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bo
 	attributes := span.Attributes()
 	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
 
+	// Only process spans that are engagement-related
 	switch subtype {
 	case "userFeedback":
 		e.writeUserFeedback(span, projectID)
 	case "userAcceptance":
 		e.writeUserAcceptance(span, projectID)
 	default:
-		if subtype != "" {
-			slog.Warn("Unknown user engagement subtype", "subtype", subtype)
-		}
+		// Not an engagement span, skip silently
+		return
 	}
 }
 
 // writeUserFeedback records metrics and logs for user feedback
 func (e *EngagementTelemetry) writeUserFeedback(span sdktrace.ReadOnlySpan, projectID string) {
+	// Get context with span context for trace information
+	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	attributes := span.Attributes()
 	name := e.extractTraceName(attributes)
 
@@ -102,11 +106,13 @@ func (e *EngagementTelemetry) writeUserFeedback(span sdktrace.ReadOnlySpan, proj
 		logData["textFeedback"] = truncate(textFeedback)
 	}
 
-	slog.Info(fmt.Sprintf("UserFeedback[%s]", name), "data", logData)
+	slog.InfoContext(ctx, fmt.Sprintf("[genkit] UserFeedback[%s]", name), "data", logData)
 }
 
 // writeUserAcceptance records metrics and logs for user acceptance
 func (e *EngagementTelemetry) writeUserAcceptance(span sdktrace.ReadOnlySpan, projectID string) {
+	// Get context with span context for trace information
+	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	attributes := span.Attributes()
 	name := e.extractTraceName(attributes)
 
@@ -133,7 +139,7 @@ func (e *EngagementTelemetry) writeUserAcceptance(span sdktrace.ReadOnlySpan, pr
 		logData[k] = v
 	}
 
-	slog.Info(fmt.Sprintf("UserAcceptance[%s]", name), "data", logData)
+	slog.InfoContext(ctx, fmt.Sprintf("[genkit] UserAcceptance[%s]", name), "data", logData)
 }
 
 // Helper functions

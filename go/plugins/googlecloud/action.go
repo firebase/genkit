@@ -17,10 +17,12 @@
 package googlecloud
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ActionTelemetry implements telemetry collection for action input/output logging
@@ -80,16 +82,24 @@ func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, 
 
 // writeLog writes structured logs for action input/output
 func (a *ActionTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName, qualifiedPath, content, projectID, sessionID, threadName string) {
-	path := truncatePath(qualifiedPath)
+	// Get context with span context for trace information
+	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
+	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	logData := map[string]interface{}{
 		"path":          path,
 		"qualifiedPath": qualifiedPath,
 		"featureName":   featureName,
-		"sessionId":     sessionID,
-		"threadName":    threadName,
 		"content":       content,
+	}
+
+	// Only add session fields if they have values (like TypeScript)
+	if sessionID != "" {
+		logData["sessionId"] = sessionID
+	}
+	if threadName != "" {
+		logData["threadName"] = threadName
 	}
 
 	// Add shared metadata
@@ -97,5 +107,5 @@ func (a *ActionTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName,
 		logData[k] = v
 	}
 
-	slog.Info(fmt.Sprintf("%s[%s, %s]", tag, path, featureName), "data", logData)
+	slog.InfoContext(ctx, fmt.Sprintf("[genkit] %s[%s, %s]", tag, path, featureName), "data", logData)
 }

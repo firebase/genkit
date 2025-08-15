@@ -104,13 +104,13 @@ type testFixture struct {
 	ctx          context.Context
 }
 
-// newTestFixture creates a complete test setup with sensible defaults
-func newTestFixture(t *testing.T, modules ...Telemetry) *testFixture {
+// newTestFixture creates a complete test setup with configurable logging
+func newTestFixture(t *testing.T, logInputAndOutput bool, modules ...Telemetry) *testFixture {
 	mockExporter := NewTestSpanExporter()
 	adjuster := &AdjustingTraceExporter{
 		exporter:          mockExporter,
-		modules:           modules, // Use passed modules or empty slice
-		logInputAndOutput: false,
+		modules:           modules,
+		logInputAndOutput: logInputAndOutput,
 		projectId:         "test-project",
 	}
 
@@ -227,7 +227,7 @@ func TestNewAdjustingTraceExporter(t *testing.T) {
 }
 
 func TestAdjustingTraceExporter_ExportSpansWithRealTracer(t *testing.T) {
-	f := newTestFixture(t)
+	f := newTestFixture(t, false)
 
 	// Create spans
 	f.createSpan("generate").
@@ -247,7 +247,7 @@ func TestAdjustingTraceExporter_ExportSpansWithRealTracer(t *testing.T) {
 }
 
 func TestAdjustingTraceExporter_FailedSpan(t *testing.T) {
-	f := newTestFixture(t)
+	f := newTestFixture(t, false)
 
 	// Create failing span
 	f.createSpan("failing-action").
@@ -262,7 +262,7 @@ func TestAdjustingTraceExporter_FailedSpan(t *testing.T) {
 }
 
 func TestAdjustingTraceExporter_NormalizeLabels(t *testing.T) {
-	f := newTestFixture(t)
+	f := newTestFixture(t, false)
 
 	// Create span with colon attributes
 	f.createSpan("label-test").
@@ -295,7 +295,7 @@ func TestAdjustingTraceExporter_Shutdown(t *testing.T) {
 }
 
 func TestCompleteSpanProcessingPipeline(t *testing.T) {
-	f := newTestFixture(t)
+	f := newTestFixture(t, false)
 
 	// Create diverse spans
 	f.createSpan("generate").

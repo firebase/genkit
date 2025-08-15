@@ -31,7 +31,7 @@ func TestPathTelemetry_PipelineIntegration(t *testing.T) {
 	// only processing failing spans that are failure sources
 
 	pathTel := NewPathTelemetry()
-	f := newTestFixture(t, pathTel)
+	f := newTestFixture(t, true, pathTel) // Enable logging for path telemetry tests
 
 	// Set up log capture
 	logBuf := setupLogCapture(t)
@@ -41,6 +41,7 @@ func TestPathTelemetry_PipelineIntegration(t *testing.T) {
 	_, span := f.tracer.Start(ctx, "test-path-span")
 
 	span.SetAttributes(
+		attribute.String("genkit:type", "flow"), // Required for telemetry processing
 		attribute.String("genkit:path", "/{testFlow,t:flow}/{myAction,t:action}"),
 		attribute.Bool("genkit:isFailureSource", true),
 		attribute.String("genkit:state", "error"),
@@ -77,6 +78,7 @@ func TestPathTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "failing span captures metrics correctly",
 			attrs: map[string]interface{}{
+				"genkit:type":            "flow",
 				"genkit:path":            "/{chatFlow,t:flow}/{generateResponse,t:action}",
 				"genkit:isFailureSource": true,
 				"genkit:state":           "error",
@@ -87,11 +89,12 @@ func TestPathTelemetry_MetricCapture(t *testing.T) {
 			expectCounterMetrics:   true,
 			expectHistogramMetrics: true,
 			expectedFeatureName:    "chatFlow",
-			expectedError:          "Test error",
+			expectedError:          "Error",
 		},
 		{
 			name: "non-failure-source span captures no metrics",
 			attrs: map[string]interface{}{
+				"genkit:type":            "flow",
 				"genkit:path":            "/{testFlow,t:flow}/{myAction,t:action}",
 				"genkit:isFailureSource": false,
 				"genkit:state":           "error",
@@ -103,6 +106,7 @@ func TestPathTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "success span captures no metrics",
 			attrs: map[string]interface{}{
+				"genkit:type":            "flow",
 				"genkit:path":            "/{testFlow,t:flow}/{myAction,t:action}",
 				"genkit:isFailureSource": true,
 				"genkit:state":           "success",
@@ -114,6 +118,7 @@ func TestPathTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "span without path captures no metrics",
 			attrs: map[string]interface{}{
+				"genkit:type":            "flow",
 				"genkit:isFailureSource": true,
 				"genkit:state":           "error",
 			},
@@ -138,7 +143,7 @@ func TestPathTelemetry_MetricCapture(t *testing.T) {
 
 			// Create path telemetry (it will use the global meter provider)
 			pathTel := NewPathTelemetry()
-			f := newTestFixture(t, pathTel)
+			f := newTestFixture(t, true, pathTel) // Enable logging for telemetry processing
 
 			f.mockExporter.Reset()
 
@@ -222,7 +227,7 @@ func TestPathTelemetry_ComprehensiveScenarios(t *testing.T) {
 	// Test multiple path telemetry scenarios using the proper pipeline integration
 
 	pathTel := NewPathTelemetry()
-	f := newTestFixture(t, pathTel)
+	f := newTestFixture(t, true, pathTel) // Enable logging for path telemetry tests
 
 	testCases := []struct {
 		name         string
@@ -234,6 +239,7 @@ func TestPathTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "failing span with failure source",
 			attrs: map[string]interface{}{
+				"genkit:type":            "flow",
 				"genkit:path":            "/{chatFlow,t:flow}/{generateResponse,t:action}",
 				"genkit:isFailureSource": true,
 				"genkit:state":           "error",
@@ -247,6 +253,7 @@ func TestPathTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "failing span without failure source",
 			attrs: map[string]interface{}{
+				"genkit:type":            "flow",
 				"genkit:path":            "/{testFlow,t:flow}/{myAction,t:action}",
 				"genkit:isFailureSource": false,
 				"genkit:state":           "error",
@@ -258,6 +265,7 @@ func TestPathTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "success span skipped",
 			attrs: map[string]interface{}{
+				"genkit:type":            "flow",
 				"genkit:path":            "/{testFlow,t:flow}/{myAction,t:action}",
 				"genkit:isFailureSource": true,
 				"genkit:state":           "success",
@@ -269,6 +277,7 @@ func TestPathTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "span without path skipped",
 			attrs: map[string]interface{}{
+				"genkit:type":            "flow",
 				"genkit:isFailureSource": true,
 				"genkit:state":           "error",
 			},
@@ -335,12 +344,13 @@ func TestPathTelemetry_LatencyVerification(t *testing.T) {
 	defer otel.SetMeterProvider(originalProvider)
 
 	pathTel := NewPathTelemetry()
-	f := newTestFixture(t, pathTel)
+	f := newTestFixture(t, true, pathTel) // Enable logging for telemetry processing
 
 	ctx := context.Background()
 	_, span := f.tracer.Start(ctx, "latency-test-span")
 
 	span.SetAttributes(
+		attribute.String("genkit:type", "flow"), // Required for telemetry processing
 		attribute.String("genkit:path", "/{testFlow,t:flow}/{latencyTest,t:action}"),
 		attribute.Bool("genkit:isFailureSource", true),
 		attribute.String("genkit:state", "error"),

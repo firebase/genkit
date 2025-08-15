@@ -55,6 +55,7 @@ func TestActionTelemetry_PipelineIntegration(t *testing.T) {
 	_, span := f.tracer.Start(ctx, "test-tool-span")
 
 	span.SetAttributes(
+		attribute.String("genkit:type", "action"), // Required for telemetry processing
 		attribute.String("genkit:name", "testTool"),
 		attribute.String("genkit:metadata:subtype", "tool"),
 		attribute.String("genkit:path", "/{testFlow,t:flow}/{testTool,t:action}"),
@@ -70,8 +71,8 @@ func TestActionTelemetry_PipelineIntegration(t *testing.T) {
 	logOutput := logBuf.String()
 
 	// Verify action telemetry worked
-	assert.Contains(t, logOutput, "Input[/{testFlow,t:flow}/{testTool,t:action}, testFlow]")
-	assert.Contains(t, logOutput, "Output[/{testFlow,t:flow}/{testTool,t:action}, testFlow]")
+	assert.Contains(t, logOutput, "Input[testFlow > testTool, testFlow]")
+	assert.Contains(t, logOutput, "Output[testFlow > testTool, testFlow]")
 	assert.Contains(t, logOutput, "test input data")
 	assert.Contains(t, logOutput, "test output data")
 
@@ -182,6 +183,7 @@ func TestActionTelemetry_FilteringLogic(t *testing.T) {
 			_, span := f.tracer.Start(ctx, "test-span")
 
 			span.SetAttributes(
+				attribute.String("genkit:type", "action"), // Required for telemetry processing
 				attribute.String("genkit:name", tc.actionName),
 				attribute.String("genkit:metadata:subtype", tc.subtype),
 				attribute.String("genkit:path", "/{testFlow,t:flow}/{testAction,t:action}"),
@@ -228,6 +230,7 @@ func TestActionTelemetry_LoggingBehavior(t *testing.T) {
 		{
 			name: "both input and output present",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "myTool",
 				"genkit:metadata:subtype": "tool",
 				"genkit:path":             "/{chatFlow,t:flow}/{myTool,t:action}",
@@ -238,14 +241,15 @@ func TestActionTelemetry_LoggingBehavior(t *testing.T) {
 			},
 			expectInputLog:        true,
 			expectOutputLog:       true,
-			expectedInputLog:      "Input[/{chatFlow,t:flow}/{myTool,t:action}, chatFlow]",
-			expectedOutputLog:     "Output[/{chatFlow,t:flow}/{myTool,t:action}, chatFlow]",
+			expectedInputLog:      "Input[chatFlow > myTool, chatFlow]",
+			expectedOutputLog:     "Output[chatFlow > myTool, chatFlow]",
 			expectedInputContent:  "Hello world",
 			expectedOutputContent: "Hi there!",
 		},
 		{
 			name: "only input present",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "myTool",
 				"genkit:metadata:subtype": "tool",
 				"genkit:path":             "/{testFlow,t:flow}/{myTool,t:action}",
@@ -254,7 +258,7 @@ func TestActionTelemetry_LoggingBehavior(t *testing.T) {
 			},
 			expectInputLog:        true,
 			expectOutputLog:       false,
-			expectedInputLog:      "Input[/{testFlow,t:flow}/{myTool,t:action}, testFlow]",
+			expectedInputLog:      "Input[testFlow > myTool, testFlow]",
 			expectedOutputLog:     "",
 			expectedInputContent:  "Hello world",
 			expectedOutputContent: "",
@@ -262,6 +266,7 @@ func TestActionTelemetry_LoggingBehavior(t *testing.T) {
 		{
 			name: "only output present",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "myTool",
 				"genkit:metadata:subtype": "tool",
 				"genkit:path":             "/{testFlow,t:flow}/{myTool,t:action}",
@@ -271,13 +276,14 @@ func TestActionTelemetry_LoggingBehavior(t *testing.T) {
 			expectInputLog:        false,
 			expectOutputLog:       true,
 			expectedInputLog:      "",
-			expectedOutputLog:     "Output[/{testFlow,t:flow}/{myTool,t:action}, testFlow]",
+			expectedOutputLog:     "Output[testFlow > myTool, testFlow]",
 			expectedInputContent:  "",
 			expectedOutputContent: "Hi there!",
 		},
 		{
 			name: "neither input nor output present",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "myTool",
 				"genkit:metadata:subtype": "tool",
 				"genkit:path":             "/{testFlow,t:flow}/{myTool,t:action}",
@@ -294,6 +300,7 @@ func TestActionTelemetry_LoggingBehavior(t *testing.T) {
 		{
 			name: "generate action",
 			attrs: map[string]string{
+				"genkit:type":   "action",
 				"genkit:name":   "generate",
 				"genkit:path":   "/{chatFlow,t:flow}/{generate,t:action}",
 				"genkit:input":  "What is the weather?",
@@ -301,8 +308,8 @@ func TestActionTelemetry_LoggingBehavior(t *testing.T) {
 			},
 			expectInputLog:        true,
 			expectOutputLog:       true,
-			expectedInputLog:      "Input[/{chatFlow,t:flow}/{generate,t:action}, chatFlow]",
-			expectedOutputLog:     "Output[/{chatFlow,t:flow}/{generate,t:action}, chatFlow]",
+			expectedInputLog:      "Input[chatFlow > generate, chatFlow]",
+			expectedOutputLog:     "Output[chatFlow > generate, chatFlow]",
 			expectedInputContent:  "What is the weather?",
 			expectedOutputContent: "The weather is sunny.",
 		},
@@ -397,7 +404,7 @@ func TestActionTelemetry_FeatureNameExtraction(t *testing.T) {
 			path:            "/{chatFlow,t:flow}/{myTool,t:action}",
 			actionName:      "myTool",
 			expectedFeature: "chatFlow",
-			expectedLog:     "Input[/{chatFlow,t:flow}/{myTool,t:action}, chatFlow]",
+			expectedLog:     "Input[chatFlow > myTool, chatFlow]",
 		},
 		{
 			name:            "empty path falls back to action name",
@@ -425,7 +432,7 @@ func TestActionTelemetry_FeatureNameExtraction(t *testing.T) {
 			path:            "/{myApp,t:flow}/{step1,t:flowStep}/{tool,t:action}",
 			actionName:      "tool",
 			expectedFeature: "myApp",
-			expectedLog:     "Input[/{myApp,t:flow}/{step1,t:flowStep}/{tool,t:action}, myApp]",
+			expectedLog:     "Input[myApp > step1 > tool, myApp]",
 		},
 	}
 
@@ -461,6 +468,7 @@ func TestActionTelemetry_FeatureNameExtraction(t *testing.T) {
 			_, span := f.tracer.Start(ctx, "test-span")
 
 			span.SetAttributes(
+				attribute.String("genkit:type", "action"), // Required for telemetry processing
 				attribute.String("genkit:name", tc.actionName),
 				attribute.String("genkit:metadata:subtype", "tool"),
 				attribute.String("genkit:path", tc.path),
@@ -496,16 +504,18 @@ func TestActionTelemetry_EdgeCases(t *testing.T) {
 		{
 			name: "missing action name",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:metadata:subtype": "tool",
 				"genkit:path":             "/{testFlow,t:flow}/{tool,t:action}",
 				"genkit:input":            "test input",
 			},
 			expectLogs:  true,
-			expectedLog: "Input[/{testFlow,t:flow}/{tool,t:action}, testFlow]", // Should extract from path
+			expectedLog: "Input[testFlow > tool, testFlow]", // Should extract from path
 		},
 		{
 			name: "missing path",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "myTool",
 				"genkit:metadata:subtype": "tool",
 				"genkit:input":            "test input",
@@ -516,16 +526,18 @@ func TestActionTelemetry_EdgeCases(t *testing.T) {
 		{
 			name: "missing subtype but actionName is generate",
 			attrs: map[string]string{
+				"genkit:type":  "action",
 				"genkit:name":  "generate",
 				"genkit:path":  "/{chatFlow,t:flow}/{generate,t:action}",
 				"genkit:input": "test input",
 			},
 			expectLogs:  true,
-			expectedLog: "Input[/{chatFlow,t:flow}/{generate,t:action}, chatFlow]",
+			expectedLog: "Input[chatFlow > generate, chatFlow]",
 		},
 		{
 			name: "session and thread info included",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "myTool",
 				"genkit:metadata:subtype": "tool",
 				"genkit:path":             "/{testFlow,t:flow}/{myTool,t:action}",
@@ -629,6 +641,7 @@ func TestActionTelemetry_InputTruncation(t *testing.T) {
 	_, span := f.tracer.Start(ctx, "test-span")
 
 	span.SetAttributes(
+		attribute.String("genkit:type", "action"), // Required for telemetry processing
 		attribute.String("genkit:name", "myTool"),
 		attribute.String("genkit:metadata:subtype", "tool"),
 		attribute.String("genkit:path", "/{testFlow,t:flow}/{myTool,t:action}"),
@@ -641,7 +654,7 @@ func TestActionTelemetry_InputTruncation(t *testing.T) {
 	logOutput := logBuf.String()
 
 	// Verify the log header appears
-	assert.Contains(t, logOutput, "Input[/{testFlow,t:flow}/{myTool,t:action}, testFlow]", "Expected input log header")
+	assert.Contains(t, logOutput, "Input[testFlow > myTool, testFlow]", "Expected input log header")
 
 	// Simple verification: check that the original input is not entirely present in logs
 	// If truncation worked, the full 130k character string should not appear in logs

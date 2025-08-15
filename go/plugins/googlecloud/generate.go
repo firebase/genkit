@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -32,6 +33,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // GenerateTelemetry implements telemetry collection for model generate actions
@@ -199,6 +201,8 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 
 // recordGenerateActionConfigLogs logs configuration information
 func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, input *ai.GenerateActionOptions, projectID, sessionID, threadName string) {
+	// Get context with span context for trace information
+	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 
@@ -207,10 +211,16 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		"path":          path,
 		"qualifiedPath": qualifiedPath,
 		"featureName":   featureName,
-		"sessionId":     sessionID,
-		"threadName":    threadName,
 		"source":        "go",
 		"sourceVersion": internal.Version,
+	}
+
+	// Only add session fields if they have values (like TypeScript)
+	if sessionID != "" {
+		logData["sessionId"] = sessionID
+	}
+	if threadName != "" {
+		logData["threadName"] = threadName
 	}
 
 	// Add shared metadata
@@ -236,8 +246,8 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 	logData["sourceVersion"] = internal.Version
 
 	// Send to Google Cloud Logging via slog
-	message := fmt.Sprintf("Config[%s, %s]", path, model)
-	slog.Info(message, "data", logData)
+	message := fmt.Sprintf("[genkit] Config[%s, %s]", path, model)
+	slog.InfoContext(ctx, message, "data", logData)
 }
 
 // recordGenerateActionInputLogs logs input information
@@ -246,6 +256,8 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 		return
 	}
 
+	// Get context with span context for trace information
+	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 
@@ -254,8 +266,14 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 		"path":          path,
 		"qualifiedPath": qualifiedPath,
 		"featureName":   featureName,
-		"sessionId":     sessionID,
-		"threadName":    threadName,
+	}
+
+	// Only add session fields if they have values (like TypeScript)
+	if sessionID != "" {
+		baseLogData["sessionId"] = sessionID
+	}
+	if threadName != "" {
+		baseLogData["threadName"] = threadName
 	}
 
 	// Add shared metadata
@@ -281,14 +299,16 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 			logData["totalMessages"] = messages
 
 			// Send to Google Cloud Logging via slog
-			message := fmt.Sprintf("Input[%s, %s] %s", path, model, partCounts)
-			slog.Info(message, "data", logData)
+			message := fmt.Sprintf("[genkit] Input[%s, %s] %s", path, model, partCounts)
+			slog.InfoContext(ctx, message, "data", logData)
 		}
 	}
 }
 
 // recordGenerateActionOutputLogs logs output information
 func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, output *ai.ModelResponse, projectID, sessionID, threadName string) {
+	// Get context with span context for trace information
+	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 
@@ -297,8 +317,14 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 		"path":          path,
 		"qualifiedPath": qualifiedPath,
 		"featureName":   featureName,
-		"sessionId":     sessionID,
-		"threadName":    threadName,
+	}
+
+	// Only add session fields if they have values (like TypeScript)
+	if sessionID != "" {
+		baseLogData["sessionId"] = sessionID
+	}
+	if threadName != "" {
+		baseLogData["threadName"] = threadName
 	}
 
 	// Add shared metadata
@@ -336,8 +362,8 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 			logData["finishReason"] = output.FinishReason
 
 			// Send to Google Cloud Logging via slog
-			message := fmt.Sprintf("Output[%s, %s] %s", path, model, partCounts)
-			slog.Info(message, "data", logData)
+			message := fmt.Sprintf("[genkit] Output[%s, %s] %s", path, model, partCounts)
+			slog.InfoContext(ctx, message, "data", logData)
 		}
 	}
 }
@@ -459,11 +485,28 @@ func (g *GenerateTelemetry) toPartLogToolResponse(tool *ai.ToolResponse) string 
 // Utility functions
 
 // toDisplayPath converts qualified paths to display paths
+// Converts /{name1,t:type}/{name2,t:type} to "name1 > name2"
 func toDisplayPath(qualifiedPath string) string {
 	if qualifiedPath == "" {
 		return "<unknown>"
 	}
 
-	// Extract the display path from qualified path
-	return qualifiedPath
+	// Use regex to extract names from {name,type} patterns
+	// Pattern matches {name,anything} and captures the name part
+	re := regexp.MustCompile(`\{([^,}]+),[^}]+\}`)
+	matches := re.FindAllStringSubmatch(qualifiedPath, -1)
+
+	if len(matches) == 0 {
+		return qualifiedPath // Return as-is if no matches
+	}
+
+	// Extract names and join with " > "
+	var names []string
+	for _, match := range matches {
+		if len(match) > 1 {
+			names = append(names, match[1])
+		}
+	}
+
+	return strings.Join(names, " > ")
 }

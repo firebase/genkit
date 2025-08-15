@@ -17,6 +17,7 @@
 package googlecloud
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/firebase/genkit/go/internal"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // FeatureTelemetry implements telemetry collection for top-level feature requests
@@ -134,16 +136,24 @@ func (f *FeatureTelemetry) writeFeatureFailure(featureName string, latencyMs flo
 
 // writeLog writes structured logs for feature input/output
 func (f *FeatureTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName, qualifiedPath, content, projectID, sessionID, threadName string) {
-	path := truncatePath(qualifiedPath)
+	// Get context with span context for trace information
+	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
+	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	logData := map[string]interface{}{
 		"path":          path,
 		"qualifiedPath": qualifiedPath,
 		"featureName":   featureName,
-		"sessionId":     sessionID,
-		"threadName":    threadName,
 		"content":       content,
+	}
+
+	// Only add session fields if they have values (like TypeScript)
+	if sessionID != "" {
+		logData["sessionId"] = sessionID
+	}
+	if threadName != "" {
+		logData["threadName"] = threadName
 	}
 
 	// Add shared metadata
@@ -151,7 +161,7 @@ func (f *FeatureTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName
 		logData[k] = v
 	}
 
-	slog.Info(fmt.Sprintf("%s[%s, %s]", tag, path, featureName), "data", logData)
+	slog.InfoContext(ctx, fmt.Sprintf("[genkit] %s[%s, %s]", tag, path, featureName), "data", logData)
 }
 
 // Helper functions

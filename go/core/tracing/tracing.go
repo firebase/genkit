@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -66,6 +67,45 @@ func isErrorAlreadyMarked(err error) bool {
 		return me.marked
 	}
 	return false
+}
+
+// captureStackTrace captures the current Go stack trace for error reporting
+func captureStackTrace() string {
+	// Capture stack trace with reasonable depth
+	buf := make([]byte, 4096)
+	n := runtime.Stack(buf, false)
+
+	// Convert to string and format for readability
+	stackTrace := string(buf[:n])
+
+	// Clean up the stack trace to remove internal tracing calls
+	lines := strings.Split(stackTrace, "\n")
+	var cleanLines []string
+	skipNext := false
+
+	for _, line := range lines {
+		// Skip lines related to this tracing package and runtime
+		if strings.Contains(line, "github.com/firebase/genkit/go/core/tracing") ||
+			strings.Contains(line, "runtime.") ||
+			strings.Contains(line, "captureStackTrace") {
+			skipNext = true
+			continue
+		}
+
+		if skipNext {
+			skipNext = false
+			continue
+		}
+
+		cleanLines = append(cleanLines, line)
+
+		// Limit the stack trace depth for readability
+		if len(cleanLines) > 20 {
+			break
+		}
+	}
+
+	return strings.Join(cleanLines, "\n")
 }
 
 // State holds OpenTelemetry values for creating traces.
@@ -227,12 +267,23 @@ func RunInNewSpan[I, O any](
 		parentPath = parentSM.Path
 	}
 
-	// Build path with type annotations like JS: /{name,t:type}
-	sm.Path = buildAnnotatedPath(metadata.Name, parentPath, metadata.Type)
-
-	// Add subtype decoration if subtype is specified
-	if metadata.Subtype != "" {
-		sm.Path = decoratePathWithSubtype(sm.Path, metadata.Subtype)
+	// Build path with type annotations: /{name,t:type}
+	// Match TypeScript behavior: flows use t:flow, utils use t:util, others use t:type with subtype decoration
+	//
+	// Note: All genkit resources are Type="action" but their actual type is in the Subtype field
+	// Flows have Subtype="flow", utils have Subtype="util", models have Subtype="model", etc.
+	if metadata.Subtype == "flow" {
+		// For flows, use t:flow (like TypeScript) instead of t:action,s:flow
+		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, "flow")
+	} else if metadata.Subtype == "util" {
+		// For utils, use t:util (like TypeScript) instead of t:action,s:util
+		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, "util")
+	} else {
+		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, metadata.Type)
+		// Add subtype decoration if subtype is specified (for non-flows and non-utils)
+		if metadata.Subtype != "" {
+			sm.Path = decoratePathWithSubtype(sm.Path, metadata.Subtype)
+		}
 	}
 
 	var opts []trace.SpanStartOption
@@ -260,12 +311,27 @@ func RunInNewSpan[I, O any](
 	if err != nil {
 		sm.State = spanStateError
 
+		// Capture error details in output for trace display
+		// Set output to a map structure similar to what TypeScript would produce
+		sm.Output = map[string]interface{}{
+			"error": err.Error(),
+		}
+
 		// Add genkit:isFailureSource logic like TypeScript
 		// Mark the first failing span as the source of failure. Prevent parent
 		// spans that catch re-thrown exceptions from also claiming to be the source.
 		if !isErrorAlreadyMarked(err) {
-			// Set isFailureSource directly on span at runtime
-			span.SetAttributes(attribute.String("genkit:isFailureSource", "true"))
+			// Set isFailureSource in spanMetadata so it gets included in final attributes
+			sm.IsFailureSource = true
+
+			// Record exception event with stack trace for PathTelemetry
+			stackTrace := captureStackTrace()
+			span.RecordError(err, trace.WithAttributes(
+				attribute.String("exception.type", "Error"),
+				attribute.String("exception.message", err.Error()),
+				attribute.String("exception.stacktrace", stackTrace),
+			))
+
 			err = markErrorAsHandled(err) // Mark error to prevent parent spans from claiming failure source
 		}
 
@@ -330,15 +396,16 @@ const (
 
 // spanMetadata holds genkit-specific information about a span.
 type spanMetadata struct {
-	Name     string
-	State    spanState
-	IsRoot   bool
-	Input    any
-	Output   any
-	Path     string            // annotated path with type information
-	Type     string            // span type (action, flow, model, etc.)
-	Subtype  string            // span subtype (tool, model, flow, etc.)
-	Metadata map[string]string // additional custom metadata
+	Name            string
+	State           spanState
+	IsRoot          bool
+	IsFailureSource bool // whether this span is the source of a failure
+	Input           any
+	Output          any
+	Path            string            // annotated path with type information
+	Type            string            // span type (action, flow, model, etc.)
+	Subtype         string            // span subtype (tool, model, flow, etc.)
+	Metadata        map[string]string // additional custom metadata
 }
 
 // attributes returns some information about the spanMetadata
@@ -364,6 +431,10 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 
 	if sm.IsRoot {
 		kvs = append(kvs, attribute.Bool("genkit:isRoot", sm.IsRoot))
+	}
+
+	if sm.IsFailureSource {
+		kvs = append(kvs, attribute.Bool("genkit:isFailureSource", true))
 	}
 
 	// Add custom metadata attributes

@@ -24,13 +24,14 @@ func TestFeatureTelemetry_PipelineIntegration(t *testing.T) {
 	// only processing root spans
 
 	featureTel := NewFeatureTelemetry()
-	f := newTestFixture(t, featureTel)
+	f := newTestFixture(t, false, featureTel)
 
 	// Create span using the TracerProvider - this triggers the full pipeline
 	ctx := context.Background()
 	_, span := f.tracer.Start(ctx, "test-feature-span")
 
 	span.SetAttributes(
+		attribute.String("genkit:type", "flow"), // Required for telemetry processing
 		attribute.Bool("genkit:isRoot", true),
 		attribute.String("genkit:name", "testFeature"),
 		attribute.String("genkit:path", "/{testFlow,t:flow}/{testFeature,t:action}"),
@@ -59,6 +60,7 @@ func TestFeatureTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "successful feature captures metrics correctly",
 			attrs: map[string]interface{}{
+				"genkit:type":   "flow",
 				"genkit:isRoot": true,
 				"genkit:name":   "chatFlow",
 				"genkit:path":   "/{chatFlow,t:flow}/{generateResponse,t:action}",
@@ -72,6 +74,7 @@ func TestFeatureTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "failed feature captures metrics correctly",
 			attrs: map[string]interface{}{
+				"genkit:type":   "flow",
 				"genkit:isRoot": true,
 				"genkit:name":   "codeAssistant",
 				"genkit:path":   "/{codeAssistant,t:flow}/{suggestCode,t:action}",
@@ -140,7 +143,7 @@ func TestFeatureTelemetry_MetricCapture(t *testing.T) {
 
 			// Create feature telemetry (it will use the global meter provider)
 			featureTel := NewFeatureTelemetry()
-			f := newTestFixture(t, featureTel)
+			f := newTestFixture(t, false, featureTel)
 
 			f.mockExporter.Reset()
 
@@ -223,7 +226,7 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 	// Test multiple feature telemetry scenarios using the proper pipeline integration
 
 	featureTel := NewFeatureTelemetry()
-	f := newTestFixture(t, featureTel)
+	f := newTestFixture(t, false, featureTel)
 
 	testCases := []struct {
 		name      string
@@ -345,6 +348,7 @@ func TestFeatureTelemetry_InputOutputLogging(t *testing.T) {
 	_, span := f.tracer.Start(ctx, "test-feature-span")
 
 	span.SetAttributes(
+		attribute.String("genkit:type", "flow"), // Required for telemetry processing
 		attribute.Bool("genkit:isRoot", true),
 		attribute.String("genkit:name", "testFeature"),
 		attribute.String("genkit:path", "/{testFlow,t:flow}/{testFeature,t:action}"),
@@ -432,12 +436,13 @@ func TestFeatureTelemetry_LatencyVerification(t *testing.T) {
 	defer otel.SetMeterProvider(originalProvider)
 
 	featureTel := NewFeatureTelemetry()
-	f := newTestFixture(t, featureTel)
+	f := newTestFixture(t, false, featureTel)
 
 	ctx := context.Background()
 	_, span := f.tracer.Start(ctx, "latency-test-span")
 
 	span.SetAttributes(
+		attribute.String("genkit:type", "flow"), // Required for telemetry processing
 		attribute.Bool("genkit:isRoot", true),
 		attribute.String("genkit:name", "latencyTestFeature"),
 		attribute.String("genkit:state", "success"),

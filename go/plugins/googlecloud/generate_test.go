@@ -37,7 +37,7 @@ func TestNewGenerateTelemetry(t *testing.T) {
 // works correctly in the full pipeline with realistic model generation spans
 func TestGenerateTelemetry_PipelineIntegration(t *testing.T) {
 	genTel := NewGenerateTelemetry()
-	f := newTestFixture(t, genTel)
+	f := newTestFixture(t, false, genTel)
 
 	// Set up test
 
@@ -91,6 +91,7 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "successful generation captures all metrics",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "googleai/gemini-2.0-pro-flash",
 				"genkit:metadata:subtype": "model",
 				"genkit:path":             "/{chatFlow,t:flow}/{generate,t:action}",
@@ -114,6 +115,7 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "failed generation captures error metrics",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "googleai/gemini-2.0-pro-flash",
 				"genkit:metadata:subtype": "model",
 				"genkit:path":             "/{errorFlow,t:flow}/{generate,t:action}",
@@ -131,6 +133,7 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "generation with video and audio captures multimedia metrics",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "googleai/gemini-2.0-pro-flash",
 				"genkit:metadata:subtype": "model",
 				"genkit:path":             "/{multimediaFlow,t:flow}/{generate,t:action}",
@@ -154,6 +157,7 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "non-model span captures no metrics",
 			attrs: map[string]string{
+				"genkit:type":             "action",
 				"genkit:name":             "myTool",
 				"genkit:metadata:subtype": "tool",
 				"genkit:path":             "/{testFlow,t:flow}/{myTool,t:action}",
@@ -179,7 +183,7 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 
 			// Create generate telemetry (it will use the global meter provider)
 			genTel := NewGenerateTelemetry()
-			f := newTestFixture(t, genTel)
+			f := newTestFixture(t, false, genTel)
 
 			f.mockExporter.Reset()
 
@@ -367,7 +371,7 @@ func TestGenerateTelemetry_FilteringLogic(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			genTel := NewGenerateTelemetry()
-			f := newTestFixture(t, genTel)
+			f := newTestFixture(t, false, genTel)
 
 			// Create minimal valid input for processing
 			inputJSON := `{"model":"googleai/gemini-2.5-flash"}`
@@ -443,7 +447,7 @@ func TestGenerateTelemetry_JSONParsingEdgeCases(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			genTel := NewGenerateTelemetry()
-			f := newTestFixture(t, genTel)
+			f := newTestFixture(t, false, genTel)
 
 			ctx := context.Background()
 			_, span := f.tracer.Start(ctx, "test-span")
@@ -516,7 +520,7 @@ func TestGenerateTelemetry_FeatureNameExtraction(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			genTel := NewGenerateTelemetry()
-			f := newTestFixture(t, genTel)
+			f := newTestFixture(t, false, genTel)
 
 			// Create minimal valid input for processing
 			inputJSON := `{"model":"googleai/gemini-2.5-flash"}`

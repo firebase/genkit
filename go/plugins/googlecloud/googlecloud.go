@@ -35,8 +35,6 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 
-	"github.com/firebase/genkit/go/internal"
-
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -96,29 +94,16 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 
 	logLevel := slog.LevelInfo
 
-	// Create base resource with fallback values
-	baseResource := resource.NewWithAttributes(
+	// Create minimal resource to exactly match JS behavior
+	// JS only sets { type: 'global' } + GCP detection, no service.name at all
+	finalResource := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		semconv.ServiceName("genkit"), // Fallback if detection fails
-		semconv.ServiceVersion(internal.Version),
+		// Note: JS uses { type: 'global' } but Go doesn't have direct equivalent
+		// Keeping resource completely minimal to match JS exactly
 	)
 
-	// Auto-detect service name from environment
-	detectedResource, err := resource.New(context.Background(),
-		resource.WithDetectors(gcp.NewDetector()), // Detects GCP service names
-		resource.WithFromEnv(),                    // Detects from env vars like OTEL_SERVICE_NAME
-		resource.WithProcess(),                    // Detects from process name as fallback
-	)
-	if err != nil {
-		slog.Warn("Failed to detect resource information, using defaults", "error", err)
-		detectedResource = resource.Empty()
-	}
-
-	// Merge detected resource with base resource
-	finalResource, err := resource.Merge(baseResource, detectedResource)
-	if err != nil {
-		slog.Warn("Failed to merge resource information, using base resource", "error", err)
-		finalResource = baseResource
+	if gcpResource, err := gcp.NewDetector().Detect(context.Background()); err == nil {
+		finalResource, _ = resource.Merge(finalResource, gcpResource)
 	}
 
 	var spanProcessors []sdktrace.SpanProcessor
@@ -166,7 +151,7 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 		// Set up metrics and logging
 		if !opts.DisableMetrics {
 			slog.Debug("Setting up metrics provider...")
-			if err := setMeterProvider(projectID, metricInterval, opts.Credentials); err != nil {
+			if err := setMeterProvider(projectID, metricInterval, opts.Credentials, finalResource); err != nil {
 				slog.Error("Failed to set up Google Cloud metrics", "error", err)
 			}
 			slog.Debug("Metrics provider setup complete")
@@ -202,7 +187,7 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 	setupGracefulShutdown(tp)
 }
 
-func setMeterProvider(projectID string, interval time.Duration, credentials *google.Credentials) error {
+func setMeterProvider(projectID string, interval time.Duration, credentials *google.Credentials, res *resource.Resource) error {
 	var metricOpts []mexporter.Option
 	metricOpts = append(metricOpts, mexporter.WithProjectID(projectID))
 
@@ -218,7 +203,10 @@ func setMeterProvider(projectID string, interval time.Duration, credentials *goo
 		return fmt.Errorf("failed to create metrics exporter: %w", err)
 	}
 	r := sdkmetric.NewPeriodicReader(mexp, sdkmetric.WithInterval(interval))
-	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(r))
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(r),
+		sdkmetric.WithResource(res),
+	)
 	otel.SetMeterProvider(mp)
 	return nil
 }
@@ -272,7 +260,21 @@ func (e *AdjustingTraceExporter) adjust(spans []sdktrace.ReadOnlySpan) []sdktrac
 	var adjustedSpans []sdktrace.ReadOnlySpan
 
 	for _, span := range spans {
-		// Process telemetry first
+		// Filter out Google Cloud SDK internal operations, but keep user spans like HTTP POST
+		// Only exclude spans that are clearly internal Google Cloud telemetry operations
+		// Note: These service names are stable Google Cloud APIs, but this list may need
+		// updates if new internal telemetry services are added in the future
+		spanName := span.Name()
+		isInternalGoogleCloudSpan := strings.Contains(spanName, "google.monitoring.v3.MetricService") ||
+			strings.Contains(spanName, "google.devtools.cloudtrace.v2.TraceService") ||
+			strings.Contains(spanName, "google.logging.v2.LoggingServiceV2")
+
+		if isInternalGoogleCloudSpan {
+			// Skip internal Google Cloud SDK spans, but allow user HTTP spans
+			continue
+		}
+
+		// Process telemetry (but only for Genkit spans)
 		e.tickTelemetry(span)
 		e.spansProcessed++
 
@@ -296,6 +298,20 @@ func (e *AdjustingTraceExporter) adjust(spans []sdktrace.ReadOnlySpan) []sdktrac
 func (e *AdjustingTraceExporter) tickTelemetry(span sdktrace.ReadOnlySpan) {
 	if len(e.modules) == 0 {
 		return
+	}
+
+	// Only process Genkit spans (skip internal Google Cloud SDK spans)
+	// This matches TypeScript behavior of filtering by genkit:type attribute
+	attrs := span.Attributes()
+	hasGenkitType := false
+	for _, attr := range attrs {
+		if string(attr.Key) == "genkit:type" {
+			hasGenkitType = true
+			break
+		}
+	}
+	if !hasGenkitType {
+		return // Skip non-Genkit spans (e.g., Google Cloud SDK internal HTTP requests)
 	}
 
 	// Process through all enabled modules

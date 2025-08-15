@@ -17,13 +17,16 @@
 package googlecloud
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/internal"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // PathTelemetry implements telemetry collection for error/failure path tracking
@@ -52,6 +55,8 @@ func NewPathTelemetry() *PathTelemetry {
 
 // Tick processes a span for path telemetry
 func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
+	// Get context with span context for trace information
+	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	attributes := span.Attributes()
 
 	path := extractStringAttribute(attributes, "genkit:path")
@@ -67,15 +72,22 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 	sessionID := extractStringAttribute(attributes, "genkit:sessionId")
 	threadName := extractStringAttribute(attributes, "genkit:threadName")
 
-	// Extract error details from span
-	errorName := p.extractErrorName(span)
-	if errorName == "" {
-		errorName = "<unknown>"
-	}
+	// Extract error details from span - align with TypeScript format
+	// TypeScript always uses "Error" as the error type/name
+	errorType := "Error"
+
+	// Get the actual error message from span status or events
 	errorMessage := p.extractErrorMessage(span)
 	if errorMessage == "" {
-		errorMessage = "<unknown>"
+		// Fallback to span status description if no event message
+		if span.Status().Code == codes.Error {
+			errorMessage = span.Status().Description
+		}
+		if errorMessage == "" {
+			errorMessage = "unknown error"
+		}
 	}
+
 	errorStack := p.extractErrorStack(span)
 
 	// Calculate latency
@@ -85,28 +97,35 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 	pathDimensions := map[string]interface{}{
 		"featureName":   extractOuterFeatureNameFromPath(path),
 		"status":        "failure",
-		"error":         errorName,
+		"error":         errorType,
 		"path":          path,
 		"source":        "go",
 		"sourceVersion": internal.Version,
 	}
+
 	p.pathCounter.Add(1, pathDimensions)
 	p.pathLatencies.Record(latencyMs, pathDimensions)
 
-	// Log structured error
-	displayPath := truncatePath(path)
+	// Extract simple path name (like TypeScript) vs qualified path
+	simplePath := extractSimplePathFromQualified(path)
+	displayPath := truncatePath(simplePath)
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	logData := map[string]interface{}{
 		"path":          displayPath,
 		"qualifiedPath": path,
-		"name":          errorName,
-		"message":       errorMessage,
+		"name":          errorType,
 		"stack":         errorStack,
 		"source":        "go",
 		"sourceVersion": internal.Version,
-		"sessionId":     sessionID,
-		"threadName":    threadName,
+	}
+
+	// Only add session fields if they have values (like TypeScript)
+	if sessionID != "" {
+		logData["sessionId"] = sessionID
+	}
+	if threadName != "" {
+		logData["threadName"] = threadName
 	}
 
 	// Add shared metadata
@@ -114,11 +133,39 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 		logData[k] = v
 	}
 
-	// Log as error level
-	slog.Error(fmt.Sprintf("Error[%s, %s]", displayPath, errorName), "data", logData)
+	// Log as error level - format like TypeScript: [genkit] Error[path, Error] message
+	logMessage := fmt.Sprintf("[genkit] Error[%s, %s] %s", displayPath, errorType, errorMessage)
+	slog.ErrorContext(ctx, logMessage, "data", logData)
 }
 
 // Helper functions
+
+// extractSimplePathFromQualified extracts simple path name from qualified path
+// /{simple-error-test,t:flow} -> simple-error-test
+func extractSimplePathFromQualified(qualifiedPath string) string {
+	if qualifiedPath == "" {
+		return ""
+	}
+
+	// Remove leading slash if present
+	path := strings.TrimPrefix(qualifiedPath, "/")
+
+	// Find the first brace to get the segment
+	if strings.HasPrefix(path, "{") && strings.Contains(path, "}") {
+		// Extract content between first { and }
+		end := strings.Index(path, "}")
+		if end > 1 {
+			content := path[1:end]
+			// Split by comma and take the first part (the name)
+			if parts := strings.Split(content, ","); len(parts) > 0 {
+				return parts[0]
+			}
+		}
+	}
+
+	// If not in expected format, return as-is
+	return qualifiedPath
+}
 
 // calculateLatencyMs calculates the latency in milliseconds from span start/end times
 func (p *PathTelemetry) calculateLatencyMs(span sdktrace.ReadOnlySpan) float64 {
@@ -132,27 +179,6 @@ func (p *PathTelemetry) calculateLatencyMs(span sdktrace.ReadOnlySpan) float64 {
 
 	duration := endTime.Sub(startTime)
 	return float64(duration.Nanoseconds()) / 1e6 // Convert to milliseconds
-}
-
-// extractErrorName extracts error name from span events and status
-func (p *PathTelemetry) extractErrorName(span sdktrace.ReadOnlySpan) string {
-	// Check events for error information first
-	for _, event := range span.Events() {
-		if event.Name == "exception" {
-			for _, attr := range event.Attributes {
-				if string(attr.Key) == "exception.type" {
-					return attr.Value.AsString()
-				}
-			}
-		}
-	}
-
-	// Fallback to span status
-	if span.Status().Code == codes.Error {
-		return span.Status().Description
-	}
-
-	return ""
 }
 
 // extractErrorMessage extracts error message from span events
@@ -174,7 +200,7 @@ func (p *PathTelemetry) extractErrorStack(span sdktrace.ReadOnlySpan) string {
 	for _, event := range span.Events() {
 		if event.Name == "exception" {
 			for _, attr := range event.Attributes {
-				if string(attr.Key) == "exception.stacktrace" {
+				if string(attr.Key) == "exception.message" {
 					return attr.Value.AsString()
 				}
 			}

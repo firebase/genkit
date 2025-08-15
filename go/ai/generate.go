@@ -27,7 +27,6 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
-	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -107,15 +106,19 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"err", err)
 			}()
 
-			return tracing.RunInNewSpan(ctx, r.TracingState(), &tracing.SpanMetadata{
-				Name:    "generate",
-				Type:    "action",
-				Subtype: "util", // Generate is a util action
-				IsRoot:  false,
-			}, actionOpts,
-				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
-					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
-				})
+			// Get registry and middleware from context (set by ai.Generate)
+			registryToUse := r // fallback to original registry
+			if ctxRegistry := ctx.Value("genkit:registry"); ctxRegistry != nil {
+				registryToUse = ctxRegistry.(*registry.Registry)
+			}
+
+			var middleware []ModelMiddleware
+			if ctxMiddleware := ctx.Value("genkit:middleware"); ctxMiddleware != nil {
+				middleware = ctxMiddleware.([]ModelMiddleware)
+			}
+
+			// Use registry and middleware from context (includes dynamic tools)
+			return GenerateWithRequest(ctx, registryToUse, actionOpts, middleware, cb)
 		}))
 }
 
@@ -484,7 +487,18 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
-	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
+	// Call the registered generate action instead of GenerateWithRequest directly
+	// This ensures proper span hierarchy: flow -> generate -> model
+	generateAction := core.ResolveActionFor[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeUtil, "", "generate")
+	if generateAction == nil {
+		return nil, core.NewError(core.INTERNAL, "generate action not found")
+	}
+
+	// Pass the modified registry and middleware through context for the action to use
+	ctxWithData := context.WithValue(ctx, "genkit:registry", r)
+	ctxWithData = context.WithValue(ctxWithData, "genkit:middleware", genOpts.Middleware)
+
+	return generateAction.Run(ctxWithData, actionOpts, genOpts.Stream)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.

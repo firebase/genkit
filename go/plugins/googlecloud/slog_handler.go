@@ -23,11 +23,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/logging"
 	"github.com/jba/slog/withsupport"
 	"go.opentelemetry.io/otel/trace"
+	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
 )
 
 // Enhanced handler with error handling
@@ -83,6 +85,18 @@ func (h *handler) WithGroup(name string) slog.Handler {
 }
 
 func (h *handler) Handle(ctx context.Context, r slog.Record) error {
+	// Filter out logs from internal Google Cloud operations to prevent log recursion
+	// Apply same filtering logic as spans - only exclude internal Google Cloud SDK operations
+	message := r.Message
+	isInternalGoogleCloudLog := strings.Contains(message, "google.monitoring.v3.MetricService") ||
+		strings.Contains(message, "google.devtools.cloudtrace.v2.TraceService") ||
+		strings.Contains(message, "google.logging.v2.LoggingServiceV2")
+
+	if isInternalGoogleCloudLog {
+		// Skip internal Google Cloud SDK logs, but send to fallback for debugging if needed
+		return h.fallbackHandler.Handle(ctx, r)
+	}
+
 	entry := h.recordToEntry(ctx, r)
 
 	// Try to send to GCP with error handling and recovery
@@ -173,18 +187,55 @@ func (h *handler) logPermissionError(err error) {
 func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entry {
 	span := trace.SpanFromContext(ctx)
 
+	// Extract message and data from slog record
+	message := r.Message
+	var metadata map[string]interface{}
+
+	// Process record attributes to separate message from metadata
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == "data" {
+			if dataMap, ok := a.Value.Any().(map[string]interface{}); ok {
+				metadata = dataMap
+				// Remove GCP logging fields from metadata (they go at top level)
+				delete(metadata, "logging.googleapis.com/trace")
+				delete(metadata, "logging.googleapis.com/spanId")
+				delete(metadata, "logging.googleapis.com/trace_sampled")
+			}
+		}
+		return true
+	})
+
+	// If no metadata found, create empty map
+	if metadata == nil {
+		metadata = make(map[string]interface{})
+	}
+
+	// Create JS-compatible payload structure
+	payload := map[string]interface{}{
+		"message":  message,
+		"metadata": metadata,
+	}
+
+	// Force global resource type to match TypeScript implementation
+	globalResource := &mrpb.MonitoredResource{
+		Type: "global",
+		Labels: map[string]string{
+			"project_id": h.projectID,
+		},
+	}
+
 	entry := logging.Entry{
 		Timestamp: r.Time,
 		Severity:  levelToSeverity(r.Level),
-		Payload:   recordToMap(r, h.goa.Collect()),
+		Payload:   payload,
 		Labels:    map[string]string{"module": "genkit"},
+		Resource:  globalResource,
 	}
 
-	// Add trace context if span is valid
+	// Add trace context at top level
 	if span.SpanContext().IsValid() {
 		entry.Trace = fmt.Sprintf("projects/%s/traces/%s", h.projectID, span.SpanContext().TraceID().String())
 		entry.SpanID = span.SpanContext().SpanID().String()
-		entry.TraceSampled = span.SpanContext().IsSampled()
 	}
 
 	return entry
