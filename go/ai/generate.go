@@ -1108,40 +1108,24 @@ func processResources(ctx context.Context, r *registry.Registry, messages []*Mes
 
 // findMatchingResource finds a resource action in the registry that matches the given URI.
 func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[string]string, error) {
-	// Get all actions and filter to resources (like existing FindMatchingResource)
-	allActions := r.ListActions()
-
-	for _, act := range allActions {
-		action, ok := act.(core.Action)
-		if !ok {
-			continue
-		}
-
-		desc := action.Desc()
-		if desc.Type != core.ActionTypeResource {
-			continue
-		}
-
-		// Look up the resourceAction wrapper
-		resourceName := strings.TrimPrefix(desc.Key, "/resource/")
-		if resourceValue := r.LookupValue(fmt.Sprintf("resource/%s", resourceName)); resourceValue != nil {
-			// Check if this resource matches the URI
-			if matcher, ok := resourceValue.(interface {
-				Matches(string) bool
-				ExtractVariables(string) (map[string]string, error)
-			}); ok {
-				if matcher.Matches(uri) {
-					variables, err := matcher.ExtractVariables(uri)
-					if err != nil {
-						return nil, nil, fmt.Errorf("failed to extract variables: %w", err)
-					}
-					return action, variables, nil
-				}
-			}
-		}
+	// Use our updated FindMatchingResource function
+	resource, resourceInput, err := FindMatchingResource(r, uri)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return nil, nil, core.NewError(core.NOT_FOUND, "no resource found for URI: %s", uri)
+	// Execute the resource to get the action - we need to access the underlying action
+	// Since the resource interface doesn't expose the action directly, we'll look it up
+	action := r.LookupAction(fmt.Sprintf("/resource/%s", resource.Name()))
+	if action == nil {
+		return nil, nil, core.NewError(core.INTERNAL, "failed to lookup resource action")
+	}
+
+	if coreAction, ok := action.(core.Action); ok {
+		return coreAction, resourceInput.Variables, nil
+	}
+
+	return nil, nil, core.NewError(core.INTERNAL, "action does not implement core.Action interface")
 }
 
 // executeResourcePart finds and executes a resource, returning the content parts.

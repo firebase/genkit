@@ -48,12 +48,11 @@ type ResourceOptions struct {
 // ResourceFunc is a function that loads content for a resource.
 type ResourceFunc = func(context.Context, ResourceInput) (ResourceOutput, error)
 
-// resourceImpl is the internal implementation of the Resource interface.
+// resource is the internal implementation of the Resource interface.
 // It holds the underlying core action and allows looking up resources
 // by name without knowing their specific input/output types.
-type resourceImpl struct {
+type resource struct {
 	core.Action
-	matcher coreresource.URIMatcher
 }
 
 // Resource represents an instance of a resource.
@@ -72,34 +71,22 @@ type Resource interface {
 
 // DefineResource creates a resource and registers it with the given Registry.
 func DefineResource(r *registry.Registry, name string, opts ResourceOptions, fn ResourceFunc) Resource {
-	metadata, wrappedFn, matcher := implementResource(name, opts, fn)
+	metadata, wrappedFn := implementResource(name, opts, fn)
 	resourceAction := core.DefineAction(r, "", name, core.ActionTypeResource, metadata, wrappedFn)
-
-	res := &resourceImpl{
-		Action:  resourceAction,
-		matcher: matcher,
-	}
-
-	// Register as a resource value for URI lookup
-	r.RegisterValue(fmt.Sprintf("resource/%s", name), res)
-	return res
+	return &resource{Action: resourceAction}
 }
 
 // NewResource creates a resource but does not register it in the registry.
 // It can be registered later via the Register method.
 func NewResource(name string, opts ResourceOptions, fn ResourceFunc) Resource {
-	metadata, wrappedFn, matcher := implementResource(name, opts, fn)
+	metadata, wrappedFn := implementResource(name, opts, fn)
 	metadata["dynamic"] = true
 	resourceAction := core.NewAction("", name, core.ActionTypeResource, metadata, wrappedFn)
-
-	return &resourceImpl{
-		Action:  resourceAction,
-		matcher: matcher,
-	}
+	return &resource{Action: resourceAction}
 }
 
-// implementResource creates the metadata, wrapped function, and matcher common to both DefineResource and NewResource.
-func implementResource(name string, opts ResourceOptions, fn ResourceFunc) (map[string]any, func(context.Context, ResourceInput) (ResourceOutput, error), coreresource.URIMatcher) {
+// implementResource creates the metadata and wrapped function common to both DefineResource and NewResource.
+func implementResource(name string, opts ResourceOptions, fn ResourceFunc) (map[string]any, func(context.Context, ResourceInput) (ResourceOutput, error)) {
 	// Validate options - panic like other Define* functions
 	if name == "" {
 		panic("resource name is required")
@@ -111,31 +98,22 @@ func implementResource(name string, opts ResourceOptions, fn ResourceFunc) (map[
 		panic("must specify either URI or Template")
 	}
 
-	// Create matcher
-	var matcher coreresource.URIMatcher
-	if opts.URI != "" {
-		matcher = coreresource.NewStaticMatcher(opts.URI)
-	} else {
-		var err error
-		matcher, err = coreresource.NewTemplateMatcher(opts.Template)
-		if err != nil {
-			panic(fmt.Sprintf("invalid URI template %q: %v", opts.Template, err))
-		}
+	// Create metadata with resource-specific information
+	metadata := map[string]any{
+		"type":        core.ActionTypeResource,
+		"name":        name,
+		"description": opts.Description,
+		"resource": map[string]any{
+			"uri":      opts.URI,
+			"template": opts.Template,
+		},
 	}
 
-	// Create metadata with resource-specific information
-	metadata := make(map[string]any)
+	// Add user metadata
 	if opts.Metadata != nil {
 		for k, v := range opts.Metadata {
 			metadata[k] = v
 		}
-	}
-	metadata["type"] = core.ActionTypeResource
-	metadata["name"] = name
-	metadata["description"] = opts.Description
-	metadata["resource"] = map[string]any{
-		"uri":      opts.URI,
-		"template": opts.Template,
 	}
 
 	// Wrapped function - just call the user function directly
@@ -143,26 +121,69 @@ func implementResource(name string, opts ResourceOptions, fn ResourceFunc) (map[
 		return fn(ctx, input)
 	}
 
-	return metadata, wrappedFn, matcher
+	return metadata, wrappedFn
 }
 
 // Name returns the resource name.
-func (r *resourceImpl) Name() string {
+func (r *resource) Name() string {
 	return r.Action.Name()
 }
 
 // Matches reports whether this resource matches the given URI.
-func (r *resourceImpl) Matches(uri string) bool {
-	return r.matcher.Matches(uri)
+func (r *resource) Matches(uri string) bool {
+	desc := r.Action.Desc()
+	resourceMeta, ok := desc.Metadata["resource"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	// Check static URI
+	if staticURI, ok := resourceMeta["uri"].(string); ok && staticURI != "" {
+		return staticURI == uri
+	}
+
+	// Check template
+	if template, ok := resourceMeta["template"].(string); ok && template != "" {
+		matcher, err := coreresource.NewTemplateMatcher(template)
+		if err != nil {
+			return false
+		}
+		return matcher.Matches(uri)
+	}
+
+	return false
 }
 
 // ExtractVariables extracts variables from a URI using this resource's template.
-func (r *resourceImpl) ExtractVariables(uri string) (map[string]string, error) {
-	return r.matcher.ExtractVariables(uri)
+func (r *resource) ExtractVariables(uri string) (map[string]string, error) {
+	desc := r.Action.Desc()
+	resourceMeta, ok := desc.Metadata["resource"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("no resource metadata found")
+	}
+
+	// Static URI has no variables
+	if staticURI, ok := resourceMeta["uri"].(string); ok && staticURI != "" {
+		if staticURI == uri {
+			return map[string]string{}, nil
+		}
+		return nil, fmt.Errorf("URI %q does not match static URI %q", uri, staticURI)
+	}
+
+	// Extract from template
+	if template, ok := resourceMeta["template"].(string); ok && template != "" {
+		matcher, err := coreresource.NewTemplateMatcher(template)
+		if err != nil {
+			return nil, fmt.Errorf("invalid template %q: %w", template, err)
+		}
+		return matcher.ExtractVariables(uri)
+	}
+
+	return nil, fmt.Errorf("no URI or template found in resource metadata")
 }
 
 // Execute runs the resource with the given input.
-func (r *resourceImpl) Execute(ctx context.Context, input ResourceInput) (ResourceOutput, error) {
+func (r *resource) Execute(ctx context.Context, input ResourceInput) (ResourceOutput, error) {
 	// Marshal input to JSON for action call
 	inputJSON, err := json.Marshal(input)
 	if err != nil {
@@ -185,12 +206,9 @@ func (r *resourceImpl) Execute(ctx context.Context, input ResourceInput) (Resour
 }
 
 // Register sets the tracing state on the action and registers it with the registry.
-func (r *resourceImpl) Register(reg *registry.Registry) {
+func (r *resource) Register(reg *registry.Registry) {
 	r.Action.SetTracingState(reg.TracingState())
 	reg.RegisterAction(fmt.Sprintf("/%s/%s", core.ActionTypeResource, r.Action.Name()), r.Action)
-
-	// Also register as a resource value for URI lookup
-	reg.RegisterValue(fmt.Sprintf("resource/%s", r.Name()), r)
 }
 
 // FindMatchingResource finds a resource that matches the given URI.
@@ -208,18 +226,14 @@ func FindMatchingResource(r *registry.Registry, uri string) (Resource, ResourceI
 			continue
 		}
 
-		// Look up the resource wrapper
-		resourceName := fmt.Sprintf("resource/%s", desc.Name)
-		if resourceValue := r.LookupValue(resourceName); resourceValue != nil {
-			if resource, ok := resourceValue.(Resource); ok {
-				if resource.Matches(uri) {
-					variables, err := resource.ExtractVariables(uri)
-					if err != nil {
-						return nil, ResourceInput{}, err
-					}
-					return resource, ResourceInput{URI: uri, Variables: variables}, nil
-				}
+		// Parse resource from Action metadata and use for template resolution
+		resource := &resource{Action: action}
+		if resource.Matches(uri) {
+			variables, err := resource.ExtractVariables(uri)
+			if err != nil {
+				return nil, ResourceInput{}, err
 			}
+			return resource, ResourceInput{URI: uri, Variables: variables}, nil
 		}
 	}
 
@@ -236,5 +250,5 @@ func LookupResource(r *registry.Registry, name string) Resource {
 	if action == nil {
 		return nil
 	}
-	return &resourceImpl{Action: action.(core.Action)}
+	return &resource{Action: action.(core.Action)}
 }

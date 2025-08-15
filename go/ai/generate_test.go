@@ -23,7 +23,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
 	test_utils "github.com/firebase/genkit/go/tests/utils"
 	"github.com/google/go-cmp/cmp"
@@ -1101,20 +1100,20 @@ func TestToolInterruptsAndResume(t *testing.T) {
 func TestResourceProcessing(t *testing.T) {
 	r, _ := registry.New()
 
-	// Create simple test resources without complex mocking
-	_ = core.DefineAction(r, "", "test-file", core.ActionTypeResource, map[string]any{},
-		func(ctx context.Context, input ResourceInput) (struct{ Content []*Part }, error) {
-			return struct{ Content []*Part }{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
-		})
+	// Create test resources using DefineResource
+	DefineResource(r, "test-file", ResourceOptions{
+		URI:         "file:///test.txt",
+		Description: "Test file resource",
+	}, func(ctx context.Context, input ResourceInput) (ResourceOutput, error) {
+		return ResourceOutput{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
+	})
 
-	_ = core.DefineAction(r, "", "test-api", core.ActionTypeResource, map[string]any{},
-		func(ctx context.Context, input ResourceInput) (struct{ Content []*Part }, error) {
-			return struct{ Content []*Part }{Content: []*Part{NewTextPart("API DATA")}}, nil
-		})
-
-	// Simple resource wrappers - use the proper core.ResourceMatcher interface
-	r.RegisterValue("resource/test-file", &testResourceMatcher{uri: "file:///test.txt"})
-	r.RegisterValue("resource/test-api", &testResourceMatcher{uri: "api://data/123"})
+	DefineResource(r, "test-api", ResourceOptions{
+		URI:         "api://data/123",
+		Description: "Test API resource",
+	}, func(ctx context.Context, input ResourceInput) (ResourceOutput, error) {
+		return ResourceOutput{Content: []*Part{NewTextPart("API DATA")}}, nil
+	})
 
 	// Test message with resources
 	messages := []*Message{
@@ -1146,19 +1145,6 @@ func TestResourceProcessing(t *testing.T) {
 			t.Fatalf("part %d: got %q, want %q", i, content[i].Text, want)
 		}
 	}
-}
-
-// Minimal implementation of core.ResourceMatcher for testing
-type testResourceMatcher struct {
-	uri string
-}
-
-func (r *testResourceMatcher) Matches(uri string) bool {
-	return r.uri == uri
-}
-
-func (r *testResourceMatcher) ExtractVariables(uri string) (map[string]string, error) {
-	return map[string]string{}, nil
 }
 
 func TestResourceProcessingError(t *testing.T) {
