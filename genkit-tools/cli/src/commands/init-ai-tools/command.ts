@@ -33,9 +33,9 @@ const AGENT_CHOICES: AIToolChoice[] = Object.values(AI_TOOLS).map((tool) => ({
  */
 export const initAiTools = new Command('init:ai-tools')
   .description(
-    'initialize AI tools in a workspace with helpful context related to the Genkit framework'
+    'initialize AI tools in a workspace with helpful context related to the Genkit framework (EXPERIMENTAL, subject to change)'
   )
-  .option('-y', '--yes', 'Run in non-interactive mode (experimental)')
+  .option('-y', '--yes', 'Run in non-interactive mode')
   .action(async (options: InitConfigOptions) => {
     logger.info('\n');
     logger.info(
