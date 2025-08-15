@@ -37,7 +37,8 @@ export type ResolvableAction = Action | BackgroundAction;
 export interface GenkitPluginV2 {
   version: 'v2';
   name: string;
-  resolve: (
+  init?: () => ResolvableAction[] | Promise<ResolvableAction[]>;
+  resolve?: (
     actionType: ActionType,
     name: string
   ) => ResolvableAction | undefined | Promise<ResolvableAction | undefined>;
