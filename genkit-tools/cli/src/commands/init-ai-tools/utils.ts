@@ -151,3 +151,12 @@ export function getGenkitContext(): string {
   const content = readFileSync(contextPath, 'utf8');
   return content;
 }
+
+/**
+ * Initializes the GENKIT.md file
+ */
+export async function initGenkitFile() {
+  const genkitContext = getGenkitContext();
+  const result = await initOrReplaceFile(GENKIT_PROMPT_PATH, genkitContext);
+  return { updated: result.updated, hash: calculateHash(genkitContext) };
+}
