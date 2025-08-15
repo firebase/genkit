@@ -23,6 +23,7 @@ import path from 'path';
 /** Shared location for the GENKIT.md context file */
 export const GENKIT_PROMPT_PATH = 'GENKIT.md';
 
+const CONTEXT_DIR = path.resolve(__dirname, '..', '..', 'context');
 const GENKIT_TAG_REGEX =
   /<genkit_prompts(?:\s+hash="([^"]+)")?>([\s\S]*?)<\/genkit_prompts>/;
 /*
@@ -146,14 +147,7 @@ export function calculateHash(content: string): string {
  * Get raw prompt content for Genkit
  */
 export function getGenkitContext(): string {
-  const contextPath = path.resolve(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    'context',
-    'GENKIT.md'
-  );
+  const contextPath = path.resolve(CONTEXT_DIR, 'GENKIT.md');
   const content = readFileSync(contextPath, 'utf8');
   return content;
 }
