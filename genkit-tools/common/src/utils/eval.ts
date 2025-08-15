@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+import { confirm } from '@inquirer/prompts';
 import { randomUUID } from 'crypto';
 import { createReadStream } from 'fs';
 import { readFile } from 'fs/promises';
-import * as inquirer from 'inquirer';
 import { createInterface } from 'readline';
 import type { RuntimeManager } from '../manager';
 import {
@@ -81,17 +81,13 @@ export async function confirmLlmUse(
     return true;
   }
 
-  const answers = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'confirm',
-      message:
-        'For each example, the evaluation makes calls to APIs that may result in being charged. Do you wish to proceed?',
-      default: false,
-    },
-  ]);
+  const confirmed = await confirm({
+    message:
+      'For each example, the evaluation makes calls to APIs that may result in being charged. Do you wish to proceed?',
+    default: false,
+  });
 
-  return answers.confirm;
+  return confirmed;
 }
 
 function getRootSpan(trace: TraceData): NestedSpanData | undefined {
