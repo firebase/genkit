@@ -1084,9 +1084,9 @@ func processResources(ctx context.Context, r *registry.Registry, messages []*Mes
 		for _, part := range msg.Content {
 			if part.IsResource() {
 				// Find and execute the matching resource
-				resourceParts, err := executeResourcePart(ctx, r, part.Resource)
+				resourceParts, err := executeResourcePart(ctx, r, part.Resource.Uri)
 				if err != nil {
-					return nil, fmt.Errorf("failed to process resource %q: %w", part.Resource.URI, err)
+					return nil, fmt.Errorf("failed to process resource %q: %w", part.Resource, err)
 				}
 				// Replace resource part with content parts
 				processedContent = append(processedContent, resourceParts...)
@@ -1145,15 +1145,15 @@ func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[st
 }
 
 // executeResourcePart finds and executes a resource, returning the content parts.
-func executeResourcePart(ctx context.Context, r *registry.Registry, resourcePart *ResourcePart) ([]*Part, error) {
-	action, variables, err := findMatchingResource(r, resourcePart.URI)
+func executeResourcePart(ctx context.Context, r *registry.Registry, resourceURI string) ([]*Part, error) {
+	action, variables, err := findMatchingResource(r, resourceURI)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create resource input with extracted variables
 	input := ResourceInput{
-		URI:       resourcePart.URI,
+		URI:       resourceURI,
 		Variables: variables,
 	}
 
@@ -1161,7 +1161,7 @@ func executeResourcePart(ctx context.Context, r *registry.Registry, resourcePart
 	inputJSON, _ := json.Marshal(input)
 	outputJSON, err := action.RunJSON(ctx, inputJSON, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute resource %q: %w", resourcePart.URI, err)
+		return nil, fmt.Errorf("failed to execute resource %q: %w", resourceURI, err)
 	}
 
 	// Parse resource output - use a compatible structure
