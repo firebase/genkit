@@ -43,6 +43,10 @@ export interface UpdateCheckResult {
   latestVersion: string;
 }
 
+export function getCurrentVersion(): string {
+  return correctVersion(currentVersion);
+}
+
 /**
  * Validates a version string
  */
@@ -51,15 +55,24 @@ function validateVersion(version: string): boolean {
 }
 
 /**
+ * Corrects the version string to remove the 'v' prefix if it exists
+ * @param version - The version string to correct
+ * @returns The corrected version string
+ */
+function correctVersion(version: string): string {
+  return version.startsWith('v') ? version.substring(1) : version;
+}
+
+/**
  * Checks if a new version is available (exported for use in other modules)
  */
 export async function checkForUpdates(): Promise<UpdateCheckResult> {
-  const latestVersion = await getLatestVersion();
-  const hasUpdate = latestVersion !== currentVersion;
+  const latestVersion = correctVersion(await getLatestVersion());
+  const hasUpdate = latestVersion !== getCurrentVersion();
 
   return {
     hasUpdate,
-    currentVersion,
+    currentVersion: getCurrentVersion(),
     latestVersion,
   };
 }
@@ -131,6 +144,10 @@ export async function getLatestVersionFromGCS(): Promise<string[]> {
       'https://storage.googleapis.com/genkit-assets-cli/latest.json'
     );
     const data: GCSLatestResponse = response.data;
+
+    if (!data.latestVersion) {
+      throw new Error('No latest version found');
+    }
 
     // For now, we only return the latest version from GCS
     // In the future, we could implement a way to get all available versions
@@ -441,11 +458,11 @@ export const update = new Command('update')
       let version = options.version;
 
       if (options.reinstall) {
-        version = currentVersion;
+        version = getCurrentVersion();
 
         logger.info(`${clc.yellow('!')} Reinstalling v${clc.bold(version)}...`);
       } else if (version) {
-        if (version === currentVersion) {
+        if (version === getCurrentVersion()) {
           logger.info(
             `${clc.green('✓')} Already using version v${clc.bold(version)}.`
           );
@@ -459,11 +476,11 @@ export const update = new Command('update')
           version = await getLatestVersion();
 
           logger.info(
-            `Update available: v${clc.bold(currentVersion)} → v${clc.bold(version)}`
+            `Update available: v${clc.bold(getCurrentVersion())} → v${clc.bold(version)}`
           );
         } else {
           logger.info(
-            `${clc.green('✓')} Already on the latest version: v${clc.bold(currentVersion)}`
+            `${clc.green('✓')} Already on the latest version: v${clc.bold(getCurrentVersion())}`
           );
           return;
         }
