@@ -794,7 +794,7 @@ func WithToolRestarts(parts ...*Part) GenerateOption {
 // WithResources specifies resources to be temporarily available during generation.
 // Resources are unregistered resources that get attached to a temporary registry
 // during the generation request and cleaned up afterward.
-func WithResources(resources []Resource) CommonGenOption {
+func WithResources(resources ...Resource) CommonGenOption {
 	return &withResources{resources: resources}
 }
 

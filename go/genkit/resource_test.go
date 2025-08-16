@@ -192,7 +192,7 @@ func TestDynamicResourceInGeneration(t *testing.T) {
 			ai.NewResourcePart("dynamic://policy"),
 			ai.NewTextPart("Done."),
 		)),
-		ai.WithResources([]ai.Resource{dynResource}),
+		ai.WithResources(dynResource),
 	)
 
 	if err != nil {
@@ -245,7 +245,7 @@ func TestMultipleDynamicResourcesInGeneration(t *testing.T) {
 			ai.NewResourcePart("project://settings"),
 			ai.NewTextPart("Done."),
 		)),
-		ai.WithResources([]ai.Resource{userResource, projectResource}),
+		ai.WithResources(userResource, projectResource),
 	)
 
 	if err != nil {
