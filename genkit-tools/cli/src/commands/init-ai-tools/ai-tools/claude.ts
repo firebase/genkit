@@ -17,9 +17,9 @@
 import { logger } from '@genkit-ai/tools-common/utils';
 import { existsSync, readFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
-import { GENKIT_PROMPT_PATH } from '../constants';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import {
+  GENKIT_PROMPT_PATH,
   calculateHash,
   getGenkitContext,
   initOrReplaceFile,

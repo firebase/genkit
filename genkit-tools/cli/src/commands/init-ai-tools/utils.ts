@@ -20,6 +20,9 @@ import * as crypto from 'crypto';
 import { writeFile } from 'fs/promises';
 import path from 'path';
 
+/** Shared location for the GENKIT.md context file */
+export const GENKIT_PROMPT_PATH = 'GENKIT.md';
+
 const CONTEXT_DIR = path.resolve(__dirname, '..', '..', 'context');
 const GENKIT_TAG_REGEX =
   /<genkit_prompts(?:\s+hash="([^"]+)")?>([\s\S]*?)<\/genkit_prompts>/;

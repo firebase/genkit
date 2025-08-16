@@ -18,8 +18,20 @@ import { logger } from '@genkit-ai/tools-common/utils';
 import { checkbox } from '@inquirer/prompts';
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import { AI_TOOLS } from './constants';
-import { AIToolChoice, InitConfigOptions } from './types';
+import { claude } from './ai-tools/claude';
+import { cursor } from './ai-tools/cursor';
+import { gemini } from './ai-tools/gemini';
+import { generic } from './ai-tools/generic';
+import { AIToolChoice, AIToolModule, InitConfigOptions } from './types';
+
+/** Set of all supported AI tools that can be configured (incl. a generic
+ * configuration) */
+export const AI_TOOLS: Record<string, AIToolModule> = {
+  gemini,
+  claude,
+  cursor,
+  generic,
+};
 
 const AGENT_CHOICES: AIToolChoice[] = Object.values(AI_TOOLS).map((tool) => ({
   value: tool.name,
