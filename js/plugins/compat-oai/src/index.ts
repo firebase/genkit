@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ActionMetadata, type Genkit } from 'genkit';
-import { genkitPlugin } from 'genkit/plugin';
+import { ActionMetadata } from 'genkit';
+import { ResolvableAction, genkitPluginV2 } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import { OpenAI, type ClientOptions } from 'openai';
+import { compatOaiModelRef, defineCompatOpenAIModel } from './model.js';
 
 export {
   SpeechConfigSchema,
@@ -46,13 +47,12 @@ export {
 
 export interface PluginOptions extends Partial<ClientOptions> {
   name: string;
-  initializer?: (ai: Genkit, client: OpenAI) => Promise<void>;
+  initializer?: (client: OpenAI) => Promise<ResolvableAction[]>;
   resolver?: (
-    ai: Genkit,
     client: OpenAI,
     actionType: ActionType,
     actionName: string
-  ) => Promise<void>;
+  ) => Promise<ResolvableAction | undefined> | ResolvableAction | undefined;
   listActions?: (client: OpenAI) => Promise<ActionMetadata[]>;
 }
 
@@ -110,29 +110,41 @@ export interface PluginOptions extends Partial<ClientOptions> {
  */
 export const openAICompatible = (options: PluginOptions) => {
   let listActionsCache;
-  return genkitPlugin(
-    options.name,
-    async (ai: Genkit) => {
-      if (options.initializer) {
-        const client = new OpenAI(options);
-        await options.initializer(ai, client);
+  return genkitPluginV2({
+    name: options.name,
+    async init() {
+      if (!options.initializer) {
+        return [];
       }
+      const client = new OpenAI(options);
+      return await options.initializer(client);
     },
-    async (ai: Genkit, actionType: ActionType, actionName: string) => {
+    async resolve(actionType: ActionType, actionName: string) {
+      const client = new OpenAI(options);
       if (options.resolver) {
-        const client = new OpenAI(options);
-        await options.resolver(ai, client, actionType, actionName);
+        return await options.resolver(client, actionType, actionName);
+      } else {
+        if (actionType === 'model') {
+          return defineCompatOpenAIModel({
+            name: `${options.name}/${actionName}`,
+            client,
+            modelRef: compatOaiModelRef({
+              name: `${options.name}/${actionName}`,
+            }),
+          });
+        }
+        return undefined;
       }
     },
-    options.listActions
+    list: options.listActions
       ? async () => {
           if (listActionsCache) return listActionsCache;
           const client = new OpenAI(options);
           listActionsCache = await options.listActions!(client);
           return listActionsCache;
         }
-      : undefined
-  );
+      : undefined,
+  });
 };
 
 export default openAICompatible;

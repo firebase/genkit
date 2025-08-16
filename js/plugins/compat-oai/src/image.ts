@@ -17,11 +17,11 @@
 import type {
   GenerateRequest,
   GenerateResponseData,
-  Genkit,
   ModelReference,
 } from 'genkit';
 import { Message, modelRef, z } from 'genkit';
 import { ModelAction, ModelInfo } from 'genkit/model';
+import { model } from 'genkit/plugin';
 import OpenAI from 'openai';
 import type {
   ImageGenerateParams,
@@ -120,20 +120,18 @@ function toGenerateResponse(result: ImagesResponse): GenerateResponseData {
 export function defineCompatOpenAIImageModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: ImageRequestBuilder;
 }): ModelAction<CustomOptions> {
-  const { ai, name, client, modelRef, requestBuilder } = params;
+  const { name, client, modelRef, requestBuilder } = params;
   const modelName = name.substring(name.indexOf('/') + 1);
 
-  return ai.defineModel(
+  return model(
     {
       name,
       ...modelRef?.info,
-      apiVersion: 'v2',
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {

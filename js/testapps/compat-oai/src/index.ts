@@ -40,17 +40,16 @@ const ai = genkit({
       name: 'openrouter',
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: process.env['OPENROUTER_API_KEY'],
-      initializer: async (ai, client) => {
-        for (const model of DECLARED_MODELS) {
+      async initializer(client) {
+        return DECLARED_MODELS.map((model) =>
           defineCompatOpenAIModel({
-            ai,
             name: `openrouter/${model}`,
             client,
             modelRef: compatOaiModelRef({
               name: `openrouter/${model}`,
             }),
-          });
-        }
+          })
+        );
       },
     }),
   ],

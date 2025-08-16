@@ -16,14 +16,13 @@
 
 import {
   ActionMetadata,
-  Genkit,
   GenkitError,
   modelActionMetadata,
   ModelReference,
   z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { GenkitPlugin } from 'genkit/plugin';
+import { GenkitPluginV2, ResolvableAction } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
 import {
@@ -43,15 +42,13 @@ import {
 export type XAIPluginOptions = Omit<PluginOptions, 'name' | 'baseURL'>;
 
 const resolver = async (
-  ai: Genkit,
   client: OpenAI,
   actionType: ActionType,
   actionName: string
 ) => {
   if (actionType === 'model') {
     const modelRef = xaiModelRef({ name: `xai/${actionName}` });
-    defineCompatOpenAIModel({
-      ai,
+    return defineCompatOpenAIModel({
       name: modelRef.name,
       client,
       modelRef,
@@ -60,6 +57,7 @@ const resolver = async (
   } else {
     logger.warn('Only model actions are supported by the XAI plugin');
   }
+  return undefined;
 };
 
 const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
@@ -90,7 +88,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
   );
 };
 
-export function xAIPlugin(options?: XAIPluginOptions): GenkitPlugin {
+export function xAIPlugin(options?: XAIPluginOptions): GenkitPluginV2 {
   const apiKey = options?.apiKey ?? process.env.XAI_API_KEY;
   if (!apiKey) {
     throw new GenkitError({
@@ -104,24 +102,28 @@ export function xAIPlugin(options?: XAIPluginOptions): GenkitPlugin {
     baseURL: 'https://api.x.ai/v1',
     apiKey,
     ...options,
-    initializer: async (ai, client) => {
-      Object.values(SUPPORTED_LANGUAGE_MODELS).forEach((modelRef) =>
-        defineCompatOpenAIModel({
-          ai,
-          name: modelRef.name,
-          client,
-          modelRef,
-          requestBuilder: grokRequestBuilder,
-        })
+    initializer: async (client) => {
+      const models = [] as ResolvableAction[];
+      models.push(
+        ...Object.values(SUPPORTED_LANGUAGE_MODELS).map((modelRef) =>
+          defineCompatOpenAIModel({
+            name: modelRef.name,
+            client,
+            modelRef,
+            requestBuilder: grokRequestBuilder,
+          })
+        )
       );
-      Object.values(SUPPORTED_IMAGE_MODELS).forEach((modelRef) =>
-        defineCompatOpenAIImageModel({
-          ai,
-          name: modelRef.name,
-          client,
-          modelRef,
-        })
+      models.push(
+        ...Object.values(SUPPORTED_IMAGE_MODELS).map((modelRef) =>
+          defineCompatOpenAIImageModel({
+            name: modelRef.name,
+            client,
+            modelRef,
+          })
+        )
       );
+      return models;
     },
     resolver,
     listActions,
@@ -129,7 +131,7 @@ export function xAIPlugin(options?: XAIPluginOptions): GenkitPlugin {
 }
 
 export type XAIPlugin = {
-  (params?: XAIPluginOptions): GenkitPlugin;
+  (params?: XAIPluginOptions): GenkitPluginV2;
   model(
     name: keyof typeof SUPPORTED_LANGUAGE_MODELS,
     config?: z.infer<typeof XaiChatCompletionConfigSchema>

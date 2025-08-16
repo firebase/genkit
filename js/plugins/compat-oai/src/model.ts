@@ -19,7 +19,6 @@ import type {
   GenerateRequest,
   GenerateResponseChunkData,
   GenerateResponseData,
-  Genkit,
   MessageData,
   ModelReference,
   Part,
@@ -29,6 +28,7 @@ import type {
 } from 'genkit';
 import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
 import type { ModelAction, ModelInfo, ToolDefinition } from 'genkit/model';
+import { model } from 'genkit/plugin';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -485,19 +485,17 @@ export function openAIModelRunner(
 export function defineCompatOpenAIModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: ModelRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef, requestBuilder } = params;
+  const { name, client, modelRef, requestBuilder } = params;
   const modelName = name.substring(name.indexOf('/') + 1);
 
-  return ai.defineModel(
+  return model(
     {
       name,
-      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
