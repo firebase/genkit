@@ -63,6 +63,7 @@ const (
 	ActionTypeFlow             ActionType = "flow"
 	ActionTypeModel            ActionType = "model"
 	ActionTypeExecutablePrompt ActionType = "executable-prompt"
+	ActionTypeResource         ActionType = "resource"
 	ActionTypeTool             ActionType = "tool"
 	ActionTypeUtil             ActionType = "util"
 	ActionTypeCustom           ActionType = "custom"
