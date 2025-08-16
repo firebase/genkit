@@ -25,11 +25,6 @@ import {
   toOpenAIRequestBody,
 } from '../src/model';
 
-jest.mock('@genkit-ai/ai/model', () => ({
-  ...(jest.requireActual('@genkit-ai/ai/model') as Record<string, unknown>),
-  defineModel: jest.fn(),
-}));
-
 describe('gptModel', () => {
   afterEach(() => {
     jest.clearAllMocks();
