@@ -131,6 +131,54 @@ export const claude3Opus = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+export const claudeSonnet4 = modelRef({
+  name: 'vertexai/claude-sonnet-4',
+  info: {
+    label: 'Vertex AI Model Garden - Claude Sonnet 4',
+    versions: ['claude-sonnet-4@20250514'],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+      output: ['text'],
+    },
+  },
+  configSchema: AnthropicConfigSchema,
+});
+
+export const claudeOpus4 = modelRef({
+  name: 'vertexai/claude-opus-4',
+  info: {
+    label: 'Vertex AI Model Garden - Claude Opus 4',
+    versions: ['claude-opus-4@20250514'],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+      output: ['text'],
+    },
+  },
+  configSchema: AnthropicConfigSchema,
+});
+
+export const claudeOpus41 = modelRef({
+  name: 'vertexai/claude-opus-4-1',
+  info: {
+    label: 'Vertex AI Model Garden - Claude Opus 4.1',
+    versions: ['claude-opus-4-1@20250805'],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+      output: ['text'],
+    },
+  },
+  configSchema: AnthropicConfigSchema,
+});
+
 export const SUPPORTED_ANTHROPIC_MODELS: Record<
   string,
   ModelReference<typeof AnthropicConfigSchema>
@@ -140,6 +188,9 @@ export const SUPPORTED_ANTHROPIC_MODELS: Record<
   'claude-3-sonnet': claude3Sonnet,
   'claude-3-opus': claude3Opus,
   'claude-3-haiku': claude3Haiku,
+  'claude-sonnet-4': claudeSonnet4,
+  'claude-opus-4': claudeOpus4,
+  'claude-opus-4-1': claudeOpus41,
 };
 
 export function toAnthropicRequest(
