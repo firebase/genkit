@@ -37,6 +37,7 @@ import {
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
+import { showUpdateNotification, update } from './commands/update';
 import { version } from './utils/version';
 
 /**
@@ -56,6 +57,7 @@ const commands: Command[] = [
   config,
   start,
   mcp,
+  update,
 ];
 
 /** Main entry point for CLI. */
@@ -64,6 +66,7 @@ export async function startCLI(): Promise<void> {
     .name('genkit')
     .description('Genkit CLI')
     .version(version)
+    .option('--no-update-notification', 'Do not show update notification')
     .hook('preAction', async (_, actionCommand) => {
       await notifyAnalyticsIfFirstRun();
 
@@ -84,6 +87,21 @@ export async function startCLI(): Promise<void> {
       }
       await record(new RunCommandEvent(commandName));
     });
+
+  // Parse argv early to get global options
+  program.parseOptions(process.argv);
+
+  // Check for updates and show notification if available,
+  // unless --no-update-notification is set
+  // Run this synchronously to ensure it shows before command execution
+  const opts = program.opts();
+  if (!opts.noUpdateNotification) {
+    try {
+      await showUpdateNotification();
+    } catch {
+      // Silently ignore errors - update notifications shouldn't break the CLI
+    }
+  }
 
   // When running as a spawned UI server process, argv[1] will be '__server-harness'
   // instead of a normal command. This allows the same binary to serve both CLI and server roles.
