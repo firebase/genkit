@@ -18,6 +18,8 @@ export interface PackageManager {
   type: string;
   localInstallCommand: string;
   globalInstallCommand: string;
+  localInstallCommandFunc: (name: string, version: string) => string;
+  globalInstallCommandFunc: (name: string, version: string) => string;
   globalRootCommand: string;
 }
 
@@ -26,18 +28,30 @@ export const PACKAGE_MANAGERS: Record<string, PackageManager> = {
     type: 'npm',
     localInstallCommand: 'npm install',
     globalInstallCommand: 'npm install -g',
+    localInstallCommandFunc: (name: string, version?: string) =>
+      `npm install ${name}${version ? `@${version}` : ''}`,
+    globalInstallCommandFunc: (name: string, version?: string) =>
+      `npm install -g ${name}${version ? `@${version}` : ''}`,
     globalRootCommand: 'npm root -g',
   },
   pnpm: {
     type: 'pnpm',
     localInstallCommand: 'pnpm install',
     globalInstallCommand: 'pnpm install -g',
+    localInstallCommandFunc: (name: string, version?: string) =>
+      `pnpm install ${name}${version ? `@${version}` : ''}`,
+    globalInstallCommandFunc: (name: string, version?: string) =>
+      `pnpm install -g ${name}${version ? `@${version}` : ''}`,
     globalRootCommand: 'pnpm root -g',
   },
   yarn: {
     type: 'yarn',
     localInstallCommand: 'yarn install',
     globalInstallCommand: 'yarn install -g',
+    localInstallCommandFunc: (name: string, version?: string) =>
+      `yarn install ${name}${version ? `@${version}` : ''}`,
+    globalInstallCommandFunc: (name: string, version?: string) =>
+      `yarn install -g ${name}${version ? `@${version}` : ''}`,
     globalRootCommand: 'yarn global bin',
   },
 };

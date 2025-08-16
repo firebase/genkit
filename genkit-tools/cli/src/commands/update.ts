@@ -275,19 +275,30 @@ async function downloadAndInstall(version: string): Promise<void> {
     }
 
     const pm = await inquirePackageManager();
-    let command = '';
+    const isGlobal = await inquireRunningFromGlobalInstall();
+    let command: string;
 
-    if (await inquireRunningFromGlobalInstall()) {
-      command = `${pm?.globalInstallCommand} ${name}@${version}`;
+    if (isGlobal) {
+      command = `${pm?.globalInstallCommandFunc(name, version)}`;
     } else {
-      command = `${pm?.localInstallCommand} ${name}@${version}`;
+      command = `${pm?.localInstallCommandFunc(name, version)}`;
     }
 
-    logger.info(`Running using ${pm?.type}, downloading using ${pm?.type}...`);
-    execSync(command, { stdio: 'inherit' });
-    logger.info(
-      `${clc.green('✓')} Successfully updated to v${clc.bold(version)}`
-    );
+    logger.info(`Downloading using ${pm?.type}...`);
+    try {
+      execSync(command, { stdio: 'inherit' });
+      logger.info(
+        `${clc.green('✓')} Successfully updated to v${clc.bold(version)}`
+      );
+    } catch (error: any) {
+      logger.info(``);
+      logger.error(
+        `${clc.red('✗')} Failed to update to v${clc.bold(version)}.` +
+          `\n\nAlternatively, you can try to update by running:\n` +
+          `${clc.bold(isGlobal ? pm?.globalInstallCommandFunc(name, version) : pm?.localInstallCommandFunc(name, version))}`
+      );
+      process.exit(1);
+    }
     return;
   }
 
