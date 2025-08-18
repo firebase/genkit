@@ -70,7 +70,7 @@ const v2Plugin = genkitPluginV2({
   name: 'myV2Plugin',
   init() {
     return [
-      model({ name: 'myV2Plugin/model_eager' }, async () => {
+      model({ name: 'model_eager' }, async () => {
         return {};
       }),
     ];
@@ -78,12 +78,12 @@ const v2Plugin = genkitPluginV2({
   resolve(actionType, name) {
     switch (actionType) {
       case 'model':
-        return model({ name: 'myV2Plugin/' + name }, async () => {
+        return model({ name }, async () => {
           return {};
         });
       case 'background-model':
         return backgroundModel({
-          name: 'myV2Plugin/' + name,
+          name,
           async start() {
             return { id: 'abc' };
           },
@@ -100,10 +100,10 @@ const v2Plugin = genkitPluginV2({
   list() {
     return [
       modelActionMetadata({
-        name: 'myV2Plugin/potential_model',
+        name: 'potential_model',
       }),
       embedderActionMetadata({
-        name: 'myV2Plugin/potential_embedder',
+        name: 'potential_embedder',
       }),
     ];
   },
