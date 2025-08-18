@@ -15,9 +15,8 @@
  */
 
 import { logger } from '@genkit-ai/tools-common/utils';
-import { GENKIT_PROMPT_PATH } from '../constants';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
-import { getGenkitContext, initOrReplaceFile } from '../utils';
+import { GENKIT_PROMPT_PATH, initGenkitFile } from '../utils';
 
 /** Configuration module for GENKIT.md context file for generic use */
 export const generic: AIToolModule = {
@@ -32,12 +31,9 @@ export const generic: AIToolModule = {
 
     // Generate GENKIT.md file.
     logger.info('Updating GENKIT.md...');
-    const genkitContext = getGenkitContext();
-    const baseResult = await initOrReplaceFile(
-      GENKIT_PROMPT_PATH,
-      genkitContext
-    );
-    files.push({ path: GENKIT_PROMPT_PATH, updated: baseResult.updated });
+    const mdResult = await initGenkitFile();
+    files.push({ path: GENKIT_PROMPT_PATH, updated: mdResult.updated });
+
     logger.info('\n');
     logger.info(
       'GENKIT.md updated. Provide this file as context with your AI tool.'

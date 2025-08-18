@@ -17,12 +17,11 @@
 import { logger } from '@genkit-ai/tools-common/utils';
 import { existsSync, readFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
-import { GENKIT_PROMPT_PATH } from '../constants';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import {
+  GENKIT_PROMPT_PATH,
   calculateHash,
-  getGenkitContext,
-  initOrReplaceFile,
+  initGenkitFile,
   updateContentInPlace,
 } from '../utils';
 
@@ -55,7 +54,7 @@ export const claude: AIToolModule = {
       // File doesn't exist or is invalid JSON, start fresh
     }
 
-    // Check if firebase server already exists
+    // Check if genkit server already exists
     if (!existingConfig.mcpServers?.genkit) {
       if (!existingConfig.mcpServers) {
         existingConfig.mcpServers = {};
@@ -71,19 +70,15 @@ export const claude: AIToolModule = {
     files.push({ path: CLAUDE_MCP_PATH, updated: settingsUpdated });
 
     logger.info('Copying the Genkit context to GENKIT.md...');
-    const genkitContext = getGenkitContext();
-    const { updated: genkitContextUpdated } = await initOrReplaceFile(
-      GENKIT_PROMPT_PATH,
-      genkitContext
-    );
-    files.push({ path: GENKIT_PROMPT_PATH, updated: genkitContextUpdated });
+    const mdResult = await initGenkitFile();
+    files.push({ path: GENKIT_PROMPT_PATH, updated: mdResult.updated });
 
     logger.info('Updating CLAUDE.md to include Genkit context...');
-    const claudeImportTag = `\nGenkit Framework Instructions:\n - @GENKIT.md\n`;
+    const claudeImportTag = `\nGenkit Framework Instructions:\n - @./GENKIT.md\n`;
     const baseResult = await updateContentInPlace(
       CLAUDE_PROMPT_PATH,
       claudeImportTag,
-      { hash: calculateHash(genkitContext) }
+      { hash: calculateHash(mdResult.hash) }
     );
 
     files.push({ path: CLAUDE_PROMPT_PATH, updated: baseResult.updated });
