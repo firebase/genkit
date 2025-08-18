@@ -407,6 +407,43 @@ describe('registry class', () => {
       );
     });
 
+    it('returns registered action with namespace', async () => {
+      const fooSomethingAction = action(
+        { name: 'foo_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', fooSomethingAction, {
+        namespace: 'my-plugin',
+      });
+      const barSomethingAction = action(
+        { name: 'my-plugin/bar_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', barSomethingAction, {
+        namespace: 'my-plugin',
+      });
+      const barSubSomethingAction = action(
+        { name: 'sub/bar_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', barSubSomethingAction, {
+        namespace: 'my-plugin',
+      });
+
+      assert.strictEqual(
+        await registry.lookupAction('/model/my-plugin/foo_something'),
+        fooSomethingAction
+      );
+      assert.strictEqual(
+        await registry.lookupAction('/model/my-plugin/bar_something'),
+        barSomethingAction
+      );
+      assert.strictEqual(
+        await registry.lookupAction('/model/my-plugin/sub/bar_something'),
+        barSubSomethingAction
+      );
+    });
+
     it('returns action registered by plugin', async () => {
       registry.registerPluginProvider('foo', {
         name: 'foo',

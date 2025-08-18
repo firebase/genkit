@@ -216,7 +216,10 @@ export class Registry {
         message: `action type (${type}) does not match type on action (${action.__action.actionType})`,
       });
     }
-    if (opts?.namespace) {
+    if (
+      opts?.namespace &&
+      !action.__action.name.startsWith(`${opts.namespace}/`)
+    ) {
       action.__action.name = `${opts.namespace}/${action.__action.name}`;
     }
     const key = `/${type}/${action.__action.name}`;
@@ -243,7 +246,7 @@ export class Registry {
     action: PromiseLike<Action<I, O>>,
     opts?: { namespace?: string }
   ) {
-    if (opts?.namespace) {
+    if (opts?.namespace && !name.startsWith(`${opts.namespace}/`)) {
       name = `${opts.namespace}/${name}`;
     }
     const key = `/${type}/${name}`;
