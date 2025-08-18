@@ -19,6 +19,7 @@ import { checkbox } from '@inquirer/prompts';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import { claude } from './ai-tools/claude';
+import { cursor } from './ai-tools/cursor';
 import { gemini } from './ai-tools/gemini';
 import { generic } from './ai-tools/generic';
 import { AIToolChoice, AIToolModule, InitConfigOptions } from './types';
@@ -28,6 +29,7 @@ import { AIToolChoice, AIToolModule, InitConfigOptions } from './types';
 export const AI_TOOLS: Record<string, AIToolModule> = {
   gemini,
   claude,
+  cursor,
   generic,
 };
 
