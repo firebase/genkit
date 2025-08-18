@@ -17,9 +17,12 @@
 import { logger } from '@genkit-ai/tools-common/utils';
 import { mkdir } from 'fs/promises';
 import path from 'path';
-import { GENKIT_PROMPT_PATH } from '../constants';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
-import { getGenkitContext, initOrReplaceFile } from '../utils';
+import {
+  GENKIT_PROMPT_PATH,
+  getGenkitContext,
+  initOrReplaceFile,
+} from '../utils';
 
 // Define constants at the module level for clarity and reuse.
 const GENKIT_EXT_DIR = path.join('.gemini', 'extensions', 'genkit');
