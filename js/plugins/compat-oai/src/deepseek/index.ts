@@ -53,8 +53,8 @@ const resolver = async (
     });
   } else {
     logger.warn('Only model actions are supported by the DeepSeek plugin');
+    return undefined;
   }
-  return undefined;
 };
 
 const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
