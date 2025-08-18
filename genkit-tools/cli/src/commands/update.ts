@@ -314,10 +314,10 @@ async function downloadAndInstall(version: string): Promise<void> {
   // Construct machine identifier and download URL
   const gcsLatestData = await getGCSLatestData();
   const machine = `${platform}-${arch}`;
-  const fileName = gcsLatestData.platforms[machine].versionedUrl.split('/').pop();
-  const cleanVersion = version.startsWith('v')
-    ? version.substring(1)
-    : version;
+  const fileName = gcsLatestData.platforms[machine].versionedUrl
+    .split('/')
+    .pop();
+  const cleanVersion = version.startsWith('v') ? version.substring(1) : version;
   // Use the same URL structure as the install_cli script
   const channel = 'prod'; // Default to prod channel
   const downloadUrl = `https://storage.googleapis.com/genkit-assets-cli/${channel}/${machine}/v${cleanVersion}/${fileName}`;
@@ -388,7 +388,7 @@ async function downloadAndInstall(version: string): Promise<void> {
       logger.error(`Failed to restore backup: ${error}`);
     }
 
-    const alternativeCommand = `curl -Lo ./genkit_bin ${downloadUrl}`
+    const alternativeCommand = `curl -Lo ./genkit_bin ${downloadUrl}`;
     logger.info(``);
     logger.error(
       `${clc.red('✗')} Failed to update to v${clc.bold(version)}.` +
