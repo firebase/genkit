@@ -79,19 +79,21 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
 };
 
 export function deepSeekPlugin(options?: DeepSeekPluginOptions): GenkitPlugin {
-  const apiKey = options?.apiKey ?? process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    throw new GenkitError({
-      status: 'FAILED_PRECONDITION',
-      message:
-        'Please pass in the API key or set the DEEPSEEK_API_KEY environment variable.',
-    });
-  }
+  
   return openAICompatible({
     name: 'deepseek',
     baseURL: 'https://api.deepseek.com',
-    apiKey,
     ...options,
+    precondition: async () => {
+      const apiKey = options?.apiKey ?? process.env.DEEPSEEK_API_KEY;
+      if (!apiKey) {
+        throw new GenkitError({
+          status: 'FAILED_PRECONDITION',
+          message:
+            'Please pass in the API key or set the DEEPSEEK_API_KEY environment variable.',
+        });
+      }
+    },
     initializer: async (ai, client) => {
       Object.values(SUPPORTED_DEEPSEEK_MODELS).forEach((modelRef) =>
         defineCompatOpenAIModel({
