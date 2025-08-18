@@ -169,6 +169,8 @@ export interface GenerateOptions<
   context?: ActionContext;
   /** Abort signal for the generate request. */
   abortSignal?: AbortSignal;
+  /** Custom step name for this generate call to display in trace views. Defaults to "generate". */
+  stepName?: string;
   /**
    * Additional metadata describing the GenerateOptions, used by tooling. If
    * this is an instance of a rendered dotprompt, will contain any prompt
@@ -495,6 +497,7 @@ export async function toGenerateActionOptions<
     },
     returnToolRequests: options.returnToolRequests,
     maxTurns: options.maxTurns,
+    stepName: options.stepName,
   };
   // if config is empty and it was not explicitly passed in, we delete it, don't want {}
   if (Object.keys(params.config).length === 0 && !options.config) {
