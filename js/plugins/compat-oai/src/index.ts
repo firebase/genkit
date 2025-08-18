@@ -126,10 +126,10 @@ export const openAICompatible = (options: PluginOptions) => {
       } else {
         if (actionType === 'model') {
           return defineCompatOpenAIModel({
-            name: `${options.name}/${actionName}`,
+            name: actionName,
             client,
             modelRef: compatOaiModelRef({
-              name: `${options.name}/${actionName}`,
+              name: actionName,
             }),
           });
         }

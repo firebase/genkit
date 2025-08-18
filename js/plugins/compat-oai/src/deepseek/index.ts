@@ -43,7 +43,7 @@ const resolver = async (
 ) => {
   if (actionType === 'model') {
     const modelRef = deepSeekModelRef({
-      name: `deepseek/${actionName}`,
+      name: actionName,
     });
     return defineCompatOpenAIModel({
       name: modelRef.name,
@@ -65,7 +65,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
         const modelRef =
           SUPPORTED_DEEPSEEK_MODELS[model.id] ??
           deepSeekModelRef({
-            name: `deepseek/${model.id}`,
+            name: model.id,
           });
         return modelActionMetadata({
           name: modelRef.name,
@@ -118,7 +118,7 @@ export type DeepSeekPlugin = {
 
 const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   return deepSeekModelRef({
-    name: `deepseek/${name}`,
+    name,
     config,
   });
 }) as DeepSeekPlugin['model'];

@@ -47,7 +47,7 @@ const resolver = async (
   actionName: string
 ) => {
   if (actionType === 'model') {
-    const modelRef = xaiModelRef({ name: `xai/${actionName}` });
+    const modelRef = xaiModelRef({ name: actionName });
     return defineCompatOpenAIModel({
       name: modelRef.name,
       client,
@@ -68,7 +68,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
         if (model.id.includes('image')) {
           const modelRef =
             SUPPORTED_IMAGE_MODELS[model.id] ??
-            xaiImageModelRef({ name: `xai/${model.id}` });
+            xaiImageModelRef({ name: model.id });
           return modelActionMetadata({
             name: modelRef.name,
             info: modelRef.info,
@@ -77,7 +77,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
         } else {
           const modelRef =
             SUPPORTED_LANGUAGE_MODELS[model.id] ??
-            xaiModelRef({ name: `xai/${model.id}` });
+            xaiModelRef({ name: model.id });
           return modelActionMetadata({
             name: modelRef.name,
             info: modelRef.info,
@@ -146,12 +146,12 @@ export type XAIPlugin = {
 const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   if (name.includes('image')) {
     return xaiImageModelRef({
-      name: `xai/${name}`,
+      name,
       config,
     });
   }
   return xaiModelRef({
-    name: `xai/${name}`,
+    name,
     config,
   });
 }) as XAIPlugin['model'];

@@ -70,19 +70,19 @@ const resolver = async (
   actionName: string
 ) => {
   if (actionType === 'embedder') {
-    return defineCompatOpenAIEmbedder({ name: `openai/${actionName}`, client });
+    return defineCompatOpenAIEmbedder({ name: actionName, client });
   } else if (
     actionName.includes('gpt-image-1') ||
     actionName.includes('dall-e')
   ) {
-    const modelRef = openAIImageModelRef({ name: `openai/${actionName}` });
+    const modelRef = openAIImageModelRef({ name: actionName });
     return defineCompatOpenAIImageModel({
       name: modelRef.name,
       client,
       modelRef,
     });
   } else if (actionName.includes('tts')) {
-    const modelRef = openAISpeechModelRef({ name: `openai/${actionName}` });
+    const modelRef = openAISpeechModelRef({ name: actionName });
     return defineCompatOpenAISpeechModel({
       name: modelRef.name,
       client,
@@ -93,7 +93,7 @@ const resolver = async (
     actionName.includes('transcribe')
   ) {
     const modelRef = openAITranscriptionModelRef({
-      name: `openai/${actionName}`,
+      name: actionName,
     });
     return defineCompatOpenAITranscriptionModel({
       name: modelRef.name,
@@ -101,7 +101,7 @@ const resolver = async (
       modelRef,
     });
   } else {
-    const modelRef = openAIModelRef({ name: `openai/${actionName}` });
+    const modelRef = openAIModelRef({ name: actionName });
     return defineCompatOpenAIModel({
       name: modelRef.name,
       client,
@@ -119,7 +119,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
     response.data.filter(filterOpenAiModels).map((model: OpenAI.Model) => {
       if (model.id.includes('embedding')) {
         return embedderActionMetadata({
-          name: `openai/${model.id}`,
+          name: model.id,
           configSchema: TextEmbeddingConfigSchema,
           info: SUPPORTED_EMBEDDING_MODELS[model.id]?.info,
         });
@@ -129,7 +129,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
       ) {
         const modelRef =
           SUPPORTED_IMAGE_MODELS[model.id] ??
-          openAIImageModelRef({ name: `openai/${model.id}` });
+          openAIImageModelRef({ name: model.id });
         return modelActionMetadata({
           name: modelRef.name,
           info: modelRef.info,
@@ -138,7 +138,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
       } else if (model.id.includes('tts')) {
         const modelRef =
           SUPPORTED_TTS_MODELS[model.id] ??
-          openAISpeechModelRef({ name: `openai/${model.id}` });
+          openAISpeechModelRef({ name: model.id });
         return modelActionMetadata({
           name: modelRef.name,
           info: modelRef.info,
@@ -150,7 +150,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
       ) {
         const modelRef =
           SUPPORTED_STT_MODELS[model.id] ??
-          openAITranscriptionModelRef({ name: `openai/${model.id}` });
+          openAITranscriptionModelRef({ name: model.id });
         return modelActionMetadata({
           name: modelRef.name,
           info: modelRef.info,
@@ -158,8 +158,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
         });
       } else {
         const modelRef =
-          SUPPORTED_GPT_MODELS[model.id] ??
-          openAIModelRef({ name: `openai/${model.id}` });
+          SUPPORTED_GPT_MODELS[model.id] ?? openAIModelRef({ name: model.id });
         return modelActionMetadata({
           name: modelRef.name,
           info: modelRef.info,
@@ -270,24 +269,24 @@ export type OpenAIPlugin = {
 const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
   if (name.includes('gpt-image-1') || name.includes('dall-e')) {
     return openAIImageModelRef({
-      name: `openai/${name}`,
+      name,
       config,
     });
   }
   if (name.includes('tts')) {
     return openAISpeechModelRef({
-      name: `openai/${name}`,
+      name,
       config,
     });
   }
   if (name.includes('whisper') || name.includes('transcribe')) {
     return openAITranscriptionModelRef({
-      name: `openai/${name}`,
+      name,
       config,
     });
   }
   return openAIModelRef({
-    name: `openai/${name}`,
+    name,
     config,
   });
 }) as OpenAIPlugin['model'];
@@ -297,7 +296,7 @@ const embedder = ((
   config?: any
 ): EmbedderReference<z.ZodTypeAny> => {
   return embedderRef({
-    name: `openai/${name}`,
+    name,
     config,
     configSchema: TextEmbeddingConfigSchema,
   });
