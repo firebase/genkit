@@ -142,7 +142,6 @@ import { ModelInfo } from 'genkit/model';
 import openAI from '@genkit-ai/compat-oai';
 
 const modelInfo: ModelInfo = {
-  versions: ['claude-3-7-sonnet-20250219'],
   label: 'Claude - Claude 3.7 Sonnet',
   supports: {
     multiturn: true,

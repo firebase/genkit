@@ -789,13 +789,16 @@ func (c *ModelResponseChunk) Text() string {
 	}
 	var sb strings.Builder
 	for _, p := range c.Content {
-		sb.WriteString(p.Text)
+		if p.IsText() || p.IsData() {
+			sb.WriteString(p.Text)
+		}
 	}
 	return sb.String()
 }
 
 // Text returns the contents of a [Message] as a string. It
 // returns an empty string if the message has no content.
+// If you want to get reasoning from the message, use Reasoning() instead.
 func (m *Message) Text() string {
 	if m == nil {
 		return ""
@@ -808,7 +811,9 @@ func (m *Message) Text() string {
 	}
 	var sb strings.Builder
 	for _, p := range m.Content {
-		sb.WriteString(p.Text)
+		if p.IsText() || p.IsData() {
+			sb.WriteString(p.Text)
+		}
 	}
 	return sb.String()
 }

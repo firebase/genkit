@@ -7,7 +7,7 @@
 - **Go (Beta)**: Feature-complete but may have breaking changes
 - **Python (Alpha)**: Early development with core functionality
 
-It offers a unified interface for integrating AI models from providers like [Google](https://genkit.dev/docs/plugins/google-genai), [OpenAI](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-openai), [Anthropic](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic), [Ollama](https://genkit.dev/docs/plugins/ollama/), and more. Rapidly build and deploy production-ready chatbots, automations, and recommendation systems using streamlined APIs for multimodal content, structured outputs, tool calling, and agentic workflows.
+It offers a unified interface for integrating AI models from providers like [Google](https://genkit.dev/docs/plugins/google-genai), [OpenAI](https://genkit.dev/docs/plugins/openai), [Anthropic](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic), [Ollama](https://genkit.dev/docs/plugins/ollama/), and more. Rapidly build and deploy production-ready chatbots, automations, and recommendation systems using streamlined APIs for multimodal content, structured outputs, tool calling, and agentic workflows.
 
 Get started with just a few lines of code:
 
@@ -35,7 +35,7 @@ them, at no cost to you.
 <table>
   <tr>
     <td><strong>Broad AI model support</strong></td>
-    <td>Use a unified interface to integrate with hundreds of models from providers like <a href="https://genkit.dev/docs/plugins/google-genai">Google</a>, <a href="https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-openai">
+    <td>Use a unified interface to integrate with hundreds of models from providers like <a href="https://genkit.dev/docs/plugins/google-genai">Google</a>, <a href="https://genkit.dev/docs/plugins/openai">
     OpenAI</a>, <a href="https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic">
     Anthropic</a>, <a href="https://genkit.dev/docs/plugins/ollama">Ollama</a>, and more. Explore, compare, and use the best models for your needs.</td>
   </tr>
@@ -157,6 +157,8 @@ Want to skip the local setup? Click below to try out Genkit using [Firebase Stud
 ideas, and chat with other developers.
 - [**Contribute on GitHub**](https://github.com/firebase/genkit/issues) – Report 
 bugs, suggest features, or explore the source code.
+- [**Contribute to Documentation and Samples**](https://github.com/genkit-ai/) – Report 
+issues in Genkit's [documentation](https://github.com/genkit-ai/docsite), or contribute to the [samples](https://github.com/genkit-ai/samples).
 
 ## Contributing
 
@@ -164,4 +166,4 @@ Contributions to Genkit are welcome and highly appreciated! See our [Contributio
 
 ## Authors
 
-Genkit is built by [Firebase](https://firebase.google.com/products/genkit) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).
+Genkit is built by [Firebase](https://firebase.google.com/) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).

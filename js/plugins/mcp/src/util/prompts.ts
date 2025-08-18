@@ -17,16 +17,16 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { Prompt } from '@modelcontextprotocol/sdk/types.js';
 import {
-  ExecutablePrompt,
-  GenerateOptions,
-  GenerateResponse,
-  GenerateStreamResponse,
-  Genkit,
   GenkitError,
-  JSONSchema,
-  ToolAction,
   z,
+  type ExecutablePrompt,
+  type GenerateOptions,
+  type GenerateResponse,
+  type GenerateStreamResponse,
+  type Genkit,
+  type JSONSchema,
   type PromptGenerateOptions,
+  type ToolAction,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { fromMcpPromptMessage } from './message.js';

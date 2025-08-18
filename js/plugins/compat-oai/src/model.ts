@@ -17,6 +17,7 @@
 
 import type {
   GenerateRequest,
+  GenerateResponseChunkData,
   GenerateResponseData,
   Genkit,
   MessageData,
@@ -26,17 +27,14 @@ import type {
   StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
-import { GenerationCommonConfigSchema, Message, z } from 'genkit';
-import type {
-  GenerateResponseChunkData,
-  ModelAction,
-  ToolDefinition,
-} from 'genkit/model';
+import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
+import type { ModelAction, ModelInfo, ToolDefinition } from 'genkit/model';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionContentPart,
+  ChatCompletionCreateParams,
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
@@ -48,6 +46,11 @@ import type {
 const VisualDetailLevelSchema = z.enum(['auto', 'low', 'high']).optional();
 
 type VisualDetailLevel = z.infer<typeof VisualDetailLevelSchema>;
+
+export type ModelRequestBuilder = (
+  req: GenerateRequest,
+  params: ChatCompletionCreateParams
+) => void;
 
 export const ChatCompletionCommonConfigSchema =
   GenerationCommonConfigSchema.extend({
@@ -333,7 +336,8 @@ export function fromOpenAIChunkChoice(
  */
 export function toOpenAIRequestBody(
   modelName: string,
-  request: GenerateRequest
+  request: GenerateRequest,
+  requestBuilder?: ModelRequestBuilder
 ) {
   const messages = toOpenAIMessages(
     request.messages,
@@ -358,7 +362,7 @@ export function toOpenAIRequestBody(
   if (toolsFromConfig) {
     tools.push(...(toolsFromConfig as any[]));
   }
-  const body = {
+  let body = {
     model: modelVersion ?? modelName,
     messages,
     tools: tools.length > 0 ? tools : undefined,
@@ -369,9 +373,14 @@ export function toOpenAIRequestBody(
     presence_penalty,
     top_logprobs,
     logprobs,
-    ...restOfConfig, // passthrough for other config
   } as ChatCompletionCreateParamsNonStreaming;
-
+  if (requestBuilder) {
+    // If override provided, apply the override to the OpenAI request.
+    // User must control passthrough config too.
+    requestBuilder(request, body);
+  } else {
+    body = { ...body, ...restOfConfig }; // passthrough for other config
+  }
   const response_format = request.output?.format;
   if (response_format === 'json') {
     body.response_format = {
@@ -396,25 +405,36 @@ export function toOpenAIRequestBody(
  * @param client The OpenAI client instance.
  * @returns The runner that Genkit will call when the model is invoked.
  */
-export function openAIModelRunner(name: string, client: OpenAI) {
+export function openAIModelRunner(
+  name: string,
+  client: OpenAI,
+  requestBuilder?: ModelRequestBuilder
+) {
   return async (
     request: GenerateRequest,
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+    options?: {
+      streamingRequested?: boolean;
+      sendChunk?: StreamingCallback<GenerateResponseChunkData>;
+      abortSignal?: AbortSignal;
+    }
   ): Promise<GenerateResponseData> => {
     let response: ChatCompletion;
-    const body = toOpenAIRequestBody(name, request);
-    if (streamingCallback) {
-      const stream = client.beta.chat.completions.stream({
-        ...body,
-        stream: true,
-        stream_options: {
-          include_usage: true,
+    const body = toOpenAIRequestBody(name, request, requestBuilder);
+    if (options?.streamingRequested) {
+      const stream = client.beta.chat.completions.stream(
+        {
+          ...body,
+          stream: true,
+          stream_options: {
+            include_usage: true,
+          },
         },
-      });
+        { signal: options?.abortSignal }
+      );
       for await (const chunk of stream) {
         chunk.choices?.forEach((chunk) => {
           const c = fromOpenAIChunkChoice(chunk);
-          streamingCallback({
+          options?.sendChunk!({
             index: chunk.index,
             content: c.message?.content ?? [],
           });
@@ -422,7 +442,9 @@ export function openAIModelRunner(name: string, client: OpenAI) {
       }
       response = await stream.finalChatCompletion();
     } else {
-      response = await client.chat.completions.create(body);
+      response = await client.chat.completions.create(body, {
+        signal: options?.abortSignal,
+      });
     }
     const standardResponse: GenerateResponseData = {
       usage: {
@@ -467,16 +489,51 @@ export function defineCompatOpenAIModel<
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
+  requestBuilder?: ModelRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef } = params;
-  const model = name.split('/').pop();
+  const { ai, name, client, modelRef, requestBuilder } = params;
+  const modelName = name.substring(name.indexOf('/') + 1);
 
   return ai.defineModel(
     {
       name,
+      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    openAIModelRunner(model!, client)
+    openAIModelRunner(modelName!, client, requestBuilder)
   );
+}
+
+const GENERIC_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: true,
+    media: true,
+    tools: true,
+    toolChoice: true,
+    systemRole: true,
+  },
+};
+
+/** ModelRef helper, with reasonable defaults for OpenAI-compatible providers */
+export function compatOaiModelRef<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: CustomOptions;
+  config?: any;
+}): ModelReference<CustomOptions> {
+  const {
+    name,
+    info = GENERIC_MODEL_INFO,
+    configSchema,
+    config = undefined,
+  } = params;
+  return modelRef({
+    name,
+    configSchema: configSchema || (ChatCompletionCommonConfigSchema as any),
+    info: info,
+    config,
+  });
 }

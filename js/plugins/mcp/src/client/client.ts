@@ -23,12 +23,12 @@ import {
   Root,
 } from '@modelcontextprotocol/sdk/types.js';
 import {
-  DynamicResourceAction,
-  ExecutablePrompt,
-  Genkit,
   GenkitError,
-  PromptGenerateOptions,
-  ToolAction,
+  type DynamicResourceAction,
+  type ExecutablePrompt,
+  type Genkit,
+  type PromptGenerateOptions,
+  type ToolAction,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import {

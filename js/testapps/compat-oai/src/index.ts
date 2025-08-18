@@ -15,6 +15,11 @@
  * limitations under the License.
  */
 
+import {
+  compatOaiModelRef,
+  defineCompatOpenAIModel,
+  openAICompatible,
+} from '@genkit-ai/compat-oai';
 import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
 import { openAI } from '@genkit-ai/compat-oai/openai';
 import { xAI } from '@genkit-ai/compat-oai/xai';
@@ -24,11 +29,30 @@ import { genkit, z } from 'genkit';
 
 dotenv.config();
 
+const DECLARED_MODELS = ['z-ai/glm-4.5-air:free'];
+
 const ai = genkit({
   plugins: [
     openAI(),
-    deepSeek({ apiKey: process.env['DEEPSEEK_API_KEY'] }),
-    xAI({ apiKey: process.env['XAI_API_KEY'] }),
+    deepSeek(),
+    xAI(),
+    openAICompatible({
+      name: 'openrouter',
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey: process.env['OPENROUTER_API_KEY'],
+      initializer: async (ai, client) => {
+        for (const model of DECLARED_MODELS) {
+          defineCompatOpenAIModel({
+            ai,
+            name: `openrouter/${model}`,
+            client,
+            modelRef: compatOaiModelRef({
+              name: `openrouter/${model}`,
+            }),
+          });
+        }
+      },
+    }),
   ],
 });
 
@@ -41,7 +65,9 @@ export const jokeFlow = ai.defineFlow(
   async (subject) => {
     const llmResponse = await ai.generate({
       prompt: `tell me a joke about ${subject}`,
-      model: openAI.model('gpt-4.1'),
+      model: compatOaiModelRef({
+        name: 'openrouter/z-ai/glm-4.5-air:free',
+      }),
     });
     return llmResponse.text;
   }
@@ -86,8 +112,6 @@ export const webSearchFlow = ai.defineFlow(
     return llmResponse.text;
   }
 );
-
-//  genkit flow:run embedFlow \"hello world\"
 
 export const embedFlow = ai.defineFlow(
   {

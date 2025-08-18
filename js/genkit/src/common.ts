@@ -91,6 +91,7 @@ export {
   type RerankerInfo,
   type RerankerParams,
   type RerankerReference,
+  type ResourceAction,
   type ResumeOptions,
   type RetrieverAction,
   type RetrieverArgument,
@@ -151,3 +152,6 @@ export {
   type StreamingResponse,
   type TelemetryConfig,
 } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
+
+initNodeFeatures();

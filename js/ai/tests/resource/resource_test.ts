@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -24,6 +25,8 @@ import {
   isDynamicResourceAction,
 } from '../../src/resource.js';
 import { defineEchoModel } from '../helpers.js';
+
+initNodeFeatures();
 
 describe('resource', () => {
   let registry: Registry;
@@ -55,6 +58,7 @@ describe('resource', () => {
         uri: 'foo://bar',
       },
       type: 'resource',
+      dynamic: true,
     });
 
     assert.strictEqual(testResource.matches({ uri: 'foo://bar' }), true);
@@ -218,6 +222,7 @@ describe('resource', () => {
         uri: undefined,
       },
       type: 'resource',
+      dynamic: true,
     });
 
     const gotUnmatched = await findMatchingResource(registry, {

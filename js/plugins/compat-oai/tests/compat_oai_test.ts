@@ -35,6 +35,7 @@ import {
   fromOpenAIChoice,
   fromOpenAIChunkChoice,
   fromOpenAIToolCall,
+  ModelRequestBuilder,
   openAIModelRunner,
   toOpenAIMessages,
   toOpenAIRequestBody,
@@ -1301,9 +1302,12 @@ describe('openAIModelRunner', () => {
       openaiClient as unknown as OpenAI
     );
     await runner({ messages: [] });
-    expect(openaiClient.chat.completions.create).toHaveBeenCalledWith({
-      model: 'gpt-4o',
-    });
+    expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
+      {
+        model: 'gpt-4o',
+      },
+      { signal: undefined }
+    );
   });
 
   it('should correctly run streaming requests', async () => {
@@ -1341,18 +1345,58 @@ describe('openAIModelRunner', () => {
         },
       },
     };
-    const streamingCallback = jest.fn();
+    const sendChunk = jest.fn();
+    const abortSignal = jest.fn();
     const runner = openAIModelRunner(
       'gpt-4o',
       openaiClient as unknown as OpenAI
     );
-    await runner({ messages: [] }, streamingCallback);
-    expect(openaiClient.beta.chat.completions.stream).toHaveBeenCalledWith({
-      model: 'gpt-4o',
-      stream: true,
-      stream_options: {
-        include_usage: true,
+    await runner(
+      { messages: [] },
+      {
+        sendChunk,
+        streamingRequested: true,
+        abortSignal: abortSignal as unknown as AbortSignal,
+      }
+    );
+    expect(openaiClient.beta.chat.completions.stream).toHaveBeenCalledWith(
+      {
+        model: 'gpt-4o',
+        stream: true,
+        stream_options: {
+          include_usage: true,
+        },
       },
-    });
+      { signal: abortSignal }
+    );
+  });
+
+  it('should run with requestBuilder', async () => {
+    const openaiClient = {
+      chat: {
+        completions: {
+          create: jest.fn(async () => ({
+            choices: [{ message: { content: 'response' } }],
+          })),
+        },
+      },
+    };
+    const requestBuilder: ModelRequestBuilder = (req, params) => {
+      (params as any).foo = 'bar';
+    };
+    const runner = openAIModelRunner(
+      'gpt-4o',
+      openaiClient as unknown as OpenAI,
+      requestBuilder
+    );
+    await runner({ messages: [], config: { temperature: 0.1 } });
+    expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
+      {
+        model: 'gpt-4o',
+        foo: 'bar',
+        temperature: 0.1,
+      },
+      { signal: undefined }
+    );
   });
 });

@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-import { ModelInfo, modelRef, ModelReference } from 'genkit/model';
-import { ChatCompletionCommonConfigSchema } from '../model';
+import { z } from 'genkit';
+import { ModelInfo, ModelReference } from 'genkit/model';
+import {
+  ChatCompletionCommonConfigSchema,
+  ModelRequestBuilder,
+  compatOaiModelRef,
+} from '../model';
 
 /**
  * Language models that support text -> text, tool calling, structured output
@@ -30,29 +35,59 @@ const XAI_LANGUGAGE_MODEL_INFO: ModelInfo = {
   },
 };
 
-function commonRef(
-  name: string,
-  info?: ModelInfo
-): ModelReference<typeof ChatCompletionCommonConfigSchema> {
-  return modelRef({
-    name,
-    configSchema: ChatCompletionCommonConfigSchema,
-    info: info ?? XAI_LANGUGAGE_MODEL_INFO,
+/** XAI Custom configuration schema. */
+export const XaiChatCompletionConfigSchema =
+  ChatCompletionCommonConfigSchema.extend({
+    deferred: z.boolean().optional(),
+    reasoningEffort: z.enum(['low', 'medium', 'high']).optional(),
+    webSearchOptions: z.object({}).passthrough().optional(),
+  });
+
+/** XAI ModelRef helper, with XAI specific config. */
+export function xaiModelRef(params: {
+  name: string;
+  info?: ModelInfo;
+  config?: any;
+}): ModelReference<typeof XaiChatCompletionConfigSchema> {
+  return compatOaiModelRef({
+    ...params,
+    info: params.info ?? XAI_LANGUGAGE_MODEL_INFO,
+    configSchema: XaiChatCompletionConfigSchema,
   });
 }
 
+export const grokRequestBuilder: ModelRequestBuilder = (req, params) => {
+  const { deferred, webSearchOptions, reasoningEffort } = req.config ?? {};
+
+  params.web_search_options = webSearchOptions;
+  params.reasoning_effort = reasoningEffort;
+  // Deferred is not a standard field on the request type
+  (params as any).deferred = deferred;
+};
+
 export const SUPPORTED_LANGUAGE_MODELS = {
-  'grok-3': commonRef('xai/grok-3'),
-  'grok-3-fast': commonRef('xai/grok-3-fast'),
-  'grok-3-mini': commonRef('xai/grok-3-mini'),
-  'grok-3-mini-fast': commonRef('xai/grok-3-mini-fast'),
-  'grok-2-vision-1212': commonRef('xai/grok-2-vision-1212', {
-    supports: {
-      multiturn: false,
-      tools: true,
-      media: true,
-      systemRole: false,
-      output: ['text', 'json'],
+  'grok-3': xaiModelRef({
+    name: 'xai/grok-3',
+  }),
+  'grok-3-fast': xaiModelRef({
+    name: 'xai/grok-3-fast',
+  }),
+  'grok-3-mini': xaiModelRef({
+    name: 'xai/grok-3-mini',
+  }),
+  'grok-3-mini-fast': xaiModelRef({
+    name: 'xai/grok-3-mini-fast',
+  }),
+  'grok-2-vision-1212': xaiModelRef({
+    name: 'xai/grok-2-vision-1212',
+    info: {
+      supports: {
+        multiturn: false,
+        tools: true,
+        media: true,
+        systemRole: false,
+        output: ['text', 'json'],
+      },
     },
   }),
 };

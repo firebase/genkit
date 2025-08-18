@@ -16,16 +16,9 @@
 
 import * as assert from 'assert';
 import { genkit, type Genkit } from 'genkit';
+import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
-import {
-  after,
-  afterEach,
-  before,
-  beforeEach,
-  describe,
-  it,
-  mock,
-} from 'node:test';
+import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import {
   TEST_ONLY as EMBEDDER_TEST_ONLY,
   EmbeddingConfigSchema,
@@ -39,26 +32,55 @@ import {
   ImagenConfigSchema,
 } from '../../src/vertexai/imagen.js';
 import { vertexAI } from '../../src/vertexai/index.js';
-import { TEST_ONLY as UTILS_TEST_ONLY } from '../../src/vertexai/utils.js';
+import type {
+  ExpressClientOptions,
+  GlobalClientOptions,
+  RegionalClientOptions,
+} from '../../src/vertexai/types.js';
+import {
+  NOT_SUPPORTED_IN_EXPRESS_ERROR,
+  TEST_ONLY as UTILS_TEST_ONLY,
+} from '../../src/vertexai/utils.js';
 
 describe('VertexAI Plugin', () => {
-  const originalMockDerivedOptions = {
+  const regionalMockDerivedOptions: RegionalClientOptions = {
+    kind: 'regional' as const,
     location: 'us-central1',
     projectId: 'test-project',
-    authClient: {} as GoogleAuth,
+    authClient: {
+      getAccessToken: async () => 'fake-test-token',
+    } as unknown as GoogleAuth,
+  };
+  const globalMockDerivedOptions: GlobalClientOptions = {
+    kind: 'global' as const,
+    location: 'global',
+    projectId: 'test-project',
+    authClient: {
+      getAccessToken: async () => 'fake-test-token',
+    } as unknown as GoogleAuth,
+  };
+  const expressMockDerivedOptions: ExpressClientOptions = {
+    kind: 'express' as const,
+    apiKey: 'test-express-api-key',
+  };
+  const notSupportedInExpressErrorMessage = {
+    message: NOT_SUPPORTED_IN_EXPRESS_ERROR.message,
   };
 
-  before(() => {
-    UTILS_TEST_ONLY.setMockDerivedOptions(originalMockDerivedOptions);
+  let ai: Genkit;
+
+  // Default to regional options for most tests
+  beforeEach(() => {
+    UTILS_TEST_ONLY.setMockDerivedOptions(regionalMockDerivedOptions);
+    ai = genkit({ plugins: [vertexAI()] });
   });
 
-  after(() => {
+  afterEach(() => {
     UTILS_TEST_ONLY.setMockDerivedOptions(undefined as any);
   });
 
   describe('Initializer', () => {
     it('should pre-register flagship Gemini models', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       const model1Name = Object.keys(GEMINI_TEST_ONLY.KNOWN_MODELS)[0];
       const model1Path = `/model/vertexai/${model1Name}`;
       const expectedBaseName = `vertexai/${model1Name}`;
@@ -68,7 +90,6 @@ describe('VertexAI Plugin', () => {
     });
 
     it('should register all known Gemini models', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       for (const modelName in GEMINI_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/model/vertexai/${modelName}`;
         const expectedBaseName = `vertexai/${modelName}`;
@@ -79,7 +100,6 @@ describe('VertexAI Plugin', () => {
     });
 
     it('should pre-register flagship Imagen models', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       const modelKeys = Object.keys(IMAGEN_TEST_ONLY.KNOWN_MODELS);
       if (modelKeys.length > 0) {
         const model1Name = modelKeys[0];
@@ -95,7 +115,6 @@ describe('VertexAI Plugin', () => {
     });
 
     it('should register all known Imagen models', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       for (const modelName in IMAGEN_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/model/vertexai/${modelName}`;
         const expectedBaseName = `vertexai/${modelName}`;
@@ -106,7 +125,6 @@ describe('VertexAI Plugin', () => {
     });
 
     it('should pre-register flagship Embedder models', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       const modelKeys = Object.keys(EMBEDDER_TEST_ONLY.KNOWN_MODELS);
       if (modelKeys.length > 0) {
         const model1Name = modelKeys[0];
@@ -122,7 +140,6 @@ describe('VertexAI Plugin', () => {
     });
 
     it('should register all known Embedder models', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       for (const modelName in EMBEDDER_TEST_ONLY.KNOWN_MODELS) {
         const modelPath = `/embedder/vertexai/${modelName}`;
         const expectedBaseName = `vertexai/${modelName}`;
@@ -142,21 +159,18 @@ describe('VertexAI Plugin', () => {
     const testEmbedderPath = `/embedder/vertexai/${testEmbedderName}`;
 
     it('should register a new Gemini model when looked up', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       const model = await ai.registry.lookupAction(testModelPath);
       assert.ok(model, `${testModelName} should be resolvable and registered`);
       assert.strictEqual(model?.__action.name, `vertexai/${testModelName}`);
     });
 
     it('should register a new Imagen model when looked up', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       const model = await ai.registry.lookupAction(testImagenPath);
       assert.ok(model, `${testImagenName} should be resolvable and registered`);
       assert.strictEqual(model?.__action.name, `vertexai/${testImagenName}`);
     });
 
     it('should register a new Embedder when looked up', async () => {
-      const ai = genkit({ plugins: [vertexAI()] });
       const embedder = await ai.registry.lookupAction(testEmbedderPath);
       assert.ok(
         embedder,
@@ -205,28 +219,6 @@ describe('VertexAI Plugin', () => {
       );
     });
 
-    it('vertexAI.model should handle custom names for Gemini family', () => {
-      const modelName = 'gemini-custom-model';
-      const modelRef = vertexAI.model(modelName);
-      assert.strictEqual(modelRef.name, `vertexai/${modelName}`);
-      assert.strictEqual(
-        modelRef.configSchema,
-        GeminiConfigSchema,
-        'Custom Gemini should still use GeminiConfigSchema'
-      );
-    });
-
-    it('vertexAI.model should handle custom names for Imagen family', () => {
-      const modelName = 'imagen-custom-model';
-      const modelRef = vertexAI.model(modelName);
-      assert.strictEqual(modelRef.name, `vertexai/${modelName}`);
-      assert.strictEqual(
-        modelRef.configSchema,
-        ImagenConfigSchema,
-        'Custom Imagen should still use ImagenConfigSchema'
-      );
-    });
-
     it('vertexAI.embedder should return an EmbedderReference with correct schema', () => {
       const embedderName = 'text-embedding-005';
       const embedderRef = vertexAI.embedder(embedderName);
@@ -242,25 +234,13 @@ describe('VertexAI Plugin', () => {
 
   describe('listActions Function', () => {
     let fetchMock: any;
-    let ai: Genkit;
 
     beforeEach(() => {
-      ai = genkit({ plugins: [vertexAI()] });
-      const authClientMock = {
-        getAccessToken: async () => 'fake-test-token',
-        // Add other methods if needed, though getAccessToken is the key one for headers
-      };
-      UTILS_TEST_ONLY.setMockDerivedOptions({
-        location: 'us-central1',
-        projectId: 'test-project',
-        authClient: authClientMock as any,
-      });
       fetchMock = mock.method(global, 'fetch');
     });
 
     afterEach(() => {
       fetchMock.mock.restore();
-      UTILS_TEST_ONLY.setMockDerivedOptions(originalMockDerivedOptions);
     });
 
     const createMockResponse = (models: Array<{ name: string }>) => {
@@ -279,10 +259,10 @@ describe('VertexAI Plugin', () => {
 
     it('should return metadata for gemini and imagen models, filtering others', async () => {
       const mockModels = [
-        { name: 'publishers/google/models/gemini-2.5-pro' },
-        { name: 'publishers/google/models/imagen-3.0-generate-001' },
-        { name: 'publishers/google/models/text-embedding-004' },
-        { name: 'publishers/google/models/other-model' },
+        { name: 'models/gemini-2.5-pro' },
+        { name: 'models/imagen-3.0-generate-001' },
+        { name: 'models/text-embedding-004' },
+        { name: 'models/other-model' },
       ];
       fetchMock.mock.mockImplementation(async () =>
         createMockResponse(mockModels)
@@ -299,65 +279,330 @@ describe('VertexAI Plugin', () => {
       });
     });
 
-    it('should filter out known decommissioned models', async () => {
-      const mockModels = [
-        { name: 'publishers/google/models/gemini-1.5-flash' },
-        { name: 'publishers/google/models/gemini-pro' },
-      ];
-      fetchMock.mock.mockImplementation(async () =>
-        createMockResponse(mockModels)
-      );
+    it('should call fetch with auth token and location-specific URL for local options', async () => {
+      fetchMock.mock.mockImplementation(async () => createMockResponse([]));
       const pluginProvider = vertexAI()(ai);
-      const actions = await pluginProvider.listActions!();
-      const actionNames = actions.map((a) => a.name);
-      assert.deepStrictEqual(actionNames, ['vertexai/gemini-1.5-flash']);
+      await pluginProvider.listActions!();
+
+      const fetchCall = fetchMock.mock.calls[0];
+      const headers = fetchCall.arguments[1].headers;
+      const url = fetchCall.arguments[0];
+
+      assert.strictEqual(headers['Authorization'], 'Bearer fake-test-token');
+      assert.strictEqual(headers['x-goog-user-project'], 'test-project');
+      assert.ok(
+        url.startsWith('https://us-central1-aiplatform.googleapis.com')
+      );
     });
 
-    it('should filter out embedding models from gemini results', async () => {
-      const mockModels = [
-        { name: 'publishers/google/models/gemini-2.0-pro' },
-        { name: 'publishers/google/models/gemini-embedding-001' },
-      ];
-      fetchMock.mock.mockImplementation(async () =>
-        createMockResponse(mockModels)
-      );
+    it('should call fetch with API key and global URL for global options', async () => {
+      const globalWithOptions = {
+        ...globalMockDerivedOptions,
+        apiKey: 'test-api-key',
+      };
+      UTILS_TEST_ONLY.setMockDerivedOptions(globalWithOptions);
+      ai = genkit({ plugins: [vertexAI()] }); // Re-init
+      fetchMock.mock.mockImplementation(async () => createMockResponse([]));
       const pluginProvider = vertexAI()(ai);
-      const actions = await pluginProvider.listActions!();
-      const actionNames = actions.map((a) => a.name);
-      assert.deepStrictEqual(actionNames, ['vertexai/gemini-2.0-pro']);
+      await pluginProvider.listActions!();
+
+      const fetchCall = fetchMock.mock.calls[0];
+      const headers = fetchCall.arguments[1].headers;
+      const url = fetchCall.arguments[0];
+
+      assert.strictEqual(headers['Authorization'], 'Bearer fake-test-token');
+      assert.strictEqual(headers['x-goog-user-project'], 'test-project');
+      assert.strictEqual(headers['x-goog-api-key'], 'test-api-key');
+      assert.ok(url.startsWith('https://aiplatform.googleapis.com'));
+      assert.ok(!url.includes('?key=test-api-key'));
+      assert.ok(!url.includes('us-central1-'));
     });
 
-    it('should handle fetch errors gracefully', async () => {
-      fetchMock.mock.mockImplementation(async () => {
-        return Promise.resolve({
-          ok: false,
-          status: 500,
-          statusText: 'Internal Error',
-          json: async () => ({ error: { message: 'API Error' } }),
-        });
+    it('should throw for listActions with express options', async () => {
+      UTILS_TEST_ONLY.setMockDerivedOptions(expressMockDerivedOptions);
+      ai = genkit({ plugins: [vertexAI()] }); // Re-init
+      fetchMock.mock.mockImplementation(async () => createMockResponse([]));
+      const pluginProvider = vertexAI()(ai);
+      const actions = await pluginProvider.listActions!();
+      assert.strictEqual(actions.length, 0);
+      assert.strictEqual(fetchMock.mock.calls.length, 0);
+    });
+  });
+
+  describe('API Calls', () => {
+    let fetchMock: any;
+
+    beforeEach(() => {
+      fetchMock = mock.method(global, 'fetch');
+    });
+
+    afterEach(() => {
+      fetchMock.mock.restore();
+    });
+
+    const createMockApiResponse = (data: object) => {
+      return Promise.resolve({
+        ok: true,
+        json: async () => data,
       });
-      const pluginProvider = vertexAI()(ai);
-      const actions = await pluginProvider.listActions!();
-      assert.deepStrictEqual(
-        actions,
-        [],
-        'Should return empty array on fetch error'
-      );
+    };
+
+    describe('With Local Options', () => {
+      beforeEach(() => {
+        UTILS_TEST_ONLY.setMockDerivedOptions(regionalMockDerivedOptions);
+        ai = genkit({ plugins: [vertexAI()] });
+      });
+
+      it('should use auth token for Gemini generateContent', async () => {
+        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const generateAction = await ai.registry.lookupAction(
+          '/model/' + modelRef.name
+        );
+        assert.ok(generateAction, `/model/${modelRef.name} action not found`);
+
+        fetchMock.mock.mockImplementation(async () =>
+          createMockApiResponse({
+            candidates: [
+              {
+                index: 0,
+                content: { role: 'model', parts: [{ text: 'response' }] },
+              },
+            ],
+          })
+        );
+
+        await generateAction({
+          messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+          config: {},
+        } as GenerateRequest);
+
+        const fetchCall = fetchMock.mock.calls[0];
+        const headers = fetchCall.arguments[1].headers;
+        const url = fetchCall.arguments[0];
+        assert.strictEqual(headers['Authorization'], 'Bearer fake-test-token');
+        assert.ok(url.includes('us-central1-aiplatform.googleapis.com'));
+      });
+
+      it('should use auth token for Embedder embedContent', async () => {
+        const embedderRef = vertexAI.embedder('text-embedding-004');
+        const embedAction = await ai.registry.lookupAction(
+          '/embedder/' + embedderRef.name
+        );
+        assert.ok(
+          embedAction,
+          `/embedder/${embedderRef.name} action not found`
+        );
+
+        fetchMock.mock.mockImplementation(async () =>
+          createMockApiResponse({
+            predictions: [{ embeddings: { values: [0.1] } }],
+          })
+        );
+
+        await embedAction({
+          input: [{ content: [{ text: 'test' }] }],
+        });
+
+        const fetchCall = fetchMock.mock.calls[0];
+        const headers = fetchCall.arguments[1].headers;
+        assert.strictEqual(headers['Authorization'], 'Bearer fake-test-token');
+      });
+
+      it('should use auth token for Imagen predict', async () => {
+        const modelRef = vertexAI.model('imagen-3.0-generate-001');
+        const generateAction = await ai.registry.lookupAction(
+          '/model/' + modelRef.name
+        );
+        assert.ok(generateAction, `/model/${modelRef.name} action not found`);
+
+        fetchMock.mock.mockImplementation(async () =>
+          createMockApiResponse({
+            predictions: [{ bytesBase64Encoded: 'abc', mimeType: 'image/png' }],
+          })
+        );
+
+        await generateAction({
+          messages: [{ role: 'user', content: [{ text: 'a cat' }] }],
+          config: {},
+        } as GenerateRequest);
+        const fetchCall = fetchMock.mock.calls[0];
+        const headers = fetchCall.arguments[1].headers;
+        assert.strictEqual(headers['Authorization'], 'Bearer fake-test-token');
+      });
     });
 
-    it('should use listActions cache', async () => {
-      const mockModels = [{ name: 'publishers/google/models/gemini-1.0-pro' }];
-      fetchMock.mock.mockImplementation(async () =>
-        createMockResponse(mockModels)
-      );
-      const pluginProvider = vertexAI()(ai);
-      await pluginProvider.listActions!();
-      await pluginProvider.listActions!();
-      assert.strictEqual(
-        fetchMock.mock.callCount(),
-        1,
-        'fetch should only be called once'
-      );
+    describe('With Global Options', () => {
+      beforeEach(() => {
+        const globalWithOptions = {
+          ...globalMockDerivedOptions,
+          apiKey: 'test-api-key',
+        };
+        UTILS_TEST_ONLY.setMockDerivedOptions(globalWithOptions);
+        ai = genkit({ plugins: [vertexAI()] });
+      });
+
+      it('should use API key for Gemini generateContent', async () => {
+        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const generateAction = await ai.registry.lookupAction(
+          '/model/' + modelRef.name
+        );
+        assert.ok(generateAction, `/model/${modelRef.name} action not found`);
+
+        fetchMock.mock.mockImplementation(async () =>
+          createMockApiResponse({
+            candidates: [
+              {
+                index: 0,
+                content: { role: 'model', parts: [{ text: 'response' }] },
+              },
+            ],
+          })
+        );
+
+        await generateAction({
+          messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+          config: {},
+        } as GenerateRequest);
+
+        const fetchCall = fetchMock.mock.calls[0];
+        const headers = fetchCall.arguments[1].headers;
+        const url = fetchCall.arguments[0];
+        assert.strictEqual(headers['Authorization'], 'Bearer fake-test-token');
+        assert.strictEqual(headers['x-goog-user-project'], 'test-project');
+        assert.strictEqual(headers['x-goog-api-key'], 'test-api-key');
+        assert.ok(!url.includes('?key=test-api-key'));
+        assert.ok(
+          url.includes('aiplatform.googleapis.com') &&
+            !url.includes('us-central1-')
+        );
+      });
+
+      it('should use API key for Embedder embedContent', async () => {
+        const embedderRef = vertexAI.embedder('text-embedding-004');
+        const embedAction = await ai.registry.lookupAction(
+          '/embedder/' + embedderRef.name
+        );
+        assert.ok(
+          embedAction,
+          `/embedder/${embedderRef.name} action not found`
+        );
+
+        fetchMock.mock.mockImplementation(async () =>
+          createMockApiResponse({
+            predictions: [{ embeddings: { values: [0.1] } }],
+          })
+        );
+
+        await embedAction({
+          input: [{ content: [{ text: 'test' }] }],
+        });
+        const fetchCall = fetchMock.mock.calls[0];
+        const headers = fetchCall.arguments[1].headers;
+        const url = fetchCall.arguments[0];
+        assert.strictEqual(headers['Authorization'], 'Bearer fake-test-token');
+        assert.strictEqual(headers['x-goog-api-key'], 'test-api-key');
+        assert.ok(!url.includes('?key=test-api-key'));
+      });
+
+      it('should use API key for Imagen predict', async () => {
+        const modelRef = vertexAI.model('imagen-3.0-generate-001');
+        const generateAction = await ai.registry.lookupAction(
+          '/model/' + modelRef.name
+        );
+        assert.ok(generateAction, `/model/${modelRef.name} action not found`);
+
+        fetchMock.mock.mockImplementation(async () =>
+          createMockApiResponse({
+            predictions: [{ bytesBase64Encoded: 'abc', mimeType: 'image/png' }],
+          })
+        );
+
+        await generateAction({
+          messages: [{ role: 'user', content: [{ text: 'a cat' }] }],
+          config: {},
+        } as GenerateRequest);
+        const fetchCall = fetchMock.mock.calls[0];
+        const headers = fetchCall.arguments[1].headers;
+        const url = fetchCall.arguments[0];
+        assert.strictEqual(headers['Authorization'], 'Bearer fake-test-token');
+        assert.strictEqual(headers['x-goog-api-key'], 'test-api-key');
+        assert.ok(!url.includes('?key=test-api-key'));
+      });
+    });
+
+    describe('With Express Options', () => {
+      beforeEach(() => {
+        UTILS_TEST_ONLY.setMockDerivedOptions(expressMockDerivedOptions);
+        ai = genkit({ plugins: [vertexAI()] });
+      });
+
+      it('should use API key for Gemini generateContent', async () => {
+        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const generateAction = await ai.registry.lookupAction(
+          '/model/' + modelRef.name
+        );
+        assert.ok(generateAction, `/model/${modelRef.name} action not found`);
+
+        fetchMock.mock.mockImplementation(async () =>
+          createMockApiResponse({
+            candidates: [
+              {
+                index: 0,
+                content: { role: 'model', parts: [{ text: 'response' }] },
+              },
+            ],
+          })
+        );
+
+        await generateAction({
+          messages: [{ role: 'user', content: [{ text: 'hi' }] }],
+          config: {},
+        } as GenerateRequest);
+
+        const fetchCall = fetchMock.mock.calls[0];
+        const headers = fetchCall.arguments[1].headers;
+        const url = fetchCall.arguments[0];
+
+        assert.strictEqual(headers['Authorization'], undefined);
+        assert.strictEqual(headers['x-goog-api-key'], 'test-express-api-key');
+        assert.ok(!url.includes('test-express-api-key'));
+        assert.ok(
+          url.includes('aiplatform.googleapis.com') &&
+            !url.includes('us-central1-')
+        );
+      });
+
+      it('should not support Embedder embedContent', async () => {
+        const embedderRef = vertexAI.embedder('text-embedding-004');
+        const embedAction = await ai.registry.lookupAction(
+          '/embedder/' + embedderRef.name
+        );
+        assert.ok(
+          embedAction,
+          `/embedder/${embedderRef.name} action not found`
+        );
+
+        await assert.rejects(async () => {
+          await embedAction({
+            input: [{ content: [{ text: 'test' }] }],
+          });
+        }, notSupportedInExpressErrorMessage);
+      });
+
+      it('should not support Imagen predict', async () => {
+        const modelRef = vertexAI.model('imagen-3.0-generate-001');
+        const generateAction = await ai.registry.lookupAction(
+          '/model/' + modelRef.name
+        );
+        assert.ok(generateAction, `/model/${modelRef.name} action not found`);
+
+        await assert.rejects(async () => {
+          await generateAction({
+            messages: [{ role: 'user', content: [{ text: 'a cat' }] }],
+            config: {},
+          } as GenerateRequest);
+        }, notSupportedInExpressErrorMessage);
+      });
     });
   });
 });

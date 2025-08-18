@@ -56,6 +56,26 @@ ai.defineFlow('multimodal-input', async () => {
   return text;
 });
 
+// YouTube videos
+ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: [
+      {
+        text: 'transcribe this video',
+      },
+      {
+        media: {
+          url: 'https://www.youtube.com/watch?v=3p1P5grjXIQ',
+          contentType: 'video/mp4',
+        },
+      },
+    ],
+  });
+
+  return text;
+});
+
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({
@@ -98,7 +118,7 @@ const getWeather = ai.defineTool(
           'Location for which to get the weather, ex: San-Francisco, CA'
         ),
     }),
-    description: 'can be used to calculate gablorken value',
+    description: 'used to get current weather for a location',
   },
   async (input) => {
     // pretend we call an actual API
@@ -107,6 +127,19 @@ const getWeather = ai.defineTool(
       temperature_celcius: 21.5,
       conditions: 'cloudy',
     };
+  }
+);
+
+const celsiusToFahrenheit = ai.defineTool(
+  {
+    name: 'celsiusToFahrenheit',
+    inputSchema: z.object({
+      celsius: z.number().describe('Temperature in Celsius'),
+    }),
+    description: 'Converts Celsius to Fahrenheit',
+  },
+  async ({ celsius }) => {
+    return (celsius * 9) / 5 + 32;
   }
 );
 
@@ -124,8 +157,8 @@ ai.defineFlow(
       config: {
         temperature: 1,
       },
-      tools: [getWeather],
-      prompt: `tell what's the weather in ${location} (in Fahrenheit)`,
+      tools: [getWeather, celsiusToFahrenheit],
+      prompt: `What's the weather in ${location}? Convert the temperature to Fahrenheit.`,
     });
 
     for await (const chunk of stream) {
@@ -161,7 +194,7 @@ ai.defineFlow(
     });
 
     for await (const chunk of stream) {
-      sendChunk(chunk);
+      sendChunk(chunk.output);
     }
 
     return (await response).output!;
@@ -215,11 +248,11 @@ ai.defineFlow(
     inputSchema: z
       .string()
       .default(
-        'say that Genkit (G pronounced as J) is an amazing Gen AI library'
+        'Gemini is amazing. Can say things like: glorg, blub-blub, and ayeeeeee!!!'
       ),
     outputSchema: z.object({ media: z.string() }),
   },
-  async (query) => {
+  async (prompt) => {
     const { media } = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
@@ -231,7 +264,7 @@ ai.defineFlow(
           },
         },
       },
-      prompt: query || 'cheerefully say: Gemini is amazing!',
+      prompt,
     });
     if (!media) {
       throw new Error('no media returned');

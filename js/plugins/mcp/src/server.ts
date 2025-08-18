@@ -14,15 +14,6 @@
  * limitations under the License.
  */
 
-import {
-  GenkitError,
-  Message,
-  type Genkit,
-  type MessageData,
-  type PromptAction,
-} from 'genkit';
-import type { McpServerOptions } from './index.js';
-
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js' with { 'resolution-mode': 'import' };
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js' with { 'resolution-mode': 'import' };
 import type {
@@ -32,15 +23,35 @@ import type {
   GetPromptResult,
   ListPromptsRequest,
   ListPromptsResult,
+  ListResourceTemplatesResult,
   ListToolsRequest,
   ListToolsResult,
   Prompt,
   PromptMessage,
   Tool,
 } from '@modelcontextprotocol/sdk/types.js' with { 'resolution-mode': 'import' };
+import {
+  ListResourceTemplatesRequest,
+  ListResourcesRequest,
+  ListResourcesResult,
+  ReadResourceRequest,
+  ReadResourceResult,
+  Resource,
+  ResourceTemplate,
+} from '@modelcontextprotocol/sdk/types.js';
+import {
+  GenkitError,
+  Message,
+  type Genkit,
+  type MessageData,
+  type Part,
+  type PromptAction,
+  type ResourceAction,
+} from 'genkit';
 import { logger } from 'genkit/logging';
 import { toJsonSchema } from 'genkit/schema';
-import { ToolAction, toToolDefinition } from 'genkit/tool';
+import { toToolDefinition, type ToolAction } from 'genkit/tool';
+import type { McpServerOptions } from './index.js';
 
 /**
  * Represents an MCP (Model Context Protocol) server that exposes Genkit tools
@@ -55,6 +66,7 @@ export class GenkitMcpServer {
   actionsResolved = false;
   toolActions: ToolAction[] = [];
   promptActions: PromptAction[] = [];
+  resourceActions: ResourceAction[] = [];
 
   /**
    * Creates an instance of GenkitMcpServer.
@@ -87,6 +99,7 @@ export class GenkitMcpServer {
         capabilities: {
           prompts: {},
           tools: {},
+          resources: {},
         },
       }
     );
@@ -96,6 +109,9 @@ export class GenkitMcpServer {
       GetPromptRequestSchema,
       ListPromptsRequestSchema,
       ListToolsRequestSchema,
+      ListResourcesRequestSchema,
+      ListResourceTemplatesRequestSchema,
+      ReadResourceRequestSchema,
     } = await import('@modelcontextprotocol/sdk/types.js');
 
     this.server.setRequestHandler(
@@ -111,6 +127,18 @@ export class GenkitMcpServer {
       this.listPrompts.bind(this)
     );
     this.server.setRequestHandler(
+      ListResourcesRequestSchema,
+      this.listResources.bind(this)
+    );
+    this.server.setRequestHandler(
+      ListResourceTemplatesRequestSchema,
+      this.listResourceTemplates.bind(this)
+    );
+    this.server.setRequestHandler(
+      ReadResourceRequestSchema,
+      this.readResource.bind(this)
+    );
+    this.server.setRequestHandler(
       GetPromptRequestSchema,
       this.getPrompt.bind(this)
     );
@@ -119,15 +147,19 @@ export class GenkitMcpServer {
     const allActions = await this.ai.registry.listActions();
     const toolList: ToolAction[] = [];
     const promptList: PromptAction[] = [];
+    const resourceList: ResourceAction[] = [];
     for (const k in allActions) {
       if (k.startsWith('/tool/')) {
         toolList.push(allActions[k] as ToolAction);
       } else if (k.startsWith('/prompt/')) {
         promptList.push(allActions[k] as PromptAction);
+      } else if (k.startsWith('/resource/')) {
+        resourceList.push(allActions[k] as ResourceAction);
       }
     }
     this.toolActions = toolList;
     this.promptActions = promptList;
+    this.resourceActions = resourceList;
     this.actionsResolved = true;
   }
 
@@ -203,6 +235,75 @@ export class GenkitMcpServer {
   }
 
   /**
+   * Handles MCP requests to list available resources.
+   * It maps the resolved Genkit resource actions to the MCP Resource format.
+   * @param req The MCP ListResourcesRequest.
+   * @returns A Promise resolving to an MCP ListResourcesResult.
+   */
+  async listResources(req: ListResourcesRequest): Promise<ListResourcesResult> {
+    await this.setup();
+    return {
+      resources: this.resourceActions
+        .filter((r) => r.__action.metadata?.resource.uri)
+        .map((r): Resource => {
+          return {
+            name: r.__action.name,
+            description: r.__action.description,
+            uri: r.__action.metadata?.resource.uri,
+            _meta: r.__action.metadata?.mcp?._meta,
+          };
+        }),
+    };
+  }
+
+  /**
+   * Handles MCP requests to list available resources.
+   * It maps the resolved Genkit resource actions to the MCP Resource format.
+   * @param req The MCP ListResourcesRequest.
+   * @returns A Promise resolving to an MCP ListResourcesResult.
+   */
+  async listResourceTemplates(
+    req: ListResourceTemplatesRequest
+  ): Promise<ListResourceTemplatesResult> {
+    await this.setup();
+    return {
+      resourceTemplates: this.resourceActions
+        .filter((r) => r.__action.metadata?.resource.template)
+        .map((r): ResourceTemplate => {
+          return {
+            name: r.__action.name,
+            description: r.__action.description,
+            uriTemplate: r.__action.metadata?.resource.template,
+            _meta: r.__action.metadata?.mcp?._meta,
+          };
+        }),
+    };
+  }
+
+  /**
+   * Handles MCP requests to list available resources.
+   * It maps the resolved Genkit resource actions to the MCP Resource format.
+   * @param req The MCP ListResourcesRequest.
+   * @returns A Promise resolving to an MCP ListResourcesResult.
+   */
+  async readResource(req: ReadResourceRequest): Promise<ReadResourceResult> {
+    await this.setup();
+    const resource = this.resourceActions.find((r) =>
+      r.matches({ uri: req.params.uri })
+    );
+    if (!resource) {
+      throw new GenkitError({
+        status: 'NOT_FOUND',
+        message: `Tried to call resource '${req.params.uri}' but it could not be found.`,
+      });
+    }
+    const result = await resource({ uri: req.params.uri });
+    return {
+      contents: toMcpResourceMessage(req.params.uri, result.content),
+    };
+  }
+
+  /**
    * Handles MCP requests to get (render) a specific prompt. It finds the
    * corresponding Genkit prompt action, executes it with the provided
    * arguments, and then formats the resulting messages into the MCP
@@ -245,7 +346,7 @@ export class GenkitMcpServer {
     }
     await this.setup();
     await this.server!.connect(transport);
-    logger.info(
+    logger.debug(
       `[MCP Server] MCP server '${this.options.name}' started successfully.`
     );
   }
@@ -327,4 +428,35 @@ function toMcpPromptMessage(messageData: MessageData): PromptMessage {
   } else {
     return { ...common, content: { type: 'text', text: message.text } };
   }
+}
+
+/**
+ * Converts a Genkit Parts to an MCP resource content.
+ * Handles mapping of roles and content types (text, image).
+ */
+function toMcpResourceMessage(
+  uri: string,
+  content: Part[]
+): ReadResourceResult['contents'] {
+  return content.map((p) => {
+    if (p.media) {
+      const { url, contentType } = p.media;
+      if (!url.startsWith('data:'))
+        throw new GenkitError({
+          status: 'UNIMPLEMENTED',
+          message: `[MCP Server] MCP prompt messages only support base64 data images.`,
+        });
+      const mimeType =
+        contentType || url.substring(url.indexOf(':')! + 1, url.indexOf(';'));
+      const data = url.substring(url.indexOf(',') + 1);
+      return { uri, mimeType, blob: data };
+    } else if (p.text) {
+      return { uri, text: p.text };
+    } else {
+      throw new GenkitError({
+        status: 'UNIMPLEMENTED',
+        message: `[MCP Server] MCP prompt messages only support media and text parts.`,
+      });
+    }
+  });
 }

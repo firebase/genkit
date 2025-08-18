@@ -29,7 +29,7 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
-import { checkVeoOperation, veoPredict } from './client.js';
+import { veoCheckOperation, veoPredict } from './client.js';
 import {
   ClientOptions,
   GoogleAIPluginOptions,
@@ -43,6 +43,7 @@ import {
   checkModelName,
   extractText,
   extractVeoImage,
+  extractVersion,
   modelName,
 } from './utils.js';
 
@@ -109,6 +110,8 @@ function commonRef(
 const GENERIC_MODEL = commonRef('veo');
 
 const KNOWN_MODELS = {
+  'veo-3.0-generate-preview': commonRef('veo-3.0-generate-preview'),
+  'veo-3.0-fast-generate-preview': commonRef('veo-3.0-fast-generate-preview'),
   'veo-2.0-generate-001': commonRef('veo-2.0-generate-001'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
@@ -124,7 +127,6 @@ export function model(
   const name = checkModelName(version);
   return modelRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: VeoConfigSchema,
     info: { ...GENERIC_MODEL.info },
@@ -192,7 +194,7 @@ export function defineModel(
 
       const response = await veoPredict(
         apiKey,
-        ref.version as string,
+        extractVersion(ref),
         veoPredictRequest,
         clientOptions
       );
@@ -201,7 +203,7 @@ export function defineModel(
     },
     async check(operation) {
       const apiKey = calculateApiKey(pluginOptions?.apiKey, undefined);
-      const response = await checkVeoOperation(
+      const response = await veoCheckOperation(
         apiKey,
         operation.id,
         clientOptions
@@ -227,6 +229,10 @@ function toVeoParameters(
   // This is not part of the request parameters sent to the endpoint
   // It's pulled out and used separately
   delete out.apiKey;
+
+  // This was used to help us figure out which model. We no longer need
+  // it here.
+  delete out.version;
 
   return out;
 }

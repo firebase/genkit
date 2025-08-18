@@ -12,19 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
-/** @type {import('ts-jest').JestConfigWithTsJest} */
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/'],
-  testMatch: ['**/?(*.)+(spec|test).ts'],
-  transform: {
-    '^.+\\.ts$': 'ts-jest',
-  },
-  moduleFileExtensions: ['ts', 'js', 'json', 'node'],
-  coveragePathIgnorePatterns: ['/node_modules/'],
-};
+import { initNodeAsyncContext } from './node-async-context.js';
+import { initNodeTelemetryProvider } from './tracing/node-telemetry-provider.js';
+
+export function initNodeFeatures() {
+  initNodeAsyncContext();
+  initNodeTelemetryProvider();
+}
