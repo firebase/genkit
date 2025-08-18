@@ -59,7 +59,7 @@ const EmbedRequestSchema = z.object({
 });
 
 export interface EmbedRequest<O = any> {
-  input: DocumentData[];
+  input: Document[];
   options?: O;
 }
 
@@ -120,7 +120,13 @@ export function embedder<ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny>(
   ) => Promise<EmbedResponse>
 ) {
   const embedder = action(embedderActionOptions(options), (i, opts) =>
-    runner(i, opts)
+    runner(
+      {
+        input: i.input.map((dd) => new Document(dd)),
+        options: i.options,
+      },
+      opts
+    )
   );
   const ewm = withMetadata(
     embedder as Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
