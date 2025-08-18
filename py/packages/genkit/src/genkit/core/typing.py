@@ -920,6 +920,7 @@ class GenerateActionOptions(BaseModel):
     resume: Resume | None = None
     return_tool_requests: bool | None = Field(None, alias='returnToolRequests')
     max_turns: float | None = Field(None, alias='maxTurns')
+    step_name: str | None = Field(None, alias='stepName')
 
 
 class GenerateRequest(BaseModel):
