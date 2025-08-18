@@ -735,6 +735,9 @@
         },
         "maxTurns": {
           "type": "number"
+        },
+        "stepName": {
+          "type": "string"
         }
       },
       "required": [
