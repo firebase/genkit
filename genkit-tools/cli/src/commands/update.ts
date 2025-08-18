@@ -22,7 +22,7 @@ import * as fs from 'fs';
 import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
-import { PACKAGE_MANAGERS, PackageManager } from '../utils/global';
+import { PACKAGE_MANAGERS, getPackageManager, PackageManager, UpdateError } from '../utils/global';
 import { detectCLIRuntime } from '../utils/runtime-detector';
 import { version as currentVersion, name } from '../utils/version';
 import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from './config';
@@ -107,14 +107,15 @@ interface NpmRegistryResponse {
 }
 
 async function getGCSLatestData(): Promise<GCSLatestResponse> {
-  try {
-    const response = await axios.get(
-      'https://storage.googleapis.com/genkit-assets-cli/latest.json'
-    );
-    return response.data as GCSLatestResponse;
-  } catch (error) {
-    throw new Error(`Failed to fetch GCS versions: ${error}`);
+  const response = await axios.get(
+    'https://storage.googleapis.com/genkit-assets-cli/latest.json'
+  );
+
+  if (response.status !== 200) {
+    throw new UpdateError(`Failed to fetch GCS latest.json: ${response.statusText}`);
   }
+
+  return response.data as GCSLatestResponse;
 }
 
 /**
@@ -125,6 +126,11 @@ export async function getAvailableVersionsFromNpm(
 ): Promise<string[]> {
   try {
     const response = await axios.get(`https://registry.npmjs.org/${name}`);
+
+    if (response.status !== 200) {
+      throw new UpdateError(`Failed to fetch npm versions: ${response.statusText}`);
+    }
+
     const data: NpmRegistryResponse = response.data;
 
     // Get all version numbers and sort them
@@ -141,8 +147,12 @@ export async function getAvailableVersionsFromNpm(
         if (bMinor !== aMinor) return bMinor - aMinor;
         return bPatch - aPatch;
       });
-  } catch (error) {
-    throw new Error(`Failed to fetch npm versions: ${error}`);
+  } catch (error: any) {
+    if (error instanceof UpdateError) {
+      throw error;
+    }
+
+    throw new UpdateError(`Failed to fetch npm versions: ${error.message}`);
   }
 }
 
@@ -154,14 +164,18 @@ export async function getLatestVersionFromGCS(): Promise<string[]> {
     const data = await getGCSLatestData();
 
     if (!data.latestVersion) {
-      throw new Error('No latest version found');
+      throw new UpdateError('No latest version found');
     }
 
     // For now, we only return the latest version from GCS
     // In the future, we could implement a way to get all available versions
     return [data.latestVersion];
-  } catch (error) {
-    throw new Error(`Failed to fetch GCS versions: ${error}`);
+  } catch (error: any) {
+    if (error instanceof UpdateError) {
+      throw error;
+    }
+
+    throw new UpdateError(`Failed to fetch GCS versions: ${error.message}`);
   }
 }
 
@@ -180,12 +194,16 @@ async function getLatestVersion(): Promise<string> {
 
   try {
     if (versions.length === 0) {
-      throw new Error('No versions found');
+      throw new UpdateError('No versions found');
     }
     // Return the first version (newest) with 'v' prefix for consistency
     return versions[0];
-  } catch (error) {
-    throw new Error(`Failed to fetch latest version: ${error}`);
+  } catch (error: any) {
+    if (error instanceof UpdateError) {
+      throw error;
+    }
+
+    throw new UpdateError(`Failed to fetch latest version: ${error.message}`);
   }
 }
 
@@ -208,7 +226,7 @@ function getPlatformInfo(): { platform: string; arch: string } {
       platformName = 'linux';
       break;
     default:
-      throw new Error(`Unsupported platform: ${platform}`);
+      throw new UpdateError(`Unsupported platform: ${platform}`);
   }
 
   let archName: string;
@@ -220,7 +238,7 @@ function getPlatformInfo(): { platform: string; arch: string } {
       archName = 'arm64';
       break;
     default:
-      throw new Error(`Unsupported architecture: ${arch}`);
+      throw new UpdateError(`Unsupported architecture: ${arch}`);
   }
 
   return { platform: platformName, arch: archName };
@@ -240,13 +258,13 @@ async function inquirePackageManager(): Promise<PackageManager> {
     {
       type: 'list',
       name: 'selected',
-      message: 'Which package manager do you want to use to update Genkit CLI?',
+      message: 'Which package manager did you use to install Genkit CLI?',
       choices,
       default: PACKAGE_MANAGERS.npm.type,
     },
   ]);
 
-  return PACKAGE_MANAGERS[selected];
+  return getPackageManager(selected);
 }
 
 /**
@@ -257,7 +275,7 @@ async function inquireRunningFromGlobalInstall(): Promise<boolean> {
     {
       type: 'confirm',
       name: 'selected',
-      message: 'Are you running Genkit CLI from a global install?',
+      message: 'Is your Genkit CLI installed globally?',
       default: true,
     },
   ]);
@@ -278,7 +296,7 @@ async function downloadAndInstall(version: string): Promise<void> {
   if (!runtime.isCompiledBinary) {
     // Check if the requested version is available on npm
     const availableVersions = await getAvailableVersionsFromNpm();
-    if (!availableVersions.includes(version.replace(/^v/, ''))) {
+    if (!availableVersions.includes(correctVersion(version))) {
       logger.error(`Version v${clc.bold(version)} is not available on npm.`);
       process.exit(1);
     }
@@ -335,7 +353,7 @@ async function downloadAndInstall(version: string): Promise<void> {
         logger.error(`Version v${clc.bold(version)} can not be found.`);
         process.exit(1);
       }
-      throw err;
+      throw new UpdateError(`Failed to download binary: ${err.message}`);
     }
 
     // Create backup of current binary

@@ -18,8 +18,8 @@ export interface PackageManager {
   type: string;
   localInstallCommand: string;
   globalInstallCommand: string;
-  localInstallCommandFunc: (name: string, version: string) => string;
-  globalInstallCommandFunc: (name: string, version: string) => string;
+  localInstallCommandFunc: (name: string, version?: string) => string;
+  globalInstallCommandFunc: (name: string, version?: string) => string;
   globalRootCommand: string;
 }
 
@@ -55,3 +55,14 @@ export const PACKAGE_MANAGERS: Record<string, PackageManager> = {
     globalRootCommand: 'yarn global bin',
   },
 };
+
+export const getPackageManager = (name: string) => {
+  return PACKAGE_MANAGERS[name] || PACKAGE_MANAGERS.npm;
+};
+
+export class UpdateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UpdateError';
+  }
+}
