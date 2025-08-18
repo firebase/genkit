@@ -106,6 +106,17 @@ interface NpmRegistryResponse {
   };
 }
 
+async function getGCSLatestData(): Promise<GCSLatestResponse> {
+  try {
+    const response = await axios.get(
+      'https://storage.googleapis.com/genkit-assets-cli/latest.json'
+    );
+    return response.data as GCSLatestResponse;
+  } catch (error) {
+    throw new Error(`Failed to fetch GCS versions: ${error}`);
+  }
+}
+
 /**
  * Gets available CLI versions from npm registry for non-binary installations
  */
@@ -140,10 +151,7 @@ export async function getAvailableVersionsFromNpm(
  */
 export async function getLatestVersionFromGCS(): Promise<string[]> {
   try {
-    const response = await axios.get(
-      'https://storage.googleapis.com/genkit-assets-cli/latest.json'
-    );
-    const data: GCSLatestResponse = response.data;
+    const data = await getGCSLatestData();
 
     if (!data.latestVersion) {
       throw new Error('No latest version found');
@@ -180,6 +188,7 @@ async function getLatestVersion(): Promise<string> {
     throw new Error(`Failed to fetch latest version: ${error}`);
   }
 }
+
 /**
  * Gets the current platform and architecture for download URL
  */
@@ -302,18 +311,17 @@ async function downloadAndInstall(version: string): Promise<void> {
     return;
   }
 
+  // Construct machine identifier and download URL
+  const gcsLatestData = await getGCSLatestData();
+  const machine = `${platform}-${arch}`;
+  const fileName = gcsLatestData.platforms[machine].versionedUrl.split('/').pop();
+  const cleanVersion = version.startsWith('v')
+    ? version.substring(1)
+    : version;
+  // Use the same URL structure as the install_cli script
+  const channel = 'prod'; // Default to prod channel
+  const downloadUrl = `https://storage.googleapis.com/genkit-assets-cli/${channel}/${machine}/v${cleanVersion}/${fileName}`;
   try {
-    // Construct machine identifier and download URL
-    const machine = `${platform}-${arch}`;
-    const fileName = 'genkit'; // All platforms use 'genkit' in the URL path
-    const cleanVersion = version.startsWith('v')
-      ? version.substring(1)
-      : version;
-
-    // Use the same URL structure as the install_cli script
-    const channel = 'prod'; // Default to prod channel
-    const downloadUrl = `https://storage.googleapis.com/genkit-assets-cli/${channel}/${machine}/v${cleanVersion}/${fileName}`;
-
     let response;
     try {
       response = await axios({
@@ -370,12 +378,24 @@ async function downloadAndInstall(version: string): Promise<void> {
     );
   } catch (error) {
     // Restore backup if update failed
-    if (fs.existsSync(backupPath)) {
-      logger.warn('Update failed, restoring backup...');
-      fs.copyFileSync(backupPath, execPath);
-      fs.unlinkSync(backupPath);
+    try {
+      if (fs.existsSync(backupPath)) {
+        logger.warn('Update failed, restoring backup...');
+        fs.copyFileSync(backupPath, execPath);
+        fs.unlinkSync(backupPath);
+      }
+    } catch (error) {
+      logger.error(`Failed to restore backup: ${error}`);
     }
-    throw error;
+
+    const alternativeCommand = `curl -Lo ./genkit_bin ${downloadUrl}`
+    logger.info(``);
+    logger.error(
+      `${clc.red('✗')} Failed to update to v${clc.bold(version)}.` +
+        `\n\nAlternatively, you can try to update by running:\n` +
+        `${clc.bold(alternativeCommand)}`
+    );
+    process.exit(1);
   }
 }
 
