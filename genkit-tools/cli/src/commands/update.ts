@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { logger } from '@genkit-ai/tools-common/utils';
+import { getUserSettings, logger } from '@genkit-ai/tools-common/utils';
 import axios from 'axios';
 import { execSync } from 'child_process';
 import * as clc from 'colorette';
@@ -22,10 +22,10 @@ import * as fs from 'fs';
 import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
-import { readConfig, writeConfig } from '../utils/config';
 import { PACKAGE_MANAGERS, PackageManager } from '../utils/global';
 import { detectCLIRuntime } from '../utils/runtime-detector';
 import { version as currentVersion, name } from '../utils/version';
+import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from './config';
 
 interface UpdateOptions {
   reinstall?: boolean;
@@ -407,12 +407,13 @@ async function downloadAndInstall(version: string): Promise<void> {
 export async function showUpdateNotification(): Promise<void> {
   try {
     // Check if notifications are disabled via environment variable or config
-    if (process.env.GENKIT_QUIET === 'true') {
+    if (process.env.GENKIT_CLI_DISABLE_UPDATE_NOTIFICATIONS === 'true') {
       return;
     }
 
-    const config = readConfig();
-    if (config.notificationsDisabled) {
+    // Check if notifications are disabled via config
+    const userSettings = getUserSettings();
+    if (userSettings[UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG]) {
       return;
     }
 
@@ -424,7 +425,7 @@ export async function showUpdateNotification(): Promise<void> {
       console.log(
         `\n${clc.yellow('📦 Update available:')} ${clc.bold(result.currentVersion)} → ${clc.bold(clc.green(result.latestVersion))}\n` +
           `${clc.dim('Run')} ${clc.bold('genkit update')} ${clc.dim('to upgrade')}\n` +
-          `${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('to disable these notifications')}\n`
+          `${clc.dim('Run')} ${clc.bold('genkit config set updateNotificationsOptOut true')} ${clc.dim('to disable these notifications')}\n`
       );
     }
   } catch {
@@ -444,35 +445,7 @@ export const update = new Command('update')
     }
     return value;
   })
-  .option('--quiet', 'toggle update notifications on/off')
   .action(async (options: UpdateOptions) => {
-    // Handle --quiet flag
-    if (options.quiet) {
-      const config = readConfig();
-      const wasDisabled = config.notificationsDisabled;
-
-      // Toggle the notification setting
-      config.notificationsDisabled = !wasDisabled;
-      writeConfig(config);
-
-      if (config.notificationsDisabled) {
-        logger.info(
-          `${clc.green('✓')} Update notifications have been ${clc.bold('disabled')}`
-        );
-        logger.info(
-          `${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('again to re-enable them')}`
-        );
-      } else {
-        logger.info(
-          `${clc.green('✓')} Update notifications have been ${clc.bold('enabled')}`
-        );
-        logger.info(
-          `${clc.dim('Run')} ${clc.bold('genkit update --quiet')} ${clc.dim('to disable them')}`
-        );
-      }
-      return;
-    }
-
     // Handle --check flag
     if (options.check) {
       try {

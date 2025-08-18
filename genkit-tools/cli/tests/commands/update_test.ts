@@ -68,11 +68,6 @@ jest.mock('path', () => ({
   join: jest.fn(),
 }));
 
-jest.mock('../../src/utils/config', () => ({
-  readConfig: jest.fn(),
-  writeConfig: jest.fn(),
-}));
-
 jest.mock('../../src/utils/runtime-detector', () => ({
   detectCLIRuntime: jest.fn(),
 }));
@@ -80,6 +75,15 @@ jest.mock('../../src/utils/runtime-detector', () => ({
 jest.mock('../../src/utils/version', () => ({
   version: '1.0.0',
   name: 'genkit-cli',
+}));
+
+jest.mock('../../src/commands/config', () => ({
+  UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG: 'updateNotificationsOptOut',
+}));
+
+jest.mock('@genkit-ai/tools-common/utils', () => ({
+  getUserSettings: jest.fn(),
+  setUserSettings: jest.fn(),
 }));
 
 // Import after mocking
@@ -90,11 +94,11 @@ import {
   getLatestVersionFromGCS,
   showUpdateNotification,
 } from '../../src/commands/update';
-import { readConfig } from '../../src/utils/config';
 import { detectCLIRuntime } from '../../src/utils/runtime-detector';
+import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from '../../src/commands/config';
+import { getUserSettings } from '@genkit-ai/tools-common/utils';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
-const mockedReadConfig = readConfig as jest.MockedFunction<typeof readConfig>;
 const mockedDetectCLIRuntime = detectCLIRuntime as jest.MockedFunction<
   typeof detectCLIRuntime
 >;
@@ -118,9 +122,9 @@ describe('update command', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedDetectCLIRuntime.mockReturnValue(mockCLIRuntime);
-    mockedReadConfig.mockReturnValue({});
     // Clean up environment variables
-    delete process.env.GENKIT_QUIET;
+    delete process.env.GENKIT_CLI_DISABLE_UPDATE_NOTIFICATIONS;
+    (getUserSettings as jest.Mock).mockRestore();
   });
 
   describe('checkForUpdates', () => {
@@ -331,8 +335,23 @@ describe('update command', () => {
   });
 
   describe('showUpdateNotification', () => {
+    it('should not show notification when notifications are disabled in environment variable', async () => {
+      process.env.GENKIT_CLI_DISABLE_UPDATE_NOTIFICATIONS = 'true';
+      const consoleSpy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => {});
+
+      await showUpdateNotification();
+
+      expect(consoleSpy).not.toHaveBeenCalled();
+    });
+
     it('should not show notification when notifications are disabled in config', async () => {
-      mockedReadConfig.mockReturnValue({ notificationsDisabled: true });
+      const mockUserSettings = {
+        [UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG]: true,
+      };
+      (getUserSettings as jest.Mock).mockReturnValue(mockUserSettings);
+
       const consoleSpy = jest
         .spyOn(console, 'log')
         .mockImplementation(() => {});
@@ -380,18 +399,6 @@ describe('update command', () => {
 
     it('should silently fail on network errors', async () => {
       mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
-      const consoleSpy = jest
-        .spyOn(console, 'log')
-        .mockImplementation(() => {});
-
-      await expect(showUpdateNotification()).resolves.toBeUndefined();
-      expect(consoleSpy).not.toHaveBeenCalled();
-    });
-
-    it('should handle config read errors gracefully', async () => {
-      mockedReadConfig.mockImplementation(() => {
-        throw new Error('Config read error');
-      });
       const consoleSpy = jest
         .spyOn(console, 'log')
         .mockImplementation(() => {});

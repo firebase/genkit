@@ -88,14 +88,13 @@ export async function startCLI(): Promise<void> {
       await record(new RunCommandEvent(commandName));
     });
 
-  // Parse argv early to get global options
-  program.parseOptions(process.argv);
-
   // Check for updates and show notification if available,
   // unless --no-update-notification is set
   // Run this synchronously to ensure it shows before command execution
-  const opts = program.opts();
-  if (!opts.noUpdateNotification) {
+  const hasNoUpdateNotification = process.argv.includes(
+    '--no-update-notification'
+  );
+  if (!hasNoUpdateNotification) {
     try {
       await showUpdateNotification();
     } catch {
