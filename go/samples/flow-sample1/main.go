@@ -49,10 +49,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
-	if err != nil {
-		log.Fatalf("failed to create Genkit: %v", err)
-	}
+	g := genkit.Init(ctx)
 
 	basic := genkit.DefineFlow(g, "basic", func(ctx context.Context, subject string) (string, error) {
 		foo, err := genkit.Run(ctx, "call-llm", func() (string, error) { return "subject: " + subject, nil })

@@ -945,11 +945,16 @@ export class Genkit implements HasRegistry {
           },
           async listActions() {
             if (typeof plugin.list === 'function') {
-              return (await plugin.list()).map((a) => ({
-                ...a,
-                // Apply namespace for v2 plugins.
-                name: `${plugin.name}/${a.name}`,
-              }));
+              return (await plugin.list()).map((a) => {
+                if (a.name.startsWith(`${plugin.name}/`)) {
+                  return a;
+                }
+                return {
+                  ...a,
+                  // Apply namespace for v2 plugins.
+                  name: `${plugin.name}/${a.name}`,
+                };
+              });
             }
             return [];
           },

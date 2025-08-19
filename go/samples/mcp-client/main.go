@@ -32,11 +32,7 @@ func managerExample() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
-		return
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Create and connect to MCP time server
 	manager, _ := mcp.NewMCPManager(mcp.MCPManagerOptions{
@@ -87,11 +83,7 @@ func multiServerManagerExample() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
-		return
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Create MCP manager for multiple servers
 	manager, _ := mcp.NewMCPManager(mcp.MCPManagerOptions{
@@ -155,11 +147,7 @@ func clientExample() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
-		return
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Create and connect to MCP time server
 	client, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
@@ -207,11 +195,7 @@ func clientGetPromptExample() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
-		return
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	logger.FromContext(ctx).Info("Creating MCP client", "server", "everything")
 	// Create and connect to MCP server (using everything server as example)
@@ -256,11 +240,7 @@ func clientStreamableHTTPExample() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
-		return
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	logger.FromContext(ctx).Info("Creating MCP client with Streamable HTTP transport", "server", "everything")
 	// Create and connect to MCP server using Streamable HTTP transport

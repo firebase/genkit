@@ -25,11 +25,13 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/invopop/jsonschema"
 )
 
 var resumedCtxKey = base.NewContextKey[map[string]any]()
 var origInputCtxKey = base.NewContextKey[any]()
+
+// ToolFunc is the function type for tool implementations.
+type ToolFunc[In, Out any] = func(ctx *ToolContext, input In) (Out, error)
 
 // ToolRef is a reference to a tool.
 type ToolRef interface {
@@ -115,33 +117,38 @@ type ToolContext struct {
 }
 
 // DefineTool defines a tool.
-func DefineTool[In, Out any](r *registry.Registry, name, description string,
-	fn func(ctx *ToolContext, input In) (Out, error)) Tool {
+func DefineTool[In, Out any](
+	r *registry.Registry,
+	name, description string,
+	fn ToolFunc[In, Out],
+) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
-	toolAction := core.DefineAction(r, "", name, core.ActionTypeTool, metadata, wrappedFn)
+	toolAction := core.DefineAction(r, name, core.ActionTypeTool, metadata, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
 // DefineToolWithInputSchema defines a tool function with a custom input schema.
-func DefineToolWithInputSchema[Out any](r *registry.Registry, name, description string,
-	inputSchema *jsonschema.Schema,
-	fn func(ctx *ToolContext, input any) (Out, error)) Tool {
+func DefineToolWithInputSchema[Out any](
+	r *registry.Registry,
+	name, description string,
+	inputSchema map[string]any,
+	fn ToolFunc[any, Out],
+) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
-	toolAction := core.DefineActionWithInputSchema(r, "", name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
+	toolAction := core.DefineActionWithInputSchema(r, name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
 // NewTool creates a tool but does not register it in the registry. It can be passed directly to [Generate].
-func NewTool[In, Out any](name, description string,
-	fn func(ctx *ToolContext, input In) (Out, error)) Tool {
+func NewTool[In, Out any](name, description string, fn ToolFunc[In, Out]) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
 	metadata["dynamic"] = true
-	toolAction := core.NewAction("", name, core.ActionTypeTool, metadata, wrappedFn)
+	toolAction := core.NewAction(name, core.ActionTypeTool, metadata, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
 // implementTool creates the metadata and wrapped function common to both DefineTool and NewTool.
-func implementTool[In, Out any](name, description string, fn func(ctx *ToolContext, input In) (Out, error)) (map[string]any, func(context.Context, In) (Out, error)) {
+func implementTool[In, Out any](name, description string, fn ToolFunc[In, Out]) (map[string]any, func(context.Context, In) (Out, error)) {
 	metadata := map[string]any{
 		"type":        core.ActionTypeTool,
 		"name":        name,
@@ -172,17 +179,12 @@ func (t *tool) Name() string {
 // Definition returns [ToolDefinition] for for this tool.
 func (t *tool) Definition() *ToolDefinition {
 	desc := t.Action.Desc()
-	td := &ToolDefinition{
-		Name:        desc.Name,
-		Description: desc.Description,
+	return &ToolDefinition{
+		Name:         desc.Name,
+		Description:  desc.Description,
+		InputSchema:  desc.InputSchema,
+		OutputSchema: desc.OutputSchema,
 	}
-	if desc.InputSchema != nil {
-		td.InputSchema = base.SchemaAsMap(desc.InputSchema)
-	}
-	if desc.OutputSchema != nil {
-		td.OutputSchema = base.SchemaAsMap(desc.OutputSchema)
-	}
-	return td
 }
 
 // RunRaw runs this tool using the provided raw map format data (JSON parsed

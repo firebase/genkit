@@ -17,11 +17,11 @@
 import type {
   GenerateRequest,
   GenerateResponseData,
-  Genkit,
   ModelReference,
 } from 'genkit';
 import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
 import type { ModelAction, ModelInfo } from 'genkit/model';
+import { model } from 'genkit/plugin';
 import type OpenAI from 'openai';
 import { Response } from 'openai/core.mjs';
 import type {
@@ -181,19 +181,17 @@ async function toGenerateResponse(
 export function defineCompatOpenAISpeechModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: SpeechRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef, requestBuilder } = params;
+  const { name, client, modelRef, requestBuilder } = params;
   const modelName = name.substring(name.indexOf('/') + 1);
 
-  return ai.defineModel(
+  return model(
     {
       name,
-      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
@@ -335,18 +333,16 @@ function transcriptionToGenerateResponse(
 export function defineCompatOpenAITranscriptionModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: TranscriptionRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef, requestBuilder } = params;
+  const { name, client, modelRef, requestBuilder } = params;
 
-  return ai.defineModel(
+  return model(
     {
       name,
-      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
