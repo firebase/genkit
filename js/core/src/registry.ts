@@ -207,13 +207,20 @@ export class Registry {
    */
   registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     type: ActionType,
-    action: Action<I, O>
+    action: Action<I, O>,
+    opts?: { namespace?: string }
   ) {
     if (type !== action.__action.actionType) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
         message: `action type (${type}) does not match type on action (${action.__action.actionType})`,
       });
+    }
+    if (
+      opts?.namespace &&
+      !action.__action.name.startsWith(`${opts.namespace}/`)
+    ) {
+      action.__action.name = `${opts.namespace}/${action.__action.name}`;
     }
     const key = `/${type}/${action.__action.name}`;
     logger.debug(`registering ${key}`);
@@ -236,8 +243,12 @@ export class Registry {
   registerActionAsync<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     type: ActionType,
     name: string,
-    action: PromiseLike<Action<I, O>>
+    action: PromiseLike<Action<I, O>>,
+    opts?: { namespace?: string }
   ) {
+    if (opts?.namespace && !name.startsWith(`${opts.namespace}/`)) {
+      name = `${opts.namespace}/${name}`;
+    }
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
     if (this.actionsById.hasOwnProperty(key)) {

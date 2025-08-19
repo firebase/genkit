@@ -246,20 +246,24 @@ export function defineBackgroundAction<
 
 export function registerBackgroundAction(
   registry: Registry,
-  act: BackgroundAction<any, any>
+  act: BackgroundAction<any, any>,
+  opts?: { namespace?: string }
 ) {
   registry.registerAction(
     act.startAction.__action.actionType!,
-    act.startAction
+    act.startAction,
+    opts
   );
   registry.registerAction(
     act.checkAction.__action.actionType!,
-    act.checkAction
+    act.checkAction,
+    opts
   );
   if (act.cancelAction) {
     registry.registerAction(
       act.cancelAction.__action.actionType!,
-      act.cancelAction
+      act.cancelAction,
+      opts
     );
   }
 }

@@ -41,11 +41,15 @@ type Prompt struct {
 }
 
 // DefinePrompt creates and registers a new Prompt.
-func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Prompt, error) {
+func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prompt {
+	if name == "" {
+		panic("ai.DefinePrompt: name is required")
+	}
+
 	pOpts := &promptOptions{}
 	for _, opt := range opts {
 		if err := opt.applyPrompt(pOpts); err != nil {
-			return nil, fmt.Errorf("ai.DefinePrompt: error applying options: %w", err)
+			panic(fmt.Errorf("ai.DefinePrompt: error applying options: %w", err))
 		}
 	}
 
@@ -54,9 +58,9 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 		promptOptions: *pOpts,
 	}
 
-	modelName := p.ModelName
-	if modelName == "" && p.Model != nil {
-		modelName = p.Model.Name()
+	var modelName string
+	if pOpts.Model != nil {
+		modelName = pOpts.Model.Name()
 	}
 
 	if modelRef, ok := pOpts.Model.(ModelRef); ok && pOpts.Config == nil {
@@ -73,18 +77,14 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 		tools = append(tools, value.Name())
 	}
 
-	var inputSchema map[string]any
-	if p.InputSchema != nil {
-		inputSchema = base.SchemaAsMap(p.InputSchema)
-	}
-
 	promptMeta := map[string]any{
+		"type": core.ActionTypeExecutablePrompt,
 		"prompt": map[string]any{
 			"name":         name,
 			"description":  p.Description,
 			"model":        modelName,
 			"config":       p.Config,
-			"input":        map[string]any{"schema": inputSchema},
+			"input":        map[string]any{"schema": p.InputSchema},
 			"output":       map[string]any{"schema": p.OutputSchema},
 			"defaultInput": p.DefaultInput,
 			"tools":        tools,
@@ -92,15 +92,15 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) (*Pro
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, "", name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineActionWithInputSchema(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
-	return p, nil
+	return p
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r *registry.Registry, name string) *Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, "", name)
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, name)
 	if action == nil {
 		return nil
 	}
@@ -120,56 +120,46 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
 
-	genOpts := &promptExecutionOptions{}
+	execOpts := &promptExecutionOptions{}
 	for _, opt := range opts {
-		if opt == nil {
-			continue // skip nil options
-		}
-		if err := opt.applyPromptExecute(genOpts); err != nil {
+		if err := opt.applyPromptExecute(execOpts); err != nil {
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
 
-	p.MessagesFn = mergeMessagesFn(p.MessagesFn, genOpts.MessagesFn)
+	p.MessagesFn = mergeMessagesFn(p.MessagesFn, execOpts.MessagesFn)
 
 	// Render() should populate all data from the prompt. Prompt fields should
 	// *not* be referenced in this function as it may have been loaded from
 	// the registry and is missing the options passed in at definition.
-	actionOpts, err := p.Render(ctx, genOpts.Input)
+	actionOpts, err := p.Render(ctx, execOpts.Input)
 	if err != nil {
 		return nil, err
 	}
 
-	if modelRef, ok := genOpts.Model.(ModelRef); ok && genOpts.Config == nil {
-		genOpts.Config = modelRef.Config()
+	if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {
+		execOpts.Config = modelRef.Config()
 	}
-	if genOpts.Config != nil {
-		actionOpts.Config = genOpts.Config
+	if execOpts.Config != nil {
+		actionOpts.Config = execOpts.Config
 	}
-	if len(genOpts.Documents) > 0 {
-		actionOpts.Docs = genOpts.Documents
+	if len(execOpts.Documents) > 0 {
+		actionOpts.Docs = execOpts.Documents
 	}
-	if genOpts.ToolChoice != "" {
-		actionOpts.ToolChoice = genOpts.ToolChoice
+	if execOpts.ToolChoice != "" {
+		actionOpts.ToolChoice = execOpts.ToolChoice
 	}
-
-	modelName := genOpts.ModelName
-	if modelName == "" && genOpts.Model != nil {
-		modelName = genOpts.Model.Name()
+	if execOpts.Model != nil {
+		actionOpts.Model = execOpts.Model.Name()
 	}
-	if modelName != "" {
-		actionOpts.Model = modelName
+	if execOpts.MaxTurns != 0 {
+		actionOpts.MaxTurns = execOpts.MaxTurns
 	}
-
-	if genOpts.MaxTurns != 0 {
-		actionOpts.MaxTurns = genOpts.MaxTurns
+	if execOpts.ReturnToolRequests != nil {
+		actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
 	}
 
-	if genOpts.ReturnToolRequests != nil {
-		actionOpts.ReturnToolRequests = *genOpts.ReturnToolRequests
-	}
-
-	return GenerateWithRequest(ctx, p.registry, actionOpts, genOpts.Middleware, genOpts.Stream)
+	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
 
 // Render renders the prompt template based on user input.
@@ -297,14 +287,14 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		tools = append(tools, t.Name())
 	}
 
-	modelName := p.ModelName
-	if modelName == "" && p.Model != nil {
-		modelName = p.Model.Name()
-	}
-
 	config := p.Config
 	if modelRef, ok := p.Model.(ModelRef); ok && config == nil {
 		config = modelRef.Config()
+	}
+
+	var modelName string
+	if p.Model != nil {
+		modelName = p.Model.Name()
 	}
 
 	return &GenerateActionOptions{
@@ -461,7 +451,7 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 }
 
 // LoadPromptDir loads prompts and partials from the input directory for the given namespace.
-func LoadPromptDir(r *registry.Registry, dir string, namespace string) error {
+func LoadPromptDir(r *registry.Registry, dir string, namespace string) {
 	useDefaultDir := false
 	if dir == "" {
 		dir = "./prompts"
@@ -471,37 +461,35 @@ func LoadPromptDir(r *registry.Registry, dir string, namespace string) error {
 	path, err := filepath.Abs(dir)
 	if err != nil {
 		if !useDefaultDir {
-			return fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err)
+			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
 		}
 		slog.Debug("default prompt directory not found, skipping loading .prompt files", "dir", dir)
-		return nil
+		return
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if !useDefaultDir {
-			return fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err)
+			panic(fmt.Errorf("failed to resolve prompt directory %q: %w", dir, err))
 		}
 		slog.Debug("Default prompt directory not found, skipping loading .prompt files", "dir", dir)
-		return nil
+		return
 	}
 
-	return loadPromptDir(r, path, namespace)
+	loadPromptDir(r, path, namespace)
 }
 
 // loadPromptDir recursively loads prompts and partials from the directory.
-func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
+func loadPromptDir(r *registry.Registry, dir string, namespace string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("failed to read prompt directory structure: %w", err)
+		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
 	}
 
 	for _, entry := range entries {
 		filename := entry.Name()
 		path := filepath.Join(dir, filename)
 		if entry.IsDir() {
-			if err := loadPromptDir(r, path, namespace); err != nil {
-				return err
-			}
+			loadPromptDir(r, path, namespace)
 		} else if strings.HasSuffix(filename, ".prompt") {
 			if strings.HasPrefix(filename, "_") {
 				partialName := strings.TrimSuffix(filename[1:], ".prompt")
@@ -510,22 +498,17 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) error {
 					slog.Error("Failed to read partial file", "error", err)
 					continue
 				}
-				if err = r.DefinePartial(partialName, string(source)); err != nil {
-					return err
-				}
+				r.RegisterPartial(partialName, string(source))
 				slog.Debug("Registered Dotprompt partial", "name", partialName, "file", path)
 			} else {
-				if _, err := LoadPrompt(r, dir, filename, namespace); err != nil {
-					return err
-				}
+				LoadPrompt(r, dir, filename, namespace)
 			}
 		}
 	}
-	return nil
 }
 
 // LoadPrompt loads a single prompt into the registry.
-func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt, error) {
+func LoadPrompt(r *registry.Registry, dir, filename, namespace string) *Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
 
@@ -533,19 +516,19 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	source, err := os.ReadFile(sourceFile)
 	if err != nil {
 		slog.Error("Failed to read prompt file", "file", sourceFile, "error", err)
-		return nil, nil
+		return nil
 	}
 
 	parsedPrompt, err := r.Dotprompt.Parse(string(source))
 	if err != nil {
 		slog.Error("Failed to parse file as dotprompt", "file", sourceFile, "error", err)
-		return nil, nil
+		return nil
 	}
 
 	metadata, err := r.Dotprompt.RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
 	if err != nil {
 		slog.Error("Failed to render dotprompt metadata", "file", sourceFile, "error", err)
-		return nil, nil
+		return nil
 	}
 
 	toolRefs := make([]ToolRef, len(metadata.Tools))
@@ -569,8 +552,8 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 			configOptions: configOptions{
 				Config: (map[string]any)(metadata.Config),
 			},
-			ModelName: metadata.Model,
-			Tools:     toolRefs,
+			Model: NewModelRef(metadata.Model, nil),
+			Tools: toolRefs,
 		},
 		DefaultInput: metadata.Input.Default,
 		Metadata:     promptOptMetadata,
@@ -581,15 +564,19 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 		opts.ToolChoice = toolChoice
 	}
 
-	if maxTurns, ok := metadata.Raw["maxTurns"].(int); !ok {
+	if maxTurns, ok := metadata.Raw["maxTurns"].(int); ok {
 		opts.MaxTurns = maxTurns
 	}
 
-	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); !ok {
+	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); ok {
 		opts.ReturnToolRequests = &returnToolRequests
 	}
 
 	if inputSchema, ok := metadata.Input.Schema.(*jsonschema.Schema); ok {
+		opts.InputSchema = base.SchemaAsMap(inputSchema)
+	}
+
+	if inputSchema, ok := metadata.Input.Schema.(map[string]any); ok {
 		opts.InputSchema = inputSchema
 	}
 
@@ -605,15 +592,11 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) (*Prompt,
 	}
 
 	key := promptKey(name, variant, namespace)
-	prompt, err := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
-	if err != nil {
-		slog.Error("Failed to register dotprompt", "file", sourceFile, "error", err)
-		return nil, err
-	}
+	prompt := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
 
 	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
 
-	return prompt, nil
+	return prompt
 }
 
 // promptKey generates a unique key for the prompt in the registry.

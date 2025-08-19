@@ -29,26 +29,16 @@ import {
 const v1Plugin = genkitPlugin(
   'myV1Plugin',
   (ai) => {
-    ai.defineModel(
-      {
-        name: 'myV1Plugin/model_eager',
-      },
-      async () => {
-        return {};
-      }
-    );
+    ai.defineModel({ name: 'myV1Plugin/model_eager' }, async () => {
+      return {};
+    });
   },
   async (ai, actionType, name) => {
     switch (actionType) {
       case 'model':
-        ai.defineModel(
-          {
-            name: 'myV1Plugin/' + name,
-          },
-          async () => {
-            return {};
-          }
-        );
+        ai.defineModel({ name: 'myV1Plugin/' + name }, async () => {
+          return {};
+        });
       case 'background-model':
         ai.defineBackgroundModel({
           name: 'myV1Plugin/' + name,
@@ -78,20 +68,22 @@ const v1Plugin = genkitPlugin(
 
 const v2Plugin = genkitPluginV2({
   name: 'myV2Plugin',
+  init() {
+    return [
+      model({ name: 'model_eager' }, async () => {
+        return {};
+      }),
+    ];
+  },
   resolve(actionType, name) {
     switch (actionType) {
       case 'model':
-        return model(
-          {
-            name: 'myV2Plugin/' + name,
-          },
-          async () => {
-            return {};
-          }
-        );
+        return model({ name }, async () => {
+          return {};
+        });
       case 'background-model':
         return backgroundModel({
-          name: 'myV2Plugin/' + name,
+          name,
           async start() {
             return { id: 'abc' };
           },
@@ -108,10 +100,10 @@ const v2Plugin = genkitPluginV2({
   list() {
     return [
       modelActionMetadata({
-        name: 'myV2Plugin/potential_model',
+        name: 'potential_model',
       }),
       embedderActionMetadata({
-        name: 'myV2Plugin/potential_embedder',
+        name: 'potential_embedder',
       }),
     ];
   },
@@ -139,6 +131,7 @@ describe('session', () => {
         '/embedder/myV2Plugin/potential_embedder',
         '/model/myV1Plugin/potential_model',
         '/model/myV1Plugin/model_eager',
+        '/model/myV2Plugin/model_eager',
         '/model/myV2Plugin/potential_model',
       ])
     );
@@ -148,7 +141,10 @@ describe('session', () => {
           (a) => a.startsWith('/model') || a.startsWith('/embedder')
         )
       ),
-      new Set(['/model/myV1Plugin/model_eager'])
+      new Set([
+        '/model/myV1Plugin/model_eager',
+        '/model/myV2Plugin/model_eager',
+      ])
     );
   });
 
@@ -168,6 +164,7 @@ describe('session', () => {
       ),
       new Set([
         '/model/myV1Plugin/model_eager',
+        '/model/myV2Plugin/model_eager',
         '/model/myV1Plugin/potential_model',
       ])
     );
@@ -214,6 +211,7 @@ describe('session', () => {
       ),
       new Set([
         '/model/myV1Plugin/model_eager',
+        '/model/myV2Plugin/model_eager',
         '/model/myV2Plugin/potential_model',
       ])
     );

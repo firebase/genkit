@@ -125,6 +125,7 @@ import type { HasRegistry } from '@genkit-ai/core/registry';
 import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import {
+  ResolvableAction,
   isPluginV2,
   type GenkitPlugin,
   type GenkitPluginV2,
@@ -929,37 +930,31 @@ export class Genkit implements HasRegistry {
           name: plugin.name,
           async initializer() {
             logger.debug(`Initializing plugin ${plugin.name}:`);
+            if (!plugin.init) return;
+            const resolvedActions = await plugin.init();
+            resolvedActions?.forEach((resolvedAction) => {
+              registerActionV2(activeRegistry, resolvedAction, plugin);
+            });
           },
           async resolver(action: ActionType, target: string) {
+            if (!plugin.resolve) return;
             const resolvedAction = await plugin.resolve(action, target);
             if (resolvedAction) {
-              if (isBackgroundAction(resolvedAction)) {
-                registerBackgroundAction(activeRegistry, resolvedAction);
-              } else if (isAction(resolvedAction)) {
-                if (!resolvedAction.__action.actionType) {
-                  throw new GenkitError({
-                    status: 'INVALID_ARGUMENT',
-                    message:
-                      'Action type is missing for ' +
-                      resolvedAction.__action.name,
-                  });
-                }
-                activeRegistry.registerAction(
-                  resolvedAction.__action.actionType,
-                  resolvedAction
-                );
-              } else {
-                throw new GenkitError({
-                  status: 'INVALID_ARGUMENT',
-                  message:
-                    'Unkown action type returned from plugin ' + plugin.name,
-                });
-              }
+              registerActionV2(activeRegistry, resolvedAction, plugin);
             }
           },
           async listActions() {
             if (typeof plugin.list === 'function') {
-              return await plugin.list();
+              return (await plugin.list()).map((a) => {
+                if (a.name.startsWith(`${plugin.name}/`)) {
+                  return a;
+                }
+                return {
+                  ...a,
+                  // Apply namespace for v2 plugins.
+                  name: `${plugin.name}/${a.name}`,
+                };
+              });
             }
             return [];
           },
@@ -995,6 +990,35 @@ export class Genkit implements HasRegistry {
   async stopServers() {
     await this.reflectionServer?.stop();
     this.reflectionServer = null;
+  }
+}
+
+function registerActionV2(
+  registry: Registry,
+  resolvedAction: ResolvableAction,
+  plugin: GenkitPluginV2
+) {
+  if (isBackgroundAction(resolvedAction)) {
+    registerBackgroundAction(registry, resolvedAction, {
+      namespace: plugin.name,
+    });
+  } else if (isAction(resolvedAction)) {
+    if (!resolvedAction.__action.actionType) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: 'Action type is missing for ' + resolvedAction.__action.name,
+      });
+    }
+    registry.registerAction(
+      resolvedAction.__action.actionType,
+      resolvedAction,
+      { namespace: plugin.name }
+    );
+  } else {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Unkown action type returned from plugin ' + plugin.name,
+    });
   }
 }
 

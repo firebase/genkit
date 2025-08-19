@@ -26,10 +26,8 @@ import (
 )
 
 func TestStreamFlow(t *testing.T) {
-	g, err := Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := Init(context.Background())
+
 	f := DefineStreamingFlow(g, "count", count)
 	iter := f.Stream(context.Background(), 2)
 	want := 0
