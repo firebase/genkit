@@ -41,7 +41,7 @@ import (
 //	    Content: []*ai.Part{ai.NewTextPart(string(content))},
 //	  }, nil
 //	})
-func DefineResource(g *Genkit, resourceName string, opts ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
+func DefineResource(g *Genkit, name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
 	// Delegate to ai implementation
 	return ai.DefineResource(g.reg, resourceName, opts, fn)
 }
