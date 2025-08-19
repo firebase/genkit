@@ -39,6 +39,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -548,35 +549,53 @@ func setupGracefulShutdown(tp *sdktrace.TracerProvider) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
+		var hasErrors bool
+
 		// Flush spans
 		if err := tp.ForceFlush(ctx); err != nil {
 			slog.Error("Failed to flush spans during shutdown", "error", err)
+			hasErrors = true
 		}
 
-		// Flush metrics
+		// Handle metrics provider shutdown
 		if mp := otel.GetMeterProvider(); mp != nil {
-			if flusher, ok := mp.(interface{ ForceFlush(context.Context) error }); ok {
-				if err := flusher.ForceFlush(ctx); err != nil {
-					slog.Error("Failed to flush metrics during shutdown", "error", err)
-				} else {
-					slog.Info("Successfully flushed metrics during shutdown")
-				}
-			}
-			if shutdowner, ok := mp.(interface{ Shutdown(context.Context) error }); ok {
-				if err := shutdowner.Shutdown(ctx); err != nil {
-					slog.Error("Failed to shutdown MeterProvider", "error", err)
-				} else {
-					slog.Info("Successfully shutdown MeterProvider")
-				}
-			}
+			hasErrors = shutdownMetricsProvider(ctx, mp) || hasErrors
 		}
 
 		// Shutdown spans
 		if err := tp.Shutdown(ctx); err != nil {
 			slog.Error("Failed to shutdown TracerProvider", "error", err)
+			hasErrors = true
 		}
 
-		slog.Info("Telemetry shutdown complete")
+		if hasErrors {
+			slog.Warn("Telemetry shutdown completed with errors")
+		} else {
+			slog.Info("Telemetry shutdown completed successfully")
+		}
 		os.Exit(0)
 	}()
+}
+
+// shutdownMetricsProvider handles metrics provider flush and shutdown operations
+func shutdownMetricsProvider(ctx context.Context, mp metric.MeterProvider) bool {
+	hasErrors := false
+
+	// Try to flush metrics
+	if flusher, ok := mp.(interface{ ForceFlush(context.Context) error }); ok {
+		if err := flusher.ForceFlush(ctx); err != nil {
+			slog.Error("Failed to flush metrics during shutdown", "error", err)
+			hasErrors = true
+		}
+	}
+
+	// Try to shutdown metrics provider
+	if shutdowner, ok := mp.(interface{ Shutdown(context.Context) error }); ok {
+		if err := shutdowner.Shutdown(ctx); err != nil {
+			slog.Error("Failed to shutdown MeterProvider", "error", err)
+			hasErrors = true
+		}
+	}
+
+	return hasErrors
 }
