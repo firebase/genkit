@@ -259,7 +259,6 @@ function definePromptAsync<
     renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
   ): Promise<GenerateOptions> => {
     return await runInNewSpan(
-      registry,
       {
         metadata: {
           name: 'render',

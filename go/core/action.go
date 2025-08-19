@@ -147,8 +147,11 @@ func DefineStreamingAction[In, Out, Stream any](
 	return defineAction(r, name, atype, metadata, inputSchema, fn)
 }
 
-// defineAction creates an action and registers it with the given Registry.
-func defineAction[In, Out, Stream any](
+// DefineStreamingActionWithInputSchema creates a new streamingAction and registers it.
+// This differs from DefineAction in that the input schema is
+// defined dynamically; the static input type is "any".
+// This is used for prompts and tools that need custom input validation.
+func DefineStreamingActionWithInputSchema[In, Out, Stream any](
 	r *registry.Registry,
 	name string,
 	atype ActionType,

@@ -27,6 +27,7 @@ import {
   defineModel,
   GenerateResponseChunkData,
   GenerateResponseData,
+  model,
 } from '../../src/model.js';
 
 initNodeFeatures();
@@ -101,6 +102,52 @@ describe('model', () => {
       assert.deepStrictEqual(response, GENERATE_RESPONSE);
 
       const { output, stream } = model.stream({ messages: [] });
+
+      const chunks = [] as GenerateResponseChunkData[];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+
+      response = await output;
+
+      assert.ok(calledWithOptions!);
+      assert.ok(calledWithOptions.sendChunk);
+      assert.notStrictEqual(
+        calledWithOptions.sendChunk,
+        sentinelNoopStreamingCallback
+      );
+      assert.strictEqual(calledWithOptions.streamingRequested, true);
+      delete response.latencyMs;
+      assert.deepStrictEqual(response, GENERATE_RESPONSE);
+      assert.deepStrictEqual(chunks, [{ content: [{ text: 'success' }] }]);
+    });
+
+    it('defines a dynamic model', async () => {
+      let calledWithOptions: ActionFnArg<GenerateResponseChunkData> | undefined;
+      const testModel = model(
+        {
+          name: 'foo',
+        },
+        async (_, opts) => {
+          calledWithOptions = opts;
+          opts.sendChunk({
+            content: [{ text: 'success' }],
+          });
+          return GENERATE_RESPONSE;
+        }
+      );
+      let response = await testModel({ messages: [] });
+
+      assert.ok(calledWithOptions!);
+      assert.strictEqual(
+        calledWithOptions.sendChunk,
+        sentinelNoopStreamingCallback
+      );
+      assert.strictEqual(calledWithOptions.streamingRequested, false);
+      delete response.latencyMs;
+      assert.deepStrictEqual(response, GENERATE_RESPONSE);
+
+      const { output, stream } = testModel.stream({ messages: [] });
 
       const chunks = [] as GenerateResponseChunkData[];
       for await (const chunk of stream) {
