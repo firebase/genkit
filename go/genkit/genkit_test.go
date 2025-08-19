@@ -62,7 +62,7 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 }
 
 func TestStaticResource(t *testing.T) {
-	g, _ := Init(context.Background())
+	g := Init(context.Background())
 
 	// Define static resource
 	DefineResource(g, "test-doc", &ai.ResourceOptions{
@@ -90,7 +90,7 @@ func TestStaticResource(t *testing.T) {
 }
 
 func TestDynamicResourceWithTemplate(t *testing.T) {
-	g, _ := Init(context.Background())
+	g := Init(context.Background())
 
 	dynResource := NewResource("user-profile", &ai.ResourceOptions{
 		Template: "user://profile/{userID}",
@@ -140,10 +140,10 @@ func TestDynamicResourceWithTemplate(t *testing.T) {
 }
 
 func TestResourceInGeneration(t *testing.T) {
-	g, _ := Init(context.Background())
+	g := Init(context.Background())
 
 	// Define mock model
-	ai.DefineModel(g.reg, "", "test", nil, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+	ai.DefineModel(g.reg, "test", nil, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 		// Extract resource parts from the prompt
 		var responseText strings.Builder
 		for _, msg := range req.Messages {
@@ -192,10 +192,10 @@ func TestResourceInGeneration(t *testing.T) {
 }
 
 func TestDynamicResourceInGeneration(t *testing.T) {
-	g, _ := Init(context.Background())
+	g := Init(context.Background())
 
 	// Define mock model
-	ai.DefineModel(g.reg, "", "test", nil, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+	ai.DefineModel(g.reg, "test", nil, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 		var responseText strings.Builder
 		for _, msg := range req.Messages {
 			for _, part := range msg.Content {
@@ -244,10 +244,10 @@ func TestDynamicResourceInGeneration(t *testing.T) {
 }
 
 func TestMultipleDynamicResourcesInGeneration(t *testing.T) {
-	g, _ := Init(context.Background())
+	g := Init(context.Background())
 
 	// Define mock model
-	ai.DefineModel(g.reg, "", "test", nil, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+	ai.DefineModel(g.reg, "test", nil, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 		return &ai.ModelResponse{
 			Request: req,
 			Message: &ai.Message{
