@@ -73,7 +73,7 @@ type Resource interface {
 // DefineResource creates a resource and registers it with the given Registry.
 func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn ResourceFunc) Resource {
 	metadata := implementResource(name, *opts)
-	resourceAction := core.DefineAction(r, "", name, core.ActionTypeResource, metadata, fn)
+	resourceAction := core.DefineAction(r, name, core.ActionTypeResource, metadata, fn)
 	return &resource{Action: resourceAction}
 }
 
@@ -82,7 +82,7 @@ func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn
 func NewResource(name string, opts ResourceOptions, fn ResourceFunc) Resource {
 	metadata := implementResource(name, opts)
 	metadata["dynamic"] = true
-	resourceAction := core.NewAction("", name, core.ActionTypeResource, metadata, fn)
+	resourceAction := core.NewAction(name, core.ActionTypeResource, metadata, fn)
 	return &resource{Action: resourceAction}
 }
 
