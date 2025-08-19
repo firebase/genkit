@@ -53,7 +53,6 @@ func FindMatchingResource(g *Genkit, uri string) (ai.Resource, ai.ResourceInput,
 
 // ExecuteResource is a helper to execute an ai.Resource.
 func ExecuteResource(ctx context.Context, resource ai.Resource, input ai.ResourceInput) (ai.ResourceOutput, error) {
-	// Delegate to ai implementation
 	return resource.Execute(ctx, input)
 }
 
