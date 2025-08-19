@@ -122,10 +122,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 
 	execOpts := &promptExecutionOptions{}
 	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-		if err := opt.applyPromptExecute(genOpts); err != nil {
+		if err := opt.applyPromptExecute(execOpts); err != nil {
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}

@@ -1041,19 +1041,13 @@ Hello!
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 	ConfigureFormats(reg)
 	definePromptModel(reg)
 
-	prompt, err := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
-	if err != nil {
-		t.Fatal(err)
-	}
+	prompt := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
 
-	_, err = prompt.Execute(context.Background(), nil)
+	_, err = prompt.Execute(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to execute prompt: %v", err)
 	}
