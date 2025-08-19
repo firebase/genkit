@@ -62,8 +62,6 @@ type Tool interface {
 	Definition() *ToolDefinition
 	// RunRaw runs this tool using the provided raw input.
 	RunRaw(ctx context.Context, input any) (any, error)
-	// Register sets the tracing state on the action and registers it with the registry.
-	Register(r *registry.Registry)
 	// Respond constructs a *Part with a ToolResponse for a given interrupted tool request.
 	Respond(toolReq *Part, outputData any, opts *RespondOptions) *Part
 	// Restart constructs a *Part with a new ToolRequest to re-trigger a tool,
@@ -123,7 +121,7 @@ func DefineTool[In, Out any](
 	fn ToolFunc[In, Out],
 ) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
-	toolAction := core.DefineAction(r, name, core.ActionTypeTool, metadata, wrappedFn)
+	toolAction := core.DefineAction(r, name, core.ActionTypeTool, metadata, nil, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
@@ -135,7 +133,7 @@ func DefineToolWithInputSchema[Out any](
 	fn ToolFunc[any, Out],
 ) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
-	toolAction := core.DefineActionWithInputSchema(r, name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
+	toolAction := core.DefineAction(r, name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
@@ -143,7 +141,7 @@ func DefineToolWithInputSchema[Out any](
 func NewTool[In, Out any](name, description string, fn ToolFunc[In, Out]) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
 	metadata["dynamic"] = true
-	toolAction := core.NewAction(name, core.ActionTypeTool, metadata, wrappedFn)
+	toolAction := core.NewAction(name, core.ActionTypeTool, metadata, nil, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
@@ -191,12 +189,6 @@ func (t *tool) Definition() *ToolDefinition {
 // as map[string]any).
 func (t *tool) RunRaw(ctx context.Context, input any) (any, error) {
 	return runAction(ctx, t.Definition(), t.Action, input)
-}
-
-// Register sets the tracing state on the action and registers it with the registry.
-func (t *tool) Register(r *registry.Registry) {
-	t.Action.SetTracingState(r.TracingState())
-	r.RegisterAction(fmt.Sprintf("/%s/%s", core.ActionTypeTool, t.Action.Name()), t.Action)
 }
 
 // runAction runs the given action with the provided raw input and returns the output in raw format.

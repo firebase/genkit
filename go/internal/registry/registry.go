@@ -24,9 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/google/dotprompt/go/dotprompt"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // This file implements registries of actions and other values.
@@ -42,7 +40,6 @@ type ActionResolver = func(actionType, provider, name string) error
 // Registry holds all registered actions and associated types,
 // and provides methods to register, query, and look up actions.
 type Registry struct {
-	tstate  *tracing.State
 	mu      sync.Mutex
 	frozen  bool           // when true, no more additions
 	parent  *Registry      // parent registry for hierarchical lookups
@@ -61,10 +58,6 @@ func New() *Registry {
 		plugins: map[string]any{},
 		values:  map[string]any{},
 	}
-	r.tstate = tracing.NewState()
-	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
-		r.tstate.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(os.Getenv("GENKIT_TELEMETRY_SERVER")))
-	}
 	r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
 		Helpers:  make(map[string]any),
 		Partials: make(map[string]string),
@@ -78,7 +71,6 @@ func New() *Registry {
 func (r *Registry) NewChild() *Registry {
 	child := &Registry{
 		parent:         r,
-		tstate:         r.tstate,
 		actions:        map[string]any{},
 		plugins:        map[string]any{},
 		values:         map[string]any{},
@@ -87,8 +79,6 @@ func (r *Registry) NewChild() *Registry {
 	}
 	return child
 }
-
-func (r *Registry) TracingState() *tracing.State { return r.tstate }
 
 // RegisterPlugin records the plugin in the registry.
 // It panics if a plugin with the same name is already registered.
@@ -223,10 +213,6 @@ func (r *Registry) ListPlugins() []any {
 		plugins = append(plugins, p)
 	}
 	return plugins
-}
-
-func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	r.tstate.RegisterSpanProcessor(sp)
 }
 
 // ListValues returns a list of values of all registered values.

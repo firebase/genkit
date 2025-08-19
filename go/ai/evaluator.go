@@ -131,12 +131,11 @@ type EvaluatorCallbackRequest struct {
 // EvaluatorCallbackResponse is the result on evaluating a single [Example]
 type EvaluatorCallbackResponse = EvaluationResult
 
-// DefineEvaluator registers the given evaluator function as an action, and
-// returns a [Evaluator] that runs it. This method process the input dataset
-// one-by-one.
-func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
+// NewEvaluator creates a new [Evaluator] without registering it.
+// This method processes the input dataset one-by-one.
+func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
 	if name == "" {
-		panic("ai.DefineEvaluator: evaluator name is required")
+		panic("ai.NewEvaluator: evaluator name is required")
 	}
 
 	if opts == nil {
@@ -160,13 +159,13 @@ func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, 
 		}
 	}
 
-	return (*evaluator)(core.DefineActionWithInputSchema(r, name, core.ActionTypeEvaluator, metadata, inputSchema, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
+	return (*evaluator)(core.NewAction(name, core.ActionTypeEvaluator, metadata, inputSchema, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
 		var results []EvaluationResult
 		for _, datapoint := range req.Dataset {
 			if datapoint.TestCaseId == "" {
 				datapoint.TestCaseId = uuid.New().String()
 			}
-			_, err := tracing.RunInNewSpan(ctx, r.TracingState(), fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
+			_, err := tracing.RunInNewSpan(ctx, fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
 				func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
 					traceId := trace.SpanContextFromContext(ctx).TraceID().String()
 					spanId := trace.SpanContextFromContext(ctx).SpanID().String()
@@ -209,13 +208,23 @@ func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, 
 	}))
 }
 
-// DefineBatchEvaluator registers the given evaluator function as an action, and
-// returns a [Evaluator] that runs it. This method provide the full
-// [EvaluatorRequest] to the callback function, giving more flexibilty to the
-// user for processing the data, such as batching or parallelization.
-func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
+// DefineEvaluator registers the given evaluator function as an action, and
+// returns a [Evaluator] that runs it. This method process the input dataset
+// one-by-one.
+func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
+	evaluator := NewEvaluator(name, opts, fn)
+	provider, id := core.ParseName(name)
+	key := core.NewKey(core.ActionTypeEvaluator, provider, id)
+	r.RegisterAction(key, evaluator)
+	return evaluator
+}
+
+// NewBatchEvaluator creates a new [Evaluator] without registering it.
+// This method provides the full [EvaluatorRequest] to the callback function,
+// giving more flexibility to the user for processing the data, such as batching or parallelization.
+func NewBatchEvaluator(name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
 	if name == "" {
-		panic("ai.DefineBatchEvaluator: batch evaluator name is required")
+		panic("ai.NewBatchEvaluator: batch evaluator name is required")
 	}
 
 	if opts == nil {
@@ -231,7 +240,19 @@ func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOpti
 		},
 	}
 
-	return (*evaluator)(core.DefineAction(r, name, core.ActionTypeEvaluator, metadata, fn))
+	return (*evaluator)(core.NewAction(name, core.ActionTypeEvaluator, metadata, nil, fn))
+}
+
+// DefineBatchEvaluator registers the given evaluator function as an action, and
+// returns a [Evaluator] that runs it. This method provide the full
+// [EvaluatorRequest] to the callback function, giving more flexibilty to the
+// user for processing the data, such as batching or parallelization.
+func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
+	evaluator := NewBatchEvaluator(name, opts, fn)
+	provider, id := core.ParseName(name)
+	key := core.NewKey(core.ActionTypeEvaluator, provider, id)
+	r.RegisterAction(key, evaluator)
+	return evaluator
 }
 
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].

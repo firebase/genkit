@@ -19,58 +19,71 @@ package tracing
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// State holds OpenTelemetry values for creating traces.
-type State struct {
-	tp     *sdktrace.TracerProvider // references Stores
-	tracer trace.Tracer             // returned from tp.Tracer(), cached
+var (
+	globalProvider     *sdktrace.TracerProvider
+	globalProviderOnce sync.Once
+)
+
+// GetGlobalTracerProvider returns the global tracer provider, creating it if needed.
+func GetGlobalTracerProvider() *sdktrace.TracerProvider {
+	globalProviderOnce.Do(func() {
+		globalProvider = sdktrace.NewTracerProvider()
+		otel.SetTracerProvider(globalProvider)
+
+		// Auto-configure telemetry if environment variable is set
+		if telemetryURL := os.Getenv("GENKIT_TELEMETRY_SERVER"); telemetryURL != "" {
+			WriteTelemetryImmediate(NewHTTPTelemetryClient(telemetryURL))
+		}
+	})
+	return globalProvider
 }
 
-func NewState() *State {
-	tp := sdktrace.NewTracerProvider()
-	return &State{
-		tp:     tp,
-		tracer: tp.Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1")),
-	}
+// GetGlobalTracer returns a tracer from the global tracer provider.
+func GetGlobalTracer() trace.Tracer {
+	return GetGlobalTracerProvider().Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1"))
 }
 
-func (ts *State) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	ts.tp.RegisterSpanProcessor(sp)
+// RegisterSpanProcessor registers a span processor with the global provider.
+func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
+	GetGlobalTracerProvider().RegisterSpanProcessor(sp)
 }
 
-// WriteTelemetryImmediate adds a telemetry server to the tracingState.
-// Traces are saved immediately as they are finshed.
+// WriteTelemetryImmediate adds a telemetry server to the global tracer provider.
+// Traces are saved immediately as they are finished.
 // Use this for a gtrace.Store with a fast Save method,
 // such as one that writes to a file.
-func (ts *State) WriteTelemetryImmediate(client TelemetryClient) {
+func WriteTelemetryImmediate(client TelemetryClient) {
 	e := newTraceServerExporter(client)
 	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
-	ts.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+	RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
 	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
 	// Confirmed for OTel packages as of v1.24.0.
 	// Also requires traceStoreExporter.Shutdown to be a no-op.
 }
 
-// WriteTelemetryBatch adds a telemetry server to the tracingState.
+// WriteTelemetryBatch adds a telemetry server to the global tracer provider.
 // Traces are batched before being sent for processing.
 // Use this for a gtrace.Store with a potentially expensive Save method,
 // such as one that makes an RPC.
 // Callers must invoke the returned function at the end of the program to flush the final batch
 // and perform other cleanup.
-func (ts *State) WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
+func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
 	e := newTraceServerExporter(client)
 	// Adding a BatchSpanProcessor is like using the WithBatcher option.
-	ts.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
-	return ts.tp.Shutdown
+	RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
+	return GetGlobalTracerProvider().Shutdown
 }
 
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.
@@ -84,7 +97,6 @@ const (
 // The attrs map provides the span's initial attributes.
 func RunInNewSpan[I, O any](
 	ctx context.Context,
-	tstate *State,
 	name, spanType string,
 	isRoot bool,
 	input I,
@@ -109,7 +121,7 @@ func RunInNewSpan[I, O any](
 	if spanType != "" {
 		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
 	}
-	ctx, span := tstate.tracer.Start(ctx, name, opts...)
+	ctx, span := GetGlobalTracer().Start(ctx, name, opts...)
 	defer span.End()
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()

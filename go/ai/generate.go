@@ -108,7 +108,7 @@ type ModelOptions struct {
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil,
+	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", actionOpts))
@@ -118,17 +118,17 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"err", err)
 			}()
 
-			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, actionOpts,
+			return tracing.RunInNewSpan(ctx, "generate", "util", false, actionOpts,
 				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
 					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
 				})
 		}))
 }
 
-// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
-func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+// NewModel creates a new [Model] without registering it.
+func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	if name == "" {
-		panic("ai.DefineModel: name is required")
+		panic("ai.NewModel: name is required")
 	}
 
 	if opts == nil {
@@ -175,7 +175,16 @@ func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn Model
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return (*model)(core.DefineStreamingActionWithInputSchema(r, name, core.ActionTypeModel, metadata, inputSchema, fn))
+	return (*model)(core.NewStreamingAction(name, core.ActionTypeModel, metadata, inputSchema, fn))
+}
+
+// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
+func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+	model := NewModel(name, opts, fn)
+	provider, id := core.ParseName(name)
+	key := core.NewKey(core.ActionTypeModel, provider, id)
+	r.RegisterAction(key, model)
+	return model
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
@@ -385,7 +394,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	if len(dynamicTools) > 0 {
 		r = r.NewChild()
 		for _, tool := range dynamicTools {
-			tool.Register(r)
+			r.RegisterAction(core.NewKey(core.ActionTypeTool, "", tool.Name()), tool)
 		}
 	}
 

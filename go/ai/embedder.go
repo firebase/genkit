@@ -84,11 +84,10 @@ type EmbedderOptions struct {
 // embedder is an action with functions specific to converting documents to multidimensional vectors such as Embed().
 type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 
-// DefineEmbedder registers the given embed function as an action, and returns an
-// [Embedder] that runs it.
-func DefineEmbedder(r *registry.Registry, name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
+// NewEmbedder creates a new [Embedder] without registering it.
+func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 	if name == "" {
-		panic("ai.DefineEmbedder: name is required")
+		panic("ai.NewEmbedder: name is required")
 	}
 
 	if opts == nil {
@@ -123,7 +122,17 @@ func DefineEmbedder(r *registry.Registry, name string, opts *EmbedderOptions, fn
 		}
 	}
 
-	return (*embedder)(core.DefineActionWithInputSchema(r, name, core.ActionTypeEmbedder, metadata, inputSchema, fn))
+	return (*embedder)(core.NewAction(name, core.ActionTypeEmbedder, metadata, nil, fn))
+}
+
+// DefineEmbedder registers the given embed function as an action, and returns an
+// [Embedder] that runs it.
+func DefineEmbedder(r *registry.Registry, name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
+	embedder := NewEmbedder(name, opts, fn)
+	provider, id := core.ParseName(name)
+	key := core.NewKey(core.ActionTypeEmbedder, provider, id)
+	r.RegisterAction(key, embedder)
+	return embedder
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].

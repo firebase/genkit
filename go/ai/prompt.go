@@ -92,7 +92,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prom
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.action = *core.DefineAction(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p
 }

@@ -81,11 +81,10 @@ type RetrieverOptions struct {
 	Supports *RetrieverSupports `json:"supports,omitempty"`
 }
 
-// DefineRetriever registers the given retrieve function as an action, and returns a
-// [Retriever] that runs it.
-func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
+// NewRetriever creates a new [Retriever] without registering it.
+func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
 	if name == "" {
-		panic("ai.Retrieve: retriever name is required")
+		panic("ai.NewRetriever: retriever name is required")
 	}
 
 	if opts == nil {
@@ -117,11 +116,21 @@ func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, 
 		}
 	}
 
-	return (*retriever)(core.DefineAction(r, name, core.ActionTypeRetriever, metadata, fn))
+	return (*retriever)(core.NewAction(name, core.ActionTypeRetriever, metadata, inputSchema, fn))
+}
+
+// DefineRetriever creates and registers a new [Retriever].
+func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
+	retriever := NewRetriever(name, opts, fn)
+	provider, id := core.ParseName(name)
+	key := core.NewKey(core.ActionTypeRetriever, provider, id)
+	r.RegisterAction(key, retriever)
+	return retriever
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
-// It returns nil if the retriever was not defined.
+// It will try to resolve the retriever dynamically if the retriever is not found.
+// It returns nil if the retriever was not resolved.
 func LookupRetriever(r *registry.Registry, name string) Retriever {
 	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, name))
 }

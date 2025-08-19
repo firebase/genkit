@@ -48,8 +48,6 @@ type Action interface {
 	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
 	// Desc returns a descriptor of the action.
 	Desc() ActionDesc
-	// SetTracingState sets the tracing state on the action.
-	SetTracingState(tstate *tracing.State)
 }
 
 // An ActionType is the kind of an action.
@@ -76,9 +74,8 @@ const (
 //
 // Each time an ActionDef is run, it results in a new trace span.
 type ActionDef[In, Out, Stream any] struct {
-	fn     StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
-	desc   *ActionDesc                    // Descriptor of the action.
-	tstate *tracing.State                 // Collects and writes traces during runtime.
+	fn   StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
+	desc *ActionDesc                    // Descriptor of the action.
 }
 
 // ActionDesc is a descriptor of an action.
@@ -94,49 +91,36 @@ type ActionDesc struct {
 
 type noStream = func(context.Context, struct{}) error
 
-// DefineAction creates a new non-streaming Action and registers it.
-func DefineAction[In, Out any](
-	r *registry.Registry,
-	name string,
-	atype ActionType,
-	metadata map[string]any,
-	fn Func[In, Out],
-) *ActionDef[In, Out, struct{}] {
-	return defineAction(r, name, atype, metadata, nil,
-		func(ctx context.Context, in In, cb noStream) (Out, error) {
-			return fn(ctx, in)
-		})
-}
-
-// NewAction creates a new non-streaming Action without registering it.
+// NewAction creates a new non-streaming [Action] without registering it.
+// If inputSchema is nil, it is inferred from the function's input type.
 func NewAction[In, Out any](
 	name string,
 	atype ActionType,
 	metadata map[string]any,
+	inputSchema map[string]any,
 	fn Func[In, Out],
 ) *ActionDef[In, Out, struct{}] {
-	return newAction(nil, name, atype, metadata, nil,
+	return newAction(name, atype, metadata, inputSchema,
 		func(ctx context.Context, in In, cb noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }
 
-// DefineStreamingAction creates a new streaming action and registers it.
-func DefineStreamingAction[In, Out, Stream any](
-	r *registry.Registry,
+// NewStreamingAction creates a new streaming [Action] without registering it.
+// If inputSchema is nil, it is inferred from the function's input type.
+func NewStreamingAction[In, Out, Stream any](
 	name string,
 	atype ActionType,
 	metadata map[string]any,
+	inputSchema map[string]any,
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
-	return defineAction(r, name, atype, metadata, nil, fn)
+	return newAction(name, atype, metadata, inputSchema, fn)
 }
 
-// DefineActionWithInputSchema creates a new Action and registers it.
-// This differs from DefineAction in that the input schema is
-// defined dynamically; the static input type is "any".
-// This is used for prompts and tools that need custom input validation.
-func DefineActionWithInputSchema[In, Out any](
+// DefineAction creates a new non-streaming Action and registers it.
+// If inputSchema is nil, it is inferred from the function's input type.
+func DefineAction[In, Out any](
 	r *registry.Registry,
 	name string,
 	atype ActionType,
@@ -145,16 +129,14 @@ func DefineActionWithInputSchema[In, Out any](
 	fn Func[In, Out],
 ) *ActionDef[In, Out, struct{}] {
 	return defineAction(r, name, atype, metadata, inputSchema,
-		func(ctx context.Context, in In, _ noStream) (Out, error) {
+		func(ctx context.Context, in In, cb noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }
 
-// DefineStreamingActionWithInputSchema creates a new streamingAction and registers it.
-// This differs from DefineAction in that the input schema is
-// defined dynamically; the static input type is "any".
-// This is used for prompts and tools that need custom input validation.
-func DefineStreamingActionWithInputSchema[In, Out, Stream any](
+// DefineStreamingAction creates a new streaming action and registers it.
+// If inputSchema is nil, it is inferred from the function's input type.
+func DefineStreamingAction[In, Out, Stream any](
 	r *registry.Registry,
 	name string,
 	atype ActionType,
@@ -174,7 +156,7 @@ func defineAction[In, Out, Stream any](
 	inputSchema map[string]any,
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
-	a := newAction(r, name, atype, metadata, inputSchema, fn)
+	a := newAction(name, atype, metadata, inputSchema, fn)
 	provider, id := ParseName(name)
 	key := NewKey(atype, provider, id)
 	r.RegisterAction(key, a)
@@ -185,7 +167,6 @@ func defineAction[In, Out, Stream any](
 // If registry is nil, tracing state is left nil to be set later.
 // If inputSchema is nil, it is inferred from In.
 func newAction[In, Out, Stream any](
-	r *registry.Registry,
 	name string,
 	atype ActionType,
 	metadata map[string]any,
@@ -210,13 +191,7 @@ func newAction[In, Out, Stream any](
 		description = desc
 	}
 
-	var tstate *tracing.State
-	if r != nil {
-		tstate = r.TracingState()
-	}
-
 	return &ActionDef[In, Out, Stream]{
-		tstate: tstate,
 		fn: func(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error) {
 			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
 			return fn(ctx, input, cb)
@@ -236,12 +211,6 @@ func newAction[In, Out, Stream any](
 // Name returns the Action's Name.
 func (a *ActionDef[In, Out, Stream]) Name() string { return a.desc.Name }
 
-// SetTracingState sets the tracing state on the action. This is used when an action
-// created without a registry needs to have its tracing state set later.
-func (a *ActionDef[In, Out, Stream]) SetTracingState(tstate *tracing.State) {
-	a.tstate = tstate
-}
-
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb StreamCallback[Stream]) (output Out, err error) {
 	logger.FromContext(ctx).Debug("Action.Run",
@@ -254,7 +223,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 			"err", err)
 	}()
 
-	return tracing.RunInNewSpan(ctx, a.tstate, a.desc.Name, "action", false, input,
+	return tracing.RunInNewSpan(ctx, a.desc.Name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error

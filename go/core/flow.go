@@ -40,15 +40,13 @@ type StreamingFlowValue[Out, Stream any] struct {
 // flowContextKey is a context key that indicates whether the current context is a flow context.
 var flowContextKey = base.NewContextKey[*flowContext]()
 
-// flowContext is a context that contains the tracing state for a flow.
-type flowContext struct {
-	tracingState *tracing.State
-}
+// flowContext is a context that contains flow-specific information.
+type flowContext struct{}
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]) *Flow[In, Out, struct{}] {
-	return (*Flow[In, Out, struct{}])(DefineAction(r, name, ActionTypeFlow, nil, func(ctx context.Context, input In) (Out, error) {
-		fc := &flowContext{tracingState: r.TracingState()}
+	return (*Flow[In, Out, struct{}])(DefineAction(r, name, ActionTypeFlow, nil, nil, func(ctx context.Context, input In) (Out, error) {
+		fc := &flowContext{}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input)
 	}))
@@ -64,8 +62,8 @@ func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
 func DefineStreamingFlow[In, Out, Stream any](r *registry.Registry, name string, fn StreamingFunc[In, Out, Stream]) *Flow[In, Out, Stream] {
-	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, name, ActionTypeFlow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
-		fc := &flowContext{tracingState: r.TracingState()}
+	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, name, ActionTypeFlow, nil, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
+		fc := &flowContext{}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input, cb)
 	}))
@@ -84,7 +82,7 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		var z Out
 		return z, fmt.Errorf("flow.Run(%q): must be called from a flow", name)
 	}
-	return tracing.RunInNewSpan(ctx, fc.tracingState, name, "flowStep", false, nil, func(ctx context.Context, _ any) (Out, error) {
+	return tracing.RunInNewSpan(ctx, name, "flowStep", false, nil, func(ctx context.Context, _ any) (Out, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit:name", name)
 		tracing.SetCustomMetadataAttr(ctx, "genkit:type", "flowStep")
 		o, err := fn()
@@ -113,11 +111,6 @@ func (f *Flow[In, Out, Stream]) Desc() ActionDesc {
 // Run runs the flow in the context of another flow.
 func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In) (Out, error) {
 	return (*ActionDef[In, Out, Stream])(f).Run(ctx, input, nil)
-}
-
-// SetTracingState sets the tracing state on the flow.
-func (f *Flow[In, Out, Stream]) SetTracingState(tstate *tracing.State) {
-	(*ActionDef[In, Out, Stream])(f).SetTracingState(tstate)
 }
 
 // Stream runs the flow in the context of another flow and streams the output.
