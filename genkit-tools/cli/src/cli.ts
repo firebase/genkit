@@ -97,7 +97,8 @@ export async function startCLI(): Promise<void> {
   if (!hasNoUpdateNotification) {
     try {
       await showUpdateNotification();
-    } catch {
+    } catch (e) {
+      logger.debug('Failed to show update notification', e);
       // Silently ignore errors - update notifications shouldn't break the CLI
     }
   }

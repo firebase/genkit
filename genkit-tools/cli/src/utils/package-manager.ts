@@ -36,22 +36,22 @@ export const PACKAGE_MANAGERS: Record<string, PackageManager> = {
   },
   pnpm: {
     type: 'pnpm',
-    localInstallCommand: 'pnpm install',
-    globalInstallCommand: 'pnpm install -g',
+    localInstallCommand: 'pnpm add',
+    globalInstallCommand: 'pnpm add -g',
     localInstallCommandFunc: (name: string, version?: string) =>
-      `pnpm install ${name}${version ? `@${version}` : ''}`,
+      `pnpm add ${name}${version ? `@${version}` : ''}`,
     globalInstallCommandFunc: (name: string, version?: string) =>
-      `pnpm install -g ${name}${version ? `@${version}` : ''}`,
+      `pnpm add -g ${name}${version ? `@${version}` : ''}`,
     globalRootCommand: 'pnpm root -g',
   },
   yarn: {
     type: 'yarn',
-    localInstallCommand: 'yarn install',
-    globalInstallCommand: 'yarn install -g',
+    localInstallCommand: 'yarn add',
+    globalInstallCommand: 'yarn global add',
     localInstallCommandFunc: (name: string, version?: string) =>
-      `yarn install ${name}${version ? `@${version}` : ''}`,
+      `yarn add ${name}${version ? `@${version}` : ''}`,
     globalInstallCommandFunc: (name: string, version?: string) =>
-      `yarn install -g ${name}${version ? `@${version}` : ''}`,
+      `yarn global add ${name}${version ? `@${version}` : ''}`,
     globalRootCommand: 'yarn global bin',
   },
 };

@@ -24,6 +24,8 @@ jest.mock('@genkit-ai/tools-common/utils', () => ({
     warn: jest.fn(),
     debug: jest.fn(),
   },
+  getUserSettings: jest.fn(),
+  setUserSettings: jest.fn(),
 }));
 
 jest.mock('axios', () => ({
@@ -79,11 +81,6 @@ jest.mock('../../src/utils/version', () => ({
 
 jest.mock('../../src/commands/config', () => ({
   UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG: 'updateNotificationsOptOut',
-}));
-
-jest.mock('@genkit-ai/tools-common/utils', () => ({
-  getUserSettings: jest.fn(),
-  setUserSettings: jest.fn(),
 }));
 
 // Import after mocking

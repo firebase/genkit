@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { GenkitToolsError } from '@genkit-ai/tools-common/manager';
 import { getUserSettings, logger } from '@genkit-ai/tools-common/utils';
 import axios from 'axios';
 import { execSync } from 'child_process';
@@ -22,15 +23,19 @@ import * as fs from 'fs';
 import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
+import semver from 'semver';
 import {
   PACKAGE_MANAGERS,
   PackageManager,
   getPackageManager,
 } from '../utils/package-manager';
 import { detectCLIRuntime } from '../utils/runtime-detector';
-import { UpdateError } from '../utils/utils';
 import { version as currentVersion, name } from '../utils/version';
 import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from './config';
+
+const AXIOS_INSTANCE = axios.create({
+  timeout: 3000,
+});
 
 interface UpdateOptions {
   reinstall?: boolean;
@@ -53,10 +58,12 @@ export function getCurrentVersion(): string {
 }
 
 /**
- * Validates a version string
+ * Validates a version string using semver
  */
 function validateVersion(version: string): boolean {
-  return /^v?\d+\.\d+\.\d+$/.test(version);
+  // Accepts v-prefixed or plain semver
+  const clean = correctVersion(version);
+  return semver.valid(clean) !== null;
 }
 
 /**
@@ -73,11 +80,12 @@ function correctVersion(version: string): string {
  */
 export async function checkForUpdates(): Promise<UpdateCheckResult> {
   const latestVersion = correctVersion(await getLatestVersion());
-  const hasUpdate = latestVersion !== getCurrentVersion();
+  const current = getCurrentVersion();
+  const hasUpdate = semver.gt(latestVersion, current);
 
   return {
     hasUpdate,
-    currentVersion: getCurrentVersion(),
+    currentVersion: current,
     latestVersion,
   };
 }
@@ -112,12 +120,12 @@ interface NpmRegistryResponse {
 }
 
 async function getGCSLatestData(): Promise<GCSLatestResponse> {
-  const response = await axios.get(
+  const response = await AXIOS_INSTANCE.get(
     'https://storage.googleapis.com/genkit-assets-cli/latest.json'
   );
 
   if (response.status !== 200) {
-    throw new UpdateError(
+    throw new GenkitToolsError(
       `Failed to fetch GCS latest.json: ${response.statusText}`
     );
   }
@@ -132,36 +140,44 @@ export async function getAvailableVersionsFromNpm(
   ignoreRC: boolean = true
 ): Promise<string[]> {
   try {
-    const response = await axios.get(`https://registry.npmjs.org/${name}`);
+    const response = await AXIOS_INSTANCE.get(
+      `https://registry.npmjs.org/${name}`
+    );
 
     if (response.status !== 200) {
-      throw new UpdateError(
+      throw new GenkitToolsError(
         `Failed to fetch npm versions: ${response.statusText}`
       );
     }
 
     const data: NpmRegistryResponse = response.data;
 
-    // Get all version numbers and sort them
-    const versions = Object.keys(data.versions);
+    // Get all version numbers and filter out pre-releases if ignoreRC is true
+    let versions = Object.keys(data.versions).filter((version) => {
+      const clean = correctVersion(version);
+      if (!semver.valid(clean)) return false;
+      if (ignoreRC) {
+        return !semver.prerelease(clean);
+      }
+      return true;
+    });
 
-    // Filter out pre-release versions and sort by semantic version (newest first)
-    return versions
-      .filter((version) => !/-/.test(version) || !ignoreRC) // Remove pre-release versions
-      .sort((a, b) => {
-        const parseVersion = (v: string) => v.split('.').map(Number);
-        const [aMajor, aMinor, aPatch] = parseVersion(a);
-        const [bMajor, bMinor, bPatch] = parseVersion(b);
-        if (bMajor !== aMajor) return bMajor - aMajor;
-        if (bMinor !== aMinor) return bMinor - aMinor;
-        return bPatch - aPatch;
-      });
+    // Sort by semver descending (newest first)
+    versions = versions.sort((a, b) => {
+      const aClean = correctVersion(a);
+      const bClean = correctVersion(b);
+      return semver.rcompare(aClean, bClean);
+    });
+
+    return versions.map(correctVersion);
   } catch (error: any) {
-    if (error instanceof UpdateError) {
+    if (error instanceof GenkitToolsError) {
       throw error;
     }
 
-    throw new UpdateError(`Failed to fetch npm versions: ${error.message}`);
+    throw new GenkitToolsError(
+      `Failed to fetch npm versions: ${error.message}`
+    );
   }
 }
 
@@ -173,18 +189,20 @@ export async function getLatestVersionFromGCS(): Promise<string[]> {
     const data = await getGCSLatestData();
 
     if (!data.latestVersion) {
-      throw new UpdateError('No latest version found');
+      throw new GenkitToolsError('No latest version found');
     }
 
     // For now, we only return the latest version from GCS
     // In the future, we could implement a way to get all available versions
     return [data.latestVersion];
   } catch (error: any) {
-    if (error instanceof UpdateError) {
+    if (error instanceof GenkitToolsError) {
       throw error;
     }
 
-    throw new UpdateError(`Failed to fetch GCS versions: ${error.message}`);
+    throw new GenkitToolsError(
+      `Failed to fetch GCS versions: ${error.message}`
+    );
   }
 }
 
@@ -203,16 +221,19 @@ async function getLatestVersion(): Promise<string> {
 
   try {
     if (versions.length === 0) {
-      throw new UpdateError('No versions found');
+      throw new GenkitToolsError('No versions found');
     }
-    // Return the first version (newest) with 'v' prefix for consistency
-    return versions[0];
+    // Return the first version (newest) for consistency
+    // (already sorted by semver descending)
+    return correctVersion(versions[0]);
   } catch (error: any) {
-    if (error instanceof UpdateError) {
+    if (error instanceof GenkitToolsError) {
       throw error;
     }
 
-    throw new UpdateError(`Failed to fetch latest version: ${error.message}`);
+    throw new GenkitToolsError(
+      `Failed to fetch latest version: ${error.message}`
+    );
   }
 }
 
@@ -235,7 +256,7 @@ function getPlatformInfo(): { platform: string; arch: string } {
       platformName = 'linux';
       break;
     default:
-      throw new UpdateError(`Unsupported platform: ${platform}`);
+      throw new GenkitToolsError(`Unsupported platform: ${platform}`);
   }
 
   let archName: string;
@@ -247,7 +268,7 @@ function getPlatformInfo(): { platform: string; arch: string } {
       archName = 'arm64';
       break;
     default:
-      throw new UpdateError(`Unsupported architecture: ${arch}`);
+      throw new GenkitToolsError(`Unsupported architecture: ${arch}`);
   }
 
   return { platform: platformName, arch: archName };
@@ -305,7 +326,8 @@ async function downloadAndInstall(version: string): Promise<void> {
   if (!runtime.isCompiledBinary) {
     // Check if the requested version is available on npm
     const availableVersions = await getAvailableVersionsFromNpm();
-    if (!availableVersions.includes(correctVersion(version))) {
+    const cleanVersion = correctVersion(version);
+    if (!availableVersions.map(correctVersion).includes(cleanVersion)) {
       logger.error(`Version v${clc.bold(version)} is not available on npm.`);
       process.exit(1);
     }
@@ -344,14 +366,14 @@ async function downloadAndInstall(version: string): Promise<void> {
   const fileName = gcsLatestData.platforms[machine].versionedUrl
     .split('/')
     .pop();
-  const cleanVersion = version.startsWith('v') ? version.substring(1) : version;
+  const cleanVersion = correctVersion(version);
   // Use the same URL structure as the install_cli script
   const channel = 'prod'; // Default to prod channel
   const downloadUrl = `https://storage.googleapis.com/genkit-assets-cli/${channel}/${machine}/v${cleanVersion}/${fileName}`;
   try {
     let response;
     try {
-      response = await axios({
+      response = await AXIOS_INSTANCE({
         method: 'GET',
         url: downloadUrl,
         responseType: 'stream',
@@ -362,7 +384,7 @@ async function downloadAndInstall(version: string): Promise<void> {
         logger.error(`Version v${clc.bold(version)} can not be found.`);
         process.exit(1);
       }
-      throw new UpdateError(`Failed to download binary: ${err.message}`);
+      throw new GenkitToolsError(`Failed to download binary: ${err.message}`);
     }
 
     // Create backup of current binary
@@ -503,7 +525,7 @@ export const update = new Command('update')
 
         logger.info(`${clc.yellow('!')} Reinstalling v${clc.bold(version)}...`);
       } else if (version) {
-        if (version === getCurrentVersion()) {
+        if (semver.eq(correctVersion(version), getCurrentVersion())) {
           logger.info(
             `${clc.green('✓')} Already using version v${clc.bold(version)}.`
           );
@@ -513,8 +535,9 @@ export const update = new Command('update')
         logger.info(`Installing v${clc.bold(version)}...`);
       } else {
         logger.info('Checking for updates...');
-        if ((await checkForUpdates()).hasUpdate) {
-          version = await getLatestVersion();
+        const updateResult = await checkForUpdates();
+        if (updateResult.hasUpdate) {
+          version = updateResult.latestVersion;
 
           logger.info(
             `Update available: v${clc.bold(getCurrentVersion())} → v${clc.bold(version)}`
