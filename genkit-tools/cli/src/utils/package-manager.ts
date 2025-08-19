@@ -59,10 +59,3 @@ export const PACKAGE_MANAGERS: Record<string, PackageManager> = {
 export const getPackageManager = (name: string) => {
   return PACKAGE_MANAGERS[name] || PACKAGE_MANAGERS.npm;
 };
-
-export class UpdateError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdateError';
-  }
-}

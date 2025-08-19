@@ -22,8 +22,13 @@ import * as fs from 'fs';
 import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
-import { PACKAGE_MANAGERS, getPackageManager, PackageManager, UpdateError } from '../utils/global';
+import {
+  PACKAGE_MANAGERS,
+  PackageManager,
+  getPackageManager,
+} from '../utils/package-manager';
 import { detectCLIRuntime } from '../utils/runtime-detector';
+import { UpdateError } from '../utils/utils';
 import { version as currentVersion, name } from '../utils/version';
 import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from './config';
 
@@ -112,7 +117,9 @@ async function getGCSLatestData(): Promise<GCSLatestResponse> {
   );
 
   if (response.status !== 200) {
-    throw new UpdateError(`Failed to fetch GCS latest.json: ${response.statusText}`);
+    throw new UpdateError(
+      `Failed to fetch GCS latest.json: ${response.statusText}`
+    );
   }
 
   return response.data as GCSLatestResponse;
@@ -128,7 +135,9 @@ export async function getAvailableVersionsFromNpm(
     const response = await axios.get(`https://registry.npmjs.org/${name}`);
 
     if (response.status !== 200) {
-      throw new UpdateError(`Failed to fetch npm versions: ${response.statusText}`);
+      throw new UpdateError(
+        `Failed to fetch npm versions: ${response.statusText}`
+      );
     }
 
     const data: NpmRegistryResponse = response.data;

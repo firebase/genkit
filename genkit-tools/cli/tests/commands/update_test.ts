@@ -87,7 +87,9 @@ jest.mock('@genkit-ai/tools-common/utils', () => ({
 }));
 
 // Import after mocking
+import { getUserSettings } from '@genkit-ai/tools-common/utils';
 import axios from 'axios';
+import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from '../../src/commands/config';
 import {
   checkForUpdates,
   getAvailableVersionsFromNpm,
@@ -95,8 +97,6 @@ import {
   showUpdateNotification,
 } from '../../src/commands/update';
 import { detectCLIRuntime } from '../../src/utils/runtime-detector';
-import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from '../../src/commands/config';
-import { getUserSettings } from '@genkit-ai/tools-common/utils';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedDetectCLIRuntime = detectCLIRuntime as jest.MockedFunction<
