@@ -48,7 +48,6 @@ func DefineResource(g *Genkit, resourceName string, opts ai.ResourceOptions, fn 
 
 // FindMatchingResource finds a resource that matches the given URI.
 func FindMatchingResource(g *Genkit, uri string) (ai.Resource, ai.ResourceInput, error) {
-	// Delegate to ai implementation
 	return ai.FindMatchingResource(g.reg, uri)
 }
 
