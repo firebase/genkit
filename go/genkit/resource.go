@@ -42,7 +42,6 @@ import (
 //	  }, nil
 //	})
 func DefineResource(g *Genkit, name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
-	// Delegate to ai implementation
 	return ai.DefineResource(g.reg, resourceName, opts, fn)
 }
 
