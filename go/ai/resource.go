@@ -46,7 +46,7 @@ type ResourceOptions struct {
 }
 
 // ResourceFunc is a function that loads content for a resource.
-type ResourceFunc = func(context.Context, ResourceInput) (ResourceOutput, error)
+type ResourceFunc = func(context.Context, *ResourceInput) (*ResourceOutput, error)
 
 // resource is the internal implementation of the Resource interface.
 // It holds the underlying core action and allows looking up resources
