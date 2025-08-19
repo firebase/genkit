@@ -411,7 +411,7 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 		attribute.String("genkit:path", sm.Path),
 	}
 
-	// Only populate genkit:output if we have actual output data 
+	// Only populate genkit:output if we have actual output data
 	if sm.Output != nil {
 		kvs = append(kvs, attribute.String("genkit:output", base.JSONString(sm.Output)))
 	}
