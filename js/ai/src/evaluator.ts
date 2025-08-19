@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineAction, z, type Action } from '@genkit-ai/core';
+import { action, z, type Action } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
@@ -137,6 +137,18 @@ export interface EvaluatorParams<
   options?: z.infer<CustomOptions>;
 }
 
+export interface EvaluatorOptions<
+  DataPoint extends typeof BaseDataPointSchema,
+  EvaluatorOpts extends z.ZodTypeAny,
+> {
+  name: string;
+  displayName: string;
+  definition: string;
+  dataPointType?: DataPoint;
+  configSchema?: EvaluatorOpts;
+  isBilled?: boolean;
+}
+
 /**
  * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
  */
@@ -144,19 +156,31 @@ export function defineEvaluator<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   EvalDataPoint extends
     typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
-  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  EvaluatorOpts extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  options: {
-    name: string;
-    displayName: string;
-    definition: string;
-    dataPointType?: DataPoint;
-    configSchema?: EvaluatorOptions;
-    isBilled?: boolean;
-  },
-  runner: EvaluatorFn<EvalDataPoint, EvaluatorOptions>
-) {
+  options: EvaluatorOptions<DataPoint, EvaluatorOpts>,
+  runner: EvaluatorFn<EvalDataPoint, EvaluatorOpts>
+): EvaluatorAction {
+  const e = evaluator(options, runner);
+
+  registry.registerAction('evaluator', e);
+
+  return e;
+}
+
+/**
+ * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
+ */
+export function evaluator<
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  EvalDataPoint extends
+    typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
+  EvaluatorOpts extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  options: EvaluatorOptions<DataPoint, EvaluatorOpts>,
+  runner: EvaluatorFn<EvalDataPoint, EvaluatorOpts>
+): EvaluatorAction {
   const evalMetadata = {};
   evalMetadata[EVALUATOR_METADATA_KEY_IS_BILLED] =
     options.isBilled == undefined ? true : options.isBilled;
@@ -167,8 +191,7 @@ export function defineEvaluator<
       schema: options.configSchema,
     });
   }
-  const evaluator = defineAction(
-    registry,
+  const evaluator = action(
     {
       actionType: 'evaluator',
       name: options.name,
@@ -195,7 +218,6 @@ export function defineEvaluator<
         const batch = batches[batchIndex];
         try {
           await runInNewSpan(
-            registry,
             {
               metadata: {
                 name: i.batchSize

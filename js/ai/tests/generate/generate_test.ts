@@ -571,4 +571,27 @@ describe('generate', () => {
       );
     });
   });
+
+  it('should use custom stepName parameter in tracing', async () => {
+    const response = await generate(registry, {
+      model: 'echo',
+      prompt: 'Testing custom step name',
+      stepName: 'test-generate-custom',
+    });
+    assert.deepEqual(
+      response.messages.map((m) => m.content[0].text),
+      ['Testing custom step name', 'Testing custom step name']
+    );
+  });
+
+  it('should default to "generate" name when no stepName is provided', async () => {
+    const response = await generate(registry, {
+      model: 'echo',
+      prompt: 'Testing default step name',
+    });
+    assert.deepEqual(
+      response.messages.map((m) => m.content[0].text),
+      ['Testing default step name', 'Testing default step name']
+    );
+  });
 });
