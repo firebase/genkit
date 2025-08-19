@@ -310,13 +310,6 @@ func RunInNewSpan[I, O any](
 	output, err := f(ctx, input)
 	if err != nil {
 		sm.State = spanStateError
-
-		// Capture error details in output for trace display
-		// Set output to a map structure similar to what TypeScript would produce
-		sm.Output = map[string]interface{}{
-			"error": err.Error(),
-		}
-
 		// Add genkit:isFailureSource logic like TypeScript
 		// Mark the first failing span as the source of failure. Prevent parent
 		// spans that catch re-thrown exceptions from also claiming to be the source.
@@ -416,7 +409,11 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 		attribute.String("genkit:state", string(sm.State)),
 		attribute.String("genkit:input", base.JSONString(sm.Input)),
 		attribute.String("genkit:path", sm.Path),
-		attribute.String("genkit:output", base.JSONString(sm.Output)),
+	}
+
+	// Only populate genkit:output if we have actual output data 
+	if sm.Output != nil {
+		kvs = append(kvs, attribute.String("genkit:output", base.JSONString(sm.Output)))
 	}
 
 	// Add genkit:type if specified

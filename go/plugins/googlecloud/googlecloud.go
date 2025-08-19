@@ -131,11 +131,11 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 
 		// Set up telemetry modules for processing
 		modules := []Telemetry{
+			NewPathTelemetry(),
 			NewGenerateTelemetry(),
 			NewFeatureTelemetry(),
 			NewActionTelemetry(),
 			NewEngagementTelemetry(),
-			NewPathTelemetry(),
 		}
 
 		// Create adjusting trace exporter that handles both PII filtering and telemetry processing

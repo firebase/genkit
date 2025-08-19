@@ -106,9 +106,9 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 	p.pathCounter.Add(1, pathDimensions)
 	p.pathLatencies.Record(latencyMs, pathDimensions)
 
-	// Extract simple path name (like TypeScript) vs qualified path
-	simplePath := extractSimplePathFromQualified(path)
-	displayPath := truncatePath(simplePath)
+	// Use full path like TypeScript (preserve substep information)
+	// Convert /{flow,t:flow}/{substep,t:flowStep} -> flow > substep
+	displayPath := toDisplayPath(path)
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 
 	logData := map[string]interface{}{
