@@ -76,7 +76,7 @@ func ExecuteResource(ctx context.Context, resource ai.Resource, input ai.Resourc
 //	  }),
 //	  ai.WithResources(dynamicRes),
 //	)
-func NewResource(resourceName string, opts ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
+func NewResource(resourceName string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
 	// Delegate to ai implementation
 	return ai.NewResource(resourceName, opts, fn)
 }
