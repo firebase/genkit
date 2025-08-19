@@ -15,6 +15,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { z } from 'zod';
 import { getDatasetStore, getEvalStore } from '.';
 import type { RuntimeManager } from '../manager/manager';
 import {
@@ -279,8 +280,7 @@ async function bulkRunAction(params: {
           modelConfig: actionConfig,
         })
       );
-    }
-    if (actionType === 'flow') {
+    } else if (actionType === 'flow') {
       states.push(
         await runFlowAction({
           manager,
@@ -290,13 +290,14 @@ async function bulkRunAction(params: {
         })
       );
     } else {
+      // executable-prompt action
       states.push(
         await runPromptAction({
           manager,
           actionRef,
           sample,
           context,
-          modelConfig: actionConfig,
+          promptConfig: actionConfig,
         })
       );
     }
@@ -378,21 +379,21 @@ async function runPromptAction(params: {
   actionRef: string;
   sample: FullInferenceSample;
   context?: any;
-  modelConfig?: any;
+  promptConfig?: any;
 }): Promise<InferenceRunState> {
-  const { manager, actionRef, sample, context, modelConfig } = { ...params };
+  const { manager, actionRef, sample, context, promptConfig } = { ...params };
 
-  const { model: modelFromConfig, ...restOfConfig } = modelConfig ?? {};
+  const { model: modelFromConfig, ...restOfConfig } = promptConfig ?? {};
   const model = await resolveModel({ manager, actionRef, modelFromConfig });
   if (!model) {
     throw new Error(
-      'Could not resolve model. Please provide model in the prompt file or through the `actionConfig.model` field.'
+      'Could not resolve model. Please specify model and try again'
     );
   }
   let state: InferenceRunState;
   let renderedPrompt: {
     result: GenerateActionOptions;
-    traceId?: string;
+    traceId: string;
   };
   // Step 1. Render the prompt with inputs
   try {
@@ -403,21 +404,29 @@ async function runPromptAction(params: {
     });
 
     renderedPrompt = {
-      traceId: runActionResponse.telemetry?.traceId,
-      result: runActionResponse.result as GenerateActionOptions,
+      traceId: runActionResponse.telemetry?.traceId!,
+      result: GenerateActionOptionsSchema.parse(runActionResponse.result),
     };
   } catch (e: any) {
-    const traceId = e?.data?.details?.traceId;
-    state = {
-      ...sample,
-      traceIds: traceId ? [traceId] : [],
-      evalError: `Error when rendering prompt. Details: ${e?.message ?? e}`,
-    };
+    if (e instanceof z.ZodError) {
+      state = {
+        ...sample,
+        traceIds: [],
+        evalError: `Error parsing prompt response. Details: ${JSON.stringify(e.format())}`,
+      };
+    } else {
+      const traceId = e?.data?.details?.traceId;
+      state = {
+        ...sample,
+        traceIds: traceId ? [traceId] : [],
+        evalError: `Error when rendering prompt. Details: ${e?.message ?? e}`,
+      };
+    }
     return state;
   }
   // Step 2. Run rendered prompt on the model
   try {
-    let modelInput = GenerateActionOptionsSchema.parse(renderedPrompt.result);
+    let modelInput = renderedPrompt.result;
     if (restOfConfig) {
       modelInput = { ...modelInput, config: restOfConfig };
     }
@@ -430,7 +439,7 @@ async function runPromptAction(params: {
       : [renderedPrompt.traceId];
     state = {
       ...sample,
-      traceIds: traceIds.filter((t): t is string => !!t),
+      traceIds: traceIds,
       response: runActionResponse.result,
     };
   } catch (e: any) {
@@ -536,12 +545,12 @@ async function resolveModel(params: {
 }) {
   const { manager, actionRef, modelFromConfig } = { ...params };
 
-  const actionData = await getAction({ manager, actionRef });
   // Prefer to use modelFromConfig
   if (modelFromConfig) {
     return modelFromConfig;
   }
 
+  const actionData = await getAction({ manager, actionRef });
   const promptMetadata = actionData?.metadata?.prompt as any;
   return promptMetadata?.model ? `/model/${promptMetadata?.model}` : undefined;
 }
