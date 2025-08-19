@@ -77,19 +77,37 @@ func TestSpanMetadataWithTypeAndSubtype(t *testing.T) {
 	}
 
 	got := sm.attributes()
-	want := []attribute.KeyValue{
-		attribute.String("genkit:name", "myTool"),
-		attribute.String("genkit:state", "success"),
-		attribute.String("genkit:input", `"test input"`),
-		attribute.String("genkit:path", "/{chatFlow,t:flow}/{myTool,t:action}"),
-		attribute.String("genkit:output", `"test output"`),
-		attribute.String("genkit:type", "action"),
-		attribute.String("genkit:metadata:subtype", "tool"),
-		attribute.String("genkit:metadata:customKey", "customValue"),
-		attribute.String("genkit:metadata:additionalKey", "additionalValue"),
+
+	// Expected attributes
+	expectedAttrs := map[string]string{
+		"genkit:name":                   "myTool",
+		"genkit:state":                  "success",
+		"genkit:input":                  `"test input"`,
+		"genkit:path":                   "/{chatFlow,t:flow}/{myTool,t:action}",
+		"genkit:output":                 `"test output"`,
+		"genkit:type":                   "action",
+		"genkit:metadata:subtype":       "tool",
+		"genkit:metadata:customKey":     "customValue",
+		"genkit:metadata:additionalKey": "additionalValue",
 	}
-	if !slices.Equal(got, want) {
-		t.Errorf("\ngot  %v\nwant %v", got, want)
+
+	// Check that we have exactly the expected number of attributes
+	if len(got) != len(expectedAttrs) {
+		t.Errorf("Expected %d attributes, got %d", len(expectedAttrs), len(got))
+	}
+
+	// Check that all expected attributes are present with correct values
+	gotMap := make(map[string]string)
+	for _, attr := range got {
+		gotMap[string(attr.Key)] = attr.Value.AsString()
+	}
+
+	for key, expectedValue := range expectedAttrs {
+		if gotValue, exists := gotMap[key]; !exists {
+			t.Errorf("Missing expected attribute: %s", key)
+		} else if gotValue != expectedValue {
+			t.Errorf("Attribute %s: got %q, want %q", key, gotValue, expectedValue)
+		}
 	}
 }
 

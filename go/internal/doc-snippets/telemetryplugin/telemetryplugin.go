@@ -17,19 +17,14 @@
 package telemetryplugin
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"time"
 
 	// [START import]
-	// Import the Genkit core library.
-
-	"github.com/firebase/genkit/go/genkit"
-
 	// Import the OpenTelemetry libraries.
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/sdk/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -52,48 +47,71 @@ type Config struct {
 
 // [END config]
 
-func Init(cfg Config) error {
-	ctx := context.Background()
-	_, err := genkit.Init(ctx)
-	if err != nil {
-		return err
+// [START enablecustom]
+// EnableCustomTelemetry enables telemetry export to your custom telemetry provider.
+// This function should be called before genkit.Init().
+//
+// Example usage:
+//
+//	// Enable custom telemetry
+//	telemetryplugin.EnableCustomTelemetry(&telemetryplugin.Config{
+//		ForceExport:    true,
+//		MetricInterval: 30 * time.Second,
+//		LogLevel:       slog.LevelDebug,
+//	})
+//	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
+func EnableCustomTelemetry(cfg *Config) {
+	if cfg == nil {
+		cfg = &Config{
+			MetricInterval: 60 * time.Second,
+			LogLevel:       slog.LevelInfo,
+		}
 	}
 
-	// [START shouldexport]
 	shouldExport := cfg.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
-	if !shouldExport {
-		return nil
+	if shouldExport {
+		// Create your telemetry provider's exporters
+		traceExporter, err := createYourTraceExporter()
+		if err != nil {
+			slog.Error("Failed to create trace exporter", "error", err)
+			return
+		}
+
+		metricExporter, err := createYourMetricExporter()
+		if err != nil {
+			slog.Error("Failed to create metric exporter", "error", err)
+			return
+		}
+
+		// Set up traces - direct export or wrapper for custom processing
+		spanProcessor := trace.NewBatchSpanProcessor(traceExporter)
+
+		// For custom processing, use wrapper:
+		// adjustingExporter := &YourAdjustingTraceExporter{exporter: traceExporter}
+		// spanProcessor := trace.NewBatchSpanProcessor(adjustingExporter)
+		tp := trace.NewTracerProvider(
+			trace.WithSpanProcessor(spanProcessor),
+			trace.WithResource(resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceName("your-service"),
+			)),
+		)
+		otel.SetTracerProvider(tp)
+
+		// Set up metrics with periodic reader
+		r := sdkmetric.NewPeriodicReader(
+			metricExporter,
+			sdkmetric.WithInterval(cfg.MetricInterval),
+		)
+		mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(r))
+		otel.SetMeterProvider(mp)
+
+		// Set up logging
+		logger := slog.New(YourCustomHandler{
+			Options: &slog.HandlerOptions{Level: cfg.LogLevel},
+		})
+		slog.SetDefault(logger)
 	}
-	// [END shouldexport]
-
-	// [START registerspanexporter]
-	// Create TracerProvider with custom span processor
-	spanProcessor := trace.NewBatchSpanProcessor(YourCustomSpanExporter{})
-	tp := trace.NewTracerProvider(
-		trace.WithSpanProcessor(spanProcessor),
-		trace.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName("your-service"),
-		)),
-	)
-	otel.SetTracerProvider(tp)
-	// [END registerspanexporter]
-
-	// [START registermetricexporter]
-	r := metric.NewPeriodicReader(
-		YourCustomMetricExporter{},
-		metric.WithInterval(cfg.MetricInterval),
-	)
-	mp := metric.NewMeterProvider(metric.WithReader(r))
-	otel.SetMeterProvider(mp)
-	// [END registermetricexporter]
-
-	// [START registerlogexporter]
-	logger := slog.New(YourCustomHandler{
-		Options: &slog.HandlerOptions{Level: cfg.LogLevel},
-	})
-	slog.SetDefault(logger)
-	// [END registerlogexporter]
-
-	return nil
 }
+
+// [END enablecustom]
