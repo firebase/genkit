@@ -123,14 +123,14 @@ export async function generateHelper(
     registry,
     {
       metadata: {
-        name: 'generate',
+        name: options.rawRequest.stepName || 'generate',
       },
       labels: {
         [SPAN_TYPE_ATTR]: 'util',
       },
     },
     async (metadata) => {
-      metadata.name = 'generate';
+      metadata.name = options.rawRequest.stepName || 'generate';
       metadata.input = options.rawRequest;
       const output = await generate(registry, {
         rawRequest: options.rawRequest,

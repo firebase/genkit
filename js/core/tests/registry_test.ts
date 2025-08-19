@@ -35,13 +35,11 @@ describe('registry class', () => {
   describe('listActions', () => {
     it('returns all registered actions', async () => {
       const fooSomethingAction = action(
-        registry,
         { name: 'foo_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
-        registry,
         { name: 'bar_something', actionType: 'model' },
         async () => null
       );
@@ -62,7 +60,6 @@ describe('registry class', () => {
         },
       });
       const fooSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'foo',
@@ -81,7 +78,6 @@ describe('registry class', () => {
         },
       });
       const barSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'bar',
@@ -92,7 +88,6 @@ describe('registry class', () => {
         async () => null
       );
       const barSubSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'bar',
@@ -140,13 +135,11 @@ describe('registry class', () => {
       const child = Registry.withParent(registry);
 
       const fooSomethingAction = action(
-        registry,
         { name: 'foo_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
-        registry,
         { name: 'bar_something', actionType: 'model' },
         async () => null
       );
@@ -165,13 +158,11 @@ describe('registry class', () => {
   describe('listResolvableActions', () => {
     it('returns all registered actions', async () => {
       const fooSomethingAction = action(
-        registry,
         { name: 'foo_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
-        registry,
         { name: 'bar_something', actionType: 'model' },
         async () => null
       );
@@ -192,7 +183,6 @@ describe('registry class', () => {
         },
       });
       const fooSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'foo',
@@ -211,7 +201,6 @@ describe('registry class', () => {
         },
       });
       const barSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'bar',
@@ -222,7 +211,6 @@ describe('registry class', () => {
         async () => null
       );
       const barSubSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'bar',
@@ -270,13 +258,11 @@ describe('registry class', () => {
       const child = Registry.withParent(registry);
 
       const fooSomethingAction = action(
-        registry,
         { name: 'foo_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
-        registry,
         { name: 'bar_something', actionType: 'model' },
         async () => null
       );
@@ -300,7 +286,6 @@ describe('registry class', () => {
         },
       });
       const fooSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'foo',
@@ -328,7 +313,6 @@ describe('registry class', () => {
         },
       });
       const barSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'bar',
@@ -339,7 +323,6 @@ describe('registry class', () => {
         async () => null
       );
       const barSubSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'bar',
@@ -395,19 +378,16 @@ describe('registry class', () => {
 
     it('returns registered action', async () => {
       const fooSomethingAction = action(
-        registry,
         { name: 'foo_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', fooSomethingAction);
       const barSomethingAction = action(
-        registry,
         { name: 'bar_something', actionType: 'model' },
         async () => null
       );
       registry.registerAction('model', barSomethingAction);
       const barSubSomethingAction = action(
-        registry,
         { name: 'sub/bar_something', actionType: 'model' },
         async () => null
       );
@@ -427,6 +407,43 @@ describe('registry class', () => {
       );
     });
 
+    it('returns registered action with namespace', async () => {
+      const fooSomethingAction = action(
+        { name: 'foo_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', fooSomethingAction, {
+        namespace: 'my-plugin',
+      });
+      const barSomethingAction = action(
+        { name: 'my-plugin/bar_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', barSomethingAction, {
+        namespace: 'my-plugin',
+      });
+      const barSubSomethingAction = action(
+        { name: 'sub/bar_something', actionType: 'model' },
+        async () => null
+      );
+      registry.registerAction('model', barSubSomethingAction, {
+        namespace: 'my-plugin',
+      });
+
+      assert.strictEqual(
+        await registry.lookupAction('/model/my-plugin/foo_something'),
+        fooSomethingAction
+      );
+      assert.strictEqual(
+        await registry.lookupAction('/model/my-plugin/bar_something'),
+        barSomethingAction
+      );
+      assert.strictEqual(
+        await registry.lookupAction('/model/my-plugin/sub/bar_something'),
+        barSubSomethingAction
+      );
+    });
+
     it('returns action registered by plugin', async () => {
       registry.registerPluginProvider('foo', {
         name: 'foo',
@@ -437,7 +454,6 @@ describe('registry class', () => {
         },
       });
       const somethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'foo',
@@ -448,7 +464,6 @@ describe('registry class', () => {
         async () => null
       );
       const subSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'foo',
@@ -489,7 +504,6 @@ describe('registry class', () => {
         },
       });
       const somethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'foo',
@@ -500,7 +514,6 @@ describe('registry class', () => {
         async () => null
       );
       const subSomethingAction = action(
-        registry,
         {
           name: {
             pluginId: 'foo',
@@ -533,7 +546,6 @@ describe('registry class', () => {
       const childRegistry = new Registry(registry);
 
       const fooAction = action(
-        registry,
         { name: 'foo', actionType: 'model' },
         async () => null
       );
@@ -552,7 +564,6 @@ describe('registry class', () => {
       assert.strictEqual(childRegistry.parent, registry);
 
       const fooAction = action(
-        registry,
         { name: 'foo', actionType: 'model' },
         async () => null
       );

@@ -122,7 +122,10 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 
 	execOpts := &promptExecutionOptions{}
 	for _, opt := range opts {
-		if err := opt.applyPromptExecute(execOpts); err != nil {
+		if opt == nil {
+			continue
+		}
+		if err := opt.applyPromptExecute(genOpts); err != nil {
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
@@ -418,15 +421,13 @@ func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFuncti
 		return nil, fmt.Errorf("failed to render prompt: %w", err)
 	}
 
-	// Ensure the rendered prompt contains exactly one message
-	if len(rendered.Messages) != 1 {
-		return nil, fmt.Errorf("parts template must produce only one message")
-	}
-
-	// Convert dotprompt.Part to Part
-	convertedParts, err := convertToPartPointers(rendered.Messages[0].Content)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert parts: %w", err)
+	convertedParts := []*Part{}
+	for _, message := range rendered.Messages {
+		parts, err := convertToPartPointers(message.Content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert parts: %w", err)
+		}
+		convertedParts = append(convertedParts, parts...)
 	}
 
 	return convertedParts, nil

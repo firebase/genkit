@@ -116,3 +116,7 @@ cd $CURRENT
 cd  js/plugins/compat-oai
 pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
+
+cd  js/plugins/google-genai
+pnpm publish --tag $RELEASE_TAG --publish-branch $RELEASE_BRANCH --registry https://wombat-dressing-room.appspot.com
+cd $CURRENT

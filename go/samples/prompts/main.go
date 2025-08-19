@@ -40,6 +40,7 @@ func main() {
 	)
 
 	SimplePrompt(ctx, g)
+	PromptWithMultiMessage(ctx, g)
 	PromptWithInput(ctx, g)
 	PromptWithOutputType(ctx, g)
 	PromptWithComplexOutputType(ctx, g)
@@ -198,6 +199,21 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	fmt.Println(string(pretty))
+}
+
+func PromptWithMultiMessage(ctx context.Context, g *genkit.Genkit) {
+	prompt, err := genkit.LoadPrompt(g, "./prompts/multi-msg.prompt", "multi-space")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if prompt == nil {
+		log.Fatal("empty prompt")
+	}
+	resp, err := prompt.Execute(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(resp.Text())
 }
 
 func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
