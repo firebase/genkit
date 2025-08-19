@@ -53,12 +53,15 @@ jest.mock('fs', () => ({
   createWriteStream: jest.fn(),
 }));
 
+// Mock inquirer with a manual mock that doesn't require the actual module
+const mockPrompt = jest.fn();
 jest.mock('inquirer', () => ({
-  prompt: jest.fn(),
+  __esModule: true,
   default: {
-    prompt: jest.fn(),
+    prompt: mockPrompt,
   },
-}));
+  prompt: mockPrompt,
+}), { virtual: true });
 
 jest.mock('os', () => ({
   platform: jest.fn(),
