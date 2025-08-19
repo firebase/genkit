@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -27,10 +26,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
 
 	// Define a simple flow that generates jokes about a given topic
 	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
