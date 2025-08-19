@@ -166,3 +166,186 @@ func ToSchemaMap(config any) map[string]any {
 	result := SchemaAsMap(schema)
 	return result
 }
+
+// ParsePartialJSON parses potentially incomplete JSON string.
+// Based on JS version: js/ai/src/extract.ts parsePartialJson function
+// This function attempts to parse partial JSON by fixing common incomplete patterns.
+func ParsePartialJSON(jsonString string) (interface{}, error) {
+	// Try standard JSON parsing first
+	var result interface{}
+	if err := json.Unmarshal([]byte(jsonString), &result); err == nil {
+		return result, nil
+	}
+
+	// Attempt to fix incomplete JSON
+	fixed := fixIncompleteJSON(jsonString)
+	if err := json.Unmarshal([]byte(fixed), &result); err == nil {
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("unable to parse partial JSON")
+}
+
+// ExtractJSON extracts JSON from string with lenient parsing rules.
+// Based on JS version: js/ai/src/extract.ts extractJson function
+// It finds JSON objects or arrays in text and extracts them, supporting partial JSON.
+func ExtractJSON(text string) (interface{}, error) {
+	var openingChar rune
+	var closingChar rune
+	startPos := -1
+	nestingCount := 0
+	inString := false
+	escapeNext := false
+
+	runes := []rune(text)
+	for i := 0; i < len(runes); i++ {
+		char := runes[i]
+
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+
+		if char == '\\' {
+			escapeNext = true
+			continue
+		}
+
+		if char == '"' {
+			inString = !inString
+			continue
+		}
+
+		if inString {
+			continue
+		}
+
+		if openingChar == 0 && (char == '{' || char == '[') {
+			openingChar = char
+			if char == '{' {
+				closingChar = '}'
+			} else {
+				closingChar = ']'
+			}
+			startPos = i
+			nestingCount++
+		} else if char == openingChar {
+			nestingCount++
+		} else if char == closingChar {
+			nestingCount--
+			if nestingCount == 0 {
+				// Found complete JSON structure
+				jsonStr := string(runes[startPos : i+1])
+				var result interface{}
+				err := json.Unmarshal([]byte(jsonStr), &result)
+				if err == nil {
+					return result, nil
+				}
+				return nil, err
+			}
+		}
+	}
+
+	// If we have an incomplete JSON structure, try to parse it
+	if startPos >= 0 && nestingCount > 0 {
+		partialJSON := string(runes[startPos:])
+		return ParsePartialJSON(partialJSON)
+	}
+
+	return nil, fmt.Errorf("no JSON found in text")
+}
+
+// ExtractItems extracts JSON array items from text.
+// Based on JS version: js/ai/src/extract.ts extractItems
+func ExtractItems(text string) []interface{} {
+	var items []interface{}
+	
+	// Try to extract a complete JSON array first
+	extracted, err := ExtractJSON(text)
+	if err == nil {
+		if arr, ok := extracted.([]interface{}); ok {
+			return arr
+		}
+	}
+	
+	// Look for individual JSON objects in the text
+	// This is a simplified version - the JS implementation is more complex
+	lines := strings.Split(text, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		
+		// Try to parse each line as JSON
+		var item interface{}
+		if err := json.Unmarshal([]byte(line), &item); err == nil {
+			items = append(items, item)
+		}
+	}
+	
+	return items
+}
+
+// fixIncompleteJSON attempts to fix common patterns of incomplete JSON
+func fixIncompleteJSON(input string) string {
+	input = strings.TrimSpace(input)
+
+	// Fix incomplete strings first
+	input = fixIncompleteStrings(input)
+
+	// Balance braces
+	openBraces := strings.Count(input, "{")
+	closeBraces := strings.Count(input, "}")
+	for i := 0; i < openBraces-closeBraces; i++ {
+		input += "}"
+	}
+
+	// Balance brackets
+	openBrackets := strings.Count(input, "[")
+	closeBrackets := strings.Count(input, "]")
+	for i := 0; i < openBrackets-closeBrackets; i++ {
+		input += "]"
+	}
+
+	// Remove trailing commas
+	input = strings.ReplaceAll(input, ",}", "}")
+	input = strings.ReplaceAll(input, ",]", "]")
+	if strings.HasSuffix(input, ",") {
+		input = strings.TrimSuffix(input, ",")
+	}
+
+	return input
+}
+
+// fixIncompleteStrings closes unclosed strings in JSON
+func fixIncompleteStrings(input string) string {
+	inString := false
+	escaped := false
+	var result strings.Builder
+
+	for _, ch := range input {
+		result.WriteRune(ch)
+
+		if escaped {
+			escaped = false
+			continue
+		}
+
+		if ch == '\\' {
+			escaped = true
+			continue
+		}
+
+		if ch == '"' {
+			inString = !inString
+		}
+	}
+
+	// If still in string, close it
+	if inString {
+		result.WriteString("\"")
+	}
+
+	return result.String()
+}

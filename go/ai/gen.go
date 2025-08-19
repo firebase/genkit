@@ -272,6 +272,10 @@ type ModelResponseChunk struct {
 	Custom     any     `json:"custom,omitempty"`
 	Index      int     `json:"index,omitempty"`
 	Role       Role    `json:"role,omitempty"`
+	
+	// Metadata holds additional information for streaming.
+	// Based on JS version: js/ai/src/generate/chunk.ts
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // OutputConfig describes the structure that the model's output

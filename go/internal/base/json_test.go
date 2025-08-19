@@ -17,6 +17,7 @@
 package base
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -98,5 +99,101 @@ func TestSchemaAsMap(t *testing.T) {
 	got := SchemaAsMap(InferJSONSchema(Foo{}))
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Errorf("SchemaAsMap diff (+got -want):\n%s", diff)
+	}
+}
+
+func TestParsePartialJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    interface{}
+		wantErr bool
+	}{
+		{
+			name:  "complete JSON object",
+			input: `{"name": "test", "value": 42}`,
+			want:  map[string]interface{}{"name": "test", "value": float64(42)},
+		},
+		{
+			name:  "incomplete JSON object - missing closing brace",
+			input: `{"name": "test", "value": 42`,
+			want:  map[string]interface{}{"name": "test", "value": float64(42)},
+		},
+		{
+			name:  "incomplete JSON object - missing closing quote",
+			input: `{"name": "test`,
+			want:  map[string]interface{}{"name": "test"},
+		},
+		{
+			name:  "incomplete JSON array",
+			input: `[1, 2, 3`,
+			want:  []interface{}{float64(1), float64(2), float64(3)},
+		},
+		{
+			name:  "nested incomplete JSON",
+			input: `{"data": {"nested": true`,
+			want:  map[string]interface{}{"data": map[string]interface{}{"nested": true}},
+		},
+		{
+			name:  "trailing comma",
+			input: `{"name": "test",}`,
+			want:  map[string]interface{}{"name": "test"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParsePartialJSON(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParsePartialJSON() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParsePartialJSON() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    interface{}
+		wantErr bool
+	}{
+		{
+			name:  "JSON object in text",
+			input: `Some text before {"name": "test", "value": 42} and after`,
+			want:  map[string]interface{}{"name": "test", "value": float64(42)},
+		},
+		{
+			name:  "JSON array in text",
+			input: `Result: [1, 2, 3] done`,
+			want:  []interface{}{float64(1), float64(2), float64(3)},
+		},
+		{
+			name:  "incomplete JSON with text",
+			input: `Generating: {"status": "processing", "progress": 50`,
+			want:  map[string]interface{}{"status": "processing", "progress": float64(50)},
+		},
+		{
+			name:    "no JSON in text",
+			input:   `Just plain text without any JSON`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ExtractJSON(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ExtractJSON() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtractJSON() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

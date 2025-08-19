@@ -100,6 +100,34 @@ func (e enumHandler) ParseMessage(m *Message) (*Message, error) {
 	return m, nil
 }
 
+// ParseChunk parses a streaming chunk and returns parsed enum data.
+// Based on JS version: js/ai/src/formats/enum.ts parseChunk method
+func (e enumHandler) ParseChunk(chunk *ModelResponseChunk, accumulatedText string) (interface{}, error) {
+	if chunk == nil || len(chunk.Content) == 0 {
+		return nil, nil
+	}
+
+	// Clean and trim the accumulated text
+	re := regexp.MustCompile(`['"]`)
+	clean := re.ReplaceAllString(accumulatedText, "")
+	trimmed := strings.TrimSpace(clean)
+
+	// Check if the trimmed text matches any enum value
+	if slices.Contains(e.enums, trimmed) {
+		return trimmed, nil
+	}
+
+	// Check if any enum starts with the current accumulated text (partial match)
+	for _, enum := range e.enums {
+		if strings.HasPrefix(enum, trimmed) {
+			// Still accumulating, return nil
+			return nil, nil
+		}
+	}
+
+	return nil, nil
+}
+
 // Get enum strings from json schema
 func objectEnums(schema map[string]any) []string {
 	var enums []string
