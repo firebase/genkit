@@ -402,7 +402,7 @@ type spanMetadata struct {
 }
 
 // attributes returns some information about the spanMetadata
-// as a slice of OpenTelemetry attributes that genkit telemetry plugins expect.
+// as a slice of OpenTelemetry attributes.
 func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	kvs := []attribute.KeyValue{
 		attribute.String("genkit:name", sm.Name),
