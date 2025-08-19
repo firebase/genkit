@@ -55,13 +55,17 @@ jest.mock('fs', () => ({
 
 // Mock inquirer with a manual mock that doesn't require the actual module
 const mockPrompt = jest.fn();
-jest.mock('inquirer', () => ({
-  __esModule: true,
-  default: {
+jest.mock(
+  'inquirer',
+  () => ({
+    __esModule: true,
+    default: {
+      prompt: mockPrompt,
+    },
     prompt: mockPrompt,
-  },
-  prompt: mockPrompt,
-}), { virtual: true });
+  }),
+  { virtual: true }
+);
 
 jest.mock('os', () => ({
   platform: jest.fn(),
