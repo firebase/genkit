@@ -202,14 +202,11 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 }
 
 func PromptWithMultiMessage(ctx context.Context, g *genkit.Genkit) {
-	prompt, err := genkit.LoadPrompt(g, "./prompts/multi-msg.prompt", "multi-space")
-	if err != nil {
-		log.Fatal(err)
-	}
+	prompt := genkit.LoadPrompt(g, "./prompts/multi-msg.prompt", "multi-space")
 	if prompt == nil {
 		log.Fatal("empty prompt")
 	}
-	resp, err := prompt.Execute(ctx, nil)
+	resp, err := prompt.Execute(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
