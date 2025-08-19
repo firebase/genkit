@@ -532,7 +532,7 @@ func TestGenerateTelemetry_FeatureNameExtraction(t *testing.T) {
 	}
 }
 
-// Helper functions for metric verification (reusing patterns from engagement_test.go)
+// Helper functions for metric verification
 
 func verifyCounterMetricValue(t *testing.T, metric *metricdata.Metrics, expectedValue int64) {
 	sum, ok := metric.Data.(metricdata.Sum[int64])
