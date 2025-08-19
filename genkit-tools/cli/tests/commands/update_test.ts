@@ -28,9 +28,44 @@ jest.mock('@genkit-ai/tools-common/utils', () => ({
   setUserSettings: jest.fn(),
 }));
 
+jest.mock('@genkit-ai/tools-common/manager', () => ({
+  GenkitToolsError: class MockGenkitToolsError extends Error {
+    constructor(message: string, options?: { cause?: any }) {
+      super(message);
+      this.name = 'GenkitToolsError';
+      if (options?.cause) {
+        this.cause = options.cause;
+      }
+    }
+  },
+}));
+
+jest.mock('chokidar', () => ({
+  watch: jest.fn(() => ({
+    on: jest.fn(),
+    close: jest.fn(),
+  })),
+  default: {
+    watch: jest.fn(() => ({
+      on: jest.fn(),
+      close: jest.fn(),
+    })),
+  },
+}));
+
+const mockAxiosGet = jest.fn() as jest.MockedFunction<any>;
+
 jest.mock('axios', () => ({
-  get: jest.fn(),
-  default: jest.fn(),
+  get: mockAxiosGet,
+  create: jest.fn(() => ({
+    get: mockAxiosGet,
+  })),
+  default: {
+    get: mockAxiosGet,
+    create: jest.fn(() => ({
+      get: mockAxiosGet,
+    })),
+  },
 }));
 
 jest.mock('child_process', () => ({
@@ -103,6 +138,7 @@ import {
 import { detectCLIRuntime } from '../../src/utils/runtime-detector';
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+const mockedAxiosGet = mockAxiosGet;
 const mockedDetectCLIRuntime = detectCLIRuntime as jest.MockedFunction<
   typeof detectCLIRuntime
 >;
@@ -126,6 +162,7 @@ describe('update command', () => {
   beforeEach(() => {
     // Restore mocks
     jest.clearAllMocks();
+    mockedAxiosGet.mockReset();
     mockedDetectCLIRuntime.mockReturnValue(mockCLIRuntime);
     (getUserSettings as jest.Mock).mockRestore();
 
@@ -142,7 +179,7 @@ describe('update command', () => {
           versions: { '1.1.0': {}, '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await checkForUpdates();
 
@@ -161,7 +198,7 @@ describe('update command', () => {
           versions: { '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await checkForUpdates();
 
@@ -183,18 +220,18 @@ describe('update command', () => {
           platforms: {},
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockGCSResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockGCSResponse);
 
       const result = await checkForUpdates();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedAxiosGet).toHaveBeenCalledWith(
         'https://storage.googleapis.com/genkit-assets-cli/latest.json'
       );
       expect(result.latestVersion).toBe('1.1.0');
     });
 
     it('should handle errors when fetching npm versions', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
+      mockedAxiosGet.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(getAvailableVersionsFromNpm()).rejects.toThrow(
         'Failed to fetch npm versions'
@@ -202,7 +239,7 @@ describe('update command', () => {
     });
 
     it('should handle errors when fetching GCS versions', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
+      mockedAxiosGet.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(getLatestVersionFromGCS()).rejects.toThrow(
         'Failed to fetch GCS versions'
@@ -217,7 +254,7 @@ describe('update command', () => {
           versions: { '2.0.0': {}, '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await checkForUpdates();
 
@@ -244,7 +281,7 @@ describe('update command', () => {
           },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await getAvailableVersionsFromNpm();
 
@@ -267,7 +304,7 @@ describe('update command', () => {
           },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await getAvailableVersionsFromNpm(false);
 
@@ -283,7 +320,7 @@ describe('update command', () => {
           versions: {},
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await getAvailableVersionsFromNpm();
 
@@ -298,7 +335,7 @@ describe('update command', () => {
           // Missing versions property
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       await expect(getAvailableVersionsFromNpm()).rejects.toThrow(
         'Failed to fetch npm versions'
@@ -323,12 +360,12 @@ describe('update command', () => {
           },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockGCSResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockGCSResponse);
 
       const result = await getLatestVersionFromGCS();
 
       expect(result).toEqual(['1.5.0']);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedAxiosGet).toHaveBeenCalledWith(
         'https://storage.googleapis.com/genkit-assets-cli/latest.json'
       );
     });
@@ -342,7 +379,7 @@ describe('update command', () => {
           lastUpdated: '2024-01-01T00:00:00Z',
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockGCSResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockGCSResponse);
 
       await expect(getLatestVersionFromGCS()).rejects.toThrow(
         'No latest version found'
@@ -386,7 +423,7 @@ describe('update command', () => {
           versions: { '1.1.0': {}, '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
       const consoleSpy = jest
         .spyOn(console, 'log')
         .mockImplementation(() => {});
@@ -406,7 +443,7 @@ describe('update command', () => {
           versions: { '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
       const consoleSpy = jest
         .spyOn(console, 'log')
         .mockImplementation(() => {});
@@ -417,7 +454,7 @@ describe('update command', () => {
     });
 
     it('should silently fail on network errors', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
+      mockedAxiosGet.mockRejectedValueOnce(new Error('Network error'));
       const consoleSpy = jest
         .spyOn(console, 'log')
         .mockImplementation(() => {});
@@ -429,7 +466,7 @@ describe('update command', () => {
     it('should show notification for binary runtime updates', async () => {
       (getUserSettings as jest.Mock).mockReturnValue({});
       mockedDetectCLIRuntime.mockReturnValue(mockBinaryRuntime);
-      mockedAxios.get.mockReset();
+      mockedAxiosGet.mockReset();
       const mockGCSResponse = {
         status: 200,
         data: {
@@ -439,7 +476,7 @@ describe('update command', () => {
           platforms: {},
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockGCSResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockGCSResponse);
       const consoleSpy = jest
         .spyOn(console, 'log')
         .mockImplementation(() => {});
@@ -455,7 +492,7 @@ describe('update command', () => {
   describe('error handling and edge cases', () => {
     it('should handle 404 errors from npm registry', async () => {
       const error = new Error('Request failed with status code 404');
-      mockedAxios.get.mockRejectedValueOnce(error);
+      mockedAxiosGet.mockRejectedValueOnce(error);
 
       await expect(getAvailableVersionsFromNpm()).rejects.toThrow(
         'Failed to fetch npm versions'
@@ -464,8 +501,8 @@ describe('update command', () => {
 
     it('should handle 404 errors from GCS', async () => {
       const notFoundError = new Error('Request failed with status code 404');
-      mockedAxios.get.mockReset();
-      mockedAxios.get.mockRejectedValueOnce(notFoundError);
+      mockedAxiosGet.mockReset();
+      mockedAxiosGet.mockRejectedValueOnce(notFoundError);
 
       await expect(getLatestVersionFromGCS()).rejects.toThrow(
         'Failed to fetch GCS versions'
@@ -477,7 +514,7 @@ describe('update command', () => {
         status: 200,
         data: 'not a valid json object',
       };
-      mockedAxios.get.mockResolvedValueOnce(malformedResponse);
+      mockedAxiosGet.mockResolvedValueOnce(malformedResponse);
 
       await expect(getAvailableVersionsFromNpm()).rejects.toThrow(
         'Failed to fetch npm versions'
@@ -489,7 +526,7 @@ describe('update command', () => {
         status: 200,
         data: null,
       };
-      mockedAxios.get.mockResolvedValueOnce(emptyResponse);
+      mockedAxiosGet.mockResolvedValueOnce(emptyResponse);
 
       await expect(getAvailableVersionsFromNpm()).rejects.toThrow(
         'Failed to fetch npm versions'
@@ -500,7 +537,7 @@ describe('update command', () => {
   describe('version comparison edge cases', () => {
     it('should handle version comparison with different formats', async () => {
       // Test the basic functionality without version prefix issues
-      mockedAxios.get.mockReset();
+      mockedAxiosGet.mockReset();
       const mockNpmResponse = {
         status: 200,
         data: {
@@ -508,7 +545,7 @@ describe('update command', () => {
           versions: { '1.1.0': {}, '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await checkForUpdates();
 
@@ -516,7 +553,7 @@ describe('update command', () => {
     });
 
     it('should handle identical versions correctly', async () => {
-      mockedAxios.get.mockReset();
+      mockedAxiosGet.mockReset();
       const mockNpmResponse = {
         status: 200,
         data: {
@@ -524,7 +561,7 @@ describe('update command', () => {
           versions: { '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await checkForUpdates();
 
@@ -542,11 +579,11 @@ describe('update command', () => {
           versions: { '1.1.0': {}, '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       const result = await checkForUpdates();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedAxiosGet).toHaveBeenCalledWith(
         'https://registry.npmjs.org/genkit-cli'
       );
       expect(result.hasUpdate).toBe(true);
@@ -554,7 +591,7 @@ describe('update command', () => {
 
     it('should use GCS for compiled binary runtime', async () => {
       mockedDetectCLIRuntime.mockReturnValue(mockBinaryRuntime);
-      mockedAxios.get.mockReset();
+      mockedAxiosGet.mockReset();
       const mockGCSResponse = {
         status: 200,
         data: {
@@ -564,11 +601,11 @@ describe('update command', () => {
           platforms: {},
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockGCSResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockGCSResponse);
 
       const result = await checkForUpdates();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedAxiosGet).toHaveBeenCalledWith(
         'https://storage.googleapis.com/genkit-assets-cli/latest.json'
       );
       expect(result.hasUpdate).toBe(true);
@@ -590,11 +627,11 @@ describe('update command', () => {
           versions: { '1.1.0': {}, '1.0.0': {} },
         },
       };
-      mockedAxios.get.mockResolvedValueOnce(mockNpmResponse);
+      mockedAxiosGet.mockResolvedValueOnce(mockNpmResponse);
 
       await checkForUpdates();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect(mockedAxiosGet).toHaveBeenCalledWith(
         'https://registry.npmjs.org/genkit-cli'
       );
     });
