@@ -215,7 +215,7 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		"sourceVersion": internal.Version,
 	}
 
-	// Only add session fields if they have values (like TypeScript)
+	// Only add session fields if they have values
 	if sessionID != "" {
 		logData["sessionId"] = sessionID
 	}
