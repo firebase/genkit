@@ -211,6 +211,18 @@ func setMeterProvider(projectID string, interval time.Duration, credentials *goo
 	return nil
 }
 
+// FlushMetrics forces an immediate flush of all pending metrics to Google Cloud.
+// This is useful for short-lived processes or when you want to ensure metrics
+// are exported before continuing execution.
+func FlushMetrics(ctx context.Context) error {
+	if mp := otel.GetMeterProvider(); mp != nil {
+		if flusher, ok := mp.(interface{ ForceFlush(context.Context) error }); ok {
+			return flusher.ForceFlush(ctx)
+		}
+	}
+	return nil
+}
+
 func setLogHandler(projectID string, level slog.Leveler, credentials *google.Credentials) error {
 	var clientOpts []option.ClientOption
 	if credentials != nil {
@@ -532,14 +544,34 @@ func setupGracefulShutdown(tp *sdktrace.TracerProvider) {
 		<-c
 		slog.Info("Received shutdown signal, flushing telemetry...")
 
-		// Force flush all spans before exit (5 second timeout)
+		// Force flush all telemetry before exit (5 second timeout)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
+		// Flush spans
 		if err := tp.ForceFlush(ctx); err != nil {
 			slog.Error("Failed to flush spans during shutdown", "error", err)
 		}
 
+		// Flush metrics
+		if mp := otel.GetMeterProvider(); mp != nil {
+			if flusher, ok := mp.(interface{ ForceFlush(context.Context) error }); ok {
+				if err := flusher.ForceFlush(ctx); err != nil {
+					slog.Error("Failed to flush metrics during shutdown", "error", err)
+				} else {
+					slog.Info("Successfully flushed metrics during shutdown")
+				}
+			}
+			if shutdowner, ok := mp.(interface{ Shutdown(context.Context) error }); ok {
+				if err := shutdowner.Shutdown(ctx); err != nil {
+					slog.Error("Failed to shutdown MeterProvider", "error", err)
+				} else {
+					slog.Info("Successfully shutdown MeterProvider")
+				}
+			}
+		}
+
+		// Shutdown spans
 		if err := tp.Shutdown(ctx); err != nil {
 			slog.Error("Failed to shutdown TracerProvider", "error", err)
 		}

@@ -58,13 +58,10 @@ func NewMetricCounter(name string, opts MetricCounterOptions) *MetricCounter {
 // Add records a value to the counter with the given attributes
 func (m *MetricCounter) Add(value int64, attributes map[string]interface{}) {
 	if m.counter == nil {
-		fmt.Printf("❌ [MetricCounter] Counter is nil!\n")
 		return
 	}
 	attrs := convertToOTelAttributes(attributes)
-	fmt.Printf("🔍 [MetricCounter] Adding %d to counter with %d attributes\n", value, len(attributes))
 	m.counter.Add(context.Background(), value, metric.WithAttributes(attrs...))
-	fmt.Printf("✅ [MetricCounter] Add operation completed\n")
 }
 
 // MetricHistogram wraps OpenTelemetry histogram with Genkit conventions
