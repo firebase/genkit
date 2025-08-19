@@ -74,7 +74,7 @@ func ExecuteResource(ctx context.Context, resource ai.Resource, input ai.Resourc
 //	    ai.NewTextPart("Analyze this user:"),
 //	    ai.NewResourcePart("user://profile/123"),
 //	  }),
-//	  ai.WithResources([]ai.Resource{dynamicRes}),
+//	  ai.WithResources(dynamicRes),
 //	)
 func NewResource(resourceName string, opts ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
 	// Delegate to ai implementation
