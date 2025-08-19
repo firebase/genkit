@@ -433,13 +433,11 @@ func TestIsFailureSourceOnError(t *testing.T) {
 		return "", testErr
 	})
 
+	// The test confirms the function works - isFailureSource should be set
+	// on the span via span.SetAttributes() during error handling
 	if err == nil {
 		t.Fatal("Expected error to be returned")
 	}
-
-	// The test confirms the function works - isFailureSource should be set
-	// on the span via span.SetAttributes() during error handling
-	t.Log("isFailureSource functionality verified - error propagated correctly")
 }
 
 // TestRootSpanAutoDetection tests that spans are automatically marked as root when no parent exists
