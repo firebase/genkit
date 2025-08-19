@@ -70,7 +70,7 @@ type Resource interface {
 }
 
 // DefineResource creates a resource and registers it with the given Registry.
-func DefineResource(r *registry.Registry, name string, opts ResourceOptions, fn ResourceFunc) Resource {
+func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn ResourceFunc) Resource {
 	metadata, wrappedFn := implementResource(name, opts, fn)
 	resourceAction := core.DefineAction(r, "", name, core.ActionTypeResource, metadata, wrappedFn)
 	return &resource{Action: resourceAction}
