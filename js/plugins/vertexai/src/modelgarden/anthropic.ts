@@ -30,7 +30,6 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
-  GENKIT_CLIENT_HEADER,
   z,
   type GenerateRequest,
   type Genkit,
@@ -46,6 +45,7 @@ import {
   modelRef,
   type ModelAction,
 } from 'genkit/model';
+import { getGenkitClientHeader } from '../common/index.js';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),
@@ -390,7 +390,7 @@ export function anthropicModel(
         region,
         projectId,
         defaultHeaders: {
-          'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+          'X-Goog-Api-Client': getGenkitClientHeader(),
         },
       });
     }

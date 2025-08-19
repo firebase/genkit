@@ -15,22 +15,23 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, GENKIT_CLIENT_HEADER, MessageData } from 'genkit';
+import { Genkit, MessageData } from 'genkit';
 import { GenerateRequest, getBasicUsageStats } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
 import { getGoogleAIUrl } from '../../src/googleai/client';
 import {
-  defineModel,
   ImagenConfig,
   ImagenConfigSchema,
-  model,
   TEST_ONLY,
+  defineModel,
+  model,
 } from '../../src/googleai/imagen';
 import {
-  ImagenPrediction,
   ImagenPredictRequest,
   ImagenPredictResponse,
+  ImagenPrediction,
 } from '../../src/googleai/types.js';
 import {
   API_KEY_FALSE_ERROR,
@@ -244,7 +245,7 @@ describe('Google AI Imagen', () => {
       const expectedHeaders = {
         'Content-Type': 'application/json',
         'x-goog-api-key': requestApiKey, // Effective key is from request
-        'x-goog-api-client': GENKIT_CLIENT_HEADER,
+        'x-goog-api-client': getGenkitClientHeader(),
       };
       assert.deepStrictEqual(fetchArgs[1].headers, expectedHeaders);
       assert.strictEqual(fetchArgs[1].method, 'POST');
