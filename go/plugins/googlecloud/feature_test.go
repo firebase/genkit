@@ -229,9 +229,8 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 	f := newTestFixture(t, false, featureTel)
 
 	testCases := []struct {
-		name      string
-		attrs     map[string]interface{}
-		expectLog bool
+		name  string
+		attrs map[string]interface{}
 	}{
 		{
 			name: "successful root span",
@@ -241,7 +240,6 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:path":   "/{chatFlow,t:flow}/{generateResponse,t:action}",
 				"genkit:state":  "success",
 			},
-			expectLog: true,
 		},
 		{
 			name: "failed root span",
@@ -251,7 +249,6 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:path":   "/{codeAssistant,t:flow}/{suggestCode,t:action}",
 				"genkit:state":  "error",
 			},
-			expectLog: true,
 		},
 		{
 			name: "non-root span skipped",
@@ -260,7 +257,6 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:name":   "subAction",
 				"genkit:state":  "success",
 			},
-			expectLog: true,
 		},
 		{
 			name: "unknown state",
@@ -269,7 +265,6 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:name":   "testFeature",
 				"genkit:state":  "unknown",
 			},
-			expectLog: true,
 		},
 		{
 			name: "missing state attribute",
@@ -277,7 +272,6 @@ func TestFeatureTelemetry_ComprehensiveScenarios(t *testing.T) {
 				"genkit:isRoot": true,
 				"genkit:name":   "testFeature",
 			},
-			expectLog: true,
 		},
 	}
 

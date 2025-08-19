@@ -78,10 +78,9 @@ func (e *simpleMetricExporter) Temporality(ik metric.InstrumentKind) metricdata.
 // [END pattern1simple]
 
 // [START pattern2advanced]
-// Advanced wrapper with custom processing (like Google Cloud plugin)
+// Advanced wrapper with custom processing
 
 // YourAdjustingTraceExporter wraps a real exporter and adds custom processing
-// (This is the same pattern Google Cloud uses with AdjustingTraceExporter)
 type YourAdjustingTraceExporter struct {
 	exporter trace.SpanExporter // The real exporter (Jaeger, Datadog, etc.)
 }
@@ -104,8 +103,7 @@ func (e *YourAdjustingTraceExporter) processSpans(spans []trace.ReadOnlySpan) []
 	// TODO: Add your custom span processing logic here
 	// This is where you'd implement features like:
 	// - PII redaction
-	// - Business intelligence extraction
-	// - Custom attribute addition
+	// - Custom attributes
 	return spans
 }
 

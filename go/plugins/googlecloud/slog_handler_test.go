@@ -74,24 +74,24 @@ func TestHandler(t *testing.T) {
 		t.Errorf("Expected message 'test message', got %v", payload["message"])
 	}
 
-	// Test that our handler correctly processes data attributes
+	// Test that our handler correctly processes metadata attributes
 	results = nil
-	record = slog.NewRecord(time.Now(), slog.LevelInfo, "test with data", 0)
-	record.Add("data", map[string]interface{}{"key": "value"})
+	record = slog.NewRecord(time.Now(), slog.LevelInfo, "test with metadata", 0)
+	record.Add("metadata", map[string]interface{}{"key": "value"})
 
 	err = handler.Handle(ctx, record)
 	if err != nil {
-		t.Fatalf("Handler.Handle with data failed: %v", err)
+		t.Fatalf("Handler.Handle with metadata failed: %v", err)
 	}
 
 	if len(results) != 1 {
-		t.Fatalf("Expected 1 log entry with data, got %d", len(results))
+		t.Fatalf("Expected 1 log entry with metadata, got %d", len(results))
 	}
 
 	entry = results[0]
 	payload, ok = entry.Payload.(map[string]interface{})
 	if !ok {
-		t.Fatalf("Expected payload with data to be map[string]interface{}, got %T", entry.Payload)
+		t.Fatalf("Expected payload with metadata to be map[string]interface{}, got %T", entry.Payload)
 	}
 
 	metadata, ok := payload["metadata"].(map[string]interface{})

@@ -32,6 +32,9 @@ import (
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
 )
 
+// MetadataKey is the slog attribute key used for structured metadata
+const MetadataKey = "metadata"
+
 // Enhanced handler with error handling
 type handler struct {
 	level              slog.Leveler
@@ -193,7 +196,7 @@ func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entr
 
 	// Process record attributes to separate message from metadata
 	r.Attrs(func(a slog.Attr) bool {
-		if a.Key == "data" {
+		if a.Key == MetadataKey {
 			if dataMap, ok := a.Value.Any().(map[string]interface{}); ok {
 				metadata = dataMap
 				// Remove GCP logging fields from metadata (they go at top level)
@@ -216,7 +219,6 @@ func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entr
 		"metadata": metadata,
 	}
 
-	// Force global resource type to match TypeScript implementation
 	globalResource := &mrpb.MonitoredResource{
 		Type: "global",
 		Labels: map[string]string{
@@ -259,57 +261,5 @@ func levelToSeverity(l slog.Level) logging.Severity {
 		return logging.Alert
 	default:
 		return logging.Emergency
-	}
-}
-
-func recordToMap(r slog.Record, goras []*withsupport.GroupOrAttrs) map[string]any {
-	root := map[string]any{}
-	root[slog.MessageKey] = r.Message
-
-	m := root
-	for i, gora := range goras {
-		if gora.Group != "" {
-			if i == len(goras)-1 && r.NumAttrs() == 0 {
-				continue
-			}
-			m2 := map[string]any{}
-			m[gora.Group] = m2
-			m = m2
-		} else {
-			for _, a := range gora.Attrs {
-				handleAttr(a, m)
-			}
-		}
-	}
-	r.Attrs(func(a slog.Attr) bool {
-		handleAttr(a, m)
-		return true
-	})
-	return root
-}
-
-func handleAttr(a slog.Attr, m map[string]any) {
-	if a.Equal(slog.Attr{}) {
-		return
-	}
-	v := a.Value.Resolve()
-	if v.Kind() == slog.KindGroup {
-		gas := v.Group()
-		if len(gas) == 0 {
-			return
-		}
-		if a.Key == "" {
-			for _, ga := range gas {
-				handleAttr(ga, m)
-			}
-		} else {
-			gm := map[string]any{}
-			for _, ga := range gas {
-				handleAttr(ga, gm)
-			}
-			m[a.Key] = gm
-		}
-	} else {
-		m[a.Key] = v.Any()
 	}
 }

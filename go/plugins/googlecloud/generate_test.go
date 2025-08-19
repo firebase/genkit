@@ -15,24 +15,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
-func TestNewGenerateTelemetry(t *testing.T) {
-	genTel := NewGenerateTelemetry()
-
-	assert.NotNil(t, genTel)
-	assert.NotNil(t, genTel.actionCounter)
-	assert.NotNil(t, genTel.latencies)
-	assert.NotNil(t, genTel.inputCharacters)
-	assert.NotNil(t, genTel.inputTokens)
-	assert.NotNil(t, genTel.inputImages)
-	assert.NotNil(t, genTel.inputVideos)
-	assert.NotNil(t, genTel.inputAudio)
-	assert.NotNil(t, genTel.outputCharacters)
-	assert.NotNil(t, genTel.outputTokens)
-	assert.NotNil(t, genTel.outputImages)
-	assert.NotNil(t, genTel.outputVideos)
-	assert.NotNil(t, genTel.outputAudio)
-}
-
 // TestGenerateTelemetry_PipelineIntegration verifies that generate telemetry
 // works correctly in the full pipeline with realistic model generation spans
 func TestGenerateTelemetry_PipelineIntegration(t *testing.T) {
@@ -550,7 +532,7 @@ func TestGenerateTelemetry_FeatureNameExtraction(t *testing.T) {
 	}
 }
 
-// Helper functions for metric verification (reusing patterns from engagement_test.go)
+// Helper functions for metric verification
 
 func verifyCounterMetricValue(t *testing.T, metric *metricdata.Metrics, expectedValue int64) {
 	sum, ok := metric.Data.(metricdata.Sum[int64])

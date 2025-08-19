@@ -95,12 +95,9 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 
 	logLevel := slog.LevelInfo
 
-	// Create minimal resource to exactly match JS behavior
-	// JS only sets { type: 'global' } + GCP detection, no service.name at all
+	// Create minimal resource
 	finalResource := resource.NewWithAttributes(
 		semconv.SchemaURL,
-		// Note: JS uses { type: 'global' } but Go doesn't have direct equivalent
-		// Keeping resource completely minimal to match JS exactly
 	)
 
 	if gcpResource, err := gcp.NewDetector().Detect(context.Background()); err == nil {

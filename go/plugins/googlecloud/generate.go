@@ -215,7 +215,7 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		"sourceVersion": internal.Version,
 	}
 
-	// Only add session fields if they have values (like TypeScript)
+	// Only add session fields if they have values
 	if sessionID != "" {
 		logData["sessionId"] = sessionID
 	}
@@ -300,7 +300,7 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 
 			// Send to Google Cloud Logging via slog
 			message := fmt.Sprintf("[genkit] Input[%s, %s] %s", path, model, partCounts)
-			slog.InfoContext(ctx, message, "data", logData)
+			slog.InfoContext(ctx, message, MetadataKey, logData)
 		}
 	}
 }
@@ -363,7 +363,7 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 
 			// Send to Google Cloud Logging via slog
 			message := fmt.Sprintf("[genkit] Output[%s, %s] %s", path, model, partCounts)
-			slog.InfoContext(ctx, message, "data", logData)
+			slog.InfoContext(ctx, message, MetadataKey, logData)
 		}
 	}
 }

@@ -107,5 +107,5 @@ func (a *ActionTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName,
 		logData[k] = v
 	}
 
-	slog.InfoContext(ctx, fmt.Sprintf("[genkit] %s[%s, %s]", tag, path, featureName), "data", logData)
+	slog.InfoContext(ctx, fmt.Sprintf("[genkit] %s[%s, %s]", tag, path, featureName), MetadataKey, logData)
 }
