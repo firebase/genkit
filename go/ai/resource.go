@@ -64,29 +64,29 @@ type Resource interface {
 	// ExtractVariables extracts variables from a URI using this resource's template.
 	ExtractVariables(uri string) (map[string]string, error)
 	// Execute runs the resource with the given input.
-	Execute(ctx context.Context, input ResourceInput) (ResourceOutput, error)
+	Execute(ctx context.Context, input *ResourceInput) (*ResourceOutput, error)
 	// Register sets the tracing state on the action and registers it with the registry.
 	Register(r *registry.Registry)
 }
 
 // DefineResource creates a resource and registers it with the given Registry.
 func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn ResourceFunc) Resource {
-	metadata, wrappedFn := implementResource(name, opts, fn)
-	resourceAction := core.DefineAction(r, "", name, core.ActionTypeResource, metadata, wrappedFn)
+	metadata := implementResource(name, *opts)
+	resourceAction := core.DefineAction(r, "", name, core.ActionTypeResource, metadata, fn)
 	return &resource{Action: resourceAction}
 }
 
 // NewResource creates a resource but does not register it in the registry.
 // It can be registered later via the Register method.
 func NewResource(name string, opts ResourceOptions, fn ResourceFunc) Resource {
-	metadata, wrappedFn := implementResource(name, opts, fn)
+	metadata := implementResource(name, opts)
 	metadata["dynamic"] = true
-	resourceAction := core.NewAction("", name, core.ActionTypeResource, metadata, wrappedFn)
+	resourceAction := core.NewAction("", name, core.ActionTypeResource, metadata, fn)
 	return &resource{Action: resourceAction}
 }
 
-// implementResource creates the metadata and wrapped function common to both DefineResource and NewResource.
-func implementResource(name string, opts ResourceOptions, fn ResourceFunc) (map[string]any, func(context.Context, ResourceInput) (ResourceOutput, error)) {
+// implementResource creates the metadata common to both DefineResource and NewResource.
+func implementResource(name string, opts ResourceOptions) map[string]any {
 	// Validate options - panic like other Define* functions
 	if name == "" {
 		panic("resource name is required")
@@ -116,12 +116,7 @@ func implementResource(name string, opts ResourceOptions, fn ResourceFunc) (map[
 		}
 	}
 
-	// Wrapped function - just call the user function directly
-	wrappedFn := func(ctx context.Context, input ResourceInput) (ResourceOutput, error) {
-		return fn(ctx, input)
-	}
-
-	return metadata, wrappedFn
+	return metadata
 }
 
 // Name returns the resource name.
@@ -183,26 +178,26 @@ func (r *resource) ExtractVariables(uri string) (map[string]string, error) {
 }
 
 // Execute runs the resource with the given input.
-func (r *resource) Execute(ctx context.Context, input ResourceInput) (ResourceOutput, error) {
+func (r *resource) Execute(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
 	// Marshal input to JSON for action call
 	inputJSON, err := json.Marshal(input)
 	if err != nil {
-		return ResourceOutput{}, fmt.Errorf("failed to marshal resource input: %w", err)
+		return nil, fmt.Errorf("failed to marshal resource input: %w", err)
 	}
 
 	// Use the underlying action to execute the resource function
 	outputJSON, err := r.Action.RunJSON(ctx, inputJSON, nil)
 	if err != nil {
-		return ResourceOutput{}, err
+		return nil, err
 	}
 
 	// Unmarshal output back to ResourceOutput
 	var output ResourceOutput
 	if err := json.Unmarshal(outputJSON, &output); err != nil {
-		return ResourceOutput{}, fmt.Errorf("failed to unmarshal resource output: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal resource output: %w", err)
 	}
 
-	return output, nil
+	return &output, nil
 }
 
 // Register sets the tracing state on the action and registers it with the registry.
@@ -212,7 +207,7 @@ func (r *resource) Register(reg *registry.Registry) {
 }
 
 // FindMatchingResource finds a resource that matches the given URI.
-func FindMatchingResource(r *registry.Registry, uri string) (Resource, ResourceInput, error) {
+func FindMatchingResource(r *registry.Registry, uri string) (Resource, *ResourceInput, error) {
 	actions := r.ListActions()
 
 	for _, act := range actions {
@@ -231,13 +226,13 @@ func FindMatchingResource(r *registry.Registry, uri string) (Resource, ResourceI
 		if resource.Matches(uri) {
 			variables, err := resource.ExtractVariables(uri)
 			if err != nil {
-				return nil, ResourceInput{}, err
+				return nil, nil, err
 			}
-			return resource, ResourceInput{URI: uri, Variables: variables}, nil
+			return resource, &ResourceInput{URI: uri, Variables: variables}, nil
 		}
 	}
 
-	return nil, ResourceInput{}, fmt.Errorf("no resource found for URI %q", uri)
+	return nil, nil, fmt.Errorf("no resource found for URI %q", uri)
 }
 
 // LookupResource looks up the resource in the registry by provided name and returns it.

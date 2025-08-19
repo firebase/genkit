@@ -1136,7 +1136,7 @@ func executeResourcePart(ctx context.Context, r *registry.Registry, resourceURI 
 	}
 
 	// Create resource input with extracted variables
-	input := ResourceInput{
+	input := &ResourceInput{
 		URI:       resourceURI,
 		Variables: variables,
 	}

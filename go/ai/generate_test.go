@@ -1101,18 +1101,18 @@ func TestResourceProcessing(t *testing.T) {
 	r, _ := registry.New()
 
 	// Create test resources using DefineResource
-	DefineResource(r, "test-file", ResourceOptions{
+	DefineResource(r, "test-file", &ResourceOptions{
 		URI:         "file:///test.txt",
 		Description: "Test file resource",
-	}, func(ctx context.Context, input ResourceInput) (ResourceOutput, error) {
-		return ResourceOutput{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
+	}, func(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
+		return &ResourceOutput{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
 	})
 
-	DefineResource(r, "test-api", ResourceOptions{
+	DefineResource(r, "test-api", &ResourceOptions{
 		URI:         "api://data/123",
 		Description: "Test API resource",
-	}, func(ctx context.Context, input ResourceInput) (ResourceOutput, error) {
-		return ResourceOutput{Content: []*Part{NewTextPart("API DATA")}}, nil
+	}, func(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
+		return &ResourceOutput{Content: []*Part{NewTextPart("API DATA")}}, nil
 	})
 
 	// Test message with resources
