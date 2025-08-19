@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	"github.com/firebase/genkit/go/core"
 	coreresource "github.com/firebase/genkit/go/core/resource"
@@ -111,9 +112,7 @@ func implementResource(name string, opts ResourceOptions) map[string]any {
 
 	// Add user metadata
 	if opts.Metadata != nil {
-		for k, v := range opts.Metadata {
-			metadata[k] = v
-		}
+		maps.Copy(metadata, opts.Metadata)
 	}
 
 	return metadata
