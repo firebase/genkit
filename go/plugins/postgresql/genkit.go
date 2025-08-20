@@ -38,6 +38,12 @@ func (p *Postgres) Name() string {
 	return provider
 }
 
+func NewPostgres(engine *PostgresEngine) *Postgres {
+	return &Postgres{
+		engine: engine,
+	}
+}
+
 // Init initialize the PostgreSQL
 func (p *Postgres) Init(ctx context.Context, g *genkit.Genkit) error {
 	p.mu.Lock()
