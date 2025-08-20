@@ -27,6 +27,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -487,18 +488,16 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
-	// Call the registered generate action instead of GenerateWithRequest directly
+	// Create manual generate span and call GenerateWithRequest directly
 	// This ensures proper span hierarchy: flow -> generate -> model
-	generateAction := core.ResolveActionFor[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeUtil, "", "generate")
-	if generateAction == nil {
-		return nil, core.NewError(core.INTERNAL, "generate action not found")
-	}
-
-	// Pass the modified registry and middleware through context for the action to use
-	ctxWithData := context.WithValue(ctx, "genkit:registry", r)
-	ctxWithData = context.WithValue(ctxWithData, "genkit:middleware", genOpts.Middleware)
-
-	return generateAction.Run(ctxWithData, actionOpts, genOpts.Stream)
+	return tracing.RunInNewSpan(ctx, r.TracingState(), &tracing.SpanMetadata{
+		Name:    "generate",
+		Type:    "action",
+		Subtype: "util",
+		IsRoot:  false,
+	}, actionOpts, func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
+		return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
+	})
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
