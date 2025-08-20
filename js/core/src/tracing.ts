@@ -52,7 +52,10 @@ async function checkFirebaseMonitoringAutoInit() {
     process.env.ENABLE_FIREBASE_MONITORING === 'true'
   ) {
     try {
-      const firebaseModule = await require('@genkit-ai/firebase');
+      // Use webpack-friendly dynamic import for optional dependency
+      const firebaseModule = await import(
+        /* webpackIgnore: true */ '@genkit-ai/firebase'
+      );
       firebaseModule.enableFirebaseTelemetry();
     } catch (e) {
       logger.warn(
