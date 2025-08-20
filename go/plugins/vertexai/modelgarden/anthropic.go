@@ -54,7 +54,7 @@ func (a *Anthropic) Name() string {
 	return provider
 }
 
-func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (a *Anthropic) Init(ctx context.Context) []core.Action {
 	if a == nil {
 		a = &Anthropic{}
 	}
@@ -62,19 +62,14 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.initted {
-		return errors.New("plugin already initialized")
+		panic("plugin already initialized")
 	}
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("Anthropic.Init: %w", err)
-		}
-	}()
 
 	projectID := a.ProjectID
 	if projectID == "" {
 		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 		if projectID == "" {
-			return fmt.Errorf("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard")
+			panic("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard")
 		}
 	}
 
@@ -85,7 +80,7 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 			location = os.Getenv("GOOGLE_CLOUD_REGION")
 		}
 		if location == "" {
-			return fmt.Errorf("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
+			panic("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
 		}
 	}
 
@@ -96,11 +91,13 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.initted = true
 	a.client = c
 
+	var actions []core.Action
 	for name, mi := range anthropicModels {
-		defineAnthropicModel(g, a.client, name, mi)
+		model := defineAnthropicModel(a.client, name, mi)
+		actions = append(actions, model.(core.Action))
 	}
 
-	return nil
+	return actions
 }
 
 // AnthropicModel returns the [ai.Model] with the given name.
@@ -110,7 +107,7 @@ func AnthropicModel(g *genkit.Genkit, name string) ai.Model {
 }
 
 // DefineModel adds the model to the registry
-func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
+func (a *Anthropic) DefineModel(name string, opts *ai.ModelOptions) (ai.Model, error) {
 	if opts == nil {
 		var ok bool
 		modelOpts, ok := anthropicModels[name]
@@ -119,10 +116,10 @@ func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOpt
 		}
 		opts = &modelOpts
 	}
-	return defineAnthropicModel(g, a.client, name, *opts), nil
+	return defineAnthropicModel(a.client, name, *opts), nil
 }
 
-func defineAnthropicModel(g *genkit.Genkit, client anthropic.Client, name string, opts ai.ModelOptions) ai.Model {
+func defineAnthropicModel(client anthropic.Client, name string, opts ai.ModelOptions) ai.Model {
 	meta := &ai.ModelOptions{
 		Label:        provider + "-" + name,
 		Supports:     opts.Supports,
@@ -130,7 +127,7 @@ func defineAnthropicModel(g *genkit.Genkit, client anthropic.Client, name string
 		ConfigSchema: opts.ConfigSchema,
 		Stage:        opts.Stage,
 	}
-	return genkit.DefineModel(g, core.NewName(provider, name), meta, func(
+	return ai.NewModel(core.NewName(provider, name), meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

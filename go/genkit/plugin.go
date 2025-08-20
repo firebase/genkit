@@ -33,7 +33,7 @@ type Plugin interface {
 	// Init initializes the plugin. It is called once during [Init].
 	// The plugin can use the provided [Genkit] instance to register actions,
 	// models, tools, etc.
-	Init(ctx context.Context, g *Genkit) error
+	Init(ctx context.Context) []core.Action
 }
 
 // DynamicPlugin is a [Plugin] that can dynamically resolve actions.
@@ -42,5 +42,5 @@ type DynamicPlugin interface {
 	// ListActions returns a list of action descriptors that the plugin is capable of resolving to [core.Action]s.
 	ListActions(ctx context.Context) []core.ActionDesc
 	// ResolveAction resolves an action type and name by defining and registering it in the registry.
-	ResolveAction(g *Genkit, atype core.ActionType, name string) error
+	ResolveAction(atype core.ActionType, name string) core.Action
 }

@@ -93,30 +93,29 @@ func (a *Anthropic) Name() string {
 	return provider
 }
 
-func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) error {
+func (a *Anthropic) Init(ctx context.Context) []core.Action {
 	// Set the base URL
 	a.Opts = append(a.Opts, option.WithBaseURL(baseURL))
 
 	// initialize OpenAICompatible
 	a.openAICompatible.Opts = a.Opts
-	if err := a.openAICompatible.Init(ctx, g); err != nil {
-		return err
-	}
+	compatActions := a.openAICompatible.Init(ctx)
+
+	var actions []core.Action
+	actions = append(actions, compatActions...)
 
 	// define default models
 	for model, opts := range supportedModels {
-		if _, err := a.DefineModel(g, model, opts); err != nil {
-			return err
-		}
+		actions = append(actions, a.DefineModel(model, opts).(core.Action))
 	}
 
-	return nil
+	return actions
 }
 
 func (a *Anthropic) Model(g *genkit.Genkit, id string) ai.Model {
 	return a.openAICompatible.Model(g, core.NewName(provider, id))
 }
 
-func (a *Anthropic) DefineModel(g *genkit.Genkit, id string, opts ai.ModelOptions) (ai.Model, error) {
-	return a.openAICompatible.DefineModel(g, provider, id, opts)
+func (a *Anthropic) DefineModel(id string, opts ai.ModelOptions) ai.Model {
+	return a.openAICompatible.DefineModel(provider, id, opts)
 }

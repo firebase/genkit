@@ -182,17 +182,22 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 	g := &Genkit{reg: r}
 
 	for _, plugin := range gOpts.Plugins {
-		if err := plugin.Init(ctx, g); err != nil {
-			panic(fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err))
+		actions := plugin.Init(ctx)
+		for _, action := range actions {
+			r.RegisterAction(action.Desc().Key, action)
 		}
 		r.RegisterPlugin(plugin.Name(), plugin)
 	}
 
-	r.ActionResolver = func(actionType, provider, name string) error {
+	r.ActionResolver = func(actionType, provider, id string) error {
 		plugins := r.ListPlugins()
 		for _, plugin := range plugins {
 			if dp, ok := plugin.(DynamicPlugin); ok && dp.Name() == provider {
-				return dp.ResolveAction(g, core.ActionType(actionType), name)
+				action := dp.ResolveAction(core.ActionType(actionType), id)
+				if action != nil {
+					r.RegisterAction(action.Desc().Key, action)
+				}
+				return nil
 			}
 		}
 		return nil

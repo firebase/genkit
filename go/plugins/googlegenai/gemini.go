@@ -31,7 +31,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -132,8 +131,8 @@ func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, er
 	return &result, nil
 }
 
-// DefineModel defines a model in the registry
-func defineModel(g *genkit.Genkit, client *genai.Client, name string, opts ai.ModelOptions) ai.Model {
+// newModel creates a model without registering it
+func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
@@ -185,12 +184,11 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, opts ai.Mo
 			},
 		}))(fn)
 	}
-	return genkit.DefineModel(g, core.NewName(provider, name), meta, fn)
+	return ai.NewModel(core.NewName(provider, name), meta, fn)
 }
 
-// DefineEmbedder defines embeddings for the provided contents and embedder
-// model
-func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOpts *ai.EmbedderOptions) ai.Embedder {
+// newEmbedder creates an embedder without registering it
+func newEmbedder(client *genai.Client, name string, embedOpts *ai.EmbedderOptions) ai.Embedder {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
@@ -200,7 +198,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOp
 		embedOpts.ConfigSchema = core.InferSchemaMap(genai.EmbedContentConfig{})
 	}
 
-	return genkit.DefineEmbedder(g, core.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return ai.NewEmbedder(core.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
