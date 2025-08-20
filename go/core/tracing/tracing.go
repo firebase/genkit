@@ -32,32 +32,30 @@ import (
 )
 
 var (
-	globalProvider     *sdktrace.TracerProvider
-	globalProviderOnce sync.Once
+	providerInitOnce sync.Once
 )
 
-// GetGlobalTracerProvider returns the global tracer provider, creating it if needed.
-func GetGlobalTracerProvider() *sdktrace.TracerProvider {
-	globalProviderOnce.Do(func() {
-		globalProvider = sdktrace.NewTracerProvider()
-		otel.SetTracerProvider(globalProvider)
+// TracerProvider returns the global tracer provider, creating it if needed.
+func TracerProvider() *sdktrace.TracerProvider {
+	if tp := otel.GetTracerProvider(); tp != nil {
+		if sdkTP, ok := tp.(*sdktrace.TracerProvider); ok {
+			return sdkTP
+		}
+	}
 
-		// Auto-configure telemetry if environment variable is set
+	providerInitOnce.Do(func() {
+		otel.SetTracerProvider(sdktrace.NewTracerProvider())
 		if telemetryURL := os.Getenv("GENKIT_TELEMETRY_SERVER"); telemetryURL != "" {
 			WriteTelemetryImmediate(NewHTTPTelemetryClient(telemetryURL))
 		}
 	})
-	return globalProvider
+
+	return otel.GetTracerProvider().(*sdktrace.TracerProvider)
 }
 
-// GetGlobalTracer returns a tracer from the global tracer provider.
-func GetGlobalTracer() trace.Tracer {
-	return GetGlobalTracerProvider().Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1"))
-}
-
-// RegisterSpanProcessor registers a span processor with the global provider.
-func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	GetGlobalTracerProvider().RegisterSpanProcessor(sp)
+// Tracer returns a tracer from the global tracer provider.
+func Tracer() trace.Tracer {
+	return TracerProvider().Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1"))
 }
 
 // WriteTelemetryImmediate adds a telemetry server to the global tracer provider.
@@ -67,7 +65,7 @@ func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 func WriteTelemetryImmediate(client TelemetryClient) {
 	e := newTraceServerExporter(client)
 	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
-	RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+	TracerProvider().RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
 	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
 	// Confirmed for OTel packages as of v1.24.0.
 	// Also requires traceStoreExporter.Shutdown to be a no-op.
@@ -82,8 +80,8 @@ func WriteTelemetryImmediate(client TelemetryClient) {
 func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
 	e := newTraceServerExporter(client)
 	// Adding a BatchSpanProcessor is like using the WithBatcher option.
-	RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
-	return GetGlobalTracerProvider().Shutdown
+	TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
+	return TracerProvider().Shutdown
 }
 
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.
@@ -121,7 +119,7 @@ func RunInNewSpan[I, O any](
 	if spanType != "" {
 		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
 	}
-	ctx, span := GetGlobalTracer().Start(ctx, name, opts...)
+	ctx, span := Tracer().Start(ctx, name, opts...)
 	defer span.End()
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()

@@ -70,7 +70,7 @@ func (gc *GoogleCloud) Init(ctx context.Context) []core.Action {
 		panic(fmt.Errorf("googlecloud.Init: %w", err))
 	}
 	aexp := &adjustingTraceExporter{texp}
-	tracing.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(aexp))
+	tracing.TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(aexp))
 	if err := setMeterProvider(gc.ProjectID, gc.MetricInterval); err != nil {
 		panic(fmt.Errorf("googlecloud.Init: %w", err))
 	}
