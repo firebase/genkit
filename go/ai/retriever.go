@@ -128,7 +128,7 @@ func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, 
 	ret := NewRetriever(name, opts, fn)
 	provider, id := core.ParseName(name)
 	key := core.NewKey(core.ActionTypeRetriever, provider, id)
-	r.RegisterAction(key, ret.(*retriever).ActionDef)
+	r.RegisterAction(key, &ret.(*retriever).ActionDef)
 	return ret
 }
 

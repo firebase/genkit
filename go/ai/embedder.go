@@ -135,7 +135,7 @@ func DefineEmbedder(r *registry.Registry, name string, opts *EmbedderOptions, fn
 	e := NewEmbedder(name, opts, fn)
 	provider, id := core.ParseName(name)
 	key := core.NewKey(core.ActionTypeEmbedder, provider, id)
-	r.RegisterAction(key, e.(*embedder).ActionDef)
+	r.RegisterAction(key, &e.(*embedder).ActionDef)
 	return e
 }
 

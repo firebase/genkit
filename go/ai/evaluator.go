@@ -219,7 +219,7 @@ func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, 
 	e := NewEvaluator(name, opts, fn)
 	provider, id := core.ParseName(name)
 	key := core.NewKey(core.ActionTypeEvaluator, provider, id)
-	r.RegisterAction(key, e.(*evaluator).ActionDef)
+	r.RegisterAction(key, &e.(*evaluator).ActionDef)
 	return e
 }
 
@@ -254,11 +254,11 @@ func NewBatchEvaluator(name string, opts *EvaluatorOptions, fn BatchEvaluatorFun
 // [EvaluatorRequest] to the callback function, giving more flexibilty to the
 // user for processing the data, such as batching or parallelization.
 func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
-	evaluator := NewBatchEvaluator(name, opts, fn)
+	e := NewBatchEvaluator(name, opts, fn)
 	provider, id := core.ParseName(name)
 	key := core.NewKey(core.ActionTypeEvaluator, provider, id)
-	r.RegisterAction(key, evaluator)
-	return evaluator
+	r.RegisterAction(key, &e.(*evaluator).ActionDef)
+	return e
 }
 
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].

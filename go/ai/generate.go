@@ -187,7 +187,7 @@ func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn Model
 	m := NewModel(name, opts, fn)
 	provider, id := core.ParseName(name)
 	key := core.NewKey(core.ActionTypeModel, provider, id)
-	r.RegisterAction(key, m.(*model).ActionDef)
+	r.RegisterAction(key, &m.(*model).ActionDef)
 	return m
 }
 
