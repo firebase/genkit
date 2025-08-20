@@ -47,14 +47,15 @@ func (t ToolName) Name() string {
 	return (string)(t)
 }
 
-// tool is the internal implementation of the Tool interface.
-// It holds the underlying core action and allows looking up tools
-// by name without knowing their specific input/output types.
+// tool is an action with functions specific to tools.
+// It embeds [core.Action] instead of [core.ActionDef] like other primitives
+// because the inputs/outputs can vary and the tool is only meant to be called
+// with JSON input anyway.
 type tool struct {
 	core.Action
 }
 
-// Tool represents an instance of a tool.
+// Tool represents a tool that can be called by a model.
 type Tool interface {
 	// Name returns the name of the tool.
 	Name() string
