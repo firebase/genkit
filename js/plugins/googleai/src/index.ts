@@ -46,6 +46,7 @@ import {
 import {
   GeminiConfigSchema,
   SUPPORTED_GEMINI_MODELS,
+  createGeminiModel,
   gemini,
   gemini10Pro,
   gemini15Flash,
@@ -111,69 +112,7 @@ export interface PluginOptions {
 }
 
 // v2 helper functions that return actions directly
-function createGeminiModel({
-  name,
-  apiKey: apiKeyOption,
-  apiVersion,
-  baseUrl,
-  info,
-  defaultConfig,
-  debugTraces,
-}: {
-  name: string;
-  apiKey?: string | false;
-  apiVersion?: string;
-  baseUrl?: string;
-  info?: any;
-  defaultConfig?: any;
-  debugTraces?: boolean;
-}) {
-  let apiKey: string | undefined;
-  // DO NOT infer API key from environment variable if plugin was configured with `{apiKey: false}`.
-  if (apiKeyOption !== false) {
-    apiKey = apiKeyOption || getApiKeyFromEnvVar();
-    if (!apiKey) {
-      throw new Error(
-        'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://genkit.dev/docs/plugins/google-genai'
-      );
-    }
-  }
-
-  const apiModelName = name.startsWith('googleai/')
-    ? name.substring('googleai/'.length)
-    : name;
-
-  const modelRef = SUPPORTED_GEMINI_MODELS[apiModelName] ?? {
-    name: `googleai/${apiModelName}`,
-    info: {
-      label: `Google AI - ${apiModelName}`,
-      supports: {
-        multiturn: true,
-        media: true,
-        tools: true,
-        systemRole: true,
-        output: ['text', 'json'],
-      },
-      ...info,
-    },
-    configSchema: GeminiConfigSchema,
-  };
-
-  return model(
-    {
-      name,
-      configSchema: GeminiConfigSchema,
-      label: info?.label || modelRef.info?.label || `Google AI - ${name}`,
-      supports: info?.supports || modelRef.info?.supports,
-    },
-    async (request, { streamingRequested, sendChunk, abortSignal }) => {
-      // TODO: Implement actual Gemini model generation
-      // This will extract the core logic from defineGoogleAIModel
-      throw new Error('Gemini model generation not yet implemented in v2');
-    }
-  );
-}
+// createGeminiModel is now imported from gemini.ts
 
 function createGeminiEmbedder(
   name: string,
@@ -216,7 +155,6 @@ async function initializer(options?: PluginOptions) {
         apiKey: options?.apiKey,
         apiVersion: 'v1beta',
         baseUrl: options?.baseUrl,
-        debugTraces: options?.experimental_debugTraces,
       });
       actions.push(modelAction);
     });
@@ -228,7 +166,6 @@ async function initializer(options?: PluginOptions) {
         apiKey: options?.apiKey,
         apiVersion: undefined,
         baseUrl: options?.baseUrl,
-        debugTraces: options?.experimental_debugTraces,
       });
       actions.push(modelAction);
     });
@@ -257,7 +194,6 @@ async function initializer(options?: PluginOptions) {
           ...modelRef.info,
           label: `Google AI - ${modelName}`,
         },
-        debugTraces: options?.experimental_debugTraces,
       });
       actions.push(modelAction);
     }
@@ -305,7 +241,6 @@ async function resolver(
       name: actionName,
       apiKey: options?.apiKey,
       baseUrl: options?.baseUrl,
-      debugTraces: options?.experimental_debugTraces,
     });
   }
   return undefined;
@@ -344,7 +279,7 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
         const name = m.name.split('/').at(-1)!;
 
         return modelActionMetadata({
-          name: `googleai/${name}`,
+          name: name,
           info: { ...GENERIC_IMAGEN_INFO },
           configSchema: ImagenConfigSchema,
         });
@@ -362,7 +297,7 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
         const name = m.name.split('/').at(-1)!;
 
         return modelActionMetadata({
-          name: `googleai/${name}`,
+          name: name,
           info: { ...GENERIC_VEO_INFO },
           configSchema: VeoConfigSchema,
           background: true,
@@ -392,11 +327,9 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const name =
-          'googleai/' +
-          (m.name.startsWith('models/')
-            ? m.name.substring('models/'.length)
-            : m.name);
+        const name = m.name.startsWith('models/')
+          ? m.name.substring('models/'.length)
+          : m.name;
 
         return embedderActionMetadata({
           name,

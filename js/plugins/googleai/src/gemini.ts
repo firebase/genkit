@@ -16,7 +16,6 @@
 
 import {
   FunctionCallingMode,
-  GenerateContentCandidate,
   GoogleGenerativeAI,
   SchemaType,
   type FileDataPart,
@@ -40,6 +39,7 @@ import {
 } from '@google/generative-ai';
 import {
   GENKIT_CLIENT_HEADER,
+  GenerateRequest,
   GenkitError,
   z,
   type Genkit,
@@ -63,6 +63,7 @@ import {
   type ToolResponsePart,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
+import { model } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar } from './common';
 import { handleCacheIfNeeded } from './context-caching';
@@ -1482,7 +1483,10 @@ function toFunctionModeEnum(
       return FunctionCallingMode.NONE;
     }
     default:
-      throw new Error(`unsupported function calling mode: ${configEnum}`);
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `unsupported function calling mode: ${configEnum}`,
+      });
   }
 }
 
@@ -1509,6 +1513,366 @@ function toGeminiFunctionModeEnum(
 }
 
 /**
+ * Creates a v2 Gemini model action.
+ * This function extracts the core generation logic from defineGoogleAIModel
+ * and adapts it for the v2 plugin API.
+ */
+export function createGeminiModel({
+  name,
+  apiKey: apiKeyOption,
+  apiVersion,
+  baseUrl,
+  info,
+  defaultConfig,
+}: {
+  name: string;
+  apiKey?: string | false;
+  apiVersion?: string;
+  baseUrl?: string;
+  info?: ModelInfo;
+  defaultConfig?: GeminiConfig;
+}) {
+  let apiKey: string | undefined;
+  // DO NOT infer API key from environment variable if plugin was configured with `{apiKey: false}`.
+  if (apiKeyOption !== false) {
+    apiKey = apiKeyOption || getApiKeyFromEnvVar();
+    if (!apiKey) {
+      throw new GenkitError({
+        status: 'FAILED_PRECONDITION',
+        message:
+          'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
+          'For more details see https://genkit.dev/docs/plugins/google-genai',
+      });
+    }
+  }
+
+  const apiModelName = name.startsWith('googleai/')
+    ? name.substring('googleai/'.length)
+    : name;
+
+  // For v2, we don't use modelRef() - we create the model action directly
+  // Get the model info from SUPPORTED_GEMINI_MODELS or use defaults
+  const modelInfo = SUPPORTED_GEMINI_MODELS[apiModelName]?.info ?? {
+    label: `Google AI - ${apiModelName}`,
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+      output: ['text', 'json'],
+    },
+    ...info,
+  };
+
+  const middleware: ModelMiddleware[] = [];
+  if (modelInfo.supports?.media) {
+    // the gemini api doesn't support downloading media from http(s)
+    middleware.push(
+      downloadRequestMedia({
+        maxBytes: 1024 * 1024 * 10,
+        // don't download files that have been uploaded using the Files API
+        filter: (part) => {
+          try {
+            const url = new URL(part.media.url);
+            if (
+              [
+                'generativelanguage.googleapis.com',
+                'www.youtube.com',
+                'youtube.com',
+                'youtu.be',
+              ].includes(url.hostname)
+            )
+              return false;
+          } catch {}
+          return true;
+        },
+      })
+    );
+  }
+
+  return model(
+    {
+      name,
+      configSchema: GeminiConfigSchema,
+      label: info?.label || modelInfo.label || `Google AI - ${apiModelName}`,
+      supports: info?.supports || modelInfo.supports,
+      use: middleware,
+    },
+    async (request, { streamingRequested, sendChunk, abortSignal }) => {
+      return await generateGeminiContent(
+        request,
+        {
+          apiKey,
+          apiVersion,
+          baseUrl,
+          modelInfo,
+          defaultConfig,
+          apiModelName,
+        },
+        { streamingRequested, sendChunk, abortSignal }
+      );
+    }
+  );
+}
+
+/**
+ * Core Gemini content generation logic extracted from defineGoogleAIModel.
+ * This function contains all the actual API interaction logic.
+ */
+async function generateGeminiContent(
+  request: GenerateRequest<typeof GeminiConfigSchema>,
+  options: {
+    apiKey: string | undefined;
+    apiVersion?: string;
+    baseUrl?: string;
+    modelInfo: any;
+    defaultConfig?: GeminiConfig;
+    apiModelName: string;
+  },
+  ctx: { streamingRequested: boolean; sendChunk: any; abortSignal: any }
+) {
+  const {
+    apiKey,
+    apiVersion,
+    baseUrl,
+    modelInfo,
+    defaultConfig,
+    apiModelName,
+  } = options;
+  const { streamingRequested, sendChunk, abortSignal } = ctx;
+
+  const requestOptions: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
+  if (apiVersion) {
+    requestOptions.apiVersion = apiVersion;
+  }
+  if (baseUrl) {
+    requestOptions.baseUrl = baseUrl;
+  }
+  const requestConfig: z.infer<typeof GeminiConfigSchema> = {
+    ...defaultConfig,
+    ...request.config,
+  };
+
+  // Make a copy so that modifying the request will not produce side-effects
+  const messages = [...request.messages];
+  if (messages.length === 0)
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'No messages provided.',
+    });
+
+  // Gemini does not support messages with role system and instead expects
+  // systemInstructions to be provided as a separate input. The first
+  // message detected with role=system will be used for systemInstructions.
+  let systemInstruction: GeminiMessage | undefined = undefined;
+  if (modelInfo.supports?.systemRole) {
+    const systemMessage = messages.find((m) => m.role === 'system');
+    if (systemMessage) {
+      messages.splice(messages.indexOf(systemMessage), 1);
+      systemInstruction = toGeminiSystemInstruction(systemMessage);
+    }
+  }
+
+  // Validate that there are no additional system messages
+  if (messages.some((m) => m.role === 'system')) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message:
+        'Only a single system message is supported, and it must be first. Move additional system content into the first system message or user content.',
+    });
+  }
+
+  const tools: Tool[] = [];
+  if (request.tools?.length) {
+    tools.push({
+      functionDeclarations: request.tools.map(toGeminiTool),
+    });
+  }
+
+  const {
+    apiKey: apiKeyFromConfig,
+    safetySettings: safetySettingsFromConfig,
+    codeExecution: codeExecutionFromConfig,
+    version: versionFromConfig,
+    functionCallingConfig,
+    googleSearchRetrieval,
+    tools: toolsFromConfig,
+    ...restOfConfigOptions
+  } = requestConfig;
+
+  const effectiveApiKey = apiKeyFromConfig ?? apiKey;
+
+  if (codeExecutionFromConfig) {
+    tools.push({
+      codeExecution:
+        request.config?.codeExecution === true
+          ? {}
+          : request.config?.codeExecution || {},
+    });
+  }
+
+  if (toolsFromConfig) {
+    tools.push(...(toolsFromConfig as any[]));
+  }
+
+  if (googleSearchRetrieval) {
+    tools.push({
+      googleSearch: googleSearchRetrieval === true ? {} : googleSearchRetrieval,
+    } as GoogleSearchRetrievalTool);
+  }
+
+  let toolConfig: ToolConfig | undefined;
+  if (functionCallingConfig) {
+    toolConfig = {
+      functionCallingConfig: {
+        allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
+        mode: toFunctionModeEnum(functionCallingConfig.mode),
+      },
+    };
+  } else if (request.toolChoice) {
+    toolConfig = {
+      functionCallingConfig: {
+        mode: toGeminiFunctionModeEnum(request.toolChoice),
+      },
+    };
+  }
+
+  // Cannot use tools with JSON mode
+  const jsonMode =
+    request.output?.format === 'json' ||
+    (request.output?.contentType === 'application/json' && tools.length === 0);
+
+  const generationConfig: GenerationConfig = {
+    ...restOfConfigOptions,
+    candidateCount: request.candidates || undefined,
+    responseMimeType: jsonMode ? 'application/json' : undefined,
+  };
+
+  if (request.output?.constrained && jsonMode) {
+    generationConfig.responseSchema = cleanSchema(request.output.schema);
+  }
+
+  const msg = toGeminiMessage(messages[messages.length - 1]);
+
+  const fromJSONModeScopedGeminiCandidate = (candidate: GeminiCandidate) => {
+    return fromGeminiCandidate(candidate, jsonMode);
+  };
+
+  const chatRequest: StartChatParams = {
+    systemInstruction,
+    generationConfig,
+    tools: tools.length ? tools : undefined,
+    toolConfig,
+    history: messages.slice(0, -1).map((message) => toGeminiMessage(message)),
+    safetySettings: safetySettingsFromConfig,
+  } as StartChatParams;
+
+  const modelVersion = (versionFromConfig || apiModelName) as string;
+  const cacheConfigDetails = extractCacheConfig(request);
+
+  if (!effectiveApiKey) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message:
+        'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
+    });
+  }
+
+  const { chatRequest: updatedChatRequest, cache } = await handleCacheIfNeeded(
+    effectiveApiKey,
+    request,
+    chatRequest,
+    modelVersion,
+    cacheConfigDetails
+  );
+  const client = new GoogleGenerativeAI(effectiveApiKey);
+  let genModel: GenerativeModel;
+
+  if (cache) {
+    genModel = client.getGenerativeModelFromCachedContent(
+      cache,
+      {
+        model: modelVersion,
+      },
+      requestOptions
+    );
+  } else {
+    genModel = client.getGenerativeModel(
+      {
+        model: modelVersion,
+      },
+      requestOptions
+    );
+  }
+
+  const callGemini = async () => {
+    let response: GenerateContentResponse;
+
+    if (streamingRequested) {
+      const result = await genModel
+        .startChat(updatedChatRequest)
+        .sendMessageStream(msg.parts, {
+          ...requestOptions,
+          signal: abortSignal,
+        });
+
+      const chunks = [] as GenerateContentResponse[];
+      for await (const item of result.stream) {
+        chunks.push(item as GenerateContentResponse);
+        (item as GenerateContentResponse).candidates?.forEach((candidate) => {
+          const c = fromJSONModeScopedGeminiCandidate(candidate);
+          sendChunk({
+            index: c.index,
+            content: c.message.content,
+          });
+        });
+      }
+
+      response = aggregateResponses(chunks);
+    } else {
+      const result = await genModel
+        .startChat(updatedChatRequest)
+        .sendMessage(msg.parts, { ...requestOptions, signal: abortSignal });
+
+      response = result.response;
+    }
+
+    const candidates = response.candidates || [];
+    if (response.candidates?.['undefined']) {
+      candidates.push(response.candidates['undefined']);
+    }
+    if (!candidates.length) {
+      throw new GenkitError({
+        status: 'FAILED_PRECONDITION',
+        message: 'No valid candidates returned.',
+      });
+    }
+
+    const candidateData =
+      candidates.map(fromJSONModeScopedGeminiCandidate) || [];
+
+    const usageMetadata = response.usageMetadata as ExtendedUsageMetadata;
+
+    return {
+      candidates: candidateData,
+      custom: response,
+      usage: {
+        ...getBasicUsageStats(request.messages, candidateData),
+        inputTokens: usageMetadata?.promptTokenCount,
+        outputTokens: usageMetadata?.candidatesTokenCount,
+        thoughtsTokens: usageMetadata?.thoughtsTokenCount,
+        totalTokens: usageMetadata?.totalTokenCount,
+        cachedContentTokens: usageMetadata?.cachedContentTokenCount,
+      },
+    };
+  };
+
+  // If debugTraces is enabled, we wrap the actual model call with a span
+  // TODO: v2 doesn't have ai.registry, so we skip tracing for now?
+  return await callGemini();
+}
+
+/**
  * Aggregates an array of `GenerateContentResponse`s into a single GenerateContentResponse.
  *
  * This code is copy-pasted from https://github.com/google-gemini/deprecated-generative-ai-js/blob/8b14949a5e8f1f3dfc35c394ebf5b19e68f92a22/src/requests/stream-reader.ts#L153
@@ -1531,7 +1895,7 @@ export function aggregateResponses(
         if (!aggregatedResponse.candidates[candidateIndex]) {
           aggregatedResponse.candidates[candidateIndex] = {
             index: candidateIndex,
-          } as GenerateContentCandidate;
+          } as GeminiCandidate;
         }
         // Keep overwriting, the last one will be final
         aggregatedResponse.candidates[candidateIndex].citationMetadata =
