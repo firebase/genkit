@@ -48,6 +48,8 @@ type Action interface {
 	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
 	// Desc returns a descriptor of the action.
 	Desc() ActionDesc
+	// Register registers the action with the given registry.
+	Register(r *registry.Registry)
 }
 
 // An ActionType is the kind of an action.
@@ -286,6 +288,11 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 // Desc returns a descriptor of the action.
 func (a *ActionDef[In, Out, Stream]) Desc() ActionDesc {
 	return *a.desc
+}
+
+// Register registers the action with the given registry.
+func (a *ActionDef[In, Out, Stream]) Register(r *registry.Registry) {
+	r.RegisterAction(a.desc.Key, a)
 }
 
 // ResolveActionFor returns the action for the given key in the global registry,

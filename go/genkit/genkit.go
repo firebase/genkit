@@ -195,7 +195,7 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 			if dp, ok := plugin.(DynamicPlugin); ok && dp.Name() == provider {
 				action := dp.ResolveAction(core.ActionType(actionType), id)
 				if action != nil {
-					r.RegisterAction(action.Desc().Key, action)
+					action.Register(r)
 				}
 			}
 		}

@@ -58,13 +58,13 @@ type tool struct {
 type Tool interface {
 	// Name returns the name of the tool.
 	Name() string
-	// Definition returns ToolDefinition for for this tool.
+	// Definition returns the definition for this tool to be passed to models.
 	Definition() *ToolDefinition
 	// RunRaw runs this tool using the provided raw input.
 	RunRaw(ctx context.Context, input any) (any, error)
-	// Respond constructs a *Part with a ToolResponse for a given interrupted tool request.
+	// Respond constructs a [Part] with a [ToolResponse] for a given interrupted tool request.
 	Respond(toolReq *Part, outputData any, opts *RespondOptions) *Part
-	// Restart constructs a *Part with a new ToolRequest to re-trigger a tool,
+	// Restart constructs a [Part] with a new [ToolRequest] to re-trigger a tool,
 	// potentially with new input and metadata.
 	Restart(toolReq *Part, opts *RestartOptions) *Part
 }
@@ -215,8 +215,9 @@ func LookupTool(r *registry.Registry, name string) Tool {
 	if name == "" {
 		return nil
 	}
-
-	action := r.LookupAction(fmt.Sprintf("/%s/%s", core.ActionTypeTool, name))
+	provider, id := core.ParseName(name)
+	key := core.NewKey(core.ActionTypeTool, provider, id)
+	action := r.LookupAction(key)
 	if action == nil {
 		return nil
 	}

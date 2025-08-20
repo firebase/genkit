@@ -145,4 +145,9 @@ func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In) func(func(
 	}
 }
 
+// Register registers the flow with the given registry.
+func (f *Flow[In, Out, Stream]) Register(r *registry.Registry) {
+	r.RegisterAction(f.Desc().Key, (*ActionDef[In, Out, Stream])(f))
+}
+
 var errStop = errors.New("stop")
