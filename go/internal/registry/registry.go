@@ -35,7 +35,7 @@ const (
 )
 
 // ActionResolver is a function type for resolving actions dynamically
-type ActionResolver = func(actionType, provider, name string) error
+type ActionResolver = func(actionType, provider, name string)
 
 // Registry holds all registered actions and associated types,
 // and provides methods to register, query, and look up actions.
@@ -180,12 +180,7 @@ func (r *Registry) ResolveAction(key string) any {
 			slog.Debug("ResolveAction: failed to parse action key", "key", key, "err", err)
 			return nil
 		}
-		err = r.ActionResolver(typ, provider, name)
-		if err != nil {
-			// TODO: Handle errors from the action resolver better.
-			slog.Error("ResolveAction: failed to resolve action", "key", key, "err", err)
-			return nil
-		}
+		r.ActionResolver(typ, provider, name)
 		action = r.LookupAction(key)
 	}
 	return action

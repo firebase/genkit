@@ -43,7 +43,9 @@ type Evaluator interface {
 }
 
 // evaluator is an action with functions specific to evaluating a dataset.
-type evaluator core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
+type evaluator struct {
+	core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
+}
 
 // Example is a single example that requires evaluation
 type Example struct {
@@ -159,53 +161,55 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 		}
 	}
 
-	return (*evaluator)(core.NewAction(name, core.ActionTypeEvaluator, metadata, inputSchema, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
-		var results []EvaluationResult
-		for _, datapoint := range req.Dataset {
-			if datapoint.TestCaseId == "" {
-				datapoint.TestCaseId = uuid.New().String()
-			}
-			_, err := tracing.RunInNewSpan(ctx, fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
-				func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
-					traceId := trace.SpanContextFromContext(ctx).TraceID().String()
-					spanId := trace.SpanContextFromContext(ctx).SpanID().String()
+	return &evaluator{
+		ActionDef: *core.NewAction(name, core.ActionTypeEvaluator, metadata, inputSchema, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
+			var results []EvaluationResult
+			for _, datapoint := range req.Dataset {
+				if datapoint.TestCaseId == "" {
+					datapoint.TestCaseId = uuid.New().String()
+				}
+				_, err := tracing.RunInNewSpan(ctx, fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
+					func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
+						traceId := trace.SpanContextFromContext(ctx).TraceID().String()
+						spanId := trace.SpanContextFromContext(ctx).SpanID().String()
 
-					callbackRequest := EvaluatorCallbackRequest{
-						Input:   *input,
-						Options: req.Options,
-					}
-
-					result, err := fn(ctx, &callbackRequest)
-					if err != nil {
-						failedScore := Score{
-							Status: ScoreStatusFail.String(),
-							Error:  fmt.Sprintf("Evaluation of test case %s failed: \n %s", input.TestCaseId, err.Error()),
+						callbackRequest := EvaluatorCallbackRequest{
+							Input:   *input,
+							Options: req.Options,
 						}
-						failedResult := EvaluationResult{
-							TestCaseId: input.TestCaseId,
-							Evaluation: []Score{failedScore},
-							TraceID:    traceId,
-							SpanID:     spanId,
+
+						result, err := fn(ctx, &callbackRequest)
+						if err != nil {
+							failedScore := Score{
+								Status: ScoreStatusFail.String(),
+								Error:  fmt.Sprintf("Evaluation of test case %s failed: \n %s", input.TestCaseId, err.Error()),
+							}
+							failedResult := EvaluationResult{
+								TestCaseId: input.TestCaseId,
+								Evaluation: []Score{failedScore},
+								TraceID:    traceId,
+								SpanID:     spanId,
+							}
+							results = append(results, failedResult)
+							// return error to mark span as failed
+							return nil, err
 						}
-						results = append(results, failedResult)
-						// return error to mark span as failed
-						return nil, err
-					}
 
-					result.TraceID = traceId
-					result.SpanID = spanId
+						result.TraceID = traceId
+						result.SpanID = spanId
 
-					results = append(results, *result)
+						results = append(results, *result)
 
-					return result, nil
-				})
-			if err != nil {
-				logger.FromContext(ctx).Debug("EvaluatorAction", "err", err)
-				continue
+						return result, nil
+					})
+				if err != nil {
+					logger.FromContext(ctx).Debug("EvaluatorAction", "err", err)
+					continue
+				}
 			}
-		}
-		return &results, nil
-	}))
+			return &results, nil
+		}),
+	}
 }
 
 // DefineEvaluator registers the given evaluator function as an action, and
@@ -240,7 +244,9 @@ func NewBatchEvaluator(name string, opts *EvaluatorOptions, fn BatchEvaluatorFun
 		},
 	}
 
-	return (*evaluator)(core.NewAction(name, core.ActionTypeEvaluator, metadata, nil, fn))
+	return &evaluator{
+		ActionDef: *core.NewAction(name, core.ActionTypeEvaluator, metadata, nil, fn),
+	}
 }
 
 // DefineBatchEvaluator registers the given evaluator function as an action, and
@@ -258,7 +264,18 @@ func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOpti
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
 func LookupEvaluator(r *registry.Registry, name string) Evaluator {
-	return (*evaluator)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, core.ActionTypeEvaluator, name))
+	action := core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, core.ActionTypeEvaluator, name)
+	if action == nil {
+		return nil
+	}
+	return &evaluator{
+		ActionDef: *action,
+	}
+}
+
+// Evaluate runs the given [Evaluator].
+func (e evaluator) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+	return e.Run(ctx, req, nil)
 }
 
 // Evaluate calls the retrivers with provided options.
@@ -278,14 +295,4 @@ func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluatorOption) (*Evalu
 	}
 
 	return r.Evaluate(ctx, req)
-}
-
-// Name returns the name of the evaluator.
-func (e evaluator) Name() string {
-	return (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(&e).Name()
-}
-
-// Evaluate runs the given [Evaluator].
-func (e evaluator) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
-	return (*core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}])(&e).Run(ctx, req, nil)
 }

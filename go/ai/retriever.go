@@ -37,7 +37,9 @@ type Retriever interface {
 }
 
 // retriever is an action with functions specific to document retrieval such as Retrieve().
-type retriever core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
+type retriever struct {
+	core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
+}
 
 // RetrieverArg is the interface for retriever arguments. It can either be the retriever action itself or a reference to be looked up.
 type RetrieverArg interface {
@@ -116,7 +118,9 @@ func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriev
 		}
 	}
 
-	return (*retriever)(core.NewAction(name, core.ActionTypeRetriever, metadata, inputSchema, fn))
+	return &retriever{
+		ActionDef: *core.NewAction(name, core.ActionTypeRetriever, metadata, inputSchema, fn),
+	}
 }
 
 // DefineRetriever creates and registers a new [Retriever].
@@ -132,17 +136,14 @@ func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, 
 // It will try to resolve the retriever dynamically if the retriever is not found.
 // It returns nil if the retriever was not resolved.
 func LookupRetriever(r *registry.Registry, name string) Retriever {
-	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, name))
-}
-
-// Name returns the name of the retriever.
-func (r retriever) Name() string {
-	return (*core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}])(&r).Name()
+	return &retriever{
+		ActionDef: *core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, name),
+	}
 }
 
 // Retrieve runs the given [Retriever].
 func (r retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
-	return (*core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}])(&r).Run(ctx, req, nil)
+	return r.Run(ctx, req, nil)
 }
 
 // Retrieve calls the retriever with the provided options.

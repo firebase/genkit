@@ -33,15 +33,25 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-// Prompt is a prompt template that can be executed to generate a model response.
-type Prompt struct {
+// Prompt is the interface for a prompt that can be executed and rendered.
+type Prompt interface {
+	// Name returns the name of the prompt.
+	Name() string
+	// Execute executes the prompt with the given options and returns a [ModelResponse].
+	Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error)
+	// Render renders the prompt with the given input and returns a [GenerateActionOptions] to be used with [GenerateWithRequest].
+	Render(ctx context.Context, input any) (*GenerateActionOptions, error)
+}
+
+// prompt is a prompt template that can be executed to generate a model response.
+type prompt struct {
+	core.ActionDef[any, *GenerateActionOptions, struct{}]
 	promptOptions
 	registry *registry.Registry
-	action   core.ActionDef[any, *GenerateActionOptions, struct{}]
 }
 
 // DefinePrompt creates and registers a new Prompt.
-func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prompt {
+func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) Prompt {
 	if name == "" {
 		panic("ai.DefinePrompt: name is required")
 	}
@@ -53,7 +63,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prom
 		}
 	}
 
-	p := &Prompt{
+	p := &prompt{
 		registry:      r,
 		promptOptions: *pOpts,
 	}
@@ -92,30 +102,27 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prom
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineAction(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.ActionDef = *core.DefineAction(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p
 }
 
-// LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
+// LookupPrompt looks up a [prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(r *registry.Registry, name string) *Prompt {
+func LookupPrompt(r *registry.Registry, name string) *prompt {
 	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, name)
 	if action == nil {
 		return nil
 	}
-	return &Prompt{
-		registry: r,
-		action:   *action,
+	return &prompt{
+		ActionDef: *action,
+		registry:  r,
 	}
 }
 
-// Name returns the name of the prompt.
-func (p *Prompt) Name() string { return p.action.Name() }
-
 // Execute renders a prompt, does variable substitution and
 // passes the rendered template to the AI model specified by the prompt.
-func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
+func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
 	if p == nil {
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
@@ -163,7 +170,7 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 }
 
 // Render renders the prompt template based on user input.
-func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions, error) {
+func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	if p == nil {
 		return nil, errors.New("Prompt.Render: called on a nil prompt; check that all prompts are defined")
 	}
@@ -174,10 +181,10 @@ func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 
 	// TODO: This is hacky; we should have a helper that fetches the metadata.
 	if input == nil {
-		input = p.action.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
+		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
 
-	return p.action.Run(ctx, input, nil)
+	return p.Run(ctx, input, nil)
 }
 
 // mergeMessagesFn merges two messages functions.
@@ -261,8 +268,8 @@ fieldLoop:
 }
 
 // buildRequest prepares a [GenerateActionOptions] based on the prompt,
-// using the input variables and other information in the [Prompt].
-func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOptions, error) {
+// using the input variables and other information in the [prompt].
+func (p *prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	m, err := buildVariables(input)
 	if err != nil {
 		return nil, err
@@ -508,7 +515,7 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) {
 }
 
 // LoadPrompt loads a single prompt into the registry.
-func LoadPrompt(r *registry.Registry, dir, filename, namespace string) *Prompt {
+func LoadPrompt(r *registry.Registry, dir, filename, namespace string) Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
 

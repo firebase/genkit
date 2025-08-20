@@ -82,7 +82,9 @@ type EmbedderOptions struct {
 }
 
 // embedder is an action with functions specific to converting documents to multidimensional vectors such as Embed().
-type embedder core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
+type embedder struct {
+	core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
+}
 
 // NewEmbedder creates a new [Embedder] without registering it.
 func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
@@ -122,7 +124,9 @@ func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 		}
 	}
 
-	return (*embedder)(core.NewAction(name, core.ActionTypeEmbedder, metadata, nil, fn))
+	return &embedder{
+		ActionDef: *core.NewAction(name, core.ActionTypeEmbedder, metadata, nil, fn),
+	}
 }
 
 // DefineEmbedder registers the given embed function as an action, and returns an
@@ -139,17 +143,18 @@ func DefineEmbedder(r *registry.Registry, name string, opts *EmbedderOptions, fn
 // It will try to resolve the embedder dynamically if the embedder is not found.
 // It returns nil if the embedder was not resolved.
 func LookupEmbedder(r *registry.Registry, name string) Embedder {
-	return (*embedder)(core.ResolveActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, name))
-}
-
-// Name returns the name of the embedder.
-func (e *embedder) Name() string {
-	return (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(e).Name()
+	action := core.ResolveActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, name)
+	if action == nil {
+		return nil
+	}
+	return &embedder{
+		ActionDef: *action,
+	}
 }
 
 // Embed runs the given [Embedder].
 func (e *embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
-	return (*core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}])(e).Run(ctx, req, nil)
+	return e.Run(ctx, req, nil)
 }
 
 // Embed invokes the embedder with provided options.

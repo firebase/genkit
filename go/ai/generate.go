@@ -66,7 +66,9 @@ type ModelStreamCallback = func(context.Context, *ModelResponseChunk) error
 type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 // model is an action with functions specific to model generation such as Generate().
-type model core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type model struct {
+	core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+}
 
 // generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
 type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
@@ -175,7 +177,9 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return (*model)(core.NewStreamingAction(name, core.ActionTypeModel, metadata, inputSchema, fn))
+	return &model{
+		ActionDef: *core.NewStreamingAction(name, core.ActionTypeModel, metadata, inputSchema, fn),
+	}
 }
 
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
@@ -195,7 +199,9 @@ func LookupModel(r *registry.Registry, name string) Model {
 	if action == nil {
 		return nil
 	}
-	return (*model)(action)
+	return &model{
+		ActionDef: *action,
+	}
 }
 
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
@@ -508,18 +514,13 @@ func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...Ge
 	return &value, resp, nil
 }
 
-// Name returns the name of the model.
-func (m *model) Name() string {
-	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Name()
-}
-
 // Generate applies the [Action] to provided request.
 func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "Model.Generate: generate called on a nil model; check that all models are defined")
 	}
 
-	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)
+	return m.ActionDef.Run(ctx, req, cb)
 }
 
 // SupportsConstrained returns whether the model supports constrained output.
@@ -528,12 +529,7 @@ func (m *model) SupportsConstrained(hasTools bool) bool {
 		return false
 	}
 
-	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m)
-	if action == nil {
-		return false
-	}
-
-	metadata := action.Desc().Metadata
+	metadata := m.ActionDef.Desc().Metadata
 	if metadata == nil {
 		return false
 	}

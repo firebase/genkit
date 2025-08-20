@@ -189,7 +189,7 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 		r.RegisterPlugin(plugin.Name(), plugin)
 	}
 
-	r.ActionResolver = func(actionType, provider, id string) error {
+	r.ActionResolver = func(actionType, provider, id string) {
 		plugins := r.ListPlugins()
 		for _, plugin := range plugins {
 			if dp, ok := plugin.(DynamicPlugin); ok && dp.Name() == provider {
@@ -197,10 +197,8 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 				if action != nil {
 					r.RegisterAction(action.Desc().Key, action)
 				}
-				return nil
 			}
 		}
-		return nil
 	}
 
 	ai.ConfigureFormats(r)
@@ -557,7 +555,7 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 }
 
 // DefinePrompt defines a prompt programmatically, registers it as a [core.Action]
-// of type Prompt, and returns an executable [ai.Prompt].
+// of type Prompt, and returns an executable [ai.prompt].
 //
 // This provides an alternative to defining prompts in `.prompt` files, offering
 // more flexibility through Go code. Prompts encapsulate configuration (model, parameters),
@@ -616,21 +614,21 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of France: %s\n", out2.Capital) // Output: Capital of France: Paris
-func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) *ai.Prompt {
+func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) ai.Prompt {
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt retrieves a registered [ai.Prompt] by its name.
+// LookupPrompt retrieves a registered [ai.prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
 // It returns the prompt instance if found, or `nil` otherwise.
-func LookupPrompt(g *Genkit, name string) *ai.Prompt {
+func LookupPrompt(g *Genkit, name string) ai.Prompt {
 	return ai.LookupPrompt(g.reg, name)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
 // [ai.GenerateActionOptions]. This function is typically used in conjunction with
-// prompts defined via [DefinePrompt], where [ai.Prompt.Render] produces the
+// prompts defined via [DefinePrompt], where [ai.prompt.Render] produces the
 // `actionOpts`. It allows fine-grained control over the request sent to the model.
 //
 // It accepts optional model middleware (`mw`) for intercepting/modifying the request/response,
@@ -880,7 +878,7 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 }
 
 // LoadPrompt loads a single `.prompt` file specified by `path` into the registry,
-// associating it with the given `namespace`, and returns the resulting [ai.Prompt].
+// associating it with the given `namespace`, and returns the resulting [ai.prompt].
 //
 // The `path` should be the full path to the `.prompt` file.
 // The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
@@ -904,7 +902,7 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 //	// Execute the loaded prompt
 //	resp, err := customPrompt.Execute(ctx, ai.WithInput(map[string]any{"text": "some data"}))
 //	// ... handle response and error ...
-func LoadPrompt(g *Genkit, path string, namespace string) *ai.Prompt {
+func LoadPrompt(g *Genkit, path string, namespace string) ai.Prompt {
 	dir, filename := filepath.Split(path)
 	if dir != "" {
 		dir = filepath.Clean(dir)

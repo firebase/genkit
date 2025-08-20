@@ -122,7 +122,7 @@ func TestInputFormat(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var err error
-			var p *Prompt
+			var p Prompt
 
 			if test.inputType != nil {
 				p = DefinePrompt(reg, test.name, WithPrompt(test.templateText), WithInputType(test.inputType))
@@ -828,20 +828,20 @@ Hello, {{name}}!
 		t.Fatalf("Prompt was not registered")
 	}
 
-	if prompt.action.Desc().InputSchema == nil {
+	if prompt.Desc().InputSchema == nil {
 		t.Fatal("Input schema is nil")
 	}
 
-	if prompt.action.Desc().InputSchema["type"] != "object" {
-		t.Errorf("Expected input schema type 'object', got '%s'", prompt.action.Desc().InputSchema["type"])
+	if prompt.Desc().InputSchema["type"] != "object" {
+		t.Errorf("Expected input schema type 'object', got '%s'", prompt.Desc().InputSchema["type"])
 	}
 
-	promptMetadata, ok := prompt.action.Desc().Metadata["prompt"].(map[string]any)
+	promptMetadata, ok := prompt.Desc().Metadata["prompt"].(map[string]any)
 	if !ok {
-		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.action.Desc().Metadata["prompt"])
+		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.Desc().Metadata["prompt"])
 	}
 	if promptMetadata["model"] != "test-model" {
-		t.Errorf("Expected model name 'test-model', got '%s'", prompt.action.Desc().Metadata["model"])
+		t.Errorf("Expected model name 'test-model', got '%s'", prompt.Desc().Metadata["model"])
 	}
 }
 
