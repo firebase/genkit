@@ -52,10 +52,10 @@ async function checkFirebaseMonitoringAutoInit() {
     process.env.ENABLE_FIREBASE_MONITORING === 'true'
   ) {
     try {
-      // Use webpack-friendly dynamic import for optional dependency
-      const firebaseModule = await import(
-        /* webpackIgnore: true */ '@genkit-ai/firebase'
-      );
+      // Use runtime dynamic import to bypass TypeScript module resolution
+      // @genkit-ai/firebase is declared as optionalDependencies for webpack resolution
+      const importModule = new Function('moduleName', 'return import(moduleName)');
+      const firebaseModule = await importModule('@genkit-ai/firebase');
       firebaseModule.enableFirebaseTelemetry();
     } catch (e) {
       logger.warn(
