@@ -73,7 +73,7 @@ func main() {
 		mux.HandleFunc("POST /"+flow.Name(), genkit.Handler(flow))
 	}
 
-	fmt.Println("\n🔥 Starting server on http://127.0.0.1:3400...")
+	fmt.Println("\nStarting server on http://127.0.0.1:3400...")
 	if err := server.Start(ctx, "127.0.0.1:3400", mux); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
