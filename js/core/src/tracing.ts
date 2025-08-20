@@ -52,13 +52,12 @@ async function checkFirebaseMonitoringAutoInit() {
     process.env.ENABLE_FIREBASE_MONITORING === 'true'
   ) {
     try {
-      // Use runtime require to bypass TypeScript module resolution
-      // @genkit-ai/firebase is declared as optionalDependencies for webpack resolution
-      const requireModule = new Function(
+      const importModule = new Function(
         'moduleName',
-        'return require(moduleName)'
+        'return import(moduleName)'
       );
-      const firebaseModule = requireModule('@genkit-ai/firebase');
+      const firebaseModule = await importModule('@genkit-ai/firebase');
+
       firebaseModule.enableFirebaseTelemetry();
     } catch (e) {
       logger.warn(
