@@ -54,7 +54,10 @@ async function checkFirebaseMonitoringAutoInit() {
     try {
       // Use runtime dynamic import to bypass TypeScript module resolution
       // @genkit-ai/firebase is declared as optionalDependencies for webpack resolution
-      const importModule = new Function('moduleName', 'return import(moduleName)');
+      const importModule = new Function(
+        'moduleName',
+        'return import(moduleName)'
+      );
       const firebaseModule = await importModule('@genkit-ai/firebase');
       firebaseModule.enableFirebaseTelemetry();
     } catch (e) {
