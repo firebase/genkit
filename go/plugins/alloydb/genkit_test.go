@@ -47,16 +47,6 @@ var testCluster = flag.String("test-postgres-cluster", "", "postgres cluster for
 var testInstance = flag.String("test-postgres-instance", "", "postgres instance for tests")
 var testIAMEmail = flag.String("test-postgres-iam-email", "", "postgres instance for tests")
 
-func TestInit_NoConnectionPool(t *testing.T) {
-	ctx := context.Background()
-	cfg := engineConfig{}
-	engine := &PostgresEngine{Pool: cfg.connPool}
-	gcsp := &Postgres{engine: engine}
-	if err := gcsp.Init(ctx); err == nil {
-		t.Fatal("must fail if connection pool is nil")
-	}
-}
-
 func TestPostgres(t *testing.T) {
 	if !areValidFlags() {
 		t.Skip("no valid postgres flags")

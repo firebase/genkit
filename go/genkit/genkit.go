@@ -184,7 +184,7 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 	for _, plugin := range gOpts.Plugins {
 		actions := plugin.Init(ctx)
 		for _, action := range actions {
-			r.RegisterAction(action.Desc().Key, action)
+			action.Register(r)
 		}
 		r.RegisterPlugin(plugin.Name(), plugin)
 	}
@@ -237,7 +237,7 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 // RegisterAction registers a [core.Action] that was previously created by calling
 // NewX instead of DefineX.
 func RegisterAction(g *Genkit, action core.Action) {
-	g.reg.RegisterAction(action.Desc().Key, action)
+	action.Register(g.reg)
 }
 
 // DefineFlow defines a non-streaming flow, registers it as a [core.Action] of type Flow,
