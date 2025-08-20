@@ -50,7 +50,7 @@ func TestInit_NoConnectionPool(t *testing.T) {
 	ctx := context.Background()
 	cfg := engineConfig{}
 	engine := &PostgresEngine{Pool: cfg.connPool}
-	gcsp := &Postgres{engine: engine}
+	gcsp := NewPostgres(engine)
 	if err := gcsp.Init(ctx, &genkit.Genkit{}); err == nil {
 		t.Fatal("must fail if connection pool is nil")
 	}
@@ -76,7 +76,7 @@ func TestInit_AlreadyCalled(t *testing.T) {
 
 	g := &genkit.Genkit{}
 
-	gcsp := &Postgres{engine: pEngine}
+	gcsp := NewPostgres(pEngine)
 	g = genkit.Init(ctx, genkit.WithPlugins(gcsp))
 
 	err = gcsp.Init(ctx, g)
@@ -104,9 +104,7 @@ func TestPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	postgres := &Postgres{
-		engine: pEngine,
-	}
+	postgres := NewPostgres(pEngine)
 
 	g := genkit.Init(ctx, genkit.WithPlugins(postgres))
 
