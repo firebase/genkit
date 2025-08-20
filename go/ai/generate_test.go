@@ -1083,7 +1083,7 @@ func TestToolInterruptsAndResume(t *testing.T) {
 }
 
 func TestResourceProcessing(t *testing.T) {
-	r, _ := registry.New()
+	r := registry.New()
 
 	// Create test resources using DefineResource
 	DefineResource(r, "test-file", &ResourceOptions{
@@ -1133,7 +1133,7 @@ func TestResourceProcessing(t *testing.T) {
 }
 
 func TestResourceProcessingError(t *testing.T) {
-	r, _ := registry.New()
+	r := registry.New()
 
 	// No resources registered
 	messages := []*Message{
