@@ -125,19 +125,23 @@ func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriev
 
 // DefineRetriever creates and registers a new [Retriever].
 func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
-	retriever := NewRetriever(name, opts, fn)
+	ret := NewRetriever(name, opts, fn)
 	provider, id := core.ParseName(name)
 	key := core.NewKey(core.ActionTypeRetriever, provider, id)
-	r.RegisterAction(key, retriever)
-	return retriever
+	r.RegisterAction(key, ret.(*retriever).ActionDef)
+	return ret
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It will try to resolve the retriever dynamically if the retriever is not found.
 // It returns nil if the retriever was not resolved.
 func LookupRetriever(r *registry.Registry, name string) Retriever {
+	action := core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, name)
+	if action == nil {
+		return nil
+	}
 	return &retriever{
-		ActionDef: *core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, name),
+		ActionDef: *action,
 	}
 }
 

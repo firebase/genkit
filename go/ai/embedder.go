@@ -132,11 +132,11 @@ func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
 func DefineEmbedder(r *registry.Registry, name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
-	embedder := NewEmbedder(name, opts, fn)
+	e := NewEmbedder(name, opts, fn)
 	provider, id := core.ParseName(name)
 	key := core.NewKey(core.ActionTypeEmbedder, provider, id)
-	r.RegisterAction(key, embedder)
-	return embedder
+	r.RegisterAction(key, e.(*embedder).ActionDef)
+	return e
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].

@@ -216,11 +216,11 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 // returns a [Evaluator] that runs it. This method process the input dataset
 // one-by-one.
 func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
-	evaluator := NewEvaluator(name, opts, fn)
+	e := NewEvaluator(name, opts, fn)
 	provider, id := core.ParseName(name)
 	key := core.NewKey(core.ActionTypeEvaluator, provider, id)
-	r.RegisterAction(key, evaluator)
-	return evaluator
+	r.RegisterAction(key, e.(*evaluator).ActionDef)
+	return e
 }
 
 // NewBatchEvaluator creates a new [Evaluator] without registering it.

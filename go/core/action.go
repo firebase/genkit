@@ -315,11 +315,11 @@ func LookupActionFor[In, Out, Stream any](r *registry.Registry, atype ActionType
 }
 
 // NewKey creates a new action key for the given type, provider, and name.
-func NewKey(typ ActionType, provider, name string) string {
+func NewKey(typ ActionType, provider, id string) string {
 	if provider != "" {
-		return fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+		return fmt.Sprintf("/%s/%s/%s", typ, provider, id)
 	}
-	return fmt.Sprintf("/%s/%s", typ, name)
+	return fmt.Sprintf("/%s/%s", typ, id)
 }
 
 // ParseKey parses an action key into a type, provider, and name.
