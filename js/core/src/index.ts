@@ -74,3 +74,18 @@ export * from './reflection.js';
 export { defineJsonSchema, defineSchema, type JSONSchema } from './schema.js';
 export * from './telemetryTypes.js';
 export * from './utils.js';
+
+const clientHeaderGlobalKey = '__genkit_ClientHeader';
+
+/** Additional attribution information to include in the x-goog-api-client header. */
+export function getClientHeader() {
+  if (global[clientHeaderGlobalKey]) {
+    return GENKIT_CLIENT_HEADER + ' ' + global[clientHeaderGlobalKey];
+  }
+  return GENKIT_CLIENT_HEADER;
+}
+
+/** Sets additional attribution information to include in the x-goog-api-client header. */
+export function setClientHeader(header: string) {
+  global[clientHeaderGlobalKey] = header;
+}

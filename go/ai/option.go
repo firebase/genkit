@@ -106,6 +106,7 @@ type commonGenOptions struct {
 	Model              ModelArg          // Model to use.
 	MessagesFn         MessagesFn        // Function to generate messages.
 	Tools              []ToolRef         // References to tools to use.
+	Resources          []Resource        // Resources to be temporarily available during generation.
 	ToolChoice         ToolChoice        // Whether tool calls are required, disabled, or optional.
 	MaxTurns           int               // Maximum number of tool call iterations.
 	ReturnToolRequests *bool             // Whether to return tool requests instead of making the tool calls and continuing the generation.
@@ -145,6 +146,13 @@ func (o *commonGenOptions) applyCommonGen(opts *commonGenOptions) error {
 			return errors.New("cannot set tools more than once (WithTools)")
 		}
 		opts.Tools = o.Tools
+	}
+
+	if o.Resources != nil {
+		if opts.Resources != nil {
+			return errors.New("cannot set resources more than once (WithResources)")
+		}
+		opts.Resources = o.Resources
 	}
 
 	if o.ToolChoice != "" {
@@ -814,6 +822,34 @@ func WithToolResponses(parts ...*Part) GenerateOption {
 // WithToolRestarts sets the tool requests to restart interrupted tools with.
 func WithToolRestarts(parts ...*Part) GenerateOption {
 	return &generateOptions{RestartParts: parts}
+}
+
+// WithResources specifies resources to be temporarily available during generation.
+// Resources are unregistered resources that get attached to a temporary registry
+// during the generation request and cleaned up afterward.
+func WithResources(resources ...Resource) CommonGenOption {
+	return &withResources{resources: resources}
+}
+
+type withResources struct {
+	resources []Resource
+}
+
+func (w *withResources) applyCommonGen(o *commonGenOptions) error {
+	o.Resources = w.resources
+	return nil
+}
+
+func (w *withResources) applyPrompt(o *promptOptions) error {
+	return w.applyCommonGen(&o.commonGenOptions)
+}
+
+func (w *withResources) applyGenerate(o *generateOptions) error {
+	return w.applyCommonGen(&o.commonGenOptions)
+}
+
+func (w *withResources) applyPromptExecute(o *promptExecutionOptions) error {
+	return w.applyCommonGen(&o.commonGenOptions)
 }
 
 // promptExecutionOptions are options for generating a model response by executing a prompt.
