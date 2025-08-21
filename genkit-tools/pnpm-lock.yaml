@@ -56,9 +56,6 @@ importers:
       get-port:
         specifier: 5.1.1
         version: 5.1.1
-      inquirer:
-        specifier: ^8.2.0
-        version: 8.2.6
       open:
         specifier: ^6.3.0
         version: 6.4.0
@@ -72,9 +69,6 @@ importers:
       '@jest/globals':
         specifier: ^29.7.0
         version: 29.7.0
-      '@types/inquirer':
-        specifier: ^8.1.3
-        version: 8.2.11
       '@types/jest':
         specifier: ^29.5.12
         version: 29.5.14
@@ -2225,7 +2219,7 @@ packages:
     resolution: {integrity: sha512-uXbpfeQ7R6TZBqI3/TxCU4q4ttk3u0PJeC+E0zbfSoSjq6bJ7buBPxzQPL0ifrkY4DNu4JUdk0ImlBUYi840eQ==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     peerDependencies:
-      '@types/node': 20.19.0
+      '@types/node': '*'
       ts-node: '>=9.0.0'
     peerDependenciesMeta:
       '@types/node':
