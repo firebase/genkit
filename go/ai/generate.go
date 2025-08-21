@@ -185,9 +185,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 // DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
 func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
 	m := NewModel(name, opts, fn)
-	provider, id := core.ParseName(name)
-	key := core.NewKey(core.ActionTypeModel, provider, id)
-	r.RegisterAction(key, &m.(*model).ActionDef)
+	m.(*model).Register(r)
 	return m
 }
 

@@ -126,9 +126,7 @@ func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriev
 // DefineRetriever creates and registers a new [Retriever].
 func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
 	ret := NewRetriever(name, opts, fn)
-	provider, id := core.ParseName(name)
-	key := core.NewKey(core.ActionTypeRetriever, provider, id)
-	r.RegisterAction(key, &ret.(*retriever).ActionDef)
+	ret.(*retriever).Register(r)
 	return ret
 }
 

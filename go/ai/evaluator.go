@@ -217,9 +217,7 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 // one-by-one.
 func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
 	e := NewEvaluator(name, opts, fn)
-	provider, id := core.ParseName(name)
-	key := core.NewKey(core.ActionTypeEvaluator, provider, id)
-	r.RegisterAction(key, &e.(*evaluator).ActionDef)
+	e.(*evaluator).Register(r)
 	return e
 }
 

@@ -133,9 +133,7 @@ func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 // [Embedder] that runs it.
 func DefineEmbedder(r *registry.Registry, name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 	e := NewEmbedder(name, opts, fn)
-	provider, id := core.ParseName(name)
-	key := core.NewKey(core.ActionTypeEmbedder, provider, id)
-	r.RegisterAction(key, &e.(*embedder).ActionDef)
+	e.(*embedder).Register(r)
 	return e
 }
 
