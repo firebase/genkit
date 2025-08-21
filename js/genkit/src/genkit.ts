@@ -547,14 +547,14 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * create a handlebards helper (https://handlebarsjs.com/guide/block-helpers.html) to be used in dotpormpt templates.
+   * create a handlebars helper (https://handlebarsjs.com/guide/block-helpers.html) to be used in dotprompt templates.
    */
   defineHelper(name: string, fn: Handlebars.HelperDelegate): void {
     defineHelper(this.registry, name, fn);
   }
 
   /**
-   * Creates a handlebars partial (https://handlebarsjs.com/guide/partials.html) to be used in dotpormpt templates.
+   * Creates a handlebars partial (https://handlebarsjs.com/guide/partials.html) to be used in dotprompt templates.
    */
   definePartial(name: string, source: string): void {
     definePartial(this.registry, name, source);
@@ -1017,7 +1017,7 @@ function registerActionV2(
   } else {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
-      message: 'Unkown action type returned from plugin ' + plugin.name,
+      message: 'Unknown action type returned from plugin ' + plugin.name,
     });
   }
 }
