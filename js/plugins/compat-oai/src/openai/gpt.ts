@@ -45,6 +45,7 @@ export function openAIModelRef(params: {
     ...params,
     info: params.info,
     configSchema: OpenAIChatCompletionConfigSchema,
+    namespace: 'openai',
   });
 }
 

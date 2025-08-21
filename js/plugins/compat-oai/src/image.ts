@@ -153,12 +153,14 @@ export function compatOaiImageModelRef<
   info?: ModelInfo;
   configSchema?: CustomOptions;
   config?: any;
+  namespace?: string;
 }) {
   const {
     name,
     info = IMAGE_GENERATION_MODEL_INFO,
     configSchema,
     config = undefined,
+    namespace,
   } = params;
   return modelRef({
     name,
@@ -166,5 +168,6 @@ export function compatOaiImageModelRef<
       configSchema || (ImageGenerationCommonConfigSchema as z.AnyZodObject),
     info,
     config,
+    namespace,
   });
 }

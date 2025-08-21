@@ -400,20 +400,31 @@ export function modelRef<
   options: Omit<
     ModelReference<CustomOptionsSchema>,
     'withConfig' | 'withVersion'
-  >
+  > & {
+    namespace?: string;
+  }
 ): ModelReference<CustomOptionsSchema> {
-  const ref: Partial<ModelReference<CustomOptionsSchema>> = { ...options };
+  let name = options.name;
+  if (options.namespace && !name.startsWith(options.namespace + '/')) {
+    name = `${options.namespace}/${name}`;
+  }
+  const ref: Partial<ModelReference<CustomOptionsSchema>> = {
+    ...options,
+    name,
+  };
   ref.withConfig = (
     cfg: z.infer<CustomOptionsSchema>
   ): ModelReference<CustomOptionsSchema> => {
     return modelRef({
       ...options,
+      name,
       config: cfg,
     });
   };
   ref.withVersion = (version: string): ModelReference<CustomOptionsSchema> => {
     return modelRef({
       ...options,
+      name,
       version,
     });
   };
