@@ -325,6 +325,7 @@ export class GenkitMcpServer {
       });
     const result = await prompt(req.params.arguments);
     return {
+
       description: prompt.__action.description,
       messages: result.messages.map(toMcpPromptMessage),
     };
