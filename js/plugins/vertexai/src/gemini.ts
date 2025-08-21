@@ -17,6 +17,7 @@
 import {
   FunctionCallingMode,
   FunctionDeclarationSchemaType,
+  UsageMetadata,
   type Content,
   type FunctionDeclaration,
   type Part as GeminiPart,
@@ -34,13 +35,7 @@ import {
   type VertexAI,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
-import {
-  GENKIT_CLIENT_HEADER,
-  GenkitError,
-  z,
-  type Genkit,
-  type JSONSchema,
-} from 'genkit';
+import { GenkitError, z, type Genkit, type JSONSchema } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -63,10 +58,17 @@ import {
 } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
-
+import { getGenkitClientHeader } from './common/index.js';
 import type { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
+
+// Extra type guard to keep the compiler happy and avoid a cast to any. The
+// legacy Gemini SDK is no longer maintained, and doesn't have updated types.
+// However, the REST API returns the data we want.
+type ExtendedUsageMetadata = UsageMetadata & {
+  thoughtsTokenCount?: number;
+};
 
 export const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -253,6 +255,29 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .optional(),
+  thinkingConfig: z
+    .object({
+      includeThoughts: z
+        .boolean()
+        .describe(
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only when available.'
+        )
+        .optional(),
+      thinkingBudget: z
+        .number()
+        .min(0)
+        .max(24576)
+        .describe(
+          'The thinking budget parameter gives the model guidance on the ' +
+            'number of thinking tokens it can use when generating a response. ' +
+            'A greater number of tokens is typically associated with more detailed ' +
+            'thinking, which is needed for solving more complex tasks. ' +
+            'Setting the thinking budget to 0 disables thinking.'
+        )
+        .optional(),
+    })
     .optional(),
 }).passthrough();
 
@@ -1221,7 +1246,7 @@ export function defineGeminiModel({
             model: modelVersion,
           },
           {
-            apiClient: GENKIT_CLIENT_HEADER,
+            apiClient: getGenkitClientHeader(),
           }
         );
       } else {
@@ -1230,7 +1255,7 @@ export function defineGeminiModel({
             model: modelVersion,
           },
           {
-            apiClient: GENKIT_CLIENT_HEADER,
+            apiClient: getGenkitClientHeader(),
           }
         );
       }
@@ -1276,16 +1301,18 @@ export function defineGeminiModel({
           fromGeminiCandidate(c, jsonMode)
         );
 
+        const usageMetadata = response.usageMetadata as ExtendedUsageMetadata;
+
         return {
           candidates: candidateData,
           custom: response,
           usage: {
             ...getBasicUsageStats(request.messages, candidateData),
-            inputTokens: response.usageMetadata?.promptTokenCount,
-            outputTokens: response.usageMetadata?.candidatesTokenCount,
-            totalTokens: response.usageMetadata?.totalTokenCount,
-            cachedContentTokens:
-              response.usageMetadata?.cachedContentTokenCount,
+            inputTokens: usageMetadata?.promptTokenCount,
+            outputTokens: usageMetadata?.candidatesTokenCount,
+            totalTokens: usageMetadata?.totalTokenCount,
+            thoughtsTokens: usageMetadata?.thoughtsTokenCount,
+            cachedContentTokens: usageMetadata?.cachedContentTokenCount,
           },
         };
       };

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GENKIT_CLIENT_HEADER } from 'genkit';
+import { getGenkitClientHeader } from './common';
 
 export type PredictMethod = 'predict' | 'predictLongRunning';
 
@@ -78,7 +78,7 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
         body: JSON.stringify(req),
         headers: {
           'Content-Type': 'application/json',
-          'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+          'X-Goog-Api-Client': getGenkitClientHeader(),
         },
       }
     );
@@ -111,7 +111,7 @@ export async function checkOp(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+        'X-Goog-Api-Client': getGenkitClientHeader(),
       },
     }
   );

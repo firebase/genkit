@@ -846,7 +846,7 @@ ai.defineFlow('testArray', async (input, { sendChunk }) => {
 
 ai.defineFlow('formatEnum', async (input, { sendChunk }) => {
   const { output } = await ai.generate({
-    prompt: `classify the denger level of sky diving`,
+    prompt: `classify the danger level of sky diving`,
     output: {
       format: 'enum',
       schema: z.enum(['safe', 'dangerous', 'medium']),
@@ -858,7 +858,7 @@ ai.defineFlow('formatEnum', async (input, { sendChunk }) => {
 
 ai.defineFlow('formatJsonl', async (input, { sendChunk }) => {
   const { output } = await ai.generate({
-    prompt: `generate 5 randon persons`,
+    prompt: `generate 5 random persons`,
     output: {
       format: 'jsonl',
       schema: z.array(

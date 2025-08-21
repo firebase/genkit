@@ -24,7 +24,6 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/invopop/jsonschema"
 )
 
 // PromptFn is a function that generates a prompt.
@@ -104,10 +103,10 @@ func WithConfig(config any) ConfigOption {
 // commonGenOptions are common options for model generation, prompt definition, and prompt execution.
 type commonGenOptions struct {
 	configOptions
-	ModelName          string            // Name of the model to use.
 	Model              ModelArg          // Model to use.
 	MessagesFn         MessagesFn        // Function to generate messages.
 	Tools              []ToolRef         // References to tools to use.
+	Resources          []Resource        // Resources to be temporarily available during generation.
 	ToolChoice         ToolChoice        // Whether tool calls are required, disabled, or optional.
 	MaxTurns           int               // Maximum number of tool call iterations.
 	ReturnToolRequests *bool             // Whether to return tool requests instead of making the tool calls and continuing the generation.
@@ -135,18 +134,11 @@ func (o *commonGenOptions) applyCommonGen(opts *commonGenOptions) error {
 	}
 
 	if o.Model != nil {
-		if opts.Model != nil || opts.ModelName != "" {
+		if opts.Model != nil {
 			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
 		}
 		opts.Model = o.Model
 		return nil
-	}
-
-	if o.ModelName != "" {
-		if opts.Model != nil || opts.ModelName != "" {
-			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
-		}
-		opts.ModelName = o.ModelName
 	}
 
 	if o.Tools != nil {
@@ -154,6 +146,13 @@ func (o *commonGenOptions) applyCommonGen(opts *commonGenOptions) error {
 			return errors.New("cannot set tools more than once (WithTools)")
 		}
 		opts.Tools = o.Tools
+	}
+
+	if o.Resources != nil {
+		if opts.Resources != nil {
+			return errors.New("cannot set resources more than once (WithResources)")
+		}
+		opts.Resources = o.Resources
 	}
 
 	if o.ToolChoice != "" {
@@ -223,15 +222,16 @@ func WithTools(tools ...ToolRef) CommonGenOption {
 	return &commonGenOptions{Tools: tools}
 }
 
-// WithModel sets a resolvable model reference to use for generation.
+// WithModel sets either a [Model] or a [ModelRef] that may contain a config.
+// Passing [WithConfig] will take precedence over the config in WithModel.
 func WithModel(model ModelArg) CommonGenOption {
 	return &commonGenOptions{Model: model}
 }
 
 // WithModelName sets the model name to call for generation.
-// The model name will be resolved to a Model and may error if the reference is invalid.
+// The model name will be resolved to a [Model] and may error if the reference is invalid.
 func WithModelName(name string) CommonGenOption {
-	return &commonGenOptions{ModelName: name}
+	return &commonGenOptions{Model: NewModelRef(name, nil)}
 }
 
 // WithMiddleware sets middleware to apply to the model request.
@@ -261,10 +261,10 @@ type promptOptions struct {
 	commonGenOptions
 	promptingOptions
 	outputOptions
-	Description  string             // Description of the prompt.
-	InputSchema  *jsonschema.Schema // Schema of the input.
-	DefaultInput map[string]any     // Default input that will be used if no input is provided.
-	Metadata     map[string]any     // Arbitrary metadata.
+	Description  string         // Description of the prompt.
+	InputSchema  map[string]any // Schema of the input.
+	DefaultInput map[string]any // Default input that will be used if no input is provided.
+	Metadata     map[string]any // Arbitrary metadata.
 }
 
 // PromptOption is an option for defining a prompt.
@@ -350,7 +350,7 @@ func WithInputType(input any) PromptOption {
 	}
 
 	return &promptOptions{
-		InputSchema:  base.InferJSONSchema(input),
+		InputSchema:  core.InferSchemaMap(input),
 		DefaultInput: defaultInput,
 	}
 }
@@ -673,6 +673,7 @@ func WithID(ID string) EvaluatorOption {
 type embedderOptions struct {
 	configOptions
 	documentOptions
+	Embedder EmbedderArg // Embedder to use.
 }
 
 // EmbedderOption is an option for configuring an embedder request.
@@ -691,13 +692,33 @@ func (o *embedderOptions) applyEmbedder(embedOpts *embedderOptions) error {
 		return err
 	}
 
+	if o.Embedder != nil {
+		if embedOpts.Embedder != nil {
+			return errors.New("cannot set embedder more than once (WithEmbedder or WithEmbedderName)")
+		}
+		embedOpts.Embedder = o.Embedder
+	}
+
 	return nil
+}
+
+// WithEmbedder sets either a [Embedder] or a [EmbedderRef] that may contain a config.
+// Passing [WithConfig] will take precedence over the config in WithEmbedder.
+func WithEmbedder(embedder EmbedderArg) EmbedderOption {
+	return &embedderOptions{Embedder: embedder}
+}
+
+// WithEmbedderName sets the embedder name to call for document embedding.
+// The embedder name will be resolved to a [Embedder] and may error if the reference is invalid.
+func WithEmbedderName(name string) EmbedderOption {
+	return &embedderOptions{Embedder: NewEmbedderRef(name, nil)}
 }
 
 // retrieverOptions holds configuration and input for a retriever request.
 type retrieverOptions struct {
 	configOptions
 	documentOptions
+	Retriever RetrieverArg // Retriever to use.
 }
 
 // RetrieverOption is an option for configuring a retriever request.
@@ -716,7 +737,26 @@ func (o *retrieverOptions) applyRetriever(retOpts *retrieverOptions) error {
 		return err
 	}
 
+	if o.Retriever != nil {
+		if retOpts.Retriever != nil {
+			return errors.New("cannot set retriever more than once (WithRetriever or WithRetrieverName)")
+		}
+		retOpts.Retriever = o.Retriever
+	}
+
 	return nil
+}
+
+// WithRetriever sets either a [Retriever] or a [RetrieverRef] that may contain a config.
+// Passing [WithConfig] will take precedence over the config in WithRetriever.
+func WithRetriever(retriever RetrieverArg) RetrieverOption {
+	return &retrieverOptions{Retriever: retriever}
+}
+
+// WithRetrieverName sets the retriever name to call for document retrieval.
+// The retriever name will be resolved to a [Retriever] and may error if the reference is invalid.
+func WithRetrieverName(name string) RetrieverOption {
+	return &retrieverOptions{Retriever: NewRetrieverRef(name, nil)}
 }
 
 // generateOptions are options for generating a model response by calling a model directly.
@@ -726,9 +766,8 @@ type generateOptions struct {
 	outputOptions
 	executionOptions
 	documentOptions
-	RespondParts     []*Part                       // Tool responses to return from interrupted tool calls.
-	RestartParts     []*Part                       // Tool requests to restart interrupted tools with.
-	DynamicResources []core.DetachedResourceAction // Dynamic resources to be temporarily available during generation.
+	RespondParts []*Part // Tool responses to return from interrupted tool calls.
+	RestartParts []*Part // Tool requests to restart interrupted tools with.
 }
 
 // GenerateOption is an option for generating a model response. It applies only to Generate().
@@ -772,13 +811,6 @@ func (o *generateOptions) applyGenerate(genOpts *generateOptions) error {
 		genOpts.RestartParts = o.RestartParts
 	}
 
-	if o.DynamicResources != nil {
-		if genOpts.DynamicResources != nil {
-			return errors.New("cannot set dynamic resources more than once (WithResources)")
-		}
-		genOpts.DynamicResources = o.DynamicResources
-	}
-
 	return nil
 }
 
@@ -792,20 +824,32 @@ func WithToolRestarts(parts ...*Part) GenerateOption {
 	return &generateOptions{RestartParts: parts}
 }
 
-// WithResources specifies dynamic resources to be temporarily available during generation.
-// Dynamic resources are unregistered resources that get attached to a temporary registry
+// WithResources specifies resources to be temporarily available during generation.
+// Resources are unregistered resources that get attached to a temporary registry
 // during the generation request and cleaned up afterward.
-func WithResources(resources []core.DetachedResourceAction) GenerateOption {
+func WithResources(resources ...Resource) CommonGenOption {
 	return &withResources{resources: resources}
 }
 
 type withResources struct {
-	resources []core.DetachedResourceAction
+	resources []Resource
+}
+
+func (w *withResources) applyCommonGen(o *commonGenOptions) error {
+	o.Resources = w.resources
+	return nil
+}
+
+func (w *withResources) applyPrompt(o *promptOptions) error {
+	return w.applyCommonGen(&o.commonGenOptions)
 }
 
 func (w *withResources) applyGenerate(o *generateOptions) error {
-	o.DynamicResources = w.resources
-	return nil
+	return w.applyCommonGen(&o.commonGenOptions)
+}
+
+func (w *withResources) applyPromptExecute(o *promptExecutionOptions) error {
+	return w.applyCommonGen(&o.commonGenOptions)
 }
 
 // promptExecutionOptions are options for generating a model response by executing a prompt.

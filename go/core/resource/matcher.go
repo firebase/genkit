@@ -18,7 +18,6 @@ package resource
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/yosida95/uritemplate/v3"
 )
@@ -28,30 +27,6 @@ import (
 type URIMatcher interface {
 	Matches(uri string) bool
 	ExtractVariables(uri string) (map[string]string, error)
-}
-
-// normalizeURI cleans up a URI for template matching by removing common user issues:
-// - Query parameters: "api://search/hello?limit=10" → "api://search/hello"
-// - Trailing slashes: "api://users/123/" → "api://users/123"
-// - URI fragments: "docs://page/intro#section1" → "docs://page/intro"
-// This improves user experience by making template matching more forgiving.
-func normalizeURI(uri string) string {
-	// Remove query parameters
-	if idx := strings.Index(uri, "?"); idx != -1 {
-		uri = uri[:idx]
-	}
-
-	// Remove URI fragments
-	if idx := strings.Index(uri, "#"); idx != -1 {
-		uri = uri[:idx]
-	}
-
-	// Remove trailing slash (but keep if it's just the root "/")
-	if len(uri) > 1 && strings.HasSuffix(uri, "/") {
-		uri = uri[:len(uri)-1]
-	}
-
-	return uri
 }
 
 // NewStaticMatcher creates a matcher for exact URI matches.
@@ -90,14 +65,12 @@ type templateMatcher struct {
 }
 
 func (m *templateMatcher) Matches(uri string) bool {
-	cleanURI := normalizeURI(uri)
-	values := m.template.Match(cleanURI)
+	values := m.template.Match(uri)
 	return len(values) > 0
 }
 
 func (m *templateMatcher) ExtractVariables(uri string) (map[string]string, error) {
-	cleanURI := normalizeURI(uri)
-	values := m.template.Match(cleanURI)
+	values := m.template.Match(uri)
 	if len(values) == 0 {
 		return nil, fmt.Errorf("URI %q does not match template", uri)
 	}

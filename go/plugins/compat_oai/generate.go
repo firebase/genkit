@@ -100,9 +100,14 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				if !p.IsToolResponse() {
 					continue
 				}
+				// Use the captured tool call ID (Ref) if available, otherwise fall back to tool name
+				toolCallID := p.ToolResponse.Ref
+				if toolCallID == "" {
+					toolCallID = p.ToolResponse.Name
+				}
+
 				tm := openai.ToolMessage(
-					// NOTE: Temporarily set its name instead of its ref (i.e. call_xxxxx) since it's not defined in the ai.ToolResponse struct.
-					p.ToolResponse.Name,
+					toolCallID,
 					anyToJSONString(p.ToolResponse.Output),
 				)
 				oaiMessages = append(oaiMessages, tm)
@@ -369,6 +374,7 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 	var toolRequestParts []*ai.Part
 	for _, toolCall := range choice.Message.ToolCalls {
 		toolRequestParts = append(toolRequestParts, ai.NewToolRequestPart(&ai.ToolRequest{
+			Ref:   toolCall.ID,
 			Name:  toolCall.Function.Name,
 			Input: jsonStringToMap(toolCall.Function.Arguments),
 		}))
@@ -397,9 +403,13 @@ func convertToolCalls(content []*ai.Part) []openai.ChatCompletionMessageToolCall
 }
 
 func convertToolCall(part *ai.Part) openai.ChatCompletionMessageToolCallParam {
+	toolCallID := part.ToolRequest.Ref
+	if toolCallID == "" {
+		toolCallID = part.ToolRequest.Name
+	}
+
 	param := openai.ChatCompletionMessageToolCallParam{
-		// NOTE: Temporarily set its name instead of its ref (i.e. call_xxxxx) since it's not defined in the ai.ToolRequest struct.
-		ID: (part.ToolRequest.Name),
+		ID: (toolCallID),
 		Function: (openai.ChatCompletionMessageToolCallFunctionParam{
 			Name: (part.ToolRequest.Name),
 		}),

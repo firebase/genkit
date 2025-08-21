@@ -122,7 +122,7 @@ func NewReasoningPart(text string, signature []byte) *Part {
 
 // NewResourcePart returns a Part containing a resource reference.
 func NewResourcePart(uri string) *Part {
-	return &Part{Kind: PartResource, Resource: &ResourcePart{URI: uri}}
+	return &Part{Kind: PartResource, Resource: &ResourcePart{Uri: uri}}
 }
 
 // IsText reports whether the [Part] contains plain text.
@@ -227,11 +227,6 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	}
 }
 
-type resourcePart struct {
-	Resource *ResourcePart  `json:"resource,omitempty"`
-	Metadata map[string]any `json:"metadata,omitempty"`
-}
-
 type partSchema struct {
 	Text         string         `json:"text,omitempty" yaml:"text,omitempty"`
 	Media        *Media         `json:"media,omitempty" yaml:"media,omitempty"`
@@ -317,9 +312,4 @@ func DocumentFromText(text string, metadata map[string]any) *Document {
 		},
 		Metadata: metadata,
 	}
-}
-
-// ResourcePart represents a reference to a resource that should be loaded and injected.
-type ResourcePart struct {
-	URI string `json:"uri"` // URI identifying the resource to load
 }

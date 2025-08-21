@@ -23,7 +23,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
 	test_utils "github.com/firebase/genkit/go/tests/utils"
 	"github.com/google/go-cmp/cmp"
@@ -34,7 +33,7 @@ type StructuredResponse struct {
 	Location string
 }
 
-var r, _ = registry.New()
+var r = registry.New()
 
 func init() {
 	// Set up default formats
@@ -44,7 +43,7 @@ func init() {
 // echoModel attributes
 var (
 	modelName = "echo"
-	metadata  = ModelInfo{
+	metadata  = ModelOptions{
 		Label: modelName,
 		Supports: &ModelSupports{
 			Multiturn:   true,
@@ -57,7 +56,7 @@ var (
 		Stage:    ModelStageDeprecated,
 	}
 
-	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+	echoModel = DefineModel(r, "test/"+modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
 				Content: []*Part{NewTextPart("stream!")},
@@ -244,7 +243,7 @@ func TestGenerate(t *testing.T) {
 	JSON := "\n{\"subject\": \"bananas\", \"location\": \"tropics\"}\n"
 	JSONmd := "```json" + JSON + "```"
 
-	bananaModel := DefineModel(r, "test", "banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+	bananaModel := DefineModel(r, "test/banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
 				Content: []*Part{NewTextPart("stream!")},
@@ -365,13 +364,13 @@ func TestGenerate(t *testing.T) {
 			},
 		)
 
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		interruptModel := DefineModel(r, "test", "interrupt", info,
+		interruptModel := DefineModel(r, "test/interrupt", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
@@ -424,13 +423,13 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
 		roundCount := 0
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		parallelModel := DefineModel(r, "test", "parallel", info,
+		parallelModel := DefineModel(r, "test/parallel", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -489,13 +488,13 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("handles multiple rounds of tool calls", func(t *testing.T) {
 		roundCount := 0
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		multiRoundModel := DefineModel(r, "test", "multiround", info,
+		multiRoundModel := DefineModel(r, "test/multiround", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -557,13 +556,13 @@ func TestGenerate(t *testing.T) {
 	})
 
 	t.Run("exceeds maximum turns", func(t *testing.T) {
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		infiniteModel := DefineModel(r, "test", "infinite", info,
+		infiniteModel := DefineModel(r, "test/infinite", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
@@ -640,13 +639,13 @@ func TestGenerate(t *testing.T) {
 
 		// Create a model that will call the dynamic tool then provide a final response
 		roundCount := 0
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		toolCallModel := DefineModel(r, "test", "toolcall", info,
+		toolCallModel := DefineModel(r, "test/toolcall", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -771,28 +770,13 @@ func TestModelVersion(t *testing.T) {
 
 func TestLookupModel(t *testing.T) {
 	t.Run("should return model", func(t *testing.T) {
-		if LookupModel(r, "test", modelName) == nil {
+		if LookupModel(r, "test/"+modelName) == nil {
 			t.Errorf("LookupModel did not return model")
 		}
 	})
 	t.Run("should return nil", func(t *testing.T) {
-		if LookupModel(r, "foo", "bar") != nil {
+		if LookupModel(r, "foo/bar") != nil {
 			t.Errorf("LookupModel did not return nil")
-		}
-	})
-}
-
-func TestLookupModelByName(t *testing.T) {
-	t.Run("should return model", func(t *testing.T) {
-		model, _ := LookupModelByName(r, "test/"+modelName)
-		if model == nil {
-			t.Errorf("LookupModelByName did not return model")
-		}
-	})
-	t.Run("should return nil", func(t *testing.T) {
-		_, err := LookupModelByName(r, "foo/bar")
-		if err == nil {
-			t.Errorf("LookupModelByName did not return error")
 		}
 	})
 }
@@ -859,14 +843,14 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		},
 	)
 
-	info := &ModelInfo{
+	info := &ModelOptions{
 		Supports: &ModelSupports{
 			Multiturn: true,
 			Tools:     true,
 		},
 	}
 
-	toolModel := DefineModel(r, "test", "toolmodel", info,
+	toolModel := DefineModel(r, "test/toolmodel", info,
 		func(ctx context.Context, mr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 			return &ModelResponse{
 				Request: mr,
@@ -1099,22 +1083,22 @@ func TestToolInterruptsAndResume(t *testing.T) {
 }
 
 func TestResourceProcessing(t *testing.T) {
-	r, _ := registry.New()
+	r := registry.New()
 
-	// Create simple test resources without complex mocking
-	_ = core.DefineAction(r, "", "test-file", core.ActionTypeResource, map[string]any{},
-		func(ctx context.Context, input core.ResourceInput) (struct{ Content []*Part }, error) {
-			return struct{ Content []*Part }{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
-		})
+	// Create test resources using DefineResource
+	DefineResource(r, "test-file", &ResourceOptions{
+		URI:         "file:///test.txt",
+		Description: "Test file resource",
+	}, func(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
+		return &ResourceOutput{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
+	})
 
-	_ = core.DefineAction(r, "", "test-api", core.ActionTypeResource, map[string]any{},
-		func(ctx context.Context, input core.ResourceInput) (struct{ Content []*Part }, error) {
-			return struct{ Content []*Part }{Content: []*Part{NewTextPart("API DATA")}}, nil
-		})
-
-	// Simple resource wrappers - use the proper core.ResourceMatcher interface
-	r.RegisterValue("resource/test-file", &testResourceMatcher{uri: "file:///test.txt"})
-	r.RegisterValue("resource/test-api", &testResourceMatcher{uri: "api://data/123"})
+	DefineResource(r, "test-api", &ResourceOptions{
+		URI:         "api://data/123",
+		Description: "Test API resource",
+	}, func(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
+		return &ResourceOutput{Content: []*Part{NewTextPart("API DATA")}}, nil
+	})
 
 	// Test message with resources
 	messages := []*Message{
@@ -1148,21 +1132,8 @@ func TestResourceProcessing(t *testing.T) {
 	}
 }
 
-// Minimal implementation of core.ResourceMatcher for testing
-type testResourceMatcher struct {
-	uri string
-}
-
-func (r *testResourceMatcher) Matches(uri string) bool {
-	return r.uri == uri
-}
-
-func (r *testResourceMatcher) ExtractVariables(uri string) (map[string]string, error) {
-	return map[string]string{}, nil
-}
-
 func TestResourceProcessingError(t *testing.T) {
-	r, _ := registry.New()
+	r := registry.New()
 
 	// No resources registered
 	messages := []*Message{

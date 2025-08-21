@@ -30,7 +30,6 @@ import {
   type UserMessage,
 } from '@mistralai/mistralai-gcp/models/components';
 import {
-  GENKIT_CLIENT_HEADER,
   GenerationCommonConfigSchema,
   z,
   type GenerateRequest,
@@ -47,6 +46,7 @@ import {
   modelRef,
   type ModelAction,
 } from 'genkit/model';
+import { getGenkitClientHeader } from '../common/index.js';
 
 /**
  * See https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
@@ -362,7 +362,7 @@ export function mistralModel(
         const response = await client.chat.complete(mistralRequest, {
           fetchOptions: {
             headers: {
-              'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+              'X-Goog-Api-Client': getGenkitClientHeader(),
             },
           },
         });
@@ -373,7 +373,7 @@ export function mistralModel(
         const stream = await client.chat.stream(mistralRequest, {
           fetchOptions: {
             headers: {
-              'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+              'X-Goog-Api-Client': getGenkitClientHeader(),
             },
           },
         });
@@ -391,7 +391,7 @@ export function mistralModel(
         const completeResponse = await client.chat.complete(mistralRequest, {
           fetchOptions: {
             headers: {
-              'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+              'X-Goog-Api-Client': getGenkitClientHeader(),
             },
           },
         });
