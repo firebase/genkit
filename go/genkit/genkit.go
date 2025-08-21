@@ -236,6 +236,11 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 
 // RegisterAction registers a [core.Action] that was previously created by calling
 // NewX instead of DefineX.
+//
+// Example:
+//
+//	model := ai.NewModel(...)
+//	genkit.RegisterAction(g, model.(core.Action))
 func RegisterAction(g *Genkit, action core.Action) {
 	action.Register(g.reg)
 }
