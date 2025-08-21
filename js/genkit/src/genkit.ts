@@ -112,6 +112,7 @@ import {
   isDevEnv,
   registerBackgroundAction,
   run,
+  setClientHeader,
   type Action,
   type ActionContext,
   type FlowConfig,
@@ -155,6 +156,8 @@ export interface GenkitOptions {
   context?: ActionContext;
   /** Display name that will be shown in developer tooling. */
   name?: string;
+  /** Additional attribution information to include in the x-goog-api-client header. */
+  clientHeader?: string;
 }
 
 /**
@@ -193,6 +196,9 @@ export class Genkit implements HasRegistry {
         name: this.options.name,
       });
       this.reflectionServer.start().catch((e) => logger.error);
+    }
+    if (options?.clientHeader) {
+      setClientHeader(options?.clientHeader);
     }
   }
 

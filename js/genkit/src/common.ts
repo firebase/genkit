@@ -128,6 +128,7 @@ export {
   UserFacingError,
   defineJsonSchema,
   defineSchema,
+  getClientHeader,
   getCurrentEnv,
   getStreamingCallback,
   isDevEnv,
