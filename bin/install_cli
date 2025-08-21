@@ -158,7 +158,7 @@ parse_arguments() {
                 shift
                 ;;
             --local|-l)
-                local="true"
+                GENKIT_CLI_LOCAL="true"
                 shift
                 ;;
             --channel|-c)
@@ -183,6 +183,10 @@ parse_arguments() {
                 ;;
             --no-analytics)
                 analytics="false"
+                shift
+                ;;
+            --debug|-d)
+                DEBUG=1
                 shift
                 ;;
             --help|-h)
@@ -213,19 +217,21 @@ Usage:
 Options:
   --uninstall, -u     Uninstall genkit
   --upgrade, -U       Upgrade existing installation
-  --local, -l         Force local installation to ~/.local/bin
+  --local, -l         Force local installation to ~/.local/bin (useful without sudo)
   --channel, -c       Specify channel [prod|next]
   --analytics         Enable analytics (default)
   --no-analytics      Disable analytics
+  --debug, -d         Enable verbose diagnostics (show stderr from version probes)
   --help, -h          Show this help
   --version, -v       Show version
 
 Environment Variables:
   uninstall=true      Same as --uninstall
   upgrade=true        Same as --upgrade
-  local=true          Same as --local
+  GENKIT_CLI_LOCAL=true Same as --local
   channel=next        Same as --channel next
   analytics=false     Same as --no-analytics
+  DEBUG=1             Same as --debug
 
 Examples:
   ./install_cli --uninstall
@@ -272,6 +278,13 @@ send_analytics_event()
 # will crash before we get to that point, so we manually count invocations here.
 send_analytics_event start
  
+# Debug/verbosity: where to send stderr for version probes
+if [ -n "${DEBUG-}" ] && [ "$DEBUG" != "0" ]; then
+    VERBOSE_STDERR="/dev/stderr"
+else
+    VERBOSE_STDERR="/dev/null"
+fi
+ 
 # Helper: check whether sudo exists *and* is usable (non-interactive).
 has_usable_sudo() {
     if command -v sudo >/dev/null 2>&1; then
@@ -294,7 +307,7 @@ get_euid() {
 DESIRED_BINARY="$GENKIT_BINARY"
 
 # Explicit local-install switch (DX sugar).
-if [ "${GENKIT_INSTALL:-}" = "local" ] || [ "${local:-}" = "true" ]; then
+if [ "${GENKIT_INSTALL:-}" = "local" ] || [ "${GENKIT_CLI_LOCAL:-}" = "true" ]; then
     DESIRED_BINARY="$HOME/.local/bin/genkit"
 fi
 
@@ -351,7 +364,7 @@ echo "-- Checking for existing genkit installation..."
 if [[ ! -z "$EXISTING_BINARY" ]]; then
 	# Only treat as installed if the detected binary actually exists and is executable
 	if [ -x "$EXISTING_BINARY" ]; then
-		INSTALLED_GENKIT_VERSION=$("$EXISTING_BINARY" --version)
+		INSTALLED_GENKIT_VERSION=$("$EXISTING_BINARY" --version 2>"$VERBOSE_STDERR")
 	else
 		INSTALLED_GENKIT_VERSION=""
 	fi
@@ -474,7 +487,7 @@ $sudo_cmd chmod +rx "$GENKIT_BINARY"
 # so this not only allows us to make sure we got the right version, but it
 # also does the setup so the first time the developer runs the binary, it'll
 # be faster.
-VERSION=$("$GENKIT_BINARY" --version)
+VERSION=$("$GENKIT_BINARY" --version 2>"$VERBOSE_STDERR")
 
 # If no version is detected then clearly the binary failed to install for
 # some reason, so we'll log out an error message and report the failure
