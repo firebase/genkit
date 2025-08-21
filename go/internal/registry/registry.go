@@ -80,6 +80,11 @@ func (r *Registry) NewChild() *Registry {
 	return child
 }
 
+// IsChild returns true if the registry is a child of another registry.
+func (r *Registry) IsChild() bool {
+	return r.parent != nil
+}
+
 // RegisterPlugin records the plugin in the registry.
 // It panics if a plugin with the same name is already registered.
 func (r *Registry) RegisterPlugin(name string, p any) {

@@ -395,19 +395,22 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			}
 		}
 	}
+
 	if len(dynamicTools) > 0 {
-		r = r.NewChild()
-		for _, tool := range dynamicTools {
-			r.RegisterAction(core.NewKey(core.ActionTypeTool, "", tool.Name()), tool)
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		for _, t := range dynamicTools {
+			t.(*tool).Register(r)
 		}
 	}
 
 	if len(genOpts.Resources) > 0 {
-		r = r.NewChild()
-
-		// Attach resources
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
 		for _, res := range genOpts.Resources {
-			res.Register(r)
+			res.(*resource).Register(r)
 		}
 	}
 
@@ -1099,54 +1102,16 @@ func processResources(ctx context.Context, r *registry.Registry, messages []*Mes
 	return processedMessages, nil
 }
 
-// findMatchingResource finds a resource action in the registry that matches the given URI.
-func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[string]string, error) {
-	// Use our updated FindMatchingResource function
-	resource, resourceInput, err := FindMatchingResource(r, uri)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Execute the resource to get the action - we need to access the underlying action
-	// Since the resource interface doesn't expose the action directly, we'll look it up
-	action := r.LookupAction(fmt.Sprintf("/resource/%s", resource.Name()))
-	if action == nil {
-		return nil, nil, core.NewError(core.INTERNAL, "failed to lookup resource action")
-	}
-
-	if coreAction, ok := action.(core.Action); ok {
-		return coreAction, resourceInput.Variables, nil
-	}
-
-	return nil, nil, core.NewError(core.INTERNAL, "action does not implement core.Action interface")
-}
-
 // executeResourcePart finds and executes a resource, returning the content parts.
 func executeResourcePart(ctx context.Context, r *registry.Registry, resourceURI string) ([]*Part, error) {
-	action, variables, err := findMatchingResource(r, resourceURI)
+	resource, input, err := FindMatchingResource(r, resourceURI)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create resource input with extracted variables
-	input := &ResourceInput{
-		URI:       resourceURI,
-		Variables: variables,
-	}
-
-	// Execute the resource action directly
-	inputJSON, _ := json.Marshal(input)
-	outputJSON, err := action.RunJSON(ctx, inputJSON, nil)
+	output, err := resource.Execute(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute resource %q: %w", resourceURI, err)
-	}
-
-	// Parse resource output - use a compatible structure
-	var output struct {
-		Content []*Part `json:"content"`
-	}
-	if err := json.Unmarshal(outputJSON, &output); err != nil {
-		return nil, fmt.Errorf("failed to parse resource output: %w", err)
 	}
 
 	return output.Content, nil

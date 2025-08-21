@@ -1007,7 +1007,7 @@ func FindMatchingResource(g *Genkit, uri string) (ai.Resource, *ai.ResourceInput
 //
 // Example:
 //
-//	dynamicRes := NewResource("user-data", &ai.ResourceOptions{
+//	resource := NewResource("user-data", &ai.ResourceOptions{
 //	  Template: "user://profile/{id}",
 //	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
 //	  userID := input.Variables["id"]
@@ -1021,11 +1021,10 @@ func FindMatchingResource(g *Genkit, uri string) (ai.Resource, *ai.ResourceInput
 //	    ai.NewTextPart("Analyze this user:"),
 //	    ai.NewResourcePart("user://profile/123"),
 //	  }),
-//	  ai.WithResources(dynamicRes),
+//	  ai.WithResources(resource),
 //	)
 func NewResource(name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
-	// Delegate to ai implementation
-	return ai.NewResource(name, *opts, fn)
+	return ai.NewResource(name, opts, fn)
 }
 
 // ListResources returns a slice of all resource actions
