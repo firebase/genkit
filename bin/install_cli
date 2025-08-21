@@ -16,12 +16,6 @@
 #
 :   curl -sL cli.genkit.dev | bash
 #
-# For local execution with command-line options:
-#
-:   ./install_cli --help
-:   ./install_cli --uninstall
-:   ./install_cli --local
-#
 # If you do not want to use this script, you can manually
 # download the latest "genkit" binary.
 #
@@ -51,15 +45,11 @@
 : ==========================================
 
 # The behavior of this script can be modified at runtime by passing environmental
-# variables to the `bash` process, or by using command-line arguments for local execution.
+# variables to the `bash` process.
 #
 # For curl execution (environment variables):
 #
 : curl -sL cli.genkit.dev | arg1=true arg2=false bash
-#
-# For local execution (command-line arguments):
-#
-: ./install_cli --arg1 --no-arg2
 #
 # These arguments are optional, but be aware that explicitly setting them will help
 # ensure consistent behavior if / when defaults are changed.
@@ -75,9 +65,6 @@
 # Curl execution:
 : curl -sL cli.genkit.dev | upgrade=true bash
 #
-# Local execution:
-: ./install_cli --upgrade
-#
 # This operation could (potentially) break an existing install, so use it with caution.
 #
 
@@ -90,9 +77,6 @@
 # Curl execution:
 : curl -sL cli.genkit.dev | uninstall=true bash
 #
-# Local execution:
-: ./install_cli --uninstall
-#
 # This will remove the binary file and any cached data.
 #
 
@@ -101,14 +85,10 @@
 : -----------------------------------------
 
 # To force a user-local install into $HOME/.local/bin (useful on systems without sudo),
-# use the local option:
+# you can pass one of the following:
 #
-# Curl execution:
+: curl -sL cli.genkit.dev | local=true bash
 : curl -sL cli.genkit.dev | GENKIT_INSTALL=local bash
-: curl -sL cli.genkit.dev | GENKIT_CLI_LOCAL=true bash
-#
-# Local execution:
-: ./install_cli --local
 #
 # You can also explicitly set a target path:
 #
@@ -126,9 +106,6 @@
 # Curl execution:
 : curl -sL cli.genkit.dev | analytics=false bash
 #
-# Local execution:
-: ./install_cli --no-analytics
-#
 # By default we report all data anonymously and do not collect any information
 # except platform type (Darwin, Win, etc) in the case of an unsupported platform
 # error.
@@ -145,109 +122,6 @@ channel="${channel:-prod}"
 # how it interacts with your system. If you're not interested in the
 # technical details, you can just run the command above.
 
-# Parse command-line arguments
-parse_arguments() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --uninstall|-u)
-                uninstall="true"
-                shift
-                ;;
-            --upgrade|-U)
-                upgrade="true"
-                shift
-                ;;
-            --local|-l)
-                GENKIT_CLI_LOCAL="true"
-                shift
-                ;;
-            --channel|-c)
-                if [ -z "${2-}" ]; then
-                    echo "--channel requires a value (prod or next)"
-                    exit 1
-                fi
-                case "$2" in
-                    prod|next)
-                        channel="$2"
-                        ;;
-                    *)
-                        echo "Invalid channel '$2'. Must be 'prod' or 'next'."
-                        exit 1
-                        ;;
-                esac
-                shift 2
-                ;;
-            --analytics)
-                analytics="true"
-                shift
-                ;;
-            --no-analytics)
-                analytics="false"
-                shift
-                ;;
-            --debug|-d)
-                DEBUG=1
-                shift
-                ;;
-            --help|-h)
-                show_help
-                exit 0
-                ;;
-            --version|-v)
-                show_version
-                exit 0
-                ;;
-            *)
-                echo "Unknown option: $1"
-                echo "Use --help for usage information"
-                exit 1
-                ;;
-        esac
-    done
-}
-
-# Show help information
-show_help() {
-    cat << EOF
-Genkit CLI Installer
-
-Usage:
-  ./install_cli [OPTIONS]
-
-Options:
-  --uninstall, -u     Uninstall genkit
-  --upgrade, -U       Upgrade existing installation
-  --local, -l         Force local installation to ~/.local/bin (useful without sudo)
-  --channel, -c       Specify channel [prod|next]
-  --analytics         Enable analytics (default)
-  --no-analytics      Disable analytics
-  --debug, -d         Enable verbose diagnostics (show stderr from version probes)
-  --help, -h          Show this help
-  --version, -v       Show version
-
-Environment Variables:
-  uninstall=true      Same as --uninstall
-  upgrade=true        Same as --upgrade
-  GENKIT_CLI_LOCAL=true Same as --local
-  channel=next        Same as --channel next
-  analytics=false     Same as --no-analytics
-  DEBUG=1             Same as --debug
-
-Examples:
-  ./install_cli --uninstall
-  ./install_cli --local
-  curl -sL cli.genkit.dev | uninstall=true bash
-EOF
-}
-
-# Show version information
-show_version() {
-    echo "Genkit CLI Installer v1.0"
-}
-
-# Parse arguments first (command-line args override environment variables)
-parse_arguments "$@"
-
 # We begin by generating a unique ID for tracking the anonymous session.
 CID=$(head -80 /dev/urandom | LC_ALL=c tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
 # Credit: https://gist.github.com/earthgecko/3089509
@@ -257,7 +131,7 @@ CID=$(head -80 /dev/urandom | LC_ALL=c tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n
 TRACKING_ID="G-VE2GNRL789"
 
 send_analytics_event()
-{   
+{
     if [ ! "$analytics" = "false" ]; then
         curl -s https://www.google-analytics.com/collect \
             -d "tid=$TRACKING_ID" \
@@ -268,7 +142,7 @@ send_analytics_event()
             -d "cid=$CID" \
             -o /dev/null
     fi
-    
+
     # For now, just return success
     return 0
 }
@@ -277,14 +151,14 @@ send_analytics_event()
 # end we also report success / failure, but it's possible that the script
 # will crash before we get to that point, so we manually count invocations here.
 send_analytics_event start
- 
+
 # Debug/verbosity: where to send stderr for version probes
 if [ -n "${DEBUG-}" ] && [ "$DEBUG" != "0" ]; then
     VERBOSE_STDERR="/dev/stderr"
 else
     VERBOSE_STDERR="/dev/null"
 fi
- 
+
 # Helper: check whether sudo exists *and* is usable (non-interactive).
 has_usable_sudo() {
     if command -v sudo >/dev/null 2>&1; then
@@ -306,8 +180,8 @@ get_euid() {
 # Capture any user-provided desired install target, but keep detection separate.
 DESIRED_BINARY="$GENKIT_BINARY"
 
-# Explicit local-install switch (DX sugar).
-if [ "${GENKIT_INSTALL:-}" = "local" ] || [ "${GENKIT_CLI_LOCAL:-}" = "true" ]; then
+# Explicit local-install switch (supports both local=true and GENKIT_INSTALL=local).
+if [ "${GENKIT_INSTALL:-}" = "local" ] || [ "${local:-}" = "true" ]; then
     DESIRED_BINARY="$HOME/.local/bin/genkit"
 fi
 
@@ -318,19 +192,19 @@ LOCAL_BINARY="$HOME/.local/bin/genkit"
 # https://unix.stackexchange.com/a/8658
 GLOBAL_BINARY="/usr/local/bin/genkit"
 if [[ -z "$EXISTING_BINARY" ]]; then
-	if [ -e "$LOCAL_BINARY" ]; then
-		EXISTING_BINARY="$LOCAL_BINARY"
-	elif [ -e "$GLOBAL_BINARY" ]; then
-		EXISTING_BINARY="$GLOBAL_BINARY"
-	fi
+    if [ -e "$LOCAL_BINARY" ]; then
+        EXISTING_BINARY="$LOCAL_BINARY"
+    elif [ -e "$GLOBAL_BINARY" ]; then
+        EXISTING_BINARY="$GLOBAL_BINARY"
+    fi
 fi
 
 # If the user asked for us to uninstall genkit, then do so.
 if [ "$uninstall" = "true" ]; then
-    # Prefer explicit target; otherwise fall back to detected install.
-    TARGET="$DESIRED_BINARY"
-    if [ -z "$TARGET" ]; then
+    if [[ -z "$DESIRED_BINARY" ]]; then
         TARGET="$EXISTING_BINARY"
+    else
+        TARGET="$DESIRED_BINARY"
     fi
 
     if [ -z "$TARGET" ]; then
@@ -362,12 +236,12 @@ fi
 echo "-- Checking for existing genkit installation..."
 
 if [[ ! -z "$EXISTING_BINARY" ]]; then
-	# Only treat as installed if the detected binary actually exists and is executable
-	if [ -x "$EXISTING_BINARY" ]; then
-		INSTALLED_GENKIT_VERSION=$("$EXISTING_BINARY" --version 2>"$VERBOSE_STDERR")
-	else
-		INSTALLED_GENKIT_VERSION=""
-	fi
+    # Only treat as installed if the detected binary actually exists and is executable
+    if [ -x "$EXISTING_BINARY" ]; then
+        INSTALLED_GENKIT_VERSION=$("$EXISTING_BINARY" --version 2>"$VERBOSE_STDERR")
+    else
+        INSTALLED_GENKIT_VERSION=""
+    fi
 
     # In the case of a corrupt genkit install, we wont be able to
     # retrieve a version number, so to keep the logs correct, we refer to
