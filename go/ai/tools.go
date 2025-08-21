@@ -115,7 +115,7 @@ type ToolContext struct {
 	OriginalInput any
 }
 
-// DefineTool defines a tool.
+// DefineTool creates a new [Tool] and registers it.
 func DefineTool[In, Out any](
 	r *registry.Registry,
 	name, description string,
@@ -126,7 +126,7 @@ func DefineTool[In, Out any](
 	return &tool{Action: toolAction}
 }
 
-// DefineToolWithInputSchema defines a tool function with a custom input schema.
+// DefineToolWithInputSchema creates a new [Tool] with a custom input schema and registers it.
 func DefineToolWithInputSchema[Out any](
 	r *registry.Registry,
 	name, description string,
@@ -138,7 +138,7 @@ func DefineToolWithInputSchema[Out any](
 	return &tool{Action: toolAction}
 }
 
-// NewTool creates a tool but does not register it in the registry. It can be passed directly to [Generate].
+// NewTool creates a new [Tool]. It can be passed directly to [Generate].
 func NewTool[In, Out any](name, description string, fn ToolFunc[In, Out]) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
 	metadata["dynamic"] = true

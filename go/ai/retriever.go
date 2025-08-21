@@ -83,7 +83,7 @@ type RetrieverOptions struct {
 	Supports *RetrieverSupports `json:"supports,omitempty"`
 }
 
-// NewRetriever creates a new [Retriever] without registering it.
+// NewRetriever creates a new [Retriever].
 func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
 	if name == "" {
 		panic("ai.NewRetriever: retriever name is required")
@@ -123,7 +123,7 @@ func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriev
 	}
 }
 
-// DefineRetriever creates and registers a new [Retriever].
+// DefineRetriever creates a new [Retriever] and registers it.
 func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
 	ret := NewRetriever(name, opts, fn)
 	ret.(*retriever).Register(r)

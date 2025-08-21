@@ -50,7 +50,7 @@ type prompt struct {
 	registry *registry.Registry
 }
 
-// DefinePrompt creates and registers a new Prompt.
+// DefinePrompt creates a new [Prompt] and registers it.
 func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) Prompt {
 	if name == "" {
 		panic("ai.DefinePrompt: name is required")
@@ -107,9 +107,9 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) Promp
 	return p
 }
 
-// LookupPrompt looks up a [prompt] registered by [DefinePrompt].
+// LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(r *registry.Registry, name string) *prompt {
+func LookupPrompt(r *registry.Registry, name string) Prompt {
 	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, name)
 	if action == nil {
 		return nil

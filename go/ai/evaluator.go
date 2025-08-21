@@ -133,7 +133,7 @@ type EvaluatorCallbackRequest struct {
 // EvaluatorCallbackResponse is the result on evaluating a single [Example]
 type EvaluatorCallbackResponse = EvaluationResult
 
-// NewEvaluator creates a new [Evaluator] without registering it.
+// NewEvaluator creates a new [Evaluator].
 // This method processes the input dataset one-by-one.
 func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
 	if name == "" {
@@ -212,16 +212,15 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 	}
 }
 
-// DefineEvaluator registers the given evaluator function as an action, and
-// returns a [Evaluator] that runs it. This method process the input dataset
-// one-by-one.
+// DefineEvaluator creates a new [Evaluator] and registers it.
+// This method processes the input dataset one-by-one.
 func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
 	e := NewEvaluator(name, opts, fn)
 	e.(*evaluator).Register(r)
 	return e
 }
 
-// NewBatchEvaluator creates a new [Evaluator] without registering it.
+// NewBatchEvaluator creates a new [Evaluator].
 // This method provides the full [EvaluatorRequest] to the callback function,
 // giving more flexibility to the user for processing the data, such as batching or parallelization.
 func NewBatchEvaluator(name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
@@ -247,15 +246,12 @@ func NewBatchEvaluator(name string, opts *EvaluatorOptions, fn BatchEvaluatorFun
 	}
 }
 
-// DefineBatchEvaluator registers the given evaluator function as an action, and
-// returns a [Evaluator] that runs it. This method provide the full
-// [EvaluatorRequest] to the callback function, giving more flexibilty to the
-// user for processing the data, such as batching or parallelization.
+// DefineBatchEvaluator creates a new [Evaluator] and registers it.
+// This method provides the full [EvaluatorRequest] to the callback function,
+// giving more flexibility to the user for processing the data, such as batching or parallelization.
 func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
 	e := NewBatchEvaluator(name, opts, fn)
-	provider, id := core.ParseName(name)
-	key := core.NewKey(core.ActionTypeEvaluator, provider, id)
-	r.RegisterAction(key, &e.(*evaluator).ActionDef)
+	e.(*evaluator).Register(r)
 	return e
 }
 

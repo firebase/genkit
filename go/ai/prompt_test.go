@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
@@ -828,20 +829,20 @@ Hello, {{name}}!
 		t.Fatalf("Prompt was not registered")
 	}
 
-	if prompt.Desc().InputSchema == nil {
+	if prompt.(core.Action).Desc().InputSchema == nil {
 		t.Fatal("Input schema is nil")
 	}
 
-	if prompt.Desc().InputSchema["type"] != "object" {
-		t.Errorf("Expected input schema type 'object', got '%s'", prompt.Desc().InputSchema["type"])
+	if prompt.(core.Action).Desc().InputSchema["type"] != "object" {
+		t.Errorf("Expected input schema type 'object', got '%s'", prompt.(core.Action).Desc().InputSchema["type"])
 	}
 
-	promptMetadata, ok := prompt.Desc().Metadata["prompt"].(map[string]any)
+	promptMetadata, ok := prompt.(core.Action).Desc().Metadata["prompt"].(map[string]any)
 	if !ok {
-		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.Desc().Metadata["prompt"])
+		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.(core.Action).Desc().Metadata["prompt"])
 	}
 	if promptMetadata["model"] != "test-model" {
-		t.Errorf("Expected model name 'test-model', got '%s'", prompt.Desc().Metadata["model"])
+		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(core.Action).Desc().Metadata["model"])
 	}
 }
 

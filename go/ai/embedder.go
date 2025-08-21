@@ -86,7 +86,7 @@ type embedder struct {
 	core.ActionDef[*EmbedRequest, *EmbedResponse, struct{}]
 }
 
-// NewEmbedder creates a new [Embedder] without registering it.
+// NewEmbedder creates a new [Embedder].
 func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 	if name == "" {
 		panic("ai.NewEmbedder: name is required")

@@ -127,7 +127,7 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 		}))
 }
 
-// NewModel creates a new [Model] without registering it.
+// NewModel creates a new [Model].
 func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	if name == "" {
 		panic("ai.NewModel: name is required")
@@ -182,7 +182,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	}
 }
 
-// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
+// DefineModel creates a new [Model] and registers it.
 func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
 	m := NewModel(name, opts, fn)
 	m.(*model).Register(r)
