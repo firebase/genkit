@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/invopop/jsonschema"
@@ -105,31 +106,31 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 // AnthropicModel returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined
 func AnthropicModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, provider, name)
+	return genkit.LookupModel(g, core.NewName(provider, name))
 }
 
 // DefineModel adds the model to the registry
-func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
-	var mi ai.ModelInfo
-	if info == nil {
+func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
+	if opts == nil {
 		var ok bool
-		mi, ok = anthropicModels[name]
+		modelOpts, ok := anthropicModels[name]
 		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", provider, name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelOptions", provider, name)
 		}
-	} else {
-		mi = *info
+		opts = &modelOpts
 	}
-	return defineAnthropicModel(g, a.client, name, mi), nil
+	return defineAnthropicModel(g, a.client, name, *opts), nil
 }
 
-func defineAnthropicModel(g *genkit.Genkit, client anthropic.Client, name string, info ai.ModelInfo) ai.Model {
-	meta := &ai.ModelInfo{
-		Label:    provider + "-" + name,
-		Supports: info.Supports,
-		Versions: info.Versions,
+func defineAnthropicModel(g *genkit.Genkit, client anthropic.Client, name string, opts ai.ModelOptions) ai.Model {
+	meta := &ai.ModelOptions{
+		Label:        provider + "-" + name,
+		Supports:     opts.Supports,
+		Versions:     opts.Versions,
+		ConfigSchema: opts.ConfigSchema,
+		Stage:        opts.Stage,
 	}
-	return genkit.DefineModel(g, provider, name, meta, func(
+	return genkit.DefineModel(g, core.NewName(provider, name), meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

@@ -20,7 +20,7 @@ import * as path from 'path';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import {
   GENKIT_PROMPT_PATH,
-  getGenkitContext,
+  initGenkitFile,
   initOrReplaceFile,
 } from '../utils';
 
@@ -57,12 +57,8 @@ export const cursor: AIToolModule = {
 
     // Create the base GENKIT context file (GENKIT.md).
     // This file contains fundamental details about the GENKIT project.
-    const genkitContext = getGenkitContext();
-    const baseResult = await initOrReplaceFile(
-      GENKIT_PROMPT_PATH,
-      genkitContext
-    );
-    files.push({ path: GENKIT_PROMPT_PATH, updated: baseResult.updated });
+    const mdResult = await initGenkitFile();
+    files.push({ path: GENKIT_PROMPT_PATH, updated: mdResult.updated });
 
     // Handle MCP configuration - merge with existing if present.
     // This allows Cursor to communicate with Genkit tools.

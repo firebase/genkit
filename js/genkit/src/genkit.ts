@@ -945,7 +945,16 @@ export class Genkit implements HasRegistry {
           },
           async listActions() {
             if (typeof plugin.list === 'function') {
-              return await plugin.list();
+              return (await plugin.list()).map((a) => {
+                if (a.name.startsWith(`${plugin.name}/`)) {
+                  return a;
+                }
+                return {
+                  ...a,
+                  // Apply namespace for v2 plugins.
+                  name: `${plugin.name}/${a.name}`,
+                };
+              });
             }
             return [];
           },
@@ -990,7 +999,9 @@ function registerActionV2(
   plugin: GenkitPluginV2
 ) {
   if (isBackgroundAction(resolvedAction)) {
-    registerBackgroundAction(registry, resolvedAction);
+    registerBackgroundAction(registry, resolvedAction, {
+      namespace: plugin.name,
+    });
   } else if (isAction(resolvedAction)) {
     if (!resolvedAction.__action.actionType) {
       throw new GenkitError({
@@ -998,7 +1009,11 @@ function registerActionV2(
         message: 'Action type is missing for ' + resolvedAction.__action.name,
       });
     }
-    registry.registerAction(resolvedAction.__action.actionType, resolvedAction);
+    registry.registerAction(
+      resolvedAction.__action.actionType,
+      resolvedAction,
+      { namespace: plugin.name }
+    );
   } else {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',

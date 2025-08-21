@@ -18,7 +18,6 @@ package ai
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
@@ -29,6 +28,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// EvaluatorFunc is the function type for evaluator implementations.
+type EvaluatorFunc = func(context.Context, *EvaluatorCallbackRequest) (*EvaluatorCallbackResponse, error)
+
+// BatchEvaluatorFunc is the function type for batch evaluator implementations.
+type BatchEvaluatorFunc = func(context.Context, *EvaluatorRequest) (*EvaluatorResponse, error)
+
 // Evaluator represents a evaluator action.
 type Evaluator interface {
 	// Name returns the name of the evaluator.
@@ -37,6 +42,7 @@ type Evaluator interface {
 	Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error)
 }
 
+// evaluator is an action with functions specific to evaluating a dataset.
 type evaluator core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
 
 // Example is a single example that requires evaluation
@@ -104,9 +110,14 @@ type EvaluationResult struct {
 type EvaluatorResponse = []EvaluationResult
 
 type EvaluatorOptions struct {
+	// ConfigSchema is the JSON schema for the evaluator's config.
+	ConfigSchema map[string]any `json:"configSchema,omitempty"`
+	// DisplayName is the name of the evaluator as it appears in the UI.
 	DisplayName string `json:"displayName"`
-	Definition  string `json:"definition"`
-	IsBilled    bool   `json:"isBilled,omitempty"`
+	// Definition is the definition of the evaluator.
+	Definition string `json:"definition"`
+	// IsBilled is a flag indicating if the evaluator is billed.
+	IsBilled bool `json:"isBilled,omitempty"`
 }
 
 // EvaluatorCallbackRequest is the data we pass to the callback function
@@ -123,18 +134,34 @@ type EvaluatorCallbackResponse = EvaluationResult
 // DefineEvaluator registers the given evaluator function as an action, and
 // returns a [Evaluator] that runs it. This method process the input dataset
 // one-by-one.
-func DefineEvaluator(r *registry.Registry, provider, name string, options *EvaluatorOptions, eval func(context.Context, *EvaluatorCallbackRequest) (*EvaluatorCallbackResponse, error)) (Evaluator, error) {
-	if options == nil {
-		return nil, errors.New("EvaluatorOptions must be provided")
+func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
+	if name == "" {
+		panic("ai.DefineEvaluator: evaluator name is required")
 	}
-	// TODO(ssbushi): Set this on `evaluator` key on action metadata
-	metadataMap := map[string]any{}
-	metadataMap["evaluatorIsBilled"] = options.IsBilled
-	metadataMap["evaluatorDisplayName"] = options.DisplayName
-	metadataMap["evaluatorDefinition"] = options.Definition
 
-	actionDef := (*evaluator)(core.DefineAction(r, provider, name, core.ActionTypeEvaluator, map[string]any{"evaluator": metadataMap}, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
-		var evalResponses []EvaluationResult
+	if opts == nil {
+		opts = &EvaluatorOptions{}
+	}
+
+	// TODO(ssbushi): Set this on `evaluator` key on action metadata
+	metadata := map[string]any{
+		"type": core.ActionTypeEvaluator,
+		"evaluator": map[string]any{
+			"evaluatorIsBilled":    opts.IsBilled,
+			"evaluatorDisplayName": opts.DisplayName,
+			"evaluatorDefinition":  opts.Definition,
+		},
+	}
+
+	inputSchema := core.InferSchemaMap(EvaluatorRequest{})
+	if inputSchema != nil && opts.ConfigSchema != nil {
+		if _, ok := inputSchema["options"]; ok {
+			inputSchema["options"] = opts.ConfigSchema
+		}
+	}
+
+	return (*evaluator)(core.DefineActionWithInputSchema(r, name, core.ActionTypeEvaluator, metadata, inputSchema, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
+		var results []EvaluationResult
 		for _, datapoint := range req.Dataset {
 			if datapoint.TestCaseId == "" {
 				datapoint.TestCaseId = uuid.New().String()
@@ -148,62 +175,74 @@ func DefineEvaluator(r *registry.Registry, provider, name string, options *Evalu
 				func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
 					traceId := trace.SpanContextFromContext(ctx).TraceID().String()
 					spanId := trace.SpanContextFromContext(ctx).SpanID().String()
+
 					callbackRequest := EvaluatorCallbackRequest{
 						Input:   *input,
 						Options: req.Options,
 					}
-					evaluatorResponse, err := eval(ctx, &callbackRequest)
+
+					result, err := fn(ctx, &callbackRequest)
 					if err != nil {
 						failedScore := Score{
 							Status: ScoreStatusFail.String(),
 							Error:  fmt.Sprintf("Evaluation of test case %s failed: \n %s", input.TestCaseId, err.Error()),
 						}
-						failedEvalResult := EvaluationResult{
+						failedResult := EvaluationResult{
 							TestCaseId: input.TestCaseId,
 							Evaluation: []Score{failedScore},
 							TraceID:    traceId,
 							SpanID:     spanId,
 						}
-						evalResponses = append(evalResponses, failedEvalResult)
+						results = append(results, failedResult)
 						// return error to mark span as failed
 						return nil, err
 					}
-					evaluatorResponse.TraceID = traceId
-					evaluatorResponse.SpanID = spanId
-					evalResponses = append(evalResponses, *evaluatorResponse)
-					return evaluatorResponse, nil
+
+					result.TraceID = traceId
+					result.SpanID = spanId
+
+					results = append(results, *result)
+
+					return result, nil
 				})
 			if err != nil {
 				logger.FromContext(ctx).Debug("EvaluatorAction", "err", err)
 				continue
 			}
 		}
-		return &evalResponses, nil
+		return &results, nil
 	}))
-	return actionDef, nil
 }
 
 // DefineBatchEvaluator registers the given evaluator function as an action, and
 // returns a [Evaluator] that runs it. This method provide the full
 // [EvaluatorRequest] to the callback function, giving more flexibilty to the
 // user for processing the data, such as batching or parallelization.
-func DefineBatchEvaluator(r *registry.Registry, provider, name string, options *EvaluatorOptions, batchEval func(context.Context, *EvaluatorRequest) (*EvaluatorResponse, error)) (Evaluator, error) {
-	if options == nil {
-		return nil, errors.New("EvaluatorOptions must be provided")
+func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
+	if name == "" {
+		panic("ai.DefineBatchEvaluator: batch evaluator name is required")
 	}
 
-	metadataMap := map[string]any{}
-	metadataMap["evaluatorIsBilled"] = options.IsBilled
-	metadataMap["evaluatorDisplayName"] = options.DisplayName
-	metadataMap["evaluatorDefinition"] = options.Definition
+	if opts == nil {
+		opts = &EvaluatorOptions{}
+	}
 
-	return (*evaluator)(core.DefineAction(r, provider, name, core.ActionTypeEvaluator, map[string]any{"evaluator": metadataMap}, batchEval)), nil
+	metadata := map[string]any{
+		"type": core.ActionTypeEvaluator,
+		"evaluator": map[string]any{
+			"evaluatorIsBilled":    opts.IsBilled,
+			"evaluatorDisplayName": opts.DisplayName,
+			"evaluatorDefinition":  opts.Definition,
+		},
+	}
+
+	return (*evaluator)(core.DefineAction(r, name, core.ActionTypeEvaluator, metadata, fn))
 }
 
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
-func LookupEvaluator(r *registry.Registry, provider, name string) Evaluator {
-	return (*evaluator)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, core.ActionTypeEvaluator, provider, name))
+func LookupEvaluator(r *registry.Registry, name string) Evaluator {
+	return (*evaluator)(core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, core.ActionTypeEvaluator, name))
 }
 
 // Evaluate calls the retrivers with provided options.

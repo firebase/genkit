@@ -26,7 +26,7 @@ export interface AIToolConfigResult {
 /** `init:ai-tools` config options. */
 export interface InitConfigOptions {
   // yes (non-interactive) mode.
-  yesMode: boolean;
+  yesMode?: boolean;
 }
 
 /** Interface for supported AI tools */

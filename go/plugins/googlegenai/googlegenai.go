@@ -204,7 +204,7 @@ func (v *VertexAI) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func (ga *GoogleAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
+func (ga *GoogleAI) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
 	ga.mu.Lock()
 	defer ga.mu.Unlock()
 	if !ga.initted {
@@ -215,25 +215,23 @@ func (ga *GoogleAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInf
 		return nil, err
 	}
 
-	var mi ai.ModelInfo
-	if info == nil {
+	if opts == nil {
 		var ok bool
-		mi, ok = models[name]
+		modelOpts, ok := models[name]
 		if !ok {
-			return nil, fmt.Errorf("GoogleAI.DefineModel: called with unknown model %q and nil ModelInfo", name)
+			return nil, fmt.Errorf("GoogleAI.DefineModel: called with unknown model %q and nil ModelOptions", name)
 		}
-	} else {
-		mi = *info
+		opts = &modelOpts
 	}
 
-	return defineModel(g, ga.gclient, name, mi), nil
+	return defineModel(g, ga.gclient, name, *opts), nil
 }
 
 // DefineModel defines an unknown model with the given name.
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func (v *VertexAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
+func (v *VertexAI) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if !v.initted {
@@ -244,18 +242,16 @@ func (v *VertexAI) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo
 		return nil, err
 	}
 
-	var mi ai.ModelInfo
-	if info == nil {
+	if opts == nil {
 		var ok bool
-		mi, ok = models[name]
+		modelOpts, ok := models[name]
 		if !ok {
-			return nil, fmt.Errorf("VertexAI.DefineModel: called with unknown model %q and nil ModelInfo", name)
+			return nil, fmt.Errorf("VertexAI.DefineModel: called with unknown model %q and nil ModelOptions", name)
 		}
-	} else {
-		mi = *info
+		opts = &modelOpts
 	}
 
-	return defineModel(g, v.gclient, name, mi), nil
+	return defineModel(g, v.gclient, name, *opts), nil
 }
 
 // DefineEmbedder defines an embedder with a given name.
@@ -280,12 +276,12 @@ func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string, embedOpts *ai.E
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
 func (ga *GoogleAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
-	return genkit.LookupEmbedder(g, googleAIProvider, name) != nil
+	return genkit.LookupEmbedder(g, core.NewName(googleAIProvider, name)) != nil
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
 func (v *VertexAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
-	return genkit.LookupEmbedder(g, vertexAIProvider, name) != nil
+	return genkit.LookupEmbedder(g, core.NewName(vertexAIProvider, name)) != nil
 }
 
 // GoogleAIModelRef creates a new ModelRef for a Google AI model with the given name and configuration.
@@ -301,25 +297,25 @@ func VertexAIModelRef(name string, config *genai.GenerateContentConfig) ai.Model
 // GoogleAIModel returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
 func GoogleAIModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, googleAIProvider, name)
+	return genkit.LookupModel(g, core.NewName(googleAIProvider, name))
 }
 
 // VertexAIModel returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
 func VertexAIModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, vertexAIProvider, name)
+	return genkit.LookupModel(g, core.NewName(vertexAIProvider, name))
 }
 
 // GoogleAIEmbedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
 func GoogleAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
-	return genkit.LookupEmbedder(g, googleAIProvider, name)
+	return genkit.LookupEmbedder(g, core.NewName(googleAIProvider, name))
 }
 
 // VertexAIEmbedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
 func VertexAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
-	return genkit.LookupEmbedder(g, vertexAIProvider, name)
+	return genkit.LookupEmbedder(g, core.NewName(vertexAIProvider, name))
 }
 
 func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
@@ -375,7 +371,7 @@ func (ga *GoogleAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name 
 			supports = &Multimodal
 		}
 
-		defineModel(g, ga.gclient, name, ai.ModelInfo{
+		defineModel(g, ga.gclient, name, ai.ModelOptions{
 			Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
 			Stage:    ai.ModelStageStable,
 			Versions: []string{},
@@ -438,7 +434,7 @@ func (v *VertexAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name s
 			supports = &Multimodal
 		}
 
-		defineModel(g, v.gclient, name, ai.ModelInfo{
+		defineModel(g, v.gclient, name, ai.ModelOptions{
 			Label:    fmt.Sprintf("%s - %s", vertexAILabelPrefix, name),
 			Stage:    ai.ModelStageStable,
 			Versions: []string{},
