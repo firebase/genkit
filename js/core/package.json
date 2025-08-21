@@ -55,6 +55,9 @@
     "tsx": "^4.19.2",
     "typescript": "^4.9.0"
   },
+  "optionalDependencies": {
+    "@genkit-ai/firebase": "^1.16.1"
+  },
   "types": "lib/index.d.ts",
   "exports": {
     ".": {
