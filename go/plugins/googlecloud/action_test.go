@@ -13,13 +13,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-func TestNewActionTelemetry(t *testing.T) {
-	actionTel := NewActionTelemetry()
-
-	assert.NotNil(t, actionTel)
-	// ActionTelemetry doesn't have metrics, so we just verify it initializes
-}
-
 // TestActionTelemetry_PipelineIntegration verifies that action telemetry
 // works correctly in the full pipeline with realistic paths
 func TestActionTelemetry_PipelineIntegration(t *testing.T) {

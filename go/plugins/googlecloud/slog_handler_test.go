@@ -30,12 +30,9 @@ import (
 // TestHandler tests the Google Cloud slog handler functionality.
 //
 // NOTE: We use a custom test instead of slogtest.TestHandler because our handler
-// is intentionally designed for Google Cloud Logging with a simplified approach:
-// - Only processes "data" attributes for metadata
-// - Does not implement full slog specification for WithAttrs/WithGroup
-// - Optimized for Google Cloud Console payload format
-//
-// This is to match our Genkit TS / AIM integration.
+// is intentionally designed for Google Cloud Logging.
+// The main requirement we optimized against is matching the bespoke log structure that AIM expects.
+
 func TestHandler(t *testing.T) {
 	// Test basic functionality that our handler does support
 	var results []logging.Entry
