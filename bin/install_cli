@@ -16,6 +16,12 @@
 #
 :   curl -sL cli.genkit.dev | bash
 #
+# For local execution with command-line options:
+#
+:   ./install_cli --help
+:   ./install_cli --uninstall
+:   ./install_cli --local
+#
 # If you do not want to use this script, you can manually
 # download the latest "genkit" binary.
 #
@@ -45,12 +51,15 @@
 : ==========================================
 
 # The behavior of this script can be modified at runtime by passing environmental
-# variables to the `bash` process.
+# variables to the `bash` process, or by using command-line arguments for local execution.
 #
-# For example, passing an argument called arg1 set to true and one called arg2 set
-# to false would look like this.
+# For curl execution (environment variables):
 #
 : curl -sL cli.genkit.dev | arg1=true arg2=false bash
+#
+# For local execution (command-line arguments):
+#
+: ./install_cli --arg1 --no-arg2
 #
 # These arguments are optional, but be aware that explicitly setting them will help
 # ensure consistent behavior if / when defaults are changed.
@@ -61,9 +70,13 @@
 : -----------------------------------------
 
 # By default, this script will not replace an existing "genkit" install.
-# If you'd like to upgrade an existing install, set the "upgrade" variable to true.
+# If you'd like to upgrade an existing install, use the upgrade option.
 #
+# Curl execution:
 : curl -sL cli.genkit.dev | upgrade=true bash
+#
+# Local execution:
+: ./install_cli --upgrade
 #
 # This operation could (potentially) break an existing install, so use it with caution.
 #
@@ -74,7 +87,11 @@
 
 # You can remove the binary by passing the "uninstall" flag.
 #
+# Curl execution:
 : curl -sL cli.genkit.dev | uninstall=true bash
+#
+# Local execution:
+: ./install_cli --uninstall
 #
 # This will remove the binary file and any cached data.
 #
@@ -84,10 +101,14 @@
 : -----------------------------------------
 
 # To force a user-local install into $HOME/.local/bin (useful on systems without sudo),
-# pass either:
+# use the local option:
 #
+# Curl execution:
 : curl -sL cli.genkit.dev | GENKIT_INSTALL=local bash
 : curl -sL cli.genkit.dev | local=true bash
+#
+# Local execution:
+: ./install_cli --local
 #
 # You can also explicitly set a target path:
 #
@@ -102,7 +123,11 @@
 # This script reports anonymous success / failure analytics.
 # You can disable this reporting by setting the "analytics" variable to false.
 #
+# Curl execution:
 : curl -sL cli.genkit.dev | analytics=false bash
+#
+# Local execution:
+: ./install_cli --no-analytics
 #
 # By default we report all data anonymously and do not collect any information
 # except platform type (Darwin, Win, etc) in the case of an unsupported platform
@@ -119,6 +144,103 @@ channel="${channel:-prod}"
 # This script contains a large amount of comments so you can understand
 # how it interacts with your system. If you're not interested in the
 # technical details, you can just run the command above.
+
+# Parse command-line arguments
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --uninstall|-u)
+                uninstall="true"
+                shift
+                ;;
+            --upgrade|-U)
+                upgrade="true"
+                shift
+                ;;
+            --local|-l)
+                local="true"
+                shift
+                ;;
+            --channel|-c)
+                if [ -z "${2-}" ]; then
+                    echo "--channel requires a value (prod or next)"
+                    exit 1
+                fi
+                case "$2" in
+                    prod|next)
+                        channel="$2"
+                        ;;
+                    *)
+                        echo "Invalid channel '$2'. Must be 'prod' or 'next'."
+                        exit 1
+                        ;;
+                esac
+                shift 2
+                ;;
+            --analytics)
+                analytics="true"
+                shift
+                ;;
+            --no-analytics)
+                analytics="false"
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            --version|-v)
+                show_version
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo "Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Show help information
+show_help() {
+    cat << EOF
+Genkit CLI Installer
+
+Usage:
+  ./install_cli [OPTIONS]
+
+Options:
+  --uninstall, -u     Uninstall genkit
+  --upgrade, -U       Upgrade existing installation
+  --local, -l         Force local installation to ~/.local/bin
+  --channel, -c       Specify channel [prod|next]
+  --analytics         Enable analytics (default)
+  --no-analytics      Disable analytics
+  --help, -h          Show this help
+  --version, -v       Show version
+
+Environment Variables:
+  uninstall=true      Same as --uninstall
+  upgrade=true        Same as --upgrade
+  local=true          Same as --local
+  channel=next        Same as --channel next
+  analytics=false     Same as --no-analytics
+
+Examples:
+  ./install_cli --uninstall
+  ./install_cli --local
+  curl -sL cli.genkit.dev | uninstall=true bash
+EOF
+}
+
+# Show version information
+show_version() {
+    echo "Genkit CLI Installer v1.0"
+}
+
+# Parse arguments first (command-line args override environment variables)
+parse_arguments "$@"
 
 # We begin by generating a unique ID for tracking the anonymous session.
 CID=$(head -80 /dev/urandom | LC_ALL=c tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
@@ -301,7 +423,7 @@ echo "-- Downloading binary from $DOWNLOAD_URL"
 
 # We use "curl" to download the binary with a flag set to follow redirects
 # (GitHub download URLs redirect to CDNs) and a flag to show a progress bar.
-curl -o "/tmp/genkit_standalone.tmp" --fail -L --progress-bar $DOWNLOAD_URL
+curl -o "/tmp/genkit_standalone.tmp" --fail -L --progress-bar "$DOWNLOAD_URL"
 if [ $? -ne 0 ]; then
     echo "Something went wrong. Failed to download binary from $DOWNLOAD_URL"
     echo "Please file a bug with your system information on GitHub."
@@ -372,7 +494,9 @@ fi
 # be present inside of the PATH environment variable.
 
 echo "-- Checking your PATH variable..."
-if [[ ! ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
+case ":$PATH:" in
+  *":$INSTALL_DIR:"*) : ;;
+  *)
     echo ""
     echo "It looks like $INSTALL_DIR isn't on your PATH."
     if [ "$INSTALL_DIR" = "$HOME/.local/bin" ]; then
@@ -385,7 +509,8 @@ if [[ ! ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
     echo "For more information about modifying PATHs, see https://unix.stackexchange.com/a/26059"
     echo ""
     send_analytics_event missing_path
-fi
+  ;;
+esac
 
 # We also try to upgrade the local binary if it exists.
 # This helps prevent having two mismatching versions of "genkit".
