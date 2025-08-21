@@ -31,8 +31,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
-
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // Genkit encapsulates a Genkit instance, providing access to its registry,
@@ -902,17 +900,6 @@ func LoadPrompt(g *Genkit, path string, namespace string) *ai.Prompt {
 	}
 
 	return ai.LoadPrompt(g.reg, dir, filename, namespace)
-}
-
-// RegisterSpanProcessor registers an OpenTelemetry [sdktrace.SpanProcessor]
-// with the Genkit instance. This allows integrating custom trace processing
-// and exporting logic (e.g., sending traces to a specific backend like Jaeger,
-// Datadog, or Google Cloud Trace).
-//
-// Span processors should be registered before any actions are run to ensure
-// all spans are processed. Multiple processors can be registered.
-func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
-	g.reg.RegisterSpanProcessor(sp)
 }
 
 // DefinePartial wraps DefinePartial to register a partial template with the given name and source.
