@@ -1,13 +1,30 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { GenkitToolsError } from '@genkit-ai/tools-common/manager';
 import { getUserSettings, logger } from '@genkit-ai/tools-common/utils';
 import axios, { AxiosInstance } from 'axios';
 import * as clc from 'colorette';
+import { arch, platform } from 'os';
 import semver from 'semver';
+import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from '../commands/config';
 import { detectCLIRuntime } from '../utils/runtime-detector';
 import { version as currentVersion, name } from '../utils/version';
-import { UPDATE_NOTIFICATIONS_OPT_OUT_CONFIG_TAG } from '../commands/config';
-import { arch, platform } from 'os';
 
+const GCS_BUCKET_URL = 'https://storage.googleapis.com/genkit-assets-cli';
 const AXIOS_INSTANCE: AxiosInstance = axios.create({
   timeout: 3000,
 });
@@ -44,11 +61,14 @@ interface GCSLatestResponse {
   channel: string;
   latestVersion: string;
   lastUpdated: string;
-  platforms: Record<string, {
-    url: string;
-    version: string;
-    versionedUrl: string;
-  }>;
+  platforms: Record<
+    string,
+    {
+      url: string;
+      version: string;
+      versionedUrl: string;
+    }
+  >;
 }
 
 /**
@@ -66,9 +86,7 @@ interface NpmRegistryResponse {
  * Fetches the latest release data from GCS.
  */
 async function getGCSLatestData(): Promise<GCSLatestResponse> {
-  const response = await AXIOS_INSTANCE.get(
-    'https://storage.googleapis.com/genkit-assets-cli/latest.json'
-  );
+  const response = await AXIOS_INSTANCE.get(`${GCS_BUCKET_URL}/latest.json`);
 
   if (response.status !== 200) {
     throw new GenkitToolsError(
@@ -83,7 +101,9 @@ async function getGCSLatestData(): Promise<GCSLatestResponse> {
  * Gets the latest CLI version from npm registry for non-binary installations.
  * @param ignoreRC - If true, ignore prerelease versions (default: true)
  */
-export async function getLatestVersionFromNpm(ignoreRC: boolean = true): Promise<string | null> {
+export async function getLatestVersionFromNpm(
+  ignoreRC: boolean = true
+): Promise<string | null> {
   try {
     const response = await AXIOS_INSTANCE.get(
       `https://registry.npmjs.org/${name}`
@@ -143,7 +163,10 @@ function areUpdateNotificationsDisabled(): boolean {
 /**
  * Gets the latest version and update message for compiled binary installations.
  */
-async function getBinaryUpdateInfo(): Promise<{ latestVersion: string; updateMessage: string } | null> {
+async function getBinaryUpdateInfo(): Promise<{
+  latestVersion: string;
+  updateMessage: string;
+} | null> {
   const gcsLatestData = await getGCSLatestData();
   const machine = `${platform}-${arch}`;
   const platformData = gcsLatestData.platforms[machine];
@@ -155,7 +178,7 @@ async function getBinaryUpdateInfo(): Promise<{ latestVersion: string; updateMes
 
   const latestVersion = normalizeVersion(gcsLatestData.latestVersion);
   const fileName = platformData.versionedUrl.split('/').pop() || '';
-  const downloadUrl = `https://storage.googleapis.com/genkit-assets-cli/prod/${machine}/v${latestVersion}/${fileName}`;
+  const downloadUrl = `${GCS_BUCKET_URL}/prod/${machine}/v${latestVersion}/${fileName}`;
   const updateMessage = `${clc.dim('Run')} ${clc.bold(`curl -Lo ./genkit_bin ${downloadUrl}`)} ${clc.dim('to upgrade')}`;
   return { latestVersion, updateMessage };
 }
@@ -163,7 +186,10 @@ async function getBinaryUpdateInfo(): Promise<{ latestVersion: string; updateMes
 /**
  * Gets the latest version and update message for npm installations.
  */
-async function getNpmUpdateInfo(): Promise<{ latestVersion: string; updateMessage: string } | null> {
+async function getNpmUpdateInfo(): Promise<{
+  latestVersion: string;
+  updateMessage: string;
+} | null> {
   const latestVersion = await getLatestVersionFromNpm();
   if (!latestVersion) {
     logger.debug('No available versions found from npm.');
@@ -197,7 +223,9 @@ export async function showUpdateNotification(): Promise<void> {
     const current = normalizeVersion(currentVersion);
 
     if (!semver.valid(latestVersion) || !semver.valid(current)) {
-      logger.debug(`Invalid semver: current=${current}, latest=${latestVersion}`);
+      logger.debug(
+        `Invalid semver: current=${current}, latest=${latestVersion}`
+      );
       return;
     }
 
@@ -207,8 +235,9 @@ export async function showUpdateNotification(): Promise<void> {
 
     logger.info(
       `\n${clc.yellow('📦 Update available:')} ${clc.bold(`v${current}`)} → ${clc.bold(clc.green(`v${latestVersion}`))}\n` +
-      updateMessage + "\n" +
-      `${clc.dim('Run')} ${clc.bold('genkit config set updateNotificationsOptOut true')} ${clc.dim('to disable these notifications')}\n`
+        updateMessage +
+        '\n' +
+        `${clc.dim('Run')} ${clc.bold('genkit config set updateNotificationsOptOut true')} ${clc.dim('to disable these notifications')}\n`
     );
   } catch (e) {
     // Silently fail - update notifications shouldn't break the CLI

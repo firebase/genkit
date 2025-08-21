@@ -31,24 +31,24 @@ const mockLoggerInfo = jest.fn();
 const mockDetectCLIRuntime = jest.fn();
 
 jest.mock('axios', () => ({
-  create: jest.fn(() => ({ get: mockAxiosGet }))
+  create: jest.fn(() => ({ get: mockAxiosGet })),
 }));
 
 jest.mock('@genkit-ai/tools-common/utils', () => ({
   getUserSettings: mockGetUserSettings,
   logger: {
     debug: mockLoggerDebug,
-    info: mockLoggerInfo
-  }
+    info: mockLoggerInfo,
+  },
 }));
 
 jest.mock('../../src/utils/runtime-detector', () => ({
-  detectCLIRuntime: mockDetectCLIRuntime
+  detectCLIRuntime: mockDetectCLIRuntime,
 }));
 
 jest.mock('../../src/utils/version', () => ({
   version: '1.15.0',
-  name: 'genkit-cli'
+  name: 'genkit-cli',
 }));
 
 jest.mock('colorette', () => ({
@@ -59,24 +59,28 @@ jest.mock('colorette', () => ({
 }));
 
 jest.mock('os', () => ({
-  ...jest.requireActual('os') as any,
+  ...(jest.requireActual('os') as any),
   arch: () => 'x64',
-  platform: () => 'linux'
+  platform: () => 'linux',
 }));
 
 // Now import the functions we want to test
-import { getCurrentVersion, getLatestVersionFromNpm, showUpdateNotification } from '../../src/utils/updates';
+import {
+  getCurrentVersion,
+  getLatestVersionFromNpm,
+  showUpdateNotification,
+} from '../../src/utils/updates';
 
 describe('updates', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Reset process.env
     process.env = { ...originalEnv };
     delete process.env.GENKIT_CLI_DISABLE_UPDATE_NOTIFICATIONS;
-    
+
     // Set default mock return values
     mockGetUserSettings.mockReturnValue({});
     mockDetectCLIRuntime.mockReturnValue({
@@ -84,7 +88,7 @@ describe('updates', () => {
       execPath: '/usr/bin/node',
       scriptPath: '/usr/bin/genkit',
       isCompiledBinary: false,
-      platform: 'linux'
+      platform: 'linux',
     });
   });
 
@@ -105,19 +109,19 @@ describe('updates', () => {
         status: 200,
         data: {
           'dist-tags': {
-            latest: '1.16.0'
+            latest: '1.16.0',
           },
           versions: {
             '1.16.0': {},
-            '1.15.0': {}
-          }
-        }
+            '1.15.0': {},
+          },
+        },
       };
 
       mockAxiosGet.mockResolvedValueOnce(mockResponse);
 
       const result = await getLatestVersionFromNpm();
-      
+
       expect(result).toBe('1.16.0');
       expect(mockAxiosGet).toHaveBeenCalledWith(
         'https://registry.npmjs.org/genkit-cli'
@@ -129,20 +133,20 @@ describe('updates', () => {
         status: 200,
         data: {
           'dist-tags': {
-            latest: '1.16.0-rc.1'
+            latest: '1.16.0-rc.1',
           },
           versions: {
             '1.16.0-rc.1': {},
             '1.15.0': {},
-            '1.14.0': {}
-          }
-        }
+            '1.14.0': {},
+          },
+        },
       };
 
       mockAxiosGet.mockResolvedValueOnce(mockResponse);
 
       const result = await getLatestVersionFromNpm(true);
-      
+
       expect(result).toBe('1.15.0');
     });
 
@@ -151,19 +155,19 @@ describe('updates', () => {
         status: 200,
         data: {
           'dist-tags': {
-            latest: '1.16.0-rc.1'
+            latest: '1.16.0-rc.1',
           },
           versions: {
             '1.16.0-rc.1': {},
-            '1.15.0': {}
-          }
-        }
+            '1.15.0': {},
+          },
+        },
       };
 
       mockAxiosGet.mockResolvedValueOnce(mockResponse);
 
       const result = await getLatestVersionFromNpm(false);
-      
+
       expect(result).toBe('1.16.0-rc.1');
     });
 
@@ -174,15 +178,15 @@ describe('updates', () => {
           'dist-tags': {},
           versions: {
             'invalid-version': {},
-            'another-invalid': {}
-          }
-        }
+            'another-invalid': {},
+          },
+        },
       };
 
       mockAxiosGet.mockResolvedValueOnce(mockResponse);
 
       const result = await getLatestVersionFromNpm();
-      
+
       expect(result).toBeNull();
     });
 
@@ -198,7 +202,7 @@ describe('updates', () => {
     it('should handle HTTP error status codes', async () => {
       const mockResponse = {
         status: 404,
-        statusText: 'Not Found'
+        statusText: 'Not Found',
       };
 
       mockAxiosGet.mockResolvedValueOnce(mockResponse);
@@ -221,7 +225,7 @@ describe('updates', () => {
 
     it('should not show notification when disabled via user config', async () => {
       mockGetUserSettings.mockReturnValueOnce({
-        updateNotificationsOptOut: true
+        updateNotificationsOptOut: true,
       });
 
       await showUpdateNotification();
@@ -235,13 +239,13 @@ describe('updates', () => {
         status: 200,
         data: {
           'dist-tags': {
-            latest: '1.16.0'
+            latest: '1.16.0',
           },
           versions: {
             '1.16.0': {},
-            '1.15.0': {}
-          }
-        }
+            '1.15.0': {},
+          },
+        },
       };
 
       mockAxiosGet.mockResolvedValueOnce(mockNpmResponse);
@@ -261,13 +265,13 @@ describe('updates', () => {
         status: 200,
         data: {
           'dist-tags': {
-            latest: '1.15.0' // Same as current version
+            latest: '1.15.0', // Same as current version
           },
           versions: {
             '1.15.0': {},
-            '1.14.0': {}
-          }
-        }
+            '1.14.0': {},
+          },
+        },
       };
 
       mockAxiosGet.mockResolvedValueOnce(mockNpmResponse);
