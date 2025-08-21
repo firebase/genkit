@@ -105,7 +105,7 @@
 #
 # Curl execution:
 : curl -sL cli.genkit.dev | GENKIT_INSTALL=local bash
-: curl -sL cli.genkit.dev | local=true bash
+: curl -sL cli.genkit.dev | GENKIT_CLI_LOCAL=true bash
 #
 # Local execution:
 : ./install_cli --local
