@@ -117,7 +117,7 @@ async function __flowRunEnvelope({
     if (decodedValue) {
       buffer += decodedValue;
     }
-    // If buffer includes the delimiter that means we are still recieving chunks.
+    // If buffer includes the delimiter that means we are still receiving chunks.
     while (buffer.includes(__flowStreamDelimiter)) {
       const chunk = JSON.parse(
         buffer
@@ -133,7 +133,7 @@ async function __flowRunEnvelope({
           `${chunk.error.status}: ${chunk.error.message}\n${chunk.error.details}`
         );
       } else {
-        throw new Error('unkown chunk format: ' + JSON.stringify(chunk));
+        throw new Error('unknown chunk format: ' + JSON.stringify(chunk));
       }
       buffer = buffer.substring(
         buffer.indexOf(__flowStreamDelimiter) + __flowStreamDelimiter.length

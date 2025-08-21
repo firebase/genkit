@@ -99,7 +99,7 @@ describe('definePrompt', () => {
     const lookedUpPrompt = ai.prompt('hi');
     // This is a known limitation -- prompt lookup is async under the hood,
     // so we can't actually get the metadata...
-    assert.deepStrictEqual(lookedUpPrompt.ref, { name: 'hi' }); // ideally metadatashould be: { foo: 'bar' }
+    assert.deepStrictEqual(lookedUpPrompt.ref, { name: 'hi' }); // ideally metadata should be: { foo: 'bar' }
   });
 
   it('should apply middleware to a prompt call', async () => {
@@ -692,7 +692,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('renderes dotprompt messages', async () => {
+    it('renders dotprompt messages', async () => {
       const hi = ai.definePrompt({
         name: 'hi',
         input: {

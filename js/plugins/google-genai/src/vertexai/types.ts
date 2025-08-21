@@ -361,7 +361,7 @@ export declare interface LyriaPredictResponse {
 
 export declare interface LyriaPrediction {
   bytesBase64Encoded: string; // Base64 encoded Wav string
-  mimeType: string; // autio/wav
+  mimeType: string; // audio/wav
 }
 
 export declare interface LyriaInstance {
