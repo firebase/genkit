@@ -1022,7 +1022,7 @@ func FindMatchingResource(g *Genkit, uri string) (ai.Resource, *ai.ResourceInput
 //	  }),
 //	  ai.WithResources(dynamicRes),
 //	)
-func NewResource(resourceName string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
+func NewResource(name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
 	// Delegate to ai implementation
 	return ai.NewResource(resourceName, *opts, fn)
 }
