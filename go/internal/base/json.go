@@ -75,6 +75,7 @@ func ReadJSONFile(filename string, pvalue any) error {
 	return json.NewDecoder(f).Decode(pvalue)
 }
 
+// InferJSONSchema infers a JSON schema from a Go value.
 func InferJSONSchema(x any) (s *jsonschema.Schema) {
 	r := jsonschema.Reflector{
 		DoNotReference: true,
@@ -158,11 +159,5 @@ func GetJsonObjectLines(text string) []string {
 	}
 
 	// Return the slice containing the filtered and trimmed lines.
-	return result
-}
-
-func ToSchemaMap(config any) map[string]any {
-	schema := InferJSONSchema(config)
-	result := SchemaAsMap(schema)
 	return result
 }

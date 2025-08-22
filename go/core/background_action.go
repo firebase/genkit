@@ -73,7 +73,7 @@ func (b *backgroundActionDef[In, Out]) Name() string {
 // DefineBackgroundAction creates and registers a background action with three component actions
 func DefineBackgroundAction[In, Out any](
 	r *registry.Registry,
-	provider, name string,
+	name string,
 	metadata map[string]any,
 	startFunc func(context.Context, In) (*Operation[Out], error),
 	checkFunc func(context.Context, *Operation[Out]) (*Operation[Out], error),
@@ -85,7 +85,7 @@ func DefineBackgroundAction[In, Out any](
 	if checkFunc == nil {
 		panic("DefineBackgroundAction requires a check function")
 	}
-	startAction := defineAction(r, provider, name, ActionTypeBackgroundModel, metadata, nil,
+	startAction := defineAction(r, name, ActionTypeBackgroundModel, metadata, nil,
 		func(ctx context.Context, input In, _ func(context.Context, struct{}) error) (*Operation[Out], error) {
 			startTime := time.Now()
 			operation, err := startFunc(ctx, input)
@@ -100,7 +100,7 @@ func DefineBackgroundAction[In, Out any](
 			return operation, nil
 		})
 
-	checkAction := defineAction(r, provider, name, ActionTypeCheckOperation,
+	checkAction := defineAction(r, name, ActionTypeCheckOperation,
 		map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)},
 		nil,
 		func(ctx context.Context, op *Operation[Out], _ func(context.Context, struct{}) error) (*Operation[Out], error) {
@@ -115,7 +115,7 @@ func DefineBackgroundAction[In, Out any](
 
 	var cancelAction *ActionDef[*Operation[Out], *Operation[Out], struct{}]
 	if cancelFunc != nil {
-		cancelAction = defineAction(r, provider, name, ActionTypeCancelOperation,
+		cancelAction = defineAction(r, name, ActionTypeCancelOperation,
 			map[string]any{"description": fmt.Sprintf("Cancel %s operation", name)},
 			nil,
 			func(ctx context.Context, op *Operation[Out], _ func(context.Context, struct{}) error) (*Operation[Out], error) {
@@ -137,18 +137,18 @@ func DefineBackgroundAction[In, Out any](
 }
 
 // LookupBackgroundAction finds and assembles a background action from the registry
-func LookupBackgroundAction[In, Out any](r *registry.Registry, provider string, name string) BackgroundAction[In, Out] {
+func LookupBackgroundAction[In, Out any](r *registry.Registry, name string) BackgroundAction[In, Out] {
 
-	startAction := ResolveActionFor[In, *Operation[Out], struct{}](r, ActionTypeBackgroundModel, provider, name)
+	startAction := ResolveActionFor[In, *Operation[Out], struct{}](r, ActionTypeBackgroundModel, name)
 	if startAction == nil {
 		return nil
 	}
 
-	checkAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, ActionTypeCheckOperation, provider, name)
+	checkAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, ActionTypeCheckOperation, name)
 	if checkAction == nil {
 		return nil
 	}
-	cancelAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, ActionTypeCancelOperation, provider, name)
+	cancelAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, ActionTypeCancelOperation, name)
 
 	bgAction := backgroundActionDef[In, Out]{
 		startAction:  startAction,

@@ -36,12 +36,9 @@ func main() {
 	ctx := context.Background()
 
 	// Initialize Genkit with the Google AI plugin and Gemini 2.0 Flash.
-	g, err := genkit.Init(ctx,
+	g := genkit.Init(ctx,
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 	)
-	if err != nil {
-		log.Fatalf("could not initialize Genkit: %v", err)
-	}
 
 	resp, err := genkit.GenerateOperation(ctx, g,
 		ai.WithMessages(ai.NewUserTextMessage("Mouse eating cheese")),
@@ -50,13 +47,14 @@ func main() {
 			NumberOfVideos:  1,
 			AspectRatio:     "16:9",
 			DurationSeconds: genai.Ptr(int32(5)),
-		}))
+		}),
+	)
 	if err != nil {
 		log.Fatalf("could not start operation: %v", err)
 	}
 
 	// Get the background model for status checking
-	bgAction := genkit.LookupBackgroundModel(g, "googleai", "veo-2.0-generate-001")
+	bgAction := genkit.LookupBackgroundModel(g, "veo-2.0-generate-001")
 	if bgAction == nil {
 		log.Fatalf("background model not found")
 	}

@@ -33,7 +33,7 @@ func defineVeoModels(
 	g *genkit.Genkit,
 	client *genai.Client,
 	name string,
-	info ai.ModelInfo,
+	info ai.ModelOptions,
 ) ai.BackgroundModel {
 
 	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
@@ -83,7 +83,7 @@ func defineVeoModels(
 		Check:        checkFunc,
 		Cancel:       cancelFunc,
 	}
-	return genkit.DefineBackgroundModel(g, googleAIProvider, name, &opts)
+	return genkit.DefineBackgroundModel(g, name, &opts)
 }
 
 // extractTextFromRequest extracts the text prompt from a model request.

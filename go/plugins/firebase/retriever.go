@@ -21,6 +21,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -129,16 +130,14 @@ func defineFirestoreRetriever(g *genkit.Genkit, cfg RetrieverOptions, client *fi
 	}
 
 	retOpts := &ai.RetrieverOptions{
-		ConfigSchema: cfg,
-		Info: &ai.RetrieverInfo{
-			Label: cfg.Name,
-			Supports: &ai.RetrieverSupports{
-				Media: false,
-			},
+		ConfigSchema: core.InferSchemaMap(cfg),
+		Label:        cfg.Name,
+		Supports: &ai.RetrieverSupports{
+			Media: false,
 		},
 	}
 
-	return genkit.DefineRetriever(g, provider, cfg.Name, retOpts, retrieve), nil
+	return genkit.DefineRetriever(g, core.NewName(provider, cfg.Name), retOpts, retrieve), nil
 }
 
 // resolveFirestoreCollection resolves the Firestore collection name from the environment if necessary

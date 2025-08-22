@@ -133,7 +133,7 @@ func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, er
 }
 
 // DefineModel defines a model in the registry
-func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.ModelInfo) ai.Model {
+func defineModel(g *genkit.Genkit, client *genai.Client, name string, opts ai.ModelOptions) ai.Model {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
@@ -141,18 +141,19 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 
 	var config any
 	config = &genai.GenerateContentConfig{}
-	if mi, found := supportedImagenModels[name]; found {
+	if imageOpts, found := supportedImagenModels[name]; found {
 		config = &genai.GenerateImagesConfig{}
-		info = mi
-	} else if vi, fnd := supportedVideoModels[name]; fnd {
+		opts = imageOpts
+	}  else if vi, fnd := supportedVideoModels[name]; fnd {
 		config = &genai.GenerateVideosConfig{}
-		info = vi
+		opts = vi
 	}
-	meta := &ai.ModelInfo{
-		Label:        info.Label,
-		Supports:     info.Supports,
-		Versions:     info.Versions,
+	meta := &ai.ModelOptions{
+		Label:        opts.Label,
+		Supports:     opts.Supports,
+		Versions:     opts.Versions,
 		ConfigSchema: configToMap(config),
+		Stage:        opts.Stage,
 	}
 
 	fn := func(
@@ -168,7 +169,7 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		}
 	}
 	// the gemini api doesn't support downloading media from http(s)
-	if info.Supports.Media {
+	if opts.Supports.Media {
 		fn = core.ChainMiddleware(ai.DownloadRequestMedia(&ai.DownloadMediaOptions{
 			MaxBytes: 1024 * 1024 * 20, // 20MB
 			Filter: func(part *ai.Part) bool {
@@ -187,7 +188,7 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 			},
 		}))(fn)
 	}
-	return genkit.DefineModel(g, provider, name, meta, fn)
+	return genkit.DefineModel(g, core.NewName(provider, name), meta, fn)
 }
 
 // DefineEmbedder defines embeddings for the provided contents and embedder
@@ -199,10 +200,10 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOp
 	}
 
 	if embedOpts.ConfigSchema == nil {
-		embedOpts.ConfigSchema = genai.EmbedContentConfig{}
+		embedOpts.ConfigSchema = core.InferSchemaMap(genai.EmbedContentConfig{})
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, core.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
@@ -505,28 +506,28 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		if err != nil {
 			return nil, err
 		}
-		schema.MinItems = genai.Ptr[int64](i)
+		schema.MinItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maxItems"]; ok {
 		i, err := strconv.ParseInt(v.(string), 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		schema.MaxItems = genai.Ptr[int64](i)
+		schema.MaxItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maximum"]; ok {
 		i, err := strconv.ParseFloat(v.(string), 64)
 		if err != nil {
 			return nil, err
 		}
-		schema.Maximum = genai.Ptr[float64](i)
+		schema.Maximum = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["minimum"]; ok {
 		i, err := strconv.ParseFloat(v.(string), 64)
 		if err != nil {
 			return nil, err
 		}
-		schema.Minimum = genai.Ptr[float64](i)
+		schema.Minimum = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
 		schema.Enum = castToStringArray(v.([]any))
