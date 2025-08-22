@@ -25,7 +25,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
@@ -373,11 +372,9 @@ func ListTools(g *Genkit) []ai.Tool {
 			continue
 		}
 		actionDesc := action.Desc()
-		if strings.HasPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/") {
-			// Extract tool name from key
-			toolName := strings.TrimPrefix(actionDesc.Key, "/"+string(core.ActionTypeTool)+"/")
-			// Lookup the actual tool
-			tool := LookupTool(g, toolName)
+		if actionDesc.Type == core.ActionTypeTool {
+			// Lookup the actual tool using the action name
+			tool := LookupTool(g, actionDesc.Name)
 			if tool != nil {
 				tools = append(tools, tool)
 			}
@@ -1038,11 +1035,10 @@ func ListResources(g *Genkit) []ai.Resource {
 		}
 		actionDesc := action.Desc()
 		if actionDesc.Type == core.ActionTypeResource {
-			// Look up the resource wrapper
-			if resourceValue := g.reg.LookupValue(fmt.Sprintf("resource/%s", actionDesc.Name)); resourceValue != nil {
-				if resource, ok := resourceValue.(ai.Resource); ok {
-					resources = append(resources, resource)
-				}
+			// Lookup the actual resource using the action name
+			resource := ai.LookupResource(g.reg, actionDesc.Name)
+			if resource != nil {
+				resources = append(resources, resource)
 			}
 		}
 	}

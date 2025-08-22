@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/stretchr/testify/assert"
 )
@@ -263,7 +262,7 @@ func TestMCPContentFetch(t *testing.T) {
 
 	// Find resource that matches our test URI
 	testURI := "file://data/example.txt"
-	var matchingResource core.DetachedResourceAction
+	var matchingResource ai.Resource
 	for _, res := range resources {
 		if res.Matches(testURI) {
 			matchingResource = res

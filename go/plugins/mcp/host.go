@@ -102,11 +102,6 @@ func (h *MCPHost) Connect(ctx context.Context, g *genkit.Genkit, serverName stri
 
 	h.clients[serverName] = client
 
-	// Auto-register tools and prompts from the connected server
-	if _, err := client.GetActiveTools(ctx, g); err != nil {
-		logger.FromContext(ctx).Warn("Failed to register tools from server", "server", serverName, "error", err)
-	}
-
 	return nil
 }
 

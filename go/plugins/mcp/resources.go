@@ -22,7 +22,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// GetActiveResources fetches detached resources from the MCP server
+// GetActiveResources fetches resources from the MCP server
 func (c *GenkitMCPClient) GetActiveResources(ctx context.Context) ([]ai.Resource, error) {
 	if !c.IsEnabled() || c.server == nil {
 		return nil, fmt.Errorf("MCP client is disabled or not connected")
@@ -30,48 +30,66 @@ func (c *GenkitMCPClient) GetActiveResources(ctx context.Context) ([]ai.Resource
 
 	var resources []ai.Resource
 
-	// List static resources from MCP server
-	listReq := mcp.ListResourcesRequest{}
-	listResp, err := c.server.Client.ListResources(ctx, listReq)
+	// Fetch static resources
+	staticResources, err := c.getStaticResources(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list resources from %s: %w", c.options.Name, err)
+		return nil, fmt.Errorf("failed to get resources from %s: %w", c.options.Name, err)
 	}
+	resources = append(resources, staticResources...)
 
-	// Create detached resources for each static resource
-	for _, mcpResource := range listResp.Resources {
-		detachedResource, err := c.createDetachedMCPResource(mcpResource)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create detached resource %s: %w", mcpResource.Name, err)
-		}
-		resources = append(resources, detachedResource)
-	}
-
-	// List resource templates from MCP server
-	templateReq := mcp.ListResourceTemplatesRequest{}
-	templateResp, err := c.server.Client.ListResourceTemplates(ctx, templateReq)
+	// Fetch template resources (optional - not all servers support templates)
+	templateResources, err := c.getTemplateResources(ctx)
 	if err != nil {
-		// Resource templates might not be supported by all servers
-		return resources, nil // Continue without template resources
+		// Templates not supported by all servers, continue without them
+		return resources, nil
 	}
-
-	// Create detached resources for each template resource
-	for _, mcpTemplate := range templateResp.ResourceTemplates {
-		detachedResource, err := c.createDetachedMCPResourceTemplate(mcpTemplate)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create detached resource template %s: %w", mcpTemplate.Name, err)
-		}
-		resources = append(resources, detachedResource)
-	}
+	resources = append(resources, templateResources...)
 
 	return resources, nil
 }
 
-// createDetachedMCPResource creates a detached Genkit resource from an MCP static resource
-func (c *GenkitMCPClient) createDetachedMCPResource(mcpResource mcp.Resource) (ai.Resource, error) {
+// getStaticResources retrieves and converts static MCP resources to Genkit resources
+func (c *GenkitMCPClient) getStaticResources(ctx context.Context) ([]ai.Resource, error) {
+	mcpResources, err := c.getResources(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var resources []ai.Resource
+	for _, mcpResource := range mcpResources {
+		resource, err := c.toGenkitResource(mcpResource)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create resource %s: %w", mcpResource.Name, err)
+		}
+		resources = append(resources, resource)
+	}
+	return resources, nil
+}
+
+// getTemplateResources retrieves and converts MCP resource templates to Genkit resources
+func (c *GenkitMCPClient) getTemplateResources(ctx context.Context) ([]ai.Resource, error) {
+	mcpTemplates, err := c.getResourceTemplates(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var resources []ai.Resource
+	for _, mcpTemplate := range mcpTemplates {
+		resource, err := c.toGenkitResourceTemplate(mcpTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create resource template %s: %w", mcpTemplate.Name, err)
+		}
+		resources = append(resources, resource)
+	}
+	return resources, nil
+}
+
+// toGenkitResource creates a Genkit resource from an MCP static resource
+func (c *GenkitMCPClient) toGenkitResource(mcpResource mcp.Resource) (ai.Resource, error) {
 	// Create namespaced resource name
 	resourceName := c.GetResourceNameWithNamespace(mcpResource.Name)
 
-	// Create detached Genkit resource that bridges to MCP
+	// Create Genkit resource that bridges to MCP
 	return ai.NewResource(resourceName, &ai.ResourceOptions{
 		URI:         mcpResource.URI,
 		Description: mcpResource.Description,
@@ -90,8 +108,8 @@ func (c *GenkitMCPClient) createDetachedMCPResource(mcpResource mcp.Resource) (a
 	}), nil
 }
 
-// createDetachedMCPResourceTemplate creates a detached Genkit template resource from MCP template
-func (c *GenkitMCPClient) createDetachedMCPResourceTemplate(mcpTemplate mcp.ResourceTemplate) (ai.Resource, error) {
+// toGenkitResourceTemplate creates a Genkit template resource from MCP template
+func (c *GenkitMCPClient) toGenkitResourceTemplate(mcpTemplate mcp.ResourceTemplate) (ai.Resource, error) {
 	resourceName := c.GetResourceNameWithNamespace(mcpTemplate.Name)
 
 	// Convert URITemplate to string - extract the raw template string
@@ -154,6 +172,97 @@ func (c *GenkitMCPClient) readMCPResource(ctx context.Context, uri string) (ai.R
 	}
 
 	return ai.ResourceOutput{Content: parts}, nil
+}
+
+// getResources retrieves all resources from the MCP server by paginating through results
+func (c *GenkitMCPClient) getResources(ctx context.Context) ([]mcp.Resource, error) {
+	var allResources []mcp.Resource
+	var cursor mcp.Cursor
+
+	// Paginate through all available resources from the MCP server
+	for {
+		// Fetch a page of resources
+		resources, nextCursor, err := c.fetchResourcesPage(ctx, cursor)
+		if err != nil {
+			return nil, err
+		}
+
+		allResources = append(allResources, resources...)
+
+		// Check if we've reached the last page
+		cursor = nextCursor
+		if cursor == "" {
+			break
+		}
+	}
+
+	return allResources, nil
+}
+
+// fetchResourcesPage retrieves a single page of resources from the MCP server
+func (c *GenkitMCPClient) fetchResourcesPage(ctx context.Context, cursor mcp.Cursor) ([]mcp.Resource, mcp.Cursor, error) {
+	// Build the list request - include cursor if we have one for pagination
+	listReq := mcp.ListResourcesRequest{}
+	listReq.PaginatedRequest = mcp.PaginatedRequest{
+		Params: struct {
+			Cursor mcp.Cursor `json:"cursor,omitempty"`
+		}{
+			Cursor: cursor,
+		},
+	}
+
+	// Ask the MCP server for resources
+	result, err := c.server.Client.ListResources(ctx, listReq)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list resources from MCP server %s: %w", c.options.Name, err)
+	}
+
+	return result.Resources, result.NextCursor, nil
+}
+
+// getResourceTemplates retrieves all resource templates from the MCP server by paginating through results
+func (c *GenkitMCPClient) getResourceTemplates(ctx context.Context) ([]mcp.ResourceTemplate, error) {
+	var allTemplates []mcp.ResourceTemplate
+	var cursor mcp.Cursor
+
+	// Paginate through all available resource templates from the MCP server
+	for {
+		// Fetch a page of resource templates
+		templates, nextCursor, err := c.fetchResourceTemplatesPage(ctx, cursor)
+		if err != nil {
+			return nil, err
+		}
+
+		allTemplates = append(allTemplates, templates...)
+
+		// Check if we've reached the last page
+		cursor = nextCursor
+		if cursor == "" {
+			break
+		}
+	}
+
+	return allTemplates, nil
+}
+
+// fetchResourceTemplatesPage retrieves a single page of resource templates from the MCP server
+func (c *GenkitMCPClient) fetchResourceTemplatesPage(ctx context.Context, cursor mcp.Cursor) ([]mcp.ResourceTemplate, mcp.Cursor, error) {
+	listReq := mcp.ListResourceTemplatesRequest{
+		PaginatedRequest: mcp.PaginatedRequest{
+			Params: struct {
+				Cursor mcp.Cursor `json:"cursor,omitempty"`
+			}{
+				Cursor: cursor,
+			},
+		},
+	}
+
+	result, err := c.server.Client.ListResourceTemplates(ctx, listReq)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list resource templates from MCP server %s: %w", c.options.Name, err)
+	}
+
+	return result.ResourceTemplates, result.NextCursor, nil
 }
 
 // convertMCPResourceContentsToGenkitParts converts MCP ResourceContents to Genkit Parts

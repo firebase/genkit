@@ -18,16 +18,16 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/ai"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // TestMCPTemplateTranslation tests the translation of MCP ResourceTemplate
-// objects to Genkit DetachedResourceAction objects.
+// objects to Genkit ai.Resource objects.
 //
 // This test validates:
 // 1. Template string extraction from MCP ResourceTemplate objects
-// 2. Working Genkit DetachedResourceAction objects
+// 2. Working Genkit ai.Resource objects
 // 3. URI pattern matching with extracted templates
 // 4. Variable extraction from matched URIs
 //
@@ -85,7 +85,7 @@ func TestMCPTemplateTranslation(t *testing.T) {
 			}
 
 			// Test the MCP → Genkit translation step
-			detachedResource, err := client.createDetachedMCPResourceTemplate(mcpTemplate)
+			detachedResource, err := client.toGenkitResourceTemplate(mcpTemplate)
 			if err != nil {
 				t.Fatalf("MCP → Genkit translation failed: %v", err)
 			}
@@ -239,7 +239,7 @@ func TestMCPTemplateEdgeCases(t *testing.T) {
 				}
 
 				mcpTemplate := mcp.NewResourceTemplate("", "test-resource")
-				_, err := client.createDetachedMCPResourceTemplate(mcpTemplate)
+				_, err := client.toGenkitResourceTemplate(mcpTemplate)
 
 				if tc.expectError && err == nil {
 					t.Error("Expected error for empty template, but got none")
@@ -269,13 +269,13 @@ func TestMCPTemplateEdgeCases(t *testing.T) {
 			}
 
 			// Test the MCP → Genkit translation step
-			var detachedResource core.DetachedResourceAction
+			var resource ai.Resource
 			var err error
 
 			if templateErr != nil {
 				err = templateErr
 			} else {
-				detachedResource, err = client.createDetachedMCPResourceTemplate(mcpTemplate)
+				resource, err = client.toGenkitResourceTemplate(mcpTemplate)
 			}
 
 			if tc.expectError {
@@ -291,7 +291,7 @@ func TestMCPTemplateEdgeCases(t *testing.T) {
 			}
 
 			// Test URI matching
-			actualMatch := detachedResource.Matches(tc.testURI)
+			actualMatch := resource.Matches(tc.testURI)
 			if actualMatch != tc.expectMatch {
 				t.Errorf("URI matching failed for %s: template %s vs URI %s: expected match=%v, got %v",
 					tc.description, tc.templateURI, tc.testURI, tc.expectMatch, actualMatch)
@@ -299,7 +299,7 @@ func TestMCPTemplateEdgeCases(t *testing.T) {
 
 			// Test variable extraction if match is expected
 			if tc.expectMatch && tc.expectedVars != nil {
-				variables, err := detachedResource.ExtractVariables(tc.testURI)
+				variables, err := resource.ExtractVariables(tc.testURI)
 				if err != nil {
 					t.Errorf("Variable extraction failed for %s: %v", tc.description, err)
 					return
