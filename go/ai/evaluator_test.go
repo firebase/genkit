@@ -142,14 +142,14 @@ func TestFailingEvaluator(t *testing.T) {
 func TestLookupEvaluator(t *testing.T) {
 	r := registry.New()
 
-	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
-	batchEvalAction := DefineBatchEvaluator(r, "test/testBatchEvaluator", &evalOpts, testBatchEvalFunc)
+	DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
+	DefineBatchEvaluator(r, "test/testBatchEvaluator", &evalOpts, testBatchEvalFunc)
 
-	if got, want := LookupEvaluator(r, "test/testEvaluator"), evalAction; got != want {
-		t.Errorf("got %v, want %v", got, want)
+	if LookupEvaluator(r, "test/testEvaluator") == nil {
+		t.Errorf("LookupEvaluator(r, \"test/testEvaluator\") is nil")
 	}
-	if got, want := LookupEvaluator(r, "test/testBatchEvaluator"), batchEvalAction; got != want {
-		t.Errorf("got %v, want %v", got, want)
+	if LookupEvaluator(r, "test/testBatchEvaluator") == nil {
+		t.Errorf("LookupEvaluator(r, \"test/testBatchEvaluator\") is nil")
 	}
 }
 

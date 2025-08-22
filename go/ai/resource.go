@@ -18,7 +18,6 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"maps"
 
@@ -53,7 +52,7 @@ type ResourceFunc = func(context.Context, *ResourceInput) (*ResourceOutput, erro
 // It holds the underlying core action and allows looking up resources
 // by name without knowing their specific input/output types.
 type resource struct {
-	core.Action
+	core.ActionDef[*ResourceInput, *ResourceOutput, struct{}]
 }
 
 // Resource represents an instance of a resource.
@@ -66,28 +65,24 @@ type Resource interface {
 	ExtractVariables(uri string) (map[string]string, error)
 	// Execute runs the resource with the given input.
 	Execute(ctx context.Context, input *ResourceInput) (*ResourceOutput, error)
-	// Register sets the tracing state on the action and registers it with the registry.
-	Register(r *registry.Registry)
 }
 
 // DefineResource creates a resource and registers it with the given Registry.
 func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn ResourceFunc) Resource {
-	metadata := implementResource(name, *opts)
-	resourceAction := core.DefineAction(r, name, core.ActionTypeResource, metadata, fn)
-	return &resource{Action: resourceAction}
+	metadata := resourceMetadata(name, opts)
+	return &resource{ActionDef: *core.DefineAction(r, name, core.ActionTypeResource, metadata, nil, fn)}
 }
 
 // NewResource creates a resource but does not register it in the registry.
 // It can be registered later via the Register method.
-func NewResource(name string, opts ResourceOptions, fn ResourceFunc) Resource {
-	metadata := implementResource(name, opts)
+func NewResource(name string, opts *ResourceOptions, fn ResourceFunc) Resource {
+	metadata := resourceMetadata(name, opts)
 	metadata["dynamic"] = true
-	resourceAction := core.NewAction(name, core.ActionTypeResource, metadata, fn)
-	return &resource{Action: resourceAction}
+	return &resource{ActionDef: *core.NewAction(name, core.ActionTypeResource, metadata, nil, fn)}
 }
 
-// implementResource creates the metadata common to both DefineResource and NewResource.
-func implementResource(name string, opts ResourceOptions) map[string]any {
+// resourceMetadata creates the metadata common to both DefineResource and NewResource.
+func resourceMetadata(name string, opts *ResourceOptions) map[string]any {
 	// Validate options - panic like other Define* functions
 	if name == "" {
 		panic("resource name is required")
@@ -118,15 +113,9 @@ func implementResource(name string, opts ResourceOptions) map[string]any {
 	return metadata
 }
 
-// Name returns the resource name.
-func (r *resource) Name() string {
-	return r.Action.Name()
-}
-
 // Matches reports whether this resource matches the given URI.
 func (r *resource) Matches(uri string) bool {
-	desc := r.Action.Desc()
-	resourceMeta, ok := desc.Metadata["resource"].(map[string]any)
+	resourceMeta, ok := r.Desc().Metadata["resource"].(map[string]any)
 	if !ok {
 		return false
 	}
@@ -150,8 +139,7 @@ func (r *resource) Matches(uri string) bool {
 
 // ExtractVariables extracts variables from a URI using this resource's template.
 func (r *resource) ExtractVariables(uri string) (map[string]string, error) {
-	desc := r.Action.Desc()
-	resourceMeta, ok := desc.Metadata["resource"].(map[string]any)
+	resourceMeta, ok := r.Desc().Metadata["resource"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("no resource metadata found")
 	}
@@ -178,56 +166,21 @@ func (r *resource) ExtractVariables(uri string) (map[string]string, error) {
 
 // Execute runs the resource with the given input.
 func (r *resource) Execute(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
-	// Marshal input to JSON for action call
-	inputJSON, err := json.Marshal(input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal resource input: %w", err)
-	}
-
-	// Use the underlying action to execute the resource function
-	outputJSON, err := r.Action.RunJSON(ctx, inputJSON, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// Unmarshal output back to ResourceOutput
-	var output ResourceOutput
-	if err := json.Unmarshal(outputJSON, &output); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal resource output: %w", err)
-	}
-
-	return &output, nil
-}
-
-// Register sets the tracing state on the action and registers it with the registry.
-func (r *resource) Register(reg *registry.Registry) {
-	r.Action.SetTracingState(reg.TracingState())
-	reg.RegisterAction(fmt.Sprintf("/%s/%s", core.ActionTypeResource, r.Action.Name()), r.Action)
+	return r.Run(ctx, input, nil)
 }
 
 // FindMatchingResource finds a resource that matches the given URI.
 func FindMatchingResource(r *registry.Registry, uri string) (Resource, *ResourceInput, error) {
-	actions := r.ListActions()
-
-	for _, act := range actions {
-		action, ok := act.(core.Action)
-		if !ok {
-			continue
-		}
-
-		desc := action.Desc()
-		if desc.Type != core.ActionTypeResource {
-			continue
-		}
-
-		// Parse resource from Action metadata and use for template resolution
-		resource := &resource{Action: action}
-		if resource.Matches(uri) {
-			variables, err := resource.ExtractVariables(uri)
-			if err != nil {
-				return nil, nil, err
+	for _, a := range r.ListActions() {
+		if action, ok := a.(*core.ActionDef[*ResourceInput, *ResourceOutput, struct{}]); ok {
+			res := &resource{ActionDef: *action}
+			if res.Matches(uri) {
+				variables, err := res.ExtractVariables(uri)
+				if err != nil {
+					return nil, nil, err
+				}
+				return res, &ResourceInput{URI: uri, Variables: variables}, nil
 			}
-			return resource, &ResourceInput{URI: uri, Variables: variables}, nil
 		}
 	}
 
@@ -236,13 +189,9 @@ func FindMatchingResource(r *registry.Registry, uri string) (Resource, *Resource
 
 // LookupResource looks up the resource in the registry by provided name and returns it.
 func LookupResource(r *registry.Registry, name string) Resource {
-	if name == "" {
-		return nil
-	}
-
-	action := r.LookupAction(fmt.Sprintf("/%s/%s", core.ActionTypeResource, name))
+	action := core.LookupActionFor[*ResourceInput, *ResourceOutput, struct{}](r, core.ActionTypeResource, name)
 	if action == nil {
 		return nil
 	}
-	return &resource{Action: action.(core.Action)}
+	return &resource{ActionDef: *action}
 }

@@ -16,7 +16,6 @@ package compat_oai
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -72,11 +71,11 @@ type OpenAICompatible struct {
 }
 
 // Init implements genkit.Plugin.
-func (o *OpenAICompatible) Init(ctx context.Context, g *genkit.Genkit) error {
+func (o *OpenAICompatible) Init(ctx context.Context) []core.Action {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.initted {
-		return errors.New("compat_oai.Init already called")
+		panic("compat_oai.Init already called")
 	}
 
 	// create client
@@ -84,7 +83,7 @@ func (o *OpenAICompatible) Init(ctx context.Context, g *genkit.Genkit) error {
 	o.client = &client
 	o.initted = true
 
-	return nil
+	return []core.Action{}
 }
 
 // Name implements genkit.Plugin.
@@ -93,17 +92,17 @@ func (o *OpenAICompatible) Name() string {
 }
 
 // DefineModel defines a model in the registry
-func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, id string, opts ai.ModelOptions) (ai.Model, error) {
+func (o *OpenAICompatible) DefineModel(provider, id string, opts ai.ModelOptions) ai.Model {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
-		return nil, errors.New("OpenAICompatible.Init not called")
+		panic("OpenAICompatible.Init not called")
 	}
 
 	// Strip provider prefix if present to check against supportedModels
 	modelName := strings.TrimPrefix(id, provider+"/")
 
-	return genkit.DefineModel(g, core.NewName(provider, id), &opts, func(
+	return ai.NewModel(core.NewName(provider, id), &opts, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
@@ -118,20 +117,20 @@ func (o *OpenAICompatible) DefineModel(g *genkit.Genkit, provider, id string, op
 		}
 
 		return resp, nil
-	}), nil
+	})
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name string, embedOpts *ai.EmbedderOptions) (ai.Embedder, error) {
+func (o *OpenAICompatible) DefineEmbedder(provider, name string, embedOpts *ai.EmbedderOptions) ai.Embedder {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if !o.initted {
-		return nil, errors.New("OpenAICompatible.Init not called")
+		panic("OpenAICompatible.Init not called")
 	}
 
-	return genkit.DefineEmbedder(g, core.NewName(provider, name), embedOpts, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return ai.NewEmbedder(core.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var data openai.EmbeddingNewParamsInputUnion
-		for _, doc := range input.Input {
+		for _, doc := range req.Input {
 			for _, p := range doc.Content {
 				data.OfArrayOfStrings = append(data.OfArrayOfStrings, p.Text)
 			}
@@ -157,7 +156,7 @@ func (o *OpenAICompatible) DefineEmbedder(g *genkit.Genkit, provider, name strin
 			resp.Embeddings = append(resp.Embeddings, &ai.Embedding{Embedding: embedding})
 		}
 		return resp, nil
-	}), nil
+	})
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
@@ -217,15 +216,17 @@ func (o *OpenAICompatible) ListActions(ctx context.Context) []core.ActionDesc {
 	return actions
 }
 
-func (o *OpenAICompatible) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+func (o *OpenAICompatible) ResolveAction(atype core.ActionType, name string) core.Action {
 	switch atype {
 	case core.ActionTypeModel:
-		o.DefineModel(g, o.Provider, name, ai.ModelOptions{
+		if model := o.DefineModel(o.Provider, name, ai.ModelOptions{
 			Label:    fmt.Sprintf("%s - %s", o.Provider, name),
 			Stage:    ai.ModelStageStable,
 			Versions: []string{},
 			Supports: &Multimodal,
-		})
+		}); model != nil {
+			return model.(core.Action)
+		}
 	}
 
 	return nil

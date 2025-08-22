@@ -39,24 +39,23 @@ func (p *Postgres) Name() string {
 }
 
 // Init initialize the PostgreSQL
-func (p *Postgres) Init(ctx context.Context, g *genkit.Genkit) error {
+func (p *Postgres) Init(ctx context.Context) []core.Action {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.initted {
-		return fmt.Errorf("postgres.Init already initted")
+		panic("postgres.Init already initted")
 	}
 
 	if p.engine == nil {
-		return fmt.Errorf("postgres.Init engine is nil")
+		panic("postgres.Init engine is nil")
 	}
 
 	if p.engine.Pool == nil {
-		return fmt.Errorf("postgres.Init engine has no pool")
+		panic("postgres.Init engine has no pool")
 	}
 
 	p.initted = true
-	return nil
-
+	return []core.Action{}
 }
 
 // Config provides configuration options for [DefineRetriever].

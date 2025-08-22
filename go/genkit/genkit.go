@@ -31,8 +31,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
-
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // Genkit encapsulates a Genkit instance, providing access to its registry,
@@ -184,20 +182,23 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 	g := &Genkit{reg: r}
 
 	for _, plugin := range gOpts.Plugins {
-		if err := plugin.Init(ctx, g); err != nil {
-			panic(fmt.Errorf("genkit.Init: plugin %T initialization failed: %w", plugin, err))
+		actions := plugin.Init(ctx)
+		for _, action := range actions {
+			action.Register(r)
 		}
 		r.RegisterPlugin(plugin.Name(), plugin)
 	}
 
-	r.ActionResolver = func(actionType, provider, name string) error {
+	r.ActionResolver = func(actionType, provider, id string) {
 		plugins := r.ListPlugins()
 		for _, plugin := range plugins {
 			if dp, ok := plugin.(DynamicPlugin); ok && dp.Name() == provider {
-				return dp.ResolveAction(g, core.ActionType(actionType), name)
+				action := dp.ResolveAction(core.ActionType(actionType), id)
+				if action != nil {
+					action.Register(r)
+				}
 			}
 		}
-		return nil
 	}
 
 	ai.ConfigureFormats(r)
@@ -231,6 +232,17 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 	}
 
 	return g
+}
+
+// RegisterAction registers a [core.Action] that was previously created by calling
+// NewX instead of DefineX.
+//
+// Example:
+//
+//	model := ai.NewModel(...)
+//	genkit.RegisterAction(g, model.(core.Action))
+func RegisterAction(g *Genkit, action core.Action) {
+	action.Register(g.reg)
 }
 
 // DefineFlow defines a non-streaming flow, registers it as a [core.Action] of type Flow,
@@ -548,7 +560,7 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 }
 
 // DefinePrompt defines a prompt programmatically, registers it as a [core.Action]
-// of type Prompt, and returns an executable [ai.Prompt].
+// of type Prompt, and returns an executable [ai.prompt].
 //
 // This provides an alternative to defining prompts in `.prompt` files, offering
 // more flexibility through Go code. Prompts encapsulate configuration (model, parameters),
@@ -607,21 +619,21 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //		log.Fatalf("Output failed: %v", err)
 //	}
 //	fmt.Printf("Capital of France: %s\n", out2.Capital) // Output: Capital of France: Paris
-func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) *ai.Prompt {
+func DefinePrompt(g *Genkit, name string, opts ...ai.PromptOption) ai.Prompt {
 	return ai.DefinePrompt(g.reg, name, opts...)
 }
 
-// LookupPrompt retrieves a registered [ai.Prompt] by its name.
+// LookupPrompt retrieves a registered [ai.prompt] by its name.
 // Prompts can be registered via [DefinePrompt] or loaded automatically from
 // `.prompt` files in the directory specified by [WithPromptDir] or [LoadPromptDir].
 // It returns the prompt instance if found, or `nil` otherwise.
-func LookupPrompt(g *Genkit, name string) *ai.Prompt {
+func LookupPrompt(g *Genkit, name string) ai.Prompt {
 	return ai.LookupPrompt(g.reg, name)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
 // [ai.GenerateActionOptions]. This function is typically used in conjunction with
-// prompts defined via [DefinePrompt], where [ai.Prompt.Render] produces the
+// prompts defined via [DefinePrompt], where [ai.prompt.Render] produces the
 // `actionOpts`. It allows fine-grained control over the request sent to the model.
 //
 // It accepts optional model middleware (`mw`) for intercepting/modifying the request/response,
@@ -871,7 +883,7 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 }
 
 // LoadPrompt loads a single `.prompt` file specified by `path` into the registry,
-// associating it with the given `namespace`, and returns the resulting [ai.Prompt].
+// associating it with the given `namespace`, and returns the resulting [ai.prompt].
 //
 // The `path` should be the full path to the `.prompt` file.
 // The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
@@ -895,24 +907,13 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 //	// Execute the loaded prompt
 //	resp, err := customPrompt.Execute(ctx, ai.WithInput(map[string]any{"text": "some data"}))
 //	// ... handle response and error ...
-func LoadPrompt(g *Genkit, path string, namespace string) *ai.Prompt {
+func LoadPrompt(g *Genkit, path string, namespace string) ai.Prompt {
 	dir, filename := filepath.Split(path)
 	if dir != "" {
 		dir = filepath.Clean(dir)
 	}
 
 	return ai.LoadPrompt(g.reg, dir, filename, namespace)
-}
-
-// RegisterSpanProcessor registers an OpenTelemetry [sdktrace.SpanProcessor]
-// with the Genkit instance. This allows integrating custom trace processing
-// and exporting logic (e.g., sending traces to a specific backend like Jaeger,
-// Datadog, or Google Cloud Trace).
-//
-// Span processors should be registered before any actions are run to ensure
-// all spans are processed. Multiple processors can be registered.
-func RegisterSpanProcessor(g *Genkit, sp sdktrace.SpanProcessor) {
-	g.reg.RegisterSpanProcessor(sp)
 }
 
 // DefinePartial wraps DefinePartial to register a partial template with the given name and source.
@@ -1006,7 +1007,7 @@ func FindMatchingResource(g *Genkit, uri string) (ai.Resource, *ai.ResourceInput
 //
 // Example:
 //
-//	dynamicRes := NewResource("user-data", &ai.ResourceOptions{
+//	resource := NewResource("user-data", &ai.ResourceOptions{
 //	  Template: "user://profile/{id}",
 //	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
 //	  userID := input.Variables["id"]
@@ -1020,11 +1021,10 @@ func FindMatchingResource(g *Genkit, uri string) (ai.Resource, *ai.ResourceInput
 //	    ai.NewTextPart("Analyze this user:"),
 //	    ai.NewResourcePart("user://profile/123"),
 //	  }),
-//	  ai.WithResources(dynamicRes),
+//	  ai.WithResources(resource),
 //	)
 func NewResource(name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
-	// Delegate to ai implementation
-	return ai.NewResource(name, *opts, fn)
+	return ai.NewResource(name, opts, fn)
 }
 
 // ListResources returns a slice of all resource actions

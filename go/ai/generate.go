@@ -66,7 +66,9 @@ type ModelStreamCallback = func(context.Context, *ModelResponseChunk) error
 type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 // model is an action with functions specific to model generation such as Generate().
-type model core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type model struct {
+	core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+}
 
 // generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
 type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
@@ -108,7 +110,7 @@ type ModelOptions struct {
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil,
+	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", actionOpts))
@@ -118,17 +120,17 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"err", err)
 			}()
 
-			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, actionOpts,
+			return tracing.RunInNewSpan(ctx, "generate", "util", false, actionOpts,
 				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
 					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
 				})
 		}))
 }
 
-// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
-func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+// NewModel creates a new [Model].
+func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	if name == "" {
-		panic("ai.DefineModel: name is required")
+		panic("ai.NewModel: name is required")
 	}
 
 	if opts == nil {
@@ -175,7 +177,16 @@ func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn Model
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return (*model)(core.DefineStreamingActionWithInputSchema(r, name, core.ActionTypeModel, metadata, inputSchema, fn))
+	return &model{
+		ActionDef: *core.NewStreamingAction(name, core.ActionTypeModel, metadata, inputSchema, fn),
+	}
+}
+
+// DefineModel creates a new [Model] and registers it.
+func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+	m := NewModel(name, opts, fn)
+	m.(*model).Register(r)
+	return m
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
@@ -186,7 +197,9 @@ func LookupModel(r *registry.Registry, name string) Model {
 	if action == nil {
 		return nil
 	}
-	return (*model)(action)
+	return &model{
+		ActionDef: *action,
+	}
 }
 
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
@@ -382,19 +395,22 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			}
 		}
 	}
+
 	if len(dynamicTools) > 0 {
-		r = r.NewChild()
-		for _, tool := range dynamicTools {
-			tool.Register(r)
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		for _, t := range dynamicTools {
+			t.(*tool).Register(r)
 		}
 	}
 
 	if len(genOpts.Resources) > 0 {
-		r = r.NewChild()
-
-		// Attach resources
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
 		for _, res := range genOpts.Resources {
-			res.Register(r)
+			res.(*resource).Register(r)
 		}
 	}
 
@@ -515,18 +531,13 @@ func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...Ge
 	return &value, resp, nil
 }
 
-// Name returns the name of the model.
-func (m *model) Name() string {
-	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Name()
-}
-
 // Generate applies the [Action] to provided request.
 func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "Model.Generate: generate called on a nil model; check that all models are defined")
 	}
 
-	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)
+	return m.ActionDef.Run(ctx, req, cb)
 }
 
 // SupportsConstrained returns whether the model supports constrained output.
@@ -535,12 +546,7 @@ func (m *model) SupportsConstrained(hasTools bool) bool {
 		return false
 	}
 
-	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m)
-	if action == nil {
-		return false
-	}
-
-	metadata := action.Desc().Metadata
+	metadata := m.ActionDef.Desc().Metadata
 	if metadata == nil {
 		return false
 	}
@@ -1096,54 +1102,16 @@ func processResources(ctx context.Context, r *registry.Registry, messages []*Mes
 	return processedMessages, nil
 }
 
-// findMatchingResource finds a resource action in the registry that matches the given URI.
-func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[string]string, error) {
-	// Use our updated FindMatchingResource function
-	resource, resourceInput, err := FindMatchingResource(r, uri)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Execute the resource to get the action - we need to access the underlying action
-	// Since the resource interface doesn't expose the action directly, we'll look it up
-	action := r.LookupAction(fmt.Sprintf("/resource/%s", resource.Name()))
-	if action == nil {
-		return nil, nil, core.NewError(core.INTERNAL, "failed to lookup resource action")
-	}
-
-	if coreAction, ok := action.(core.Action); ok {
-		return coreAction, resourceInput.Variables, nil
-	}
-
-	return nil, nil, core.NewError(core.INTERNAL, "action does not implement core.Action interface")
-}
-
 // executeResourcePart finds and executes a resource, returning the content parts.
 func executeResourcePart(ctx context.Context, r *registry.Registry, resourceURI string) ([]*Part, error) {
-	action, variables, err := findMatchingResource(r, resourceURI)
+	resource, input, err := FindMatchingResource(r, resourceURI)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create resource input with extracted variables
-	input := &ResourceInput{
-		URI:       resourceURI,
-		Variables: variables,
-	}
-
-	// Execute the resource action directly
-	inputJSON, _ := json.Marshal(input)
-	outputJSON, err := action.RunJSON(ctx, inputJSON, nil)
+	output, err := resource.Execute(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute resource %q: %w", resourceURI, err)
-	}
-
-	// Parse resource output - use a compatible structure
-	var output struct {
-		Content []*Part `json:"content"`
-	}
-	if err := json.Unmarshal(outputJSON, &output); err != nil {
-		return nil, fmt.Errorf("failed to parse resource output: %w", err)
 	}
 
 	return output.Content, nil
