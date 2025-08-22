@@ -521,17 +521,20 @@ export function compatOaiModelRef<
   info?: ModelInfo;
   configSchema?: CustomOptions;
   config?: any;
+  namespace?: string;
 }): ModelReference<CustomOptions> {
   const {
     name,
     info = GENERIC_MODEL_INFO,
     configSchema,
     config = undefined,
+    namespace,
   } = params;
   return modelRef({
     name,
     configSchema: configSchema || (ChatCompletionCommonConfigSchema as any),
     info: info,
     config,
+    namespace,
   });
 }

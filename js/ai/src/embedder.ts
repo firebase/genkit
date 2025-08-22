@@ -333,9 +333,15 @@ export interface EmbedderReference<
 export function embedderRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  options: EmbedderReference<CustomOptionsSchema>
+  options: EmbedderReference<CustomOptionsSchema> & {
+    namespace?: string;
+  }
 ): EmbedderReference<CustomOptionsSchema> {
-  return { ...options };
+  let name = options.name;
+  if (options.namespace && !name.startsWith(options.namespace + '/')) {
+    name = `${options.namespace}/${name}`;
+  }
+  return { ...options, name };
 }
 
 /**

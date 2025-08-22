@@ -52,6 +52,7 @@ export function deepSeekModelRef(params: {
         output: ['text', 'json'],
       },
     },
+    namespace: 'deepseek',
   });
 }
 
