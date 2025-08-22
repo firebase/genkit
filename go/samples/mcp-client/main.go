@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
@@ -315,14 +314,10 @@ func resourcesExample() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI plugin and default model
-	g, err := genkit.Init(ctx,
+	g := genkit.Init(ctx,
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 	)
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit", "error", err)
-		return
-	}
 
 	logger.FromContext(ctx).Info("Starting MCP Resources demonstration")
 
@@ -366,7 +361,7 @@ func resourcesExample() {
 						ai.NewTextPart("List the available resources and describe what each one contains."),
 						// Resource references will be resolved automatically from the detached resources
 					)),
-					ai.WithResources(limitedResources),
+					ai.WithResources(limitedResources...),
 				)
 				if err != nil {
 					logger.FromContext(ctx).Warn("Failed to generate with MCP resources", "error", err)
@@ -398,12 +393,11 @@ func resourcesExample() {
 
 	// === Example 2: Simple resource workflow ===
 	// Create a detached resource from your own code that you can use in AI generation
-	configResource, _ := genkit.DynamicResource(genkit.ResourceOptions{
-		Name: "app-config",
-		URI:  "config://app.json",
-	}, func(ctx context.Context, input core.ResourceInput) (genkit.ResourceOutput, error) {
+	configResource := genkit.NewResource("app-config", &ai.ResourceOptions{
+		URI: "config://app.json",
+	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
 		config := `{"app": "MyApp", "version": "1.0", "features": ["auth", "chat"]}`
-		return genkit.ResourceOutput{
+		return &ai.ResourceOutput{
 			Content: []*ai.Part{ai.NewTextPart(config)},
 		}, nil
 	})
@@ -415,7 +409,7 @@ func resourcesExample() {
 				ai.NewResourcePart("config://app.json"),
 			),
 		),
-		ai.WithResources([]core.DetachedResourceAction{configResource}), // Pass detached resource
+		ai.WithResources(configResource), // Pass detached resource
 	)
 
 	if err == nil {
@@ -467,7 +461,7 @@ Use the available tools and resources to complete this task.`
 			response, err := genkit.Generate(ctx, g,
 				ai.WithPrompt(prompt),
 				ai.WithTools(toolRefs...),
-				ai.WithResources(hostResources), // Pass the detached resources!
+				ai.WithResources(hostResources...), // Pass the detached resources!
 				ai.WithToolChoice(ai.ToolChoiceAuto),
 			)
 			if err != nil {

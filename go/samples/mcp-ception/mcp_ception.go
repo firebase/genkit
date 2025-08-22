@@ -17,13 +17,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
@@ -43,11 +41,7 @@ func createMCPServer() {
 	logger.FromContext(ctx).Info("Starting Genkit MCP Server")
 
 	// Initialize Genkit for the server
-	g, err := genkit.Init(ctx)
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to initialize Genkit server", "error", err)
-		os.Exit(1)
-	}
+	g := genkit.Init(ctx)
 
 	// Define a tool that generates creative content (this will be auto-exposed via MCP)
 	genkit.DefineTool(g, "genkit-brainstorm", "Generate creative ideas about a topic",
@@ -78,10 +72,9 @@ These ideas can be mixed, matched, and customized for "%s".`, input.Topic, input
 		})
 
 	// Define a resource that contains Genkit knowledge (this will be auto-exposed via MCP)
-	err = genkit.DefineResource(g, genkit.ResourceOptions{
-		Name: "genkit-knowledge",
-		URI:  "knowledge://genkit-docs",
-	}, func(ctx context.Context, input core.ResourceInput) (genkit.ResourceOutput, error) {
+	genkit.DefineResource(g, "genkit-knowledge", &ai.ResourceOptions{
+		URI: "knowledge://genkit-docs",
+	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
 		knowledge := `# Genkit Knowledge Base
 
 ## What is Genkit?
@@ -109,14 +102,10 @@ Genkit is Firebase's open-source framework for building AI-powered applications.
 ## Architecture:
 Genkit follows a plugin-based architecture where models, retrievers, evaluators, and other components are provided by plugins.`
 
-		return genkit.ResourceOutput{
+		return &ai.ResourceOutput{
 			Content: []*ai.Part{ai.NewTextPart(knowledge)},
 		}, nil
 	})
-	if err != nil {
-		logger.FromContext(ctx).Error("Failed to create resource", "error", err)
-		os.Exit(1)
-	}
 
 	// Create MCP server (automatically exposes all defined tools and resources)
 	server := mcp.NewMCPServer(g, mcp.MCPServerOptions{
@@ -144,13 +133,10 @@ func mcpSelfConnection() {
 	logger.FromContext(ctx).Info("Genkit will connect to itself via MCP")
 
 	// Initialize Genkit with Google AI for the client
-	g, err := genkit.Init(ctx,
+	g := genkit.Init(ctx,
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 	)
-	if err != nil {
-		log.Fatalf("Failed to initialize Genkit client: %v", err)
-	}
 
 	logger.FromContext(ctx).Info("Connecting to our own MCP server")
 	logger.FromContext(ctx).Info("Note: Server process will be spawned automatically")
@@ -223,8 +209,8 @@ func mcpSelfConnection() {
 			ai.NewResourcePart("knowledge://genkit-docs"), // Explicit resource reference
 			ai.NewTextPart("What are the key features of Genkit and what models does it support?\n\nAlso, use the brainstorm tool to generate ideas for \"AI-powered cooking assistant\""),
 		)),
-		ai.WithResources(resources), // Makes resources available for lookup
-		ai.WithTools(toolRefs...),   // Using tools from our own server!
+		ai.WithResources(resources...), // Makes resources available for lookup
+		ai.WithTools(toolRefs...),      // Using tools from our own server!
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 	)
 	if err != nil {
