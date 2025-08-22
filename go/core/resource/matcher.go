@@ -33,16 +33,16 @@ func normalizeURI(rawURI string) string {
 		// If parsing fails, return the original URI
 		return rawURI
 	}
-	
+
 	// Remove query parameters and fragment
 	u.RawQuery = ""
 	u.Fragment = ""
-	
+
 	// Remove trailing slash from path (but not from the root path)
 	if len(u.Path) > 1 && strings.HasSuffix(u.Path, "/") {
 		u.Path = strings.TrimSuffix(u.Path, "/")
 	}
-	
+
 	return u.String()
 }
 

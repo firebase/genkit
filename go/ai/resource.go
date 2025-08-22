@@ -75,10 +75,10 @@ func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn
 	metadata := implementResource(name, opts)
 	resourceAction := core.DefineAction(r, name, core.ActionTypeResource, metadata, fn)
 	resource := &resource{Action: resourceAction}
-	
+
 	// Register the resource wrapper so ListResources can find it
 	r.RegisterValue(fmt.Sprintf("resource/%s", name), resource)
-	
+
 	return resource
 }
 

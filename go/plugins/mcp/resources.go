@@ -99,7 +99,7 @@ func (c *GenkitMCPClient) createDetachedMCPResourceTemplate(mcpTemplate mcp.Reso
 	if mcpTemplate.URITemplate != nil && mcpTemplate.URITemplate.Template != nil {
 		templateStr = mcpTemplate.URITemplate.Template.Raw()
 	}
-	
+
 	// Validate template - return error instead of panicking
 	if templateStr == "" {
 		return nil, fmt.Errorf("MCP resource template %s has empty URI template", mcpTemplate.Name)

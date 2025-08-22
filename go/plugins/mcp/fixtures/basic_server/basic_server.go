@@ -31,7 +31,7 @@ func main() {
 			Content: []*ai.Part{ai.NewTextPart("test content")},
 		}, nil
 	})
-	
+
 	server := mcp.NewMCPServer(g, mcp.MCPServerOptions{Name: "test"})
 	server.ServeStdio()
 }

@@ -112,9 +112,7 @@ func (s *GenkitMCPServer) discoverAndCategorizeActions() ([]ai.Tool, []core.Acti
 	// Use the existing List functions which properly handle the registry access
 	toolActions := genkit.ListTools(s.genkit)
 	resources := genkit.ListResources(s.genkit)
-	
 
-	
 	// Convert ai.Resource to core.Action
 	resourceActions := make([]core.Action, len(resources))
 	for i, resource := range resources {
