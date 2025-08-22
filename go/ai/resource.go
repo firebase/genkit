@@ -72,14 +72,19 @@ type Resource interface {
 
 // DefineResource creates a resource and registers it with the given Registry.
 func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn ResourceFunc) Resource {
-	metadata := implementResource(name, *opts)
+	metadata := implementResource(name, opts)
 	resourceAction := core.DefineAction(r, name, core.ActionTypeResource, metadata, fn)
-	return &resource{Action: resourceAction}
+	resource := &resource{Action: resourceAction}
+	
+	// Register the resource wrapper so ListResources can find it
+	r.RegisterValue(fmt.Sprintf("resource/%s", name), resource)
+	
+	return resource
 }
 
 // NewResource creates a resource but does not register it in the registry.
 // It can be registered later via the Register method.
-func NewResource(name string, opts ResourceOptions, fn ResourceFunc) Resource {
+func NewResource(name string, opts *ResourceOptions, fn ResourceFunc) Resource {
 	metadata := implementResource(name, opts)
 	metadata["dynamic"] = true
 	resourceAction := core.NewAction(name, core.ActionTypeResource, metadata, fn)
@@ -87,7 +92,7 @@ func NewResource(name string, opts ResourceOptions, fn ResourceFunc) Resource {
 }
 
 // implementResource creates the metadata common to both DefineResource and NewResource.
-func implementResource(name string, opts ResourceOptions) map[string]any {
+func implementResource(name string, opts *ResourceOptions) map[string]any {
 	// Validate options - panic like other Define* functions
 	if name == "" {
 		panic("resource name is required")

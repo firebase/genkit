@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -125,6 +124,17 @@ func (h *MCPHost) Disconnect(ctx context.Context, serverName string) error {
 	return err
 }
 
+// Reconnect restarts a specific MCP server connection
+func (h *MCPHost) Reconnect(ctx context.Context, serverName string) error {
+	client, exists := h.clients[serverName]
+	if !exists {
+		return fmt.Errorf("no client found with name '%s'", serverName)
+	}
+
+	logger.FromContext(ctx).Info("Reconnecting MCP server", "server", serverName, "host", h.name)
+	return client.Restart(ctx)
+}
+
 // GetActiveTools retrieves all tools from all connected and enabled MCP clients
 func (h *MCPHost) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]ai.Tool, error) {
 	var allTools []ai.Tool
@@ -147,8 +157,8 @@ func (h *MCPHost) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]ai.T
 }
 
 // GetActiveResources retrieves detached resources from all connected and enabled MCP clients
-func (h *MCPHost) GetActiveResources(ctx context.Context) ([]core.DetachedResourceAction, error) {
-	var allResources []core.DetachedResourceAction
+func (h *MCPHost) GetActiveResources(ctx context.Context) ([]ai.Resource, error) {
+	var allResources []ai.Resource
 
 	for name, client := range h.clients {
 		if !client.IsEnabled() {

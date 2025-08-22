@@ -19,22 +19,20 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/mcp"
 )
 
 func main() {
-	g, _ := genkit.Init(context.Background())
+	g := genkit.Init(context.Background())
 
 	// Resource that provides different content based on filename
-	genkit.DefineResource(g, genkit.ResourceOptions{
-		Name:     "content-provider",
+	genkit.DefineResource(g, "content-provider", &ai.ResourceOptions{
 		Template: "file://data/{filename}",
-	}, func(ctx context.Context, input core.ResourceInput) (genkit.ResourceOutput, error) {
+	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
 		filename := input.Variables["filename"]
 		content := fmt.Sprintf("CONTENT_FROM_SERVER: This is %s with important data.", filename)
-		return genkit.ResourceOutput{
+		return &ai.ResourceOutput{
 			Content: []*ai.Part{ai.NewTextPart(content)},
 		}, nil
 	})

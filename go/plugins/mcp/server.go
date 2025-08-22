@@ -111,7 +111,19 @@ func (s *GenkitMCPServer) setup() error {
 func (s *GenkitMCPServer) discoverAndCategorizeActions() ([]ai.Tool, []core.Action, error) {
 	// Use the existing List functions which properly handle the registry access
 	toolActions := genkit.ListTools(s.genkit)
-	resourceActions := genkit.ListResources(s.genkit)
+	resources := genkit.ListResources(s.genkit)
+	
+
+	
+	// Convert ai.Resource to core.Action
+	resourceActions := make([]core.Action, len(resources))
+	for i, resource := range resources {
+		if resourceAction, ok := resource.(core.Action); ok {
+			resourceActions[i] = resourceAction
+		} else {
+			return nil, nil, fmt.Errorf("resource %s does not implement core.Action", resource.Name())
+		}
+	}
 
 	return toolActions, resourceActions, nil
 }

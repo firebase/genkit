@@ -1024,7 +1024,7 @@ func FindMatchingResource(g *Genkit, uri string) (ai.Resource, *ai.ResourceInput
 //	)
 func NewResource(name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
 	// Delegate to ai implementation
-	return ai.NewResource(name, *opts, fn)
+	return ai.NewResource(name, opts, fn)
 }
 
 // ListResources returns a slice of all resource actions

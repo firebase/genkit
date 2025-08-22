@@ -49,8 +49,7 @@ func TestMCPConnectionAndTranslation(t *testing.T) {
 	assert.NoError(t, err)
 
 	// SETUP: Genkit client
-	g, err := genkit.Init(ctx)
-	assert.NoError(t, err)
+	g := genkit.Init(ctx)
 
 	host, err := NewMCPHost(g, MCPHostOptions{
 		Name: "test-host",
@@ -106,11 +105,10 @@ func TestMCPAIIntegration(t *testing.T) {
 	assert.NoError(t, err)
 
 	// SETUP: Genkit with MCP and mock model
-	g, err := genkit.Init(ctx)
-	assert.NoError(t, err)
+	g := genkit.Init(ctx)
 
 	// Define a mock model that echoes the input (like in resource_test.go)
-	genkit.DefineModel(g, "mock", "echo-model", &ai.ModelInfo{
+	genkit.DefineModel(g, "echo-model", &ai.ModelOptions{
 		Label:    "Mock Echo Model for Testing",
 		Supports: &ai.ModelSupports{},
 	}, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
@@ -143,13 +141,13 @@ func TestMCPAIIntegration(t *testing.T) {
 
 	// TEST: AI generation with MCP resources (like resource_test.go)
 	resp, err := genkit.Generate(ctx, g,
-		ai.WithModelName("mock/echo-model"),
+		ai.WithModelName("echo-model"),
 		ai.WithMessages(ai.NewUserMessage(
 			ai.NewTextPart("Policy summary:"),
 			ai.NewResourcePart("docs://policy/vacation"), // Reference MCP resource
 			ai.NewTextPart("That's the policy."),
 		)),
-		ai.WithResources(hostResources), // Pass MCP resources
+		ai.WithResources(hostResources...), // Pass MCP resources
 	)
 
 	// ASSERT: Generation succeeds and includes resource content
@@ -184,8 +182,7 @@ func TestMCPURIMatching(t *testing.T) {
 	assert.NoError(t, err)
 
 	// SETUP: Genkit with MCP
-	g, err := genkit.Init(ctx)
-	assert.NoError(t, err)
+	g := genkit.Init(ctx)
 
 	host, err := NewMCPHost(g, MCPHostOptions{Name: "test-host"})
 	assert.NoError(t, err)
@@ -248,8 +245,7 @@ func TestMCPContentFetch(t *testing.T) {
 	assert.NoError(t, err)
 
 	// SETUP: Genkit with MCP
-	g, err := genkit.Init(ctx)
-	assert.NoError(t, err)
+	g := genkit.Init(ctx)
 
 	host, err := NewMCPHost(g, MCPHostOptions{Name: "test-host"})
 	assert.NoError(t, err)
@@ -279,7 +275,7 @@ func TestMCPContentFetch(t *testing.T) {
 	assert.NotNil(t, matchingResource, "Should find matching resource for %s", testURI)
 
 	// ASSERT 2: Content can be fetched via AI integration (end-to-end test)
-	genkit.DefineModel(g, "test", "echo-model", &ai.ModelInfo{
+	genkit.DefineModel(g, "echo-model", &ai.ModelOptions{
 		Supports: &ai.ModelSupports{},
 	}, func(ctx context.Context, req *ai.ModelRequest, cb ai.ModelStreamCallback) (*ai.ModelResponse, error) {
 		// Echo back all content to verify resources were included
@@ -297,13 +293,13 @@ func TestMCPContentFetch(t *testing.T) {
 
 	// TEST: AI generation with MCP resource to verify content fetch
 	resp, err := genkit.Generate(ctx, g,
-		ai.WithModelName("test/echo-model"),
+		ai.WithModelName("echo-model"),
 		ai.WithMessages(ai.NewUserMessage(
 			ai.NewTextPart("Content:"),
 			ai.NewResourcePart(testURI), // This should fetch content from MCP
 			ai.NewTextPart("End."),
 		)),
-		ai.WithResources(resources), // Pass all MCP resources
+		ai.WithResources(resources...), // Pass all MCP resources
 	)
 
 	// ASSERT 3: Generation succeeds and includes resource content
@@ -344,8 +340,7 @@ func TestMCPMultipleServers(t *testing.T) {
 	assert.NoError(t, err)
 
 	// SETUP: Genkit with MCP host
-	g, err := genkit.Init(ctx)
-	assert.NoError(t, err)
+	g := genkit.Init(ctx)
 
 	host, err := NewMCPHost(g, MCPHostOptions{Name: "multi-host"})
 	assert.NoError(t, err)
@@ -404,8 +399,7 @@ func TestMCPMultipleServers(t *testing.T) {
 // This covers the most common real-world failure scenarios.
 func TestMCPErrorResilience(t *testing.T) {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
-	assert.NoError(t, err)
+	g := genkit.Init(ctx)
 
 	// TEST 1: Server connection failure (fast!)
 	t.Run("connection_failure", func(t *testing.T) {

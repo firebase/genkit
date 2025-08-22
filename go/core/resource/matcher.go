@@ -18,9 +18,33 @@ package resource
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/yosida95/uritemplate/v3"
 )
+
+// normalizeURI normalizes a URI for template matching by removing query parameters,
+// fragments, and trailing slashes from the path.
+func normalizeURI(rawURI string) string {
+	// Parse the URI
+	u, err := url.Parse(rawURI)
+	if err != nil {
+		// If parsing fails, return the original URI
+		return rawURI
+	}
+	
+	// Remove query parameters and fragment
+	u.RawQuery = ""
+	u.Fragment = ""
+	
+	// Remove trailing slash from path (but not from the root path)
+	if len(u.Path) > 1 && strings.HasSuffix(u.Path, "/") {
+		u.Path = strings.TrimSuffix(u.Path, "/")
+	}
+	
+	return u.String()
+}
 
 // URIMatcher handles URI matching for resources.
 // This is an internal interface used by resource implementations.
@@ -65,12 +89,14 @@ type templateMatcher struct {
 }
 
 func (m *templateMatcher) Matches(uri string) bool {
-	values := m.template.Match(uri)
+	normalizedURI := normalizeURI(uri)
+	values := m.template.Match(normalizedURI)
 	return len(values) > 0
 }
 
 func (m *templateMatcher) ExtractVariables(uri string) (map[string]string, error) {
-	values := m.template.Match(uri)
+	normalizedURI := normalizeURI(uri)
+	values := m.template.Match(normalizedURI)
 	if len(values) == 0 {
 		return nil, fmt.Errorf("URI %q does not match template", uri)
 	}

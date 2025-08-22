@@ -19,18 +19,16 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/genkit"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // GetActiveResources fetches detached resources from the MCP server
-func (c *GenkitMCPClient) GetActiveResources(ctx context.Context) ([]core.DetachedResourceAction, error) {
+func (c *GenkitMCPClient) GetActiveResources(ctx context.Context) ([]ai.Resource, error) {
 	if !c.IsEnabled() || c.server == nil {
 		return nil, fmt.Errorf("MCP client is disabled or not connected")
 	}
 
-	var resources []core.DetachedResourceAction
+	var resources []ai.Resource
 
 	// List static resources from MCP server
 	listReq := mcp.ListResourcesRequest{}
@@ -69,13 +67,12 @@ func (c *GenkitMCPClient) GetActiveResources(ctx context.Context) ([]core.Detach
 }
 
 // createDetachedMCPResource creates a detached Genkit resource from an MCP static resource
-func (c *GenkitMCPClient) createDetachedMCPResource(mcpResource mcp.Resource) (core.DetachedResourceAction, error) {
+func (c *GenkitMCPClient) createDetachedMCPResource(mcpResource mcp.Resource) (ai.Resource, error) {
 	// Create namespaced resource name
 	resourceName := c.GetResourceNameWithNamespace(mcpResource.Name)
 
 	// Create detached Genkit resource that bridges to MCP
-	return genkit.DynamicResource(genkit.ResourceOptions{
-		Name:        resourceName,
+	return ai.NewResource(resourceName, &ai.ResourceOptions{
 		URI:         mcpResource.URI,
 		Description: mcpResource.Description,
 		Metadata: map[string]any{
@@ -84,13 +81,17 @@ func (c *GenkitMCPClient) createDetachedMCPResource(mcpResource mcp.Resource) (c
 			"source":     "mcp",
 			"mime_type":  mcpResource.MIMEType,
 		},
-	}, func(ctx context.Context, input core.ResourceInput) (genkit.ResourceOutput, error) {
-		return c.readMCPResource(ctx, input.URI)
-	})
+	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
+		output, err := c.readMCPResource(ctx, input.URI)
+		if err != nil {
+			return nil, err
+		}
+		return &ai.ResourceOutput{Content: output.Content}, nil
+	}), nil
 }
 
 // createDetachedMCPResourceTemplate creates a detached Genkit template resource from MCP template
-func (c *GenkitMCPClient) createDetachedMCPResourceTemplate(mcpTemplate mcp.ResourceTemplate) (core.DetachedResourceAction, error) {
+func (c *GenkitMCPClient) createDetachedMCPResourceTemplate(mcpTemplate mcp.ResourceTemplate) (ai.Resource, error) {
 	resourceName := c.GetResourceNameWithNamespace(mcpTemplate.Name)
 
 	// Convert URITemplate to string - extract the raw template string
@@ -98,9 +99,13 @@ func (c *GenkitMCPClient) createDetachedMCPResourceTemplate(mcpTemplate mcp.Reso
 	if mcpTemplate.URITemplate != nil && mcpTemplate.URITemplate.Template != nil {
 		templateStr = mcpTemplate.URITemplate.Template.Raw()
 	}
+	
+	// Validate template - return error instead of panicking
+	if templateStr == "" {
+		return nil, fmt.Errorf("MCP resource template %s has empty URI template", mcpTemplate.Name)
+	}
 
-	return genkit.DynamicResource(genkit.ResourceOptions{
-		Name:        resourceName,
+	return ai.NewResource(resourceName, &ai.ResourceOptions{
 		Template:    templateStr,
 		Description: mcpTemplate.Description,
 		Metadata: map[string]any{
@@ -110,15 +115,19 @@ func (c *GenkitMCPClient) createDetachedMCPResourceTemplate(mcpTemplate mcp.Reso
 			"source":       "mcp",
 			"mime_type":    mcpTemplate.MIMEType,
 		},
-	}, func(ctx context.Context, input core.ResourceInput) (genkit.ResourceOutput, error) {
-		return c.readMCPResource(ctx, input.URI)
-	})
+	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
+		output, err := c.readMCPResource(ctx, input.URI)
+		if err != nil {
+			return nil, err
+		}
+		return &ai.ResourceOutput{Content: output.Content}, nil
+	}), nil
 }
 
 // readMCPResource fetches content from MCP server for a given URI
-func (c *GenkitMCPClient) readMCPResource(ctx context.Context, uri string) (genkit.ResourceOutput, error) {
+func (c *GenkitMCPClient) readMCPResource(ctx context.Context, uri string) (ai.ResourceOutput, error) {
 	if !c.IsEnabled() || c.server == nil {
-		return genkit.ResourceOutput{}, fmt.Errorf("MCP client is disabled or not connected")
+		return ai.ResourceOutput{}, fmt.Errorf("MCP client is disabled or not connected")
 	}
 
 	// Create ReadResource request
@@ -135,16 +144,16 @@ func (c *GenkitMCPClient) readMCPResource(ctx context.Context, uri string) (genk
 	// Call the MCP server to read the resource
 	readResp, err := c.server.Client.ReadResource(ctx, readReq)
 	if err != nil {
-		return genkit.ResourceOutput{}, fmt.Errorf("failed to read resource from MCP server %s: %w", c.options.Name, err)
+		return ai.ResourceOutput{}, fmt.Errorf("failed to read resource from MCP server %s: %w", c.options.Name, err)
 	}
 
 	// Convert MCP ResourceContents to Genkit Parts
 	parts, err := convertMCPResourceContentsToGenkitParts(readResp.Contents)
 	if err != nil {
-		return genkit.ResourceOutput{}, fmt.Errorf("failed to convert MCP resource contents to Genkit parts: %w", err)
+		return ai.ResourceOutput{}, fmt.Errorf("failed to convert MCP resource contents to Genkit parts: %w", err)
 	}
 
-	return genkit.ResourceOutput{Content: parts}, nil
+	return ai.ResourceOutput{Content: parts}, nil
 }
 
 // convertMCPResourceContentsToGenkitParts converts MCP ResourceContents to Genkit Parts

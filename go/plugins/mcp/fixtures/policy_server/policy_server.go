@@ -18,18 +18,16 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/mcp"
 )
 
 func main() {
-	g, _ := genkit.Init(context.Background())
-	genkit.DefineResource(g, genkit.ResourceOptions{
-		Name:     "company-policy",
+	g := genkit.Init(context.Background())
+	genkit.DefineResource(g, "company-policy", &ai.ResourceOptions{
 		Template: "docs://policy/{section}",
-	}, func(ctx context.Context, input core.ResourceInput) (genkit.ResourceOutput, error) {
-		return genkit.ResourceOutput{
+	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
+		return &ai.ResourceOutput{
 			Content: []*ai.Part{ai.NewTextPart("VACATION_POLICY: Employees get 20 days vacation per year.")},
 		}, nil
 	})
