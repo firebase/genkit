@@ -990,3 +990,77 @@ func DefineFormat(g *Genkit, name string, formatter ai.Formatter) {
 func IsDefinedFormat(g *Genkit, name string) bool {
 	return g.reg.LookupValue("/format/"+name) != nil
 }
+
+// DefineResource defines a resource and registers it with the Genkit instance.
+// Resources provide content that can be referenced in prompts via URI.
+//
+// Example:
+//
+//	DefineResource(g, "company-docs", &ai.ResourceOptions{
+//	  URI: "file:///docs/handbook.pdf",
+//	  Description: "Company handbook",
+//	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
+//	  content, err := os.ReadFile("/docs/handbook.pdf")
+//	  if err != nil {
+//	    return nil, err
+//	  }
+//	  return &ai.ResourceOutput{
+//	    Content: []*ai.Part{ai.NewTextPart(string(content))},
+//	  }, nil
+//	})
+func DefineResource(g *Genkit, name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
+	return ai.DefineResource(g.reg, name, opts, fn)
+}
+
+// FindMatchingResource finds a resource that matches the given URI.
+func FindMatchingResource(g *Genkit, uri string) (ai.Resource, *ai.ResourceInput, error) {
+	return ai.FindMatchingResource(g.reg, uri)
+}
+
+// NewResource creates an unregistered resource action that can be temporarily
+// attached during generation via WithResources option.
+//
+// Example:
+//
+//	dynamicRes := NewResource("user-data", &ai.ResourceOptions{
+//	  Template: "user://profile/{id}",
+//	}, func(ctx context.Context, input *ai.ResourceInput) (*ai.ResourceOutput, error) {
+//	  userID := input.Variables["id"]
+//	  // Load user data dynamically...
+//	  return &ai.ResourceOutput{Content: []*ai.Part{ai.NewTextPart(userData)}}, nil
+//	})
+//
+//	// Use in generation:
+//	ai.Generate(ctx, g,
+//	  ai.WithPrompt([]*ai.Part{
+//	    ai.NewTextPart("Analyze this user:"),
+//	    ai.NewResourcePart("user://profile/123"),
+//	  }),
+//	  ai.WithResources(dynamicRes),
+//	)
+func NewResource(name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.Resource {
+	// Delegate to ai implementation
+	return ai.NewResource(name, *opts, fn)
+}
+
+// ListResources returns a slice of all resource actions
+func ListResources(g *Genkit) []ai.Resource {
+	acts := g.reg.ListActions()
+	resources := []ai.Resource{}
+	for _, act := range acts {
+		action, ok := act.(core.Action)
+		if !ok {
+			continue
+		}
+		actionDesc := action.Desc()
+		if actionDesc.Type == core.ActionTypeResource {
+			// Look up the resource wrapper
+			if resourceValue := g.reg.LookupValue(fmt.Sprintf("resource/%s", actionDesc.Name)); resourceValue != nil {
+				if resource, ok := resourceValue.(ai.Resource); ok {
+					resources = append(resources, resource)
+				}
+			}
+		}
+	}
+	return resources
+}

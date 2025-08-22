@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { GENKIT_CLIENT_HEADER } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { extractErrMsg, processStream } from '../common/utils';
+import { getGenkitClientHeader } from '../common/utils.js';
 import {
   ClientOptions,
   EmbedContentRequest,
@@ -307,8 +307,8 @@ async function getHeaders(clientOptions: ClientOptions): Promise<HeadersInit> {
     const headers: HeadersInit = {
       'x-goog-api-key': calculateApiKey(clientOptions.apiKey, undefined),
       'Content-Type': 'application/json',
-      'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-      'User-Agent': GENKIT_CLIENT_HEADER,
+      'X-Goog-Api-Client': getGenkitClientHeader(),
+      'User-Agent': getGenkitClientHeader(),
     };
     return headers;
   } else {
@@ -317,8 +317,8 @@ async function getHeaders(clientOptions: ClientOptions): Promise<HeadersInit> {
       Authorization: `Bearer ${token}`,
       'x-goog-user-project': clientOptions.projectId,
       'Content-Type': 'application/json',
-      'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-      'User-Agent': GENKIT_CLIENT_HEADER,
+      'X-Goog-Api-Client': getGenkitClientHeader(),
+      'User-Agent': getGenkitClientHeader(),
     };
     if (clientOptions.apiKey) {
       headers['x-goog-api-key'] = clientOptions.apiKey;

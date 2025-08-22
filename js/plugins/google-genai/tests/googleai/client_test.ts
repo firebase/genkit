@@ -15,7 +15,6 @@
  */
 
 import * as assert from 'assert';
-import { GENKIT_CLIENT_HEADER } from 'genkit';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { TextEncoder } from 'util';
@@ -24,6 +23,7 @@ import {
   HarmCategory,
   HarmProbability,
 } from '../../src/common/types';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
   TEST_ONLY,
   embedContent,
@@ -179,7 +179,7 @@ describe('Google AI Client', () => {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
-          'x-goog-api-client': GENKIT_CLIENT_HEADER,
+          'x-goog-api-client': getGenkitClientHeader(),
         },
       });
     });
@@ -264,7 +264,7 @@ describe('Google AI Client', () => {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
-          'x-goog-api-client': GENKIT_CLIENT_HEADER,
+          'x-goog-api-client': getGenkitClientHeader(),
         },
         body: JSON.stringify(request),
       });
@@ -319,7 +319,7 @@ describe('Google AI Client', () => {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
-          'x-goog-api-client': GENKIT_CLIENT_HEADER,
+          'x-goog-api-client': getGenkitClientHeader(),
         },
         body: JSON.stringify(request),
       });
@@ -423,7 +423,7 @@ describe('Google AI Client', () => {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
-          'x-goog-api-client': GENKIT_CLIENT_HEADER,
+          'x-goog-api-client': getGenkitClientHeader(),
         },
         body: JSON.stringify(defaultRequest),
       });
@@ -665,7 +665,7 @@ describe('Google AI Client', () => {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
-          'x-goog-api-client': GENKIT_CLIENT_HEADER,
+          'x-goog-api-client': getGenkitClientHeader(),
         },
         body: JSON.stringify(request),
       });
@@ -713,7 +713,7 @@ describe('Google AI Client', () => {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
-          'x-goog-api-client': GENKIT_CLIENT_HEADER,
+          'x-goog-api-client': getGenkitClientHeader(),
         },
         body: JSON.stringify(request),
       });
@@ -754,7 +754,7 @@ describe('Google AI Client', () => {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
-          'x-goog-api-client': GENKIT_CLIENT_HEADER,
+          'x-goog-api-client': getGenkitClientHeader(),
         },
       });
     });

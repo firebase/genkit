@@ -129,6 +129,7 @@ type GenerateActionOptions struct {
 	Output             *GenerateActionOutputConfig `json:"output,omitempty"`
 	Resume             *GenerateActionResume       `json:"resume,omitempty"`
 	ReturnToolRequests bool                        `json:"returnToolRequests,omitempty"`
+	StepName           string                      `json:"stepName,omitempty"`
 	ToolChoice         ToolChoice                  `json:"toolChoice,omitempty"`
 	Tools              []string                    `json:"tools,omitempty"`
 }
@@ -316,6 +317,15 @@ type RerankerRequest struct {
 
 type RerankerResponse struct {
 	Documents []*RankedDocumentData `json:"documents,omitempty"`
+}
+
+type resourcePart struct {
+	Metadata map[string]any `json:"metadata,omitempty"`
+	Resource *ResourcePart  `json:"resource,omitempty"`
+}
+
+type ResourcePart struct {
+	Uri string `json:"uri,omitempty"`
 }
 
 type RetrieverRequest struct {

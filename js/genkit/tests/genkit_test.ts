@@ -1,5 +1,5 @@
 /**
- * Copyright 2025 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-import { getClientHeader as defaultGetClientHeader } from 'genkit';
-import process from 'process';
+import * as assert from 'assert';
+import { describe, it } from 'node:test';
+import { genkit, getClientHeader } from '../src/index.js';
 
-export function getApiKeyFromEnvVar(): string | undefined {
-  return (
-    process.env.GEMINI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.GOOGLE_GENAI_API_KEY
-  );
-}
+describe('genkit', () => {
+  it('sets the client headers', async () => {
+    genkit({});
 
-export function getGenkitClientHeader() {
-  if (process.env.MONOSPACE_ENV == 'true') {
-    return defaultGetClientHeader() + ' firebase-studio-vm';
-  }
-  return defaultGetClientHeader();
-}
+    assert.ok(getClientHeader().includes('genkit-node/'));
+    assert.ok(!getClientHeader().includes('foo'));
+
+    genkit({ clientHeader: 'foo' });
+
+    assert.ok(getClientHeader().includes('genkit-node/'));
+    assert.ok(getClientHeader().includes('foo'));
+  });
+});

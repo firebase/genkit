@@ -1081,3 +1081,71 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		}
 	})
 }
+
+func TestResourceProcessing(t *testing.T) {
+	r := registry.New()
+
+	// Create test resources using DefineResource
+	DefineResource(r, "test-file", &ResourceOptions{
+		URI:         "file:///test.txt",
+		Description: "Test file resource",
+	}, func(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
+		return &ResourceOutput{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
+	})
+
+	DefineResource(r, "test-api", &ResourceOptions{
+		URI:         "api://data/123",
+		Description: "Test API resource",
+	}, func(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
+		return &ResourceOutput{Content: []*Part{NewTextPart("API DATA")}}, nil
+	})
+
+	// Test message with resources
+	messages := []*Message{
+		NewUserMessage(
+			NewTextPart("Read this:"),
+			NewResourcePart("file:///test.txt"),
+			NewTextPart("And this:"),
+			NewResourcePart("api://data/123"),
+			NewTextPart("Done."),
+		),
+	}
+
+	// Process resources
+	processed, err := processResources(context.Background(), r, messages)
+	if err != nil {
+		t.Fatalf("resource processing failed: %v", err)
+	}
+
+	// Verify content
+	content := processed[0].Content
+	expected := []string{"Read this:", "FILE CONTENT", "And this:", "API DATA", "Done."}
+
+	if len(content) != len(expected) {
+		t.Fatalf("expected %d parts, got %d", len(expected), len(content))
+	}
+
+	for i, want := range expected {
+		if content[i].Text != want {
+			t.Fatalf("part %d: got %q, want %q", i, content[i].Text, want)
+		}
+	}
+}
+
+func TestResourceProcessingError(t *testing.T) {
+	r := registry.New()
+
+	// No resources registered
+	messages := []*Message{
+		NewUserMessage(NewResourcePart("missing://resource")),
+	}
+
+	_, err := processResources(context.Background(), r, messages)
+	if err == nil {
+		t.Fatal("expected error when no resources available")
+	}
+
+	if !strings.Contains(err.Error(), "no resource found for URI") {
+		t.Fatalf("wrong error: %v", err)
+	}
+}

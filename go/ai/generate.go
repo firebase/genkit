@@ -469,6 +469,15 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
+	if len(genOpts.Resources) > 0 {
+		r = r.NewChild()
+
+		// Attach resources
+		for _, res := range genOpts.Resources {
+			res.Register(r)
+		}
+	}
+
 	messages := []*Message{}
 	if genOpts.SystemFn != nil {
 		system, err := genOpts.SystemFn(ctx, nil)
@@ -546,6 +555,13 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			Restart: restartParts,
 		}
 	}
+
+	// Process resources in messages
+	processedMessages, err := processResources(ctx, r, messages)
+	if err != nil {
+		return nil, core.NewError(core.INTERNAL, "ai.Generate: error processing resources: %v", err)
+	}
+	actionOpts.Messages = processedMessages
 
 	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
 }
@@ -1127,6 +1143,90 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 		},
 		toolMessage: toolMessage,
 	}, nil
+}
+
+// processResources processes messages to replace resource parts with actual content.
+func processResources(ctx context.Context, r *registry.Registry, messages []*Message) ([]*Message, error) {
+	processedMessages := make([]*Message, len(messages))
+	for i, msg := range messages {
+		processedContent := []*Part{}
+
+		for _, part := range msg.Content {
+			if part.IsResource() {
+				// Find and execute the matching resource
+				resourceParts, err := executeResourcePart(ctx, r, part.Resource.Uri)
+				if err != nil {
+					return nil, fmt.Errorf("failed to process resource %q: %w", part.Resource, err)
+				}
+				// Replace resource part with content parts
+				processedContent = append(processedContent, resourceParts...)
+			} else {
+				// Keep non-resource parts as-is
+				processedContent = append(processedContent, part)
+			}
+		}
+
+		processedMessages[i] = &Message{
+			Role:     msg.Role,
+			Content:  processedContent,
+			Metadata: msg.Metadata,
+		}
+	}
+
+	return processedMessages, nil
+}
+
+// findMatchingResource finds a resource action in the registry that matches the given URI.
+func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[string]string, error) {
+	// Use our updated FindMatchingResource function
+	resource, resourceInput, err := FindMatchingResource(r, uri)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Execute the resource to get the action - we need to access the underlying action
+	// Since the resource interface doesn't expose the action directly, we'll look it up
+	action := r.LookupAction(fmt.Sprintf("/resource/%s", resource.Name()))
+	if action == nil {
+		return nil, nil, core.NewError(core.INTERNAL, "failed to lookup resource action")
+	}
+
+	if coreAction, ok := action.(core.Action); ok {
+		return coreAction, resourceInput.Variables, nil
+	}
+
+	return nil, nil, core.NewError(core.INTERNAL, "action does not implement core.Action interface")
+}
+
+// executeResourcePart finds and executes a resource, returning the content parts.
+func executeResourcePart(ctx context.Context, r *registry.Registry, resourceURI string) ([]*Part, error) {
+	action, variables, err := findMatchingResource(r, resourceURI)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create resource input with extracted variables
+	input := &ResourceInput{
+		URI:       resourceURI,
+		Variables: variables,
+	}
+
+	// Execute the resource action directly
+	inputJSON, _ := json.Marshal(input)
+	outputJSON, err := action.RunJSON(ctx, inputJSON, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute resource %q: %w", resourceURI, err)
+	}
+
+	// Parse resource output - use a compatible structure
+	var output struct {
+		Content []*Part `json:"content"`
+	}
+	if err := json.Unmarshal(outputJSON, &output); err != nil {
+		return nil, fmt.Errorf("failed to parse resource output: %w", err)
+	}
+
+	return output.Content, nil
 }
 
 // DefineBackgroundModel defines a new model that runs in the background
