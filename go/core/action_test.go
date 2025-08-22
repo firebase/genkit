@@ -104,7 +104,7 @@ func TestActionStreaming(t *testing.T) {
 func TestActionTracing(t *testing.T) {
 	r := registry.New()
 	tc := tracing.NewTestOnlyTelemetryClient()
-	r.TracingState().WriteTelemetryImmediate(tc)
+	tracing.WriteTelemetryImmediate(tc)
 	name := NewName("test", "TestTracing-inc")
 	a := defineAction(r, name, ActionTypeCustom, nil, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {

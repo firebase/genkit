@@ -208,17 +208,17 @@ func (o *Ollama) Name() string {
 // Init initializes the plugin.
 // Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
 // After downloading a model, call [DefineModel] to use it.
-func (o *Ollama) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (o *Ollama) Init(ctx context.Context) []core.Action {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.initted {
 		panic("ollama.Init already called")
 	}
 	if o == nil || o.ServerAddress == "" {
-		return errors.New("ollama: need ServerAddress")
+		panic("ollama: need ServerAddress")
 	}
 	o.initted = true
-	return nil
+	return []core.Action{}
 }
 
 // Generate makes a request to the Ollama API and processes the response.

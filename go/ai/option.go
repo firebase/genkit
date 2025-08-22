@@ -568,7 +568,7 @@ type documentOptions struct {
 }
 
 // DocumentOption is an option for providing context or input documents.
-// It applies only to [Generate] and [Prompt.Execute].
+// It applies only to [Generate] and [prompt.Execute].
 type DocumentOption interface {
 	applyDocument(*documentOptions) error
 	applyGenerate(*generateOptions) error
@@ -860,7 +860,7 @@ type promptExecutionOptions struct {
 	Input any // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
 }
 
-// PromptExecuteOption is an option for executing a prompt. It applies only to [Prompt.Execute].
+// PromptExecuteOption is an option for executing a prompt. It applies only to [prompt.Execute].
 type PromptExecuteOption interface {
 	applyPromptExecute(*promptExecutionOptions) error
 }
