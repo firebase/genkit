@@ -65,7 +65,6 @@ import {
 import {
   augmentWithContext,
   simulateConstrainedGeneration,
-  validateSupport,
 } from './model/middleware.js';
 export { defineGenerateAction } from './generate/action.js';
 export * from './model-types.js';
@@ -329,10 +328,7 @@ function getModelMiddleware(options: {
   name: string;
   supports?: ModelInfo['supports'];
 }) {
-  const middleware: ModelMiddleware[] = [
-    ...(options.use || []),
-    validateSupport(options),
-  ];
+  const middleware: ModelMiddleware[] = options.use || [];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
   const constratedSimulator = simulateConstrainedGeneration();
   middleware.push((req, next) => {
