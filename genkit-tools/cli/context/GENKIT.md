@@ -39,7 +39,7 @@ This document provides rules and examples for building with the Genkit API in No
     ```ts
     // src/index.ts
     import { genkit, z } from 'genkit';
-    import { googleAI } from '@genkit-ai/googleai';
+    import { googleAI } from '@genkit-ai/google-genai';
 
     export const ai = genkit({
       plugins: [googleAI()],

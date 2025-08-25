@@ -13,12 +13,12 @@ Get started with just a few lines of code:
 
 ```ts
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const ai = genkit({ plugins: [googleAI()] });
 
 const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: 'Why is Firebase awesome?'
 });
 ```
@@ -155,9 +155,9 @@ Want to skip the local setup? Click below to try out Genkit using [Firebase Stud
 
 - [**Join us on Discord**](https://discord.gg/qXt5zzQKpc) – Get help, share
 ideas, and chat with other developers.
-- [**Contribute on GitHub**](https://github.com/firebase/genkit/issues) – Report 
+- [**Contribute on GitHub**](https://github.com/firebase/genkit/issues) – Report
 bugs, suggest features, or explore the source code.
-- [**Contribute to Documentation and Samples**](https://github.com/genkit-ai/) – Report 
+- [**Contribute to Documentation and Samples**](https://github.com/genkit-ai/) – Report
 issues in Genkit's [documentation](https://github.com/genkit-ai/docsite), or contribute to the [samples](https://github.com/genkit-ai/samples).
 
 ## Contributing

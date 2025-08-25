@@ -45,4 +45,4 @@ Then access the application at [http://localhost:4200/](http://localhost:4200/)
 The application is built with:
 - Angular for the frontend framework
 - Genkit for AI integration
-- Gemini 2.0 Flash for the AI model
+- Gemini 2.5 Flash for the AI model
