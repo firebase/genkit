@@ -42,6 +42,32 @@ type Evaluator interface {
 	Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error)
 }
 
+// EvaluatorArg is the interface for evaluator arguments. It can either be the evaluator action itself or a reference to be looked up.
+type EvaluatorArg interface {
+	Name() string
+}
+
+// EvaluatorRef is a struct to hold evaluator name and configuration.
+type EvaluatorRef struct {
+	name   string
+	config any
+}
+
+// NewEvaluatorRef creates a new EvaluatorRef with the given name and configuration.
+func NewEvaluatorRef(name string, config any) EvaluatorRef {
+	return EvaluatorRef{name: name, config: config}
+}
+
+// Name returns the name of the evaluator.
+func (e EvaluatorRef) Name() string {
+	return e.name
+}
+
+// Config returns the configuration to use by default for this evaluator.
+func (e EvaluatorRef) Config() any {
+	return e.config
+}
+
 // evaluator is an action with functions specific to evaluating a dataset.
 type evaluator struct {
 	core.ActionDef[*EvaluatorRequest, *EvaluatorResponse, struct{}]
@@ -273,13 +299,27 @@ func (e evaluator) Evaluate(ctx context.Context, req *EvaluatorRequest) (*Evalua
 }
 
 // Evaluate calls the retrivers with provided options.
-func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluatorOption) (*EvaluatorResponse, error) {
+func Evaluate(ctx context.Context, r *registry.Registry, opts ...EvaluatorOption) (*EvaluatorResponse, error) {
 	evalOpts := &evaluatorOptions{}
 	for _, opt := range opts {
-		err := opt.applyEvaluator(evalOpts)
-		if err != nil {
+		if err := opt.applyEvaluator(evalOpts); err != nil {
 			return nil, err
 		}
+	}
+
+	if evalOpts.Evaluator == nil {
+		return nil, fmt.Errorf("ai.Evaluate: evaluator must be set")
+	}
+	e, ok := evalOpts.Evaluator.(Evaluator)
+	if !ok {
+		e = LookupEvaluator(r, evalOpts.Evaluator.Name())
+	}
+	if e == nil {
+		return nil, fmt.Errorf("ai.Evaluate: evaluator not found: %s", evalOpts.Evaluator.Name())
+	}
+
+	if evalRef, ok := evalOpts.Evaluator.(EvaluatorRef); ok && evalOpts.Config == nil {
+		evalOpts.Config = evalRef.Config()
 	}
 
 	req := &EvaluatorRequest{
@@ -288,5 +328,5 @@ func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluatorOption) (*Evalu
 		Options:      evalOpts.Config,
 	}
 
-	return r.Evaluate(ctx, req)
+	return e.Evaluate(ctx, req)
 }
