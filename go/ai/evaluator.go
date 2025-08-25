@@ -307,6 +307,9 @@ func Evaluate(ctx context.Context, r *registry.Registry, opts ...EvaluatorOption
 		}
 	}
 
+	if evalOpts.Evaluator == nil {
+		return nil, fmt.Errorf("ai.Evaluate: evaluator must be set")
+	}
 	e, ok := evalOpts.Evaluator.(Evaluator)
 	if !ok {
 		e = LookupEvaluator(r, evalOpts.Evaluator.Name())

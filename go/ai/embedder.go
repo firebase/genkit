@@ -164,6 +164,9 @@ func Embed(ctx context.Context, r *registry.Registry, opts ...EmbedderOption) (*
 		}
 	}
 
+	if embedOpts.Embedder == nil {
+		return nil, fmt.Errorf("ai.Embed: embedder must be set")
+	}
 	e, ok := embedOpts.Embedder.(Embedder)
 	if !ok {
 		e = LookupEmbedder(r, embedOpts.Embedder.Name())

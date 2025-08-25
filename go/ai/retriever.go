@@ -161,6 +161,9 @@ func Retrieve(ctx context.Context, r *registry.Registry, opts ...RetrieverOption
 		return nil, errors.New("ai.Retrieve: only supports a single document as input")
 	}
 
+	if retOpts.Retriever == nil {
+		return nil, fmt.Errorf("ai.Retrieve: retriever must be set")
+	}
 	ret, ok := retOpts.Retriever.(Retriever)
 	if !ok {
 		ret = LookupRetriever(r, retOpts.Retriever.Name())
