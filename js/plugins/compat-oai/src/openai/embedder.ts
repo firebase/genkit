@@ -42,6 +42,7 @@ function commonRef(
       ...COMMON_EMBEDDER_INFO,
       ...(info ?? {}),
     },
+    namespace: 'openai',
   });
 }
 

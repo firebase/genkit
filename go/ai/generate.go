@@ -66,7 +66,9 @@ type ModelStreamCallback = func(context.Context, *ModelResponseChunk) error
 type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 // model is an action with functions specific to model generation such as Generate().
-type model core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type model struct {
+	core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+}
 
 // generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
 type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
@@ -106,7 +108,10 @@ type ModelOptions struct {
 	Versions []string `json:"versions,omitempty"`
 }
 
-type BackgroundModel = core.BackgroundAction[*ModelRequest, *ModelResponse] // Background action for model operations
+// BackgroundModel is a background action for model operations.
+type BackgroundModel struct {
+	*core.BackgroundActionDef[*ModelRequest, *ModelResponse]
+}
 
 // StartOperationFunc starts a background operation
 type StartOperationFunc[In, Out any] = func(ctx context.Context, input In) (*core.Operation[Out], error)
@@ -119,19 +124,16 @@ type CancelOperationFunc[Out any] = func(ctx context.Context, operation *core.Op
 
 // BackgroundModelOptions holds configuration for defining a background model
 type BackgroundModelOptions struct {
-	Versions     []string       `json:"versions,omitempty"`
-	Supports     *ModelSupports `json:"supports,omitempty"`
-	ConfigSchema map[string]any `json:"configSchema,omitempty"`
-	Metadata     map[string]any `json:"metadata,omitempty"`
-	Label        string         `json:"label,omitempty"`
-	Start        StartOperationFunc[*ModelRequest, *ModelResponse]
-	Check        CheckOperationFunc[*ModelResponse]
-	Cancel       CancelOperationFunc[*ModelResponse]
+	ModelOptions
+	Metadata map[string]any `json:"metadata,omitempty"`
+	Start    StartOperationFunc[*ModelRequest, *ModelResponse]
+	Check    CheckOperationFunc[*ModelResponse]
+	Cancel   CancelOperationFunc[*ModelResponse]
 }
 
 // DefineGenerateAction defines a utility generate action.
 func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil,
+	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", actionOpts))
@@ -141,17 +143,17 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"err", err)
 			}()
 
-			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, actionOpts,
+			return tracing.RunInNewSpan(ctx, "generate", "util", false, actionOpts,
 				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
 					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
 				})
 		}))
 }
 
-// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
-func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+// NewModel creates a new [Model].
+func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	if name == "" {
-		panic("ai.DefineModel: name is required")
+		panic("ai.NewModel: name is required")
 	}
 
 	if opts == nil {
@@ -199,7 +201,16 @@ func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn Model
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return (*model)(core.DefineStreamingActionWithInputSchema(r, name, core.ActionTypeModel, metadata, inputSchema, fn))
+	return &model{
+		ActionDef: *core.NewStreamingAction(name, core.ActionTypeModel, metadata, inputSchema, fn),
+	}
+}
+
+// DefineModel creates a new [Model] and registers it.
+func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+	m := NewModel(name, opts, fn)
+	m.(*model).Register(r)
+	return m
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
@@ -210,13 +221,19 @@ func LookupModel(r *registry.Registry, name string) Model {
 	if action == nil {
 		return nil
 	}
-	return (*model)(action)
+	return &model{
+		ActionDef: *action,
+	}
 }
 
 // LookupBackgroundModel looks up a BackgroundAction registered by [DefineBackgroundModel].
 // It returns nil if the background model was not found.
-func LookupBackgroundModel(r *registry.Registry, name string) BackgroundModel {
-	return core.LookupBackgroundAction[*ModelRequest, *ModelResponse](r, name)
+func LookupBackgroundModel(r *registry.Registry, name string) *BackgroundModel {
+	action := core.LookupBackgroundAction[*ModelRequest, *ModelResponse](r, name)
+	if action == nil {
+		return nil
+	}
+	return &BackgroundModel{action}
 }
 
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
@@ -334,9 +351,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 	var fn ModelFunc
 	if isLongRunning {
-		_, name, _ := strings.Cut(opts.Model, "/")
-
-		bgAction := LookupBackgroundModel(r, name)
+		bgAction := LookupBackgroundModel(r, opts.Model)
 		if bgAction == nil {
 			return nil, core.NewError(core.NOT_FOUND, "background model %q not found", opts.Model)
 		}
@@ -462,19 +477,22 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			}
 		}
 	}
+
 	if len(dynamicTools) > 0 {
-		r = r.NewChild()
-		for _, tool := range dynamicTools {
-			tool.Register(r)
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		for _, t := range dynamicTools {
+			t.(*tool).Register(r)
 		}
 	}
 
 	if len(genOpts.Resources) > 0 {
-		r = r.NewChild()
-
-		// Attach resources
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
 		for _, res := range genOpts.Resources {
-			res.Register(r)
+			res.(*resource).Register(r)
 		}
 	}
 
@@ -595,18 +613,13 @@ func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...Ge
 	return &value, resp, nil
 }
 
-// Name returns the name of the model.
-func (m *model) Name() string {
-	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Name()
-}
-
 // Generate applies the [Action] to provided request.
 func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "Model.Generate: generate called on a nil model; check that all models are defined")
 	}
 
-	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)
+	return m.ActionDef.Run(ctx, req, cb)
 }
 
 // SupportsConstrained returns whether the model supports constrained output.
@@ -615,12 +628,7 @@ func (m *model) SupportsConstrained(hasTools bool) bool {
 		return false
 	}
 
-	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m)
-	if action == nil {
-		return false
-	}
-
-	metadata := action.Desc().Metadata
+	metadata := m.ActionDef.Desc().Metadata
 	if metadata == nil {
 		return false
 	}
@@ -1176,90 +1184,64 @@ func processResources(ctx context.Context, r *registry.Registry, messages []*Mes
 	return processedMessages, nil
 }
 
-// findMatchingResource finds a resource action in the registry that matches the given URI.
-func findMatchingResource(r *registry.Registry, uri string) (core.Action, map[string]string, error) {
-	// Use our updated FindMatchingResource function
-	resource, resourceInput, err := FindMatchingResource(r, uri)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Execute the resource to get the action - we need to access the underlying action
-	// Since the resource interface doesn't expose the action directly, we'll look it up
-	action := r.LookupAction(fmt.Sprintf("/resource/%s", resource.Name()))
-	if action == nil {
-		return nil, nil, core.NewError(core.INTERNAL, "failed to lookup resource action")
-	}
-
-	if coreAction, ok := action.(core.Action); ok {
-		return coreAction, resourceInput.Variables, nil
-	}
-
-	return nil, nil, core.NewError(core.INTERNAL, "action does not implement core.Action interface")
-}
-
 // executeResourcePart finds and executes a resource, returning the content parts.
 func executeResourcePart(ctx context.Context, r *registry.Registry, resourceURI string) ([]*Part, error) {
-	action, variables, err := findMatchingResource(r, resourceURI)
+	resource, input, err := FindMatchingResource(r, resourceURI)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create resource input with extracted variables
-	input := &ResourceInput{
-		URI:       resourceURI,
-		Variables: variables,
-	}
-
-	// Execute the resource action directly
-	inputJSON, _ := json.Marshal(input)
-	outputJSON, err := action.RunJSON(ctx, inputJSON, nil)
+	output, err := resource.Execute(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute resource %q: %w", resourceURI, err)
-	}
-
-	// Parse resource output - use a compatible structure
-	var output struct {
-		Content []*Part `json:"content"`
-	}
-	if err := json.Unmarshal(outputJSON, &output); err != nil {
-		return nil, fmt.Errorf("failed to parse resource output: %w", err)
 	}
 
 	return output.Content, nil
 }
 
-// DefineBackgroundModel defines a new model that runs in the background
+// NewBackgroundModel defines a new model that runs in the background
+func NewBackgroundModel(
+	name string,
+	opts *BackgroundModelOptions,
+) *BackgroundModel {
+	return &BackgroundModel{core.NewBackgroundAction[*ModelRequest, *ModelResponse](name, nil,
+		opts.Start, opts.Check, opts.Cancel)}
+}
+
+// DefineBackgroundModel defines and registers a new model that runs in the background.
 func DefineBackgroundModel(
 	r *registry.Registry,
 	name string,
 	opts *BackgroundModelOptions,
-) BackgroundModel {
+) *BackgroundModel {
+	m := NewBackgroundModel(name, opts)
+	// Use the merged metadata from NewBackgroundModel
+	mergedMetadata := make(map[string]any)
+	if opts.Metadata != nil {
+		for k, v := range opts.Metadata {
+			mergedMetadata[k] = v
+		}
+	}
+
+	// Add model-specific metadata
 	label := opts.Label
 	if label == "" {
 		label = name
 	}
-	metadata := map[string]any{
-		"model": map[string]any{
-			"label":    label,
-			"versions": opts.Versions,
-			"supports": opts.Supports,
-		},
+	mergedMetadata["model"] = map[string]any{
+		"label":    label,
+		"versions": opts.Versions,
+		"supports": opts.Supports,
 	}
-
 	if opts.ConfigSchema != nil {
-		metadata["customOptions"] = opts.ConfigSchema
-		if metadata["model"] == nil {
-			metadata["model"] = make(map[string]any)
+		mergedMetadata["customOptions"] = opts.ConfigSchema
+		if modelMeta, ok := mergedMetadata["model"].(map[string]any); ok {
+			modelMeta["customOptions"] = opts.ConfigSchema
 		}
-		modelMeta := metadata["model"].(map[string]any)
-		modelMeta["customOptions"] = opts.ConfigSchema
 	}
 
-	bgAction := core.DefineBackgroundAction[*ModelRequest, *ModelResponse](r, name, opts.Metadata,
-		opts.Start, opts.Check, opts.Cancel)
-
-	return bgAction
+	core.DefineBackgroundAction(r, name, mergedMetadata, opts.Start, opts.Check, opts.Cancel)
+	return m
 }
 
 // SupportsLongRunning checks if a model supports long-running operations by model name.
@@ -1278,12 +1260,7 @@ func SupportsLongRunning(r *registry.Registry, modelName string) bool {
 		return false
 	}
 
-	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(modelImpl)
-	if action == nil {
-		return false
-	}
-
-	metadata := action.Desc().Metadata
+	metadata := modelImpl.Desc().Metadata
 	if metadata == nil {
 		return false
 	}

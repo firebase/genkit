@@ -226,7 +226,7 @@ func serveMux(g *Genkit) *http.ServeMux {
 	})
 	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(g)))
 	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(g)))
-	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify(g)))
+	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify()))
 	return mux
 }
 
@@ -327,7 +327,7 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 }
 
 // handleNotify configures the telemetry server URL from the request.
-func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
+func handleNotify() func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var body struct {
 			TelemetryServerURL       string `json:"telemetryServerUrl"`
@@ -340,7 +340,7 @@ func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error 
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {
-			g.reg.TracingState().WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
+			tracing.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
 			slog.Debug("connected to telemetry server", "url", body.TelemetryServerURL)
 		}
 
@@ -437,7 +437,7 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 	}
 
 	var traceID string
-	output, err := tracing.RunInNewSpan(ctx, g.reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+	output, err := tracing.RunInNewSpan(ctx, "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		// Set telemetry labels from payload to span
 		if telemetryLabels != nil {

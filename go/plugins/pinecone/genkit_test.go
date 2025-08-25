@@ -78,9 +78,6 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 
-	if err := (&Pinecone{APIKey: *testAPIKey}).Init(ctx, g); err != nil {
-		t.Fatal(err)
-	}
 	emdOpts := &ai.EmbedderOptions{
 		Dimensions: 768,
 		Label:      "",

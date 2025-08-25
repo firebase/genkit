@@ -22,19 +22,17 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/genai"
 )
 
 // defineVeoModels defines a new Veo background model for video generation.
 // using Google's Veo API through the genai client.
-func defineVeoModels(
-	g *genkit.Genkit,
+func newVeoModel(
 	client *genai.Client,
 	name string,
 	info ai.ModelOptions,
-) ai.BackgroundModel {
+) *ai.BackgroundModel {
 
 	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
 		// Extract text prompt from the request
@@ -75,15 +73,12 @@ func defineVeoModels(
 		return nil, core.NewError(core.UNKNOWN, "veo model operation cancellation is not supported")
 	}
 	opts := ai.BackgroundModelOptions{
-		Label:        info.Label,
-		Versions:     info.Versions,
-		Supports:     info.Supports,
-		ConfigSchema: info.ConfigSchema,
+		ModelOptions: info,
 		Start:        startFunc,
 		Check:        checkFunc,
 		Cancel:       cancelFunc,
 	}
-	return genkit.DefineBackgroundModel(g, name, &opts)
+	return ai.NewBackgroundModel(name, &opts)
 }
 
 // extractTextFromRequest extracts the text prompt from a model request.

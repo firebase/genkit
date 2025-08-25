@@ -66,21 +66,16 @@ func (w *Weaviate) Name() string {
 }
 
 // Init initializes the Weaviate plugin.
-func (w *Weaviate) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (w *Weaviate) Init(ctx context.Context) []core.Action {
 	if w == nil {
 		w = &Weaviate{}
 	}
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("weaviate.Init: %w", err)
-		}
-	}()
 
 	if w.initted {
-		return errors.New("plugin already initialized")
+		panic("plugin already initialized")
 	}
 
 	var host string
@@ -115,21 +110,21 @@ func (w *Weaviate) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 
 	client, err := weaviate.NewClient(config)
 	if err != nil {
-		return fmt.Errorf("initialization failed: %v", err)
+		panic(fmt.Errorf("weaviate.Init: initialization failed: %v", err))
 	}
 
 	live, err := client.Misc().LiveChecker().Do(ctx)
 	if err != nil {
-		return fmt.Errorf("initialization failed: %v", err)
+		panic(fmt.Errorf("weaviate.Init: initialization failed: %v", err))
 	}
 	if !live {
-		return errors.New("weaviate instance not alive")
+		panic("weaviate instance not alive")
 	}
 
 	w.client = client
 	w.initted = true
 
-	return nil
+	return []core.Action{}
 }
 
 // ClassConfig holds configuration options for a retriever.

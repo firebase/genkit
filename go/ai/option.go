@@ -568,7 +568,7 @@ type documentOptions struct {
 }
 
 // DocumentOption is an option for providing context or input documents.
-// It applies only to [Generate] and [Prompt.Execute].
+// It applies only to [Generate] and [prompt.Execute].
 type DocumentOption interface {
 	applyDocument(*documentOptions) error
 	applyGenerate(*generateOptions) error
@@ -626,8 +626,9 @@ func WithDocs(docs ...*Document) DocumentOption {
 // evaluatorOptions are options for providing a dataset to evaluate.
 type evaluatorOptions struct {
 	configOptions
-	Dataset []*Example // Dataset to evaluate.
-	ID      string     // ID of the evaluation.
+	Dataset   []*Example   // Dataset to evaluate.
+	ID        string       // ID of the evaluation.
+	Evaluator EvaluatorArg // Evaluator to use.
 }
 
 // EvaluatorOption is an option for providing a dataset to evaluate.
@@ -656,6 +657,13 @@ func (o *evaluatorOptions) applyEvaluator(evalOpts *evaluatorOptions) error {
 		evalOpts.ID = o.ID
 	}
 
+	if o.Evaluator != nil {
+		if evalOpts.Evaluator != nil {
+			return errors.New("cannot set evaluator more than once (WithEvaluator or WithEvaluatorName)")
+		}
+		evalOpts.Evaluator = o.Evaluator
+	}
+
 	return nil
 }
 
@@ -667,6 +675,18 @@ func WithDataset(examples ...*Example) EvaluatorOption {
 // WithID sets the ID of the evaluation to uniquely identify it.
 func WithID(ID string) EvaluatorOption {
 	return &evaluatorOptions{ID: ID}
+}
+
+// WithEvaluator sets either a [Evaluator] or a [EvaluatorRef] that may contain a config.
+// Passing [WithConfig] will take precedence over the config in WithEvaluator.
+func WithEvaluator(evaluator EvaluatorArg) EvaluatorOption {
+	return &evaluatorOptions{Evaluator: evaluator}
+}
+
+// WithEvaluatorName sets the evaluator name to call for document evaluation.
+// The evaluator name will be resolved to a [Evaluator] and may error if the reference is invalid.
+func WithEvaluatorName(name string) EvaluatorOption {
+	return &evaluatorOptions{Evaluator: NewEvaluatorRef(name, nil)}
 }
 
 // embedderOptions holds configuration and input for an embedder request.
@@ -860,7 +880,7 @@ type promptExecutionOptions struct {
 	Input any // Input fields for the prompt. If not nil this should be a struct that matches the prompt's input schema.
 }
 
-// PromptExecuteOption is an option for executing a prompt. It applies only to [Prompt.Execute].
+// PromptExecuteOption is an option for executing a prompt. It applies only to [prompt.Execute].
 type PromptExecuteOption interface {
 	applyPromptExecute(*promptExecutionOptions) error
 }

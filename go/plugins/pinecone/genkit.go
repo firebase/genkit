@@ -59,26 +59,21 @@ func (p *Pinecone) Name() string {
 // Init initializes the Pinecone plugin.
 // If apiKey is the empty string, it is read from the PINECONE_API_KEY
 // environment variable.
-func (p *Pinecone) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (p *Pinecone) Init(ctx context.Context) []core.Action {
 	// Init initializes the Pinecone plugin.
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.initted {
 		panic("pinecone.Init already called")
 	}
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("pinecone.Init: %w", err)
-		}
-	}()
 
 	client, err := newClient(ctx, p.APIKey)
 	if err != nil {
-		return err
+		panic(fmt.Errorf("pinecone.Init: %w", err))
 	}
 	p.client = client
 	p.initted = true
-	return nil
+	return []core.Action{}
 }
 
 // Config provides configuration options for [DefineRetriever].

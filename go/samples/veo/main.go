@@ -54,7 +54,7 @@ func main() {
 	}
 
 	// Get the background model for status checking
-	bgAction := genkit.LookupBackgroundModel(g, "veo-2.0-generate-001")
+	bgAction := genkit.LookupBackgroundModel(g, "googleai/veo-2.0-generate-001")
 	if bgAction == nil {
 		log.Fatalf("background model not found")
 	}
