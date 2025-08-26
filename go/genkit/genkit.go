@@ -457,6 +457,10 @@ func DefineModel(g *Genkit, name string, opts *ai.ModelOptions, fn ai.ModelFunc)
 	return ai.DefineModel(g.reg, name, opts, fn)
 }
 
+func DefineBackgroundModel(g *Genkit, name string, opts *ai.BackgroundModelOptions) *ai.BackgroundModel {
+	return ai.DefineBackgroundModel(g.reg, name, opts)
+}
+
 // LookupModel retrieves a registered [ai.Model] by its provider and name.
 // It returns the model instance if found, or `nil` if no model with the
 // given identifier is registered (e.g., via [DefineModel] or a plugin).
@@ -464,6 +468,13 @@ func DefineModel(g *Genkit, name string, opts *ai.ModelOptions, fn ai.ModelFunc)
 // this does not necessarily mean the model is valid.
 func LookupModel(g *Genkit, name string) ai.Model {
 	return ai.LookupModel(g.reg, name)
+}
+
+// LookupBackgroundModel retrieves a registered background model by its provider and name.
+// It returns the background action instance if found, or `nil` if no background model with the
+// given identifier is registered.
+func LookupBackgroundModel(g *Genkit, name string) *ai.BackgroundModel {
+	return ai.LookupBackgroundModel(g.reg, name)
 }
 
 // DefineTool defines a tool that can be used by models during generation,
@@ -678,6 +689,11 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 //	fmt.Println(resp.Text())
 func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelResponse, error) {
 	return ai.Generate(ctx, g.reg, opts...)
+}
+
+// GenerateOperation performs a background model generation request)
+func GenerateOperation(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*core.Operation[*ai.ModelResponse], error) {
+	return ai.GenerateOperation(ctx, g.reg, opts...)
 }
 
 // GenerateText performs a model generation request similar to [Generate], but
