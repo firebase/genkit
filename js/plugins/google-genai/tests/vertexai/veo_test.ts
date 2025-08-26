@@ -15,11 +15,12 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, GENKIT_CLIENT_HEADER, Operation } from 'genkit';
+import { Genkit, Operation } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
 import { getVertexAIUrl } from '../../src/vertexai/client';
 import {
   fromVeoOperation,
@@ -34,10 +35,10 @@ import {
   VeoPredictRequest,
 } from '../../src/vertexai/types';
 import {
-  defineModel,
-  model,
   TEST_ONLY,
   VeoConfigSchema,
+  defineModel,
+  model,
 } from '../../src/vertexai/veo';
 
 const { GENERIC_MODEL, KNOWN_MODELS } = TEST_ONLY;
@@ -87,8 +88,8 @@ describe('Vertex AI Veo', () => {
   function getExpectedHeaders(): Record<string, string> {
     return {
       'Content-Type': 'application/json',
-      'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-      'User-Agent': GENKIT_CLIENT_HEADER,
+      'X-Goog-Api-Client': getGenkitClientHeader(),
+      'User-Agent': getGenkitClientHeader(),
       Authorization: 'Bearer test-token',
       'x-goog-user-project': defaultRegionalClientOptions.projectId,
     };

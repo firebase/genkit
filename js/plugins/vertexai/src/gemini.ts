@@ -35,13 +35,7 @@ import {
   type VertexAI,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
-import {
-  GENKIT_CLIENT_HEADER,
-  GenkitError,
-  z,
-  type Genkit,
-  type JSONSchema,
-} from 'genkit';
+import { GenkitError, z, type Genkit, type JSONSchema } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -64,6 +58,7 @@ import {
 } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
+import { getGenkitClientHeader } from './common/index.js';
 import type { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
@@ -1251,7 +1246,7 @@ export function defineGeminiModel({
             model: modelVersion,
           },
           {
-            apiClient: GENKIT_CLIENT_HEADER,
+            apiClient: getGenkitClientHeader(),
           }
         );
       } else {
@@ -1260,7 +1255,7 @@ export function defineGeminiModel({
             model: modelVersion,
           },
           {
-            apiClient: GENKIT_CLIENT_HEADER,
+            apiClient: getGenkitClientHeader(),
           }
         );
       }

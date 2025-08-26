@@ -5,6 +5,8 @@
 ## <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-core.min.js" data-manual></script>
 ## <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.16.0/components/prism-bash.min.js"></script>
 ## <style>body {color: #272822; background-color: #272822; font-size: 0.8em;} </style>
+: WARNING: This Genkit CLI install script is still in active development. Do not use outside of testing and providing feedback.
+
 : ==========================================
 :   Introduction
 : ==========================================

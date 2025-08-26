@@ -15,21 +15,22 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, GENKIT_CLIENT_HEADER } from 'genkit';
+import { Genkit } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
 import { getVertexAIUrl } from '../../src/vertexai/client';
 import {
   fromLyriaResponse,
   toLyriaPredictRequest,
 } from '../../src/vertexai/converters';
 import {
-  defineModel,
   LyriaConfigSchema,
-  model,
   TEST_ONLY,
+  defineModel,
+  model,
 } from '../../src/vertexai/lyria';
 import {
   LyriaPredictResponse,
@@ -88,8 +89,8 @@ describe('Vertex AI Lyria', () => {
   function getExpectedHeaders(): Record<string, string> {
     return {
       'Content-Type': 'application/json',
-      'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-      'User-Agent': GENKIT_CLIENT_HEADER,
+      'X-Goog-Api-Client': getGenkitClientHeader(),
+      'User-Agent': getGenkitClientHeader(),
       Authorization: 'Bearer test-token',
       'x-goog-user-project': defaultRegionalClientOptions.projectId,
     };

@@ -259,7 +259,6 @@ function definePromptAsync<
     renderOptions: PromptGenerateOptions<O, CustomOptions> | undefined
   ): Promise<GenerateOptions> => {
     return await runInNewSpan(
-      registry,
       {
         metadata: {
           name: 'render',
@@ -308,7 +307,7 @@ function definePromptAsync<
         if (typeof resolvedOptions.docs === 'function') {
           docs = await resolvedOptions.docs(input, {
             state: session?.state,
-            context: renderOptions?.context || getContext(registry) || {},
+            context: renderOptions?.context || getContext() || {},
           });
         } else {
           docs = resolvedOptions.docs;
@@ -330,6 +329,11 @@ function definePromptAsync<
             ...resolvedOptions?.config,
             ...renderOptions?.config,
           },
+          metadata: resolvedOptions.metadata?.metadata
+            ? {
+                prompt: resolvedOptions.metadata?.metadata,
+              }
+            : undefined,
         });
 
         // Fix for issue #3348: Preserve AbortSignal object
@@ -530,7 +534,7 @@ async function renderSystemPrompt<
       content: normalizeParts(
         await options.system(input, {
           state: session?.state,
-          context: renderOptions?.context || getContext(registry) || {},
+          context: renderOptions?.context || getContext() || {},
         })
       ),
     });
@@ -576,7 +580,7 @@ async function renderMessages<
       messages.push(
         ...(await options.messages(input, {
           state: session?.state,
-          context: renderOptions?.context || getContext(registry) || {},
+          context: renderOptions?.context || getContext() || {},
           history: renderOptions?.messages,
         }))
       );
@@ -590,7 +594,7 @@ async function renderMessages<
       const rendered = await promptCache.messages({
         input,
         context: {
-          ...(renderOptions?.context || getContext(registry)),
+          ...(renderOptions?.context || getContext()),
           state: session?.state,
         },
         messages: renderOptions?.messages?.map((m) =>
@@ -631,7 +635,7 @@ async function renderUserPrompt<
       content: normalizeParts(
         await options.prompt(input, {
           state: session?.state,
-          context: renderOptions?.context || getContext(registry) || {},
+          context: renderOptions?.context || getContext() || {},
         })
       ),
     });
@@ -701,7 +705,7 @@ async function renderDotpromptToParts<
   const renderred = await promptFn({
     input,
     context: {
-      ...(renderOptions?.context || getContext(registry)),
+      ...(renderOptions?.context || getContext()),
       state: session?.state,
     },
   });
@@ -828,6 +832,18 @@ function loadPrompt(
         delete promptMetadata.input.schema.description;
       }
 
+      const metadata = {
+        ...promptMetadata.metadata,
+        type: 'prompt',
+        prompt: {
+          ...promptMetadata,
+          template: parsedPrompt.template,
+        },
+      };
+      if (promptMetadata.raw?.['metadata']) {
+        metadata['metadata'] = { ...promptMetadata.raw?.['metadata'] };
+      }
+
       return {
         name: registryDefinitionKey(name, variant ?? undefined, ns),
         model: promptMetadata.model,
@@ -841,14 +857,7 @@ function loadPrompt(
         input: {
           jsonSchema: promptMetadata.input?.schema,
         },
-        metadata: {
-          ...promptMetadata.metadata,
-          type: 'prompt',
-          prompt: {
-            ...promptMetadata,
-            template: parsedPrompt.template,
-          },
-        },
+        metadata,
         maxTurns: promptMetadata.raw?.['maxTurns'],
         toolChoice: promptMetadata.raw?.['toolChoice'],
         returnToolRequests: promptMetadata.raw?.['returnToolRequests'],

@@ -15,7 +15,6 @@
  */
 
 import { Dotprompt } from 'dotprompt';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import type * as z from 'zod';
 import {
   runOutsideActionRuntimeContext,
@@ -124,7 +123,6 @@ export class Registry {
   private allPluginsInitialized = false;
   public apiStability: 'stable' | 'beta' = 'stable';
 
-  readonly asyncStore: AsyncStore;
   readonly dotprompt: Dotprompt;
   readonly parent?: Registry;
   /** Additional runtime context data for flows and tools. */
@@ -134,10 +132,8 @@ export class Registry {
     if (parent) {
       this.parent = parent;
       this.apiStability = parent?.apiStability;
-      this.asyncStore = parent.asyncStore;
       this.dotprompt = parent.dotprompt;
     } else {
-      this.asyncStore = new AsyncStore();
       this.dotprompt = new Dotprompt({
         schemaResolver: async (name) => {
           const resolvedSchema = await this.lookupSchema(name);
@@ -211,13 +207,20 @@ export class Registry {
    */
   registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     type: ActionType,
-    action: Action<I, O>
+    action: Action<I, O>,
+    opts?: { namespace?: string }
   ) {
     if (type !== action.__action.actionType) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
         message: `action type (${type}) does not match type on action (${action.__action.actionType})`,
       });
+    }
+    if (
+      opts?.namespace &&
+      !action.__action.name.startsWith(`${opts.namespace}/`)
+    ) {
+      action.__action.name = `${opts.namespace}/${action.__action.name}`;
     }
     const key = `/${type}/${action.__action.name}`;
     logger.debug(`registering ${key}`);
@@ -228,6 +231,10 @@ export class Registry {
       );
     }
     this.actionsById[key] = action;
+    if (action.__registry) {
+      logger.error(`ERROR: ${key} already registered.`);
+    }
+    action.__registry = this;
   }
 
   /**
@@ -236,8 +243,12 @@ export class Registry {
   registerActionAsync<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     type: ActionType,
     name: string,
-    action: PromiseLike<Action<I, O>>
+    action: PromiseLike<Action<I, O>>,
+    opts?: { namespace?: string }
   ) {
+    if (opts?.namespace && !name.startsWith(`${opts.namespace}/`)) {
+      name = `${opts.namespace}/${name}`;
+    }
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
     if (this.actionsById.hasOwnProperty(key)) {
@@ -385,7 +396,7 @@ export class Registry {
   ) {
     const plugin = this.pluginsByName[pluginName];
     if (plugin) {
-      return await runOutsideActionRuntimeContext(this, async () => {
+      return await runOutsideActionRuntimeContext(async () => {
         if (plugin.resolver) {
           await plugin.resolver(actionType, actionName);
         }
@@ -400,7 +411,7 @@ export class Registry {
    */
   async initializePlugin(name: string) {
     if (this.pluginsByName[name]) {
-      return await runOutsideActionRuntimeContext(this, () =>
+      return await runOutsideActionRuntimeContext(() =>
         this.pluginsByName[name].initializer()
       );
     }
@@ -454,24 +465,6 @@ export class Registry {
    */
   lookupSchema(name: string): Schema | undefined {
     return this.schemasByName[name] || this.parent?.lookupSchema(name);
-  }
-}
-
-/**
- * Manages AsyncLocalStorage instances in a single place.
- */
-export class AsyncStore {
-  private asls: Record<string, AsyncLocalStorage<any>> = {};
-
-  getStore<T>(key: string): T | undefined {
-    return this.asls[key]?.getStore();
-  }
-
-  run<T, R>(key: string, store: T, callback: () => R): R {
-    if (!this.asls[key]) {
-      this.asls[key] = new AsyncLocalStorage<T>();
-    }
-    return this.asls[key].run(store, callback);
   }
 }
 

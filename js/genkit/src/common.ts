@@ -128,6 +128,7 @@ export {
   UserFacingError,
   defineJsonSchema,
   defineSchema,
+  getClientHeader,
   getCurrentEnv,
   getStreamingCallback,
   isDevEnv,
@@ -152,3 +153,6 @@ export {
   type StreamingResponse,
   type TelemetryConfig,
 } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
+
+initNodeFeatures();

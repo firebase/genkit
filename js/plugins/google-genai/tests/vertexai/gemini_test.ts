@@ -15,16 +15,17 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { Genkit, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { FinishReason } from '../../src/common/types';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
-  defineModel,
   GeminiConfigSchema,
+  defineModel,
   model,
 } from '../../src/vertexai/gemini';
 import {
@@ -186,8 +187,8 @@ describe('Vertex AI Gemini', () => {
       ): Record<string, string | undefined> {
         const headers: Record<string, string | undefined> = {
           'Content-Type': 'application/json',
-          'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-          'User-Agent': GENKIT_CLIENT_HEADER,
+          'X-Goog-Api-Client': getGenkitClientHeader(),
+          'User-Agent': getGenkitClientHeader(),
         };
         if (clientOptions.kind !== 'express') {
           headers['Authorization'] = 'Bearer test-token';

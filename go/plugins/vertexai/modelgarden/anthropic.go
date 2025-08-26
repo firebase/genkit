@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/invopop/jsonschema"
@@ -53,7 +54,7 @@ func (a *Anthropic) Name() string {
 	return provider
 }
 
-func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (a *Anthropic) Init(ctx context.Context) []core.Action {
 	if a == nil {
 		a = &Anthropic{}
 	}
@@ -61,19 +62,14 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.initted {
-		return errors.New("plugin already initialized")
+		panic("plugin already initialized")
 	}
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("Anthropic.Init: %w", err)
-		}
-	}()
 
 	projectID := a.ProjectID
 	if projectID == "" {
 		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 		if projectID == "" {
-			return fmt.Errorf("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard")
+			panic("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard")
 		}
 	}
 
@@ -84,7 +80,7 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 			location = os.Getenv("GOOGLE_CLOUD_REGION")
 		}
 		if location == "" {
-			return fmt.Errorf("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
+			panic("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
 		}
 	}
 
@@ -95,41 +91,43 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.initted = true
 	a.client = c
 
+	var actions []core.Action
 	for name, mi := range anthropicModels {
-		defineAnthropicModel(g, a.client, name, mi)
+		model := defineAnthropicModel(a.client, name, mi)
+		actions = append(actions, model.(core.Action))
 	}
 
-	return nil
+	return actions
 }
 
 // AnthropicModel returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined
 func AnthropicModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, provider, name)
+	return genkit.LookupModel(g, core.NewName(provider, name))
 }
 
 // DefineModel adds the model to the registry
-func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
-	var mi ai.ModelInfo
-	if info == nil {
+func (a *Anthropic) DefineModel(name string, opts *ai.ModelOptions) (ai.Model, error) {
+	if opts == nil {
 		var ok bool
-		mi, ok = anthropicModels[name]
+		modelOpts, ok := anthropicModels[name]
 		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", provider, name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelOptions", provider, name)
 		}
-	} else {
-		mi = *info
+		opts = &modelOpts
 	}
-	return defineAnthropicModel(g, a.client, name, mi), nil
+	return defineAnthropicModel(a.client, name, *opts), nil
 }
 
-func defineAnthropicModel(g *genkit.Genkit, client anthropic.Client, name string, info ai.ModelInfo) ai.Model {
-	meta := &ai.ModelInfo{
-		Label:    provider + "-" + name,
-		Supports: info.Supports,
-		Versions: info.Versions,
+func defineAnthropicModel(client anthropic.Client, name string, opts ai.ModelOptions) ai.Model {
+	meta := &ai.ModelOptions{
+		Label:        provider + "-" + name,
+		Supports:     opts.Supports,
+		Versions:     opts.Versions,
+		ConfigSchema: opts.ConfigSchema,
+		Stage:        opts.Stage,
 	}
-	return genkit.DefineModel(g, provider, name, meta, func(
+	return ai.NewModel(core.NewName(provider, name), meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

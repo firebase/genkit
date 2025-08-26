@@ -53,6 +53,7 @@ export function xaiModelRef(params: {
     ...params,
     info: params.info ?? XAI_LANGUGAGE_MODEL_INFO,
     configSchema: XaiChatCompletionConfigSchema,
+    namespace: 'xai',
   });
 }
 

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -28,7 +29,6 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/metrics"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/invopop/jsonschema"
 )
 
 // Func is an alias for non-streaming functions with input of type In and output of type Out.
@@ -48,8 +48,8 @@ type Action interface {
 	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
 	// Desc returns a descriptor of the action.
 	Desc() ActionDesc
-	// SetTracingState sets the tracing state on the action.
-	SetTracingState(tstate *tracing.State)
+	// Register registers the action with the given registry.
+	Register(r *registry.Registry)
 }
 
 // An ActionType is the kind of an action.
@@ -63,6 +63,7 @@ const (
 	ActionTypeFlow             ActionType = "flow"
 	ActionTypeModel            ActionType = "model"
 	ActionTypeExecutablePrompt ActionType = "executable-prompt"
+	ActionTypeResource         ActionType = "resource"
 	ActionTypeTool             ActionType = "tool"
 	ActionTypeUtil             ActionType = "util"
 	ActionTypeCustom           ActionType = "custom"
@@ -76,101 +77,91 @@ const (
 //
 // Each time an ActionDef is run, it results in a new trace span.
 type ActionDef[In, Out, Stream any] struct {
-	fn     StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
-	desc   *ActionDesc                    // Descriptor of the action.
-	tstate *tracing.State                 // Collects and writes traces during runtime.
+	fn   StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
+	desc *ActionDesc                    // Descriptor of the action.
 }
 
 // ActionDesc is a descriptor of an action.
 type ActionDesc struct {
-	Type         ActionType         `json:"type"`         // Type of the action.
-	Key          string             `json:"key"`          // Key of the action.
-	Name         string             `json:"name"`         // Name of the action.
-	Description  string             `json:"description"`  // Description of the action.
-	InputSchema  *jsonschema.Schema `json:"inputSchema"`  // JSON schema to validate against the action's input.
-	OutputSchema *jsonschema.Schema `json:"outputSchema"` // JSON schema to validate against the action's output.
-	Metadata     map[string]any     `json:"metadata"`     // Metadata for the action.
+	Type         ActionType     `json:"type"`         // Type of the action.
+	Key          string         `json:"key"`          // Key of the action.
+	Name         string         `json:"name"`         // Name of the action.
+	Description  string         `json:"description"`  // Description of the action.
+	InputSchema  map[string]any `json:"inputSchema"`  // JSON schema to validate against the action's input.
+	OutputSchema map[string]any `json:"outputSchema"` // JSON schema to validate against the action's output.
+	Metadata     map[string]any `json:"metadata"`     // Metadata for the action.
 }
 
 type noStream = func(context.Context, struct{}) error
 
-// DefineAction creates a new non-streaming Action and registers it.
-func DefineAction[In, Out any](
-	r *registry.Registry,
-	provider,
+// NewAction creates a new non-streaming [Action] without registering it.
+// If inputSchema is nil, it is inferred from the function's input type.
+func NewAction[In, Out any](
 	name string,
 	atype ActionType,
 	metadata map[string]any,
+	inputSchema map[string]any,
 	fn Func[In, Out],
 ) *ActionDef[In, Out, struct{}] {
-	return defineAction(r, provider, name, atype, metadata, nil,
+	return newAction(name, atype, metadata, inputSchema,
 		func(ctx context.Context, in In, cb noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }
 
-// NewAction creates a new non-streaming Action without registering it.
-func NewAction[In, Out any](
-	provider, name string,
+// NewStreamingAction creates a new streaming [Action] without registering it.
+// If inputSchema is nil, it is inferred from the function's input type.
+func NewStreamingAction[In, Out, Stream any](
+	name string,
 	atype ActionType,
 	metadata map[string]any,
+	inputSchema map[string]any,
+	fn StreamingFunc[In, Out, Stream],
+) *ActionDef[In, Out, Stream] {
+	return newAction(name, atype, metadata, inputSchema, fn)
+}
+
+// DefineAction creates a new non-streaming Action and registers it.
+// If inputSchema is nil, it is inferred from the function's input type.
+func DefineAction[In, Out any](
+	r *registry.Registry,
+	name string,
+	atype ActionType,
+	metadata map[string]any,
+	inputSchema map[string]any,
 	fn Func[In, Out],
 ) *ActionDef[In, Out, struct{}] {
-	fullName := name
-	if provider != "" {
-		fullName = provider + "/" + name
-	}
-	return newAction(nil, fullName, atype, metadata, nil,
+	return defineAction(r, name, atype, metadata, inputSchema,
 		func(ctx context.Context, in In, cb noStream) (Out, error) {
 			return fn(ctx, in)
 		})
 }
 
 // DefineStreamingAction creates a new streaming action and registers it.
+// If inputSchema is nil, it is inferred from the function's input type.
 func DefineStreamingAction[In, Out, Stream any](
 	r *registry.Registry,
-	provider, name string,
+	name string,
 	atype ActionType,
 	metadata map[string]any,
+	inputSchema map[string]any,
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
-	return defineAction(r, provider, name, atype, metadata, nil, fn)
-}
-
-// DefineActionWithInputSchema creates a new Action and registers it.
-// This differs from DefineAction in that the input schema is
-// defined dynamically; the static input type is "any".
-// This is used for prompts and tools that need custom input validation.
-func DefineActionWithInputSchema[In, Out any](
-	r *registry.Registry,
-	provider, name string,
-	atype ActionType,
-	metadata map[string]any,
-	inputSchema *jsonschema.Schema,
-	fn Func[In, Out],
-) *ActionDef[In, Out, struct{}] {
-	return defineAction(r, provider, name, atype, metadata, inputSchema,
-		func(ctx context.Context, in In, _ noStream) (Out, error) {
-			return fn(ctx, in)
-		})
+	return defineAction(r, name, atype, metadata, inputSchema, fn)
 }
 
 // defineAction creates an action and registers it with the given Registry.
 func defineAction[In, Out, Stream any](
 	r *registry.Registry,
-	provider,
 	name string,
 	atype ActionType,
 	metadata map[string]any,
-	inputSchema *jsonschema.Schema,
+	inputSchema map[string]any,
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
-	fullName := name
-	if provider != "" {
-		fullName = provider + "/" + name
-	}
-	a := newAction(r, fullName, atype, metadata, inputSchema, fn)
-	key := fmt.Sprintf("/%s/%s", atype, fullName)
+	a := newAction(name, atype, metadata, inputSchema, fn)
+	provider, id := ParseName(name)
+	key := NewKey(atype, provider, id)
 	r.RegisterAction(key, a)
 	return a
 }
@@ -179,24 +170,23 @@ func defineAction[In, Out, Stream any](
 // If registry is nil, tracing state is left nil to be set later.
 // If inputSchema is nil, it is inferred from In.
 func newAction[In, Out, Stream any](
-	r *registry.Registry,
 	name string,
 	atype ActionType,
 	metadata map[string]any,
-	inputSchema *jsonschema.Schema,
+	inputSchema map[string]any,
 	fn StreamingFunc[In, Out, Stream],
 ) *ActionDef[In, Out, Stream] {
 	if inputSchema == nil {
 		var i In
 		if reflect.ValueOf(i).Kind() != reflect.Invalid {
-			inputSchema = base.InferJSONSchema(i)
+			inputSchema = InferSchemaMap(i)
 		}
 	}
 
 	var o Out
-	var outputSchema *jsonschema.Schema
+	var outputSchema map[string]any
 	if reflect.ValueOf(o).Kind() != reflect.Invalid {
-		outputSchema = base.InferJSONSchema(o)
+		outputSchema = InferSchemaMap(o)
 	}
 
 	var description string
@@ -204,13 +194,7 @@ func newAction[In, Out, Stream any](
 		description = desc
 	}
 
-	var tstate *tracing.State
-	if r != nil {
-		tstate = r.TracingState()
-	}
-
 	return &ActionDef[In, Out, Stream]{
-		tstate: tstate,
 		fn: func(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error) {
 			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
 			return fn(ctx, input, cb)
@@ -230,12 +214,6 @@ func newAction[In, Out, Stream any](
 // Name returns the Action's Name.
 func (a *ActionDef[In, Out, Stream]) Name() string { return a.desc.Name }
 
-// SetTracingState sets the tracing state on the action. This is used when an action
-// created without a registry needs to have its tracing state set later.
-func (a *ActionDef[In, Out, Stream]) SetTracingState(tstate *tracing.State) {
-	a.tstate = tstate
-}
-
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb StreamCallback[Stream]) (output Out, err error) {
 	logger.FromContext(ctx).Debug("Action.Run",
@@ -248,7 +226,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 			"err", err)
 	}()
 
-	return tracing.RunInNewSpan(ctx, a.tstate, a.desc.Name, "action", false, input,
+	return tracing.RunInNewSpan(ctx, a.desc.Name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error
@@ -313,16 +291,17 @@ func (a *ActionDef[In, Out, Stream]) Desc() ActionDesc {
 	return *a.desc
 }
 
+// Register registers the action with the given registry.
+func (a *ActionDef[In, Out, Stream]) Register(r *registry.Registry) {
+	r.RegisterAction(a.desc.Key, a)
+}
+
 // ResolveActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong type.
-func ResolveActionFor[In, Out, Stream any](r *registry.Registry, typ ActionType, provider, name string) *ActionDef[In, Out, Stream] {
-	var key string
-	if provider != "" {
-		key = fmt.Sprintf("/%s/%s/%s", typ, provider, name)
-	} else {
-		key = fmt.Sprintf("/%s/%s", typ, name)
-	}
+func ResolveActionFor[In, Out, Stream any](r *registry.Registry, atype ActionType, name string) *ActionDef[In, Out, Stream] {
+	provider, id := ParseName(name)
+	key := NewKey(atype, provider, id)
 	a := r.ResolveAction(key)
 	if a == nil {
 		return nil
@@ -333,16 +312,49 @@ func ResolveActionFor[In, Out, Stream any](r *registry.Registry, typ ActionType,
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong type.
-func LookupActionFor[In, Out, Stream any](r *registry.Registry, typ ActionType, provider, name string) *ActionDef[In, Out, Stream] {
-	var key string
-	if provider != "" {
-		key = fmt.Sprintf("/%s/%s/%s", typ, provider, name)
-	} else {
-		key = fmt.Sprintf("/%s/%s", typ, name)
-	}
+func LookupActionFor[In, Out, Stream any](r *registry.Registry, atype ActionType, name string) *ActionDef[In, Out, Stream] {
+	provider, id := ParseName(name)
+	key := NewKey(atype, provider, id)
 	a := r.LookupAction(key)
 	if a == nil {
 		return nil
 	}
 	return a.(*ActionDef[In, Out, Stream])
+}
+
+// NewKey creates a new action key for the given type, provider, and name.
+func NewKey(typ ActionType, provider, id string) string {
+	if provider != "" {
+		return fmt.Sprintf("/%s/%s/%s", typ, provider, id)
+	}
+	return fmt.Sprintf("/%s/%s", typ, id)
+}
+
+// ParseKey parses an action key into a type, provider, and name.
+func ParseKey(key string) (ActionType, string, string) {
+	parts := strings.Split(key, "/")
+	if len(parts) < 4 || parts[0] != "" {
+		// Return empty values if the key doesn't have the expected format
+		return "", "", ""
+	}
+	name := strings.Join(parts[3:], "/")
+	return ActionType(parts[1]), parts[2], name
+}
+
+// NewName creates a new action name for the given provider and id.
+func NewName(provider, id string) string {
+	if provider != "" {
+		return fmt.Sprintf("%s/%s", provider, id)
+	}
+	return id
+}
+
+// ParseName parses an action name into a provider and id.
+func ParseName(name string) (string, string) {
+	parts := strings.Split(name, "/")
+	if len(parts) < 2 {
+		return "", name
+	}
+	id := strings.Join(parts[1:], "/")
+	return parts[0], id
 }

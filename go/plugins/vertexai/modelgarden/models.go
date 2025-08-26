@@ -24,7 +24,7 @@ import (
 const provider = "vertexai"
 
 // supported anthropic models
-var anthropicModels = map[string]ai.ModelInfo{
+var anthropicModels = map[string]ai.ModelOptions{
 	"claude-3-5-sonnet-v2": {
 		Label:    "Vertex AI Model Garden - Claude 3.5 Sonnet",
 		Supports: &internal.Multimodal,
