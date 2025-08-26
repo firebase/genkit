@@ -679,6 +679,47 @@ describe('fromGeminiCandidate', () => {
         custom: { citationMetadata: undefined, safetyRatings: undefined },
       },
     },
+    {
+      should: 'should ignore empty parts',
+      geminiCandidate: {
+        index: 0,
+        content: {
+          role: 'model',
+          parts: [
+            {}, // this one should be skipped
+            {
+              text: 'Why did the dog go to the bank?\n\nTo get his bones cashed!',
+            },
+          ],
+        },
+        finishReason: 'STOP',
+        safetyRatings: [
+          { category: 'HARM_CATEGORY_HATE_SPEECH', probability: 'NEGLIGIBLE' },
+        ],
+      },
+      expectedOutput: {
+        index: 0,
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: 'Why did the dog go to the bank?\n\nTo get his bones cashed!',
+            },
+          ],
+        },
+        finishReason: 'stop',
+        finishMessage: undefined,
+        custom: {
+          citationMetadata: undefined,
+          safetyRatings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              probability: 'NEGLIGIBLE',
+            },
+          ],
+        },
+      },
+    },
   ];
   for (const test of testCases) {
     it(test.should, () => {
