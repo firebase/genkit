@@ -38,7 +38,7 @@ import {
   type ToolConfig,
   type UsageMetadata,
 } from '@google/generative-ai';
-import { GenkitError, z, type Genkit, type JSONSchema } from 'genkit';
+import { GenkitError, z, type JSONSchema } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -57,8 +57,8 @@ import {
   type ToolResponsePart,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
-import { runInNewSpan } from 'genkit/tracing';
-import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common';
+import { model } from 'genkit/plugin';
+import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common.js';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
@@ -644,26 +644,26 @@ export const gemma3ne4bit = modelRef({
 });
 
 export const SUPPORTED_GEMINI_MODELS = {
-  'gemini-1.5-pro': gemini15Pro,
-  'gemini-1.5-flash': gemini15Flash,
-  'gemini-1.5-flash-8b': gemini15Flash8b,
-  'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
-  'gemini-2.0-flash': gemini20Flash,
-  'gemini-2.0-flash-lite': gemini20FlashLite,
-  'gemini-2.0-flash-exp': gemini20FlashExp,
-  'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
-  'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
-  'gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
-  'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
-  'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
-  'gemini-2.5-flash': gemini25Flash,
-  'gemini-2.5-flash-lite': gemini25FlashLite,
-  'gemini-2.5-pro': gemini25Pro,
-  'gemma-3-12b-it': gemma312bit,
-  'gemma-3-1b-it': gemma31bit,
-  'gemma-3-27b-it': gemma327bit,
-  'gemma-3-4b-it': gemma34bit,
-  'gemma-3n-e4b-it': gemma3ne4bit,
+  'googleai/gemini-1.5-pro': gemini15Pro,
+  'googleai/gemini-1.5-flash': gemini15Flash,
+  'googleai/gemini-1.5-flash-8b': gemini15Flash8b,
+  'googleai/gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
+  'googleai/gemini-2.0-flash': gemini20Flash,
+  'googleai/gemini-2.0-flash-lite': gemini20FlashLite,
+  'googleai/gemini-2.0-flash-exp': gemini20FlashExp,
+  'googleai/gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
+  'googleai/gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
+  'googleai/gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
+  'googleai/gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
+  'googleai/gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
+  'googleai/gemini-2.5-flash': gemini25Flash,
+  'googleai/gemini-2.5-flash-lite': gemini25FlashLite,
+  'googleai/gemini-2.5-pro': gemini25Pro,
+  'googleai/gemma-3-12b-it': gemma312bit,
+  'googleai/gemma-3-1b-it': gemma31bit,
+  'googleai/gemma-3-27b-it': gemma327bit,
+  'googleai/gemma-3-4b-it': gemma34bit,
+  'googleai/gemma-3n-e4b-it': gemma3ne4bit,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
@@ -705,7 +705,7 @@ export type GeminiVersionString =
  * ```js
  * await ai.generate({
  *   prompt: 'hi',
- *   model: gemini('gemini-1.5-flash')
+ *   model: gemini('googleai/gemini-1.5-flash')
  * });
  * ```
  */
@@ -1118,7 +1118,6 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
  * Defines a new GoogleAI model.
  */
 export function defineGoogleAIModel({
-  ai,
   name,
   apiKey: apiKeyOption,
   apiVersion,
@@ -1127,7 +1126,6 @@ export function defineGoogleAIModel({
   defaultConfig,
   debugTraces,
 }: {
-  ai: Genkit;
   name: string;
   apiKey?: string | false;
   apiVersion?: string;
@@ -1154,10 +1152,10 @@ export function defineGoogleAIModel({
     ? name.substring('googleai/'.length)
     : name;
 
-  const model: ModelReference<z.ZodTypeAny> =
+  const modelReference: ModelReference<z.ZodTypeAny> =
     SUPPORTED_GEMINI_MODELS[apiModelName] ??
     modelRef({
-      name: `googleai/${apiModelName}`,
+      name: name, // Keep the full name for the model reference
       info: {
         label: `Google AI - ${apiModelName}`,
         supports: {
@@ -1173,7 +1171,7 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (model.info?.supports?.media) {
+  if (modelReference.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middleware.push(
       downloadRequestMedia({
@@ -1199,12 +1197,11 @@ export function defineGoogleAIModel({
     );
   }
 
-  return ai.defineModel(
+  return model(
     {
-      apiVersion: 'v2',
-      name: model.name,
-      ...model.info,
-      configSchema: model.configSchema,
+      name: modelReference.name,
+      ...modelReference.info,
+      configSchema: modelReference.configSchema,
       use: middleware,
     },
     async (request, { streamingRequested, sendChunk, abortSignal }) => {
@@ -1228,7 +1225,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (model.info?.supports?.systemRole) {
+      if (modelReference.info?.supports?.systemRole) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -1306,7 +1303,10 @@ export function defineGoogleAIModel({
         generationConfig.responseSchema = cleanSchema(request.output.schema);
       }
 
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const msg = toGeminiMessage(
+        messages[messages.length - 1],
+        modelReference
+      );
 
       const fromJSONModeScopedGeminiCandidate = (
         candidate: GeminiCandidate
@@ -1321,11 +1321,11 @@ export function defineGoogleAIModel({
         toolConfig,
         history: messages
           .slice(0, -1)
-          .map((message) => toGeminiMessage(message, model)),
+          .map((message) => toGeminiMessage(message, modelReference)),
         safetySettings: safetySettingsFromConfig,
       } as StartChatParams;
       const modelVersion = (versionFromConfig ||
-        model.version ||
+        modelReference.version ||
         apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
@@ -1426,31 +1426,8 @@ export function defineGoogleAIModel({
         };
       };
 
-      // If debugTraces is enable, we wrap the actual model call with a span, add raw
-      // API params as for input.
-      return debugTraces
-        ? await runInNewSpan(
-            ai.registry,
-            {
-              metadata: {
-                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
-              },
-            },
-            async (metadata) => {
-              metadata.input = {
-                sdk: '@google/generative-ai',
-                cache: cache,
-                model: genModel.model,
-                chatOptions: updatedChatRequest,
-                parts: msg.parts,
-                options,
-              };
-              const response = await callGemini();
-              metadata.output = response.custom;
-              return response;
-            }
-          )
-        : await callGemini();
+      // TODO v2: no ai.registry available here; run without the debug span wrapper.
+      return await callGemini();
     }
   );
 }
