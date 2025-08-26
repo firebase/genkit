@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import googleAI from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
 import { genkit, MediaPart, z } from 'genkit';
 import { Readable } from 'stream';
@@ -358,10 +358,18 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   return operation;
 });
 
+function getApiKeyFromEnvVar(): string | undefined {
+  return (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY
+  );
+}
+
 async function downloadVideo(video: MediaPart, path: string) {
   const fetch = (await import('node-fetch')).default;
   const videoDownloadResponse = await fetch(
-    `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
+    `${video.media!.url}&key=${getApiKeyFromEnvVar()}`
   );
   if (
     !videoDownloadResponse ||
