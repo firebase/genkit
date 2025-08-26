@@ -242,7 +242,7 @@ ai.defineFlow('gemini-image-editing', async (_) => {
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
     model: googleAI.model('imagen-3.0-generate-002'),
-    prompt: `generate an image of a banana riding bicycle`,
+    prompt: `generate an image of a banana riding a bicycle`,
   });
 
   return media;
