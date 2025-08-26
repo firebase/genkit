@@ -25,6 +25,7 @@ import { detectCLIRuntime } from '../utils/runtime-detector';
 import { version as currentVersion, name } from '../utils/version';
 
 const GCS_BUCKET_URL = 'https://storage.googleapis.com/genkit-assets-cli';
+const CLI_DOCS_URL = 'https://genkit.dev/docs/devtools/';
 const AXIOS_INSTANCE: AxiosInstance = axios.create({
   timeout: 3000,
 });
@@ -79,7 +80,7 @@ interface NpmRegistryResponse {
     latest: string;
     [key: string]: string;
   };
-  versions: Record<string, any>;
+  versions: Record<string, unknown>;
 }
 
 /**
@@ -138,13 +139,13 @@ export async function getLatestVersionFromNpm(
     // Sort by semver descending (newest first)
     versions.sort(semver.rcompare);
     return versions[0];
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof GenkitToolsError) {
       throw error;
     }
 
     throw new GenkitToolsError(
-      `Failed to fetch npm versions: ${error?.message ?? error}`
+      `Failed to fetch npm versions: ${(error as Error)?.message ?? String(error)}`
     );
   }
 }
@@ -152,7 +153,7 @@ export async function getLatestVersionFromNpm(
 /**
  * Checks if update notifications are disabled via environment variable or user config.
  */
-function areUpdateNotificationsDisabled(): boolean {
+function isUpdateNotificationsDisabled(): boolean {
   if (process.env.GENKIT_CLI_DISABLE_UPDATE_NOTIFICATIONS === 'true') {
     return true;
   }
@@ -163,10 +164,7 @@ function areUpdateNotificationsDisabled(): boolean {
 /**
  * Gets the latest version and update message for compiled binary installations.
  */
-async function getBinaryUpdateInfo(): Promise<{
-  latestVersion: string;
-  updateMessage: string;
-} | null> {
+async function getBinaryUpdateInfo(): Promise<string | null> {
   const gcsLatestData = await getGCSLatestData();
   const machine = `${platform}-${arch}`;
   const platformData = gcsLatestData.platforms[machine];
@@ -177,26 +175,19 @@ async function getBinaryUpdateInfo(): Promise<{
   }
 
   const latestVersion = normalizeVersion(gcsLatestData.latestVersion);
-  const fileName = platformData.versionedUrl.split('/').pop() || '';
-  const downloadUrl = `${GCS_BUCKET_URL}/prod/${machine}/v${latestVersion}/${fileName}`;
-  const updateMessage = `${clc.dim('Run')} ${clc.bold(`curl -Lo ./genkit_bin ${downloadUrl}`)} ${clc.dim('to upgrade')}`;
-  return { latestVersion, updateMessage };
+  return latestVersion;
 }
 
 /**
  * Gets the latest version and update message for npm installations.
  */
-async function getNpmUpdateInfo(): Promise<{
-  latestVersion: string;
-  updateMessage: string;
-} | null> {
+async function getNpmUpdateInfo(): Promise<string | null> {
   const latestVersion = await getLatestVersionFromNpm();
   if (!latestVersion) {
     logger.debug('No available versions found from npm.');
     return null;
   }
-  const updateMessage = `${clc.dim('Update')} ${clc.bold('genkit-cli')} ${clc.dim('using your preferred package manager (npm, pnpm, yarn, etc.)')}`;
-  return { latestVersion, updateMessage };
+  return latestVersion;
 }
 
 /**
@@ -206,7 +197,7 @@ async function getNpmUpdateInfo(): Promise<{
  */
 export async function showUpdateNotification(): Promise<void> {
   try {
-    if (areUpdateNotificationsDisabled()) {
+    if (isUpdateNotificationsDisabled()) {
       return;
     }
 
@@ -219,7 +210,7 @@ export async function showUpdateNotification(): Promise<void> {
       return;
     }
 
-    const { latestVersion, updateMessage } = updateInfo;
+    const latestVersion = updateInfo;
     const current = normalizeVersion(currentVersion);
 
     if (!semver.valid(latestVersion) || !semver.valid(current)) {
@@ -233,12 +224,20 @@ export async function showUpdateNotification(): Promise<void> {
       return;
     }
 
-    logger.info(
-      `\n${clc.yellow('📦 Update available:')} ${clc.bold(`v${current}`)} → ${clc.bold(clc.green(`v${latestVersion}`))}\n` +
-        updateMessage +
-        '\n' +
-        `${clc.dim('Run')} ${clc.bold('genkit config set updateNotificationsOptOut true')} ${clc.dim('to disable these notifications')}\n`
-    );
+    // Determine install method and update command for message
+    const installMethod = isCompiledBinary ? "installer script" : "your package manager";
+    const updateCommand = isCompiledBinary
+      ? "curl -sL cli.genkit.dev | uninstall=true bash"
+      : "npm install -g genkit-cli";
+
+    const updateNotificationMessage =
+      `Update available ${clc.gray(`v${current}`)} → ${clc.green(`v${latestVersion}`)}\n` +
+      `To update to the latest version using ${installMethod}, run\n${clc.cyan(updateCommand)}\n` +
+      `For other CLI management options, visit ${CLI_DOCS_URL}\n` +
+      `${clc.dim('Run')} ${clc.bold('genkit config set updateNotificationsOptOut true')} ${clc.dim('to disable these notifications')}\n`;
+
+    logger.info(`\n${updateNotificationMessage}`);
+
   } catch (e) {
     // Silently fail - update notifications shouldn't break the CLI
     logger.debug('Failed to show update notification', e);
