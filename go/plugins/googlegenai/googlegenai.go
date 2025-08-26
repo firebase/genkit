@@ -324,10 +324,37 @@ func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
 					"systemRole":  true,
 					"tools":       true,
 					"toolChoice":  true,
-					"constrained": true,
+					"constrained": "no-tools",
 				},
-				"versions": []string{},
-				"stage":    string(ai.ModelStageStable),
+				"versions":      []string{},
+				"stage":         string(ai.ModelStageStable),
+				"customOptions": configToMap(&genai.GenerateContentConfig{}),
+			},
+		}
+		metadata["label"] = fmt.Sprintf("%s - %s", googleAILabelPrefix, name)
+
+		actions = append(actions, core.ActionDesc{
+			Type:     core.ActionTypeModel,
+			Name:     fmt.Sprintf("%s/%s", googleAIProvider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, googleAIProvider, name),
+			Metadata: metadata,
+		})
+	}
+
+	for _, name := range models.imagen {
+		metadata := map[string]any{
+			"model": map[string]any{
+				"supports": map[string]any{
+					"media":       true,
+					"multiturn":   false,
+					"systemRole":  false,
+					"tools":       false,
+					"toolChoice":  false,
+					"constrained": "no-tools",
+				},
+				"versions":      []string{},
+				"stage":         string(ai.ModelStageStable),
+				"customOptions": configToMap(&genai.GenerateImagesConfig{}),
 			},
 		}
 		metadata["label"] = fmt.Sprintf("%s - %s", googleAILabelPrefix, name)
@@ -352,20 +379,24 @@ func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
 }
 
 func (ga *GoogleAI) ResolveAction(atype core.ActionType, name string) core.Action {
+	var config any
 	switch atype {
 	case core.ActionTypeEmbedder:
 		return newEmbedder(ga.gclient, name, &ai.EmbedderOptions{}).(core.Action)
 	case core.ActionTypeModel:
-		var supports *ai.ModelSupports
-		if strings.Contains(name, "gemini") || strings.Contains(name, "gemma") {
-			supports = &Multimodal
+		supports := &Multimodal
+		config = &genai.GenerateContentConfig{}
+		if strings.Contains(name, "imagen") {
+			supports = &Media
+			config = &genai.GenerateImagesConfig{}
 		}
 
 		return newModel(ga.gclient, name, ai.ModelOptions{
-			Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
-			Stage:    ai.ModelStageStable,
-			Versions: []string{},
-			Supports: supports,
+			Label:        fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+			Stage:        ai.ModelStageStable,
+			Versions:     []string{},
+			Supports:     supports,
+			ConfigSchema: configToMap(config),
 		}).(core.Action)
 	}
 
@@ -388,10 +419,36 @@ func (v *VertexAI) ListActions(ctx context.Context) []core.ActionDesc {
 					"systemRole":  true,
 					"tools":       true,
 					"toolChoice":  true,
-					"constrained": true,
+					"constrained": "no-tools",
 				},
-				"versions": []string{},
-				"stage":    string(ai.ModelStageStable),
+				"versions":      []string{},
+				"stage":         string(ai.ModelStageStable),
+				"customOptions": configToMap(&genai.GenerateContentConfig{}),
+			},
+		}
+		metadata["label"] = fmt.Sprintf("%s - %s", vertexAILabelPrefix, name)
+		actions = append(actions, core.ActionDesc{
+			Type:     core.ActionTypeModel,
+			Name:     fmt.Sprintf("%s/%s", vertexAIProvider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, vertexAIProvider, name),
+			Metadata: metadata,
+		})
+	}
+
+	for _, name := range models.imagen {
+		metadata := map[string]any{
+			"model": map[string]any{
+				"supports": map[string]any{
+					"media":       true,
+					"multiturn":   true,
+					"systemRole":  false,
+					"tools":       false,
+					"toolChoice":  false,
+					"constrained": "no-tools",
+				},
+				"versions":      []string{},
+				"stage":         string(ai.ModelStageStable),
+				"customOptions": configToMap(&genai.GenerateImagesConfig{}),
 			},
 		}
 		metadata["label"] = fmt.Sprintf("%s - %s", vertexAILabelPrefix, name)
@@ -415,20 +472,24 @@ func (v *VertexAI) ListActions(ctx context.Context) []core.ActionDesc {
 }
 
 func (v *VertexAI) ResolveAction(atype core.ActionType, name string) core.Action {
+	var config any
 	switch atype {
 	case core.ActionTypeEmbedder:
 		return newEmbedder(v.gclient, name, &ai.EmbedderOptions{}).(core.Action)
 	case core.ActionTypeModel:
-		var supports *ai.ModelSupports
-		if strings.Contains(name, "gemini") {
-			supports = &Multimodal
+		supports := &Multimodal
+		config = &genai.GenerateContentConfig{}
+		if strings.Contains(name, "imagen") {
+			supports = &Media
+			config = &genai.GenerateImagesConfig{}
 		}
 
 		return newModel(v.gclient, name, ai.ModelOptions{
-			Label:    fmt.Sprintf("%s - %s", vertexAILabelPrefix, name),
-			Stage:    ai.ModelStageStable,
-			Versions: []string{},
-			Supports: supports,
+			Label:        fmt.Sprintf("%s - %s", vertexAILabelPrefix, name),
+			Stage:        ai.ModelStageStable,
+			Versions:     []string{},
+			Supports:     supports,
+			ConfigSchema: configToMap(config),
 		}).(core.Action)
 	}
 	return nil

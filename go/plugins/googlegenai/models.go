@@ -428,6 +428,10 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 			continue
 		}
 
+		if !slices.Contains(item.SupportedActions, "generateContent") {
+			continue
+		}
+
 		found := slices.ContainsFunc(allowedModels, func(s string) bool {
 			return strings.Contains(name, s)
 		})
