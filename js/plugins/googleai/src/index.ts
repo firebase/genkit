@@ -139,10 +139,10 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const name = m.name.split('/').at(-1)!;
+        const imagenModelName = m.name.split('/').at(-1)!;
 
         return modelActionMetadata({
-          name: name,
+          name: imagenModelName,
           info: { ...GENERIC_IMAGEN_INFO },
           configSchema: ImagenConfigSchema,
         });
@@ -157,10 +157,10 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const name = m.name.split('/').at(-1)!;
+        const veoModelName = m.name.split('/').at(-1)!;
 
         return modelActionMetadata({
-          name: name, // Return unprefixed name for v2
+          name: veoModelName,
           info: { ...GENERIC_VEO_INFO },
           configSchema: VeoConfigSchema,
           background: true,
@@ -172,13 +172,13 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const bare = m.name.startsWith('models/')
+        const modelName = m.name.startsWith('models/')
           ? m.name.substring('models/'.length)
           : m.name;
-        const ref = gemini(bare);
+        const ref = gemini(modelName);
 
         return modelActionMetadata({
-          name: bare, // Return unprefixed name for v2
+          name: modelName,
           info: ref.info,
           configSchema: GeminiConfigSchema,
         });
@@ -189,16 +189,16 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const bare = m.name.startsWith('models/')
+        const embedderName = m.name.startsWith('models/')
           ? m.name.substring('models/'.length)
           : m.name;
 
         return embedderActionMetadata({
-          name: bare, // Return unprefixed name for v2
+          name: embedderName,
           configSchema: GeminiEmbeddingConfigSchema,
           info: {
             dimensions: 768,
-            label: `Google Gen AI - ${bare}`,
+            label: `Google Gen AI - ${embedderName}`,
             supports: {
               input: ['text'],
             },
@@ -216,7 +216,6 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
   return genkitPluginV2({
     name: 'googleai',
     async init() {
-      // Eagerly return actions to register.
       const actions: any[] = [];
       const apiVersions = Array.isArray(options?.apiVersion)
         ? options!.apiVersion
@@ -300,7 +299,6 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
     },
     async list() {
       if (listActionsCache) return listActionsCache;
-      // Must return UNNAMESPACED names in v2. Genkit will prefix them.
       listActionsCache = await listActions(options);
       return listActionsCache;
     },
