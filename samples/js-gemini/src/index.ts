@@ -218,11 +218,18 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   return message;
 });
 
-// Image generation with Gemini.
-ai.defineFlow('gemini-image-generation', async (_, { sendChunk }) => {
+// Image editing with Gemini.
+ai.defineFlow('gemini-image-editing', async (_) => {
+  const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
+  const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
+
   const { media } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash-preview-image-generation'),
-    prompt: `generate an image of a banana riding bicycle`,
+    model: googleAI.model('gemini-2.5-flash-image-preview'),
+    prompt: [
+      { text: 'add the plant to my room' },
+      { media: { url: `data:image/png;base64,${plant}` } },
+      { media: { url: `data:image/png;base64,${room}` } },
+    ],
     config: {
       responseModalities: ['TEXT', 'IMAGE'],
     },
