@@ -225,10 +225,12 @@ export async function showUpdateNotification(): Promise<void> {
     }
 
     // Determine install method and update command for message
-    const installMethod = isCompiledBinary ? "installer script" : "your package manager";
+    const installMethod = isCompiledBinary
+      ? 'installer script'
+      : 'your package manager';
     const updateCommand = isCompiledBinary
-      ? "curl -sL cli.genkit.dev | uninstall=true bash"
-      : "npm install -g genkit-cli";
+      ? 'curl -sL cli.genkit.dev | uninstall=true bash'
+      : 'npm install -g genkit-cli';
 
     const updateNotificationMessage =
       `Update available ${clc.gray(`v${current}`)} → ${clc.green(`v${latestVersion}`)}\n` +
@@ -237,7 +239,6 @@ export async function showUpdateNotification(): Promise<void> {
       `${clc.dim('Run')} ${clc.bold('genkit config set updateNotificationsOptOut true')} ${clc.dim('to disable these notifications')}\n`;
 
     logger.info(`\n${updateNotificationMessage}`);
-
   } catch (e) {
     // Silently fail - update notifications shouldn't break the CLI
     logger.debug('Failed to show update notification', e);
