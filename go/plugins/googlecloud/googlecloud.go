@@ -22,7 +22,6 @@ package googlecloud
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -31,7 +30,8 @@ import (
 	"cloud.google.com/go/logging"
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/tracing"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -56,31 +56,28 @@ func (gc *GoogleCloud) Name() string {
 
 // Init initializes all telemetry in this package.
 // In the dev environment, this does nothing unless [Options.ForceExport] is true.
-func (gc *GoogleCloud) Init(ctx context.Context, g *genkit.Genkit) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("googlecloud.Init: %w", err)
-		}
-	}()
-
+func (gc *GoogleCloud) Init(ctx context.Context) []core.Action {
 	if gc.ProjectID == "" {
-		return errors.New("config missing ProjectID")
+		panic("config missing ProjectID")
 	}
 	shouldExport := gc.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
 	if !shouldExport {
-		return nil
+		return []core.Action{}
 	}
 	// Add a SpanProcessor for tracing.
 	texp, err := texporter.New(texporter.WithProjectID(gc.ProjectID))
 	if err != nil {
-		return err
+		panic(fmt.Errorf("googlecloud.Init: %w", err))
 	}
 	aexp := &adjustingTraceExporter{texp}
-	genkit.RegisterSpanProcessor(g, sdktrace.NewBatchSpanProcessor(aexp))
+	tracing.TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(aexp))
 	if err := setMeterProvider(gc.ProjectID, gc.MetricInterval); err != nil {
-		return err
+		panic(fmt.Errorf("googlecloud.Init: %w", err))
 	}
-	return setLogHandler(gc.ProjectID, gc.LogLevel)
+	if err := setLogHandler(gc.ProjectID, gc.LogLevel); err != nil {
+		panic(fmt.Errorf("googlecloud.Init: %w", err))
+	}
+	return []core.Action{}
 }
 
 func setMeterProvider(projectID string, interval time.Duration) error {

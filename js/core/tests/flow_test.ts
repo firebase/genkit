@@ -19,9 +19,12 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, run } from '../src/flow.js';
 import { defineAction, getContext, z } from '../src/index.js';
+import { initNodeFeatures } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 import { enableTelemetry } from '../src/tracing.js';
 import { TestSpanExporter } from './utils.js';
+
+initNodeFeatures();
 
 const spanExporter = new TestSpanExporter();
 enableTelemetry({
@@ -183,7 +186,7 @@ describe('flow', () => {
               streamingCallback({ count: i });
             }
           }
-          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getContext(registry))}`;
+          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getContext())}`;
         }
       );
 
@@ -211,7 +214,7 @@ describe('flow', () => {
           outputSchema: z.string(),
         },
         async (input) => {
-          return `bar ${input} ${JSON.stringify(getContext(registry))}`;
+          return `bar ${input} ${JSON.stringify(getContext())}`;
         }
       );
 

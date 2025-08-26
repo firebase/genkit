@@ -25,10 +25,7 @@ import (
 )
 
 func TestRunInFlow(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 	n := 0
 	stepf := func() (int, error) {
 		n++
@@ -57,10 +54,7 @@ func TestRunInFlow(t *testing.T) {
 }
 
 func TestRunFlow(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := registry.New()
 	f := DefineFlow(r, "inc", func(ctx context.Context, i int) (int, error) {
 		return i + 1, nil
 	})

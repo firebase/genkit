@@ -24,9 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/google/dotprompt/go/dotprompt"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 // This file implements registries of actions and other values.
@@ -37,12 +35,11 @@ const (
 )
 
 // ActionResolver is a function type for resolving actions dynamically
-type ActionResolver = func(actionType, provider, name string) error
+type ActionResolver = func(actionType, provider, name string)
 
 // Registry holds all registered actions and associated types,
 // and provides methods to register, query, and look up actions.
 type Registry struct {
-	tstate  *tracing.State
 	mu      sync.Mutex
 	frozen  bool           // when true, no more additions
 	parent  *Registry      // parent registry for hierarchical lookups
@@ -55,21 +52,17 @@ type Registry struct {
 }
 
 // New creates a new root registry.
-func New() (*Registry, error) {
+func New() *Registry {
 	r := &Registry{
 		actions: map[string]any{},
 		plugins: map[string]any{},
 		values:  map[string]any{},
 	}
-	r.tstate = tracing.NewState()
-	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
-		r.tstate.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(os.Getenv("GENKIT_TELEMETRY_SERVER")))
-	}
 	r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
 		Helpers:  make(map[string]any),
 		Partials: make(map[string]string),
 	})
-	return r, nil
+	return r
 }
 
 // NewChild creates a new child registry that inherits from this registry.
@@ -78,7 +71,6 @@ func New() (*Registry, error) {
 func (r *Registry) NewChild() *Registry {
 	child := &Registry{
 		parent:         r,
-		tstate:         r.tstate,
 		actions:        map[string]any{},
 		plugins:        map[string]any{},
 		values:         map[string]any{},
@@ -88,7 +80,10 @@ func (r *Registry) NewChild() *Registry {
 	return child
 }
 
-func (r *Registry) TracingState() *tracing.State { return r.tstate }
+// IsChild returns true if the registry is a child of another registry.
+func (r *Registry) IsChild() bool {
+	return r.parent != nil
+}
 
 // RegisterPlugin records the plugin in the registry.
 // It panics if a plugin with the same name is already registered.
@@ -190,12 +185,7 @@ func (r *Registry) ResolveAction(key string) any {
 			slog.Debug("ResolveAction: failed to parse action key", "key", key, "err", err)
 			return nil
 		}
-		err = r.ActionResolver(typ, provider, name)
-		if err != nil {
-			// TODO: Handle errors from the action resolver better.
-			slog.Error("ResolveAction: failed to resolve action", "key", key, "err", err)
-			return nil
-		}
+		r.ActionResolver(typ, provider, name)
 		action = r.LookupAction(key)
 	}
 	return action
@@ -223,10 +213,6 @@ func (r *Registry) ListPlugins() []any {
 		plugins = append(plugins, p)
 	}
 	return plugins
-}
-
-func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	r.tstate.RegisterSpanProcessor(sp)
 }
 
 // ListValues returns a list of values of all registered values.
@@ -264,40 +250,32 @@ func CurrentEnvironment() Environment {
 	return EnvironmentProd
 }
 
-// DefinePartial adds the partial to the list of partials to the dotprompt instance
-func (r *Registry) DefinePartial(name string, source string) error {
+// RegisterPartial adds the partial to the list of partials to the dotprompt instance
+func (r *Registry) RegisterPartial(name string, source string) {
 	if r.Dotprompt == nil {
-		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
-			Partials: map[string]string{},
-		})
+		r.Dotprompt = dotprompt.NewDotprompt(nil)
 	}
 	if r.Dotprompt.Partials == nil {
 		r.Dotprompt.Partials = make(map[string]string)
 	}
-
 	if r.Dotprompt.Partials[name] != "" {
-		return fmt.Errorf("partial %q is already defined", name)
+		panic(fmt.Sprintf("partial %q is already defined", name))
 	}
 	r.Dotprompt.Partials[name] = source
-	return nil
 }
 
-// DefineHelper adds a helper function to the dotprompt instance
-func (r *Registry) DefineHelper(name string, fn any) error {
+// RegisterHelper adds a helper function to the dotprompt instance
+func (r *Registry) RegisterHelper(name string, fn any) {
 	if r.Dotprompt == nil {
-		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
-			Helpers: map[string]any{},
-		})
+		r.Dotprompt = dotprompt.NewDotprompt(nil)
 	}
 	if r.Dotprompt.Helpers == nil {
 		r.Dotprompt.Helpers = make(map[string]any)
 	}
-
 	if r.Dotprompt.Helpers[name] != nil {
-		return fmt.Errorf("helper %q is already defined", name)
+		panic(fmt.Sprintf("helper %q is already defined", name))
 	}
 	r.Dotprompt.Helpers[name] = fn
-	return nil
 }
 
 // ParseActionKey parses an action key in the format "/<action_type>/<provider>/<name>" or "/<action_type>/<name>".
