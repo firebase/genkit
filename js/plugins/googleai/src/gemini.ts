@@ -58,6 +58,7 @@ import {
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
 import { model } from 'genkit/plugin';
+import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common.js';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
@@ -1426,8 +1427,30 @@ export function defineGoogleAIModel({
         };
       };
 
-      // TODO v2: no ai.registry available here; run without the debug span wrapper.
-      return await callGemini();
+      // If debugTraces is enabled, we wrap the actual model call with a span, add raw
+      // API params as input.
+      return debugTraces
+        ? await runInNewSpan(
+            {
+              metadata: {
+                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
+              },
+            },
+            async (metadata) => {
+              metadata.input = {
+                sdk: '@google/generative-ai',
+                cache: cache,
+                model: genModel.model,
+                chatOptions: updatedChatRequest,
+                parts: msg.parts,
+                options,
+              };
+              const response = await callGemini();
+              metadata.output = response.custom;
+              return response;
+            }
+          )
+        : await callGemini();
     }
   );
 }
