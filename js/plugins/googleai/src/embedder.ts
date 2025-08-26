@@ -97,9 +97,9 @@ export const geminiEmbedding001 = embedderRef({
 });
 
 export const SUPPORTED_MODELS = {
-  'googleai/embedding-001': textEmbeddingGecko001,
-  'googleai/text-embedding-004': textEmbedding004,
-  'googleai/gemini-embedding-001': geminiEmbedding001,
+  'embedding-001': textEmbeddingGecko001,
+  'text-embedding-004': textEmbedding004,
+  'gemini-embedding-001': geminiEmbedding001,
 };
 
 export function defineGoogleAIEmbedder(
@@ -116,22 +116,24 @@ export function defineGoogleAIEmbedder(
           'For more details see https://genkit.dev/docs/plugins/google-genai'
       );
   }
+  // Extract the bare model name for lookup and API calls
+  const apiModelName = name.startsWith('googleai/')
+    ? name.substring('googleai/'.length)
+    : name;
+
   const embedderReference: EmbedderReference =
-    SUPPORTED_MODELS[name] ??
+    SUPPORTED_MODELS[apiModelName] ??
     embedderRef({
       name: name,
       configSchema: GeminiEmbeddingConfigSchema,
       info: {
         dimensions: 768,
-        label: `Google AI - ${name}`,
+        label: `Google AI - ${apiModelName}`,
         supports: {
           input: ['text', 'image', 'video'],
         },
       },
     });
-  const apiModelName = embedderReference.name.startsWith('googleai/')
-    ? embedderReference.name.substring('googleai/'.length)
-    : embedderReference.name;
   return embedder(
     {
       name: embedderReference.name,

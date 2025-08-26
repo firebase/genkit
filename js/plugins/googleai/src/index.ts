@@ -227,7 +227,7 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
         Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) => {
           actions.push(
             defineGoogleAIModel({
-              name,
+              name: `googleai/${name}`,
               apiKey: options?.apiKey,
               apiVersion: 'v1beta',
               baseUrl: options?.baseUrl,
@@ -241,7 +241,7 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
         Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) => {
           actions.push(
             defineGoogleAIModel({
-              name,
+              name: `googleai/${name}`,
               apiKey: options?.apiKey,
               baseUrl: options?.baseUrl,
               debugTraces: options?.experimental_debugTraces,
@@ -250,7 +250,9 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
         });
         Object.keys(EMBEDDER_MODELS).forEach((name) => {
           actions.push(
-            defineGoogleAIEmbedder(name, { apiKey: options?.apiKey })
+            defineGoogleAIEmbedder(`googleai/${name}`, {
+              apiKey: options?.apiKey,
+            })
           );
         });
       }
@@ -278,18 +280,20 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
     },
     async resolve(actionType: ActionType, actionName: string) {
       if (actionType === 'embedder') {
-        return defineGoogleAIEmbedder(actionName, { apiKey: options?.apiKey });
+        return defineGoogleAIEmbedder(`googleai/${actionName}`, {
+          apiKey: options?.apiKey,
+        });
       } else if (actionName.startsWith('veo')) {
         if (actionType === 'background-model') {
-          return defineVeoModel(actionName, options?.apiKey);
+          return defineVeoModel(`googleai/${actionName}`, options?.apiKey);
         }
       } else if (actionType === 'model') {
         if (actionName.startsWith('imagen')) {
-          return defineImagenModel(actionName, options?.apiKey);
+          return defineImagenModel(`googleai/${actionName}`, options?.apiKey);
         }
         // Fallback dynamic Gemini model
         return defineGoogleAIModel({
-          name: actionName,
+          name: `googleai/${actionName}`,
           apiKey: options?.apiKey,
           baseUrl: options?.baseUrl,
           debugTraces: options?.experimental_debugTraces,

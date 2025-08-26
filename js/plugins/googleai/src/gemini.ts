@@ -59,7 +59,7 @@ import {
 import { downloadRequestMedia } from 'genkit/model/middleware';
 import { model } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
-import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common.js';
+import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
@@ -645,26 +645,26 @@ export const gemma3ne4bit = modelRef({
 });
 
 export const SUPPORTED_GEMINI_MODELS = {
-  'googleai/gemini-1.5-pro': gemini15Pro,
-  'googleai/gemini-1.5-flash': gemini15Flash,
-  'googleai/gemini-1.5-flash-8b': gemini15Flash8b,
-  'googleai/gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
-  'googleai/gemini-2.0-flash': gemini20Flash,
-  'googleai/gemini-2.0-flash-lite': gemini20FlashLite,
-  'googleai/gemini-2.0-flash-exp': gemini20FlashExp,
-  'googleai/gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
-  'googleai/gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
-  'googleai/gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
-  'googleai/gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
-  'googleai/gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
-  'googleai/gemini-2.5-flash': gemini25Flash,
-  'googleai/gemini-2.5-flash-lite': gemini25FlashLite,
-  'googleai/gemini-2.5-pro': gemini25Pro,
-  'googleai/gemma-3-12b-it': gemma312bit,
-  'googleai/gemma-3-1b-it': gemma31bit,
-  'googleai/gemma-3-27b-it': gemma327bit,
-  'googleai/gemma-3-4b-it': gemma34bit,
-  'googleai/gemma-3n-e4b-it': gemma3ne4bit,
+  'gemini-1.5-pro': gemini15Pro,
+  'gemini-1.5-flash': gemini15Flash,
+  'gemini-1.5-flash-8b': gemini15Flash8b,
+  'gemini-2.0-pro-exp-02-05': gemini20ProExp0205,
+  'gemini-2.0-flash': gemini20Flash,
+  'gemini-2.0-flash-lite': gemini20FlashLite,
+  'gemini-2.0-flash-exp': gemini20FlashExp,
+  'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
+  'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
+  'gemini-2.5-pro-preview-tts': gemini25ProPreviewTts,
+  'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
+  'gemini-2.5-flash-preview-tts': gemini25FlashPreviewTts,
+  'gemini-2.5-flash': gemini25Flash,
+  'gemini-2.5-flash-lite': gemini25FlashLite,
+  'gemini-2.5-pro': gemini25Pro,
+  'gemma-3-12b-it': gemma312bit,
+  'gemma-3-1b-it': gemma31bit,
+  'gemma-3-27b-it': gemma327bit,
+  'gemma-3-4b-it': gemma34bit,
+  'gemma-3n-e4b-it': gemma3ne4bit,
 };
 
 export const GENERIC_GEMINI_MODEL = modelRef({
@@ -1149,6 +1149,7 @@ export function defineGoogleAIModel({
     }
   }
 
+  // Extract the API model name for lookup and API calls
   const apiModelName = name.startsWith('googleai/')
     ? name.substring('googleai/'.length)
     : name;

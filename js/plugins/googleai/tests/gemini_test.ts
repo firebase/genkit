@@ -619,6 +619,7 @@ describe('plugin', () => {
         toolChoice: true,
         systemRole: true,
         constrained: 'no-tools',
+        contextCache: true,
       });
 
       const bananaRef = gemini('gemini-4.0-banana');
