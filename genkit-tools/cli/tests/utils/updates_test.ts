@@ -56,6 +56,8 @@ jest.mock('colorette', () => ({
   green: (text: string) => text,
   bold: (text: string) => text,
   dim: (text: string) => text,
+  gray: (text: string) => text,
+  cyan: (text: string) => text,
 }));
 
 jest.mock('os', () => ({
