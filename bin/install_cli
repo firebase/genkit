@@ -85,10 +85,9 @@
 : -----------------------------------------
 
 # To force a user-local install into $HOME/.local/bin (useful on systems without sudo),
-# you can pass one of the following:
+# you can pass the following:
 #
 : curl -sL cli.genkit.dev | local=true bash
-: curl -sL cli.genkit.dev | GENKIT_INSTALL=local bash
 #
 # You can also explicitly set a target path:
 #
@@ -180,8 +179,8 @@ get_euid() {
 # Capture any user-provided desired install target, but keep detection separate.
 DESIRED_BINARY="$GENKIT_BINARY"
 
-# Explicit local-install switch (supports both local=true and GENKIT_INSTALL=local).
-if [ "${GENKIT_INSTALL:-}" = "local" ] || [ "${local:-}" = "true" ]; then
+# Explicit local-install switch.
+if [ "${local:-}" = "true" ]; then
     DESIRED_BINARY="$HOME/.local/bin/genkit"
 fi
 
