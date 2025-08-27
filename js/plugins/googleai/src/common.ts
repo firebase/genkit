@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { getClientHeader as defaultGetClientHeader } from 'genkit';
 import process from 'process';
 
 export function getApiKeyFromEnvVar(): string | undefined {
@@ -22,4 +23,11 @@ export function getApiKeyFromEnvVar(): string | undefined {
     process.env.GOOGLE_API_KEY ||
     process.env.GOOGLE_GENAI_API_KEY
   );
+}
+
+export function getGenkitClientHeader() {
+  if (process.env.MONOSPACE_ENV == 'true') {
+    return defaultGetClientHeader() + ' firebase-studio-vm';
+  }
+  return defaultGetClientHeader();
 }

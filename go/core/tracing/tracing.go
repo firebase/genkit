@@ -25,6 +25,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
@@ -139,64 +140,58 @@ func NewState() *State {
 	}
 }
 
-// CreateTelemetryServerProcessor creates a span processor for the telemetry server
-// This enables integration with Genkit's development UI for trace visualization
-// Returns nil if no telemetry server is configured
-func CreateTelemetryServerProcessor() sdktrace.SpanProcessor {
-	// Check if telemetry server URL is configured
-	if serverURL := os.Getenv("GENKIT_TELEMETRY_SERVER"); serverURL != "" {
-		// Create telemetry server exporter for dev UI integration
-		exporter := NewHTTPTelemetryClient(serverURL)
+var (
+	providerInitOnce sync.Once
+)
 
-		// Use simple processor for dev (immediate export) or batch for prod
-		if os.Getenv("GENKIT_ENV") == "dev" {
-			return sdktrace.NewSimpleSpanProcessor(newTelemetryServerExporter(exporter))
-		} else {
-			return sdktrace.NewBatchSpanProcessor(newTelemetryServerExporter(exporter))
+// TracerProvider returns the global tracer provider, creating it if needed.
+func TracerProvider() *sdktrace.TracerProvider {
+	if tp := otel.GetTracerProvider(); tp != nil {
+		if sdkTP, ok := tp.(*sdktrace.TracerProvider); ok {
+			return sdkTP
 		}
 	}
 
-	// Return nil if no telemetry server is configured
-	return nil
+	providerInitOnce.Do(func() {
+		otel.SetTracerProvider(sdktrace.NewTracerProvider())
+		if telemetryURL := os.Getenv("GENKIT_TELEMETRY_SERVER"); telemetryURL != "" {
+			WriteTelemetryImmediate(NewHTTPTelemetryClient(telemetryURL))
+		}
+	})
+
+	return otel.GetTracerProvider().(*sdktrace.TracerProvider)
 }
 
-// WriteTelemetryImmediate adds a telemetry server to the global TracerProvider.
+// Tracer returns a tracer from the global tracer provider.
+func Tracer() trace.Tracer {
+	return TracerProvider().Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1"))
+}
+
+// WriteTelemetryImmediate adds a telemetry server to the global tracer provider.
 // Traces are saved immediately as they are finished.
 // Use this for a gtrace.Store with a fast Save method,
 // such as one that writes to a file.
-func (ts *State) WriteTelemetryImmediate(client TelemetryClient) {
+func WriteTelemetryImmediate(client TelemetryClient) {
 	e := newTelemetryServerExporter(client)
-	// Register with global TracerProvider if it's an SDK TracerProvider
-	if globalTP := otel.GetTracerProvider(); globalTP != nil {
-		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
-			sdkTP.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
-			slog.Debug("Registered immediate telemetry processor with global TracerProvider")
-		} else {
-			slog.Warn("Cannot register telemetry processor: global TracerProvider is not SDK")
-		}
-	}
+	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
+	TracerProvider().RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
+	// Confirmed for OTel packages as of v1.24.0.
+	// Also requires traceStoreExporter.Shutdown to be a no-op.
 }
 
-// WriteTelemetryBatch adds a telemetry server to the global TracerProvider.
+// WriteTelemetryBatch adds a telemetry server to the global tracer provider.
 // Traces are batched before being sent for processing.
 // Use this for a gtrace.Store with a potentially expensive Save method,
 // such as one that makes an RPC.
 //
 // Callers must invoke the returned function at the end of the program to flush the final batch
 // and perform other cleanup.
-func (ts *State) WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
+func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
 	e := newTelemetryServerExporter(client)
-	// Register with global TracerProvider if it's an SDK TracerProvider
-	if globalTP := otel.GetTracerProvider(); globalTP != nil {
-		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
-			sdkTP.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
-			slog.Debug("Registered batch telemetry processor with global TracerProvider")
-			return sdkTP.Shutdown
-		} else {
-			slog.Warn("Cannot register telemetry processor: global TracerProvider is not SDK")
-		}
-	}
-	return func(context.Context) error { return nil } // No-op shutdown
+	// Adding a BatchSpanProcessor is like using the WithBatcher option.
+	TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
+	return TracerProvider().Shutdown
 }
 
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.
@@ -229,7 +224,7 @@ type SpanMetadata struct {
 // The metadata contains all span configuration including name, type, labels, etc.
 func RunInNewSpan[I, O any](
 	ctx context.Context,
-	tstate *State,
+	state *State,
 	metadata *SpanMetadata,
 	input I,
 	f func(context.Context, I) (O, error),
@@ -296,39 +291,30 @@ func RunInNewSpan[I, O any](
 		opts = append(opts, trace.WithAttributes(attrs...))
 	}
 
-	ctx, span := tstate.tracer.Start(ctx, metadata.Name, opts...)
-	defer func() {
-		span.End()
-	}()
-	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
-	defer func() {
-		attrs := sm.attributes()
-		span.SetAttributes(attrs...)
-	}()
+	// Set up OpenTelemetry span options
+	if metadata.Type != "" {
+		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, metadata.Type)))
+	}
 
+	// Start the span
+	ctx, span := Tracer().Start(ctx, metadata.Name, opts...)
+	defer span.End()
+	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
+	defer func() { span.SetAttributes(sm.attributes()...) }()
+	// Add the spanMetadata to the context, so the function can access it.
 	ctx = spanMetaKey.NewContext(ctx, sm)
+	// Run the function.
 	output, err := f(ctx, input)
+
+	// Set span state based on result
 	if err != nil {
 		sm.State = spanStateError
-		// Add genkit:isFailureSource logic like TypeScript
-		// Mark the first failing span as the source of failure. Prevent parent
-		// spans that catch re-thrown exceptions from also claiming to be the source.
+		sm.Error = err.Error()
+		sm.IsFailureSource = true // Mark this span as the source of the failure for telemetry
 		if !isErrorAlreadyMarked(err) {
-			// Set isFailureSource in spanMetadata so it gets included in final attributes
-			sm.IsFailureSource = true
-
-			// Record exception event with stack trace for PathTelemetry
-			stackTrace := captureStackTrace()
-			span.RecordError(err, trace.WithAttributes(
-				attribute.String("exception.type", "Error"),
-				attribute.String("exception.message", err.Error()),
-				attribute.String("exception.stacktrace", stackTrace),
-			))
-
-			err = markErrorAsHandled(err) // Mark error to prevent parent spans from claiming failure source
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 		}
-
-		span.SetStatus(codes.Error, err.Error())
 	} else {
 		sm.State = spanStateSuccess
 		sm.Output = output
@@ -395,6 +381,7 @@ type spanMetadata struct {
 	IsFailureSource bool // whether this span is the source of a failure
 	Input           any
 	Output          any
+	Error           string            // error message if State is spanStateError
 	Path            string            // annotated path with type information
 	Type            string            // span type (action, flow, model, etc.)
 	Subtype         string            // span subtype (tool, model, flow, etc.)

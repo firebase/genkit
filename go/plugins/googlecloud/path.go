@@ -135,7 +135,7 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 
 	// Log as error level - format like TypeScript: [genkit] Error[path, Error] message
 	logMessage := fmt.Sprintf("[genkit] Error[%s, %s] %s", displayPath, errorType, errorMessage)
-	slog.ErrorContext(ctx, logMessage, "data", logData)
+	slog.ErrorContext(ctx, logMessage, MetadataKey, logData)
 }
 
 // Helper functions

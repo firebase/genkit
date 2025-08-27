@@ -39,6 +39,7 @@ type Part struct {
 	Text         string         `json:"text,omitempty"`         // valid for kind∈{text,blob}
 	ToolRequest  *ToolRequest   `json:"toolRequest,omitempty"`  // valid for kind==partToolRequest
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty"` // valid for kind==partToolResponse
+	Resource     *ResourcePart  `json:"resource,omitempty"`     // valid for kind==partResource
 	Custom       map[string]any `json:"custom,omitempty"`       // valid for plugin-specific custom parts
 	Metadata     map[string]any `json:"metadata,omitempty"`     // valid for all kinds
 }
@@ -53,6 +54,7 @@ const (
 	PartToolResponse
 	PartCustom
 	PartReasoning
+	PartResource
 )
 
 // NewTextPart returns a Part containing text.
@@ -119,6 +121,11 @@ func NewReasoningPart(text string, signature []byte) *Part {
 	}
 }
 
+// NewResourcePart returns a Part containing a resource reference.
+func NewResourcePart(uri string) *Part {
+	return &Part{Kind: PartResource, Resource: &ResourcePart{Uri: uri}}
+}
+
 // IsText reports whether the [Part] contains plain text.
 func (p *Part) IsText() bool {
 	return p.Kind == PartText
@@ -181,6 +188,11 @@ func (p *Part) IsAudio() bool {
 		strings.HasPrefix(p.Text, "data:audio/")
 }
 
+// IsResource reports whether the [Part] contains a resource reference.
+func (p *Part) IsResource() bool {
+	return p.Kind == PartResource
+}
+
 // MarshalJSON is called by the JSON marshaler to write out a Part.
 func (p *Part) MarshalJSON() ([]byte, error) {
 	// This is not handled by the schema generator because
@@ -220,6 +232,12 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 			Metadata:     p.Metadata,
 		}
 		return json.Marshal(v)
+	case PartResource:
+		v := resourcePart{
+			Resource: p.Resource,
+			Metadata: p.Metadata,
+		}
+		return json.Marshal(v)
 	case PartCustom:
 		v := customPart{
 			Custom:   p.Custom,
@@ -243,6 +261,7 @@ type partSchema struct {
 	Data         string         `json:"data,omitempty" yaml:"data,omitempty"`
 	ToolRequest  *ToolRequest   `json:"toolRequest,omitempty" yaml:"toolRequest,omitempty"`
 	ToolResponse *ToolResponse  `json:"toolResponse,omitempty" yaml:"toolResponse,omitempty"`
+	Resource     *ResourcePart  `json:"resource,omitempty" yaml:"resource,omitempty"`
 	Custom       map[string]any `json:"custom,omitempty" yaml:"custom,omitempty"`
 	Metadata     map[string]any `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 	Reasoning    string         `json:"reasoning,omitempty" yaml:"reasoning,omitempty"`
@@ -261,6 +280,9 @@ func (p *Part) unmarshalPartFromSchema(s partSchema) {
 	case s.ToolResponse != nil:
 		p.Kind = PartToolResponse
 		p.ToolResponse = s.ToolResponse
+	case s.Resource != nil:
+		p.Kind = PartResource
+		p.Resource = s.Resource
 	case s.Custom != nil:
 		p.Kind = PartCustom
 		p.Custom = s.Custom

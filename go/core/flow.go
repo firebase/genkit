@@ -48,8 +48,8 @@ type flowContext struct {
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]) *Flow[In, Out, struct{}] {
-	return (*Flow[In, Out, struct{}])(DefineAction(r, name, ActionTypeFlow, nil, func(ctx context.Context, input In) (Out, error) {
-		fc := &flowContext{tracingState: r.TracingState()}
+	return (*Flow[In, Out, struct{}])(DefineAction(r, name, ActionTypeFlow, nil, nil, func(ctx context.Context, input In) (Out, error) {
+		fc := &flowContext{}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input)
 	}))
@@ -65,8 +65,8 @@ func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
 func DefineStreamingFlow[In, Out, Stream any](r *registry.Registry, name string, fn StreamingFunc[In, Out, Stream]) *Flow[In, Out, Stream] {
-	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, name, ActionTypeFlow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
-		fc := &flowContext{tracingState: r.TracingState()}
+	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, name, ActionTypeFlow, nil, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
+		fc := &flowContext{}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input, cb)
 	}))
@@ -85,14 +85,18 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		var z Out
 		return z, fmt.Errorf("flow.Run(%q): must be called from a flow", name)
 	}
-	return tracing.RunInNewSpan(ctx, fc.tracingState, &tracing.SpanMetadata{
-		Name:   name,
-		Type:   "flowStep",
-		IsRoot: false,
-	}, struct{}{},
-		func(ctx context.Context, _ struct{}) (Out, error) {
-			return fn()
-		})
+	spanMetadata := &tracing.SpanMetadata{
+		Name:    name,
+		Type:    "flowStep",
+		Subtype: "flowStep",
+	}
+	return tracing.RunInNewSpan(ctx, nil, spanMetadata, nil, func(ctx context.Context, _ any) (Out, error) {
+		o, err := fn()
+		if err != nil {
+			return base.Zero[Out](), err
+		}
+		return o, nil
+	})
 }
 
 // Name returns the name of the flow.
@@ -113,11 +117,6 @@ func (f *Flow[In, Out, Stream]) Desc() ActionDesc {
 // Run runs the flow in the context of another flow.
 func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In) (Out, error) {
 	return (*ActionDef[In, Out, Stream])(f).Run(ctx, input, nil)
-}
-
-// SetTracingState sets the tracing state on the flow.
-func (f *Flow[In, Out, Stream]) SetTracingState(tstate *tracing.State) {
-	(*ActionDef[In, Out, Stream])(f).SetTracingState(tstate)
 }
 
 // Stream runs the flow in the context of another flow and streams the output.
@@ -150,6 +149,11 @@ func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In) func(func(
 			yield(&StreamingFlowValue[Out, Stream]{Done: true, Output: output}, nil)
 		}
 	}
+}
+
+// Register registers the flow with the given registry.
+func (f *Flow[In, Out, Stream]) Register(r *registry.Registry) {
+	(*ActionDef[In, Out, Stream])(f).Register(r)
 }
 
 var errStop = errors.New("stop")

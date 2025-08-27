@@ -31,7 +31,6 @@ import (
 	"cloud.google.com/go/logging"
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
-	"github.com/firebase/genkit/go/core/tracing"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 
@@ -106,10 +105,7 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 
 	var spanProcessors []sdktrace.SpanProcessor
 
-	// Add telemetry server processor for dev UI if configured
-	if telemetryProcessor := tracing.CreateTelemetryServerProcessor(); telemetryProcessor != nil {
-		spanProcessors = append(spanProcessors, telemetryProcessor)
-	}
+	// Telemetry server processor is handled by the tracing package automatically
 
 	// If we should export and traces are not disabled, add Google Cloud exporter
 	shouldExport := opts.ForceDevExport || os.Getenv("GENKIT_ENV") != "dev"

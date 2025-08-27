@@ -214,18 +214,21 @@ export function compatOaiSpeechModelRef<
   info?: ModelInfo;
   configSchema?: CustomOptions;
   config?: any;
+  namespace?: string;
 }) {
   const {
     name,
     info = SPEECH_MODEL_INFO,
     configSchema,
     config = undefined,
+    namespace,
   } = params;
   return modelRef({
     name,
     configSchema: configSchema || (SpeechConfigSchema as any),
     info,
     config,
+    namespace,
   });
 }
 
@@ -372,17 +375,20 @@ export function compatOaiTranscriptionModelRef<
   info?: ModelInfo;
   configSchema?: CustomOptions;
   config?: any;
+  namespace?: string;
 }) {
   const {
     name,
     info = TRANSCRIPTION_MODEL_INFO,
     configSchema,
     config = undefined,
+    namespace,
   } = params;
   return modelRef({
     name,
     configSchema: configSchema || (TranscriptionConfigSchema as any),
     info,
     config,
+    namespace,
   });
 }

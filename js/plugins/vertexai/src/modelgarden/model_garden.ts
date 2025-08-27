@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-import {
-  GENKIT_CLIENT_HEADER,
-  z,
-  type Genkit,
-  type ModelReference,
-} from 'genkit';
+import { z, type Genkit, type ModelReference } from 'genkit';
 import { modelRef, type GenerateRequest, type ModelAction } from 'genkit/model';
 import type { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
+import { getGenkitClientHeader } from '../common/index.js';
 import {
   OpenAIConfigSchema,
   openaiCompatibleModel,
@@ -120,7 +116,7 @@ export function modelGardenOpenaiCompatibleModel(
         .replace(/{projectId}/g, projectId),
       apiKey: (await googleAuth.getAccessToken())!,
       defaultHeaders: {
-        'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+        'X-Goog-Api-Client': getGenkitClientHeader(),
       },
     });
   };

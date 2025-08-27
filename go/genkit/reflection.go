@@ -226,7 +226,7 @@ func serveMux(g *Genkit) *http.ServeMux {
 	})
 	mux.HandleFunc("GET /api/actions", wrapReflectionHandler(handleListActions(g)))
 	mux.HandleFunc("POST /api/runAction", wrapReflectionHandler(handleRunAction(g)))
-	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify(g)))
+	mux.HandleFunc("POST /api/notify", wrapReflectionHandler(handleNotify()))
 	return mux
 }
 
@@ -327,7 +327,7 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 }
 
 // handleNotify configures the telemetry server URL from the request.
-func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
+func handleNotify() func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var body struct {
 			TelemetryServerURL       string `json:"telemetryServerUrl"`
@@ -340,7 +340,7 @@ func handleNotify(g *Genkit) func(w http.ResponseWriter, r *http.Request) error 
 		}
 
 		if os.Getenv("GENKIT_TELEMETRY_SERVER") == "" && body.TelemetryServerURL != "" {
-			g.reg.TracingState().WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
+			tracing.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(body.TelemetryServerURL))
 			slog.Debug("connected to telemetry server", "url", body.TelemetryServerURL)
 		}
 
@@ -436,7 +436,7 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		ctx = core.WithActionContext(ctx, runtimeContext)
 	}
 
-	// Parse telemetry labels if provided
+	// Parse telemetry attributes if provided
 	var telemetryAttributes map[string]string
 	if telemetryLabels != nil {
 		err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
@@ -446,7 +446,7 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 	}
 
 	var traceID string
-	output, err := tracing.RunInNewSpan(ctx, g.reg.TracingState(), &tracing.SpanMetadata{
+	spanMetadata := &tracing.SpanMetadata{
 		Name:            "dev-run-action-wrapper",
 		Type:            "action", // Wrapper action gets type "action"
 		IsRoot:          true,
@@ -454,7 +454,8 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		Metadata: map[string]string{
 			"genkit-dev-internal": "true", // Mark as dev internal
 		},
-	}, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+	}
+	output, err := tracing.RunInNewSpan(ctx, nil, spanMetadata, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.(core.Action).RunJSON(ctx, input, cb)
 	})

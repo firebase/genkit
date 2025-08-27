@@ -65,7 +65,6 @@ import {
 import {
   augmentWithContext,
   simulateConstrainedGeneration,
-  validateSupport,
 } from './model/middleware.js';
 export { defineGenerateAction } from './generate/action.js';
 export * from './model-types.js';
@@ -329,10 +328,7 @@ function getModelMiddleware(options: {
   name: string;
   supports?: ModelInfo['supports'];
 }) {
-  const middleware: ModelMiddleware[] = [
-    ...(options.use || []),
-    validateSupport(options),
-  ];
+  const middleware: ModelMiddleware[] = options.use || [];
   if (!options?.supports?.context) middleware.push(augmentWithContext());
   const constratedSimulator = simulateConstrainedGeneration();
   middleware.push((req, next) => {
@@ -400,20 +396,31 @@ export function modelRef<
   options: Omit<
     ModelReference<CustomOptionsSchema>,
     'withConfig' | 'withVersion'
-  >
+  > & {
+    namespace?: string;
+  }
 ): ModelReference<CustomOptionsSchema> {
-  const ref: Partial<ModelReference<CustomOptionsSchema>> = { ...options };
+  let name = options.name;
+  if (options.namespace && !name.startsWith(options.namespace + '/')) {
+    name = `${options.namespace}/${name}`;
+  }
+  const ref: Partial<ModelReference<CustomOptionsSchema>> = {
+    ...options,
+    name,
+  };
   ref.withConfig = (
     cfg: z.infer<CustomOptionsSchema>
   ): ModelReference<CustomOptionsSchema> => {
     return modelRef({
       ...options,
+      name,
       config: cfg,
     });
   };
   ref.withVersion = (version: string): ModelReference<CustomOptionsSchema> => {
     return modelRef({
       ...options,
+      name,
       version,
     });
   };
