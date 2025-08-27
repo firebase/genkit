@@ -346,7 +346,7 @@ func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
 			"model": map[string]any{
 				"supports": map[string]any{
 					"media":       true,
-					"multiturn":   false,
+					"multiturn":   true,
 					"systemRole":  false,
 					"tools":       false,
 					"toolChoice":  false,
