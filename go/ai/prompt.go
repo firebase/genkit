@@ -120,6 +120,12 @@ func LookupPrompt(r *registry.Registry, name string) Prompt {
 	}
 }
 
+// DefineSchema defines a schema in the registry
+func DefineSchema(r *registry.Registry, name string, schema any) error {
+	// TODO: marshal the schema and store it into the registry
+	return nil
+}
+
 // Execute renders a prompt, does variable substitution and
 // passes the rendered template to the AI model specified by the prompt.
 func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
@@ -183,6 +189,8 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 	if input == nil {
 		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
+
+	// TODO: should we consider output atp?
 
 	return p.Run(ctx, input, nil)
 }

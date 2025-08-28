@@ -50,6 +50,7 @@ func main() {
 	PromptWithFunctions(ctx, g)
 	PromptWithOutputTypeDotprompt(ctx, g)
 	PromptWithMediaType(ctx, g)
+	PromptWithSchema(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -321,6 +322,47 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 	resp, err := prompt.Execute(ctx,
 		ai.WithModelName("vertexai/gemini-2.0-flash"),
 		ai.WithInput(map[string]any{"imageUrl": "data:image/jpg;base64," + img}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(resp.Text())
+}
+
+/*
+Inline schema equivalence
+
+	  title: string, recipe title
+	  ingredients(array):
+		name: string
+		quantity: string
+	  steps(array, the steps required to complete the recipe): string
+*/
+type Ingredient struct {
+	Name     string `json:"name" description:"ingredient name"`
+	Quantity string `json:"quantity" description:"ingredient quantity"`
+}
+
+type RecipeSchema struct {
+	Title       string       `json:"title" description:"Recipe name"`
+	Ingredients []Ingredient `json:"ingredients" description:"Recipe ingredients"`
+	Steps       []string     `json:"steps" description:"Recipe steps"`
+}
+
+func PromptWithSchema(ctx context.Context, g *genkit.Genkit) {
+	err := genkit.DefineSchema(g, "recipe", RecipeSchema{})
+	if err != nil {
+		log.Fatalf("error defining schema: %v", err)
+	}
+
+	prompt := genkit.LoadPrompt(g, "./prompts/recipe.prompt", "recipes")
+	if prompt == nil {
+		log.Fatal("empty prompt")
+	}
+
+	resp, err := prompt.Execute(ctx,
+		ai.WithModelName("vertexai/gemini-2.0-flash"),
+		ai.WithOutput(RecipeSchema{}),
 	)
 	if err != nil {
 		log.Fatal(err)
