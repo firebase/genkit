@@ -39,8 +39,14 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+
       - name: Enable corepack
         run: corepack enable
+
+      - name: Install pnpm
+        run: corepack prepare pnpm @latest --activate
 
       - name: Install dependencies
         run: |

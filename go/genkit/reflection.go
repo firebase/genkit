@@ -436,20 +436,26 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		ctx = core.WithActionContext(ctx, runtimeContext)
 	}
 
-	var traceID string
-	output, err := tracing.RunInNewSpan(ctx, "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
-		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
-		// Set telemetry labels from payload to span
-		if telemetryLabels != nil {
-			var telemetryAttributes map[string]string
-			err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
-			if err != nil {
-				return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
-			}
-			for k, v := range telemetryAttributes {
-				tracing.SetCustomMetadataAttr(ctx, k, v)
-			}
+	// Parse telemetry attributes if provided
+	var telemetryAttributes map[string]string
+	if telemetryLabels != nil {
+		err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
+		if err != nil {
+			return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
 		}
+	}
+
+	var traceID string
+	spanMetadata := &tracing.SpanMetadata{
+		Name:            "dev-run-action-wrapper",
+		Type:            "action", // Wrapper action gets type "action"
+		IsRoot:          true,
+		TelemetryLabels: telemetryAttributes, // Set telemetry labels as attributes
+		Metadata: map[string]string{
+			"genkit-dev-internal": "true", // Mark as dev internal
+		},
+	}
+	output, err := tracing.RunInNewSpan(ctx, nil, spanMetadata, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.(core.Action).RunJSON(ctx, input, cb)
 	})
