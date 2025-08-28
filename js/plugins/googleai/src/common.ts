@@ -32,31 +32,79 @@ export function getGenkitClientHeader() {
   return defaultGetClientHeader();
 }
 
-// Type-safe name helpers for GoogleAI plugin
-const PROVIDER = 'googleai' as const;
-type Provider = typeof PROVIDER;
-type Prefixed<ActionName extends string> = `${Provider}/${ActionName}`;
-type MaybePrefixed<ActionName extends string> =
-  | ActionName
-  | Prefixed<ActionName>;
+// Type-safe name helpers/guards
 
-// Runtime + typed helpers
-export function removePrefix<ActionName extends string>(
-  name: MaybePrefixed<ActionName>
+const PREFIX = 'googleai' as const;
+
+type Prefix = typeof PREFIX;
+
+type Prefixed<
+  ActionName extends string,
+  PrefixType extends string = Prefix,
+> = `${PrefixType}/${ActionName}`;
+
+type MaybePrefixed<
+  ActionName extends string,
+  PrefixType extends string = Prefix,
+> = ActionName | Prefixed<ActionName, PrefixType>;
+
+/**
+ * Removes a prefix from an action name if it exists.
+ *
+ * @template ActionName - The action name type
+ * @template PrefixType - The prefix type (defaults to 'googleai')
+ *
+ * @param name - The action name, which may or may not be prefixed
+ * @param prefix - The prefix to remove (defaults to 'googleai')
+ *
+ * @returns The action name without the prefix
+ *
+ * @example
+ * ```typescript
+ * removePrefix('googleai/gemini-1.5-flash') // 'gemini-1.5-flash'
+ * removePrefix('gemini-1.5-flash') // 'gemini-1.5-flash'
+ * removePrefix('openai/gpt-4', 'openai') // 'gpt-4'
+ * ```
+ */
+export function removePrefix<
+  ActionName extends string,
+  PrefixType extends string = Prefix,
+>(
+  name: MaybePrefixed<ActionName, PrefixType>,
+  prefix: PrefixType = PREFIX as PrefixType
 ): ActionName {
   return (
-    name.startsWith(`${PROVIDER}/`)
-      ? (name.slice(PROVIDER.length + 1) as ActionName)
+    name.startsWith(`${prefix}/`)
+      ? (name.slice(prefix.length + 1) as ActionName)
       : name
   ) as ActionName;
 }
 
-export function ensurePrefixed<ActionName extends string>(
-  name: MaybePrefixed<ActionName>
-): Prefixed<ActionName> {
+/**
+ * This function adds the prefix if it's missing, or returns the name unchanged
+ * if it already has the correct prefix. This prevents double-prefixing issues.
+ *
+ * @param name - The action name, which may or may not be prefixed
+ * @param prefix - The prefix to ensure (defaults to 'googleai')
+ *
+ * @returns The action name with the prefix guaranteed to be present
+ *
+ * @example
+ * ```typescript
+ * ensurePrefixed('gemini-1.5-flash') // 'googleai/gemini-1.5-flash'
+ * ensurePrefixed('googleai/gemini-1.5-flash') // 'googleai/gemini-1.5-flash'
+ * ```
+ */
+export function ensurePrefixed<
+  ActionName extends string,
+  PrefixType extends string = Prefix,
+>(
+  name: MaybePrefixed<ActionName, PrefixType>,
+  prefix: PrefixType = PREFIX as PrefixType
+): Prefixed<ActionName, PrefixType> {
   return (
-    name.startsWith(`${PROVIDER}/`)
-      ? (name as Prefixed<ActionName>)
-      : (`${PROVIDER}/${name}` as Prefixed<ActionName>)
-  ) as Prefixed<ActionName>;
+    name.startsWith(`${prefix}/`)
+      ? (name as Prefixed<ActionName, PrefixType>)
+      : (`${prefix}/${name}` as Prefixed<ActionName, PrefixType>)
+  ) as Prefixed<ActionName, PrefixType>;
 }

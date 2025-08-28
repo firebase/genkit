@@ -26,7 +26,7 @@ import {
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
 import { embedder } from 'genkit/plugin';
-import { getApiKeyFromEnvVar, removePrefix } from './common';
+import { ensurePrefixed, getApiKeyFromEnvVar, removePrefix } from './common';
 import type { PluginOptions } from './index';
 
 export const TaskTypeSchema = z.enum([
@@ -122,7 +122,7 @@ export function defineGoogleAIEmbedder(
   const embedderReference: EmbedderReference =
     SUPPORTED_MODELS[apiModelName] ??
     embedderRef({
-      name: name,
+      name: ensurePrefixed(name),
       configSchema: GeminiEmbeddingConfigSchema,
       info: {
         dimensions: 768,

@@ -1160,7 +1160,7 @@ export function defineGoogleAIModel({
   const modelReference: ModelReference<z.ZodTypeAny> =
     SUPPORTED_GEMINI_MODELS[apiModelName] ??
     modelRef({
-      name: name, // Keep the full name for the model reference
+      name: ensurePrefixed(name),
       info: {
         label: `Google AI - ${apiModelName}`,
         supports: {
