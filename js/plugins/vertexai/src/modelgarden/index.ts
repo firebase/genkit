@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { Action, Genkit } from 'genkit';
+import type { Action } from 'genkit';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
 import { getDerivedParams } from '../common/index.js';
 import { SUPPORTED_ANTHROPIC_MODELS, anthropicModel } from './anthropic.js';
@@ -32,7 +32,8 @@ export function vertexAIModelGarden(options: PluginOptions): GenkitPluginV2 {
   return genkitPluginV2({
     name: 'vertexAIModelGarden',
     init: async () => {
-      const { projectId, location, authClient } = await getDerivedParams(options);
+      const { projectId, location, authClient } =
+        await getDerivedParams(options);
 
       const actions: Action[] = [];
 
@@ -55,13 +56,15 @@ export function vertexAIModelGarden(options: PluginOptions): GenkitPluginV2 {
           ([_, value]) => value.name === m.name
         );
         if (openaiModel) {
-          actions.push(modelGardenOpenaiCompatibleModel(
-            openaiModel[0],
-            projectId,
-            location,
-            authClient,
-            options.openAiBaseUrlTemplate
-          ));
+          actions.push(
+            modelGardenOpenaiCompatibleModel(
+              openaiModel[0],
+              projectId,
+              location,
+              authClient,
+              options.openAiBaseUrlTemplate
+            )
+          );
           return;
         }
         throw new Error(`Unsupported model garden model: ${m.name}`);

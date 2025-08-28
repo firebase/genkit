@@ -28,7 +28,11 @@ import {
   type ModelReference,
   type z,
 } from 'genkit';
-import { genkitPluginV2, ResolvableAction, type GenkitPluginV2 } from 'genkit/plugin';
+import {
+  ResolvableAction,
+  genkitPluginV2,
+  type GenkitPluginV2,
+} from 'genkit/plugin';
 import type { ActionType } from 'genkit/registry';
 import { getDerivedParams } from './common/index.js';
 import type { PluginOptions } from './common/types.js';
@@ -116,20 +120,22 @@ async function initializer(options?: PluginOptions) {
 
   const actions: ResolvableAction[] = [];
 
-  Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
-    actions.push(defineImagenModel(name, authClient, { projectId, location }))
-  );
-  Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-    actions.push(defineGeminiKnownModel(
-      name,
-      vertexClientFactory,
-      {
-        projectId,
-        location,
-      },
-      options?.experimental_debugTraces
-    ))
-  );
+  for (const name of Object.keys(SUPPORTED_IMAGEN_MODELS)) {
+    actions.push(defineImagenModel(name, authClient, { projectId, location }));
+  }
+  for (const name of Object.keys(SUPPORTED_GEMINI_MODELS)) {
+    actions.push(
+      defineGeminiKnownModel(
+        name,
+        vertexClientFactory,
+        {
+          projectId,
+          location,
+        },
+        options?.experimental_debugTraces
+      )
+    );
+  }
   if (options?.models) {
     for (const modelOrRef of options?.models) {
       const modelName =
@@ -139,22 +145,26 @@ async function initializer(options?: PluginOptions) {
             modelOrRef.name.split('/')[1];
       const modelRef =
         typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-      actions.push(defineGeminiModel({
-        modelName: modelRef.name,
-        version: modelName,
-        modelInfo: modelRef.info,
-        vertexClientFactory,
-        options: {
-          projectId,
-          location,
-        },
-        debugTraces: options.experimental_debugTraces,
-      }));
+      actions.push(
+        defineGeminiModel({
+          modelName: modelRef.name,
+          version: modelName,
+          modelInfo: modelRef.info,
+          vertexClientFactory,
+          options: {
+            projectId,
+            location,
+          },
+          debugTraces: options.experimental_debugTraces,
+        })
+      );
     }
   }
 
   Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-    actions.push(defineVertexAIEmbedder(name, authClient, { projectId, location }))
+    actions.push(
+      defineVertexAIEmbedder(name, authClient, { projectId, location })
+    )
   );
 
   return actions;
@@ -185,8 +195,7 @@ async function resolveModel(
     await getDerivedParams(options);
 
   if (actionName.startsWith('imagen')) {
-    defineImagenModel(actionName, authClient, { projectId, location });
-    return;
+    return defineImagenModel(actionName, authClient, { projectId, location });
   }
 
   const modelRef = gemini(actionName);
@@ -209,7 +218,10 @@ async function resolveEmbedder(
 ): Promise<ResolvableAction | undefined> {
   const { projectId, location, authClient } = await getDerivedParams(options);
 
-  return defineVertexAIEmbedder(actionName, authClient, { projectId, location })
+  return defineVertexAIEmbedder(actionName, authClient, {
+    projectId,
+    location,
+  });
 }
 
 // Vertex AI list models still returns these and the API does not indicate in any way
@@ -268,14 +280,14 @@ function vertexAIPlugin(options?: PluginOptions): GenkitPluginV2 {
   let listActionsCache;
   return genkitPluginV2({
     name: 'vertexai',
-    init: async () => initializer(),
+    init: async () => initializer(options),
     resolve: async (actionType: ActionType, actionName: string) =>
-      await resolver(actionType, actionName),
+      await resolver(actionType, actionName, options),
     list: async () => {
       if (listActionsCache) return listActionsCache;
       listActionsCache = await listActions(options);
       return listActionsCache;
-    }
+    },
   });
 }
 

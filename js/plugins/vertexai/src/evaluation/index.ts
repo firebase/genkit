@@ -28,7 +28,8 @@ export function vertexAIEvaluation(options: PluginOptions): GenkitPluginV2 {
   return genkitPluginV2({
     name: 'vertexAIEvaluation',
     init: async () => {
-      const { projectId, location, authClient } = await getDerivedParams(options);
+      const { projectId, location, authClient } =
+        await getDerivedParams(options);
 
       return vertexEvaluators(authClient, options.metrics, projectId, location);
     },

@@ -14,18 +14,14 @@
  * limitations under the License.
  */
 
-import {
-  retrieverRef,
-  type RetrieverAction,
-  type z,
-} from 'genkit';
+import { retrieverRef, type RetrieverAction, type z } from 'genkit';
+import { retriever } from 'genkit/plugin';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import {
   VertexAIVectorRetrieverOptionsSchema,
   type VertexVectorSearchOptions,
 } from './types';
 import { getProjectNumber } from './utils';
-import { retriever } from 'genkit/plugin';
 
 const DEFAULT_K = 10;
 

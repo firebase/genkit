@@ -44,8 +44,8 @@ import {
   modelRef,
   type ModelAction,
 } from 'genkit/model';
-import { getGenkitClientHeader } from '../common/index.js';
 import { model } from 'genkit/plugin';
+import { getGenkitClientHeader } from '../common/index.js';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),

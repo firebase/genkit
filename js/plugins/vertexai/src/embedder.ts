@@ -20,10 +20,10 @@ import {
   type EmbedderAction,
   type EmbedderReference,
 } from 'genkit/embedder';
+import { embedder } from 'genkit/plugin';
 import type { GoogleAuth } from 'google-auth-library';
 import type { PluginOptions } from './common/types.js';
 import { predictModel, type PredictClient } from './predict.js';
-import { embedder } from 'genkit/plugin';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -304,12 +304,15 @@ export function defineVertexAIEmbedder(
       configSchema: embedderRef.configSchema,
       info: embedderRef.info!,
     },
-    async (input, options) => {
+    async (request, options) => {
       const predictClient = predictClientFactory(embedderRef.config);
       const response = await predictClient(
-        input.input.map((doc: Document) => {
+        request.input.map((doc: Document) => {
           let instance: EmbeddingInstance;
-          if (isMultiModal(embedderRef) && checkValidDocument(embedderRef, doc)) {
+          if (
+            isMultiModal(embedderRef) &&
+            checkValidDocument(embedderRef, doc)
+          ) {
             instance = {};
             if (doc.text) {
               instance.text = doc.text;

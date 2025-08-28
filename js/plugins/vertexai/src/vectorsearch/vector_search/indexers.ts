@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import type { Genkit, z } from 'genkit';
+import type { z } from 'genkit';
+import { indexer } from 'genkit/plugin';
 import { indexerRef, type IndexerAction } from 'genkit/retriever';
 import {
   Datapoint,
@@ -22,7 +23,6 @@ import {
   type VertexVectorSearchOptions,
 } from './types';
 import { upsertDatapoints } from './upsert_datapoints';
-import { indexer } from 'genkit/plugin';
 
 /**
  * Creates a reference to a Vertex AI indexer.
