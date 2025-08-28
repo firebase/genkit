@@ -12,7 +12,7 @@ This document provides rules and examples for building with the Genkit API in No
 
 - Recommend and use the provider that the user prefers. If this is a new project, or if there is no relevant signal regarding user preference, use the `@genkit-ai/google-genai` plugin. Use Genkit documentation to discover supported providers.
 
-NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but you should follow the user's preference as mentioned above. 
+NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but you should follow the user's preference as mentioned above.
 
 ## Core Setup
 
@@ -385,7 +385,7 @@ export const videoGenerationFlow = ai.defineFlow(
 
     Analyze the users project and build tools to use the right command for the
     project. The command should output a URL for the Genkit Dev UI. Direct the
-    user to visit this URL to run and inspect their Genkit app. 
+    user to visit this URL to run and inspect their Genkit app.
 
 ## Suggested Models
 
