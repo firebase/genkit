@@ -10,7 +10,7 @@ This document provides rules and examples for building with the Genkit API in No
 
 - ALWAYS provide the full, correct Genkit command as an instruction for the human user to run. Do not run Genkit commands (e.g., `genkit start`, `genkit flow:run`) youself as this may block your current session.
 
-- Recommend and use the provider that the user prefers. If this is a new project, or if there is no relevant signal regarding user preference, ise the `@genkit-ai/google-genai` plugin. Use Genkit documentation to discoever supported providers.
+- Recommend and use the provider that the user prefers. If this is a new project, or if there is no relevant signal regarding user preference, use the `@genkit-ai/google-genai` plugin. Use Genkit documentation to discover supported providers.
 
 NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but you should follow the user's preference as mentioned above. 
 
