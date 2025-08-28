@@ -624,7 +624,9 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		partFound := 0
 
 		if part.Thought {
-			p = ai.NewReasoningPart(part.Text, part.ThoughtSignature)
+			p = ai.NewReasoningPart(part.Text, map[string]any{
+				"signature": part.ThoughtSignature,
+			})
 			partFound++
 		}
 		if part.Text != "" && !part.Thought {
@@ -711,7 +713,6 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
-
 	switch {
 	case p.IsReasoning():
 		// TODO: go-genai does not support genai.NewPartFromThought()
