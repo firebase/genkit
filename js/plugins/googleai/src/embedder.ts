@@ -26,8 +26,8 @@ import {
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
 import { embedder } from 'genkit/plugin';
-import { getApiKeyFromEnvVar } from './common.js';
-import type { PluginOptions } from './index.js';
+import { getApiKeyFromEnvVar, removePrefix } from './common';
+import type { PluginOptions } from './index';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -117,9 +117,7 @@ export function defineGoogleAIEmbedder(
       );
   }
   // Extract the bare model name for lookup and API calls
-  const apiModelName = name.startsWith('googleai/')
-    ? name.substring('googleai/'.length)
-    : name;
+  const apiModelName = removePrefix(name);
 
   const embedderReference: EmbedderReference =
     SUPPORTED_MODELS[apiModelName] ??

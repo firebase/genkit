@@ -31,3 +31,32 @@ export function getGenkitClientHeader() {
   }
   return defaultGetClientHeader();
 }
+
+// Type-safe name helpers for GoogleAI plugin
+const PROVIDER = 'googleai' as const;
+type Provider = typeof PROVIDER;
+type Prefixed<ActionName extends string> = `${Provider}/${ActionName}`;
+type MaybePrefixed<ActionName extends string> =
+  | ActionName
+  | Prefixed<ActionName>;
+
+// Runtime + typed helpers
+export function removePrefix<ActionName extends string>(
+  name: MaybePrefixed<ActionName>
+): ActionName {
+  return (
+    name.startsWith(`${PROVIDER}/`)
+      ? (name.slice(PROVIDER.length + 1) as ActionName)
+      : name
+  ) as ActionName;
+}
+
+export function ensurePrefixed<ActionName extends string>(
+  name: MaybePrefixed<ActionName>
+): Prefixed<ActionName> {
+  return (
+    name.startsWith(`${PROVIDER}/`)
+      ? (name as Prefixed<ActionName>)
+      : (`${PROVIDER}/${name}` as Prefixed<ActionName>)
+  ) as Prefixed<ActionName>;
+}

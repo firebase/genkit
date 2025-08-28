@@ -59,7 +59,12 @@ import {
 import { downloadRequestMedia } from 'genkit/model/middleware';
 import { model } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
-import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common';
+import {
+  ensurePrefixed,
+  getApiKeyFromEnvVar,
+  getGenkitClientHeader,
+  removePrefix,
+} from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
@@ -716,7 +721,7 @@ export function gemini(
 ): ModelReference<typeof GeminiConfigSchema> {
   const nearestModel = nearestGeminiModelRef(version);
   return modelRef({
-    name: `googleai/${version}`,
+    name: ensurePrefixed(version),
     config: options,
     configSchema: GeminiConfigSchema,
     info: {
@@ -1150,9 +1155,7 @@ export function defineGoogleAIModel({
   }
 
   // Extract the API model name for lookup and API calls
-  const apiModelName = name.startsWith('googleai/')
-    ? name.substring('googleai/'.length)
-    : name;
+  const apiModelName = removePrefix(name);
 
   const modelReference: ModelReference<z.ZodTypeAny> =
     SUPPORTED_GEMINI_MODELS[apiModelName] ??

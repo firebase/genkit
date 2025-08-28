@@ -24,7 +24,7 @@ import {
   type ModelReference,
 } from 'genkit/model';
 import { model } from 'genkit/plugin';
-import { getApiKeyFromEnvVar } from './common.js';
+import { ensurePrefixed, getApiKeyFromEnvVar } from './common.js';
 import { predictModel } from './predict.js';
 
 export type KNOWN_IMAGEN_MODELS = 'imagen-3.0-generate-002';
@@ -124,7 +124,7 @@ export function defineImagenModel(
       });
     }
   }
-  const modelName = `googleai/${name}`;
+  const modelName = ensurePrefixed(name);
   const modelReference: ModelReference<z.ZodTypeAny> = modelRef({
     name: modelName,
     info: {

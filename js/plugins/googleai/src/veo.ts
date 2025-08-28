@@ -23,7 +23,7 @@ import {
   type ModelReference,
 } from 'genkit/model';
 import { backgroundModel } from 'genkit/plugin';
-import { getApiKeyFromEnvVar } from './common.js';
+import { ensurePrefixed, getApiKeyFromEnvVar } from './common.js';
 import { Operation as ApiOperation, checkOp, predictModel } from './predict.js';
 
 export type KNOWN_VEO_MODELS = 'veo-2.0-generate-001';
@@ -136,7 +136,7 @@ export function defineVeoModel(
       });
     }
   }
-  const modelName = `googleai/${name}`;
+  const modelName = ensurePrefixed(name);
   const model: ModelReference<z.ZodTypeAny> = modelRef({
     name: modelName,
     info: {
