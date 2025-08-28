@@ -16,7 +16,6 @@
 
 import {
   retrieverRef,
-  type Genkit,
   type RetrieverAction,
   type z,
 } from 'genkit';
@@ -26,6 +25,7 @@ import {
   type VertexVectorSearchOptions,
 } from './types';
 import { getProjectNumber } from './utils';
+import { retriever } from 'genkit/plugin';
 
 const DEFAULT_K = 10;
 
@@ -39,23 +39,22 @@ const DEFAULT_K = 10;
  * @returns {RetrieverAction<z.ZodTypeAny>[]} - An array of retriever actions.
  */
 export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
-  ai: Genkit,
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): RetrieverAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
   const defaultEmbedder = params.defaultEmbedder;
 
-  const retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
+  const retrieverActions: RetrieverAction<z.ZodTypeAny>[] = [];
 
   if (!vectorSearchOptions || vectorSearchOptions.length === 0) {
-    return retrievers;
+    return retrieverActions;
   }
 
   for (const vectorSearchOption of vectorSearchOptions) {
     const { documentRetriever, indexId, publicDomainName } = vectorSearchOption;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
-    const retriever = ai.defineRetriever(
+    const retrieverAction = retriever(
       {
         name: `vertexai/${indexId}`,
         configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
@@ -125,10 +124,10 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
       }
     );
 
-    retrievers.push(retriever);
+    retrieverActions.push(retrieverAction);
   }
 
-  return retrievers;
+  return retrieverActions;
 }
 
 /**
