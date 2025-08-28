@@ -864,6 +864,35 @@ func LookupEvaluator(g *Genkit, name string) ai.Evaluator {
 	return ai.LookupEvaluator(g.reg, name)
 }
 
+// Evaluate performs an evaluation request using a flexible set of options
+// provided via [ai.EvaluatorOption] arguments. It's a convenient way to run
+// evaluations using registered evaluators without directly calling the
+// evaluator instance.
+//
+// Example:
+//
+//	dataset := []*ai.Example{
+//		{
+//			Input: "What is the capital of France?",
+//			Reference: "Paris",
+//		},
+//	}
+//
+//	resp, err := genkit.Evaluate(ctx, g,
+//		ai.WithEvaluator("myEvaluator"),
+//		ai.WithDataset(dataset),
+//	)
+//	if err != nil {
+//		log.Fatalf("Evaluate failed: %v", err)
+//	}
+//
+//	for _, result := range *resp {
+//		fmt.Printf("Evaluation result: %+v\n", result)
+//	}
+func Evaluate(ctx context.Context, g *Genkit, opts ...ai.EvaluatorOption) (*ai.EvaluatorResponse, error) {
+	return ai.Evaluate(ctx, g.reg, opts...)
+}
+
 // LoadPromptDir loads all `.prompt` files from the specified directory `dir`
 // into the registry, associating them with the given `namespace`.
 // Files starting with `_` are treated as partials and are not registered as
