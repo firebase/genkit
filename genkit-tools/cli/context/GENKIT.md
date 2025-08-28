@@ -397,7 +397,7 @@ exhaustive list.
 ```
 | Plugin                             | Recommended Model                  |
 |------------------------------------|------------------------------------|
-| @genkit-ai/googleai                | gemini-2.5-pro                     |
+| @genkit-ai/google-genai            | gemini-2.5-pro                     |
 | @genkit-ai/compat-oai/openai       | gpt-4o                             |
 | @genkit-ai/compat-oai/deepseek     | deepseek-reasoner                  |
 | @genkit-ai/compat-oai/xai          | grok-4                             |
