@@ -428,7 +428,7 @@ exhaustive list.
 ```
 | Plugin                             | Recommended Model                  |
 |------------------------------------|------------------------------------|
-| @genkit-ai/googleai                | imagen-4.0-generate-preview-06-06  |
+| @genkit-ai/google-genai            | imagen-4.0-generate-preview-06-06  |
 | @genkit-ai/compat-oai/openai       | gpt-image-1                        |
 ```
 
