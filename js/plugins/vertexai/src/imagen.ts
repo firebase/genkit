@@ -18,7 +18,7 @@ import { z, type Genkit } from 'genkit';
 import {
   GenerationCommonConfigSchema,
   getBasicUsageStats,
-  modelRef,
+  modelRef as createModelRef,
   type CandidateData,
   type GenerateRequest,
   type ModelAction,
@@ -28,6 +28,7 @@ import {
 import type { GoogleAuth } from 'google-auth-library';
 import type { PluginOptions } from './common/types.js';
 import { predictModel, type PredictClient } from './predict.js';
+import { model } from 'genkit/plugin';
 
 /**
  * See https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api.
@@ -162,7 +163,7 @@ export const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
 }).passthrough();
 
-export const imagen2 = modelRef({
+export const imagen2 = createModelRef({
   name: 'vertexai/imagen2',
   info: {
     label: 'Vertex AI - Imagen2',
@@ -179,7 +180,7 @@ export const imagen2 = modelRef({
   configSchema: ImagenConfigSchema,
 });
 
-export const imagen3 = modelRef({
+export const imagen3 = createModelRef({
   name: 'vertexai/imagen3',
   info: {
     label: 'Vertex AI - Imagen3',
@@ -196,7 +197,7 @@ export const imagen3 = modelRef({
   configSchema: ImagenConfigSchema,
 });
 
-export const imagen3Fast = modelRef({
+export const imagen3Fast = createModelRef({
   name: 'vertexai/imagen3-fast',
   info: {
     label: 'Vertex AI - Imagen3 Fast',
@@ -214,7 +215,7 @@ export const imagen3Fast = modelRef({
 });
 
 export const ACTUAL_IMAGEN_MODELS = {
-  'imagen-3.0-generate-001': modelRef({
+  'imagen-3.0-generate-001': createModelRef({
     name: 'vertexai/imagen-3.0-generate-001',
     info: {
       label: 'Vertex AI - imagen-3.0-generate-001',
@@ -228,7 +229,7 @@ export const ACTUAL_IMAGEN_MODELS = {
     },
     configSchema: ImagenConfigSchema,
   }),
-  'imagen-3.0-fast-generate-001': modelRef({
+  'imagen-3.0-fast-generate-001': createModelRef({
     name: 'vertexai/imagen-3.0-fast-generate-001',
     info: {
       label: 'Vertex AI - imagen-3.0-fast-generate-001',
@@ -325,15 +326,14 @@ export const GENERIC_IMAGEN_INFO = {
 } as ModelInfo;
 
 export function defineImagenModel(
-  ai: Genkit,
   name: string,
   client: GoogleAuth,
   options: PluginOptions
 ): ModelAction {
   const modelName = `vertexai/${name}`;
-  const model: ModelReference<z.ZodTypeAny> =
+  const modelRef: ModelReference<z.ZodTypeAny> =
     SUPPORTED_IMAGEN_MODELS[name] ||
-    modelRef({
+    createModelRef({
       name: modelName,
       info: {
         ...GENERIC_IMAGEN_INFO,
@@ -361,16 +361,16 @@ export function defineImagenModel(
           ...options,
           location: requestLocation,
         },
-        request.config?.version || model.version || name
+        request.config?.version || modelRef.version || name
       );
     }
     return predictClients[requestLocation];
   };
 
-  return ai.defineModel(
+  return model(
     {
       name: modelName,
-      ...model.info,
+      ...modelRef.info,
       configSchema: ImagenConfigSchema,
     },
     async (request) => {
