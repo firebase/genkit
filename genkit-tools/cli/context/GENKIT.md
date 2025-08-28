@@ -419,7 +419,7 @@ exhaustive list.
 ```
 | Plugin                             | Recommended Model                  |
 |------------------------------------|------------------------------------|
-| @genkit-ai/googleai                | gemini-2.5-flash-preview-tts       |
+| @genkit-ai/google-genai            | gemini-2.5-flash-preview-tts       |
 | @genkit-ai/compat-oai/openai       | gpt-4o-mini-tts                    |
 ```
 
