@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { genkitPluginV2, ResolvableAction, type GenkitPluginV2 } from 'genkit/plugin';
+import {
+  genkitPluginV2,
+  ResolvableAction,
+  type GenkitPluginV2,
+} from 'genkit/plugin';
 import { getDerivedParams } from '../common/index.js';
 import type { PluginOptions } from './types.js';
 import { vertexAiIndexers, vertexAiRetrievers } from './vector_search/index.js';
@@ -120,27 +124,32 @@ export function vertexAIVectorSearch(options?: PluginOptions): GenkitPluginV2 {
   return genkitPluginV2({
     name: 'vertexAIVectorSearch',
     init: async () => {
-    const { authClient } = await getDerivedParams(options);
+      const { authClient } = await getDerivedParams(options);
 
-    const actions: ResolvableAction[] = [];
+      const actions: ResolvableAction[] = [];
 
-    if (
-      options?.vectorSearchOptions &&
-      options.vectorSearchOptions.length > 0
-    ) {
-      actions.push(...vertexAiIndexers({
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder: options.embedder,
-      }));
+      if (
+        options?.vectorSearchOptions &&
+        options.vectorSearchOptions.length > 0
+      ) {
+        actions.push(
+          ...vertexAiIndexers({
+            pluginOptions: options,
+            authClient,
+            defaultEmbedder: options.embedder,
+          })
+        );
 
-      actions.push(...vertexAiRetrievers({
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder: options.embedder,
-      }));
-    }
+        actions.push(
+          ...vertexAiRetrievers({
+            pluginOptions: options,
+            authClient,
+            defaultEmbedder: options.embedder,
+          })
+        );
+      }
 
-    return actions;
-  }});
+      return actions;
+    },
+  });
 }

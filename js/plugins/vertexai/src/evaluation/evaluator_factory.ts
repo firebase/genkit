@@ -16,11 +16,11 @@
 
 import { type Action, type z } from 'genkit';
 import type { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { evaluator } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import type { GoogleAuth } from 'google-auth-library';
 import { getGenkitClientHeader } from '../common/index.js';
 import type { VertexAIEvaluationMetricType } from './evaluation.js';
-import { evaluator } from 'genkit/plugin';
 
 export class EvaluatorFactory {
   constructor(

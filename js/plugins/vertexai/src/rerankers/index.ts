@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import type { Genkit } from 'genkit';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
 import type { CommonPluginOptions } from '../common/types.js';
 import type { RerankerOptions } from './types.js';
@@ -32,7 +31,8 @@ export function vertexAIRerankers(options: PluginOptions): GenkitPluginV2 {
   return genkitPluginV2({
     name: 'vertexAIRerankers',
     init: async () => {
-      const { projectId, location, authClient } = await getDerivedParams(options);
+      const { projectId, location, authClient } =
+        await getDerivedParams(options);
 
       return vertexAiRerankers({
         projectId,

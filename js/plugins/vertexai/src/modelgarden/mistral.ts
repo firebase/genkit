@@ -45,8 +45,8 @@ import {
   modelRef,
   type ModelAction,
 } from 'genkit/model';
-import { getGenkitClientHeader } from '../common/index.js';
 import { model } from 'genkit/plugin';
+import { getGenkitClientHeader } from '../common/index.js';
 
 /**
  * See https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post

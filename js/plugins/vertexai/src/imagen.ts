@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-import { z, type Genkit } from 'genkit';
+import { z } from 'genkit';
 import {
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   modelRef as createModelRef,
+  getBasicUsageStats,
   type CandidateData,
   type GenerateRequest,
   type ModelAction,
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
+import { model } from 'genkit/plugin';
 import type { GoogleAuth } from 'google-auth-library';
 import type { PluginOptions } from './common/types.js';
 import { predictModel, type PredictClient } from './predict.js';
-import { model } from 'genkit/plugin';
 
 /**
  * See https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api.

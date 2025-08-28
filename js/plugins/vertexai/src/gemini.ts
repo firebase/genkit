@@ -56,13 +56,13 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
+import { model } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import { getGenkitClientHeader } from './common/index.js';
 import type { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
-import { model } from 'genkit/plugin';
 
 // Extra type guard to keep the compiler happy and avoid a cast to any. The
 // legacy Gemini SDK is no longer maintained, and doesn't have updated types.
