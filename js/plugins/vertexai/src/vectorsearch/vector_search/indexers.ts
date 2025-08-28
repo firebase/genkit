@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import type { Genkit, z } from 'genkit';
+import type { z } from 'genkit';
+import { indexer } from 'genkit/plugin';
 import { indexerRef, type IndexerAction } from 'genkit/retriever';
 import {
   Datapoint,
@@ -54,14 +55,13 @@ export const vertexAiIndexerRef = (params: {
  * @returns {IndexerAction<z.ZodTypeAny>[]} - An array of indexer actions.
  */
 export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
-  ai: Genkit,
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): IndexerAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
-  const indexers: IndexerAction<z.ZodTypeAny>[] = [];
+  const indexerActions: IndexerAction<z.ZodTypeAny>[] = [];
 
   if (!vectorSearchOptions || vectorSearchOptions.length === 0) {
-    return indexers;
+    return indexerActions;
   }
 
   for (const vectorSearchOption of vectorSearchOptions) {
@@ -76,7 +76,7 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
     }
     const embedderOptions = vectorSearchOption.embedderOptions;
 
-    const indexer = ai.defineIndexer(
+    const indexerAction = indexer(
       {
         name: `vertexai/${indexId}`,
         configSchema: VertexAIVectorIndexerOptionsSchema.optional(),
@@ -128,7 +128,7 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
       }
     );
 
-    indexers.push(indexer);
+    indexerActions.push(indexerAction);
   }
-  return indexers;
+  return indexerActions;
 }
