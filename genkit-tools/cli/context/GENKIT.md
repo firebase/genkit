@@ -21,13 +21,13 @@ NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but 
     ```bash
     mkdir my-genkit-app && cd my-genkit-app
     npm init -y
-    npm install -D typescript tsx @types/node
+    npm install -D typescript tsx \@types/node
     ```
 
 2.  **Install Dependencies**
 
     ```bash
-    npm install genkit @genkit-ai/google-genai data-urls node-fetch
+    npm install genkit \@genkit-ai/google-genai data-urls node-fetch
     ```
 
 3.  **Install Genkit CLI**
@@ -389,7 +389,7 @@ export const videoGenerationFlow = ai.defineFlow(
 
 ## Suggested Models
 
-Here are suggested models to use for various task types. This is not an
+Here are suggested models to use for various task types. This is NOT an
 exhaustive list.
 
 ### Advanced Text/Reasoning
@@ -426,10 +426,11 @@ exhaustive list.
 ### Image Generation
 
 ```
-| Plugin                             | Recommended Model                  |
-|------------------------------------|------------------------------------|
-| @genkit-ai/google-genai            | imagen-4.0-generate-preview-06-06  |
-| @genkit-ai/compat-oai/openai       | gpt-image-1                        |
+| Plugin                             | Recommended Model                  | Input Modalities  |
+|------------------------------------|------------------------------------|-------------------|
+| @genkit-ai/google-genai            | gemini-2.5-flash-image-preview     | Text, Image       |
+| @genkit-ai/google-genai            | imagen-4.0-generate-preview-06-06  | Text              |
+| @genkit-ai/compat-oai/openai       | gpt-image-1                        | Text              |
 ```
 
 ### Video Generation
