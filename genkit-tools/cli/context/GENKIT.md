@@ -437,5 +437,5 @@ exhaustive list.
 ```
 | Plugin                             | Recommended Model                  |
 |------------------------------------|------------------------------------|
-| @genkit-ai/googleai                | veo-3.0-generate-preview           |
+| @genkit-ai/google-genai            | veo-3.0-generate-preview           |
 ```
