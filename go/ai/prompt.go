@@ -50,6 +50,18 @@ type prompt struct {
 	registry *registry.Registry
 }
 
+// SchemaRef is a reference to a prompt schema
+type SchemaRef interface {
+	Name() string
+}
+
+type SchemaName string
+
+// Name returns the name of the prompt schema
+func (s SchemaName) Name() string {
+	return (string)(s)
+}
+
 // DefinePrompt creates a new [Prompt] and registers it.
 func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) Prompt {
 	if name == "" {
@@ -120,6 +132,12 @@ func LookupPrompt(r *registry.Registry, name string) Prompt {
 	}
 }
 
+// DefineSchema defines a schema in the registry
+// It panics if an error was encountered
+func DefineSchema(r *registry.Registry, name string, schema any) {
+	// TODO: marshal the schema and store it into the registry
+}
+
 // Execute renders a prompt, does variable substitution and
 // passes the rendered template to the AI model specified by the prompt.
 func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
@@ -183,6 +201,8 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 	if input == nil {
 		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
+
+	// TODO: should we consider output atp?
 
 	return p.Run(ctx, input, nil)
 }
@@ -542,6 +562,8 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) Prompt {
 	for i, tool := range metadata.Tools {
 		toolRefs[i] = ToolName(tool)
 	}
+
+	// TODO: get input/output schemas from metadata
 
 	promptMetadata := map[string]any{
 		"template": parsedPrompt.Template,
