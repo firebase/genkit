@@ -23,8 +23,8 @@ import (
 	"maps"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/registry"
 )
 
 var resumedCtxKey = base.NewContextKey[map[string]any]()
@@ -52,7 +52,7 @@ func (t ToolName) Name() string {
 // because the inputs/outputs can vary and the tool is only meant to be called
 // with JSON input anyway.
 type tool struct {
-	core.Action
+	api.Action
 }
 
 // Tool represents a tool that can be called by a model.
@@ -68,6 +68,8 @@ type Tool interface {
 	// Restart constructs a [Part] with a new [ToolRequest] to re-trigger a tool,
 	// potentially with new input and metadata.
 	Restart(toolReq *Part, opts *RestartOptions) *Part
+	// Register registers the tool with the given registry.
+	Register(r api.Registry)
 }
 
 // toolInterruptError represents an intentional interruption of tool execution.
@@ -117,24 +119,24 @@ type ToolContext struct {
 
 // DefineTool creates a new [Tool] and registers it.
 func DefineTool[In, Out any](
-	r *registry.Registry,
+	r api.Registry,
 	name, description string,
 	fn ToolFunc[In, Out],
 ) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
-	toolAction := core.DefineAction(r, name, core.ActionTypeTool, metadata, nil, wrappedFn)
+	toolAction := core.DefineAction(r, name, api.ActionTypeTool, metadata, nil, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
 // DefineToolWithInputSchema creates a new [Tool] with a custom input schema and registers it.
 func DefineToolWithInputSchema[Out any](
-	r *registry.Registry,
+	r api.Registry,
 	name, description string,
 	inputSchema map[string]any,
 	fn ToolFunc[any, Out],
 ) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
-	toolAction := core.DefineAction(r, name, core.ActionTypeTool, metadata, inputSchema, wrappedFn)
+	toolAction := core.DefineAction(r, name, api.ActionTypeTool, metadata, inputSchema, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
@@ -142,14 +144,14 @@ func DefineToolWithInputSchema[Out any](
 func NewTool[In, Out any](name, description string, fn ToolFunc[In, Out]) Tool {
 	metadata, wrappedFn := implementTool(name, description, fn)
 	metadata["dynamic"] = true
-	toolAction := core.NewAction(name, core.ActionTypeTool, metadata, nil, wrappedFn)
+	toolAction := core.NewAction(name, api.ActionTypeTool, metadata, nil, wrappedFn)
 	return &tool{Action: toolAction}
 }
 
 // implementTool creates the metadata and wrapped function common to both DefineTool and NewTool.
 func implementTool[In, Out any](name, description string, fn ToolFunc[In, Out]) (map[string]any, func(context.Context, In) (Out, error)) {
 	metadata := map[string]any{
-		"type":        core.ActionTypeTool,
+		"type":        api.ActionTypeTool,
 		"name":        name,
 		"description": description,
 	}
@@ -193,7 +195,7 @@ func (t *tool) RunRaw(ctx context.Context, input any) (any, error) {
 }
 
 // runAction runs the given action with the provided raw input and returns the output in raw format.
-func runAction(ctx context.Context, def *ToolDefinition, action core.Action, input any) (any, error) {
+func runAction(ctx context.Context, def *ToolDefinition, action api.Action, input any) (any, error) {
 	mi, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling tool input for %v: %v", def.Name, err)
@@ -212,17 +214,17 @@ func runAction(ctx context.Context, def *ToolDefinition, action core.Action, inp
 }
 
 // LookupTool looks up the tool in the registry by provided name and returns it.
-func LookupTool(r *registry.Registry, name string) Tool {
+func LookupTool(r api.Registry, name string) Tool {
 	if name == "" {
 		return nil
 	}
-	provider, id := core.ParseName(name)
-	key := core.NewKey(core.ActionTypeTool, provider, id)
+	provider, id := api.ParseName(name)
+	key := api.NewKey(api.ActionTypeTool, provider, id)
 	action := r.LookupAction(key)
 	if action == nil {
 		return nil
 	}
-	return &tool{Action: action.(core.Action)}
+	return &tool{Action: action}
 }
 
 // Respond creates a tool response for an interrupted tool call to pass to the [WithToolResponses] option to [Generate].

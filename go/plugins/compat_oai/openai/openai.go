@@ -20,6 +20,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	openaiGo "github.com/openai/openai-go"
@@ -175,7 +176,7 @@ func (o *OpenAI) Name() string {
 }
 
 // Init implements genkit.Plugin.
-func (o *OpenAI) Init(ctx context.Context) []core.Action {
+func (o *OpenAI) Init(ctx context.Context) []api.Action {
 	apiKey := o.APIKey
 
 	// if api key is not set, get it from environment variable
@@ -202,12 +203,12 @@ func (o *OpenAI) Init(ctx context.Context) []core.Action {
 	o.openAICompatible.Provider = provider
 	compatActions := o.openAICompatible.Init(ctx)
 
-	var actions []core.Action
+	var actions []api.Action
 	actions = append(actions, compatActions...)
 
 	// define default models
 	for model, opts := range supportedModels {
-		actions = append(actions, o.DefineModel(model, opts).(core.Action))
+		actions = append(actions, o.DefineModel(model, opts).(api.Action))
 	}
 
 	// define default embedders
@@ -218,14 +219,14 @@ func (o *OpenAI) Init(ctx context.Context) []core.Action {
 			Supports:     embedder.Supports,
 			Dimensions:   embedder.Dimensions,
 		}
-		actions = append(actions, o.DefineEmbedder(embedder.Name, opts).(core.Action))
+		actions = append(actions, o.DefineEmbedder(embedder.Name, opts).(api.Action))
 	}
 
 	return actions
 }
 
 func (o *OpenAI) Model(g *genkit.Genkit, name string) ai.Model {
-	return o.openAICompatible.Model(g, core.NewName(provider, name))
+	return o.openAICompatible.Model(g, api.NewName(provider, name))
 }
 
 func (o *OpenAI) DefineModel(id string, opts ai.ModelOptions) ai.Model {
@@ -237,13 +238,13 @@ func (o *OpenAI) DefineEmbedder(id string, opts *ai.EmbedderOptions) ai.Embedder
 }
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {
-	return o.openAICompatible.Embedder(g, core.NewName(provider, name))
+	return o.openAICompatible.Embedder(g, api.NewName(provider, name))
 }
 
-func (o *OpenAI) ListActions(ctx context.Context) []core.ActionDesc {
+func (o *OpenAI) ListActions(ctx context.Context) []api.ActionDesc {
 	return o.openAICompatible.ListActions(ctx)
 }
 
-func (o *OpenAI) ResolveAction(atype core.ActionType, name string) core.Action {
+func (o *OpenAI) ResolveAction(atype api.ActionType, name string) api.Action {
 	return o.openAICompatible.ResolveAction(atype, name)
 }

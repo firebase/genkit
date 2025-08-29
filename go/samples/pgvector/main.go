@@ -37,7 +37,7 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	_ "github.com/lib/pq"
@@ -165,7 +165,7 @@ func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder, retOpts
 		}
 		return res, nil
 	}
-	return genkit.DefineRetriever(g, core.NewName(provider, "shows"), retOpts, f)
+	return genkit.DefineRetriever(g, api.NewName(provider, "shows"), retOpts, f)
 }
 
 // [END retr]

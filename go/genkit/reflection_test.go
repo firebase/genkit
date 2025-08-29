@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 )
 
@@ -86,8 +87,8 @@ func TestServeMux(t *testing.T) {
 	tc := tracing.NewTestOnlyTelemetryClient()
 	tracing.WriteTelemetryImmediate(tc)
 
-	core.DefineAction(g.reg, "test/inc", core.ActionTypeCustom, nil, nil, inc)
-	core.DefineAction(g.reg, "test/dec", core.ActionTypeCustom, nil, nil, dec)
+	core.DefineAction(g.reg, "test/inc", api.ActionTypeCustom, nil, nil, inc)
+	core.DefineAction(g.reg, "test/dec", api.ActionTypeCustom, nil, nil, dec)
 
 	ts := httptest.NewServer(serveMux(g))
 	defer ts.Close()
@@ -112,7 +113,7 @@ func TestServeMux(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		var actions map[string]core.ActionDesc
+		var actions map[string]api.ActionDesc
 		if err := json.NewDecoder(res.Body).Decode(&actions); err != nil {
 			t.Fatal(err)
 		}
@@ -201,7 +202,7 @@ func TestServeMux(t *testing.T) {
 			}
 			return x, nil
 		}
-		core.DefineStreamingAction(g.reg, "test/streaming", core.ActionTypeCustom, nil, nil, streamingInc)
+		core.DefineStreamingAction(g.reg, "test/streaming", api.ActionTypeCustom, nil, nil, streamingInc)
 
 		body := `{"key": "/custom/test/streaming", "input": 3}`
 		req, err := http.NewRequest("POST", ts.URL+"/api/runAction?stream=true", strings.NewReader(body))
