@@ -16,6 +16,7 @@
 
 import {
   ROOT_CONTEXT,
+  SpanOptions,
   SpanStatusCode,
   trace,
   type Span as ApiSpan,
@@ -95,9 +96,15 @@ export async function runInNewSpan<T>(
     getAsyncContext().getStore<SpanContext>(spanMetadataAlsKey);
   const isInRoot = parentStep?.metadata?.isRoot === true;
   if (!parentStep) opts.metadata.isRoot ||= true;
+
+  const spanOptions: SpanOptions = { links: opts.links };
+  if (!isDisableRootSpanDetection()) {
+    spanOptions.root = opts.metadata.isRoot;
+  }
+
   return await tracer.startActiveSpan(
     opts.metadata.name,
-    { links: opts.links, root: opts.metadata.isRoot },
+    spanOptions,
     async (otSpan) => {
       if (opts.labels) otSpan.setAttributes(opts.labels);
       const spanContext = {
@@ -316,4 +323,17 @@ function decoratePathWithSubtype(metadata: SpanMetadata): string {
   const root = `${pathComponents.slice(0, -1).join('}/{')}}/`;
   const decoratedStep = `{${pathComponents.at(-1)?.slice(0, -1)}${stepSubtype}}`;
   return root + decoratedStep;
+}
+
+const rootSpanDetectionKey = '__genkit_disableRootSpanDetection';
+
+function isDisableRootSpanDetection(): boolean {
+  return global[rootSpanDetectionKey] === true;
+}
+
+/**
+ * Disables Genkit's custom root span detection and leaves default Otel root span.
+ */
+export function disableOTelRootSpanDetection() {
+  global[rootSpanDetectionKey] = true;
 }
