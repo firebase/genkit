@@ -333,6 +333,12 @@ function isDisableRootSpanDetection(): boolean {
 
 /**
  * Disables Genkit's custom root span detection and leaves default Otel root span.
+ *
+ * This function attempts to control Genkit's internal OTel instrumentation behaviour,
+ * since internal implementation details are subject to change at any time consider
+ * this function "unstable" and subject to breaking changes as well.
+ *
+ * @hidden
  */
 export function disableOTelRootSpanDetection() {
   global[rootSpanDetectionKey] = true;
