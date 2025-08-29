@@ -139,7 +139,7 @@ func (m *MCPManager) GetActiveTools(ctx context.Context, gk *genkit.Genkit) ([]a
 }
 
 // GetPrompt retrieves a specific prompt from a specific server
-func (m *MCPManager) GetPrompt(ctx context.Context, gk *genkit.Genkit, serverName, promptName string, args map[string]string) (*ai.Prompt, error) {
+func (m *MCPManager) GetPrompt(ctx context.Context, gk *genkit.Genkit, serverName, promptName string, args map[string]string) (ai.Prompt, error) {
 	client, exists := m.clients[serverName]
 	if !exists {
 		return nil, fmt.Errorf("no client found with name '%s'", serverName)

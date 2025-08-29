@@ -15,11 +15,12 @@
  */
 
 import * as assert from 'assert';
-import { GENKIT_CLIENT_HEADER, Genkit } from 'genkit';
+import { Genkit } from 'genkit';
 import { GenerateRequest, getBasicUsageStats } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
 import { getVertexAIUrl } from '../../src/vertexai/client';
 import {
   fromImagenResponse,
@@ -148,8 +149,8 @@ describe('Vertex AI Imagen', () => {
     ): Record<string, string | undefined> {
       const headers: Record<string, string | undefined> = {
         'Content-Type': 'application/json',
-        'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-        'User-Agent': GENKIT_CLIENT_HEADER,
+        'X-Goog-Api-Client': getGenkitClientHeader(),
+        'User-Agent': getGenkitClientHeader(),
         Authorization: 'Bearer test-token',
         'x-goog-user-project':
           clientOptions.kind != 'express' ? clientOptions.projectId : '',

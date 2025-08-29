@@ -63,7 +63,7 @@ export class ValidationError extends GenkitError {
 }
 
 /**
- * Convertes a Zod schema into a JSON schema, utilizing an in-memory cache for known objects.
+ * Converts a Zod schema into a JSON schema, utilizing an in-memory cache for known objects.
  * @param options Provide a json schema and/or zod schema. JSON schema has priority.
  * @returns A JSON schema.
  */
@@ -123,7 +123,7 @@ export function validateSchema(
 }
 
 /**
- * Parses raw data object agaisnt the provided schema.
+ * Parses raw data object against the provided schema.
  */
 export function parseSchema<T = unknown>(
   data: unknown,

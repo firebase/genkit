@@ -38,13 +38,7 @@ import {
   type ToolConfig,
   type UsageMetadata,
 } from '@google/generative-ai';
-import {
-  GENKIT_CLIENT_HEADER,
-  GenkitError,
-  z,
-  type Genkit,
-  type JSONSchema,
-} from 'genkit';
+import { GenkitError, z, type Genkit, type JSONSchema } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -64,7 +58,7 @@ import {
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
-import { getApiKeyFromEnvVar } from './common';
+import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
@@ -1214,7 +1208,7 @@ export function defineGoogleAIModel({
       use: middleware,
     },
     async (request, { streamingRequested, sendChunk, abortSignal }) => {
-      const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
+      const options: RequestOptions = { apiClient: getGenkitClientHeader() };
       if (apiVersion) {
         options.apiVersion = apiVersion;
       }

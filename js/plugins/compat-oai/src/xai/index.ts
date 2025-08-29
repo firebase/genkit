@@ -148,6 +148,7 @@ const model = ((name: string, config?: any): ModelReference<z.ZodTypeAny> => {
     return xaiImageModelRef({
       name,
       config,
+      namespace: 'xai',
     });
   }
   return xaiModelRef({

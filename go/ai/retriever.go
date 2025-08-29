@@ -37,7 +37,9 @@ type Retriever interface {
 }
 
 // retriever is an action with functions specific to document retrieval such as Retrieve().
-type retriever core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
+type retriever struct {
+	core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}]
+}
 
 // RetrieverArg is the interface for retriever arguments. It can either be the retriever action itself or a reference to be looked up.
 type RetrieverArg interface {
@@ -81,11 +83,10 @@ type RetrieverOptions struct {
 	Supports *RetrieverSupports `json:"supports,omitempty"`
 }
 
-// DefineRetriever registers the given retrieve function as an action, and returns a
-// [Retriever] that runs it.
-func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
+// NewRetriever creates a new [Retriever].
+func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
 	if name == "" {
-		panic("ai.Retrieve: retriever name is required")
+		panic("ai.NewRetriever: retriever name is required")
 	}
 
 	if opts == nil {
@@ -117,23 +118,34 @@ func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, 
 		}
 	}
 
-	return (*retriever)(core.DefineAction(r, name, core.ActionTypeRetriever, metadata, fn))
+	return &retriever{
+		ActionDef: *core.NewAction(name, core.ActionTypeRetriever, metadata, inputSchema, fn),
+	}
+}
+
+// DefineRetriever creates a new [Retriever] and registers it.
+func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
+	ret := NewRetriever(name, opts, fn)
+	ret.(*retriever).Register(r)
+	return ret
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
-// It returns nil if the retriever was not defined.
+// It will try to resolve the retriever dynamically if the retriever is not found.
+// It returns nil if the retriever was not resolved.
 func LookupRetriever(r *registry.Registry, name string) Retriever {
-	return (*retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, name))
-}
-
-// Name returns the name of the retriever.
-func (r retriever) Name() string {
-	return (*core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}])(&r).Name()
+	action := core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, name)
+	if action == nil {
+		return nil
+	}
+	return &retriever{
+		ActionDef: *action,
+	}
 }
 
 // Retrieve runs the given [Retriever].
 func (r retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
-	return (*core.ActionDef[*RetrieverRequest, *RetrieverResponse, struct{}])(&r).Run(ctx, req, nil)
+	return r.Run(ctx, req, nil)
 }
 
 // Retrieve calls the retriever with the provided options.
@@ -149,6 +161,9 @@ func Retrieve(ctx context.Context, r *registry.Registry, opts ...RetrieverOption
 		return nil, errors.New("ai.Retrieve: only supports a single document as input")
 	}
 
+	if retOpts.Retriever == nil {
+		return nil, fmt.Errorf("ai.Retrieve: retriever must be set")
+	}
 	ret, ok := retOpts.Retriever.(Retriever)
 	if !ok {
 		ret = LookupRetriever(r, retOpts.Retriever.Name())
