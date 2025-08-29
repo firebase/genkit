@@ -39,7 +39,7 @@ func main() {
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 				ThinkingConfig: &genai.ThinkingConfig{
-					ThinkingBudget: genai.Ptr[int32](0), // disable thinking in the generate call
+					ThinkingBudget: genai.Ptr[int32](0),
 				},
 			}),
 			ai.WithPrompt(`Tell short jokes about %s`, input))
@@ -47,8 +47,7 @@ func main() {
 			return "", err
 		}
 
-		text := resp.Text()
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	<-ctx.Done()

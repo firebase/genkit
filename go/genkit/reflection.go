@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
@@ -359,7 +360,7 @@ func handleNotify() func(w http.ResponseWriter, r *http.Request) error {
 func handleListActions(g *Genkit) func(w http.ResponseWriter, r *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		ads := listResolvableActions(r.Context(), g)
-		descMap := map[string]core.ActionDesc{}
+		descMap := map[string]api.ActionDesc{}
 		for _, d := range ads {
 			descMap[d.Key] = d
 		}
@@ -368,17 +369,12 @@ func handleListActions(g *Genkit) func(w http.ResponseWriter, r *http.Request) e
 }
 
 // listActions lists all the registered actions.
-func listActions(g *Genkit) []core.ActionDesc {
-	ads := []core.ActionDesc{}
+func listActions(g *Genkit) []api.ActionDesc {
+	ads := []api.ActionDesc{}
 
 	actions := g.reg.ListActions()
 	for _, a := range actions {
-		action, ok := a.(core.Action)
-		if !ok {
-			continue
-		}
-
-		ads = append(ads, action.Desc())
+		ads = append(ads, a.Desc())
 	}
 
 	sort.Slice(ads, func(i, j int) bool {
@@ -389,13 +385,13 @@ func listActions(g *Genkit) []core.ActionDesc {
 }
 
 // listResolvableActions lists all the registered and resolvable actions.
-func listResolvableActions(ctx context.Context, g *Genkit) []core.ActionDesc {
+func listResolvableActions(ctx context.Context, g *Genkit) []api.ActionDesc {
 	ads := listActions(g)
 	keys := make(map[string]struct{})
 
 	plugins := g.reg.ListPlugins()
 	for _, p := range plugins {
-		dp, ok := p.(DynamicPlugin)
+		dp, ok := p.(api.DynamicPlugin)
 		if !ok {
 			// Not all plugins are DynamicPlugins; skip if not.
 			continue
@@ -451,7 +447,7 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 			}
 		}
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
-		return action.(core.Action).RunJSON(ctx, input, cb)
+		return action.RunJSON(ctx, input, cb)
 	})
 	if err != nil {
 		return nil, err

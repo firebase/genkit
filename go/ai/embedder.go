@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/core/api"
 )
 
 // EmbedderFunc is the function type for embedding documents.
@@ -33,6 +33,8 @@ type Embedder interface {
 	Name() string
 	// Embed embeds to content as part of the [EmbedRequest].
 	Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error)
+	// Register registers the embedder with the given registry.
+	Register(r api.Registry)
 }
 
 // EmbedderArg is the interface for embedder arguments. It can either be the embedder action itself or a reference to be looked up.
@@ -102,7 +104,7 @@ func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 	}
 
 	metadata := map[string]any{
-		"type": core.ActionTypeEmbedder,
+		"type": api.ActionTypeEmbedder,
 		// TODO: This should be under "embedder" but JS has it as "info".
 		"info": map[string]any{
 			"label":      opts.Label,
@@ -125,23 +127,23 @@ func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 	}
 
 	return &embedder{
-		ActionDef: *core.NewAction(name, core.ActionTypeEmbedder, metadata, nil, fn),
+		ActionDef: *core.NewAction(name, api.ActionTypeEmbedder, metadata, nil, fn),
 	}
 }
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
-func DefineEmbedder(r *registry.Registry, name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
+func DefineEmbedder(r api.Registry, name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 	e := NewEmbedder(name, opts, fn)
-	e.(*embedder).Register(r)
+	e.Register(r)
 	return e
 }
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
 // It will try to resolve the embedder dynamically if the embedder is not found.
 // It returns nil if the embedder was not resolved.
-func LookupEmbedder(r *registry.Registry, name string) Embedder {
-	action := core.ResolveActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, core.ActionTypeEmbedder, name)
+func LookupEmbedder(r api.Registry, name string) Embedder {
+	action := core.ResolveActionFor[*EmbedRequest, *EmbedResponse, struct{}](r, api.ActionTypeEmbedder, name)
 	if action == nil {
 		return nil
 	}
@@ -152,11 +154,15 @@ func LookupEmbedder(r *registry.Registry, name string) Embedder {
 
 // Embed runs the given [Embedder].
 func (e *embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
+	if e == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Embedder.Embed: embedder called on a nil embedder; check that all embedders are defined")
+	}
+
 	return e.Run(ctx, req, nil)
 }
 
 // Embed invokes the embedder with provided options.
-func Embed(ctx context.Context, r *registry.Registry, opts ...EmbedderOption) (*EmbedResponse, error) {
+func Embed(ctx context.Context, r api.Registry, opts ...EmbedderOption) (*EmbedResponse, error) {
 	embedOpts := &embedderOptions{}
 	for _, opt := range opts {
 		if err := opt.applyEmbedder(embedOpts); err != nil {

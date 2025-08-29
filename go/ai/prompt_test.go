@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
@@ -33,7 +33,7 @@ type InputOutput struct {
 	Text string `json:"text"`
 }
 
-func testTool(reg *registry.Registry, name string) Tool {
+func testTool(reg api.Registry, name string) Tool {
 	return DefineTool(reg, name, "use when need to execute a test",
 		func(ctx *ToolContext, input struct {
 			Test string
@@ -147,7 +147,7 @@ type HelloPromptInput struct {
 	Name string
 }
 
-func definePromptModel(reg *registry.Registry) Model {
+func definePromptModel(reg api.Registry) Model {
 	return DefineModel(reg, "test/chat",
 		&ModelOptions{Supports: &ModelSupports{
 			Tools:      true,
@@ -829,20 +829,20 @@ Hello, {{name}}!
 		t.Fatalf("Prompt was not registered")
 	}
 
-	if prompt.(core.Action).Desc().InputSchema == nil {
+	if prompt.(api.Action).Desc().InputSchema == nil {
 		t.Fatal("Input schema is nil")
 	}
 
-	if prompt.(core.Action).Desc().InputSchema["type"] != "object" {
-		t.Errorf("Expected input schema type 'object', got '%s'", prompt.(core.Action).Desc().InputSchema["type"])
+	if prompt.(api.Action).Desc().InputSchema["type"] != "object" {
+		t.Errorf("Expected input schema type 'object', got '%s'", prompt.(api.Action).Desc().InputSchema["type"])
 	}
 
-	promptMetadata, ok := prompt.(core.Action).Desc().Metadata["prompt"].(map[string]any)
+	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
 	if !ok {
-		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.(core.Action).Desc().Metadata["prompt"])
+		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.(api.Action).Desc().Metadata["prompt"])
 	}
 	if promptMetadata["model"] != "test-model" {
-		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(core.Action).Desc().Metadata["model"])
+		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(api.Action).Desc().Metadata["model"])
 	}
 }
 

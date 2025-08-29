@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/firestore"
 	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"google.golang.org/api/iterator"
 )
@@ -121,6 +122,8 @@ func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.Emb
 	}
 	return &ai.EmbedResponse{Embeddings: embeddings}, nil
 }
+
+func (e *MockEmbedder) Register(r api.Registry) {}
 
 // To run this test you must have a Firestore database initialized in a GCP project, with a vector indexed collection (of dimension 3).
 // Warning: This test will delete all documents in the collection in cleanup.

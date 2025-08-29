@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -135,7 +135,7 @@ func (o *Ollama) DefineEmbedder(g *genkit.Genkit, serverAddress string, model st
 	if !o.initted {
 		panic("ollama.Init not called")
 	}
-	return genkit.DefineEmbedder(g, core.NewName(provider, serverAddress), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return genkit.DefineEmbedder(g, api.NewName(provider, serverAddress), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		if req.Options == nil {
 			req.Options = &EmbedOptions{Model: model}
 		}
@@ -148,11 +148,11 @@ func (o *Ollama) DefineEmbedder(g *genkit.Genkit, serverAddress string, model st
 
 // IsDefinedEmbedder reports whether the embedder with the given server address is defined by this plugin.
 func IsDefinedEmbedder(g *genkit.Genkit, serverAddress string) bool {
-	return genkit.LookupEmbedder(g, core.NewName(provider, serverAddress)) != nil
+	return genkit.LookupEmbedder(g, api.NewName(provider, serverAddress)) != nil
 }
 
 // Embedder returns the [ai.Embedder] with the given server address.
 // It returns nil if the embedder was not defined.
 func Embedder(g *genkit.Genkit, serverAddress string) ai.Embedder {
-	return genkit.LookupEmbedder(g, core.NewName(provider, serverAddress))
+	return genkit.LookupEmbedder(g, api.NewName(provider, serverAddress))
 }

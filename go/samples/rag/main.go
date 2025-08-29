@@ -44,6 +44,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/evaluators"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
@@ -118,7 +119,7 @@ func main() {
 		IsBilled:    false,
 	}
 
-	genkit.DefineEvaluator(g, core.NewName("custom", "simpleEvaluator"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+	genkit.DefineEvaluator(g, api.NewName("custom", "simpleEvaluator"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
 		m := make(map[string]any)
 		m["reasoning"] = "No good reason"
 		score := ai.Score{
@@ -134,7 +135,7 @@ func main() {
 		return &callbackResponse, nil
 	})
 
-	genkit.DefineBatchEvaluator(g, core.NewName("custom", "simpleBatchEvaluator"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
+	genkit.DefineBatchEvaluator(g, api.NewName("custom", "simpleBatchEvaluator"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
 		var evalResponses []ai.EvaluationResult
 		for _, datapoint := range req.Dataset {
 			m := make(map[string]any)

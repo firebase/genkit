@@ -30,7 +30,7 @@ import (
 	"cloud.google.com/go/logging"
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -56,13 +56,13 @@ func (gc *GoogleCloud) Name() string {
 
 // Init initializes all telemetry in this package.
 // In the dev environment, this does nothing unless [Options.ForceExport] is true.
-func (gc *GoogleCloud) Init(ctx context.Context) []core.Action {
+func (gc *GoogleCloud) Init(ctx context.Context) []api.Action {
 	if gc.ProjectID == "" {
 		panic("config missing ProjectID")
 	}
 	shouldExport := gc.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
 	if !shouldExport {
-		return []core.Action{}
+		return []api.Action{}
 	}
 	// Add a SpanProcessor for tracing.
 	texp, err := texporter.New(texporter.WithProjectID(gc.ProjectID))
@@ -77,7 +77,7 @@ func (gc *GoogleCloud) Init(ctx context.Context) []core.Action {
 	if err := setLogHandler(gc.ProjectID, gc.LogLevel); err != nil {
 		panic(fmt.Errorf("googlecloud.Init: %w", err))
 	}
-	return []core.Action{}
+	return []api.Action{}
 }
 
 func setMeterProvider(projectID string, interval time.Duration) error {

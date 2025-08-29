@@ -17,7 +17,7 @@ package ai
 import (
 	"fmt"
 
-	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/core/api"
 )
 
 const (
@@ -57,19 +57,19 @@ type FormatHandler interface {
 }
 
 // ConfigureFormats registers default formats in the registry
-func ConfigureFormats(reg *registry.Registry) {
+func ConfigureFormats(reg api.Registry) {
 	for _, format := range DEFAULT_FORMATS {
 		DefineFormat(reg, "/format/"+format.Name(), format)
 	}
 }
 
 // DefineFormat defines and registers a new [Formatter].
-func DefineFormat(r *registry.Registry, name string, formatter Formatter) {
+func DefineFormat(r api.Registry, name string, formatter Formatter) {
 	r.RegisterValue(name, formatter)
 }
 
 // resolveFormat returns a [Formatter], either a default one or one from the registry.
-func resolveFormat(reg *registry.Registry, schema map[string]any, format string) (Formatter, error) {
+func resolveFormat(reg api.Registry, schema map[string]any, format string) (Formatter, error) {
 	var formatter any
 
 	// If schema is set but no explicit format is set we default to json.
