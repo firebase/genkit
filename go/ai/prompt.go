@@ -50,6 +50,18 @@ type prompt struct {
 	registry *registry.Registry
 }
 
+// SchemaRef is a reference to a prompt schema
+type SchemaRef interface {
+	Name() string
+}
+
+type SchemaName string
+
+// Name returns the name of the prompt schema
+func (s SchemaName) Name() string {
+	return (string)(s)
+}
+
 // DefinePrompt creates a new [Prompt] and registers it.
 func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) Prompt {
 	if name == "" {
@@ -121,9 +133,9 @@ func LookupPrompt(r *registry.Registry, name string) Prompt {
 }
 
 // DefineSchema defines a schema in the registry
-func DefineSchema(r *registry.Registry, name string, schema any) error {
+// It panics if an error was encountered
+func DefineSchema(r *registry.Registry, name string, schema any) {
 	// TODO: marshal the schema and store it into the registry
-	return nil
 }
 
 // Execute renders a prompt, does variable substitution and
@@ -550,6 +562,8 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) Prompt {
 	for i, tool := range metadata.Tools {
 		toolRefs[i] = ToolName(tool)
 	}
+
+	// TODO: get input/output schemas from metadata
 
 	promptMetadata := map[string]any{
 		"template": parsedPrompt.Template,

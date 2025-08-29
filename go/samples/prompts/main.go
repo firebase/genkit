@@ -350,10 +350,8 @@ type RecipeSchema struct {
 }
 
 func PromptWithSchema(ctx context.Context, g *genkit.Genkit) {
-	err := genkit.DefineSchema(g, "recipe", RecipeSchema{})
-	if err != nil {
-		log.Fatalf("error defining schema: %v", err)
-	}
+	// prompt schemas can be referenced at any time
+	genkit.DefineSchema(g, "recipe", RecipeSchema{})
 
 	prompt := genkit.LoadPrompt(g, "./prompts/recipe.prompt", "recipes")
 	if prompt == nil {
