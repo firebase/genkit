@@ -191,24 +191,23 @@ func (t *tool) Definition() *ToolDefinition {
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
 func (t *tool) RunRaw(ctx context.Context, input any) (any, error) {
-	return runAction(ctx, t.Definition(), t.Action, input)
-}
+	if t == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Tool.RunRaw: tool called on a nil tool; check that all tools are defined")
+	}
 
-// runAction runs the given action with the provided raw input and returns the output in raw format.
-func runAction(ctx context.Context, def *ToolDefinition, action api.Action, input any) (any, error) {
 	mi, err := json.Marshal(input)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling tool input for %v: %v", def.Name, err)
+		return nil, fmt.Errorf("error marshalling tool input for %v: %v", t.Name(), err)
 	}
-	output, err := action.RunJSON(ctx, mi, nil)
+	output, err := t.RunJSON(ctx, mi, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error calling tool %v: %w", def.Name, err)
+		return nil, fmt.Errorf("error calling tool %v: %w", t.Name(), err)
 	}
 
 	var uo any
 	err = json.Unmarshal(output, &uo)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing tool output for %v: %v", def.Name, err)
+		return nil, fmt.Errorf("error parsing tool output for %v: %v", t.Name(), err)
 	}
 	return uo, nil
 }

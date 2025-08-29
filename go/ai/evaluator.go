@@ -296,7 +296,11 @@ func LookupEvaluator(r api.Registry, name string) Evaluator {
 }
 
 // Evaluate runs the given [Evaluator].
-func (e evaluator) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+func (e *evaluator) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+	if e == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Evaluator.Evaluate: evaluator called on a nil evaluator; check that all evaluators are defined")
+	}
+
 	return e.Run(ctx, req, nil)
 }
 

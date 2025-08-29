@@ -146,7 +146,11 @@ func LookupRetriever(r api.Registry, name string) Retriever {
 }
 
 // Retrieve runs the given [Retriever].
-func (r retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+func (r *retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+	if r == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Retriever.Retrieve: retriever called on a nil retriever; check that all retrievers are defined")
+	}
+
 	return r.Run(ctx, req, nil)
 }
 

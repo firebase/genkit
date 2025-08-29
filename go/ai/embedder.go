@@ -154,6 +154,10 @@ func LookupEmbedder(r api.Registry, name string) Embedder {
 
 // Embed runs the given [Embedder].
 func (e *embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
+	if e == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Embedder.Embed: embedder called on a nil embedder; check that all embedders are defined")
+	}
+
 	return e.Run(ctx, req, nil)
 }
 
