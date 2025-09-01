@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-import {
-  ActionMetadata,
-  EmbedderReference,
-  Genkit,
-  ModelReference,
-  z,
-} from 'genkit';
+import { ActionMetadata, EmbedderReference, ModelReference, z } from 'genkit';
 import { logger } from 'genkit/logging';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import {
+  GenkitPluginV2,
+  ResolvableAction,
+  genkitPluginV2,
+} from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import { extractErrMsg } from '../common/utils.js';
 import { listModels } from './client.js';
@@ -32,7 +30,7 @@ import { calculateApiKey } from './utils.js';
 // These are namespaced because they all intentionally have
 // functions of the same name with the same arguments.
 // (All exports from these files are used here)
-import * as embedder from './embedder.js';
+import * as embedderLegacy from './embedder.js';
 import * as gemini from './gemini.js';
 import * as imagen from './imagen.js';
 import * as veo from './veo.js';
@@ -42,40 +40,45 @@ export { type GeminiConfig, type GeminiTtsConfig } from './gemini.js';
 export { type ImagenConfig } from './imagen.js';
 export { type GoogleAIPluginOptions };
 
-async function initializer(ai: Genkit, options?: GoogleAIPluginOptions) {
-  imagen.defineKnownModels(ai, options);
-  gemini.defineKnownModels(ai, options);
-  embedder.defineKnownModels(ai, options);
-  veo.defineKnownModels(ai, options);
+async function initializer(
+  options?: GoogleAIPluginOptions
+): Promise<ResolvableAction[]> {
+  const actions: ResolvableAction[] = [];
+
+  actions.push(...gemini.getKnownModels(options));
+  actions.push(...imagen.getKnownModels(options));
+  actions.push(...veo.getKnownModels(options));
+  actions.push(...embedderLegacy.getKnownEmbedders(options));
+
+  return actions;
 }
 
 async function resolver(
-  ai: Genkit,
   actionType: ActionType,
   actionName: string,
   options: GoogleAIPluginOptions
-) {
+): Promise<ResolvableAction | undefined> {
   switch (actionType) {
     case 'model':
       if (veo.isVeoModelName(actionName)) {
-        // no-op (not gemini)
+        // no-op (veo is background-model only)
+        return undefined;
       } else if (imagen.isImagenModelName(actionName)) {
-        imagen.defineModel(ai, actionName, options);
+        return imagen.defineModel(actionName, options);
       } else {
         // gemini, tts, gemma, unknown models
-        gemini.defineModel(ai, actionName, options);
+        return gemini.defineModel(actionName, options);
       }
-      break;
     case 'background-model':
       if (veo.isVeoModelName(actionName)) {
-        veo.defineModel(ai, actionName, options);
+        return veo.defineModel(actionName, options);
       }
-      break;
+      return undefined;
     case 'embedder':
-      embedder.defineEmbedder(ai, actionName, options);
-      break;
+      return embedderLegacy.defineEmbedder(actionName, options);
     default:
-    // no-op
+      // no-op
+      return undefined;
   }
 }
 
@@ -93,7 +96,7 @@ async function listActions(
       ...gemini.listActions(allModels),
       ...imagen.listActions(allModels),
       ...veo.listActions(allModels),
-      ...embedder.listActions(allModels),
+      ...embedderLegacy.listActions(allModels),
     ];
   } catch (e: unknown) {
     logger.error(extractErrMsg(e));
@@ -104,23 +107,28 @@ async function listActions(
 /**
  * Google Gemini Developer API plugin.
  */
-export function googleAIPlugin(options?: GoogleAIPluginOptions): GenkitPlugin {
-  let listActionsCache;
-  return genkitPlugin(
-    'googleai',
-    async (ai: Genkit) => await initializer(ai, options),
-    async (ai: Genkit, actionType: ActionType, actionName: string) =>
-      await resolver(ai, actionType, actionName, options || {}),
-    async () => {
+export function googleAIPlugin(
+  options?: GoogleAIPluginOptions
+): GenkitPluginV2 {
+  let listActionsCache: ActionMetadata[] | undefined;
+  return genkitPluginV2({
+    name: 'googleai',
+    async init() {
+      return await initializer(options);
+    },
+    async resolve(actionType: ActionType, actionName: string) {
+      return await resolver(actionType, actionName, options || {});
+    },
+    async list() {
       if (listActionsCache) return listActionsCache;
       listActionsCache = await listActions(options);
       return listActionsCache;
-    }
-  );
+    },
+  });
 }
 
 export type GoogleAIPlugin = {
-  (pluginOptions?: GoogleAIPluginOptions): GenkitPlugin;
+  (pluginOptions?: GoogleAIPluginOptions): GenkitPluginV2;
   model(
     name: gemini.KnownGemmaModels | (gemini.GemmaModelName & {}),
     config: gemini.GemmaConfig
@@ -145,8 +153,8 @@ export type GoogleAIPlugin = {
 
   embedder(
     name: string,
-    config?: embedder.EmbeddingConfig
-  ): EmbedderReference<embedder.EmbeddingConfigSchemaType>;
+    config?: embedderLegacy.EmbeddingConfig
+  ): EmbedderReference<embedderLegacy.EmbeddingConfigSchemaType>;
 };
 
 /**
@@ -168,9 +176,9 @@ export const googleAI = googleAIPlugin as GoogleAIPlugin;
 };
 googleAI.embedder = (
   name: string,
-  config?: embedder.EmbeddingConfig
-): EmbedderReference<embedder.EmbeddingConfigSchemaType> => {
-  return embedder.model(name, config);
+  config?: embedderLegacy.EmbeddingConfig
+): EmbedderReference<embedderLegacy.EmbeddingConfigSchemaType> => {
+  return embedderLegacy.model(name, config);
 };
 
 export default googleAI;

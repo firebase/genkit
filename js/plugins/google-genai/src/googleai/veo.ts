@@ -20,7 +20,6 @@ import {
   Operation,
   modelActionMetadata,
   z,
-  type Genkit,
 } from 'genkit';
 import {
   BackgroundModelAction,
@@ -29,6 +28,7 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
+import { backgroundModel } from 'genkit/plugin';
 import { veoCheckOperation, veoPredict } from './client.js';
 import {
   ClientOptions,
@@ -148,7 +148,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       .map((m) => {
         const ref = model(m.name);
         return modelActionMetadata({
-          name: ref.name,
+          name: m.name,
           info: ref.info,
           configSchema: ref.configSchema,
         });
@@ -156,17 +156,16 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, options);
-  }
+export function getKnownModels(
+  options?: GoogleAIPluginOptions
+): BackgroundModelAction[] {
+  return Object.keys(KNOWN_MODELS).map((name) => defineModel(name, options));
 }
 
 /**
  * Defines a new GoogleAI Veo model.
  */
 export function defineModel(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): BackgroundModelAction<VeoConfigSchemaType> {
@@ -176,7 +175,7 @@ export function defineModel(
     baseUrl: pluginOptions?.baseUrl,
   };
 
-  return ai.defineBackgroundModel({
+  return backgroundModel({
     name: ref.name,
     ...ref.info,
     configSchema: ref.configSchema,

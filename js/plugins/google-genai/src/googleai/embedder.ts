@@ -19,11 +19,11 @@ import {
   EmbedderAction,
   embedderActionMetadata,
   EmbedderInfo,
+  embedderRef,
   EmbedderReference,
-  Genkit,
   z,
 } from 'genkit';
-import { embedderRef } from 'genkit/embedder';
+import { embedder } from 'genkit/plugin';
 import { embedContent } from './client';
 import {
   EmbedContentRequest,
@@ -114,7 +114,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       .map((m) => {
         const ref = model(m.name);
         return embedderActionMetadata({
-          name: ref.name,
+          name: m.name,
           info: ref.info,
           configSchema: ref.configSchema,
         });
@@ -122,27 +122,26 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineEmbedder(ai, name, options);
-  }
+export function getKnownEmbedders(
+  options?: GoogleAIPluginOptions
+): EmbedderAction[] {
+  return Object.keys(KNOWN_MODELS).map((name) => defineEmbedder(name, options));
 }
 
 export function defineEmbedder(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): EmbedderAction {
   checkApiKey(pluginOptions?.apiKey);
   const ref = model(name);
 
-  return ai.defineEmbedder(
+  return embedder(
     {
       name: ref.name,
       configSchema: ref.configSchema,
       info: ref.info,
     },
-    async (input, reqOptions) => {
+    async ({ input, options: reqOptions }) => {
       const embedApiKey = calculateApiKey(
         pluginOptions?.apiKey,
         reqOptions?.apiKey

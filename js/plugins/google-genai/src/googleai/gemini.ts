@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  ActionMetadata,
-  Genkit,
-  GenkitError,
-  modelActionMetadata,
-  z,
-} from 'genkit';
+import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -32,6 +26,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
+import { model as modelAction } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import {
   fromGeminiCandidate,
@@ -426,7 +421,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       .map((m) => {
         const ref = model(m.name);
         return modelActionMetadata({
-          name: ref.name,
+          name: m.name,
           info: ref.info,
           configSchema: ref.configSchema,
         });
@@ -434,17 +429,14 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, options);
-  }
+export function getKnownModels(options?: GoogleAIPluginOptions): ModelAction[] {
+  return Object.keys(KNOWN_MODELS).map((name) => defineModel(name, options));
 }
 
 /**
  * Defines a new GoogleAI Gemini model.
  */
 export function defineModel(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): ModelAction {
@@ -482,9 +474,8 @@ export function defineModel(
     );
   }
 
-  return ai.defineModel(
+  return modelAction(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
@@ -660,7 +651,6 @@ export function defineModel(
       // API params as for input.
       return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
-            ai.registry,
             {
               metadata: {
                 name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
