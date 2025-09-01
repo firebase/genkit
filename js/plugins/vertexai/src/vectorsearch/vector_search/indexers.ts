@@ -16,7 +16,7 @@
 
 import type { z } from 'genkit';
 import { indexer } from 'genkit/plugin';
-import { indexerRef, type IndexerAction } from 'genkit/retriever';
+import { Document, indexerRef, type IndexerAction } from 'genkit/retriever';
 import {
   Datapoint,
   VertexAIVectorIndexerOptionsSchema,
@@ -66,12 +66,14 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
   for (const vectorSearchOption of vectorSearchOptions) {
     const { documentIndexer, indexId } = vectorSearchOption;
+    const embedderAction =
+      vectorSearchOption.embedderAction ?? params.defaultEmbedderAction;
     const embedderReference =
       vectorSearchOption.embedder ?? params.defaultEmbedder;
 
-    if (!embedderReference) {
+    if (!embedderAction && !embedderReference) {
       throw new Error(
-        'Embedder reference is required to define Vertex AI retriever'
+        'Embedder action or reference is required to define Vertex AI indexer'
       );
     }
     const embedderOptions = vectorSearchOption.embedderOptions;
@@ -91,11 +93,15 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
           );
         }
 
-        const embeddings = await ai.embedMany({
-          embedder: embedderReference,
-          content: docs,
+        // Call the embedder action directly
+        if (!embedderAction) {
+          throw new Error('Embedder action is required for indexing');
+        }
+        const response = await embedderAction({
+          input: docs.map((d) => (d instanceof Document ? d : new Document(d))),
           options: embedderOptions,
         });
+        const embeddings = response.embeddings;
 
         const datapoints = embeddings.map(({ embedding }, i) => {
           const dp = new Datapoint({

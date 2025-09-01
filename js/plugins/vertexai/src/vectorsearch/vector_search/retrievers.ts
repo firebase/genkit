@@ -16,6 +16,7 @@
 
 import { retrieverRef, type RetrieverAction, type z } from 'genkit';
 import { retriever } from 'genkit/plugin';
+import { Document } from 'genkit/retriever';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import {
   VertexAIVectorRetrieverOptionsSchema,
@@ -38,7 +39,6 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): RetrieverAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
-  const defaultEmbedder = params.defaultEmbedder;
 
   const retrieverActions: RetrieverAction<z.ZodTypeAny>[] = [];
 
@@ -49,6 +49,8 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   for (const vectorSearchOption of vectorSearchOptions) {
     const { documentRetriever, indexId, publicDomainName } = vectorSearchOption;
     const embedderOptions = vectorSearchOption.embedderOptions;
+    const embedderAction =
+      vectorSearchOption.embedderAction ?? params.defaultEmbedderAction;
 
     const retrieverAction = retriever(
       {
@@ -56,22 +58,20 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
         configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
       },
       async (content, options) => {
-        const embedderReference =
-          vectorSearchOption.embedder ?? defaultEmbedder;
-
-        if (!embedderReference) {
+        if (!embedderAction) {
           throw new Error(
-            'Embedder reference is required to define Vertex AI retriever'
+            'Embedder action is required to define Vertex AI retriever'
           );
         }
 
-        const queryEmbedding = (
-          await ai.embed({
-            embedder: embedderReference,
-            options: embedderOptions,
-            content,
-          })
-        )[0].embedding; // Single embedding for text
+        // Call the embedder action directly with a single document
+        const response = await embedderAction({
+          input: [
+            content instanceof Document ? content : new Document(content),
+          ],
+          options: embedderOptions,
+        });
+        const queryEmbedding = response.embeddings[0].embedding; // Single embedding for text
 
         const accessToken = await params.authClient.getAccessToken();
 
