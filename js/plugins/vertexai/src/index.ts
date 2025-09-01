@@ -120,10 +120,17 @@ async function initializer(options?: PluginOptions) {
 
   const actions: ResolvableAction[] = [];
 
+<<<<<<< HEAD
   for (const name of Object.keys(SUPPORTED_IMAGEN_MODELS)) {
     actions.push(defineImagenModel(name, authClient, { projectId, location }));
   }
   for (const name of Object.keys(SUPPORTED_GEMINI_MODELS)) {
+=======
+  Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
+    actions.push(defineImagenModel(name, authClient, { projectId, location }))
+  );
+  Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+>>>>>>> 69cac47ac (refactor(plugins/vertexai): add embedder v2 API support)
     actions.push(
       defineGeminiKnownModel(
         name,
@@ -134,8 +141,13 @@ async function initializer(options?: PluginOptions) {
         },
         options?.experimental_debugTraces
       )
+<<<<<<< HEAD
     );
   }
+=======
+    )
+  );
+>>>>>>> 69cac47ac (refactor(plugins/vertexai): add embedder v2 API support)
   if (options?.models) {
     for (const modelOrRef of options?.models) {
       const modelName =

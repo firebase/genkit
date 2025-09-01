@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+import type { EmbedderAction } from 'genkit/embedder';
 import {
   genkitPluginV2,
   ResolvableAction,
   type GenkitPluginV2,
 } from 'genkit/plugin';
 import { getDerivedParams } from '../common/index.js';
+import { defineVertexAIEmbedder } from '../embedder.js';
 import type { PluginOptions } from './types.js';
 import { vertexAiIndexers, vertexAiRetrievers } from './vector_search/index.js';
 export type { PluginOptions } from '../common/types.js';
@@ -124,31 +126,69 @@ export function vertexAIVectorSearch(options?: PluginOptions): GenkitPluginV2 {
   return genkitPluginV2({
     name: 'vertexAIVectorSearch',
     init: async () => {
-      const { authClient } = await getDerivedParams(options);
+      const { authClient, projectId, location } =
+        await getDerivedParams(options);
 
       const actions: ResolvableAction[] = [];
+
+      // Resolve default embedder if provided
+      let defaultEmbedderAction: EmbedderAction | undefined;
+      if (options?.embedder) {
+        // Create an embedder action for the default embedder
+        const embedderName = options.embedder.name.includes('/')
+          ? options.embedder.name.split('/')[1]
+          : options.embedder.name;
+        defaultEmbedderAction = defineVertexAIEmbedder(
+          embedderName,
+          authClient,
+          { projectId, location }
+        );
+      }
 
       if (
         options?.vectorSearchOptions &&
         options.vectorSearchOptions.length > 0
       ) {
+        // Process each vector search option to resolve embedders
+        const processedOptions = { ...options };
+        if (processedOptions.vectorSearchOptions) {
+          processedOptions.vectorSearchOptions = await Promise.all(
+            processedOptions.vectorSearchOptions.map(async (vso) => {
+              const processed = { ...vso };
+              // If this option has an embedder reference, resolve it to an action
+              if (vso.embedder && !vso.embedderAction) {
+                const embedderName = vso.embedder.name.includes('/')
+                  ? vso.embedder.name.split('/')[1]
+                  : vso.embedder.name;
+                processed.embedderAction = defineVertexAIEmbedder(
+                  embedderName,
+                  authClient,
+                  { projectId, location }
+                );
+              }
+              return processed;
+            })
+          );
+        }
+
         actions.push(
           ...vertexAiIndexers({
-            pluginOptions: options,
+            pluginOptions: processedOptions,
             authClient,
             defaultEmbedder: options.embedder,
+            defaultEmbedderAction,
           })
         );
 
         actions.push(
           ...vertexAiRetrievers({
-            pluginOptions: options,
+            pluginOptions: processedOptions,
             authClient,
             defaultEmbedder: options.embedder,
+            defaultEmbedderAction,
           })
         );
       }
-
       return actions;
     },
   });
