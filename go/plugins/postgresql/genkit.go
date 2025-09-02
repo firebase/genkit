@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -39,7 +39,7 @@ func (p *Postgres) Name() string {
 }
 
 // Init initialize the PostgreSQL
-func (p *Postgres) Init(ctx context.Context) []core.Action {
+func (p *Postgres) Init(ctx context.Context) []api.Action {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.initted {
@@ -55,7 +55,7 @@ func (p *Postgres) Init(ctx context.Context) []core.Action {
 	}
 
 	p.initted = true
-	return []core.Action{}
+	return []api.Action{}
 }
 
 // Config provides configuration options for [DefineRetriever].
@@ -89,12 +89,12 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, p *Postgres, cfg *Co
 		return nil, nil, err
 	}
 
-	return ds, genkit.DefineRetriever(g, core.NewName(provider, ds.config.TableName), &ai.RetrieverOptions{}, ds.Retrieve), nil
+	return ds, genkit.DefineRetriever(g, api.NewName(provider, ds.config.TableName), &ai.RetrieverOptions{}, ds.Retrieve), nil
 }
 
-// Retriever returns the retriever with the given index name.
-func Retriever(g *genkit.Genkit, name string) ai.Retriever {
-	return genkit.LookupRetriever(g, core.NewName(provider, name))
+// Retriever returns the retriever with the given index id.
+func Retriever(g *genkit.Genkit, id string) ai.Retriever {
+	return genkit.LookupRetriever(g, api.NewName(provider, id))
 }
 
 /* +++++++++++++++++++++++

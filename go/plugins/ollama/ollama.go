@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 )
@@ -88,21 +88,21 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.M
 		Versions: []string{},
 	}
 	gen := &generator{model: model, serverAddress: o.ServerAddress}
-	return genkit.DefineModel(g, core.NewName(provider, model.Name), meta, gen.generate)
+	return genkit.DefineModel(g, api.NewName(provider, model.Name), meta, gen.generate)
 }
 
 // IsDefinedModel reports whether a model is defined.
 func IsDefinedModel(g *genkit.Genkit, name string) bool {
-	return genkit.LookupModel(g, core.NewName(provider, name)) != nil
+	return genkit.LookupModel(g, api.NewName(provider, name)) != nil
 }
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not configured.
 func Model(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, core.NewName(provider, name))
+	return genkit.LookupModel(g, api.NewName(provider, name))
 }
 
-// ModelDefinition represents a model with its name and type.
+// ModelDefinition represents a model with its name and api.
 type ModelDefinition struct {
 	Name string
 	Type string
@@ -208,7 +208,7 @@ func (o *Ollama) Name() string {
 // Init initializes the plugin.
 // Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
 // After downloading a model, call [DefineModel] to use it.
-func (o *Ollama) Init(ctx context.Context) []core.Action {
+func (o *Ollama) Init(ctx context.Context) []api.Action {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.initted {
@@ -218,7 +218,7 @@ func (o *Ollama) Init(ctx context.Context) []core.Action {
 		panic("ollama: need ServerAddress")
 	}
 	o.initted = true
-	return []core.Action{}
+	return []api.Action{}
 }
 
 // Generate makes a request to the Ollama API and processes the response.

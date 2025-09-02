@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -39,7 +39,7 @@ func (p *Postgres) Name() string {
 }
 
 // Init initialize the PostgreSQL
-func (p *Postgres) Init(ctx context.Context) []core.Action {
+func (p *Postgres) Init(ctx context.Context) []api.Action {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.initted {
@@ -54,7 +54,7 @@ func (p *Postgres) Init(ctx context.Context) []core.Action {
 		panic("postgres.Init engine has no pool")
 	}
 	p.initted = true
-	return []core.Action{}
+	return []api.Action{}
 }
 
 // Config provides configuration options for [DefineRetriever].
