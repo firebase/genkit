@@ -109,12 +109,10 @@ func (e *GenkitError) ToReflectionError() ReflectionError {
 
 // ToReflectionError gets the JSON representation for reflection API Error responses.
 func ToReflectionError(err error) ReflectionError {
-	// First check direct type assertion for efficiency
 	if ge, ok := err.(*GenkitError); ok {
 		return ge.ToReflectionError()
 	}
-
-	// Check if the error wraps a GenkitError (e.g., wrapped by tracing.markedError)
+	
 	var ge *GenkitError
 	if errors.As(err, &ge) {
 		return ge.ToReflectionError()
