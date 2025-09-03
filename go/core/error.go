@@ -112,7 +112,7 @@ func ToReflectionError(err error) ReflectionError {
 	if ge, ok := err.(*GenkitError); ok {
 		return ge.ToReflectionError()
 	}
-	
+
 	var ge *GenkitError
 	if errors.As(err, &ge) {
 		return ge.ToReflectionError()

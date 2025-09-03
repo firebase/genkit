@@ -446,7 +446,7 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		// Start a minimal span context just to ensure we have a trace ID for telemetry
 		ctx, span := tracing.Tracer().Start(ctx, "action-execution")
 		defer span.End()
-		
+
 		traceID = span.SpanContext().TraceID().String()
 		return action.RunJSON(ctx, input, cb)
 	}()
