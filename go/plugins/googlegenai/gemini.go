@@ -89,12 +89,13 @@ func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
 		DoNotReference: true, // Prevent $ref usage
 		ExpandedStruct: true, // Include all fields directly
-		// Prevent stack overflow panic due type traversal recursion (circular references)
-		// [genai.Schema] should not be used at this point since Schema is provided later
 		// NOTE: keep track of updated fields in [genai.GenerateContentConfig] since
 		// they could create runtime panics when parsing fields with type recursion
-		IgnoredTypes: []any{genai.Schema{}},
+		IgnoredTypes: []any{
+			genai.Schema{},
+		},
 	}
+
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
 	return result
@@ -141,9 +142,8 @@ func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model 
 
 	var config any
 	config = &genai.GenerateContentConfig{}
-	if imageOpts, found := supportedImagenModels[name]; found {
+	if strings.Contains(name, "imagen") {
 		config = &genai.GenerateImagesConfig{}
-		opts = imageOpts
 	}
 	meta := &ai.ModelOptions{
 		Label:        opts.Label,
@@ -712,7 +712,6 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
-
 	switch {
 	case p.IsReasoning():
 		// TODO: go-genai does not support genai.NewPartFromThought()
