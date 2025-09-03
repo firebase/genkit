@@ -180,8 +180,6 @@ func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context)
 	return TracerProvider().Shutdown
 }
 
-// The rest of this file contains code translated from js/common/src/tracing/*.ts.
-
 const (
 	attrPrefix   = "genkit"
 	spanTypeAttr = attrPrefix + ":type"
@@ -275,7 +273,7 @@ func RunInNewSpan[I, O any](
 	if err != nil {
 		sm.State = spanStateError
 		sm.Error = err.Error()
-		sm.IsFailureSource = true // Mark this span as the source of the failure for telemetry
+		sm.IsFailureSource = true
 		if !isErrorAlreadyMarked(err) {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
@@ -294,7 +292,6 @@ func buildAnnotatedPath(name, parentPath, spanType string) string {
 	if spanType != "" {
 		pathSegment = name + ",t:" + spanType
 	}
-	// Always wrap in braces for hierarchical path format
 	pathSegment = "{" + pathSegment + "}"
 	return parentPath + "/" + pathSegment
 }

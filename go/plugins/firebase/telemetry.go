@@ -24,11 +24,6 @@ import (
 )
 
 // FirebaseTelemetryOptions provides configuration for Firebase telemetry.
-// Uses a simple, opinionated approach focused on ease of use and comprehensive observability.
-//
-// Environment Variables:
-// - GENKIT_ENV: Set to "dev" to disable export unless ForceExport is true
-// - FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT: Auto-detected project ID if ProjectID is not set
 type FirebaseTelemetryOptions struct {
 	// ProjectID is the Firebase/Google Cloud project ID.
 	// If empty, will be read from FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT environment variables.
@@ -44,23 +39,14 @@ type FirebaseTelemetryOptions struct {
 }
 
 // EnableFirebaseTelemetry enables comprehensive telemetry export to Genkit Monitoring,
-// backed by the Google Cloud Observability suite (Cloud Logging, Metrics, and Trace).
-//
-// This function uses opinionated defaults designed for Firebase applications:
-// - All telemetry modules are automatically enabled for comprehensive observability
-// - Environment-aware performance settings optimize for development vs production
-// - Simple configuration focused on the most commonly needed options
-// - Automatic project ID detection from Firebase/Google Cloud environment variables
-//
-// For more granular control over individual telemetry modules, use googlecloud.EnableGoogleCloudTelemetry directly.
+// backed by Google Cloud Observability (Cloud Logging, Metrics, and Trace).
 //
 // Example usage:
 //
-//	// Zero-config (auto-detects everything, all modules enabled)
 //	firebase.EnableFirebaseTelemetry(nil)
 //	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 //
-//	// With configuration (all modules still enabled)
+//	// With configuration
 //	firebase.EnableFirebaseTelemetry(&firebase.FirebaseTelemetryOptions{
 //		ProjectID:            "my-firebase-project",
 //		ForceExport:          true,
@@ -78,19 +64,15 @@ func EnableFirebaseTelemetry(options *FirebaseTelemetryOptions) {
 func initializeTelemetry(options *FirebaseTelemetryOptions) {
 	slog.Debug("Initializing Firebase Genkit Monitoring.")
 
-	// Use default options if none provided
 	if options == nil {
 		options = &FirebaseTelemetryOptions{}
 	}
 
-	// Resolve project ID from options or environment
 	projectID := resolveFirebaseProjectID(options.ProjectID)
 	if projectID == "" {
 		slog.Warn("Firebase project ID not found. Set FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT environment variable, or pass ProjectID in options.")
 	}
 
-	// Convert Firebase options to Google Cloud options
-	// Firebase provides opinionated defaults with all telemetry modules enabled for comprehensive observability
 	gcOptions := &googlecloud.GoogleCloudTelemetryOptions{
 		ProjectID:                    projectID,
 		ForceDevExport:               options.ForceDevExport,
@@ -106,11 +88,9 @@ func resolveFirebaseProjectID(projectID string) string {
 		return projectID
 	}
 
-	// Try Firebase-specific environment variable first
 	if envID := os.Getenv("FIREBASE_PROJECT_ID"); envID != "" {
 		return envID
 	}
 
-	// Fall back to Google Cloud project ID
 	return os.Getenv("GOOGLE_CLOUD_PROJECT")
 }
