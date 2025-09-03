@@ -120,9 +120,7 @@ func NewState() *State {
 		slog.Debug("tracing.NewState: non-SDK TracerProvider found, not using it since it may not provide ExportSpans method")
 	}
 
-	// Create SDK TracerProvider to support potential telemetry registration later
-	slog.Info("tracing.NewState: No telemetry configured, creating SDK TracerProvider for potential telemetry")
-
+	// Create new SDK TracerProvider
 	tp := sdktrace.NewTracerProvider()
 	otel.SetTracerProvider(tp)
 
