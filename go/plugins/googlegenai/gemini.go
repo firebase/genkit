@@ -93,23 +93,11 @@ func configToMap(config any) map[string]any {
 		// they could create runtime panics when parsing fields with type recursion
 		IgnoredTypes: []any{
 			genai.Schema{},
-			genai.Tool{},
-			genai.ToolConfig{},
-			genai.HTTPOptions{},
 		},
 	}
 
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
-
-	// prevent users to override Genkit primitive features
-	if propertiesMap, ok := result["properties"].(map[string]any); ok {
-		delete(propertiesMap, "cachedContent")
-		delete(propertiesMap, "systemInstruction")
-		delete(propertiesMap, "responseMimeType")
-		delete(propertiesMap, "responseJsonSchema")
-		delete(propertiesMap, "candidateCount")
-	}
 	return result
 }
 
