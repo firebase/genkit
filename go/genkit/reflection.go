@@ -35,7 +35,6 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type streamingCallback[Stream any] = func(context.Context, Stream) error
@@ -441,20 +440,16 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		}
 	}
 
+	// Run the action and capture trace ID. We need to ensure there's a valid trace context.
 	var traceID string
-	spanMetadata := &tracing.SpanMetadata{
-		Name:            "dev-run-action-wrapper",
-		Type:            "action",
-		IsRoot:          true,
-		TelemetryLabels: telemetryAttributes,
-		Metadata: map[string]string{
-			"genkit-dev-internal": "true",
-		},
-	}
-	output, err := tracing.RunInNewSpan(ctx, spanMetadata, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
-		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
+	output, err := func() (json.RawMessage, error) {
+		// Start a minimal span context just to ensure we have a trace ID for telemetry
+		ctx, span := tracing.Tracer().Start(ctx, "action-execution")
+		defer span.End()
+		
+		traceID = span.SpanContext().TraceID().String()
 		return action.RunJSON(ctx, input, cb)
-	})
+	}()
 	if err != nil {
 		return nil, err
 	}
