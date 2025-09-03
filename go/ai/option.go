@@ -330,7 +330,7 @@ func WithMetadata(metadata map[string]any) PromptOption {
 
 // WithInputType uses the type provided to derive the input schema.
 // The inputted value will serve as the default input if no input is given at generation time.
-// Only supports structs and map[string]any types.
+// Only supports structs and map[string]any api.
 func WithInputType(input any) PromptOption {
 	var defaultInput map[string]any
 
@@ -911,7 +911,7 @@ func (o *promptExecutionOptions) applyPromptExecute(pgOpts *promptExecutionOptio
 }
 
 // WithInput sets the input for the prompt request. Input must conform to the
-// prompt's input schema and can either be a map[string]any or a struct of the same type.
+// prompt's input schema and can either be a map[string]any or a struct of the same api.
 func WithInput(input any) PromptExecuteOption {
 	return &promptExecutionOptions{Input: input}
 }

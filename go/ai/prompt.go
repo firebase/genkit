@@ -26,9 +26,9 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
 )
@@ -47,7 +47,7 @@ type Prompt interface {
 type prompt struct {
 	core.ActionDef[any, *GenerateActionOptions, struct{}]
 	promptOptions
-	registry *registry.Registry
+	registry api.Registry
 }
 
 // SchemaRef is a reference to a prompt schema
@@ -63,7 +63,7 @@ func (s SchemaName) Name() string {
 }
 
 // DefinePrompt creates a new [Prompt] and registers it.
-func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) Prompt {
+func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 	if name == "" {
 		panic("ai.DefinePrompt: name is required")
 	}
@@ -100,7 +100,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) Promp
 	}
 
 	promptMeta := map[string]any{
-		"type": core.ActionTypeExecutablePrompt,
+		"type": api.ActionTypeExecutablePrompt,
 		"prompt": map[string]any{
 			"name":         name,
 			"description":  p.Description,
@@ -114,15 +114,15 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) Promp
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.ActionDef = *core.DefineAction(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.ActionDef = *core.DefineAction(r, name, api.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(r *registry.Registry, name string) Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, name)
+func LookupPrompt(r api.Registry, name string) Prompt {
+	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, api.ActionTypeExecutablePrompt, name)
 	if action == nil {
 		return nil
 	}
@@ -296,15 +296,15 @@ func (p *prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 	}
 
 	messages := []*Message{}
-	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
+	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
+	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
+	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
 	if err != nil {
 		return nil, err
 	}
@@ -478,7 +478,7 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 }
 
 // LoadPromptDir loads prompts and partials from the input directory for the given namespace.
-func LoadPromptDir(r *registry.Registry, dir string, namespace string) {
+func LoadPromptDir(r api.Registry, dir string, namespace string) {
 	useDefaultDir := false
 	if dir == "" {
 		dir = "./prompts"
@@ -506,7 +506,7 @@ func LoadPromptDir(r *registry.Registry, dir string, namespace string) {
 }
 
 // loadPromptDir recursively loads prompts and partials from the directory.
-func loadPromptDir(r *registry.Registry, dir string, namespace string) {
+func loadPromptDir(r api.Registry, dir string, namespace string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
@@ -535,7 +535,7 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) {
 }
 
 // LoadPrompt loads a single prompt into the registry.
-func LoadPrompt(r *registry.Registry, dir, filename, namespace string) Prompt {
+func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
 
@@ -546,13 +546,13 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) Prompt {
 		return nil
 	}
 
-	parsedPrompt, err := r.Dotprompt.Parse(string(source))
+	parsedPrompt, err := r.Dotprompt().Parse(string(source))
 	if err != nil {
 		slog.Error("Failed to parse file as dotprompt", "file", sourceFile, "error", err)
 		return nil
 	}
 
-	metadata, err := r.Dotprompt.RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
+	metadata, err := r.Dotprompt().RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
 	if err != nil {
 		slog.Error("Failed to render dotprompt metadata", "file", sourceFile, "error", err)
 		return nil
