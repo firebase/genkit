@@ -100,7 +100,7 @@ func WithDefaultModel(model string) GenkitOption {
 // [Init] is called.
 //
 // Invalid prompt files will result in logged errors during initialization,
-// while valid files that define invalid prompts will cause [Init] to return an error.
+// while valid files that define invalid prompts will cause [Init] to panic.
 // This option can only be applied once.
 func WithPromptDir(dir string) GenkitOption {
 	return &genkitOptions{PromptDir: dir}
@@ -126,11 +126,10 @@ func WithPromptDir(dir string) GenkitOption {
 //	import (
 //		"context"
 //		"log"
-//		"os"
 //
 //		"github.com/firebase/genkit/go/ai"
 //		"github.com/firebase/genkit/go/genkit"
-//		"github.com/firebase/genkit/go/plugins/googleai" // Example plugin
+//		"github.com/firebase/genkit/go/plugins/googlegenai" // Example plugin
 //	)
 //
 //	func main() {
@@ -142,9 +141,6 @@ func WithPromptDir(dir string) GenkitOption {
 //			genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 //			genkit.WithPromptDir("./prompts"),
 //		)
-//		if err != nil {
-//			log.Fatalf("Failed to initialize Genkit: %v", err)
-//		}
 //
 //		// Generate text using the default model
 //		funFact, err := genkit.GenerateText(ctx, g, ai.WithPrompt("Tell me a fake fun fact!"))
@@ -154,10 +150,7 @@ func WithPromptDir(dir string) GenkitOption {
 //		log.Println("Generated Fact:", funFact)
 //
 //		// Look up and execute a loaded prompt
-//		jokePrompt, err := genkit.LookupPrompt(g, "jokePrompt")
-//		if err != nil {
-//			log.Fatalf("LookupPrompt failed: %v", err)
-//		}
+//		jokePrompt := genkit.LookupPrompt(g, "jokePrompt")
 //		if jokePrompt == nil {
 //			log.Fatalf("Prompt 'jokePrompt' not found.")
 //		}
@@ -619,7 +612,7 @@ func LookupPrompt(g *Genkit, name string) ai.Prompt {
 //
 // Example (using options rendered from a prompt):
 //
-//	myPrompt, _ := genkit.LookupPrompt(g, "myDefinedPrompt")
+//	myPrompt := genkit.LookupPrompt(g, "myDefinedPrompt")
 //	actionOpts, err := myPrompt.Render(ctx, map[string]any{"topic": "go programming"})
 //	if err != nil {
 //		// handle error
@@ -715,7 +708,7 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 // Example:
 //
 //	resp, err := genkit.Retrieve(ctx, g,
-//		ai.WithRetriever("myRetriever"),
+//		ai.WithRetriever(ai.NewRetrieverRef("myRetriever", nil)),
 //		ai.WithTextDocs("What is the capital of France?"),
 //	)
 //	if err != nil {
@@ -736,7 +729,7 @@ func Retrieve(ctx context.Context, g *Genkit, opts ...ai.RetrieverOption) (*ai.R
 // Example:
 //
 //	resp, err := genkit.Embed(ctx, g,
-//		ai.WithEmbedder("myEmbedder"),
+//		ai.WithEmbedder(ai.NewEmbedderRef("myEmbedder", nil)),
 //		ai.WithTextDocs("Hello, world!"),
 //	)
 //	if err != nil {
@@ -851,7 +844,7 @@ func LookupEvaluator(g *Genkit, name string) ai.Evaluator {
 //	}
 //
 //	resp, err := genkit.Evaluate(ctx, g,
-//		ai.WithEvaluator("myEvaluator"),
+//		ai.WithEvaluator(ai.NewEvaluatorRef("myEvaluator", nil)),
 //		ai.WithDataset(dataset),
 //	)
 //	if err != nil {
@@ -871,7 +864,7 @@ func Evaluate(ctx context.Context, g *Genkit, opts ...ai.EvaluatorOption) (*ai.E
 // executable prompts but can be included in other prompts.
 //
 // If `dir` is empty, it defaults to "./prompts". If the directory doesn't exist,
-// it logs a debug message (if using the default) or returns an error (if specified).
+// it logs a debug message (if using the default) or panics (if specified).
 // The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
 // file "greeting.prompt" results in prompt name "myApp/greeting"). Use an empty
 // string for no namespace.
@@ -897,10 +890,7 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 // Example:
 //
 //	// Load a specific prompt file with a namespace
-//	customPrompt, err := genkit.LoadPrompt(g, "./prompts/analyzer.prompt", "analysis")
-//	if err != nil {
-//		log.Fatalf("Failed to load custom prompt: %v", err)
-//	}
+//	customPrompt := genkit.LoadPrompt(g, "./prompts/analyzer.prompt", "analysis")
 //	if customPrompt == nil {
 //		log.Fatal("Custom prompt not found or failed to parse.")
 //	}
