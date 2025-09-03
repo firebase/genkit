@@ -26,10 +26,10 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // Model represents a model that can generate content based on a request.
@@ -38,6 +38,8 @@ type Model interface {
 	Name() string
 	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
 	Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error)
+	// Register registers the model with the given registry.
+	Register(r api.Registry)
 }
 
 // ModelArg is the interface for model arguments. It can either be the retriever action itself or a reference to be looked up.
@@ -110,8 +112,8 @@ type ModelOptions struct {
 }
 
 // DefineGenerateAction defines a utility generate action.
-func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil, nil,
+func DefineGenerateAction(ctx context.Context, r api.Registry) *generateAction {
+	return (*generateAction)(core.DefineStreamingAction(r, "generate", api.ActionTypeUtil, nil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", actionOpts))
@@ -149,7 +151,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	}
 
 	metadata := map[string]any{
-		"type": core.ActionTypeModel,
+		"type": api.ActionTypeModel,
 		"model": map[string]any{
 			"label": opts.Label,
 			"supports": map[string]any{
@@ -185,22 +187,22 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	fn = core.ChainMiddleware(mws...)(fn)
 
 	return &model{
-		ActionDef: *core.NewStreamingAction(name, core.ActionTypeModel, metadata, inputSchema, fn),
+		ActionDef: *core.NewStreamingAction(name, api.ActionTypeModel, metadata, inputSchema, fn),
 	}
 }
 
 // DefineModel creates a new [Model] and registers it.
-func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+func DefineModel(r api.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
 	m := NewModel(name, opts, fn)
-	m.(*model).Register(r)
+	m.Register(r)
 	return m
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It will try to resolve the model dynamically if the model is not found.
 // It returns nil if the model was not resolved.
-func LookupModel(r *registry.Registry, name string) Model {
-	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, name)
+func LookupModel(r api.Registry, name string) Model {
+	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, api.ActionTypeModel, name)
 	if action == nil {
 		return nil
 	}
@@ -210,9 +212,9 @@ func LookupModel(r *registry.Registry, name string) Model {
 }
 
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
-func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
+func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
 	if opts.Model == "" {
-		if defaultModel, ok := r.LookupValue(registry.DefaultModelKey).(string); ok && defaultModel != "" {
+		if defaultModel, ok := r.LookupValue(api.DefaultModelKey).(string); ok && defaultModel != "" {
 			opts.Model = defaultModel
 		}
 		if opts.Model == "" {
@@ -291,7 +293,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && m.(*model).SupportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -371,7 +373,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 }
 
 // Generate generates a model response based on the provided options.
-func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
+func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*ModelResponse, error) {
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
 		if err := opt.applyGenerate(genOpts); err != nil {
@@ -408,7 +410,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 			r = r.NewChild()
 		}
 		for _, t := range dynamicTools {
-			t.(*tool).Register(r)
+			t.Register(r)
 		}
 	}
 
@@ -510,7 +512,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (string, error) {
+func GenerateText(ctx context.Context, r api.Registry, opts ...GenerateOption) (string, error) {
 	res, err := Generate(ctx, r, opts...)
 	if err != nil {
 		return "", err
@@ -521,7 +523,7 @@ func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOpt
 
 // Generate run generate request for this model. Returns ModelResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
+func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
 	var value Out
 	opts = append(opts, WithOutputType(value))
 
@@ -547,8 +549,8 @@ func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamC
 	return m.ActionDef.Run(ctx, req, cb)
 }
 
-// SupportsConstrained returns whether the model supports constrained output.
-func (m *model) SupportsConstrained(hasTools bool) bool {
+// supportsConstrained returns whether the model supports constrained output.
+func (m *model) supportsConstrained(hasTools bool) bool {
 	if m == nil {
 		return false
 	}
@@ -604,7 +606,7 @@ func clone[T any](obj *T) *T {
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
-func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback) (*ModelRequest, *Message, error) {
+func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback) (*ModelRequest, *Message, error) {
 	toolCount := 0
 	if resp.Message != nil {
 		for _, part := range resp.Message.Content {
@@ -834,7 +836,7 @@ func (m ModelRef) Config() any {
 // handleResumedToolRequest resolves a tool request from a previous, interrupted model turn,
 // when generation is being resumed. It determines the outcome of the tool request based on
 // pending output, or explicit 'respond' or 'restart' directives in the resume options.
-func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts *GenerateActionOptions, p *Part) (*resumedToolRequestOutput, error) {
+func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, p *Part) (*resumedToolRequestOutput, error) {
 	if p == nil || !p.IsToolRequest() {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: part is not a tool request")
 	}
@@ -971,7 +973,7 @@ func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts
 
 // handleResumeOption amends message history to handle `resume` arguments.
 // It returns the amended history.
-func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *GenerateActionOptions) (*resumeOptionOutput, error) {
+func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions) (*resumeOptionOutput, error) {
 	if genOpts.Resume == nil || (len(genOpts.Resume.Respond) == 0 && len(genOpts.Resume.Restart) == 0) {
 		return &resumeOptionOutput{revisedRequest: genOpts}, nil
 	}
@@ -1282,7 +1284,7 @@ func calculateOutputAudio(resp *ModelResponse) int {
 }
 
 // processResources processes messages to replace resource parts with actual content.
-func processResources(ctx context.Context, r *registry.Registry, messages []*Message) ([]*Message, error) {
+func processResources(ctx context.Context, r api.Registry, messages []*Message) ([]*Message, error) {
 	processedMessages := make([]*Message, len(messages))
 	for i, msg := range messages {
 		processedContent := []*Part{}
@@ -1313,7 +1315,7 @@ func processResources(ctx context.Context, r *registry.Registry, messages []*Mes
 }
 
 // executeResourcePart finds and executes a resource, returning the content parts.
-func executeResourcePart(ctx context.Context, r *registry.Registry, resourceURI string) ([]*Part, error) {
+func executeResourcePart(ctx context.Context, r api.Registry, resourceURI string) ([]*Part, error) {
 	resource, input, err := FindMatchingResource(r, resourceURI)
 	if err != nil {
 		return nil, err

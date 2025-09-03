@@ -103,7 +103,7 @@ func PromptWithOutputType(ctx context.Context, g *genkit.Genkit) {
 		Countries []string
 	}
 
-	// Define prompt with output type.
+	// Define prompt with output api.
 	helloPrompt := genkit.DefinePrompt(
 		g, "PromptWithOutputType",
 		ai.WithOutputType(CountryList{}),
@@ -173,7 +173,7 @@ func PromptWithComplexOutputType(ctx context.Context, g *genkit.Genkit) {
 		Countries []countryData `json:"countries"`
 	}
 
-	// Define prompt with output type.
+	// Define prompt with output api.
 	prompt := genkit.DefinePrompt(
 		g, "PromptWithComplexOutputType",
 		ai.WithOutputType(countries{}),

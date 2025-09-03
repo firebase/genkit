@@ -75,7 +75,6 @@ func EnableGoogleCloudTelemetry(options ...*GoogleCloudTelemetryOptions) {
 
 // initializeTelemetry is the internal function that sets up Google Cloud telemetry directly.
 func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
-	// Auto-detect project ID if not provided
 	projectID := opts.ProjectID
 	if projectID == "" {
 		if envProjectID := os.Getenv("GOOGLE_CLOUD_PROJECT"); envProjectID != "" {
@@ -83,7 +82,6 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 		}
 	}
 
-	// Set metric intervals with user overrides or environment-aware defaults
 	metricInterval := 5 * time.Second
 	if os.Getenv("GENKIT_ENV") != "dev" && !opts.ForceDevExport {
 		metricInterval = 300 * time.Second
@@ -94,7 +92,6 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 
 	logLevel := slog.LevelInfo
 
-	// Create minimal resource
 	finalResource := resource.NewWithAttributes(
 		semconv.SchemaURL,
 	)
@@ -105,9 +102,6 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 
 	var spanProcessors []sdktrace.SpanProcessor
 
-	// Telemetry server processor is handled by the tracing package automatically
-
-	// If we should export and traces are not disabled, add Google Cloud exporter
 	shouldExport := opts.ForceDevExport || os.Getenv("GENKIT_ENV") != "dev"
 	if shouldExport && !opts.DisableTraces {
 		var traceOpts []texporter.Option
@@ -123,7 +117,6 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 			return
 		}
 
-		// Set up telemetry modules for processing
 		modules := []Telemetry{
 			NewPathTelemetry(),
 			NewGenerateTelemetry(),
@@ -132,7 +125,6 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 			NewEngagementTelemetry(),
 		}
 
-		// Create adjusting trace exporter that handles both PII filtering and telemetry processing
 		adjustingExporter := &AdjustingTraceExporter{
 			exporter:          baseExporter,
 			modules:           modules,
@@ -142,7 +134,6 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 		batchProcessor := sdktrace.NewBatchSpanProcessor(adjustingExporter)
 		spanProcessors = append(spanProcessors, batchProcessor)
 
-		// Set up metrics and logging
 		if !opts.DisableMetrics {
 			slog.Debug("Setting up metrics provider...")
 			if err := setMeterProvider(projectID, metricInterval, opts.Credentials, finalResource); err != nil {
@@ -151,7 +142,6 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 			slog.Debug("Metrics provider setup complete")
 		}
 		slog.Debug("Setting up log handler...")
-		// Re-enabled for production use
 		if err := setLogHandler(projectID, logLevel, opts.Credentials); err != nil {
 			slog.Error("Failed to set up Google Cloud logging", "error", err)
 		}
@@ -176,8 +166,6 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 	otel.SetTracerProvider(tp) // Set as global TracerProvider
 
 	slog.Info("Google Cloud telemetry TracerProvider configured", "processors", len(spanProcessors))
-
-	// Set up graceful shutdown handling
 	setupGracefulShutdown(tp)
 }
 
@@ -242,10 +230,7 @@ type AdjustingTraceExporter struct {
 }
 
 func (e *AdjustingTraceExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
-	// Process and adjust spans (both telemetry and PII filtering)
 	adjustedSpans := e.adjust(spans)
-
-	// Forward adjusted spans to base exporter
 	err := e.exporter.ExportSpans(ctx, adjustedSpans)
 	return err
 }
@@ -276,15 +261,12 @@ func (e *AdjustingTraceExporter) adjust(spans []sdktrace.ReadOnlySpan) []sdktrac
 			strings.Contains(spanName, "google.logging.v2.LoggingServiceV2")
 
 		if isInternalGoogleCloudSpan {
-			// Skip internal Google Cloud SDK spans, but allow user HTTP spans
 			continue
 		}
 
-		// Process telemetry (but only for Genkit spans)
 		e.tickTelemetry(span)
 		e.spansProcessed++
 
-		// Apply all span transformations
 		adjustedSpan := span
 		adjustedSpan = e.redactInputOutput(adjustedSpan)
 		adjustedSpan = e.markErrorSpanAsError(adjustedSpan)
@@ -307,7 +289,6 @@ func (e *AdjustingTraceExporter) tickTelemetry(span sdktrace.ReadOnlySpan) {
 	}
 
 	// Only process Genkit spans (skip internal Google Cloud SDK spans)
-	// This matches TypeScript behavior of filtering by genkit:type attribute
 	attrs := span.Attributes()
 	hasGenkitType := false
 	for _, attr := range attrs {
@@ -317,10 +298,9 @@ func (e *AdjustingTraceExporter) tickTelemetry(span sdktrace.ReadOnlySpan) {
 		}
 	}
 	if !hasGenkitType {
-		return // Skip non-Genkit spans (e.g., Google Cloud SDK internal HTTP requests)
+		return	
 	}
 
-	// Process through all enabled modules
 	for _, module := range e.modules {
 		if module != nil {
 			module.Tick(span, e.logInputAndOutput, e.projectId)
@@ -333,7 +313,6 @@ func (e *AdjustingTraceExporter) redactInputOutput(span sdktrace.ReadOnlySpan) s
 	hasInput := false
 	hasOutput := false
 
-	// Check if span has input/output attributes
 	for _, attr := range span.Attributes() {
 		if attr.Key == "genkit:input" {
 			hasInput = true
@@ -538,24 +517,20 @@ func setupGracefulShutdown(tp *sdktrace.TracerProvider) {
 		<-c
 		slog.Info("Received shutdown signal, flushing telemetry...")
 
-		// Force flush all telemetry before exit (5 second timeout)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		var hasErrors bool
 
-		// Flush spans
 		if err := tp.ForceFlush(ctx); err != nil {
 			slog.Error("Failed to flush spans during shutdown", "error", err)
 			hasErrors = true
 		}
 
-		// Handle metrics provider shutdown
 		if mp := otel.GetMeterProvider(); mp != nil {
 			hasErrors = shutdownMetricsProvider(ctx, mp) || hasErrors
 		}
 
-		// Shutdown spans
 		if err := tp.Shutdown(ctx); err != nil {
 			slog.Error("Failed to shutdown TracerProvider", "error", err)
 			hasErrors = true
@@ -573,22 +548,17 @@ func setupGracefulShutdown(tp *sdktrace.TracerProvider) {
 // shutdownMetricsProvider handles metrics provider flush and shutdown operations
 func shutdownMetricsProvider(ctx context.Context, mp metric.MeterProvider) bool {
 	hasErrors := false
-
-	// Try to flush metrics
 	if flusher, ok := mp.(interface{ ForceFlush(context.Context) error }); ok {
 		if err := flusher.ForceFlush(ctx); err != nil {
 			slog.Error("Failed to flush metrics during shutdown", "error", err)
 			hasErrors = true
 		}
 	}
-
-	// Try to shutdown metrics provider
 	if shutdowner, ok := mp.(interface{ Shutdown(context.Context) error }); ok {
 		if err := shutdowner.Shutdown(ctx); err != nil {
 			slog.Error("Failed to shutdown MeterProvider", "error", err)
 			hasErrors = true
 		}
 	}
-
 	return hasErrors
 }

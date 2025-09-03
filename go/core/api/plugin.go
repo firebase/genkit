@@ -14,12 +14,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package genkit
+package api
 
 import (
 	"context"
-
-	"github.com/firebase/genkit/go/core"
 )
 
 // Plugin is the interface implemented by types that extend Genkit's functionality.
@@ -31,14 +29,14 @@ type Plugin interface {
 	// This name is used for registration and lookup.
 	Name() string
 	// Init initializes the plugin. It is called once during [Init].
-	Init(ctx context.Context) []core.Action
+	Init(ctx context.Context) []Action
 }
 
 // DynamicPlugin is a [Plugin] that can dynamically resolve actions.
 type DynamicPlugin interface {
 	Plugin
-	// ListActions returns a list of action descriptors that the plugin is capable of resolving to [core.Action]s.
-	ListActions(ctx context.Context) []core.ActionDesc
-	// ResolveAction resolves an action type and name to a [core.Action].
-	ResolveAction(atype core.ActionType, name string) core.Action
+	// ListActions returns a list of action descriptors that the plugin is capable of resolving to [Action]s.
+	ListActions(ctx context.Context) []ActionDesc
+	// ResolveAction resolves an action type and name to a [Action].
+	ResolveAction(atype ActionType, name string) Action
 }

@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -60,7 +60,7 @@ func (v *VertexAI) Name() string {
 // Init initializes the Google AI plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func (ga *GoogleAI) Init(ctx context.Context) []core.Action {
+func (ga *GoogleAI) Init(ctx context.Context) []api.Action {
 	if ga == nil {
 		ga = &GoogleAI{}
 	}
@@ -99,7 +99,7 @@ func (ga *GoogleAI) Init(ctx context.Context) []core.Action {
 	ga.gclient = client
 	ga.initted = true
 
-	var actions []core.Action
+	var actions []api.Action
 
 	models, err := listModels(googleAIProvider)
 	if err != nil {
@@ -107,7 +107,7 @@ func (ga *GoogleAI) Init(ctx context.Context) []core.Action {
 	}
 	for n, mi := range models {
 		model := newModel(ga.gclient, n, mi)
-		actions = append(actions, model.(core.Action))
+		actions = append(actions, model.(api.Action))
 	}
 
 	embedders, err := listEmbedders(gc.Backend)
@@ -116,7 +116,7 @@ func (ga *GoogleAI) Init(ctx context.Context) []core.Action {
 	}
 	for e, eOpts := range embedders {
 		embedder := newEmbedder(ga.gclient, e, &eOpts)
-		actions = append(actions, embedder.(core.Action))
+		actions = append(actions, embedder.(api.Action))
 	}
 
 	return actions
@@ -125,7 +125,7 @@ func (ga *GoogleAI) Init(ctx context.Context) []core.Action {
 // Init initializes the VertexAI plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func (v *VertexAI) Init(ctx context.Context) []core.Action {
+func (v *VertexAI) Init(ctx context.Context) []api.Action {
 	if v == nil {
 		v = &VertexAI{}
 	}
@@ -175,7 +175,7 @@ func (v *VertexAI) Init(ctx context.Context) []core.Action {
 	v.gclient = client
 	v.initted = true
 
-	var actions []core.Action
+	var actions []api.Action
 
 	models, err := listModels(vertexAIProvider)
 	if err != nil {
@@ -183,7 +183,7 @@ func (v *VertexAI) Init(ctx context.Context) []core.Action {
 	}
 	for n, mi := range models {
 		model := newModel(v.gclient, n, mi)
-		actions = append(actions, model.(core.Action))
+		actions = append(actions, model.(api.Action))
 	}
 
 	embedders, err := listEmbedders(gc.Backend)
@@ -192,7 +192,7 @@ func (v *VertexAI) Init(ctx context.Context) []core.Action {
 	}
 	for e, eOpts := range embedders {
 		embedder := newEmbedder(v.gclient, e, &eOpts)
-		actions = append(actions, embedder.(core.Action))
+		actions = append(actions, embedder.(api.Action))
 	}
 
 	return actions
@@ -274,12 +274,12 @@ func (v *VertexAI) DefineEmbedder(g *genkit.Genkit, name string, embedOpts *ai.E
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
 func (ga *GoogleAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
-	return genkit.LookupEmbedder(g, core.NewName(googleAIProvider, name)) != nil
+	return genkit.LookupEmbedder(g, api.NewName(googleAIProvider, name)) != nil
 }
 
 // IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
 func (v *VertexAI) IsDefinedEmbedder(g *genkit.Genkit, name string) bool {
-	return genkit.LookupEmbedder(g, core.NewName(vertexAIProvider, name)) != nil
+	return genkit.LookupEmbedder(g, api.NewName(vertexAIProvider, name)) != nil
 }
 
 // GoogleAIModelRef creates a new ModelRef for a Google AI model with the given name and configuration.
@@ -295,29 +295,29 @@ func VertexAIModelRef(name string, config *genai.GenerateContentConfig) ai.Model
 // GoogleAIModel returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
 func GoogleAIModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, core.NewName(googleAIProvider, name))
+	return genkit.LookupModel(g, api.NewName(googleAIProvider, name))
 }
 
 // VertexAIModel returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
 func VertexAIModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, core.NewName(vertexAIProvider, name))
+	return genkit.LookupModel(g, api.NewName(vertexAIProvider, name))
 }
 
 // GoogleAIEmbedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
 func GoogleAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
-	return genkit.LookupEmbedder(g, core.NewName(googleAIProvider, name))
+	return genkit.LookupEmbedder(g, api.NewName(googleAIProvider, name))
 }
 
 // VertexAIEmbedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
 func VertexAIEmbedder(g *genkit.Genkit, name string) ai.Embedder {
-	return genkit.LookupEmbedder(g, core.NewName(vertexAIProvider, name))
+	return genkit.LookupEmbedder(g, api.NewName(vertexAIProvider, name))
 }
 
-func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
-	actions := []core.ActionDesc{}
+func (ga *GoogleAI) ListActions(ctx context.Context) []api.ActionDesc {
+	actions := []api.ActionDesc{}
 	models, err := listGenaiModels(ctx, ga.gclient)
 	if err != nil {
 		return nil
@@ -340,30 +340,30 @@ func (ga *GoogleAI) ListActions(ctx context.Context) []core.ActionDesc {
 		}
 		metadata["label"] = fmt.Sprintf("%s - %s", googleAILabelPrefix, name)
 
-		actions = append(actions, core.ActionDesc{
-			Type:     core.ActionTypeModel,
+		actions = append(actions, api.ActionDesc{
+			Type:     api.ActionTypeModel,
 			Name:     fmt.Sprintf("%s/%s", googleAIProvider, name),
-			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, googleAIProvider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", api.ActionTypeModel, googleAIProvider, name),
 			Metadata: metadata,
 		})
 	}
 
 	for _, e := range models.embedders {
-		actions = append(actions, core.ActionDesc{
-			Type: core.ActionTypeEmbedder,
+		actions = append(actions, api.ActionDesc{
+			Type: api.ActionTypeEmbedder,
 			Name: fmt.Sprintf("%s/%s", googleAIProvider, e),
-			Key:  fmt.Sprintf("/%s/%s/%s", core.ActionTypeEmbedder, googleAIProvider, e),
+			Key:  fmt.Sprintf("/%s/%s/%s", api.ActionTypeEmbedder, googleAIProvider, e),
 		})
 	}
 
 	return actions
 }
 
-func (ga *GoogleAI) ResolveAction(atype core.ActionType, name string) core.Action {
+func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action {
 	switch atype {
-	case core.ActionTypeEmbedder:
-		return newEmbedder(ga.gclient, name, &ai.EmbedderOptions{}).(core.Action)
-	case core.ActionTypeModel:
+	case api.ActionTypeEmbedder:
+		return newEmbedder(ga.gclient, name, &ai.EmbedderOptions{}).(api.Action)
+	case api.ActionTypeModel:
 		var supports *ai.ModelSupports
 		if strings.Contains(name, "gemini") || strings.Contains(name, "gemma") {
 			supports = &Multimodal
@@ -374,14 +374,14 @@ func (ga *GoogleAI) ResolveAction(atype core.ActionType, name string) core.Actio
 			Stage:    ai.ModelStageStable,
 			Versions: []string{},
 			Supports: supports,
-		}).(core.Action)
+		}).(api.Action)
 	}
 
 	return nil
 }
 
-func (v *VertexAI) ListActions(ctx context.Context) []core.ActionDesc {
-	actions := []core.ActionDesc{}
+func (v *VertexAI) ListActions(ctx context.Context) []api.ActionDesc {
+	actions := []api.ActionDesc{}
 	models, err := listGenaiModels(ctx, v.gclient)
 	if err != nil {
 		return nil
@@ -403,30 +403,30 @@ func (v *VertexAI) ListActions(ctx context.Context) []core.ActionDesc {
 			},
 		}
 		metadata["label"] = fmt.Sprintf("%s - %s", vertexAILabelPrefix, name)
-		actions = append(actions, core.ActionDesc{
-			Type:     core.ActionTypeModel,
+		actions = append(actions, api.ActionDesc{
+			Type:     api.ActionTypeModel,
 			Name:     fmt.Sprintf("%s/%s", vertexAIProvider, name),
-			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, vertexAIProvider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", api.ActionTypeModel, vertexAIProvider, name),
 			Metadata: metadata,
 		})
 	}
 
 	for _, e := range models.embedders {
-		actions = append(actions, core.ActionDesc{
-			Type: core.ActionTypeEmbedder,
+		actions = append(actions, api.ActionDesc{
+			Type: api.ActionTypeEmbedder,
 			Name: fmt.Sprintf("%s/%s", vertexAIProvider, e),
-			Key:  fmt.Sprintf("/%s/%s/%s", core.ActionTypeEmbedder, vertexAIProvider, e),
+			Key:  fmt.Sprintf("/%s/%s/%s", api.ActionTypeEmbedder, vertexAIProvider, e),
 		})
 	}
 
 	return actions
 }
 
-func (v *VertexAI) ResolveAction(atype core.ActionType, name string) core.Action {
+func (v *VertexAI) ResolveAction(atype api.ActionType, name string) api.Action {
 	switch atype {
-	case core.ActionTypeEmbedder:
-		return newEmbedder(v.gclient, name, &ai.EmbedderOptions{}).(core.Action)
-	case core.ActionTypeModel:
+	case api.ActionTypeEmbedder:
+		return newEmbedder(v.gclient, name, &ai.EmbedderOptions{}).(api.Action)
+	case api.ActionTypeModel:
 		var supports *ai.ModelSupports
 		if strings.Contains(name, "gemini") {
 			supports = &Multimodal
@@ -437,7 +437,7 @@ func (v *VertexAI) ResolveAction(atype core.ActionType, name string) core.Action
 			Stage:    ai.ModelStageStable,
 			Versions: []string{},
 			Supports: supports,
-		}).(core.Action)
+		}).(api.Action)
 	}
 	return nil
 }
