@@ -298,7 +298,7 @@ func (e *AdjustingTraceExporter) tickTelemetry(span sdktrace.ReadOnlySpan) {
 		}
 	}
 	if !hasGenkitType {
-		return	
+		return
 	}
 
 	for _, module := range e.modules {

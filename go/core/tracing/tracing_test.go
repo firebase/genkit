@@ -315,7 +315,7 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 			input := "test input"
 
 			output, err := RunInNewSpan(ctx, tc.metadata, input,
-			func(ctx context.Context, input string) (string, error) {
+				func(ctx context.Context, input string) (string, error) {
 					// Verify that span metadata is available in context
 					sm := spanMetaKey.FromContext(ctx)
 					if sm == nil {
