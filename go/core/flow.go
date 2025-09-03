@@ -40,10 +40,9 @@ type StreamingFlowValue[Out, Stream any] struct {
 // flowContextKey is a context key that indicates whether the current context is a flow context.
 var flowContextKey = base.NewContextKey[*flowContext]()
 
-// flowContext is a context that contains the tracing state for a flow.
+// flowContext is a context that contains flow-specific information.
 type flowContext struct {
-	tracingState *tracing.State
-	flowName     string
+	flowName string
 }
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
@@ -90,7 +89,7 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		Type:    "flowStep",
 		Subtype: "flowStep",
 	}
-	return tracing.RunInNewSpan(ctx, nil, spanMetadata, nil, func(ctx context.Context, _ any) (Out, error) {
+	return tracing.RunInNewSpan(ctx, spanMetadata, nil, func(ctx context.Context, _ any) (Out, error) {
 		o, err := fn()
 		if err != nil {
 			return base.Zero[Out](), err

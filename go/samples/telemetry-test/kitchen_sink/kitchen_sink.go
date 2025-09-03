@@ -46,12 +46,9 @@ func main() {
 	})
 
 	// Initialize Genkit with plugins
-	g, err := genkit.Init(ctx, genkit.WithPlugins(
+	g := genkit.Init(ctx, genkit.WithPlugins(
 		&googlegenai.GoogleAI{},
 	))
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// Define a tool for web search simulation - using struct input for model compatibility
 	searchTool := genkit.DefineTool(g, "webSearch",

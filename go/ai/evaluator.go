@@ -201,7 +201,7 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 					Type:    "evaluator",
 					Subtype: "evaluator",
 				}
-				_, err := tracing.RunInNewSpan(ctx, nil, spanMetadata, datapoint,
+				_, err := tracing.RunInNewSpan(ctx, spanMetadata, datapoint,
 					func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
 						traceId := trace.SpanContextFromContext(ctx).TraceID().String()
 						spanId := trace.SpanContextFromContext(ctx).SpanID().String()

@@ -21,7 +21,7 @@ import (
 
 func TestEnableFirebaseTelemetry(t *testing.T) {
 	// Test zero config doesn't crash
-	EnableFirebaseTelemetry()
+	EnableFirebaseTelemetry(nil)
 
 	// Test with options doesn't crash
 	options := &FirebaseTelemetryOptions{

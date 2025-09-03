@@ -115,7 +115,6 @@ func convertToOTelAttributes(attrs map[string]interface{}) []attribute.KeyValue 
 		case bool:
 			result = append(result, attribute.Bool(key, v))
 		default:
-			// Convert to string for unsupported types
 			result = append(result, attribute.String(key, fmt.Sprintf("%v", v)))
 		}
 	}

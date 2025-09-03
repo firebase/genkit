@@ -57,7 +57,7 @@ func markErrorAsHandled(err error) error {
 		me.marked = true
 		return me
 	}
-	// Wrap the error if it's not already a markedError
+
 	return &markedError{error: err, marked: true}
 }
 
@@ -72,20 +72,15 @@ func isErrorAlreadyMarked(err error) bool {
 
 // captureStackTrace captures the current Go stack trace for error reporting
 func captureStackTrace() string {
-	// Capture stack trace with reasonable depth
 	buf := make([]byte, 4096)
 	n := runtime.Stack(buf, false)
-
-	// Convert to string and format for readability
 	stackTrace := string(buf[:n])
-
-	// Clean up the stack trace to remove internal tracing calls
 	lines := strings.Split(stackTrace, "\n")
 	var cleanLines []string
 	skipNext := false
 
 	for _, line := range lines {
-		// Skip lines related to this tracing package and runtime
+
 		if strings.Contains(line, "github.com/firebase/genkit/go/core/tracing") ||
 			strings.Contains(line, "runtime.") ||
 			strings.Contains(line, "captureStackTrace") {
@@ -100,7 +95,6 @@ func captureStackTrace() string {
 
 		cleanLines = append(cleanLines, line)
 
-		// Limit the stack trace depth for readability
 		if len(cleanLines) > 20 {
 			break
 		}
@@ -115,8 +109,7 @@ type State struct {
 }
 
 func NewState() *State {
-	// ALWAYS use the global TracerProvider if one exists
-	// This ensures we connect to any telemetry setup (like Google Cloud/Firebase)
+	// Use the global TracerProvider if one exists to connect to telemetry setup
 	if globalTP := otel.GetTracerProvider(); globalTP != nil {
 		slog.Debug("tracing.NewState: Found existing global TracerProvider", "type", fmt.Sprintf("%T", globalTP))
 		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
@@ -127,11 +120,9 @@ func NewState() *State {
 		slog.Debug("tracing.NewState: non-SDK TracerProvider found, not using it since it may not provide ExportSpans method")
 	}
 
-	// No telemetry plugin configured - create an SDK TracerProvider to support
-	// potential telemetry registration later (e.g., in tests or dev scenarios)
+	// Create SDK TracerProvider to support potential telemetry registration later
 	slog.Info("tracing.NewState: No telemetry configured, creating SDK TracerProvider for potential telemetry")
 
-	// Create an SDK TracerProvider so that WriteTelemetryImmediate/WriteTelemetryBatch can work
 	tp := sdktrace.NewTracerProvider()
 	otel.SetTracerProvider(tp)
 
@@ -173,11 +164,7 @@ func Tracer() trace.Tracer {
 // such as one that writes to a file.
 func WriteTelemetryImmediate(client TelemetryClient) {
 	e := newTelemetryServerExporter(client)
-	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
 	TracerProvider().RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
-	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
-	// Confirmed for OTel packages as of v1.24.0.
-	// Also requires traceStoreExporter.Shutdown to be a no-op.
 }
 
 // WriteTelemetryBatch adds a telemetry server to the global tracer provider.
@@ -189,7 +176,6 @@ func WriteTelemetryImmediate(client TelemetryClient) {
 // and perform other cleanup.
 func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
 	e := newTelemetryServerExporter(client)
-	// Adding a BatchSpanProcessor is like using the WithBatcher option.
 	TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
 	return TracerProvider().Shutdown
 }
@@ -212,11 +198,8 @@ type SpanMetadata struct {
 	// Subtype provides more specific categorization (e.g., "tool", "flow", "model")
 	Subtype string
 	// TelemetryLabels are arbitrary key-value pairs set directly as span attributes
-	// These can have any name (e.g., "genkit:sessionId": "123", "custom.label": "value")
-	// This matches TypeScript's telemetryLabels concept
 	TelemetryLabels map[string]string
-	// Metadata are genkit-specific metadata that get "genkit:metadata:" prefix
-	// (e.g., "subtype": "tool" becomes "genkit:metadata:subtype": "tool")
+	// Metadata are genkit-specific metadata with automatic "genkit:metadata:" prefix
 	Metadata map[string]string
 }
 
@@ -224,7 +207,6 @@ type SpanMetadata struct {
 // The metadata contains all span configuration including name, type, labels, etc.
 func RunInNewSpan[I, O any](
 	ctx context.Context,
-	state *State,
 	metadata *SpanMetadata,
 	input I,
 	f func(context.Context, I) (O, error),
@@ -234,16 +216,14 @@ func RunInNewSpan[I, O any](
 	log.Debug("span start", "name", metadata.Name)
 	defer log.Debug("span end", "name", metadata.Name)
 
-	// Ensure metadata exists
 	if metadata == nil {
 		metadata = &SpanMetadata{}
 	}
 
-	// Get parent span metadata to determine if this is a root span
 	parentSM := spanMetaKey.FromContext(ctx)
-	isRoot := metadata.IsRoot // Explicit override if set
+	isRoot := metadata.IsRoot
 	if !isRoot && parentSM == nil {
-		// Match TypeScript logic: if no parent span exists, this is a root span
+		// No parent span means this is a root span
 		isRoot = true
 	}
 
@@ -256,33 +236,24 @@ func RunInNewSpan[I, O any](
 		Metadata: metadata.Metadata,
 	}
 
-	// Get parent span path from context (reuse parentSM from above)
 	var parentPath string
 	if parentSM != nil {
 		parentPath = parentSM.Path
 	}
 
-	// Build path with type annotations: /{name,t:type}
-	// Match TypeScript behavior: flows use t:flow, utils use t:util, others use t:type with subtype decoration
-	//
-	// Note: All genkit resources are Type="action" but their actual type is in the Subtype field
-	// Flows have Subtype="flow", utils have Subtype="util", models have Subtype="model", etc.
+	// Build path with type annotations to maintain compatibility with TypeScript telemetry format
 	if metadata.Subtype == "flow" {
-		// For flows, use t:flow (like TypeScript) instead of t:action,s:flow
 		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, "flow")
 	} else if metadata.Subtype == "util" {
-		// For utils, use t:util (like TypeScript) instead of t:action,s:util
 		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, "util")
 	} else {
 		sm.Path = buildAnnotatedPath(metadata.Name, parentPath, metadata.Type)
-		// Add subtype decoration if subtype is specified (for non-flows and non-utils)
 		if metadata.Subtype != "" {
 			sm.Path = decoratePathWithSubtype(sm.Path, metadata.Subtype)
 		}
 	}
 
 	var opts []trace.SpanStartOption
-	// Add arbitrary attributes
 	if metadata.TelemetryLabels != nil {
 		var attrs []attribute.KeyValue
 		for k, v := range metadata.TelemetryLabels {
@@ -291,22 +262,16 @@ func RunInNewSpan[I, O any](
 		opts = append(opts, trace.WithAttributes(attrs...))
 	}
 
-	// Set up OpenTelemetry span options
 	if metadata.Type != "" {
 		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, metadata.Type)))
 	}
 
-	// Start the span
 	ctx, span := Tracer().Start(ctx, metadata.Name, opts...)
 	defer span.End()
-	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()
-	// Add the spanMetadata to the context, so the function can access it.
 	ctx = spanMetaKey.NewContext(ctx, sm)
-	// Run the function.
 	output, err := f(ctx, input)
 
-	// Set span state based on result
 	if err != nil {
 		sm.State = spanStateError
 		sm.Error = err.Error()
@@ -357,7 +322,6 @@ func decoratePathWithSubtype(path string, subtype string) string {
 	// Extract the content of the last segment (without braces)
 	segmentContent := path[lastBraceIndex+1 : closingBraceIndex]
 
-	// Add subtype annotation
 	decoratedContent := segmentContent + ",s:" + subtype
 
 	// Rebuild the path with the decorated last segment
@@ -398,17 +362,14 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 		attribute.String("genkit:path", sm.Path),
 	}
 
-	// Only populate genkit:output if we have actual output data
 	if sm.Output != nil {
 		kvs = append(kvs, attribute.String("genkit:output", base.JSONString(sm.Output)))
 	}
 
-	// Add genkit:type if specified
 	if sm.Type != "" {
 		kvs = append(kvs, attribute.String("genkit:type", sm.Type))
 	}
 
-	// Add genkit:metadata:subtype if specified
 	if sm.Subtype != "" {
 		kvs = append(kvs, attribute.String("genkit:metadata:subtype", sm.Subtype))
 	}
@@ -421,7 +382,6 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 		kvs = append(kvs, attribute.Bool("genkit:isFailureSource", true))
 	}
 
-	// Add custom metadata attributes
 	if sm.Metadata != nil {
 		for k, v := range sm.Metadata {
 			kvs = append(kvs, attribute.String(attrPrefix+":metadata:"+k, v))

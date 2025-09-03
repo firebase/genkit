@@ -38,7 +38,6 @@ type PathTelemetry struct {
 
 // NewPathTelemetry creates a new path telemetry module with required metrics
 func NewPathTelemetry() *PathTelemetry {
-	// Note: uses "feature" namespace for path metrics
 	n := func(name string) string { return internalMetricNamespaceWrap("feature", name) }
 
 	return &PathTelemetry{
@@ -55,7 +54,6 @@ func NewPathTelemetry() *PathTelemetry {
 
 // Tick processes a span for path telemetry
 func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
-	// Get context with span context for trace information
 	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	attributes := span.Attributes()
 
@@ -63,23 +61,16 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 	isFailureSource := extractBoolAttribute(attributes, "genkit:isFailureSource")
 	state := extractStringAttribute(attributes, "genkit:state")
 
-	// Only process failing, leaf spans
 	if path == "" || !isFailureSource || state != "error" {
 		return
 	}
 
-	// Extract session info
 	sessionID := extractStringAttribute(attributes, "genkit:sessionId")
 	threadName := extractStringAttribute(attributes, "genkit:threadName")
 
-	// Extract error details from span - align with TypeScript format
-	// TypeScript always uses "Error" as the error type/name
 	errorType := "Error"
-
-	// Get the actual error message from span status or events
 	errorMessage := p.extractErrorMessage(span)
 	if errorMessage == "" {
-		// Fallback to span status description if no event message
 		if span.Status().Code == codes.Error {
 			errorMessage = span.Status().Description
 		}
@@ -89,11 +80,7 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 	}
 
 	errorStack := p.extractErrorStack(span)
-
-	// Calculate latency
 	latencyMs := p.calculateLatencyMs(span)
-
-	// Record metrics
 	pathDimensions := map[string]interface{}{
 		"featureName":   extractOuterFeatureNameFromPath(path),
 		"status":        "failure",
@@ -106,8 +93,6 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 	p.pathCounter.Add(1, pathDimensions)
 	p.pathLatencies.Record(latencyMs, pathDimensions)
 
-	// Use full path like TypeScript (preserve substep information)
-	// Convert /{flow,t:flow}/{substep,t:flowStep} -> flow > substep
 	displayPath := toDisplayPath(path)
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 
@@ -120,7 +105,6 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 		"sourceVersion": internal.Version,
 	}
 
-	// Only add session fields if they have values (like TypeScript)
 	if sessionID != "" {
 		logData["sessionId"] = sessionID
 	}
@@ -128,12 +112,10 @@ func (p *PathTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, pr
 		logData["threadName"] = threadName
 	}
 
-	// Add shared metadata
 	for k, v := range sharedMetadata {
 		logData[k] = v
 	}
 
-	// Log as error level - format like TypeScript: [genkit] Error[path, Error] message
 	logMessage := fmt.Sprintf("[genkit] Error[%s, %s] %s", displayPath, errorType, errorMessage)
 	slog.ErrorContext(ctx, logMessage, MetadataKey, logData)
 }
@@ -147,23 +129,17 @@ func extractSimplePathFromQualified(qualifiedPath string) string {
 		return ""
 	}
 
-	// Remove leading slash if present
 	path := strings.TrimPrefix(qualifiedPath, "/")
 
-	// Find the first brace to get the segment
 	if strings.HasPrefix(path, "{") && strings.Contains(path, "}") {
-		// Extract content between first { and }
 		end := strings.Index(path, "}")
 		if end > 1 {
 			content := path[1:end]
-			// Split by comma and take the first part (the name)
 			if parts := strings.Split(content, ","); len(parts) > 0 {
 				return parts[0]
 			}
 		}
 	}
-
-	// If not in expected format, return as-is
 	return qualifiedPath
 }
 
@@ -173,12 +149,11 @@ func (p *PathTelemetry) calculateLatencyMs(span sdktrace.ReadOnlySpan) float64 {
 	endTime := span.EndTime()
 
 	if endTime.IsZero() {
-		// Span hasn't ended yet, use current time
 		endTime = time.Now()
 	}
 
 	duration := endTime.Sub(startTime)
-	return float64(duration.Nanoseconds()) / 1e6 // Convert to milliseconds
+	return float64(duration.Nanoseconds()) / 1e6
 }
 
 // extractErrorMessage extracts error message from span events

@@ -57,7 +57,7 @@ type FirebaseTelemetryOptions struct {
 // Example usage:
 //
 //	// Zero-config (auto-detects everything, all modules enabled)
-//	firebase.EnableFirebaseTelemetry()
+//	firebase.EnableFirebaseTelemetry(nil)
 //	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 //
 //	// With configuration (all modules still enabled)
@@ -67,12 +67,11 @@ type FirebaseTelemetryOptions struct {
 //		ExportInputAndOutput: true,
 //	})
 //	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-func EnableFirebaseTelemetry(options ...*FirebaseTelemetryOptions) {
-	var opts *FirebaseTelemetryOptions
-	if len(options) > 0 && options[0] != nil {
-		opts = options[0]
+func EnableFirebaseTelemetry(options *FirebaseTelemetryOptions) {
+	if options == nil {
+		options = &FirebaseTelemetryOptions{}
 	}
-	initializeTelemetry(opts)
+	initializeTelemetry(options)
 }
 
 // initializeTelemetry is the internal function that sets up Firebase telemetry.

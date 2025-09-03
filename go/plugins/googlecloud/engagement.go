@@ -36,7 +36,6 @@ type EngagementTelemetry struct {
 
 // NewEngagementTelemetry creates a new engagement telemetry module with required metrics
 func NewEngagementTelemetry() *EngagementTelemetry {
-	// Use the namespace wrapper from metrics.go
 	n := func(name string) string { return internalMetricNamespaceWrap("engagement", name) }
 
 	return &EngagementTelemetry{
@@ -56,31 +55,26 @@ func (e *EngagementTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bo
 	attributes := span.Attributes()
 	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
 
-	// Only process spans that are engagement-related
 	switch subtype {
 	case "userFeedback":
 		e.writeUserFeedback(span, projectID)
 	case "userAcceptance":
 		e.writeUserAcceptance(span, projectID)
 	default:
-		// Not an engagement span, skip silently
 		return
 	}
 }
 
 // writeUserFeedback records metrics and logs for user feedback
 func (e *EngagementTelemetry) writeUserFeedback(span sdktrace.ReadOnlySpan, projectID string) {
-	// Get context with span context for trace information
 	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	attributes := span.Attributes()
 	name := e.extractTraceName(attributes)
 
-	// Extract feedback-specific attributes
 	feedbackValue := extractStringAttribute(attributes, "genkit:metadata:feedbackValue")
 	textFeedback := extractStringAttribute(attributes, "genkit:metadata:textFeedback")
 	hasText := textFeedback != ""
 
-	// Record metrics
 	dimensions := map[string]interface{}{
 		"name":          name,
 		"value":         feedbackValue,
@@ -90,18 +84,15 @@ func (e *EngagementTelemetry) writeUserFeedback(span sdktrace.ReadOnlySpan, proj
 	}
 	e.feedbackCounter.Add(1, dimensions)
 
-	// Record structured log
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 	logData := map[string]interface{}{
 		"feedbackValue": feedbackValue,
 	}
 
-	// Add shared metadata
 	for k, v := range sharedMetadata {
 		logData[k] = v
 	}
 
-	// Add text feedback if present
 	if hasText {
 		logData["textFeedback"] = truncate(textFeedback)
 	}
@@ -116,10 +107,8 @@ func (e *EngagementTelemetry) writeUserAcceptance(span sdktrace.ReadOnlySpan, pr
 	attributes := span.Attributes()
 	name := e.extractTraceName(attributes)
 
-	// Extract acceptance-specific attributes
 	acceptanceValue := extractStringAttribute(attributes, "genkit:metadata:acceptanceValue")
 
-	// Record metrics
 	dimensions := map[string]interface{}{
 		"name":          name,
 		"value":         acceptanceValue,
@@ -128,13 +117,11 @@ func (e *EngagementTelemetry) writeUserAcceptance(span sdktrace.ReadOnlySpan, pr
 	}
 	e.acceptanceCounter.Add(1, dimensions)
 
-	// Record structured log
 	sharedMetadata := createCommonLogAttributes(span, projectID)
 	logData := map[string]interface{}{
 		"acceptanceValue": acceptanceValue,
 	}
 
-	// Add shared metadata
 	for k, v := range sharedMetadata {
 		logData[k] = v
 	}

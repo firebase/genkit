@@ -36,7 +36,6 @@ type FeatureTelemetry struct {
 
 // NewFeatureTelemetry creates a new feature telemetry module with required metrics
 func NewFeatureTelemetry() *FeatureTelemetry {
-	// Use the namespace wrapper from metrics.go
 	n := func(name string) string { return internalMetricNamespaceWrap("feature", name) }
 
 	return &FeatureTelemetry{
@@ -55,21 +54,16 @@ func NewFeatureTelemetry() *FeatureTelemetry {
 func (f *FeatureTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 
-	// Only process root spans - these represent top-level features
 	isRoot := extractBoolAttribute(attributes, "genkit:isRoot")
 	if !isRoot {
 		return
 	}
 
-	// Extract key span data
 	name := extractStringAttribute(attributes, "genkit:name")
 	path := extractStringAttribute(attributes, "genkit:path")
 	state := extractStringAttribute(attributes, "genkit:state")
 
-	// Calculate latency from span timing
 	latencyMs := f.calculateLatencyMs(span)
-
-	// Process based on state
 	switch state {
 	case "success":
 		f.writeFeatureSuccess(name, latencyMs)
@@ -80,7 +74,6 @@ func (f *FeatureTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool,
 		}
 		f.writeFeatureFailure(name, latencyMs, errorName)
 	default:
-		// Warn for both unknown states and missing/empty states
 		if state == "" {
 			slog.Warn("Unknown feature state", "state", "<missing>", "feature", name)
 		} else {
@@ -88,8 +81,6 @@ func (f *FeatureTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool,
 		}
 		return
 	}
-
-	// Write input/output logs if enabled
 	if logInputOutput {
 		input := truncate(extractStringAttribute(attributes, "genkit:input"))
 		output := truncate(extractStringAttribute(attributes, "genkit:output"))
@@ -107,7 +98,6 @@ func (f *FeatureTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool,
 
 // writeFeatureSuccess records metrics for successful feature calls
 func (f *FeatureTelemetry) writeFeatureSuccess(featureName string, latencyMs float64) {
-	// Standard shared dimensions
 	dimensions := map[string]interface{}{
 		"name":          featureName,
 		"status":        "success",
@@ -121,7 +111,6 @@ func (f *FeatureTelemetry) writeFeatureSuccess(featureName string, latencyMs flo
 
 // writeFeatureFailure records metrics for failed feature calls
 func (f *FeatureTelemetry) writeFeatureFailure(featureName string, latencyMs float64, errorName string) {
-	// Standard shared dimensions
 	dimensions := map[string]interface{}{
 		"name":          featureName,
 		"status":        "failure",
@@ -136,7 +125,6 @@ func (f *FeatureTelemetry) writeFeatureFailure(featureName string, latencyMs flo
 
 // writeLog writes structured logs for feature input/output
 func (f *FeatureTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName, qualifiedPath, content, projectID, sessionID, threadName string) {
-	// Get context with span context for trace information
 	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
@@ -148,7 +136,6 @@ func (f *FeatureTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName
 		"content":       content,
 	}
 
-	// Only add session fields if they have values (like TypeScript)
 	if sessionID != "" {
 		logData["sessionId"] = sessionID
 	}
@@ -156,7 +143,6 @@ func (f *FeatureTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName
 		logData["threadName"] = threadName
 	}
 
-	// Add shared metadata
 	for k, v := range sharedMetadata {
 		logData[k] = v
 	}
@@ -172,22 +158,19 @@ func (f *FeatureTelemetry) calculateLatencyMs(span sdktrace.ReadOnlySpan) float6
 	endTime := span.EndTime()
 
 	if endTime.IsZero() {
-		// Span hasn't ended yet, use current time
 		endTime = time.Now()
 	}
 
 	duration := endTime.Sub(startTime)
-	return float64(duration.Nanoseconds()) / 1e6 // Convert to milliseconds
+	return float64(duration.Nanoseconds()) / 1e6
 }
 
 // extractErrorName extracts error information from span
 func (f *FeatureTelemetry) extractErrorName(span sdktrace.ReadOnlySpan) string {
-	// Check span status first
 	if span.Status().Code == codes.Error {
 		return span.Status().Description
 	}
 
-	// Check events for error information
 	for _, event := range span.Events() {
 		if event.Name == "exception" {
 			for _, attr := range event.Attributes {

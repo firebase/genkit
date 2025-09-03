@@ -444,14 +444,14 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 	var traceID string
 	spanMetadata := &tracing.SpanMetadata{
 		Name:            "dev-run-action-wrapper",
-		Type:            "action", // Wrapper action gets type "action"
+		Type:            "action",
 		IsRoot:          true,
-		TelemetryLabels: telemetryAttributes, // Set telemetry labels as attributes
+		TelemetryLabels: telemetryAttributes,
 		Metadata: map[string]string{
-			"genkit-dev-internal": "true", // Mark as dev internal
+			"genkit-dev-internal": "true",
 		},
 	}
-	output, err := tracing.RunInNewSpan(ctx, nil, spanMetadata, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+	output, err := tracing.RunInNewSpan(ctx, spanMetadata, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.RunJSON(ctx, input, cb)
 	})

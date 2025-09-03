@@ -37,7 +37,6 @@ func NewActionTelemetry() *ActionTelemetry {
 
 // Tick processes a span for action telemetry
 func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
-	// Action telemetry only runs if input/output logging is enabled
 	if !logInputOutput {
 		return
 	}
@@ -50,7 +49,6 @@ func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, 
 
 	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
 
-	// Only process tool actions or generate actions
 	if subtype == "tool" || actionName == "generate" {
 		path := extractStringAttribute(attributes, "genkit:path")
 		if path == "" {
@@ -62,18 +60,15 @@ func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, 
 		sessionID := extractStringAttribute(attributes, "genkit:sessionId")
 		threadName := extractStringAttribute(attributes, "genkit:threadName")
 
-		// Extract feature name from path, fallback to action name
 		featureName := extractOuterFeatureNameFromPath(path)
 		if featureName == "" || featureName == "<unknown>" {
 			featureName = actionName
 		}
 
-		// Write input log if we have input data
 		if input != "" {
 			a.writeLog(span, "Input", featureName, path, input, projectID, sessionID, threadName)
 		}
 
-		// Write output log if we have output data
 		if output != "" {
 			a.writeLog(span, "Output", featureName, path, output, projectID, sessionID, threadName)
 		}
@@ -82,7 +77,6 @@ func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, 
 
 // writeLog writes structured logs for action input/output
 func (a *ActionTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName, qualifiedPath, content, projectID, sessionID, threadName string) {
-	// Get context with span context for trace information
 	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
@@ -94,7 +88,6 @@ func (a *ActionTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName,
 		"content":       content,
 	}
 
-	// Only add session fields if they have values (like TypeScript)
 	if sessionID != "" {
 		logData["sessionId"] = sessionID
 	}
@@ -102,7 +95,6 @@ func (a *ActionTelemetry) writeLog(span sdktrace.ReadOnlySpan, tag, featureName,
 		logData["threadName"] = threadName
 	}
 
-	// Add shared metadata
 	for k, v := range sharedMetadata {
 		logData[k] = v
 	}

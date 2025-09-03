@@ -53,16 +53,12 @@ func CredentialsFromEnvironment() (*GcpAuthConfig, error) {
 	ctx := context.Background()
 	config := &GcpAuthConfig{}
 
-	// Check for GCLOUD_SERVICE_ACCOUNT_CREDS environment variable
 	if credsJSON := os.Getenv("GCLOUD_SERVICE_ACCOUNT_CREDS"); credsJSON != "" {
-
-		// Parse the service account credentials
 		var serviceAccountCreds map[string]interface{}
 		if err := json.Unmarshal([]byte(credsJSON), &serviceAccountCreds); err != nil {
 			return nil, fmt.Errorf("failed to parse GCLOUD_SERVICE_ACCOUNT_CREDS: %w", err)
 		}
 
-		// Create credentials from service account JSON
 		creds, err := google.CredentialsFromJSON(ctx, []byte(credsJSON))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create credentials from service account: %w", err)
@@ -70,13 +66,10 @@ func CredentialsFromEnvironment() (*GcpAuthConfig, error) {
 
 		config.Credentials = creds
 
-		// Extract project ID from service account JSON
 		if projectID, ok := serviceAccountCreds["project_id"].(string); ok && projectID != "" {
 			config.ProjectID = projectID
 		}
 	} else {
-		// Fall back to Application Default Credentials (ADC)
-
 		creds, err := google.FindDefaultCredentials(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find default credentials: %w", err)
@@ -85,8 +78,6 @@ func CredentialsFromEnvironment() (*GcpAuthConfig, error) {
 		config.Credentials = creds
 		config.ProjectID = creds.ProjectID
 	}
-
-	// If we still don't have a project ID, try to get it from the credentials
 	if config.ProjectID == "" && config.Credentials != nil {
 		if config.Credentials.ProjectID != "" {
 			config.ProjectID = config.Credentials.ProjectID
@@ -107,14 +98,10 @@ func ResolveCurrentPrincipal() (*GcpPrincipal, error) {
 	ctx := context.Background()
 	principal := &GcpPrincipal{}
 
-	// Try environment credentials first
 	envConfig, err := CredentialsFromEnvironment()
 	if err != nil {
-
-		// Try ADC fallback
 		adcCreds, adcErr := google.FindDefaultCredentials(ctx)
 		if adcErr != nil {
-
 			return principal, fmt.Errorf("could not resolve credentials from environment or ADC: %w", err)
 		}
 
@@ -125,8 +112,6 @@ func ResolveCurrentPrincipal() (*GcpPrincipal, error) {
 
 		return principal, nil
 	}
-
-	// Use environment credentials
 	principal.ProjectID = envConfig.ProjectID
 	if email := extractServiceAccountEmail(envConfig.Credentials); email != "" {
 		principal.ServiceAccountEmail = email
@@ -141,7 +126,6 @@ func extractServiceAccountEmail(creds *google.Credentials) string {
 		return ""
 	}
 
-	// Try to extract from JWT token if available
 	if creds.JSON != nil {
 		var serviceAccount map[string]interface{}
 		if err := json.Unmarshal(creds.JSON, &serviceAccount); err == nil {
@@ -151,9 +135,5 @@ func extractServiceAccountEmail(creds *google.Credentials) string {
 		}
 	}
 
-	// If we can't extract from JSON, try to get from token source
-	// This is a fallback for cases where we have credentials but no JSON
-	// Note: This is a simplified implementation - in practice, extracting
-	// the service account email from a token source requires more complex logic
 	return ""
 }

@@ -200,7 +200,7 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 		spanMetadata.Metadata["flow:name"] = flowName
 	}
 
-	return tracing.RunInNewSpan(ctx, nil, spanMetadata, input,
+	return tracing.RunInNewSpan(ctx, spanMetadata, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error

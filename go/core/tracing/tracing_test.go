@@ -243,7 +243,6 @@ func TestDecoratePathWithSubtype(t *testing.T) {
 }
 
 func TestRunInNewSpanWithMetadata(t *testing.T) {
-	tstate := NewState()
 
 	testCases := []struct {
 		name            string
@@ -315,8 +314,8 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 			ctx := context.Background()
 			input := "test input"
 
-			output, err := RunInNewSpan(ctx, tstate, tc.metadata, input,
-				func(ctx context.Context, input string) (string, error) {
+			output, err := RunInNewSpan(ctx, tc.metadata, input,
+			func(ctx context.Context, input string) (string, error) {
 					// Verify that span metadata is available in context
 					sm := spanMetaKey.FromContext(ctx)
 					if sm == nil {
@@ -352,7 +351,6 @@ func TestRunInNewSpanWithMetadata(t *testing.T) {
 }
 
 func TestRunInNewSpanWithTypeConvenience(t *testing.T) {
-	tstate := NewState()
 	ctx := context.Background()
 
 	metadata := &SpanMetadata{
@@ -362,7 +360,7 @@ func TestRunInNewSpanWithTypeConvenience(t *testing.T) {
 		Subtype: "tool",
 	}
 
-	output, err := RunInNewSpan(ctx, tstate, metadata, "input",
+	output, err := RunInNewSpan(ctx, metadata, "input",
 		func(ctx context.Context, input string) (string, error) {
 			sm := spanMetaKey.FromContext(ctx)
 			if sm == nil {
@@ -389,14 +387,13 @@ func TestRunInNewSpanWithTypeConvenience(t *testing.T) {
 }
 
 func TestNestedSpanPaths(t *testing.T) {
-	tstate := NewState()
 	ctx := context.Background()
 
 	// Test nested spans to verify path building
-	_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{Name: "chatFlow", IsRoot: true, Type: "action", Subtype: "flow"}, "input",
+	_, err := RunInNewSpan(ctx, &SpanMetadata{Name: "chatFlow", IsRoot: true, Type: "action", Subtype: "flow"}, "input",
 		func(ctx context.Context, input string) (string, error) {
 			// Nested action span
-			return RunInNewSpan(ctx, tstate, &SpanMetadata{Name: "myTool", IsRoot: false, Type: "action", Subtype: "tool"}, input,
+			return RunInNewSpan(ctx, &SpanMetadata{Name: "myTool", IsRoot: false, Type: "action", Subtype: "tool"}, input,
 				func(ctx context.Context, input string) (string, error) {
 					sm := spanMetaKey.FromContext(ctx)
 					if sm == nil {
@@ -420,13 +417,12 @@ func TestNestedSpanPaths(t *testing.T) {
 
 // TestIsFailureSourceOnError verifies that genkit:isFailureSource is set correctly
 func TestIsFailureSourceOnError(t *testing.T) {
-	tstate := NewState()
 	ctx := context.Background()
 
 	testErr := fmt.Errorf("test error")
 
 	// Call RunInNewSpan with a function that returns an error
-	_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+	_, err := RunInNewSpan(ctx, &SpanMetadata{
 		Name: "failing-action",
 		Type: "action",
 	}, "input", func(ctx context.Context, input string) (string, error) {
@@ -442,11 +438,10 @@ func TestIsFailureSourceOnError(t *testing.T) {
 
 // TestRootSpanAutoDetection tests that spans are automatically marked as root when no parent exists
 func TestRootSpanAutoDetection(t *testing.T) {
-	tstate := NewState()
 	ctx := context.Background()
 
 	t.Run("span with no parent should be marked as root", func(t *testing.T) {
-		_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+		_, err := RunInNewSpan(ctx, &SpanMetadata{
 			Name:    "topLevelFlow",
 			Type:    "action",
 			Subtype: "flow",
@@ -470,7 +465,7 @@ func TestRootSpanAutoDetection(t *testing.T) {
 	})
 
 	t.Run("span with explicit IsRoot=true should be marked as root", func(t *testing.T) {
-		_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+		_, err := RunInNewSpan(ctx, &SpanMetadata{
 			Name:   "explicitRootFlow",
 			Type:   "action",
 			IsRoot: true, // Explicitly set to true
@@ -493,13 +488,13 @@ func TestRootSpanAutoDetection(t *testing.T) {
 	})
 
 	t.Run("nested span should not be marked as root", func(t *testing.T) {
-		_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+		_, err := RunInNewSpan(ctx, &SpanMetadata{
 			Name:   "parentFlow",
 			Type:   "action",
 			IsRoot: true,
 		}, "input", func(ctx context.Context, input string) (string, error) {
 			// This is a nested span - should NOT be root
-			_, err := RunInNewSpan(ctx, tstate, &SpanMetadata{
+			_, err := RunInNewSpan(ctx, &SpanMetadata{
 				Name:   "childAction",
 				Type:   "action",
 				IsRoot: false,

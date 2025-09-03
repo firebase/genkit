@@ -128,7 +128,7 @@ func DefineGenerateAction(ctx context.Context, r api.Registry) *generateAction {
 				Type:    "util",
 				Subtype: "util",
 			}
-			return tracing.RunInNewSpan(ctx, nil, spanMetadata, actionOpts,
+			return tracing.RunInNewSpan(ctx, spanMetadata, actionOpts,
 				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
 					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
 				})

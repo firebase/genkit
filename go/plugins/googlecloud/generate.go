@@ -56,7 +56,6 @@ type GenerateTelemetry struct {
 func NewGenerateTelemetry() *GenerateTelemetry {
 	meter := otel.Meter("genkit")
 
-	// Create metrics following OpenTelemetry patterns
 	actionCounter, _ := meter.Int64Counter("genkit/ai/generate/requests", metric.WithDescription("Counts calls to genkit generate actions."), metric.WithUnit("1"))
 	latencies, _ := meter.Int64Histogram("genkit/ai/generate/latency", metric.WithDescription("Latencies when interacting with a Genkit model."), metric.WithUnit("ms"))
 	inputCharacters, _ := meter.Int64Counter("genkit/ai/generate/input/characters", metric.WithDescription("Counts input characters to any Genkit model."), metric.WithUnit("1"))
@@ -91,54 +90,41 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 	attributes := span.Attributes()
 
 	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
-	// Only process spans that are model actions (genkit:metadata:subtype = "model")
 	if subtype != "model" {
 		return
 	}
 
-	// Extract key span data
 	modelName := truncate(extractStringAttribute(attributes, "genkit:name"), 1024)
 	path := extractStringAttribute(attributes, "genkit:path")
 	inputStr := extractStringAttribute(attributes, "genkit:input")
 	outputStr := extractStringAttribute(attributes, "genkit:output")
 
-	// Parse input/output JSON
 	var input ai.GenerateActionOptions
 	var output ai.ModelResponse
 
 	if inputStr != "" {
-		if err := json.Unmarshal([]byte(inputStr), &input); err != nil {
-			// If JSON parsing fails, continue without input data
-		}
+		json.Unmarshal([]byte(inputStr), &input)
 	}
 
 	if outputStr != "" {
-		if err := json.Unmarshal([]byte(outputStr), &output); err != nil {
-			// If JSON parsing fails, continue without output data
-		}
+		json.Unmarshal([]byte(outputStr), &output)
 	}
 
-	// Extract error information
 	errName := g.extractErrorName(span)
 
-	// Extract feature name (from flow context or path)
 	featureName := truncate(g.extractFeatureName(attributes, path))
 
-	// Extract session and thread info
 	sessionId := extractStringAttribute(attributes, "genkit:sessionId")
 	threadName := extractStringAttribute(attributes, "genkit:threadName")
 
-	// Log configuration info
 	if input.Config != nil {
 		g.recordGenerateActionConfigLogs(span, modelName, featureName, path, &input, projectID, sessionId, threadName)
 	}
 
-	// Log input content if available and enabled
 	if inputStr != "" && logInputOutput {
 		g.recordGenerateActionInputLogs(span, modelName, featureName, path, &input, projectID, sessionId, threadName)
 	}
 
-	// Log output content if available and enabled
 	if outputStr != "" && logInputOutput {
 		g.recordGenerateActionOutputLogs(span, modelName, featureName, path, &output, projectID, sessionId, threadName)
 	}
@@ -146,7 +132,6 @@ func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool
 		featureName = "generate"
 	}
 
-	// Record metrics if we have input data
 	if inputStr != "" {
 		g.recordGenerateActionMetrics(modelName, featureName, path, &output, errName)
 	}
@@ -159,7 +144,6 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 		status = "failure"
 	}
 
-	// Standard shared dimensions
 	attrs := []attribute.KeyValue{
 		attribute.String("modelName", modelName),
 		attribute.String("featureName", featureName),
@@ -169,19 +153,16 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 		attribute.String("sourceVersion", internal.Version),
 	}
 
-	// Record request count with error attribute if present
 	errorAttrs := attrs
 	if errName != "" {
 		errorAttrs = append(attrs, attribute.String("error", errName))
 	}
 	g.actionCounter.Add(context.Background(), 1, metric.WithAttributes(errorAttrs...))
 
-	// Record latency if available
 	if output != nil && output.LatencyMs > 0 {
 		g.latencies.Record(context.Background(), int64(output.LatencyMs), metric.WithAttributes(attrs...))
 	}
 
-	// Record usage metrics if available
 	if usage := output.Usage; usage != nil {
 		opt := metric.WithAttributes(attrs...)
 		g.inputTokens.Add(context.Background(), int64(usage.InputTokens), opt)
@@ -201,7 +182,6 @@ func (g *GenerateTelemetry) recordGenerateActionMetrics(modelName, featureName, 
 
 // recordGenerateActionConfigLogs logs configuration information
 func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, input *ai.GenerateActionOptions, projectID, sessionID, threadName string) {
-	// Get context with span context for trace information
 	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
@@ -215,7 +195,6 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		"sourceVersion": internal.Version,
 	}
 
-	// Only add session fields if they have values
 	if sessionID != "" {
 		logData["sessionId"] = sessionID
 	}
@@ -223,14 +202,11 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		logData["threadName"] = threadName
 	}
 
-	// Add shared metadata
 	for k, v := range sharedMetadata {
 		logData[k] = v
 	}
 
-	// Add config details if available
 	if input.Config != nil {
-		// Config is 'any' type in ai.GenerateActionOptions, so we need to handle it differently
 		if configMap, ok := input.Config.(map[string]interface{}); ok {
 			if maxTokens, exists := configMap["maxOutputTokens"]; exists {
 				logData["maxOutputTokens"] = maxTokens
@@ -241,11 +217,9 @@ func (g *GenerateTelemetry) recordGenerateActionConfigLogs(span sdktrace.ReadOnl
 		}
 	}
 
-	// Add source tracking
 	logData["source"] = "go"
 	logData["sourceVersion"] = internal.Version
 
-	// Send to Google Cloud Logging via slog
 	message := fmt.Sprintf("[genkit] Config[%s, %s]", path, model)
 	slog.InfoContext(ctx, message, "data", logData)
 }
@@ -256,7 +230,6 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 		return
 	}
 
-	// Get context with span context for trace information
 	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
@@ -268,7 +241,6 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 		"featureName":   featureName,
 	}
 
-	// Only add session fields if they have values (like TypeScript)
 	if sessionID != "" {
 		baseLogData["sessionId"] = sessionID
 	}
@@ -276,7 +248,6 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 		baseLogData["threadName"] = threadName
 	}
 
-	// Add shared metadata
 	for k, v := range sharedMetadata {
 		baseLogData[k] = v
 	}
@@ -298,7 +269,6 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 			logData["messageIndex"] = msgIdx
 			logData["totalMessages"] = messages
 
-			// Send to Google Cloud Logging via slog
 			message := fmt.Sprintf("[genkit] Input[%s, %s] %s", path, model, partCounts)
 			slog.InfoContext(ctx, message, MetadataKey, logData)
 		}
@@ -307,7 +277,6 @@ func (g *GenerateTelemetry) recordGenerateActionInputLogs(span sdktrace.ReadOnly
 
 // recordGenerateActionOutputLogs logs output information
 func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnlySpan, model, featureName, qualifiedPath string, output *ai.ModelResponse, projectID, sessionID, threadName string) {
-	// Get context with span context for trace information
 	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	path := truncatePath(toDisplayPath(qualifiedPath))
 	sharedMetadata := createCommonLogAttributes(span, projectID)
@@ -319,7 +288,6 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 		"featureName":   featureName,
 	}
 
-	// Only add session fields if they have values (like TypeScript)
 	if sessionID != "" {
 		baseLogData["sessionId"] = sessionID
 	}
@@ -327,12 +295,10 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 		baseLogData["threadName"] = threadName
 	}
 
-	// Add shared metadata
 	for k, v := range sharedMetadata {
 		baseLogData[k] = v
 	}
 
-	// Handle message from ai.ModelResponse structure
 	var message *ai.Message
 	if output.Message != nil {
 		message = output.Message
@@ -361,7 +327,6 @@ func (g *GenerateTelemetry) recordGenerateActionOutputLogs(span sdktrace.ReadOnl
 			logData["messageIndex"] = 0
 			logData["finishReason"] = output.FinishReason
 
-			// Send to Google Cloud Logging via slog
 			message := fmt.Sprintf("[genkit] Output[%s, %s] %s", path, model, partCounts)
 			slog.InfoContext(ctx, message, MetadataKey, logData)
 		}
@@ -374,8 +339,6 @@ func (g *GenerateTelemetry) extractErrorName(span sdktrace.ReadOnlySpan) string 
 	if span.Status().Code == codes.Error {
 		return span.Status().Description
 	}
-
-	// Check events for error information
 	for _, event := range span.Events() {
 		if event.Name == "exception" {
 			for _, attr := range event.Attributes {
@@ -389,13 +352,10 @@ func (g *GenerateTelemetry) extractErrorName(span sdktrace.ReadOnlySpan) string 
 }
 
 func (g *GenerateTelemetry) extractFeatureName(attributes []attribute.KeyValue, path string) string {
-	// Try to get from flow context first
 	flowName := extractStringAttribute(attributes, "genkit:metadata:flow:name")
 	if flowName != "" {
 		return flowName
 	}
-
-	// Extract from path as fallback
 	pathFeature := extractOuterFeatureNameFromPath(path)
 	return pathFeature
 }
@@ -423,9 +383,9 @@ func (g *GenerateTelemetry) toPartLogContent(part *ai.Part) string {
 	case ai.PartText:
 		return truncate(part.Text)
 	case ai.PartData:
-		return truncate(part.Text) // Data is stored in Text field
+		return truncate(part.Text)
 	case ai.PartMedia:
-		return g.toPartLogMedia(part) // Media content stored in Text field
+		return g.toPartLogMedia(part)
 	case ai.PartCustom:
 		if part.Custom != nil {
 			data, _ := json.Marshal(part.Custom)
@@ -491,16 +451,13 @@ func toDisplayPath(qualifiedPath string) string {
 		return "<unknown>"
 	}
 
-	// Use regex to extract names from {name,type} patterns
-	// Pattern matches {name,anything} and captures the name part
 	re := regexp.MustCompile(`\{([^,}]+),[^}]+\}`)
 	matches := re.FindAllStringSubmatch(qualifiedPath, -1)
 
 	if len(matches) == 0 {
-		return qualifiedPath // Return as-is if no matches
+		return qualifiedPath
 	}
 
-	// Extract names and join with " > "
 	var names []string
 	for _, match := range matches {
 		if len(match) > 1 {
