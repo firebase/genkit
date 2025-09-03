@@ -42,14 +42,8 @@ jobs:
           node-version: 20.x
           cache: 'pnpm'
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v3
-
       - name: Enable corepack
         run: corepack enable
-
-      - name: Install pnpm
-        run: corepack prepare pnpm @latest --activate
 
       - name: Install dependencies
         run: |
