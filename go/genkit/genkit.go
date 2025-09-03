@@ -708,7 +708,7 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 // Example:
 //
 //	resp, err := genkit.Retrieve(ctx, g,
-//		ai.WithRetriever("myRetriever"),
+//		ai.WithRetriever(ai.NewRetrieverRef("myRetriever", nil)),
 //		ai.WithTextDocs("What is the capital of France?"),
 //	)
 //	if err != nil {
@@ -729,7 +729,7 @@ func Retrieve(ctx context.Context, g *Genkit, opts ...ai.RetrieverOption) (*ai.R
 // Example:
 //
 //	resp, err := genkit.Embed(ctx, g,
-//		ai.WithEmbedder("myEmbedder"),
+//		ai.WithEmbedder(ai.NewEmbedderRef("myEmbedder", nil)),
 //		ai.WithTextDocs("Hello, world!"),
 //	)
 //	if err != nil {
@@ -844,7 +844,7 @@ func LookupEvaluator(g *Genkit, name string) ai.Evaluator {
 //	}
 //
 //	resp, err := genkit.Evaluate(ctx, g,
-//		ai.WithEvaluator("myEvaluator"),
+//		ai.WithEvaluator(ai.NewEvaluatorRef("myEvaluator", nil)),
 //		ai.WithDataset(dataset),
 //	)
 //	if err != nil {
