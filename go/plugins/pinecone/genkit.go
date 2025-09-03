@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -59,7 +59,7 @@ func (p *Pinecone) Name() string {
 // Init initializes the Pinecone plugin.
 // If apiKey is the empty string, it is read from the PINECONE_API_KEY
 // environment variable.
-func (p *Pinecone) Init(ctx context.Context) []core.Action {
+func (p *Pinecone) Init(ctx context.Context) []api.Action {
 	// Init initializes the Pinecone plugin.
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -73,7 +73,7 @@ func (p *Pinecone) Init(ctx context.Context) []core.Action {
 	}
 	p.client = client
 	p.initted = true
-	return []core.Action{}
+	return []api.Action{}
 }
 
 // Config provides configuration options for [DefineRetriever].
@@ -107,12 +107,12 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, opts *ai
 	if err != nil {
 		return nil, nil, err
 	}
-	return ds, genkit.DefineRetriever(g, core.NewName(provider, cfg.IndexID), opts, ds.Retrieve), nil
+	return ds, genkit.DefineRetriever(g, api.NewName(provider, cfg.IndexID), opts, ds.Retrieve), nil
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
 func IsDefinedRetriever(g *genkit.Genkit, name string) bool {
-	return genkit.LookupRetriever(g, core.NewName(provider, name)) != nil
+	return genkit.LookupRetriever(g, api.NewName(provider, name)) != nil
 }
 
 func (p *Pinecone) newDocstore(ctx context.Context, cfg Config) (*Docstore, error) {
@@ -149,7 +149,7 @@ func (p *Pinecone) newDocstore(ctx context.Context, cfg Config) (*Docstore, erro
 
 // Retriever returns the retriever with the given index name.
 func Retriever(g *genkit.Genkit, name string) ai.Retriever {
-	return genkit.LookupRetriever(g, core.NewName(provider, name))
+	return genkit.LookupRetriever(g, api.NewName(provider, name))
 }
 
 // Docstore implements the genkit [ai.DocumentStore] interface.

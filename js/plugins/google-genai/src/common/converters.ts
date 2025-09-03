@@ -195,7 +195,7 @@ function toGeminiPart(part: Part): GeminiPart {
   if (part.custom) {
     return toGeminiCustom(part);
   }
-  throw new Error('Unsupported Part type' + JSON.stringify(part));
+  throw new Error('Unsupported Part type ' + JSON.stringify(part));
 }
 
 function toGeminiRole(
@@ -424,7 +424,7 @@ function fromGeminiPart(part: GeminiPart, ref: string): Part {
   if (part.executableCode) return fromExecutableCode(part);
   if (part.codeExecutionResult) return fromCodeExecutionResult(part);
 
-  throw new Error('Unsupported GeminiPart type');
+  throw new Error('Unsupported GeminiPart type ' + JSON.stringify(part));
 }
 
 export function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
@@ -433,9 +433,10 @@ export function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
     index: candidate.index || 0,
     message: {
       role: 'model',
-      content: parts.map((part, index) =>
-        fromGeminiPart(part, index.toString())
-      ),
+      content: parts
+        // the model sometimes returns empty parts, ignore those.
+        .filter((p) => Object.keys(p).length > 0)
+        .map((part, index) => fromGeminiPart(part, index.toString())),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,

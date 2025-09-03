@@ -31,6 +31,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -112,7 +113,7 @@ func configToMap(config any) map[string]any {
 	return result
 }
 
-// mapToStruct unmarshals a map[string]any to the expected config type.
+// mapToStruct unmarshals a map[string]any to the expected config api.
 func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
@@ -196,7 +197,7 @@ func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model 
 			},
 		}))(fn)
 	}
-	return ai.NewModel(core.NewName(provider, name), meta, fn)
+	return ai.NewModel(api.NewName(provider, name), meta, fn)
 }
 
 // newEmbedder creates an embedder without registering it
@@ -210,7 +211,7 @@ func newEmbedder(client *genai.Client, name string, embedOpts *ai.EmbedderOption
 		embedOpts.ConfigSchema = core.InferSchemaMap(genai.EmbedContentConfig{})
 	}
 
-	return ai.NewEmbedder(core.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return ai.NewEmbedder(api.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 

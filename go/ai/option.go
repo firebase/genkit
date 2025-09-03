@@ -330,7 +330,7 @@ func WithMetadata(metadata map[string]any) PromptOption {
 
 // WithInputType uses the type provided to derive the input schema.
 // The inputted value will serve as the default input if no input is given at generation time.
-// Only supports structs and map[string]any types.
+// Only supports structs and map[string]any api.
 func WithInputType(input any) PromptOption {
 	var defaultInput map[string]any
 
@@ -626,8 +626,9 @@ func WithDocs(docs ...*Document) DocumentOption {
 // evaluatorOptions are options for providing a dataset to evaluate.
 type evaluatorOptions struct {
 	configOptions
-	Dataset []*Example // Dataset to evaluate.
-	ID      string     // ID of the evaluation.
+	Dataset   []*Example   // Dataset to evaluate.
+	ID        string       // ID of the evaluation.
+	Evaluator EvaluatorArg // Evaluator to use.
 }
 
 // EvaluatorOption is an option for providing a dataset to evaluate.
@@ -656,6 +657,13 @@ func (o *evaluatorOptions) applyEvaluator(evalOpts *evaluatorOptions) error {
 		evalOpts.ID = o.ID
 	}
 
+	if o.Evaluator != nil {
+		if evalOpts.Evaluator != nil {
+			return errors.New("cannot set evaluator more than once (WithEvaluator or WithEvaluatorName)")
+		}
+		evalOpts.Evaluator = o.Evaluator
+	}
+
 	return nil
 }
 
@@ -667,6 +675,18 @@ func WithDataset(examples ...*Example) EvaluatorOption {
 // WithID sets the ID of the evaluation to uniquely identify it.
 func WithID(ID string) EvaluatorOption {
 	return &evaluatorOptions{ID: ID}
+}
+
+// WithEvaluator sets either a [Evaluator] or a [EvaluatorRef] that may contain a config.
+// Passing [WithConfig] will take precedence over the config in WithEvaluator.
+func WithEvaluator(evaluator EvaluatorArg) EvaluatorOption {
+	return &evaluatorOptions{Evaluator: evaluator}
+}
+
+// WithEvaluatorName sets the evaluator name to call for document evaluation.
+// The evaluator name will be resolved to a [Evaluator] and may error if the reference is invalid.
+func WithEvaluatorName(name string) EvaluatorOption {
+	return &evaluatorOptions{Evaluator: NewEvaluatorRef(name, nil)}
 }
 
 // embedderOptions holds configuration and input for an embedder request.
@@ -890,7 +910,7 @@ func (o *promptExecutionOptions) applyPromptExecute(pgOpts *promptExecutionOptio
 }
 
 // WithInput sets the input for the prompt request. Input must conform to the
-// prompt's input schema and can either be a map[string]any or a struct of the same type.
+// prompt's input schema and can either be a map[string]any or a struct of the same api.
 func WithInput(input any) PromptExecuteOption {
 	return &promptExecutionOptions{Input: input}
 }

@@ -21,9 +21,9 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -40,6 +40,34 @@ type Evaluator interface {
 	Name() string
 	// Evaluates a dataset.
 	Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error)
+	// Register registers the evaluator with the given registry.
+	Register(r api.Registry)
+}
+
+// EvaluatorArg is the interface for evaluator arguments. It can either be the evaluator action itself or a reference to be looked up.
+type EvaluatorArg interface {
+	Name() string
+}
+
+// EvaluatorRef is a struct to hold evaluator name and configuration.
+type EvaluatorRef struct {
+	name   string
+	config any
+}
+
+// NewEvaluatorRef creates a new EvaluatorRef with the given name and configuration.
+func NewEvaluatorRef(name string, config any) EvaluatorRef {
+	return EvaluatorRef{name: name, config: config}
+}
+
+// Name returns the name of the evaluator.
+func (e EvaluatorRef) Name() string {
+	return e.name
+}
+
+// Config returns the configuration to use by default for this evaluator.
+func (e EvaluatorRef) Config() any {
+	return e.config
 }
 
 // evaluator is an action with functions specific to evaluating a dataset.
@@ -146,7 +174,7 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 
 	// TODO(ssbushi): Set this on `evaluator` key on action metadata
 	metadata := map[string]any{
-		"type": core.ActionTypeEvaluator,
+		"type": api.ActionTypeEvaluator,
 		"evaluator": map[string]any{
 			"evaluatorIsBilled":    opts.IsBilled,
 			"evaluatorDisplayName": opts.DisplayName,
@@ -162,7 +190,7 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 	}
 
 	return &evaluator{
-		ActionDef: *core.NewAction(name, core.ActionTypeEvaluator, metadata, inputSchema, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
+		ActionDef: *core.NewAction(name, api.ActionTypeEvaluator, metadata, inputSchema, func(ctx context.Context, req *EvaluatorRequest) (output *EvaluatorResponse, err error) {
 			var results []EvaluationResult
 			for _, datapoint := range req.Dataset {
 				if datapoint.TestCaseId == "" {
@@ -214,9 +242,9 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 
 // DefineEvaluator creates a new [Evaluator] and registers it.
 // This method processes the input dataset one-by-one.
-func DefineEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
+func DefineEvaluator(r api.Registry, name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluator {
 	e := NewEvaluator(name, opts, fn)
-	e.(*evaluator).Register(r)
+	e.Register(r)
 	return e
 }
 
@@ -233,7 +261,7 @@ func NewBatchEvaluator(name string, opts *EvaluatorOptions, fn BatchEvaluatorFun
 	}
 
 	metadata := map[string]any{
-		"type": core.ActionTypeEvaluator,
+		"type": api.ActionTypeEvaluator,
 		"evaluator": map[string]any{
 			"evaluatorIsBilled":    opts.IsBilled,
 			"evaluatorDisplayName": opts.DisplayName,
@@ -242,14 +270,14 @@ func NewBatchEvaluator(name string, opts *EvaluatorOptions, fn BatchEvaluatorFun
 	}
 
 	return &evaluator{
-		ActionDef: *core.NewAction(name, core.ActionTypeEvaluator, metadata, nil, fn),
+		ActionDef: *core.NewAction(name, api.ActionTypeEvaluator, metadata, nil, fn),
 	}
 }
 
 // DefineBatchEvaluator creates a new [Evaluator] and registers it.
 // This method provides the full [EvaluatorRequest] to the callback function,
 // giving more flexibility to the user for processing the data, such as batching or parallelization.
-func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
+func DefineBatchEvaluator(r api.Registry, name string, opts *EvaluatorOptions, fn BatchEvaluatorFunc) Evaluator {
 	e := NewBatchEvaluator(name, opts, fn)
 	e.(*evaluator).Register(r)
 	return e
@@ -257,8 +285,8 @@ func DefineBatchEvaluator(r *registry.Registry, name string, opts *EvaluatorOpti
 
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
-func LookupEvaluator(r *registry.Registry, name string) Evaluator {
-	action := core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, core.ActionTypeEvaluator, name)
+func LookupEvaluator(r api.Registry, name string) Evaluator {
+	action := core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, api.ActionTypeEvaluator, name)
 	if action == nil {
 		return nil
 	}
@@ -268,18 +296,36 @@ func LookupEvaluator(r *registry.Registry, name string) Evaluator {
 }
 
 // Evaluate runs the given [Evaluator].
-func (e evaluator) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+func (e *evaluator) Evaluate(ctx context.Context, req *EvaluatorRequest) (*EvaluatorResponse, error) {
+	if e == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Evaluator.Evaluate: evaluator called on a nil evaluator; check that all evaluators are defined")
+	}
+
 	return e.Run(ctx, req, nil)
 }
 
 // Evaluate calls the retrivers with provided options.
-func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluatorOption) (*EvaluatorResponse, error) {
+func Evaluate(ctx context.Context, r api.Registry, opts ...EvaluatorOption) (*EvaluatorResponse, error) {
 	evalOpts := &evaluatorOptions{}
 	for _, opt := range opts {
-		err := opt.applyEvaluator(evalOpts)
-		if err != nil {
+		if err := opt.applyEvaluator(evalOpts); err != nil {
 			return nil, err
 		}
+	}
+
+	if evalOpts.Evaluator == nil {
+		return nil, fmt.Errorf("ai.Evaluate: evaluator must be set")
+	}
+	e, ok := evalOpts.Evaluator.(Evaluator)
+	if !ok {
+		e = LookupEvaluator(r, evalOpts.Evaluator.Name())
+	}
+	if e == nil {
+		return nil, fmt.Errorf("ai.Evaluate: evaluator not found: %s", evalOpts.Evaluator.Name())
+	}
+
+	if evalRef, ok := evalOpts.Evaluator.(EvaluatorRef); ok && evalOpts.Config == nil {
+		evalOpts.Config = evalRef.Config()
 	}
 
 	req := &EvaluatorRequest{
@@ -288,5 +334,5 @@ func Evaluate(ctx context.Context, r Evaluator, opts ...EvaluatorOption) (*Evalu
 		Options:      evalOpts.Config,
 	}
 
-	return r.Evaluate(ctx, req)
+	return e.Evaluate(ctx, req)
 }

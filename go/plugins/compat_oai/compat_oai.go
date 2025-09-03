@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
@@ -71,7 +71,7 @@ type OpenAICompatible struct {
 }
 
 // Init implements genkit.Plugin.
-func (o *OpenAICompatible) Init(ctx context.Context) []core.Action {
+func (o *OpenAICompatible) Init(ctx context.Context) []api.Action {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.initted {
@@ -83,7 +83,7 @@ func (o *OpenAICompatible) Init(ctx context.Context) []core.Action {
 	o.client = &client
 	o.initted = true
 
-	return []core.Action{}
+	return []api.Action{}
 }
 
 // Name implements genkit.Plugin.
@@ -102,7 +102,7 @@ func (o *OpenAICompatible) DefineModel(provider, id string, opts ai.ModelOptions
 	// Strip provider prefix if present to check against supportedModels
 	modelName := strings.TrimPrefix(id, provider+"/")
 
-	return ai.NewModel(core.NewName(provider, id), &opts, func(
+	return ai.NewModel(api.NewName(provider, id), &opts, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
@@ -128,7 +128,7 @@ func (o *OpenAICompatible) DefineEmbedder(provider, name string, embedOpts *ai.E
 		panic("OpenAICompatible.Init not called")
 	}
 
-	return ai.NewEmbedder(core.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return ai.NewEmbedder(api.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var data openai.EmbeddingNewParamsInputUnion
 		for _, doc := range req.Input {
 			for _, p := range doc.Content {
@@ -181,8 +181,8 @@ func (o *OpenAICompatible) IsDefinedModel(g *genkit.Genkit, name string) bool {
 	return genkit.LookupModel(g, name) != nil
 }
 
-func (o *OpenAICompatible) ListActions(ctx context.Context) []core.ActionDesc {
-	actions := []core.ActionDesc{}
+func (o *OpenAICompatible) ListActions(ctx context.Context) []api.ActionDesc {
+	actions := []api.ActionDesc{}
 
 	models, err := listOpenAIModels(ctx, o.client)
 	if err != nil {
@@ -205,10 +205,10 @@ func (o *OpenAICompatible) ListActions(ctx context.Context) []core.ActionDesc {
 		}
 		metadata["label"] = fmt.Sprintf("%s - %s", o.Provider, name)
 
-		actions = append(actions, core.ActionDesc{
-			Type:     core.ActionTypeModel,
+		actions = append(actions, api.ActionDesc{
+			Type:     api.ActionTypeModel,
 			Name:     fmt.Sprintf("%s/%s", o.Provider, name),
-			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, o.Provider, name),
+			Key:      fmt.Sprintf("/%s/%s/%s", api.ActionTypeModel, o.Provider, name),
 			Metadata: metadata,
 		})
 	}
@@ -216,16 +216,16 @@ func (o *OpenAICompatible) ListActions(ctx context.Context) []core.ActionDesc {
 	return actions
 }
 
-func (o *OpenAICompatible) ResolveAction(atype core.ActionType, name string) core.Action {
+func (o *OpenAICompatible) ResolveAction(atype api.ActionType, name string) api.Action {
 	switch atype {
-	case core.ActionTypeModel:
+	case api.ActionTypeModel:
 		if model := o.DefineModel(o.Provider, name, ai.ModelOptions{
 			Label:    fmt.Sprintf("%s - %s", o.Provider, name),
 			Stage:    ai.ModelStageStable,
 			Versions: []string{},
 			Supports: &Multimodal,
 		}); model != nil {
-			return model.(core.Action)
+			return model.(api.Action)
 		}
 	}
 

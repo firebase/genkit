@@ -158,7 +158,8 @@ func TestEvaluate(t *testing.T) {
 
 	evalAction := DefineEvaluator(r, "test/testEvaluator", &evalOpts, testEvalFunc)
 
-	resp, err := Evaluate(context.Background(), evalAction,
+	resp, err := Evaluate(context.Background(), r,
+		WithEvaluator(evalAction),
 		WithDataset(dataset...),
 		WithID("testrun"),
 		WithConfig("test-options"))
