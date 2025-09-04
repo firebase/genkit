@@ -1022,15 +1022,12 @@ func NewResource(name string, opts *ai.ResourceOptions, fn ai.ResourceFunc) ai.R
 func ListResources(g *Genkit) []ai.Resource {
 	acts := g.reg.ListActions()
 	resources := []ai.Resource{}
-	for _, act := range acts {
-		action := act
+	for _, action := range acts {
 		actionDesc := action.Desc()
 		if actionDesc.Type == api.ActionTypeResource {
-			// Look up the resource wrapper
-			if resourceValue := g.reg.LookupValue(fmt.Sprintf("resource/%s", actionDesc.Name)); resourceValue != nil {
-				if resource, ok := resourceValue.(ai.Resource); ok {
-					resources = append(resources, resource)
-				}
+			resource := ai.LookupResource(g.reg, actionDesc.Name)
+			if resource != nil {
+				resources = append(resources, resource)
 			}
 		}
 	}
