@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	MaxLogContentLength = 128000 
-	MaxPathLength       = 4096 
+	MaxLogContentLength = 128000
+	MaxPathLength       = 4096
 )
 
 // createCommonLogAttributes creates common log attributes for correlation with traces
