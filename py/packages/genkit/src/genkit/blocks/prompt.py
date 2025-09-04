@@ -21,10 +21,13 @@ This module provides types and utilities for managing prompts and templates
 used with AI models in the Genkit framework. It enables consistent prompt
 generation and management across different parts of the application.
 """
-
+import asyncio
 from asyncio import Future
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, Awaitable, Protocol
+
+from dotpromptz.typing import PromptFunction
+from pydantic import BaseModel
 
 from genkit.aio import Channel
 from genkit.blocks.generate import (
@@ -48,8 +51,34 @@ from genkit.core.typing import (
     Part,
     Resume,
     Role,
-    ToolChoice,
+    ToolChoice
 )
+
+class PartsResolver(Protocol):
+    async def __call__(self, input_: Any, context: dict[str, Any], state: Any | None = None) -> Awaitable[str | Part | list[Part]]:
+        ...
+
+class PromptConfig(BaseModel):
+    """Model for a prompt action."""
+    variant: str | None = None
+    model: str | None = None
+    config: GenerationCommonConfig | dict[str, Any] | None = None
+    description: str | None = None
+    input_schema: type | dict[str, Any] | None = None
+    system: str | Part | list[Part] | PartsResolver | None = None
+    prompt: str | Part | list[Part] | PartsResolver | None = None
+    messages: str | list[Message] | None = None
+    output_format: str | None = None
+    output_content_type: str | None = None
+    output_instructions: bool | str | None = None
+    output_schema: type | dict[str, Any] | None = None
+    output_constrained: bool | None = None
+    max_turns: int | None = None
+    return_tool_requests: bool | None = None
+    metadata: dict[str, Any] | None = None
+    tools: list[str] | None = None
+    tool_choice: ToolChoice | None = None
+    use: list[ModelMiddleware] | None = None
 
 
 class ExecutablePrompt:
@@ -227,8 +256,8 @@ def define_prompt(
     config: GenerationCommonConfig | dict[str, Any] | None = None,
     description: str | None = None,
     input_schema: type | dict[str, Any] | None = None,
-    system: str | Part | list[Part] | None = None,
-    prompt: str | Part | list[Part] | None = None,
+    system: str | Part | list[Part] | PartsResolver | None = None,
+    prompt: str | Part | list[Part] | PartsResolver | None = None,
     messages: str | list[Message] | None = None,
     output_format: str | None = None,
     output_content_type: str | None = None,
@@ -408,3 +437,53 @@ def _normalize_prompt_arg(
         return prompt
     else:
         return [prompt]
+
+
+async def render_system_prompt(registry: Registry, input_: Any, options: PromptConfig) -> Message:
+    """Renders a system prompt."""
+
+    if callable(options.system) and asyncio.iscoroutinefunction(options.system):
+
+        result = await options.system(input_, ActionRunContext._current_context())
+
+        return Message(
+            role=Role.SYSTEM,
+            content=_normalize_prompt_arg(result)
+        )
+
+    elif isinstance(options.system, str):
+
+        user_prompt = await registry.dotprompt.compile(input_)
+
+        return Message(
+            role=Role.USER,
+            content=await render_dotprompt_to_parts(
+                registry,
+                user_prompt,
+                input_,
+                options,
+            )
+        )
+
+
+    return Message(
+        role=Role.SYSTEM,
+        content=_normalize_prompt_arg(options.system)
+    )
+
+
+
+async def render_dotprompt_to_parts(
+    registry: Registry,
+    prompt_function: PromptFunction,
+    input_: Any,
+    options: PromptConfig,
+) -> list[Part]:
+    """Renders a prompt using dotprompt."""
+    rendered = await prompt_function(input_)
+
+    if 1 < len(rendered.messages):
+        raise Exception("parts template must produce only one message")
+
+    return rendered.messages[0].content
+
