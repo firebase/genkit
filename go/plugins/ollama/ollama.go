@@ -48,7 +48,7 @@ var (
 		"phi4-mini", "granite3.1-dense", "granite3-dense", "granite3.2", "athene-v2",
 		"nemotron-mini", "nemotron", "llama3-groq-tool-use", "aya-expanse", "granite3-moe",
 		"granite3.2-vision", "granite3.1-moe", "cogito", "command-r7b", "firefunction-v2",
-		"granite3.3", "command-a", "command-r7b-arabic",
+		"granite3.3", "command-a", "command-r7b-arabic", "gpt-oss",
 	}
 	roleMapping = map[ai.Role]string{
 		ai.RoleUser:   "user",
