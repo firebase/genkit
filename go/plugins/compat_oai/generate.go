@@ -107,8 +107,8 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				}
 
 				tm := openai.ToolMessage(
-					toolCallID,
 					anyToJSONString(p.ToolResponse.Output),
+					toolCallID,
 				)
 				oaiMessages = append(oaiMessages, tm)
 			}
