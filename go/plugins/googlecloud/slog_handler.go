@@ -190,7 +190,6 @@ func (h *handler) logPermissionError(err error) {
 func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entry {
 	span := trace.SpanFromContext(ctx)
 
-	// Extract message and data from slog record
 	message := r.Message
 	var metadata map[string]interface{}
 
@@ -208,12 +207,11 @@ func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entr
 		return true
 	})
 
-	// If no metadata found, create empty map
 	if metadata == nil {
 		metadata = make(map[string]interface{})
 	}
 
-	// Create JS-compatible payload structure
+	// Create AIM-compatible payload structure
 	payload := map[string]interface{}{
 		"message":  message,
 		"metadata": metadata,
