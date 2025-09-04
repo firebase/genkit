@@ -603,7 +603,7 @@ func LookupPrompt(g *Genkit, name string) ai.Prompt {
 
 // DefineSchema defines a prompt schema programmatically
 func DefineSchema(g *Genkit, name string, schema any) {
-	return ai.DefineSchema(g.reg, name, schema)
+	ai.DefineSchema(g.reg, name, schema)
 }
 
 // GenerateWithRequest performs a model generation request using explicitly provided
