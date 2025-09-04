@@ -49,7 +49,6 @@ func NewMetricCounter(name string, opts MetricCounterOptions) *MetricCounter {
 		metric.WithDescription(opts.Description),
 		metric.WithUnit(opts.Unit))
 	if err != nil {
-		// In production, we might want to handle this differently
 		panic(fmt.Sprintf("failed to create counter %s: %v", name, err))
 	}
 	return &MetricCounter{counter: counter}
@@ -76,7 +75,6 @@ func NewMetricHistogram(name string, opts MetricHistogramOptions) *MetricHistogr
 		metric.WithDescription(opts.Description),
 		metric.WithUnit(opts.Unit))
 	if err != nil {
-		// In production, we might want to handle this differently
 		panic(fmt.Sprintf("failed to create histogram %s: %v", name, err))
 	}
 	return &MetricHistogram{histogram: histogram}
