@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/firebase/genkit/go/core/api"
 )
 
 // RetrieverFunc is the function type for retriever implementations.
@@ -34,6 +34,8 @@ type Retriever interface {
 	Name() string
 	// Retrieve retrieves the documents.
 	Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error)
+	// Register registers the retriever with the given registry.
+	Register(r api.Registry)
 }
 
 // retriever is an action with functions specific to document retrieval such as Retrieve().
@@ -99,7 +101,7 @@ func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriev
 	}
 
 	metadata := map[string]any{
-		"type": core.ActionTypeRetriever,
+		"type": api.ActionTypeRetriever,
 		"info": map[string]any{
 			"label": opts.Label,
 			"supports": map[string]any{
@@ -119,22 +121,22 @@ func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriev
 	}
 
 	return &retriever{
-		ActionDef: *core.NewAction(name, core.ActionTypeRetriever, metadata, inputSchema, fn),
+		ActionDef: *core.NewAction(name, api.ActionTypeRetriever, metadata, inputSchema, fn),
 	}
 }
 
 // DefineRetriever creates a new [Retriever] and registers it.
-func DefineRetriever(r *registry.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
+func DefineRetriever(r api.Registry, name string, opts *RetrieverOptions, fn RetrieverFunc) Retriever {
 	ret := NewRetriever(name, opts, fn)
-	ret.(*retriever).Register(r)
+	ret.Register(r)
 	return ret
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It will try to resolve the retriever dynamically if the retriever is not found.
 // It returns nil if the retriever was not resolved.
-func LookupRetriever(r *registry.Registry, name string) Retriever {
-	action := core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, core.ActionTypeRetriever, name)
+func LookupRetriever(r api.Registry, name string) Retriever {
+	action := core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, api.ActionTypeRetriever, name)
 	if action == nil {
 		return nil
 	}
@@ -144,12 +146,16 @@ func LookupRetriever(r *registry.Registry, name string) Retriever {
 }
 
 // Retrieve runs the given [Retriever].
-func (r retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+func (r *retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+	if r == nil {
+		return nil, core.NewError(core.INVALID_ARGUMENT, "Retriever.Retrieve: retriever called on a nil retriever; check that all retrievers are defined")
+	}
+
 	return r.Run(ctx, req, nil)
 }
 
 // Retrieve calls the retriever with the provided options.
-func Retrieve(ctx context.Context, r *registry.Registry, opts ...RetrieverOption) (*RetrieverResponse, error) {
+func Retrieve(ctx context.Context, r api.Registry, opts ...RetrieverOption) (*RetrieverResponse, error) {
 	retOpts := &retrieverOptions{}
 	for _, opt := range opts {
 		if err := opt.applyRetriever(retOpts); err != nil {
@@ -161,6 +167,9 @@ func Retrieve(ctx context.Context, r *registry.Registry, opts ...RetrieverOption
 		return nil, errors.New("ai.Retrieve: only supports a single document as input")
 	}
 
+	if retOpts.Retriever == nil {
+		return nil, fmt.Errorf("ai.Retrieve: retriever must be set")
+	}
 	ret, ok := retOpts.Retriever.(Retriever)
 	if !ok {
 		ret = LookupRetriever(r, retOpts.Retriever.Name())

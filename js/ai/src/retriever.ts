@@ -192,7 +192,7 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
   runner: IndexerFn<IndexerOptions>
 ): IndexerAction<IndexerOptions> {
   const r = indexer(options, runner);
-  registry.registerAction('retriever', r);
+  registry.registerAction('indexer', r);
   return r;
 }
 

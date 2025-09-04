@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate"
 	"github.com/weaviate/weaviate-go-client/v5/weaviate/auth"
@@ -66,7 +66,7 @@ func (w *Weaviate) Name() string {
 }
 
 // Init initializes the Weaviate plugin.
-func (w *Weaviate) Init(ctx context.Context) []core.Action {
+func (w *Weaviate) Init(ctx context.Context) []api.Action {
 	if w == nil {
 		w = &Weaviate{}
 	}
@@ -124,7 +124,7 @@ func (w *Weaviate) Init(ctx context.Context) []core.Action {
 	w.client = client
 	w.initted = true
 
-	return []core.Action{}
+	return []api.Action{}
 }
 
 // ClassConfig holds configuration options for a retriever.
@@ -160,7 +160,7 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg ClassConfig, opt
 	if err != nil {
 		return nil, nil, err
 	}
-	retriever := genkit.DefineRetriever(g, core.NewName(provider, cfg.Class), opts, ds.Retrieve)
+	retriever := genkit.DefineRetriever(g, api.NewName(provider, cfg.Class), opts, ds.Retrieve)
 	return ds, retriever, nil
 }
 
@@ -206,7 +206,7 @@ func (w *Weaviate) newDocstore(ctx context.Context, cfg *ClassConfig) (*Docstore
 
 // Retriever returns the retriever for the given class.
 func Retriever(g *genkit.Genkit, class string) ai.Retriever {
-	return genkit.LookupRetriever(g, core.NewName(provider, class))
+	return genkit.LookupRetriever(g, api.NewName(provider, class))
 }
 
 // RetrieverOptions may be passed in the Options field

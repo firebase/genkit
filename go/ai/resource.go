@@ -26,6 +26,8 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/yosida95/uritemplate/v3"
+	"github.com/firebase/genkit/go/core/api"
+	coreresource "github.com/firebase/genkit/go/core/resource"
 )
 
 // normalizeURI normalizes a URI for template matching by removing query parameters,
@@ -107,7 +109,7 @@ type ResourceFunc = func(context.Context, *ResourceInput) (*ResourceOutput, erro
 
 // resource is the internal implementation of the Resource interface.
 // It holds the underlying core action and allows looking up resources
-// by name without knowing their specific input/output types.
+// by name without knowing their specific input/output api.
 type resource struct {
 	core.ActionDef[*ResourceInput, *ResourceOutput, struct{}]
 }
@@ -122,12 +124,14 @@ type Resource interface {
 	ExtractVariables(uri string) (map[string]string, error)
 	// Execute runs the resource with the given input.
 	Execute(ctx context.Context, input *ResourceInput) (*ResourceOutput, error)
+	// Register registers the resource with the given registry.
+	Register(r api.Registry)
 }
 
 // DefineResource creates a resource and registers it with the given Registry.
-func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn ResourceFunc) Resource {
+func DefineResource(r api.Registry, name string, opts *ResourceOptions, fn ResourceFunc) Resource {
 	metadata := resourceMetadata(name, opts)
-	return &resource{ActionDef: *core.DefineAction(r, name, core.ActionTypeResource, metadata, nil, fn)}
+	return &resource{ActionDef: *core.DefineAction(r, name, api.ActionTypeResource, metadata, nil, fn)}
 }
 
 // NewResource creates a resource but does not register it in the registry.
@@ -135,7 +139,7 @@ func DefineResource(r *registry.Registry, name string, opts *ResourceOptions, fn
 func NewResource(name string, opts *ResourceOptions, fn ResourceFunc) Resource {
 	metadata := resourceMetadata(name, opts)
 	metadata["dynamic"] = true
-	return &resource{ActionDef: *core.NewAction(name, core.ActionTypeResource, metadata, nil, fn)}
+	return &resource{ActionDef: *core.NewAction(name, api.ActionTypeResource, metadata, nil, fn)}
 }
 
 // resourceMetadata creates the metadata common to both DefineResource and NewResource.
@@ -153,7 +157,7 @@ func resourceMetadata(name string, opts *ResourceOptions) map[string]any {
 
 	// Create metadata with resource-specific information
 	metadata := map[string]any{
-		"type":        core.ActionTypeResource,
+		"type":        api.ActionTypeResource,
 		"name":        name,
 		"description": opts.Description,
 		"resource": map[string]any{
@@ -223,7 +227,7 @@ func (r *resource) Execute(ctx context.Context, input *ResourceInput) (*Resource
 }
 
 // FindMatchingResource finds a resource that matches the given URI.
-func FindMatchingResource(r *registry.Registry, uri string) (Resource, *ResourceInput, error) {
+func FindMatchingResource(r api.Registry, uri string) (Resource, *ResourceInput, error) {
 	for _, a := range r.ListActions() {
 		if action, ok := a.(*core.ActionDef[*ResourceInput, *ResourceOutput, struct{}]); ok {
 			res := &resource{ActionDef: *action}
@@ -241,8 +245,8 @@ func FindMatchingResource(r *registry.Registry, uri string) (Resource, *Resource
 }
 
 // LookupResource looks up the resource in the registry by provided name and returns it.
-func LookupResource(r *registry.Registry, name string) Resource {
-	action := core.LookupActionFor[*ResourceInput, *ResourceOutput, struct{}](r, core.ActionTypeResource, name)
+func LookupResource(r api.Registry, name string) Resource {
+	action := core.LookupActionFor[*ResourceInput, *ResourceOutput, struct{}](r, api.ActionTypeResource, name)
 	if action == nil {
 		return nil
 	}

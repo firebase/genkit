@@ -29,6 +29,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -43,9 +44,9 @@ type Genkit struct {
 
 // genkitOptions are options for configuring the Genkit instance.
 type genkitOptions struct {
-	DefaultModel string   // Default model to use if no other model is specified.
-	PromptDir    string   // Directory where dotprompts are stored. Will be loaded automatically on initialization.
-	Plugins      []Plugin // Plugin to initialize automatically.
+	DefaultModel string       // Default model to use if no other model is specified.
+	PromptDir    string       // Directory where dotprompts are stored. Will be loaded automatically on initialization.
+	Plugins      []api.Plugin // Plugin to initialize automatically.
 }
 
 type GenkitOption interface {
@@ -81,7 +82,7 @@ func (o *genkitOptions) apply(gOpts *genkitOptions) error {
 // WithPlugins provides a list of plugins to initialize when creating the Genkit instance.
 // Each plugin's [Plugin.Init] method will be called sequentially during [Init].
 // This option can only be applied once.
-func WithPlugins(plugins ...Plugin) GenkitOption {
+func WithPlugins(plugins ...api.Plugin) GenkitOption {
 	return &genkitOptions{Plugins: plugins}
 }
 
@@ -99,7 +100,7 @@ func WithDefaultModel(model string) GenkitOption {
 // [Init] is called.
 //
 // Invalid prompt files will result in logged errors during initialization,
-// while valid files that define invalid prompts will cause [Init] to return an error.
+// while valid files that define invalid prompts will cause [Init] to panic.
 // This option can only be applied once.
 func WithPromptDir(dir string) GenkitOption {
 	return &genkitOptions{PromptDir: dir}
@@ -125,11 +126,10 @@ func WithPromptDir(dir string) GenkitOption {
 //	import (
 //		"context"
 //		"log"
-//		"os"
 //
 //		"github.com/firebase/genkit/go/ai"
 //		"github.com/firebase/genkit/go/genkit"
-//		"github.com/firebase/genkit/go/plugins/googleai" // Example plugin
+//		"github.com/firebase/genkit/go/plugins/googlegenai" // Example plugin
 //	)
 //
 //	func main() {
@@ -141,9 +141,6 @@ func WithPromptDir(dir string) GenkitOption {
 //			genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 //			genkit.WithPromptDir("./prompts"),
 //		)
-//		if err != nil {
-//			log.Fatalf("Failed to initialize Genkit: %v", err)
-//		}
 //
 //		// Generate text using the default model
 //		funFact, err := genkit.GenerateText(ctx, g, ai.WithPrompt("Tell me a fake fun fact!"))
@@ -153,10 +150,7 @@ func WithPromptDir(dir string) GenkitOption {
 //		log.Println("Generated Fact:", funFact)
 //
 //		// Look up and execute a loaded prompt
-//		jokePrompt, err := genkit.LookupPrompt(g, "jokePrompt")
-//		if err != nil {
-//			log.Fatalf("LookupPrompt failed: %v", err)
-//		}
+//		jokePrompt := genkit.LookupPrompt(g, "jokePrompt")
 //		if jokePrompt == nil {
 //			log.Fatalf("Prompt 'jokePrompt' not found.")
 //		}
@@ -188,26 +182,14 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 		r.RegisterPlugin(plugin.Name(), plugin)
 	}
 
-	r.ActionResolver = func(actionType, provider, id string) {
-		plugins := r.ListPlugins()
-		for _, plugin := range plugins {
-			if dp, ok := plugin.(DynamicPlugin); ok && dp.Name() == provider {
-				action := dp.ResolveAction(core.ActionType(actionType), id)
-				if action != nil {
-					action.Register(r)
-				}
-			}
-		}
-	}
-
 	ai.ConfigureFormats(r)
 	ai.DefineGenerateAction(ctx, r)
 	ai.LoadPromptDir(r, gOpts.PromptDir, "")
 
-	r.RegisterValue("genkit/defaultModel", gOpts.DefaultModel)
-	r.RegisterValue("genkit/promptDir", gOpts.PromptDir)
+	r.RegisterValue(api.DefaultModelKey, gOpts.DefaultModel)
+	r.RegisterValue(api.PromptDirKey, gOpts.PromptDir)
 
-	if registry.CurrentEnvironment() == registry.EnvironmentDev {
+	if api.CurrentEnvironment() == api.EnvironmentDev {
 		errCh := make(chan error, 1)
 		serverStartCh := make(chan struct{})
 
@@ -233,14 +215,14 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 	return g
 }
 
-// RegisterAction registers a [core.Action] that was previously created by calling
+// RegisterAction registers a [api.Action] that was previously created by calling
 // NewX instead of DefineX.
 //
 // Example:
 //
 //	model := ai.NewModel(...)
-//	genkit.RegisterAction(g, model.(core.Action))
-func RegisterAction(g *Genkit, action core.Action) {
+//	genkit.RegisterAction(g, model)
+func RegisterAction(g *Genkit, action api.Registerable) {
 	action.Register(g.reg)
 }
 
@@ -356,17 +338,16 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 	return core.Run(ctx, name, fn)
 }
 
-// ListFlows returns a slice of all [core.Action] instances that represent
+// ListFlows returns a slice of all [api.Action] instances that represent
 // flows registered with the Genkit instance `g`.
 // This is useful for introspection or for dynamically exposing flow endpoints,
 // for example, in an HTTP server.
-func ListFlows(g *Genkit) []core.Action {
+func ListFlows(g *Genkit) []api.Action {
 	acts := listActions(g)
-	flows := []core.Action{}
+	flows := []api.Action{}
 	for _, act := range acts {
-		if act.Type == core.ActionTypeFlow {
-			key := fmt.Sprintf("/%s/%s", act.Type, act.Name)
-			flows = append(flows, g.reg.LookupAction(key).(core.Action))
+		if act.Type == api.ActionTypeFlow {
+			flows = append(flows, g.reg.LookupAction(act.Key))
 		}
 	}
 	return flows
@@ -378,18 +359,10 @@ func ListFlows(g *Genkit) []core.Action {
 func ListTools(g *Genkit) []ai.Tool {
 	acts := g.reg.ListActions()
 	tools := []ai.Tool{}
-	for _, act := range acts {
-		action, ok := act.(core.Action)
-		if !ok {
-			continue
-		}
-		actionDesc := action.Desc()
-		if actionDesc.Type == core.ActionTypeTool {
-			// Lookup the actual tool using the action name
-			tool := LookupTool(g, actionDesc.Name)
-			if tool != nil {
-				tools = append(tools, tool)
-			}
+	for _, action := range acts {
+		tool := LookupTool(g, action.Desc().Name)
+		if tool != nil {
+			tools = append(tools, tool)
 		}
 	}
 	return tools
@@ -639,7 +612,7 @@ func LookupPrompt(g *Genkit, name string) ai.Prompt {
 //
 // Example (using options rendered from a prompt):
 //
-//	myPrompt, _ := genkit.LookupPrompt(g, "myDefinedPrompt")
+//	myPrompt := genkit.LookupPrompt(g, "myDefinedPrompt")
 //	actionOpts, err := myPrompt.Render(ctx, map[string]any{"topic": "go programming"})
 //	if err != nil {
 //		// handle error
@@ -735,7 +708,7 @@ func GenerateData[Out any](ctx context.Context, g *Genkit, opts ...ai.GenerateOp
 // Example:
 //
 //	resp, err := genkit.Retrieve(ctx, g,
-//		ai.WithRetriever("myRetriever"),
+//		ai.WithRetriever(ai.NewRetrieverRef("myRetriever", nil)),
 //		ai.WithTextDocs("What is the capital of France?"),
 //	)
 //	if err != nil {
@@ -756,7 +729,7 @@ func Retrieve(ctx context.Context, g *Genkit, opts ...ai.RetrieverOption) (*ai.R
 // Example:
 //
 //	resp, err := genkit.Embed(ctx, g,
-//		ai.WithEmbedder("myEmbedder"),
+//		ai.WithEmbedder(ai.NewEmbedderRef("myEmbedder", nil)),
 //		ai.WithTextDocs("Hello, world!"),
 //	)
 //	if err != nil {
@@ -812,14 +785,9 @@ func LookupEmbedder(g *Genkit, name string) ai.Embedder {
 // Plugins are registered during initialization via [WithPlugins].
 // It returns the plugin instance as `Plugin` if found, or `nil` otherwise.
 // The caller is responsible for type-asserting the returned value to the
-// specific plugin type.
-func LookupPlugin(g *Genkit, name string) Plugin {
-	switch p := g.reg.LookupPlugin(name).(type) {
-	case Plugin:
-		return p
-	default:
-		return nil
-	}
+// specific plugin api.
+func LookupPlugin(g *Genkit, name string) api.Plugin {
+	return g.reg.LookupPlugin(name)
 }
 
 // DefineEvaluator defines an evaluator that processes test cases one by one,
@@ -861,13 +829,42 @@ func LookupEvaluator(g *Genkit, name string) ai.Evaluator {
 	return ai.LookupEvaluator(g.reg, name)
 }
 
+// Evaluate performs an evaluation request using a flexible set of options
+// provided via [ai.EvaluatorOption] arguments. It's a convenient way to run
+// evaluations using registered evaluators without directly calling the
+// evaluator instance.
+//
+// Example:
+//
+//	dataset := []*ai.Example{
+//		{
+//			Input: "What is the capital of France?",
+//			Reference: "Paris",
+//		},
+//	}
+//
+//	resp, err := genkit.Evaluate(ctx, g,
+//		ai.WithEvaluator(ai.NewEvaluatorRef("myEvaluator", nil)),
+//		ai.WithDataset(dataset),
+//	)
+//	if err != nil {
+//		log.Fatalf("Evaluate failed: %v", err)
+//	}
+//
+//	for _, result := range *resp {
+//		fmt.Printf("Evaluation result: %+v\n", result)
+//	}
+func Evaluate(ctx context.Context, g *Genkit, opts ...ai.EvaluatorOption) (*ai.EvaluatorResponse, error) {
+	return ai.Evaluate(ctx, g.reg, opts...)
+}
+
 // LoadPromptDir loads all `.prompt` files from the specified directory `dir`
 // into the registry, associating them with the given `namespace`.
 // Files starting with `_` are treated as partials and are not registered as
 // executable prompts but can be included in other prompts.
 //
 // If `dir` is empty, it defaults to "./prompts". If the directory doesn't exist,
-// it logs a debug message (if using the default) or returns an error (if specified).
+// it logs a debug message (if using the default) or panics (if specified).
 // The `namespace` acts as a prefix to the prompt name (e.g., namespace "myApp" and
 // file "greeting.prompt" results in prompt name "myApp/greeting"). Use an empty
 // string for no namespace.
@@ -893,10 +890,7 @@ func LoadPromptDir(g *Genkit, dir string, namespace string) {
 // Example:
 //
 //	// Load a specific prompt file with a namespace
-//	customPrompt, err := genkit.LoadPrompt(g, "./prompts/analyzer.prompt", "analysis")
-//	if err != nil {
-//		log.Fatalf("Failed to load custom prompt: %v", err)
-//	}
+//	customPrompt := genkit.LoadPrompt(g, "./prompts/analyzer.prompt", "analysis")
 //	if customPrompt == nil {
 //		log.Fatal("Custom prompt not found or failed to parse.")
 //	}
@@ -1029,16 +1023,14 @@ func ListResources(g *Genkit) []ai.Resource {
 	acts := g.reg.ListActions()
 	resources := []ai.Resource{}
 	for _, act := range acts {
-		action, ok := act.(core.Action)
-		if !ok {
-			continue
-		}
+		action := act
 		actionDesc := action.Desc()
-		if actionDesc.Type == core.ActionTypeResource {
-			// Lookup the actual resource using the action name
-			resource := ai.LookupResource(g.reg, actionDesc.Name)
-			if resource != nil {
-				resources = append(resources, resource)
+		if actionDesc.Type == api.ActionTypeResource {
+			// Look up the resource wrapper
+			if resourceValue := g.reg.LookupValue(fmt.Sprintf("resource/%s", actionDesc.Name)); resourceValue != nil {
+				if resource, ok := resourceValue.(ai.Resource); ok {
+					resources = append(resources, resource)
+				}
 			}
 		}
 	}
