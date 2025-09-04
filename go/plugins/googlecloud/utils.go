@@ -109,8 +109,6 @@ func requestDenied(err error) bool {
 // loggingDenied checks if an error is specifically related to logging permissions
 func loggingDenied(err error) bool {
 	return requestDenied(err)
-	// Note: Unlike TypeScript, Go gRPC errors don't include statusDetails
-	// with granular permission information, so we use the general permission check
 }
 
 // Help text generation functions
