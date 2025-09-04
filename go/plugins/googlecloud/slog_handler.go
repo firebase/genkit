@@ -116,7 +116,6 @@ func (h *handler) handleWithRecovery(entry logging.Entry) error {
 	// Attempt to send the log entry
 	defer func() {
 		if r := recover(); r != nil {
-			// Handle panics gracefully and trigger immediate recovery
 			h.handleError(fmt.Errorf("panic in GCP logging: %v", r))
 		}
 	}()
@@ -136,7 +135,6 @@ func (h *handler) handleWithRecovery(entry logging.Entry) error {
 		h.handleEntry(entry)
 	}
 
-	// Execute the logging operation
 	go wrappedHandleEntry(entry)
 
 	// Wait for completion with timeout
