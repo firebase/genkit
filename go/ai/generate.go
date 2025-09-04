@@ -182,7 +182,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 		simulateSystemPrompt(opts, nil),
 		augmentWithContext(opts, nil),
 		validateSupport(name, opts),
-		addAutomaticTelemetry(), // Add automatic timing and character counting
+		addAutomaticTelemetry(),
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
