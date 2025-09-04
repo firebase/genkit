@@ -102,7 +102,6 @@ func (e *EngagementTelemetry) writeUserFeedback(span sdktrace.ReadOnlySpan, proj
 
 // writeUserAcceptance records metrics and logs for user acceptance
 func (e *EngagementTelemetry) writeUserAcceptance(span sdktrace.ReadOnlySpan, projectID string) {
-	// Get context with span context for trace information
 	ctx := trace.ContextWithSpanContext(context.Background(), span.SpanContext())
 	attributes := span.Attributes()
 	name := e.extractTraceName(attributes)
