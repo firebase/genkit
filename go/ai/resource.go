@@ -25,11 +25,6 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
-<<<<<<< Updated upstream
-	coreresource "github.com/firebase/genkit/go/core/resource"
-	"github.com/firebase/genkit/go/internal/registry"
-=======
->>>>>>> Stashed changes
 	"github.com/yosida95/uritemplate/v3"
 )
 
