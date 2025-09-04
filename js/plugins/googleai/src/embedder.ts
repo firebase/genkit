@@ -23,11 +23,11 @@ import {
   z,
   type EmbedderAction,
   type EmbedderReference,
-  type Genkit,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
-import { getApiKeyFromEnvVar } from './common.js';
-import type { PluginOptions } from './index.js';
+import { embedder } from 'genkit/plugin';
+import { ensurePrefixed, getApiKeyFromEnvVar, removePrefix } from './common';
+import type { PluginOptions } from './index';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -103,7 +103,6 @@ export const SUPPORTED_MODELS = {
 };
 
 export function defineGoogleAIEmbedder(
-  ai: Genkit,
   name: string,
   pluginOptions: PluginOptions
 ): EmbedderAction<any> {
@@ -117,29 +116,29 @@ export function defineGoogleAIEmbedder(
           'For more details see https://genkit.dev/docs/plugins/google-genai'
       );
   }
-  const embedder: EmbedderReference =
-    SUPPORTED_MODELS[name] ??
+  // Extract the bare model name for lookup and API calls
+  const apiModelName = removePrefix(name);
+
+  const embedderReference: EmbedderReference =
+    SUPPORTED_MODELS[apiModelName] ??
     embedderRef({
-      name: name,
+      name: ensurePrefixed(name),
       configSchema: GeminiEmbeddingConfigSchema,
       info: {
         dimensions: 768,
-        label: `Google AI - ${name}`,
+        label: `Google AI - ${apiModelName}`,
         supports: {
           input: ['text', 'image', 'video'],
         },
       },
     });
-  const apiModelName = embedder.name.startsWith('googleai/')
-    ? embedder.name.substring('googleai/'.length)
-    : embedder.name;
-  return ai.defineEmbedder(
+  return embedder(
     {
-      name: embedder.name,
+      name: embedderReference.name,
       configSchema: GeminiEmbeddingConfigSchema,
-      info: embedder.info!,
+      info: embedderReference.info!,
     },
-    async (input, options) => {
+    async ({ input, options }) => {
       if (pluginOptions.apiKey === false && !options?.apiKey) {
         throw new GenkitError({
           status: 'INVALID_ARGUMENT',
@@ -152,8 +151,8 @@ export function defineGoogleAIEmbedder(
       ).getGenerativeModel({
         model:
           options?.version ||
-          embedder.config?.version ||
-          embedder.version ||
+          embedderReference.config?.version ||
+          embedderReference.version ||
           apiModelName,
       });
       const embeddings = await Promise.all(
