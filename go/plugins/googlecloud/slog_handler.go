@@ -198,7 +198,7 @@ func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entr
 		if a.Key == MetadataKey {
 			if dataMap, ok := a.Value.Any().(map[string]interface{}); ok {
 				metadata = dataMap
-				// Remove GCP logging fields from metadata (they go at top level)
+				// Remove unnecessary GCP logging fields from metadata
 				delete(metadata, "logging.googleapis.com/trace")
 				delete(metadata, "logging.googleapis.com/spanId")
 				delete(metadata, "logging.googleapis.com/trace_sampled")
