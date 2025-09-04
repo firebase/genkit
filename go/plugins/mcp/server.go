@@ -21,7 +21,11 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+<<<<<<< Updated upstream
 	"github.com/firebase/genkit/go/core"
+=======
+	"github.com/firebase/genkit/go/core/api"
+>>>>>>> Stashed changes
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -43,7 +47,11 @@ type GenkitMCPServer struct {
 
 	// Discovered actions from Genkit registry
 	toolActions     []ai.Tool
+<<<<<<< Updated upstream
 	resourceActions []core.Action
+=======
+	resourceActions []api.Action
+>>>>>>> Stashed changes
 	actionsResolved bool
 }
 
@@ -108,11 +116,16 @@ func (s *GenkitMCPServer) setup() error {
 }
 
 // discoverAndCategorizeActions discovers all actions from Genkit registry and categorizes them
+<<<<<<< Updated upstream
 func (s *GenkitMCPServer) discoverAndCategorizeActions() ([]ai.Tool, []core.Action, error) {
+=======
+func (s *GenkitMCPServer) discoverAndCategorizeActions() ([]ai.Tool, []api.Action, error) {
+>>>>>>> Stashed changes
 	// Use the existing List functions which properly handle the registry access
 	toolActions := genkit.ListTools(s.genkit)
 	resources := genkit.ListResources(s.genkit)
 
+<<<<<<< Updated upstream
 	// Convert ai.Resource to core.Action
 	resourceActions := make([]core.Action, len(resources))
 	for i, resource := range resources {
@@ -120,6 +133,15 @@ func (s *GenkitMCPServer) discoverAndCategorizeActions() ([]ai.Tool, []core.Acti
 			resourceActions[i] = resourceAction
 		} else {
 			return nil, nil, fmt.Errorf("resource %s does not implement core.Action", resource.Name())
+=======
+	// Convert ai.Resource to api.Action
+	resourceActions := make([]api.Action, len(resources))
+	for i, resource := range resources {
+		if resourceAction, ok := resource.(api.Action); ok {
+			resourceActions[i] = resourceAction
+		} else {
+			return nil, nil, fmt.Errorf("resource %s does not implement api.Action", resource.Name())
+>>>>>>> Stashed changes
 		}
 	}
 
@@ -181,7 +203,11 @@ func (s *GenkitMCPServer) createToolHandler(tool ai.Tool) func(context.Context, 
 }
 
 // registerResourceWithMCP registers a Genkit resource with the MCP server
+<<<<<<< Updated upstream
 func (s *GenkitMCPServer) registerResourceWithMCP(resourceAction core.Action) error {
+=======
+func (s *GenkitMCPServer) registerResourceWithMCP(resourceAction api.Action) error {
+>>>>>>> Stashed changes
 	desc := resourceAction.Desc()
 	resourceName := strings.TrimPrefix(desc.Key, "/resource/")
 
