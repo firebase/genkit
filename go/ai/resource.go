@@ -24,10 +24,10 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/yosida95/uritemplate/v3"
 	"github.com/firebase/genkit/go/core/api"
 	coreresource "github.com/firebase/genkit/go/core/resource"
+	"github.com/firebase/genkit/go/internal/registry"
+	"github.com/yosida95/uritemplate/v3"
 )
 
 // normalizeURI normalizes a URI for template matching by removing query parameters,
