@@ -53,7 +53,7 @@ const provider = "googlecloud"
 // Example usage:
 //
 //	// Zero-config (auto-detects project ID)
-//	googlecloud.EnableGoogleCloudTelemetry()
+//	googlecloud.EnableGoogleCloudTelemetry(nil)
 //	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 //
 //	// With configuration
@@ -62,15 +62,12 @@ const provider = "googlecloud"
 //		ForceDevExport: true,
 //	})
 //	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-func EnableGoogleCloudTelemetry(options ...*GoogleCloudTelemetryOptions) {
-	var opts *GoogleCloudTelemetryOptions
-	if len(options) > 0 && options[0] != nil {
-		opts = options[0]
-	} else {
-		opts = &GoogleCloudTelemetryOptions{}
+func EnableGoogleCloudTelemetry(options *GoogleCloudTelemetryOptions) {
+	if options == nil {
+		options = &GoogleCloudTelemetryOptions{}
 	}
 
-	initializeTelemetry(opts)
+	initializeTelemetry(options)
 }
 
 // initializeTelemetry is the internal function that sets up Google Cloud telemetry directly.

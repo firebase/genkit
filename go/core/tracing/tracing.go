@@ -20,8 +20,6 @@ package tracing
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log/slog"
 	"os"
 	"runtime"
 	"strings"
@@ -101,32 +99,6 @@ func captureStackTrace() string {
 	}
 
 	return strings.Join(cleanLines, "\n")
-}
-
-// State holds OpenTelemetry values for creating traces.
-type State struct {
-	tracer trace.Tracer // cached tracer for creating spans
-}
-
-func NewState() *State {
-	// Use the global TracerProvider if one exists to connect to telemetry setup
-	if globalTP := otel.GetTracerProvider(); globalTP != nil {
-		slog.Debug("tracing.NewState: Found existing global TracerProvider", "type", fmt.Sprintf("%T", globalTP))
-		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
-			return &State{
-				tracer: sdkTP.Tracer("genkit-tracer"),
-			}
-		}
-		slog.Debug("tracing.NewState: non-SDK TracerProvider found, not using it since it may not provide ExportSpans method")
-	}
-
-	// Create new SDK TracerProvider
-	tp := sdktrace.NewTracerProvider()
-	otel.SetTracerProvider(tp)
-
-	return &State{
-		tracer: tp.Tracer("genkit-tracer"),
-	}
 }
 
 var (
