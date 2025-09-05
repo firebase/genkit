@@ -113,6 +113,9 @@ func ToReflectionError(err error) ReflectionError {
 		return ge.ToReflectionError()
 	}
 
+	// Error could be a markedError, which is a wrapper on GenkitError.
+	// Casting markedError directly fails because it is indeed a different type. 
+	// errors.As() unwraps markedError and finds the GenkitError underneath.
 	var ge *GenkitError
 	if errors.As(err, &ge) {
 		return ge.ToReflectionError()
