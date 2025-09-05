@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Runtime } from '@genkit-ai/tools-common/manager';
 import { existsSync, readFileSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import * as path from 'path';
@@ -52,12 +53,15 @@ export const cursor: AIToolModule = {
    * - .cursor/rules/GENKIT.mdc: Fully managed by us (replaced on each update)
 
    */
-  async configure(options?: InitConfigOptions): Promise<AIToolConfigResult> {
+  async configure(
+    runtime: Runtime,
+    options?: InitConfigOptions
+  ): Promise<AIToolConfigResult> {
     const files: AIToolConfigResult['files'] = [];
 
     // Create the base GENKIT context file (GENKIT.md).
     // This file contains fundamental details about the GENKIT project.
-    const mdResult = await initGenkitFile();
+    const mdResult = await initGenkitFile(runtime);
     files.push({ path: GENKIT_PROMPT_PATH, updated: mdResult.updated });
 
     // Handle MCP configuration - merge with existing if present.

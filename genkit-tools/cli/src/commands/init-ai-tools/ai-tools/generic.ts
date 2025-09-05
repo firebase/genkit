@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Runtime } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import { GENKIT_PROMPT_PATH, initGenkitFile } from '../utils';
@@ -26,12 +27,15 @@ export const generic: AIToolModule = {
   /**
    * Configures a GENKIT.md file for Genkit.
    */
-  async configure(options?: InitConfigOptions): Promise<AIToolConfigResult> {
+  async configure(
+    runtime: Runtime,
+    options?: InitConfigOptions
+  ): Promise<AIToolConfigResult> {
     const files: AIToolConfigResult['files'] = [];
 
     // Generate GENKIT.md file.
     logger.info('Updating GENKIT.md...');
-    const mdResult = await initGenkitFile();
+    const mdResult = await initGenkitFile(runtime);
     files.push({ path: GENKIT_PROMPT_PATH, updated: mdResult.updated });
 
     logger.info('\n');

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { Runtime } from '@genkit-ai/tools-common/manager';
+
 /** Return type of a configuration result, denoting the set of files processed.
  * */
 export interface AIToolConfigResult {
@@ -39,7 +41,10 @@ export interface AIToolModule {
    * @param configOptions Any user-specified config options
    * @returns Result object with update status and list of files created/updated
    */
-  configure(configOptions?: InitConfigOptions): Promise<AIToolConfigResult>;
+  configure(
+    runtime: Runtime,
+    configOptions?: InitConfigOptions
+  ): Promise<AIToolConfigResult>;
 }
 
 /** Type to denote user's selection from interactive menu */
