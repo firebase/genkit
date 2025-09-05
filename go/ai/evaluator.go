@@ -196,7 +196,12 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 				if datapoint.TestCaseId == "" {
 					datapoint.TestCaseId = uuid.New().String()
 				}
-				_, err := tracing.RunInNewSpan(ctx, fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
+				spanMetadata := &tracing.SpanMetadata{
+					Name:    fmt.Sprintf("TestCase %s", datapoint.TestCaseId),
+					Type:    "evaluator",
+					Subtype: "evaluator",
+				}
+				_, err := tracing.RunInNewSpan(ctx, spanMetadata, datapoint,
 					func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
 						traceId := trace.SpanContextFromContext(ctx).TraceID().String()
 						spanId := trace.SpanContextFromContext(ctx).SpanID().String()

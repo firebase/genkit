@@ -41,7 +41,9 @@ type StreamingFlowValue[Out, Stream any] struct {
 var flowContextKey = base.NewContextKey[*flowContext]()
 
 // flowContext is a context that contains flow-specific information.
-type flowContext struct{}
+type flowContext struct {
+	flowName string
+}
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
 func DefineFlow[In, Out any](r api.Registry, name string, fn Func[In, Out]) *Flow[In, Out, struct{}] {
@@ -82,9 +84,12 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		var z Out
 		return z, fmt.Errorf("flow.Run(%q): must be called from a flow", name)
 	}
-	return tracing.RunInNewSpan(ctx, name, "flowStep", false, nil, func(ctx context.Context, _ any) (Out, error) {
-		tracing.SetCustomMetadataAttr(ctx, "genkit:name", name)
-		tracing.SetCustomMetadataAttr(ctx, "genkit:type", "flowStep")
+	spanMetadata := &tracing.SpanMetadata{
+		Name:    name,
+		Type:    "flowStep",
+		Subtype: "flowStep",
+	}
+	return tracing.RunInNewSpan(ctx, spanMetadata, nil, func(ctx context.Context, _ any) (Out, error) {
 		o, err := fn()
 		if err != nil {
 			return base.Zero[Out](), err
@@ -151,3 +156,11 @@ func (f *Flow[In, Out, Stream]) Register(r api.Registry) {
 }
 
 var errStop = errors.New("stop")
+
+// FlowNameFromContext returns the flow name from context if we're in a flow, empty string otherwise.
+func FlowNameFromContext(ctx context.Context) string {
+	if fc := flowContextKey.FromContext(ctx); fc != nil {
+		return fc.flowName
+	}
+	return ""
+}

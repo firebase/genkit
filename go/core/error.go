@@ -18,6 +18,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"runtime/debug"
 )
@@ -109,6 +110,14 @@ func (e *GenkitError) ToReflectionError() ReflectionError {
 // ToReflectionError gets the JSON representation for reflection API Error responses.
 func ToReflectionError(err error) ReflectionError {
 	if ge, ok := err.(*GenkitError); ok {
+		return ge.ToReflectionError()
+	}
+
+	// Error could be a markedError, which is a wrapper on GenkitError.
+	// Casting markedError directly fails because it is indeed a different type.
+	// errors.As() unwraps markedError and finds the GenkitError underneath.
+	var ge *GenkitError
+	if errors.As(err, &ge) {
 		return ge.ToReflectionError()
 	}
 
