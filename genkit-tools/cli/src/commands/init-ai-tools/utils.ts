@@ -16,6 +16,7 @@
 
 import { existsSync, readFileSync } from 'fs';
 
+import { Runtime } from '@genkit-ai/tools-common/manager';
 import * as crypto from 'crypto';
 import { writeFile } from 'fs/promises';
 import path from 'path';
@@ -146,8 +147,19 @@ export function calculateHash(content: string): string {
 /**
  * Get raw prompt content for Genkit
  */
-export function getGenkitContext(): string {
-  const contextPath = path.resolve(CONTEXT_DIR, 'GENKIT.md');
+export function getGenkitContext(runtime: Runtime): string {
+  let promptPath: string;
+  switch (runtime) {
+    case 'nodejs':
+      promptPath = 'GENKIT.js.md';
+      break;
+    case 'go':
+      promptPath = 'GENKIT.go.md';
+      break;
+    default:
+      throw new Error('Unexpected runtime provided', runtime);
+  }
+  const contextPath = path.resolve(CONTEXT_DIR, promptPath);
   const content = readFileSync(contextPath, 'utf8');
   return content;
 }
@@ -155,8 +167,8 @@ export function getGenkitContext(): string {
 /**
  * Initializes the GENKIT.md file
  */
-export async function initGenkitFile() {
-  const genkitContext = getGenkitContext();
+export async function initGenkitFile(runtime: Runtime) {
+  const genkitContext = getGenkitContext(runtime);
   const result = await initOrReplaceFile(GENKIT_PROMPT_PATH, genkitContext);
   return { updated: result.updated, hash: calculateHash(genkitContext) };
 }
