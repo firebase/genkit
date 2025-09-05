@@ -70,7 +70,9 @@ export const initAiTools = new Command('init:ai-tools')
     logger.info('  - Common Genkit features and how to use them');
     logger.info('\n');
     let runtime = await detectRuntime(process.cwd());
-    if (!runtime) {
+    if (runtime) {
+      logger.info('Detected runtime: ' + SUPPORTED_RUNTIMES[runtime]);
+    } else {
       logger.info('No runtime was detected in the current directory.');
       const answer = await select({
         message: 'Select a runtime to initialize a Genkit project:',
