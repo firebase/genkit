@@ -20,11 +20,68 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/url"
+	"strings"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
-	coreresource "github.com/firebase/genkit/go/core/resource"
+	"github.com/yosida95/uritemplate/v3"
 )
+
+// normalizeURI normalizes a URI for template matching by removing query parameters,
+// fragments, and trailing slashes from the path.
+func normalizeURI(rawURI string) string {
+	// Parse the URI
+	u, err := url.Parse(rawURI)
+	if err != nil {
+		// If parsing fails, return the original URI
+		return rawURI
+	}
+
+	// Remove query parameters and fragment
+	u.RawQuery = ""
+	u.Fragment = ""
+
+	// Remove trailing slash from path (but not from the root path)
+	if len(u.Path) > 1 && strings.HasSuffix(u.Path, "/") {
+		u.Path = strings.TrimSuffix(u.Path, "/")
+	}
+
+	return u.String()
+}
+
+// matches checks if a URI matches the given URI template.
+func matches(templateStr, uri string) (bool, error) {
+	template, err := uritemplate.New(templateStr)
+	if err != nil {
+		return false, fmt.Errorf("invalid URI template %q: %w", templateStr, err)
+	}
+
+	normalizedURI := normalizeURI(uri)
+	values := template.Match(normalizedURI)
+	return len(values) > 0, nil
+}
+
+// extractVariables extracts variables from a URI using the given URI template.
+func extractVariables(templateStr, uri string) (map[string]string, error) {
+	template, err := uritemplate.New(templateStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid URI template %q: %w", templateStr, err)
+	}
+
+	normalizedURI := normalizeURI(uri)
+	values := template.Match(normalizedURI)
+	if len(values) == 0 {
+		return nil, fmt.Errorf("URI %q does not match template", uri)
+	}
+
+	// Convert uritemplate.Values to string map
+	result := make(map[string]string)
+	for name, value := range values {
+		result[name] = value.String()
+	}
+	return result, nil
+}
 
 // ResourceInput represents the input to a resource function.
 type ResourceInput struct {
@@ -129,11 +186,11 @@ func (r *resource) Matches(uri string) bool {
 
 	// Check template
 	if template, ok := resourceMeta["template"].(string); ok && template != "" {
-		matcher, err := coreresource.NewTemplateMatcher(template)
+		matches, err := matches(template, uri)
 		if err != nil {
 			return false
 		}
-		return matcher.Matches(uri)
+		return matches
 	}
 
 	return false
@@ -156,11 +213,7 @@ func (r *resource) ExtractVariables(uri string) (map[string]string, error) {
 
 	// Extract from template
 	if template, ok := resourceMeta["template"].(string); ok && template != "" {
-		matcher, err := coreresource.NewTemplateMatcher(template)
-		if err != nil {
-			return nil, fmt.Errorf("invalid template %q: %w", template, err)
-		}
-		return matcher.ExtractVariables(uri)
+		return extractVariables(template, uri)
 	}
 
 	return nil, fmt.Errorf("no URI or template found in resource metadata")
