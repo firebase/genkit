@@ -1,4 +1,4 @@
-# Genkit Go API Rules (v1.17.1)
+# Genkit Go API Rules (v1.0.0)
 
 This document provides rules and examples for building with the Genkit API in Go.
 
