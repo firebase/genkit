@@ -212,7 +212,6 @@ func main() {
 }
 ```
 
-
 ---
 
 ## Running and Inspecting Flows
@@ -279,4 +278,3 @@ Here are suggested models to use for various task types. This is NOT an exhausti
 | github.com/firebase/genkit/go/plugins/googlegenai         | imagen-4.0-generate-preview-06-06  | Text              |
 | github.com/firebase/genkit/go/plugins/compat_oai/openai   | gpt-image-1                        | Text              |
 ```
-
