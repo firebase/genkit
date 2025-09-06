@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"errors"
-
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
@@ -28,8 +27,8 @@ import (
 	"google.golang.org/genai"
 )
 
-// duneQuestionInput is a question about Dune.
-type duneQuestionInput struct {
+// questionInput is a question about the contents of the provided text file.
+type questionInput struct {
 	Question string `json:"question"`
 	FilePath string `json:"path"`
 }
@@ -37,11 +36,11 @@ type duneQuestionInput struct {
 func main() {
 	ctx := context.Background()
 	g := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-2.5-flash-preview-04-17"),
+		genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 	)
 
-	genkit.DefineFlow(g, "duneFlowGeminiAI", func(ctx context.Context, input *duneQuestionInput) (string, error) {
+	genkit.DefineFlow(g, "cache-flow", func(ctx context.Context, input *questionInput) (string, error) {
 		prompt := "What is the text I provided you with?"
 		if input == nil {
 			return "", errors.New("empty flow input, provide at least a source file to read")

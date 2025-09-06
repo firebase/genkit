@@ -96,7 +96,7 @@ func main() {
 	modelName := "llava"
 	model := ollamaPlugin.DefineModel(g, ollama.ModelDefinition{
 		Name: modelName,
-		Type: "chat",
+		Type: "generate",
 	}, nil)
 
 	// Create a context

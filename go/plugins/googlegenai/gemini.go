@@ -616,6 +616,11 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		m.FinishReason = ai.FinishReasonUnknown
 	}
 	msg := &ai.Message{}
+	if cand.Content == nil {
+		m.Message = msg
+		return m
+	}
+
 	msg.Role = ai.Role(cand.Content.Role)
 
 	// iterate over the candidate parts, only one struct member
