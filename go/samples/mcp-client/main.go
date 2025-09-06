@@ -72,7 +72,7 @@ func managerExample() {
 	}
 
 	response, err := genkit.Generate(ctx, g,
-		ai.WithModelName("googleai/gemini-2.5-pro-preview-05-06"),
+		ai.WithModelName("googleai/gemini-2.5-pro"),
 		ai.WithPrompt("What time is it in New York and Tokyo?"),
 		ai.WithTools(toolRefs...),
 		ai.WithToolChoice(ai.ToolChoiceAuto),
@@ -143,7 +143,7 @@ func multiServerManagerExample() {
 
 	// Generate response using tools from multiple servers
 	response, err := genkit.Generate(ctx, g,
-		ai.WithModelName("googleai/gemini-2.5-pro-preview-05-06"),
+		ai.WithModelName("googleai/gemini-2.5-pro"),
 		ai.WithPrompt("What time is it in New York? Also, fetch the latest news from https://httpbin.org/json and tell me what you find."),
 		ai.WithTools(toolRefs...),
 		ai.WithToolChoice(ai.ToolChoiceAuto),
@@ -191,7 +191,7 @@ func clientExample() {
 	}
 
 	response, err := genkit.Generate(ctx, g,
-		ai.WithModelName("googleai/gemini-2.5-pro-preview-05-06"),
+		ai.WithModelName("googleai/gemini-2.5-pro"),
 		ai.WithPrompt("Convert the current time from New York to London timezone."),
 		ai.WithTools(toolRefs...),
 		ai.WithToolChoice(ai.ToolChoiceAuto),
@@ -454,7 +454,7 @@ func resourcesExample() {
 			}
 
 			// Generate AI response that uses resources
-			prompt := `You have access to filesystem resources. 
+			prompt := `You have access to filesystem resources.
 Please read the file /tmp/genkit-mcp-test.txt if it exists and tell me what you find.
 Use the available tools and resources to complete this task.`
 
