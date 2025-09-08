@@ -15,8 +15,10 @@
  */
 
 import { RuntimeManager } from '@genkit-ai/tools-common/manager';
+import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
+import { McpRunToolEvent } from './analytics.js';
 
 export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
   server.registerTool(
@@ -27,6 +29,8 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
         'Use this to discover available Genkit flows or inspect the input schema of Genkit flows to know how to successfully call them.',
     },
     async () => {
+      record(new McpRunToolEvent('list_flows'));
+
       const actions = await manager.listActions();
 
       let flows = '';
@@ -63,6 +67,8 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
       },
     },
     async ({ flowName, input }) => {
+      record(new McpRunToolEvent('run_flow'));
+
       try {
         const response = await manager.runAction({
           key: `/flow/${flowName}`,

@@ -15,8 +15,10 @@
  */
 
 import { RuntimeManager } from '@genkit-ai/tools-common/manager';
+import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
+import { McpRunToolEvent } from './analytics.js';
 
 export function defineTraceTools(server: McpServer, manager: RuntimeManager) {
   server.registerTool(
@@ -33,6 +35,8 @@ export function defineTraceTools(server: McpServer, manager: RuntimeManager) {
       },
     },
     async ({ traceId }) => {
+      record(new McpRunToolEvent('get_trace'));
+
       try {
         const response = await manager.getTrace({ traceId });
         return {

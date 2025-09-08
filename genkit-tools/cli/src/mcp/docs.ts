@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import { ContentBlock } from '@modelcontextprotocol/sdk/types';
 import { existsSync, mkdirSync, readFileSync, renameSync } from 'node:fs';
@@ -23,6 +24,7 @@ import os from 'os';
 import path from 'path';
 import z from 'zod';
 import { version } from '../utils/version';
+import { McpRunToolEvent } from './analytics.js';
 
 const DOCS_URL =
   process.env.GENKIT_DOCS_BUNDLE_URL ??
@@ -89,6 +91,8 @@ export async function defineDocsTool(server: McpServer) {
       },
     },
     async ({ language, files }) => {
+      record(new McpRunToolEvent('lookup_genkit_docs'));
+
       const content = [] as ContentBlock[];
       if (!language) {
         language = 'js';

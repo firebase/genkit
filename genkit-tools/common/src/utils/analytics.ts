@@ -31,7 +31,7 @@ export const ANALYTICS_OPT_OUT_CONFIG_TAG = 'analyticsOptOut';
  * one of the pre-defined events listed below this class. If you need to add a
  * new event type, add it with the others below.
  */
-abstract class GAEvent {
+export abstract class GAEvent {
   // The event name as it will appear in GA.
   // This must be less than 40 characters
   abstract name: string;
