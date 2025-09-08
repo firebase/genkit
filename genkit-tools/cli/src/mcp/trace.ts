@@ -35,7 +35,7 @@ export function defineTraceTools(server: McpServer, manager: RuntimeManager) {
       },
     },
     async ({ traceId }) => {
-      record(new McpRunToolEvent('get_trace'));
+      await record(new McpRunToolEvent('get_trace'));
 
       try {
         const response = await manager.getTrace({ traceId });

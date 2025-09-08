@@ -81,9 +81,9 @@ export class RunCommandEvent extends GAEvent {
   name = 'run_command';
   duration = 1; // Should we actually track command duration?
 
-  constructor(command: string) {
+  constructor(command: string, runtime_type: string) {
     super();
-    this.stickyParameters = { command };
+    this.stickyParameters = { command, runtime_type };
   }
 }
 

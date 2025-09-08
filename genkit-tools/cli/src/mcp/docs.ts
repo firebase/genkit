@@ -91,7 +91,7 @@ export async function defineDocsTool(server: McpServer) {
       },
     },
     async ({ language, files }) => {
-      record(new McpRunToolEvent('lookup_genkit_docs'));
+      await record(new McpRunToolEvent('lookup_genkit_docs'));
 
       const content = [] as ContentBlock[];
       if (!language) {

@@ -29,7 +29,7 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
         'Use this to discover available Genkit flows or inspect the input schema of Genkit flows to know how to successfully call them.',
     },
     async () => {
-      record(new McpRunToolEvent('list_flows'));
+      await record(new McpRunToolEvent('list_flows'));
 
       const actions = await manager.listActions();
 
@@ -67,7 +67,7 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
       },
     },
     async ({ flowName, input }) => {
-      record(new McpRunToolEvent('run_flow'));
+      await record(new McpRunToolEvent('run_flow'));
 
       try {
         const response = await manager.runAction({
