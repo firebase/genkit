@@ -195,11 +195,20 @@ for platform in "${PLATFORMS[@]}"; do
     exit 1
   fi
   
-  # Upload versioned binary
   versioned_path="gs://$BUCKET/$CHANNEL/$platform/v$VERSION/$binary_name"
+
+  # Check if versioned file already exists.
+  if [[ "$DRY_RUN" == "false" ]]; then
+    if gsutil -q stat "$versioned_path"; then
+      echo "Version $VERSION for $platform already exists in GCS, skipping upload."
+      continue
+    fi
+  fi
+
+  # Upload versioned binary
   echo "Uploading $source_file to $versioned_path"
   if [[ "$DRY_RUN" == "false" ]]; then
-    gsutil -h "Cache-Control:public, max-age=3600" cp -n "$source_file" "$versioned_path"
+    gsutil -h "Cache-Control:public, max-age=3600" cp "$source_file" "$versioned_path"
   else
     echo "[DRY RUN] Would upload to: $versioned_path"
   fi
@@ -208,9 +217,9 @@ for platform in "${PLATFORMS[@]}"; do
   latest_path="gs://$BUCKET/$CHANNEL/$platform/$latest_name"
   echo "Copying to $latest_path"
   if [[ "$DRY_RUN" == "false" ]]; then
-    gsutil -h "Cache-Control:public, max-age=300" cp -n "$source_file" "$latest_path"
+    gsutil -h "Cache-Control:public, max-age=300" cp "$source_file" "$latest_path"
   else
-    echo "[DRY RUN] Would copy to: $latest_path"
+    echo "[DRY RUN] Would copy to: $latest_path (overwriting)"
   fi
   
   echo ""
