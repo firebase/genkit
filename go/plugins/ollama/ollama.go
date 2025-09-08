@@ -197,7 +197,7 @@ type ollamaModelResponse struct {
 // Ollama provides configuration options for the Init function.
 type Ollama struct {
 	ServerAddress string // Server address of oLLama.
-	Timeout       int    // Response timeout in seconds
+	Timeout       int    // Response timeout in seconds (defaulted to 30 seconds)
 
 	mu      sync.Mutex // Mutex to control access.
 	initted bool       // Whether the plugin has been initialized.
