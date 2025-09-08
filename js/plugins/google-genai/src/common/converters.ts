@@ -30,7 +30,7 @@ import {
   Part as GeminiPart,
   Schema,
   SchemaType,
-} from './types';
+} from './types.js';
 
 export function toGeminiTool(tool: ToolDefinition): FunctionDeclaration {
   const declaration: FunctionDeclaration = {

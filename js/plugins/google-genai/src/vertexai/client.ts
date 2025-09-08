@@ -15,8 +15,11 @@
  */
 
 import { GoogleAuth } from 'google-auth-library';
-import { extractErrMsg, processStream } from '../common/utils';
-import { getGenkitClientHeader } from '../common/utils.js';
+import {
+  extractErrMsg,
+  getGenkitClientHeader,
+  processStream,
+} from '../common/utils.js';
 import {
   ClientOptions,
   EmbedContentRequest,
@@ -33,8 +36,8 @@ import {
   VeoOperation,
   VeoOperationRequest,
   VeoPredictRequest,
-} from './types';
-import { calculateApiKey, checkSupportedResourceMethod } from './utils';
+} from './types.js';
+import { calculateApiKey, checkSupportedResourceMethod } from './utils.js';
 
 export async function listModels(
   clientOptions: ClientOptions

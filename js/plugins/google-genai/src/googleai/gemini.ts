@@ -39,12 +39,12 @@ import {
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
-} from '../common/converters';
+} from '../common/converters.js';
 import {
   generateContent,
   generateContentStream,
   getGoogleAIUrl,
-} from './client';
+} from './client.js';
 import {
   ClientOptions,
   Content as GeminiMessage,
@@ -57,14 +57,14 @@ import {
   SafetySetting,
   Tool,
   ToolConfig,
-} from './types';
+} from './types.js';
 import {
   calculateApiKey,
   checkApiKey,
   checkModelName,
   cleanSchema,
   extractVersion,
-} from './utils';
+} from './utils.js';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.

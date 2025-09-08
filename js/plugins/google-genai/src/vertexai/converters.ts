@@ -32,10 +32,10 @@ import {
   ImagenPredictResponse,
   ImagenPrediction,
   SafetySetting,
-} from '../common/types';
-import { SafetySettingsSchema } from './gemini';
-import { ImagenConfigSchemaType } from './imagen';
-import { LyriaConfigSchemaType } from './lyria';
+} from '../common/types.js';
+import { SafetySettingsSchema } from './gemini.js';
+import { ImagenConfigSchemaType } from './imagen.js';
+import { LyriaConfigSchemaType } from './lyria.js';
 import {
   LyriaInstance,
   LyriaParameters,
@@ -47,14 +47,14 @@ import {
   VeoOperation,
   VeoOperationRequest,
   VeoPredictRequest,
-} from './types';
+} from './types.js';
 import {
   checkSupportedMimeType,
   extractMedia,
   extractMimeType,
   extractText,
-} from './utils';
-import { VeoConfigSchemaType } from './veo';
+} from './utils.js';
+import { VeoConfigSchemaType } from './veo.js';
 
 export function toGeminiSafetySettings(
   genkitSettings?: z.infer<typeof SafetySettingsSchema>[]
