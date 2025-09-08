@@ -86,6 +86,7 @@ func main() {
 	// Initialize the Ollama plugin
 	ollamaPlugin := &ollama.Ollama{
 		ServerAddress: "http://localhost:11434", // Default Ollama server address
+		Timeout:       60,
 	}
 
 	// Initialize the plugin
@@ -96,7 +97,7 @@ func main() {
 	modelName := "llava"
 	model := ollamaPlugin.DefineModel(g, ollama.ModelDefinition{
 		Name: modelName,
-		Type: "generate",
+		Type: "chat",
 	}, nil)
 
 	// Create a context
