@@ -38,6 +38,7 @@ import {
 import { start } from './commands/start';
 import { uiStart } from './commands/ui-start';
 import { uiStop } from './commands/ui-stop';
+import { detectCLIRuntime } from './utils/runtime-detector.js';
 import { showUpdateNotification } from './utils/updates';
 import { version } from './utils/version';
 
@@ -86,7 +87,10 @@ export async function startCLI(): Promise<void> {
       } else {
         commandName = 'unknown';
       }
-      await record(new RunCommandEvent(commandName));
+      const { isCompiledBinary } = detectCLIRuntime();
+      await record(
+        new RunCommandEvent(commandName, isCompiledBinary ? 'binary' : 'node')
+      );
     });
 
   // Check for updates and show notification if available,
