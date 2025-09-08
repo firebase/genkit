@@ -87,7 +87,7 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.M
 		Supports: modelOpts.Supports,
 		Versions: []string{},
 	}
-	gen := &generator{model: model, serverAddress: o.ServerAddress}
+	gen := &generator{model: model, serverAddress: o.ServerAddress, timeout: o.Timeout}
 	return genkit.DefineModel(g, api.NewName(provider, model.Name), meta, gen.generate)
 }
 
@@ -111,6 +111,7 @@ type ModelDefinition struct {
 type generator struct {
 	model         ModelDefinition
 	serverAddress string
+	timeout       int
 }
 
 type ollamaMessage struct {
@@ -196,6 +197,7 @@ type ollamaModelResponse struct {
 // Ollama provides configuration options for the Init function.
 type Ollama struct {
 	ServerAddress string // Server address of oLLama.
+	Timeout       int    // Response timeout in seconds
 
 	mu      sync.Mutex // Mutex to control access.
 	initted bool       // Whether the plugin has been initialized.
@@ -218,6 +220,9 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 		panic("ollama: need ServerAddress")
 	}
 	o.initted = true
+	if o.Timeout == 0 {
+		o.Timeout = 30
+	}
 	return []api.Action{}
 }
 
@@ -274,7 +279,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		payload = chatReq
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: time.Duration(g.timeout) * time.Second}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
