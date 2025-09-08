@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Runtime } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { existsSync, readFileSync } from 'fs';
 import { writeFile } from 'fs/promises';
@@ -39,7 +40,10 @@ export const claude: AIToolModule = {
    * - .mcp.json: Merges with existing MCP config
    * - CLAUDE.local.md: Updates Firebase section only (preserves user content)
    */
-  async configure(options?: InitConfigOptions): Promise<AIToolConfigResult> {
+  async configure(
+    runtime: Runtime,
+    options?: InitConfigOptions
+  ): Promise<AIToolConfigResult> {
     const files: AIToolConfigResult['files'] = [];
 
     // Handle MCP configuration - merge with existing if present
@@ -70,7 +74,7 @@ export const claude: AIToolModule = {
     files.push({ path: CLAUDE_MCP_PATH, updated: settingsUpdated });
 
     logger.info('Copying the Genkit context to GENKIT.md...');
-    const mdResult = await initGenkitFile();
+    const mdResult = await initGenkitFile(runtime);
     files.push({ path: GENKIT_PROMPT_PATH, updated: mdResult.updated });
 
     logger.info('Updating CLAUDE.md to include Genkit context...');

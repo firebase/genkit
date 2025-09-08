@@ -429,8 +429,6 @@ type genaiModels struct {
 func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
 	models := genaiModels{}
 	allowedModels := []string{"gemini", "gemma"}
-	allowedImagenModels := []string{"imagen"}
-	allowedVideoModels := []string{"veo"}
 
 	for item, err := range client.Models.All(ctx) {
 		var name string
@@ -452,30 +450,20 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 			continue
 		}
 
-		found := slices.ContainsFunc(allowedModels, func(s string) bool {
-			return strings.Contains(name, s)
-		})
-		// filter out: Aqa, Text-bison, Chat, learnlm
-		if found {
-			models.gemini = append(models.gemini, name)
-			continue
-		}
-
-		found = slices.ContainsFunc(allowedImagenModels, func(s string) bool {
-			return strings.Contains(name, s)
-		})
-		// filter out: Aqa, Text-bison, Chat, learnlm
-		if found {
+		if slices.Contains(item.SupportedActions, "predict") && strings.Contains(name, "imagen") {
 			models.imagen = append(models.imagen, name)
 			continue
 		}
 
-		found = slices.ContainsFunc(allowedVideoModels, func(s string) bool {
-			return strings.Contains(name, s)
-		})
-		if found {
-			models.veo = append(models.veo, name)
-			continue
+		if slices.Contains(item.SupportedActions, "generateContent") {
+			found := slices.ContainsFunc(allowedModels, func(s string) bool {
+				return strings.Contains(name, s)
+			})
+			// filter out: Aqa, Text-bison, Chat, learnlm
+			if found {
+				models.gemini = append(models.gemini, name)
+				continue
+			}
 		}
 	}
 

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -77,7 +78,7 @@ func DefineBackgroundAction[In, Out any](
 	if checkFunc == nil {
 		panic("DefineBackgroundAction requires a check function")
 	}
-	startAction := defineAction(r, name, ActionTypeBackgroundModel, metadata, nil,
+	startAction := defineAction(r, name, api.ActionTypeBackgroundModel, metadata, nil,
 		func(ctx context.Context, input In, _ func(context.Context, struct{}) error) (*Operation[Out], error) {
 			startTime := time.Now()
 			operation, err := startFunc(ctx, input)
@@ -88,11 +89,11 @@ func DefineBackgroundAction[In, Out any](
 				operation.Metadata = make(map[string]any)
 			}
 			operation.Metadata["latencyMs"] = float64(time.Since(startTime).Nanoseconds()) / 1e6
-			operation.Action = fmt.Sprintf("/%s/%s", ActionTypeBackgroundModel, name)
+			operation.Action = fmt.Sprintf("/%s/%s", api.ActionTypeBackgroundModel, name)
 			return operation, nil
 		})
 
-	checkAction := defineAction(r, name, ActionTypeCheckOperation,
+	checkAction := defineAction(r, name, api.ActionTypeCheckOperation,
 		map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)},
 		nil,
 		func(ctx context.Context, op *Operation[Out], _ func(context.Context, struct{}) error) (*Operation[Out], error) {
@@ -101,13 +102,13 @@ func DefineBackgroundAction[In, Out any](
 				return nil, err
 			}
 			// Ensure action reference is maintained
-			updatedOp.Action = fmt.Sprintf("/%s/%s", ActionTypeCheckOperation, name)
+			updatedOp.Action = fmt.Sprintf("/%s/%s", api.ActionTypeCheckOperation, name)
 			return updatedOp, nil
 		})
 
 	var cancelAction *ActionDef[*Operation[Out], *Operation[Out], struct{}]
 	if cancelFunc != nil {
-		cancelAction = defineAction(r, name, ActionTypeCancelOperation,
+		cancelAction = defineAction(r, name, api.ActionTypeCancelOperation,
 			map[string]any{"description": fmt.Sprintf("Cancel %s operation", name)},
 			nil,
 			func(ctx context.Context, op *Operation[Out], _ func(context.Context, struct{}) error) (*Operation[Out], error) {
@@ -115,7 +116,7 @@ func DefineBackgroundAction[In, Out any](
 				if err != nil {
 					return nil, err
 				}
-				cancelledOp.Action = fmt.Sprintf("/%s/%s", ActionTypeCancelOperation, name)
+				cancelledOp.Action = fmt.Sprintf("/%s/%s", api.ActionTypeCancelOperation, name)
 				return cancelledOp, nil
 			})
 	}
@@ -143,7 +144,7 @@ func NewBackgroundAction[In, Out any](
 		panic("NewBackgroundAction requires a check function")
 	}
 
-	startAction := NewAction(name, ActionTypeBackgroundModel, metadata, nil,
+	startAction := NewAction(name, api.ActionTypeBackgroundModel, metadata, nil,
 		func(ctx context.Context, input In) (*Operation[Out], error) {
 			startTime := time.Now()
 			operation, err := startFunc(ctx, input)
@@ -154,11 +155,11 @@ func NewBackgroundAction[In, Out any](
 				operation.Metadata = make(map[string]any)
 			}
 			operation.Metadata["latencyMs"] = float64(time.Since(startTime).Nanoseconds()) / 1e6
-			operation.Action = fmt.Sprintf("/%s/%s", ActionTypeBackgroundModel, name)
+			operation.Action = fmt.Sprintf("/%s/%s", api.ActionTypeBackgroundModel, name)
 			return operation, nil
 		})
 
-	checkAction := NewAction(name, ActionTypeCheckOperation,
+	checkAction := NewAction(name, api.ActionTypeCheckOperation,
 		map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)},
 		nil,
 		func(ctx context.Context, op *Operation[Out]) (*Operation[Out], error) {
@@ -167,13 +168,13 @@ func NewBackgroundAction[In, Out any](
 				return nil, err
 			}
 			// Ensure action reference is maintained
-			updatedOp.Action = fmt.Sprintf("/%s/%s", ActionTypeCheckOperation, name)
+			updatedOp.Action = fmt.Sprintf("/%s/%s", api.ActionTypeCheckOperation, name)
 			return updatedOp, nil
 		})
 
 	var cancelAction *ActionDef[*Operation[Out], *Operation[Out], struct{}]
 	if cancelFunc != nil {
-		cancelAction = NewAction(name, ActionTypeCancelOperation,
+		cancelAction = NewAction(name, api.ActionTypeCancelOperation,
 			map[string]any{"description": fmt.Sprintf("Cancel %s operation", name)},
 			nil,
 			func(ctx context.Context, op *Operation[Out]) (*Operation[Out], error) {
@@ -181,7 +182,7 @@ func NewBackgroundAction[In, Out any](
 				if err != nil {
 					return nil, err
 				}
-				cancelledOp.Action = fmt.Sprintf("/%s/%s", ActionTypeCancelOperation, name)
+				cancelledOp.Action = fmt.Sprintf("/%s/%s", api.ActionTypeCancelOperation, name)
 				return cancelledOp, nil
 			})
 	}
@@ -195,18 +196,18 @@ func NewBackgroundAction[In, Out any](
 }
 
 // LookupBackgroundAction finds and assembles a background action from the registry
-func LookupBackgroundAction[In, Out any](r *registry.Registry, name string) *BackgroundActionDef[In, Out] {
+func LookupBackgroundAction[In, Out any](r api.Registry, name string) *BackgroundActionDef[In, Out] {
 
-	startAction := ResolveActionFor[In, *Operation[Out], struct{}](r, ActionTypeBackgroundModel, name)
+	startAction := ResolveActionFor[In, *Operation[Out], struct{}](r, api.ActionTypeBackgroundModel, name)
 	if startAction == nil {
 		return nil
 	}
 
-	checkAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, ActionTypeCheckOperation, name)
+	checkAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, api.ActionTypeCheckOperation, name)
 	if checkAction == nil {
 		return nil
 	}
-	cancelAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, ActionTypeCancelOperation, name)
+	cancelAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, api.ActionTypeCancelOperation, name)
 
 	bgAction := BackgroundActionDef[In, Out]{
 		startAction:  startAction,

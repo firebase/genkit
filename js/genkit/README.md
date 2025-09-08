@@ -20,7 +20,7 @@ Get started with Genkit in just a few lines of simple code.
 ```ts
 // import the Genkit and Google AI plugin libraries
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const ai = genkit({ plugins: [googleAI()] });
 
@@ -33,7 +33,7 @@ const { text } = await ai.generate({
 Genkit also lets you build strongly typed, accessible from the client, fully observable AI flows:
 
 ```ts
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 import { genkit, z } from 'genkit';
 
 // Initialize Genkit with the Google AI plugin
