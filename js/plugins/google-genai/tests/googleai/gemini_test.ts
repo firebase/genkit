@@ -25,14 +25,14 @@ import {
   GeminiTtsConfigSchema,
   defineModel,
   model,
-} from '../../src/googleai/gemini';
+} from '../../src/googleai/gemini.js';
 import {
   FinishReason,
   GenerateContentRequest,
   GenerateContentResponse,
   GoogleAIPluginOptions,
-} from '../../src/googleai/types';
-import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils';
+} from '../../src/googleai/types.js';
+import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils.js';
 
 describe('Google AI Gemini', () => {
   let mockGenkit: sinon.SinonStubbedInstance<Genkit>;
