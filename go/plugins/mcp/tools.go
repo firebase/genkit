@@ -22,8 +22,6 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal/base"
-	"github.com/invopop/jsonschema"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -59,24 +57,21 @@ func (c *GenkitMCPClient) createTools(mcpTools []mcp.Tool) ([]ai.Tool, error) {
 	return tools, nil
 }
 
-// getInputSchema exposes the MCP input schema as a jsonschema.Schema for Genkit
-func (c *GenkitMCPClient) getInputSchema(mcpTool mcp.Tool) (*jsonschema.Schema, error) {
-	var inputSchemaForAI *jsonschema.Schema
-	if mcpTool.InputSchema.Type != "" {
-		schemaBytes, err := json.Marshal(mcpTool.InputSchema)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal MCP input schema for tool %s: %w", mcpTool.Name, err)
-		}
-		inputSchemaForAI = new(jsonschema.Schema)
-		if err := json.Unmarshal(schemaBytes, inputSchemaForAI); err != nil {
-			// Fall back to empty schema if unmarshaling fails
-			inputSchemaForAI = &jsonschema.Schema{}
-		}
-	} else {
-		inputSchemaForAI = &jsonschema.Schema{}
+// getInputSchema returns the MCP input schema as a generic map for Genkit
+func (c *GenkitMCPClient) getInputSchema(mcpTool mcp.Tool) (map[string]any, error) {
+	var out map[string]any
+	schemaBytes, err := json.Marshal(mcpTool.InputSchema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal MCP input schema for tool %s: %w", mcpTool.Name, err)
 	}
-
-	return inputSchemaForAI, nil
+	if err := json.Unmarshal(schemaBytes, &out); err != nil {
+		// Fall back to empty map if unmarshalling fails
+		out = map[string]any{}
+	}
+	if out == nil {
+		out = map[string]any{}
+	}
+	return out, nil
 }
 
 // createTool converts a single MCP tool to a Genkit tool
@@ -90,11 +85,11 @@ func (c *GenkitMCPClient) createTool(mcpTool mcp.Tool) (ai.Tool, error) {
 		return nil, fmt.Errorf("failed to get input schema for tool %s: %w", mcpTool.Name, err)
 	}
 	var tool ai.Tool
-	if inputSchema != nil {
+	if len(inputSchema) > 0 {
 		tool = ai.NewToolWithInputSchema(
 			namespacedToolName,
 			mcpTool.Description,
-			base.SchemaAsMap(inputSchema),
+			inputSchema,
 			toolFunc,
 		)
 	} else {

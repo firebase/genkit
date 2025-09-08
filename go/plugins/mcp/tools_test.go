@@ -78,7 +78,6 @@ func TestCreateTool(t *testing.T) {
         "description": "Echo",
         "inputSchema": {
             "type": "object",
-            "description": "Echo input",
             "required": ["q"],
             "properties": {
                 "q": {"type": "string", "description": "query"},
