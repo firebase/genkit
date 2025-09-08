@@ -35,7 +35,6 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type streamingCallback[Stream any] = func(context.Context, Stream) error
@@ -432,23 +431,25 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		ctx = core.WithActionContext(ctx, runtimeContext)
 	}
 
-	var traceID string
-	output, err := tracing.RunInNewSpan(ctx, "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
-		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
-		// Set telemetry labels from payload to span
-		if telemetryLabels != nil {
-			var telemetryAttributes map[string]string
-			err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
-			if err != nil {
-				return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
-			}
-			for k, v := range telemetryAttributes {
-				tracing.SetCustomMetadataAttr(ctx, k, v)
-			}
+	// Parse telemetry attributes if provided
+	var telemetryAttributes map[string]string
+	if telemetryLabels != nil {
+		err := json.Unmarshal(telemetryLabels, &telemetryAttributes)
+		if err != nil {
+			return nil, core.NewError(core.INTERNAL, "Error unmarshalling telemetryLabels: %v", err)
 		}
-		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
+	}
+
+	// Run the action and capture trace ID. We need to ensure there's a valid trace context.
+	var traceID string
+	output, err := func() (json.RawMessage, error) {
+		// Start a minimal span context just to ensure we have a trace ID for telemetry
+		ctx, span := tracing.Tracer().Start(ctx, "action-execution")
+		defer span.End()
+
+		traceID = span.SpanContext().TraceID().String()
 		return action.RunJSON(ctx, input, cb)
-	})
+	}()
 	if err != nil {
 		return nil, err
 	}

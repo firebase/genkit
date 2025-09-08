@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"google.golang.org/genai"
 )
 
@@ -82,6 +84,9 @@ func (ga *GoogleAI) Init(ctx context.Context) []api.Action {
 	gc := genai.ClientConfig{
 		Backend: genai.BackendGeminiAPI,
 		APIKey:  apiKey,
+		HTTPClient: &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
 		HTTPOptions: genai.HTTPOptions{
 			Headers: genkitClientHeader,
 		},
@@ -155,6 +160,9 @@ func (v *VertexAI) Init(ctx context.Context) []api.Action {
 		Backend:  genai.BackendVertexAI,
 		Project:  v.ProjectID,
 		Location: v.Location,
+		HTTPClient: &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
 		HTTPOptions: genai.HTTPOptions{
 			Headers: genkitClientHeader,
 		},
