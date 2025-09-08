@@ -498,32 +498,32 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		schema.Title = v.(string)
 	}
 	if v, ok := genkitSchema["minItems"]; ok {
-		i, err := strconv.ParseInt(v.(string), 10, 64)
+		i, err := parseInt64FromStringOrNumber(v)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid minItems: %w", err)
 		}
 		schema.MinItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maxItems"]; ok {
-		i, err := strconv.ParseInt(v.(string), 10, 64)
+		i, err := parseInt64FromStringOrNumber(v)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid maxItems: %w", err)
 		}
 		schema.MaxItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maximum"]; ok {
-		i, err := strconv.ParseFloat(v.(string), 64)
+		f, err := parseFloat64FromStringOrNumber(v)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid maximum: %w", err)
 		}
-		schema.Maximum = genai.Ptr(i)
+		schema.Maximum = genai.Ptr(f)
 	}
 	if v, ok := genkitSchema["minimum"]; ok {
-		i, err := strconv.ParseFloat(v.(string), 64)
+		f, err := parseFloat64FromStringOrNumber(v)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid minimum: %w", err)
 		}
-		schema.Minimum = genai.Ptr(i)
+		schema.Minimum = genai.Ptr(f)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
 		schema.Enum = castToStringArray(v.([]any))
@@ -566,6 +566,38 @@ func castToStringArray(i []any) []string {
 		r = append(r, v.(string))
 	}
 	return r
+}
+
+// parseInt64FromStringOrNumber parses either a string (decimal) or float64 into int64.
+func parseInt64FromStringOrNumber(v any) (int64, error) {
+    switch vv := v.(type) {
+    case string:
+        i, err := strconv.ParseInt(vv, 10, 64)
+        if err != nil {
+            return 0, err
+        }
+        return i, nil
+    case float64:
+        return int64(vv), nil
+    default:
+        return 0, fmt.Errorf("unsupported type %T for int value", v)
+    }
+}
+
+// parseFloat64FromStringOrNumber parses either a string or float64 into float64.
+func parseFloat64FromStringOrNumber(v any) (float64, error) {
+    switch vv := v.(type) {
+    case string:
+        f, err := strconv.ParseFloat(vv, 64)
+        if err != nil {
+            return 0, err
+        }
+        return f, nil
+    case float64:
+        return vv, nil
+    default:
+        return 0, fmt.Errorf("unsupported type %T for float value", v)
+    }
 }
 
 func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {

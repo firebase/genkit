@@ -21,7 +21,9 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/invopop/jsonschema"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -57,21 +59,51 @@ func (c *GenkitMCPClient) createTools(mcpTools []mcp.Tool) ([]ai.Tool, error) {
 	return tools, nil
 }
 
+// getInputSchema exposes the MCP input schema as a jsonschema.Schema for Genkit
+func (c *GenkitMCPClient) getInputSchema(mcpTool mcp.Tool) (*jsonschema.Schema, error) {
+	var inputSchemaForAI *jsonschema.Schema
+	if mcpTool.InputSchema.Type != "" {
+		schemaBytes, err := json.Marshal(mcpTool.InputSchema)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal MCP input schema for tool %s: %w", mcpTool.Name, err)
+		}
+		inputSchemaForAI = new(jsonschema.Schema)
+		if err := json.Unmarshal(schemaBytes, inputSchemaForAI); err != nil {
+			// Fall back to empty schema if unmarshaling fails
+			inputSchemaForAI = &jsonschema.Schema{}
+		}
+	} else {
+		inputSchemaForAI = &jsonschema.Schema{}
+	}
+
+	return inputSchemaForAI, nil
+}
+
 // createTool converts a single MCP tool to a Genkit tool
 func (c *GenkitMCPClient) createTool(mcpTool mcp.Tool) (ai.Tool, error) {
 	// Use namespaced tool name
 	namespacedToolName := c.GetToolNameWithNamespace(mcpTool.Name)
 
-	// Create the tool function that will handle execution
 	toolFunc := c.createToolFunction(mcpTool)
-
-	// Create tool
-	tool := ai.NewTool(
-		namespacedToolName,
-		mcpTool.Description,
-		toolFunc,
-	)
-
+	inputSchema, err := c.getInputSchema(mcpTool)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get input schema for tool %s: %w", mcpTool.Name, err)
+	}
+	var tool ai.Tool
+	if inputSchema != nil {
+		tool = ai.NewToolWithInputSchema(
+			namespacedToolName,
+			mcpTool.Description,
+			base.SchemaAsMap(inputSchema),
+			toolFunc,
+		)
+	} else {
+		tool = ai.NewTool(
+			namespacedToolName,
+			mcpTool.Description,
+			toolFunc,
+		)
+	}
 	return tool, nil
 }
 
