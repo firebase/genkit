@@ -36,7 +36,7 @@ func main() {
 
 	// Define a simple flow that generates an image of a given topic
 	genkit.DefineFlow(g, "imageFlow", func(ctx context.Context, input string) ([]string, error) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-exp")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-image-preview") // use nano banana
 		if m == nil {
 			return nil, errors.New("imageFlow: failed to find model")
 		}
@@ -53,7 +53,7 @@ func main() {
 				Temperature:        genai.Ptr[float32](0.5),
 				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
-			ai.WithPrompt(fmt.Sprintf(`generate a story about %s and for each scene, generate an image for it`, input)))
+			ai.WithPrompt(fmt.Sprintf(`generate a short story about %s and for each scene, generate an image for it`, input)))
 		if err != nil {
 			return nil, err
 		}
