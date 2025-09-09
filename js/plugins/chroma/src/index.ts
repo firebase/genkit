@@ -31,20 +31,20 @@ import {
   indexerRef,
   retrieverRef,
   z,
-  type EmbedderArgument,
   type EmbedderAction,
+  type EmbedderArgument,
   type Embedding,
   type Genkit,
 } from 'genkit';
-import { 
+import {
   genkitPluginV2,
+  indexer,
+  retriever,
   type GenkitPluginV2,
   type ResolvableAction,
-  retriever,
-  indexer,
 } from 'genkit/plugin';
-import { CommonRetrieverOptionsSchema } from 'genkit/retriever';
 import type { ActionType } from 'genkit/registry';
+import { CommonRetrieverOptionsSchema } from 'genkit/retriever';
 import { Md5 } from 'ts-md5';
 
 export { IncludeEnum };
@@ -99,7 +99,7 @@ export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(
     async resolve(actionType: ActionType, name: string) {
       // Find the matching param by collection name
       const collectionName = name.replace('chroma/', '');
-      const param = params.find(p => p.collectionName === collectionName);
+      const param = params.find((p) => p.collectionName === collectionName);
       if (!param) return undefined;
 
       switch (actionType) {
@@ -112,7 +112,7 @@ export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(
       }
     },
     async list() {
-      return params.flatMap(param => [
+      return params.flatMap((param) => [
         {
           name: `chroma/${param.collectionName}`,
           type: 'retriever' as const,
@@ -421,17 +421,17 @@ export async function deleteChromaCollection(params: {
 /**
  * Standalone Chroma retriever action (v2 API)
  */
-function createChromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
-  params: {
-    clientParams?: ChromaClientParams;
-    collectionName: string;
-    createCollectionIfMissing?: boolean;
-    embedder: EmbedderArgument<EmbedderCustomOptions>;
-    embedderOptions?: z.infer<EmbedderCustomOptions>;
-  }
-) {
+function createChromaRetriever<
+  EmbedderCustomOptions extends z.ZodTypeAny,
+>(params: {
+  clientParams?: ChromaClientParams;
+  collectionName: string;
+  createCollectionIfMissing?: boolean;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
+}) {
   const { embedder, collectionName, embedderOptions } = params;
-  
+
   return retriever(
     {
       name: `chroma/${collectionName}`,
@@ -457,7 +457,7 @@ function createChromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
         content,
         options: embedderOptions,
       });
-      
+
       const results = await collection.query({
         nResults: options?.k,
         include: getIncludes(options?.include),
@@ -503,15 +503,15 @@ function createChromaRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(
 /**
  * Standalone Chroma indexer action (v2 API)
  */
-function createChromaIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(
-  params: {
-    clientParams?: ChromaClientParams;
-    collectionName: string;
-    createCollectionIfMissing?: boolean;
-    embedder: EmbedderArgument<EmbedderCustomOptions>;
-    embedderOptions?: z.infer<EmbedderCustomOptions>;
-  }
-) {
+function createChromaIndexer<
+  EmbedderCustomOptions extends z.ZodTypeAny,
+>(params: {
+  clientParams?: ChromaClientParams;
+  collectionName: string;
+  createCollectionIfMissing?: boolean;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
+}) {
   const { collectionName, embedder, embedderOptions } = {
     ...params,
   };
@@ -601,10 +601,12 @@ async function resolveEmbedder<EmbedderCustomOptions extends z.ZodTypeAny>(
     });
     return response.embeddings;
   }
-  
+
   // If embedder is a string reference, we need to resolve it
   // throw an error as this requires registry access
-  throw new Error(`Embedder resolution for string references not supported in v2 API: ${embedder}`);
+  throw new Error(
+    `Embedder resolution for string references not supported in v2 API: ${embedder}`
+  );
 }
 
 async function resolve(
