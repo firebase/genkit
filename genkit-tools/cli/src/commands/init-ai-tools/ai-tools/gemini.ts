@@ -41,8 +41,8 @@ const GENKIT_EXTENSION_CONFIG = {
   version: '1.0.0',
   mcpServers: {
     genkit: {
-      command: 'npx',
-      args: ['genkit', 'mcp'],
+      command: 'genkit',
+      args: ['mcp'],
       cwd: '.',
       timeout: 30000,
       trust: false,
