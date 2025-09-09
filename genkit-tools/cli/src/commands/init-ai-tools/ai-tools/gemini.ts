@@ -42,7 +42,7 @@ const GENKIT_EXTENSION_CONFIG = {
   mcpServers: {
     genkit: {
       command: 'genkit',
-      args: ['mcp'],
+      args: ['mcp', '--no-update-notification'],
       cwd: '.',
       timeout: 30000,
       trust: false,

@@ -86,7 +86,7 @@ export const cursor: AIToolModule = {
       }
       existingConfig.mcpServers.genkit = {
         command: 'genkit',
-        args: ['mcp'],
+        args: ['mcp', ' --no-update-notification'],
       };
       await writeFile(CURSOR_MCP_PATH, JSON.stringify(existingConfig, null, 2));
       mcpUpdated = true;

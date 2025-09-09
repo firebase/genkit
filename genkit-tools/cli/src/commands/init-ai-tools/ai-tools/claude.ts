@@ -65,7 +65,7 @@ export const claude: AIToolModule = {
       }
       existingConfig.mcpServers.genkit = {
         command: 'genkit',
-        args: ['mcp'],
+        args: ['mcp', '--no-update-notification'],
       };
       await writeFile(CLAUDE_MCP_PATH, JSON.stringify(existingConfig, null, 2));
       settingsUpdated = true;
