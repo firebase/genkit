@@ -129,8 +129,10 @@ Genkit follows a plugin-based architecture where models, retrievers, evaluators,
 func mcpSelfConnection() {
 	ctx := context.Background()
 
-	logger.FromContext(ctx).Info("MCP self-connection demo")
-	logger.FromContext(ctx).Info("Genkit will connect to itself via MCP")
+	logger.FromContext(ctx).Info("")
+	logger.FromContext(ctx).Info("MCP Demo: Use your own MCP server from your own client")
+	logger.FromContext(ctx).Info("This demo will: connect to a local MCP server, use a resource, and call a tool")
+	logger.FromContext(ctx).Info("Connecting to local MCP server (the sample will spawn it for you)")
 
 	// Initialize Genkit with Google AI for the client
 	g := genkit.Init(ctx,
@@ -138,8 +140,7 @@ func mcpSelfConnection() {
 		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 	)
 
-	logger.FromContext(ctx).Info("Connecting to our own MCP server")
-	logger.FromContext(ctx).Info("Note: Server process will be spawned automatically")
+	// Server process is spawned automatically via stdio
 
 	// Create MCP Host that connects to our Genkit server
 	host, err := mcp.NewMCPHost(g, mcp.MCPHostOptions{
@@ -170,8 +171,11 @@ func mcpSelfConnection() {
 		logger.FromContext(ctx).Error("Failed to get resources", "error", err)
 		return
 	}
-
 	logger.FromContext(ctx).Info("Retrieved resources from server", "count", len(resources))
+	for _, r := range resources {
+		logger.FromContext(ctx).Info("Resource discovered", "name", r.Name())
+	}
+	logger.FromContext(ctx).Info("")
 
 	// Debug: examine retrieved resources
 	for i, resource := range resources {
@@ -188,8 +192,11 @@ func mcpSelfConnection() {
 		logger.FromContext(ctx).Error("Failed to get tools", "error", err)
 		return
 	}
-
 	logger.FromContext(ctx).Info("Retrieved tools from server", "count", len(tools))
+	for _, t := range tools {
+		logger.FromContext(ctx).Info("Tool discovered", "name", t.Name())
+	}
+	logger.FromContext(ctx).Info("")
 
 	// Convert tools to refs
 	var toolRefs []ai.ToolRef
@@ -197,33 +204,113 @@ func mcpSelfConnection() {
 		toolRefs = append(toolRefs, tool)
 	}
 
-	// Use resources and tools from our own server for AI generation
-	logger.FromContext(ctx).Info("Asking AI about Genkit using our own MCP resources")
+	// Guided demos
+	runResourceDemo(ctx, g, resources)
+	logger.FromContext(ctx).Info("")
+	runToolDemo(ctx, g, toolRefs)
+	logger.FromContext(ctx).Info("")
 
-	// Use ai.NewResourcePart to explicitly reference the resource
-	logger.FromContext(ctx).Info("Starting generation call", "resource_count", len(resources), "tool_count", len(toolRefs))
-
-	response, err := genkit.Generate(ctx, g,
-		ai.WithMessages(ai.NewUserMessage(
-			ai.NewTextPart("Based on this Genkit knowledge:"),
-			ai.NewResourcePart("knowledge://genkit-docs"), // Explicit resource reference
-			ai.NewTextPart("What are the key features of Genkit and what models does it support?\n\nAlso, use the brainstorm tool to generate ideas for \"AI-powered cooking assistant\""),
-		)),
-		ai.WithResources(resources...), // Makes resources available for lookup
-		ai.WithTools(toolRefs...),      // Using tools from our own server!
-		ai.WithToolChoice(ai.ToolChoiceAuto),
-	)
-	if err != nil {
-		logger.FromContext(ctx).Error("AI generation failed", "error", err)
-		return
-	}
-
-	logger.FromContext(ctx).Info("MCP self-connection completed successfully")
-	logger.FromContext(ctx).Info("Genkit used itself via MCP to answer questions")
-	fmt.Printf("\nAI Response using our own MCP resources:\n%s\n\n", response.Text())
+	logger.FromContext(ctx).Info("MCP demos finished")
 
 	// Clean disconnect (skip for now to avoid hanging)
 	logger.FromContext(ctx).Info("MCP self-connection complete")
+}
+
+// runResourceDemo demonstrates referencing a resource from the MCP server in a model request.
+func runResourceDemo(ctx context.Context, g *genkit.Genkit, resources []ai.Resource) {
+	// Explain
+	logger.FromContext(ctx).Info("")
+	logger.FromContext(ctx).Info("Resource demo: Use a resource from our own MCP server")
+	logger.FromContext(ctx).Info("We will reference URI 'knowledge://genkit-docs' and pass detached resources via WithResources")
+
+	// Select and log target resource
+	selectedURI := "knowledge://genkit-docs"
+	matchedName := ""
+	matched := false
+	for _, r := range resources {
+		if r.Matches(selectedURI) {
+			matched = true
+			matchedName = r.Name()
+			break
+		}
+	}
+	logger.FromContext(ctx).Info("resource_demo: selected_resource", "uri", selectedURI, "matched", matched, "resource", matchedName)
+
+	// Call generate using resource
+	resp, err := genkit.Generate(ctx, g,
+		ai.WithMessages(ai.NewUserMessage(
+			ai.NewTextPart("Based on this Genkit knowledge:"),
+			ai.NewResourcePart(selectedURI),
+			ai.NewTextPart("What is Genkit and what are its key features?"),
+		)),
+		ai.WithResources(resources...),
+	)
+	if err != nil {
+		logger.FromContext(ctx).Error("resource_demo: generation failed", "error", err)
+		return
+	}
+
+	// Diagnostics and preview
+	toolReqCount := len(resp.ToolRequests())
+	preview := resp.Text()
+	if len(preview) > 200 {
+		preview = preview[:200] + "..."
+	}
+	logger.FromContext(ctx).Info("resource_demo: completed", "latency_ms", resp.LatencyMs, "tool_requests", toolReqCount, "output_chars", len(resp.Text()))
+	logger.FromContext(ctx).Info("resource_demo: response_preview", "text", preview)
+	logger.FromContext(ctx).Info("")
+}
+
+// runToolDemo demonstrates enabling and calling a tool from the MCP server.
+func runToolDemo(ctx context.Context, g *genkit.Genkit, toolRefs []ai.ToolRef) {
+	// Explain
+	logger.FromContext(ctx).Info("")
+	logger.FromContext(ctx).Info("Tool demo: Use a tool from our own MCP server")
+	logger.FromContext(ctx).Info("We will enable tools from our MCP server and let the model call one (ToolChoice=auto)")
+
+	// List tools we are enabling
+	toolNames := []string{}
+	for _, t := range toolRefs {
+		toolNames = append(toolNames, t.Name())
+	}
+	logger.FromContext(ctx).Info("tool_demo: starting", "tool_choice", string(ai.ToolChoiceAuto), "tool_count", len(toolRefs), "tools", toolNames)
+	for _, n := range toolNames {
+		logger.FromContext(ctx).Info("tool_demo: tool_enabled", "name", n)
+	}
+
+	// Call generate with tools enabled
+	resp, err := genkit.Generate(ctx, g,
+		ai.WithMessages(ai.NewUserMessage(
+			ai.NewTextPart("Use the brainstorm tool to generate creative ideas for \"AI-powered cooking assistant\""),
+		)),
+		ai.WithTools(toolRefs...),
+		ai.WithToolChoice(ai.ToolChoiceAuto),
+	)
+	if err != nil {
+		logger.FromContext(ctx).Error("tool_demo: generation failed", "error", err)
+		return
+	}
+
+	// Which tools executed?
+	calledTools := []string{}
+	for _, msg := range resp.History() {
+		if msg.Role != ai.RoleTool {
+			continue
+		}
+		for _, p := range msg.Content {
+			if p.IsToolResponse() && p.ToolResponse != nil {
+				calledTools = append(calledTools, p.ToolResponse.Name)
+			}
+		}
+	}
+	preview := resp.Text()
+	if len(preview) > 200 {
+		preview = preview[:200] + "..."
+	}
+	logger.FromContext(ctx).Info("tool_demo: executed_tools", "tools_called", calledTools, "count", len(calledTools))
+	logger.FromContext(ctx).Info("tool_demo: completed", "latency_ms", resp.LatencyMs, "output_chars", len(resp.Text()))
+	logger.FromContext(ctx).Info("tool_demo: response_preview", "text", preview)
+	logger.FromContext(ctx).Info("")
 }
 
 func main() {

@@ -148,6 +148,14 @@ func NewTool[In, Out any](name, description string, fn ToolFunc[In, Out]) Tool {
 	return &tool{Action: toolAction}
 }
 
+// NewToolWithInputSchema creates a new [Tool] with a custom input schema. It can be passed directly to [Generate].
+func NewToolWithInputSchema[Out any](name, description string, inputSchema map[string]any, fn ToolFunc[any, Out]) Tool {
+	metadata, wrappedFn := implementTool(name, description, fn)
+	metadata["dynamic"] = true
+	toolAction := core.NewAction(name, api.ActionTypeTool, metadata, inputSchema, wrappedFn)
+	return &tool{Action: toolAction}
+}
+
 // implementTool creates the metadata and wrapped function common to both DefineTool and NewTool.
 func implementTool[In, Out any](name, description string, fn ToolFunc[In, Out]) (map[string]any, func(context.Context, In) (Out, error)) {
 	metadata := map[string]any{
