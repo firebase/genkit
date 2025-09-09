@@ -34,3 +34,12 @@ tests:
           role: model
           content:
             - text: '{"messages":[{"content":[{"text":"hello"}],"role":"user"}]}'
+        usage:
+          inputCharacters: 5
+          outputCharacters: 59
+          inputImages: 0
+          inputVideos: 0
+          inputAudioFiles: 0
+          outputImages: 0
+          outputVideos: 0
+          outputAudioFiles: 0
