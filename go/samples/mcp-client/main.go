@@ -416,66 +416,6 @@ func resourcesExample() {
 		logger.FromContext(ctx).Info("Resource workflow complete", "response", response.Text())
 	}
 
-	// === Example 3: Use MCP resources in AI generation ===
-	logger.FromContext(ctx).Info("Demonstrating AI generation with MCP resources")
-
-	// Create a host with multiple servers for resource access
-	host, err := mcp.NewMCPHost(g, mcp.MCPHostOptions{
-		Name: "resources-ai-example",
-		MCPServers: []mcp.MCPServerConfig{
-			{
-				Name: "filesystem",
-				Config: mcp.MCPClientOptions{
-					Name:    "mcp-filesystem",
-					Version: "1.0.0",
-					Stdio: &mcp.StdioConfig{
-						Command: "npx",
-						Args:    []string{"@modelcontextprotocol/server-filesystem", "/tmp"},
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		logger.FromContext(ctx).Warn("Failed to create MCP host for AI example", "error", err)
-	} else {
-		// Get all detached resources
-		hostResources, err := host.GetActiveResources(ctx)
-		if err != nil {
-			logger.FromContext(ctx).Warn("Failed to get resources for AI example", "error", err)
-		} else {
-			logger.FromContext(ctx).Info("Got detached resources for AI generation", "count", len(hostResources))
-
-			// Get tools for AI generation
-			tools, _ := host.GetActiveTools(ctx, g)
-			var toolRefs []ai.ToolRef
-			for _, tool := range tools {
-				toolRefs = append(toolRefs, tool)
-			}
-
-			// Generate AI response that uses resources
-			prompt := `You have access to filesystem resources. 
-Please read the file /tmp/genkit-mcp-test.txt if it exists and tell me what you find.
-Use the available tools and resources to complete this task.`
-
-			response, err := genkit.Generate(ctx, g,
-				ai.WithPrompt(prompt),
-				ai.WithTools(toolRefs...),
-				ai.WithResources(hostResources...), // Pass the detached resources!
-				ai.WithToolChoice(ai.ToolChoiceAuto),
-			)
-			if err != nil {
-				logger.FromContext(ctx).Error("AI generation with resources failed", "error", err)
-			} else {
-				logger.FromContext(ctx).Info("AI generation with resources completed", "response", response.Text())
-			}
-		}
-
-		// Disconnect from all servers
-		host.Disconnect(ctx, "filesystem")
-		logger.FromContext(ctx).Info("Disconnected from all servers in AI example")
-	}
-
 	logger.FromContext(ctx).Info("MCP Resources demonstration completed")
 }
 
