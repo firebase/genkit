@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkit, z, MessageData } from 'genkit';
+import { MessageData, genkit, z } from 'genkit';
 import { getBasicUsageStats } from 'genkit/model';
 
 const ai = genkit({
