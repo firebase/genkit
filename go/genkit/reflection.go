@@ -55,18 +55,38 @@ type reflectionServer struct {
 	RuntimeFilePath string // Path to the runtime file that was written at startup.
 }
 
+// findAvailablePort finds the next available port starting from the given port number.
+func findAvailablePort(startPort int) (string, error) {
+	for port := startPort; port < startPort+100; port++ {
+		addr := fmt.Sprintf("127.0.0.1:%d", port)
+		listener, err := net.Listen("tcp", addr)
+		if err == nil {
+			listener.Close()
+			return addr, nil
+		}
+	}
+	return "", fmt.Errorf("no available port found in range %d-%d", startPort, startPort+99)
+}
+
 // startReflectionServer starts the Reflection API server listening at the
 // value of the environment variable GENKIT_REFLECTION_PORT for the port,
-// or ":3100" if it is empty.
+// or finds the next available port starting at 3100 if it is empty.
 func startReflectionServer(ctx context.Context, g *Genkit, errCh chan<- error, serverStartCh chan<- struct{}) *reflectionServer {
 	if g == nil {
 		errCh <- fmt.Errorf("nil Genkit provided")
 		return nil
 	}
 
-	addr := "127.0.0.1:3100"
-	if os.Getenv("GENKIT_REFLECTION_PORT") != "" {
-		addr = "127.0.0.1:" + os.Getenv("GENKIT_REFLECTION_PORT")
+	var addr string
+	if envPort := os.Getenv("GENKIT_REFLECTION_PORT"); envPort != "" {
+		addr = "127.0.0.1:" + envPort
+	} else {
+		var err error
+		addr, err = findAvailablePort(3100)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to find available port: %w", err)
+			return nil
+		}
 	}
 
 	s := &reflectionServer{
