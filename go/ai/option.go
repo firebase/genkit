@@ -138,7 +138,6 @@ func (o *commonGenOptions) applyCommonGen(opts *commonGenOptions) error {
 			return errors.New("cannot set model more than once (either WithModel or WithModelName)")
 		}
 		opts.Model = o.Model
-		return nil
 	}
 
 	if o.Tools != nil {
