@@ -25,6 +25,10 @@ import { expressHandler } from '@genkit-ai/express';
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { firebaseContext } from '@genkit-ai/firebase/context';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
+import {
+  googleAI as newGoogleAI,
+  vertexAI as newVertexAI,
+} from '@genkit-ai/google-genai';
 import { googleAI } from '@genkit-ai/googleai';
 import {
   createMcpClient,
@@ -72,6 +76,8 @@ openAICompatible;
 openAI;
 xAI;
 deepSeek;
+newGoogleAI;
+newVertexAI;
 
 process.env.OPENAI_API_KEY = 'fake';
 process.env.GEMINI_API_KEY = 'fake';
