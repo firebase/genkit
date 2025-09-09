@@ -59,12 +59,7 @@ import {
 import { downloadRequestMedia } from 'genkit/model/middleware';
 import { model } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
-import {
-  ensurePrefixed,
-  getApiKeyFromEnvVar,
-  getGenkitClientHeader,
-  removePrefix,
-} from './common';
+import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
 
@@ -711,7 +706,7 @@ export type GeminiVersionString =
  * ```js
  * await ai.generate({
  *   prompt: 'hi',
- *   model: gemini('googleai/gemini-1.5-flash')
+ *   model: gemini('gemini-1.5-flash')
  * });
  * ```
  */
@@ -721,7 +716,7 @@ export function gemini(
 ): ModelReference<typeof GeminiConfigSchema> {
   const nearestModel = nearestGeminiModelRef(version);
   return modelRef({
-    name: ensurePrefixed(version),
+    name: `googleai/${version}`,
     config: options,
     configSchema: GeminiConfigSchema,
     info: {
@@ -1154,15 +1149,15 @@ export function defineGoogleAIModel({
     }
   }
 
-  // Extract the API model name for lookup and API calls
-  const apiModelName = removePrefix(name);
+  // In v2, plugin internals use UNPREFIXED action names.
+  const actionName = name;
 
   const modelReference: ModelReference<z.ZodTypeAny> =
-    SUPPORTED_GEMINI_MODELS[apiModelName] ??
+    SUPPORTED_GEMINI_MODELS[actionName] ??
     modelRef({
-      name: ensurePrefixed(name),
+      name: actionName,
       info: {
-        label: `Google AI - ${apiModelName}`,
+        label: `Google AI - ${actionName}`,
         supports: {
           multiturn: true,
           media: true,
@@ -1204,7 +1199,7 @@ export function defineGoogleAIModel({
 
   return model(
     {
-      name: modelReference.name,
+      name: actionName,
       ...modelReference.info,
       configSchema: modelReference.configSchema,
       use: middleware,
@@ -1331,7 +1326,7 @@ export function defineGoogleAIModel({
       } as StartChatParams;
       const modelVersion = (versionFromConfig ||
         modelReference.version ||
-        apiModelName) as string;
+        actionName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
       const { chatRequest: updatedChatRequest, cache } =

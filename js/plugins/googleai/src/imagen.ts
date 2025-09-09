@@ -24,7 +24,7 @@ import {
   type ModelReference,
 } from 'genkit/model';
 import { model } from 'genkit/plugin';
-import { ensurePrefixed, getApiKeyFromEnvVar } from './common.js';
+import { getApiKeyFromEnvVar } from './common.js';
 import { predictModel } from './predict.js';
 
 export type KNOWN_IMAGEN_MODELS = 'imagen-3.0-generate-002';
@@ -124,19 +124,20 @@ export function defineImagenModel(
       });
     }
   }
-  const modelName = ensurePrefixed(name);
+  // In v2, plugin internals use UNPREFIXED action names.
+  const actionName = name;
   const modelReference: ModelReference<z.ZodTypeAny> = modelRef({
-    name: modelName,
+    name: actionName,
     info: {
       ...GENERIC_IMAGEN_INFO,
-      label: `Google AI - ${name}`,
+      label: `Google AI - ${actionName}`,
     },
     configSchema: ImagenConfigSchema,
   });
 
   return model(
     {
-      name: modelName,
+      name: actionName,
       ...modelReference.info,
       configSchema: ImagenConfigSchema,
     },
@@ -153,7 +154,7 @@ export function defineImagenModel(
         ImagenInstance,
         ImagenPrediction,
         ImagenParameters
-      >(modelReference.version || name, apiKey as string, 'predict');
+      >(modelReference.version || actionName, apiKey as string, 'predict');
       const response = await predictClient([instance], toParameters(request));
 
       if (!response.predictions || response.predictions.length == 0) {

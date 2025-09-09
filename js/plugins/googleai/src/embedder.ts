@@ -26,7 +26,7 @@ import {
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
 import { embedder } from 'genkit/plugin';
-import { ensurePrefixed, getApiKeyFromEnvVar, removePrefix } from './common';
+import { getApiKeyFromEnvVar } from './common';
 import type { PluginOptions } from './index';
 
 export const TaskTypeSchema = z.enum([
@@ -116,17 +116,17 @@ export function defineGoogleAIEmbedder(
           'For more details see https://genkit.dev/docs/plugins/google-genai'
       );
   }
-  // Extract the bare model name for lookup and API calls
-  const apiModelName = removePrefix(name);
+  // In v2, plugin internals use UNPREFIXED action names.
+  const actionName = name;
 
   const embedderReference: EmbedderReference =
-    SUPPORTED_MODELS[apiModelName] ??
+    SUPPORTED_MODELS[actionName] ??
     embedderRef({
-      name: ensurePrefixed(name),
+      name: actionName,
       configSchema: GeminiEmbeddingConfigSchema,
       info: {
         dimensions: 768,
-        label: `Google AI - ${apiModelName}`,
+        label: `Google AI - ${actionName}`,
         supports: {
           input: ['text', 'image', 'video'],
         },
@@ -134,7 +134,7 @@ export function defineGoogleAIEmbedder(
     });
   return embedder(
     {
-      name: embedderReference.name,
+      name: actionName,
       configSchema: GeminiEmbeddingConfigSchema,
       info: embedderReference.info!,
     },
@@ -153,7 +153,7 @@ export function defineGoogleAIEmbedder(
           options?.version ||
           embedderReference.config?.version ||
           embedderReference.version ||
-          apiModelName,
+          actionName,
       });
       const embeddings = await Promise.all(
         input.map(async (doc) => {

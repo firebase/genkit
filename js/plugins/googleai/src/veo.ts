@@ -23,7 +23,7 @@ import {
   type ModelReference,
 } from 'genkit/model';
 import { backgroundModel } from 'genkit/plugin';
-import { ensurePrefixed, getApiKeyFromEnvVar } from './common.js';
+import { getApiKeyFromEnvVar } from './common.js';
 import { Operation as ApiOperation, checkOp, predictModel } from './predict.js';
 
 export type KNOWN_VEO_MODELS = 'veo-2.0-generate-001';
@@ -136,18 +136,19 @@ export function defineVeoModel(
       });
     }
   }
-  const modelName = ensurePrefixed(name);
+  // In v2, plugin internals use UNPREFIXED action names.
+  const actionName = name;
   const model: ModelReference<z.ZodTypeAny> = modelRef({
-    name: modelName,
+    name: actionName,
     info: {
       ...GENERIC_VEO_INFO,
-      label: `Google AI - ${name}`,
+      label: `Google AI - ${actionName}`,
     },
     configSchema: VeoConfigSchema,
   });
 
   return backgroundModel({
-    name: modelName,
+    name: actionName,
     ...model.info,
     configSchema: VeoConfigSchema,
     async start(request) {
@@ -163,7 +164,7 @@ export function defineVeoModel(
         VeoInstance,
         ApiOperation,
         VeoParameters
-      >(model.version || name, apiKey as string, 'predictLongRunning');
+      >(model.version || actionName, apiKey as string, 'predictLongRunning');
       const response = await predictClient([instance], toParameters(request));
 
       return toGenkitOp(response);

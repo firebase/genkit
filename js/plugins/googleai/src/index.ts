@@ -27,7 +27,7 @@ import { logger } from 'genkit/logging';
 import { modelRef } from 'genkit/model';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
 import type { ActionType } from 'genkit/registry';
-import { ensurePrefixed, getApiKeyFromEnvVar, removePrefix } from './common';
+import { getApiKeyFromEnvVar } from './common';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
   GeminiEmbeddingConfigSchema,
@@ -227,7 +227,7 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
         Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) => {
           actions.push(
             defineGoogleAIModel({
-              name: ensurePrefixed(name),
+              name: name,
               apiKey: options?.apiKey,
               apiVersion: 'v1beta',
               baseUrl: options?.baseUrl,
@@ -241,7 +241,7 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
         Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) => {
           actions.push(
             defineGoogleAIModel({
-              name: ensurePrefixed(name),
+              name: name,
               apiKey: options?.apiKey,
               baseUrl: options?.baseUrl,
               debugTraces: options?.experimental_debugTraces,
@@ -250,7 +250,7 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
         });
         Object.keys(EMBEDDER_MODELS).forEach((name) => {
           actions.push(
-            defineGoogleAIEmbedder(ensurePrefixed(name), {
+            defineGoogleAIEmbedder(name, {
               apiKey: options?.apiKey,
             })
           );
@@ -267,7 +267,7 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
             typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
           actions.push(
             defineGoogleAIModel({
-              name: ensurePrefixed(modelName),
+              name: modelName,
               apiKey: options?.apiKey,
               baseUrl: options?.baseUrl,
               info: { ...ref.info, label: `Google AI - ${modelName}` },
@@ -279,24 +279,22 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
       return actions;
     },
     async resolve(actionType: ActionType, actionName: string) {
-      const rawActionName = removePrefix(actionName);
-      const fullActionName = ensurePrefixed(rawActionName);
-
+      // In v2, actionName is already unprefixed
       if (actionType === 'embedder') {
-        return defineGoogleAIEmbedder(fullActionName, {
+        return defineGoogleAIEmbedder(actionName, {
           apiKey: options?.apiKey,
         });
-      } else if (rawActionName.startsWith('veo')) {
+      } else if (actionName.startsWith('veo')) {
         if (actionType === 'background-model') {
-          return defineVeoModel(fullActionName, options?.apiKey);
+          return defineVeoModel(actionName, options?.apiKey);
         }
       } else if (actionType === 'model') {
-        if (rawActionName.startsWith('imagen')) {
-          return defineImagenModel(fullActionName, options?.apiKey);
+        if (actionName.startsWith('imagen')) {
+          return defineImagenModel(actionName, options?.apiKey);
         }
         // Fallback dynamic Gemini model
         return defineGoogleAIModel({
-          name: fullActionName,
+          name: actionName,
           apiKey: options?.apiKey,
           baseUrl: options?.baseUrl,
           debugTraces: options?.experimental_debugTraces,
@@ -342,23 +340,22 @@ export const googleAI = googleAIPlugin as GoogleAIPlugin;
   name: string,
   config?: any
 ): ModelReference<z.ZodTypeAny> => {
-  const fullModelName = ensurePrefixed(name);
   if (name.startsWith('imagen')) {
     return modelRef({
-      name: fullModelName,
+      name: name,
       config,
       configSchema: ImagenConfigSchema,
     });
   }
   if (name.startsWith('veo')) {
     return modelRef({
-      name: fullModelName,
+      name: name,
       config,
       configSchema: VeoConfigSchema,
     });
   }
   return modelRef({
-    name: fullModelName,
+    name: name,
     config,
     configSchema: GeminiConfigSchema,
   });
@@ -367,9 +364,8 @@ googleAI.embedder = (
   name: string,
   config?: GeminiEmbeddingConfig
 ): EmbedderReference<typeof GeminiEmbeddingConfigSchema> => {
-  const fullEmbedderName = ensurePrefixed(name);
   return embedderRef({
-    name: fullEmbedderName,
+    name: name,
     config,
     configSchema: GeminiEmbeddingConfigSchema,
   });
