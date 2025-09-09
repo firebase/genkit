@@ -138,6 +138,7 @@ export {
   type Action,
   type ActionContext,
   type ActionMetadata,
+  type DynamicActionProviderAction,
   type Flow,
   type FlowConfig,
   type FlowFn,
