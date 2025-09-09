@@ -39,13 +39,13 @@ import {
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
-} from '../common/converters';
+} from '../common/converters.js';
 import {
   generateContent,
   generateContentStream,
   getVertexAIUrl,
-} from './client';
-import { toGeminiLabels, toGeminiSafetySettings } from './converters';
+} from './client.js';
+import { toGeminiLabels, toGeminiSafetySettings } from './converters.js';
 import {
   ClientOptions,
   Content,
@@ -57,14 +57,14 @@ import {
   Tool,
   ToolConfig,
   VertexPluginOptions,
-} from './types';
+} from './types.js';
 import {
   calculateApiKey,
   checkModelName,
   cleanSchema,
   extractVersion,
   modelName,
-} from './utils';
+} from './utils.js';
 
 export const SafetySettingsSchema = z.object({
   category: z.enum([

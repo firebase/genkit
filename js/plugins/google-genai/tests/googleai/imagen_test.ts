@@ -20,14 +20,14 @@ import { GenerateRequest, getBasicUsageStats } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
-import { getGoogleAIUrl } from '../../src/googleai/client';
+import { getGoogleAIUrl } from '../../src/googleai/client.js';
 import {
   ImagenConfig,
   ImagenConfigSchema,
   TEST_ONLY,
   defineModel,
   model,
-} from '../../src/googleai/imagen';
+} from '../../src/googleai/imagen.js';
 import {
   ImagenPredictRequest,
   ImagenPredictResponse,
@@ -36,7 +36,7 @@ import {
 import {
   API_KEY_FALSE_ERROR,
   MISSING_API_KEY_ERROR,
-} from '../../src/googleai/utils';
+} from '../../src/googleai/utils.js';
 
 const { toImagenParameters, fromImagenPrediction } = TEST_ONLY;
 
