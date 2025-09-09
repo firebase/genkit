@@ -37,4 +37,3 @@ tests:
         usage:
           inputCharacters: 5
           outputCharacters: 59
-          
