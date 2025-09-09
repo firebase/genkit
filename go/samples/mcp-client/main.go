@@ -101,7 +101,7 @@ func managerExample() {
 
 	// Get tools and resources from MCP servers
 	tools, _ := host.GetActiveTools(ctx, g)
-	logger.FromContext(ctx).Info("Found MCP tools", "count", len(tools)
+	logger.FromContext(ctx).Info("Found MCP tools", "count", len(tools))
 
 	var toolRefs []ai.ToolRef
 	for _, tool := range tools {
