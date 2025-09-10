@@ -30,7 +30,7 @@ import {
   lyriaPredict,
   veoCheckOperation,
   veoPredict,
-} from '../../src/vertexai/client';
+} from '../../src/vertexai/client.js';
 import {
   ClientOptions,
   Content,
@@ -47,8 +47,8 @@ import {
   VeoOperation,
   VeoOperationRequest,
   VeoPredictRequest,
-} from '../../src/vertexai/types';
-import { NOT_SUPPORTED_IN_EXPRESS_ERROR } from '../../src/vertexai/utils';
+} from '../../src/vertexai/types.js';
+import { NOT_SUPPORTED_IN_EXPRESS_ERROR } from '../../src/vertexai/utils.js';
 
 describe('Vertex AI Client', () => {
   let fetchSpy: sinon.SinonStub;

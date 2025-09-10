@@ -22,7 +22,7 @@ import type {
   GlobalClientOptions,
   RegionalClientOptions,
   VertexPluginOptions,
-} from './types';
+} from './types.js';
 
 export {
   checkModelName,

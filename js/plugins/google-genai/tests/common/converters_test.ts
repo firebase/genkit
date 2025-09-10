@@ -22,14 +22,14 @@ import {
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
-} from '../../src/common/converters';
-import type { GenerateContentCandidate } from '../../src/common/types';
+} from '../../src/common/converters.js';
+import type { GenerateContentCandidate } from '../../src/common/types.js';
 import {
   ExecutableCodeLanguage,
   FunctionCallingMode,
   Outcome,
   SchemaType,
-} from '../../src/common/types';
+} from '../../src/common/types.js';
 
 describe('toGeminiMessage', () => {
   const testCases = [

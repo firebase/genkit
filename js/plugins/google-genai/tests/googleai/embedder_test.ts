@@ -18,12 +18,15 @@ import * as assert from 'assert';
 import { Document, Genkit, GenkitError } from 'genkit';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-import { EmbeddingConfig, defineEmbedder } from '../../src/googleai/embedder';
+import {
+  EmbeddingConfig,
+  defineEmbedder,
+} from '../../src/googleai/embedder.js';
 import {
   EmbedContentResponse,
   GoogleAIPluginOptions,
-} from '../../src/googleai/types';
-import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils';
+} from '../../src/googleai/types.js';
+import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils.js';
 
 describe('defineGoogleAIEmbedder', () => {
   let mockGenkit: sinon.SinonStubbedInstance<Genkit>;

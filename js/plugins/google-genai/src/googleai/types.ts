@@ -36,7 +36,7 @@ import {
   TaskTypeSchema,
   Tool,
   ToolConfig,
-} from '../common/types';
+} from '../common/types.js';
 
 // This makes it easier to import all types from one place.
 export {
