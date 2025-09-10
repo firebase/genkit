@@ -20,10 +20,10 @@ import {
   embedderActionMetadata,
   EmbedderInfo,
   EmbedderReference,
-  Genkit,
   z,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
+import { embedder } from 'genkit/plugin';
 import { embedContent } from './client.js';
 import {
   EmbedContentRequest,
@@ -122,21 +122,20 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineEmbedder(ai, name, options);
-  }
+export function defineKnownModels(
+  options?: GoogleAIPluginOptions
+): EmbedderAction[] {
+  return Object.keys(KNOWN_MODELS).map((name) => defineEmbedder(name, options));
 }
 
 export function defineEmbedder(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): EmbedderAction {
   checkApiKey(pluginOptions?.apiKey);
   const ref = model(name);
 
-  return ai.defineEmbedder(
+  return embedder(
     {
       name: ref.name,
       configSchema: ref.configSchema,

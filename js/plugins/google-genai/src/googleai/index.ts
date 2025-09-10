@@ -14,20 +14,8 @@
  * limitations under the License.
  */
 
-import {
-  ActionMetadata,
-  EmbedderReference,
-  Genkit,
-  ModelReference,
-  z,
-} from 'genkit';
-import { logger } from 'genkit/logging';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { ActionType } from 'genkit/registry';
-import { extractErrMsg } from '../common/utils.js';
-import { listModels } from './client.js';
-import { GoogleAIPluginOptions } from './types.js';
-import { calculateApiKey } from './utils.js';
+import { EmbedderReference, ModelReference, z } from 'genkit';
+import { GenkitPluginV2, genkitPluginV2 } from 'genkit/plugin';
 
 // These are namespaced because they all intentionally have
 // functions of the same name with the same arguments.
@@ -42,85 +30,27 @@ export { type GeminiConfig, type GeminiTtsConfig } from './gemini.js';
 export { type ImagenConfig } from './imagen.js';
 export { type GoogleAIPluginOptions };
 
-async function initializer(ai: Genkit, options?: GoogleAIPluginOptions) {
-  imagen.defineKnownModels(ai, options);
-  gemini.defineKnownModels(ai, options);
-  embedder.defineKnownModels(ai, options);
-  veo.defineKnownModels(ai, options);
-}
-
-async function resolver(
-  ai: Genkit,
-  actionType: ActionType,
-  actionName: string,
-  options: GoogleAIPluginOptions
-) {
-  switch (actionType) {
-    case 'model':
-      if (veo.isVeoModelName(actionName)) {
-        // no-op (not gemini)
-      } else if (imagen.isImagenModelName(actionName)) {
-        imagen.defineModel(ai, actionName, options);
-      } else {
-        // gemini, tts, gemma, unknown models
-        gemini.defineModel(ai, actionName, options);
-      }
-      break;
-    case 'background-model':
-      if (veo.isVeoModelName(actionName)) {
-        veo.defineModel(ai, actionName, options);
-      }
-      break;
-    case 'embedder':
-      embedder.defineEmbedder(ai, actionName, options);
-      break;
-    default:
-    // no-op
-  }
-}
-
-async function listActions(
-  options?: GoogleAIPluginOptions
-): Promise<ActionMetadata[]> {
-  try {
-    const apiKey = calculateApiKey(options?.apiKey, undefined);
-    const allModels = await listModels(apiKey, {
-      baseUrl: options?.baseUrl,
-      apiVersion: options?.apiVersion,
-    });
-
-    return [
-      ...gemini.listActions(allModels),
-      ...imagen.listActions(allModels),
-      ...veo.listActions(allModels),
-      ...embedder.listActions(allModels),
-    ];
-  } catch (e: unknown) {
-    logger.error(extractErrMsg(e));
-    return [];
-  }
-}
-
 /**
  * Google Gemini Developer API plugin.
  */
-export function googleAIPlugin(options?: GoogleAIPluginOptions): GenkitPlugin {
-  let listActionsCache;
-  return genkitPlugin(
-    'googleai',
-    async (ai: Genkit) => await initializer(ai, options),
-    async (ai: Genkit, actionType: ActionType, actionName: string) =>
-      await resolver(ai, actionType, actionName, options || {}),
-    async () => {
-      if (listActionsCache) return listActionsCache;
-      listActionsCache = await listActions(options);
-      return listActionsCache;
-    }
-  );
+export function googleAIPlugin(
+  options?: GoogleAIPluginOptions
+): GenkitPluginV2 {
+  return genkitPluginV2({
+    name: 'googleai',
+    init: async () => {
+      return [
+        ...imagen.defineKnownModels(options),
+        ...gemini.defineKnownModels(options),
+        ...veo.defineKnownModels(options),
+        ...embedder.defineKnownModels(options),
+      ];
+    },
+  });
 }
 
 export type GoogleAIPlugin = {
-  (pluginOptions?: GoogleAIPluginOptions): GenkitPlugin;
+  (pluginOptions?: GoogleAIPluginOptions): GenkitPluginV2;
   model(
     name: gemini.KnownGemmaModels | (gemini.GemmaModelName & {}),
     config: gemini.GemmaConfig

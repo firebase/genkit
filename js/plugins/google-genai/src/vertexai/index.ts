@@ -20,10 +20,8 @@
  * @module /
  */
 
-import { EmbedderReference, Genkit, ModelReference, z } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
-import { ActionType } from 'genkit/registry';
-import { listModels } from './client.js';
+import { EmbedderReference, ModelReference, z } from 'genkit';
+import { GenkitPluginV2, genkitPluginV2 } from 'genkit/plugin';
 
 import * as embedder from './embedder.js';
 import * as gemini from './gemini.js';
@@ -41,84 +39,27 @@ export { type LyriaConfig } from './lyria.js';
 export { type VertexPluginOptions } from './types.js';
 export { type VeoConfig } from './veo.js';
 
-async function initializer(ai: Genkit, pluginOptions?: VertexPluginOptions) {
-  const clientOptions = await getDerivedOptions(pluginOptions);
-  veo.defineKnownModels(ai, clientOptions, pluginOptions);
-  imagen.defineKnownModels(ai, clientOptions, pluginOptions);
-  lyria.defineKnownModels(ai, clientOptions, pluginOptions);
-  gemini.defineKnownModels(ai, clientOptions, pluginOptions);
-  embedder.defineKnownModels(ai, clientOptions, pluginOptions);
-}
-
-async function resolver(
-  ai: Genkit,
-  actionType: ActionType,
-  actionName: string,
-  pluginOptions?: VertexPluginOptions
-) {
-  const clientOptions = await getDerivedOptions(pluginOptions);
-  switch (actionType) {
-    case 'model':
-      if (lyria.isLyriaModelName(actionName)) {
-        lyria.defineModel(ai, actionName, clientOptions, pluginOptions);
-      } else if (imagen.isImagenModelName(actionName)) {
-        imagen.defineModel(ai, actionName, clientOptions, pluginOptions);
-      } else if (veo.isVeoModelName(actionName)) {
-        // no-op (not gemini)
-      } else {
-        gemini.defineModel(ai, actionName, clientOptions, pluginOptions);
-      }
-      break;
-    case 'background-model':
-      if (veo.isVeoModelName(actionName)) {
-        veo.defineModel(ai, actionName, clientOptions, pluginOptions);
-      }
-      break;
-    case 'embedder':
-      embedder.defineEmbedder(ai, actionName, clientOptions, pluginOptions);
-      break;
-    default:
-    // no-op
-  }
-}
-
-async function listActions(options?: VertexPluginOptions) {
-  try {
-    const clientOptions = await getDerivedOptions(options);
-    const models = await listModels(clientOptions);
-    return [
-      ...gemini.listActions(models),
-      ...imagen.listActions(models),
-      ...lyria.listActions(models),
-      ...veo.listActions(models),
-      // We don't list embedders here
-    ];
-  } catch (e: unknown) {
-    // Errors are already logged in the client code.
-    return [];
-  }
-}
-
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
-function vertexAIPlugin(options?: VertexPluginOptions): GenkitPlugin {
-  let listActionsCache;
-  return genkitPlugin(
-    'vertexai',
-    async (ai: Genkit) => await initializer(ai, options),
-    async (ai: Genkit, actionType: ActionType, actionName: string) =>
-      await resolver(ai, actionType, actionName, options),
-    async () => {
-      if (listActionsCache) return listActionsCache;
-      listActionsCache = await listActions(options);
-      return listActionsCache;
-    }
-  );
+function vertexAIPlugin(options?: VertexPluginOptions): GenkitPluginV2 {
+  return genkitPluginV2({
+    name: 'vertexai',
+    init: async () => {
+      const clientOptions = await getDerivedOptions(options);
+      return [
+        ...veo.defineKnownModels(clientOptions, options),
+        ...imagen.defineKnownModels(clientOptions, options),
+        ...lyria.defineKnownModels(clientOptions, options),
+        ...gemini.defineKnownModels(clientOptions, options),
+        ...embedder.defineKnownModels(clientOptions, options),
+      ];
+    },
+  });
 }
 
 export type VertexAIPlugin = {
-  (pluginOptions?: VertexPluginOptions): GenkitPlugin;
+  (pluginOptions?: VertexPluginOptions): GenkitPluginV2;
   model(
     name: gemini.KnownModels | (gemini.GeminiModelName & {}),
     config?: gemini.GeminiConfig

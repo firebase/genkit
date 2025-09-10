@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  ActionMetadata,
-  Genkit,
-  GenkitError,
-  modelActionMetadata,
-  z,
-} from 'genkit';
+import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -32,6 +26,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
+import { model as defineModel } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import {
   fromGeminiCandidate,
@@ -404,20 +399,18 @@ export function listActions(models: Model[]): ActionMetadata[] {
 }
 
 export function defineKnownModels(
-  ai: Genkit,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
-) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, clientOptions, pluginOptions);
-  }
+): ModelAction[] {
+  return Object.keys(KNOWN_MODELS).map((name) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
 }
 
 /**
  * Define a Vertex AI Gemini model.
  */
 export function defineModel(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
@@ -446,7 +439,7 @@ export function defineModel(
     );
   }
 
-  return ai.defineModel(
+  return defineModel(
     {
       apiVersion: 'v2',
       name: ref.name,
@@ -682,7 +675,6 @@ export function defineModel(
       const msg = toGeminiMessage(messages[messages.length - 1], ref);
       return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
-            ai.registry,
             {
               metadata: {
                 name: streamingRequested ? 'sendMessageStream' : 'sendMessage',

@@ -16,13 +16,13 @@
 
 import {
   ActionMetadata,
-  Genkit,
   modelActionMetadata,
   modelRef,
   ModelReference,
   z,
 } from 'genkit';
 import { ModelAction, ModelInfo } from 'genkit/model';
+import { model as defineModel } from 'genkit/plugin';
 import { lyriaPredict } from './client.js';
 import { fromLyriaResponse, toLyriaPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
@@ -113,24 +113,22 @@ export function listActions(models: Model[]): ActionMetadata[] {
 }
 
 export function defineKnownModels(
-  ai: Genkit,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
-) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, clientOptions, pluginOptions);
-  }
+): ModelAction[] {
+  return Object.keys(KNOWN_MODELS).map((name) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineModel(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): ModelAction {
   const ref = model(name);
 
-  return ai.defineModel(
+  return defineModel(
     {
       apiVersion: 'v2',
       name: ref.name,

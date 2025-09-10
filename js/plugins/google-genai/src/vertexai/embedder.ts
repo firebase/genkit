@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import { z, type Document, type Genkit } from 'genkit';
+import { z, type Document } from 'genkit';
 import {
   EmbedderInfo,
   embedderRef,
   type EmbedderAction,
   type EmbedderReference,
 } from 'genkit/embedder';
+import { embedder } from 'genkit/plugin';
 import { embedContent } from './client.js';
 import {
   ClientOptions,
@@ -146,24 +147,22 @@ export function model(
 }
 
 export function defineKnownModels(
-  ai: Genkit,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
-) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineEmbedder(ai, name, clientOptions, pluginOptions);
-  }
+): EmbedderAction[] {
+  return Object.keys(KNOWN_MODELS).map((name) =>
+    defineEmbedder(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineEmbedder(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): EmbedderAction<any> {
   const ref = model(name);
 
-  return ai.defineEmbedder(
+  return embedder(
     {
       name: ref.name,
       configSchema: ref.configSchema,
