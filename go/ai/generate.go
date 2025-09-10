@@ -173,8 +173,8 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 
 	inputSchema := core.InferSchemaMap(ModelRequest{})
 	if inputSchema != nil && opts.ConfigSchema != nil {
-		if _, ok := inputSchema["config"]; ok {
-			inputSchema["config"] = opts.ConfigSchema
+		if props, ok := inputSchema["properties"].(map[string]any); ok {
+			props["config"] = opts.ConfigSchema
 		}
 	}
 

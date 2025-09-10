@@ -40,9 +40,6 @@ import (
 )
 
 const (
-	// Thinking budget limit
-	thinkingBudgetMax = 24576
-
 	// Tool name regex
 	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 )

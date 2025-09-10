@@ -121,8 +121,8 @@ func NewEmbedder(name string, opts *EmbedderOptions, fn EmbedderFunc) Embedder {
 
 	inputSchema := core.InferSchemaMap(EmbedRequest{})
 	if inputSchema != nil && opts.ConfigSchema != nil {
-		if _, ok := inputSchema["options"]; ok {
-			inputSchema["options"] = opts.ConfigSchema
+		if props, ok := inputSchema["properties"].(map[string]any); ok {
+			props["options"] = opts.ConfigSchema
 		}
 	}
 
