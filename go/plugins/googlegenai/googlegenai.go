@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 
@@ -106,8 +107,14 @@ func (ga *GoogleAI) Init(ctx context.Context) []api.Action {
 		panic(fmt.Errorf("GoogleAI.Init: %w", err))
 	}
 	for n, mi := range models {
-		model := newModel(ga.gclient, n, mi)
-		actions = append(actions, model.(api.Action))
+		if mi.Supports != nil && mi.Supports.LongRunning {
+			// Create long-running models (like VEO) as background models
+			// For now, skip VEO models in Init and let them be handled dynamically
+			continue
+		} else {
+			model := newModel(ga.gclient, n, mi)
+			actions = append(actions, model.(api.Action))
+		}
 	}
 
 	embedders, err := listEmbedders(gc.Backend)
@@ -406,6 +413,58 @@ func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action 
 			Supports:     supports,
 			ConfigSchema: configToMap(config),
 		}).(api.Action)
+	case api.ActionTypeBackgroundModel:
+		// Handle VEO models as background models
+		if strings.HasPrefix(name, "veo") {
+			veoModel := newVeoModel(ga.gclient, name, ai.ModelOptions{
+				Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+				Stage:    ai.ModelStageStable,
+				Versions: []string{},
+				Supports: &ai.ModelSupports{
+					Media:       true,
+					Multiturn:   false,
+					Tools:       false,
+					SystemRole:  false,
+					Output:      []string{"media"},
+					LongRunning: true,
+				},
+			})
+
+			return core.NewAction(fmt.Sprintf("%s/%s", googleAIProvider, name), api.ActionTypeBackgroundModel, nil, nil,
+				func(ctx context.Context, input *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
+					return veoModel.Start(ctx, input)
+				})
+		}
+		return nil
+	case api.ActionTypeCheckOperation:
+		// Handle VEO model check operations
+		if strings.HasPrefix(name, "veo") {
+			veoModel := newVeoModel(ga.gclient, name, ai.ModelOptions{
+				Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+				Stage:    ai.ModelStageStable,
+				Versions: []string{},
+				Supports: &ai.ModelSupports{
+					Media:       true,
+					Multiturn:   false,
+					Tools:       false,
+					SystemRole:  false,
+					Output:      []string{"media"},
+					LongRunning: true,
+				},
+			})
+
+			return core.NewAction(fmt.Sprintf("%s/%s", googleAIProvider, name), api.ActionTypeCheckOperation,
+				map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)}, nil,
+				func(ctx context.Context, op *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
+					updatedOp, err := veoModel.Check(ctx, op)
+					if err != nil {
+						return nil, err
+					}
+					updatedOp.Action = fmt.Sprintf("/%s/%s/%s", api.ActionTypeCheckOperation, googleAIProvider, name)
+					return updatedOp, nil
+				})
+		}
+		return nil
 	}
 	return nil
 }

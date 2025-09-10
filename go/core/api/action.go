@@ -52,6 +52,10 @@ const (
 	ActionTypeTool             ActionType = "tool"
 	ActionTypeUtil             ActionType = "util"
 	ActionTypeCustom           ActionType = "custom"
+
+	ActionTypeBackgroundModel ActionType = "background-model"
+	ActionTypeCheckOperation  ActionType = "check-operation"
+	ActionTypeCancelOperation ActionType = "cancel-operation"
 )
 
 // ActionDesc is a descriptor of an action.
