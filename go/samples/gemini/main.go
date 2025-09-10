@@ -1,0 +1,283 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package main
+
+import (
+	"context"
+	"encoding/base64"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
+)
+
+func main() {
+	ctx := context.Background()
+
+	// Initialize Genkit with the Google AI plugin. When you pass nil for the
+	// Config parameter, the Google AI plugin will get the API key from the
+	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
+	// practice.
+	g := genkit.Init(ctx,
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+		genkit.WithDefaultModel("googleai/gemini-2.5-flash"))
+
+	// Define a simple flow that generates jokes about a given topic
+	genkit.DefineFlow(g, "joke-teller", func(ctx context.Context, input string) (string, error) {
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](1.0),
+				ThinkingConfig: &genai.ThinkingConfig{
+					ThinkingBudget: genai.Ptr[int32](0),
+				},
+			}),
+			ai.WithPrompt(`Tell short jokes about %s`, input))
+		if err != nil {
+			return "", err
+		}
+
+		return resp.Text(), nil
+	})
+
+	// Define a simple flow that generates jokes about a given topic with a context of bananas
+	genkit.DefineFlow(g, "context", func(ctx context.Context, input string) (string, error) {
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModelName("googleai/gemini-2.0-flash"),
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](1.0),
+			}),
+			ai.WithPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)),
+			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))
+		if err != nil {
+			return "", err
+		}
+
+		text := resp.Text()
+		return text, nil
+	})
+
+	// Simple flow that generates a brief comic strip
+	genkit.DefineFlow(g, "comic-strip-generator", func(ctx context.Context, input string) ([]string, error) {
+		if input == "" {
+			input = `A little blue gopher with big eyes trying to learn Python,
+				use a cartoon style, the story should be tragic because he
+				chose the wrong programming language, the proper programing
+				language for a gopher should be Go`
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModelName("googleai/gemini-2.5-flash-image-preview"), // nano banana
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature:        genai.Ptr[float32](0.5),
+				ResponseModalities: []string{"IMAGE", "TEXT"},
+			}),
+			ai.WithPrompt(fmt.Sprintf(`generate a short story about %s and for each scene, generate an image for it`, input)))
+		if err != nil {
+			return nil, err
+		}
+
+		story := []string{}
+		for _, p := range resp.Message.Content {
+			if p.IsMedia() || p.IsText() {
+				story = append(story, p.Text)
+			}
+		}
+
+		return story, nil
+	})
+
+	// A flow that uses Romeo and Juliet as cache contents to answer questions about the book
+	genkit.DefineFlow(g, "cached-contents", func(ctx context.Context, input string) (string, error) {
+		// Romeo and Juliet
+		url := "https://www.gutenberg.org/cache/epub/1513/pg1513.txt"
+		prompt := "I'll provide you with some text contents that I want you to use to answer further questions"
+		content, err := readTextFromURL(url)
+		if err != nil {
+			return "", err
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](1.0),
+				ThinkingConfig: &genai.ThinkingConfig{
+					ThinkingBudget: genai.Ptr[int32](0),
+				},
+			}),
+			ai.WithMessages(
+				ai.NewUserTextMessage(content).WithCacheTTL(360), // create cache contents
+			),
+			ai.WithPrompt(prompt))
+		if err != nil {
+			return "", err
+		}
+
+		// use previous messages to keep the conversation going and
+		// ask questions related to the cached content
+		prompt = "Write a brief summary of the character development of Juliet"
+		if input != "" {
+			prompt = input
+		}
+		resp, err = genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](1.0),
+				ThinkingConfig: &genai.ThinkingConfig{
+					ThinkingBudget: genai.Ptr[int32](0),
+				},
+			}),
+			ai.WithMessages(resp.History()...),
+			ai.WithPrompt(prompt))
+		if err != nil {
+			return "", nil
+		}
+		return resp.Text(), nil
+	})
+
+	// Define a flow to demonstrate code execution
+	genkit.DefineFlow(g, "code-execution", func(ctx context.Context, _ any) (string, error) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		if m == nil {
+			return "", fmt.Errorf("failed to find model")
+		}
+
+		problem := "find the sum of first 5 prime numbers"
+		fmt.Printf("Problem: %s\n", problem)
+
+		// Generate response with code execution enabled
+		fmt.Println("Sending request to Gemini...")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(m),
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.2),
+				Tools: []*genai.Tool{
+					{
+						CodeExecution: &genai.ToolCodeExecution{},
+					},
+				},
+			}),
+			ai.WithPrompt(problem))
+		if err != nil {
+			return "", err
+		}
+
+		// You can also use the helper function for simpler code
+		fmt.Println("\n=== INTERNAL CODE EXECUTION ===")
+		displayCodeExecution(resp.Message)
+
+		fmt.Println("\n=== COMPLETE INTERNAL CODE EXECUTION ===")
+		text := resp.Text()
+		fmt.Println(text)
+
+		return text, nil
+	})
+
+	genkit.DefineFlow(g, "image-descriptor", func(ctx context.Context, foo string) (string, error) {
+		img, err := fetchImgAsBase64()
+		if err != nil {
+			return "", err
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&ai.GenerationCommonConfig{
+				Temperature: 1.0,
+			}),
+			ai.WithMessages(ai.NewUserMessage(
+				ai.NewTextPart("Can you describe what's in this image?"),
+				ai.NewMediaPart("image/jpeg", "data:image/jpeg;base64,"+img)),
+			))
+		if err != nil {
+			return "", err
+		}
+
+		text := resp.Text()
+		return text, nil
+	})
+
+	<-ctx.Done()
+}
+
+// Helper functions
+
+// readTextFromURL reads the text contents from a given URL
+func readTextFromURL(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("failed to sent HTTP GET request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("non 2XX status code received: %d", resp.StatusCode)
+	}
+
+	contents, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return string(contents), nil
+}
+
+// displayCodeExecution prints the code execution results from a message in a formatted way.
+// This is a helper for applications that want to display code execution results to users.
+func displayCodeExecution(msg *ai.Message) {
+	// Extract and display executable code
+	code := googlegenai.GetExecutableCode(msg)
+	fmt.Printf("Language: %s\n", code.Language)
+	fmt.Printf("```%s\n%s\n```\n", code.Language, code.Code)
+
+	// Extract and display execution results
+	result := googlegenai.GetCodeExecutionResult(msg)
+	fmt.Printf("\nExecution result:\n")
+	fmt.Printf("Status: %s\n", result.Outcome)
+	fmt.Printf("Output:\n")
+	if strings.TrimSpace(result.Output) == "" {
+		fmt.Printf("  <no output>\n")
+	} else {
+		lines := strings.SplitSeq(result.Output, "\n")
+		for line := range lines {
+			fmt.Printf("  %s\n", line)
+		}
+	}
+
+	// Display any explanatory text
+	for _, part := range msg.Content {
+		if part.IsText() {
+			fmt.Printf("\nExplanation:\n%s\n", part.Text)
+		}
+	}
+}
+
+func fetchImgAsBase64() (string, error) {
+	imgUrl := "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"
+	resp, err := http.Get(imgUrl)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", err
+	}
+
+	imageData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	base64string := base64.StdEncoding.EncodeToString(imageData)
+	return base64string, nil
+}
