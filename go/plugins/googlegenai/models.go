@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"google.golang.org/genai"
 )
 
@@ -95,11 +94,6 @@ var (
 		gemini25ProPreview0506,
 
 		imagen3Generate002,
-	}
-
-	// Gemini models with native image support generation
-	imageGenModels = []string{
-		gemini20FlashPrevImageGen,
 	}
 
 	supportedGeminiModels = map[string]ai.ModelOptions{
@@ -243,11 +237,6 @@ var (
 		},
 	}
 
-	googleAIEmbedders = []string{
-		textembedding004,
-		embedding001,
-	}
-
 	googleAIEmbedderConfig = map[string]ai.EmbedderOptions{
 		textembedding004: {
 			Dimensions: 768,
@@ -255,7 +244,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		embedding001: {
 			Dimensions: 768,
@@ -263,7 +251,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko003: {
 			Dimensions: 768,
@@ -271,7 +258,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko002: {
 			Dimensions: 768,
@@ -279,7 +265,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko001: {
 			Dimensions: 768,
@@ -287,7 +272,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggeckomultilingual001: {
 			Dimensions: 768,
@@ -295,7 +279,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textmultilingualembedding002: {
 			Dimensions: 768,
@@ -303,7 +286,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		multimodalembedding: {
 			Dimensions: 768,
@@ -315,18 +297,7 @@ var (
 					"video",
 				},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
-	}
-
-	vertexAIEmbedders = []string{
-		textembeddinggecko003,
-		textembeddinggecko002,
-		textembeddinggecko001,
-		textembedding004,
-		textembeddinggeckomultilingual001,
-		textmultilingualembedding002,
-		multimodalembedding,
 	}
 )
 
@@ -369,28 +340,6 @@ func listModels(provider string) (map[string]ai.ModelOptions, error) {
 	}
 
 	return models, nil
-}
-
-// listEmbedders returns a list of supported embedders based on the
-// detected backend
-func listEmbedders(backend genai.Backend) (map[string]ai.EmbedderOptions, error) {
-	embeddersNames := []string{}
-
-	switch backend {
-	case genai.BackendGeminiAPI:
-		embeddersNames = googleAIEmbedders
-	case genai.BackendVertexAI:
-		embeddersNames = vertexAIEmbedders
-	default:
-		return nil, fmt.Errorf("embedders for backend %s not found", backend)
-	}
-
-	embedders := make(map[string]ai.EmbedderOptions, 0)
-	for _, n := range embeddersNames {
-		embedders[n] = googleAIEmbedderConfig[n]
-	}
-
-	return embedders, nil
 }
 
 // genaiModels collects all the available models in go-genai SDK
