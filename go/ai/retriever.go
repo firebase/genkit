@@ -115,8 +115,8 @@ func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriev
 
 	inputSchema := core.InferSchemaMap(RetrieverRequest{})
 	if inputSchema != nil && opts.ConfigSchema != nil {
-		if _, ok := inputSchema["options"]; ok {
-			inputSchema["options"] = opts.ConfigSchema
+		if props, ok := inputSchema["properties"].(map[string]any); ok {
+			props["options"] = opts.ConfigSchema
 		}
 	}
 
