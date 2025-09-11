@@ -160,11 +160,11 @@ func (v *VertexAI) Init(ctx context.Context) []api.Action {
 		Scopes: []string{"https://www.googleapis.com/auth/cloud-platform"},
 	})
 	if err != nil {
-		panic("failed to find default credentials")
+		panic(fmt.Errorf("failed to find default credentials: %w", err))
 	}
 	quotaProjectID, err := cred.QuotaProjectID(ctx)
 	if err != nil {
-		panic("failed to get quota project ID")
+		panic(fmt.Errorf("failed to get quota project ID: %v", quotaProjectID))
 	}
 	httpClient, err := httptransport.NewClient(&httptransport.Options{
 		Credentials:      cred,
@@ -174,7 +174,7 @@ func (v *VertexAI) Init(ctx context.Context) []api.Action {
 		},
 	})
 	if err != nil {
-		panic("failed to create http client")
+		panic(fmt.Errorf("failed to create http client: %w", err))
 	}
 
 	// Project and Region values gets validated by genai SDK upon client creation

@@ -8,7 +8,7 @@ replace github.com/firebase/genkit/go => ../../../
 
 require (
 	github.com/firebase/genkit/go v0.0.0-00010101000000-000000000000
-	google.golang.org/genai v1.20.0
+	google.golang.org/genai v1.24.0
 )
 
 require (
