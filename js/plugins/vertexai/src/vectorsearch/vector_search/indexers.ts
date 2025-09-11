@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-import type { Genkit, z } from 'genkit';
+import type { z } from 'genkit';
+import { Document } from 'genkit';
+import { indexer } from 'genkit/plugin';
 import { indexerRef, type IndexerAction } from 'genkit/retriever';
 import {
   Datapoint,
@@ -54,14 +56,13 @@ export const vertexAiIndexerRef = (params: {
  * @returns {IndexerAction<z.ZodTypeAny>[]} - An array of indexer actions.
  */
 export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
-  ai: Genkit,
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): IndexerAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
-  const indexers: IndexerAction<z.ZodTypeAny>[] = [];
+  const indexerActions: IndexerAction<z.ZodTypeAny>[] = [];
 
   if (!vectorSearchOptions || vectorSearchOptions.length === 0) {
-    return indexers;
+    return indexerActions;
   }
 
   for (const vectorSearchOption of vectorSearchOptions) {
@@ -76,7 +77,10 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
     }
     const embedderOptions = vectorSearchOption.embedderOptions;
 
-    const indexer = ai.defineIndexer(
+    const embedderAction =
+      vectorSearchOption.embedderAction ?? params.defaultEmbedderAction;
+
+    const indexerAction = indexer(
       {
         name: `vertexai/${indexId}`,
         configSchema: VertexAIVectorIndexerOptionsSchema.optional(),
@@ -91,13 +95,19 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
           );
         }
 
-        const embeddings = await ai.embedMany({
-          embedder: embedderReference,
-          content: docs,
+        if (!embedderAction) {
+          throw new Error('Embedder action is required for indexing');
+        }
+
+        // Call embedder action directly for each document
+        const embedResults = await embedderAction({
+          input: docs.map((doc) =>
+            doc instanceof Document ? doc : new Document(doc)
+          ),
           options: embedderOptions,
         });
 
-        const datapoints = embeddings.map(({ embedding }, i) => {
+        const datapoints = embedResults.embeddings.map(({ embedding }, i) => {
           const dp = new Datapoint({
             datapointId: docIds[i],
             featureVector: embedding,
@@ -128,7 +138,7 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
       }
     );
 
-    indexers.push(indexer);
+    indexerActions.push(indexerAction);
   }
-  return indexers;
+  return indexerActions;
 }

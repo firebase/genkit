@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-import {
-  retrieverRef,
-  type Genkit,
-  type RetrieverAction,
-  type z,
-} from 'genkit';
+import { Document, retrieverRef, z, type RetrieverAction } from 'genkit';
+import { retriever } from 'genkit/plugin';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import {
   VertexAIVectorRetrieverOptionsSchema,
@@ -39,23 +35,22 @@ const DEFAULT_K = 10;
  * @returns {RetrieverAction<z.ZodTypeAny>[]} - An array of retriever actions.
  */
 export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
-  ai: Genkit,
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): RetrieverAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
   const defaultEmbedder = params.defaultEmbedder;
 
-  const retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
+  const retrieverActions: RetrieverAction<z.ZodTypeAny>[] = [];
 
   if (!vectorSearchOptions || vectorSearchOptions.length === 0) {
-    return retrievers;
+    return retrieverActions;
   }
 
   for (const vectorSearchOption of vectorSearchOptions) {
     const { documentRetriever, indexId, publicDomainName } = vectorSearchOption;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
-    const retriever = ai.defineRetriever(
+    const retrieverAction = retriever(
       {
         name: `vertexai/${indexId}`,
         configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
@@ -70,13 +65,17 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
           );
         }
 
-        const queryEmbedding = (
-          await ai.embed({
-            embedder: embedderReference,
-            options: embedderOptions,
-            content,
-          })
-        )[0].embedding; // Single embedding for text
+        const embedderAction =
+          vectorSearchOption.embedderAction ?? params.defaultEmbedderAction;
+        if (!embedderAction) {
+          throw new Error('Embedder action is required for retrieval');
+        }
+
+        const embedResult = await embedderAction({
+          input: [new Document(content)],
+          options: embedderOptions,
+        });
+        const queryEmbedding = embedResult.embeddings[0].embedding;
 
         const accessToken = await params.authClient.getAccessToken();
 
@@ -125,10 +124,10 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
       }
     );
 
-    retrievers.push(retriever);
+    retrieverActions.push(retrieverAction);
   }
 
-  return retrievers;
+  return retrieverActions;
 }
 
 /**

@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-import type { Genkit } from 'genkit';
-import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import {
+  genkitPluginV2,
+  ResolvableAction,
+  type GenkitPluginV2,
+} from 'genkit/plugin';
 import { getDerivedParams } from '../common/index.js';
 import type { PluginOptions } from './types.js';
 import { vertexAiIndexers, vertexAiRetrievers } from './vector_search/index.js';
@@ -117,25 +120,54 @@ export {
  * console.log(`response: ${response}`);
  * ```
  */
-export function vertexAIVectorSearch(options?: PluginOptions): GenkitPlugin {
-  return genkitPlugin('vertexAIVectorSearch', async (ai: Genkit) => {
-    const { authClient } = await getDerivedParams(options);
+export function vertexAIVectorSearch(options?: PluginOptions): GenkitPluginV2 {
+  return genkitPluginV2({
+    name: 'vertexAIVectorSearch',
+    init: async () => {
+      const { authClient } = await getDerivedParams(options);
 
-    if (
-      options?.vectorSearchOptions &&
-      options.vectorSearchOptions.length > 0
-    ) {
-      vertexAiIndexers(ai, {
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder: options.embedder,
-      });
+      const actions: ResolvableAction[] = [];
 
-      vertexAiRetrievers(ai, {
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder: options.embedder,
-      });
-    }
+      // Resolve default embedder action if embedder reference is provided
+      let defaultEmbedderAction;
+      if (options?.embedder) {
+        // Import the resolver function for embedders
+        const { defineVertexAIEmbedder } = await import('../embedder.js');
+        const embedderName = options.embedder.name.replace('vertexai/', '');
+        defaultEmbedderAction = defineVertexAIEmbedder(
+          embedderName,
+          authClient,
+          {
+            projectId: options.projectId!,
+            location: options.location!,
+          }
+        );
+      }
+
+      if (
+        options?.vectorSearchOptions &&
+        options.vectorSearchOptions.length > 0
+      ) {
+        actions.push(
+          ...vertexAiIndexers({
+            pluginOptions: options,
+            authClient,
+            defaultEmbedder: options.embedder,
+            defaultEmbedderAction,
+          })
+        );
+
+        actions.push(
+          ...vertexAiRetrievers({
+            pluginOptions: options,
+            authClient,
+            defaultEmbedder: options.embedder,
+            defaultEmbedderAction,
+          })
+        );
+      }
+
+      return actions;
+    },
   });
 }

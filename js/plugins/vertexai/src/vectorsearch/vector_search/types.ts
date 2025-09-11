@@ -16,7 +16,7 @@
 
 import * as aiplatform from '@google-cloud/aiplatform';
 import { z } from 'genkit';
-import type { EmbedderReference } from 'genkit/embedder';
+import type { EmbedderAction, EmbedderReference } from 'genkit/embedder';
 import { CommonRetrieverOptionsSchema, type Document } from 'genkit/retriever';
 import type { GoogleAuth } from 'google-auth-library';
 import type { PluginOptions } from '../types.js';
@@ -28,6 +28,7 @@ export interface VertexVectorSearchOptions<
   pluginOptions: PluginOptions;
   authClient: GoogleAuth;
   defaultEmbedder?: EmbedderReference<EmbedderCustomOptions>;
+  defaultEmbedderAction?: EmbedderAction<EmbedderCustomOptions>;
 }
 
 export type IIndexDatapoint =
@@ -186,5 +187,6 @@ export interface VectorSearchOptions<
   documentIndexer: DocumentIndexer<IndexerOptions>;
   // Embedder and default options to use for indexing and retrieval
   embedder?: EmbedderReference<EmbedderCustomOptions>;
+  embedderAction?: EmbedderAction<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }
