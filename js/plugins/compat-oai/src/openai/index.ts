@@ -24,7 +24,7 @@ import {
   ModelReference,
   z,
 } from 'genkit';
-import { type GenkitPluginV2Instance, ResolvableAction } from 'genkit/plugin';
+import { ResolvableAction, type GenkitPluginV2Instance } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
 import {
@@ -169,7 +169,9 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
   );
 };
 
-export function openAIPlugin(options?: OpenAIPluginOptions): GenkitPluginV2Instance {
+export function openAIPlugin(
+  options?: OpenAIPluginOptions
+): GenkitPluginV2Instance {
   return openAICompatible({
     name: 'openai',
     ...options,

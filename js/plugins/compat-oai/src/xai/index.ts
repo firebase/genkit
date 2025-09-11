@@ -22,7 +22,7 @@ import {
   z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { type GenkitPluginV2Instance, ResolvableAction } from 'genkit/plugin';
+import { ResolvableAction, type GenkitPluginV2Instance } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
 import {
