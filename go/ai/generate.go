@@ -767,7 +767,7 @@ func (mr *ModelResponse) Output(v any) error {
 func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 	toolReqs := []*ToolRequest{}
 	if mr.Message == nil {
-		return nil
+		return toolReqs
 	}
 	for _, part := range mr.Message.Content {
 		if part.IsToolRequest() {
@@ -775,6 +775,20 @@ func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 		}
 	}
 	return toolReqs
+}
+
+// Interrupts returns the interrupted tool request parts from the response.
+func (mr *ModelResponse) Interrupts() []*Part {
+	parts := []*Part{}
+	if mr.Message == nil {
+		return parts
+	}
+	for _, part := range mr.Message.Content {
+		if part.IsInterrupt() {
+			parts = append(parts, part)
+		}
+	}
+	return parts
 }
 
 // Text returns the text content of the [ModelResponseChunk]
