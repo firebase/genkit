@@ -23,10 +23,10 @@ import {
   z,
 } from 'genkit';
 import { ModelAction, ModelInfo } from 'genkit/model';
-import { lyriaPredict } from './client';
-import { fromLyriaResponse, toLyriaPredictRequest } from './converters';
-import { ClientOptions, Model, VertexPluginOptions } from './types';
-import { checkModelName, extractVersion } from './utils';
+import { lyriaPredict } from './client.js';
+import { fromLyriaResponse, toLyriaPredictRequest } from './converters.js';
+import { ClientOptions, Model, VertexPluginOptions } from './types.js';
+import { checkModelName, extractVersion } from './utils.js';
 
 export const LyriaConfigSchema = z
   .object({

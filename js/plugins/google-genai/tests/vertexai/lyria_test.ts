@@ -21,21 +21,21 @@ import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
-import { getVertexAIUrl } from '../../src/vertexai/client';
+import { getVertexAIUrl } from '../../src/vertexai/client.js';
 import {
   fromLyriaResponse,
   toLyriaPredictRequest,
-} from '../../src/vertexai/converters';
+} from '../../src/vertexai/converters.js';
 import {
   LyriaConfigSchema,
   TEST_ONLY,
   defineModel,
   model,
-} from '../../src/vertexai/lyria';
+} from '../../src/vertexai/lyria.js';
 import {
   LyriaPredictResponse,
   RegionalClientOptions,
-} from '../../src/vertexai/types';
+} from '../../src/vertexai/types.js';
 
 const { GENERIC_MODEL, KNOWN_MODELS } = TEST_ONLY;
 

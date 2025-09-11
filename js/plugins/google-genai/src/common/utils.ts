@@ -31,7 +31,7 @@ import {
   GenerateContentStreamResult,
   Part,
   isObject,
-} from './types';
+} from './types.js';
 
 /**
  * Safely extracts the error message from the error.

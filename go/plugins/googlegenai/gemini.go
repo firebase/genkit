@@ -31,6 +31,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -39,9 +40,6 @@ import (
 )
 
 const (
-	// Thinking budget limit
-	thinkingBudgetMax = 24576
-
 	// Tool name regex
 	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 )
@@ -88,18 +86,19 @@ func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
 		DoNotReference: true, // Prevent $ref usage
 		ExpandedStruct: true, // Include all fields directly
-		// Prevent stack overflow panic due type traversal recursion (circular references)
-		// [genai.Schema] should not be used at this point since Schema is provided later
 		// NOTE: keep track of updated fields in [genai.GenerateContentConfig] since
 		// they could create runtime panics when parsing fields with type recursion
-		IgnoredTypes: []any{genai.Schema{}},
+		IgnoredTypes: []any{
+			genai.Schema{},
+		},
 	}
+
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
 	return result
 }
 
-// mapToStruct unmarshals a map[string]any to the expected config type.
+// mapToStruct unmarshals a map[string]any to the expected config api.
 func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
@@ -140,9 +139,8 @@ func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model 
 
 	var config any
 	config = &genai.GenerateContentConfig{}
-	if imageOpts, found := supportedImagenModels[name]; found {
+	if strings.Contains(name, "imagen") {
 		config = &genai.GenerateImagesConfig{}
-		opts = imageOpts
 	}
 	meta := &ai.ModelOptions{
 		Label:        opts.Label,
@@ -184,7 +182,7 @@ func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model 
 			},
 		}))(fn)
 	}
-	return ai.NewModel(core.NewName(provider, name), meta, fn)
+	return ai.NewModel(api.NewName(provider, name), meta, fn)
 }
 
 // newEmbedder creates an embedder without registering it
@@ -198,12 +196,12 @@ func newEmbedder(client *genai.Client, name string, embedOpts *ai.EmbedderOption
 		embedOpts.ConfigSchema = core.InferSchemaMap(genai.EmbedContentConfig{})
 	}
 
-	return ai.NewEmbedder(core.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return ai.NewEmbedder(api.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
-		if options, _ := req.Options.(*genai.EmbedContentConfig); options != nil {
-			embedConfig = options
+		if config, ok := req.Options.(*genai.EmbedContentConfig); ok {
+			embedConfig = config
 		}
 
 		for _, doc := range req.Input {
@@ -711,7 +709,6 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
-
 	switch {
 	case p.IsReasoning():
 		// TODO: go-genai does not support genai.NewPartFromThought()

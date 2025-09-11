@@ -21,7 +21,7 @@ import {
   type EmbedderAction,
   type EmbedderReference,
 } from 'genkit/embedder';
-import { embedContent } from './client';
+import { embedContent } from './client.js';
 import {
   ClientOptions,
   EmbedContentRequest,
@@ -32,8 +32,8 @@ import {
   VertexPluginOptions,
   isMultimodalEmbeddingPrediction,
   isObject,
-} from './types';
-import { checkModelName, extractVersion } from './utils';
+} from './types.js';
+import { checkModelName, extractVersion } from './utils.js';
 
 export const EmbeddingConfigSchema = z
   .object({

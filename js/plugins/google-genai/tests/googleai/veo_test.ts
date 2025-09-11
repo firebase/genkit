@@ -20,7 +20,7 @@ import { GenerateRequest, GenerateResponseData } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
-import { getGoogleAIUrl } from '../../src/googleai/client';
+import { getGoogleAIUrl } from '../../src/googleai/client.js';
 import { VeoOperation, VeoPredictRequest } from '../../src/googleai/types.js';
 import {
   TEST_ONLY,
@@ -28,7 +28,7 @@ import {
   VeoConfigSchema,
   defineModel,
   model,
-} from '../../src/googleai/veo';
+} from '../../src/googleai/veo.js';
 
 const { toVeoParameters, fromVeoOperation, GENERIC_MODEL, KNOWN_MODELS } =
   TEST_ONLY;

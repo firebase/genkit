@@ -78,7 +78,6 @@ func TestSchemaAsMap(t *testing.T) {
 	}
 
 	want := map[string]any{
-		"$id":                  string("https://github.com/firebase/genkit/go/internal/base/foo"),
 		"additionalProperties": bool(false),
 		"properties": map[string]any{
 			"BarField": map[string]any{

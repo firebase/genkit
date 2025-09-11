@@ -24,7 +24,7 @@ import (
 	"github.com/openai/openai-go/shared"
 )
 
-// mapToStruct unmarshals a map[string]any to the expected config type.
+// mapToStruct unmarshals a map[string]any to the expected config api.
 func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
@@ -107,8 +107,8 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				}
 
 				tm := openai.ToolMessage(
-					toolCallID,
 					anyToJSONString(p.ToolResponse.Output),
+					toolCallID,
 				)
 				oaiMessages = append(oaiMessages, tm)
 			}

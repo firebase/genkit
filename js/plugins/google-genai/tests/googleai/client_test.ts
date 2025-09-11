@@ -22,7 +22,7 @@ import {
   FinishReason,
   HarmCategory,
   HarmProbability,
-} from '../../src/common/types';
+} from '../../src/common/types.js';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
   TEST_ONLY,
@@ -34,7 +34,7 @@ import {
   listModels,
   veoCheckOperation,
   veoPredict,
-} from '../../src/googleai/client';
+} from '../../src/googleai/client.js';
 import {
   ClientOptions,
   EmbedContentRequest,
@@ -47,7 +47,7 @@ import {
   Model,
   VeoOperation,
   VeoPredictRequest,
-} from '../../src/googleai/types';
+} from '../../src/googleai/types.js';
 
 const { getAbortSignal } = TEST_ONLY;
 
