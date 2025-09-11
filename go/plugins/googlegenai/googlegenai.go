@@ -156,7 +156,6 @@ func (v *VertexAI) Init(ctx context.Context) []api.Action {
 			panic("Vertex AI requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
 		}
 	}
-
 	cred, err := credentials.DetectDefault(&credentials.DetectOptions{
 		Scopes: []string{"https://www.googleapis.com/auth/cloud-platform"},
 	})
@@ -167,7 +166,7 @@ func (v *VertexAI) Init(ctx context.Context) []api.Action {
 	if err != nil {
 		panic("failed to get quota project ID")
 	}
-	cl, err := httptransport.NewClient(&httptransport.Options{
+	httpClient, err := httptransport.NewClient(&httptransport.Options{
 		Credentials:      cred,
 		BaseRoundTripper: otelhttp.NewTransport(http.DefaultTransport),
 		Headers: http.Header{
@@ -178,13 +177,12 @@ func (v *VertexAI) Init(ctx context.Context) []api.Action {
 		panic("failed to create http client")
 	}
 
-	// Project and Region values gets validated by genai SDK upon client
-	// creation
+	// Project and Region values gets validated by genai SDK upon client creation
 	gc := genai.ClientConfig{
 		Backend:    genai.BackendVertexAI,
 		Project:    v.ProjectID,
 		Location:   v.Location,
-		HTTPClient: cl,
+		HTTPClient: httpClient,
 		HTTPOptions: genai.HTTPOptions{
 			Headers: genkitClientHeader,
 		},
