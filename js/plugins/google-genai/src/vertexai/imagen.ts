@@ -22,7 +22,7 @@ import {
   ModelReference,
   modelRef,
 } from 'genkit/model';
-import { model as defineModel } from 'genkit/plugin';
+import { model } from 'genkit/plugin';
 import { imagenPredict } from './client.js';
 import { fromImagenResponse, toImagenPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
@@ -216,7 +216,7 @@ export function isImagenModelName(value?: string): value is ImagenModelName {
   return !!value?.startsWith('imagen-');
 }
 
-export function model(
+export function createModelRef(
   version: string,
   config: ImagenConfig = {}
 ): ModelReference<typeof ImagenConfigSchema> {
@@ -238,7 +238,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
   return models
     .filter((m: Model) => isImagenModelName(modelName(m.name)))
     .map((m: Model) => {
-      const ref = model(m.name);
+      const ref = createModelRef(m.name);
       return modelActionMetadata({
         name: ref.name,
         info: ref.info,
@@ -261,11 +261,10 @@ export function defineModel(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): ModelAction {
-  const ref = model(name);
+  const ref = createModelRef(name);
 
-  return defineModel(
+  return model(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,

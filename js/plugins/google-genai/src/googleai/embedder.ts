@@ -90,7 +90,7 @@ const KNOWN_MODELS = {
 };
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
-export function model(
+export function createModelRef(
   version: string,
   config: EmbeddingConfig = {}
 ): EmbedderReference<ConfigSchemaType> {
@@ -112,7 +112,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const ref = model(m.name);
+        const ref = createModelRef(m.name);
         return embedderActionMetadata({
           name: ref.name,
           info: ref.info,
@@ -133,7 +133,7 @@ export function defineEmbedder(
   pluginOptions?: GoogleAIPluginOptions
 ): EmbedderAction {
   checkApiKey(pluginOptions?.apiKey);
-  const ref = model(name);
+  const ref = createModelRef(name);
 
   return embedder(
     {
@@ -141,23 +141,23 @@ export function defineEmbedder(
       configSchema: ref.configSchema,
       info: ref.info,
     },
-    async (input, reqOptions) => {
+    async (request, _) => {
       const embedApiKey = calculateApiKey(
         pluginOptions?.apiKey,
-        reqOptions?.apiKey
+        request.options?.apiKey
       );
-      const embedVersion = reqOptions?.version || extractVersion(ref);
+      const embedVersion = request.options?.version || extractVersion(ref);
 
       const embeddings = await Promise.all(
-        input.map(async (doc) => {
+        request.input.map(async (doc) => {
           const response = await embedContent(embedApiKey, embedVersion, {
-            taskType: reqOptions?.taskType,
-            title: reqOptions?.title,
+            taskType: request.options?.taskType,
+            title: request.options?.title,
             content: {
               role: '',
               parts: [{ text: doc.text }],
             },
-            outputDimensionality: reqOptions?.outputDimensionality,
+            outputDimensionality: request.options?.outputDimensionality,
           } as EmbedContentRequest);
           const values = response.embedding.values;
           return { embedding: values };

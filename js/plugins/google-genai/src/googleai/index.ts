@@ -23,6 +23,7 @@ import { GenkitPluginV2, genkitPluginV2 } from 'genkit/plugin';
 import * as embedder from './embedder.js';
 import * as gemini from './gemini.js';
 import * as imagen from './imagen.js';
+import { GoogleAIPluginOptions } from './types.js';
 import * as veo from './veo.js';
 
 export { type EmbeddingConfig } from './embedder.js';
@@ -83,24 +84,24 @@ export type GoogleAIPlugin = {
  * Google Gemini Developer API plugin.
  */
 export const googleAI = googleAIPlugin as GoogleAIPlugin;
-(googleAI as any).model = (
+(googleAI as any).createModelRef = (
   name: string,
   config?: any
 ): ModelReference<z.ZodTypeAny> => {
   if (veo.isVeoModelName(name)) {
-    return veo.model(name, config);
+    return veo.createModelRef(name, config);
   }
   if (imagen.isImagenModelName(name)) {
-    return imagen.model(name, config);
+    return imagen.createModelRef(name, config);
   }
   // gemma, tts, gemini and unknown model families.
-  return gemini.model(name, config);
+  return gemini.createModelRef(name, config);
 };
 googleAI.embedder = (
   name: string,
   config?: embedder.EmbeddingConfig
 ): EmbedderReference<embedder.EmbeddingConfigSchemaType> => {
-  return embedder.model(name, config);
+  return embedder.createModelRef(name, config);
 };
 
 export default googleAI;

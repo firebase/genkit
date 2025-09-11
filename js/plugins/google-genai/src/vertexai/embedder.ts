@@ -109,7 +109,7 @@ export const KNOWN_MODELS = {
   }),
 } as const;
 
-export function model(
+export function createModelRef(
   version: string,
   config: EmbeddingConfig = {}
 ): EmbedderReference<ConfigSchemaType> {
@@ -160,7 +160,7 @@ export function defineEmbedder(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): EmbedderAction<any> {
-  const ref = model(name);
+  const ref = createModelRef(name);
 
   return embedder(
     {
@@ -168,12 +168,14 @@ export function defineEmbedder(
       configSchema: ref.configSchema,
       info: ref.info!,
     },
-    async (input, options?: EmbeddingConfig) => {
+    async (request, _) => {
       const embedContentRequest: EmbedContentRequest = {
-        instances: input.map((doc: Document) =>
-          toEmbeddingInstance(ref, doc, options)
+        instances: request.input.map((doc: Document) =>
+          toEmbeddingInstance(ref, doc, request.options)
         ),
-        parameters: { outputDimensionality: options?.outputDimensionality },
+        parameters: {
+          outputDimensionality: request.options?.outputDimensionality,
+        },
       };
 
       const response = await embedContent(

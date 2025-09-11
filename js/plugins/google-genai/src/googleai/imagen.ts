@@ -29,7 +29,7 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
-import { model as defineModel } from 'genkit/plugin';
+import { model } from 'genkit/plugin';
 import { imagenPredict } from './client.js';
 import type {
   ClientOptions,
@@ -126,13 +126,13 @@ const KNOWN_MODELS = {
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
-// For conditional types in index.ts model()
+// For conditional types in index.ts model
 export type ImagenModelName = `imagen-${string}`;
 export function isImagenModelName(value?: string): value is ImagenModelName {
   return !!value?.startsWith('imagen-');
 }
 
-export function model(
+export function createModelRef(
   version: string,
   config: ImagenConfig = {}
 ): ModelReference<ConfigSchemaType> {
@@ -160,7 +160,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
     )
     .filter((m) => !m.description || !m.description.includes('deprecated'))
     .map((m) => {
-      const ref = model(m.name);
+      const ref = createModelRef(m.name);
       return modelActionMetadata({
         name: ref.name,
         info: ref.info,
@@ -180,15 +180,14 @@ export function defineModel(
   pluginOptions?: GoogleAIPluginOptions
 ): ModelAction {
   checkApiKey(pluginOptions?.apiKey);
-  const ref = model(name);
+  const ref = createModelRef(name);
   const clientOptions: ClientOptions = {
     apiVersion: pluginOptions?.apiVersion,
     baseUrl: pluginOptions?.baseUrl,
   };
 
-  return defineModel(
+  return model(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
