@@ -97,9 +97,9 @@ export class GenkitPluginV2Instance implements Required<GenkitPluginV2> {
   readonly version = 'v2';
   readonly name: string;
 
-  private plugin: Omit<GenkitPluginV2, 'version'>;
+  private plugin: Omit<GenkitPluginV2, 'version' | 'model'>;
 
-  constructor(plugin: Omit<GenkitPluginV2, 'version'>) {
+  constructor(plugin: Omit<GenkitPluginV2, 'version' | 'model'>) {
     this.name = plugin.name;
     this.plugin = plugin;
   }
@@ -141,7 +141,7 @@ export class GenkitPluginV2Instance implements Required<GenkitPluginV2> {
 }
 
 export function genkitPluginV2(
-  options: Omit<GenkitPluginV2, 'version'>
+  options: Omit<GenkitPluginV2, 'version' | 'model'>
 ): GenkitPluginV2Instance {
   return new GenkitPluginV2Instance(options);
 }
