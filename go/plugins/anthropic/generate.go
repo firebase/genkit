@@ -55,6 +55,12 @@ type AnthropicUIConfig struct {
 	ServiceTier          string `json:"serviceTier" jsonschema:"title=Service Tier,description=Service tier for the request,enum=auto,enum=standard_only,default=auto"`
 	ThinkingEnabled      bool   `json:"thinkingEnabled" jsonschema:"title=Enable Thinking,description=Enable Claude's extended thinking process"`
 	ThinkingBudgetTokens int64  `json:"thinkingBudgetTokens" jsonschema:"title=Thinking Budget Tokens,description=Token budget for thinking (minimum 1024),minimum=1024,default=2048"`
+
+	// Anthropic server tools (pass-through to tools array)
+	WebSearchEnabled        bool     `json:"webSearchEnabled" jsonschema:"title=Enable Web Search,description=Enable Anthropic's web search tool"`
+	WebSearchMaxUses        int      `json:"webSearchMaxUses" jsonschema:"title=Web Search Max Uses,description=Maximum number of web searches per request,minimum=1,maximum=20,default=5"`
+	WebSearchAllowedDomains []string `json:"webSearchAllowedDomains" jsonschema:"title=Web Search Allowed Domains,description=Only include results from these domains"`
+	WebSearchBlockedDomains []string `json:"webSearchBlockedDomains" jsonschema:"title=Web Search Blocked Domains,description=Never include results from these domains"`
 }
 
 // newModel creates a model without registering it
@@ -181,13 +187,6 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (*anthropic.MessageNew
 		req.StopSequences = c.StopSequences
 	}
 
-	// Handle pass-through parameters for map-based config
-	if mapConfig, ok := i.Config.(map[string]any); ok {
-		if err := applyPassThroughConfig(&req, mapConfig); err != nil {
-			return nil, fmt.Errorf("failed to apply pass-through config: %w", err)
-		}
-	}
-
 	// configure system prompt (if given)
 	sysBlocks := []anthropic.TextBlockParam{}
 	for _, message := range i.Messages {
@@ -227,6 +226,14 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (*anthropic.MessageNew
 		return nil, err
 	}
 	req.Tools = tools
+
+	// Handle pass-through parameters for map-based config
+	// This must be done AFTER setting the tools to avoid overwriting web search tools
+	if mapConfig, ok := i.Config.(map[string]any); ok {
+		if err := applyPassThroughConfig(&req, mapConfig); err != nil {
+			return nil, fmt.Errorf("failed to apply pass-through config: %w", err)
+		}
+	}
 
 	return &req, nil
 }
@@ -364,6 +371,57 @@ func applyPassThroughConfig(req *anthropic.MessageNewParams, config map[string]a
 			}
 
 			req.Thinking = anthropic.ThinkingConfigParamOfEnabled(budgetTokens)
+		}
+	}
+
+	// Handle Web Search tool configuration
+	if webSearchEnabled, exists := config["webSearchEnabled"]; exists {
+		if enabled, ok := webSearchEnabled.(bool); ok && enabled {
+			webSearchTool := anthropic.ToolUnionParam{
+				OfWebSearchTool20250305: &anthropic.WebSearchTool20250305Param{},
+			}
+
+			// Set max uses if specified
+			if maxUsesVal, maxUsesExists := config["webSearchMaxUses"]; maxUsesExists {
+				if maxUses, ok := maxUsesVal.(float64); ok && maxUses > 0 {
+					webSearchTool.OfWebSearchTool20250305.MaxUses = anthropic.Int(int64(maxUses))
+				} else if maxUses, ok := maxUsesVal.(int); ok && maxUses > 0 {
+					webSearchTool.OfWebSearchTool20250305.MaxUses = anthropic.Int(int64(maxUses))
+				}
+			}
+
+			// Set allowed domains if specified
+			if allowedDomainsVal, allowedExists := config["webSearchAllowedDomains"]; allowedExists {
+				if domains, ok := allowedDomainsVal.([]interface{}); ok {
+					var allowedDomains []string
+					for _, domain := range domains {
+						if domainStr, ok := domain.(string); ok && domainStr != "" {
+							allowedDomains = append(allowedDomains, domainStr)
+						}
+					}
+					if len(allowedDomains) > 0 {
+						webSearchTool.OfWebSearchTool20250305.AllowedDomains = allowedDomains
+					}
+				}
+			}
+
+			// Set blocked domains if specified
+			if blockedDomainsVal, blockedExists := config["webSearchBlockedDomains"]; blockedExists {
+				if domains, ok := blockedDomainsVal.([]interface{}); ok {
+					var blockedDomains []string
+					for _, domain := range domains {
+						if domainStr, ok := domain.(string); ok && domainStr != "" {
+							blockedDomains = append(blockedDomains, domainStr)
+						}
+					}
+					if len(blockedDomains) > 0 {
+						webSearchTool.OfWebSearchTool20250305.BlockedDomains = blockedDomains
+					}
+				}
+			}
+
+			// Add the web search tool to the request
+			req.Tools = append(req.Tools, webSearchTool)
 		}
 	}
 
@@ -539,7 +597,7 @@ func anthropicToGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) 
 	msg.Role = ai.RoleModel
 	for _, part := range m.Content {
 		var p *ai.Part
-		switch part.AsAny().(type) {
+		switch partType := part.AsAny().(type) {
 		case anthropic.TextBlock:
 			p = ai.NewTextPart(string(part.Text))
 		case anthropic.ToolUseBlock:
@@ -548,8 +606,28 @@ func anthropicToGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) 
 				Input: part.Input,
 				Name:  part.Name,
 			})
+		case anthropic.WebSearchToolResultBlock:
+			// Handle web search tool results - extract the search results and format them as text
+			resultText := fmt.Sprintf("Web search results for query: %s\n", part.Name)
+			if part.Content.OfWebSearchResultBlockArray != nil {
+				for i, result := range part.Content.OfWebSearchResultBlockArray {
+					resultText += fmt.Sprintf("\n%d. %s\n   URL: %s\n   Age: %s\n",
+						i+1, result.Title, result.URL, result.PageAge)
+				}
+			}
+			p = ai.NewTextPart(resultText)
 		default:
-			return nil, fmt.Errorf("unknown part: %#v", part)
+			// Handle server-side tools (like web search) by checking the Type field
+			if part.Type == "server_tool_use" {
+				// For server-side tools, we treat them as text responses since they're executed server-side
+				// and the results are included in the response
+				p = ai.NewTextPart(fmt.Sprintf("Used %s tool with query: %s", part.Name, string(part.Input)))
+			} else if part.Type == "web_search_tool_result" {
+				// Handle web search tool results as text
+				p = ai.NewTextPart("Web search completed with results")
+			} else {
+				return nil, fmt.Errorf("unknown part type '%s': %#v", part.Type, partType)
+			}
 		}
 		msg.Content = append(msg.Content, p)
 	}

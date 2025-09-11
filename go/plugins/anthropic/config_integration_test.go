@@ -136,6 +136,36 @@ func TestExpandedUIConfigIntegration(t *testing.T) {
 
 		t.Logf("All configuration options applied successfully")
 	})
+
+	t.Run("Apply Web Search tool configuration", func(t *testing.T) {
+		req := &anthropic.MessageNewParams{
+			Model:     "claude-3-5-sonnet-20241022",
+			MaxTokens: 1024,
+		}
+
+		config := map[string]any{
+			"webSearchEnabled":        true,
+			"webSearchMaxUses":        3,
+			"webSearchAllowedDomains": []interface{}{"example.com", "trusteddomain.org"},
+		}
+
+		err := applyPassThroughConfig(req, config)
+		if err != nil {
+			t.Fatalf("applyPassThroughConfig failed: %v", err)
+		}
+
+		// Verify that web search tool was added
+		if len(req.Tools) != 1 {
+			t.Errorf("Expected 1 tool to be added, got %d", len(req.Tools))
+		}
+
+		// Verify it's a web search tool
+		if req.Tools[0].OfWebSearchTool20250305 == nil {
+			t.Errorf("Expected web search tool to be added")
+		}
+
+		t.Logf("Web search tool configuration applied successfully")
+	})
 }
 
 func TestUIConfigSchemaGeneration(t *testing.T) {
