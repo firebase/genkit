@@ -136,10 +136,15 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 
 	p.MessagesFn = mergeMessagesFn(p.MessagesFn, execOpts.MessagesFn)
 
+	input, err := buildVariables(execOpts.Input)
+	if err != nil {
+		return nil, err
+	}
+
 	// Render() should populate all data from the prompt. Prompt fields should
 	// *not* be referenced in this function as it may have been loaded from
 	// the registry and is missing the options passed in at definition.
-	actionOpts, err := p.Render(ctx, execOpts.Input)
+	actionOpts, err := p.Render(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +169,14 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 	}
 	if execOpts.ReturnToolRequests != nil {
 		actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
+	}
+
+	if p.MessagesFn != nil {
+		msg, err := renderMessages(ctx, p.promptOptions, actionOpts.Messages, input, execOpts.Input, p.registry.Dotprompt())
+		if err != nil {
+			return nil, err
+		}
+		actionOpts.Messages = append(actionOpts.Messages, msg...)
 	}
 
 	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
