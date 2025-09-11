@@ -50,6 +50,9 @@ export interface GenkitPluginV2 {
     name: string
   ) => ResolvableAction | undefined | Promise<ResolvableAction | undefined>;
   list?: () => ActionMetadata[] | Promise<ActionMetadata[]>;
+
+  // A shortcut for resolving a model.
+  model(name: string): Promise<ModelAction>;
 }
 
 export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
