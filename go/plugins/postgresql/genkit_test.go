@@ -46,6 +46,7 @@ var testRegion = flag.String("test-postgres-region", "", "postgres region for te
 var testInstance = flag.String("test-postgres-instance", "", "postgres instance for tests")
 var testIAMEmail = flag.String("test-postgres-iam-email", "", "postgres instance for tests")
 
+
 func TestPostgres(t *testing.T) {
 	if !areValidFlags() {
 		t.Skip("no valid postgres flags")
@@ -64,9 +65,7 @@ func TestPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	postgres := &Postgres{
-		engine: pEngine,
-	}
+	postgres := NewPostgres(pEngine)
 
 	g := genkit.Init(ctx, genkit.WithPlugins(postgres))
 
