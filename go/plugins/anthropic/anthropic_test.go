@@ -490,13 +490,18 @@ func TestConfigSchema(t *testing.T) {
 		t.Fatal("Schema properties should be a map")
 	}
 
-	// Check for Anthropic-specific configuration fields that should be present
-	// Note: Common config parameters (maxTokens, temperature, topK, topP, stopSequences)
-	// and core Genkit concepts (model, messages, system, tools) are handled by Genkit's framework
+	// Check for configuration fields that should be present
+	// This includes both common generation parameters and Anthropic-specific options
 	expectedFields := []string{
-		"metadata",
-		"thinking",
+		"maxOutputTokens",
+		"temperature",
+		"topK",
+		"topP",
+		"stopSequences",
+		"userId",
 		"serviceTier",
+		"thinkingEnabled",
+		"thinkingBudgetTokens",
 	}
 
 	for _, field := range expectedFields {
@@ -556,11 +561,17 @@ func TestUIConfigTitles(t *testing.T) {
 		t.Fatal("Schema properties should be a map")
 	}
 
-	// Test that Anthropic-specific fields have proper titles
+	// Test that configuration fields have proper titles
 	expectedTitles := map[string]string{
-		"serviceTier": "Service tier",
-		"thinking":    "Thinking config",
-		"metadata":    "Metadata",
+		"maxOutputTokens":      "Max Output Tokens",
+		"temperature":          "Temperature",
+		"topK":                 "Top K",
+		"topP":                 "Top P",
+		"stopSequences":        "Stop Sequences",
+		"userId":               "User ID",
+		"serviceTier":          "Service Tier",
+		"thinkingEnabled":      "Enable Thinking",
+		"thinkingBudgetTokens": "Thinking Budget Tokens",
 	}
 
 	for field, expectedTitle := range expectedTitles {

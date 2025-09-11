@@ -40,13 +40,21 @@ func configToMap(config any) map[string]any {
 	return result
 }
 
-// AnthropicUIConfig represents Anthropic-specific configuration options with user-friendly names for the UI
-// This excludes core Genkit concepts (model, messages, system, tools) and common config parameters
-// (maxTokens, temperature, topK, topP, stopSequences) which are handled by Genkit's core framework
+// AnthropicUIConfig represents configuration options for Anthropic models in the UI
+// This includes both common generation parameters and Anthropic-specific options
 type AnthropicUIConfig struct {
-	Metadata    map[string]interface{} `json:"metadata" jsonschema:"title=Metadata,description=Custom metadata for the request"`
-	Thinking    interface{}            `json:"thinking" jsonschema:"title=Thinking config,description=Configuration for reasoning mode"`
-	ServiceTier string                 `json:"serviceTier" jsonschema:"title=Service tier,description=Service tier for the request"`
+	// Common generation parameters
+	MaxOutputTokens int      `json:"maxOutputTokens" jsonschema:"title=Max Output Tokens,description=Maximum number of tokens to generate,minimum=1,default=4096"`
+	Temperature     float64  `json:"temperature" jsonschema:"title=Temperature,description=Controls randomness in generation (0.0-1.0),minimum=0,maximum=1,default=1.0"`
+	TopK            int      `json:"topK" jsonschema:"title=Top K,description=Sample from top K options for each token,minimum=1,default=40"`
+	TopP            float64  `json:"topP" jsonschema:"title=Top P,description=Nucleus sampling threshold (0.0-1.0),minimum=0,maximum=1,default=0.9"`
+	StopSequences   []string `json:"stopSequences" jsonschema:"title=Stop Sequences,description=Custom sequences that stop generation"`
+
+	// Anthropic-specific parameters
+	UserID               string `json:"userId" jsonschema:"title=User ID,description=External identifier for the user (UUID or hash - no PII)"`
+	ServiceTier          string `json:"serviceTier" jsonschema:"title=Service Tier,description=Service tier for the request,enum=auto,enum=standard_only,default=auto"`
+	ThinkingEnabled      bool   `json:"thinkingEnabled" jsonschema:"title=Enable Thinking,description=Enable Claude's extended thinking process"`
+	ThinkingBudgetTokens int64  `json:"thinkingBudgetTokens" jsonschema:"title=Thinking Budget Tokens,description=Token budget for thinking (minimum 1024),minimum=1024,default=2048"`
 }
 
 // newModel creates a model without registering it
@@ -271,23 +279,93 @@ func mapToStruct(m map[string]any, v any) error {
 	return json.Unmarshal(jsonData, v)
 }
 
-// applyPassThroughConfig applies additional configuration parameters that aren't part of GenerationCommonConfig
-// This allows users to pass Anthropic-specific parameters directly to the underlying SDK
+// applyPassThroughConfig applies configuration parameters from the UI config
+// This handles both common generation parameters and Anthropic-specific parameters
 func applyPassThroughConfig(req *anthropic.MessageNewParams, config map[string]any) error {
-	// This function provides a foundation for pass-through parameter support
-	// Currently, most Anthropic API parameters are covered by GenerationCommonConfig
-	// Additional parameters can be added here as needed
+	// Handle common generation parameters
+	if maxTokens, exists := config["maxOutputTokens"]; exists {
+		if tokens, ok := maxTokens.(float64); ok && tokens > 0 {
+			req.MaxTokens = int64(tokens)
+		} else if tokens, ok := maxTokens.(int); ok && tokens > 0 {
+			req.MaxTokens = int64(tokens)
+		}
+	}
 
-	// Example of how to handle pass-through parameters:
-	// if someParam, exists := config["anthropic_specific_param"]; exists {
-	//     if value, ok := someParam.(expectedType); ok {
-	//         req.SomeField = value
-	//     }
-	// }
+	if temperature, exists := config["temperature"]; exists {
+		if temp, ok := temperature.(float64); ok {
+			req.Temperature = anthropic.Float(temp)
+		}
+	}
 
-	// For now, we log that pass-through config was attempted but not applied
-	// This can be extended as new Anthropic-specific parameters become available
-	_ = config // Suppress unused variable warning
+	if topK, exists := config["topK"]; exists {
+		if k, ok := topK.(float64); ok && k > 0 {
+			req.TopK = anthropic.Int(int64(k))
+		} else if k, ok := topK.(int); ok && k > 0 {
+			req.TopK = anthropic.Int(int64(k))
+		}
+	}
+
+	if topP, exists := config["topP"]; exists {
+		if p, ok := topP.(float64); ok {
+			req.TopP = anthropic.Float(p)
+		}
+	}
+
+	if stopSeqs, exists := config["stopSequences"]; exists {
+		if sequences, ok := stopSeqs.([]interface{}); ok {
+			var stopSequences []string
+			for _, seq := range sequences {
+				if seqStr, ok := seq.(string); ok {
+					stopSequences = append(stopSequences, seqStr)
+				}
+			}
+			if len(stopSequences) > 0 {
+				req.StopSequences = stopSequences
+			}
+		}
+	}
+
+	// Handle User ID for metadata
+	if userID, exists := config["userId"]; exists {
+		if userIDStr, ok := userID.(string); ok && userIDStr != "" {
+			req.Metadata = anthropic.MetadataParam{
+				UserID: anthropic.String(userIDStr),
+			}
+		}
+	}
+
+	// Handle Service Tier
+	if serviceTier, exists := config["serviceTier"]; exists {
+		if serviceTierStr, ok := serviceTier.(string); ok && serviceTierStr != "" {
+			switch serviceTierStr {
+			case "auto":
+				req.ServiceTier = anthropic.MessageNewParamsServiceTierAuto
+			case "standard_only":
+				req.ServiceTier = anthropic.MessageNewParamsServiceTierStandardOnly
+			}
+		}
+	}
+
+	// Handle Extended Thinking configuration
+	if thinkingEnabled, exists := config["thinkingEnabled"]; exists {
+		if enabled, ok := thinkingEnabled.(bool); ok && enabled {
+			// Default budget tokens if not specified
+			budgetTokens := int64(2048)
+
+			// Check if custom budget is specified
+			if budgetTokensVal, budgetExists := config["thinkingBudgetTokens"]; budgetExists {
+				if budget, ok := budgetTokensVal.(float64); ok && budget >= 1024 {
+					budgetTokens = int64(budget)
+				} else if budget, ok := budgetTokensVal.(int64); ok && budget >= 1024 {
+					budgetTokens = budget
+				} else if budget, ok := budgetTokensVal.(int); ok && budget >= 1024 {
+					budgetTokens = int64(budget)
+				}
+			}
+
+			req.Thinking = anthropic.ThinkingConfigParamOfEnabled(budgetTokens)
+		}
+	}
 
 	return nil
 }
