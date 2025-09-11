@@ -176,7 +176,7 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		if err != nil {
 			return nil, err
 		}
-		actionOpts.Messages = append(actionOpts.Messages, msg...)
+		actionOpts.Messages = msg
 	}
 
 	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
