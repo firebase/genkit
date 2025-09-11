@@ -2,7 +2,7 @@ import { openAI } from '@genkit-ai/compat-oai/openai';
 
 (async () => {
   const oai = openAI({ apiKey: '...' });
-  const gpt4o = await oai.model('model', 'gpt-4o');
+  const gpt4o = await oai.model('gpt-4o');
   const response = await gpt4o({
     messages: [
       {
