@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 
+	"cloud.google.com/go/auth/credentials"
+	"cloud.google.com/go/auth/httptransport"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
@@ -154,16 +156,33 @@ func (v *VertexAI) Init(ctx context.Context) []api.Action {
 			panic("Vertex AI requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
 		}
 	}
-
-	// Project and Region values gets validated by genai SDK upon client
-	// creation
-	gc := genai.ClientConfig{
-		Backend:  genai.BackendVertexAI,
-		Project:  v.ProjectID,
-		Location: v.Location,
-		HTTPClient: &http.Client{
-			Transport: otelhttp.NewTransport(http.DefaultTransport),
+	cred, err := credentials.DetectDefault(&credentials.DetectOptions{
+		Scopes: []string{"https://www.googleapis.com/auth/cloud-platform"},
+	})
+	if err != nil {
+		panic(fmt.Errorf("failed to find default credentials: %w", err))
+	}
+	quotaProjectID, err := cred.QuotaProjectID(ctx)
+	if err != nil {
+		panic(fmt.Errorf("failed to get quota project ID: %v", quotaProjectID))
+	}
+	httpClient, err := httptransport.NewClient(&httptransport.Options{
+		Credentials:      cred,
+		BaseRoundTripper: otelhttp.NewTransport(http.DefaultTransport),
+		Headers: http.Header{
+			"X-Goog-User-Project": []string{quotaProjectID},
 		},
+	})
+	if err != nil {
+		panic(fmt.Errorf("failed to create http client: %w", err))
+	}
+
+	// Project and Region values gets validated by genai SDK upon client creation
+	gc := genai.ClientConfig{
+		Backend:    genai.BackendVertexAI,
+		Project:    v.ProjectID,
+		Location:   v.Location,
+		HTTPClient: httpClient,
 		HTTPOptions: genai.HTTPOptions{
 			Headers: genkitClientHeader,
 		},
