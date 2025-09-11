@@ -261,18 +261,20 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 	}
 
 	var i In
-	if err := json.Unmarshal(input, &i); err != nil {
-		return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
-	}
+	if len(input) > 0 {
+		if err := json.Unmarshal(input, &i); err != nil {
+			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
+		}
 
-	// Adhere to the input schema if the number type is ambiguous and the input type is an any.
-	converted, err := base.ConvertJSONNumbers(i, a.desc.InputSchema)
-	if err != nil {
-		return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
-	}
+		// Adhere to the input schema if the number type is ambiguous and the input type is an any.
+		converted, err := base.ConvertJSONNumbers(i, a.desc.InputSchema)
+		if err != nil {
+			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
+		}
 
-	if result, ok := converted.(In); ok {
-		i = result
+		if result, ok := converted.(In); ok {
+			i = result
+		}
 	}
 
 	var scb StreamCallback[Stream]
