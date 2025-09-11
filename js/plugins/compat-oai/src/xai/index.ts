@@ -22,7 +22,7 @@ import {
   z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
-import { GenkitPluginV2, ResolvableAction } from 'genkit/plugin';
+import { type GenkitPluginV2Instance, ResolvableAction } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import OpenAI from 'openai';
 import {
@@ -88,7 +88,7 @@ const listActions = async (client: OpenAI): Promise<ActionMetadata[]> => {
   );
 };
 
-export function xAIPlugin(options?: XAIPluginOptions): GenkitPluginV2 {
+export function xAIPlugin(options?: XAIPluginOptions): GenkitPluginV2Instance {
   const apiKey = options?.apiKey ?? process.env.XAI_API_KEY;
   if (!apiKey) {
     throw new GenkitError({
@@ -131,7 +131,7 @@ export function xAIPlugin(options?: XAIPluginOptions): GenkitPluginV2 {
 }
 
 export type XAIPlugin = {
-  (params?: XAIPluginOptions): GenkitPluginV2;
+  (params?: XAIPluginOptions): GenkitPluginV2Instance;
   model(
     name: keyof typeof SUPPORTED_LANGUAGE_MODELS,
     config?: z.infer<typeof XaiChatCompletionConfigSchema>

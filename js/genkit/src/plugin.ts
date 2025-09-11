@@ -90,7 +90,7 @@ export function genkitPlugin<T extends PluginInit>(
   });
 }
 
-export class PluginWrapper implements Required<GenkitPluginV2> {
+export class GenkitPluginV2Instance implements Required<GenkitPluginV2> {
   readonly version = 'v2';
   readonly name: string;
 
@@ -139,8 +139,8 @@ export class PluginWrapper implements Required<GenkitPluginV2> {
 
 export function genkitPluginV2(
   options: Omit<GenkitPluginV2, 'version'>
-): PluginWrapper {
-  return new PluginWrapper(options);
+): GenkitPluginV2Instance {
+  return new GenkitPluginV2Instance(options);
 }
 
 export function isPluginV2(plugin: unknown): plugin is GenkitPluginV2 {
