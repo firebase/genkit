@@ -17,7 +17,7 @@
 import * as assert from 'assert';
 import { GenerateRequest, z } from 'genkit';
 import { describe, it } from 'node:test';
-import { HarmBlockThreshold, HarmCategory } from '../../src/common/types';
+import { HarmBlockThreshold, HarmCategory } from '../../src/common/types.js';
 import {
   fromImagenResponse,
   fromLyriaResponse,
@@ -30,16 +30,16 @@ import {
   toVeoModel,
   toVeoOperationRequest,
   toVeoPredictRequest,
-} from '../../src/vertexai/converters';
-import { SafetySettingsSchema } from '../../src/vertexai/gemini';
-import { ImagenConfigSchema } from '../../src/vertexai/imagen';
-import { LyriaConfigSchema } from '../../src/vertexai/lyria';
+} from '../../src/vertexai/converters.js';
+import { SafetySettingsSchema } from '../../src/vertexai/gemini.js';
+import { ImagenConfigSchema } from '../../src/vertexai/imagen.js';
+import { LyriaConfigSchema } from '../../src/vertexai/lyria.js';
 import {
   ImagenPredictResponse,
   LyriaPredictResponse,
   VeoOperation,
-} from '../../src/vertexai/types';
-import { VeoConfigSchema } from '../../src/vertexai/veo';
+} from '../../src/vertexai/types.js';
+import { VeoConfigSchema } from '../../src/vertexai/veo.js';
 
 describe('Vertex AI Converters', () => {
   describe('toGeminiSafetySettings', () => {

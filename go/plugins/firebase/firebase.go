@@ -26,7 +26,7 @@ import (
 
 	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -49,7 +49,7 @@ func (f *Firebase) Name() string {
 }
 
 // Init initializes the Firebase plugin.
-func (f *Firebase) Init(ctx context.Context) []core.Action {
+func (f *Firebase) Init(ctx context.Context) []api.Action {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -76,7 +76,7 @@ func (f *Firebase) Init(ctx context.Context) []core.Action {
 	}
 
 	f.initted = true
-	return []core.Action{}
+	return []api.Action{}
 }
 
 // DefineRetriever defines a Retriever with the given configuration.

@@ -21,18 +21,18 @@ import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
-import { getVertexAIUrl } from '../../src/vertexai/client';
+import { getVertexAIUrl } from '../../src/vertexai/client.js';
 import {
   fromImagenResponse,
   toImagenPredictRequest,
-} from '../../src/vertexai/converters';
+} from '../../src/vertexai/converters.js';
 import {
   ImagenConfig,
   ImagenConfigSchema,
   TEST_ONLY,
   defineModel,
   model,
-} from '../../src/vertexai/imagen';
+} from '../../src/vertexai/imagen.js';
 import {
   ClientOptions,
   ImagenPredictRequest,

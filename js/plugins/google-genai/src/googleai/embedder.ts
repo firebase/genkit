@@ -24,19 +24,19 @@ import {
   z,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
-import { embedContent } from './client';
+import { embedContent } from './client.js';
 import {
   EmbedContentRequest,
   GoogleAIPluginOptions,
   Model,
   TaskTypeSchema,
-} from './types';
+} from './types.js';
 import {
   calculateApiKey,
   checkApiKey,
   checkModelName,
   extractVersion,
-} from './utils';
+} from './utils.js';
 
 export const EmbeddingConfigSchema = z
   .object({

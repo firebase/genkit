@@ -27,7 +27,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/invopop/jsonschema"
@@ -54,7 +54,7 @@ func (a *Anthropic) Name() string {
 	return provider
 }
 
-func (a *Anthropic) Init(ctx context.Context) []core.Action {
+func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	if a == nil {
 		a = &Anthropic{}
 	}
@@ -91,19 +91,19 @@ func (a *Anthropic) Init(ctx context.Context) []core.Action {
 	a.initted = true
 	a.client = c
 
-	var actions []core.Action
+	var actions []api.Action
 	for name, mi := range anthropicModels {
 		model := defineAnthropicModel(a.client, name, mi)
-		actions = append(actions, model.(core.Action))
+		actions = append(actions, model.(api.Action))
 	}
 
 	return actions
 }
 
-// AnthropicModel returns the [ai.Model] with the given name.
+// AnthropicModel returns the [ai.Model] with the given id.
 // It returns nil if the model was not defined
-func AnthropicModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, core.NewName(provider, name))
+func AnthropicModel(g *genkit.Genkit, id string) ai.Model {
+	return genkit.LookupModel(g, api.NewName(provider, id))
 }
 
 // DefineModel adds the model to the registry
@@ -127,7 +127,7 @@ func defineAnthropicModel(client anthropic.Client, name string, opts ai.ModelOpt
 		ConfigSchema: opts.ConfigSchema,
 		Stage:        opts.Stage,
 	}
-	return ai.NewModel(core.NewName(provider, name), meta, func(
+	return ai.NewModel(api.NewName(provider, name), meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

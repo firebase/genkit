@@ -23,15 +23,15 @@ import {
   type Genkit,
 } from 'genkit';
 import { BackgroundModelAction, ModelInfo } from 'genkit/model';
-import { veoCheckOperation, veoPredict } from './client';
+import { veoCheckOperation, veoPredict } from './client.js';
 import {
   fromVeoOperation,
   toVeoModel,
   toVeoOperationRequest,
   toVeoPredictRequest,
-} from './converters';
-import { ClientOptions, Model, VertexPluginOptions } from './types';
-import { checkModelName, extractVersion } from './utils';
+} from './converters.js';
+import { ClientOptions, Model, VertexPluginOptions } from './types.js';
+import { checkModelName, extractVersion } from './utils.js';
 
 export const VeoConfigSchema = z
   .object({

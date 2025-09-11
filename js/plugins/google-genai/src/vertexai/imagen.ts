@@ -22,10 +22,10 @@ import {
   ModelReference,
   modelRef,
 } from 'genkit/model';
-import { imagenPredict } from './client';
-import { fromImagenResponse, toImagenPredictRequest } from './converters';
+import { imagenPredict } from './client.js';
+import { fromImagenResponse, toImagenPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
-import { checkModelName, extractVersion, modelName } from './utils';
+import { checkModelName, extractVersion, modelName } from './utils.js';
 
 /**
  * See https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api.

@@ -21,13 +21,13 @@ import { GoogleAuth } from 'google-auth-library';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-import { FinishReason } from '../../src/common/types';
+import { FinishReason } from '../../src/common/types.js';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
   GeminiConfigSchema,
   defineModel,
   model,
-} from '../../src/vertexai/gemini';
+} from '../../src/vertexai/gemini.js';
 import {
   ClientOptions,
   GenerateContentRequest,
@@ -37,7 +37,7 @@ import {
   isFunctionDeclarationsTool,
   isGoogleSearchRetrievalTool,
   isRetrievalTool,
-} from '../../src/vertexai/types';
+} from '../../src/vertexai/types.js';
 
 describe('Vertex AI Gemini', () => {
   let mockGenkit: sinon.SinonStubbedInstance<Genkit>;

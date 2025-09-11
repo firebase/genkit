@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/openai/openai-go/option"
@@ -93,7 +93,7 @@ func (a *Anthropic) Name() string {
 	return provider
 }
 
-func (a *Anthropic) Init(ctx context.Context) []core.Action {
+func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	// Set the base URL
 	a.Opts = append(a.Opts, option.WithBaseURL(baseURL))
 
@@ -101,19 +101,19 @@ func (a *Anthropic) Init(ctx context.Context) []core.Action {
 	a.openAICompatible.Opts = a.Opts
 	compatActions := a.openAICompatible.Init(ctx)
 
-	var actions []core.Action
+	var actions []api.Action
 	actions = append(actions, compatActions...)
 
 	// define default models
 	for model, opts := range supportedModels {
-		actions = append(actions, a.DefineModel(model, opts).(core.Action))
+		actions = append(actions, a.DefineModel(model, opts).(api.Action))
 	}
 
 	return actions
 }
 
 func (a *Anthropic) Model(g *genkit.Genkit, id string) ai.Model {
-	return a.openAICompatible.Model(g, core.NewName(provider, id))
+	return a.openAICompatible.Model(g, api.NewName(provider, id))
 }
 
 func (a *Anthropic) DefineModel(id string, opts ai.ModelOptions) ai.Model {

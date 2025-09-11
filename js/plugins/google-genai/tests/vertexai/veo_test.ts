@@ -21,25 +21,25 @@ import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
-import { getVertexAIUrl } from '../../src/vertexai/client';
+import { getVertexAIUrl } from '../../src/vertexai/client.js';
 import {
   fromVeoOperation,
   toVeoOperationRequest,
   toVeoPredictRequest,
-} from '../../src/vertexai/converters';
+} from '../../src/vertexai/converters.js';
 import {
   ClientOptions,
   RegionalClientOptions,
   VeoOperation,
   VeoOperationRequest,
   VeoPredictRequest,
-} from '../../src/vertexai/types';
+} from '../../src/vertexai/types.js';
 import {
   TEST_ONLY,
   VeoConfigSchema,
   defineModel,
   model,
-} from '../../src/vertexai/veo';
+} from '../../src/vertexai/veo.js';
 
 const { GENERIC_MODEL, KNOWN_MODELS } = TEST_ONLY;
 

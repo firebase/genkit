@@ -94,8 +94,8 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 		},
 	}
 	s = r.Reflect(x)
-	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
 	s.Version = ""
+	s.ID = ""
 	return s
 }
 
