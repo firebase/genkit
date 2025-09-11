@@ -259,15 +259,25 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
 		return nil, NewError(INVALID_ARGUMENT, err.Error())
 	}
-	var in In
-	if input != nil {
-		if err := json.Unmarshal(input, &in); err != nil {
-			return nil, err
-		}
+
+	var i In
+	if err := json.Unmarshal(input, &i); err != nil {
+		return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
 	}
-	var callback func(context.Context, Stream) error
+
+	// Adhere to the input schema if the number type is ambiguous and the input type is an any.
+	converted, err := base.ConvertJSONNumbers(i, a.desc.InputSchema)
+	if err != nil {
+		return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
+	}
+
+	if result, ok := converted.(In); ok {
+		i = result
+	}
+
+	var scb StreamCallback[Stream]
 	if cb != nil {
-		callback = func(ctx context.Context, s Stream) error {
+		scb = func(ctx context.Context, s Stream) error {
 			bytes, err := json.Marshal(s)
 			if err != nil {
 				return err
@@ -275,14 +285,17 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 			return cb(ctx, json.RawMessage(bytes))
 		}
 	}
-	out, err := a.Run(ctx, in, callback)
+
+	out, err := a.Run(ctx, i, scb)
 	if err != nil {
 		return nil, err
 	}
+
 	bytes, err := json.Marshal(out)
 	if err != nil {
 		return nil, err
 	}
+
 	return json.RawMessage(bytes), nil
 }
 
