@@ -123,15 +123,7 @@ func DefineGenerateAction(ctx context.Context, r api.Registry) *generateAction {
 					"err", err)
 			}()
 
-			spanMetadata := &tracing.SpanMetadata{
-				Name:    "generate",
-				Type:    "util",
-				Subtype: "util",
-			}
-			return tracing.RunInNewSpan(ctx, spanMetadata, actionOpts,
-				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
-					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
-				})
+			return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
 		}))
 }
 
@@ -508,7 +500,15 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	}
 	actionOpts.Messages = processedMessages
 
-	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
+	spanMetadata := &tracing.SpanMetadata{
+		Name:    "generate",
+		Type:    "util",
+		Subtype: "util",
+	}
+	return tracing.RunInNewSpan(ctx, spanMetadata, actionOpts,
+		func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
+			return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
+		})
 }
 
 // GenerateText run generate request for this model. Returns generated text only.

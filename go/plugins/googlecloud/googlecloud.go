@@ -45,8 +45,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
-const provider = "googlecloud"
-
 // EnableGoogleCloudTelemetry enables comprehensive telemetry export to Google Cloud Observability suite.
 // This directly initializes telemetry without requiring plugin registration.
 //
@@ -74,7 +72,10 @@ func EnableGoogleCloudTelemetry(options *GoogleCloudTelemetryOptions) {
 func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 	projectID := opts.ProjectID
 	if projectID == "" {
+		// Check environment variables in priority order: GOOGLE_CLOUD_PROJECT, then GCLOUD_PROJECT
 		if envProjectID := os.Getenv("GOOGLE_CLOUD_PROJECT"); envProjectID != "" {
+			projectID = envProjectID
+		} else if envProjectID := os.Getenv("GCLOUD_PROJECT"); envProjectID != "" {
 			projectID = envProjectID
 		}
 	}

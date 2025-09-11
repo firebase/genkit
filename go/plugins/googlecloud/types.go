@@ -39,8 +39,9 @@ type SharedDimensions struct {
 // Matches the JavaScript Google Cloud plugin options for full compatibility.
 //
 // Environment Variables:
-// - GENKIT_ENV: Set to "dev" to disable export unless ForceExport is true
+// - GENKIT_ENV: Set to "dev" to disable export unless ForceDevExport is true
 // - GOOGLE_CLOUD_PROJECT: Auto-detected project ID if ProjectID is not set
+// - GCLOUD_PROJECT: Auto-detected project ID if ProjectID is not set
 type GoogleCloudTelemetryOptions struct {
 	// ProjectID is the Google Cloud project ID.
 	// If empty, will be auto-detected from environment.

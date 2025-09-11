@@ -21,21 +21,58 @@ import (
 	"os"
 
 	"github.com/firebase/genkit/go/plugins/googlecloud"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"golang.org/x/oauth2/google"
 )
 
-// FirebaseTelemetryOptions provides configuration for Firebase telemetry.
+// FirebaseTelemetryOptions provides comprehensive configuration for Firebase telemetry.
+// This matches the Google Cloud plugin options for full compatibility, with Firebase-specific
+// project ID resolution that checks FIREBASE_PROJECT_ID first.
+//
+// Environment Variables:
+// - GENKIT_ENV: Set to "dev" to disable export unless ForceDevExport is true
+// - FIREBASE_PROJECT_ID: Project ID for telemetry if not provided inline
+// - GOOGLE_CLOUD_PROJECT: Project ID for telemetry if not provided inline
+// - GCLOUD_PROJECT: Project ID for telemetry if not provided inline
 type FirebaseTelemetryOptions struct {
 	// ProjectID is the Firebase/Google Cloud project ID.
-	// If empty, will be read from FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT environment variables.
+	// If empty, will be auto-detected from environment variables in priority order:
+	// 1. FIREBASE_PROJECT_ID, 2. GOOGLE_CLOUD_PROJECT, 3. GCLOUD_PROJECT
 	ProjectID string
 
-	// ForceDevExport forces telemetry export even in development environment.
-	// Defaults to false (only exports in production unless forced).
-	ForceDevExport bool
+	// Credentials for authenticating with Google Cloud.
+	// If nil, uses Application Default Credentials (ADC).
+	// Primarily intended for use in environments outside of GCP.
+	// On GCP, credentials will typically be inferred from the environment via ADC.
+	Credentials *google.Credentials
+
+	// Sampler controls trace sampling. If nil, uses AlwaysOnSampler.
+	// Examples: AlwaysOnSampler, AlwaysOffSampler, TraceIdRatioBasedSampler
+	Sampler sdktrace.Sampler
+
+	// MetricExportIntervalMillis controls metrics export frequency.
+	// Google Cloud requires minimum 5000ms. Defaults to 5000 (dev) or 300000 (prod).
+	MetricExportIntervalMillis *int
+
+	// MetricExportTimeoutMillis controls metrics export timeout.
+	// Defaults to match MetricExportIntervalMillis.
+	MetricExportTimeoutMillis *int
+
+	// DisableMetrics disables metric export to Google Cloud.
+	// Traces and logs may still be exported. Defaults to false.
+	DisableMetrics bool
+
+	// DisableTraces disables trace export to Google Cloud.
+	// Metrics and logs may still be exported. Defaults to false.
+	DisableTraces bool
 
 	// DisableLoggingInputAndOutput disables input/output logging.
 	// Defaults to false (input/output logging enabled).
 	DisableLoggingInputAndOutput bool
+
+	// ForceDevExport forces telemetry export even in development environment.
+	// Defaults to false (only exports in production unless forced).
+	ForceDevExport bool
 }
 
 // EnableFirebaseTelemetry enables comprehensive telemetry export to Genkit Monitoring,
@@ -43,14 +80,18 @@ type FirebaseTelemetryOptions struct {
 //
 // Example usage:
 //
+//	// Basic usage - uses environment variables for project ID
 //	firebase.EnableFirebaseTelemetry(nil)
 //	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 //
-//	// With configuration
+//	// With full configuration
 //	firebase.EnableFirebaseTelemetry(&firebase.FirebaseTelemetryOptions{
-//		ProjectID:            "my-firebase-project",
-//		ForceExport:          true,
-//		ExportInputAndOutput: true,
+//		ProjectID:                  "my-firebase-project",
+//		ForceDevExport:             true,
+//		DisableLoggingInputAndOutput: false,
+//		DisableMetrics:             false,
+//		DisableTraces:              false,
+//		MetricExportIntervalMillis: &[]int{10000}[0], // 10 seconds
 //	})
 //	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 func EnableFirebaseTelemetry(options *FirebaseTelemetryOptions) {
@@ -70,19 +111,25 @@ func initializeTelemetry(options *FirebaseTelemetryOptions) {
 
 	projectID := resolveFirebaseProjectID(options.ProjectID)
 	if projectID == "" {
-		slog.Warn("Firebase project ID not found. Set FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT environment variable, or pass ProjectID in options.")
+		slog.Warn("Firebase project ID not found. Set FIREBASE_PROJECT_ID, GOOGLE_CLOUD_PROJECT, or GCLOUD_PROJECT environment variable, or pass ProjectID in options.")
 	}
 
 	gcOptions := &googlecloud.GoogleCloudTelemetryOptions{
 		ProjectID:                    projectID,
-		ForceDevExport:               options.ForceDevExport,
+		Credentials:                  options.Credentials,
+		Sampler:                      options.Sampler,
+		MetricExportIntervalMillis:   options.MetricExportIntervalMillis,
+		MetricExportTimeoutMillis:    options.MetricExportTimeoutMillis,
+		DisableMetrics:               options.DisableMetrics,
+		DisableTraces:                options.DisableTraces,
 		DisableLoggingInputAndOutput: options.DisableLoggingInputAndOutput,
+		ForceDevExport:               options.ForceDevExport,
 	}
 	googlecloud.EnableGoogleCloudTelemetry(gcOptions)
 }
 
 // resolveFirebaseProjectID resolves the Firebase project ID from various sources.
-// Priority: 1) Provided projectID, 2) FIREBASE_PROJECT_ID, 3) GOOGLE_CLOUD_PROJECT
+// Priority: 1) Provided projectID, 2) FIREBASE_PROJECT_ID, 3) GOOGLE_CLOUD_PROJECT, 4) GCLOUD_PROJECT
 func resolveFirebaseProjectID(projectID string) string {
 	if projectID != "" {
 		return projectID
@@ -92,5 +139,9 @@ func resolveFirebaseProjectID(projectID string) string {
 		return envID
 	}
 
-	return os.Getenv("GOOGLE_CLOUD_PROJECT")
+	if envID := os.Getenv("GOOGLE_CLOUD_PROJECT"); envID != "" {
+		return envID
+	}
+
+	return os.Getenv("GCLOUD_PROJECT")
 }
