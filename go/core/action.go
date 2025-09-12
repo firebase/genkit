@@ -215,9 +215,14 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 		spanMetadata.Metadata["flow:name"] = flowName
 	}
 
-	return tracing.RunInNewSpan(ctx, spanMetadata, input,
-		func(ctx context.Context, input In) (actionRunResult[Out], error) {
+	var traceID string
+	var spanID string
+	o, err := tracing.RunInNewSpan(ctx, spanMetadata, input,
+		func(ctx context.Context, input In) (Out, error) {
 			traceInfo := tracing.SpanTraceInfo(ctx)
+			traceID = traceInfo.TraceID
+			spanID = traceInfo.SpanID
+
 			start := time.Now()
 			var err error
 			if err = base.ValidateValue(input, a.desc.InputSchema); err != nil {
@@ -236,19 +241,17 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 			if err != nil {
 				metrics.WriteActionFailure(ctx, a.desc.Name, latency, err)
 				// Even when returning an error, we want to return the trace info
-				return actionRunResult[Out]{
-					traceId: traceInfo.TraceID,
-					spanId:  traceInfo.SpanID,
-				}, err
+				return base.Zero[Out](), err
 			}
 			metrics.WriteActionSuccess(ctx, a.desc.Name, latency)
+			return output, nil
 
-			return actionRunResult[Out]{
-				result:  output,
-				traceId: traceInfo.TraceID,
-				spanId:  traceInfo.SpanID,
-			}, nil
 		})
+	return actionRunResult[Out]{
+		result:  o,
+		traceId: traceID,
+		spanId:  spanID,
+	}, err
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result.
