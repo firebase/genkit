@@ -25,8 +25,8 @@ import { FinishReason } from '../../src/common/types.js';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
   GeminiConfigSchema,
-  defineModel,
   createModelRef,
+  defineModel,
 } from '../../src/vertexai/gemini.js';
 import {
   ClientOptions,
@@ -152,7 +152,8 @@ describe('Vertex AI Gemini', () => {
   describe('gemini() function', () => {
     it('returns a ModelReference for a known model string', () => {
       const name = 'gemini-2.0-flash';
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = createModelRef(name);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> =
+        createModelRef(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -160,7 +161,8 @@ describe('Vertex AI Gemini', () => {
 
     it('returns a ModelReference for an unknown model string', () => {
       const name = 'gemini-new-model';
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = createModelRef(name);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> =
+        createModelRef(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -168,10 +170,8 @@ describe('Vertex AI Gemini', () => {
 
     it('applies options to the ModelReference', () => {
       const options = { temperature: 0.9, topK: 20 };
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = createModelRef(
-        'gemini-2.0-flash',
-        options
-      );
+      const modelRef: ModelReference<typeof GeminiConfigSchema> =
+        createModelRef('gemini-2.0-flash', options);
       assert.deepStrictEqual(modelRef.config, options);
     });
   });

@@ -30,8 +30,8 @@ import {
   ImagenConfig,
   ImagenConfigSchema,
   TEST_ONLY,
-  defineModel,
   createModelRef,
+  defineModel,
 } from '../../src/vertexai/imagen.js';
 import {
   ClientOptions,

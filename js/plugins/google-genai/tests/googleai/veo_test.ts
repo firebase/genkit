@@ -26,8 +26,8 @@ import {
   TEST_ONLY,
   VeoConfig,
   VeoConfigSchema,
-  defineModel,
   createModelRef,
+  defineModel,
 } from '../../src/googleai/veo.js';
 
 const { toVeoParameters, fromVeoOperation, GENERIC_MODEL, KNOWN_MODELS } =

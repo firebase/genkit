@@ -37,8 +37,8 @@ import {
 import {
   TEST_ONLY,
   VeoConfigSchema,
-  defineModel,
   createModelRef,
+  defineModel,
 } from '../../src/vertexai/veo.js';
 
 const { GENERIC_MODEL, KNOWN_MODELS } = TEST_ONLY;

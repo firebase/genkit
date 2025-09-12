@@ -325,10 +325,7 @@ describe('GoogleAI Plugin', () => {
         VeoConfigSchema,
         'Should have VeoConfigSchema'
       );
-      assert.ok(
-        supports?.longRunning,
-        'Veo should support longRunning'
-      );
+      assert.ok(supports?.longRunning, 'Veo should support longRunning');
     });
 
     it('should have config values for veo model', () => {

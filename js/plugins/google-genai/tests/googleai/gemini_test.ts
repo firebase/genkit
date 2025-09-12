@@ -23,8 +23,8 @@ import * as sinon from 'sinon';
 import {
   GeminiConfigSchema,
   GeminiTtsConfigSchema,
-  defineModel,
   createModelRef,
+  defineModel,
 } from '../../src/googleai/gemini.js';
 import {
   FinishReason,

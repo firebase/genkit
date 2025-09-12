@@ -29,8 +29,8 @@ import {
 import {
   LyriaConfigSchema,
   TEST_ONLY,
-  defineModel,
   createModelRef,
+  defineModel,
 } from '../../src/vertexai/lyria.js';
 import {
   LyriaPredictResponse,

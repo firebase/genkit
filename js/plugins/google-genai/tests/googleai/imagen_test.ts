@@ -25,8 +25,8 @@ import {
   ImagenConfig,
   ImagenConfigSchema,
   TEST_ONLY,
-  defineModel,
   createModelRef,
+  defineModel,
 } from '../../src/googleai/imagen.js';
 import {
   ImagenPredictRequest,
