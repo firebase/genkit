@@ -324,12 +324,14 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 		resp, err := runAction(ctx, g, body.Key, body.Input, body.TelemetryLabels, cb, contextMap)
 		if err != nil {
 			if stream {
-				reflectErr, err := json.Marshal(core.ToReflectionError(err))
+				refErr := core.ToReflectionError(err)
+				refErr.Details.TraceID = &resp.Telemetry.TraceID
+				reflectErr, err := json.Marshal(refErr)
 				if err != nil {
 					return err
 				}
 
-				_, err = fmt.Fprintf(w, "%s\n\n", reflectErr)
+				_, err = fmt.Fprintf(w, "{\"error\": %s }", reflectErr)
 				if err != nil {
 					return err
 				}
@@ -339,7 +341,12 @@ func handleRunAction(g *Genkit) func(w http.ResponseWriter, r *http.Request) err
 				}
 				return nil
 			}
-			return err
+			errorResponse := core.ToReflectionError(err)
+			if resp != nil {
+				errorResponse.Details.TraceID = &resp.Telemetry.TraceID
+			}
+			w.WriteHeader(errorResponse.Code)
+			return writeJSON(ctx, w, errorResponse)
 		}
 
 		return writeJSON(ctx, w, resp)
@@ -473,7 +480,9 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 		return result.Result, err
 	}()
 	if err != nil {
-		return nil, err
+		return &runActionResponse{
+			Telemetry: telemetry{TraceID: traceID},
+		}, err
 	}
 
 	return &runActionResponse{

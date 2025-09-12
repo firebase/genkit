@@ -297,7 +297,10 @@ func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, i
 
 	result, err := a.runWithTelemetry(ctx, i, scb)
 	if err != nil {
-		return nil, err
+		return &api.ActionRunJSONResult{
+			TraceId: result.traceId,
+			SpanId:  result.spanId,
+		}, err
 	}
 
 	bytes, err := json.Marshal(result.result)
