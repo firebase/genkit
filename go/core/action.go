@@ -240,7 +240,6 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 			latency := time.Since(start)
 			if err != nil {
 				metrics.WriteActionFailure(ctx, a.desc.Name, latency, err)
-				// Even when returning an error, we want to return the trace info
 				return base.Zero[Out](), err
 			}
 			metrics.WriteActionSuccess(ctx, a.desc.Name, latency)
