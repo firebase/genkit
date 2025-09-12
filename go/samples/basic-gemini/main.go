@@ -33,7 +33,7 @@ func main() {
 	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Define a simple flow that generates jokes about a given topic
-	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
+	genkit.DefineStreamingFlow(g, "jokesFlow", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.5-flash"),
 			ai.WithConfig(&genai.GenerateContentConfig{
@@ -42,6 +42,7 @@ func main() {
 					ThinkingBudget: genai.Ptr[int32](0),
 				},
 			}),
+			ai.WithStreaming(cb),
 			ai.WithPrompt(`Tell short jokes about %s`, input))
 		if err != nil {
 			return "", err
