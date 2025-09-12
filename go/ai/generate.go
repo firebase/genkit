@@ -340,7 +340,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				}
 			}
 
-			if len(resp.ToolRequests()) > 0 || opts.ReturnToolRequests {
+			if len(resp.ToolRequests()) == 0 || opts.ReturnToolRequests {
 				return resp, nil
 			}
 
