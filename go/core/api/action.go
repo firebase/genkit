@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 )
 
-type ActionRunJSONResult struct {
-	Result  json.RawMessage
+type ActionRunResult[T any] struct {
+	Result  T
 	TraceId string
 	SpanId  string
 }
@@ -35,7 +35,7 @@ type Action interface {
 	// RunJSON runs the action with the given JSON input and streaming callback and returns the output as JSON.
 	RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
 	// RunJSONWithTelemetry runs the action with the given JSON input and streaming callback and returns the output as JSON along with telemetry info.
-	RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (*ActionRunJSONResult, error)
+	RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (*ActionRunResult[json.RawMessage], error)
 	// Desc returns a descriptor of the action.
 	Desc() ActionDesc
 }

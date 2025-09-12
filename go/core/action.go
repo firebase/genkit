@@ -178,17 +178,11 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 	if err != nil {
 		return base.Zero[Out](), err
 	}
-	return r.result, nil
-}
-
-type actionRunResult[Out any] struct {
-	result  Out
-	traceId string
-	spanId  string
+	return r.Result, nil
 }
 
 // Run executes the Action's function in a new trace span.
-func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output actionRunResult[Out], err error) {
+func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output api.ActionRunResult[Out], err error) {
 	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.Name,
 		"input", fmt.Sprintf("%#v", input))
@@ -246,10 +240,10 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 			return output, nil
 
 		})
-	return actionRunResult[Out]{
-		result:  o,
-		traceId: traceID,
-		spanId:  spanID,
+	return api.ActionRunResult[Out]{
+		Result:  o,
+		TraceId: traceID,
+		SpanId:  spanID,
 	}, err
 }
 
@@ -263,7 +257,7 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result along with telemetry info.
-func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunJSONResult, error) {
+func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
 		return nil, NewError(INVALID_ARGUMENT, err.Error())
@@ -299,21 +293,21 @@ func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, i
 
 	r, err := a.runWithTelemetry(ctx, i, scb)
 	if err != nil {
-		return &api.ActionRunJSONResult{
-			TraceId: r.traceId,
-			SpanId:  r.spanId,
+		return &api.ActionRunResult[json.RawMessage]{
+			TraceId: r.TraceId,
+			SpanId:  r.SpanId,
 		}, err
 	}
 
-	bytes, err := json.Marshal(r.result)
+	bytes, err := json.Marshal(r.Result)
 	if err != nil {
 		return nil, err
 	}
 
-	return &api.ActionRunJSONResult{
+	return &api.ActionRunResult[json.RawMessage]{
 		Result:  json.RawMessage(bytes),
-		TraceId: r.traceId,
-		SpanId:  r.spanId,
+		TraceId: r.TraceId,
+		SpanId:  r.SpanId,
 	}, nil
 }
 
