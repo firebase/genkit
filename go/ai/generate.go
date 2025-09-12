@@ -1098,44 +1098,42 @@ func addAutomaticTelemetry() ModelMiddleware {
 				resp.LatencyMs = latencyMs
 			}
 
-			// Calculate character and media counts automatically if Usage is available
-			if resp.Usage != nil {
-				if resp.Usage.InputCharacters == 0 {
-					resp.Usage.InputCharacters = calculateInputCharacters(req)
-				}
-				if resp.Usage.OutputCharacters == 0 {
-					resp.Usage.OutputCharacters = calculateOutputCharacters(resp)
-				}
-				if resp.Usage.InputImages == 0 {
-					resp.Usage.InputImages = calculateInputImages(req)
-				}
-				if resp.Usage.OutputImages == 0 {
-					resp.Usage.OutputImages = calculateOutputImages(resp)
-				}
-				if resp.Usage.InputVideos == 0 {
-					resp.Usage.InputVideos = float64(calculateInputVideos(req))
-				}
-				if resp.Usage.OutputVideos == 0 {
-					resp.Usage.OutputVideos = float64(calculateOutputVideos(resp))
-				}
-				if resp.Usage.InputAudioFiles == 0 {
-					resp.Usage.InputAudioFiles = float64(calculateInputAudio(req))
-				}
-				if resp.Usage.OutputAudioFiles == 0 {
-					resp.Usage.OutputAudioFiles = float64(calculateOutputAudio(resp))
-				}
-			} else {
-				// Create GenerationUsage if it doesn't exist
-				resp.Usage = &GenerationUsage{
-					InputCharacters:  calculateInputCharacters(req),
-					OutputCharacters: calculateOutputCharacters(resp),
-					InputImages:      calculateInputImages(req),
-					OutputImages:     calculateOutputImages(resp),
-					InputVideos:      float64(calculateInputVideos(req)),
-					OutputVideos:     float64(calculateOutputVideos(resp)),
-					InputAudioFiles:  float64(calculateInputAudio(req)),
-					OutputAudioFiles: float64(calculateOutputAudio(resp)),
-				}
+			if resp.Usage == nil {
+				resp.Usage = &GenerationUsage{}
+			}
+			if resp.Usage.InputCharacters == 0 {
+				resp.Usage.InputCharacters = countInputCharacters(req, func(part *Part) int {
+					if part.Text != "" {
+						return len(part.Text)
+					}
+					return 0
+				})
+			}
+			if resp.Usage.OutputCharacters == 0 {
+				resp.Usage.OutputCharacters = countOutputCharacters(resp, func(part *Part) int {
+					if part.Text != "" {
+						return len(part.Text)
+					}
+					return 0
+				})
+			}
+			if resp.Usage.InputImages == 0 {
+				resp.Usage.InputImages = countInputParts(req, func(part *Part) bool { return part.IsImage() })
+			}
+			if resp.Usage.OutputImages == 0 {
+				resp.Usage.OutputImages = countOutputParts(resp, func(part *Part) bool { return part.IsImage() })
+			}
+			if resp.Usage.InputVideos == 0 {
+				resp.Usage.InputVideos = countInputParts(req, func(part *Part) bool { return part.IsVideo() })
+			}
+			if resp.Usage.OutputVideos == 0 {
+				resp.Usage.OutputVideos = countOutputParts(resp, func(part *Part) bool { return part.IsVideo() })
+			}
+			if resp.Usage.InputAudioFiles == 0 {
+				resp.Usage.InputAudioFiles = countInputParts(req, func(part *Part) bool { return part.IsAudio() })
+			}
+			if resp.Usage.OutputAudioFiles == 0 {
+				resp.Usage.OutputAudioFiles = countOutputParts(resp, func(part *Part) bool { return part.IsAudio() })
 			}
 
 			return resp, nil
@@ -1143,144 +1141,74 @@ func addAutomaticTelemetry() ModelMiddleware {
 	}
 }
 
-// calculateInputCharacters counts the total characters in the input request.
-func calculateInputCharacters(req *ModelRequest) int {
+// countInputParts counts parts in the input request that match the given predicate.
+func countInputParts(req *ModelRequest, predicate func(*Part) bool) int {
 	if req == nil {
 		return 0
 	}
 
-	totalChars := 0
+	count := 0
 	for _, msg := range req.Messages {
 		if msg == nil {
 			continue
 		}
 		for _, part := range msg.Content {
-			if part != nil && part.Text != "" {
-				totalChars += len(part.Text)
+			if part != nil && predicate(part) {
+				count++
 			}
 		}
 	}
-	return totalChars
+	return count
 }
 
-// calculateOutputCharacters counts the total characters in the output response.
-func calculateOutputCharacters(resp *ModelResponse) int {
-	if resp == nil || resp.Message == nil {
-		return 0
-	}
-
-	totalChars := 0
-	for _, part := range resp.Message.Content {
-		if part != nil && part.Text != "" {
-			totalChars += len(part.Text)
-		}
-	}
-	return totalChars
-}
-
-// calculateInputImages counts the total number of images in the input request.
-func calculateInputImages(req *ModelRequest) int {
+// countInputCharacters counts the total characters in the input request using a character accumulator.
+func countInputCharacters(req *ModelRequest, accumulator func(*Part) int) int {
 	if req == nil {
 		return 0
 	}
 
-	imageCount := 0
+	total := 0
 	for _, msg := range req.Messages {
 		if msg == nil {
 			continue
 		}
 		for _, part := range msg.Content {
-			if part != nil && part.IsImage() {
-				imageCount++
+			if part != nil {
+				total += accumulator(part)
 			}
 		}
 	}
-	return imageCount
+	return total
 }
 
-// calculateOutputImages counts the total number of images in the output response.
-func calculateOutputImages(resp *ModelResponse) int {
+// countOutputParts counts parts in the output response that match the given predicate.
+func countOutputParts(resp *ModelResponse, predicate func(*Part) bool) int {
 	if resp == nil || resp.Message == nil {
 		return 0
 	}
 
-	imageCount := 0
+	count := 0
 	for _, part := range resp.Message.Content {
-		if part != nil && part.IsImage() {
-			imageCount++
+		if part != nil && predicate(part) {
+			count++
 		}
 	}
-	return imageCount
+	return count
 }
 
-// calculateInputVideos counts the total number of videos in the input request.
-func calculateInputVideos(req *ModelRequest) int {
-	if req == nil {
-		return 0
-	}
-
-	videoCount := 0
-	for _, msg := range req.Messages {
-		if msg == nil {
-			continue
-		}
-		for _, part := range msg.Content {
-			if part != nil && part.IsVideo() {
-				videoCount++
-			}
-		}
-	}
-	return videoCount
-}
-
-// calculateOutputVideos counts the total number of videos in the output response.
-func calculateOutputVideos(resp *ModelResponse) int {
+// countOutputCharacters counts the total characters in the output response using a character accumulator.
+func countOutputCharacters(resp *ModelResponse, accumulator func(*Part) int) int {
 	if resp == nil || resp.Message == nil {
 		return 0
 	}
 
-	videoCount := 0
+	total := 0
 	for _, part := range resp.Message.Content {
-		if part != nil && part.IsVideo() {
-			videoCount++
+		if part != nil {
+			total += accumulator(part)
 		}
 	}
-	return videoCount
-}
-
-// calculateInputAudio counts the total number of audio files in the input request.
-func calculateInputAudio(req *ModelRequest) int {
-	if req == nil {
-		return 0
-	}
-
-	audioCount := 0
-	for _, msg := range req.Messages {
-		if msg == nil {
-			continue
-		}
-		for _, part := range msg.Content {
-			if part != nil && part.IsAudio() {
-				audioCount++
-			}
-		}
-	}
-	return audioCount
-}
-
-// calculateOutputAudio counts the total number of audio files in the output response.
-func calculateOutputAudio(resp *ModelResponse) int {
-	if resp == nil || resp.Message == nil {
-		return 0
-	}
-
-	audioCount := 0
-	for _, part := range resp.Message.Content {
-		if part != nil && part.IsAudio() {
-			audioCount++
-		}
-	}
-	return audioCount
+	return total
 }
 
 // processResources processes messages to replace resource parts with actual content.
