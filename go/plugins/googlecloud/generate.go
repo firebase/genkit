@@ -89,11 +89,6 @@ func NewGenerateTelemetry() *GenerateTelemetry {
 func (g *GenerateTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, projectID string) {
 	attributes := span.Attributes()
 
-	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
-	if subtype != "model" {
-		return
-	}
-
 	modelName := truncate(extractStringAttribute(attributes, "genkit:name"), 1024)
 	path := extractStringAttribute(attributes, "genkit:path")
 	inputStr := extractStringAttribute(attributes, "genkit:input")

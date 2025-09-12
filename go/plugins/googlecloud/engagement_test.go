@@ -122,7 +122,7 @@ func TestEngagementTelemetry_PipelineIntegration(t *testing.T) {
 	_, span := f.tracer.Start(ctx, "test-span")
 
 	span.SetAttributes(
-		attribute.String("genkit:type", "action"), // Required for telemetry processing
+		attribute.String("genkit:type", "userEngagement"), // Required for telemetry processing
 		attribute.String("genkit:metadata:subtype", "userFeedback"),
 		attribute.String("genkit:path", "/{testFlow,t:flow}/{myAction,t:action}"),
 		attribute.String("genkit:metadata:feedbackValue", "positive"),
@@ -175,7 +175,7 @@ func TestEngagementTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "user feedback captures metrics correctly",
 			attrs: map[string]string{
-				"genkit:type":                   "action",
+				"genkit:type":                   "userEngagement",
 				"genkit:metadata:subtype":       "userFeedback",
 				"genkit:path":                   "/{chatFlow,t:flow}/{generateResponse,t:action}",
 				"genkit:metadata:feedbackValue": "positive",
@@ -190,7 +190,7 @@ func TestEngagementTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "user feedback without text",
 			attrs: map[string]string{
-				"genkit:type":                   "action",
+				"genkit:type":                   "userEngagement",
 				"genkit:metadata:subtype":       "userFeedback",
 				"genkit:path":                   "/{testFlow,t:flow}/{myAction,t:action}",
 				"genkit:metadata:feedbackValue": "negative",
@@ -204,7 +204,7 @@ func TestEngagementTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "user acceptance captures metrics correctly",
 			attrs: map[string]string{
-				"genkit:type":                     "action",
+				"genkit:type":                     "userEngagement",
 				"genkit:metadata:subtype":         "userAcceptance",
 				"genkit:path":                     "/{codeAssistant,t:flow}/{suggestCode,t:action}",
 				"genkit:metadata:acceptanceValue": "accepted",
@@ -217,7 +217,7 @@ func TestEngagementTelemetry_MetricCapture(t *testing.T) {
 		{
 			name: "unknown subtype captures no metrics",
 			attrs: map[string]string{
-				"genkit:type":             "action",
+				"genkit:type":             "userEngagement",
 				"genkit:metadata:subtype": "unknownType",
 				"genkit:path":             "/{testFlow,t:flow}/{myAction,t:action}",
 			},
@@ -366,7 +366,7 @@ func TestEngagementTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "user feedback with text",
 			attrs: map[string]string{
-				"genkit:type":                   "action",
+				"genkit:type":                   "userEngagement",
 				"genkit:metadata:subtype":       "userFeedback",
 				"genkit:path":                   "/{chatFlow,t:flow}/{generateResponse,t:action}",
 				"genkit:metadata:feedbackValue": "positive",
@@ -379,7 +379,7 @@ func TestEngagementTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "user feedback without text",
 			attrs: map[string]string{
-				"genkit:type":                   "action",
+				"genkit:type":                   "userEngagement",
 				"genkit:metadata:subtype":       "userFeedback",
 				"genkit:path":                   "/{testFlow,t:flow}/{myAction,t:action}",
 				"genkit:metadata:feedbackValue": "negative",
@@ -391,7 +391,7 @@ func TestEngagementTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "user acceptance",
 			attrs: map[string]string{
-				"genkit:type":                     "action",
+				"genkit:type":                     "userEngagement",
 				"genkit:metadata:subtype":         "userAcceptance",
 				"genkit:path":                     "/{codeAssistant,t:flow}/{suggestCode,t:action}",
 				"genkit:metadata:acceptanceValue": "accepted",
@@ -403,7 +403,7 @@ func TestEngagementTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "unknown subtype",
 			attrs: map[string]string{
-				"genkit:type":             "action",
+				"genkit:type":             "userEngagement",
 				"genkit:metadata:subtype": "unknownType",
 				"genkit:path":             "/{testFlow,t:flow}/{myAction,t:action}",
 			},
@@ -413,7 +413,7 @@ func TestEngagementTelemetry_ComprehensiveScenarios(t *testing.T) {
 		{
 			name: "no subtype",
 			attrs: map[string]string{
-				"genkit:type": "action",
+				"genkit:type": "userEngagement",
 				"genkit:path": "/{testFlow,t:flow}/{myAction,t:action}",
 			},
 			expectLog:    false,

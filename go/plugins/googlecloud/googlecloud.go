@@ -45,8 +45,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
-const provider = "googlecloud"
-
 // EnableGoogleCloudTelemetry enables comprehensive telemetry export to Google Cloud Observability suite.
 // This directly initializes telemetry without requiring plugin registration.
 //
@@ -72,10 +70,27 @@ func EnableGoogleCloudTelemetry(options *GoogleCloudTelemetryOptions) {
 
 // initializeTelemetry is the internal function that sets up Google Cloud telemetry directly.
 func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
+	// Auto-discover credentials and project ID from environment
+	authConfig, authErr := CredentialsFromEnvironment()
+	if authErr != nil {
+		slog.Debug("Could not auto-discover credentials from environment", "error", authErr)
+	}
+
+	// Use provided credentials or fall back to auto-discovered ones
+	credentials := opts.Credentials
+	if credentials == nil && authErr == nil {
+		credentials = authConfig.Credentials
+	}
+
+	// Use provided project ID or fall back to auto-discovered one
 	projectID := opts.ProjectID
 	if projectID == "" {
 		if envProjectID := os.Getenv("GOOGLE_CLOUD_PROJECT"); envProjectID != "" {
 			projectID = envProjectID
+		} else if envProjectID := os.Getenv("GCLOUD_PROJECT"); envProjectID != "" {
+			projectID = envProjectID
+		} else if authErr == nil && credentials != nil && credentials.ProjectID != "" {
+			projectID = credentials.ProjectID
 		}
 	}
 
@@ -104,8 +119,8 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 		var traceOpts []texporter.Option
 		traceOpts = append(traceOpts, texporter.WithProjectID(projectID))
 
-		if opts.Credentials != nil {
-			traceOpts = append(traceOpts, texporter.WithTraceClientOptions([]option.ClientOption{option.WithCredentials(opts.Credentials)}))
+		if credentials != nil {
+			traceOpts = append(traceOpts, texporter.WithTraceClientOptions([]option.ClientOption{option.WithCredentials(credentials)}))
 		}
 
 		baseExporter, err := texporter.New(traceOpts...)
@@ -128,18 +143,22 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 			logInputAndOutput: !opts.DisableLoggingInputAndOutput, // Default true, disable if flag set
 			projectId:         projectID,
 		}
+
+		// Note: Ideally we should use SimpleSpanProcessor in dev mode for immediate export
+		// However I noticed there's a strange interaction effect with Dev UI that causes listActions
+		// to hang forever. So we use BatchSpanProcessor in all cases for now.
 		batchProcessor := sdktrace.NewBatchSpanProcessor(adjustingExporter)
 		spanProcessors = append(spanProcessors, batchProcessor)
 
 		if !opts.DisableMetrics {
 			slog.Debug("Setting up metrics provider...")
-			if err := setMeterProvider(projectID, metricInterval, opts.Credentials, finalResource); err != nil {
+			if err := setMeterProvider(projectID, metricInterval, credentials, finalResource); err != nil {
 				slog.Error("Failed to set up Google Cloud metrics", "error", err)
 			}
 			slog.Debug("Metrics provider setup complete")
 		}
 		slog.Debug("Setting up log handler...")
-		if err := setLogHandler(projectID, logLevel, opts.Credentials); err != nil {
+		if err := setLogHandler(projectID, logLevel, credentials); err != nil {
 			slog.Error("Failed to set up Google Cloud logging", "error", err)
 		}
 		slog.Debug("Log handler setup complete")
@@ -229,6 +248,18 @@ type AdjustingTraceExporter struct {
 func (e *AdjustingTraceExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	adjustedSpans := e.adjust(spans)
 	err := e.exporter.ExportSpans(ctx, adjustedSpans)
+	if err != nil {
+		slog.Error("Failed to export spans to Google Cloud Trace",
+			"error", err,
+			"span_count", len(adjustedSpans),
+			"project_id", e.projectId,
+			"error_type", fmt.Sprintf("%T", err))
+	} else {
+		slog.Debug("Successfully exported spans to Google Cloud Trace",
+			"span_count", len(adjustedSpans),
+			"project_id", e.projectId)
+	}
+
 	return err
 }
 
@@ -298,10 +329,40 @@ func (e *AdjustingTraceExporter) tickTelemetry(span sdktrace.ReadOnlySpan) {
 		return
 	}
 
-	for _, module := range e.modules {
-		if module != nil {
-			module.Tick(span, e.logInputAndOutput, e.projectId)
+	attributes := span.Attributes()
+	spanType := extractStringAttribute(attributes, "genkit:type")
+	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
+	isRoot := extractBoolAttribute(attributes, "genkit:isRoot")
+
+	pathTelemetry := NewPathTelemetry()
+	generateTelemetry := NewGenerateTelemetry()
+	featureTelemetry := NewFeatureTelemetry()
+	actionTelemetry := NewActionTelemetry()
+	engagementTelemetry := NewEngagementTelemetry()
+
+	// Always process path telemetry
+	pathTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
+
+	if isRoot {
+		// Report top level feature request and latency only for root spans
+		featureTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
+	} else {
+		if spanType == "action" && subtype == "model" {
+			// Report generate metrics for all model actions
+			generateTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
 		}
+		if spanType == "action" && subtype == "tool" {
+			// TODO: Report input and output for tool actions
+		}
+		if spanType == "action" || spanType == "flow" || spanType == "flowStep" || spanType == "util" {
+			// Report request and latency metrics for all actions (including tools)
+			actionTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
+		}
+	}
+
+	if spanType == "userEngagement" {
+		// Report user acceptance and feedback metrics
+		engagementTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
 	}
 }
 

@@ -49,29 +49,31 @@ func (a *ActionTelemetry) Tick(span sdktrace.ReadOnlySpan, logInputOutput bool, 
 
 	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
 
-	if subtype == "tool" || actionName == "generate" {
-		path := extractStringAttribute(attributes, "genkit:path")
-		if path == "" {
-			path = "<unknown>"
-		}
+	if subtype != "tool" && actionName != "generate" {
+		return
+	}
 
-		input := truncate(extractStringAttribute(attributes, "genkit:input"))
-		output := truncate(extractStringAttribute(attributes, "genkit:output"))
-		sessionID := extractStringAttribute(attributes, "genkit:sessionId")
-		threadName := extractStringAttribute(attributes, "genkit:threadName")
+	path := extractStringAttribute(attributes, "genkit:path")
+	if path == "" {
+		path = "<unknown>"
+	}
 
-		featureName := extractOuterFeatureNameFromPath(path)
-		if featureName == "" || featureName == "<unknown>" {
-			featureName = actionName
-		}
+	input := truncate(extractStringAttribute(attributes, "genkit:input"))
+	output := truncate(extractStringAttribute(attributes, "genkit:output"))
+	sessionID := extractStringAttribute(attributes, "genkit:sessionId")
+	threadName := extractStringAttribute(attributes, "genkit:threadName")
 
-		if input != "" {
-			a.writeLog(span, "Input", featureName, path, input, projectID, sessionID, threadName)
-		}
+	featureName := extractOuterFeatureNameFromPath(path)
+	if featureName == "" || featureName == "<unknown>" {
+		featureName = actionName
+	}
 
-		if output != "" {
-			a.writeLog(span, "Output", featureName, path, output, projectID, sessionID, threadName)
-		}
+	if input != "" {
+		a.writeLog(span, "Input", featureName, path, input, projectID, sessionID, threadName)
+	}
+
+	if output != "" {
+		a.writeLog(span, "Output", featureName, path, output, projectID, sessionID, threadName)
 	}
 }
 
