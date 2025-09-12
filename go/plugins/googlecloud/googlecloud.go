@@ -70,13 +70,27 @@ func EnableGoogleCloudTelemetry(options *GoogleCloudTelemetryOptions) {
 
 // initializeTelemetry is the internal function that sets up Google Cloud telemetry directly.
 func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
+	// Auto-discover credentials and project ID from environment
+	authConfig, authErr := CredentialsFromEnvironment()
+	if authErr != nil {
+		slog.Debug("Could not auto-discover credentials from environment", "error", authErr)
+	}
+
+	// Use provided credentials or fall back to auto-discovered ones
+	credentials := opts.Credentials
+	if credentials == nil && authErr == nil {
+		credentials = authConfig.Credentials
+	}
+
+	// Use provided project ID or fall back to auto-discovered one
 	projectID := opts.ProjectID
 	if projectID == "" {
-		// Check environment variables in priority order: GOOGLE_CLOUD_PROJECT, then GCLOUD_PROJECT
 		if envProjectID := os.Getenv("GOOGLE_CLOUD_PROJECT"); envProjectID != "" {
 			projectID = envProjectID
 		} else if envProjectID := os.Getenv("GCLOUD_PROJECT"); envProjectID != "" {
 			projectID = envProjectID
+		} else if authErr == nil && credentials != nil && credentials.ProjectID != "" {
+			projectID = credentials.ProjectID
 		}
 	}
 
@@ -105,8 +119,8 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 		var traceOpts []texporter.Option
 		traceOpts = append(traceOpts, texporter.WithProjectID(projectID))
 
-		if opts.Credentials != nil {
-			traceOpts = append(traceOpts, texporter.WithTraceClientOptions([]option.ClientOption{option.WithCredentials(opts.Credentials)}))
+		if credentials != nil {
+			traceOpts = append(traceOpts, texporter.WithTraceClientOptions([]option.ClientOption{option.WithCredentials(credentials)}))
 		}
 
 		baseExporter, err := texporter.New(traceOpts...)
@@ -129,18 +143,22 @@ func initializeTelemetry(opts *GoogleCloudTelemetryOptions) {
 			logInputAndOutput: !opts.DisableLoggingInputAndOutput, // Default true, disable if flag set
 			projectId:         projectID,
 		}
+
+		// Note: Ideally we should use SimpleSpanProcessor in dev mode for immediate export
+		// However I noticed there's a strange interaction effect with Dev UI that causes listActions
+		// to hang forever. So we use BatchSpanProcessor in all cases for now.
 		batchProcessor := sdktrace.NewBatchSpanProcessor(adjustingExporter)
 		spanProcessors = append(spanProcessors, batchProcessor)
 
 		if !opts.DisableMetrics {
 			slog.Debug("Setting up metrics provider...")
-			if err := setMeterProvider(projectID, metricInterval, opts.Credentials, finalResource); err != nil {
+			if err := setMeterProvider(projectID, metricInterval, credentials, finalResource); err != nil {
 				slog.Error("Failed to set up Google Cloud metrics", "error", err)
 			}
 			slog.Debug("Metrics provider setup complete")
 		}
 		slog.Debug("Setting up log handler...")
-		if err := setLogHandler(projectID, logLevel, opts.Credentials); err != nil {
+		if err := setLogHandler(projectID, logLevel, credentials); err != nil {
 			slog.Error("Failed to set up Google Cloud logging", "error", err)
 		}
 		slog.Debug("Log handler setup complete")
@@ -230,6 +248,18 @@ type AdjustingTraceExporter struct {
 func (e *AdjustingTraceExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	adjustedSpans := e.adjust(spans)
 	err := e.exporter.ExportSpans(ctx, adjustedSpans)
+	if err != nil {
+		slog.Error("Failed to export spans to Google Cloud Trace",
+			"error", err,
+			"span_count", len(adjustedSpans),
+			"project_id", e.projectId,
+			"error_type", fmt.Sprintf("%T", err))
+	} else {
+		slog.Debug("Successfully exported spans to Google Cloud Trace",
+			"span_count", len(adjustedSpans),
+			"project_id", e.projectId)
+	}
+
 	return err
 }
 
