@@ -316,52 +316,63 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 
 	fn := core.ChainMiddleware(mw...)(m.Generate)
 
-	currentTurn := 0
-	for {
-		resp, err := fn(ctx, req, cb)
-		if err != nil {
-			return nil, err
+	// Inline recursive helper function that captures variables from parent scope.
+	var generate func(context.Context, *ModelRequest, int) (*ModelResponse, error)
+
+	generate = func(ctx context.Context, req *ModelRequest, currentTurn int) (*ModelResponse, error) {
+		spanMetadata := &tracing.SpanMetadata{
+			Name:    "generate",
+			Type:    "util",
+			Subtype: "util",
 		}
 
-		if formatHandler != nil {
-			resp.Message, err = formatHandler.ParseMessage(resp.Message)
+		return tracing.RunInNewSpan(ctx, spanMetadata, req, func(ctx context.Context, req *ModelRequest) (*ModelResponse, error) {
+			resp, err := fn(ctx, req, cb)
 			if err != nil {
-				logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
-				return nil, core.NewError(core.INTERNAL, "model failed to generate output matching expected schema: %v", err)
+				return nil, err
 			}
-		}
 
-		toolCount := 0
-		for _, part := range resp.Message.Content {
-			if part.IsToolRequest() {
-				toolCount++
+			if formatHandler != nil {
+				resp.Message, err = formatHandler.ParseMessage(resp.Message)
+				if err != nil {
+					logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
+					return nil, core.NewError(core.INTERNAL, "model failed to generate output matching expected schema: %v", err)
+				}
 			}
-		}
-		if toolCount == 0 || opts.ReturnToolRequests {
-			return resp, nil
-		}
 
-		if currentTurn+1 > maxTurns {
-			return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
-		}
+			toolCount := 0
+			for _, part := range resp.Message.Content {
+				if part.IsToolRequest() {
+					toolCount++
+				}
+			}
+			if toolCount == 0 || opts.ReturnToolRequests {
+				return resp, nil
+			}
 
-		newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
-		if err != nil {
-			return nil, err
-		}
-		if interruptMsg != nil {
-			resp.FinishReason = "interrupted"
-			resp.FinishMessage = "One or more tool calls resulted in interrupts."
-			resp.Message = interruptMsg
-			return resp, nil
-		}
-		if newReq == nil {
-			return resp, nil
-		}
+			if currentTurn+1 > maxTurns {
+				return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
+			}
 
-		req = newReq
-		currentTurn++
+			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
+			if err != nil {
+				return nil, err
+			}
+			if interruptMsg != nil {
+				resp.FinishReason = "interrupted"
+				resp.FinishMessage = "One or more tool calls resulted in interrupts."
+				resp.Message = interruptMsg
+				return resp, nil
+			}
+			if newReq == nil {
+				return resp, nil
+			}
+
+			return generate(ctx, newReq, currentTurn+1)
+		})
 	}
+
+	return generate(ctx, req, 0)
 }
 
 // Generate generates a model response based on the provided options.
