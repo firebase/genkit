@@ -27,7 +27,7 @@ import {
   VeoConfig,
   VeoConfigSchema,
   defineModel,
-  model,
+  createModelRef,
 } from '../../src/googleai/veo.js';
 
 const { toVeoParameters, fromVeoOperation, GENERIC_MODEL, KNOWN_MODELS } =
@@ -43,15 +43,17 @@ describe('Google AI Veo', () => {
   describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
       const modelName = 'veo-2.0-generate-001';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
+      const supports: any = { ...ref.info?.supports };
+
       assert.strictEqual(ref.name, `googleai/${modelName}`);
-      assert.ok(ref.info?.supports?.media);
-      assert.ok(ref.info?.supports?.longRunning);
+      assert.ok(supports?.media);
+      assert.ok(supports?.longRunning);
     });
 
     it('should return a ModelReference for an unknown model using generic info', () => {
       const modelName = 'veo-unknown-model';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.deepStrictEqual(ref.info, GENERIC_MODEL.info);
     });
@@ -59,7 +61,7 @@ describe('Google AI Veo', () => {
     it('should apply config to a known model', () => {
       const modelName = 'veo-2.0-generate-001';
       const config: VeoConfig = { aspectRatio: '16:9' };
-      const ref = model(modelName, config);
+      const ref = createModelRef(modelName, config);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
@@ -67,14 +69,14 @@ describe('Google AI Veo', () => {
     it('should apply config to an unknown model', () => {
       const modelName = 'veo-unknown-model';
       const config: VeoConfig = { durationSeconds: 6 };
-      const ref = model(modelName, config);
+      const ref = createModelRef(modelName, config);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
 
     it('should handle model name with prefix', () => {
       const modelName = 'models/veo-2.0-generate-001';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
       assert.strictEqual(ref.name, 'googleai/veo-2.0-generate-001');
     });
   });
@@ -219,7 +221,7 @@ describe('Google AI Veo', () => {
       const baseUrl = defineOptions.baseUrl;
       const apiKey = defineOptions.apiKey;
 
-      defineModel(mockAi as any, name, { apiKey, apiVersion, baseUrl });
+      defineModel(name, { apiKey, apiVersion, baseUrl });
       assert.ok(
         mockAi.defineBackgroundModel.calledOnce,
         'defineBackgroundModel should be called'

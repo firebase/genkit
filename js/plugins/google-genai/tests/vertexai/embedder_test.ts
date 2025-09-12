@@ -106,7 +106,7 @@ describe('defineEmbedder', () => {
   function runTestsForClientOptions(clientOptions: ClientOptions) {
     describe(`with ${clientOptions.kind} client options`, () => {
       it('defines an embedder with the correct name and info for known model', () => {
-        defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+        defineEmbedder('text-embedding-005', clientOptions);
         sinon.assert.calledOnce(mockGenkit.defineEmbedder);
         const args = mockGenkit.defineEmbedder.lastCall.args[0];
         assert.strictEqual(args.name, 'vertexai/text-embedding-005');
@@ -114,7 +114,7 @@ describe('defineEmbedder', () => {
       });
 
       it('defines an embedder with a custom name', () => {
-        defineEmbedder(mockGenkit, 'custom-model', clientOptions);
+        defineEmbedder('custom-model', clientOptions);
         sinon.assert.calledOnce(mockGenkit.defineEmbedder);
         const args = mockGenkit.defineEmbedder.lastCall.args[0];
         assert.strictEqual(args.name, 'vertexai/custom-model');
@@ -129,7 +129,7 @@ describe('defineEmbedder', () => {
         });
 
         it('calls embedContent with text-only documents', async () => {
-          defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+          defineEmbedder('text-embedding-005', clientOptions);
 
           const mockResponse: EmbedContentResponse = {
             predictions: [
@@ -180,7 +180,7 @@ describe('defineEmbedder', () => {
         });
 
         it('calls embedContent with taskType and title options', async () => {
-          defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+          defineEmbedder('text-embedding-005', clientOptions);
           mockFetchResponse({ predictions: [] });
 
           const config: EmbeddingConfig = {
@@ -197,7 +197,7 @@ describe('defineEmbedder', () => {
         });
 
         it('handles multimodal embeddings for images (base64)', async () => {
-          defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
+          defineEmbedder('multimodalembedding@001', clientOptions);
           const docWithImage: Document = new Document({
             content: [
               { text: 'A picture' },
@@ -222,7 +222,7 @@ describe('defineEmbedder', () => {
         });
 
         it('handles multimodal embeddings for images (gcs)', async () => {
-          defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
+          defineEmbedder('multimodalembedding@001', clientOptions);
           const docWithImage: Document = new Document({
             content: [
               {
@@ -244,7 +244,7 @@ describe('defineEmbedder', () => {
         });
 
         it('passes outputDimensionality to the API call', async () => {
-          defineEmbedder(mockGenkit, 'text-embedding-005', clientOptions);
+          defineEmbedder('text-embedding-005', clientOptions);
           mockFetchResponse({ predictions: [] });
 
           const config: EmbeddingConfig = { outputDimensionality: 256 };
@@ -268,7 +268,7 @@ describe('defineEmbedder', () => {
   describe('with regional client options only', () => {
     const clientOptions = regionalClientOptions;
     it('handles multimodal embeddings for video', async () => {
-      defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
+      defineEmbedder('multimodalembedding@001', clientOptions);
       const docWithVideo: Document = new Document({
         content: [
           { text: 'A video' },
@@ -336,7 +336,7 @@ describe('defineEmbedder', () => {
     });
 
     it('throws on unsupported media type', async () => {
-      defineEmbedder(mockGenkit, 'multimodalembedding@001', clientOptions);
+      defineEmbedder('multimodalembedding@001', clientOptions);
       const docWithInvalidMedia: Document = new Document({
         content: [{ media: { url: 'a', contentType: 'application/pdf' } }],
       });

@@ -26,7 +26,7 @@ import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
   GeminiConfigSchema,
   defineModel,
-  model,
+  createModelRef,
 } from '../../src/vertexai/gemini.js';
 import {
   ClientOptions,
@@ -152,7 +152,7 @@ describe('Vertex AI Gemini', () => {
   describe('gemini() function', () => {
     it('returns a ModelReference for a known model string', () => {
       const name = 'gemini-2.0-flash';
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(name);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = createModelRef(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -160,7 +160,7 @@ describe('Vertex AI Gemini', () => {
 
     it('returns a ModelReference for an unknown model string', () => {
       const name = 'gemini-new-model';
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(name);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = createModelRef(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -168,7 +168,7 @@ describe('Vertex AI Gemini', () => {
 
     it('applies options to the ModelReference', () => {
       const options = { temperature: 0.9, topK: 20 };
-      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = createModelRef(
         'gemini-2.0-flash',
         options
       );
@@ -179,7 +179,7 @@ describe('Vertex AI Gemini', () => {
   function runCommonTests(clientOptions: ClientOptions) {
     describe(`Model Action Callback ${clientOptions.kind}`, () => {
       beforeEach(() => {
-        defineModel(mockGenkit, 'gemini-2.5-flash', clientOptions);
+        defineModel('gemini-2.5-flash', clientOptions);
       });
 
       function getExpectedHeaders(
@@ -548,7 +548,7 @@ describe('Vertex AI Gemini', () => {
 
   describe('defineModel - Regional Client', () => {
     it('defines a model with the correct name', () => {
-      defineModel(mockGenkit, 'gemini-2.0-flash', defaultRegionalClientOptions);
+      defineModel('gemini-2.0-flash', defaultRegionalClientOptions);
       sinon.assert.calledOnce(mockGenkit.defineModel);
       const args = mockGenkit.defineModel.lastCall.args[0];
       assert.strictEqual(args.name, 'vertexai/gemini-2.0-flash');
@@ -557,7 +557,7 @@ describe('Vertex AI Gemini', () => {
     runCommonTests(defaultRegionalClientOptions);
 
     it('handles googleSearchRetrieval tool for gemini-1.5', async () => {
-      defineModel(mockGenkit, 'gemini-1.5-pro', defaultRegionalClientOptions);
+      defineModel('gemini-1.5-pro', defaultRegionalClientOptions);
       mockFetchResponse(defaultApiResponse);
       const request: GenerateRequest<typeof GeminiConfigSchema> = {
         ...minimalRequest,
@@ -583,7 +583,7 @@ describe('Vertex AI Gemini', () => {
 
   describe('defineModel - Global Client', () => {
     it('defines a model with the correct name', () => {
-      defineModel(mockGenkit, 'gemini-2.0-flash', defaultGlobalClientOptions);
+      defineModel('gemini-2.0-flash', defaultGlobalClientOptions);
       sinon.assert.calledOnce(mockGenkit.defineModel);
       const args = mockGenkit.defineModel.lastCall.args[0];
       assert.strictEqual(args.name, 'vertexai/gemini-2.0-flash');
@@ -594,7 +594,7 @@ describe('Vertex AI Gemini', () => {
 
   describe('defineModel - Express Client', () => {
     it('defines a model with the correct name', () => {
-      defineModel(mockGenkit, 'gemini-2.0-flash', defaultExpressClientOptions);
+      defineModel('gemini-2.0-flash', defaultExpressClientOptions);
       sinon.assert.calledOnce(mockGenkit.defineModel);
       const args = mockGenkit.defineModel.lastCall.args[0];
       assert.strictEqual(args.name, 'vertexai/gemini-2.0-flash');

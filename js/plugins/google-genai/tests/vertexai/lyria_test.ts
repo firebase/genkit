@@ -30,7 +30,7 @@ import {
   LyriaConfigSchema,
   TEST_ONLY,
   defineModel,
-  model,
+  createModelRef,
 } from '../../src/vertexai/lyria.js';
 import {
   LyriaPredictResponse,
@@ -99,7 +99,7 @@ describe('Vertex AI Lyria', () => {
   describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
       const knownModelName = Object.keys(KNOWN_MODELS)[0];
-      const ref = model(knownModelName);
+      const ref = createModelRef(knownModelName);
       assert.strictEqual(ref.name, `vertexai/${knownModelName}`);
       assert.ok(ref.info?.supports?.media);
       assert.deepStrictEqual(ref.info?.supports?.output, ['media']);
@@ -107,7 +107,7 @@ describe('Vertex AI Lyria', () => {
 
     it('should return a ModelReference for an unknown model using generic info', () => {
       const unknownModelName = 'lyria-unknown-model';
-      const ref = model(unknownModelName);
+      const ref = createModelRef(unknownModelName);
       assert.strictEqual(ref.name, `vertexai/${unknownModelName}`);
       assert.deepStrictEqual(ref.info, GENERIC_MODEL.info);
     });
@@ -115,7 +115,7 @@ describe('Vertex AI Lyria', () => {
     it('should apply config to a known model', () => {
       const knownModelName = Object.keys(KNOWN_MODELS)[0];
       const config = { negativePrompt: 'noisy' };
-      const ref = model(knownModelName, config);
+      const ref = createModelRef(knownModelName, config);
       assert.strictEqual(ref.name, `vertexai/${knownModelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
@@ -123,7 +123,7 @@ describe('Vertex AI Lyria', () => {
 
   describe('defineModel()', () => {
     beforeEach(() => {
-      defineModel(mockGenkit, modelName, defaultRegionalClientOptions);
+      defineModel(modelName, defaultRegionalClientOptions);
       sinon.assert.calledOnce(mockGenkit.defineModel);
       const args = mockGenkit.defineModel.lastCall.args[0];
       assert.strictEqual(args.name, `vertexai/${modelName}`);
@@ -211,7 +211,7 @@ describe('Vertex AI Lyria', () => {
         ...defaultRegionalClientOptions,
         signal: abortSignal,
       };
-      defineModel(mockGenkit, modelName, clientOptionsWithSignal);
+      defineModel(modelName, clientOptionsWithSignal);
 
       await modelActionCallback(minimalRequest, { abortSignal });
 

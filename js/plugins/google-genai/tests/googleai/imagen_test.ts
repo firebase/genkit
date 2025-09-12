@@ -26,7 +26,7 @@ import {
   ImagenConfigSchema,
   TEST_ONLY,
   defineModel,
-  model,
+  createModelRef,
 } from '../../src/googleai/imagen.js';
 import {
   ImagenPredictRequest,
@@ -50,14 +50,14 @@ describe('Google AI Imagen', () => {
   describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
       const modelName = 'imagen-3.0-generate-002';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.ok(ref.info?.supports?.media);
     });
 
     it('should return a ModelReference for an unknown model using generic info', () => {
       const modelName = 'imagen-unknown-model';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.deepStrictEqual(ref.info, TEST_ONLY.GENERIC_MODEL.info);
     });
@@ -65,7 +65,7 @@ describe('Google AI Imagen', () => {
     it('should apply config to a known model', () => {
       const modelName = 'imagen-3.0-generate-002';
       const config: ImagenConfig = { numberOfImages: 2 };
-      const ref = model(modelName, config);
+      const ref = createModelRef(modelName, config);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
@@ -73,14 +73,14 @@ describe('Google AI Imagen', () => {
     it('should apply config to an unknown model', () => {
       const modelName = 'imagen-unknown-model';
       const config: ImagenConfig = { aspectRatio: '16:9' };
-      const ref = model(modelName, config);
+      const ref = createModelRef(modelName, config);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
 
     it('should handle model name with prefix', () => {
       const modelName = 'models/imagen-3.0-generate-002';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
       assert.strictEqual(ref.name, 'googleai/imagen-3.0-generate-002');
     });
   });
@@ -199,7 +199,7 @@ describe('Google AI Imagen', () => {
       const baseUrl = defineOptions.baseUrl;
       const apiKey = defineOptions.apiKey;
 
-      defineModel(mockAi as any, name, { apiKey, apiVersion, baseUrl });
+      defineModel(name, { apiKey, apiVersion, baseUrl });
       assert.ok(mockAi.defineModel.calledOnce, 'defineModel should be called');
       const callArgs = mockAi.defineModel.firstCall.args;
       assert.strictEqual(callArgs[0].name, `googleai/${name}`);
@@ -420,7 +420,7 @@ describe('Google AI Imagen', () => {
       // process.env is empty due to envStub in beforeEach
       assert.throws(() => {
         // Explicitly pass undefined for apiKey
-        defineModel(mockAi as any, modelName, undefined);
+        defineModel(modelName, undefined);
       }, MISSING_API_KEY_ERROR);
       sinon.assert.notCalled(mockAi.defineModel);
     });

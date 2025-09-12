@@ -101,7 +101,7 @@ export const vertexAI = vertexAIPlugin as VertexAIPlugin;
     return lyria.createModelRef(name, config);
   }
   if (veo.isVeoModelName(name)) {
-    return veo.model(name, config);
+    return veo.createModelRef(name, config);
   }
   // gemini and unknown model families
   return gemini.createModelRef(name, config);

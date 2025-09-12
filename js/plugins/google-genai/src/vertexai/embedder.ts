@@ -168,7 +168,7 @@ export function defineEmbedder(
       configSchema: ref.configSchema,
       info: ref.info!,
     },
-    async (request, _) => {
+    async (request, options) => {
       const embedContentRequest: EmbedContentRequest = {
         instances: request.input.map((doc: Document) =>
           toEmbeddingInstance(ref, doc, request.options)

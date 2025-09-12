@@ -38,7 +38,7 @@ import {
   TEST_ONLY,
   VeoConfigSchema,
   defineModel,
-  model,
+  createModelRef,
 } from '../../src/vertexai/veo.js';
 
 const { GENERIC_MODEL, KNOWN_MODELS } = TEST_ONLY;
@@ -98,15 +98,17 @@ describe('Vertex AI Veo', () => {
   describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
       const knownModelName = Object.keys(KNOWN_MODELS)[0];
-      const ref = model(knownModelName);
+      const ref = createModelRef(knownModelName);
+      const supports: any = { ...ref.info?.supports };
+
       assert.strictEqual(ref.name, `vertexai/${knownModelName}`);
-      assert.ok(ref.info?.supports?.media);
-      assert.ok(ref.info?.supports?.longRunning);
+      assert.ok(supports?.media);
+      assert.ok(supports?.longRunning);
     });
 
     it('should return a ModelReference for an unknown model using generic info', () => {
       const unknownModelName = 'veo-unknown-model';
-      const ref = model(unknownModelName);
+      const ref = createModelRef(unknownModelName);
       assert.strictEqual(ref.name, `vertexai/${unknownModelName}`);
       assert.deepStrictEqual(ref.info, GENERIC_MODEL.info);
     });
@@ -119,7 +121,7 @@ describe('Vertex AI Veo', () => {
       ) => Promise<Operation>;
       check: (operation: Operation) => Promise<Operation>;
     } {
-      defineModel(mockGenkit, modelName, clientOptions);
+      defineModel(modelName, clientOptions);
       sinon.assert.calledOnce(mockGenkit.defineBackgroundModel);
       const callArgs = mockGenkit.defineBackgroundModel.firstCall.args;
       assert.strictEqual(callArgs[0].name, `vertexai/${modelName}`);

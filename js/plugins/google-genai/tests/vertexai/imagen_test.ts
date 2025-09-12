@@ -31,7 +31,7 @@ import {
   ImagenConfigSchema,
   TEST_ONLY,
   defineModel,
-  model,
+  createModelRef,
 } from '../../src/vertexai/imagen.js';
 import {
   ClientOptions,
@@ -55,14 +55,14 @@ describe('Vertex AI Imagen', () => {
   describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
       const modelName = 'imagen-3.0-generate-002';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
       assert.strictEqual(ref.name, `vertexai/${modelName}`);
       assert.ok(ref.info?.supports?.media);
     });
 
     it('should return a ModelReference for an unknown model using generic info', () => {
       const modelName = 'imagen-unknown-model';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
       assert.strictEqual(ref.name, `vertexai/${modelName}`);
       assert.deepStrictEqual(ref.info, TEST_ONLY.GENERIC_MODEL.info);
     });
@@ -70,7 +70,7 @@ describe('Vertex AI Imagen', () => {
     it('should apply config to a known model', () => {
       const modelName = 'imagen-3.0-generate-002';
       const config: ImagenConfig = { seed: 123 };
-      const ref = model(modelName, config);
+      const ref = createModelRef(modelName, config);
       assert.strictEqual(ref.name, `vertexai/${modelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
@@ -78,14 +78,14 @@ describe('Vertex AI Imagen', () => {
     it('should apply config to an unknown model', () => {
       const modelName = 'imagen-unknown-model';
       const config: ImagenConfig = { aspectRatio: '16:9' };
-      const ref = model(modelName, config);
+      const ref = createModelRef(modelName, config);
       assert.strictEqual(ref.name, `vertexai/${modelName}`);
       assert.deepStrictEqual(ref.config, config);
     });
 
     it('should handle full model path', () => {
       const modelName = 'tunedModels/my-tuned-model';
-      const ref = model(modelName);
+      const ref = createModelRef(modelName);
       assert.strictEqual(ref.name, 'vertexai/tunedModels/my-tuned-model');
     });
   });
@@ -136,7 +136,7 @@ describe('Vertex AI Imagen', () => {
     function captureModelRunner(
       clientOptions: ClientOptions
     ): (request: GenerateRequest, options: any) => Promise<any> {
-      defineModel(mockAi as any, modelName, clientOptions);
+      defineModel(modelName, clientOptions);
       assert.ok(mockAi.defineModel.calledOnce);
       const callArgs = mockAi.defineModel.firstCall.args;
       assert.strictEqual(callArgs[0].name, `vertexai/${modelName}`);

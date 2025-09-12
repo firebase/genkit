@@ -143,7 +143,7 @@ export function isVeoModelName(value?: string): value is VeoModelName {
   return !!value?.startsWith('veo-');
 }
 
-export function model(
+export function createModelRef(
   version: string,
   config: VeoConfig = {}
 ): ModelReference<ConfigSchemaType> {
@@ -162,7 +162,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
   return models
     .filter((m: Model) => isVeoModelName(m.name))
     .map((m: Model) => {
-      const ref = model(m.name);
+      const ref = createModelRef(m.name);
       return modelActionMetadata({
         name: ref.name,
         info: ref.info,
@@ -185,7 +185,7 @@ export function defineModel(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): BackgroundModelAction<VeoConfigSchemaType> {
-  const ref = model(name);
+  const ref = createModelRef(name);
 
   return backgroundModel({
     name: ref.name,
