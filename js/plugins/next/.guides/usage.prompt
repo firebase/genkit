@@ -1,0 +1,64 @@
+- DO NOT add anything to the `plugins` array for the Genkit Next.js plugin.
+- Use the Genkit Next.js plugin and its `appRoute` helper to provide API endpoints for AI actions
+- When importing a flow from code that runs in the browser, ONLY import the type
+- Flows can be streaming or non-streaming
+
+<example>
+```ts
+// src/ai/flows/generate-animal.ts
+import { ai, z } from "@/ai/genkit";
+
+export const AnimalSchema = z.object({
+// ... detailed output schema with descriptions
+});
+export type Animal = z.infer<typeof AnimalSchema>;
+
+export const generateAnimal = ai.defineFlow({
+name: 'generateAnimal',
+inputSchema: z.string().describe('a text description of the type of animal to create'),
+outputSchema: AnimalSchema,
+}, (input) => {
+  const {output: animal} = await ai.generate(/* fill in generate details */);
+  return animal;
+});
+
+// src/app/api/generate-animal/route.ts
+import { generateAnimal } from "@/ai/flows/generate-animal";
+import { }
+export const POST = appRoute(generateAnimal);
+
+// src/app/page.tsx
+import type { generateAnimal, Animal } from "@/ai/flows/generate-animal"; // import flow type for strong typing of runFlow
+import { runFlow } from "@genkit-ai/next/client";
+
+export default function Page() {
+  const [animal, setAnimal] = useState<Animal | null>(null);
+  const handleGenerateAnimal = (input: string) => {
+    const animal = await runFlow<typeof generateAnimalFlow>({
+      url: '/api/generate-animal', // use the URL defined by your route.ts
+      input,
+    });
+
+    setAnimal(animal);
+  }
+  return <>{/_ ... _/}</>;
+}
+```
+</example>
+
+For streaming:
+
+<example>
+export const generateAnimal = ai.defineFlow({
+  name: 'generateAnimal',
+  inputSchema, outputSchema // ... same as non-streaming
+  streamSchema: AnimalSchema, // can be same or different as output schema
+}, (input, {sendChunk}) => {
+  const {stream, response} = ai.generateStream(/* fill in generate details */);
+  for (const chunk of stream) {
+    sendChunk(chunk.output);
+  }
+  const {output} = await response;
+  return output;
+});
+</example>
