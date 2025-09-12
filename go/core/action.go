@@ -174,11 +174,11 @@ func (a *ActionDef[In, Out, Stream]) Name() string { return a.desc.Name }
 
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb StreamCallback[Stream]) (output Out, err error) {
-	result, err := a.runWithTelemetry(ctx, input, cb)
+	r, err := a.runWithTelemetry(ctx, input, cb)
 	if err != nil {
 		return base.Zero[Out](), err
 	}
-	return result.result, nil
+	return r.result, nil
 }
 
 type actionRunResult[Out any] struct {
@@ -295,23 +295,23 @@ func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, i
 		}
 	}
 
-	result, err := a.runWithTelemetry(ctx, i, scb)
+	r, err := a.runWithTelemetry(ctx, i, scb)
 	if err != nil {
 		return &api.ActionRunJSONResult{
-			TraceId: result.traceId,
-			SpanId:  result.spanId,
+			TraceId: r.traceId,
+			SpanId:  r.spanId,
 		}, err
 	}
 
-	bytes, err := json.Marshal(result.result)
+	bytes, err := json.Marshal(r.result)
 	if err != nil {
 		return nil, err
 	}
 
 	return &api.ActionRunJSONResult{
 		Result:  json.RawMessage(bytes),
-		TraceId: result.traceId,
-		SpanId:  result.spanId,
+		TraceId: r.traceId,
+		SpanId:  r.spanId,
 	}, nil
 }
 
