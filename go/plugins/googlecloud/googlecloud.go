@@ -299,10 +299,40 @@ func (e *AdjustingTraceExporter) tickTelemetry(span sdktrace.ReadOnlySpan) {
 		return
 	}
 
-	for _, module := range e.modules {
-		if module != nil {
-			module.Tick(span, e.logInputAndOutput, e.projectId)
+	attributes := span.Attributes()
+	spanType := extractStringAttribute(attributes, "genkit:type")
+	subtype := extractStringAttribute(attributes, "genkit:metadata:subtype")
+	isRoot := extractBoolAttribute(attributes, "genkit:isRoot")
+
+	pathTelemetry := NewPathTelemetry()
+	generateTelemetry := NewGenerateTelemetry()
+	featureTelemetry := NewFeatureTelemetry()
+	actionTelemetry := NewActionTelemetry()
+	engagementTelemetry := NewEngagementTelemetry()
+
+	// Always process path telemetry
+	pathTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
+
+	if isRoot {
+		// Report top level feature request and latency only for root spans
+		featureTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
+	} else {
+		if spanType == "action" && subtype == "model" {
+			// Report generate metrics for all model actions
+			generateTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
 		}
+		if spanType == "action" && subtype == "tool" {
+			// TODO: Report input and output for tool actions
+		}
+		if spanType == "action" || spanType == "flow" || spanType == "flowStep" || spanType == "util" {
+			// Report request and latency metrics for all actions (including tools)
+			actionTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
+		}
+	}
+
+	if spanType == "userEngagement" {
+		// Report user acceptance and feedback metrics
+		engagementTelemetry.Tick(span, e.logInputAndOutput, e.projectId)
 	}
 }
 
