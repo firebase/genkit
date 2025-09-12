@@ -340,13 +340,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				}
 			}
 
-			toolCount := 0
-			for _, part := range resp.Message.Content {
-				if part.IsToolRequest() {
-					toolCount++
-				}
-			}
-			if toolCount == 0 || opts.ReturnToolRequests {
+			if len(resp.ToolRequests()) > 0 || opts.ReturnToolRequests {
 				return resp, nil
 			}
 
