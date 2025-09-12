@@ -470,14 +470,14 @@ func runAction(ctx context.Context, g *Genkit, key string, input json.RawMessage
 	// Run the action and capture trace ID. We need to ensure there's a valid trace context.
 	var traceID string
 	output, err := func() (json.RawMessage, error) {
-		result, err := action.RunJSONWithTelemetry(ctx, input, cb)
-		if result != nil {
-			traceID = result.TraceId
+		r, err := action.RunJSONWithTelemetry(ctx, input, cb)
+		if r != nil {
+			traceID = r.TraceId
 		}
 		if err != nil {
 			return nil, err
 		}
-		return result.Result, err
+		return r.Result, err
 	}()
 	if err != nil {
 		return &runActionResponse{

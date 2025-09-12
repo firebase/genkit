@@ -253,11 +253,11 @@ func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input
 
 // RunJSON runs the action with a JSON input, and returns a JSON result.
 func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
-	result, err := a.RunJSONWithTelemetry(ctx, input, cb)
+	r, err := a.RunJSONWithTelemetry(ctx, input, cb)
 	if err != nil {
 		return nil, err
 	}
-	return result.Result, nil
+	return r.Result, nil
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result.
