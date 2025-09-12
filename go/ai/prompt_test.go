@@ -499,6 +499,43 @@ func TestValidPrompt(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:       "execute with MessagesFn option",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is {{Name}}",
+			input:      HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptExecuteOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+				WithMessages(NewModelTextMessage("I remember you said your name is {{Name}}")),
+			},
+			wantTextOutput: "Echo: system: say hello; my name is foo; I remember you said your name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewTextPart("I remember you said your name is foo")},
+					},
+				},
+			},
+		},
 	}
 
 	cmpPart := func(a, b *Part) bool {
