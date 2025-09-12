@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/firebase/genkit/go/ai"
 )
 
 func TestExpandedUIConfigIntegration(t *testing.T) {
@@ -262,4 +263,107 @@ func TestUIConfigSchemaGeneration(t *testing.T) {
 	}
 
 	t.Logf("UI Config schema successfully generated with %d properties", len(properties))
+}
+
+func TestCodeExecutionBetaAPIIntegration(t *testing.T) {
+	// Test that code execution configuration properly triggers Beta API usage
+	t.Run("Apply Code Execution tool configuration", func(t *testing.T) {
+		req := &anthropic.MessageNewParams{
+			Model:     "claude-3-5-sonnet-20241022",
+			MaxTokens: 1024,
+		}
+
+		config := map[string]any{
+			"codeExecutionEnabled":     true,
+			"codeExecutionToolName":    "my_code_executor",
+			"codeExecutionToolVersion": DefaultCodeExecutionVersion,
+		}
+
+		err := applyPassThroughConfig(req, config)
+		if err != nil {
+			t.Fatalf("applyPassThroughConfig failed: %v", err)
+		}
+
+		// Verify that code execution tool was added
+		if len(req.Tools) != 1 {
+			t.Errorf("Expected 1 tool to be added, got %d", len(req.Tools))
+		}
+
+		// Verify it's a code execution tool with the correct name
+		if req.Tools[0].OfTool == nil {
+			t.Errorf("Expected code execution tool to be added")
+		} else if req.Tools[0].OfTool.Name != "my_code_executor" {
+			t.Errorf("Expected tool name 'my_code_executor', got %s", req.Tools[0].OfTool.Name)
+		}
+
+		t.Logf("Code execution tool configuration applied successfully")
+	})
+
+	t.Run("Code execution auto-enables Beta API", func(t *testing.T) {
+		// Test that code execution automatically enables Beta API
+		config := map[string]any{
+			"codeExecutionEnabled": true,
+		}
+
+		mockRequest := &ai.ModelRequest{Config: config}
+
+		// Should automatically enable Beta API
+		if !shouldUseBetaAPI(mockRequest) {
+			t.Error("Code execution should automatically enable Beta API")
+		}
+
+		// Should automatically include code execution beta feature
+		features := getBetaFeatures(mockRequest)
+		found := false
+		for _, feature := range features {
+			if feature == CodeExecutionBetaFeature {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected beta features to include %s, got %v", CodeExecutionBetaFeature, features)
+		}
+
+		t.Logf("Code execution auto-enabled Beta API with feature: %s", CodeExecutionBetaFeature)
+	})
+
+	t.Run("Code execution with explicit beta features", func(t *testing.T) {
+		// Test that code execution works with other beta features
+		config := map[string]any{
+			"codeExecutionEnabled": true,
+			"betaFeatures":         []interface{}{"other-feature", "another-feature"},
+		}
+
+		mockRequest := &ai.ModelRequest{Config: config}
+
+		// Should enable Beta API
+		if !shouldUseBetaAPI(mockRequest) {
+			t.Error("Code execution with beta features should enable Beta API")
+		}
+
+		// Should include all beta features including code execution
+		features := getBetaFeatures(mockRequest)
+		expectedFeatures := []string{"other-feature", "another-feature", CodeExecutionBetaFeature}
+
+		if len(features) != len(expectedFeatures) {
+			t.Errorf("Expected %d beta features, got %d: %v", len(expectedFeatures), len(features), features)
+		}
+
+		// Check that all expected features are present
+		for _, expected := range expectedFeatures {
+			found := false
+			for _, actual := range features {
+				if actual == expected {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Expected beta feature %s not found in %v", expected, features)
+			}
+		}
+
+		t.Logf("Code execution with explicit beta features works correctly: %v", features)
+	})
 }

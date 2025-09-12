@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
 )
@@ -56,15 +57,22 @@ func getFallbackModels() map[string]ai.ModelOptions {
 }
 
 // listAnthropicModels fetches available models from the Anthropic API
-func listAnthropicModels(ctx context.Context, client anthropic.Client) (map[string]ai.ModelOptions, error) {
+func listAnthropicModels(ctx context.Context, client anthropic.Client, useBetaAPI bool, betaFeatures []string) (map[string]ai.ModelOptions, error) {
 	models := make(map[string]ai.ModelOptions)
 
 	// Try to use the Models service to list available models
 	// Note: The Models API might not be available yet, so we'll fall back to fallback models
 	modelService := client.Models
 
-	// List models with empty parameters to get all available models
-	page, err := modelService.List(ctx, anthropic.ModelListParams{})
+	// Prepare request options for Beta API if enabled
+	var opts []option.RequestOption
+	if useBetaAPI && len(betaFeatures) > 0 {
+		betaHeader := strings.Join(betaFeatures, ",")
+		opts = append(opts, option.WithHeader("anthropic-beta", betaHeader))
+	}
+
+	// List models with Beta API headers if configured
+	page, err := modelService.List(ctx, anthropic.ModelListParams{}, opts...)
 	if err != nil {
 		// Models API might not be available yet, fall back to fallback list
 		return getFallbackModels(), nil

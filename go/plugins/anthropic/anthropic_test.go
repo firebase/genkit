@@ -783,3 +783,278 @@ func TestApplyPassThroughConfig(t *testing.T) {
 		// This test verifies the infrastructure is in place for future enhancements
 	})
 }
+
+// Code Execution Beta API Tests
+
+func TestShouldUseBetaAPIWithCodeExecution(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   map[string]any
+		expected bool
+	}{
+		{
+			name:     "No config",
+			config:   nil,
+			expected: false,
+		},
+		{
+			name:     "Empty config",
+			config:   map[string]any{},
+			expected: false,
+		},
+		{
+			name: "Explicit useBetaAPI true",
+			config: map[string]any{
+				"useBetaAPI": true,
+			},
+			expected: true,
+		},
+		{
+			name: "Explicit useBetaAPI false",
+			config: map[string]any{
+				"useBetaAPI": false,
+			},
+			expected: false,
+		},
+		{
+			name: "Beta features specified",
+			config: map[string]any{
+				"betaFeatures": []interface{}{"some-feature"},
+			},
+			expected: true,
+		},
+		{
+			name: "Code execution enabled - should auto-enable Beta API",
+			config: map[string]any{
+				"codeExecutionEnabled": true,
+			},
+			expected: true,
+		},
+		{
+			name: "Code execution disabled",
+			config: map[string]any{
+				"codeExecutionEnabled": false,
+			},
+			expected: false,
+		},
+		{
+			name: "Code execution enabled with other config",
+			config: map[string]any{
+				"codeExecutionEnabled": true,
+				"temperature":          0.7,
+				"maxOutputTokens":      1000,
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := &ai.ModelRequest{Config: tt.config}
+			result := shouldUseBetaAPI(req)
+			if result != tt.expected {
+				t.Errorf("shouldUseBetaAPI() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetBetaFeaturesWithCodeExecution(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   map[string]any
+		expected []string
+	}{
+		{
+			name:     "No config",
+			config:   nil,
+			expected: []string{},
+		},
+		{
+			name:     "Empty config",
+			config:   map[string]any{},
+			expected: []string{},
+		},
+		{
+			name: "Explicit beta features",
+			config: map[string]any{
+				"betaFeatures": []interface{}{"feature1", "feature2"},
+			},
+			expected: []string{"feature1", "feature2"},
+		},
+		{
+			name: "Code execution enabled - should auto-add beta feature",
+			config: map[string]any{
+				"codeExecutionEnabled": true,
+			},
+			expected: []string{CodeExecutionBetaFeature},
+		},
+		{
+			name: "Code execution disabled",
+			config: map[string]any{
+				"codeExecutionEnabled": false,
+			},
+			expected: []string{},
+		},
+		{
+			name: "Code execution enabled with existing beta features",
+			config: map[string]any{
+				"codeExecutionEnabled": true,
+				"betaFeatures":         []interface{}{"other-feature"},
+			},
+			expected: []string{"other-feature", CodeExecutionBetaFeature},
+		},
+		{
+			name: "Code execution enabled with existing code execution feature - should not duplicate",
+			config: map[string]any{
+				"codeExecutionEnabled": true,
+				"betaFeatures":         []interface{}{CodeExecutionBetaFeature, "other-feature"},
+			},
+			expected: []string{CodeExecutionBetaFeature, "other-feature"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := &ai.ModelRequest{Config: tt.config}
+			result := getBetaFeatures(req)
+
+			// Check length
+			if len(result) != len(tt.expected) {
+				t.Errorf("getBetaFeatures() returned %d features, want %d", len(result), len(tt.expected))
+				t.Errorf("Got: %v, Want: %v", result, tt.expected)
+				return
+			}
+
+			// Check that all expected features are present
+			for _, expected := range tt.expected {
+				found := false
+				for _, actual := range result {
+					if actual == expected {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("getBetaFeatures() missing expected feature %s, got %v", expected, result)
+				}
+			}
+		})
+	}
+}
+
+func TestCreateCodeExecutionToolFromConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		config       map[string]any
+		expectedName string
+		expectedDesc string
+	}{
+		{
+			name:         "Default configuration",
+			config:       map[string]any{},
+			expectedName: "code_execution",
+			expectedDesc: "Execute Python code and bash commands in a secure sandbox environment",
+		},
+		{
+			name: "Custom tool name",
+			config: map[string]any{
+				"codeExecutionToolName": "my_code_tool",
+			},
+			expectedName: "my_code_tool",
+			expectedDesc: "Execute Python code and bash commands in a secure sandbox environment",
+		},
+		{
+			name: "Empty tool name - should use default",
+			config: map[string]any{
+				"codeExecutionToolName": "",
+			},
+			expectedName: "code_execution",
+			expectedDesc: "Execute Python code and bash commands in a secure sandbox environment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tool := createCodeExecutionToolFromConfig(tt.config)
+
+			// Verify it's a generic tool (since SDK doesn't have code execution type yet)
+			if tool.OfTool == nil {
+				t.Error("Expected OfTool to be set")
+				return
+			}
+
+			// Check tool name
+			if tool.OfTool.Name != tt.expectedName {
+				t.Errorf("Expected tool name %s, got %s", tt.expectedName, tool.OfTool.Name)
+			}
+
+			// Check tool description
+			if tool.OfTool.Description.Value != tt.expectedDesc {
+				t.Errorf("Expected tool description %s, got %s", tt.expectedDesc, tool.OfTool.Description.Value)
+			}
+
+			// Check that input schema is set
+			if tool.OfTool.InputSchema.Properties == nil {
+				t.Error("Expected input schema to be set")
+			}
+		})
+	}
+}
+
+func TestCodeExecutionIntegration(t *testing.T) {
+	// Test that code execution configuration properly triggers Beta API usage
+	t.Run("Code execution enables Beta API and adds beta feature", func(t *testing.T) {
+		config := map[string]any{
+			"codeExecutionEnabled": true,
+			"temperature":          0.7,
+		}
+
+		req := &ai.ModelRequest{Config: config}
+
+		// Should enable Beta API
+		if !shouldUseBetaAPI(req) {
+			t.Error("Code execution should enable Beta API")
+		}
+
+		// Should include code execution beta feature
+		features := getBetaFeatures(req)
+		found := false
+		for _, feature := range features {
+			if feature == CodeExecutionBetaFeature {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected beta features to include %s, got %v", CodeExecutionBetaFeature, features)
+		}
+	})
+
+	t.Run("Code execution tool creation", func(t *testing.T) {
+		config := map[string]any{
+			"codeExecutionEnabled":     true,
+			"codeExecutionToolName":    "custom_executor",
+			"codeExecutionToolVersion": DefaultCodeExecutionVersion,
+		}
+
+		tool := createCodeExecutionToolFromConfig(config)
+
+		// Verify tool structure
+		if tool.OfTool == nil {
+			t.Fatal("Expected OfTool to be set")
+		}
+
+		if tool.OfTool.Name != "custom_executor" {
+			t.Errorf("Expected tool name 'custom_executor', got %s", tool.OfTool.Name)
+		}
+
+		if tool.OfTool.Description.Value == "" {
+			t.Error("Expected tool description to be set")
+		}
+
+		if tool.OfTool.InputSchema.Properties == nil {
+			t.Error("Expected input schema to be set")
+		}
+	})
+}

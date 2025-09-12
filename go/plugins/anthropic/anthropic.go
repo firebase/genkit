@@ -25,7 +25,9 @@ const (
 
 // Anthropic is a Genkit plugin for interacting with the Anthropic API service.
 type Anthropic struct {
-	APIKey string // API key to access the Anthropic API. If empty, the value of the environment variable ANTHROPIC_API_KEY will be consulted.
+	APIKey       string   // API key to access the Anthropic API. If empty, the value of the environment variable ANTHROPIC_API_KEY will be consulted.
+	UseBetaAPI   bool     // Whether to use the Anthropic Beta API by default. Can be overridden per-request.
+	BetaFeatures []string // List of beta features to enable by default (e.g. "token-efficient-tools-2025-02-19")
 
 	client  anthropic.Client // Client for the Anthropic API service.
 	mu      sync.Mutex       // Mutex to control access.
@@ -68,7 +70,8 @@ func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	var actions []api.Action
 
 	// Use dynamic model discovery during initialization
-	models, err := listAnthropicModels(ctx, a.client)
+	// Pass Beta API configuration to model discovery
+	models, err := listAnthropicModels(ctx, a.client, a.UseBetaAPI, a.BetaFeatures)
 	if err != nil {
 		// If dynamic discovery fails, use fallback models
 		models = getFallbackModels()
@@ -129,7 +132,8 @@ func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	actions := []api.ActionDesc{}
 
 	// Try to fetch models dynamically from the API
-	dynamicModels, err := listAnthropicModels(ctx, a.client)
+	// Pass Beta API configuration to model discovery
+	dynamicModels, err := listAnthropicModels(ctx, a.client, a.UseBetaAPI, a.BetaFeatures)
 	if err != nil {
 		// Fall back to fallback models if API call fails
 		dynamicModels = getFallbackModels()

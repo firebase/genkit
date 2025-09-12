@@ -5,6 +5,7 @@ This plugin provides a comprehensive interface for using Anthropic's Claude mode
 ## Features
 
 - 🤖 **Dynamic Model Discovery** - Automatically discovers available Claude models from the Anthropic API
+- 🧪 **Beta API Support** - Access to Anthropic's experimental features and capabilities
 - 🖼️ **Multi-Modal Support** - Process text and images with Claude's vision capabilities
 - 🔄 **Streaming Responses** - Real-time response streaming for better user experience
 - 🛠️ **Tool Calling** - Function calling capabilities for complex workflows
@@ -58,7 +59,7 @@ func main() {
 
     // Generate text using Claude
     resp, err := genkit.Generate(ctx, g,
-        ai.WithModelName("anthropic/claude-3-5-sonnet-20241022"),
+        ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
         ai.WithPrompt("Tell me a joke about programming"))
     if err != nil {
         log.Fatal(err)
@@ -72,7 +73,7 @@ func main() {
 
 ```go
 resp, err := genkit.Generate(ctx, g,
-    ai.WithModelName("anthropic/claude-3-5-sonnet-20241022"),
+    ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
     ai.WithPrompt("Count from 1 to 10"),
     ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
         fmt.Print(chunk.Text())
@@ -101,7 +102,7 @@ weatherTool := &ai.ToolDefinition{
 
 // Generate with tools
 resp, err := genkit.Generate(ctx, g,
-    ai.WithModelName("anthropic/claude-3-5-sonnet-20241022"),
+    ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
     ai.WithPrompt("What's the weather like in San Francisco?"),
     ai.WithTools(weatherTool))
 ```
@@ -133,11 +134,20 @@ The Anthropic plugin exposes **all 14 configuration parameters** from the underl
 | `thinking` | `ThinkingConfig` | Configuration for reasoning mode | Thinking parameters |
 | `serviceTier` | `string` | Service tier for the request | `"default"` |
 
+#### Beta API Parameters
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `useBetaAPI` | `bool` | Enable Beta API for this request | `true` |
+| `betaFeatures` | `[]string` | List of beta features to enable | `["token-efficient-tools-2025-02-19"]` |
+| `thinkingEnabled` | `bool` | Enable Claude's extended thinking process | `true` |
+| `thinkingBudgetTokens` | `int64` | Token budget for thinking (minimum 1024) | `2048` |
+
 #### Basic Configuration
 
 ```go
 resp, err := genkit.Generate(ctx, g,
-    ai.WithModelName("anthropic/claude-3-5-sonnet-20241022"),
+    ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
     ai.WithConfig(&ai.GenerationCommonConfig{
         Temperature:      0.7,
         MaxOutputTokens:  1000,
@@ -151,7 +161,7 @@ resp, err := genkit.Generate(ctx, g,
 
 ```go
 resp, err := genkit.Generate(ctx, g,
-    ai.WithModel(anthropic.AnthropicModel(g, "claude-3-5-sonnet-20241022")),
+    ai.WithModel(anthropic.AnthropicModel(g, "claude-sonnet-4-20250514")),
     ai.WithConfig(map[string]any{
         "maxTokens":     1024,
         "temperature":   0.5,
@@ -171,7 +181,7 @@ The plugin supports **pass-through parameters** for Anthropic-specific options:
 import "github.com/firebase/genkit/go/plugins/anthropic"
 
 resp, err := genkit.Generate(ctx, g,
-    ai.WithModel(anthropic.AnthropicModel(g, "claude-3-5-sonnet-20241022")),
+    ai.WithModel(anthropic.AnthropicModel(g, "claude-sonnet-4-20250514")),
     ai.WithConfig(&anthropic.AnthropicConfig{
         GenerationCommonConfig: ai.GenerationCommonConfig{
             MaxOutputTokens: 1024,
@@ -191,7 +201,7 @@ resp, err := genkit.Generate(ctx, g,
 
 ```go
 resp, err := genkit.Generate(ctx, g,
-    ai.WithModel(anthropic.AnthropicModel(g, "claude-3-5-sonnet-20241022")),
+    ai.WithModel(anthropic.AnthropicModel(g, "claude-sonnet-4-20250514")),
     ai.WithConfig(map[string]any{
         // Standard Genkit parameters
         "maxTokens":   1024,
@@ -294,6 +304,121 @@ if resp.Message.Content[0].IsToolRequest() {
 }
 ```
 
+## Beta API Support
+
+The Anthropic plugin supports Anthropic's Beta API, providing access to experimental features and capabilities. Beta API support can be configured at both the plugin level (global) and per-request level.
+
+### Beta API Features
+
+- **Plugin-level Beta API configuration**: Enable Beta API globally for all requests
+- **Request-level Beta API configuration**: Override plugin settings per request
+- **Automatic Beta API detection**: Auto-enable Beta API when beta features are specified
+- **Beta feature specification**: Support for specific beta features like token-efficient tools and prompt caching
+- **Beta model discovery**: Model discovery respects Beta API configuration to discover beta-specific models
+- **Full backward compatibility**: Existing functionality remains unchanged
+
+### Plugin-Level Beta API Configuration
+
+Configure Beta API support when initializing the Anthropic plugin:
+
+```go
+plugin := &anthropic.Anthropic{
+    APIKey:     "your-api-key",
+    UseBetaAPI: true,
+    BetaFeatures: []string{
+        "token-efficient-tools-2025-02-19",
+        "prompt-caching-2024-07-31",
+    },
+}
+
+g := genkit.Init(ctx, genkit.WithPlugins(plugin))
+```
+
+### Request-Level Beta API Configuration
+
+Override plugin settings for individual requests:
+
+```go
+// Enable Beta API for this request
+resp, err := genkit.Generate(ctx, g,
+    ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
+    ai.WithPrompt("Your prompt here"),
+    ai.WithConfig(map[string]any{
+        "useBetaAPI": true,
+        "betaFeatures": []string{
+            "token-efficient-tools-2025-02-19",
+        },
+    }))
+```
+
+### Auto-Enable Beta API
+
+Beta API is automatically enabled when beta features are specified:
+
+```go
+// Beta API is auto-enabled because betaFeatures are specified
+resp, err := genkit.Generate(ctx, g,
+    ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
+    ai.WithPrompt("Your prompt here"),
+    ai.WithConfig(map[string]any{
+        "betaFeatures": []string{
+            "interleaved-thinking-2025-05-14",
+        },
+    }))
+```
+
+### Supported Beta Features
+
+The following beta features are supported:
+
+- `token-efficient-tools-2025-02-19`: More efficient tool usage
+- `prompt-caching-2024-07-31`: Prompt caching for improved performance
+- `interleaved-thinking-2025-05-14`: Enhanced reasoning capabilities
+- `max-tokens-3-5-sonnet-2024-07-15`: Extended token limits for Claude 3.5 Sonnet
+
+### Beta API with Thinking Mode
+
+```go
+resp, err := genkit.Generate(ctx, g,
+    ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
+    ai.WithPrompt("Solve this step by step: What is 15% of 240?"),
+    ai.WithConfig(map[string]any{
+        "useBetaAPI":           true,
+        "thinkingEnabled":      true,
+        "thinkingBudgetTokens": 2048,
+        "temperature":          1.0, // Must be 1.0 when thinking is enabled
+        "maxOutputTokens":      4096, // Must be greater than thinking budget tokens
+    }))
+```
+
+### Beta Model Discovery
+
+When Beta API is enabled at the plugin level, model discovery will use Beta API headers to potentially discover beta-specific models:
+
+```go
+// Plugin with Beta API enabled will discover models using Beta API
+plugin := &anthropic.Anthropic{
+    APIKey:     "your-api-key",
+    UseBetaAPI: true,
+    BetaFeatures: []string{
+        "token-efficient-tools-2025-02-19",
+    },
+}
+
+// Model discovery will include beta headers in the API call
+g := genkit.Init(ctx, genkit.WithPlugins(plugin))
+```
+
+This ensures that if Anthropic exposes different models through their Beta endpoints, they will be discovered and made available.
+
+### Beta API Notes
+
+- Beta API features may change or be removed without notice
+- Not all models may support all beta features
+- Beta API usage may have different rate limits or pricing
+- Model discovery with Beta API may return different models than standard API
+- Always test beta features thoroughly before production use
+
 ## Advanced Usage
 
 ### Genkit Flows
@@ -377,10 +502,25 @@ go test -v
 export ANTHROPIC_API_KEY=your_api_key_here
 go test -v
 
-# Example application
+# Example application with all features
 cd scratch/go-anthropic-plugin-test
-go run main.go
+go run .                    # Run all tests including Beta API
+go run . beta               # Run only Beta API tests
+go run . beta-discovery     # Run only Beta API model discovery tests
+go run . help               # Show available test options
 ```
+
+### Available Test Categories
+
+The test suite includes comprehensive testing for:
+
+- **Basic Generation**: Text generation with various models
+- **Multi-Modal**: Image analysis and vision capabilities
+- **Tool Calling**: Function calling and tool integration
+- **Streaming**: Real-time response streaming
+- **Beta API**: Experimental features and capabilities
+- **Model Discovery**: Dynamic model discovery with Beta API support
+- **Configuration**: All configuration options and parameters
 
 ## Performance Considerations
 
