@@ -1102,20 +1102,10 @@ func addAutomaticTelemetry() ModelMiddleware {
 				resp.Usage = &GenerationUsage{}
 			}
 			if resp.Usage.InputCharacters == 0 {
-				resp.Usage.InputCharacters = countInputCharacters(req, func(part *Part) int {
-					if part.Text != "" {
-						return len(part.Text)
-					}
-					return 0
-				})
+				resp.Usage.InputCharacters = countInputCharacters(req)
 			}
 			if resp.Usage.OutputCharacters == 0 {
-				resp.Usage.OutputCharacters = countOutputCharacters(resp, func(part *Part) int {
-					if part.Text != "" {
-						return len(part.Text)
-					}
-					return 0
-				})
+				resp.Usage.OutputCharacters = countOutputCharacters(resp)
 			}
 			if resp.Usage.InputImages == 0 {
 				resp.Usage.InputImages = countInputParts(req, func(part *Part) bool { return part.IsImage() })
@@ -1161,8 +1151,8 @@ func countInputParts(req *ModelRequest, predicate func(*Part) bool) int {
 	return count
 }
 
-// countInputCharacters counts the total characters in the input request using a character accumulator.
-func countInputCharacters(req *ModelRequest, accumulator func(*Part) int) int {
+// countInputCharacters counts the total characters in the input request.
+func countInputCharacters(req *ModelRequest) int {
 	if req == nil {
 		return 0
 	}
@@ -1173,8 +1163,8 @@ func countInputCharacters(req *ModelRequest, accumulator func(*Part) int) int {
 			continue
 		}
 		for _, part := range msg.Content {
-			if part != nil {
-				total += accumulator(part)
+			if part != nil && part.Text != "" {
+				total += len(part.Text)
 			}
 		}
 	}
@@ -1196,16 +1186,16 @@ func countOutputParts(resp *ModelResponse, predicate func(*Part) bool) int {
 	return count
 }
 
-// countOutputCharacters counts the total characters in the output response using a character accumulator.
-func countOutputCharacters(resp *ModelResponse, accumulator func(*Part) int) int {
+// countOutputCharacters counts the total characters in the output response.
+func countOutputCharacters(resp *ModelResponse) int {
 	if resp == nil || resp.Message == nil {
 		return 0
 	}
 
 	total := 0
 	for _, part := range resp.Message.Content {
-		if part != nil {
-			total += accumulator(part)
+		if part != nil && part.Text != "" {
+			total += len(part.Text)
 		}
 	}
 	return total
