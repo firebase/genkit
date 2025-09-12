@@ -511,15 +511,7 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	}
 	actionOpts.Messages = processedMessages
 
-	spanMetadata := &tracing.SpanMetadata{
-		Name:    "generate",
-		Type:    "util",
-		Subtype: "util",
-	}
-	return tracing.RunInNewSpan(ctx, spanMetadata, actionOpts,
-		func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
-			return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
-		})
+	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
