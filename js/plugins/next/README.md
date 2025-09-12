@@ -1,5 +1,7 @@
 # Genkit Next.js Plugin
 
+See [official documentation](https://genkit.dev/docs/frameworks/nextjs/) for more.
+
 This plugin provides utilities for conveninetly exposing Genkit flows and actions via Next.js app routs for REST APIs.
 
 ```ts
@@ -62,6 +64,6 @@ console.log(await result.output());
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 
-Usage information and reference details can be found in [Genkit documentation](https://genkit.dev/docs/get-started).
+Usage information and reference details can be found in [official Genkit documentation](https://genkit.dev/docs/get-started/).
 
 License: Apache 2.0
