@@ -36,7 +36,7 @@ from genkit.blocks.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
-from genkit.blocks.prompt import to_generate_action_options
+from genkit.blocks.prompt import to_generate_action_options, PromptConfig
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.types import (
@@ -162,6 +162,7 @@ class Genkit(GenkitBase):
         return await generate_action(
             self.registry,
             to_generate_action_options(
+                PromptConfig(
                 registry=self.registry,
                 model=model,
                 prompt=prompt,
@@ -179,6 +180,7 @@ class Genkit(GenkitBase):
                 output_schema=output_schema,
                 output_constrained=output_constrained,
                 docs=docs,
+                )
             ),
             on_chunk=on_chunk,
             middleware=use,
