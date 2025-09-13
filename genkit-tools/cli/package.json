@@ -18,7 +18,8 @@
   ],
   "main": "dist/index.js",
   "scripts": {
-    "build": "pnpm genversion && tsc",
+    "autogen": "node src/utils/build-md.js",
+    "build": "pnpm run autogen && pnpm genversion && tsc",
     "build:watch": "tsc --watch",
     "compile:bun": "bun build src/bin/genkit.ts --compile --outfile dist/bin/genkit --minify",
     "test": "jest --verbose",
