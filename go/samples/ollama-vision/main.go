@@ -86,6 +86,7 @@ func main() {
 	// Initialize the Ollama plugin
 	ollamaPlugin := &ollama.Ollama{
 		ServerAddress: "http://localhost:11434", // Default Ollama server address
+		Timeout:       60,
 	}
 
 	// Initialize the plugin
