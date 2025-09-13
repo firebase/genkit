@@ -95,12 +95,11 @@ func (a *Anthropic) Name() string {
 }
 
 func (a *Anthropic) Init(ctx context.Context) []api.Action {
-	// Set the base URL
 	url := os.Getenv("ANTHROPIC_BASE_URL")
 	if url == "" {
 		url = baseURL
 	}
-	a.Opts = append(a.Opts, option.WithBaseURL(url))
+	a.Opts = append([]option.RequestOption{option.WithBaseURL(url)}, a.Opts...)
 
 	// initialize OpenAICompatible
 	a.openAICompatible.Opts = a.Opts
