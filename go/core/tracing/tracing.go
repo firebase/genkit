@@ -235,6 +235,10 @@ func RunInNewSpan[I, O any](
 	}
 
 	ctx, span := Tracer().Start(ctx, metadata.Name, opts...)
+	sm.TraceInfo = TraceInfo{
+		TraceID: span.SpanContext().TraceID().String(),
+		SpanID:  span.SpanContext().SpanID().String(),
+	}
 	defer span.End()
 	defer func() { span.SetAttributes(sm.attributes()...) }()
 	ctx = spanMetaKey.NewContext(ctx, sm)
@@ -304,8 +308,14 @@ const (
 	spanStateError   spanState = "error"
 )
 
+type TraceInfo struct {
+	TraceID string
+	SpanID  string
+}
+
 // spanMetadata holds genkit-specific information about a span.
 type spanMetadata struct {
+	TraceInfo       TraceInfo
 	Name            string
 	State           spanState
 	IsRoot          bool
@@ -364,4 +374,9 @@ var spanMetaKey = base.NewContextKey[*spanMetadata]()
 // SpanPath returns the path as recorded in the current span metadata.
 func SpanPath(ctx context.Context) string {
 	return spanMetaKey.FromContext(ctx).Path
+}
+
+// TraceInfo returns the trace info as recorded in the current span metadata.
+func SpanTraceInfo(ctx context.Context) TraceInfo {
+	return spanMetaKey.FromContext(ctx).TraceInfo
 }
