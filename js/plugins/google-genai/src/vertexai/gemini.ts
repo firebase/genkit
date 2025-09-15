@@ -446,7 +446,8 @@ export function defineModel(
       configSchema: ref.configSchema,
       use: middlewares,
     },
-    async (request, { streamingRequested, sendChunk, abortSignal }) => {
+    async (request, options) => {
+      const { streamingRequested, sendChunk, abortSignal } = options || {};
       let clientOpt = { ...clientOptions, signal: abortSignal };
 
       // Make a copy of messages to avoid side-effects

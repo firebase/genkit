@@ -15,9 +15,8 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, z } from 'genkit';
+import { z } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import {
@@ -35,18 +34,7 @@ import {
 import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils.js';
 
 describe('Google AI Gemini', () => {
-  let mockGenkit: sinon.SinonStubbedInstance<Genkit>;
   const ORIGINAL_ENV = { ...process.env };
-
-  let modelActionCallback: (
-    request: GenerateRequest<typeof GeminiConfigSchema>,
-    options: {
-      streamingRequested?: boolean;
-      sendChunk?: (chunk: any) => void;
-      abortSignal?: AbortSignal;
-    }
-  ) => Promise<any>;
-
   let fetchStub: sinon.SinonStub;
 
   beforeEach(() => {
@@ -55,28 +43,7 @@ describe('Google AI Gemini', () => {
     delete process.env.GOOGLE_API_KEY;
     delete process.env.GOOGLE_GENAI_API_KEY;
 
-    mockGenkit = sinon.createStubInstance(Genkit);
-
-    // Setup mock registry and asyncStore
-    const mockAsyncStore = sinon.createStubInstance(AsyncLocalStorage);
-    mockAsyncStore.getStore.returns(undefined); // Simulate no parent span
-    mockAsyncStore.run.callsFake((key, store, callback) => callback());
-
-    (mockGenkit as any).registry = {
-      lookupAction: () => undefined,
-      lookupFlow: () => undefined,
-      generateTraceId: () => 'test-trace-id',
-      asyncStore: mockAsyncStore,
-    };
-
     fetchStub = sinon.stub(global, 'fetch');
-
-    mockGenkit.defineModel.callsFake((config: any, callback: any) => {
-      modelActionCallback = callback;
-      return {
-        name: config.name,
-      } as any;
-    });
   });
 
   afterEach(() => {
@@ -135,16 +102,19 @@ describe('Google AI Gemini', () => {
 
   describe('defineGeminiModel', () => {
     it('defines a model with the correct name for known model', () => {
-      defineModel('gemini-2.0-flash', defaultPluginOptions);
-      sinon.assert.calledOnce(mockGenkit.defineModel);
-      const args = mockGenkit.defineModel.lastCall.args[0];
-      assert.strictEqual(args.name, 'googleai/gemini-2.0-flash');
+      const modelAction = defineModel('gemini-2.0-flash', defaultPluginOptions);
+      assert.strictEqual(
+        modelAction.__action.name,
+        'googleai/gemini-2.0-flash'
+      );
     });
 
     it('defines a model with a custom name', () => {
-      defineModel('my-custom-gemini', defaultPluginOptions);
-      const args = mockGenkit.defineModel.lastCall.args[0];
-      assert.strictEqual(args.name, 'googleai/my-custom-gemini');
+      const modelAction = defineModel('my-custom-gemini', defaultPluginOptions);
+      assert.strictEqual(
+        modelAction.__action.name,
+        'googleai/my-custom-gemini'
+      );
     });
 
     describe('API Key Handling', () => {
@@ -155,11 +125,11 @@ describe('Google AI Gemini', () => {
       });
 
       it('uses API key from pluginOptions', async () => {
-        defineModel('gemini-2.0-flash', {
+        const modelAction = defineModel('gemini-2.0-flash', {
           apiKey: 'plugin-key',
         });
         mockFetchResponse(defaultApiResponse);
-        await modelActionCallback(minimalRequest, {});
+        await modelAction(minimalRequest, {});
         sinon.assert.calledOnce(fetchStub);
         const fetchOptions = fetchStub.lastCall.args[1];
         assert.strictEqual(
@@ -170,9 +140,9 @@ describe('Google AI Gemini', () => {
 
       it('uses API key from GEMINI_API_KEY env var', async () => {
         process.env.GEMINI_API_KEY = 'gemini-key';
-        defineModel('gemini-2.0-flash');
+        const modelAction = defineModel('gemini-2.0-flash');
         mockFetchResponse(defaultApiResponse);
-        await modelActionCallback(minimalRequest, {});
+        await modelAction(minimalRequest, {});
         const fetchOptions = fetchStub.lastCall.args[1];
         assert.strictEqual(
           fetchOptions.headers['x-goog-api-key'],
@@ -181,22 +151,22 @@ describe('Google AI Gemini', () => {
       });
 
       it('throws if apiKey is false and not in call config', async () => {
-        defineModel('gemini-2.0-flash', { apiKey: false });
+        const modelAction = defineModel('gemini-2.0-flash', { apiKey: false });
         await assert.rejects(
-          modelActionCallback(minimalRequest, {}),
+          modelAction(minimalRequest, {}),
           /GoogleAI plugin was initialized with \{apiKey: false\}/
         );
         sinon.assert.notCalled(fetchStub);
       });
 
       it('uses API key from call config if apiKey is false', async () => {
-        defineModel('gemini-2.0-flash', { apiKey: false });
+        const modelAction = defineModel('gemini-2.0-flash', { apiKey: false });
         mockFetchResponse(defaultApiResponse);
         const request: GenerateRequest<typeof GeminiConfigSchema> = {
           ...minimalRequest,
           config: { apiKey: 'call-time-key' },
         };
-        await modelActionCallback(request, {});
+        await modelAction(request, {});
         const fetchOptions = fetchStub.lastCall.args[1];
         assert.strictEqual(
           fetchOptions.headers['x-goog-api-key'],
@@ -206,13 +176,15 @@ describe('Google AI Gemini', () => {
     });
 
     describe('Request Formation and API Calls', () => {
+      let modelAction: any;
+
       beforeEach(() => {
-        defineModel('gemini-2.5-flash', defaultPluginOptions);
+        modelAction = defineModel('gemini-2.5-flash', defaultPluginOptions);
       });
 
       it('calls fetch for non-streaming requests', async () => {
         mockFetchResponse(defaultApiResponse);
-        await modelActionCallback(minimalRequest, {
+        await modelAction(minimalRequest, {
           streamingRequested: false,
         });
         sinon.assert.calledOnce(fetchStub);
@@ -237,7 +209,7 @@ describe('Google AI Gemini', () => {
         mockFetchStreamResponse([defaultApiResponse]);
 
         const sendChunkSpy = sinon.spy();
-        await modelActionCallback(minimalRequest, {
+        await modelAction(minimalRequest, {
           streamingRequested: true,
           sendChunk: sendChunkSpy,
         });
@@ -264,7 +236,7 @@ describe('Google AI Gemini', () => {
         mockFetchResponse(defaultApiResponse);
         const controller = new AbortController();
         const abortSignal = controller.signal;
-        await modelActionCallback(minimalRequest, {
+        await modelAction(minimalRequest, {
           streamingRequested: false,
           abortSignal,
         });
@@ -292,7 +264,7 @@ describe('Google AI Gemini', () => {
             { role: 'user', content: [{ text: 'Hello' }] },
           ],
         };
-        await modelActionCallback(request, {});
+        await modelAction(request, {});
 
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
@@ -323,7 +295,7 @@ describe('Google AI Gemini', () => {
             googleSearchRetrieval: {},
           },
         };
-        await modelActionCallback(request, {});
+        await modelAction(request, {});
 
         const apiRequest: GenerateContentRequest = JSON.parse(
           fetchStub.lastCall.args[1].body
@@ -338,14 +310,16 @@ describe('Google AI Gemini', () => {
     });
 
     describe('Error Handling', () => {
+      let modelAction: any;
+
       beforeEach(() => {
-        defineModel('gemini-2.0-flash', defaultPluginOptions);
+        modelAction = defineModel('gemini-2.0-flash', defaultPluginOptions);
       });
 
       it('throws if no candidates are returned', async () => {
         mockFetchResponse({ candidates: [] });
         await assert.rejects(
-          modelActionCallback(minimalRequest, {}),
+          modelAction(minimalRequest, {}),
           /No valid candidates returned/
         );
       });
@@ -353,7 +327,7 @@ describe('Google AI Gemini', () => {
       it('throws on fetch error', async () => {
         fetchStub.rejects(new Error('Network error'));
         await assert.rejects(
-          modelActionCallback(minimalRequest, {}),
+          modelAction(minimalRequest, {}),
           /Failed to fetch/
         );
       });
@@ -361,24 +335,24 @@ describe('Google AI Gemini', () => {
 
     describe('Debug Traces', () => {
       it('API call works with debugTraces: true', async () => {
-        defineModel('gemini-2.5-flash', {
+        const modelAction = defineModel('gemini-2.5-flash', {
           ...defaultPluginOptions,
           experimental_debugTraces: true,
         });
 
         mockFetchResponse(defaultApiResponse);
-        await assert.doesNotReject(modelActionCallback(minimalRequest, {}));
+        await assert.doesNotReject(modelAction(minimalRequest, {}));
         sinon.assert.calledOnce(fetchStub);
       });
 
       it('API call works with debugTraces: false', async () => {
-        defineModel('gemini-2.0-flash', {
+        const modelAction = defineModel('gemini-2.0-flash', {
           ...defaultPluginOptions,
           experimental_debugTraces: false,
         });
 
         mockFetchResponse(defaultApiResponse);
-        await assert.doesNotReject(modelActionCallback(minimalRequest, {}));
+        await assert.doesNotReject(modelAction(minimalRequest, {}));
         sinon.assert.calledOnce(fetchStub);
       });
     });

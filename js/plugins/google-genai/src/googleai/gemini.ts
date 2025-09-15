@@ -483,7 +483,8 @@ export function defineModel(
       configSchema: ref.configSchema,
       use: middleware,
     },
-    async (request, { streamingRequested, sendChunk, abortSignal }) => {
+    async (request, options) => {
+      const { streamingRequested, sendChunk, abortSignal } = options || {};
       const clientOpt = { ...clientOptions, signal: abortSignal };
 
       // Make a copy so that modifying the request will not produce side-effects

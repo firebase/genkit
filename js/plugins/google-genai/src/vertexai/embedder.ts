@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-import { z, type Document } from 'genkit';
+import {
+  ActionMetadata,
+  embedderActionMetadata,
+  z,
+  type Document,
+} from 'genkit';
 import {
   EmbedderInfo,
   embedderRef,
@@ -29,6 +34,7 @@ import {
   EmbeddingInstance,
   EmbeddingPrediction,
   EmbeddingResult,
+  Model,
   TaskTypeSchema,
   VertexPluginOptions,
   isMultimodalEmbeddingPrediction,
@@ -108,6 +114,13 @@ export const KNOWN_MODELS = {
     supports: { input: ['text'] },
   }),
 } as const;
+export type KnownModels = keyof typeof KNOWN_MODELS;
+export type EmbedderModelName = `embedder=${string}`;
+export function isEmbedderModelName(
+  value?: string
+): value is EmbedderModelName {
+  return !!value?.includes('embedding');
+}
 
 export function createModelRef(
   version: string,
@@ -144,6 +157,21 @@ export function createModelRef(
       ...GENERIC_TEXT_MODEL.info,
     },
   });
+}
+
+// Takes a full list of models, filters for current Veo models only
+// and returns a modelActionMetadata for each.
+export function listActions(models: Model[]): ActionMetadata[] {
+  return models
+    .filter((m: Model) => isEmbedderModelName(m.name))
+    .map((m: Model) => {
+      const ref = createModelRef(m.name);
+      return embedderActionMetadata({
+        name: ref.name,
+        info: ref.info,
+        configSchema: ref.configSchema,
+      });
+    });
 }
 
 export function defineKnownModels(

@@ -48,7 +48,7 @@ describe('GoogleAI Plugin', () => {
     // Set a default API key for most tests
     process.env.GOOGLE_API_KEY = 'test-api-key';
 
-    // Mock global.fetch for listActions tests
+    // Mock global.fetch for list tests
     fetchMock = mock.method(global, 'fetch');
   });
 
@@ -214,7 +214,7 @@ describe('GoogleAI Plugin', () => {
   describe('googleAI.model', () => {
     it('should return a gemini ModelReference with correct schema', () => {
       const modelName = 'gemini-2.0-flash';
-      const modelRef = googleAI.model(modelName);
+      const modelRef = googleAI.createModelRef(modelName);
       assert.strictEqual(
         modelRef.name,
         `googleai/${modelName}`,
@@ -232,7 +232,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should return a TTS model reference with correct schema', () => {
-      const modelRef = googleAI.model('gemini-5.0-tts');
+      const modelRef = googleAI.createModelRef('gemini-5.0-tts');
       assert.strictEqual(
         modelRef.configSchema,
         GeminiTtsConfigSchema,
@@ -245,7 +245,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should have config values for gemini TTS', () => {
-      const modelRef = googleAI.model('gemini-5.0-tts', {
+      const modelRef = googleAI.createModelRef('gemini-5.0-tts', {
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: { voiceName: 'Algenib' },
@@ -265,7 +265,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should return a Gemma model reference with correct schema', () => {
-      const modelRef = googleAI.model('gemma-new-model');
+      const modelRef = googleAI.createModelRef('gemma-new-model');
       assert.strictEqual(
         modelRef.configSchema,
         GemmaConfigSchema,
@@ -278,7 +278,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should have config values for gemma', () => {
-      const modelRef = googleAI.model('gemma-3-12b-it', {
+      const modelRef = googleAI.createModelRef('gemma-3-12b-it', {
         temperature: 0.7,
       });
       assert.strictEqual(modelRef.name, 'googleai/gemma-3-12b-it');
@@ -286,7 +286,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should return an Imagen model reference with correct schema', () => {
-      const modelRef = googleAI.model('imagen-new-model');
+      const modelRef = googleAI.createModelRef('imagen-new-model');
       assert.strictEqual(
         modelRef.configSchema,
         ImagenConfigSchema,
@@ -295,7 +295,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should have config values for imagen model', () => {
-      const modelRef = googleAI.model('imagen-new-model', {
+      const modelRef = googleAI.createModelRef('imagen-new-model', {
         numberOfImages: 4,
         aspectRatio: '16:9',
       });
@@ -317,7 +317,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should return a Veo model reference with correct schema', () => {
-      const modelRef = googleAI.model('veo-new-model');
+      const modelRef = googleAI.createModelRef('veo-new-model');
       const supports: any = { ...modelRef.info?.supports };
 
       assert.strictEqual(
@@ -329,7 +329,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should have config values for veo model', () => {
-      const modelRef = googleAI.model('veo-new-model', {
+      const modelRef = googleAI.createModelRef('veo-new-model', {
         aspectRatio: '9:16',
         durationSeconds: 8,
       });
@@ -351,7 +351,7 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should return a gemini model reference for unknown model names', () => {
-      const modelRef = googleAI.model('foo-model');
+      const modelRef = googleAI.createModelRef('foo-model');
       assert.strictEqual(
         modelRef.configSchema,
         GeminiConfigSchema,
@@ -360,7 +360,9 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should have gemini config values for unknown model', () => {
-      const modelRef = googleAI.model('foo-model', { temperature: 0.3 });
+      const modelRef = googleAI.createModelRef('foo-model', {
+        temperature: 0.3,
+      });
       assert.strictEqual(
         modelRef.configSchema,
         GeminiConfigSchema,
@@ -371,13 +373,13 @@ describe('GoogleAI Plugin', () => {
 
     it('should handle names with googleai/ prefix', () => {
       const modelName = 'googleai/gemini-2.0-pro';
-      const modelRef = googleAI.model(modelName);
+      const modelRef = googleAI.createModelRef(modelName);
       assert.strictEqual(modelRef.name, modelName);
     });
 
     it('should handle names with models/ prefix', () => {
       const modelName = 'models/gemini-2.0-pro';
-      const modelRef = googleAI.model(modelName);
+      const modelRef = googleAI.createModelRef(modelName);
       assert.strictEqual(modelRef.name, 'googleai/gemini-2.0-pro');
     });
   });
@@ -408,7 +410,7 @@ describe('GoogleAI Plugin', () => {
     });
   });
 
-  describe('listActions Function', () => {
+  describe('list Function', () => {
     const createMockResponse = (models: Array<Partial<Model>>) => {
       const responseBody = { models: models };
       return Promise.resolve({
@@ -542,7 +544,7 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
-    it('should return empty array if API key is missing for listActions', async () => {
+    it('should return empty array if API key is missing for list', async () => {
       delete process.env.GOOGLE_API_KEY;
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_GENAI_API_KEY;
@@ -561,7 +563,7 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
-    it('should use listActions cache', async () => {
+    it('should use list cache', async () => {
       const mockModels = [
         {
           name: 'models/gemini-1.0-pro',
