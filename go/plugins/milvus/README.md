@@ -1,0 +1,1 @@
+go get -u github.com/milvus-io/milvus-sdk-go/v2
