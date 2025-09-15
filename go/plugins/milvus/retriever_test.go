@@ -74,7 +74,7 @@ func TestRetriever(t *testing.T) {
 		embedder.Register(d2, v2)
 		embedder.Register(d3, v3)
 
-		engine, err := NewMilvusEngine(ctx, WithAddress(*testAddr), WithAPIKey(*testAPIKey))
+		engine, err := NewEngine(ctx, WithAddress(*testAddr), WithAPIKey(*testAPIKey))
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}
@@ -203,7 +203,7 @@ func TestRetriever(t *testing.T) {
 		embedder.Register(d2, v2)
 		embedder.Register(d3, v3)
 
-		engine, err := NewMilvusEngine(ctx, WithAddress(*testAddr), WithAPIKey(*testAPIKey))
+		engine, err := NewEngine(ctx, WithAddress(*testAddr), WithAPIKey(*testAPIKey))
 		if err != nil {
 			t.Fatalf("failed to create engine: %v", err)
 		}
