@@ -35,7 +35,7 @@ type MilvusEngine struct {
 // NewMilvusEngine creates a new MilvusEngine and underlying client using the
 // provided options. It validates required configuration and returns an error
 // if the client cannot be created.
-func NewMilvusEngine(ctx context.Context, opts ...Option) (*MilvusEngine, error) {
+func NewEngine(ctx context.Context, opts ...EngineOption) (*MilvusEngine, error) {
 	engine := new(MilvusEngine)
 	cfg, err := applyOptions(opts)
 	if err != nil {
@@ -69,9 +69,9 @@ func (e *MilvusEngine) Close(ctx context.Context) error {
 	return e.client.Close(ctx)
 }
 
-// applyOptions applies the provided Option functions into a concrete
+// applyOptions applies the provided EngineOption functions into a concrete
 // configuration object and performs basic validation.
-func applyOptions(opts []Option) (engineConfig, error) {
+func applyOptions(opts []EngineOption) (engineConfig, error) {
 	cfg := &engineConfig{}
 	for _, opt := range opts {
 		opt(cfg)
