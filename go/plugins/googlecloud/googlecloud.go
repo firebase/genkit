@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -44,6 +45,9 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
+
+// Global sync.Once for showing logging setup instructions only once across all recovery attempts
+var showLoggingInstructionsOnce sync.Once
 
 // EnableGoogleCloudTelemetry enables comprehensive telemetry export to Google Cloud Observability suite.
 // This directly initializes telemetry without requiring plugin registration.
@@ -222,6 +226,10 @@ func FlushMetrics(ctx context.Context) error {
 }
 
 func setLogHandler(projectID string, level slog.Leveler, credentials *google.Credentials) error {
+	return setupGCPLogger(projectID, level, credentials)
+}
+
+func setupGCPLogger(projectID string, level slog.Leveler, credentials *google.Credentials) error {
 	var clientOpts []option.ClientOption
 	if credentials != nil {
 		clientOpts = append(clientOpts, option.WithCredentials(credentials))
@@ -230,6 +238,28 @@ func setLogHandler(projectID string, level slog.Leveler, credentials *google.Cre
 	c, err := logging.NewClient(context.Background(), "projects/"+projectID, clientOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to create logging client: %w", err)
+	}
+	// Set up error handling for async logging failures with recursive recovery
+	c.OnError = func(err error) {
+		fallbackHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: level,
+		})
+		slog.SetDefault(slog.New(fallbackHandler))
+		slog.Warn("Switched to stderr logging due to Google Cloud logging failure", "error", err)
+		slog.Error("Unable to send logs to Google Cloud", "error", err)
+		if loggingDenied(err) {
+			showLoggingInstructionsOnce.Do(func() {
+				fmt.Fprint(os.Stderr, loggingDeniedHelpText(projectID))
+			})
+		}
+
+		// Assume the logger is compromised, and we need a new one
+		// Reinitialize the logger with a new instance with the same config
+		if setupErr := setupGCPLogger(projectID, level, credentials); setupErr == nil {
+			slog.Info("Initialized a new GcpLogger")
+		} else {
+			slog.Error("Failed to reinitialize GCP logger", "error", setupErr)
+		}
 	}
 	logger := c.Logger("genkit_log")
 	slog.SetDefault(slog.New(newHandler(level, logger.Log, projectID)))
