@@ -121,7 +121,9 @@ gcloud projects add-iam-policy-binding %s \
     --member=serviceAccount:${SERVICE_ACCOUNT_EMAIL} \
     --role=%s
 
-For more information, see: https://cloud.google.com/docs/authentication/getting-started`, role, projectID, role)
+For more information, see: https://cloud.google.com/docs/authentication/getting-started
+
+`, role, projectID, role)
 }
 
 // loggingDeniedHelpText provides specific help for logging permission errors

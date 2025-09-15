@@ -22,9 +22,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
-	"time"
 
 	"cloud.google.com/go/logging"
 	"github.com/jba/slog/withsupport"
@@ -37,12 +35,10 @@ const MetadataKey = "metadata"
 
 // Enhanced handler with error handling
 type handler struct {
-	level              slog.Leveler
-	handleEntry        func(logging.Entry)
-	goa                *withsupport.GroupOrAttrs
-	projectID          string
-	fallbackHandler    slog.Handler
-	instructionsLogged bool
+	level       slog.Leveler
+	handleEntry func(logging.Entry)
+	goa         *withsupport.GroupOrAttrs
+	projectID   string
 }
 
 func newHandler(level slog.Leveler, f func(logging.Entry), projectID string) *handler {
@@ -50,16 +46,10 @@ func newHandler(level slog.Leveler, f func(logging.Entry), projectID string) *ha
 		level = slog.LevelInfo
 	}
 
-	// Create fallback handler for when GCP logging fails
-	fallbackHandler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: level,
-	})
-
 	return &handler{
-		level:           level,
-		handleEntry:     f,
-		projectID:       projectID,
-		fallbackHandler: fallbackHandler,
+		level:       level,
+		handleEntry: f,
+		projectID:   projectID,
 	}
 }
 
@@ -69,21 +59,19 @@ func (h *handler) Enabled(ctx context.Context, level slog.Level) bool {
 
 func (h *handler) WithAttrs(as []slog.Attr) slog.Handler {
 	return &handler{
-		level:           h.level,
-		handleEntry:     h.handleEntry,
-		goa:             h.goa.WithAttrs(as),
-		projectID:       h.projectID,
-		fallbackHandler: h.fallbackHandler,
+		level:       h.level,
+		handleEntry: h.handleEntry,
+		goa:         h.goa.WithAttrs(as),
+		projectID:   h.projectID,
 	}
 }
 
 func (h *handler) WithGroup(name string) slog.Handler {
 	return &handler{
-		level:           h.level,
-		handleEntry:     h.handleEntry,
-		goa:             h.goa.WithGroup(name),
-		projectID:       h.projectID,
-		fallbackHandler: h.fallbackHandler,
+		level:       h.level,
+		handleEntry: h.handleEntry,
+		goa:         h.goa.WithGroup(name),
+		projectID:   h.projectID,
 	}
 }
 
@@ -96,93 +84,14 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 		strings.Contains(message, "google.logging.v2.LoggingServiceV2")
 
 	if isInternalGoogleCloudLog {
-		// Skip internal Google Cloud SDK logs, but send to fallback for debugging if needed
-		return h.fallbackHandler.Handle(ctx, r)
+		// Skip these logs - they're noise
+		return nil
 	}
 
 	entry := h.recordToEntry(ctx, r)
 
-	// Try to send to GCP with error handling and recovery
-	if err := h.handleWithRecovery(entry); err != nil {
-		// Fall back to local logging if GCP fails
-		return h.fallbackHandler.Handle(ctx, r)
-	}
-
+	h.handleEntry(entry)
 	return nil
-}
-
-// handleWithRecovery attempts to send the log entry to GCP
-func (h *handler) handleWithRecovery(entry logging.Entry) error {
-	// Attempt to send the log entry
-	defer func() {
-		if r := recover(); r != nil {
-			h.handleError(fmt.Errorf("panic in GCP logging: %v", r))
-		}
-	}()
-
-	// Create a channel to capture any errors from the async logging operation
-	errChan := make(chan error, 1)
-
-	// Wrap the handleEntry function to capture errors
-	wrappedHandleEntry := func(entry logging.Entry) {
-		defer func() {
-			if r := recover(); r != nil {
-				errChan <- fmt.Errorf("logging operation panic: %v", r)
-			} else {
-				errChan <- nil
-			}
-		}()
-		h.handleEntry(entry)
-	}
-
-	go wrappedHandleEntry(entry)
-
-	// Wait for completion with timeout
-	select {
-	case err := <-errChan:
-		if err != nil {
-			h.handleError(err)
-			return err
-		}
-		return nil
-	case <-time.After(5 * time.Second):
-		err := fmt.Errorf("GCP logging timeout")
-		h.handleError(err)
-		return err
-	}
-}
-
-// handleError processes logging errors and triggers immediate recovery
-func (h *handler) handleError(err error) {
-	// Check if this is a permission denied error for helpful messaging
-	if loggingDenied(err) {
-		h.logPermissionError(err)
-	} else {
-		// Log generic error
-		h.fallbackHandler.Handle(context.Background(), slog.NewRecord(
-			time.Now(),
-			slog.LevelError,
-			fmt.Sprintf("Unable to send logs to Google Cloud: %v", err),
-			0,
-		))
-	}
-
-}
-
-// logPermissionError logs helpful permission error messages (only once)
-func (h *handler) logPermissionError(err error) {
-	if !h.instructionsLogged {
-		h.instructionsLogged = true
-		helpText := loggingDeniedHelpText(h.projectID)
-		errorMsg := fmt.Sprintf("Unable to send logs to Google Cloud: %v\n\n%s\n", err, helpText)
-
-		h.fallbackHandler.Handle(context.Background(), slog.NewRecord(
-			time.Now(),
-			slog.LevelError,
-			errorMsg,
-			0,
-		))
-	}
 }
 
 func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entry {
