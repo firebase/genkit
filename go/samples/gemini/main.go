@@ -280,6 +280,7 @@ func main() {
 					},
 				},
 			}),
+			ai.WithModelName("googleai/gemini-2.5-flash-preview-tts"),
 			ai.WithPrompt(fmt.Sprintf("Say: %s", prompt)))
 		if err != nil {
 			return "", err
