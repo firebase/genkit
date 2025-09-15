@@ -29,7 +29,7 @@ import {
   extractText,
   extractVersion,
   modelName,
-} from '../../src/common/utils';
+} from '../../src/common/utils.js';
 
 describe('Common Utils', () => {
   describe('extractErrMsg', () => {

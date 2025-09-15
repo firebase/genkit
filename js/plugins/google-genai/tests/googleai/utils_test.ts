@@ -23,7 +23,7 @@ import {
   calculateApiKey,
   checkApiKey,
   getApiKeyFromEnvVar,
-} from '../../src/googleai/utils'; // Assuming the file is named utils.ts
+} from '../../src/googleai/utils.js'; // Assuming the file is named utils.ts
 
 describe('API Key Utils', () => {
   let originalEnv: NodeJS.ProcessEnv;

@@ -174,6 +174,15 @@ func (a *ActionDef[In, Out, Stream]) Name() string { return a.desc.Name }
 
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb StreamCallback[Stream]) (output Out, err error) {
+	r, err := a.runWithTelemetry(ctx, input, cb)
+	if err != nil {
+		return base.Zero[Out](), err
+	}
+	return r.Result, nil
+}
+
+// Run executes the Action's function in a new trace span.
+func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output api.ActionRunResult[Out], err error) {
 	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.Name,
 		"input", fmt.Sprintf("%#v", input))
@@ -200,8 +209,14 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 		spanMetadata.Metadata["flow:name"] = flowName
 	}
 
-	return tracing.RunInNewSpan(ctx, spanMetadata, input,
+	var traceID string
+	var spanID string
+	o, err := tracing.RunInNewSpan(ctx, spanMetadata, input,
 		func(ctx context.Context, input In) (Out, error) {
+			traceInfo := tracing.SpanTraceInfo(ctx)
+			traceID = traceInfo.TraceID
+			spanID = traceInfo.SpanID
+
 			start := time.Now()
 			var err error
 			if err = base.ValidateValue(input, a.desc.InputSchema); err != nil {
@@ -222,24 +237,52 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 				return base.Zero[Out](), err
 			}
 			metrics.WriteActionSuccess(ctx, a.desc.Name, latency)
-
 			return output, nil
+
 		})
+	return api.ActionRunResult[Out]{
+		Result:  o,
+		TraceId: traceID,
+		SpanId:  spanID,
+	}, err
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result.
 func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
+	r, err := a.RunJSONWithTelemetry(ctx, input, cb)
+	if err != nil {
+		return nil, err
+	}
+	return r.Result, nil
+}
+
+// RunJSON runs the action with a JSON input, and returns a JSON result along with telemetry info.
+func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
 		return nil, NewError(INVALID_ARGUMENT, err.Error())
 	}
-	var in In
-	if input != nil {
-		json.Unmarshal(input, &in)
+
+	var i In
+	if len(input) > 0 {
+		if err := json.Unmarshal(input, &i); err != nil {
+			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
+		}
+
+		// Adhere to the input schema if the number type is ambiguous and the input type is an any.
+		converted, err := base.ConvertJSONNumbers(i, a.desc.InputSchema)
+		if err != nil {
+			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
+		}
+
+		if result, ok := converted.(In); ok {
+			i = result
+		}
 	}
-	var callback func(context.Context, Stream) error
+
+	var scb StreamCallback[Stream]
 	if cb != nil {
-		callback = func(ctx context.Context, s Stream) error {
+		scb = func(ctx context.Context, s Stream) error {
 			bytes, err := json.Marshal(s)
 			if err != nil {
 				return err
@@ -247,15 +290,25 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 			return cb(ctx, json.RawMessage(bytes))
 		}
 	}
-	out, err := a.Run(ctx, in, callback)
+
+	r, err := a.runWithTelemetry(ctx, i, scb)
+	if err != nil {
+		return &api.ActionRunResult[json.RawMessage]{
+			TraceId: r.TraceId,
+			SpanId:  r.SpanId,
+		}, err
+	}
+
+	bytes, err := json.Marshal(r.Result)
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := json.Marshal(out)
-	if err != nil {
-		return nil, err
-	}
-	return json.RawMessage(bytes), nil
+
+	return &api.ActionRunResult[json.RawMessage]{
+		Result:  json.RawMessage(bytes),
+		TraceId: r.TraceId,
+		SpanId:  r.SpanId,
+	}, nil
 }
 
 // Desc returns a descriptor of the action.

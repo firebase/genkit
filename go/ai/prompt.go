@@ -133,9 +133,6 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
-
-	p.MessagesFn = mergeMessagesFn(p.MessagesFn, execOpts.MessagesFn)
-
 	// Render() should populate all data from the prompt. Prompt fields should
 	// *not* be referenced in this function as it may have been loaded from
 	// the registry and is missing the options passed in at definition.
@@ -165,6 +162,23 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 	if execOpts.ReturnToolRequests != nil {
 		actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
 	}
+	if execOpts.MessagesFn != nil {
+		m, err := buildVariables(execOpts.Input)
+		if err != nil {
+			return nil, err
+		}
+
+		tempOpts := promptOptions{
+			commonGenOptions: commonGenOptions{
+				MessagesFn: execOpts.MessagesFn,
+			},
+		}
+
+		actionOpts.Messages, err = renderMessages(ctx, tempOpts, actionOpts.Messages, m, execOpts.Input, p.registry.Dotprompt())
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
@@ -185,31 +199,6 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 	}
 
 	return p.Run(ctx, input, nil)
-}
-
-// mergeMessagesFn merges two messages functions.
-func mergeMessagesFn(promptFn, reqFn MessagesFn) MessagesFn {
-	if reqFn == nil {
-		return promptFn
-	}
-
-	if promptFn == nil {
-		return reqFn
-	}
-
-	return func(ctx context.Context, input any) ([]*Message, error) {
-		promptMsgs, err := promptFn(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-
-		reqMsgs, err := reqFn(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-
-		return append(promptMsgs, reqMsgs...), nil
-	}
 }
 
 // buildVariables returns a map holding prompt field values based

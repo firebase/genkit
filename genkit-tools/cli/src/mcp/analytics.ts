@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-export {
-  googleAI,
-  type EmbeddingConfig,
-  type GeminiConfig,
-  type GeminiTtsConfig,
-  type GoogleAIPluginOptions,
-  type ImagenConfig,
-} from './googleai/index.js';
-export { vertexAI } from './vertexai/index.js';
+import { GAEvent } from '@genkit-ai/tools-common/utils';
+
+export class McpRunToolEvent extends GAEvent {
+  name = 'mcp_tool';
+  duration = 1;
+
+  constructor(tool_name: string) {
+    super();
+    this.parameters = { tool_name };
+  }
+}

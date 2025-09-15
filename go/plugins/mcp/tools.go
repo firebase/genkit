@@ -57,21 +57,48 @@ func (c *GenkitMCPClient) createTools(mcpTools []mcp.Tool) ([]ai.Tool, error) {
 	return tools, nil
 }
 
+// getInputSchema returns the MCP input schema as a generic map for Genkit
+func (c *GenkitMCPClient) getInputSchema(mcpTool mcp.Tool) (map[string]any, error) {
+	var out map[string]any
+	schemaBytes, err := json.Marshal(mcpTool.InputSchema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal MCP input schema for tool %s: %w", mcpTool.Name, err)
+	}
+	if err := json.Unmarshal(schemaBytes, &out); err != nil {
+		// Fall back to empty map if unmarshalling fails
+		out = map[string]any{}
+	}
+	if out == nil {
+		out = map[string]any{}
+	}
+	return out, nil
+}
+
 // createTool converts a single MCP tool to a Genkit tool
 func (c *GenkitMCPClient) createTool(mcpTool mcp.Tool) (ai.Tool, error) {
 	// Use namespaced tool name
 	namespacedToolName := c.GetToolNameWithNamespace(mcpTool.Name)
 
-	// Create the tool function that will handle execution
 	toolFunc := c.createToolFunction(mcpTool)
-
-	// Create tool
-	tool := ai.NewTool(
-		namespacedToolName,
-		mcpTool.Description,
-		toolFunc,
-	)
-
+	inputSchema, err := c.getInputSchema(mcpTool)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get input schema for tool %s: %w", mcpTool.Name, err)
+	}
+	var tool ai.Tool
+	if len(inputSchema) > 0 {
+		tool = ai.NewToolWithInputSchema(
+			namespacedToolName,
+			mcpTool.Description,
+			inputSchema,
+			toolFunc,
+		)
+	} else {
+		tool = ai.NewTool(
+			namespacedToolName,
+			mcpTool.Description,
+			toolFunc,
+		)
+	}
 	return tool, nil
 }
 

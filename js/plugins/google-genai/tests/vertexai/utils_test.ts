@@ -24,7 +24,7 @@ import {
   GlobalClientOptions,
   RegionalClientOptions,
   VertexPluginOptions,
-} from '../../src/vertexai/types';
+} from '../../src/vertexai/types.js';
 import {
   API_KEY_FALSE_ERROR,
   MISSING_API_KEY_ERROR,
@@ -34,7 +34,7 @@ import {
   checkSupportedResourceMethod,
   getApiKeyFromEnvVar,
   getDerivedOptions,
-} from '../../src/vertexai/utils';
+} from '../../src/vertexai/utils.js';
 
 // Helper to assert GenkitError properties
 function assertGenkitError(error: any, expectedError: GenkitError) {
