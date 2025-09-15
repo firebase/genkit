@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -36,7 +37,10 @@ func main() {
 	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
 	g := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{}),
+		genkit.WithPlugins(
+			&googlegenai.GoogleAI{},
+			&googlegenai.VertexAI{},
+		),
 		genkit.WithDefaultModel("googleai/gemini-2.5-flash"))
 
 	// Define a simple flow that generates jokes about a given topic
@@ -205,6 +209,117 @@ func main() {
 
 		text := resp.Text()
 		return text, nil
+	})
+
+	genkit.DefineFlow(g, "image-generation", func(ctx context.Context, input string) ([]string, error) {
+		r, err := genkit.Generate(ctx, g,
+			ai.WithModelName("vertexai/imagen-3.0-generate-001"),
+			ai.WithPrompt("Generate an image of %s", input),
+			ai.WithConfig(&genai.GenerateImagesConfig{
+				NumberOfImages:    2,
+				NegativePrompt:    "night",
+				AspectRatio:       "9:16",
+				SafetyFilterLevel: genai.SafetyFilterLevelBlockLowAndAbove,
+				PersonGeneration:  genai.PersonGenerationAllowAll,
+				Language:          genai.ImagePromptLanguageEn,
+				AddWatermark:      true,
+				OutputMIMEType:    "image/jpeg",
+			}),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		var images []string
+		for _, m := range r.Message.Content {
+			images = append(images, m.Text)
+		}
+		return images, nil
+	})
+
+	// Define a simple flow that generates audio transcripts from a given audio
+	genkit.DefineFlow(g, "speech-to-text-flow", func(ctx context.Context, input any) (string, error) {
+		audio, err := os.Open("./genkit.wav")
+		if err != nil {
+			return "", err
+		}
+		defer audio.Close()
+
+		audioBytes, err := io.ReadAll(audio)
+		if err != nil {
+			return "", err
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModelName("googleai/gemini-2.5-flash"),
+			ai.WithMessages(ai.NewUserMessage(
+				ai.NewTextPart("Can you transcribe the next audio?"),
+				ai.NewMediaPart("audio/wav", "data:audio/wav;base64,"+base64.StdEncoding.EncodeToString(audioBytes)))),
+		)
+		if err != nil {
+			return "", err
+		}
+
+		return resp.Text(), nil
+	})
+
+	// Simple flow that generates an audio from a given text
+	genkit.DefineFlow(g, "text-to-speech-flow", func(ctx context.Context, input string) (string, error) {
+		prompt := "Genkit is the best Gen AI library!"
+		if input != "" {
+			prompt = input
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature:        genai.Ptr[float32](1.0),
+				ResponseModalities: []string{"AUDIO"},
+				SpeechConfig: &genai.SpeechConfig{
+					VoiceConfig: &genai.VoiceConfig{
+						PrebuiltVoiceConfig: &genai.PrebuiltVoiceConfig{
+							VoiceName: "Algenib",
+						},
+					},
+				},
+			}),
+			ai.WithPrompt(fmt.Sprintf("Say: %s", prompt)))
+		if err != nil {
+			return "", err
+		}
+
+		// base64 encoded audio
+		return resp.Text(), nil
+	})
+
+	type greetingStyle struct {
+		Style    string `json:"style"`
+		Location string `json:"location"`
+		Name     string `json:"name"`
+	}
+
+	type greeting struct {
+		Greeting string `json:"greeting"`
+	}
+
+	// Define a simple flow that prompts an LLM to generate greetings using a
+	// given style.
+	genkit.DefineFlow(g, "assistant-greeting", func(ctx context.Context, input greetingStyle) (string, error) {
+		// Look up the prompt by name
+		prompt := genkit.LookupPrompt(g, "example")
+		if prompt == nil {
+			return "", fmt.Errorf("assistantreetingFlow: failed to find prompt")
+		}
+
+		// Execute the prompt with the provided input
+		resp, err := prompt.Execute(ctx, ai.WithInput(input))
+		if err != nil {
+			return "", err
+		}
+
+		var output greeting
+		if err = resp.Output(&output); err != nil {
+			return "", err
+		}
+
+		return output.Greeting, nil
 	})
 
 	<-ctx.Done()
