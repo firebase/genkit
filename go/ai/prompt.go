@@ -180,6 +180,17 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		}
 	}
 
+	for _, tool := range execOpts.Tools {
+		if model := LookupModel(p.registry, tool.Name()); model == nil {
+			if p.registry.IsChild() {
+				p.registry = p.registry.NewChild()
+			}
+			if tool, ok := tool.(Tool); ok {
+				tool.Register(p.registry)
+			}
+		}
+	}
+
 	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
 
