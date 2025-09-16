@@ -8,3 +8,4 @@ pnpm-lock.yaml
 public/
 py/*
 README.md
+genkit-tools/cli/src/commands/init-ai-tools/context/*.ts

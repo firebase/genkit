@@ -63,6 +63,7 @@ $HOME/go/bin/addlicense \
   -ignore '.trunk/**/*' \
   -ignore '**/*.toml' \
   -ignore '**/*.nix' \
+  -ignore '**/genkit-tools/cli/src/commands/init-ai-tools/context/*.ts' \
   "$TOP_DIR"
 
 uv run --directory "${PY_DIR}" liccheck
