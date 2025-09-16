@@ -27,7 +27,7 @@ import { logger } from 'genkit/logging';
 import { modelRef } from 'genkit/model';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
 import type { ActionType } from 'genkit/registry';
-import { getApiKeyFromEnvVar } from './common';
+import { getApiKeyFromEnvVar } from './common.js';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
   GeminiEmbeddingConfigSchema,
