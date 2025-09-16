@@ -113,7 +113,8 @@ func (ds *DocStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		WithOutputFields(outColumns...)
 
 	if len(partitions) > 0 {
-		sopts.WithPartitions(partitions...)
+		sopts.WithConsistencyLevel(entity.ClStrong).
+			WithPartitions(partitions...)
 	}
 	if offset > 0 {
 		sopts.WithOffset(offset)
