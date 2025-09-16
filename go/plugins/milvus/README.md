@@ -120,7 +120,7 @@ The `RetrieverOptions` struct requires the following fields:
 
 - **Limit**: Limit is the maximum number of results to retrieve (https://milvus.io/docs/single-vector-search.md#Use-Limit-and-Offset).
 - **Columns***: Columns list additional scalar fields to return with each result (https://milvus.io/docs/single-vector-search.md#Use-Output-Fields).
-- **Partitions**: Partitions restrict the search to the specified partition names.
+- **Partitions**: Partitions restrict the search to the specified partition names (https://milvus.io/docs/single-vector-search.md#ANN-Search-in-Partition).
 - **Offset**: Offset skips the first N results (https://milvus.io/docs/single-vector-search.md#Use-Limit-and-Offset).
 - **Filter**: Filter is a boolean expression to post-filter rows (https://milvus.io/docs/filtered-search.md#Search-with-standard-filtering).
 - **FilterOptions**: FilterOptions passes engine-specific search parameters (https://milvus.io/docs/filtered-search.md#Search-with-iterative-filtering).
