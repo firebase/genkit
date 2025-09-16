@@ -424,7 +424,7 @@ func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action 
 
 			return core.NewAction(fmt.Sprintf("%s/%s", googleAIProvider, name), api.ActionTypeBackgroundModel, nil, nil,
 				func(ctx context.Context, input *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
-					return veoModel.Start(ctx, input)
+					return veoModel.StartOperation(ctx, input)
 				})
 		}
 		return nil
@@ -448,7 +448,7 @@ func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action 
 			return core.NewAction(fmt.Sprintf("%s/%s", googleAIProvider, name), api.ActionTypeCheckOperation,
 				map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)}, nil,
 				func(ctx context.Context, op *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
-					updatedOp, err := veoModel.Check(ctx, op)
+					updatedOp, err := veoModel.CheckOperation(ctx, op)
 					if err != nil {
 						return nil, err
 					}

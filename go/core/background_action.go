@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core/api"
-	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // Operation represents a background task operation
@@ -65,7 +64,7 @@ func (b *BackgroundActionDef[In, Out]) Name() string {
 
 // DefineBackgroundAction creates and registers a background action with three component actions
 func DefineBackgroundAction[In, Out any](
-	r *registry.Registry,
+	r api.Registry,
 	name string,
 	metadata map[string]any,
 	startFunc func(context.Context, In) (*Operation[Out], error),

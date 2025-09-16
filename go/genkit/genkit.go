@@ -427,7 +427,7 @@ func DefineModel(g *Genkit, name string, opts *ai.ModelOptions, fn ai.ModelFunc)
 	return ai.DefineModel(g.reg, name, opts, fn)
 }
 
-func DefineBackgroundModel(g *Genkit, name string, opts *ai.BackgroundModelOptions) *ai.BackgroundModel {
+func DefineBackgroundModel(g *Genkit, name string, opts *ai.BackgroundModelOptions) ai.BackgroundModel {
 	return ai.DefineBackgroundModel(g.reg, name, opts)
 }
 
@@ -443,7 +443,7 @@ func LookupModel(g *Genkit, name string) ai.Model {
 // LookupBackgroundModel retrieves a registered background model by its provider and name.
 // It returns the background action instance if found, or `nil` if no background model with the
 // given identifier is registered.
-func LookupBackgroundModel(g *Genkit, name string) *ai.BackgroundModel {
+func LookupBackgroundModel(g *Genkit, name string) ai.BackgroundModel {
 	return ai.LookupBackgroundModel(g.reg, name)
 }
 

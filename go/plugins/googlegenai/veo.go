@@ -32,7 +32,7 @@ func newVeoModel(
 	client *genai.Client,
 	name string,
 	info ai.ModelOptions,
-) *ai.BackgroundModel {
+) ai.BackgroundModel {
 
 	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
 		// Extract text prompt from the request
