@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-import { retrieverRef, type RetrieverAction, type z } from 'genkit';
-import { retriever } from 'genkit/plugin';
+import {
+  retrieverRef,
+  type Genkit,
+  type RetrieverAction,
+  type z,
+} from 'genkit';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import {
   VertexAIVectorRetrieverOptionsSchema,
@@ -35,22 +39,23 @@ const DEFAULT_K = 10;
  * @returns {RetrieverAction<z.ZodTypeAny>[]} - An array of retriever actions.
  */
 export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
+  ai: Genkit,
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): RetrieverAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
   const defaultEmbedder = params.defaultEmbedder;
 
-  const retrieverActions: RetrieverAction<z.ZodTypeAny>[] = [];
+  const retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
 
   if (!vectorSearchOptions || vectorSearchOptions.length === 0) {
-    return retrieverActions;
+    return retrievers;
   }
 
   for (const vectorSearchOption of vectorSearchOptions) {
     const { documentRetriever, indexId, publicDomainName } = vectorSearchOption;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
-    const retrieverAction = retriever(
+    const retriever = ai.defineRetriever(
       {
         name: `vertexai/${indexId}`,
         configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
@@ -120,10 +125,10 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
       }
     );
 
-    retrieverActions.push(retrieverAction);
+    retrievers.push(retriever);
   }
 
-  return retrieverActions;
+  return retrievers;
 }
 
 /**
