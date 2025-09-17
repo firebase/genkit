@@ -127,6 +127,8 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
 
+	r := p.registry
+
 	execOpts := &promptExecutionOptions{}
 	for _, opt := range opts {
 		if err := opt.applyPromptExecute(execOpts); err != nil {
@@ -181,17 +183,15 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 	}
 
 	for _, tool := range execOpts.Tools {
-		if model := LookupModel(p.registry, tool.Name()); model == nil {
-			if p.registry.IsChild() {
-				p.registry = p.registry.NewChild()
-			}
-			if tool, ok := tool.(Tool); ok {
-				tool.Register(p.registry)
-			}
+		if !r.IsChild() {
+			r = p.registry.NewChild()
+		}
+		if tool, ok := tool.(Tool); ok {
+			tool.Register(r)
 		}
 	}
 
-	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
+	return GenerateWithRequest(ctx, r, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
 
 // Render renders the prompt template based on user input.
