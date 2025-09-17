@@ -72,28 +72,15 @@ async function getSourceFilesToUpdate() {
     existingPaths.map((path) => readFile(path, { encoding: 'utf-8' }))
   );
 
-  const EXCLUDED_PATHS = [
-    /genkit-tools\/cli\/src\/commands\/init-ai-tools\/context\/.*\.ts$/,
-  ];
-
   return fileContents
     .map((contents, idx) => ({
       contents,
       path: existingPaths[idx],
       format: FORMAT_TYPES.find(({ regex }) => regex.test(existingPaths[idx])),
     }))
-    .filter(({ contents, format, path }) => {
-      // Skip excluded paths
-      const isExcluded = EXCLUDED_PATHS.some((excludedPath) => {
-        if (typeof excludedPath === 'string') {
-          return path === excludedPath;
-        } else {
-          return excludedPath.test(path);
-        }
-      });
-
-      return format && !isExcluded && !/Copyright \d\d\d\d/.test(contents);
-    });
+    .filter(
+      ({ contents, format }) => format && !/Copyright \d\d\d\d/.test(contents)
+    );
 }
 
 function updateContent(content: string, format: FormatType): string {

@@ -14,11 +14,12 @@
 # limitations under the License.
 
 
-if ! git diff-index --quiet HEAD --; then
+if [ "$(git status --short)" ]
+then
     echo "Unclean git status"
     git status --long
     exit 1
-else
+else 
     echo "Git status is clean"
     exit 0
 fi

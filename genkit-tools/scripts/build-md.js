@@ -17,10 +17,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const CONTEXT_DIR = path.resolve(__dirname, '..', '..', 'context');
+const CONTEXT_DIR = path.resolve(__dirname, '..', 'cli', 'context');
 const TARGET_DIR = path.resolve(
   __dirname,
   '..',
+  'cli',
+  'src',
   'commands',
   'init-ai-tools',
   'context'
