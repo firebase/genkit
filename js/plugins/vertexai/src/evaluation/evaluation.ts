@@ -143,10 +143,12 @@ function createRougeEvaluator(
       return {
         rougeInput: {
           metricSpec,
-          instances: {
-            prediction: stringify(datapoint.output),
-            reference: datapoint.reference as string,
-          },
+          instances: [
+            {
+              prediction: stringify(datapoint.output),
+              reference: datapoint.reference as string,
+            },
+          ],
         },
       };
     },
