@@ -56,5 +56,4 @@ $HOME/go/bin/addlicense \
   -ignore '**/pnpm-lock.yaml' \
   -ignore '.nx/**/*' \
   -ignore '.trunk/**/*' \
-  -ignore '**/genkit-tools/cli/src/commands/init-ai-tools/context/*.ts' \
   "$TOP_DIR"
