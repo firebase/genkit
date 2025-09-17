@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { EmbedderReference, ModelReference, z } from 'genkit';
+import { ActionMetadata, EmbedderReference, ModelReference, z } from 'genkit';
 import { GenkitPluginV2, genkitPluginV2 } from 'genkit/plugin';
 import type { ActionType } from 'genkit/registry';
 
@@ -41,7 +41,7 @@ export function googleAIPlugin(
   options?: GoogleAIPluginOptions
 ): GenkitPluginV2 {
   // Cache for list function - per plugin instance
-  let listCache: any[] | null = null;
+  let listCache: ActionMetadata[] | null = null;
 
   return genkitPluginV2({
     name: 'googleai',
