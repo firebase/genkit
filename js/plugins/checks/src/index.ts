@@ -56,7 +56,7 @@ export function checks(options?: PluginOptions): GenkitPluginV2 {
 
       if (!projectId) {
         throw new Error(
-          `Checks Plugin is missing the 'projectId' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'projectId' into genkit config.`
+          `Checks Plugin is missing the 'projectId' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'projectId' into Genkit config.`
         );
       }
 
