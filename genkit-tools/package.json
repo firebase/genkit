@@ -6,7 +6,7 @@
     "build:cli": "pnpm build:md-context && cd cli && pnpm build",
     "build:telemetry-server": "cd telemetry-server && pnpm build",
     "build:common": "cd common && pnpm build && cd .. && pnpm export:schemas",
-    "build:md-context": "node src/utils/build-md.js",
+    "build:md-context": "node scripts/build-md.js",
     "export:schemas": "npx tsx scripts/schema-exporter.ts .",
     "pack:all": "pnpm run pack:cli && pnpm run pack:telemetry-server && pnpm run pack:common",
     "pack:common": "cd common && pnpm pack --pack-destination ../../dist",
