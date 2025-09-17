@@ -103,7 +103,7 @@ func (a *Anthropic) Init(ctx context.Context) []api.Action {
 
 	apiKey := os.Getenv("ANTHROPIC_API_KEY")
 	if apiKey != "" {
-		a.Opts = append(a.Opts, option.WithAPIKey(apiKey))
+		a.Opts = append([]option.RequestOption{option.WithAPIKey(apiKey)}, a.Opts...)
 	}
 
 	// initialize OpenAICompatible
