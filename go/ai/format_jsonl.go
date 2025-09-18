@@ -82,7 +82,7 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 
 		var nonTextParts []*Part
 		accumulatedText := strings.Builder{}
-		
+
 		for _, part := range m.Content {
 			if !part.IsText() {
 				nonTextParts = append(nonTextParts, part)
