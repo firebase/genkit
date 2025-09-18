@@ -16,7 +16,7 @@
 
 import * as assert from 'assert';
 import { z } from 'genkit';
-import { GenerateRequest, ModelReference } from 'genkit/model';
+import { GenerateRequest, ModelAction, ModelReference } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -155,7 +155,7 @@ describe('Vertex AI Gemini', () => {
 
   function runCommonTests(clientOptions: ClientOptions) {
     describe(`Model Action Callback ${clientOptions.kind}`, () => {
-      let modelAction: any;
+      let modelAction: ModelAction;
 
       beforeEach(() => {
         modelAction = defineModel('gemini-2.5-flash', clientOptions);
@@ -241,7 +241,7 @@ describe('Vertex AI Gemini', () => {
 
         assert.deepStrictEqual(options.headers, getExpectedHeaders());
 
-        assert.strictEqual(result.candidates.length, 1);
+        assert.strictEqual(result.candidates?.length, 1);
         assert.strictEqual(
           result.candidates[0].message.content[0].text,
           'Hi there'
@@ -253,8 +253,7 @@ describe('Vertex AI Gemini', () => {
 
         const sendChunkSpy = sinon.spy();
         await modelAction(minimalRequest, {
-          streamingRequested: true,
-          sendChunk: sendChunkSpy,
+          onChunk: sendChunkSpy,
         });
 
         sinon.assert.calledOnce(fetchStub);
@@ -282,7 +281,6 @@ describe('Vertex AI Gemini', () => {
         const controller = new AbortController();
         const abortSignal = controller.signal;
         await modelAction(minimalRequest, {
-          streamingRequested: false,
           abortSignal,
         });
         sinon.assert.calledOnce(fetchStub);

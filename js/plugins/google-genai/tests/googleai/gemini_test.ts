@@ -16,7 +16,7 @@
 
 import * as assert from 'assert';
 import { z } from 'genkit';
-import { GenerateRequest } from 'genkit/model';
+import { GenerateRequest, ModelAction } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import {
@@ -176,7 +176,7 @@ describe('Google AI Gemini', () => {
     });
 
     describe('Request Formation and API Calls', () => {
-      let modelAction: any;
+      let modelAction: ModelAction;
 
       beforeEach(() => {
         modelAction = defineModel('gemini-2.5-flash', defaultPluginOptions);
@@ -184,9 +184,7 @@ describe('Google AI Gemini', () => {
 
       it('calls fetch for non-streaming requests', async () => {
         mockFetchResponse(defaultApiResponse);
-        await modelAction(minimalRequest, {
-          streamingRequested: false,
-        });
+        await modelAction(minimalRequest);
         sinon.assert.calledOnce(fetchStub);
 
         const fetchArgs = fetchStub.lastCall.args;
@@ -210,8 +208,7 @@ describe('Google AI Gemini', () => {
 
         const sendChunkSpy = sinon.spy();
         await modelAction(minimalRequest, {
-          streamingRequested: true,
-          sendChunk: sendChunkSpy,
+          onChunk: sendChunkSpy,
         });
 
         sinon.assert.calledOnce(fetchStub);
@@ -237,7 +234,6 @@ describe('Google AI Gemini', () => {
         const controller = new AbortController();
         const abortSignal = controller.signal;
         await modelAction(minimalRequest, {
-          streamingRequested: false,
           abortSignal,
         });
         sinon.assert.calledOnce(fetchStub);
