@@ -34,8 +34,8 @@ import (
 func main() {
 	ctx := context.Background()
 	g := genkit.Init(ctx,
-		genkit.WithDefaultModel("vertexai/gemini-2.0-flash"),
-		genkit.WithPlugins(&googlegenai.VertexAI{}),
+		genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithPromptDir("prompts"),
 	)
 
@@ -62,7 +62,7 @@ func SimplePrompt(ctx context.Context, g *genkit.Genkit) {
 	// Define prompt with default model and system text.
 	helloPrompt := genkit.DefinePrompt(
 		g, "SimplePrompt",
-		ai.WithModelName("vertexai/gemini-2.5-pro"), // Override the default model.
+		ai.WithModelName("googleai/gemini-2.5-pro"), // Override the default model.
 		ai.WithSystem("You are a helpful AI assistant named Walt. Greet the user."),
 		ai.WithPrompt("Hello, who are you?"),
 	)
@@ -272,7 +272,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 
 	// Call the model and add additional messages from the user.
 	resp, err := helloPrompt.Execute(ctx,
-		ai.WithModel(googlegenai.VertexAIModel(g, "gemini-2.5-pro")),
+		ai.WithModel(googlegenai.GoogleAIModel(g, "gemini-2.5-pro")),
 		ai.WithMessages(ai.NewUserTextMessage("And I like turtles.")),
 	)
 	if err != nil {
@@ -319,7 +319,7 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal("empty prompt")
 	}
 	resp, err := prompt.Execute(ctx,
-		ai.WithModelName("vertexai/gemini-2.0-flash"),
+		ai.WithModelName("googleai/gemini-2.0-flash"),
 		ai.WithInput(map[string]any{"imageUrl": "data:image/jpg;base64," + img}),
 	)
 	if err != nil {
