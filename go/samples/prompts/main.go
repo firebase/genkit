@@ -34,7 +34,7 @@ import (
 func main() {
 	ctx := context.Background()
 	g := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+		genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithPromptDir("prompts"),
 	)
