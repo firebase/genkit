@@ -249,16 +249,13 @@ func setupGCPLogger(projectID string, level slog.Leveler, credentials *google.Cr
 	// Set up error handling for async logging failures with recursive recovery
 	c.OnError = func(err error) {
 		slog.SetDefault(stderrLogger)
-		stderrLogger.Warn("Switched to stderr logging due to Google Cloud logging failure", "error", err)
+		stderrLogger.Warn("Unable to send logs to Google Cloud", "error", err)
 		if loggingDenied(err) {
 			showLoggingInstructionsOnce.Do(func() {
 				fmt.Fprint(os.Stderr, loggingDeniedHelpText(projectID))
 			})
 		}
 		/*
-			// TODO: For some reason, re-initializing the logger causes other non-logging errors to be swallowed.
-			// Haven't been able to figure out why yet. Turning this off for now so that other errors are visible.
-
 			stderrLogger.Error("Unable to send logs to Google Cloud. Re-initializing logger.")
 			// Assume the logger is compromised, and we need a new one
 			// Reinitialize the logger with a new instance with the same config
@@ -286,17 +283,12 @@ func (e *AdjustingTraceExporter) ExportSpans(ctx context.Context, spans []sdktra
 	adjustedSpans := e.adjust(spans)
 	err := e.exporter.ExportSpans(ctx, adjustedSpans)
 	if err != nil {
-		slog.Error("Failed to export spans to Google Cloud Trace",
+		slog.Error("Unable to send telemetry to Google Cloud",
 			"error", err,
 			"span_count", len(adjustedSpans),
 			"project_id", e.projectId,
 			"error_type", fmt.Sprintf("%T", err))
-	} else {
-		slog.Debug("Successfully exported spans to Google Cloud Trace",
-			"span_count", len(adjustedSpans),
-			"project_id", e.projectId)
 	}
-
 	return err
 }
 
