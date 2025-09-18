@@ -1,6 +1,6 @@
 # Gemini samples
 
-This folder contains several Gemini small applications using [Genkit Flows](https://genkit.dev/docs/flows/?lang=go) and GoogleAI and VertexAI plugins:
+This folder contains several Gemini small applications using [Genkit Flows](https://genkit.dev/docs/flows/?lang=go) and GoogleAI plugin:
 
 [!TIP]
 Samples are interchangeable between plugins

@@ -40,8 +40,15 @@ func main() {
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithDefaultModel("googleai/gemini-2.5-flash"))
 
-	// Define a simple flow that generates jokes about a given topic
-	genkit.DefineFlow(g, "joke-teller", func(ctx context.Context, input string) (string, error) {
+	var callback func(context.Context, *ai.ModelResponseChunk) error
+
+	// Define a simple streaming flow that generates jokes about a given topic
+	genkit.DefineStreamingFlow(g, "joke-teller", func(ctx context.Context, input string, cb func(context.Context, string) error) (string, error) {
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				return cb(ctx, c.Text())
+			}
+		}
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
@@ -49,7 +56,8 @@ func main() {
 					ThinkingBudget: genai.Ptr[int32](0),
 				},
 			}),
-			ai.WithPrompt("Tell short jokes about %s", input))
+			ai.WithPrompt("Tell short jokes about %s", input),
+			ai.WithStreaming(callback))
 		if err != nil {
 			return "", err
 		}
@@ -57,14 +65,21 @@ func main() {
 		return resp.Text(), nil
 	})
 
-	// Define a simple flow that generates jokes about a given topic with a context of bananas
-	genkit.DefineFlow(g, "context", func(ctx context.Context, input string) (string, error) {
+	// Define a simple streaming flow that generates jokes about a given topic with a context of bananas
+	genkit.DefineStreamingFlow(g, "context", func(ctx context.Context, input string, cb func(context.Context, string) error) (string, error) {
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				return cb(ctx, c.Text())
+			}
+		}
+
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.0-flash"),
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 			}),
 			ai.WithPrompt("Tell short jokes about %s", input),
+			ai.WithStreaming(callback),
 			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))
 		if err != nil {
 			return "", err
@@ -75,19 +90,32 @@ func main() {
 	})
 
 	// Simple flow that generates a brief comic strip
-	genkit.DefineFlow(g, "comic-strip-generator", func(ctx context.Context, input string) ([]string, error) {
+	genkit.DefineStreamingFlow(g, "comic-strip-generator", func(ctx context.Context, input string, cb func(context.Context, string) error) ([]string, error) {
 		if input == "" {
 			input = `A little blue gopher with big eyes trying to learn Python,
 				use a cartoon style, the story should be tragic because he
 				chose the wrong programming language, the proper programing
 				language for a gopher should be Go`
 		}
+		if cb != nil {
+			var story string
+			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				for _, p := range c.Content {
+					if p.IsMedia() || p.IsText() {
+						story = p.Text
+					}
+				}
+				return cb(ctx, story)
+			}
+		}
+
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.5-flash-image-preview"), // nano banana
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature:        genai.Ptr[float32](0.5),
 				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
+			ai.WithStreaming(callback),
 			ai.WithPrompt("generate a short story about %s and for each scene, generate an image for it", input))
 		if err != nil {
 			return nil, err
@@ -103,8 +131,14 @@ func main() {
 		return story, nil
 	})
 
-	// A flow that uses Romeo and Juliet as cache contents to answer questions about the book
-	genkit.DefineFlow(g, "cached-contents", func(ctx context.Context, input string) (string, error) {
+	// A flow that uses Romeo and Juliet as cached contents to answer questions about the book
+	genkit.DefineStreamingFlow(g, "cached-contents", func(ctx context.Context, input string, cb func(context.Context, string) error) (string, error) {
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				return cb(ctx, c.Text())
+			}
+		}
+
 		// Romeo and Juliet
 		url := "https://www.gutenberg.org/cache/epub/1513/pg1513.txt"
 		prompt := "I'll provide you with some text contents that I want you to use to answer further questions"
@@ -123,6 +157,7 @@ func main() {
 			ai.WithMessages(
 				ai.NewUserTextMessage(content).WithCacheTTL(360), // create cache contents
 			),
+			ai.WithStreaming(callback),
 			ai.WithPrompt(prompt))
 		if err != nil {
 			return "", err
@@ -142,10 +177,12 @@ func main() {
 				},
 			}),
 			ai.WithMessages(resp.History()...),
+			ai.WithStreaming(callback),
 			ai.WithPrompt(prompt))
 		if err != nil {
 			return "", nil
 		}
+
 		return resp.Text(), nil
 	})
 
