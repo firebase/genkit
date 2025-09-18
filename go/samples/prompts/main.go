@@ -39,17 +39,17 @@ func main() {
 		genkit.WithPromptDir("prompts"),
 	)
 
-	// SimplePrompt(ctx, g)
-	// PromptWithMultiMessage(ctx, g)
+	SimplePrompt(ctx, g)
+	PromptWithMultiMessage(ctx, g)
 	PromptWithInput(ctx, g)
-	// PromptWithOutputType(ctx, g)
-	// PromptWithComplexOutputType(ctx, g)
-	// PromptWithTool(ctx, g)
-	// PromptWithMessageHistory(ctx, g)
-	// PromptWithExecuteOverrides(ctx, g)
-	// PromptWithFunctions(ctx, g)
-	// PromptWithOutputTypeDotprompt(ctx, g)
-	// PromptWithMediaType(ctx, g)
+	PromptWithOutputType(ctx, g)
+	PromptWithComplexOutputType(ctx, g)
+	PromptWithTool(ctx, g)
+	PromptWithMessageHistory(ctx, g)
+	PromptWithExecuteOverrides(ctx, g)
+	PromptWithFunctions(ctx, g)
+	PromptWithOutputTypeDotprompt(ctx, g)
+	PromptWithMediaType(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
