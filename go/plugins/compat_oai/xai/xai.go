@@ -87,9 +87,6 @@ func (x *XAi) Init(ctx context.Context) []api.Action {
 	if x.openAICompatible == nil {
 		x.openAICompatible = &compat_oai.OpenAICompatible{}
 	}
-	x.openAICompatible.Opts = []option.RequestOption{
-		option.WithBaseURL(url),
-	}
 
 	x.openAICompatible.Opts = x.Opts
 	compatActions := x.openAICompatible.Init(ctx)
