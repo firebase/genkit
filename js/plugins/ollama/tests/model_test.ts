@@ -19,6 +19,28 @@ import { beforeEach, describe, it } from 'node:test';
 import { ollama } from '../src/index.js';
 import type { OllamaPluginParams } from '../src/types.js';
 
+const MOCK_TOOL_CALL_RESPONSE = {
+  model: 'llama3.2',
+  created_at: '2024-07-22T20:33:28.123648Z',
+  message: {
+    role: 'assistant',
+    content: '',
+    tool_calls: [
+      {
+        function: {
+          name: 'get_current_weather',
+          arguments: {
+            format: 'celsius',
+            location: 'Paris, FR',
+          },
+        },
+      },
+    ],
+  },
+  done_reason: 'stop',
+  done: true,
+};
+
 const MOCK_END_RESPONSE = {
   model: 'llama3.2',
   created_at: '2024-07-22T20:33:28.123648Z',
@@ -43,7 +65,7 @@ global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
       return new Response(JSON.stringify(MOCK_END_RESPONSE));
     }
 
-    // For tool calls, return the end response directly (simplified for v2)
+    // For tool calls
     return new Response(JSON.stringify(MOCK_END_RESPONSE));
   }
   throw new Error('Unknown API endpoint');
@@ -67,7 +89,7 @@ describe('ollama models', () => {
       model: 'ollama/test-model',
       prompt: 'Hello',
     });
-    assert.ok(result.message?.content[0]?.text === 'The weather is sunny');
+    assert.ok(result.text === 'The weather is sunny');
   });
 
   it('should successfully return tool call response', async () => {
@@ -87,7 +109,8 @@ describe('ollama models', () => {
       prompt: 'Hello',
       tools: [get_current_weather],
     });
-    assert.ok(result.message?.content[0]?.text === 'The weather is sunny');
+
+    assert.ok(result.text === 'The weather is sunny');
   });
 
   it('should throw for primitive tools', async () => {
