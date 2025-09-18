@@ -20,10 +20,11 @@ import (
 	"fmt"
 )
 
-// ConvertJSONNumbers recursively traverses a data structure and a corresponding JSON schema.
-// It converts instances of float64 into int64 or float64 based on the schema's "type" property.
-func ConvertJSONNumbers(data any, schema map[string]any) (any, error) {
-	if data == nil || schema == nil {
+// NormalizeInput recursively traverses a data structure and performs normalization:
+// 1. Removes any fields with null values
+// 2. Converts instances of float64 into int64 or float64 based on the schema's "type" property
+func NormalizeInput(data any, schema map[string]any) (any, error) {
+	if data == nil {
 		return data, nil
 	}
 
@@ -31,9 +32,9 @@ func ConvertJSONNumbers(data any, schema map[string]any) (any, error) {
 	case float64:
 		return convertFloat64(d, schema)
 	case map[string]any:
-		return convertObjectNumbers(d, schema)
+		return normalizeObjectInput(d, schema)
 	case []any:
-		return convertArrayNumbers(d, schema)
+		return normalizeArrayInput(d, schema)
 	default:
 		return data, nil
 	}
@@ -60,45 +61,78 @@ func convertFloat64(f float64, schema map[string]any) (any, error) {
 	}
 }
 
-// convertObjectNumbers converts any float64s in the map values to int64 or float64 based on the schema's "type" property.
-func convertObjectNumbers(obj map[string]any, schema map[string]any) (map[string]any, error) {
-	props, ok := schema["properties"].(map[string]any)
-	if !ok {
-		return obj, nil // No properties to guide conversion
+// normalizeObjectInput normalizes map values by removing null fields and converting JSON numbers.
+func normalizeObjectInput(obj map[string]any, schema map[string]any) (map[string]any, error) {
+	var props map[string]any
+	if schema != nil {
+		props, _ = schema["properties"].(map[string]any)
 	}
 
-	newObj := make(map[string]any, len(obj))
+	// If no schema or no properties, just remove null fields and normalize recursively
+	if schema == nil || props == nil {
+		newObj := make(map[string]any)
+		for k, v := range obj {
+			if v != nil {
+				normalized, err := NormalizeInput(v, nil)
+				if err != nil {
+					return nil, err
+				}
+				newObj[k] = normalized
+			}
+		}
+		return newObj, nil
+	}
+
+	newObj := make(map[string]any)
 	for k, v := range obj {
-		newObj[k] = v // Copy original value
+		// Skip null values - this removes the field entirely
+		if v == nil {
+			continue
+		}
 
 		propSchema, ok := props[k].(map[string]any)
 		if !ok {
-			continue // No schema for this property
+			// No schema for this property, just keep it if not null
+			normalized, err := NormalizeInput(v, nil)
+			if err != nil {
+				return nil, err
+			}
+			newObj[k] = normalized
+			continue
 		}
 
-		converted, err := ConvertJSONNumbers(v, propSchema)
+		normalized, err := NormalizeInput(v, propSchema)
 		if err != nil {
 			return nil, err
 		}
-		newObj[k] = converted
+		newObj[k] = normalized
 	}
 	return newObj, nil
 }
 
-// convertArrayNumbers converts any float64s in the array values to int64 or float64 based on the schema's "type" property.
-func convertArrayNumbers(arr []any, schema map[string]any) ([]any, error) {
+// normalizeArrayInput normalizes array values by converting JSON numbers and handling null elements.
+func normalizeArrayInput(arr []any, schema map[string]any) ([]any, error) {
 	items, ok := schema["items"].(map[string]any)
 	if !ok {
-		return arr, nil // No items schema to guide conversion
+		// No items schema, just normalize each element
+		newArr := make([]any, len(arr))
+		for i, v := range arr {
+			normalized, err := NormalizeInput(v, nil)
+			if err != nil {
+				return nil, err
+			}
+			newArr[i] = normalized
+		}
+		return newArr, nil
 	}
 
 	newArr := make([]any, len(arr))
 	for i, v := range arr {
-		converted, err := ConvertJSONNumbers(v, items)
+		normalized, err := NormalizeInput(v, items)
 		if err != nil {
 			return nil, err
 		}
-		newArr[i] = converted
+		newArr[i] = normalized
 	}
 	return newArr, nil
 }
