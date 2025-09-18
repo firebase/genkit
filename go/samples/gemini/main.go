@@ -37,10 +37,7 @@ func main() {
 	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
 	g := genkit.Init(ctx,
-		genkit.WithPlugins(
-			&googlegenai.GoogleAI{},
-			&googlegenai.VertexAI{},
-		),
+		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithDefaultModel("googleai/gemini-2.5-flash"))
 
 	// Define a simple flow that generates jokes about a given topic
@@ -52,7 +49,7 @@ func main() {
 					ThinkingBudget: genai.Ptr[int32](0),
 				},
 			}),
-			ai.WithPrompt(`Tell short jokes about %s`, input))
+			ai.WithPrompt("Tell short jokes about %s", input))
 		if err != nil {
 			return "", err
 		}
@@ -67,7 +64,7 @@ func main() {
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 			}),
-			ai.WithPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)),
+			ai.WithPrompt("Tell short jokes about %s", input),
 			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))
 		if err != nil {
 			return "", err
@@ -91,7 +88,7 @@ func main() {
 				Temperature:        genai.Ptr[float32](0.5),
 				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
-			ai.WithPrompt(fmt.Sprintf(`generate a short story about %s and for each scene, generate an image for it`, input)))
+			ai.WithPrompt("generate a short story about %s and for each scene, generate an image for it", input))
 		if err != nil {
 			return nil, err
 		}
@@ -196,8 +193,8 @@ func main() {
 			return "", err
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(&ai.GenerationCommonConfig{
-				Temperature: 1.0,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](1.0),
 			}),
 			ai.WithMessages(ai.NewUserMessage(
 				ai.NewTextPart("Can you describe what's in this image?"),
@@ -213,16 +210,13 @@ func main() {
 
 	genkit.DefineFlow(g, "image-generation", func(ctx context.Context, input string) ([]string, error) {
 		r, err := genkit.Generate(ctx, g,
-			ai.WithModelName("vertexai/imagen-3.0-generate-001"),
+			ai.WithModelName("googleai/imagen-4.0-generate-001"),
 			ai.WithPrompt("Generate an image of %s", input),
 			ai.WithConfig(&genai.GenerateImagesConfig{
 				NumberOfImages:    2,
-				NegativePrompt:    "night",
 				AspectRatio:       "9:16",
 				SafetyFilterLevel: genai.SafetyFilterLevelBlockLowAndAbove,
 				PersonGeneration:  genai.PersonGenerationAllowAll,
-				Language:          genai.ImagePromptLanguageEn,
-				AddWatermark:      true,
 				OutputMIMEType:    "image/jpeg",
 			}),
 		)
@@ -281,7 +275,7 @@ func main() {
 				},
 			}),
 			ai.WithModelName("googleai/gemini-2.5-flash-preview-tts"),
-			ai.WithPrompt(fmt.Sprintf("Say: %s", prompt)))
+			ai.WithPrompt("Say: %s", prompt))
 		if err != nil {
 			return "", err
 		}

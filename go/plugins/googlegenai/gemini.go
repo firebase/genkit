@@ -357,7 +357,7 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 	// Genkit primitive fields must be used instead of go-genai fields
 	// i.e.: system prompt, tools, cached content, response schema, etc
 	if gcc.CandidateCount != 1 {
-		return nil, fmt.Errorf("candidate count must be 1, got: %d", gcc.CandidateCount)
+		return nil, errors.New("multiple candidates is not supported")
 	}
 	if gcc.SystemInstruction != nil {
 		return nil, errors.New("system instruction must be set using Genkit feature: ai.WithSystemPrompt()")
