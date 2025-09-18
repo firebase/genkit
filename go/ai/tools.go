@@ -300,3 +300,27 @@ func (t *tool) Restart(p *Part, opts *RestartOptions) *Part {
 
 	return newToolReq
 }
+
+// resolveUniqueTools resolves the list of tool refs to a list of all tool names and new tools that must be registered.
+// Returns an error if there are tool refs with duplicate names.
+func resolveUniqueTools(r api.Registry, toolRefs []ToolRef) (toolNames []string, newTools []Tool, err error) {
+	toolMap := make(map[string]bool)
+
+	for _, toolRef := range toolRefs {
+		name := toolRef.Name()
+
+		if toolMap[name] {
+			return nil, nil, core.NewError(core.INVALID_ARGUMENT, "duplicate tool %q", name)
+		}
+		toolMap[name] = true
+		toolNames = append(toolNames, name)
+
+		if LookupTool(r, name) == nil {
+			if tool, ok := toolRef.(Tool); ok {
+				newTools = append(newTools, tool)
+			}
+		}
+	}
+
+	return toolNames, newTools, nil
+}

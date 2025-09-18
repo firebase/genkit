@@ -383,23 +383,9 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 		modelName = genOpts.Model.Name()
 	}
 
-	var dynamicTools []Tool
-	tools := make([]string, len(genOpts.Tools))
-	toolNames := make(map[string]bool)
-	for i, toolRef := range genOpts.Tools {
-		name := toolRef.Name()
-		// Redundant duplicate tool check with GenerateWithRequest otherwise we will panic when we register the dynamic tools.
-		if toolNames[name] {
-			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: duplicate tool %q", name)
-		}
-		toolNames[name] = true
-		tools[i] = name
-		// Dynamic tools wouldn't have been registered by this point.
-		if LookupTool(r, name) == nil {
-			if tool, ok := toolRef.(Tool); ok {
-				dynamicTools = append(dynamicTools, tool)
-			}
-		}
+	toolNames, dynamicTools, err := resolveUniqueTools(r, genOpts.Tools)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(dynamicTools) > 0 {
@@ -477,7 +463,7 @@ func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*Mod
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
-		Tools:              tools,
+		Tools:              toolNames,
 		MaxTurns:           genOpts.MaxTurns,
 		Config:             genOpts.Config,
 		ToolChoice:         genOpts.ToolChoice,
