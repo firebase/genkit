@@ -286,13 +286,13 @@ func (e *AdjustingTraceExporter) ExportSpans(ctx context.Context, spans []sdktra
 	adjustedSpans := e.adjust(spans)
 	err := e.exporter.ExportSpans(ctx, adjustedSpans)
 	if err != nil {
-		slog.Error("Failed to export spans to Google Cloud Trace",
+		slog.Error("Failed to export spans to Google Cloud",
 			"error", err,
 			"span_count", len(adjustedSpans),
 			"project_id", e.projectId,
 			"error_type", fmt.Sprintf("%T", err))
 	} else {
-		slog.Debug("Successfully exported spans to Google Cloud Trace",
+		slog.Debug("Successfully exported spans to Google Cloud",
 			"span_count", len(adjustedSpans),
 			"project_id", e.projectId)
 	}
