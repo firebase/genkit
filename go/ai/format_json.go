@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/firebase/genkit/go/internal/base"
 )
@@ -79,30 +80,38 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 			return nil, errors.New("message has no content")
 		}
 
-		for i, part := range m.Content {
+		var nonTextParts []*Part
+		accumulatedText := strings.Builder{}
+
+		for _, part := range m.Content {
 			if !part.IsText() {
-				continue
-			}
-
-			text := base.ExtractJSONFromMarkdown(part.Text)
-
-			if j.config.Schema != nil {
-				var schemaBytes []byte
-				schemaBytes, err := json.Marshal(j.config.Schema)
-				if err != nil {
-					return nil, fmt.Errorf("expected schema is not valid: %w", err)
-				}
-				if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
-					return nil, err
-				}
+				nonTextParts = append(nonTextParts, part)
 			} else {
-				if !base.ValidJSON(text) {
-					return nil, errors.New("message is not a valid JSON")
-				}
+				accumulatedText.WriteString(part.Text)
 			}
-
-			m.Content[i] = NewJSONPart(text)
 		}
+
+		text := base.ExtractJSONFromMarkdown(accumulatedText.String())
+
+		if j.config.Schema != nil {
+			var schemaBytes []byte
+			schemaBytes, err := json.Marshal(j.config.Schema)
+			if err != nil {
+				return nil, fmt.Errorf("expected schema is not valid: %w", err)
+			}
+			if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
+				return nil, err
+			}
+		} else {
+			if !base.ValidJSON(text) {
+				return nil, errors.New("message is not a valid JSON")
+			}
+		}
+
+		newParts := []*Part{NewJSONPart(text)}
+		newParts = append(newParts, nonTextParts...)
+
+		m.Content = newParts
 	}
 
 	return m, nil
