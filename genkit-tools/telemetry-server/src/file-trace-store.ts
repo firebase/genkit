@@ -30,6 +30,7 @@ import { version as currentVersion } from './utils/version';
 
 const MAX_TRACES = 1000;
 const MAX_INDEX_FILES = 10;
+const MAX_LIST_ATTR_LENGTH = 1000;
 
 /**
  * Implementation of trace store that persists traces on local disk.
@@ -177,7 +178,7 @@ export class LocalFileTraceStore implements TraceStore {
     });
 
     const loadedTraces = await Promise.all(
-      searchResult.data.map((d) => this.load(d['id']).then(stripTraceDetails))
+      searchResult.data.map((d) => this.load(d['id']).then(trucateTraceDetails))
     );
 
     return {
@@ -239,7 +240,7 @@ export class LocalFileTraceStore implements TraceStore {
   }
 }
 
-function stripTraceDetails(t?: TraceData): TraceData | undefined {
+function trucateTraceDetails(t?: TraceData): TraceData | undefined {
   if (!t) return t;
 
   const { spans: originalSpans, ...restOfTrace } = t;
@@ -250,7 +251,7 @@ function stripTraceDetails(t?: TraceData): TraceData | undefined {
       const { attributes: originalAttributes, ...restOfSpan } =
         originalSpans[spanId];
       spans[spanId] = {
-        attributes: stripMedia(originalAttributes),
+        attributes: trucateLargeAttrs(originalAttributes),
         ...restOfSpan,
       } as SpanData;
       break;
@@ -260,10 +261,7 @@ function stripTraceDetails(t?: TraceData): TraceData | undefined {
   return { spans, ...restOfTrace };
 }
 
-/**
- * Strips (non distructively) any properties with `undefined` values in the provided object and returns
- */
-export function stripMedia<T>(input: T): T {
+export function trucateLargeAttrs<T>(input: T): T {
   if (
     input === undefined ||
     input === null ||
@@ -275,9 +273,10 @@ export function stripMedia<T>(input: T): T {
   for (const key in input) {
     if (
       typeof input[key] === 'string' &&
-      (input[key] as string).length > 1000
+      (input[key] as string).length > MAX_LIST_ATTR_LENGTH
     ) {
-      input[key] = ((input[key] as string).substring(0, 1000) + '...') as any;
+      input[key] = ((input[key] as string).substring(0, MAX_LIST_ATTR_LENGTH) +
+        '...') as any;
     }
   }
   return input;
