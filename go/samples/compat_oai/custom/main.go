@@ -7,31 +7,24 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/compat_oai"
+
+	oai "github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
 )
 
 func main() {
+	ctx := context.Background()
 	apiKey := os.Getenv("OPENROUTER_API_KEY")
 	if apiKey == "" {
-		log.Fatalf("no OPENROUTER_API_KEY environment variable set")
+		log.Fatalf("OPENROUTER_API_KEY environment variable not set")
 	}
 
-	opts := []option.RequestOption{
-		option.WithAPIKey(apiKey),
-		option.WithBaseURL("https://openrouter.ai/api/v1"),
-	}
-
-	plugin := &compat_oai.OpenAICompatible{
-		Opts:     opts,
+	g := genkit.Init(ctx, genkit.WithPlugins(&oai.OpenAICompatible{
 		Provider: "openrouter",
-	}
-
-	g := genkit.Init(context.Background(),
-		genkit.WithPlugins(plugin),
-		genkit.WithDefaultModel("openrouter/tngtech/deepseek-r1t2-chimera:free"),
-	)
+		APIKey:   apiKey,
+		BaseURL:  "https://openrouter.ai/api/v1",
+	}),
+		genkit.WithDefaultModel("openrouter/tngtech/deepseek-r1t2-chimera:free"))
 
 	prompt := "tell me a joke"
 	config := &openai.ChatCompletionNewParams{
@@ -40,10 +33,12 @@ func main() {
 		TopP:        openai.Float(0.9),
 	}
 
-	resp, err := genkit.Generate(context.Background(), g, ai.WithConfig(config), ai.WithPrompt(prompt))
+	resp, err := genkit.Generate(context.Background(), g,
+		ai.WithConfig(config),
+		ai.WithPrompt(prompt))
 	if err != nil {
 		log.Fatalf("failed generating: %v", err)
 	}
 
-	log.Println("resp: ", resp.Text())
+	log.Println("Joke:", resp.Text())
 }

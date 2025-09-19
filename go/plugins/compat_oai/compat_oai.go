@@ -67,6 +67,9 @@ type OpenAICompatible struct {
 	// This will be used as a prefix for model names (e.g., "myprovider/model-name").
 	// Should be lowercase and match the plugin's Name() method.
 	Provider string
+
+	APIKey  string
+	BaseURL string
 }
 
 // Init implements genkit.Plugin.
@@ -75,6 +78,14 @@ func (o *OpenAICompatible) Init(ctx context.Context) []api.Action {
 	defer o.mu.Unlock()
 	if o.initted {
 		panic("compat_oai.Init already called")
+	}
+
+	if o.APIKey != "" {
+		o.Opts = append([]option.RequestOption{option.WithAPIKey(o.APIKey)}, o.Opts...)
+	}
+
+	if o.BaseURL != "" {
+		o.Opts = append([]option.RequestOption{option.WithBaseURL(o.BaseURL)}, o.Opts...)
 	}
 
 	// create client
