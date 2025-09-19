@@ -15,6 +15,7 @@
  */
 
 import {
+  SpanData,
   TraceDataSchema,
   type TraceData,
   type TraceQueryFilter,
@@ -176,7 +177,7 @@ export class LocalFileTraceStore implements TraceStore {
     });
 
     const loadedTraces = await Promise.all(
-      searchResult.data.map((d) => this.load(d['id']))
+      searchResult.data.map((d) => this.load(d['id']).then(stripTraceDetails))
     );
 
     return {
@@ -236,6 +237,47 @@ export class LocalFileTraceStore implements TraceStore {
     }
     return trace;
   }
+}
+
+function stripTraceDetails(t?: TraceData): TraceData | undefined {
+  if (!t) return t;
+
+  const { spans: originalSpans, ...restOfTrace } = t;
+
+  const spans = {} as Record<string, SpanData>;
+  for (const spanId of Object.keys(originalSpans)) {
+    if (!originalSpans[spanId].parentSpanId) {
+      const { attributes: originalAttributes, ...restOfSpan } =
+        originalSpans[spanId];
+      spans[spanId] = { attributes: stripMedia(originalAttributes), ...restOfSpan } as SpanData;
+      break;
+    }
+  }
+
+  return { spans, ...restOfTrace };
+}
+
+/**
+ * Strips (non distructively) any properties with `undefined` values in the provided object and returns
+ */
+export function stripMedia<T>(input: T): T {
+  if (
+    input === undefined ||
+    input === null ||
+    Array.isArray(input) ||
+    typeof input !== 'object'
+  ) {
+    return input;
+  }
+  for (const key in input) {
+    if (
+      typeof input[key] === 'string' &&
+      (input[key] as string).length > 1000
+    ) {
+      input[key] = ((input[key] as string).substring(0, 1000) + '...') as any;
+    }
+  }
+  return input;
 }
 
 export interface IndexSearchResult {
