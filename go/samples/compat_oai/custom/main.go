@@ -51,8 +51,7 @@ func main() {
 		ai.WithConfig(config),
 		ai.WithPrompt(prompt))
 	if err != nil {
-		log.Fatalf("failed generating: %v", err)
+		log.Fatalf("failed to generate contents: %v", err)
 	}
-
 	log.Println("Joke:", resp.Text())
 }
