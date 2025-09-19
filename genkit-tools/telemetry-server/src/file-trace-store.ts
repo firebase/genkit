@@ -150,7 +150,7 @@ export class LocalFileTraceStore implements TraceStore {
         path.resolve(this.storeRoot, `${id}`),
         JSON.stringify(trace)
       );
-      const hasRootSpan = !!Object.values(trace.spans).find(
+      const hasRootSpan = !!Object.values(rawTrace.spans).find(
         (s) => !s.parentSpanId
       );
       if (this.index && hasRootSpan) {
