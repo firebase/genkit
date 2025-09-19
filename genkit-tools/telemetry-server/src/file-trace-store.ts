@@ -249,7 +249,10 @@ function stripTraceDetails(t?: TraceData): TraceData | undefined {
     if (!originalSpans[spanId].parentSpanId) {
       const { attributes: originalAttributes, ...restOfSpan } =
         originalSpans[spanId];
-      spans[spanId] = { attributes: stripMedia(originalAttributes), ...restOfSpan } as SpanData;
+      spans[spanId] = {
+        attributes: stripMedia(originalAttributes),
+        ...restOfSpan,
+      } as SpanData;
       break;
     }
   }
