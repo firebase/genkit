@@ -20,15 +20,15 @@ const simpleFlow = ai.defineFlow(
 ```ts
 // /app/api/simpleFlow/route.ts
 import { simpleFlow } from '@/genkit/simpleFlow';
-import { appRoute } from '@genkit-ai/nextjs';
+import { appRoute } from '@genkit-ai/next';
 
 export const POST = appRoute(simpleFlow);
 ```
 
-APIs can be called with the generic `genkit/beta/client` library, or `@genkit-ai/nextjs/client`
+APIs can be called with the generic `genkit/beta/client` library, or `@genkit-ai/next/client`
 
 ```ts
-import { runFlow, streamFlow } from '@genkit-ai/nextjs/client';
+import { runFlow, streamFlow } from '@genkit-ai/next/client';
 import { simpleFlow } from '@/genkit/simpleFlow';
 
 const result = await runFlow<typeof simpleFlow>({
@@ -50,14 +50,14 @@ const result = await runFlow<typeof simpleFlow>({
 console.log(result); // hello
 
 // and streamed
-const result = streamFlow<typeof simpleFlow>({
+const { stream, output } = streamFlow<typeof simpleFlow>({
   url: '/api/simpleFlow',
   input: 'say hello',
 });
-for await (const chunk of result.stream()) {
+for await (const chunk of stream) {
   console.log(chunk.output);
 }
-console.log(await result.output());
+console.log(await output); // output is a promise, must be awaited
 ```
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.

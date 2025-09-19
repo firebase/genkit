@@ -14,9 +14,9 @@ export const AnimalSchema = z.object({
 export type Animal = z.infer<typeof AnimalSchema>;
 
 export const generateAnimal = ai.defineFlow({
-name: 'generateAnimal',
-inputSchema: z.string().describe('a text description of the type of animal to create'),
-outputSchema: AnimalSchema,
+  name: 'generateAnimal',
+  inputSchema: z.string().describe('a text description of the type of animal to create'),
+  outputSchema: AnimalSchema,
 }, (input) => {
   const {output: animal} = await ai.generate(/* fill in generate details */);
   return animal;
@@ -24,7 +24,8 @@ outputSchema: AnimalSchema,
 
 // src/app/api/generate-animal/route.ts
 import { generateAnimal } from "@/ai/flows/generate-animal";
-import { }
+import { appRoute } from '@genkit-ai/next';
+
 export const POST = appRoute(generateAnimal);
 
 // src/app/page.tsx
@@ -33,7 +34,7 @@ import { runFlow } from "@genkit-ai/next/client";
 
 export default function Page() {
   const [animal, setAnimal] = useState<Animal | null>(null);
-  const handleGenerateAnimal = (input: string) => {
+  const handleGenerateAnimal = async (input: string) => {
     const animal = await runFlow<typeof generateAnimalFlow>({
       url: '/api/generate-animal', // use the URL defined by your route.ts
       input,
@@ -49,9 +50,11 @@ export default function Page() {
 For streaming:
 
 <example>
+```ts
+// src/ai/flows/generate-animal.ts
 export const generateAnimal = ai.defineFlow({
   name: 'generateAnimal',
-  inputSchema, outputSchema // ... same as non-streaming
+  // inputSchema, outputSchema -- same as non-streaming
   streamSchema: AnimalSchema, // can be same or different as output schema
 }, (input, {sendChunk}) => {
   const {stream, response} = ai.generateStream(/* fill in generate details */);
@@ -61,4 +64,41 @@ export const generateAnimal = ai.defineFlow({
   const {output} = await response;
   return output;
 });
+
+// src/app/page.tsx
+import { streamFlow } from '@genkit-ai/next/client';
+import type { generateAnimal } from "@/ai/flows/generate-animal";
+
+// ... Page ...
+  const {stream, output} = streamFlow<typeof generateAnimalFlow>({
+    url: '/api/generate-animal',
+    input,
+  });
+  for await (const chunk of stream) {
+    console.log(chunk); // do something with the chunk
+  }
+  console.log(await output); // final output is a promise, must be awaited
+// ... /Page ...
+```
+</example>
+
+Auth: `appRoute` accepts optional context provider function which can handle auth headers
+and return parsed context object which will be made available to the flow and child
+actions.
+
+<example>
+```ts
+// src/app/api/generate-animal/route.ts
+import { generateAnimal } from "@/ai/flows/generate-animal";
+import { appRoute } from '@genkit-ai/next';
+
+export const POST = appRoute(generateAnimal, {
+  contextProvider: async (req) => {
+    // parseAuthHeader function can throw a user facing error like:
+    // import { UserFacingError } from 'genkit';
+    // throw new UserFacingError('PERMISSION_DENIED', 'Permission Denied');
+    return {auth: await parseAuthHeader(req.headers)}
+  }  
+});
+```
 </example>
