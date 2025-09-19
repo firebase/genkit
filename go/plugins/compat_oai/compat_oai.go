@@ -17,7 +17,6 @@ package compat_oai
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -99,16 +98,13 @@ func (o *OpenAICompatible) DefineModel(provider, id string, opts ai.ModelOptions
 		panic("OpenAICompatible.Init not called")
 	}
 
-	// Strip provider prefix if present to check against supportedModels
-	modelName := strings.TrimPrefix(id, provider+"/")
-
 	return ai.NewModel(api.NewName(provider, id), &opts, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
 		// Configure the response generator with input
-		generator := NewModelGenerator(o.client, modelName).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools)
+		generator := NewModelGenerator(o.client, id).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools)
 
 		// Generate response
 		resp, err := generator.Generate(ctx, cb)
@@ -197,7 +193,7 @@ func (o *OpenAICompatible) ListActions(ctx context.Context) []api.ActionDesc {
 					"systemRole":  true,
 					"tools":       true,
 					"toolChoice":  true,
-					"constrained": true,
+					"constrained": "all",
 				},
 			},
 			"versions": []string{},
