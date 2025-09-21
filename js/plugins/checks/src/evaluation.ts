@@ -29,7 +29,7 @@ export function checksEvaluators(
   auth: GoogleAuth,
   metrics: ChecksEvaluationMetric[],
   projectId: string
-): EvaluatorAction[] {
+): EvaluatorAction {
   const policy_configs: ChecksEvaluationMetricConfig[] = metrics.map(
     (metric) => {
       const metricType = isConfig(metric) ? metric.type : metric;
@@ -42,10 +42,7 @@ export function checksEvaluators(
     }
   );
 
-  if (metrics.length === 0) {
-    return [];
-  }
-  return [createPolicyEvaluator(projectId, auth, policy_configs)];
+  return createPolicyEvaluator(projectId, auth, policy_configs);
 }
 
 const ResponseSchema = z.object({

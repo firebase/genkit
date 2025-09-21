@@ -17,6 +17,7 @@
 import { logger } from 'genkit/logging';
 import type { ModelMiddleware } from 'genkit/model';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
+import { ActionType } from 'genkit/registry';
 import { GoogleAuth, type GoogleAuthOptions } from 'google-auth-library';
 import { checksEvaluators } from './evaluation.js';
 import {
@@ -47,24 +48,31 @@ const CHECKS_OAUTH_SCOPE = 'https://www.googleapis.com/auth/checks';
  * Add Google Checks evaluators.
  */
 export function checks(options?: PluginOptions): GenkitPluginV2 {
+  const googleAuth = inititializeAuth(options?.googleAuthOptions);
+
+  const projectId = options?.projectId || googleAuth.getProjectId();
+
+  if (!projectId) {
+    throw new Error(
+      `Checks Plugin is missing the 'projectId' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'projectId' into Genkit config.`
+    );
+  }
+
+  const metrics =
+    options?.evaluation && options.evaluation.metrics.length > 0
+      ? options.evaluation.metrics
+      : [];
+
   return genkitPluginV2({
     name: 'checks',
     init: async () => {
-      const googleAuth = inititializeAuth(options?.googleAuthOptions);
-
-      const projectId = options?.projectId || (await googleAuth.getProjectId());
-
-      if (!projectId) {
-        throw new Error(
-          `Checks Plugin is missing the 'projectId' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'projectId' into Genkit config.`
-        );
-      }
-
-      const metrics =
-        options?.evaluation && options.evaluation.metrics.length > 0
-          ? options.evaluation.metrics
-          : [];
-      return checksEvaluators(googleAuth, metrics, projectId);
+      return [checksEvaluators(googleAuth, metrics, await projectId)];
+    },
+    resolve: async (actionType: ActionType, name: string) => {
+      return checksEvaluators(googleAuth, metrics, await projectId);
+    },
+    list: async () => {
+      return [checksEvaluators(googleAuth, metrics, await projectId).__action];
     },
   });
 }
