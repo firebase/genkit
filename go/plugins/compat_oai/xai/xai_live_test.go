@@ -99,7 +99,7 @@ func TestPlugin(t *testing.T) {
 			t.Error("Expected multiple chunks for streaming")
 		}
 
-		// Verify final output matches streamed content
+		// Verify the final output matches streamed content
 		finalOutput := ""
 		for _, content := range final.Message.Content {
 			finalOutput += content.Text
@@ -110,6 +110,30 @@ func TestPlugin(t *testing.T) {
 		}
 
 		t.Logf("streaming response: %+v", finalOutput)
+	})
+
+	t.Run("media part", func(t *testing.T) {
+		image := "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHIAAABUAQMAAABk5vEVAAAABlBMVEX///8AAABVwtN+" +
+			"AAAAI0lEQVR4nGNgGHaA/z8UHIDwOWASDqP8Uf7w56On/1FAQwAAVM0exw1hqwkAAAAASUVORK5CYII="
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModelName("xai/grok-4-fast-non-reasoning"),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewMediaPart("image/png", image),
+					ai.NewTextPart("Is there a rectangle in the picture? Yes or not."),
+				),
+			),
+		)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		text := resp.Message.Content[0].Text
+		if !strings.Contains(strings.ToLower(text), "yes") {
+			t.Errorf("got %q, expecting it to contain 'yes'", text)
+		}
 	})
 
 	t.Run("system message", func(t *testing.T) {
@@ -188,7 +212,7 @@ func TestPlugin(t *testing.T) {
 	})
 
 	t.Run("invalid config type", func(t *testing.T) {
-		// Try to use a string as config instead of *ai.GenerationCommonConfig
+		// Try to use a string as config instead of *openai.ChatCompletionNewParams
 		config := "not a config"
 
 		_, err := genkit.Generate(ctx, g,

@@ -36,10 +36,20 @@ var supportedModels = map[string]ai.ModelOptions{
 		Supports: &compat_oai.BasicText,
 		Versions: []string{"grok-code-fast-1"},
 	},
-	"grok-4": {
+	"grok-4-fast-reasoning": {
+		Label:    "Grok 4 Fast",
+		Supports: &compat_oai.Multimodal,
+		Versions: []string{"grok-4-fast-reasoning", "grok-4-fast", "grok-4-fast-reasoning-latest"},
+	},
+	"grok-4-fast-non-reasoning": {
+		Label:    "Grok 4 Fast (Non-Reasoning)",
+		Supports: &compat_oai.Multimodal,
+		Versions: []string{"grok-4-fast-non-reasoning", "grok-4-fast-non-reasoning-latest"},
+	},
+	"grok-4-0709": {
 		Label:    "Grok 4",
 		Supports: &compat_oai.Multimodal,
-		Versions: []string{"grok-4-0709"},
+		Versions: []string{"grok-4-0709", "grok-4", "grok-4-latest"},
 	},
 	"grok-3": {
 		Label:    "Grok 3",

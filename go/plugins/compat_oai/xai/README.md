@@ -2,6 +2,88 @@
 
 This plugin provides a simple interface for using xAI's services.
 
+## Supported Models
+The plugin supports the following xAI models.
+
+### Grok 4 (grok-4-0709)
+
+Modalities: Text input, text output
+
+Context window: 256 000
+
+Features:
+- Function calling
+- Structured outputs
+- Reasoning
+
+### Grok Code Fast 1 (grok-code-fast-1).
+
+Modalities: Text input, text output
+
+Context window: 256 000
+
+Features:
+- Function calling
+- Structured outputs
+- Reasoning
+
+### Grok 4 Fast (grok-4-fast-reasoning).
+
+Modalities: Text input, image input, text output
+
+Context window: 2 000 000
+
+Features:
+- Function calling
+- Structured outputs
+- Reasoning
+
+### Grok 4 Fast (Non-Reasoning)
+
+Modalities: Text input, image input, text output
+
+Context window: 2 000 000
+
+Features:
+- Function calling
+- Structured outputs
+
+
+### Grok 3 Mini (grok-3-mini)
+
+Modalities: Text input, text output
+
+Context window: 131 072
+
+Features:
+- Function calling
+- Structured outputs
+- Reasoning
+
+### Grok 3 (grok-3)
+
+Modalities: Text input, text output
+
+Context window: 131 072
+
+Features:
+- Function calling
+- Structured outputs
+
+### Grok 2 Vision (grok-2-vision)
+
+Modalities: Text input, image input, text output
+
+Context window: 32 768
+
+Features:
+- Function calling
+- Structured outputs
+
+### Grok 2 Image Gen
+
+Grok 2 Image Gen
+
 ## Prerequisites
 
 - Go installed on your system
@@ -27,13 +109,10 @@ x := &XAi{
 }
 
 // Initialize Genkit with the xAI plugin
-g, err := genkit.Init(ctx,
+g := genkit.Init(ctx,
   genkit.WithDefaultModel("xai/grok-3-mini"),
   genkit.WithPlugins(x),
 )
-if err != nil {
-// handle errors
-}
 
 config := &openai.ChatCompletionNewParams{
 // define optional config fields
