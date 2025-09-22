@@ -255,6 +255,9 @@ func setupGCPLogger(projectID string, level slog.Leveler, credentials *google.Cr
 				fmt.Fprint(os.Stderr, loggingDeniedHelpText(projectID))
 			})
 		}
+		// TODO: Reinitialize logger if possible
+		// For now, we left the code below commented out because re-initialization was causing the
+		// logger to swallow errors for some reason.
 		/*
 			stderrLogger.Error("Unable to send logs to Google Cloud. Re-initializing logger.")
 			// Assume the logger is compromised, and we need a new one
