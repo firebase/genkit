@@ -83,4 +83,7 @@ type Registry interface {
 
 	// Dotprompt returns the dotprompt instance.
 	Dotprompt() *dotprompt.Dotprompt
+
+	// ListAllPlugins return a list of all registered plugins for this and all parent registries
+	ListAllPlugins() []Plugin
 }

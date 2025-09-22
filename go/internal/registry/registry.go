@@ -186,7 +186,7 @@ func (r *Registry) ResolveAction(key string) api.Action {
 		return nil
 	}
 
-	plugins := r.ListPlugins()
+	plugins := r.ListAllPlugins()
 	for _, plugin := range plugins {
 		if dp, ok := plugin.(api.DynamicPlugin); ok && dp.Name() == provider {
 			resolvedAction := dp.ResolveAction(typ, name)
@@ -220,6 +220,20 @@ func (r *Registry) ListPlugins() []api.Plugin {
 	var plugins []api.Plugin
 	for _, p := range r.plugins {
 		plugins = append(plugins, p)
+	}
+	return plugins
+}
+
+// ListAllPlugins return a list of all registered plugins for this and all parent registries
+func (r *Registry) ListAllPlugins() []api.Plugin {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var plugins []api.Plugin
+	for _, p := range r.plugins {
+		plugins = append(plugins, p)
+	}
+	if r.IsChild() {
+		plugins = append(plugins, r.parent.ListPlugins()...)
 	}
 	return plugins
 }
