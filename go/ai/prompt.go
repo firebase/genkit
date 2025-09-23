@@ -662,9 +662,9 @@ func contentType(ct, uri string) (string, []byte, error) {
 
 		if p, isBase64 := strings.CutSuffix(prefix, ";base64"); isBase64 {
 			if ct == "" {
-				ct = prefix
+				ct = p
 			}
-			return ct, []byte(p), nil
+			return ct, []byte(uri), nil
 		}
 	}
 
