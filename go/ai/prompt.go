@@ -592,8 +592,8 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		opts.ToolChoice = toolChoice
 	}
 
-	if maxTurns, ok := metadata.Raw["maxTurns"].(int); ok {
-		opts.MaxTurns = maxTurns
+	if maxTurns, ok := metadata.Raw["maxTurns"].(uint64); ok {
+		opts.MaxTurns = int(maxTurns)
 	}
 
 	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); ok {

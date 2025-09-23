@@ -885,9 +885,9 @@ func TestLoadPrompt(t *testing.T) {
 	mockPromptFile := filepath.Join(tempDir, "example.prompt")
 	mockPromptContent := `---
 model: test-model
+maxTurns: 5
 description: A test prompt
 toolChoice: required
-maxTurns: 5
 returnToolRequests: true
 input:
   schema:
