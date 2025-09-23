@@ -885,9 +885,9 @@ func TestLoadPrompt(t *testing.T) {
 	mockPromptFile := filepath.Join(tempDir, "example.prompt")
 	mockPromptContent := `---
 model: test-model
+maxTurns: 5
 description: A test prompt
 toolChoice: required
-maxTurns: 5
 returnToolRequests: true
 input:
   schema:
@@ -935,6 +935,9 @@ Hello, {{name}}!
 	}
 	if promptMetadata["model"] != "test-model" {
 		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(api.Action).Desc().Metadata["model"])
+	}
+	if promptMetadata["maxTurns"] != 5 {
+		t.Errorf("Expected maxTurns set to 5, got: %d", promptMetadata["maxTurns"])
 	}
 }
 
