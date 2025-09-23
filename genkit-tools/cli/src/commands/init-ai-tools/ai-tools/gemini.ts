@@ -17,7 +17,14 @@
 import { Runtime } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { existsSync, readFileSync } from 'fs';
-import { lstat, mkdir, readlink, symlink, writeFile } from 'fs/promises';
+import {
+  copyFile,
+  lstat,
+  mkdir,
+  readlink,
+  symlink,
+  writeFile,
+} from 'fs/promises';
 import * as path from 'path';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import { GENKIT_PROMPT_PATH, initGenkitFile } from '../utils';
@@ -107,47 +114,104 @@ async function installInMdFile(runtime: Runtime): Promise<AIToolConfigResult> {
   const baseResult = await initGenkitFile(runtime);
   files.push({ path: GENKIT_PROMPT_PATH, updated: baseResult.updated });
 
-  logger.info('Adding a symlink for GENKIT.md in the .gemini folder');
-  // Check if symlink already exists
-  try {
-    const stats = await lstat(GENKIT_MD_SYMLINK_PATH);
-    if (stats.isSymbolicLink()) {
-      // Verify the symlink points to the correct target
-      const linkTarget = await readlink(GENKIT_MD_SYMLINK_PATH);
-      const expectedTarget = path.relative(GEMINI_DIR, GENKIT_PROMPT_PATH);
-
-      if (linkTarget === expectedTarget || linkTarget === GENKIT_PROMPT_PATH) {
-        logger.info(
-          'Symlink already exists and points to the correct location'
-        );
-        files.push({ path: GENKIT_MD_SYMLINK_PATH, updated: false });
-      } else {
-        logger.warn(
-          'Symlink exists but points to wrong location. Please remove this file and try again if this was not intentional.'
-        );
-        files.push({ path: GENKIT_MD_SYMLINK_PATH, updated: false });
-      }
-    } else {
-      // File exists but is not a symlink
-      logger.warn(
-        `${GENKIT_MD_SYMLINK_PATH} exists but is not a symlink, skipping symlink creation`
-      );
-      files.push({ path: GENKIT_MD_SYMLINK_PATH, updated: false });
-    }
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      // Symlink doesn't exist, create it
-      await symlink(
-        path.relative(GEMINI_DIR, GENKIT_PROMPT_PATH),
-        GENKIT_MD_SYMLINK_PATH
-      );
-      files.push({ path: GENKIT_MD_SYMLINK_PATH, updated: true });
-    } else {
-      // Some other error occurred
-      logger.error('Error checking symlink:', error);
-      throw error;
-    }
-  }
+  // Create link/copy of GENKIT.md in .gemini folder
+  const linkResult = await createGenkitMdLink();
+  files.push(linkResult);
 
   return { files };
+}
+
+/**
+ * Creates a link to GENKIT.md in the .gemini folder.
+ * On Windows, copies the file instead of creating a symlink.
+ * On Unix systems, creates a symlink.
+ */
+async function createGenkitMdLink(): Promise<{
+  path: string;
+  updated: boolean;
+}> {
+  const sourcePath = GENKIT_PROMPT_PATH;
+  const targetPath = GENKIT_MD_SYMLINK_PATH;
+  const isWindows = process.platform === 'win32';
+
+  if (isWindows) {
+    logger.info(
+      'Copying GENKIT.md to .gemini folder (Windows compatibility mode)'
+    );
+
+    // Check if file already exists
+    try {
+      const stats = await lstat(targetPath);
+      if (stats.isFile()) {
+        logger.info('GENKIT.md copy already exists in .gemini folder');
+        return { path: targetPath, updated: false };
+      }
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        logger.error('Error checking GENKIT.md copy:', error);
+        throw error;
+      }
+      // File doesn't exist, proceed with copying
+    }
+
+    // Copy the file
+    try {
+      await copyFile(sourcePath, targetPath);
+      logger.info('Successfully copied GENKIT.md to .gemini folder');
+      return { path: targetPath, updated: true };
+    } catch (error) {
+      logger.error('Error copying GENKIT.md:', error);
+      throw error;
+    }
+  } else {
+    // Unix-like systems: create symlink
+    logger.info('Adding a symlink for GENKIT.md in the .gemini folder');
+
+    // Check if symlink already exists
+    try {
+      const stats = await lstat(targetPath);
+      if (stats.isSymbolicLink()) {
+        // Verify the symlink points to the correct target
+        const linkTarget = await readlink(targetPath);
+
+        // Resolve the link target to absolute path
+        const resolvedLinkTarget = path.resolve(
+          path.dirname(targetPath),
+          linkTarget
+        );
+        // Resolve the source path to absolute
+        const resolvedSourcePath = path.resolve(sourcePath);
+
+        // Compare absolute paths
+        if (resolvedLinkTarget === resolvedSourcePath) {
+          logger.info(
+            'Symlink already exists and points to the correct location'
+          );
+          return { path: targetPath, updated: false };
+        } else {
+          logger.warn(
+            `Symlink exists but points to wrong location. Expected: ${resolvedSourcePath}, Found: ${resolvedLinkTarget}. Please remove this file and try again if this was not intentional.`
+          );
+          return { path: targetPath, updated: false };
+        }
+      } else {
+        // File exists but is not a symlink
+        logger.warn(
+          `${targetPath} exists but is not a symlink, skipping symlink creation`
+        );
+        return { path: targetPath, updated: false };
+      }
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        // Symlink doesn't exist, create it
+        await symlink(path.relative(GEMINI_DIR, sourcePath), targetPath);
+        logger.info('Successfully created symlink for GENKIT.md');
+        return { path: targetPath, updated: true };
+      } else {
+        // Some other error occurred
+        logger.error('Error checking symlink:', error);
+        throw error;
+      }
+    }
+  }
 }
