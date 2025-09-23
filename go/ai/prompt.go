@@ -467,11 +467,11 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 				result[i] = NewTextPart(p.Text)
 			}
 		case *dotprompt.MediaPart:
-			ct, err := contentType(p.Media.URL)
+			ct, data, err := contentType(p.Media.ContentType, p.Media.URL)
 			if err != nil {
 				return nil, err
 			}
-			result[i] = NewMediaPart(ct, p.Media.URL)
+			result[i] = NewMediaPart(ct, string(data))
 		}
 	}
 	return result, nil
@@ -643,24 +643,30 @@ func variantKey(variant string) string {
 }
 
 // contentType determines the MIME content type of the given data URI
-func contentType(uri string) (string, error) {
+func contentType(ct, uri string) (string, []byte, error) {
 	if uri == "" {
-		return "", errors.New("found empty URI in part")
+		return "", nil, errors.New("found empty URI in part")
 	}
 
 	if strings.HasPrefix(uri, "gs://") || strings.HasPrefix(uri, "http") {
-		return "", errors.New("data URI is the only media type supported")
+		if ct == "" {
+			return "", nil, errors.New("must supply contentType when using media from gs:// or http(s):// URLs")
+		}
+		return ct, []byte(uri), nil
 	}
 	if contents, isData := strings.CutPrefix(uri, "data:"); isData {
 		prefix, _, found := strings.Cut(contents, ",")
 		if !found {
-			return "", errors.New("failed to parse data URI: missing comma")
+			return "", nil, errors.New("failed to parse data URI: missing comma")
 		}
 
 		if p, isBase64 := strings.CutSuffix(prefix, ";base64"); isBase64 {
-			return p, nil
+			if ct == "" {
+				ct = prefix
+			}
+			return ct, []byte(p), nil
 		}
 	}
 
-	return "", errors.New("uri content type not found")
+	return "", nil, errors.New("uri content type not found")
 }

@@ -39,17 +39,17 @@ func main() {
 		genkit.WithPromptDir("prompts"),
 	)
 
-	SimplePrompt(ctx, g)
+	//	SimplePrompt(ctx, g)
 	PromptWithMultiMessage(ctx, g)
-	PromptWithInput(ctx, g)
-	PromptWithOutputType(ctx, g)
-	PromptWithComplexOutputType(ctx, g)
-	PromptWithTool(ctx, g)
-	PromptWithMessageHistory(ctx, g)
-	PromptWithExecuteOverrides(ctx, g)
-	PromptWithFunctions(ctx, g)
-	PromptWithOutputTypeDotprompt(ctx, g)
-	PromptWithMediaType(ctx, g)
+	// PromptWithInput(ctx, g)
+	// PromptWithOutputType(ctx, g)
+	// PromptWithComplexOutputType(ctx, g)
+	// PromptWithTool(ctx, g)
+	// PromptWithMessageHistory(ctx, g)
+	// PromptWithExecuteOverrides(ctx, g)
+	// PromptWithFunctions(ctx, g)
+	// PromptWithOutputTypeDotprompt(ctx, g)
+	// PromptWithMediaType(ctx, g)
 
 	mux := http.NewServeMux()
 	for _, a := range genkit.ListFlows(g) {
@@ -206,7 +206,10 @@ func PromptWithMultiMessage(ctx context.Context, g *genkit.Genkit) {
 	if prompt == nil {
 		log.Fatal("empty prompt")
 	}
-	resp, err := prompt.Execute(ctx)
+	resp, err := prompt.Execute(ctx,
+		ai.WithModelName("googleai/gemini-2.0-flash"),
+		ai.WithInput(map[string]any{"videoUrl": "https://www.youtube.com/watch?v=K-hY0E6cGfo video/mp4"}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
