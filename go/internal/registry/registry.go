@@ -207,6 +207,8 @@ func (r *Registry) ListActions() []api.Action {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var actions []api.Action
+
+	// recursively check all the registry parents
 	if r.parent != nil {
 		parentValues := r.parent.ListActions()
 		for _, pv := range parentValues {
@@ -235,6 +237,8 @@ func (r *Registry) ListPlugins() []api.Plugin {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var plugins []api.Plugin
+
+	// recursively check all the registry parents
 	if r.parent != nil {
 		parentValues := r.parent.ListPlugins()
 		for _, pv := range parentValues {
