@@ -1093,6 +1093,29 @@ func TestJsonParserStreaming(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "no text part present streaming JSON",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

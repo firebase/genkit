@@ -91,24 +91,26 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 			}
 		}
 
+		newParts := []*Part{}
 		text := base.ExtractJSONFromMarkdown(accumulatedText.String())
-
-		if j.config.Schema != nil {
-			var schemaBytes []byte
-			schemaBytes, err := json.Marshal(j.config.Schema)
-			if err != nil {
-				return nil, fmt.Errorf("expected schema is not valid: %w", err)
+		if text != "" {
+			if j.config.Schema != nil {
+				var schemaBytes []byte
+				schemaBytes, err := json.Marshal(j.config.Schema)
+				if err != nil {
+					return nil, fmt.Errorf("expected schema is not valid: %w", err)
+				}
+				if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
+					return nil, err
+				}
+			} else {
+				if !base.ValidJSON(text) {
+					return nil, errors.New("message is not a valid JSON")
+				}
 			}
-			if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
-				return nil, err
-			}
-		} else {
-			if !base.ValidJSON(text) {
-				return nil, errors.New("message is not a valid JSON")
-			}
+			newParts = append(newParts, NewJSONPart(text))
 		}
 
-		newParts := []*Part{NewJSONPart(text)}
 		newParts = append(newParts, nonTextParts...)
 
 		m.Content = newParts
