@@ -68,7 +68,12 @@ type OpenAICompatible struct {
 	// Should be lowercase and match the plugin's Name() method.
 	Provider string
 
-	APIKey  string
+	// API key to use with the desired plugin.
+	APIKey string
+
+	// Base URL to use for custom endpoints.
+	// This should be used if you are running through a proxy or
+	// using a non-official endpoint
 	BaseURL string
 }
 
