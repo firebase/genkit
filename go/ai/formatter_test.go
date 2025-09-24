@@ -1212,6 +1212,32 @@ func TestJsonlParserStreaming(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "no text part present streaming JSONL",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1309,6 +1335,34 @@ func TestArrayParserStreaming(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "no text part present streaming array",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+					"required": []string{"id"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1400,6 +1454,26 @@ func TestEnumParserStreaming(t *testing.T) {
 		},
 		{
 			name:   "preserves non-text parts with streaming enum",
+			schema: enumSchema,
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+					NewTextPart(`bl`),
+					NewTextPart(`ue`),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("blue"),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "no text parts present with streaming enum",
 			schema: enumSchema,
 			response: &Message{
 				Role: RoleModel,
