@@ -19,7 +19,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	oai "github.com/firebase/genkit/go/plugins/compat_oai/anthropic"
 	"github.com/firebase/genkit/go/plugins/server"
-	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/v2/option"
 )
 
 func main() {

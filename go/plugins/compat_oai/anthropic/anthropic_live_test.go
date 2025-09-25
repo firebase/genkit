@@ -23,7 +23,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai/anthropic"
-	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/v2/option"
 )
 
 func TestPlugin(t *testing.T) {

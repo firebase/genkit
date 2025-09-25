@@ -20,9 +20,8 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/packages/param"
-	"github.com/openai/openai-go/shared"
+	"github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/packages/param"
 )
 
 // mapToStruct unmarshals a map[string]any to the expected config api.
@@ -40,7 +39,7 @@ type ModelGenerator struct {
 	modelName  string
 	request    *openai.ChatCompletionNewParams
 	messages   []openai.ChatCompletionMessageParamUnion
-	tools      []openai.ChatCompletionToolParam
+	tools      []openai.ChatCompletionToolUnionParam
 	toolChoice openai.ChatCompletionToolChoiceOptionUnionParam
 	// Store any errors that occur during building
 	err error
@@ -188,20 +187,19 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition) *ModelGenerator {
 		return g
 	}
 
-	toolParams := make([]openai.ChatCompletionToolParam, 0, len(tools))
+	toolParams := make([]openai.ChatCompletionToolUnionParam, 0, len(tools))
 	for _, tool := range tools {
 		if tool == nil || tool.Name == "" {
 			continue
 		}
 
-		toolParams = append(toolParams, openai.ChatCompletionToolParam{
-			Function: (shared.FunctionDefinitionParam{
+		toolParams = append(toolParams, openai.ChatCompletionFunctionTool(
+			openai.FunctionDefinitionParam{
 				Name:        tool.Name,
 				Description: openai.String(tool.Description),
 				Parameters:  openai.FunctionParameters(tool.InputSchema),
 				Strict:      openai.Bool(false), // TODO: implement strict mode
-			}),
-		})
+			}))
 	}
 
 	// Set the tools in the request
@@ -430,8 +428,9 @@ func (g *ModelGenerator) generateComplete(ctx context.Context, req *ai.ModelRequ
 	return resp, nil
 }
 
-func convertToolCalls(content []*ai.Part) ([]openai.ChatCompletionMessageToolCallParam, error) {
-	var toolCalls []openai.ChatCompletionMessageToolCallParam
+// ToolCalls []ChatCompletionMessageToolCallUnionParam `json:"tool_calls,omitzero"`
+func convertToolCalls(content []*ai.Part) ([]openai.ChatCompletionMessageToolCallUnionParam, error) {
+	var toolCalls []openai.ChatCompletionMessageToolCallUnionParam
 	for _, p := range content {
 		if !p.IsToolRequest() {
 			continue
@@ -440,22 +439,24 @@ func convertToolCalls(content []*ai.Part) ([]openai.ChatCompletionMessageToolCal
 		if err != nil {
 			return nil, err
 		}
-		toolCalls = append(toolCalls, *toolCall)
+		toolCalls = append(toolCalls, openai.ChatCompletionMessageToolCallUnionParam{
+			OfFunction: toolCall,
+		})
 	}
 	return toolCalls, nil
 }
 
-func convertToolCall(part *ai.Part) (*openai.ChatCompletionMessageToolCallParam, error) {
+func convertToolCall(part *ai.Part) (*openai.ChatCompletionMessageFunctionToolCallParam, error) {
 	toolCallID := part.ToolRequest.Ref
 	if toolCallID == "" {
 		toolCallID = part.ToolRequest.Name
 	}
 
-	param := &openai.ChatCompletionMessageToolCallParam{
-		ID: (toolCallID),
-		Function: (openai.ChatCompletionMessageToolCallFunctionParam{
-			Name: (part.ToolRequest.Name),
-		}),
+	param := &openai.ChatCompletionMessageFunctionToolCallParam{
+		ID: toolCallID,
+		Function: openai.ChatCompletionMessageFunctionToolCallFunctionParam{
+			Name: toolCallID,
+		},
 	}
 
 	args, err := anyToJSONString(part.ToolRequest.Input)

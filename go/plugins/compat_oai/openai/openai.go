@@ -23,8 +23,8 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
-	openaiGo "github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
+	openaiGo "github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/option"
 )
 
 const provider = "openai"

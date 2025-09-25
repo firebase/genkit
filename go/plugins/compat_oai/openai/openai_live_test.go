@@ -25,7 +25,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 
 	compat_oai "github.com/firebase/genkit/go/plugins/compat_oai/openai"
-	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/v2"
 )
 
 func TestPlugin(t *testing.T) {

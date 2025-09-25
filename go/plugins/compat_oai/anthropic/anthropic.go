@@ -22,7 +22,7 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
-	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/v2/option"
 )
 
 const (
