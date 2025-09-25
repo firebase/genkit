@@ -186,7 +186,7 @@ describe('VertexAI Plugin', () => {
   describe('Helper Functions', () => {
     it('vertexAI.model should return a ModelReference for Gemini with correct schema', () => {
       const modelName = 'gemini-2.0-flash';
-      const modelRef = vertexAI.createModelRef(modelName);
+      const modelRef = vertexAI.model(modelName);
       assert.strictEqual(
         modelRef.name,
         `vertexai/${modelName}`,
@@ -205,7 +205,7 @@ describe('VertexAI Plugin', () => {
 
     it('vertexAI.model should return a ModelReference for Imagen with correct schema', () => {
       const modelName = 'imagen-3.0-generate-002';
-      const modelRef = vertexAI.createModelRef(modelName);
+      const modelRef = vertexAI.model(modelName);
       assert.strictEqual(
         modelRef.name,
         `vertexai/${modelName}`,
@@ -354,7 +354,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use auth token for Gemini generateContent', async () => {
-        const modelRef = vertexAI.createModelRef('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-1.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -409,7 +409,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use auth token for Imagen predict', async () => {
-        const modelRef = vertexAI.createModelRef('imagen-3.0-generate-001');
+        const modelRef = vertexAI.model('imagen-3.0-generate-001');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -442,7 +442,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use API key for Gemini generateContent', async () => {
-        const modelRef = vertexAI.createModelRef('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-1.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -505,7 +505,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use API key for Imagen predict', async () => {
-        const modelRef = vertexAI.createModelRef('imagen-3.0-generate-001');
+        const modelRef = vertexAI.model('imagen-3.0-generate-001');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -537,7 +537,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use API key for Gemini generateContent', async () => {
-        const modelRef = vertexAI.createModelRef('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-1.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -590,7 +590,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should not support Imagen predict', async () => {
-        const modelRef = vertexAI.createModelRef('imagen-3.0-generate-001');
+        const modelRef = vertexAI.model('imagen-3.0-generate-001');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
