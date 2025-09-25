@@ -172,7 +172,7 @@ googleAI.embedder = (
   name: string,
   config?: embedder.EmbeddingConfig
 ): EmbedderReference<embedder.EmbeddingConfigSchemaType> => {
-  return embedder.createModelRef(name, config);
+  return embedder.createEmbedderRef(name, config);
 };
 
 export default googleAI;

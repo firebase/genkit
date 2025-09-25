@@ -126,7 +126,7 @@ const KNOWN_MODELS = {
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
-// For conditional types in index.ts model
+// For conditional types in index.ts model()
 export type ImagenModelName = `imagen-${string}`;
 export function isImagenModelName(value?: string): value is ImagenModelName {
   return !!value?.startsWith('imagen-');

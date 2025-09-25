@@ -90,7 +90,7 @@ const KNOWN_MODELS = {
 };
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
-export function createModelRef(
+export function createEmbedderRef(
   version: string,
   config: EmbeddingConfig = {}
 ): EmbedderReference<ConfigSchemaType> {
@@ -112,7 +112,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const ref = createModelRef(m.name);
+        const ref = createEmbedderRef(m.name);
         return embedderActionMetadata({
           name: ref.name,
           info: ref.info,
@@ -133,7 +133,7 @@ export function defineEmbedder(
   pluginOptions?: GoogleAIPluginOptions
 ): EmbedderAction {
   checkApiKey(pluginOptions?.apiKey);
-  const ref = createModelRef(name);
+  const ref = createEmbedderRef(name);
 
   return embedder(
     {

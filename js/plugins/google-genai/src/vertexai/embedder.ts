@@ -14,12 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  ActionMetadata,
-  embedderActionMetadata,
-  z,
-  type Document,
-} from 'genkit';
+import { z, type Document } from 'genkit';
 import {
   EmbedderInfo,
   embedderRef,
@@ -34,7 +29,6 @@ import {
   EmbeddingInstance,
   EmbeddingPrediction,
   EmbeddingResult,
-  Model,
   TaskTypeSchema,
   VertexPluginOptions,
   isMultimodalEmbeddingPrediction,
@@ -122,7 +116,7 @@ export function isEmbedderModelName(
   return !!value?.includes('embedding');
 }
 
-export function createModelRef(
+export function createEmbedderRef(
   version: string,
   config: EmbeddingConfig = {}
 ): EmbedderReference<ConfigSchemaType> {
@@ -159,21 +153,6 @@ export function createModelRef(
   });
 }
 
-// Takes a full list of models, filters for current Veo models only
-// and returns a modelActionMetadata for each.
-export function listActions(models: Model[]): ActionMetadata[] {
-  return models
-    .filter((m: Model) => isEmbedderModelName(m.name))
-    .map((m: Model) => {
-      const ref = createModelRef(m.name);
-      return embedderActionMetadata({
-        name: ref.name,
-        info: ref.info,
-        configSchema: ref.configSchema,
-      });
-    });
-}
-
 export function defineKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
@@ -188,7 +167,7 @@ export function defineEmbedder(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): EmbedderAction<any> {
-  const ref = createModelRef(name);
+  const ref = createEmbedderRef(name);
 
   return embedder(
     {
