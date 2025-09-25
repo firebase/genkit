@@ -207,6 +207,23 @@ func (r *Registry) ListActions() []api.Action {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var actions []api.Action
+
+	// recursively check all the registry parents
+	if r.parent != nil {
+		parentValues := r.parent.ListActions()
+		for _, pv := range parentValues {
+			found := false
+			for _, cv := range r.actions {
+				if pv.Name() == cv.Name() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				actions = append(actions, pv)
+			}
+		}
+	}
 	for _, v := range r.actions {
 		actions = append(actions, v)
 	}
@@ -214,10 +231,30 @@ func (r *Registry) ListActions() []api.Action {
 }
 
 // ListPlugins returns a list of all registered plugins.
+// This includes plugins from both the current registry and its parent hierarchy.
+// Child registry plugins take precedence over parent plugins with the same key.
 func (r *Registry) ListPlugins() []api.Plugin {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var plugins []api.Plugin
+
+	// recursively check all the registry parents
+	if r.parent != nil {
+		parentValues := r.parent.ListPlugins()
+		for _, pv := range parentValues {
+			found := false
+			for _, cv := range r.plugins {
+				if pv.Name() == cv.Name() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				plugins = append(plugins, pv)
+			}
+		}
+	}
+
 	for _, p := range r.plugins {
 		plugins = append(plugins, p)
 	}
