@@ -96,7 +96,6 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 		if text != "" {
 			if j.config.Schema != nil {
 				schemaBytes, err := json.Marshal(j.config.Schema)
-				schemaBytes, err := json.Marshal(j.config.Schema)
 				if err != nil {
 					return nil, fmt.Errorf("expected schema is not valid: %w", err)
 				}
