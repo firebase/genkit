@@ -650,12 +650,6 @@ func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
 func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 	m := &ai.ModelResponse{}
-	// Guard against nil candidate or nil content to avoid panics
-	if cand == nil || cand.Content == nil {
-		m.FinishReason = ai.FinishReasonUnknown
-		m.Message = &ai.Message{Role: ai.RoleModel}
-		return m
-	}
 	switch cand.FinishReason {
 	case genai.FinishReasonStop:
 		m.FinishReason = ai.FinishReasonStop
@@ -732,7 +726,7 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 	var r *ai.ModelResponse
-	if resp != nil && len(resp.Candidates) > 0 {
+	if len(resp.Candidates) > 0 {
 		r = translateCandidate(resp.Candidates[0])
 	} else {
 		r = &ai.ModelResponse{}
@@ -742,14 +736,12 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 		r.Usage = &ai.GenerationUsage{}
 	}
 
-	if resp != nil {
-		if u := resp.UsageMetadata; u != nil {
-			r.Usage.InputTokens = int(u.PromptTokenCount)
-			r.Usage.OutputTokens = int(u.CandidatesTokenCount)
-			r.Usage.TotalTokens = int(u.TotalTokenCount)
-			r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
-			r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
-		}
+	if u := resp.UsageMetadata; u != nil {
+		r.Usage.InputTokens = int(u.PromptTokenCount)
+		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
+		r.Usage.TotalTokens = int(u.TotalTokenCount)
+		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
+		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
 	}
 	return r
 }
