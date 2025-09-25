@@ -95,7 +95,7 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 		text := base.ExtractJSONFromMarkdown(accumulatedText.String())
 		if text != "" {
 			if j.config.Schema != nil {
-				var schemaBytes []byte
+				schemaBytes, err := json.Marshal(j.config.Schema)
 				schemaBytes, err := json.Marshal(j.config.Schema)
 				if err != nil {
 					return nil, fmt.Errorf("expected schema is not valid: %w", err)
