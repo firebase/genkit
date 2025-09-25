@@ -16,6 +16,7 @@
 
 
 """Tests for the action module."""
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, Field
@@ -25,7 +26,7 @@ from genkit.core.typing import (
     Message,
     Role,
     TextPart,
-    ToolChoice,
+    ToolChoice, GenerateActionOptions, GenerationCommonConfig,
 )
 from genkit.testing import (
     define_echo_model,
@@ -135,3 +136,46 @@ async def test_prompt_with_kitchensink() -> None:
     _, response = my_prompt.stream()
 
     assert (await response).text == want_txt
+
+
+test_cases_parse_partial_json = [
+    (
+        "renders user prompt",
+        {
+            "model": "echoModel",
+            "config": {"banana": "ripe"},
+            "input_schema": {"schema": "z.object({name: z.string()})"},  # Note: Schema representation might need adjustment
+            "prompt": "hello {{name}} ({{@state.name}})",
+        },
+        GenerationCommonConfig.model_validate({"temperature": 11}),
+        GenerateActionOptions.model_validate(
+            {
+                "config": {
+                    "banana": "ripe",
+                    "temperature": 11,
+                },
+                "messages": [{"content": [{"text": "hello foo (bar)"}], "role": "user"}],
+                "model": "echoModel",
+            }
+
+        ),
+    )
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'test_case, prompt, input_option, want_rendered',
+    test_cases_parse_partial_json,
+    ids=[tc[0] for tc in test_cases_parse_partial_json],
+)
+async def test_prompt_with_system(
+    test_case: str,
+    prompt: dict[str, Any],
+    input_option: GenerationCommonConfig,
+    want_rendered: GenerateActionOptions
+) -> None:
+    """Test that the propmt utilises both prompt and system prompt."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(**prompt)
