@@ -480,10 +480,10 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		return nil, fmt.Errorf("schema type %q not allowed", genkitSchema["type"])
 	}
 	if v, ok := genkitSchema["required"]; ok {
-		schema.Required = castToStringArray(v.([]any))
+		schema.Required = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["propertyOrdering"]; ok {
-		schema.PropertyOrdering = castToStringArray(v.([]any))
+		schema.PropertyOrdering = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["description"]; ok {
 		schema.Description = v.(string)
@@ -495,35 +495,27 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		schema.Title = v.(string)
 	}
 	if v, ok := genkitSchema["minItems"]; ok {
-		i, err := strconv.ParseInt(v.(string), 10, 64)
-		if err != nil {
-			return nil, err
+		if i64, ok := castToInt64(v); ok {
+			schema.MinItems = genai.Ptr(i64)
 		}
-		schema.MinItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maxItems"]; ok {
-		i, err := strconv.ParseInt(v.(string), 10, 64)
-		if err != nil {
-			return nil, err
+		if i64, ok := castToInt64(v); ok {
+			schema.MaxItems = genai.Ptr(i64)
 		}
-		schema.MaxItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maximum"]; ok {
-		i, err := strconv.ParseFloat(v.(string), 64)
-		if err != nil {
-			return nil, err
+		if f64, ok := castToFloat64(v); ok {
+			schema.Maximum = genai.Ptr(f64)
 		}
-		schema.Maximum = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["minimum"]; ok {
-		i, err := strconv.ParseFloat(v.(string), 64)
-		if err != nil {
-			return nil, err
+		if f64, ok := castToFloat64(v); ok {
+			schema.Minimum = genai.Ptr(f64)
 		}
-		schema.Minimum = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
-		schema.Enum = castToStringArray(v.([]any))
+		schema.Enum = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["items"]; ok {
 		items, err := toGeminiSchema(originalSchema, v.(map[string]any))
@@ -556,13 +548,73 @@ func resolveRef(originalSchema map[string]any, ref string) map[string]any {
 	return defs[name].(map[string]any)
 }
 
-func castToStringArray(i []any) []string {
-	// Is there a better way to do this??
-	var r []string
-	for _, v := range i {
-		r = append(r, v.(string))
+// castToStringArray converts either []any or []string to []string, filtering non-strings.
+// This handles enum values from JSON Schema which may come as either type depending on unmarshaling.
+// Filter out non-string types from if v is []any type.
+func castToStringArray(v any) []string {
+	switch a := v.(type) {
+	case []string:
+		// Return a shallow copy to avoid aliasing
+		out := make([]string, 0, len(a))
+		for _, s := range a {
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	case []any:
+		var out []string
+		for _, it := range a {
+			if s, ok := it.(string); ok && s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
 	}
-	return r
+}
+
+// castToInt64 converts v to int64 when possible.
+func castToInt64(v any) (int64, bool) {
+	switch t := v.(type) {
+	case int:
+		return int64(t), true
+	case int64:
+		return t, true
+	case float64:
+		return int64(t), true
+	case string:
+		if i, err := strconv.ParseInt(t, 10, 64); err == nil {
+			return i, true
+		}
+	case json.Number:
+		if i, err := t.Int64(); err == nil {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// castToFloat64 converts v to float64 when possible.
+func castToFloat64(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	case string:
+		if f, err := strconv.ParseFloat(t, 64); err == nil {
+			return f, true
+		}
+	case json.Number:
+		if f, err := t.Float64(); err == nil {
+			return f, true
+		}
+	}
+	return 0, false
 }
 
 func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
@@ -598,6 +650,12 @@ func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
 func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 	m := &ai.ModelResponse{}
+	// Guard against nil candidate or nil content to avoid panics
+	if cand == nil || cand.Content == nil {
+		m.FinishReason = ai.FinishReasonUnknown
+		m.Message = &ai.Message{Role: ai.RoleModel}
+		return m
+	}
 	switch cand.FinishReason {
 	case genai.FinishReasonStop:
 		m.FinishReason = ai.FinishReasonStop
@@ -674,7 +732,7 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 	var r *ai.ModelResponse
-	if len(resp.Candidates) > 0 {
+	if resp != nil && len(resp.Candidates) > 0 {
 		r = translateCandidate(resp.Candidates[0])
 	} else {
 		r = &ai.ModelResponse{}
@@ -684,12 +742,14 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 		r.Usage = &ai.GenerationUsage{}
 	}
 
-	if u := resp.UsageMetadata; u != nil {
-		r.Usage.InputTokens = int(u.PromptTokenCount)
-		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
-		r.Usage.TotalTokens = int(u.TotalTokenCount)
-		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
-		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
+	if resp != nil {
+		if u := resp.UsageMetadata; u != nil {
+			r.Usage.InputTokens = int(u.PromptTokenCount)
+			r.Usage.OutputTokens = int(u.CandidatesTokenCount)
+			r.Usage.TotalTokens = int(u.TotalTokenCount)
+			r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
+			r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
+		}
 	}
 	return r
 }
