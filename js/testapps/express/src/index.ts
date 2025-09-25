@@ -99,7 +99,10 @@ const acls: Record<string, string> = {
 };
 
 // curl http://localhost:8080/jokeFlow?stream=true -d '{"data": "banana"}' -H "content-type: application/json" -H "authorization: open sesame"
-app.post('/jokeFlow', expressHandler(jokeFlow, { contextProvider: auth(acls['jokeFlow']) }));
+app.post(
+  '/jokeFlow',
+  expressHandler(jokeFlow, { contextProvider: auth(acls['jokeFlow']) })
+);
 
 // curl http://localhost:8080/jokeHandler?stream=true -d '{"data": "banana"}' -H "content-type: application/json"
 app.post('/jokeHandler', expressHandler(jokeFlow));
