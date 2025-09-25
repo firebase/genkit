@@ -39,16 +39,18 @@ const ai = genkit({
   ],
 });
 
+const selectedModel = gemini15Flash;
+
 export const jokeFlow = ai.defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject, { context, sendChunk }) => {
-    if (context!.auth!.username != 'Ali Baba') {
-      throw new UserFacingError('PERMISSION_DENIED', context!.auth!.username!);
+    if (context?.auth?.username && context.auth.username !== 'Ali Baba') {
+      throw new UserFacingError('PERMISSION_DENIED', context.auth.username);
     }
     return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
         prompt: `tell me long joke about ${subject}`,
-        model: gemini15Flash,
+        model: selectedModel,
         config: {
           temperature: 1,
         },
@@ -96,18 +98,13 @@ const acls: Record<string, string> = {
   jokeFlow: 'Ali Baba',
 };
 
-// curl http://localhost:5000/jokeFlow?stream=true -d '{"data": "banana"}' -H "content-type: application/json" -H "authorization: open sesame"
-ai.flows.forEach((f) => {
-  app.post(
-    `/${f.name}`,
-    expressHandler(f, { contextProvider: auth(acls[f.name]) })
-  );
-});
+// curl http://localhost:8080/jokeFlow?stream=true -d '{"data": "banana"}' -H "content-type: application/json" -H "authorization: open sesame"
+app.post('/jokeFlow', expressHandler(jokeFlow, { contextProvider: auth(acls['jokeFlow']) }));
 
-// curl http://localhost:5000/jokeHandler?stream=true -d '{"data": "banana"}' -H "content-type: application/json"
+// curl http://localhost:8080/jokeHandler?stream=true -d '{"data": "banana"}' -H "content-type: application/json"
 app.post('/jokeHandler', expressHandler(jokeFlow));
 
-// curl http://localhost:5000/jokeWithFlow?subject=banana
+// curl http://localhost:8080/jokeWithFlow?subject=banana
 app.get('/jokeWithFlow', async (req: Request, res: Response) => {
   const subject = req.query['subject']?.toString();
   if (!subject) {
@@ -117,7 +114,7 @@ app.get('/jokeWithFlow', async (req: Request, res: Response) => {
   res.send(await jokeFlow(subject));
 });
 
-// curl http://localhost:5000/jokeStream?subject=banana
+// curl http://localhost:8080/jokeStream?subject=banana
 app.get('/jokeStream', async (req: Request, res: Response) => {
   const subject = req.query['subject']?.toString();
   if (!subject) {
@@ -131,7 +128,7 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
   });
   await ai.generate({
     prompt: `Tell me a long joke about ${subject}`,
-    model: gemini15Flash,
+    model: selectedModel,
     config: {
       temperature: 1,
     },
@@ -143,7 +140,7 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
   res.end();
 });
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
