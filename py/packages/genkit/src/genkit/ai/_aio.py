@@ -36,7 +36,7 @@ from genkit.blocks.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
-from genkit.blocks.prompt import to_generate_action_options, PromptConfig
+from genkit.blocks.prompt import PromptConfig, to_generate_action_options
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
 from genkit.types import (

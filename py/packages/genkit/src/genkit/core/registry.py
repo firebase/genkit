@@ -32,6 +32,7 @@ from collections.abc import Callable
 from typing import Any
 
 import structlog
+from dotpromptz.dotprompt import Dotprompt
 
 from genkit.core.action import (
     Action,
@@ -41,7 +42,6 @@ from genkit.core.action import (
     parse_plugin_name_from_action_name,
 )
 from genkit.core.action.types import ActionKind, ActionName, ActionResolver
-from dotpromptz.dotprompt import Dotprompt
 
 logger = structlog.get_logger(__name__)
 

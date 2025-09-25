@@ -23,10 +23,12 @@ from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.typing import (
+    GenerateActionOptions,
+    GenerationCommonConfig,
     Message,
     Role,
     TextPart,
-    ToolChoice, GenerateActionOptions, GenerationCommonConfig,
+    ToolChoice,
 )
 from genkit.testing import (
     define_echo_model,
