@@ -15,25 +15,26 @@
  */
 
 import { ActionMetadata, EmbedderReference, ModelReference, z } from 'genkit';
+import { logger } from 'genkit/logging';
 import {
   GenkitPluginV2,
   ResolvableAction,
   genkitPluginV2,
 } from 'genkit/plugin';
-import type { ActionType } from 'genkit/registry';
+import { ActionType } from 'genkit/registry';
 
 // These are namespaced because they all intentionally have
 // functions of the same name with the same arguments.
 // (All exports from these files are used here)
-import { logger } from 'genkit/logging';
-import { extractErrMsg } from '../common/utils.js';
-import { listModels } from './client.js';
 import * as embedder from './embedder.js';
 import * as gemini from './gemini.js';
 import * as imagen from './imagen.js';
+import * as veo from './veo.js';
+
+import { extractErrMsg } from '../common/utils.js';
+import { listModels } from './client.js';
 import { GoogleAIPluginOptions } from './types.js';
 import { calculateApiKey } from './utils.js';
-import * as veo from './veo.js';
 
 export { type EmbeddingConfig } from './embedder.js';
 export { type GeminiConfig, type GeminiTtsConfig } from './gemini.js';
@@ -59,7 +60,7 @@ async function resolver(
   switch (actionType) {
     case 'model':
       if (veo.isVeoModelName(actionName)) {
-        // no-op
+        // no-op (not gemini)
       } else if (imagen.isImagenModelName(actionName)) {
         return imagen.defineModel(actionName, options);
       } else {
@@ -111,7 +112,7 @@ export function googleAIPlugin(
   return genkitPluginV2({
     name: 'googleai',
     init: async () => await initializer(options),
-    resolve: async (actionType, actionName) =>
+    resolve: async (actionType: ActionType, actionName: string) =>
       await resolver(actionType, actionName, options || {}),
     list: async () => {
       if (listActionsCache) return listActionsCache;

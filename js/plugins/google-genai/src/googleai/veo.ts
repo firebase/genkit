@@ -29,7 +29,6 @@ import {
   type ModelReference,
 } from 'genkit/model';
 import { backgroundModel } from 'genkit/plugin';
-
 import { veoCheckOperation, veoPredict } from './client.js';
 import {
   ClientOptions,

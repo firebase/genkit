@@ -141,7 +141,7 @@ export function defineEmbedder(
       configSchema: ref.configSchema,
       info: ref.info,
     },
-    async (request, _) => {
+    async (request) => {
       const embedApiKey = calculateApiKey(
         pluginOptions?.apiKey,
         request.options?.apiKey

@@ -108,13 +108,6 @@ export const KNOWN_MODELS = {
     supports: { input: ['text'] },
   }),
 } as const;
-export type KnownModels = keyof typeof KNOWN_MODELS;
-export type EmbedderModelName = `embedder=${string}`;
-export function isEmbedderModelName(
-  value?: string
-): value is EmbedderModelName {
-  return !!value?.includes('embedding');
-}
 
 export function createEmbedderRef(
   version: string,
@@ -165,7 +158,7 @@ export function defineKnownModels(
 export function defineEmbedder(
   name: string,
   clientOptions: ClientOptions,
-  pluginOptions?: VertexPluginOptions
+  _?: VertexPluginOptions
 ): EmbedderAction<any> {
   const ref = createEmbedderRef(name);
 
@@ -175,7 +168,7 @@ export function defineEmbedder(
       configSchema: ref.configSchema,
       info: ref.info!,
     },
-    async (request, options) => {
+    async (request) => {
       const embedContentRequest: EmbedContentRequest = {
         instances: request.input.map((doc: Document) =>
           toEmbeddingInstance(ref, doc, request.options)

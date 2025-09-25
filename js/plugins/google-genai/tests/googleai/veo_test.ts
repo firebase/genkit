@@ -19,7 +19,6 @@ import { Operation } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-
 import { getGenkitClientHeader } from '../../src/common/utils.js';
 import { getGoogleAIUrl } from '../../src/googleai/client.js';
 import { VeoOperation, VeoPredictRequest } from '../../src/googleai/types.js';
@@ -236,8 +235,8 @@ describe('Google AI Veo', () => {
         };
         mockFetchResponse(mockOp);
 
-        const modelAction = captureModelRunner({ apiKey: defaultApiKey });
-        const result = await modelAction.start(request);
+        const { start } = captureModelRunner({ apiKey: defaultApiKey });
+        const result = await start(request);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -276,12 +275,12 @@ describe('Google AI Veo', () => {
         const apiVersion = 'v1test';
         const baseUrl = 'https://test.example.com';
 
-        const modelAction = captureModelRunner({
+        const { start } = captureModelRunner({
           apiKey: defaultApiKey,
           apiVersion,
           baseUrl,
         });
-        await modelAction.start(request);
+        await start(request);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -298,8 +297,8 @@ describe('Google AI Veo', () => {
         envStub.value({ GOOGLE_API_KEY: envKey });
         mockFetchResponse({ name: 'operations/start789', done: false });
 
-        const modelAction = captureModelRunner({ apiKey: undefined });
-        await modelAction.start(request);
+        const { start } = captureModelRunner({ apiKey: undefined });
+        await start(request);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -310,9 +309,9 @@ describe('Google AI Veo', () => {
         const errorBody = { error: { message: 'Invalid argument', code: 400 } };
         mockFetchResponse(errorBody, 400);
 
-        const modelAction = captureModelRunner({ apiKey: defaultApiKey });
+        const { start } = captureModelRunner({ apiKey: defaultApiKey });
         await assert.rejects(
-          modelAction.start(request),
+          start(request),
           /Error fetching from .*models\/veo-test-model:predictLongRunning.* Invalid argument/
         );
       });
@@ -334,8 +333,8 @@ describe('Google AI Veo', () => {
         };
         mockFetchResponse(mockResponse);
 
-        const modelAction = captureModelRunner({ apiKey: defaultApiKey });
-        const result = await modelAction.check(pendingOp);
+        const { check } = captureModelRunner({ apiKey: defaultApiKey });
+        const result = await check(pendingOp);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -365,12 +364,12 @@ describe('Google AI Veo', () => {
         const apiVersion = 'v1test';
         const baseUrl = 'https://test.example.com';
 
-        const modelAction = captureModelRunner({
+        const { check } = captureModelRunner({
           apiKey: defaultApiKey,
           apiVersion,
           baseUrl,
         });
-        await modelAction.check(pendingOp);
+        await check(pendingOp);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -385,9 +384,9 @@ describe('Google AI Veo', () => {
         const errorBody = { error: { message: 'Not found', code: 404 } };
         mockFetchResponse(errorBody, 404);
 
-        const modelAction = captureModelRunner({ apiKey: defaultApiKey });
+        const { check } = captureModelRunner({ apiKey: defaultApiKey });
         await assert.rejects(
-          modelAction.check(pendingOp),
+          check(pendingOp),
           /Error fetching from .*operations\/check123.* Not found/
         );
       });

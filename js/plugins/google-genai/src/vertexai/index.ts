@@ -22,6 +22,7 @@
 
 import { EmbedderReference, ModelReference, z } from 'genkit';
 import { GenkitPluginV2, genkitPluginV2 } from 'genkit/plugin';
+import { ActionType } from 'genkit/registry';
 
 import * as embedder from './embedder.js';
 import * as gemini from './gemini.js';
@@ -29,7 +30,6 @@ import * as imagen from './imagen.js';
 import * as lyria from './lyria.js';
 import * as veo from './veo.js';
 
-import { ActionType } from 'genkit/registry';
 import { listModels } from './client.js';
 import { VertexPluginOptions } from './types.js';
 import { getDerivedOptions } from './utils.js';
@@ -45,6 +45,8 @@ async function initializer(pluginOptions?: VertexPluginOptions) {
   const clientOptions = await getDerivedOptions(pluginOptions);
 
   return [
+    ...veo.defineKnownModels(clientOptions, pluginOptions),
+    ...lyria.defineKnownModels(clientOptions, pluginOptions),
     ...imagen.defineKnownModels(clientOptions, pluginOptions),
     ...gemini.defineKnownModels(clientOptions, pluginOptions),
     ...embedder.defineKnownModels(clientOptions, pluginOptions),
@@ -59,25 +61,37 @@ async function resolver(
   const clientOptions = await getDerivedOptions(pluginOptions);
   switch (actionType) {
     case 'model':
-      if (imagen.isImagenModelName(actionName)) {
+      if (lyria.isLyriaModelName(actionName)) {
+        return lyria.defineModel(actionName, clientOptions, pluginOptions);
+      } else if (imagen.isImagenModelName(actionName)) {
         return imagen.defineModel(actionName, clientOptions, pluginOptions);
+      } else if (veo.isVeoModelName(actionName)) {
+        // no-op (not gemini)
       } else {
         return gemini.defineModel(actionName, clientOptions, pluginOptions);
       }
+      break;
+    case 'background-model':
+      if (veo.isVeoModelName(actionName)) {
+        return veo.defineModel(actionName, clientOptions, pluginOptions);
+      }
+      break;
     case 'embedder':
       return embedder.defineEmbedder(actionName, clientOptions, pluginOptions);
-    default:
-      return undefined;
   }
+
+  return undefined;
 }
 
 async function listActions(options?: VertexPluginOptions) {
-  const clientOptions = await getDerivedOptions(options);
   try {
+    const clientOptions = await getDerivedOptions(options);
     const models = await listModels(clientOptions);
     return [
       ...gemini.listActions(models),
       ...imagen.listActions(models),
+      ...lyria.listActions(models),
+      ...veo.listActions(models),
       // We don't list embedders here
     ];
   } catch (e: unknown) {

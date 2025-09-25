@@ -20,7 +20,6 @@ import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-
 import { getGenkitClientHeader } from '../../src/common/utils.js';
 import { getVertexAIUrl } from '../../src/vertexai/client.js';
 import {
@@ -134,8 +133,8 @@ describe('Vertex AI Veo', () => {
         };
         mockFetchResponse(mockOp);
 
-        const modelAction = captureModelRunner(defaultRegionalClientOptions);
-        const result = await modelAction.start(request);
+        const { start } = captureModelRunner(defaultRegionalClientOptions);
+        const result = await start(request);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -168,9 +167,9 @@ describe('Vertex AI Veo', () => {
         const errorBody = { error: { message: 'Invalid arg', code: 400 } };
         mockFetchResponse(errorBody, 400);
 
-        const modelAction = captureModelRunner(defaultRegionalClientOptions);
+        const { start } = captureModelRunner(defaultRegionalClientOptions);
         await assert.rejects(
-          modelAction.start(request),
+          start(request),
           /Error fetching from .*predictLongRunning.* Invalid arg/
         );
       });
@@ -184,8 +183,8 @@ describe('Vertex AI Veo', () => {
           ...defaultRegionalClientOptions,
           signal: abortSignal,
         };
-        const modelAction = captureModelRunner(clientOptionsWithSignal);
-        await modelAction.start(request);
+        const { start } = captureModelRunner(clientOptionsWithSignal);
+        await start(request);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchOptions = fetchStub.lastCall.args[1];
@@ -220,8 +219,8 @@ describe('Vertex AI Veo', () => {
         };
         mockFetchResponse(mockResponse);
 
-        const modelAction = captureModelRunner(defaultRegionalClientOptions);
-        const result = await modelAction.check(pendingOp);
+        const { check } = captureModelRunner(defaultRegionalClientOptions);
+        const result = await check(pendingOp);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -252,9 +251,9 @@ describe('Vertex AI Veo', () => {
         const errorBody = { error: { message: 'Not found', code: 404 } };
         mockFetchResponse(errorBody, 404);
 
-        const modelAction = captureModelRunner(defaultRegionalClientOptions);
+        const { check } = captureModelRunner(defaultRegionalClientOptions);
         await assert.rejects(
-          modelAction.check(pendingOp),
+          check(pendingOp),
           /Error fetching from .*fetchPredictOperation.* Not found/
         );
       });
