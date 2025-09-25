@@ -50,7 +50,8 @@ func main() {
 
 	serverCmd := os.Getenv("GITHUB_MCP_CMD")
 	if serverCmd == "" {
-		serverCmd = "github-mcp-server"
+		logger.FromContext(ctx).Error("GITHUB_MCP_CMD is required")
+		os.Exit(1)
 	}
 	if pr <= 0 {
 		logger.FromContext(ctx).Error("-pr <number> is required (PR analysis only)")
