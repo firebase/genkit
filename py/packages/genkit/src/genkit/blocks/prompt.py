@@ -21,13 +21,13 @@ This module provides types and utilities for managing prompts and templates
 used with AI models in the Genkit framework. It enables consistent prompt
 generation and management across different parts of the application.
 """
-import asyncio
 from asyncio import Future
 from collections.abc import AsyncIterator
-from typing import Any, Awaitable, Protocol, runtime_checkable
+from typing import Any
 
 from dotpromptz.typing import DataArgument, PromptFunction, PromptInputConfig, PromptMetadata
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
+from dotpromptz.typing import ToolDefinition as DotPromptzToolDefinition
 
 from genkit.aio import Channel
 from genkit.blocks.generate import (
@@ -52,6 +52,7 @@ from genkit.core.typing import (
     Resume,
     Role,
     ToolChoice,
+    Tools,
 )
 
 
@@ -163,6 +164,8 @@ class ExecutablePrompt:
         self._use = use
         self._cache_prompt = PromptCache()
 
+
+
     async def __call__(
         self,
         input: Any | None = None,
@@ -256,6 +259,7 @@ class ExecutablePrompt:
             output_schema=self._output_schema,
             output_constrained=self._output_constrained,
             input_schema=self._input_schema,
+            metadata=self._metadata,
         )
 
         model = options.model or self._registry.default_model
@@ -263,7 +267,13 @@ class ExecutablePrompt:
             raise Exception('No model configured.')
         resolved_msgs: list[Message] = []
         if options.system:
-            result = await render_system_prompt(self._registry, input, options, self._cache_prompt)
+            result = await render_system_prompt(
+                self._registry,
+                input,
+                options,
+                self._cache_prompt,
+                ActionRunContext._current_context() or {}
+            )
             resolved_msgs.append(result)
         if options.messages:
             resolved_msgs += options.messages
@@ -325,7 +335,7 @@ def define_prompt(
     max_turns: int | None = None,
     return_tool_requests: bool | None = None,
     metadata: dict[str, Any] | None = None,
-    tools: list[str] | None = None,
+    tools: Tools | None = None,
     tool_choice: ToolChoice | None = None,
     use: list[ModelMiddleware] | None = None,
     # TODO:
@@ -483,56 +493,58 @@ def _normalize_prompt_arg(
     else:
         return [prompt]
 
-
-
 async def render_system_prompt(
     registry: Registry,
     input: dict[str, Any],
     options: PromptConfig,
-    prompt_cache: PromptCache | None = None,
+    prompt_cache: PromptCache,
+    context: dict[str, Any] | None = None,
 ) -> Message:
-    """Renders a system prompt."""
+    """Renders the system prompt for a prompt action.
+
+    This function handles rendering system prompts by either:
+    1. Processing dotprompt templates if the system prompt is a string
+    2. Normalizing the system prompt into a list of Parts if it's a Part or list of Parts
+
+    Args:
+        registry: Registry instance for resolving models and tools
+        input: Dictionary of input values for template rendering
+        options: Configuration options for the prompt
+        prompt_cache: Cache for compiled prompt templates
+        context: Optional dictionary of context values for template rendering
+
+    Returns:
+        Message: A Message object containing the rendered system prompt with Role.SYSTEM
+
+    """
 
     if isinstance(options.system, str):
 
-        if prompt_cache and prompt_cache.system is None:
+        if prompt_cache.system is None:
             prompt_cache.system = await registry.dotprompt.compile(options.system)
 
+        if options.metadata:
+            context = {**context, "state": options.metadata.get("state")}
 
-            return Message(
-                role=Role.SYSTEM,
-                content=await render_dotprompt_to_parts(
-                    ActionRunContext._current_context(),
-                    prompt_cache.system,
-                    input,
-                    PromptMetadata(
-                        input=PromptInputConfig(
-
-                        )
-                    ),
-                )
-            )
-        rendered = await registry.dotprompt.compile(options.system)
-        result = await render_dotprompt_to_parts(
-                ActionRunContext._current_context(),
-                rendered,
+        return Message(
+            role=Role.SYSTEM,
+            content=await render_dotprompt_to_parts(
+                context,
+                prompt_cache.system,
                 input,
+
                 PromptMetadata(
                     input=PromptInputConfig(
+
                     )
                 ),
             )
-        return Message(
-            role=Role.SYSTEM,
-            content=result
         )
-
 
     return Message(
         role=Role.SYSTEM,
         content=_normalize_prompt_arg(options.system)
     )
-
 
 async def render_dotprompt_to_parts(
     context: dict[str, Any],
@@ -540,8 +552,20 @@ async def render_dotprompt_to_parts(
     input_: dict[str, Any],
     options: PromptMetadata | None = None,
 ) -> list[Part]:
-    """Renders a prompt using dotprompt."""
+    """Renders a prompt template into a list of content parts using dotprompt.
 
+    Args:
+        context: Dictionary containing context variables available to the prompt template.
+        prompt_function: The compiled dotprompt function to execute.
+        input_: Dictionary containing input variables for the prompt template.
+        options: Optional prompt metadata configuration.
+
+    Returns:
+        A list of Part objects containing the rendered content.
+
+    Raises:
+        Exception: If the template produces more than one message.
+    """
     rendered = await prompt_function(
         data=DataArgument[dict[str, Any]](
             input=input_,

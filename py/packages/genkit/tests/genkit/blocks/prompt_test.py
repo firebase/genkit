@@ -28,7 +28,7 @@ from genkit.core.typing import (
     Message,
     Role,
     TextPart,
-    ToolChoice,
+    ToolChoice, ToolDefinition,
 )
 from genkit.testing import (
     define_echo_model,
@@ -146,38 +146,41 @@ test_cases_parse_partial_json = [
         {
             "model": "echoModel",
             "config": {"banana": "ripe"},
-            "input_schema": {"schema": "z.object({name: z.string()})"},  # Note: Schema representation might need adjustment
-            "prompt": "hello {{name}} ({{@state.name}})",
-        },
-        GenerationCommonConfig.model_validate({"temperature": 11}),
-        GenerateActionOptions.model_validate(
-            {
-                "config": {
-                    "banana": "ripe",
-                    "temperature": 11,
+            "input_schema": {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
                 },
-                "messages": [{"content": [{"text": "hello foo (bar)"}], "role": "user"}],
-                "model": "echoModel",
-            }
-
-        ),
+            },  # Note: Schema representation might need adjustment
+            "system": "hello {{name}} ({{@state.name}})",
+            "metadata": {"state": {"name": "bar"}}
+        },
+        {"name": "foo"},
+        GenerationCommonConfig.model_validate({"temperature": 11}),
+        """[ECHO] system: "hello foo ()" {"temperature":11.0}"""
     )
 ]
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    'test_case, prompt, input_option, want_rendered',
+    'test_case, prompt, input, input_option, want_rendered',
     test_cases_parse_partial_json,
     ids=[tc[0] for tc in test_cases_parse_partial_json],
 )
 async def test_prompt_with_system(
     test_case: str,
     prompt: dict[str, Any],
+    input: dict[str, Any],
     input_option: GenerationCommonConfig,
-    want_rendered: GenerateActionOptions
+    want_rendered: str
 ) -> None:
-    """Test that the propmt utilises both prompt and system prompt."""
+    """Test system prompt rendering."""
     ai, *_ = setup_test()
 
     my_prompt = ai.define_prompt(**prompt)
+
+    response = await my_prompt(input, input_option)
+
+    assert response.text == want_rendered
+
