@@ -82,6 +82,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -100,6 +101,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -132,6 +134,7 @@ describe('toGenerateRequest', () => {
         messages: [{ role: 'user', content: [{ text: 'Add 10 and 5.' }] }],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             description: 'add two numbers together',
@@ -167,6 +170,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -219,6 +223,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -241,6 +246,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -258,6 +264,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: [{ content: [{ text: 'context here' }] }],
+        resources: [],
         tools: [],
         output: {},
       },
@@ -303,6 +310,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {
           constrained: true,
@@ -434,7 +442,7 @@ describe('generate', () => {
     );
   });
 
-  it('applies resources', async () => {
+  it('applies resources in the registry', async () => {
     defineResource(
       registry,
       { name: 'testResource', template: 'test://resource/{param}' },

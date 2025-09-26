@@ -52,6 +52,12 @@ export {
   type RequestData,
 } from './context.js';
 export {
+  defineDynamicActionProvider,
+  type DapConfig,
+  type DapFn,
+  type DynamicActionProviderAction,
+} from './dynamic-action-provider.js';
+export {
   GenkitError,
   UnstableApiError,
   UserFacingError,

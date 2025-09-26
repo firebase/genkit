@@ -16,6 +16,7 @@
 
 import { Root } from '@modelcontextprotocol/sdk/types.js';
 import {
+  type DynamicActionProviderAction,
   type DynamicResourceAction,
   type ExecutablePrompt,
   type Genkit,
@@ -57,6 +58,24 @@ export interface McpHostOptions {
   roots?: Root[];
 }
 
+export type McpHostOptionsWithCache = Omit<McpHostOptions, 'name'> & {
+  /**
+   * A client name for this MCP host. This name is advertised to MCP Servers
+   * as the connecting client name.
+   */
+  name: string;
+
+  /**
+   * Cache TTL. The dynamic action provider has a cache for the available actions
+   * The default TTL is 3 seconds.
+   * The cache will automatically be invalidated if any connections change.
+   *   Negative = no caching (expect noisy traces and slower resolution)
+   *   Zero or undefined = use the default 3000 millis (3 seconds)
+   *   Positive: The number of milliseconds to keep the cache.
+   */
+  cacheTTLMillis?: number;
+};
+
 /** Internal representation of client state for logging. */
 interface ClientState {
   error?: {
@@ -82,6 +101,7 @@ export class GenkitMcpHost {
     reject: (err: Error) => void;
   }[] = [];
   private _ready = false;
+  private _dynamicActionProvider: DynamicActionProviderAction | undefined;
   private roots: Root[] | undefined;
   rawToolResponses?: boolean;
 
@@ -94,6 +114,16 @@ export class GenkitMcpHost {
       this.updateServers(options.mcpServers);
     } else {
       this._ready = true;
+    }
+  }
+
+  set dynamicActionProvider(dap: DynamicActionProviderAction) {
+    this._dynamicActionProvider = dap;
+  }
+
+  _invalidateCache(): void {
+    if (this._dynamicActionProvider) {
+      this._dynamicActionProvider.invalidateCache();
     }
   }
 
@@ -148,6 +178,7 @@ export class GenkitMcpHost {
         detail: `Details: ${e}`,
       });
     }
+    this._invalidateCache();
   }
 
   /**
@@ -175,6 +206,7 @@ export class GenkitMcpHost {
       });
     }
     delete this._clients[serverName];
+    this._invalidateCache();
   }
 
   /**
@@ -198,6 +230,7 @@ export class GenkitMcpHost {
       `[MCP Host] Disabling MCP server '${serverName}' in host '${this.name}'`
     );
     await client.disable();
+    this._invalidateCache();
   }
 
   /**
@@ -224,6 +257,7 @@ export class GenkitMcpHost {
         detail: `Details: ${e}`,
       });
     }
+    this._invalidateCache();
   }
 
   /**
@@ -251,6 +285,7 @@ export class GenkitMcpHost {
         detail: `Details: ${e}`,
       });
     }
+    this._invalidateCache();
   }
 
   /**
@@ -290,6 +325,8 @@ export class GenkitMcpHost {
           this._readyListeners.pop()?.reject(err);
         }
       });
+
+    this._invalidateCache();
   }
 
   /**
@@ -446,6 +483,7 @@ export class GenkitMcpHost {
     for (const client of Object.values(this._clients)) {
       await client._disconnect();
     }
+    this._invalidateCache();
   }
 
   /** Helper method to track and log client errors. */
