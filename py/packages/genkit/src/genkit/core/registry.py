@@ -32,6 +32,7 @@ from collections.abc import Callable
 from typing import Any
 
 import structlog
+from dotpromptz.dotprompt import Dotprompt
 
 from genkit.core.action import (
     Action,
@@ -84,7 +85,7 @@ class Registry:
         self._entries: ActionStore = {}
         self._value_by_kind_and_name: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
-
+        self.dotprompt = Dotprompt()
         # TODO: Figure out how to set this.
         self.api_stability: str = 'stable'
 
