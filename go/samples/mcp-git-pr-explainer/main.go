@@ -54,12 +54,11 @@ func main() {
 		os.Exit(1)
 	}
 	if pr <= 0 {
-		logger.FromContext(ctx).Error("-pr <number> is required (PR analysis only)")
+		logger.FromContext(ctx).Error("-pr <number> is required")
 		os.Exit(1)
 	}
 
-	// Enable appropriate toolsets (PR analysis only)
-	toolsets := "pull_requests,repos"
+	toolsets := "pull_requests"
 	args := []string{"stdio", "--toolsets", toolsets, "--read-only"}
 
 	client, err := mcp.NewGenkitMCPClient(mcp.MCPClientOptions{
