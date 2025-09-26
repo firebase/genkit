@@ -36,7 +36,7 @@ func main() {
 	var repo string
 	var pr int
 	flag.StringVar(&repo, "repo", "firebase/genkit", "GitHub repo in the form owner/name")
-	flag.IntVar(&pr, "pr", 0, "Pull request number (enables PR summary mode)")
+	flag.IntVar(&pr, "pr", 0, "Pull request number")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -101,7 +101,7 @@ Instructions:
    - TL;DR (one sentence)
    - What changed (3–6 bullets)
    - Why it changed (intent)
-3) Keep it concise and professional. Return markdown only.
+3) Keep it concise. Return markdown only.
 
 Always pass owner='%s' repo='%s' pull_number='%d'.`,
 		pr, repo, owner, name, pr,
