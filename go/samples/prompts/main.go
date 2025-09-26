@@ -224,12 +224,17 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 		},
 	)
 
+	type Output struct {
+		Gablorken float64 `json:"gablorken"`
+	}
+
 	// Define prompt with tool and tool settings.
 	helloPrompt := genkit.DefinePrompt(
 		g, "PromptWithTool",
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 		ai.WithMaxTurns(1),
 		ai.WithTools(gablorkenTool),
+		ai.WithOutputType(Output{}),
 		ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 	)
 
