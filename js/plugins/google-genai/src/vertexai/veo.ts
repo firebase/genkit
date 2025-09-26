@@ -20,9 +20,9 @@ import {
   modelActionMetadata,
   modelRef,
   z,
-  type Genkit,
 } from 'genkit';
 import { BackgroundModelAction, ModelInfo } from 'genkit/model';
+import { backgroundModel as pluginBackgroundModel } from 'genkit/plugin';
 import { veoCheckOperation, veoPredict } from './client.js';
 import {
   fromVeoOperation,
@@ -171,25 +171,23 @@ export function listActions(models: Model[]): ActionMetadata[] {
     });
 }
 
-export function defineKnownModels(
-  ai: Genkit,
+export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, clientOptions, pluginOptions);
-  }
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineModel(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): BackgroundModelAction<VeoConfigSchemaType> {
   const ref = model(name);
 
-  return ai.defineBackgroundModel({
+  return pluginBackgroundModel({
     name: ref.name,
     ...ref.info,
     configSchema: ref.configSchema,

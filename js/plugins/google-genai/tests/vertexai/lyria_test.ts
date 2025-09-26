@@ -15,7 +15,6 @@
  */
 
 import * as assert from 'assert';
-import { Genkit } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -40,15 +39,8 @@ import {
 const { GENERIC_MODEL, KNOWN_MODELS } = TEST_ONLY;
 
 describe('Vertex AI Lyria', () => {
-  let mockGenkit: sinon.SinonStubbedInstance<Genkit>;
   let fetchStub: sinon.SinonStub;
   let authMock: sinon.SinonStubbedInstance<GoogleAuth>;
-  let modelActionCallback: (
-    request: GenerateRequest<typeof LyriaConfigSchema>,
-    options: {
-      abortSignal?: AbortSignal;
-    }
-  ) => Promise<any>;
 
   const modelName = 'lyria-test-model';
 
@@ -60,17 +52,11 @@ describe('Vertex AI Lyria', () => {
   };
 
   beforeEach(() => {
-    mockGenkit = sinon.createStubInstance(Genkit);
     fetchStub = sinon.stub(global, 'fetch');
     authMock = sinon.createStubInstance(GoogleAuth);
 
     authMock.getAccessToken.resolves('test-token');
     defaultRegionalClientOptions.authClient = authMock as unknown as GoogleAuth;
-
-    mockGenkit.defineModel.callsFake((config: any, func: any) => {
-      modelActionCallback = func;
-      return { name: config.name } as any;
-    });
   });
 
   afterEach(() => {
@@ -122,13 +108,6 @@ describe('Vertex AI Lyria', () => {
   });
 
   describe('defineModel()', () => {
-    beforeEach(() => {
-      defineModel(mockGenkit, modelName, defaultRegionalClientOptions);
-      sinon.assert.calledOnce(mockGenkit.defineModel);
-      const args = mockGenkit.defineModel.lastCall.args[0];
-      assert.strictEqual(args.name, `vertexai/${modelName}`);
-    });
-
     const prompt = 'A funky bass line';
     const minimalRequest: GenerateRequest<typeof LyriaConfigSchema> = {
       messages: [{ role: 'user', content: [{ text: prompt }] }],
@@ -151,7 +130,8 @@ describe('Vertex AI Lyria', () => {
     it('should call fetch with correct params and return lyria response', async () => {
       mockFetchResponse(mockPrediction);
 
-      const result = await modelActionCallback(minimalRequest, {});
+      const model = defineModel(modelName, defaultRegionalClientOptions);
+      const result = await model.run(minimalRequest);
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
@@ -175,18 +155,24 @@ describe('Vertex AI Lyria', () => {
         mockPrediction,
         minimalRequest
       );
-      assert.deepStrictEqual(result, expectedResponse);
-      assert.strictEqual(result.candidates?.length, 2);
+      assert.deepStrictEqual(
+        result.result.candidates,
+        expectedResponse.candidates
+      );
+      assert.deepStrictEqual(result.result.usage, expectedResponse.usage);
+      assert.deepStrictEqual(result.result.custom, expectedResponse.custom);
+      assert.strictEqual(result.result.candidates?.length, 2);
       assert.strictEqual(
-        result.candidates[0].message.content[0].media?.url,
+        result.result.candidates[0].message.content[0].media?.url,
         'data:audio/wav;base64,base64audio1'
       );
     });
 
     it('should throw if no predictions are returned', async () => {
       mockFetchResponse({ predictions: [] });
+      const model = defineModel(modelName, defaultRegionalClientOptions);
       await assert.rejects(
-        modelActionCallback(minimalRequest, {}),
+        model.run(minimalRequest),
         /Model returned no predictions/
       );
     });
@@ -195,8 +181,9 @@ describe('Vertex AI Lyria', () => {
       const errorBody = { error: { message: 'Quota exceeded', code: 429 } };
       mockFetchResponse(errorBody, 429);
 
+      const model = defineModel(modelName, defaultRegionalClientOptions);
       await assert.rejects(
-        modelActionCallback(minimalRequest, {}),
+        model.run(minimalRequest),
         /Error fetching from .*predict.* Quota exceeded/
       );
     });
@@ -206,14 +193,13 @@ describe('Vertex AI Lyria', () => {
       const controller = new AbortController();
       const abortSignal = controller.signal;
 
-      // We need to re-register to pass the clientOptions with the signal
       const clientOptionsWithSignal = {
         ...defaultRegionalClientOptions,
         signal: abortSignal,
       };
-      defineModel(mockGenkit, modelName, clientOptionsWithSignal);
+      const model = defineModel(modelName, clientOptionsWithSignal);
 
-      await modelActionCallback(minimalRequest, { abortSignal });
+      await model.run(minimalRequest, { abortSignal });
 
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];

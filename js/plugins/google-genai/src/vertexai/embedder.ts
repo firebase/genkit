@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import { z, type Document, type Genkit } from 'genkit';
+import { z, type Document } from 'genkit';
 import {
   EmbedderInfo,
   embedderRef,
   type EmbedderAction,
   type EmbedderReference,
 } from 'genkit/embedder';
+import { embedder as pluginEmbedder } from 'genkit/plugin';
 import { embedContent } from './client.js';
 import {
   ClientOptions,
@@ -145,36 +146,36 @@ export function model(
   });
 }
 
-export function defineKnownModels(
-  ai: Genkit,
+export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineEmbedder(ai, name, clientOptions, pluginOptions);
-  }
+  return Object.keys(KNOWN_MODELS).map((name) =>
+    defineEmbedder(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineEmbedder(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): EmbedderAction<any> {
   const ref = model(name);
 
-  return ai.defineEmbedder(
+  return pluginEmbedder(
     {
       name: ref.name,
       configSchema: ref.configSchema,
       info: ref.info!,
     },
-    async (input, options?: EmbeddingConfig) => {
+    async (request) => {
       const embedContentRequest: EmbedContentRequest = {
-        instances: input.map((doc: Document) =>
-          toEmbeddingInstance(ref, doc, options)
+        instances: request.input.map((doc: Document) =>
+          toEmbeddingInstance(ref, doc, request.options)
         ),
-        parameters: { outputDimensionality: options?.outputDimensionality },
+        parameters: {
+          outputDimensionality: request.options?.outputDimensionality,
+        },
       };
 
       const response = await embedContent(

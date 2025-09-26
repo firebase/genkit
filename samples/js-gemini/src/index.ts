@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { googleAI } from '@genkit-ai/google-genai';
+import { googleAI, vertexAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { genkit, MediaPart, z } from 'genkit';
+import { MediaPart, genkit, z } from 'genkit';
 import { Readable } from 'stream';
 import wav from 'wav';
 
@@ -24,10 +24,11 @@ const ai = genkit({
   plugins: [
     // Provide the key via the GOOGLE_GENAI_API_KEY environment variable or arg { apiKey: 'yourkey'}
     googleAI({ experimental_debugTraces: true }),
+    vertexAI({ experimental_debugTraces: true, location: 'global' }),
   ],
 });
 
-ai.defineFlow('basic-hi', async () => {
+ai.defineFlow('googleai-basic-hi', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-2.5-flash'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
@@ -36,8 +37,17 @@ ai.defineFlow('basic-hi', async () => {
   return text;
 });
 
+ai.defineFlow('vertexai-basic-hi', async () => {
+  const { text } = await ai.generate({
+    model: vertexAI.model('gemini-2.5-flash'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+  });
+
+  return text;
+});
+
 // Multimodal input
-ai.defineFlow('multimodal-input', async () => {
+ai.defineFlow('googleai-multimodal-input', async () => {
   const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   const { text } = await ai.generate({
@@ -56,8 +66,27 @@ ai.defineFlow('multimodal-input', async () => {
   return text;
 });
 
+ai.defineFlow('vertexai-multimodal-input', async () => {
+  const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  const { text } = await ai.generate({
+    model: vertexAI.model('gemini-2.5-flash'),
+    prompt: [
+      { text: 'describe this photo' },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${photoBase64}`,
+        },
+      },
+    ],
+  });
+
+  return text;
+});
+
 // YouTube videos
-ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
+ai.defineFlow('googleai-youtube-videos', async (_, { sendChunk }) => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-2.5-flash'),
     prompt: [
@@ -76,8 +105,27 @@ ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
   return text;
 });
 
+ai.defineFlow('vertexai-youtube-videos', async (_, { sendChunk }) => {
+  const { text } = await ai.generate({
+    model: vertexAI.model('gemini-2.5-flash'),
+    prompt: [
+      {
+        text: 'transcribe this video',
+      },
+      {
+        media: {
+          url: 'https://www.youtube.com/watch?v=3p1P5grjXIQ',
+          contentType: 'video/mp4',
+        },
+      },
+    ],
+  });
+
+  return text;
+});
+
 // streaming
-ai.defineFlow('streaming', async (_, { sendChunk }) => {
+ai.defineFlow('googleai-streaming', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({
     model: googleAI.model('gemini-2.5-flash'),
     prompt: 'Write a poem about AI.',
@@ -92,10 +140,40 @@ ai.defineFlow('streaming', async (_, { sendChunk }) => {
   return poem;
 });
 
+ai.defineFlow('vertexai-streaming', async (_, { sendChunk }) => {
+  const { stream } = ai.generateStream({
+    model: vertexAI.model('gemini-2.5-flash'),
+    prompt: 'Write a poem about AI.',
+  });
+
+  let poem = '';
+  for await (const chunk of stream) {
+    poem += chunk.text;
+    sendChunk(chunk.text);
+  }
+
+  return poem;
+});
+
 // Search grounding
-ai.defineFlow('search-grounding', async () => {
+ai.defineFlow('googleai-search-grounding', async () => {
   const { text, raw } = await ai.generate({
     model: googleAI.model('gemini-2.5-flash'),
+    prompt: 'Who is Albert Einstein?',
+    config: {
+      tools: [{ googleSearch: {} }],
+    },
+  });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
+ai.defineFlow('vertexai-search-grounding', async () => {
+  const { text, raw } = await ai.generate({
+    model: vertexAI.model('gemini-2.5-flash'),
     prompt: 'Who is Albert Einstein?',
     config: {
       tools: [{ googleSearch: {} }],
@@ -146,7 +224,7 @@ const celsiusToFahrenheit = ai.defineTool(
 // Tool calling with Gemini
 ai.defineFlow(
   {
-    name: 'toolCalling',
+    name: 'googleai-toolCalling',
     inputSchema: z.string().default('Paris, France'),
     outputSchema: z.string(),
     streamSchema: z.any(),
@@ -154,6 +232,31 @@ ai.defineFlow(
   async (location, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
       model: googleAI.model('gemini-2.5-flash'),
+      config: {
+        temperature: 1,
+      },
+      tools: [getWeather, celsiusToFahrenheit],
+      prompt: `What's the weather in ${location}? Convert the temperature to Fahrenheit.`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+ai.defineFlow(
+  {
+    name: 'vertexai-toolCalling',
+    inputSchema: z.string().default('Paris, France'),
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (location, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: vertexAI.model('gemini-2.5-flash'),
       config: {
         temperature: 1,
       },
@@ -179,7 +282,7 @@ const RpgCharacterSchema = z.object({
 // A simple example of structured output.
 ai.defineFlow(
   {
-    name: 'structured-output',
+    name: 'googleai-structured-output',
     inputSchema: z.string().default('Glorb'),
     outputSchema: RpgCharacterSchema,
   },
@@ -201,8 +304,32 @@ ai.defineFlow(
   }
 );
 
+ai.defineFlow(
+  {
+    name: 'vertexai-structured-output',
+    inputSchema: z.string().default('Glorb'),
+    outputSchema: RpgCharacterSchema,
+  },
+  async (name, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: vertexAI.model('gemini-2.5-flash'),
+      config: {
+        temperature: 2, // we want creativity
+      },
+      output: { schema: RpgCharacterSchema },
+      prompt: `Generate an RPC character called ${name}`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.output);
+    }
+
+    return (await response).output!;
+  }
+);
+
 // Gemini reasoning example.
-ai.defineFlow('reasoning', async (_, { sendChunk }) => {
+ai.defineFlow('googleai-reasoning', async (_, { sendChunk }) => {
   const { message } = await ai.generate({
     prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
     model: googleAI.model('gemini-2.5-pro'),
@@ -218,8 +345,24 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   return message;
 });
 
+ai.defineFlow('vertexai-reasoning', async (_, { sendChunk }) => {
+  const { message } = await ai.generate({
+    prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
+    model: vertexAI.model('gemini-2.5-pro'),
+    config: {
+      thinkingConfig: {
+        thinkingBudget: 1024,
+        includeThoughts: true,
+      },
+    },
+    onChunk: sendChunk,
+  });
+
+  return message;
+});
+
 // Image editing with Gemini.
-ai.defineFlow('gemini-image-editing', async (_) => {
+ai.defineFlow('googleai-gemini-image-editing', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
   const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
 
@@ -238,10 +381,38 @@ ai.defineFlow('gemini-image-editing', async (_) => {
   return media;
 });
 
+ai.defineFlow('vertexai-gemini-image-editing', async (_) => {
+  const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
+  const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
+
+  const { media } = await ai.generate({
+    model: vertexAI.model('gemini-2.5-flash-image-preview'),
+    prompt: [
+      { text: 'add the plant to my room' },
+      { media: { url: `data:image/png;base64,${plant}` } },
+      { media: { url: `data:image/png;base64,${room}` } },
+    ],
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+    },
+  });
+
+  return media;
+});
+
 // A simple example of image generation with Gemini.
-ai.defineFlow('imagen-image-generation', async (_) => {
+ai.defineFlow('googleai-imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
     model: googleAI.model('imagen-3.0-generate-002'),
+    prompt: `generate an image of a banana riding a bicycle`,
+  });
+
+  return media;
+});
+
+ai.defineFlow('vertexai-imagen-image-generation', async (_) => {
+  const { media } = await ai.generate({
+    model: vertexAI.model('imagen-3.0-generate-002'),
     prompt: `generate an image of a banana riding a bicycle`,
   });
 
@@ -251,7 +422,7 @@ ai.defineFlow('imagen-image-generation', async (_) => {
 // TTS sample
 ai.defineFlow(
   {
-    name: 'tts',
+    name: 'googleai-tts',
     inputSchema: z
       .string()
       .default(
@@ -315,7 +486,7 @@ async function toWav(
 }
 
 // An example of using Ver 2 model to make a static photo move.
-ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
+ai.defineFlow('googleai-photo-move-veo', async (_, { sendChunk }) => {
   const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
@@ -388,3 +559,21 @@ async function downloadVideo(video: MediaPart, path: string) {
 
   Readable.from(videoDownloadResponse.body).pipe(fs.createWriteStream(path));
 }
+
+ai.defineFlow('vertexai-lyria-music-generation', async (_) => {
+  const { media } = await ai.generate({
+    model: vertexAI.model('lyria-002'),
+    prompt: 'generate a relaxing song with piano and violin',
+  });
+
+  if (!media) {
+    throw new Error('no media returned');
+  }
+  const audioBuffer = Buffer.from(
+    media.url.substring(media.url.indexOf(',') + 1),
+    'base64'
+  );
+  return {
+    media: 'data:audio/wav;base64,' + (await toWav(audioBuffer, 2, 48000)),
+  };
+});

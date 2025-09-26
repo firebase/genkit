@@ -20,7 +20,6 @@ import {
   MessageData,
   modelActionMetadata,
   z,
-  type Genkit,
 } from 'genkit';
 import {
   getBasicUsageStats,
@@ -30,6 +29,7 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
+import { model as pluginModel } from 'genkit/plugin';
 import { imagenPredict } from './client.js';
 import type {
   ClientOptions,
@@ -169,14 +169,13 @@ export function listActions(models: Model[]): ActionMetadata[] {
     });
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, options);
-  }
+export function listKnownModels(options?: GoogleAIPluginOptions) {
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, options)
+  );
 }
 
 export function defineModel(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): ModelAction {
@@ -187,9 +186,8 @@ export function defineModel(
     baseUrl: pluginOptions?.baseUrl,
   };
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
