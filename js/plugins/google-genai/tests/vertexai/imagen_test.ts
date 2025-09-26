@@ -15,7 +15,6 @@
  */
 
 import * as assert from 'assert';
-import { Genkit } from 'genkit';
 import { GenerateRequest, getBasicUsageStats } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -91,7 +90,6 @@ describe('Vertex AI Imagen', () => {
   });
 
   describe('defineImagenModel()', () => {
-    let mockAi: sinon.SinonStubbedInstance<Genkit>;
     let fetchStub: sinon.SinonStub;
     const modelName = 'imagen-test-model';
     let authMock: sinon.SinonStubbedInstance<GoogleAuth>;
@@ -112,7 +110,6 @@ describe('Vertex AI Imagen', () => {
     };
 
     beforeEach(() => {
-      mockAi = sinon.createStubInstance(Genkit);
       fetchStub = sinon.stub(global, 'fetch');
       authMock = sinon.createStubInstance(GoogleAuth);
       authMock.getAccessToken.resolves('test-token');
@@ -136,12 +133,8 @@ describe('Vertex AI Imagen', () => {
     function captureModelRunner(
       clientOptions: ClientOptions
     ): (request: GenerateRequest, options: any) => Promise<any> {
-      defineModel(mockAi as any, modelName, clientOptions);
-      assert.ok(mockAi.defineModel.calledOnce);
-      const callArgs = mockAi.defineModel.firstCall.args;
-      assert.strictEqual(callArgs[0].name, `vertexai/${modelName}`);
-      assert.strictEqual(callArgs[0].configSchema, ImagenConfigSchema);
-      return callArgs[1];
+      const model = defineModel(modelName, clientOptions);
+      return model.run;
     }
 
     function getExpectedHeaders(
@@ -208,12 +201,12 @@ describe('Vertex AI Imagen', () => {
 
         const expectedResponse = fromImagenResponse(mockResponse, request);
         const expectedCandidates = expectedResponse.candidates;
-        assert.deepStrictEqual(result.candidates, expectedCandidates);
-        assert.deepStrictEqual(result.usage, {
+        assert.deepStrictEqual(result.result.candidates, expectedCandidates);
+        assert.deepStrictEqual(result.result.usage, {
           ...getBasicUsageStats(request.messages, expectedCandidates as any),
           custom: { generations: 2 },
         });
-        assert.deepStrictEqual(result.custom, mockResponse);
+        assert.deepStrictEqual(result.result.custom, mockResponse);
       });
 
       it(`should throw an error if model returns no predictions for ${clientOptions.kind}`, async () => {
