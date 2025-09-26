@@ -133,8 +133,8 @@ describe('Vertex AI Veo', () => {
         };
         mockFetchResponse(mockOp);
 
-        const { start } = captureModelRunner(defaultRegionalClientOptions);
-        const result = await start(request);
+        const modelAction = captureModelRunner(defaultRegionalClientOptions);
+        const result = await modelAction.start(request);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -167,9 +167,9 @@ describe('Vertex AI Veo', () => {
         const errorBody = { error: { message: 'Invalid arg', code: 400 } };
         mockFetchResponse(errorBody, 400);
 
-        const { start } = captureModelRunner(defaultRegionalClientOptions);
+        const modelAction = captureModelRunner(defaultRegionalClientOptions);
         await assert.rejects(
-          start(request),
+          modelAction.start(request),
           /Error fetching from .*predictLongRunning.* Invalid arg/
         );
       });
@@ -183,8 +183,8 @@ describe('Vertex AI Veo', () => {
           ...defaultRegionalClientOptions,
           signal: abortSignal,
         };
-        const { start } = captureModelRunner(clientOptionsWithSignal);
-        await start(request);
+        const modelAction = captureModelRunner(clientOptionsWithSignal);
+        await modelAction.start(request);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchOptions = fetchStub.lastCall.args[1];
@@ -219,8 +219,8 @@ describe('Vertex AI Veo', () => {
         };
         mockFetchResponse(mockResponse);
 
-        const { check } = captureModelRunner(defaultRegionalClientOptions);
-        const result = await check(pendingOp);
+        const modelAction = captureModelRunner(defaultRegionalClientOptions);
+        const result = await modelAction.check(pendingOp);
 
         sinon.assert.calledOnce(fetchStub);
         const fetchArgs = fetchStub.lastCall.args;
@@ -251,9 +251,9 @@ describe('Vertex AI Veo', () => {
         const errorBody = { error: { message: 'Not found', code: 404 } };
         mockFetchResponse(errorBody, 404);
 
-        const { check } = captureModelRunner(defaultRegionalClientOptions);
+        const modelAction = captureModelRunner(defaultRegionalClientOptions);
         await assert.rejects(
-          check(pendingOp),
+          modelAction.check(pendingOp),
           /Error fetching from .*fetchPredictOperation.* Not found/
         );
       });
