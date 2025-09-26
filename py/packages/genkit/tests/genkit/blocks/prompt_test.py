@@ -28,7 +28,8 @@ from genkit.core.typing import (
     Message,
     Role,
     TextPart,
-    ToolChoice, ToolDefinition,
+    ToolChoice,
+    ToolDefinition,
 )
 from genkit.testing import (
     define_echo_model,

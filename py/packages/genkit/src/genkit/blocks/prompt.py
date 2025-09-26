@@ -25,9 +25,14 @@ from asyncio import Future
 from collections.abc import AsyncIterator
 from typing import Any
 
-from dotpromptz.typing import DataArgument, PromptFunction, PromptInputConfig, PromptMetadata
+from dotpromptz.typing import (
+    DataArgument,
+    PromptFunction,
+    PromptInputConfig,
+    PromptMetadata,
+    ToolDefinition as DotPromptzToolDefinition,
+)
 from pydantic import BaseModel
-from dotpromptz.typing import ToolDefinition as DotPromptzToolDefinition
 
 from genkit.aio import Channel
 from genkit.blocks.generate import (
