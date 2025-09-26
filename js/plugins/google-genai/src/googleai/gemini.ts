@@ -26,7 +26,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
-import { model } from 'genkit/plugin';
+import { model as pluginModel } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import {
   fromGeminiCandidate,
@@ -378,7 +378,7 @@ const KNOWN_MODELS = {
   ...KNOWN_GEMMA_MODELS,
 };
 
-export function createModelRef(
+export function model(
   version: string,
   config: GeminiConfig | GeminiTtsConfig | GemmaConfig = {}
 ): ModelReference<ConfigSchemaType> {
@@ -419,7 +419,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const ref = createModelRef(m.name);
+        const ref = model(m.name);
         return modelActionMetadata({
           name: ref.name,
           info: ref.info,
@@ -443,7 +443,7 @@ export function defineModel(
   pluginOptions?: GoogleAIPluginOptions
 ): ModelAction {
   checkApiKey(pluginOptions?.apiKey);
-  const ref = createModelRef(name);
+  const ref = model(name);
   const clientOptions: ClientOptions = {
     apiVersion: pluginOptions?.apiVersion,
     baseUrl: pluginOptions?.baseUrl,
@@ -476,7 +476,7 @@ export function defineModel(
     );
   }
 
-  return model(
+  return pluginModel(
     {
       name: ref.name,
       ...ref.info,

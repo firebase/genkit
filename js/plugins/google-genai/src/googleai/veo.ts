@@ -28,7 +28,7 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
-import { backgroundModel } from 'genkit/plugin';
+import { backgroundModel as pluginBackgroundModel } from 'genkit/plugin';
 import { veoCheckOperation, veoPredict } from './client.js';
 import {
   ClientOptions,
@@ -120,7 +120,7 @@ export function isVeoModelName(value?: string): value is VeoModelName {
   return !!value?.startsWith('veo-');
 }
 
-export function createModelRef(
+export function model(
   version: string,
   config: VeoConfig = {}
 ): ModelReference<ConfigSchemaType> {
@@ -146,7 +146,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const ref = createModelRef(m.name);
+        const ref = model(m.name);
         return modelActionMetadata({
           name: ref.name,
           info: ref.info,
@@ -169,13 +169,13 @@ export function defineModel(
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): BackgroundModelAction<VeoConfigSchemaType> {
-  const ref = createModelRef(name);
+  const ref = model(name);
   const clientOptions: ClientOptions = {
     apiVersion: pluginOptions?.apiVersion,
     baseUrl: pluginOptions?.baseUrl,
   };
 
-  return backgroundModel({
+  return pluginBackgroundModel({
     name: ref.name,
     ...ref.info,
     configSchema: ref.configSchema,

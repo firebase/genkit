@@ -22,7 +22,7 @@ import {
   z,
 } from 'genkit';
 import { ModelAction, ModelInfo } from 'genkit/model';
-import { model } from 'genkit/plugin';
+import { model as pluginModel } from 'genkit/plugin';
 import { lyriaPredict } from './client.js';
 import { fromLyriaResponse, toLyriaPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
@@ -86,7 +86,7 @@ export function isLyriaModelName(value?: string): value is LyriaModelName {
   return !!value?.startsWith('lyria-');
 }
 
-export function createModelRef(
+export function model(
   version: string,
   config: LyriaConfig = {}
 ): ModelReference<ConfigSchemaType> {
@@ -103,7 +103,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
   return models
     .filter((m: Model) => isLyriaModelName(m.name))
     .map((m: Model) => {
-      const ref = createModelRef(m.name);
+      const ref = model(m.name);
       return modelActionMetadata({
         name: ref.name,
         info: ref.info,
@@ -126,9 +126,9 @@ export function defineModel(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): ModelAction {
-  const ref = createModelRef(name);
+  const ref = model(name);
 
-  return model(
+  return pluginModel(
     {
       name: ref.name,
       ...ref.info,

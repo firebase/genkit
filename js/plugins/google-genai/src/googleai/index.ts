@@ -161,19 +161,19 @@ export const googleAI = googleAIPlugin as GoogleAIPlugin;
   config?: any
 ): ModelReference<z.ZodTypeAny> => {
   if (veo.isVeoModelName(name)) {
-    return veo.createModelRef(name, config);
+    return veo.model(name, config);
   }
   if (imagen.isImagenModelName(name)) {
-    return imagen.createModelRef(name, config);
+    return imagen.model(name, config);
   }
   // gemma, tts, gemini and unknown model families.
-  return gemini.createModelRef(name, config);
+  return gemini.model(name, config);
 };
 googleAI.embedder = (
   name: string,
   config?: embedder.EmbeddingConfig
 ): EmbedderReference<embedder.EmbeddingConfigSchemaType> => {
-  return embedder.createEmbedderRef(name, config);
+  return embedder.model(name, config);
 };
 
 export default googleAI;

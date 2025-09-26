@@ -22,7 +22,7 @@ import {
   z,
 } from 'genkit';
 import { BackgroundModelAction, ModelInfo } from 'genkit/model';
-import { backgroundModel } from 'genkit/plugin';
+import { backgroundModel as pluginBackgroundModel } from 'genkit/plugin';
 import { veoCheckOperation, veoPredict } from './client.js';
 import {
   fromVeoOperation,
@@ -143,7 +143,7 @@ export function isVeoModelName(value?: string): value is VeoModelName {
   return !!value?.startsWith('veo-');
 }
 
-export function createModelRef(
+export function model(
   version: string,
   config: VeoConfig = {}
 ): ModelReference<ConfigSchemaType> {
@@ -162,7 +162,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
   return models
     .filter((m: Model) => isVeoModelName(m.name))
     .map((m: Model) => {
-      const ref = createModelRef(m.name);
+      const ref = model(m.name);
       return modelActionMetadata({
         name: ref.name,
         info: ref.info,
@@ -185,9 +185,9 @@ export function defineModel(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): BackgroundModelAction<VeoConfigSchemaType> {
-  const ref = createModelRef(name);
+  const ref = model(name);
 
-  return backgroundModel({
+  return pluginBackgroundModel({
     name: ref.name,
     ...ref.info,
     configSchema: ref.configSchema,

@@ -23,7 +23,7 @@ import {
   z,
 } from 'genkit';
 import { embedderRef } from 'genkit/embedder';
-import { embedder } from 'genkit/plugin';
+import { embedder as pluginEmbedder } from 'genkit/plugin';
 import { embedContent } from './client.js';
 import {
   EmbedContentRequest,
@@ -90,7 +90,7 @@ const KNOWN_MODELS = {
 };
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 
-export function createEmbedderRef(
+export function model(
   version: string,
   config: EmbeddingConfig = {}
 ): EmbedderReference<ConfigSchemaType> {
@@ -112,7 +112,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const ref = createEmbedderRef(m.name);
+        const ref = model(m.name);
         return embedderActionMetadata({
           name: ref.name,
           info: ref.info,
@@ -133,9 +133,9 @@ export function defineEmbedder(
   pluginOptions?: GoogleAIPluginOptions
 ): EmbedderAction {
   checkApiKey(pluginOptions?.apiKey);
-  const ref = createEmbedderRef(name);
+  const ref = model(name);
 
-  return embedder(
+  return pluginEmbedder(
     {
       name: ref.name,
       configSchema: ref.configSchema,

@@ -26,7 +26,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
-import { model } from 'genkit/plugin';
+import { model as pluginModel } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import {
   fromGeminiCandidate,
@@ -358,7 +358,7 @@ export function isGeminiModelName(value?: string): value is GeminiModelName {
   return !!value?.startsWith('gemini-') && !value.includes('embedding');
 }
 
-export function createModelRef(
+export function model(
   version: string,
   options: GeminiConfig = {}
 ): ModelReference<typeof GeminiConfigSchema> {
@@ -389,7 +389,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
         !KNOWN_DECOMISSIONED_MODELS.includes(modelName(m.name) || '')
     )
     .map((m) => {
-      const ref = createModelRef(m.name);
+      const ref = model(m.name);
       return modelActionMetadata({
         name: ref.name,
         info: ref.info,
@@ -415,7 +415,7 @@ export function defineModel(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): ModelAction {
-  const ref = createModelRef(name);
+  const ref = model(name);
   const middlewares: ModelMiddleware[] = [];
   if (ref.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
@@ -439,7 +439,7 @@ export function defineModel(
     );
   }
 
-  return model(
+  return pluginModel(
     {
       name: ref.name,
       ...ref.info,

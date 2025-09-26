@@ -21,7 +21,7 @@ import {
   type EmbedderAction,
   type EmbedderReference,
 } from 'genkit/embedder';
-import { embedder } from 'genkit/plugin';
+import { embedder as pluginEmbedder } from 'genkit/plugin';
 import { embedContent } from './client.js';
 import {
   ClientOptions,
@@ -109,7 +109,7 @@ export const KNOWN_MODELS = {
   }),
 } as const;
 
-export function createEmbedderRef(
+export function model(
   version: string,
   config: EmbeddingConfig = {}
 ): EmbedderReference<ConfigSchemaType> {
@@ -160,9 +160,9 @@ export function defineEmbedder(
   clientOptions: ClientOptions,
   _?: VertexPluginOptions
 ): EmbedderAction<any> {
-  const ref = createEmbedderRef(name);
+  const ref = model(name);
 
-  return embedder(
+  return pluginEmbedder(
     {
       name: ref.name,
       configSchema: ref.configSchema,

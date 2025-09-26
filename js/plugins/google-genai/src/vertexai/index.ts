@@ -155,22 +155,22 @@ export const vertexAI = vertexAIPlugin as VertexAIPlugin;
   config?: any
 ): ModelReference<z.ZodTypeAny> => {
   if (imagen.isImagenModelName(name)) {
-    return imagen.createModelRef(name, config);
+    return imagen.model(name, config);
   }
   if (lyria.isLyriaModelName(name)) {
-    return lyria.createModelRef(name, config);
+    return lyria.model(name, config);
   }
   if (veo.isVeoModelName(name)) {
-    return veo.createModelRef(name, config);
+    return veo.model(name, config);
   }
   // gemini and unknown model families
-  return gemini.createModelRef(name, config);
+  return gemini.model(name, config);
 };
 vertexAI.embedder = (
   name: string,
   config?: embedder.EmbeddingConfig
 ): EmbedderReference<embedder.EmbeddingConfigSchemaType> => {
-  return embedder.createEmbedderRef(name, config);
+  return embedder.model(name, config);
 };
 
 export default vertexAI;
