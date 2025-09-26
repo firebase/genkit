@@ -15,7 +15,7 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, Operation } from 'genkit';
+import { Operation } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -37,14 +37,13 @@ import {
 import {
   TEST_ONLY,
   VeoConfigSchema,
+  createModelRef,
   defineModel,
-  model,
 } from '../../src/vertexai/veo.js';
 
 const { GENERIC_MODEL, KNOWN_MODELS } = TEST_ONLY;
 
 describe('Vertex AI Veo', () => {
-  let mockGenkit: sinon.SinonStubbedInstance<Genkit>;
   let fetchStub: sinon.SinonStub;
   let authMock: sinon.SinonStubbedInstance<GoogleAuth>;
 
@@ -58,18 +57,11 @@ describe('Vertex AI Veo', () => {
   };
 
   beforeEach(() => {
-    mockGenkit = sinon.createStubInstance(Genkit);
     fetchStub = sinon.stub(global, 'fetch');
     authMock = sinon.createStubInstance(GoogleAuth);
 
     authMock.getAccessToken.resolves('test-token');
     defaultRegionalClientOptions.authClient = authMock as unknown as GoogleAuth;
-
-    // Mock Genkit registry methods if needed, though defineBackgroundModel is the key
-    (mockGenkit as any).registry = {
-      lookupAction: () => undefined,
-      generateTraceId: () => 'test-trace-id',
-    };
   });
 
   afterEach(() => {
@@ -98,36 +90,30 @@ describe('Vertex AI Veo', () => {
   describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
       const knownModelName = Object.keys(KNOWN_MODELS)[0];
-      const ref = model(knownModelName);
+      const ref = createModelRef(knownModelName);
+      const info: unknown = ref.info;
+
       assert.strictEqual(ref.name, `vertexai/${knownModelName}`);
-      assert.ok(ref.info?.supports?.media);
-      assert.ok(ref.info?.supports?.longRunning);
+      assert.ok((info as { supports?: { media?: boolean } })?.supports?.media);
+      assert.ok(
+        (info as { supports?: { longRunning?: boolean } })?.supports
+          ?.longRunning
+      );
     });
 
     it('should return a ModelReference for an unknown model using generic info', () => {
       const unknownModelName = 'veo-unknown-model';
-      const ref = model(unknownModelName);
+      const ref = createModelRef(unknownModelName);
       assert.strictEqual(ref.name, `vertexai/${unknownModelName}`);
       assert.deepStrictEqual(ref.info, GENERIC_MODEL.info);
     });
   });
 
   describe('defineModel()', () => {
-    function captureModelRunner(clientOptions: ClientOptions): {
-      start: (
-        request: GenerateRequest<typeof VeoConfigSchema>
-      ) => Promise<Operation>;
-      check: (operation: Operation) => Promise<Operation>;
-    } {
-      defineModel(mockGenkit, modelName, clientOptions);
-      sinon.assert.calledOnce(mockGenkit.defineBackgroundModel);
-      const callArgs = mockGenkit.defineBackgroundModel.firstCall.args;
-      assert.strictEqual(callArgs[0].name, `vertexai/${modelName}`);
-      assert.strictEqual(callArgs[0].configSchema, VeoConfigSchema);
-      return {
-        start: callArgs[0].start,
-        check: callArgs[0].check,
-      };
+    function captureModelRunner(clientOptions: ClientOptions) {
+      const modelAction = defineModel(modelName, clientOptions);
+      assert.strictEqual(modelAction.__action.name, `vertexai/${modelName}`);
+      return modelAction;
     }
 
     describe('start()', () => {
@@ -172,7 +158,9 @@ describe('Vertex AI Veo', () => {
           expectedPredictRequest
         );
 
-        assert.deepStrictEqual(result, fromVeoOperation(mockOp));
+        const expected = fromVeoOperation(mockOp);
+        assert.strictEqual(result.id, expected.id);
+        assert.strictEqual(result.done, expected.done);
       });
 
       it('should propagate API errors', async () => {
@@ -253,7 +241,10 @@ describe('Vertex AI Veo', () => {
           toVeoOperationRequest(pendingOp);
         assert.deepStrictEqual(JSON.parse(options.body), expectedCheckRequest);
 
-        assert.deepStrictEqual(result, fromVeoOperation(mockResponse));
+        const expected = fromVeoOperation(mockResponse);
+        assert.strictEqual(result.id, expected.id);
+        assert.strictEqual(result.done, expected.done);
+        assert.deepStrictEqual(result.output, expected.output);
       });
 
       it('should propagate API errors for check', async () => {

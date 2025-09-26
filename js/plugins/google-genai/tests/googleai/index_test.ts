@@ -48,7 +48,7 @@ describe('GoogleAI Plugin', () => {
     // Set a default API key for most tests
     process.env.GOOGLE_API_KEY = 'test-api-key';
 
-    // Mock global.fetch for listActions tests
+    // Mock global.fetch for list tests
     fetchMock = mock.method(global, 'fetch');
   });
 
@@ -134,10 +134,9 @@ describe('GoogleAI Plugin', () => {
       delete process.env.GOOGLE_API_KEY;
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_GENAI_API_KEY;
-      const ai = genkit({ plugins: [googleAI({})] });
-      const pluginProvider = googleAI()(ai);
+      const pluginProvider = googleAI();
       await assert.rejects(async () => {
-        await pluginProvider.initializer();
+        await pluginProvider.init!();
       }, MISSING_API_KEY_ERROR);
     });
 
@@ -145,10 +144,9 @@ describe('GoogleAI Plugin', () => {
       delete process.env.GOOGLE_API_KEY;
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_GENAI_API_KEY;
-      const ai = genkit({ plugins: [googleAI({ apiKey: false })] });
-      const pluginProvider = googleAI({ apiKey: false })(ai);
+      const pluginProvider = googleAI({ apiKey: false });
       await assert.doesNotReject(async () => {
-        await pluginProvider.initializer();
+        await pluginProvider.init!();
       });
     });
   });
@@ -320,15 +318,14 @@ describe('GoogleAI Plugin', () => {
 
     it('should return a Veo model reference with correct schema', () => {
       const modelRef = googleAI.model('veo-new-model');
+      const supports: any = { ...modelRef.info?.supports };
+
       assert.strictEqual(
         modelRef.configSchema,
         VeoConfigSchema,
         'Should have VeoConfigSchema'
       );
-      assert.ok(
-        modelRef.info?.supports?.longRunning,
-        'Veo should support longRunning'
-      );
+      assert.ok(supports?.longRunning, 'Veo should support longRunning');
     });
 
     it('should have config values for veo model', () => {
@@ -363,7 +360,9 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should have gemini config values for unknown model', () => {
-      const modelRef = googleAI.model('foo-model', { temperature: 0.3 });
+      const modelRef = googleAI.model('foo-model', {
+        temperature: 0.3,
+      });
       assert.strictEqual(
         modelRef.configSchema,
         GeminiConfigSchema,
@@ -411,7 +410,7 @@ describe('GoogleAI Plugin', () => {
     });
   });
 
-  describe('listActions Function', () => {
+  describe('list Function', () => {
     const createMockResponse = (models: Array<Partial<Model>>) => {
       const responseBody = { models: models };
       return Promise.resolve({
@@ -423,15 +422,13 @@ describe('GoogleAI Plugin', () => {
     };
 
     it('should return an empty array if no models are returned', async () => {
-      const ai = genkit({ plugins: [googleAI()] });
       fetchMock.mock.mockImplementation(async () => createMockResponse([]));
-      const pluginProvider = googleAI()(ai);
-      const actions = await pluginProvider.listActions!();
+      const pluginProvider = googleAI();
+      const actions = await pluginProvider.list!();
       assert.deepStrictEqual(actions, [], 'Should return an empty array');
     });
 
     it('should return metadata for models and embedders', async () => {
-      const ai = genkit({ plugins: [googleAI()] });
       const mockModels: Partial<Model>[] = [
         {
           name: 'models/gemini-2.5-pro',
@@ -458,8 +455,8 @@ describe('GoogleAI Plugin', () => {
         createMockResponse(mockModels)
       );
 
-      const pluginProvider = googleAI()(ai);
-      const actions = await pluginProvider.listActions!();
+      const pluginProvider = googleAI();
+      const actions = await pluginProvider.list!();
       const actionNames = actions.map((a) => a.name).sort();
       assert.deepStrictEqual(
         actionNames,
@@ -493,7 +490,6 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should filter out deprecated models', async () => {
-      const ai = genkit({ plugins: [googleAI()] });
       const mockModels = [
         {
           name: 'models/gemini-1.5-flash',
@@ -523,14 +519,13 @@ describe('GoogleAI Plugin', () => {
       fetchMock.mock.mockImplementation(async () =>
         createMockResponse(mockModels)
       );
-      const pluginProvider = googleAI()(ai);
-      const actions = await pluginProvider.listActions!();
+      const pluginProvider = googleAI();
+      const actions = await pluginProvider.list!();
       const actionNames = actions.map((a) => a.name);
       assert.deepStrictEqual(actionNames, ['googleai/gemini-1.5-flash']);
     });
 
     it('should handle fetch errors gracefully', async () => {
-      const ai = genkit({ plugins: [googleAI()] });
       fetchMock.mock.mockImplementation(async () => {
         return Promise.resolve({
           ok: false,
@@ -540,8 +535,8 @@ describe('GoogleAI Plugin', () => {
           text: async () => JSON.stringify({ error: { message: 'API Error' } }),
         });
       });
-      const pluginProvider = googleAI()(ai);
-      const actions = await pluginProvider.listActions!();
+      const pluginProvider = googleAI();
+      const actions = await pluginProvider.list!();
       assert.deepStrictEqual(
         actions,
         [],
@@ -549,14 +544,13 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
-    it('should return empty array if API key is missing for listActions', async () => {
+    it('should return empty array if API key is missing for list', async () => {
       delete process.env.GOOGLE_API_KEY;
       delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_GENAI_API_KEY;
-      const ai = genkit({ plugins: [googleAI({ apiKey: false })] }); // Init with apiKey: false
 
-      const pluginProvider = googleAI({ apiKey: false })(ai);
-      const actions = await pluginProvider.listActions!();
+      const pluginProvider = googleAI({ apiKey: false });
+      const actions = await pluginProvider.list!();
       assert.deepStrictEqual(
         actions,
         [],
@@ -569,8 +563,7 @@ describe('GoogleAI Plugin', () => {
       );
     });
 
-    it('should use listActions cache', async () => {
-      const ai = genkit({ plugins: [googleAI()] });
+    it('should use list cache', async () => {
       const mockModels = [
         {
           name: 'models/gemini-1.0-pro',
@@ -580,9 +573,9 @@ describe('GoogleAI Plugin', () => {
       fetchMock.mock.mockImplementation(async () =>
         createMockResponse(mockModels)
       );
-      const pluginProvider = googleAI()(ai);
-      await pluginProvider.listActions!();
-      await pluginProvider.listActions!();
+      const pluginProvider = googleAI();
+      await pluginProvider.list!();
+      await pluginProvider.list!();
       assert.strictEqual(
         fetchMock.mock.callCount(),
         1,

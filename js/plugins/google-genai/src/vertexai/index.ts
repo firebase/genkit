@@ -20,10 +20,9 @@
  * @module /
  */
 
-import { EmbedderReference, Genkit, ModelReference, z } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { EmbedderReference, ModelReference, z } from 'genkit';
+import { GenkitPluginV2, genkitPluginV2 } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
-import { listModels } from './client.js';
 
 import * as embedder from './embedder.js';
 import * as gemini from './gemini.js';
@@ -31,6 +30,7 @@ import * as imagen from './imagen.js';
 import * as lyria from './lyria.js';
 import * as veo from './veo.js';
 
+import { listModels } from './client.js';
 import { VertexPluginOptions } from './types.js';
 import { getDerivedOptions } from './utils.js';
 
@@ -41,17 +41,19 @@ export { type LyriaConfig } from './lyria.js';
 export { type VertexPluginOptions } from './types.js';
 export { type VeoConfig } from './veo.js';
 
-async function initializer(ai: Genkit, pluginOptions?: VertexPluginOptions) {
+async function initializer(pluginOptions?: VertexPluginOptions) {
   const clientOptions = await getDerivedOptions(pluginOptions);
-  veo.defineKnownModels(ai, clientOptions, pluginOptions);
-  imagen.defineKnownModels(ai, clientOptions, pluginOptions);
-  lyria.defineKnownModels(ai, clientOptions, pluginOptions);
-  gemini.defineKnownModels(ai, clientOptions, pluginOptions);
-  embedder.defineKnownModels(ai, clientOptions, pluginOptions);
+
+  return [
+    ...veo.defineKnownModels(clientOptions, pluginOptions),
+    ...lyria.defineKnownModels(clientOptions, pluginOptions),
+    ...imagen.defineKnownModels(clientOptions, pluginOptions),
+    ...gemini.defineKnownModels(clientOptions, pluginOptions),
+    ...embedder.defineKnownModels(clientOptions, pluginOptions),
+  ];
 }
 
 async function resolver(
-  ai: Genkit,
   actionType: ActionType,
   actionName: string,
   pluginOptions?: VertexPluginOptions
@@ -60,26 +62,25 @@ async function resolver(
   switch (actionType) {
     case 'model':
       if (lyria.isLyriaModelName(actionName)) {
-        lyria.defineModel(ai, actionName, clientOptions, pluginOptions);
+        return lyria.defineModel(actionName, clientOptions, pluginOptions);
       } else if (imagen.isImagenModelName(actionName)) {
-        imagen.defineModel(ai, actionName, clientOptions, pluginOptions);
+        return imagen.defineModel(actionName, clientOptions, pluginOptions);
       } else if (veo.isVeoModelName(actionName)) {
         // no-op (not gemini)
       } else {
-        gemini.defineModel(ai, actionName, clientOptions, pluginOptions);
+        return gemini.defineModel(actionName, clientOptions, pluginOptions);
       }
       break;
     case 'background-model':
       if (veo.isVeoModelName(actionName)) {
-        veo.defineModel(ai, actionName, clientOptions, pluginOptions);
+        return veo.defineModel(actionName, clientOptions, pluginOptions);
       }
       break;
     case 'embedder':
-      embedder.defineEmbedder(ai, actionName, clientOptions, pluginOptions);
-      break;
-    default:
-    // no-op
+      return embedder.defineEmbedder(actionName, clientOptions, pluginOptions);
   }
+
+  return undefined;
 }
 
 async function listActions(options?: VertexPluginOptions) {
@@ -102,23 +103,23 @@ async function listActions(options?: VertexPluginOptions) {
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
-function vertexAIPlugin(options?: VertexPluginOptions): GenkitPlugin {
+function vertexAIPlugin(options?: VertexPluginOptions): GenkitPluginV2 {
   let listActionsCache;
-  return genkitPlugin(
-    'vertexai',
-    async (ai: Genkit) => await initializer(ai, options),
-    async (ai: Genkit, actionType: ActionType, actionName: string) =>
-      await resolver(ai, actionType, actionName, options),
-    async () => {
+  return genkitPluginV2({
+    name: 'vertexai',
+    init: async () => await initializer(options),
+    resolve: async (actionType: ActionType, actionName: string) =>
+      await resolver(actionType, actionName, options),
+    list: async () => {
       if (listActionsCache) return listActionsCache;
       listActionsCache = await listActions(options);
       return listActionsCache;
-    }
-  );
+    },
+  });
 }
 
 export type VertexAIPlugin = {
-  (pluginOptions?: VertexPluginOptions): GenkitPlugin;
+  (pluginOptions?: VertexPluginOptions): GenkitPluginV2;
   model(
     name: gemini.KnownModels | (gemini.GeminiModelName & {}),
     config?: gemini.GeminiConfig
