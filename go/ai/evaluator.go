@@ -291,7 +291,7 @@ func DefineBatchEvaluator(r api.Registry, name string, opts *EvaluatorOptions, f
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
 func LookupEvaluator(r api.Registry, name string) Evaluator {
-	action := core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, api.ActionTypeEvaluator, name)
+	action := core.ResolveActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, api.ActionTypeEvaluator, name)
 	if action == nil {
 		return nil
 	}
