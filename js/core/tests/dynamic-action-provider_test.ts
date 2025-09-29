@@ -61,7 +61,7 @@ describe('dynamic action provider', () => {
     assert.strictEqual(callCount, 1);
   });
 
-  it('lists actions', async () => {
+  it('lists action metadata', async () => {
     let callCount = 0;
     const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
       callCount++;
@@ -70,8 +70,8 @@ describe('dynamic action provider', () => {
       };
     });
 
-    const actions = await dap.listActions('tool', '*');
-    assert.deepStrictEqual(actions, [tool1, tool2]);
+    const metadata = await dap.listActionMetadata('tool', '*');
+    assert.deepStrictEqual(metadata, [tool1.__action, tool2.__action]);
     assert.strictEqual(callCount, 1);
   });
 
@@ -93,8 +93,8 @@ describe('dynamic action provider', () => {
     assert.strictEqual(action, tool2);
     assert.strictEqual(callCount, 1);
 
-    const actions = await dap.listActions('tool', '*');
-    assert.deepStrictEqual(actions, [tool1, tool2]);
+    const metadata = await dap.listActionMetadata('tool', '*');
+    assert.deepStrictEqual(metadata, [tool1.__action, tool2.__action]);
     assert.strictEqual(callCount, 1);
   });
 
@@ -152,8 +152,8 @@ describe('dynamic action provider', () => {
       };
     });
 
-    const actions = await dap.listActions('tool', 'tool*');
-    assert.deepStrictEqual(actions, [tool1, tool2]);
+    const metadata = await dap.listActionMetadata('tool', 'tool*');
+    assert.deepStrictEqual(metadata, [tool1.__action, tool2.__action]);
     assert.strictEqual(callCount, 1);
   });
 
@@ -166,9 +166,49 @@ describe('dynamic action provider', () => {
       };
     });
 
-    const actions = await dap.listActions('tool', 'tool1');
-    assert.deepStrictEqual(actions, [tool1]);
+    const metadata = await dap.listActionMetadata('tool', 'tool1');
+    assert.deepStrictEqual(metadata, [tool1.__action]);
     assert.strictEqual(callCount, 1);
+  });
+
+  it('handles concurrent requests', async () => {
+    let callCount = 0;
+    const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
+      callCount++;
+      await setTimeout(10);
+      return {
+        tool: [tool1, tool2],
+      };
+    });
+
+    const [metadata1, metadata2] = await Promise.all([
+      dap.listActionMetadata('tool', '*'),
+      dap.listActionMetadata('tool', '*'),
+    ]);
+
+    assert.deepStrictEqual(metadata1, [tool1.__action, tool2.__action]);
+    assert.deepStrictEqual(metadata2, [tool1.__action, tool2.__action]);
+    assert.strictEqual(callCount, 1);
+  });
+
+  it('handles fetch errors', async () => {
+    let callCount = 0;
+    const dap = defineDynamicActionProvider(registry, 'my-dap', async () => {
+      callCount++;
+      if (callCount === 1) {
+        throw new Error('Fetch failed');
+      }
+      return {
+        tool: [tool1, tool2],
+      };
+    });
+
+    await assert.rejects(dap.listActionMetadata('tool', '*'), /Fetch failed/);
+    assert.strictEqual(callCount, 1);
+
+    const metadata = await dap.listActionMetadata('tool', '*');
+    assert.deepStrictEqual(metadata, [tool1.__action, tool2.__action]);
+    assert.strictEqual(callCount, 2);
   });
 
   it('returns metadata when run', async () => {

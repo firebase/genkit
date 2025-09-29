@@ -28,6 +28,7 @@ class SimpleCache {
   private ttlMillis: number;
   private dap: DynamicActionProviderAction;
   private dapFn: DapFn;
+  private fetchPromise: Promise<DapValue> | null = null;
 
   constructor(
     dap: DynamicActionProviderAction,
@@ -42,20 +43,37 @@ class SimpleCache {
   }
 
   async getOrFetch(): Promise<DapValue> {
-    if (
+    const isStale =
       !this.value ||
       !this.expiresAt ||
       this.ttlMillis < 0 ||
-      Date.now() > this.expiresAt
-    ) {
-      // Get a new value
-      this.value = await this.dapFn(); // this returns the actual actions
-      this.expiresAt = Date.now() + this.ttlMillis;
-
-      // Also run the action
-      this.dap.run(this.value); // This returns metadata and shows up in dev UI
+      Date.now() > this.expiresAt;
+    if (!isStale) {
+      return this.value!;
     }
-    return this.value;
+
+    if (!this.fetchPromise) {
+      this.fetchPromise = (async () => {
+        try {
+          // Get a new value
+          this.value = await this.dapFn(); // this returns the actual actions
+          this.expiresAt = Date.now() + this.ttlMillis;
+
+          // Also run the action
+          this.dap.run(this.value); // This returns metadata and shows up in dev UI
+
+          return this.value;
+        } catch (error) {
+          console.error('Error fetching Dynamic Action Provider value:', error);
+          this.invalidate();
+          throw error; // Rethrow to reject the fetchPromise
+        } finally {
+          // Allow new fetches after this one completes or fails.
+          this.fetchPromise = null;
+        }
+      })();
+    }
+    return await this.fetchPromise;
   }
 
   invalidate() {
@@ -69,11 +87,11 @@ export interface DynamicRegistry {
   getAction(
     actionType: string,
     actionName: string
-  ): Promise<Action<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>>;
-  listActions(
+  ): Promise<Action<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny> | undefined>;
+  listActionMetadata(
     actionType: string,
     actionName: string
-  ): Promise<Action<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>[]>;
+  ): Promise<ActionMetadata[]>;
 }
 
 export type DynamicActionProviderAction = Action<
@@ -164,34 +182,32 @@ function implementDap(
   };
 
   dap.getAction = async (actionType: string, actionName: string) => {
-    let result = await dap.__cache.getOrFetch();
+    const result = await dap.__cache.getOrFetch();
     if (result[actionType]) {
-      const action = result[actionType].find(
-        (t) => t.__action.name == actionName
-      );
-      return action;
+      return result[actionType].find((t) => t.__action.name == actionName);
     }
     return undefined;
   };
 
-  dap.listActions = async (actionType: string, actionName: string) => {
-    let result = await dap.__cache.getOrFetch();
-    if (result[actionType] && actionName == '*') {
-      return result[actionType];
+  dap.listActionMetadata = async (actionType: string, actionName: string) => {
+    const result = await dap.__cache.getOrFetch();
+    if (!result[actionType]) {
+      return [];
     }
-    if (result[actionType] && actionName.endsWith('*')) {
+
+    // Match everything in the actionType
+    const metadata = result[actionType].map((a) => a.__action);
+    if (actionName == '*') {
+      return metadata;
+    }
+
+    // Prefix matching
+    if (actionName.endsWith('*')) {
       const prefix = actionName.slice(0, -1);
-      // Prefix matching
-      return result[actionType].filter((a) =>
-        a.__action.name.startsWith(prefix)
-      );
+      return metadata.filter((m) => m.name.startsWith(prefix));
     }
-    const action = result[actionType].find(
-      (a) => a.__action.name == actionName
-    );
-    if (action) {
-      return [action];
-    }
-    return [];
+
+    // Single match or empty array
+    return metadata.filter((m) => m.name == actionName);
   };
 }

@@ -201,8 +201,8 @@ export class Registry {
         return [];
       }
       return (
-        await dap.listActions(parsedKey.actionType, parsedKey.actionName)
-      ).map((a) => `${hostId}:${parsedKey.actionType}/${a.__action.name}`);
+        await dap.listActionMetadata(parsedKey.actionType, parsedKey.actionName)
+      ).map((m) => `${hostId}:${parsedKey.actionType}/${m.name}`);
     }
     if (await this.lookupAction(key)) {
       return [key];
