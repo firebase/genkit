@@ -25,7 +25,7 @@ import {
   type ChecksEvaluationMetricConfig,
 } from './metrics';
 
-export function checksEvaluators(
+export function checksEvaluator(
   auth: GoogleAuth,
   metrics: ChecksEvaluationMetric[],
   projectId: string

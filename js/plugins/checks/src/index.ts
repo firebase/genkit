@@ -19,7 +19,7 @@ import type { ModelMiddleware } from 'genkit/model';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import { GoogleAuth, type GoogleAuthOptions } from 'google-auth-library';
-import { checksEvaluators } from './evaluation.js';
+import { checksEvaluator } from './evaluation.js';
 import {
   ChecksEvaluationMetricType,
   type ChecksEvaluationMetric,
@@ -66,13 +66,13 @@ export function checks(options?: PluginOptions): GenkitPluginV2 {
   return genkitPluginV2({
     name: 'checks',
     init: async () => {
-      return [checksEvaluators(googleAuth, metrics, await projectId)];
+      return [checksEvaluator(googleAuth, metrics, await projectId)];
     },
     resolve: async (actionType: ActionType, name: string) => {
-      return checksEvaluators(googleAuth, metrics, await projectId);
+      return checksEvaluator(googleAuth, metrics, await projectId);
     },
     list: async () => {
-      return [checksEvaluators(googleAuth, metrics, await projectId).__action];
+      return [checksEvaluator(googleAuth, metrics, await projectId).__action];
     },
   });
 }
