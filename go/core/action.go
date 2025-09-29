@@ -343,6 +343,8 @@ func ResolveActionFor[In, Out, Stream any](r api.Registry, atype api.ActionType,
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong api.
+//
+// Deprecated: Use ResolveActionFor.
 func LookupActionFor[In, Out, Stream any](r api.Registry, atype api.ActionType, name string) *ActionDef[In, Out, Stream] {
 	provider, id := api.ParseName(name)
 	key := api.NewKey(atype, provider, id)

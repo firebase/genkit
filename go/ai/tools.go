@@ -227,7 +227,7 @@ func LookupTool(r api.Registry, name string) Tool {
 	}
 	provider, id := api.ParseName(name)
 	key := api.NewKey(api.ActionTypeTool, provider, id)
-	action := r.LookupAction(key)
+	action := r.ResolveAction(key)
 	if action == nil {
 		return nil
 	}
