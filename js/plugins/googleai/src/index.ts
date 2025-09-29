@@ -25,7 +25,11 @@ import {
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { modelRef } from 'genkit/model';
-import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
+import {
+  genkitPluginV2,
+  type GenkitPluginV2,
+  type ResolvableAction,
+} from 'genkit/plugin';
 import type { ActionType } from 'genkit/registry';
 import { getApiKeyFromEnvVar } from './common.js';
 import {
@@ -109,6 +113,102 @@ export interface PluginOptions {
     | string
   )[];
   experimental_debugTraces?: boolean;
+}
+
+async function initializer(
+  options?: PluginOptions
+): Promise<ResolvableAction[]> {
+  const actions: ResolvableAction[] = [];
+
+  const apiVersions = Array.isArray(options?.apiVersion)
+    ? options!.apiVersion
+    : options?.apiVersion
+      ? [options.apiVersion]
+      : ['v1'];
+
+  if (apiVersions.includes('v1beta')) {
+    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) => {
+      actions.push(
+        defineGoogleAIModel({
+          name: name,
+          apiKey: options?.apiKey,
+          apiVersion: 'v1beta',
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
+      );
+    });
+  }
+
+  if (apiVersions.includes('v1')) {
+    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) => {
+      actions.push(
+        defineGoogleAIModel({
+          name: name,
+          apiKey: options?.apiKey,
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
+      );
+    });
+    Object.keys(EMBEDDER_MODELS).forEach((name) => {
+      actions.push(
+        defineGoogleAIEmbedder(name, {
+          apiKey: options?.apiKey,
+        })
+      );
+    });
+  }
+
+  if (options?.models) {
+    for (const modelOrRef of options.models) {
+      const modelName =
+        typeof modelOrRef === 'string'
+          ? modelOrRef
+          : modelOrRef.name.split('/').pop()!;
+      const ref =
+        typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
+      actions.push(
+        defineGoogleAIModel({
+          name: modelName,
+          apiKey: options?.apiKey,
+          baseUrl: options?.baseUrl,
+          info: { ...ref.info, label: `Google AI - ${modelName}` },
+          debugTraces: options?.experimental_debugTraces,
+        })
+      );
+    }
+  }
+  return actions;
+}
+
+async function resolver(
+  actionType: ActionType,
+  actionName: string,
+  options?: PluginOptions
+): Promise<ResolvableAction | undefined> {
+  // In v2, actionName is already unprefixed
+  if (actionType === 'embedder') {
+    return defineGoogleAIEmbedder(actionName, {
+      apiKey: options?.apiKey,
+    });
+  } else if (actionName.startsWith('veo')) {
+    if (actionType === 'background-model') {
+      return defineVeoModel(actionName, options?.apiKey);
+    }
+  } else if (actionType === 'model') {
+    if (actionName.startsWith('imagen')) {
+      return defineImagenModel(actionName, options?.apiKey);
+    }
+    // Fallback dynamic Gemini model
+    return defineGoogleAIModel({
+      name: actionName,
+      apiKey: options?.apiKey,
+      baseUrl: options?.baseUrl,
+      debugTraces: options?.experimental_debugTraces,
+    });
+  }
+  return undefined;
 }
 
 async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
@@ -215,93 +315,8 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
   let listActionsCache;
   return genkitPluginV2({
     name: 'googleai',
-    async init() {
-      const actions: any[] = [];
-      const apiVersions = Array.isArray(options?.apiVersion)
-        ? options!.apiVersion
-        : options?.apiVersion
-          ? [options.apiVersion]
-          : ['v1'];
-
-      if (apiVersions.includes('v1beta')) {
-        Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) => {
-          actions.push(
-            defineGoogleAIModel({
-              name: name,
-              apiKey: options?.apiKey,
-              apiVersion: 'v1beta',
-              baseUrl: options?.baseUrl,
-              debugTraces: options?.experimental_debugTraces,
-            })
-          );
-        });
-      }
-
-      if (apiVersions.includes('v1')) {
-        Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) => {
-          actions.push(
-            defineGoogleAIModel({
-              name: name,
-              apiKey: options?.apiKey,
-              baseUrl: options?.baseUrl,
-              debugTraces: options?.experimental_debugTraces,
-            })
-          );
-        });
-        Object.keys(EMBEDDER_MODELS).forEach((name) => {
-          actions.push(
-            defineGoogleAIEmbedder(name, {
-              apiKey: options?.apiKey,
-            })
-          );
-        });
-      }
-
-      if (options?.models) {
-        for (const modelOrRef of options.models) {
-          const modelName =
-            typeof modelOrRef === 'string'
-              ? modelOrRef
-              : modelOrRef.name.split('/').pop()!;
-          const ref =
-            typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-          actions.push(
-            defineGoogleAIModel({
-              name: modelName,
-              apiKey: options?.apiKey,
-              baseUrl: options?.baseUrl,
-              info: { ...ref.info, label: `Google AI - ${modelName}` },
-              debugTraces: options?.experimental_debugTraces,
-            })
-          );
-        }
-      }
-      return actions;
-    },
-    async resolve(actionType: ActionType, actionName: string) {
-      // In v2, actionName is already unprefixed
-      if (actionType === 'embedder') {
-        return defineGoogleAIEmbedder(actionName, {
-          apiKey: options?.apiKey,
-        });
-      } else if (actionName.startsWith('veo')) {
-        if (actionType === 'background-model') {
-          return defineVeoModel(actionName, options?.apiKey);
-        }
-      } else if (actionType === 'model') {
-        if (actionName.startsWith('imagen')) {
-          return defineImagenModel(actionName, options?.apiKey);
-        }
-        // Fallback dynamic Gemini model
-        return defineGoogleAIModel({
-          name: actionName,
-          apiKey: options?.apiKey,
-          baseUrl: options?.baseUrl,
-          debugTraces: options?.experimental_debugTraces,
-        });
-      }
-      return undefined;
-    },
+    init: initializer,
+    resolve: resolver,
     async list() {
       if (listActionsCache) return listActionsCache;
       listActionsCache = await listActions(options);
