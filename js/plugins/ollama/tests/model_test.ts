@@ -89,7 +89,7 @@ describe('ollama models', () => {
       model: 'ollama/test-model',
       prompt: 'Hello',
     });
-    assert.ok(result.message?.content[0]?.text === 'The weather is sunny');
+    assert.ok(result.text === 'The weather is sunny');
   });
 
   it('should successfully return tool call response', async () => {
@@ -110,7 +110,7 @@ describe('ollama models', () => {
       tools: [get_current_weather],
     });
 
-    assert.ok(result.message?.content[0]?.text === 'The weather is sunny');
+    assert.ok(result.text === 'The weather is sunny');
   });
 
   it('should throw for primitive tools', async () => {

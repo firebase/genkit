@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import type { GenerateRequest } from 'genkit/model';
+import { z, type GenerateRequest } from 'genkit';
 import type { EmbedRequest } from 'ollama';
 // Define possible API types
 export type ApiType = 'chat' | 'generate';

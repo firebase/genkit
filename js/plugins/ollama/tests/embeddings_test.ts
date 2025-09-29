@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import * as assert from 'assert';
-import 'genkit';
 import { describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js';
 import type { OllamaPluginParams } from '../src/types.js';
