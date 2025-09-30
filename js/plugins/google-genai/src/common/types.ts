@@ -637,6 +637,12 @@ export declare interface CodeExecutionResult {
   output: string;
 }
 
+export declare interface VideoMetadata {
+  startOffset?: number;
+  endOffset: number;
+  fps?: number;
+}
+
 /**
  * This is a Gemini Part. (Users never see this
  * structure, it is just built by the converters.)
@@ -651,6 +657,7 @@ export declare interface Part {
   thoughtSignature?: string;
   executableCode?: ExecutableCode;
   codeExecutionResult?: CodeExecutionResult;
+  videoMetadata?: VideoMetadata;
 }
 
 /**

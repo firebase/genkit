@@ -163,6 +163,85 @@ describe('toGeminiMessage', () => {
       },
     },
     {
+      should:
+        'should transform genkit message (fileData video content with metadata) correctly',
+      inputMessage: {
+        role: 'user',
+        content: [
+          { text: 'describe the following video:' },
+          {
+            media: {
+              contentType: 'video/mp4',
+              url: 'gs://bucket/video.mp4',
+            },
+            metadata: {
+              videoMetadata: {
+                startOffset: 10,
+                endOffset: 20,
+                fps: 30,
+              },
+            },
+          },
+        ],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [
+          { text: 'describe the following video:' },
+          {
+            fileData: {
+              mimeType: 'video/mp4',
+              fileUri: 'gs://bucket/video.mp4',
+            },
+            videoMetadata: {
+              startOffset: 10,
+              endOffset: 20,
+              fps: 30,
+            },
+          },
+        ],
+      },
+    },
+    {
+      should:
+        'should transform genkit message (fileData video content with partial metadata) correctly',
+      inputMessage: {
+        role: 'user',
+        content: [
+          { text: 'describe the following video:' },
+          {
+            media: {
+              contentType: 'video/mp4',
+              url: 'gs://bucket/video.mp4',
+            },
+            metadata: {
+              videoMetadata: {
+                startOffset: 5,
+                endOffset: 15,
+              },
+            },
+          },
+        ],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [
+          { text: 'describe the following video:' },
+          {
+            fileData: {
+              mimeType: 'video/mp4',
+              fileUri: 'gs://bucket/video.mp4',
+            },
+            videoMetadata: {
+              startOffset: 5,
+              endOffset: 15,
+              fps: undefined,
+            },
+          },
+        ],
+      },
+    },
+    {
       should: 'should re-populate thoughtSignature from reasoning metadata',
       inputMessage: {
         role: 'model',

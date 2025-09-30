@@ -100,6 +100,7 @@ function toGeminiSchemaProperty(property?: ToolDefinition['inputSchema']) {
 }
 
 function toGeminiMedia(part: Part): GeminiPart {
+  let media: GeminiPart;
   if (part.media?.url.startsWith('data:')) {
     // Inline data
     const dataUrl = part.media.url;
@@ -107,21 +108,34 @@ function toGeminiMedia(part: Part): GeminiPart {
     const contentType =
       part.media.contentType ||
       dataUrl.substring(dataUrl.indexOf(':')! + 1, dataUrl.indexOf(';'));
-    return { inlineData: { mimeType: contentType, data: b64Data } };
+    media = { inlineData: { mimeType: contentType, data: b64Data } };
+  } else {
+    // File data
+    if (!part.media?.contentType) {
+      throw Error(
+        'Must supply a `contentType` when sending File URIs to Gemini.'
+      );
+    }
+    media = {
+      fileData: {
+        mimeType: part.media.contentType,
+        fileUri: part.media.url,
+      },
+    };
   }
 
-  // File data
-  if (!part.media?.contentType) {
-    throw Error(
-      'Must supply a `contentType` when sending File URIs to Gemini.'
-    );
+  if (part.metadata?.videoMetadata) {
+    let videoMetadata = part.metadata.videoMetadata as Record<string, any>;
+    // It's ok if some of these fields are undefined because JSON.stringify
+    // removes empty fields when this is put into the request body.
+    media.videoMetadata = {
+      fps: videoMetadata.fps,
+      startOffset: videoMetadata.startOffset,
+      endOffset: videoMetadata.endOffset,
+    };
   }
-  return {
-    fileData: {
-      mimeType: part.media.contentType,
-      fileUri: part.media.url,
-    },
-  };
+
+  return media;
 }
 
 function toGeminiToolRequest(part: Part): GeminiPart {
@@ -195,6 +209,7 @@ function toGeminiPart(part: Part): GeminiPart {
   if (part.custom) {
     return toGeminiCustom(part);
   }
+
   throw new Error('Unsupported Part type ' + JSON.stringify(part));
 }
 

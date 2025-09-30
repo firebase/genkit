@@ -76,6 +76,39 @@ ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
   return text;
 });
 
+export const videoUnderstanding = ai.defineFlow(
+  {
+    name: 'video-understanding-metadata',
+    inputSchema: z.void(),
+    outputSchema: z.any(),
+  },
+  async () => {
+    const llmResponse = await ai.generate({
+      model: vertexAI.model('gemini-2.5-flash'),
+      prompt: [
+        {
+          media: {
+            url: 'gs://cloud-samples-data/video/animals.mp4',
+            contentType: 'video/mp4',
+          },
+          metadata: {
+            videoMetadata: {
+              fps: 0.5,
+              startOffset: "3.5s",
+              endOffset: "10.2s",
+            },
+          },
+        },
+        {
+          text: 'describe this video',
+        },
+      ],
+    });
+    return llmResponse.text;
+  }
+);
+
+
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({
