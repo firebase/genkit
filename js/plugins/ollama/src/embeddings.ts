@@ -78,13 +78,13 @@ export function defineOllamaEmbedder({
         },
       },
     },
-    async (input, config) => {
+    async (request, config) => {
       const serverAddress = options.serverAddress || 'http://localhost:11434';
 
       const { url, requestPayload, headers } = await toOllamaEmbedRequest(
         modelName,
         dimensions,
-        input.input,
+        request.input,
         serverAddress,
         options.requestHeaders
       );
