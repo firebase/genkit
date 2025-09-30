@@ -176,9 +176,9 @@ describe('toGeminiMessage', () => {
             },
             metadata: {
               videoMetadata: {
-                startOffset: 10,
-                endOffset: 20,
-                fps: 30,
+                startOffset: '10.0s',
+                endOffset: '20.5s',
+                fps: 0.5,
               },
             },
           },
@@ -194,9 +194,9 @@ describe('toGeminiMessage', () => {
               fileUri: 'gs://bucket/video.mp4',
             },
             videoMetadata: {
-              startOffset: 10,
-              endOffset: 20,
-              fps: 30,
+              startOffset: '10.0s',
+              endOffset: '20.5s',
+              fps: 0.5,
             },
           },
         ],
@@ -216,8 +216,8 @@ describe('toGeminiMessage', () => {
             },
             metadata: {
               videoMetadata: {
-                startOffset: 5,
-                endOffset: 15,
+                startOffset: '5.3s',
+                endOffset: '15.7s',
               },
             },
           },
@@ -233,9 +233,8 @@ describe('toGeminiMessage', () => {
               fileUri: 'gs://bucket/video.mp4',
             },
             videoMetadata: {
-              startOffset: 5,
-              endOffset: 15,
-              fps: undefined,
+              startOffset: '5.3s',
+              endOffset: '15.7s',
             },
           },
         ],

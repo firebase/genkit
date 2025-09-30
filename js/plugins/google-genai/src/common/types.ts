@@ -637,9 +637,24 @@ export declare interface CodeExecutionResult {
   output: string;
 }
 
+/**
+ * Can be added in the same part as video media to specify
+ * which part of the video to consider and how many frames
+ * per second to analyze. VertexAI only.
+ */
 export declare interface VideoMetadata {
-  startOffset?: number;
-  endOffset: number;
+  /**
+   * The video offset to start at. e.g. '3.5s'
+   */
+  startOffset?: string;
+  /**
+   * The video offset to end at e.g. '10.5s'
+   */
+  endOffset?: string;
+  /**
+   * The number of frames to consider per second
+   * 0.0 to 24.0.
+   */
   fps?: number;
 }
 

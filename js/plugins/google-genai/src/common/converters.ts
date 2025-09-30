@@ -30,6 +30,7 @@ import {
   Part as GeminiPart,
   Schema,
   SchemaType,
+  VideoMetadata,
 } from './types.js';
 
 export function toGeminiTool(tool: ToolDefinition): FunctionDeclaration {
@@ -124,15 +125,10 @@ function toGeminiMedia(part: Part): GeminiPart {
     };
   }
 
+  // Video metadata
   if (part.metadata?.videoMetadata) {
-    let videoMetadata = part.metadata.videoMetadata as Record<string, any>;
-    // It's ok if some of these fields are undefined because JSON.stringify
-    // removes empty fields when this is put into the request body.
-    media.videoMetadata = {
-      fps: videoMetadata.fps,
-      startOffset: videoMetadata.startOffset,
-      endOffset: videoMetadata.endOffset,
-    };
+    let videoMetadata = part.metadata.videoMetadata as VideoMetadata;
+    media.videoMetadata = { ...videoMetadata };
   }
 
   return media;
