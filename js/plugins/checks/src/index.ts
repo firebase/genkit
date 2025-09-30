@@ -17,7 +17,6 @@
 import { logger } from 'genkit/logging';
 import type { ModelMiddleware } from 'genkit/model';
 import { genkitPluginV2, type GenkitPluginV2 } from 'genkit/plugin';
-import { ActionType } from 'genkit/registry';
 import { GoogleAuth, type GoogleAuthOptions } from 'google-auth-library';
 import { checksEvaluator } from './evaluation.js';
 import {
@@ -67,9 +66,6 @@ export function checks(options?: PluginOptions): GenkitPluginV2 {
     name: 'checks',
     init: async () => {
       return [checksEvaluator(googleAuth, metrics, await projectId)];
-    },
-    resolve: async (actionType: ActionType, name: string) => {
-      return checksEvaluator(googleAuth, metrics, await projectId);
     },
     list: async () => {
       return [checksEvaluator(googleAuth, metrics, await projectId).__action];
