@@ -69,6 +69,15 @@ ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
           url: 'https://www.youtube.com/watch?v=3p1P5grjXIQ',
           contentType: 'video/mp4',
         },
+        // Metadata is optional. You can leave it out if you
+        // want the whole video at default fps.
+        metadata: {
+            videoMetadata: {
+              fps: 0.5,
+              startOffset: "3.5s",
+              endOffset: "10.2s",
+            },
+          },
       },
     ],
   });
