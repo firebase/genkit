@@ -82,7 +82,7 @@ func main() {
 		}
 
 		// Check operation status
-		updatedOp, err := bgAction.CheckOperation(ctx, currentOp)
+		updatedOp, err := bgAction.Check(ctx, currentOp)
 		if err != nil {
 			log.Fatalf("failed to check operation status: %v", err)
 		}

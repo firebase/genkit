@@ -74,11 +74,9 @@ func newVeoModel(
 	}
 	opts := ai.BackgroundModelOptions{
 		ModelOptions: info,
-		Start:        startFunc,
-		Check:        checkFunc,
 		Cancel:       cancelFunc,
 	}
-	return ai.NewBackgroundModel(name, &opts)
+	return ai.NewBackgroundModel(name, &opts, startFunc, checkFunc)
 }
 
 // extractTextFromRequest extracts the text prompt from a model request.

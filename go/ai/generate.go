@@ -99,16 +99,11 @@ type resumedToolRequestOutput struct {
 
 // ModelOptions represents the configuration options for a model.
 type ModelOptions struct {
-	// ConfigSchema is the JSON schema for the model's config.
-	ConfigSchema map[string]any `json:"configSchema,omitempty"`
-	// Label is a user-friendly name for the model.
-	Label string `json:"label,omitempty"`
-	// Stage indicates the maturity stage of the model.
-	Stage ModelStage `json:"stage,omitempty"`
-	// Supports defines the capabilities of the model.
-	Supports *ModelSupports `json:"supports,omitempty"`
-	// Versions lists the available versions of the model.
-	Versions []string `json:"versions,omitempty"`
+	ConfigSchema map[string]any // JSON schema for the model's config.
+	Label        string         // User-friendly name for the model.
+	Stage        ModelStage     // Indicates the maturity stage of the model.
+	Supports     *ModelSupports // Capabilities of the model.
+	Versions     []string       // Available versions of the model.
 }
 
 // DefineGenerateAction defines a utility generate action.
@@ -179,9 +174,7 @@ func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return &model{
-		ActionDef: *core.NewStreamingAction(name, api.ActionTypeModel, metadata, inputSchema, fn),
-	}
+	return &model{*core.NewStreamingAction(name, api.ActionTypeModel, metadata, inputSchema, fn)}
 }
 
 // DefineModel creates a new [Model] and registers it.
@@ -216,12 +209,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	}
 
 	m := LookupModel(r, opts.Model)
-
-	if m == nil {
+	bm := LookupBackgroundModel(r, opts.Model)
+	if m == nil && bm == nil {
 		return nil, core.NewError(core.NOT_FOUND, "ai.GenerateWithRequest: model %q not found", opts.Model)
 	}
 
-	bgAction := LookupBackgroundModel(r, opts.Model)
 	resumeOutput, err := handleResumeOption(ctx, r, opts)
 	if err != nil {
 		return nil, err
@@ -317,42 +309,13 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		Output:     &outputCfg,
 	}
 
-	var fn ModelFunc
-	if bgAction != nil {
-		// Create a wrapper function that calls the background model but returns a ModelResponse with operation
-		fn = func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
-			op, err := bgAction.StartOperation(ctx, req)
-			if err != nil {
-				return nil, err
-			}
-
-			// Return response with operation
-			operationMap := map[string]any{
-				"action": op.Action,
-				"id":     op.ID,
-				"done":   op.Done,
-			}
-			if op.Output != nil {
-				operationMap["output"] = op.Output
-			}
-			if op.Error != nil {
-				operationMap["error"] = map[string]any{
-					"message": op.Error.Error(),
-				}
-			}
-			if op.Metadata != nil {
-				operationMap["metadata"] = op.Metadata
-			}
-
-			return &ModelResponse{
-				Operation: operationMap,
-				Request:   req,
-			}, nil
+	fn := m.Generate
+	if bm != nil {
+		if cb != nil {
+			logger.FromContext(ctx).Warn("background model does not support streaming", "model", bm.Name())
 		}
-	} else {
-		fn = m.Generate
+		fn = backgroundModelToModelFn(bm.Start)
 	}
-
 	fn = core.ChainMiddleware(mw...)(fn)
 
 	// Inline recursive helper function that captures variables from parent scope.
@@ -372,7 +335,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			}
 
 			// If this is a long-running operation response, return it immediately without further processing
-			if resp.Operation != nil {
+			if bm != nil && resp.Operation != nil {
 				return resp, nil
 			}
 
