@@ -124,7 +124,6 @@ export function defineImagenModel(
       });
     }
   }
-  // In v2, plugin internals use UNPREFIXED action names.
   const actionName = name;
   const modelReference: ModelReference<z.ZodTypeAny> = modelRef({
     name: actionName,
