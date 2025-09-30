@@ -19,10 +19,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/firebase/genkit/go/ai"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/shared"
+
+	"github.com/firebase/genkit/go/ai"
 )
 
 // mapToStruct unmarshals a map[string]any to the expected config api.
@@ -56,7 +57,7 @@ func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator 
 		client:    client,
 		modelName: modelName,
 		request: &openai.ChatCompletionNewParams{
-			Model: (modelName),
+			Model: modelName,
 		},
 	}
 }
@@ -74,21 +75,19 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 
 	oaiMessages := make([]openai.ChatCompletionMessageParamUnion, 0, len(messages))
 	for _, msg := range messages {
-		content := g.concatenateContent(msg.Content)
 		switch msg.Role {
 		case ai.RoleSystem:
-			oaiMessages = append(oaiMessages, openai.SystemMessage(content))
+			oaiMessages = append(oaiMessages, openai.SystemMessage(concatenateTextParts(msg.Content)))
 		case ai.RoleModel:
-
 			am := openai.ChatCompletionAssistantMessageParam{}
-			am.Content.OfString = param.NewOpt(content)
+			am.Content.OfString = param.NewOpt(concatenateTextParts(msg.Content))
 			toolCalls, err := convertToolCalls(msg.Content)
 			if err != nil {
 				g.err = err
 				return g
 			}
 			if len(toolCalls) > 0 {
-				am.ToolCalls = (toolCalls)
+				am.ToolCalls = toolCalls
 			}
 			oaiMessages = append(oaiMessages, openai.ChatCompletionMessageParamUnion{
 				OfAssistant: &am,
@@ -113,25 +112,21 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				oaiMessages = append(oaiMessages, tm)
 			}
 		case ai.RoleUser:
-			oaiMessages = append(oaiMessages, openai.UserMessage(content))
-
-			parts := []openai.ChatCompletionContentPartUnionParam{}
+			var parts []openai.ChatCompletionContentPartUnionParam
 			for _, p := range msg.Content {
-				if p.IsMedia() {
-					part := openai.ImageContentPart(
-						openai.ChatCompletionContentPartImageImageURLParam{
-							URL: p.Text,
-						})
+				switch {
+				case p.IsText():
+					parts = append(parts, openai.TextContentPart(p.Text))
+				case p.IsMedia():
+					part := openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
+						URL: p.Text,
+					})
 					parts = append(parts, part)
-					continue
 				}
 			}
+
 			if len(parts) > 0 {
-				oaiMessages = append(oaiMessages, openai.ChatCompletionMessageParamUnion{
-					OfUser: &openai.ChatCompletionUserMessageParam{
-						Content: openai.ChatCompletionUserMessageParamContentUnion{OfArrayOfContentParts: parts},
-					},
-				})
+				oaiMessages = append(oaiMessages, openai.UserMessage(parts))
 			}
 		default:
 			// ignore parts from not supported roles
@@ -195,12 +190,12 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition) *ModelGenerator {
 		}
 
 		toolParams = append(toolParams, openai.ChatCompletionToolParam{
-			Function: (shared.FunctionDefinitionParam{
+			Function: shared.FunctionDefinitionParam{
 				Name:        tool.Name,
 				Description: openai.String(tool.Description),
-				Parameters:  openai.FunctionParameters(tool.InputSchema),
+				Parameters:  tool.InputSchema,
 				Strict:      openai.Bool(false), // TODO: implement strict mode
-			}),
+			},
 		})
 	}
 
@@ -235,15 +230,6 @@ func (g *ModelGenerator) Generate(ctx context.Context, req *ai.ModelRequest, han
 		return g.generateStream(ctx, handleChunk)
 	}
 	return g.generateComplete(ctx, req)
-}
-
-// concatenateContent concatenates text content into a single string
-func (g *ModelGenerator) concatenateContent(parts []*ai.Part) string {
-	content := ""
-	for _, part := range parts {
-		content += part.Text
-	}
-	return content
 }
 
 // generateStream generates a streaming model response
@@ -430,6 +416,19 @@ func (g *ModelGenerator) generateComplete(ctx context.Context, req *ai.ModelRequ
 	return resp, nil
 }
 
+// concatenateTextParts concatenates text parts into a single string
+func concatenateTextParts(parts []*ai.Part) string {
+	text := ""
+	for _, part := range parts {
+		if part.Kind != ai.PartText {
+			continue
+		}
+
+		text += part.Text
+	}
+	return text
+}
+
 func convertToolCalls(content []*ai.Part) ([]openai.ChatCompletionMessageToolCallParam, error) {
 	var toolCalls []openai.ChatCompletionMessageToolCallParam
 	for _, p := range content {
@@ -452,10 +451,10 @@ func convertToolCall(part *ai.Part) (*openai.ChatCompletionMessageToolCallParam,
 	}
 
 	param := &openai.ChatCompletionMessageToolCallParam{
-		ID: (toolCallID),
-		Function: (openai.ChatCompletionMessageToolCallFunctionParam{
-			Name: (part.ToolRequest.Name),
-		}),
+		ID: toolCallID,
+		Function: openai.ChatCompletionMessageToolCallFunctionParam{
+			Name: part.ToolRequest.Name,
+		},
 	}
 
 	args, err := anyToJSONString(part.ToolRequest.Input)
