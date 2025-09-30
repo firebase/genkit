@@ -16,6 +16,7 @@
 import type { Document, EmbedderAction } from 'genkit';
 import { embedder } from 'genkit/plugin';
 import type { EmbedRequest, EmbedResponse } from 'ollama';
+import { DEFAULT_OLLAMA_SERVER_ADDRESS } from './constants.js';
 import type { DefineOllamaEmbeddingParams, RequestHeaders } from './types.js';
 
 export async function toOllamaEmbedRequest(
@@ -79,7 +80,11 @@ export function defineOllamaEmbedder({
       },
     },
     async (request, config) => {
-      const serverAddress = options.serverAddress || 'http://localhost:11434';
+      console.log('request.options', request.options);
+      // request.options; might be the equivalent of config now
+
+      const serverAddress =
+        options.serverAddress || DEFAULT_OLLAMA_SERVER_ADDRESS;
 
       const { url, requestPayload, headers } = await toOllamaEmbedRequest(
         modelName,
