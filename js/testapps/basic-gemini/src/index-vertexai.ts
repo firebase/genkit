@@ -16,8 +16,7 @@
 
 import { vertexAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { MediaPart, genkit, z } from 'genkit';
-import { Readable } from 'stream';
+import { genkit, z } from 'genkit';
 import wav from 'wav';
 
 const ai = genkit({
