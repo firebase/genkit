@@ -344,6 +344,13 @@ export function action<
         metadata.name = actionName;
         metadata.input = input;
 
+        // Emit an initial chunk with just the traceId
+        try {
+          if (options?.onChunk) {
+            options.onChunk({ telemetry: {traceId }});
+          }
+        } catch {}
+
         try {
           const actFn = () =>
             fn(input, {
