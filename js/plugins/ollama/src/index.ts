@@ -85,6 +85,77 @@ const GENERIC_MODEL_INFO = {
 
 const DEFAULT_OLLAMA_SERVER_ADDRESS = 'http://localhost:11434';
 
+async function listActions(
+  serverAddress: string,
+  requestHeaders?: RequestHeaders
+): Promise<ActionMetadata[]> {
+  const models = await listLocalModels(serverAddress, requestHeaders);
+  return (
+    models
+      // naively filter out embedders, unfortunately there's no better way.
+      ?.filter((m) => m.model && !m.model.includes('embed'))
+      .map((m) =>
+        modelActionMetadata({
+          name: m.model,
+          info: GENERIC_MODEL_INFO,
+        })
+      ) || []
+  );
+}
+
+async function listLocalModels(
+  serverAddress: string,
+  requestHeaders?: RequestHeaders
+): Promise<LocalModel[]> {
+  // We call the ollama list local models api: https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
+  let res;
+  try {
+    res = await fetch(serverAddress + '/api/tags', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await getHeaders(serverAddress, requestHeaders)),
+      },
+    });
+  } catch (e) {
+    throw new Error(`Make sure the Ollama server is running.`, {
+      cause: e,
+    });
+  }
+  const modelResponse = JSON.parse(await res.text()) as ListLocalModelsResponse;
+  return modelResponse.models;
+}
+
+/**
+ * Please refer to: https://github.com/ollama/ollama/blob/main/docs/modelfile.md
+ * for further information.
+ */
+export const OllamaConfigSchema = GenerationCommonConfigSchema.extend({
+  temperature: z
+    .number()
+    .min(0.0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 0.8.'
+    )
+    .optional(),
+  topK: z
+    .number()
+    .describe(
+      GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
+    )
+    .optional(),
+  topP: z
+    .number()
+    .min(0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.9.'
+    )
+    .optional(),
+});
+
 function createOllamaModel(
   modelDef: ModelDefinition,
   serverAddress: string,
@@ -202,24 +273,6 @@ function createOllamaModel(
   );
 }
 
-async function listActions(
-  serverAddress: string,
-  requestHeaders?: RequestHeaders
-): Promise<ActionMetadata[]> {
-  const models = await listLocalModels(serverAddress, requestHeaders);
-  return (
-    models
-      // naively filter out embedders, unfortunately there's no better way.
-      ?.filter((m) => m.model && !m.model.includes('embed'))
-      .map((m) =>
-        modelActionMetadata({
-          name: m.model,
-          info: GENERIC_MODEL_INFO,
-        })
-      ) || []
-  );
-}
-
 function ollamaPlugin(params?: OllamaPluginParams): GenkitPluginV2 {
   if (!params) {
     params = {};
@@ -275,59 +328,6 @@ function ollamaPlugin(params?: OllamaPluginParams): GenkitPluginV2 {
     },
   });
 }
-
-async function listLocalModels(
-  serverAddress: string,
-  requestHeaders?: RequestHeaders
-): Promise<LocalModel[]> {
-  // We call the ollama list local models api: https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
-  let res;
-  try {
-    res = await fetch(serverAddress + '/api/tags', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(await getHeaders(serverAddress, requestHeaders)),
-      },
-    });
-  } catch (e) {
-    throw new Error(`Make sure the Ollama server is running.`, {
-      cause: e,
-    });
-  }
-  const modelResponse = JSON.parse(await res.text()) as ListLocalModelsResponse;
-  return modelResponse.models;
-}
-
-/**
- * Please refer to: https://github.com/ollama/ollama/blob/main/docs/modelfile.md
- * for further information.
- */
-export const OllamaConfigSchema = GenerationCommonConfigSchema.extend({
-  temperature: z
-    .number()
-    .min(0.0)
-    .max(1.0)
-    .describe(
-      GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 0.8.'
-    )
-    .optional(),
-  topK: z
-    .number()
-    .describe(
-      GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
-    )
-    .optional(),
-  topP: z
-    .number()
-    .min(0)
-    .max(1.0)
-    .describe(
-      GenerationCommonConfigDescriptions.topP + ' The default value is 0.9.'
-    )
-    .optional(),
-});
 
 // toOllamaEmbedRequest is now in embeddings.ts
 
