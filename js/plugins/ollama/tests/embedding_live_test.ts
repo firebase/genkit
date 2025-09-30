@@ -17,6 +17,13 @@ import * as assert from 'assert';
 import { describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js'; // Adjust the import path as necessary
 import type { OllamaPluginParams } from '../src/types.js'; // Adjust the import path as necessary
+
+// TODO: see if this can be removed?
+import { z } from 'genkit';
+
+// literally just to stop linting from removing the import
+const mySchemaExample = z.string();
+
 // Utility function to parse command-line arguments
 function parseArgs() {
   const args = process.argv.slice(2);

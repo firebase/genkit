@@ -34,7 +34,6 @@ import {
   type GenerateRequest,
   type GenerateResponseData,
   type MessageData,
-  type ModelInfo,
   type ToolDefinition,
 } from 'genkit/model';
 import {
@@ -43,6 +42,11 @@ import {
   type GenkitPluginV2,
   type ResolvableAction,
 } from 'genkit/plugin';
+import {
+  ANY_JSON_SCHEMA,
+  DEFAULT_OLLAMA_SERVER_ADDRESS,
+  GENERIC_MODEL_INFO,
+} from './constants.js';
 import { defineOllamaEmbedder } from './embeddings.js';
 import type {
   ApiType,
@@ -67,23 +71,6 @@ export type OllamaPlugin = {
   ): ModelReference<typeof OllamaConfigSchema>;
   embedder(name: string, config?: Record<string, any>): EmbedderReference;
 };
-
-const ANY_JSON_SCHEMA: Record<string, any> = {
-  $schema: 'http://json-schema.org/draft-07/schema#',
-};
-
-const GENERIC_MODEL_INFO = {
-  supports: {
-    multiturn: true,
-    media: true,
-    tools: true,
-    toolChoice: true,
-    systemRole: true,
-    constrained: 'all',
-  },
-} as ModelInfo;
-
-const DEFAULT_OLLAMA_SERVER_ADDRESS = 'http://localhost:11434';
 
 async function listActions(
   serverAddress: string,
@@ -284,25 +271,25 @@ function ollamaPlugin(params?: OllamaPluginParams): GenkitPluginV2 {
 
   return genkitPluginV2({
     name: 'ollama',
-    async init() {
+    init() {
       const actions: ResolvableAction[] = [];
 
       if (params?.models) {
         for (const model of params.models) {
           actions.push(
-            await createOllamaModel(model, serverAddress, params.requestHeaders)
+            createOllamaModel(model, serverAddress, params.requestHeaders)
           );
         }
       }
 
-      if (params?.embedders) {
+      if (params?.embedders && params.serverAddress) {
         for (const embedder of params.embedders) {
           actions.push(
             defineOllamaEmbedder({
               name: embedder.name,
               modelName: embedder.name,
               dimensions: embedder.dimensions,
-              options: params,
+              options: { ...params, serverAddress },
             })
           );
         }
@@ -328,8 +315,6 @@ function ollamaPlugin(params?: OllamaPluginParams): GenkitPluginV2 {
     },
   });
 }
-
-// toOllamaEmbedRequest is now in embeddings.ts
 
 function parseMessage(response: any, type: ApiType): MessageData {
   if (response.error) {
