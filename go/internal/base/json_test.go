@@ -74,7 +74,7 @@ func TestExtractJSONFromMarkdown(t *testing.T) {
 			want: "\n{\"a\": 1}\n",
 		},
 		{
-			desc: "json markdown + yaml",
+			desc: "json + yaml markdown",
 			in:   "```json\n{\"a\": 1}\n``` ```yaml\nkey: 1\nanother-key: 2```",
 			want: "\n{\"a\": 1}\n",
 		},

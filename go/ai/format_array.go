@@ -91,7 +91,7 @@ func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
 		}
 
 		var newParts []*Part
-		lines := base.GetJsonObjectLines(accumulatedText.String())
+		lines := base.GetJSONObjectLines(accumulatedText.String())
 		for _, line := range lines {
 			var schemaBytes []byte
 			schemaBytes, err := json.Marshal(a.config.Schema["items"])
