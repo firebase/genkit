@@ -427,8 +427,14 @@ func DefineModel(g *Genkit, name string, opts *ai.ModelOptions, fn ai.ModelFunc)
 	return ai.DefineModel(g.reg, name, opts, fn)
 }
 
-func DefineBackgroundModel(g *Genkit, name string, opts *ai.BackgroundModelOptions) ai.BackgroundModel {
-	return ai.DefineBackgroundModel(g.reg, name, opts)
+// DefineBackgroundModel defines a background model, registers it as a [ai.BackgroundModel],
+// and returns an [ai.BackgroundModel].
+//
+// The `name` is the identifier the model uses to request the background model. The `opts`
+// are the options for the background model. The `startFn` is the function that starts the background model.
+// The `checkFn` is the function that checks the status of the background model.
+func DefineBackgroundModel(g *Genkit, name string, opts *ai.BackgroundModelOptions, startFn ai.StartModelOpFunc, checkFn ai.CheckModelOpFunc) ai.BackgroundModel {
+	return ai.DefineBackgroundModel(g.reg, name, opts, startFn, checkFn)
 }
 
 // LookupModel retrieves a registered [ai.Model] by its provider and name.

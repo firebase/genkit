@@ -18,6 +18,8 @@
 
 package ai
 
+import "github.com/firebase/genkit/go/core"
+
 type BaseDataPoint struct {
 	Context    map[string]any `json:"context,omitempty"`
 	Input      map[string]any `json:"input,omitempty"`
@@ -223,13 +225,13 @@ type ModelSupports struct {
 	Constrained ConstrainedSupport `json:"constrained,omitempty"`
 	ContentType []string           `json:"contentType,omitempty"`
 	Context     bool               `json:"context,omitempty"`
+	LongRunning bool               `json:"longRunning,omitempty"`
 	Media       bool               `json:"media,omitempty"`
 	Multiturn   bool               `json:"multiturn,omitempty"`
 	Output      []string           `json:"output,omitempty"`
 	SystemRole  bool               `json:"systemRole,omitempty"`
 	ToolChoice  bool               `json:"toolChoice,omitempty"`
 	Tools       bool               `json:"tools,omitempty"`
-	LongRunning bool               `json:"longRunning,omitempty"`
 }
 
 type ConstrainedSupport string
@@ -258,10 +260,10 @@ type ModelResponse struct {
 	FinishMessage string       `json:"finishMessage,omitempty"`
 	FinishReason  FinishReason `json:"finishReason,omitempty"`
 	// LatencyMs is the time the request took in milliseconds.
-	LatencyMs float64  `json:"latencyMs,omitempty"`
-	Message   *Message `json:"message,omitempty"`
-	// Operation holds the background operation details for long-running operations.
-	Operation map[string]any `json:"operation,omitempty"`
+	LatencyMs float64              `json:"latencyMs,omitempty"`
+	Message   *Message             `json:"message,omitempty"`
+	Operation *core.Operation[any] `json:"operation,omitempty"`
+	Raw       any                  `json:"raw,omitempty"`
 	// Request is the [ModelRequest] struct used to trigger this response.
 	Request *ModelRequest `json:"request,omitempty"`
 	// Usage describes how many resources were used by this generation request.
