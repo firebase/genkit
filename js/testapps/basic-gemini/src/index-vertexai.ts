@@ -72,12 +72,12 @@ ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
         // Metadata is optional. You can leave it out if you
         // want the whole video at default fps.
         metadata: {
-            videoMetadata: {
-              fps: 0.5,
-              startOffset: "3.5s",
-              endOffset: "10.2s",
-            },
+          videoMetadata: {
+            fps: 0.5,
+            startOffset: '3.5s',
+            endOffset: '10.2s',
           },
+        },
       },
     ],
   });
@@ -103,8 +103,8 @@ export const videoUnderstanding = ai.defineFlow(
           metadata: {
             videoMetadata: {
               fps: 0.5,
-              startOffset: "3.5s",
-              endOffset: "10.2s",
+              startOffset: '3.5s',
+              endOffset: '10.2s',
             },
           },
         },
@@ -116,7 +116,6 @@ export const videoUnderstanding = ai.defineFlow(
     return llmResponse.text;
   }
 );
-
 
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {
