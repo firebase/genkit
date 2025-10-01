@@ -206,12 +206,19 @@ describe('resource', () => {
         return { content: [{ text: `bar` }] };
       }
     );
+    const resList = [
+      dynamicResource({ uri: 'baz://qux' }, () => ({
+        content: [{ text: `baz` }],
+      })),
+    ];
 
-    const gotBar = await findMatchingResource(registry, { uri: 'bar://baz' });
+    const gotBar = await findMatchingResource(registry, resList, {
+      uri: 'bar://baz',
+    });
     assert.ok(gotBar);
     assert.strictEqual(gotBar.__action.name, 'testResource');
 
-    const gotFoo = await findMatchingResource(registry, {
+    const gotFoo = await findMatchingResource(registry, resList, {
       uri: 'foo://bar/something',
     });
     assert.ok(gotFoo);
@@ -225,7 +232,21 @@ describe('resource', () => {
       dynamic: true,
     });
 
-    const gotUnmatched = await findMatchingResource(registry, {
+    const gotBaz = await findMatchingResource(registry, resList, {
+      uri: 'baz://qux',
+    });
+    assert.ok(gotBaz);
+    assert.strictEqual(gotBaz.__action.name, 'baz://qux');
+    assert.deepStrictEqual(gotBaz.__action.metadata, {
+      resource: {
+        template: undefined,
+        uri: 'baz://qux',
+      },
+      type: 'resource',
+      dynamic: true,
+    });
+
+    const gotUnmatched = await findMatchingResource(registry, resList, {
       uri: 'unknown://bar/something',
     });
     assert.strictEqual(gotUnmatched, undefined);
