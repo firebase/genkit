@@ -255,6 +255,28 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'With NONE, the model is prohibited from making function calls.'
     )
     .optional(),
+  /**
+   * Retrieval config for search grounding and maps grounding
+   */
+  retrievalConfig: z
+    .object({
+      /**
+       * User location for search grounding or
+       * place location for maps grounding.
+       */
+      latLng: z
+        .object({
+          latitude: z.number().optional(),
+          longitude: z.number().optional(),
+        })
+        .describe('User location for Google search or Google maps grounding.')
+        .optional(),
+      /**
+       * Language code for the request. e.g. 'en-us'
+       */
+      languageCode: z.string().optional(),
+    })
+    .optional(),
   thinkingConfig: z
     .object({
       includeThoughts: z
@@ -466,6 +488,7 @@ export function defineModel(
       const {
         apiKey: apiKeyFromConfig,
         functionCallingConfig,
+        retrievalConfig,
         version: versionFromConfig,
         googleSearchRetrieval,
         tools: toolsFromConfig,
@@ -535,6 +558,17 @@ export function defineModel(
             mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
         };
+      }
+
+      if (retrievalConfig) {
+        if (!toolConfig) {
+          toolConfig = {};
+        }
+        toolConfig.retrievalConfig = {};
+        if (retrievalConfig.latLng) {
+          toolConfig.retrievalConfig.latLng = { ...retrievalConfig.latLng };
+        }
+        toolConfig.retrievalConfig.languageCode = retrievalConfig.languageCode;
       }
 
       // Cannot use tools and function calling at the same time

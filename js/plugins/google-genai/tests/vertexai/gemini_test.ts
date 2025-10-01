@@ -34,6 +34,7 @@ import {
   HarmBlockThreshold,
   HarmCategory,
   isFunctionDeclarationsTool,
+  isGoogleMapsTool,
   isGoogleSearchRetrievalTool,
   isRetrievalTool,
 } from '../../src/vertexai/types.js';
@@ -347,6 +348,34 @@ describe('Vertex AI Gemini', () => {
         assert.deepStrictEqual(apiRequest.labels, myLabels);
       });
 
+      it('handles retrievalConfig', async () => {
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            retrievalConfig: {
+              latLng: {
+                latitude: 37.7749,
+                longitude: -122.4194,
+              },
+              languageCode: 'en-US',
+            },
+          },
+        };
+        const model = defineModel('gemini-2.5-flash', clientOptions);
+        await model.run(request);
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(apiRequest.toolConfig?.retrievalConfig, {
+          latLng: {
+            latitude: 37.7749,
+            longitude: -122.4194,
+          },
+          languageCode: 'en-US',
+        });
+      });
+
       it('constructs tools array with functionDeclarations', async () => {
         mockFetchResponse(defaultApiResponse);
         const request: GenerateRequest<typeof GeminiConfigSchema> = {
@@ -399,6 +428,29 @@ describe('Vertex AI Gemini', () => {
         if (searchTool) {
           assert.ok(searchTool.googleSearch, 'Expected googleSearch property');
           assert.deepStrictEqual(searchTool, { googleSearch: {} });
+        }
+      });
+
+      it('handles googleMaps tool', async () => {
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            tools: [{ googleMaps: { enableWidget: true } } as any],
+          },
+        };
+        const model = defineModel('gemini-2.5-flash', clientOptions);
+        await model.run(request);
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        const mapsTool = apiRequest.tools?.find(isGoogleMapsTool);
+        assert.ok(mapsTool, 'Expected GoogleMapsTool');
+        if (mapsTool) {
+          assert.ok(mapsTool.googleMaps, 'Expected googleMaps property');
+          assert.deepStrictEqual(mapsTool, {
+            googleMaps: { enableWidget: true },
+          });
         }
       });
 

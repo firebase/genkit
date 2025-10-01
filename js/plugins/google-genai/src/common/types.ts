@@ -878,6 +878,16 @@ export function isRetrievalTool(tool: Tool): tool is RetrievalTool {
   return (tool as RetrievalTool).retrieval !== undefined;
 }
 
+export declare interface GoogleMaps {
+  enableWidget: boolean;
+}
+export declare interface GoogleMapsTool {
+  googleMaps?: GoogleMaps;
+}
+export function isGoogleMapsTool(tool: Tool): tool is GoogleMapsTool {
+  return (tool as GoogleMapsTool).googleMaps !== undefined;
+}
+
 /**
  * Tool to retrieve public web data for grounding, powered by Google.
  */
@@ -893,6 +903,7 @@ export declare interface GoogleSearchRetrieval {
 export declare type Tool =
   | FunctionDeclarationsTool
   | RetrievalTool // Vertex AI Only
+  | GoogleMapsTool // Vertex AI Only
   | CodeExecutionTool // Google AI Only
   | GoogleSearchRetrievalTool;
 
@@ -973,10 +984,22 @@ export declare interface FunctionCallingConfig {
   allowedFunctionNames?: string[];
 }
 
+export declare interface LatLng {
+  latitude?: number;
+  longitude?: number;
+}
+
+export declare interface RetrievalConfig {
+  latLng?: LatLng;
+  languageCode?: string;
+}
+
 /** This config is shared for all tools provided in the request. */
 export declare interface ToolConfig {
   /** Function calling config. */
   functionCallingConfig?: FunctionCallingConfig;
+  /** Retrieval config */
+  retrievalConfig?: RetrievalConfig;
 }
 
 export declare interface GenerateContentRequest {
