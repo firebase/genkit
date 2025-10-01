@@ -61,63 +61,70 @@ import {
   modelName,
 } from './utils.js';
 
-export const SafetySettingsSchema = z.object({
-  category: z.enum([
-    /** The harm category is unspecified. */
-    'HARM_CATEGORY_UNSPECIFIED',
-    /** The harm category is hate speech. */
-    'HARM_CATEGORY_HATE_SPEECH',
-    /** The harm category is dangerous content. */
-    'HARM_CATEGORY_DANGEROUS_CONTENT',
-    /** The harm category is harassment. */
-    'HARM_CATEGORY_HARASSMENT',
-    /** The harm category is sexually explicit content. */
-    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-  ]),
-  threshold: z.enum([
-    'BLOCK_LOW_AND_ABOVE',
-    'BLOCK_MEDIUM_AND_ABOVE',
-    'BLOCK_ONLY_HIGH',
-    'BLOCK_NONE',
-  ]),
-});
+export const SafetySettingsSchema = z
+  .object({
+    category: z.enum([
+      /** The harm category is unspecified. */
+      'HARM_CATEGORY_UNSPECIFIED',
+      /** The harm category is hate speech. */
+      'HARM_CATEGORY_HATE_SPEECH',
+      /** The harm category is dangerous content. */
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+      /** The harm category is harassment. */
+      'HARM_CATEGORY_HARASSMENT',
+      /** The harm category is sexually explicit content. */
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+    ]),
+    threshold: z.enum([
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+    ]),
+  })
+  .passthrough();
 
-const VertexRetrievalSchema = z.object({
-  datastore: z
-    .object({
-      projectId: z.string().describe('Google Cloud Project ID.').optional(),
-      location: z
-        .string()
-        .describe('Google Cloud region e.g. us-central1.')
-        .optional(),
-      dataStoreId: z
-        .string()
-        .describe(
-          'The data store id, when project id and location are provided as ' +
-            'separate options. Alternatively, the full path to the data ' +
-            'store should be provided in the form: "projects/{project}/' +
-            'locations/{location}/collections/default_collection/dataStores/{data_store}".'
-        ),
-    })
-    .describe('Vertex AI Search data store details'),
-  disableAttribution: z
-    .boolean()
-    .describe(
-      'Disable using the search data in detecting grounding attribution. This ' +
-        'does not affect how the result is given to the model for generation.'
-    )
-    .optional(),
-});
+const VertexRetrievalSchema = z
+  .object({
+    datastore: z
+      .object({
+        projectId: z.string().describe('Google Cloud Project ID.').optional(),
+        location: z
+          .string()
+          .describe('Google Cloud region e.g. us-central1.')
+          .optional(),
+        dataStoreId: z
+          .string()
+          .describe(
+            'The data store id, when project id and location are provided as ' +
+              'separate options. Alternatively, the full path to the data ' +
+              'store should be provided in the form: "projects/{project}/' +
+              'locations/{location}/collections/default_collection/dataStores/{data_store}".'
+          ),
+      })
+      .describe('Vertex AI Search data store details')
+      .passthrough(),
+    disableAttribution: z
+      .boolean()
+      .describe(
+        'Disable using the search data in detecting grounding attribution. This ' +
+          'does not affect how the result is given to the model for generation.'
+      )
+      .optional(),
+  })
+  .passthrough();
 
-const GoogleSearchRetrievalSchema = z.object({
-  disableAttribution: z
-    .boolean()
-    .describe(
-      'Disable using the search data in detecting grounding attribution. This ' +
-        'does not affect how the result is given to the model for generation.'
-    )
-    .optional(),
-});
+const GoogleSearchRetrievalSchema = z
+  .object({
+    disableAttribution: z
+      .boolean()
+      .describe(
+        'Disable using the search data in detecting grounding attribution. This ' +
+          'does not affect how the result is given to the model for generation.'
+      )
+      .optional(),
+  })
+  .passthrough();
 
 /**
  * Zod schema of Gemini model options.
@@ -254,6 +261,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .passthrough()
     .optional(),
   /**
    * Retrieval config for search grounding and maps grounding
@@ -276,6 +284,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
        */
       languageCode: z.string().optional(),
     })
+    .passthrough()
     .optional(),
   thinkingConfig: z
     .object({
@@ -302,6 +311,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         )
         .optional(),
     })
+    .passthrough()
     .optional(),
 }).passthrough();
 export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
