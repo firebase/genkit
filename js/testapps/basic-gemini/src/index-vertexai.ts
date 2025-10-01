@@ -69,12 +69,53 @@ ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
           url: 'https://www.youtube.com/watch?v=3p1P5grjXIQ',
           contentType: 'video/mp4',
         },
+        // Metadata is optional. You can leave it out if you
+        // want the whole video at default fps.
+        metadata: {
+          videoMetadata: {
+            fps: 0.5,
+            startOffset: '3.5s',
+            endOffset: '10.2s',
+          },
+        },
       },
     ],
   });
 
   return text;
 });
+
+export const videoUnderstanding = ai.defineFlow(
+  {
+    name: 'video-understanding-metadata',
+    inputSchema: z.void(),
+    outputSchema: z.any(),
+  },
+  async () => {
+    const llmResponse = await ai.generate({
+      model: vertexAI.model('gemini-2.5-flash'),
+      prompt: [
+        {
+          media: {
+            url: 'gs://cloud-samples-data/video/animals.mp4',
+            contentType: 'video/mp4',
+          },
+          metadata: {
+            videoMetadata: {
+              fps: 0.5,
+              startOffset: '3.5s',
+              endOffset: '10.2s',
+            },
+          },
+        },
+        {
+          text: 'describe this video',
+        },
+      ],
+    });
+    return llmResponse.text;
+  }
+);
 
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {

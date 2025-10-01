@@ -638,6 +638,27 @@ export declare interface CodeExecutionResult {
 }
 
 /**
+ * Can be added in the same part as video media to specify
+ * which part of the video to consider and how many frames
+ * per second to analyze. VertexAI only.
+ */
+export declare interface VideoMetadata {
+  /**
+   * The video offset to start at. e.g. '3.5s'
+   */
+  startOffset?: string;
+  /**
+   * The video offset to end at e.g. '10.5s'
+   */
+  endOffset?: string;
+  /**
+   * The number of frames to consider per second
+   * 0.0 to 24.0.
+   */
+  fps?: number;
+}
+
+/**
  * This is a Gemini Part. (Users never see this
  * structure, it is just built by the converters.)
  */
@@ -651,6 +672,7 @@ export declare interface Part {
   thoughtSignature?: string;
   executableCode?: ExecutableCode;
   codeExecutionResult?: CodeExecutionResult;
+  videoMetadata?: VideoMetadata;
 }
 
 /**
