@@ -564,11 +564,7 @@ export function defineModel(
         if (!toolConfig) {
           toolConfig = {};
         }
-        toolConfig.retrievalConfig = {};
-        if (retrievalConfig.latLng) {
-          toolConfig.retrievalConfig.latLng = { ...retrievalConfig.latLng };
-        }
-        toolConfig.retrievalConfig.languageCode = retrievalConfig.languageCode;
+        toolConfig.retrievalConfig = structuredClone(retrievalConfig);
       }
 
       // Cannot use tools and function calling at the same time
