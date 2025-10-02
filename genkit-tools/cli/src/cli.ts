@@ -69,7 +69,10 @@ export async function startCLI(): Promise<void> {
     .description('Genkit CLI')
     .version(version)
     .option('--no-update-notification', 'Do not show update notification')
-    .option('--non-interactive', 'Run in non-interactive mode. All interactions will use the default choice.')
+    .option(
+      '--non-interactive',
+      'Run in non-interactive mode. All interactions will use the default choice.'
+    )
     .hook('preAction', async (command, actionCommand) => {
       // For now only record known command names, to avoid tools plugins causing
       // arbitrary text to get recorded. Once we launch tools plugins, we'll have
@@ -86,8 +89,11 @@ export async function startCLI(): Promise<void> {
       } else {
         commandName = 'unknown';
       }
-      
-      if (!process.argv.includes('--non-interactive') && commandName !== 'config') {
+
+      if (
+        !process.argv.includes('--non-interactive') &&
+        commandName !== 'config'
+      ) {
         await notifyAnalyticsIfFirstRun();
       }
 

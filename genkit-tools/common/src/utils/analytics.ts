@@ -173,7 +173,7 @@ const ANALYTICS_NOTIFICATION =
   '\n' +
   'If running in non-interactive environments set --non-interactive flag. Ex:\n' +
   '  genkit start --non-interactive -- <cmd>\n' +
-  'To opt out of analytics run:\n'+
+  'To opt out of analytics run:\n' +
   '  genkit config set analyticsOptOut true\n';
 const NOTIFICATION_ACKED = 'analytics_notification';
 const CONFIGSTORE_CLIENT_KEY = 'genkit-tools-ga-id';
