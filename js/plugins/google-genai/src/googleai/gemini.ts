@@ -64,21 +64,23 @@ import {
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
  */
-const SafetySettingsSchema = z.object({
-  category: z.enum([
-    'HARM_CATEGORY_UNSPECIFIED',
-    'HARM_CATEGORY_HATE_SPEECH',
-    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-    'HARM_CATEGORY_HARASSMENT',
-    'HARM_CATEGORY_DANGEROUS_CONTENT',
-  ]),
-  threshold: z.enum([
-    'BLOCK_LOW_AND_ABOVE',
-    'BLOCK_MEDIUM_AND_ABOVE',
-    'BLOCK_ONLY_HIGH',
-    'BLOCK_NONE',
-  ]),
-});
+const SafetySettingsSchema = z
+  .object({
+    category: z.enum([
+      'HARM_CATEGORY_UNSPECIFIED',
+      'HARM_CATEGORY_HATE_SPEECH',
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_HARASSMENT',
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+    ]),
+    threshold: z.enum([
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+    ]),
+  })
+  .passthrough();
 
 const VoiceConfigSchema = z
   .object({
@@ -169,6 +171,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .passthrough()
     .optional(),
   responseModalities: z
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
@@ -225,6 +228,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         )
         .optional(),
     })
+    .passthrough()
     .optional(),
 }).passthrough();
 export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
