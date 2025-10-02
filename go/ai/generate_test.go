@@ -242,7 +242,7 @@ func TestValidMessage(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	JSON := "\n{\"subject\": \"bananas\", \"location\": \"tropics\"}\n"
+	JSON := "{\"subject\": \"bananas\", \"location\": \"tropics\"}"
 	JSONmd := "```json" + JSON + "```"
 
 	bananaModel := DefineModel(r, "test/banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
@@ -629,7 +629,8 @@ func TestGenerate(t *testing.T) {
 		dynamicTool := NewTool("dynamicTestTool", "a tool that is dynamically registered",
 			func(ctx *ToolContext, input struct {
 				Message string
-			}) (string, error) {
+			},
+			) (string, error) {
 				return "Dynamic: " + input.Message, nil
 			},
 		)
@@ -815,7 +816,8 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		func(ctx *ToolContext, input struct {
 			Value     string
 			Interrupt bool
-		}) (string, error) {
+		},
+		) (string, error) {
 			if input.Interrupt {
 				return "", ctx.Interrupt(&InterruptOptions{
 					Metadata: map[string]any{
@@ -833,7 +835,8 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		func(ctx *ToolContext, input struct {
 			Action string
 			Data   string
-		}) (string, error) {
+		},
+		) (string, error) {
 			if ctx.Resumed != nil {
 				resumedData, ok := ctx.Resumed["data"].(string)
 				if ok {
