@@ -133,6 +133,34 @@ ai.defineFlow('streaming', async (_, { sendChunk }) => {
   return poem;
 });
 
+// Google maps grounding
+ai.defineFlow('maps-grounding', async () => {
+  const { text, raw } = await ai.generate({
+    model: vertexAI.model('gemini-2.5-flash'),
+    prompt: 'Describe some sights near me',
+    config: {
+      tools: [
+        {
+          googleMaps: {
+            enableWidget: true,
+          },
+        },
+      ],
+      retrievalConfig: {
+        latLng: {
+          latitude: 43.0896,
+          longitude: -79.0849,
+        },
+      },
+    },
+  });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
 // Search grounding
 ai.defineFlow('search-grounding', async () => {
   const { text, raw } = await ai.generate({
