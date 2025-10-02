@@ -223,6 +223,7 @@ function isValidateOnly(): boolean {
 function isAnalyticsEnabled(): boolean {
   return (
     !process.argv.includes('--non-interactive') &&
+    !process.argv.includes('--no-analytics') &&
     !getUserSettings()[ANALYTICS_OPT_OUT_CONFIG_TAG]
   );
 }

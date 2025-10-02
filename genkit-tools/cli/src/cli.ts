@@ -69,6 +69,7 @@ export async function startCLI(): Promise<void> {
     .description('Genkit CLI')
     .version(version)
     .option('--no-update-notification', 'Do not show update notification')
+    .option('--no-analytics', 'Opt-out of anonymous analytics collection')
     .hook('preAction', async (_, actionCommand) => {
       await notifyAnalyticsIfFirstRun();
 
