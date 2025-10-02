@@ -206,7 +206,10 @@ func PromptWithMultiMessage(ctx context.Context, g *genkit.Genkit) {
 	if prompt == nil {
 		log.Fatal("empty prompt")
 	}
-	resp, err := prompt.Execute(ctx)
+	resp, err := prompt.Execute(ctx,
+		ai.WithModelName("googleai/gemini-2.5-pro"),
+		ai.WithInput(map[string]any{"videoUrl": "https://www.youtube.com/watch?v=K-hY0E6cGfo video/mp4"}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -252,6 +255,7 @@ func PromptWithMessageHistory(ctx context.Context, g *genkit.Genkit) {
 	helloPrompt := genkit.DefinePrompt(
 		g, "PromptWithMessageHistory",
 		ai.WithSystem("You are a helpful AI assistant named Walt"),
+		ai.WithModelName("googleai/gemini-2.5-flash-lite"),
 		ai.WithMessages(
 			ai.NewUserTextMessage("Hi, my name is Bob"),
 			ai.NewModelTextMessage("Hi, my name is Walt, what can I help you with?"),
@@ -277,7 +281,7 @@ func PromptWithExecuteOverrides(ctx context.Context, g *genkit.Genkit) {
 
 	// Call the model and add additional messages from the user.
 	resp, err := helloPrompt.Execute(ctx,
-		ai.WithModel(googlegenai.GoogleAIModel(g, "gemini-2.5-pro")),
+		ai.WithModel(googlegenai.GoogleAIModel(g, "gemini-2.5-flash-lite")),
 		ai.WithMessages(ai.NewUserTextMessage("And I like turtles.")),
 	)
 	if err != nil {
@@ -324,8 +328,8 @@ func PromptWithMediaType(ctx context.Context, g *genkit.Genkit) {
 		log.Fatal("empty prompt")
 	}
 	resp, err := prompt.Execute(ctx,
-		ai.WithModelName("googleai/gemini-2.0-flash"),
-		ai.WithInput(map[string]any{"imageUrl": "data:image/jpg;base64," + img}),
+		ai.WithModelName("googleai/gemini-2.5-flash"),
+		ai.WithInput(map[string]any{"imageUrl": "data:image/jpeg;base64," + img}),
 	)
 	if err != nil {
 		log.Fatal(err)
