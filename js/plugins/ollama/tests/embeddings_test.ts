@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import * as assert from 'assert';
-import { genkit, type Genkit } from 'genkit';
+import { Genkit, genkit } from 'genkit';
+import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
+import { ollama } from '../src';
 import { defineOllamaEmbedder } from '../src/embeddings.js';
-import { ollama } from '../src/index.js';
 import type { OllamaPluginParams } from '../src/types.js';
 
 // Mock fetch to simulate API responses
@@ -41,49 +41,55 @@ global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
   throw new Error('Unknown API endpoint');
 };
 
-describe('defineOllamaEmbedder', () => {
-  const options: OllamaPluginParams = {
-    models: [{ name: 'test-model' }],
-    serverAddress: 'http://localhost:3000',
-  };
+const options: OllamaPluginParams = {
+  models: [{ name: 'test-model' }],
+  serverAddress: 'http://localhost:3000',
+};
 
+// TODO: also have tests that do not need initializing genkit
+
+describe('defineOllamaEmbedder', () => {
   let ai: Genkit;
+
   beforeEach(() => {
     ai = genkit({
-      plugins: [
-        ollama({
-          serverAddress: 'http://localhost:3000',
-        }),
-      ],
+      plugins: [ollama(options)],
     });
   });
 
-  it('should successfully return embeddings', async () => {
-    const embedder = defineOllamaEmbedder(ai, {
+  it.only('should successfully return embeddings', async () => {
+    const embedder = defineOllamaEmbedder({
       name: 'test-embedder',
       modelName: 'test-model',
       dimensions: 123,
       options,
     });
+
     const result = await ai.embed({
       embedder,
       content: 'Hello, world!',
     });
+
     assert.deepStrictEqual(result, [{ embedding: [0.1, 0.2, 0.3] }]);
   });
 
   it('should handle API errors correctly', async () => {
-    const embedder = defineOllamaEmbedder(ai, {
+    const embedder = defineOllamaEmbedder({
       name: 'test-embedder',
       modelName: 'test-model',
       dimensions: 123,
       options,
     });
+
     await assert.rejects(
       async () => {
         await ai.embed({
           embedder,
           content: 'fail',
+        });
+
+        await embedder({
+          input: [{ content: [{ text: 'fail' }] }],
         });
       },
       (error) => {
