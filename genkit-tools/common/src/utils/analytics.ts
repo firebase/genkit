@@ -120,7 +120,7 @@ export async function record(event: GAEvent): Promise<void> {
 
 /** Displays a notification that analytics are in use. */
 export async function notifyAnalyticsIfFirstRun(): Promise<void> {
-  if (!isAnalyticsEnabled()) return;
+  if (isAnalyticsOptedOut()) return;
 
   if (configstore.get(NOTIFICATION_ACKED)) {
     return;
@@ -132,7 +132,7 @@ export async function notifyAnalyticsIfFirstRun(): Promise<void> {
     input: process.stdin,
     output: process.stdout,
   });
-  await readline.question('Press "Enter" to continue');
+  await readline.question('Press "Enter" to acknowledge and continue');
   readline.close();
 
   configstore.set(NOTIFICATION_ACKED, true);
@@ -169,7 +169,12 @@ const ANALYTICS_NOTIFICATION =
   'Genkit CLI and Developer UI use cookies and ' +
   'similar technologies from Google\nto deliver and enhance the quality of its ' +
   'services and to analyze usage.\n' +
-  'Learn more at https://policies.google.com/technologies/cookies';
+  'Learn more at https://policies.google.com/technologies/cookies\n' +
+  '\n' +
+  'If running in non-interactive environments set --non-interactive flag. Ex:\n' +
+  '  genkit start --non-interactive -- <cmd>\n' +
+  'To opt out of analytics run:\n'+
+  '  genkit config set analyticsOptOut true\n';
 const NOTIFICATION_ACKED = 'analytics_notification';
 const CONFIGSTORE_CLIENT_KEY = 'genkit-tools-ga-id';
 
@@ -217,15 +222,16 @@ function isValidateOnly(): boolean {
   return !!process.env['GENKIT_GA_VALIDATE'];
 }
 
-// For now, this is default false unless GENKIT_GA_DEBUG or GENKIT_GA_VALIDATE
-// are set. Once we have opt-out and we're ready for public preview this will
-// get updated.
+function isAnalyticsAcknowledged(): boolean {
+  return configstore.get(NOTIFICATION_ACKED) === true;
+}
+
+function isAnalyticsOptedOut(): boolean {
+  return getUserSettings()[ANALYTICS_OPT_OUT_CONFIG_TAG] === true;
+}
+
 function isAnalyticsEnabled(): boolean {
-  return (
-    !process.argv.includes('--non-interactive') &&
-    !process.argv.includes('--no-analytics') &&
-    !getUserSettings()[ANALYTICS_OPT_OUT_CONFIG_TAG]
-  );
+  return isAnalyticsAcknowledged() && !isAnalyticsOptedOut();
 }
 
 async function recordInternal(
