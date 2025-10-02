@@ -25,14 +25,11 @@ import {
   modelActionMetadata,
   modelRef,
   type EmbedderReference,
+  type Genkit,
   type ModelReference,
   type z,
 } from 'genkit';
-import {
-  ResolvableAction,
-  genkitPluginV2,
-  type GenkitPluginV2,
-} from 'genkit/plugin';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 import type { ActionType } from 'genkit/registry';
 import { getDerivedParams } from './common/index.js';
 import type { PluginOptions } from './common/types.js';
@@ -114,28 +111,25 @@ export {
   type GeminiVersionString,
 };
 
-async function initializer(options?: PluginOptions) {
+async function initializer(ai: Genkit, options?: PluginOptions) {
   const { projectId, location, vertexClientFactory, authClient } =
     await getDerivedParams(options);
 
-  const actions: ResolvableAction[] = [];
-
-  for (const name of Object.keys(SUPPORTED_IMAGEN_MODELS)) {
-    actions.push(defineImagenModel(name, authClient, { projectId, location }));
-  }
-  for (const name of Object.keys(SUPPORTED_GEMINI_MODELS)) {
-    actions.push(
-      defineGeminiKnownModel(
-        name,
-        vertexClientFactory,
-        {
-          projectId,
-          location,
-        },
-        options?.experimental_debugTraces
-      )
-    );
-  }
+  Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
+    defineImagenModel(ai, name, authClient, { projectId, location })
+  );
+  Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+    defineGeminiKnownModel(
+      ai,
+      name,
+      vertexClientFactory,
+      {
+        projectId,
+        location,
+      },
+      options?.experimental_debugTraces
+    )
+  );
   if (options?.models) {
     for (const modelOrRef of options?.models) {
       const modelName =
@@ -145,61 +139,61 @@ async function initializer(options?: PluginOptions) {
             modelOrRef.name.split('/')[1];
       const modelRef =
         typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-      actions.push(
-        defineGeminiModel({
-          modelName: modelRef.name,
-          version: modelName,
-          modelInfo: modelRef.info,
-          vertexClientFactory,
-          options: {
-            projectId,
-            location,
-          },
-          debugTraces: options.experimental_debugTraces,
-        })
-      );
+      defineGeminiModel({
+        ai,
+        modelName: modelRef.name,
+        version: modelName,
+        modelInfo: modelRef.info,
+        vertexClientFactory,
+        options: {
+          projectId,
+          location,
+        },
+        debugTraces: options.experimental_debugTraces,
+      });
     }
   }
 
   Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-    actions.push(
-      defineVertexAIEmbedder(name, authClient, { projectId, location })
-    )
+    defineVertexAIEmbedder(ai, name, authClient, { projectId, location })
   );
-
-  return actions;
 }
 
 async function resolver(
+  ai: Genkit,
   actionType: ActionType,
   actionName: string,
   options?: PluginOptions
-): Promise<ResolvableAction | undefined> {
+) {
   // TODO: also support other actions like 'embedder'
   switch (actionType) {
     case 'model':
-      return await resolveModel(actionName, options);
+      await resolveModel(ai, actionName, options);
+      break;
     case 'embedder':
-      return await resolveEmbedder(actionName, options);
+      await resolveEmbedder(ai, actionName, options);
+      break;
     default:
-      return undefined;
     // no-op
   }
 }
 
 async function resolveModel(
+  ai: Genkit,
   actionName: string,
   options?: PluginOptions
-): Promise<ResolvableAction | undefined> {
+) {
   const { projectId, location, vertexClientFactory, authClient } =
     await getDerivedParams(options);
 
   if (actionName.startsWith('imagen')) {
-    return defineImagenModel(actionName, authClient, { projectId, location });
+    defineImagenModel(ai, actionName, authClient, { projectId, location });
+    return;
   }
 
   const modelRef = gemini(actionName);
-  return defineGeminiModel({
+  defineGeminiModel({
+    ai,
     modelName: modelRef.name,
     version: actionName,
     modelInfo: modelRef.info,
@@ -213,15 +207,13 @@ async function resolveModel(
 }
 
 async function resolveEmbedder(
+  ai: Genkit,
   actionName: string,
   options?: PluginOptions
-): Promise<ResolvableAction | undefined> {
+) {
   const { projectId, location, authClient } = await getDerivedParams(options);
 
-  return defineVertexAIEmbedder(actionName, authClient, {
-    projectId,
-    location,
-  });
+  defineVertexAIEmbedder(ai, actionName, authClient, { projectId, location });
 }
 
 // Vertex AI list models still returns these and the API does not indicate in any way
@@ -276,23 +268,23 @@ async function listActions(options?: PluginOptions) {
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
-function vertexAIPlugin(options?: PluginOptions): GenkitPluginV2 {
+function vertexAIPlugin(options?: PluginOptions): GenkitPlugin {
   let listActionsCache;
-  return genkitPluginV2({
-    name: 'vertexai',
-    init: async () => initializer(options),
-    resolve: async (actionType: ActionType, actionName: string) =>
-      await resolver(actionType, actionName, options),
-    list: async () => {
+  return genkitPlugin(
+    'vertexai',
+    async (ai: Genkit) => await initializer(ai, options),
+    async (ai: Genkit, actionType: ActionType, actionName: string) =>
+      await resolver(ai, actionType, actionName, options),
+    async () => {
       if (listActionsCache) return listActionsCache;
       listActionsCache = await listActions(options);
       return listActionsCache;
-    },
-  });
+    }
+  );
 }
 
 export type VertexAIPlugin = {
-  (params?: PluginOptions): GenkitPluginV2;
+  (params?: PluginOptions): GenkitPlugin;
   model(
     name: keyof typeof SUPPORTED_GEMINI_MODELS | (`gemini-${string}` & {}),
     config?: z.infer<typeof GeminiConfigSchema>
