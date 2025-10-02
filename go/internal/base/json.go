@@ -130,7 +130,7 @@ func ExtractJSONFromMarkdown(md string) string {
 		return md
 	}
 	// capture group 1 matches the actual fenced JSON block
-	return matches[1]
+	return strings.TrimSpace(matches[1])
 }
 
 // GetJSONObjectLines splits a string by newlines, trims whitespace from each line,
