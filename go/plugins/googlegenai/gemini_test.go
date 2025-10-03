@@ -75,6 +75,18 @@ func TestConvertRequest(t *testing.T) {
 					"object": map[string]any{
 						"type": string("object"),
 					},
+					"domain": map[string]any{
+						"anyOf": []map[string]any{
+							{
+								"type": string("string"),
+							},
+							{
+								"type": string("null"),
+							},
+						},
+						"default": "null",
+						"title":   string("Domain"),
+					},
 				},
 			},
 		},
