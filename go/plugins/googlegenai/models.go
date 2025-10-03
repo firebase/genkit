@@ -28,8 +28,10 @@ const (
 	gemini20FlashPrevImageGen    = "gemini-2.0-flash-preview-image-generation"
 
 	gemini25Flash             = "gemini-2.5-flash"
+	gemini25FlashPrev0925     = "gemini-2.5-flash-preview-09-2025"
 	gemini25FlashLite         = "gemini-2.5-flash-lite"
 	gemini25FlashLitePrev0617 = "gemini-2.5-flash-lite-preview-06-17"
+	gemini25FlashLitePrev0925 = "gemini-2.5-flash-lite-preview-09-2025"
 
 	gemini25Pro            = "gemini-2.5-pro"
 	gemini25ProExp0325     = "gemini-2.5-pro-exp-03-25"
