@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,10 +30,10 @@ import {
   type UserMessage,
 } from '@mistralai/mistralai-gcp/models/components';
 import {
+  ActionMetadata,
   GenerationCommonConfigSchema,
   z,
   type GenerateRequest,
-  type Genkit,
   type MessageData,
   type ModelReference,
   type ModelResponseData,
@@ -43,10 +43,14 @@ import {
 } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
+  ModelInfo,
   modelRef,
   type ModelAction,
 } from 'genkit/model';
-import { getGenkitClientHeader } from '../common/index.js';
+import { model as pluginModel } from 'genkit/plugin';
+import { getGenkitClientHeader } from '../../common/index.js';
+import { PluginOptions } from './types.js';
+import { checkModelName } from './utils.js';
 
 /**
  * See https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
@@ -61,66 +65,162 @@ export const MistralConfigSchema = GenerationCommonConfigSchema.extend({
       GenerationCommonConfigDescriptions.topP + ' The default value is 1.'
     )
     .optional(),
-});
+}).passthrough();
+export type MistralConfigSchemaType = typeof MistralConfigSchema;
+export type MistralConfig = z.infer<MistralConfigSchemaType>;
 
-export const mistralLarge = modelRef({
-  name: 'vertexai/mistral-large',
-  info: {
-    label: 'Vertex AI Model Garden - Mistral Large',
-    versions: ['mistral-large-2411', 'mistral-large-2407'],
-    supports: {
-      multiturn: true,
-      media: false,
-      tools: true,
-      systemRole: true,
-      output: ['text'],
+// This contains all the config schema types
+type ConfigSchemaType = MistralConfigSchemaType;
+
+function commonRef(
+  name: string,
+  info?: ModelInfo,
+  configSchema: ConfigSchemaType = MistralConfigSchema
+): ModelReference<ConfigSchemaType> {
+  return modelRef({
+    name: `vertexModelGarden/${name}`,
+    configSchema,
+    info: info ?? {
+      supports: {
+        multiturn: true,
+        media: false,
+        tools: true,
+        systemRole: true,
+        output: ['text'],
+      },
     },
-  },
-  configSchema: MistralConfigSchema,
-});
+  });
+}
 
-export const mistralNemo = modelRef({
-  name: 'vertexai/mistral-nemo',
-  info: {
-    label: 'Vertex AI Model Garden - Mistral Nemo',
-    versions: ['mistral-nemo-2407'],
-    supports: {
-      multiturn: true,
-      media: false,
-      tools: false,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: MistralConfigSchema,
-});
+export const GENERIC_MODEL = commonRef('mistral');
 
-export const codestral = modelRef({
-  name: 'vertexai/codestral',
-  info: {
-    label: 'Vertex AI Model Garden - Codestral',
-    versions: ['codestral-2405'],
-    supports: {
-      multiturn: true,
-      media: false,
-      tools: false,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: MistralConfigSchema,
-});
-
-export const SUPPORTED_MISTRAL_MODELS: Record<
-  string,
-  ModelReference<typeof MistralConfigSchema>
-> = {
-  'mistral-large': mistralLarge,
-  'mistral-nemo': mistralNemo,
-  codestral: codestral,
+export const KNOWN_MODELS = {
+  'mistral-large-2411': commonRef('mistral-large-2411'),
+  'mistral-ocr-2505': commonRef('mistral-ocr-2505'),
+  'mistral-small-2503': commonRef('mistral-small-2503'),
+  'codestral-2501': commonRef('codestral-2501'),
 };
+export type KnownModels = keyof typeof KNOWN_MODELS;
+export type MistralModelName = `${string}tral-${string}`;
+export function isMistralModelName(value?: string): value is MistralModelName {
+  return !!value?.includes('tral-');
+}
 
-// TODO: Do they export a type for this?
+export function model(
+  version: string,
+  options: MistralConfig = {}
+): ModelReference<MistralConfigSchemaType> {
+  const name = checkModelName(version);
+
+  return modelRef({
+    name: `vertexModelGarden/${name}`,
+    config: options,
+    configSchema: MistralConfigSchema,
+    info: {
+      ...GENERIC_MODEL.info,
+    },
+  });
+}
+
+export function listActions(clientOptions: ClientOptions): ActionMetadata[] {
+  // TODO: figure out where to get a list of models maybe vertex list?
+  return [];
+}
+
+interface ClientOptions {
+  location: string;
+  projectId: string;
+}
+
+export function listKnownModels(
+  clientOptions: ClientOptions,
+  pluginOptions?: PluginOptions
+) {
+  return Object.keys(KNOWN_MODELS).map((name) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
+}
+
+export function defineModel(
+  name: string,
+  clientOptions: ClientOptions,
+  pluginOptions?: PluginOptions
+): ModelAction {
+  const ref = model(name);
+  const getClient = createClientFactory(clientOptions.projectId);
+
+  return pluginModel(
+    {
+      name: ref.name,
+      ...ref.info,
+      configSchema: ref.configSchema,
+    },
+    async (request, { streamingRequested, sendChunk }) => {
+      const client = getClient(
+        request.config?.location || clientOptions.location
+      );
+      const modelVersion = checkModelName(ref.name);
+      const mistralRequest = toMistralRequest(modelVersion, request);
+      const mistralOptions = {
+        fetchOptions: {
+          headers: {
+            'X-Goog-Api-Client': getGenkitClientHeader(),
+          },
+        },
+      };
+      if (!streamingRequested) {
+        // Non-streaming
+        const response = await client.chat.complete(
+          mistralRequest,
+          mistralOptions
+        );
+        return fromMistralResponse(request, response);
+      } else {
+        // Streaming
+        const stream = await client.chat.stream(mistralRequest, mistralOptions);
+        for await (const event of stream) {
+          const parts = fromMistralCompletionChunk(event.data);
+          if (parts.length > 0) {
+            sendChunk({
+              content: parts,
+            });
+          }
+        }
+        // Get the complete response after streaming
+        const completeResponse = await client.chat.complete(
+          mistralRequest,
+          mistralOptions
+        );
+        return fromMistralResponse(request, completeResponse);
+      }
+    }
+  );
+}
+
+function createClientFactory(projectId: string) {
+  const clients: Record<string, MistralGoogleCloud> = {};
+
+  return (region: string): MistralGoogleCloud => {
+    if (!region) {
+      throw new Error('Region is required to create Mistral client');
+    }
+
+    try {
+      if (!clients[region]) {
+        clients[region] = new MistralGoogleCloud({
+          region,
+          projectId,
+        });
+      }
+      return clients[region];
+    } catch (error) {
+      throw new Error(
+        `Failed to create/retrieve Mistral client for region ${region}: ${error}`
+      );
+    }
+  };
+}
+
 type MistralRole = 'assistant' | 'user' | 'tool' | 'system';
 
 function toMistralRole(role: Role): MistralRole {
@@ -326,103 +426,6 @@ export function fromMistralResponse(
       created: response.created,
     },
     raw: response, // Include the raw response for debugging or additional context
-  };
-}
-
-export function mistralModel(
-  ai: Genkit,
-  modelName: string,
-  projectId: string,
-  region: string
-): ModelAction {
-  const getClient = createClientFactory(projectId);
-
-  const model = SUPPORTED_MISTRAL_MODELS[modelName];
-  if (!model) {
-    throw new Error(`Unsupported Mistral model name ${modelName}`);
-  }
-
-  return ai.defineModel(
-    {
-      name: model.name,
-      label: model.info?.label,
-      configSchema: MistralConfigSchema,
-      supports: model.info?.supports,
-      versions: model.info?.versions,
-    },
-    async (input, sendChunk) => {
-      const client = getClient(input.config?.location || region);
-
-      const versionedModel =
-        input.config?.version ?? model.info?.versions?.[0] ?? model.name;
-
-      if (!sendChunk) {
-        const mistralRequest = toMistralRequest(versionedModel, input);
-
-        const response = await client.chat.complete(mistralRequest, {
-          fetchOptions: {
-            headers: {
-              'X-Goog-Api-Client': getGenkitClientHeader(),
-            },
-          },
-        });
-
-        return fromMistralResponse(input, response);
-      } else {
-        const mistralRequest = toMistralRequest(versionedModel, input);
-        const stream = await client.chat.stream(mistralRequest, {
-          fetchOptions: {
-            headers: {
-              'X-Goog-Api-Client': getGenkitClientHeader(),
-            },
-          },
-        });
-
-        for await (const event of stream) {
-          const parts = fromMistralCompletionChunk(event.data);
-          if (parts.length > 0) {
-            sendChunk({
-              content: parts,
-            });
-          }
-        }
-
-        // Get the complete response after streaming
-        const completeResponse = await client.chat.complete(mistralRequest, {
-          fetchOptions: {
-            headers: {
-              'X-Goog-Api-Client': getGenkitClientHeader(),
-            },
-          },
-        });
-
-        return fromMistralResponse(input, completeResponse);
-      }
-    }
-  );
-}
-
-function createClientFactory(projectId: string) {
-  const clients: Record<string, MistralGoogleCloud> = {};
-
-  return (region: string): MistralGoogleCloud => {
-    if (!region) {
-      throw new Error('Region is required to create Mistral client');
-    }
-
-    try {
-      if (!clients[region]) {
-        clients[region] = new MistralGoogleCloud({
-          region,
-          projectId,
-        });
-      }
-      return clients[region];
-    } catch (error) {
-      throw new Error(
-        `Failed to create/retrieve Mistral client for region ${region}: ${error}`
-      );
-    }
   };
 }
 

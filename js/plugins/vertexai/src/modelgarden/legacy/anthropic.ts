@@ -45,12 +45,15 @@ import {
   modelRef,
   type ModelAction,
 } from 'genkit/model';
-import { getGenkitClientHeader } from '../common/index.js';
+import { getGenkitClientHeader } from '../../common/index.js';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),
 });
 
+/**
+ * @deprecated
+ */
 export const claude35SonnetV2 = modelRef({
   name: 'vertexai/claude-3-5-sonnet-v2',
   info: {
@@ -67,6 +70,9 @@ export const claude35SonnetV2 = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const claude35Sonnet = modelRef({
   name: 'vertexai/claude-3-5-sonnet',
   info: {
@@ -83,6 +89,9 @@ export const claude35Sonnet = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const claude3Sonnet = modelRef({
   name: 'vertexai/claude-3-sonnet',
   info: {
@@ -99,6 +108,9 @@ export const claude3Sonnet = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+/**
+ * @deprecated Please use vertexModelGarden.model('claude-3-5-haiku@20241022')
+ */
 export const claude3Haiku = modelRef({
   name: 'vertexai/claude-3-haiku',
   info: {
@@ -115,6 +127,9 @@ export const claude3Haiku = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const claude3Opus = modelRef({
   name: 'vertexai/claude-3-opus',
   info: {
@@ -131,6 +146,9 @@ export const claude3Opus = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+/**
+ * @deprecated please use vertexModelGarden.model('claude-sonnet-4@20250514')
+ */
 export const claudeSonnet4 = modelRef({
   name: 'vertexai/claude-sonnet-4',
   info: {
@@ -147,6 +165,9 @@ export const claudeSonnet4 = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+/**
+ * @deprecated please use vertexModelGarden.model('claude-opus-4@20250514')
+ */
 export const claudeOpus4 = modelRef({
   name: 'vertexai/claude-opus-4',
   info: {
@@ -163,6 +184,9 @@ export const claudeOpus4 = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+/**
+ * @deprecated please use vertexModelGarden.model('claude-opus-4-1@20250805')
+ */
 export const claudeOpus41 = modelRef({
   name: 'vertexai/claude-opus-4-1',
   info: {
@@ -179,6 +203,9 @@ export const claudeOpus41 = modelRef({
   configSchema: AnthropicConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const SUPPORTED_ANTHROPIC_MODELS: Record<
   string,
   ModelReference<typeof AnthropicConfigSchema>
@@ -193,6 +220,9 @@ export const SUPPORTED_ANTHROPIC_MODELS: Record<
   'claude-opus-4-1': claudeOpus41,
 };
 
+/**
+ * @deprecated
+ */
 export function toAnthropicRequest(
   model: string,
   input: GenerateRequest<typeof AnthropicConfigSchema>
@@ -339,6 +369,9 @@ function fromAnthropicPart(part: AnthropicContent): Part {
 }
 
 // Converts an Anthropic response to a Genkit response.
+/**
+ * @deprecated
+ */
 export function fromAnthropicResponse(
   input: GenerateRequest<typeof AnthropicConfigSchema>,
   response: Message
@@ -428,6 +461,9 @@ function toAnthropicToolResponse(part: Part): ToolResultBlockParam {
   };
 }
 
+/**
+ * @deprecated
+ */
 export function anthropicModel(
   ai: Genkit,
   modelName: string,
