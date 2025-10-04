@@ -23,7 +23,7 @@ import (
 )
 
 func TestConstrainedGenerate(t *testing.T) {
-	JSON := "\n{\"foo\": \"bar\"}\n"
+	JSON := "{\"foo\": \"bar\"}"
 	JSONmd := "```json" + JSON + "```"
 
 	modelOpts := ModelOptions{
@@ -532,7 +532,7 @@ func TestJsonParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("\n{\"name\": \"John\", \"age\": 19}\n"),
+					NewJSONPart("{\"name\": \"John\", \"age\": 19}"),
 				},
 			},
 			wantErr: false,
@@ -573,7 +573,7 @@ func TestJsonParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("\n{\"id\": 1}\n"),
+					NewJSONPart("{\"id\": 1}"),
 				},
 			},
 			wantErr: false,
@@ -1062,7 +1062,7 @@ func TestJsonParserStreaming(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("\n{\"id\": 1}\n"),
+					NewJSONPart("{\"id\": 1}"),
 				},
 			},
 			wantErr: false,
