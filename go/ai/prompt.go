@@ -25,12 +25,13 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/google/dotprompt/go/dotprompt"
+	"github.com/invopop/jsonschema"
+
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/google/dotprompt/go/dotprompt"
-	"github.com/invopop/jsonschema"
 )
 
 // Prompt is the interface for a prompt that can be executed and rendered.
@@ -376,13 +377,13 @@ func renderUserPrompt(ctx context.Context, opts promptOptions, messages []*Messa
 		return nil, err
 	}
 
-	parts, err := renderPrompt(ctx, opts, templateText, input, dp)
+	renderedMessages, err := renderPromptMessages(ctx, opts, templateText, input, dp)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(parts) != 0 {
-		messages = append(messages, NewUserMessage(parts...))
+	if len(renderedMessages) != 0 {
+		messages = append(messages, renderedMessages...)
 	}
 
 	return messages, nil
@@ -430,6 +431,20 @@ func renderPrompt(ctx context.Context, opts promptOptions, templateText string, 
 	})
 }
 
+// renderPromptMessages renders a prompt template using dotprompt functionalities
+func renderPromptMessages(ctx context.Context, opts promptOptions, templateText string, input map[string]any, dp *dotprompt.Dotprompt) ([]*Message, error) {
+	renderedFunc, err := dp.Compile(templateText, &dotprompt.PromptMetadata{})
+	if err != nil {
+		return nil, err
+	}
+
+	return renderDotpromptToMessages(ctx, renderedFunc, input, &dotprompt.PromptMetadata{
+		Input: dotprompt.PromptMetadataInput{
+			Default: opts.DefaultInput,
+		},
+	})
+}
+
 // renderDotpromptToParts executes a dotprompt prompt function and converts the result to a slice of parts
 func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Part, error) {
 	// Prepare the context for rendering
@@ -456,6 +471,48 @@ func renderDotpromptToParts(ctx context.Context, promptFn dotprompt.PromptFuncti
 	}
 
 	return convertedParts, nil
+}
+
+// renderDotpromptToMessages executes a dotprompt prompt function and converts the result to a slice of messages.
+func renderDotpromptToMessages(ctx context.Context, promptFn dotprompt.PromptFunction, input map[string]any, additionalMetadata *dotprompt.PromptMetadata) ([]*Message, error) {
+	// Prepare the context for rendering
+	context := map[string]any{}
+	maps.Copy(context, core.FromContext(ctx))
+
+	// Call the prompt function with the input and context
+	rendered, err := promptFn(&dotprompt.DataArgument{
+		Input:   input,
+		Context: context,
+	}, additionalMetadata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render prompt: %w", err)
+	}
+
+	var convertedMsgs []*Message
+	for _, message := range rendered.Messages {
+		parts, err := convertToPartPointers(message.Content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert parts: %w", err)
+		}
+
+		var role Role
+		switch message.Role {
+		case dotprompt.RoleSystem:
+			role = RoleSystem
+		case dotprompt.RoleUser:
+			role = RoleUser
+		default:
+			// skip other roles
+			continue
+		}
+
+		convertedMsgs = append(convertedMsgs, &Message{
+			Role:    role,
+			Content: parts,
+		})
+	}
+
+	return convertedMsgs, nil
 }
 
 // convertToPartPointers converts []dotprompt.Part to []*Part

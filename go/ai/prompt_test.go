@@ -22,11 +22,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 type InputOutput struct {
@@ -1143,8 +1144,64 @@ Hello!
 
 	prompt := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
 
-	_, err = prompt.Execute(context.Background())
+	r, err := prompt.Execute(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to execute prompt: %v", err)
+	}
+
+	if len(r.Request.Messages) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(r.Request.Messages))
+	}
+
+	if r.Request.Messages[0].Role != RoleSystem || strings.TrimSpace(r.Request.Messages[0].Content[0].Text) != "You are a pirate!" {
+		t.Errorf("unexpected system message: %+v", r.Request.Messages[0])
+	}
+
+	if r.Request.Messages[1].Role != RoleUser || strings.TrimSpace(r.Request.Messages[1].Content[0].Text) != "Hello!" {
+		t.Errorf("unexpected user message: %+v", r.Request.Messages[1])
+	}
+}
+
+func TestMultiMessagesUserPrompt(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+---
+You are a pirate!
+
+{{ role "user" }}
+Hello!
+`
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	// Initialize a mock registry
+	reg := registry.New()
+	ConfigureFormats(reg)
+	definePromptModel(reg)
+
+	prompt := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
+
+	r, err := prompt.Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to execute prompt: %v", err)
+	}
+
+	if len(r.Request.Messages) != 2 {
+		t.Fatalf("expected 2 messages, got %d", len(r.Request.Messages))
+	}
+
+	if r.Request.Messages[0].Role != RoleUser || strings.TrimSpace(r.Request.Messages[0].Content[0].Text) != "You are a pirate!" {
+		t.Errorf("unexpected user message: %+v", r.Request.Messages[0])
+	}
+
+	if r.Request.Messages[1].Role != RoleUser || strings.TrimSpace(r.Request.Messages[1].Content[0].Text) != "Hello!" {
+		t.Errorf("unexpected user message: %+v", r.Request.Messages[1])
 	}
 }
