@@ -33,24 +33,23 @@ func newVeoModel(
 	name string,
 	info ai.ModelOptions,
 ) ai.BackgroundModel {
-
-	startFunc := func(ctx context.Context, request *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
+	startFunc := func(ctx context.Context, req *ai.ModelRequest) (*ai.ModelOperation, error) {
 		// Extract text prompt from the request
-		prompt := extractTextFromRequest(request)
+		prompt := extractTextFromRequest(req)
 		if prompt == "" {
 			return nil, fmt.Errorf("no text prompt found in request")
 		}
 
-		image := extractVeoImageFromRequest(request)
+		image := extractVeoImageFromRequest(req)
 
-		videoConfig := toVeoParameters(request)
+		videoConfig := toVeoParameters(req)
 
 		operation, err := client.Models.GenerateVideos(
 			ctx,
 			name,
 			prompt,
 			image,
-			&videoConfig,
+			videoConfig,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("veo video generation failed: %w", err)
@@ -59,8 +58,8 @@ func newVeoModel(
 		return fromVeoOperation(operation), nil
 	}
 
-	checkFunc := func(ctx context.Context, operation *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
-		veoOp, err := checkVeoOperation(ctx, client, operation)
+	checkFunc := func(ctx context.Context, op *ai.ModelOperation) (*ai.ModelOperation, error) {
+		veoOp, err := checkVeoOperation(ctx, client, op)
 		if err != nil {
 			return nil, fmt.Errorf("veo operation status check failed: %w", err)
 		}
@@ -68,15 +67,7 @@ func newVeoModel(
 		return fromVeoOperation(veoOp), nil
 	}
 
-	cancelFunc := func(ctx context.Context, operation *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
-		// Veo API doesn't currently support operation cancellation
-		return nil, core.NewError(core.UNKNOWN, "veo model operation cancellation is not supported")
-	}
-	opts := ai.BackgroundModelOptions{
-		ModelOptions: info,
-		Cancel:       cancelFunc,
-	}
-	return ai.NewBackgroundModel(name, &opts, startFunc, checkFunc)
+	return ai.NewBackgroundModel(name, &ai.BackgroundModelOptions{ModelOptions: info}, startFunc, checkFunc)
 }
 
 // extractTextFromRequest extracts the text prompt from a model request.
@@ -109,7 +100,8 @@ func extractVeoImageFromRequest(request *ai.ModelRequest) *genai.Image {
 				}
 				return &genai.Image{
 					ImageBytes: data,
-					MIMEType:   part.ContentType}
+					MIMEType:   part.ContentType,
+				}
 			}
 		}
 	}
@@ -118,19 +110,19 @@ func extractVeoImageFromRequest(request *ai.ModelRequest) *genai.Image {
 }
 
 // toVeoParameters converts model request configuration to Veo video generation parameters.
-func toVeoParameters(request *ai.ModelRequest) genai.GenerateVideosConfig {
-	params := genai.GenerateVideosConfig{}
+func toVeoParameters(request *ai.ModelRequest) *genai.GenerateVideosConfig {
+	params := &genai.GenerateVideosConfig{}
 	if request.Config != nil {
 		if config, ok := request.Config.(*genai.GenerateVideosConfig); ok {
-			return *config
+			return config
 		}
 	}
 	return params
 }
 
 // fromVeoOperation converts a Veo API operation to a Genkit core operation.
-func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *core.Operation[*ai.ModelResponse] {
-	operation := &core.Operation[*ai.ModelResponse]{
+func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *ai.ModelOperation {
+	operation := &ai.ModelOperation{
 		ID:   veoOp.Name,
 		Done: veoOp.Done,
 	}

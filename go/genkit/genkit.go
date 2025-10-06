@@ -667,9 +667,42 @@ func Generate(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.Mo
 	return ai.Generate(ctx, g.reg, opts...)
 }
 
-// GenerateOperation performs a background model generation request)
-func GenerateOperation(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*core.Operation[*ai.ModelResponse], error) {
+// GenerateOperation performs a model generation request using a flexible set of options
+// provided via [ai.GenerateOption] arguments. It's a convenient way to make
+// generation calls without pre-defining a prompt object.
+//
+// Unlike [Generate], this function returns a [ai.ModelOperation] which can be used to
+// check the status of the operation and get the result.
+//
+// Example:
+//
+//	op, err := genkit.GenerateOperation(ctx, g,
+//		ai.WithModelName("googleai/veo-2.0-generate-001"),
+//		ai.WithPrompt("A banana riding a bicycle."),
+//	)
+//	if err != nil {
+//		log.Fatalf("GenerateOperation failed: %v", err)
+//	}
+//
+//	fmt.Println(op.ID)
+//
+//	// Check the status of the operation
+//	op, err = genkit.CheckModelOperation(ctx, g, op)
+//	if err != nil {
+//		log.Fatalf("failed to check operation status: %v", err)
+//	}
+//
+//	fmt.Println(op.Done)
+//
+//	// Get the result of the operation
+//	fmt.Println(op.Output.Text())
+func GenerateOperation(ctx context.Context, g *Genkit, opts ...ai.GenerateOption) (*ai.ModelOperation, error) {
 	return ai.GenerateOperation(ctx, g.reg, opts...)
+}
+
+// CheckModelOperation checks the status of a background model operation by looking up the model and calling its Check method.
+func CheckModelOperation(ctx context.Context, g *Genkit, op *ai.ModelOperation) (*ai.ModelOperation, error) {
+	return ai.CheckModelOperation(ctx, g.reg, op)
 }
 
 // GenerateText performs a model generation request similar to [Generate], but

@@ -208,18 +208,9 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 	return op, nil
 }
 
-// CheckOperation checks the status of a background model operation by looking up the model and calling its Check method.
-func CheckOperation(ctx context.Context, r api.Registry, op *ModelOperation) (*ModelOperation, error) {
-	if op.Action == "" {
-		return nil, core.NewError(core.INVALID_ARGUMENT, "provided operation is missing original request information")
-	}
-
-	m := LookupBackgroundModel(r, op.Action)
-	if m == nil {
-		return nil, core.NewError(core.INVALID_ARGUMENT, "failed to resolve background model from original request: "+op.Action)
-	}
-
-	return m.Check(ctx, op)
+// CheckModelOperation checks the status of a background model operation by looking up the model and calling its Check method.
+func CheckModelOperation(ctx context.Context, r api.Registry, op *ModelOperation) (*ModelOperation, error) {
+	return core.CheckOperation[*ModelRequest](ctx, r, op)
 }
 
 // backgroundModelToModelFn wraps a background model start function into a [ModelFunc] for middleware compatibility.

@@ -183,3 +183,21 @@ func LookupBackgroundAction[In, Out any](r api.Registry, key string) *Background
 		cancel:    cancelAction,
 	}
 }
+
+// CheckOperation checks the status of a background operation by looking up the action and calling its Check method.
+func CheckOperation[In, Out any](ctx context.Context, r api.Registry, op *Operation[Out]) (*Operation[Out], error) {
+	if op == nil {
+		return nil, NewError(INVALID_ARGUMENT, "core.CheckOperation: operation is nil")
+	}
+
+	if op.Action == "" {
+		return nil, NewError(INVALID_ARGUMENT, "core.CheckOperation: operation is missing original request information")
+	}
+
+	m := LookupBackgroundAction[In, Out](r, op.Action)
+	if m == nil {
+		return nil, NewError(INVALID_ARGUMENT, "core.CheckOperation: failed to resolve background model %q from original request", op.Action)
+	}
+
+	return m.Check(ctx, op)
+}
