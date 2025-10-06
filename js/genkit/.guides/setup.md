@@ -13,6 +13,7 @@ import { googleAI } from '@genkit-ai/google-genai';
 
 export const ai = genkit({
   plugins: [googleAI()],
+  model: googleAI.model('gemini-2.5-flash'),
 });
 
 export { z };
@@ -26,5 +27,5 @@ import './genkit.js';
 // import each created flow, tool, etc. here for use in the Genkit Dev UI
 ```
 
-8. Add a `genkit:ui` script to `package.json` that runs `npx genkit-cli start -- npx tsx {sourceDir}/ai/index.ts` (or `pnpm dlx` or `yarn dlx` for those package managers). DO NOT try to run the script now.
+8. Add a `genkit:ui` script to `package.json` that runs `npx genkit-cli start -- npx tsx --watch {sourceDir}/ai/index.ts` (or `pnpm dlx` or `yarn dlx` for those package managers). DO NOT try to run the script now.
 9. Tell the user "Genkit is now configured and ready for use." as setup is now complete. Also remind them to set appropriate env variables (e.g. `GEMINI_API_KEY` for Google providers). Wait for the user to prompt further before creating any specific flows.
