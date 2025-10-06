@@ -1,4 +1,4 @@
-# Genkit Node.js API Rules (v1.17.1)
+# Genkit Node.js API Rules (v1.20.0)
 
 This document provides rules and examples for building with the Genkit API in Node.js.
 
