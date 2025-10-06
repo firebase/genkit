@@ -18,8 +18,6 @@
 
 package ai
 
-import "github.com/firebase/genkit/go/core"
-
 type BaseDataPoint struct {
 	Context    map[string]any `json:"context,omitempty"`
 	Input      map[string]any `json:"input,omitempty"`
@@ -260,10 +258,10 @@ type ModelResponse struct {
 	FinishMessage string       `json:"finishMessage,omitempty"`
 	FinishReason  FinishReason `json:"finishReason,omitempty"`
 	// LatencyMs is the time the request took in milliseconds.
-	LatencyMs float64              `json:"latencyMs,omitempty"`
-	Message   *Message             `json:"message,omitempty"`
-	Operation *core.Operation[any] `json:"operation,omitempty"`
-	Raw       any                  `json:"raw,omitempty"`
+	LatencyMs float64    `json:"latencyMs,omitempty"`
+	Message   *Message   `json:"message,omitempty"`
+	Operation *Operation `json:"operation,omitempty"`
+	Raw       any        `json:"raw,omitempty"`
 	// Request is the [ModelRequest] struct used to trigger this response.
 	Request *ModelRequest `json:"request,omitempty"`
 	// Usage describes how many resources were used by this generation request.
@@ -278,6 +276,19 @@ type ModelResponseChunk struct {
 	Custom     any     `json:"custom,omitempty"`
 	Index      int     `json:"index,omitempty"`
 	Role       Role    `json:"role,omitempty"`
+}
+
+type Operation struct {
+	Action   string          `json:"action,omitempty"`
+	Done     bool            `json:"done,omitempty"`
+	Error    *OperationError `json:"error,omitempty"`
+	Id       string          `json:"id,omitempty"`
+	Metadata map[string]any  `json:"metadata,omitempty"`
+	Output   any             `json:"output,omitempty"`
+}
+
+type OperationError struct {
+	Message string `json:"message,omitempty"`
 }
 
 // OutputConfig describes the structure that the model's output

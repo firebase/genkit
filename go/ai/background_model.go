@@ -18,6 +18,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
@@ -146,16 +147,21 @@ func NewBackgroundModel(name string, opts *BackgroundModelOptions, startFn Start
 
 		op := &ModelOperation{
 			Action:   resp.Operation.Action,
-			ID:       resp.Operation.ID,
+			ID:       resp.Operation.Id,
 			Done:     resp.Operation.Done,
-			Error:    resp.Operation.Error,
 			Metadata: resp.Operation.Metadata,
 		}
+
+		if resp.Operation.Error != nil {
+			op.Error = errors.New(resp.Operation.Error.Message)
+		}
+
 		if resp.Operation.Output != nil {
 			if modelResp, ok := resp.Operation.Output.(*ModelResponse); ok {
 				op.Output = modelResp
 			}
 		}
+
 		return op, nil
 	}
 
@@ -182,17 +188,20 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 
 	op := &ModelOperation{
 		Action:   resp.Operation.Action,
-		ID:       resp.Operation.ID,
+		ID:       resp.Operation.Id,
 		Done:     resp.Operation.Done,
 		Metadata: resp.Operation.Metadata,
-		Error:    resp.Operation.Error,
+	}
+
+	if resp.Operation.Error != nil {
+		op.Error = errors.New(resp.Operation.Error.Message)
 	}
 
 	if op.Done {
 		if modelResp, ok := resp.Operation.Output.(*ModelResponse); ok {
 			op.Output = modelResp
 		} else {
-			return nil, core.NewError(core.INTERNAL, "operation output is not a ModelResponse")
+			return nil, core.NewError(core.INTERNAL, "operation output is not a model response")
 		}
 	}
 
@@ -221,12 +230,12 @@ func backgroundModelToModelFn(startFn StartModelOpFunc) ModelFunc {
 			return nil, err
 		}
 		return &ModelResponse{
-			Operation: &core.Operation[any]{
+			Operation: &Operation{
 				Action:   op.Action,
-				ID:       op.ID,
+				Id:       op.ID,
 				Done:     op.Done,
 				Output:   op.Output,
-				Error:    op.Error,
+				Error:    &OperationError{Message: op.Error.Error()},
 				Metadata: op.Metadata,
 			},
 			Request: req,

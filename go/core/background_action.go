@@ -90,11 +90,11 @@ func DefineBackgroundAction[In, Out any](
 	name string,
 	atype api.ActionType,
 	metadata map[string]any,
-	fn StartOpFunc[In, Out],
+	startFn StartOpFunc[In, Out],
 	checkFn CheckOpFunc[Out],
 	cancelFn CancelOpFunc[Out],
 ) *BackgroundActionDef[In, Out] {
-	a := NewBackgroundAction(name, atype, metadata, fn, checkFn, cancelFn)
+	a := NewBackgroundAction(name, atype, metadata, startFn, checkFn, cancelFn)
 	a.Register(r)
 	return a
 }
