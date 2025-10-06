@@ -57,7 +57,7 @@ describe('defineOllamaEmbedder', () => {
     });
   });
 
-  it.only('should successfully return embeddings', async () => {
+  it('should successfully return embeddings', async () => {
     const embedder = defineOllamaEmbedder({
       name: 'test-embedder',
       modelName: 'test-model',
