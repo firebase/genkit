@@ -102,41 +102,6 @@ export const basicInferenceFlow = ai.defineFlow(
 
 ### Text-to-Speech (TTS) Generation
 
-This helper function converts PCM audio data from the TTS model into a WAV-formatted data URI.
-
-```ts
-import { Buffer } from 'buffer';
-import { PassThrough } from 'stream';
-import { Writer as WavWriter } from 'wav';
-
-...
-
-async function pcmToWavDataUri(
-  pcmData: Buffer,
-  channels = 1,
-  sampleRate = 24000,
-  bitDepth = 16
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    const passThrough = new PassThrough();
-
-    passThrough.on('data', (chunk) => chunks.push(chunk as Buffer));
-    passThrough.on('end', () => {
-      const wavBuffer = Buffer.concat(chunks);
-      const dataUri = `data:audio/wav;base64,${wavBuffer.toString('base64')}`;
-      resolve(dataUri);
-    });
-    passThrough.on('error', reject);
-
-    const writer = new WavWriter({ channels, sampleRate, bitDepth });
-    writer.pipe(passThrough);
-    writer.write(pcmData);
-    writer.end();
-  });
-}
-```
-
 #### Single-Speaker TTS
 
 ```ts
@@ -231,11 +196,6 @@ export const multiSpeakerTextToSpeechFlow = ai.defineFlow(
 ### Image Generation
 
 ```ts
-import * as fs from 'fs/promises';
-import parseDataURL from 'data-urls';
-
-...
-
 export const imageGenerationFlow = ai.defineFlow(
   {
     name: 'imageGenerationFlow',
