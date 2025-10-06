@@ -29,6 +29,7 @@ import {
  *
  * @param {VertexRerankOptions<EmbedderCustomOptions>} options - The parameters for creating the rerankers.
  * @returns {Promise<void>}
+ * @deprecated please use vertexRerankers instead
  */
 export async function vertexAiRerankers(
   ai: Genkit,
@@ -92,6 +93,7 @@ export async function vertexAiRerankers(
  * @param {Object} params - The parameters for the reranker reference.
  * @param {string} [params.displayName] - An optional display name for the reranker.
  * @returns {Object} - The reranker reference object.
+ * @deprecated please user vertexRerankerRef instead
  */
 export const vertexAiRerankerRef = (params: {
   rerankerName: string;
