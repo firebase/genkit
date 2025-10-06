@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/adler32"
+	"strconv"
 
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
@@ -37,12 +39,13 @@ func mapToStruct(m map[string]any, v any) error {
 
 // ModelGenerator handles OpenAI generation requests
 type ModelGenerator struct {
-	client     *openai.Client
-	modelName  string
-	request    *openai.ChatCompletionNewParams
-	messages   []openai.ChatCompletionMessageParamUnion
-	tools      []openai.ChatCompletionToolParam
-	toolChoice openai.ChatCompletionToolChoiceOptionUnionParam
+	client       *openai.Client
+	modelName    string
+	request      *openai.ChatCompletionNewParams
+	messages     []openai.ChatCompletionMessageParamUnion
+	tools        []openai.ChatCompletionToolParam
+	toolChoice   openai.ChatCompletionToolChoiceOptionUnionParam
+	outputFormat openai.ChatCompletionNewParamsResponseFormatUnion
 	// Store any errors that occur during building
 	err error
 }
@@ -210,6 +213,44 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition) *ModelGenerator {
 	return g
 }
 
+func schemaHash(schema map[string]any) string {
+	if schema == nil {
+		return ""
+	}
+
+	jsonBytes, err := json.Marshal(schema)
+	if err != nil {
+		return "" // should never happen
+	}
+
+	return strconv.FormatInt(int64(adler32.Checksum(jsonBytes)), 10) // adler32 entropy should be sufficient
+}
+
+func (g *ModelGenerator) WithOutput(output *ai.ModelOutputConfig) *ModelGenerator {
+	if g.err != nil {
+		return g
+	}
+
+	if output == nil {
+		return g
+	}
+
+	if !output.Constrained || output.Format != "json" && output.Schema == nil {
+		return g
+	}
+
+	g.outputFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
+		OfJSONSchema: &shared.ResponseFormatJSONSchemaParam{
+			JSONSchema: openai.ResponseFormatJSONSchemaJSONSchemaParam{
+				Name:   schemaHash(output.Schema),
+				Schema: output.Schema,
+			},
+		},
+	}
+
+	return g
+}
+
 // Generate executes the generation request
 func (g *ModelGenerator) Generate(ctx context.Context, req *ai.ModelRequest, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	// Check for any errors that occurred during building
@@ -220,11 +261,13 @@ func (g *ModelGenerator) Generate(ctx context.Context, req *ai.ModelRequest, han
 	if len(g.messages) == 0 {
 		return nil, fmt.Errorf("no messages provided")
 	}
-	g.request.Messages = (g.messages)
+	g.request.Messages = g.messages
 
 	if len(g.tools) > 0 {
-		g.request.Tools = (g.tools)
+		g.request.Tools = g.tools
 	}
+
+	g.request.ResponseFormat = g.outputFormat
 
 	if handleChunk != nil {
 		return g.generateStream(ctx, handleChunk)

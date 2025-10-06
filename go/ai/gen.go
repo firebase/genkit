@@ -275,7 +275,7 @@ type ModelResponseChunk struct {
 	Role       Role    `json:"role,omitempty"`
 }
 
-// OutputConfig describes the structure that the model's output
+// ModelOutputConfig describes the structure that the model's output
 // should conform to. If Format is [OutputFormatJSON], then Schema
 // can describe the desired form of the generated JSON.
 type ModelOutputConfig struct {

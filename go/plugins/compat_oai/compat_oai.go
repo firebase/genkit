@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
 )
 
 var (
@@ -120,7 +121,11 @@ func (o *OpenAICompatible) DefineModel(provider, id string, opts ai.ModelOptions
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
 		// Configure the response generator with input
-		generator := NewModelGenerator(o.client, id).WithMessages(input.Messages).WithConfig(input.Config).WithTools(input.Tools)
+		generator := NewModelGenerator(o.client, id).
+			WithMessages(input.Messages).
+			WithConfig(input.Config).
+			WithTools(input.Tools).
+			WithOutput(input.Output)
 
 		// Generate response
 		resp, err := generator.Generate(ctx, input, cb)
