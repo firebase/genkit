@@ -31,10 +31,14 @@ global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
         json: async () => ({}),
       } as Response;
     }
+    
+    const body = options?.body ? JSON.parse(options.body as string) : {};
+    const inputCount = body.input ? body.input.length : 1;
+    
     return {
       ok: true,
       json: async () => ({
-        embeddings: [[0.1, 0.2, 0.3]], // Example embedding values
+        embeddings: Array(inputCount).fill([0.1, 0.2, 0.3]), // Return embedding for each input
       }),
     } as Response;
   }
@@ -46,9 +50,72 @@ const options: OllamaPluginParams = {
   serverAddress: 'http://localhost:3000',
 };
 
-// TODO: also have tests that do not need initializing genkit
+describe('defineOllamaEmbedder (without genkit initialization)', () => {
+  it('should successfully return embeddings when called directly', async () => {
+    const embedder = defineOllamaEmbedder({
+      name: 'test-embedder',
+      modelName: 'test-model',
+      dimensions: 123,
+      options,
+    });
 
-describe('defineOllamaEmbedder', () => {
+    const result = await embedder({
+      input: [{ content: [{ text: 'Hello, world!' }] }],
+    });
+
+    assert.deepStrictEqual(result, { embeddings: [{ embedding: [0.1, 0.2, 0.3] }] });
+  });
+
+  it('should handle API errors correctly when called directly', async () => {
+    const embedder = defineOllamaEmbedder({
+      name: 'test-embedder',
+      modelName: 'test-model',
+      dimensions: 123,
+      options,
+    });
+
+    await assert.rejects(
+      async () => {
+        await embedder({
+          input: [{ content: [{ text: 'fail' }] }],
+        });
+      },
+      (error) => {
+        assert.ok(error instanceof Error);
+        assert.strictEqual(
+          error.message,
+          'Error fetching embedding from Ollama: Internal Server Error. '
+        );
+        return true;
+      }
+    );
+  });
+
+  it('should handle multiple documents', async () => {
+    const embedder = defineOllamaEmbedder({
+      name: 'test-embedder',
+      modelName: 'test-model',
+      dimensions: 123,
+      options,
+    });
+
+    const result = await embedder({
+      input: [
+        { content: [{ text: 'First document' }] },
+        { content: [{ text: 'Second document' }] },
+      ],
+    });
+
+    assert.deepStrictEqual(result, { 
+      embeddings: [
+        { embedding: [0.1, 0.2, 0.3] },
+        { embedding: [0.1, 0.2, 0.3] }
+      ] 
+    });
+  });
+});
+
+describe('defineOllamaEmbedder (with genkit initialization)', () => {
   let ai: Genkit;
 
   beforeEach(() => {
