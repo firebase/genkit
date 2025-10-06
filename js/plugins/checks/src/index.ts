@@ -73,13 +73,20 @@ export function checks(options?: PluginOptions): GenkitPluginV2 {
     name: 'checks',
     init: async () => {
       return [
-        checksEvaluator(googleAuth, metrics, await getProjectId(googleAuth, options)),
+        checksEvaluator(
+          googleAuth,
+          metrics,
+          await getProjectId(googleAuth, options)
+        ),
       ];
     },
     list: async () => {
       return [
-        checksEvaluator(googleAuth, metrics, await getProjectId(googleAuth, options))
-          .__action,
+        checksEvaluator(
+          googleAuth,
+          metrics,
+          await getProjectId(googleAuth, options)
+        ).__action,
       ];
     },
   });
