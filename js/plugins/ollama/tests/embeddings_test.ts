@@ -31,10 +31,10 @@ global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
         json: async () => ({}),
       } as Response;
     }
-    
+
     const body = options?.body ? JSON.parse(options.body as string) : {};
     const inputCount = body.input ? body.input.length : 1;
-    
+
     return {
       ok: true,
       json: async () => ({
@@ -63,7 +63,9 @@ describe('defineOllamaEmbedder (without genkit initialization)', () => {
       input: [{ content: [{ text: 'Hello, world!' }] }],
     });
 
-    assert.deepStrictEqual(result, { embeddings: [{ embedding: [0.1, 0.2, 0.3] }] });
+    assert.deepStrictEqual(result, {
+      embeddings: [{ embedding: [0.1, 0.2, 0.3] }],
+    });
   });
 
   it('should handle API errors correctly when called directly', async () => {
@@ -106,11 +108,11 @@ describe('defineOllamaEmbedder (without genkit initialization)', () => {
       ],
     });
 
-    assert.deepStrictEqual(result, { 
+    assert.deepStrictEqual(result, {
       embeddings: [
         { embedding: [0.1, 0.2, 0.3] },
-        { embedding: [0.1, 0.2, 0.3] }
-      ] 
+        { embedding: [0.1, 0.2, 0.3] },
+      ],
     });
   });
 });
