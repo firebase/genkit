@@ -147,17 +147,12 @@ const TextToSpeechInputSchema = z.object({
     .optional()
     .describe('The voice name to use. Defaults to Algenib if not specified.'),
 });
-const TextToSpeechOutputSchema = z.object({
-  audioDataUri: z
-    .string()
-    .describe('The generated speech in WAV format as a base64 data URI.'),
-});
 
 export const textToSpeechFlow = ai.defineFlow(
   {
     name: 'textToSpeechFlow',
     inputSchema: TextToSpeechInputSchema,
-    outputSchema: TextToSpeechOutputSchema,
+    outputSchema: z.string().optional().describe('The generated audio URI'),
   },
   async (input) => {
     const response = await ai.generate({
@@ -175,16 +170,7 @@ export const textToSpeechFlow = ai.defineFlow(
       },
     });
 
-    const audioUrl = response.media?.url;
-    if (!audioUrl)
-      throw new Error('Audio generation failed: No media URL in response.');
-
-    const base64 = audioUrl.split(';base64,')[1];
-    if (!base64) throw new Error('Invalid audio data URI format from Genkit.');
-
-    const pcmBuffer = Buffer.from(base64, 'base64');
-    const audioDataUri = await pcmToWavDataUri(pcmBuffer);
-    return { audioDataUri };
+    return response.media?.url;
   }
 );
 ```
@@ -204,7 +190,7 @@ export const multiSpeakerTextToSpeechFlow = ai.defineFlow(
   {
     name: 'multiSpeakerTextToSpeechFlow',
     inputSchema: MultiSpeakerInputSchema,
-    outputSchema: TextToSpeechOutputSchema,
+    outputSchema: z.string().optional().describe('The generated audio URI'),
   },
   async (input) => {
     const response = await ai.generate({
@@ -233,16 +219,7 @@ export const multiSpeakerTextToSpeechFlow = ai.defineFlow(
       },
     });
 
-    const audioUrl = response.media?.url;
-    if (!audioUrl)
-      throw new Error('Audio generation failed: No media URL in response.');
-
-    const base64 = audioUrl.split(';base64,')[1];
-    if (!base64) throw new Error('Invalid audio data URI format from Genkit.');
-
-    const pcmBuffer = Buffer.from(base64, 'base64');
-    const audioDataUri = await pcmToWavDataUri(pcmBuffer);
-    return { audioDataUri };
+    return response.media?.url;
   }
 );
 ```
@@ -265,7 +242,7 @@ export const imageGenerationFlow = ai.defineFlow(
     inputSchema: z
       .string()
       .describe('A detailed description of the image to generate'),
-    outputSchema: z.string().describe('Path to the generated .png image file'),
+    outputSchema: z.string().optional().describe('The generated image as URI'),
   },
   async (prompt) => {
     const response = await ai.generate({
@@ -274,18 +251,7 @@ export const imageGenerationFlow = ai.defineFlow(
       output: { format: 'media' },
     });
 
-    if (!response.media?.url) {
-      throw new Error('Image generation failed to produce media.');
-    }
-
-    const parsed = parseDataURL(response.media.url);
-    if (!parsed) {
-      throw new Error('Could not parse image data URL.');
-    }
-
-    const outputPath = './output.png';
-    await fs.writeFile(outputPath, parsed.body);
-    return outputPath;
+    return response.media?.url;
   }
 );
 ```
