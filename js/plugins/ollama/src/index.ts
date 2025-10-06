@@ -181,7 +181,7 @@ function createOllamaModel(
         request,
         options,
         type,
-        !!opts
+        opts?.streamingRequested
       );
       logger.debug(ollamaRequest, `ollama request (${type})`);
 
@@ -222,7 +222,7 @@ function createOllamaModel(
 
       let message: MessageData;
 
-      if (opts.sendChunk) {
+      if (opts?.streamingRequested) {
         const reader = res.body.getReader();
         const textDecoder = new TextDecoder();
         let textResponse = '';

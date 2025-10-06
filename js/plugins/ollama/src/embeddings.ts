@@ -80,9 +80,6 @@ export function defineOllamaEmbedder({
       },
     },
     async (request, config) => {
-      console.log('request.options', request.options);
-      // request.options; might be the equivalent of config now
-
       const serverAddress =
         options.serverAddress || DEFAULT_OLLAMA_SERVER_ADDRESS;
 

@@ -52,21 +52,27 @@ const MOCK_END_RESPONSE = {
   done: true,
 };
 
-const MAGIC_WORD = 'sunnnnnnny';
-
-// Mock fetch to simulate API responses
+// Mock fetch to simulate the multi-turn tool calling flow:
+// 1. Initial request with tools → returns tool_calls response
+// 2. Follow-up request with tool results (role='tool') → returns final answer
 global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString();
   if (url.includes('/api/chat')) {
     const body = JSON.parse((options?.body as string) || '{}');
 
-    // For basic calls without tools, return the end response
-    if (!body.tools || body.tools.length === 0) {
+    // Check if this request contains tool responses (second call in tool flow)
+    const hasToolResponses = body.messages?.some((m) => m.role === 'tool');
+    if (hasToolResponses) {
       return new Response(JSON.stringify(MOCK_END_RESPONSE));
     }
 
-    // For tool calls
-    return new Response(JSON.stringify(MOCK_TOOL_CALL_RESPONSE));
+    // Initial request with tools → return tool call
+    if (body.tools && body.tools.length > 0) {
+      return new Response(JSON.stringify(MOCK_TOOL_CALL_RESPONSE));
+    }
+
+    // Basic request without tools → return final response
+    return new Response(JSON.stringify(MOCK_END_RESPONSE));
   }
   throw new Error('Unknown API endpoint');
 };
@@ -92,7 +98,7 @@ describe('ollama models', () => {
     assert.ok(result.text === 'The weather is sunny');
   });
 
-  it.only('should successfully return tool call response', async () => {
+  it('should successfully return tool call response', async () => {
     const get_current_weather = ai.defineTool(
       {
         name: 'get_current_weather',
@@ -100,7 +106,7 @@ describe('ollama models', () => {
         inputSchema: z.object({ format: z.string(), location: z.string() }),
       },
       async () => {
-        return MAGIC_WORD;
+        return 'sunny';
       }
     );
 
