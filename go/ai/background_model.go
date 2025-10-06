@@ -73,7 +73,7 @@ func LookupBackgroundModel(r api.Registry, name string) BackgroundModel {
 	if action == nil {
 		return nil
 	}
-	return &backgroundModel{BackgroundActionDef: *action}
+	return &backgroundModel{*action}
 }
 
 // NewBackgroundModel defines a new model that runs in the background.
