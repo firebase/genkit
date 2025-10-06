@@ -1,12 +1,12 @@
 To use a Gemini model with Genkit:
 
 ```ts
-import { ai, z } from "..."; // path to genkit instance
-import { googleAI } from "@genkit-ai/google-genai";
+import { ai, z } from '...'; // path to genkit instance
+import { googleAI } from '@genkit-ai/google-genai';
 
-const {text} = await ai.generate({
+const { text } = await ai.generate({
   model: googleAI.model('gemini-2.5-flash'),
-  prompt: "...",
+  prompt: '...',
 });
 ```
 
