@@ -317,12 +317,13 @@ export class Index {
   }
 
   getMetadata(): { version: string } | undefined {
-    if (!fs.existsSync(this.metadataFileName())) {
+    try {
+      return JSON.parse(
+        fs.readFileSync(this.metadataFileName(), { encoding: 'utf8' })
+      );
+    } catch (e) {
       return undefined;
     }
-    return JSON.parse(
-      fs.readFileSync(this.metadataFileName(), { encoding: 'utf8' })
-    );
   }
 
   private newIndexFileName() {
