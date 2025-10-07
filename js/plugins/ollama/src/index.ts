@@ -222,7 +222,7 @@ function createOllamaModel(
 
       let message: MessageData;
 
-      if (opts?.streamingRequested) {
+      if (opts.streamingRequested) {
         const reader = res.body.getReader();
         const textDecoder = new TextDecoder();
         let textResponse = '';
