@@ -180,9 +180,6 @@ export class ReflectionServer {
             response.write(
               JSON.stringify({
                 result: result.result,
-                telemetry: {
-                  traceId: result.telemetry.traceId,
-                },
               } as RunActionResponse)
             );
             response.end();
