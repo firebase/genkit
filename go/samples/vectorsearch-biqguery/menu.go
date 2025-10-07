@@ -28,7 +28,7 @@ import (
 )
 
 func menu(ctx context.Context, g *genkit.Genkit, retriever ai.Retriever, model ai.Model, vectorsearchParams *VectorsearchConfig) error {
-	ragDataMenuPrompt, err := genkit.DefinePrompt(g, "ragDataMenu",
+	ragDataMenuPrompt := genkit.DefinePrompt(g, "ragDataMenu",
 		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
@@ -51,9 +51,6 @@ Answer this customer's question:
 			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)
-	if err != nil {
-		return err
-	}
 
 	type flowOutput struct {
 		Rows int `json:"rows"`

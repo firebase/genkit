@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,6 +40,10 @@ func (f *fakeEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.Emb
 	return f.resp, nil
 }
 
+func (f *fakeEmbedder) Register(r api.Registry) {
+	// This is a no-op for the fake embedder, as it doesn't need to register anything.
+}
+
 // ---------- tests: Name ----------
 
 func TestVectorsearch_Name(t *testing.T) {
@@ -50,11 +55,14 @@ func TestVectorsearch_Name(t *testing.T) {
 
 func TestInit_AlreadyInitialized(t *testing.T) {
 	v := &VertexAIVectorSearch{initted: true}
-	err := v.Init(context.Background(), nil)
-	assert.Error(t, err)
+
+	// Use assert.Panics to check for panic
+	assert.Panics(t, func() {
+		v.Init(context.Background())
+	}, "Expected Init to panic when the plugin is already initialized")
 }
 
-func TestInit_MissingProjectID_ReturnsError(t *testing.T) {
+func TestInit_MissingProjectID_Panics(t *testing.T) {
 	unset := func(k string) func() {
 		old, had := os.LookupEnv(k)
 		_ = os.Unsetenv(k)
@@ -77,12 +85,14 @@ func TestInit_MissingProjectID_ReturnsError(t *testing.T) {
 	}()
 
 	v := &VertexAIVectorSearch{}
-	err := v.Init(context.Background(), nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "requires setting GOOGLE_CLOUD_PROJECT")
+
+	// Use assert.Panics to check for panic
+	assert.Panics(t, func() {
+		v.Init(context.Background())
+	}, "Expected Init to panic when GOOGLE_CLOUD_PROJECT is not set")
 }
 
-func TestInit_MissingLocation_ReturnsError(t *testing.T) {
+func TestInit_MissingLocation_Panics(t *testing.T) {
 	restoreProj := setEnv(t, "GOOGLE_CLOUD_PROJECT", "proj")
 	defer restoreProj()
 	restoreLoc := clearEnv(t, "GOOGLE_CLOUD_LOCATION")
@@ -91,9 +101,11 @@ func TestInit_MissingLocation_ReturnsError(t *testing.T) {
 	defer restoreReg()
 
 	v := &VertexAIVectorSearch{}
-	err := v.Init(context.Background(), nil)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "requires setting GOOGLE_CLOUD_LOCATION")
+
+	// Use assert.Panics to check for panic
+	assert.Panics(t, func() {
+		v.Init(context.Background())
+	}, "Expected Init to panic when GOOGLE_CLOUD_LOCATION is not set")
 }
 
 func setEnv(t *testing.T, k, v string) func() {

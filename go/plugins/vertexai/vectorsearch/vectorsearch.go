@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -45,26 +46,21 @@ func (a *VertexAIVectorSearch) Name() string {
 // Init initializes the VertexAI plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func (v *VertexAIVectorSearch) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (v *VertexAIVectorSearch) Init(ctx context.Context) []api.Action {
 	if v == nil {
 		v = &VertexAIVectorSearch{}
 	}
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.initted {
-		return errors.New("plugin already initialized")
+		panic("plugin already initialized")
 	}
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("VertexAIVectorSearch.Init: %w", err)
-		}
-	}()
 
 	projectID := v.ProjectID
 	if projectID == "" {
 		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 		if projectID == "" {
-			return fmt.Errorf("Vertex AI requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard?project=%s", projectID)
+			panic(fmt.Errorf("Vertex AI requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard?project=%s", projectID))
 		}
 	}
 
@@ -75,18 +71,18 @@ func (v *VertexAIVectorSearch) Init(ctx context.Context, g *genkit.Genkit) (err 
 			location = os.Getenv("GOOGLE_CLOUD_REGION")
 		}
 		if location == "" {
-			return fmt.Errorf("Vertex AI requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
+			panic(fmt.Errorf("Vertex AI requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations"))
 		}
 	}
 
 	client, err := newClient(ctx)
 	if err != nil {
-		return err
+		panic(err)
 	}
 	v.client = client
 	v.initted = true
 
-	return nil
+	return []api.Action{}
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
@@ -96,7 +92,7 @@ func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, opts *ai
 		return nil, errors.New("vectorsearch plugin not found; did you call genkit.Init with the vectorsearch plugin?")
 	}
 
-	return genkit.DefineRetriever(g, vectorsearchProvider, cfg.IndexID, opts, v.Retrieve), nil
+	return genkit.DefineRetriever(g, api.NewName(vectorsearchProvider, cfg.IndexID), opts, v.Retrieve), nil
 }
 
 // Index indexes documents into a Vertex AI index.
