@@ -33,17 +33,19 @@ type StructuredResponse struct {
 	Location string
 }
 
-var r, _ = registry.New()
+var r = registry.New()
 
 func init() {
 	// Set up default formats
 	ConfigureFormats(r)
+	// Register the generate action that Generate() function expects
+	DefineGenerateAction(context.Background(), r)
 }
 
 // echoModel attributes
 var (
 	modelName = "echo"
-	metadata  = ModelInfo{
+	metadata  = ModelOptions{
 		Label: modelName,
 		Supports: &ModelSupports{
 			Multiturn:   true,
@@ -56,7 +58,7 @@ var (
 		Stage:    ModelStageDeprecated,
 	}
 
-	echoModel = DefineModel(r, "test", modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+	echoModel = DefineModel(r, "test/"+modelName, &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
 				Content: []*Part{NewTextPart("stream!")},
@@ -240,10 +242,10 @@ func TestValidMessage(t *testing.T) {
 }
 
 func TestGenerate(t *testing.T) {
-	JSON := "\n{\"subject\": \"bananas\", \"location\": \"tropics\"}\n"
+	JSON := "{\"subject\": \"bananas\", \"location\": \"tropics\"}"
 	JSONmd := "```json" + JSON + "```"
 
-	bananaModel := DefineModel(r, "test", "banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+	bananaModel := DefineModel(r, "test/banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
 				Content: []*Part{NewTextPart("stream!")},
@@ -364,13 +366,13 @@ func TestGenerate(t *testing.T) {
 			},
 		)
 
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		interruptModel := DefineModel(r, "test", "interrupt", info,
+		interruptModel := DefineModel(r, "test/interrupt", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
@@ -423,13 +425,13 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("handles multiple parallel tool calls", func(t *testing.T) {
 		roundCount := 0
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		parallelModel := DefineModel(r, "test", "parallel", info,
+		parallelModel := DefineModel(r, "test/parallel", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -488,13 +490,13 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("handles multiple rounds of tool calls", func(t *testing.T) {
 		roundCount := 0
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		multiRoundModel := DefineModel(r, "test", "multiround", info,
+		multiRoundModel := DefineModel(r, "test/multiround", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -556,13 +558,13 @@ func TestGenerate(t *testing.T) {
 	})
 
 	t.Run("exceeds maximum turns", func(t *testing.T) {
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		infiniteModel := DefineModel(r, "test", "infinite", info,
+		infiniteModel := DefineModel(r, "test/infinite", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				return &ModelResponse{
 					Request: gr,
@@ -627,7 +629,8 @@ func TestGenerate(t *testing.T) {
 		dynamicTool := NewTool("dynamicTestTool", "a tool that is dynamically registered",
 			func(ctx *ToolContext, input struct {
 				Message string
-			}) (string, error) {
+			},
+			) (string, error) {
 				return "Dynamic: " + input.Message, nil
 			},
 		)
@@ -639,13 +642,13 @@ func TestGenerate(t *testing.T) {
 
 		// Create a model that will call the dynamic tool then provide a final response
 		roundCount := 0
-		info := &ModelInfo{
+		info := &ModelOptions{
 			Supports: &ModelSupports{
 				Multiturn: true,
 				Tools:     true,
 			},
 		}
-		toolCallModel := DefineModel(r, "test", "toolcall", info,
+		toolCallModel := DefineModel(r, "test/toolcall", info,
 			func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 				roundCount++
 				if roundCount == 1 {
@@ -770,28 +773,13 @@ func TestModelVersion(t *testing.T) {
 
 func TestLookupModel(t *testing.T) {
 	t.Run("should return model", func(t *testing.T) {
-		if LookupModel(r, "test", modelName) == nil {
+		if LookupModel(r, "test/"+modelName) == nil {
 			t.Errorf("LookupModel did not return model")
 		}
 	})
 	t.Run("should return nil", func(t *testing.T) {
-		if LookupModel(r, "foo", "bar") != nil {
+		if LookupModel(r, "foo/bar") != nil {
 			t.Errorf("LookupModel did not return nil")
-		}
-	})
-}
-
-func TestLookupModelByName(t *testing.T) {
-	t.Run("should return model", func(t *testing.T) {
-		model, _ := LookupModelByName(r, "test/"+modelName)
-		if model == nil {
-			t.Errorf("LookupModelByName did not return model")
-		}
-	})
-	t.Run("should return nil", func(t *testing.T) {
-		_, err := LookupModelByName(r, "foo/bar")
-		if err == nil {
-			t.Errorf("LookupModelByName did not return error")
 		}
 	})
 }
@@ -828,7 +816,8 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		func(ctx *ToolContext, input struct {
 			Value     string
 			Interrupt bool
-		}) (string, error) {
+		},
+		) (string, error) {
 			if input.Interrupt {
 				return "", ctx.Interrupt(&InterruptOptions{
 					Metadata: map[string]any{
@@ -846,7 +835,8 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		func(ctx *ToolContext, input struct {
 			Action string
 			Data   string
-		}) (string, error) {
+		},
+		) (string, error) {
 			if ctx.Resumed != nil {
 				resumedData, ok := ctx.Resumed["data"].(string)
 				if ok {
@@ -858,14 +848,14 @@ func TestToolInterruptsAndResume(t *testing.T) {
 		},
 	)
 
-	info := &ModelInfo{
+	info := &ModelOptions{
 		Supports: &ModelSupports{
 			Multiturn: true,
 			Tools:     true,
 		},
 	}
 
-	toolModel := DefineModel(r, "test", "toolmodel", info,
+	toolModel := DefineModel(r, "test/toolmodel", info,
 		func(ctx context.Context, mr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 			return &ModelResponse{
 				Request: mr,
@@ -1095,4 +1085,72 @@ func TestToolInterruptsAndResume(t *testing.T) {
 			t.Error("expected generation to not be interrupted after restarting")
 		}
 	})
+}
+
+func TestResourceProcessing(t *testing.T) {
+	r := registry.New()
+
+	// Create test resources using DefineResource
+	DefineResource(r, "test-file", &ResourceOptions{
+		URI:         "file:///test.txt",
+		Description: "Test file resource",
+	}, func(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
+		return &ResourceOutput{Content: []*Part{NewTextPart("FILE CONTENT")}}, nil
+	})
+
+	DefineResource(r, "test-api", &ResourceOptions{
+		URI:         "api://data/123",
+		Description: "Test API resource",
+	}, func(ctx context.Context, input *ResourceInput) (*ResourceOutput, error) {
+		return &ResourceOutput{Content: []*Part{NewTextPart("API DATA")}}, nil
+	})
+
+	// Test message with resources
+	messages := []*Message{
+		NewUserMessage(
+			NewTextPart("Read this:"),
+			NewResourcePart("file:///test.txt"),
+			NewTextPart("And this:"),
+			NewResourcePart("api://data/123"),
+			NewTextPart("Done."),
+		),
+	}
+
+	// Process resources
+	processed, err := processResources(context.Background(), r, messages)
+	if err != nil {
+		t.Fatalf("resource processing failed: %v", err)
+	}
+
+	// Verify content
+	content := processed[0].Content
+	expected := []string{"Read this:", "FILE CONTENT", "And this:", "API DATA", "Done."}
+
+	if len(content) != len(expected) {
+		t.Fatalf("expected %d parts, got %d", len(expected), len(content))
+	}
+
+	for i, want := range expected {
+		if content[i].Text != want {
+			t.Fatalf("part %d: got %q, want %q", i, content[i].Text, want)
+		}
+	}
+}
+
+func TestResourceProcessingError(t *testing.T) {
+	r := registry.New()
+
+	// No resources registered
+	messages := []*Message{
+		NewUserMessage(NewResourcePart("missing://resource")),
+	}
+
+	_, err := processResources(context.Background(), r, messages)
+	if err == nil {
+		t.Fatal("expected error when no resources available")
+	}
+
+	if !strings.Contains(err.Error(), "no resource found for URI") {
+		t.Fatalf("wrong error: %v", err)
+	}
 }

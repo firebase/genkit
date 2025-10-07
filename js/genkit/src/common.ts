@@ -43,6 +43,7 @@ export {
   modelActionMetadata,
   modelRef,
   rerankerRef,
+  resource,
   retrieverRef,
   type DocumentData,
   type DynamicResourceAction,
@@ -116,7 +117,7 @@ export {
   type SessionData,
   type SessionStore,
 } from '@genkit-ai/ai/session';
-export { dynamicTool } from '@genkit-ai/ai/tool';
+export { dynamicTool, tool } from '@genkit-ai/ai/tool';
 export {
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
@@ -128,6 +129,7 @@ export {
   UserFacingError,
   defineJsonSchema,
   defineSchema,
+  getClientHeader,
   getCurrentEnv,
   getStreamingCallback,
   isDevEnv,
@@ -136,6 +138,7 @@ export {
   type Action,
   type ActionContext,
   type ActionMetadata,
+  type DynamicActionProviderAction,
   type Flow,
   type FlowConfig,
   type FlowFn,
@@ -152,3 +155,6 @@ export {
   type StreamingResponse,
   type TelemetryConfig,
 } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
+
+initNodeFeatures();

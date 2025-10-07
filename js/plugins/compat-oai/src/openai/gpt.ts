@@ -45,6 +45,7 @@ export function openAIModelRef(params: {
     ...params,
     info: params.info,
     configSchema: OpenAIChatCompletionConfigSchema,
+    namespace: 'openai',
   });
 }
 
@@ -215,6 +216,38 @@ const gpt35Turbo1106 = openAIModelRef({
   info: GPT_35_MODEL_INFO,
 });
 
+const GPT_5_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: true,
+    systemRole: true,
+    output: ['text', 'json'],
+  },
+};
+const gpt5 = openAIModelRef({
+  name: 'openai/gpt-5',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5Mini = openAIModelRef({
+  name: 'openai/gpt-5-mini',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5Nano = openAIModelRef({
+  name: 'openai/gpt-5-nano',
+  info: GPT_5_MODEL_INFO,
+});
+const gpt5ChatLatest = openAIModelRef({
+  name: 'openai/gpt-5-chat-latest',
+  info: {
+    supports: {
+      ...GPT_5_MODEL_INFO.supports,
+      tools: false,
+      output: ['text'],
+    },
+  },
+});
+
 export const SUPPORTED_GPT_MODELS = {
   'gpt-4.5': gpt45,
   'gpt-4.5-preview': gpt45Preview,
@@ -241,4 +274,8 @@ export const SUPPORTED_GPT_MODELS = {
   'gpt-3.5-turbo': gpt35Turbo,
   'gpt-3.5-turbo-0125': gpt35Turbo0125,
   'gpt-3.5-turbo-1106': gpt35Turbo1106,
+  'gpt-5': gpt5,
+  'gpt-5-mini': gpt5Mini,
+  'gpt-5-nano': gpt5Nano,
+  'gpt-5-chat-latest': gpt5ChatLatest,
 } as const;

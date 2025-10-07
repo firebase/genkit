@@ -19,7 +19,6 @@ import type {
   GenerateRequest,
   GenerateResponseChunkData,
   GenerateResponseData,
-  Genkit,
   MessageData,
   ModelReference,
   Part,
@@ -29,6 +28,7 @@ import type {
 } from 'genkit';
 import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
 import type { ModelAction, ModelInfo, ToolDefinition } from 'genkit/model';
+import { model } from 'genkit/plugin';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -244,7 +244,7 @@ export function fromOpenAIToolCall(
   }
   const f = toolCall.function;
 
-  // Only parse arugments when it is a JSON object and the finish reason is tool_calls to avoid parsing errors
+  // Only parse arguments when it is a JSON object and the finish reason is tool_calls to avoid parsing errors
   if (choice.finish_reason === 'tool_calls') {
     return {
       toolRequest: {
@@ -485,19 +485,17 @@ export function openAIModelRunner(
 export function defineCompatOpenAIModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: ModelRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef, requestBuilder } = params;
-  const modelName = name.split('/').pop();
+  const { name, client, modelRef, requestBuilder } = params;
+  const modelName = name.substring(name.indexOf('/') + 1);
 
-  return ai.defineModel(
+  return model(
     {
       name,
-      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
@@ -507,12 +505,11 @@ export function defineCompatOpenAIModel<
 
 const GENERIC_MODEL_INFO: ModelInfo = {
   supports: {
-    multiturn: false,
-    media: false,
-    tools: false,
-    toolChoice: false,
-    systemRole: false,
-    constrained: 'no-tools',
+    multiturn: true,
+    media: true,
+    tools: true,
+    toolChoice: true,
+    systemRole: true,
   },
 };
 
@@ -524,17 +521,20 @@ export function compatOaiModelRef<
   info?: ModelInfo;
   configSchema?: CustomOptions;
   config?: any;
+  namespace?: string;
 }): ModelReference<CustomOptions> {
   const {
     name,
     info = GENERIC_MODEL_INFO,
     configSchema,
     config = undefined,
+    namespace,
   } = params;
   return modelRef({
     name,
     configSchema: configSchema || (ChatCompletionCommonConfigSchema as any),
     info: info,
     config,
+    namespace,
   });
 }

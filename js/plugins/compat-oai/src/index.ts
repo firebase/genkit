@@ -14,20 +14,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { ActionMetadata, type Genkit } from 'genkit';
-import { genkitPlugin } from 'genkit/plugin';
+import { ActionMetadata } from 'genkit';
+import { ResolvableAction, genkitPluginV2 } from 'genkit/plugin';
 import { ActionType } from 'genkit/registry';
 import { OpenAI, type ClientOptions } from 'openai';
+import { compatOaiModelRef, defineCompatOpenAIModel } from './model.js';
+
+export {
+  SpeechConfigSchema,
+  TranscriptionConfigSchema,
+  compatOaiSpeechModelRef,
+  compatOaiTranscriptionModelRef,
+  defineCompatOpenAISpeechModel,
+  defineCompatOpenAITranscriptionModel,
+  type SpeechRequestBuilder,
+  type TranscriptionRequestBuilder,
+} from './audio.js';
+export { defineCompatOpenAIEmbedder } from './embedder.js';
+export {
+  ImageGenerationCommonConfigSchema,
+  compatOaiImageModelRef,
+  defineCompatOpenAIImageModel,
+  type ImageRequestBuilder,
+} from './image.js';
+export {
+  ChatCompletionCommonConfigSchema,
+  compatOaiModelRef,
+  defineCompatOpenAIModel,
+  openAIModelRunner,
+  type ModelRequestBuilder,
+} from './model.js';
 
 export interface PluginOptions extends Partial<ClientOptions> {
   name: string;
-  initializer?: (ai: Genkit, client: OpenAI) => Promise<void>;
+  initializer?: (client: OpenAI) => Promise<ResolvableAction[]>;
   resolver?: (
-    ai: Genkit,
     client: OpenAI,
     actionType: ActionType,
     actionName: string
-  ) => Promise<void>;
+  ) => Promise<ResolvableAction | undefined> | ResolvableAction | undefined;
   listActions?: (client: OpenAI) => Promise<ActionMetadata[]>;
 }
 
@@ -84,28 +109,42 @@ export interface PluginOptions extends Partial<ClientOptions> {
  * ```
  */
 export const openAICompatible = (options: PluginOptions) => {
-  const client = new OpenAI(options);
   let listActionsCache;
-  return genkitPlugin(
-    options.name,
-    async (ai: Genkit) => {
-      if (options.initializer) {
-        await options.initializer(ai, client);
+  return genkitPluginV2({
+    name: options.name,
+    async init() {
+      if (!options.initializer) {
+        return [];
       }
+      const client = new OpenAI(options);
+      return await options.initializer(client);
     },
-    async (ai: Genkit, actionType: ActionType, actionName: string) => {
+    async resolve(actionType: ActionType, actionName: string) {
+      const client = new OpenAI(options);
       if (options.resolver) {
-        await options.resolver(ai, client, actionType, actionName);
+        return await options.resolver(client, actionType, actionName);
+      } else {
+        if (actionType === 'model') {
+          return defineCompatOpenAIModel({
+            name: actionName,
+            client,
+            modelRef: compatOaiModelRef({
+              name: actionName,
+            }),
+          });
+        }
+        return undefined;
       }
     },
-    async () => {
-      if (options.listActions) {
-        if (listActionsCache) return listActionsCache;
-        listActionsCache = await options.listActions(client);
-        return listActionsCache;
-      }
-    }
-  );
+    list: options.listActions
+      ? async () => {
+          if (listActionsCache) return listActionsCache;
+          const client = new OpenAI(options);
+          listActionsCache = await options.listActions!(client);
+          return listActionsCache;
+        }
+      : undefined,
+  });
 };
 
 export default openAICompatible;

@@ -15,7 +15,7 @@
  */
 
 import * as assert from 'assert';
-import { genkit, type Genkit } from 'genkit';
+import { genkit } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
@@ -37,7 +37,10 @@ import type {
   GlobalClientOptions,
   RegionalClientOptions,
 } from '../../src/vertexai/types.js';
-import { TEST_ONLY as UTILS_TEST_ONLY } from '../../src/vertexai/utils.js';
+import {
+  NOT_SUPPORTED_IN_EXPRESS_ERROR,
+  TEST_ONLY as UTILS_TEST_ONLY,
+} from '../../src/vertexai/utils.js';
 
 describe('VertexAI Plugin', () => {
   const regionalMockDerivedOptions: RegionalClientOptions = {
@@ -60,8 +63,11 @@ describe('VertexAI Plugin', () => {
     kind: 'express' as const,
     apiKey: 'test-express-api-key',
   };
+  const notSupportedInExpressErrorMessage = {
+    message: NOT_SUPPORTED_IN_EXPRESS_ERROR.message,
+  };
 
-  let ai: Genkit;
+  let ai: any;
 
   // Default to regional options for most tests
   beforeEach(() => {
@@ -246,8 +252,8 @@ describe('VertexAI Plugin', () => {
 
     it('should return an empty array if no models are returned', async () => {
       fetchMock.mock.mockImplementation(async () => createMockResponse([]));
-      const pluginProvider = vertexAI()(ai);
-      const actions = await pluginProvider.listActions!();
+      const plugin = vertexAI();
+      const actions = await plugin.list!();
       assert.deepStrictEqual(actions, [], 'Should return an empty array');
     });
 
@@ -261,8 +267,8 @@ describe('VertexAI Plugin', () => {
       fetchMock.mock.mockImplementation(async () =>
         createMockResponse(mockModels)
       );
-      const pluginProvider = vertexAI()(ai);
-      const actions = await pluginProvider.listActions!();
+      const plugin = vertexAI();
+      const actions = await plugin.list!();
       const actionNames = actions.map((a) => a.name).sort();
       assert.deepStrictEqual(
         actionNames,
@@ -275,8 +281,8 @@ describe('VertexAI Plugin', () => {
 
     it('should call fetch with auth token and location-specific URL for local options', async () => {
       fetchMock.mock.mockImplementation(async () => createMockResponse([]));
-      const pluginProvider = vertexAI()(ai);
-      await pluginProvider.listActions!();
+      const plugin = vertexAI();
+      await plugin.list!();
 
       const fetchCall = fetchMock.mock.calls[0];
       const headers = fetchCall.arguments[1].headers;
@@ -297,8 +303,8 @@ describe('VertexAI Plugin', () => {
       UTILS_TEST_ONLY.setMockDerivedOptions(globalWithOptions);
       ai = genkit({ plugins: [vertexAI()] }); // Re-init
       fetchMock.mock.mockImplementation(async () => createMockResponse([]));
-      const pluginProvider = vertexAI()(ai);
-      await pluginProvider.listActions!();
+      const plugin = vertexAI();
+      await plugin.list!();
 
       const fetchCall = fetchMock.mock.calls[0];
       const headers = fetchCall.arguments[1].headers;
@@ -316,8 +322,8 @@ describe('VertexAI Plugin', () => {
       UTILS_TEST_ONLY.setMockDerivedOptions(expressMockDerivedOptions);
       ai = genkit({ plugins: [vertexAI()] }); // Re-init
       fetchMock.mock.mockImplementation(async () => createMockResponse([]));
-      const pluginProvider = vertexAI()(ai);
-      const actions = await pluginProvider.listActions!();
+      const plugin = vertexAI();
+      const actions = await plugin.list!();
       assert.strictEqual(actions.length, 0);
       assert.strictEqual(fetchMock.mock.calls.length, 0);
     });
@@ -580,7 +586,7 @@ describe('VertexAI Plugin', () => {
           await embedAction({
             input: [{ content: [{ text: 'test' }] }],
           });
-        }, /This method is not supported in Vertex AI Express Mode/);
+        }, notSupportedInExpressErrorMessage);
       });
 
       it('should not support Imagen predict', async () => {
@@ -595,7 +601,7 @@ describe('VertexAI Plugin', () => {
             messages: [{ role: 'user', content: [{ text: 'a cat' }] }],
             config: {},
           } as GenerateRequest);
-        }, /This method is not supported in Vertex AI Express Mode/);
+        }, notSupportedInExpressErrorMessage);
       });
     });
   });

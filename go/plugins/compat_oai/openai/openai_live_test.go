@@ -40,13 +40,10 @@ func TestPlugin(t *testing.T) {
 	oai := &compat_oai.OpenAI{
 		APIKey: apiKey,
 	}
-	g, err := genkit.Init(context.Background(),
+	g := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("openai/gpt-4o-mini"),
 		genkit.WithPlugins(oai),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	t.Log("genkit initialized")
 
 	// Define a tool for calculating gablorkens
@@ -65,7 +62,7 @@ func TestPlugin(t *testing.T) {
 	t.Run("embedder", func(t *testing.T) {
 		// define embedder
 		embedder := oai.Embedder(g, "text-embedding-3-small")
-		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
+		res, err := genkit.Embed(ctx, g, ai.WithEmbedder(embedder), ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -252,5 +249,34 @@ func TestPlugin(t *testing.T) {
 			t.Errorf("got error %q, want error containing 'unexpected config type: string'", err.Error())
 		}
 		t.Logf("invalid config type error: %v", err)
+	})
+
+	t.Run("check history", func(t *testing.T) {
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("Tell me a joke"))
+		if err != nil {
+			t.Fatal("got error: %w", err)
+		}
+		if resp.Request == nil {
+			t.Fatal("unexpected nil pointer for request")
+		}
+		if len(resp.Request.Messages) == 0 {
+			t.Fatal("expecting user messages in request")
+		}
+		resp, err = genkit.Generate(ctx, g,
+			ai.WithMessages(resp.History()...),
+			ai.WithPrompt("explain the joke that you just provided me"))
+		if err != nil {
+			t.Fatal("got error: %w", err)
+		}
+		userMsgCount := 0
+		for _, m := range resp.History() {
+			if m.Role == ai.RoleUser {
+				userMsgCount += 1
+			}
+		}
+		if userMsgCount != 2 {
+			t.Fatalf("expecting 2 user messages, got: %d", userMsgCount)
+		}
 	})
 }

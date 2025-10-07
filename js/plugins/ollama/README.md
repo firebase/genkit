@@ -1,5 +1,7 @@
 # Ollama plugin for Genkit
 
+See [official documentation](https://genkit.dev/docs/integrations/ollama/) for more.
+
 ## Installing the plugin
 
 ```bash

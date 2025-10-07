@@ -1317,7 +1317,7 @@ describe('openAIModelRunner', () => {
           completions: {
             stream: jest.fn(
               () =>
-                // Simluate OpenAI SDK request streaming
+                // Simulate OpenAI SDK request streaming
                 new (class {
                   isFirstRequest = true;
                   [Symbol.asyncIterator]() {

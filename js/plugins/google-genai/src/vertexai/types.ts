@@ -25,6 +25,8 @@ import {
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
+  GoogleMaps,
+  GoogleMapsTool,
   GoogleSearchRetrieval,
   GoogleSearchRetrievalTool,
   GroundingMetadata,
@@ -42,9 +44,11 @@ import {
   ToolConfig,
   isCodeExecutionTool,
   isFunctionDeclarationsTool,
+  isGoogleMapsTool,
   isGoogleSearchRetrievalTool,
+  isObject,
   isRetrievalTool,
-} from '../common/types';
+} from '../common/types.js';
 
 // This makes it easier to import all types from one place
 export {
@@ -54,7 +58,9 @@ export {
   TaskTypeSchema,
   isCodeExecutionTool,
   isFunctionDeclarationsTool,
+  isGoogleMapsTool,
   isGoogleSearchRetrievalTool,
+  isObject,
   isRetrievalTool,
   type CitationMetadata,
   type CodeExecutionTool,
@@ -64,6 +70,8 @@ export {
   type GenerateContentRequest,
   type GenerateContentResponse,
   type GenerateContentStreamResult,
+  type GoogleMaps,
+  type GoogleMapsTool,
   type GoogleSearchRetrieval,
   type GoogleSearchRetrievalTool,
   type GroundingMetadata,
@@ -219,10 +227,6 @@ export declare interface MultimodalEmbeddingPrediction {
   videoEmbeddings?: VideoEmbedding[];
 }
 
-export function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
 export function isMultimodalEmbeddingPrediction(
   value: unknown
 ): value is MultimodalEmbeddingPrediction {
@@ -295,3 +299,79 @@ export declare type EmbeddingResult = {
   embedding: number[];
   metadata?: Record<string, unknown>;
 };
+
+export declare interface VeoMedia {
+  bytesBase64Encoded?: string;
+  gcsUri?: string;
+  mimeType?: string;
+}
+
+export declare interface VeoInstance {
+  prompt: string;
+  image?: VeoMedia;
+  lastFrame?: VeoMedia;
+  video?: VeoMedia;
+}
+
+export declare interface VeoParameters {
+  aspectRatio?: string;
+  durationSeconds?: number;
+  enhancePrompt?: boolean;
+  generateAudio?: boolean;
+  negativePrompt?: string;
+  personGeneration?: string;
+  resolution?: string; // Veo 3
+  sampleCount?: number;
+  seed?: number;
+  storageUri?: string;
+}
+
+export declare interface VeoPredictRequest {
+  instances: VeoInstance[];
+  parameters: VeoParameters;
+}
+
+export declare interface Operation {
+  name: string;
+  done?: boolean;
+  error?: {
+    code: number;
+    message: string;
+    details?: unknown;
+  };
+}
+
+export declare interface VeoOperation extends Operation {
+  response?: {
+    raiMediaFilteredCount?: number;
+    videos: VeoMedia[];
+  };
+}
+
+export declare interface VeoOperationRequest {
+  operationName: string;
+}
+
+export declare interface LyriaParameters {
+  sampleCount?: number;
+}
+
+export declare interface LyriaPredictRequest {
+  instances: LyriaInstance[];
+  parameters: LyriaParameters;
+}
+
+export declare interface LyriaPredictResponse {
+  predictions: LyriaPrediction[];
+}
+
+export declare interface LyriaPrediction {
+  bytesBase64Encoded: string; // Base64 encoded Wav string
+  mimeType: string; // audio/wav
+}
+
+export declare interface LyriaInstance {
+  prompt: string;
+  negativePrompt?: string;
+  seed?: number;
+}

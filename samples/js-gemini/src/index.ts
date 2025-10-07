@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import googleAI from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { genkit, MediaPart, z } from 'genkit';
+import { MediaPart, genkit, z } from 'genkit';
 import { Readable } from 'stream';
 import wav from 'wav';
 
@@ -218,11 +218,18 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   return message;
 });
 
-// Image generation with Gemini.
-ai.defineFlow('gemini-image-generation', async (_, { sendChunk }) => {
+// Image editing with Gemini.
+ai.defineFlow('gemini-image-editing', async (_) => {
+  const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
+  const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
+
   const { media } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash-preview-image-generation'),
-    prompt: `generate an image of a banana riding bicycle`,
+    model: googleAI.model('gemini-2.5-flash-image-preview'),
+    prompt: [
+      { text: 'add the plant to my room' },
+      { media: { url: `data:image/png;base64,${plant}` } },
+      { media: { url: `data:image/png;base64,${room}` } },
+    ],
     config: {
       responseModalities: ['TEXT', 'IMAGE'],
     },
@@ -235,7 +242,7 @@ ai.defineFlow('gemini-image-generation', async (_, { sendChunk }) => {
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
     model: googleAI.model('imagen-3.0-generate-002'),
-    prompt: `generate an image of a banana riding bicycle`,
+    prompt: `generate an image of a banana riding a bicycle`,
   });
 
   return media;
@@ -358,10 +365,18 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   return operation;
 });
 
+function getApiKeyFromEnvVar(): string | undefined {
+  return (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY
+  );
+}
+
 async function downloadVideo(video: MediaPart, path: string) {
   const fetch = (await import('node-fetch')).default;
   const videoDownloadResponse = await fetch(
-    `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
+    `${video.media!.url}&key=${getApiKeyFromEnvVar()}`
   );
   if (
     !videoDownloadResponse ||

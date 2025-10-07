@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  ActionMetadata,
-  Genkit,
-  GenkitError,
-  modelActionMetadata,
-  z,
-} from 'genkit';
+import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -32,6 +26,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
+import { model as pluginModel } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import {
   fromGeminiCandidate,
@@ -39,12 +34,12 @@ import {
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
-} from '../common/converters';
+} from '../common/converters.js';
 import {
   generateContent,
   generateContentStream,
   getGoogleAIUrl,
-} from './client';
+} from './client.js';
 import {
   ClientOptions,
   Content as GeminiMessage,
@@ -57,33 +52,35 @@ import {
   SafetySetting,
   Tool,
   ToolConfig,
-} from './types';
+} from './types.js';
 import {
   calculateApiKey,
   checkApiKey,
   checkModelName,
   cleanSchema,
   extractVersion,
-} from './utils';
+} from './utils.js';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
  */
-const SafetySettingsSchema = z.object({
-  category: z.enum([
-    'HARM_CATEGORY_UNSPECIFIED',
-    'HARM_CATEGORY_HATE_SPEECH',
-    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-    'HARM_CATEGORY_HARASSMENT',
-    'HARM_CATEGORY_DANGEROUS_CONTENT',
-  ]),
-  threshold: z.enum([
-    'BLOCK_LOW_AND_ABOVE',
-    'BLOCK_MEDIUM_AND_ABOVE',
-    'BLOCK_ONLY_HIGH',
-    'BLOCK_NONE',
-  ]),
-});
+const SafetySettingsSchema = z
+  .object({
+    category: z.enum([
+      'HARM_CATEGORY_UNSPECIFIED',
+      'HARM_CATEGORY_HATE_SPEECH',
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_HARASSMENT',
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+    ]),
+    threshold: z.enum([
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+    ]),
+  })
+  .passthrough();
 
 const VoiceConfigSchema = z
   .object({
@@ -174,6 +171,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .passthrough()
     .optional(),
   responseModalities: z
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
@@ -204,6 +202,33 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .describe(
       GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
     )
+    .optional(),
+  thinkingConfig: z
+    .object({
+      includeThoughts: z
+        .boolean()
+        .describe(
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only if the model supports ' +
+            'thought and thoughts are available.'
+        )
+        .optional(),
+      thinkingBudget: z
+        .number()
+        .min(0)
+        .max(24576)
+        .describe(
+          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+            '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
+            'dependent. The thinking budget parameter gives the model guidance ' +
+            'on the number of thinking tokens it can use when generating a ' +
+            'response. A greater number of tokens is typically associated with ' +
+            'more detailed thinking, which is needed for solving more complex ' +
+            'tasks. '
+        )
+        .optional(),
+    })
+    .passthrough()
     .optional(),
 }).passthrough();
 export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
@@ -307,6 +332,7 @@ const KNOWN_GEMINI_MODELS = {
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
+  'gemini-2.5-flash-image-preview': commonRef('gemini-2.5-flash-image-preview'),
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
   'gemini-2.0-flash-preview-image-generation': commonRef(
     'gemini-2.0-flash-preview-image-generation'
@@ -407,17 +433,16 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, options);
-  }
+export function listKnownModels(options?: GoogleAIPluginOptions) {
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, options)
+  );
 }
 
 /**
  * Defines a new GoogleAI Gemini model.
  */
 export function defineModel(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): ModelAction {
@@ -455,9 +480,8 @@ export function defineModel(
     );
   }
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
@@ -621,6 +645,7 @@ export function defineModel(
             ...getBasicUsageStats(request.messages, candidateData),
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
+            thoughtsTokens: response.usageMetadata?.thoughtsTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
             cachedContentTokens:
               response.usageMetadata?.cachedContentTokenCount,
@@ -632,7 +657,6 @@ export function defineModel(
       // API params as for input.
       return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
-            ai.registry,
             {
               metadata: {
                 name: streamingRequested ? 'sendMessageStream' : 'sendMessage',

@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  ActionMetadata,
-  Genkit,
-  GenkitError,
-  modelActionMetadata,
-  z,
-} from 'genkit';
+import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -32,6 +26,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
+import { model as pluginModel } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import {
   fromGeminiCandidate,
@@ -39,13 +34,13 @@ import {
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
-} from '../common/converters';
+} from '../common/converters.js';
 import {
   generateContent,
   generateContentStream,
   getVertexAIUrl,
-} from './client';
-import { toGeminiLabels, toGeminiSafetySettings } from './converters';
+} from './client.js';
+import { toGeminiLabels, toGeminiSafetySettings } from './converters.js';
 import {
   ClientOptions,
   Content,
@@ -57,72 +52,79 @@ import {
   Tool,
   ToolConfig,
   VertexPluginOptions,
-} from './types';
+} from './types.js';
 import {
   calculateApiKey,
   checkModelName,
   cleanSchema,
   extractVersion,
   modelName,
-} from './utils';
+} from './utils.js';
 
-export const SafetySettingsSchema = z.object({
-  category: z.enum([
-    /** The harm category is unspecified. */
-    'HARM_CATEGORY_UNSPECIFIED',
-    /** The harm category is hate speech. */
-    'HARM_CATEGORY_HATE_SPEECH',
-    /** The harm category is dangerous content. */
-    'HARM_CATEGORY_DANGEROUS_CONTENT',
-    /** The harm category is harassment. */
-    'HARM_CATEGORY_HARASSMENT',
-    /** The harm category is sexually explicit content. */
-    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-  ]),
-  threshold: z.enum([
-    'BLOCK_LOW_AND_ABOVE',
-    'BLOCK_MEDIUM_AND_ABOVE',
-    'BLOCK_ONLY_HIGH',
-    'BLOCK_NONE',
-  ]),
-});
+export const SafetySettingsSchema = z
+  .object({
+    category: z.enum([
+      /** The harm category is unspecified. */
+      'HARM_CATEGORY_UNSPECIFIED',
+      /** The harm category is hate speech. */
+      'HARM_CATEGORY_HATE_SPEECH',
+      /** The harm category is dangerous content. */
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+      /** The harm category is harassment. */
+      'HARM_CATEGORY_HARASSMENT',
+      /** The harm category is sexually explicit content. */
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+    ]),
+    threshold: z.enum([
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+    ]),
+  })
+  .passthrough();
 
-const VertexRetrievalSchema = z.object({
-  datastore: z
-    .object({
-      projectId: z.string().describe('Google Cloud Project ID.').optional(),
-      location: z
-        .string()
-        .describe('Google Cloud region e.g. us-central1.')
-        .optional(),
-      dataStoreId: z
-        .string()
-        .describe(
-          'The data store id, when project id and location are provided as ' +
-            'separate options. Alternatively, the full path to the data ' +
-            'store should be provided in the form: "projects/{project}/' +
-            'locations/{location}/collections/default_collection/dataStores/{data_store}".'
-        ),
-    })
-    .describe('Vertex AI Search data store details'),
-  disableAttribution: z
-    .boolean()
-    .describe(
-      'Disable using the search data in detecting grounding attribution. This ' +
-        'does not affect how the result is given to the model for generation.'
-    )
-    .optional(),
-});
+const VertexRetrievalSchema = z
+  .object({
+    datastore: z
+      .object({
+        projectId: z.string().describe('Google Cloud Project ID.').optional(),
+        location: z
+          .string()
+          .describe('Google Cloud region e.g. us-central1.')
+          .optional(),
+        dataStoreId: z
+          .string()
+          .describe(
+            'The data store id, when project id and location are provided as ' +
+              'separate options. Alternatively, the full path to the data ' +
+              'store should be provided in the form: "projects/{project}/' +
+              'locations/{location}/collections/default_collection/dataStores/{data_store}".'
+          ),
+      })
+      .describe('Vertex AI Search data store details')
+      .passthrough(),
+    disableAttribution: z
+      .boolean()
+      .describe(
+        'Disable using the search data in detecting grounding attribution. This ' +
+          'does not affect how the result is given to the model for generation.'
+      )
+      .optional(),
+  })
+  .passthrough();
 
-const GoogleSearchRetrievalSchema = z.object({
-  disableAttribution: z
-    .boolean()
-    .describe(
-      'Disable using the search data in detecting grounding attribution. This ' +
-        'does not affect how the result is given to the model for generation.'
-    )
-    .optional(),
-});
+const GoogleSearchRetrievalSchema = z
+  .object({
+    disableAttribution: z
+      .boolean()
+      .describe(
+        'Disable using the search data in detecting grounding attribution. This ' +
+          'does not affect how the result is given to the model for generation.'
+      )
+      .optional(),
+  })
+  .passthrough();
 
 /**
  * Zod schema of Gemini model options.
@@ -259,6 +261,57 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .passthrough()
+    .optional(),
+  /**
+   * Retrieval config for search grounding and maps grounding
+   */
+  retrievalConfig: z
+    .object({
+      /**
+       * User location for search grounding or
+       * place location for maps grounding.
+       */
+      latLng: z
+        .object({
+          latitude: z.number().optional(),
+          longitude: z.number().optional(),
+        })
+        .describe('User location for Google search or Google maps grounding.')
+        .optional(),
+      /**
+       * Language code for the request. e.g. 'en-us'
+       */
+      languageCode: z.string().optional(),
+    })
+    .passthrough()
+    .optional(),
+  thinkingConfig: z
+    .object({
+      includeThoughts: z
+        .boolean()
+        .describe(
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only if the model supports ' +
+            'thought and thoughts are available.'
+        )
+        .optional(),
+      thinkingBudget: z
+        .number()
+        .min(0)
+        .max(24576)
+        .describe(
+          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+            '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
+            'dependent. The thinking budget parameter gives the model guidance ' +
+            'on the number of thinking tokens it can use when generating a ' +
+            'response. A greater number of tokens is typically associated with ' +
+            'more detailed thinking, which is needed for solving more complex ' +
+            'tasks. '
+        )
+        .optional(),
+    })
+    .passthrough()
     .optional(),
 }).passthrough();
 export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
@@ -377,21 +430,19 @@ export function listActions(models: Model[]): ActionMetadata[] {
     });
 }
 
-export function defineKnownModels(
-  ai: Genkit,
+export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, clientOptions, pluginOptions);
-  }
+  return Object.keys(KNOWN_MODELS).map((name) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
 }
 
 /**
  * Define a Vertex AI Gemini model.
  */
 export function defineModel(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
@@ -420,9 +471,8 @@ export function defineModel(
     );
   }
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
@@ -448,6 +498,7 @@ export function defineModel(
       const {
         apiKey: apiKeyFromConfig,
         functionCallingConfig,
+        retrievalConfig,
         version: versionFromConfig,
         googleSearchRetrieval,
         tools: toolsFromConfig,
@@ -517,6 +568,13 @@ export function defineModel(
             mode: toGeminiFunctionModeEnum(request.toolChoice),
           },
         };
+      }
+
+      if (retrievalConfig) {
+        if (!toolConfig) {
+          toolConfig = {};
+        }
+        toolConfig.retrievalConfig = structuredClone(retrievalConfig);
       }
 
       // Cannot use tools and function calling at the same time
@@ -643,6 +701,7 @@ export function defineModel(
             ...getBasicUsageStats(request.messages, candidateData),
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
+            thoughtsTokens: response.usageMetadata?.thoughtsTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
             cachedContentTokens:
               response.usageMetadata?.cachedContentTokenCount,
@@ -655,7 +714,6 @@ export function defineModel(
       const msg = toGeminiMessage(messages[messages.length - 1], ref);
       return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
-            ai.registry,
             {
               metadata: {
                 name: streamingRequested ? 'sendMessageStream' : 'sendMessage',

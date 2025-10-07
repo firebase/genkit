@@ -38,10 +38,7 @@ func main() {
 	ctx := context.Background()
 
 	// Initialize Genkit
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		log.Fatal("Failed to initialize Genkit:", err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Create Files API client
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{

@@ -27,6 +27,7 @@ import {
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type ReasoningPart,
   type ResourcePart,
   type TextPart,
   type ToolRequestPart,
@@ -36,6 +37,7 @@ export {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
+  ReasoningPartSchema,
   ResourcePartSchema,
   TextPartSchema,
   ToolRequestPartSchema,
@@ -43,6 +45,7 @@ export {
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type ReasoningPart,
   type ResourcePart,
   type TextPart,
   type ToolRequestPart,
@@ -403,5 +406,7 @@ export const GenerateActionOptionsSchema = z.object({
   returnToolRequests: z.boolean().optional(),
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
   maxTurns: z.number().optional(),
+  /** Custom step name for this generate call to display in trace views. Defaults to "generate". */
+  stepName: z.string().optional(),
 });
 export type GenerateActionOptions = z.infer<typeof GenerateActionOptionsSchema>;

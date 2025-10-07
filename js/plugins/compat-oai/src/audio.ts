@@ -17,11 +17,11 @@
 import type {
   GenerateRequest,
   GenerateResponseData,
-  Genkit,
   ModelReference,
 } from 'genkit';
 import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
 import type { ModelAction, ModelInfo } from 'genkit/model';
+import { model } from 'genkit/plugin';
 import type OpenAI from 'openai';
 import { Response } from 'openai/core.mjs';
 import type {
@@ -181,24 +181,22 @@ async function toGenerateResponse(
 export function defineCompatOpenAISpeechModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: SpeechRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef, requestBuilder } = params;
+  const { name, client, modelRef, requestBuilder } = params;
+  const modelName = name.substring(name.indexOf('/') + 1);
 
-  const model = name.split('/').pop();
-  return ai.defineModel(
+  return model(
     {
       name,
-      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const ttsRequest = toTTSRequest(model!, request, requestBuilder);
+      const ttsRequest = toTTSRequest(modelName!, request, requestBuilder);
       const result = await client.audio.speech.create(ttsRequest, {
         signal: abortSignal,
       });
@@ -216,18 +214,21 @@ export function compatOaiSpeechModelRef<
   info?: ModelInfo;
   configSchema?: CustomOptions;
   config?: any;
+  namespace?: string;
 }) {
   const {
     name,
     info = SPEECH_MODEL_INFO,
     configSchema,
     config = undefined,
+    namespace,
   } = params;
   return modelRef({
     name,
     configSchema: configSchema || (SpeechConfigSchema as any),
     info,
     config,
+    namespace,
   });
 }
 
@@ -335,23 +336,22 @@ function transcriptionToGenerateResponse(
 export function defineCompatOpenAITranscriptionModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
   requestBuilder?: TranscriptionRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef, requestBuilder } = params;
+  const { name, client, modelRef, requestBuilder } = params;
 
-  return ai.defineModel(
+  return model(
     {
       name,
-      apiVersion: 'v2',
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
     async (request, { abortSignal }) => {
-      const modelName = name.split('/').pop();
+      const modelName = name.substring(name.indexOf('/') + 1);
+
       const params = toSttRequest(modelName!, request, requestBuilder);
       // Explicitly setting stream to false ensures we use the non-streaming overload
       const result = await client.audio.transcriptions.create(
@@ -375,17 +375,20 @@ export function compatOaiTranscriptionModelRef<
   info?: ModelInfo;
   configSchema?: CustomOptions;
   config?: any;
+  namespace?: string;
 }) {
   const {
     name,
     info = TRANSCRIPTION_MODEL_INFO,
     configSchema,
     config = undefined,
+    namespace,
   } = params;
   return modelRef({
     name,
     configSchema: configSchema || (TranscriptionConfigSchema as any),
     info,
     config,
+    namespace,
   });
 }
