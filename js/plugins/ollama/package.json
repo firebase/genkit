@@ -18,7 +18,7 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "find tests -name 'model_test.ts' ! -name '*_live_test.ts' -exec node --import tsx --test {} +",
+    "test": "find tests -name '*_test.ts' ! -name '*_live_test.ts' -exec node --import tsx --test {} +",
     "test:live": "node --import tsx --test tests/*_test.ts"
   },
   "repository": {
