@@ -72,6 +72,62 @@ export type OllamaPlugin = {
   embedder(name: string, config?: Record<string, any>): EmbedderReference;
 };
 
+function ollamaPlugin(params?: OllamaPluginParams): GenkitPluginV2 {
+  if (!params) {
+    params = {};
+  }
+  if (!params.serverAddress) {
+    params.serverAddress = DEFAULT_OLLAMA_SERVER_ADDRESS;
+  }
+  const serverAddress = params.serverAddress;
+
+  return genkitPluginV2({
+    name: 'ollama',
+    init() {
+      const actions: ResolvableAction[] = [];
+
+      if (params?.models) {
+        for (const model of params.models) {
+          actions.push(
+            createOllamaModel(model, serverAddress, params.requestHeaders)
+          );
+        }
+      }
+
+      if (params?.embedders && params.serverAddress) {
+        for (const embedder of params.embedders) {
+          actions.push(
+            defineOllamaEmbedder({
+              name: embedder.name,
+              modelName: embedder.name,
+              dimensions: embedder.dimensions,
+              options: { ...params, serverAddress },
+            })
+          );
+        }
+      }
+
+      return actions;
+    },
+    async resolve(actionType, actionName) {
+      // dynamically resolve models, for embedders user must provide dimensions.
+      if (actionType === 'model') {
+        return await createOllamaModel(
+          {
+            name: actionName,
+          },
+          serverAddress,
+          params?.requestHeaders
+        );
+      }
+      return undefined;
+    },
+    async list() {
+      return await listActions(serverAddress, params?.requestHeaders);
+    },
+  });
+}
+
 async function listActions(
   serverAddress: string,
   requestHeaders?: RequestHeaders
@@ -260,62 +316,6 @@ function createOllamaModel(
   );
 }
 
-function ollamaPlugin(params?: OllamaPluginParams): GenkitPluginV2 {
-  if (!params) {
-    params = {};
-  }
-  if (!params.serverAddress) {
-    params.serverAddress = DEFAULT_OLLAMA_SERVER_ADDRESS;
-  }
-  const serverAddress = params.serverAddress;
-
-  return genkitPluginV2({
-    name: 'ollama',
-    init() {
-      const actions: ResolvableAction[] = [];
-
-      if (params?.models) {
-        for (const model of params.models) {
-          actions.push(
-            createOllamaModel(model, serverAddress, params.requestHeaders)
-          );
-        }
-      }
-
-      if (params?.embedders && params.serverAddress) {
-        for (const embedder of params.embedders) {
-          actions.push(
-            defineOllamaEmbedder({
-              name: embedder.name,
-              modelName: embedder.name,
-              dimensions: embedder.dimensions,
-              options: { ...params, serverAddress },
-            })
-          );
-        }
-      }
-
-      return actions;
-    },
-    async resolve(actionType, actionName) {
-      // dynamically resolve models, for embedders user must provide dimensions.
-      if (actionType === 'model') {
-        return await createOllamaModel(
-          {
-            name: actionName,
-          },
-          serverAddress,
-          params?.requestHeaders
-        );
-      }
-      return undefined;
-    },
-    async list() {
-      return await listActions(serverAddress, params?.requestHeaders);
-    },
-  });
-}
-
 function parseMessage(response: any, type: ApiType): MessageData {
   if (response.error) {
     throw new Error(response.error);
@@ -480,7 +480,7 @@ function toGenkitToolRequest(tool_calls: OllamaToolCall[]): ToolRequestPart[] {
   }));
 }
 
-function readChunks(reader) {
+function readChunks(reader: ReadableStreamDefaultReader<Uint8Array>) {
   return {
     async *[Symbol.asyncIterator]() {
       let readResult = await reader.read();
@@ -521,7 +521,8 @@ ollama.model = (
   config?: z.infer<typeof OllamaConfigSchema>
 ): ModelReference<typeof OllamaConfigSchema> => {
   return modelRef({
-    name: `ollama/${name}`,
+    name,
+    namespace: 'ollama',
     config,
     configSchema: OllamaConfigSchema,
   });
@@ -531,7 +532,8 @@ ollama.embedder = (
   config?: Record<string, any>
 ): EmbedderReference => {
   return embedderRef({
-    name: `ollama/${name}`,
+    name,
+    namespace: 'ollama',
     config,
   });
 };
