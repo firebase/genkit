@@ -521,8 +521,7 @@ ollama.model = (
   config?: z.infer<typeof OllamaConfigSchema>
 ): ModelReference<typeof OllamaConfigSchema> => {
   return modelRef({
-    name,
-    namespace: 'ollama',
+    name: `ollama/${name}`,
     config,
     configSchema: OllamaConfigSchema,
   });
@@ -532,8 +531,7 @@ ollama.embedder = (
   config?: Record<string, any>
 ): EmbedderReference => {
   return embedderRef({
-    name,
-    namespace: 'ollama',
+    name: `ollama/${name}`,
     config,
   });
 };
