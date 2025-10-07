@@ -73,6 +73,7 @@ func LookupBackgroundModel(r api.Registry, name string) BackgroundModel {
 	if action == nil {
 		return nil
 	}
+
 	return &backgroundModel{*action}
 }
 
@@ -141,28 +142,7 @@ func NewBackgroundModel(name string, opts *BackgroundModelOptions, startFn Start
 			return nil, err
 		}
 
-		if resp.Operation == nil {
-			return nil, core.NewError(core.FAILED_PRECONDITION, "background model did not produce an operation")
-		}
-
-		op := &ModelOperation{
-			Action:   resp.Operation.Action,
-			ID:       resp.Operation.Id,
-			Done:     resp.Operation.Done,
-			Metadata: resp.Operation.Metadata,
-		}
-
-		if resp.Operation.Error != nil {
-			op.Error = errors.New(resp.Operation.Error.Message)
-		}
-
-		if resp.Operation.Output != nil {
-			if modelResp, ok := resp.Operation.Output.(*ModelResponse); ok {
-				op.Output = modelResp
-			}
-		}
-
-		return op, nil
+		return modelOpFromResponse(resp)
 	}
 
 	return &backgroundModel{*core.NewBackgroundAction(name, api.ActionTypeBackgroundModel, metadata, wrappedFn, checkFn, opts.Cancel)}
@@ -182,30 +162,7 @@ func GenerateOperation(ctx context.Context, r *registry.Registry, opts ...Genera
 		return nil, err
 	}
 
-	if resp.Operation == nil {
-		return nil, core.NewError(core.FAILED_PRECONDITION, "model did not return an operation")
-	}
-
-	op := &ModelOperation{
-		Action:   resp.Operation.Action,
-		ID:       resp.Operation.Id,
-		Done:     resp.Operation.Done,
-		Metadata: resp.Operation.Metadata,
-	}
-
-	if resp.Operation.Error != nil {
-		op.Error = errors.New(resp.Operation.Error.Message)
-	}
-
-	if op.Done {
-		if modelResp, ok := resp.Operation.Output.(*ModelResponse); ok {
-			op.Output = modelResp
-		} else {
-			return nil, core.NewError(core.INTERNAL, "operation output is not a model response")
-		}
-	}
-
-	return op, nil
+	return modelOpFromResponse(resp)
 }
 
 // CheckModelOperation checks the status of a background model operation by looking up the model and calling its Check method.
@@ -220,6 +177,7 @@ func backgroundModelToModelFn(startFn StartModelOpFunc) ModelFunc {
 		if err != nil {
 			return nil, err
 		}
+
 		return &ModelResponse{
 			Operation: &Operation{
 				Action:   op.Action,
@@ -232,4 +190,32 @@ func backgroundModelToModelFn(startFn StartModelOpFunc) ModelFunc {
 			Request: req,
 		}, nil
 	}
+}
+
+// modelOpFromResponse extracts a [ModelOperation] from a [ModelResponse].
+func modelOpFromResponse(resp *ModelResponse) (*ModelOperation, error) {
+	if resp.Operation == nil {
+		return nil, core.NewError(core.FAILED_PRECONDITION, "background model did not return an operation")
+	}
+
+	op := &ModelOperation{
+		Action:   resp.Operation.Action,
+		ID:       resp.Operation.Id,
+		Done:     resp.Operation.Done,
+		Metadata: resp.Operation.Metadata,
+	}
+
+	if resp.Operation.Error != nil {
+		op.Error = errors.New(resp.Operation.Error.Message)
+	}
+
+	if op.Done && resp.Operation.Output != nil {
+		if modelResp, ok := resp.Operation.Output.(*ModelResponse); ok {
+			op.Output = modelResp
+		} else {
+			return nil, core.NewError(core.INTERNAL, "operation output is not a model response")
+		}
+	}
+
+	return op, nil
 }
