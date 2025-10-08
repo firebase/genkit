@@ -23,7 +23,35 @@ from pathlib import Path
 
 import pytest
 
-from genkit.ai import Genkit
+from genkit.dotprompt import load_prompt_dir, aload_prompt_dir
+
+
+class FakeDotprompt:
+    def __init__(self):
+        self.partials: dict[str, str] = {}
+
+    # match methods used by loader
+    def definePartial(self, name: str, source: str) -> None:  # noqa: N802 (external style)
+        self.partials[name] = source
+
+    def defineHelper(self, name: str, fn):  # noqa: N802
+        # Not used in these tests
+        pass
+
+    def parse(self, source: str):
+        # Return the source to keep it simple for testing
+        return {'template': source}
+
+    async def renderMetadata(self, parsed):  # noqa: N802
+        # Return a minimal metadata structure similar to JS
+        return {
+            'model': 'echoModel',
+            'config': {},
+            'input': {'schema': {'type': 'object', 'description': None}},
+            'output': {'schema': {'type': 'object', 'description': None}},
+            'raw': {},
+            'metadata': {},
+        }
 
 
 def _write(path: Path, content: str) -> None:
@@ -69,9 +97,8 @@ def test_load_prompt_dir_parses_files_and_variants(tmp_path: Path) -> None:
         _simple_prompt_frontmatter() + "Bye {{name}}.\n",
     )
 
-    ai = Genkit(model='echoModel')
-
-    loaded = ai.load_prompt_dir(str(prompts_dir))
+    dp = FakeDotprompt()
+    loaded = load_prompt_dir(dp, str(prompts_dir))
 
     # Keys should mirror JS: name.variant with subdir prefix in name
     assert set(loaded.keys()) == {"hello", "my.formal", "sub/bye"}
@@ -96,9 +123,8 @@ async def test_aload_prompt_dir_renders_metadata(tmp_path: Path) -> None:
         _simple_prompt_frontmatter() + "This is a prompt that renders metadata.\n",
     )
 
-    ai = Genkit(model='echoModel')
-
-    loaded = await ai.aload_prompt_dir(str(prompts_dir), with_metadata=True)
+    dp = FakeDotprompt()
+    loaded = await aload_prompt_dir(dp, str(prompts_dir), with_metadata=True)
 
     assert "info" in loaded
     assert loaded["info"].metadata is not None
@@ -113,8 +139,8 @@ def test_name_and_variant_parsing_with_multiple_dots(tmp_path: Path) -> None:
         _simple_prompt_frontmatter() + "Testing names with multiple dots.\n",
     )
 
-    ai = Genkit(model='echoModel')
-    loaded = ai.load_prompt_dir(str(prompts_dir))
+    dp = FakeDotprompt()
+    loaded = load_prompt_dir(dp, str(prompts_dir))
 
     # Current behavior matches JS-like split: name=a, variant=b; the rest is ignored.
     assert set(loaded.keys()) == {"a.b"}
