@@ -5,8 +5,7 @@
 # You may obtain a copy of the License at
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
+## Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
@@ -146,5 +145,60 @@ def test_name_and_variant_parsing_with_multiple_dots(tmp_path: Path) -> None:
     assert set(loaded.keys()) == {"a.b"}
     assert loaded["a.b"].id.name == "a"
     assert loaded["a.b"].id.variant == "b"
+
+
+def test_registry_definition_key_and_ns(tmp_path: Path) -> None:
+    prompts_dir = tmp_path / 'prompts'
+    _write(
+        prompts_dir / 'sub' / 'a.formal.prompt',
+        _simple_prompt_frontmatter() + "A.\n",
+    )
+
+    from genkit.dotprompt import load_prompt_dir, registry_definition_key
+
+    dp = FakeDotprompt()
+    loaded = load_prompt_dir(dp, str(prompts_dir), ns='myNS')
+
+    # Name should include subdir prefix; ns should be appended as "myNS"
+    key = registry_definition_key('sub/a', 'formal', 'myNS')
+    assert key in loaded
+    assert loaded[key].id.name == 'sub/a'
+    assert loaded[key].id.variant == 'formal'
+    assert loaded[key].id.ns == 'myNS'
+
+
+@pytest.mark.asyncio
+async def test_single_file_load_with_metadata(tmp_path: Path) -> None:
+    file_path = tmp_path / 'single.prompt'
+    _write(file_path, _simple_prompt_frontmatter() + "Single.\n")
+
+    from genkit.dotprompt import aload_prompt_file
+
+    dp = FakeDotprompt()
+    loaded = await aload_prompt_file(dp, str(file_path), ns='n1', with_metadata=True)
+
+    assert loaded.id.name == 'single'
+    assert loaded.id.variant is None
+    assert loaded.id.ns == 'n1'
+    assert loaded.metadata is not None
+
+
+@pytest.mark.asyncio
+async def test_variant_in_subdir_with_ns_and_metadata(tmp_path: Path) -> None:
+    prompts_dir = tmp_path / 'prompts'
+    _write(
+        prompts_dir / 'nested' / 'foo.bar.prompt',
+        _simple_prompt_frontmatter() + "Nested Variant.\n",
+    )
+
+    from genkit.dotprompt import aload_prompt_dir
+
+    dp = FakeDotprompt()
+    loaded = await aload_prompt_dir(dp, str(prompts_dir), ns='nsX', with_metadata=True)
+
+    # Expect key: nsX/subdir/name.variant with our builder behavior
+    assert 'nsX/nested/foo.bar' in [
+        f"{p.id.ns}/{p.id.name}{'.' + p.id.variant if p.id.variant else ''}" for p in loaded.values()
+    ]
 
 
