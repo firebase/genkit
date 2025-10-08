@@ -429,6 +429,8 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 // toGeminiTools translates a slice of [ai.ToolDefinition] to a slice of [genai.Tool].
 func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
+	functions := []*genai.FunctionDeclaration{}
+
 	for _, t := range inTools {
 		if !validToolName(t.Name) {
 			return nil, fmt.Errorf(`invalid tool name: %q, must start with a letter or an underscore, must be alphanumeric, underscores, dots or dashes with a max length of 64 chars`, t.Name)
@@ -442,8 +444,13 @@ func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 			Parameters:  inputSchema,
 			Description: t.Description,
 		}
-		outTools = append(outTools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
+		functions = append(functions, fd)
 	}
+
+	outTools = append(outTools, &genai.Tool{
+		FunctionDeclarations: functions,
+	})
+
 	return outTools, nil
 }
 
