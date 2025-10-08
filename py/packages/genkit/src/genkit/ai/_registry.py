@@ -74,6 +74,15 @@ from genkit.core.typing import (
     ToolChoice,
 )
 
+# Optional, non-invasive helpers to load `.prompt` files via standalone handler
+from genkit.dotprompt import (
+    load_prompt_dir as dp_load_prompt_dir,
+    aload_prompt_dir as dp_aload_prompt_dir,
+    load_prompt_file as dp_load_prompt_file,
+    aload_prompt_file as dp_aload_prompt_file,
+)
+from genkit.dotprompt.types import LoadedPrompt
+
 EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'
 EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
 EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled'
@@ -102,6 +111,27 @@ class GenkitRegistry:
     def __init__(self):
         """Initialize the Genkit registry."""
         self.registry: Registry = Registry()
+
+    # --- Dotprompt file-loading helpers (no registration, no side-effects) ---
+    def load_prompt_dir(self, dir: str, ns: str | None = None) -> dict[str, LoadedPrompt]:
+        """Synchronously scan a directory and parse `.prompt` files.
+
+        Mirrors JS folder scanning behavior (partials, subdir prefixing), but does
+        not auto-register or render metadata.
+        """
+        return dp_load_prompt_dir(self.registry.dotprompt, dir, ns)
+
+    async def aload_prompt_dir(self, dir: str, ns: str | None = None, *, with_metadata: bool = True) -> dict[str, LoadedPrompt]:
+        """Asynchronously scan a directory and optionally render metadata."""
+        return await dp_aload_prompt_dir(self.registry.dotprompt, dir, ns, with_metadata=with_metadata)
+
+    def load_prompt_file(self, file_path: str, ns: str | None = None) -> LoadedPrompt:
+        """Synchronously parse a single `.prompt` file (no metadata)."""
+        return dp_load_prompt_file(self.registry.dotprompt, file_path, ns)
+
+    async def aload_prompt_file(self, file_path: str, ns: str | None = None, *, with_metadata: bool = True) -> LoadedPrompt:
+        """Asynchronously parse a single `.prompt` file and optionally render metadata."""
+        return await dp_aload_prompt_file(self.registry.dotprompt, file_path, ns, with_metadata=with_metadata)
 
     def flow(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a flow.
