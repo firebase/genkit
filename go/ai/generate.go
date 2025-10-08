@@ -774,6 +774,19 @@ func (mr *ModelResponse) Interrupts() []*Part {
 	return parts
 }
 
+// Media returns the media content of the [ModelResponse] as a string.
+func (mr *ModelResponse) Media() string {
+	if mr.Message == nil {
+		return ""
+	}
+	for _, part := range mr.Message.Content {
+		if part.IsMedia() {
+			return part.Text
+		}
+	}
+	return ""
+}
+
 // Text returns the text content of the [ModelResponseChunk]
 // as a string. It returns an error if there is no Content
 // in the response chunk.
