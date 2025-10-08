@@ -1027,6 +1027,9 @@
             },
             "toolChoice": {
               "type": "boolean"
+            },
+            "longRunning": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false
