@@ -447,9 +447,11 @@ func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 		functions = append(functions, fd)
 	}
 
-	outTools = append(outTools, &genai.Tool{
-		FunctionDeclarations: functions,
-	})
+	if len(functions) > 0 {
+		outTools = append(outTools, &genai.Tool{
+			FunctionDeclarations: functions,
+		})
+	}
 
 	return outTools, nil
 }
