@@ -108,6 +108,7 @@ interface DerivedOptions {
 }
 
 export async function getDerivedOptions(
+  pluginName: string,
   options?: CommonOptions
 ): Promise<DerivedOptions> {
   if (__fake_getDerivedOptions) {
@@ -144,12 +145,12 @@ export async function getDerivedOptions(
 
   if (!location) {
     throw new Error(
-      `VertexAI Plugin is missing the 'location' configuration. Please set the 'GCLOUD_LOCATION' environment variable or explicitly pass 'location' into genkit config.`
+      `${pluginName} Plugin is missing the 'location' configuration. Please set the 'GCLOUD_LOCATION' environment variable or explicitly pass 'location' into genkit config.`
     );
   }
   if (!projectId) {
     throw new Error(
-      `VertexAI Plugin is missing the 'project' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'project' into genkit config.`
+      `${pluginName} Plugin is missing the 'project' configuration. Please set the 'GCLOUD_PROJECT' environment variable or explicitly pass 'project' into genkit config.`
     );
   }
 

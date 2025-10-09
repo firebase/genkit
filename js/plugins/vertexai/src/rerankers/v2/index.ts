@@ -27,7 +27,7 @@ import * as reranker from './reranker.js';
 import { VertexRerankerPluginOptions } from './types.js';
 
 async function initializer(pluginOptions: VertexRerankerPluginOptions) {
-  const clientOptions = await getDerivedOptions(pluginOptions);
+  const clientOptions = await getDerivedOptions('vertexRerankers', pluginOptions);
   return await reranker.listKnownRerankers(clientOptions);
 }
 
@@ -36,7 +36,7 @@ async function resolver(
   actionName: string,
   pluginOptions: VertexRerankerPluginOptions
 ): Promise<ResolvableAction | undefined> {
-  const clientOptions = await getDerivedOptions(pluginOptions);
+  const clientOptions = await getDerivedOptions('vertexRerankers', pluginOptions);
   if (actionType == 'reranker' && reranker.isRerankerModelName(actionName)) {
     return reranker.defineReranker(actionName, clientOptions);
   }
