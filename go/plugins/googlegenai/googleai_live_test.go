@@ -191,6 +191,20 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("api side tools", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		_, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Tools: []*genai.Tool{
+					{GoogleSearch: &genai.GoogleSearch{}}, {GoogleSearch: &genai.GoogleSearch{}},
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("When is the next lunar eclipse in US?"))
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
 
 	t.Run("tool with json output", func(t *testing.T) {
 		type weatherQuery struct {
