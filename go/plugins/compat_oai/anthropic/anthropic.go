@@ -16,9 +16,10 @@ package anthropic
 
 import (
 	"context"
+	"os"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/openai/openai-go/option"
@@ -93,30 +94,37 @@ func (a *Anthropic) Name() string {
 	return provider
 }
 
-func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) error {
-	// Set the base URL
-	a.Opts = append(a.Opts, option.WithBaseURL(baseURL))
+func (a *Anthropic) Init(ctx context.Context) []api.Action {
+	url := os.Getenv("ANTHROPIC_BASE_URL")
+	if url == "" {
+		url = baseURL
+	}
+	a.Opts = append([]option.RequestOption{option.WithBaseURL(url)}, a.Opts...)
+
+	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	if apiKey != "" {
+		a.Opts = append([]option.RequestOption{option.WithAPIKey(apiKey)}, a.Opts...)
+	}
 
 	// initialize OpenAICompatible
 	a.openAICompatible.Opts = a.Opts
-	if err := a.openAICompatible.Init(ctx, g); err != nil {
-		return err
-	}
+	compatActions := a.openAICompatible.Init(ctx)
+
+	var actions []api.Action
+	actions = append(actions, compatActions...)
 
 	// define default models
 	for model, opts := range supportedModels {
-		if _, err := a.DefineModel(g, model, opts); err != nil {
-			return err
-		}
+		actions = append(actions, a.DefineModel(model, opts).(api.Action))
 	}
 
-	return nil
+	return actions
 }
 
 func (a *Anthropic) Model(g *genkit.Genkit, id string) ai.Model {
-	return a.openAICompatible.Model(g, core.NewName(provider, id))
+	return a.openAICompatible.Model(g, api.NewName(provider, id))
 }
 
-func (a *Anthropic) DefineModel(g *genkit.Genkit, id string, opts ai.ModelOptions) (ai.Model, error) {
-	return a.openAICompatible.DefineModel(g, provider, id, opts)
+func (a *Anthropic) DefineModel(id string, opts ai.ModelOptions) ai.Model {
+	return a.openAICompatible.DefineModel(provider, id, opts)
 }

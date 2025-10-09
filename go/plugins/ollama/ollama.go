@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 )
@@ -48,7 +48,7 @@ var (
 		"phi4-mini", "granite3.1-dense", "granite3-dense", "granite3.2", "athene-v2",
 		"nemotron-mini", "nemotron", "llama3-groq-tool-use", "aya-expanse", "granite3-moe",
 		"granite3.2-vision", "granite3.1-moe", "cogito", "command-r7b", "firefunction-v2",
-		"granite3.3", "command-a", "command-r7b-arabic",
+		"granite3.3", "command-a", "command-r7b-arabic", "gpt-oss",
 	}
 	roleMapping = map[ai.Role]string{
 		ai.RoleUser:   "user",
@@ -87,22 +87,22 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.M
 		Supports: modelOpts.Supports,
 		Versions: []string{},
 	}
-	gen := &generator{model: model, serverAddress: o.ServerAddress}
-	return genkit.DefineModel(g, core.NewName(provider, model.Name), meta, gen.generate)
+	gen := &generator{model: model, serverAddress: o.ServerAddress, timeout: o.Timeout}
+	return genkit.DefineModel(g, api.NewName(provider, model.Name), meta, gen.generate)
 }
 
 // IsDefinedModel reports whether a model is defined.
 func IsDefinedModel(g *genkit.Genkit, name string) bool {
-	return genkit.LookupModel(g, core.NewName(provider, name)) != nil
+	return genkit.LookupModel(g, api.NewName(provider, name)) != nil
 }
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not configured.
 func Model(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, core.NewName(provider, name))
+	return genkit.LookupModel(g, api.NewName(provider, name))
 }
 
-// ModelDefinition represents a model with its name and type.
+// ModelDefinition represents a model with its name and api.
 type ModelDefinition struct {
 	Name string
 	Type string
@@ -111,6 +111,7 @@ type ModelDefinition struct {
 type generator struct {
 	model         ModelDefinition
 	serverAddress string
+	timeout       int
 }
 
 type ollamaMessage struct {
@@ -196,6 +197,7 @@ type ollamaModelResponse struct {
 // Ollama provides configuration options for the Init function.
 type Ollama struct {
 	ServerAddress string // Server address of oLLama.
+	Timeout       int    // Response timeout in seconds (defaulted to 30 seconds)
 
 	mu      sync.Mutex // Mutex to control access.
 	initted bool       // Whether the plugin has been initialized.
@@ -208,17 +210,20 @@ func (o *Ollama) Name() string {
 // Init initializes the plugin.
 // Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
 // After downloading a model, call [DefineModel] to use it.
-func (o *Ollama) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (o *Ollama) Init(ctx context.Context) []api.Action {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.initted {
 		panic("ollama.Init already called")
 	}
 	if o == nil || o.ServerAddress == "" {
-		return errors.New("ollama: need ServerAddress")
+		panic("ollama: need ServerAddress")
 	}
 	o.initted = true
-	return nil
+	if o.Timeout == 0 {
+		o.Timeout = 30
+	}
+	return []api.Action{}
 }
 
 // Generate makes a request to the Ollama API and processes the response.
@@ -274,7 +279,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		payload = chatReq
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: time.Duration(g.timeout) * time.Second}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err

@@ -26,22 +26,32 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
 )
 
-// Prompt is a prompt template that can be executed to generate a model response.
-type Prompt struct {
-	promptOptions
-	registry *registry.Registry
-	action   core.ActionDef[any, *GenerateActionOptions, struct{}]
+// Prompt is the interface for a prompt that can be executed and rendered.
+type Prompt interface {
+	// Name returns the name of the prompt.
+	Name() string
+	// Execute executes the prompt with the given options and returns a [ModelResponse].
+	Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error)
+	// Render renders the prompt with the given input and returns a [GenerateActionOptions] to be used with [GenerateWithRequest].
+	Render(ctx context.Context, input any) (*GenerateActionOptions, error)
 }
 
-// DefinePrompt creates and registers a new Prompt.
-func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prompt {
+// prompt is a prompt template that can be executed to generate a model response.
+type prompt struct {
+	core.ActionDef[any, *GenerateActionOptions, struct{}]
+	promptOptions
+	registry api.Registry
+}
+
+// DefinePrompt creates a new [Prompt] and registers it.
+func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 	if name == "" {
 		panic("ai.DefinePrompt: name is required")
 	}
@@ -53,7 +63,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prom
 		}
 	}
 
-	p := &Prompt{
+	p := &prompt{
 		registry:      r,
 		promptOptions: *pOpts,
 	}
@@ -78,7 +88,7 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prom
 	}
 
 	promptMeta := map[string]any{
-		"type": core.ActionTypeExecutablePrompt,
+		"type": api.ActionTypeExecutablePrompt,
 		"prompt": map[string]any{
 			"name":         name,
 			"description":  p.Description,
@@ -88,34 +98,32 @@ func DefinePrompt(r *registry.Registry, name string, opts ...PromptOption) *Prom
 			"output":       map[string]any{"schema": p.OutputSchema},
 			"defaultInput": p.DefaultInput,
 			"tools":        tools,
+			"maxTurns":     p.MaxTurns,
 		},
 	}
 	maps.Copy(meta, promptMeta)
 
-	p.action = *core.DefineActionWithInputSchema(r, name, core.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
+	p.ActionDef = *core.DefineAction(r, name, api.ActionTypeExecutablePrompt, meta, p.InputSchema, p.buildRequest)
 
 	return p
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(r *registry.Registry, name string) *Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, core.ActionTypeExecutablePrompt, name)
+func LookupPrompt(r api.Registry, name string) Prompt {
+	action := core.ResolveActionFor[any, *GenerateActionOptions, struct{}](r, api.ActionTypeExecutablePrompt, name)
 	if action == nil {
 		return nil
 	}
-	return &Prompt{
-		registry: r,
-		action:   *action,
+	return &prompt{
+		ActionDef: *action,
+		registry:  r,
 	}
 }
 
-// Name returns the name of the prompt.
-func (p *Prompt) Name() string { return p.action.Name() }
-
 // Execute renders a prompt, does variable substitution and
 // passes the rendered template to the AI model specified by the prompt.
-func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
+func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*ModelResponse, error) {
 	if p == nil {
 		return nil, errors.New("Prompt.Execute: execute called on a nil Prompt; check that all prompts are defined")
 	}
@@ -126,9 +134,6 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
-
-	p.MessagesFn = mergeMessagesFn(p.MessagesFn, execOpts.MessagesFn)
-
 	// Render() should populate all data from the prompt. Prompt fields should
 	// *not* be referenced in this function as it may have been loaded from
 	// the registry and is missing the options passed in at definition.
@@ -140,30 +145,78 @@ func (p *Prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 	if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {
 		execOpts.Config = modelRef.Config()
 	}
+
 	if execOpts.Config != nil {
 		actionOpts.Config = execOpts.Config
 	}
+
 	if len(execOpts.Documents) > 0 {
 		actionOpts.Docs = execOpts.Documents
 	}
+
 	if execOpts.ToolChoice != "" {
 		actionOpts.ToolChoice = execOpts.ToolChoice
 	}
+
 	if execOpts.Model != nil {
 		actionOpts.Model = execOpts.Model.Name()
 	}
+
 	if execOpts.MaxTurns != 0 {
 		actionOpts.MaxTurns = execOpts.MaxTurns
 	}
+
 	if execOpts.ReturnToolRequests != nil {
 		actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
 	}
 
-	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
+	if execOpts.MessagesFn != nil {
+		m, err := buildVariables(execOpts.Input)
+		if err != nil {
+			return nil, err
+		}
+
+		tempOpts := promptOptions{
+			commonGenOptions: commonGenOptions{
+				MessagesFn: execOpts.MessagesFn,
+			},
+		}
+
+		actionOpts.Messages, err = renderMessages(ctx, tempOpts, actionOpts.Messages, m, execOpts.Input, p.registry.Dotprompt())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	toolRefs := execOpts.Tools
+	if len(toolRefs) == 0 {
+		toolRefs = make([]ToolRef, 0, len(actionOpts.Tools))
+		for _, toolName := range actionOpts.Tools {
+			toolRefs = append(toolRefs, ToolName(toolName))
+		}
+	}
+
+	toolNames, newTools, err := resolveUniqueTools(p.registry, toolRefs)
+	if err != nil {
+		return nil, err
+	}
+	actionOpts.Tools = toolNames
+
+	r := p.registry
+	if len(newTools) > 0 {
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		for _, t := range newTools {
+			t.Register(p.registry)
+		}
+	}
+
+	return GenerateWithRequest(ctx, r, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
 
 // Render renders the prompt template based on user input.
-func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions, error) {
+func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	if p == nil {
 		return nil, errors.New("Prompt.Render: called on a nil prompt; check that all prompts are defined")
 	}
@@ -174,35 +227,10 @@ func (p *Prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 
 	// TODO: This is hacky; we should have a helper that fetches the metadata.
 	if input == nil {
-		input = p.action.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
+		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
 
-	return p.action.Run(ctx, input, nil)
-}
-
-// mergeMessagesFn merges two messages functions.
-func mergeMessagesFn(promptFn, reqFn MessagesFn) MessagesFn {
-	if reqFn == nil {
-		return promptFn
-	}
-
-	if promptFn == nil {
-		return reqFn
-	}
-
-	return func(ctx context.Context, input any) ([]*Message, error) {
-		promptMsgs, err := promptFn(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-
-		reqMsgs, err := reqFn(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-
-		return append(promptMsgs, reqMsgs...), nil
-	}
+	return p.Run(ctx, input, nil)
 }
 
 // buildVariables returns a map holding prompt field values based
@@ -261,23 +289,23 @@ fieldLoop:
 }
 
 // buildRequest prepares a [GenerateActionOptions] based on the prompt,
-// using the input variables and other information in the [Prompt].
-func (p *Prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOptions, error) {
+// using the input variables and other information in the [prompt].
+func (p *prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOptions, error) {
 	m, err := buildVariables(input)
 	if err != nil {
 		return nil, err
 	}
 
 	messages := []*Message{}
-	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
+	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
+	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt)
+	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
 	if err != nil {
 		return nil, err
 	}
@@ -440,18 +468,18 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 				result[i] = NewTextPart(p.Text)
 			}
 		case *dotprompt.MediaPart:
-			ct, err := contentType(p.Media.URL)
+			ct, data, err := contentType(p.Media.ContentType, p.Media.URL)
 			if err != nil {
 				return nil, err
 			}
-			result[i] = NewMediaPart(ct, p.Media.URL)
+			result[i] = NewMediaPart(ct, string(data))
 		}
 	}
 	return result, nil
 }
 
 // LoadPromptDir loads prompts and partials from the input directory for the given namespace.
-func LoadPromptDir(r *registry.Registry, dir string, namespace string) {
+func LoadPromptDir(r api.Registry, dir string, namespace string) {
 	useDefaultDir := false
 	if dir == "" {
 		dir = "./prompts"
@@ -479,7 +507,7 @@ func LoadPromptDir(r *registry.Registry, dir string, namespace string) {
 }
 
 // loadPromptDir recursively loads prompts and partials from the directory.
-func loadPromptDir(r *registry.Registry, dir string, namespace string) {
+func loadPromptDir(r api.Registry, dir string, namespace string) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
@@ -508,7 +536,7 @@ func loadPromptDir(r *registry.Registry, dir string, namespace string) {
 }
 
 // LoadPrompt loads a single prompt into the registry.
-func LoadPrompt(r *registry.Registry, dir, filename, namespace string) *Prompt {
+func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	name := strings.TrimSuffix(filename, ".prompt")
 	name, variant, _ := strings.Cut(name, ".")
 
@@ -519,13 +547,13 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) *Prompt {
 		return nil
 	}
 
-	parsedPrompt, err := r.Dotprompt.Parse(string(source))
+	parsedPrompt, err := r.Dotprompt().Parse(string(source))
 	if err != nil {
 		slog.Error("Failed to parse file as dotprompt", "file", sourceFile, "error", err)
 		return nil
 	}
 
-	metadata, err := r.Dotprompt.RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
+	metadata, err := r.Dotprompt().RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
 	if err != nil {
 		slog.Error("Failed to render dotprompt metadata", "file", sourceFile, "error", err)
 		return nil
@@ -564,8 +592,8 @@ func LoadPrompt(r *registry.Registry, dir, filename, namespace string) *Prompt {
 		opts.ToolChoice = toolChoice
 	}
 
-	if maxTurns, ok := metadata.Raw["maxTurns"].(int); ok {
-		opts.MaxTurns = maxTurns
+	if maxTurns, ok := metadata.Raw["maxTurns"].(uint64); ok {
+		opts.MaxTurns = int(maxTurns)
 	}
 
 	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); ok {
@@ -616,24 +644,30 @@ func variantKey(variant string) string {
 }
 
 // contentType determines the MIME content type of the given data URI
-func contentType(uri string) (string, error) {
+func contentType(ct, uri string) (string, []byte, error) {
 	if uri == "" {
-		return "", errors.New("found empty URI in part")
+		return "", nil, errors.New("found empty URI in part")
 	}
 
 	if strings.HasPrefix(uri, "gs://") || strings.HasPrefix(uri, "http") {
-		return "", errors.New("data URI is the only media type supported")
+		if ct == "" {
+			return "", nil, errors.New("must supply contentType when using media from gs:// or http(s):// URLs")
+		}
+		return ct, []byte(uri), nil
 	}
 	if contents, isData := strings.CutPrefix(uri, "data:"); isData {
 		prefix, _, found := strings.Cut(contents, ",")
 		if !found {
-			return "", errors.New("failed to parse data URI: missing comma")
+			return "", nil, errors.New("failed to parse data URI: missing comma")
 		}
 
 		if p, isBase64 := strings.CutSuffix(prefix, ";base64"); isBase64 {
-			return p, nil
+			if ct == "" {
+				ct = p
+			}
+			return ct, []byte(uri), nil
 		}
 	}
 
-	return "", errors.New("uri content type not found")
+	return "", nil, errors.New("uri content type not found")
 }

@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-import { GENKIT_CLIENT_HEADER } from 'genkit';
-import { extractErrMsg, processStream } from '../common/utils';
+import {
+  extractErrMsg,
+  getGenkitClientHeader,
+  processStream,
+} from '../common/utils.js';
 import {
   ClientOptions,
   EmbedContentRequest,
@@ -29,7 +32,7 @@ import {
   Model,
   VeoOperation,
   VeoPredictRequest,
-} from './types';
+} from './types.js';
 
 /**
  * Lists available models.
@@ -318,7 +321,7 @@ function getHeaders(
     ...customHeaders,
     'Content-Type': 'application/json',
     'x-goog-api-key': apiKey,
-    'x-goog-api-client': GENKIT_CLIENT_HEADER,
+    'x-goog-api-client': getGenkitClientHeader(),
   };
 
   return headers;

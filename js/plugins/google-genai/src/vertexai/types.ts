@@ -25,6 +25,8 @@ import {
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
+  GoogleMaps,
+  GoogleMapsTool,
   GoogleSearchRetrieval,
   GoogleSearchRetrievalTool,
   GroundingMetadata,
@@ -42,10 +44,11 @@ import {
   ToolConfig,
   isCodeExecutionTool,
   isFunctionDeclarationsTool,
+  isGoogleMapsTool,
   isGoogleSearchRetrievalTool,
   isObject,
   isRetrievalTool,
-} from '../common/types';
+} from '../common/types.js';
 
 // This makes it easier to import all types from one place
 export {
@@ -55,6 +58,7 @@ export {
   TaskTypeSchema,
   isCodeExecutionTool,
   isFunctionDeclarationsTool,
+  isGoogleMapsTool,
   isGoogleSearchRetrievalTool,
   isObject,
   isRetrievalTool,
@@ -66,6 +70,8 @@ export {
   type GenerateContentRequest,
   type GenerateContentResponse,
   type GenerateContentStreamResult,
+  type GoogleMaps,
+  type GoogleMapsTool,
   type GoogleSearchRetrieval,
   type GoogleSearchRetrievalTool,
   type GroundingMetadata,
@@ -361,7 +367,7 @@ export declare interface LyriaPredictResponse {
 
 export declare interface LyriaPrediction {
   bytesBase64Encoded: string; // Base64 encoded Wav string
-  mimeType: string; // autio/wav
+  mimeType: string; // audio/wav
 }
 
 export declare interface LyriaInstance {

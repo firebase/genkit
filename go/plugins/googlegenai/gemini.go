@@ -31,7 +31,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -40,9 +40,6 @@ import (
 )
 
 const (
-	// Thinking budget limit
-	thinkingBudgetMax = 24576
-
 	// Tool name regex
 	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 )
@@ -89,18 +86,19 @@ func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
 		DoNotReference: true, // Prevent $ref usage
 		ExpandedStruct: true, // Include all fields directly
-		// Prevent stack overflow panic due type traversal recursion (circular references)
-		// [genai.Schema] should not be used at this point since Schema is provided later
 		// NOTE: keep track of updated fields in [genai.GenerateContentConfig] since
 		// they could create runtime panics when parsing fields with type recursion
-		IgnoredTypes: []any{genai.Schema{}},
+		IgnoredTypes: []any{
+			genai.Schema{},
+		},
 	}
+
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
 	return result
 }
 
-// mapToStruct unmarshals a map[string]any to the expected config type.
+// mapToStruct unmarshals a map[string]any to the expected config api.
 func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
@@ -132,8 +130,8 @@ func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, er
 	return &result, nil
 }
 
-// DefineModel defines a model in the registry
-func defineModel(g *genkit.Genkit, client *genai.Client, name string, opts ai.ModelOptions) ai.Model {
+// newModel creates a model without registering it
+func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
@@ -141,9 +139,8 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, opts ai.Mo
 
 	var config any
 	config = &genai.GenerateContentConfig{}
-	if imageOpts, found := supportedImagenModels[name]; found {
+	if strings.Contains(name, "imagen") {
 		config = &genai.GenerateImagesConfig{}
-		opts = imageOpts
 	}
 	meta := &ai.ModelOptions{
 		Label:        opts.Label,
@@ -185,12 +182,11 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, opts ai.Mo
 			},
 		}))(fn)
 	}
-	return genkit.DefineModel(g, core.NewName(provider, name), meta, fn)
+	return ai.NewModel(api.NewName(provider, name), meta, fn)
 }
 
-// DefineEmbedder defines embeddings for the provided contents and embedder
-// model
-func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOpts *ai.EmbedderOptions) ai.Embedder {
+// newEmbedder creates an embedder without registering it
+func newEmbedder(client *genai.Client, name string, embedOpts *ai.EmbedderOptions) ai.Embedder {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
@@ -200,12 +196,12 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string, embedOp
 		embedOpts.ConfigSchema = core.InferSchemaMap(genai.EmbedContentConfig{})
 	}
 
-	return genkit.DefineEmbedder(g, core.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	return ai.NewEmbedder(api.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
-		if options, _ := req.Options.(*genai.EmbedContentConfig); options != nil {
-			embedConfig = options
+		if config, ok := req.Options.(*genai.EmbedContentConfig); ok {
+			embedConfig = config
 		}
 
 		for _, doc := range req.Input {
@@ -484,10 +480,10 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		return nil, fmt.Errorf("schema type %q not allowed", genkitSchema["type"])
 	}
 	if v, ok := genkitSchema["required"]; ok {
-		schema.Required = castToStringArray(v.([]any))
+		schema.Required = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["propertyOrdering"]; ok {
-		schema.PropertyOrdering = castToStringArray(v.([]any))
+		schema.PropertyOrdering = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["description"]; ok {
 		schema.Description = v.(string)
@@ -499,35 +495,27 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		schema.Title = v.(string)
 	}
 	if v, ok := genkitSchema["minItems"]; ok {
-		i, err := strconv.ParseInt(v.(string), 10, 64)
-		if err != nil {
-			return nil, err
+		if i64, ok := castToInt64(v); ok {
+			schema.MinItems = genai.Ptr(i64)
 		}
-		schema.MinItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maxItems"]; ok {
-		i, err := strconv.ParseInt(v.(string), 10, 64)
-		if err != nil {
-			return nil, err
+		if i64, ok := castToInt64(v); ok {
+			schema.MaxItems = genai.Ptr(i64)
 		}
-		schema.MaxItems = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["maximum"]; ok {
-		i, err := strconv.ParseFloat(v.(string), 64)
-		if err != nil {
-			return nil, err
+		if f64, ok := castToFloat64(v); ok {
+			schema.Maximum = genai.Ptr(f64)
 		}
-		schema.Maximum = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["minimum"]; ok {
-		i, err := strconv.ParseFloat(v.(string), 64)
-		if err != nil {
-			return nil, err
+		if f64, ok := castToFloat64(v); ok {
+			schema.Minimum = genai.Ptr(f64)
 		}
-		schema.Minimum = genai.Ptr(i)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
-		schema.Enum = castToStringArray(v.([]any))
+		schema.Enum = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["items"]; ok {
 		items, err := toGeminiSchema(originalSchema, v.(map[string]any))
@@ -560,13 +548,73 @@ func resolveRef(originalSchema map[string]any, ref string) map[string]any {
 	return defs[name].(map[string]any)
 }
 
-func castToStringArray(i []any) []string {
-	// Is there a better way to do this??
-	var r []string
-	for _, v := range i {
-		r = append(r, v.(string))
+// castToStringArray converts either []any or []string to []string, filtering non-strings.
+// This handles enum values from JSON Schema which may come as either type depending on unmarshaling.
+// Filter out non-string types from if v is []any type.
+func castToStringArray(v any) []string {
+	switch a := v.(type) {
+	case []string:
+		// Return a shallow copy to avoid aliasing
+		out := make([]string, 0, len(a))
+		for _, s := range a {
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	case []any:
+		var out []string
+		for _, it := range a {
+			if s, ok := it.(string); ok && s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
 	}
-	return r
+}
+
+// castToInt64 converts v to int64 when possible.
+func castToInt64(v any) (int64, bool) {
+	switch t := v.(type) {
+	case int:
+		return int64(t), true
+	case int64:
+		return t, true
+	case float64:
+		return int64(t), true
+	case string:
+		if i, err := strconv.ParseInt(t, 10, 64); err == nil {
+			return i, true
+		}
+	case json.Number:
+		if i, err := t.Int64(); err == nil {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// castToFloat64 converts v to float64 when possible.
+func castToFloat64(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	case string:
+		if f, err := strconv.ParseFloat(t, 64); err == nil {
+			return f, true
+		}
+	case json.Number:
+		if f, err := t.Float64(); err == nil {
+			return f, true
+		}
+	}
+	return 0, false
 }
 
 func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
@@ -713,7 +761,6 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
-
 	switch {
 	case p.IsReasoning():
 		// TODO: go-genai does not support genai.NewPartFromThought()

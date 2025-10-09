@@ -89,10 +89,8 @@ func main() {
 	}
 
 	// Initialize the plugin
-	err = ollamaPlugin.Init(context.Background(), g)
-	if err != nil {
-		log.Fatalf("Failed to initialize Ollama plugin: %v", err)
-	}
+	actions := ollamaPlugin.Init(context.Background())
+	log.Printf("Initialized Ollama plugin with %d actions", len(actions))
 
 	// Define a model that supports images (llava is one of the supported models)
 	modelName := "llava"

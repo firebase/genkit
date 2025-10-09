@@ -24,6 +24,8 @@ export {
   model,
   modelActionMetadata,
 } from '@genkit-ai/ai/model';
+export { reranker } from '@genkit-ai/ai/reranker';
+export { indexer, retriever } from '@genkit-ai/ai/retriever';
 
 export interface PluginProvider {
   name: string;

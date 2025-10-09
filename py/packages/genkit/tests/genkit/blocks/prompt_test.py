@@ -16,16 +16,20 @@
 
 
 """Tests for the action module."""
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.typing import (
+    GenerateActionOptions,
+    GenerationCommonConfig,
     Message,
     Role,
     TextPart,
     ToolChoice,
+    ToolDefinition,
 )
 from genkit.testing import (
     define_echo_model,
@@ -48,7 +52,7 @@ async def test_simple_prompt() -> None:
     """Test simple prompt rendering."""
     ai, *_ = setup_test()
 
-    want_txt = '[ECHO] user: "hi" {"temperature": 11}'
+    want_txt = '[ECHO] user: "hi" {"temperature":11.0}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'temperature': 11})
 
@@ -66,7 +70,7 @@ async def test_simple_prompt_with_override_config() -> None:
     """Test the config provided at render time is used."""
     ai, *_ = setup_test()
 
-    want_txt = '[ECHO] user: "hi" {"temperature": 12}'
+    want_txt = '[ECHO] user: "hi" {"temperature":12.0}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'banana': True})
 
@@ -135,3 +139,49 @@ async def test_prompt_with_kitchensink() -> None:
     _, response = my_prompt.stream()
 
     assert (await response).text == want_txt
+
+
+test_cases_parse_partial_json = [
+    (
+        "renders user prompt",
+        {
+            "model": "echoModel",
+            "config": {"banana": "ripe"},
+            "input_schema": {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                },
+            },  # Note: Schema representation might need adjustment
+            "system": "hello {{name}} ({{@state.name}})",
+            "metadata": {"state": {"name": "bar"}}
+        },
+        {"name": "foo"},
+        GenerationCommonConfig.model_validate({"temperature": 11}),
+        """[ECHO] system: "hello foo ()" {"temperature":11.0}"""
+    )
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'test_case, prompt, input, input_option, want_rendered',
+    test_cases_parse_partial_json,
+    ids=[tc[0] for tc in test_cases_parse_partial_json],
+)
+async def test_prompt_with_system(
+    test_case: str,
+    prompt: dict[str, Any],
+    input: dict[str, Any],
+    input_option: GenerationCommonConfig,
+    want_rendered: str
+) -> None:
+    """Test system prompt rendering."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(**prompt)
+
+    response = await my_prompt(input, input_option)
+
+    assert response.text == want_rendered
+

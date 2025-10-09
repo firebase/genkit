@@ -26,6 +26,7 @@ import (
 
 	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -48,7 +49,7 @@ func (f *Firebase) Name() string {
 }
 
 // Init initializes the Firebase plugin.
-func (f *Firebase) Init(ctx context.Context, g *genkit.Genkit) error {
+func (f *Firebase) Init(ctx context.Context) []api.Action {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -56,26 +57,26 @@ func (f *Firebase) Init(ctx context.Context, g *genkit.Genkit) error {
 	projectId := resolveProjectId(f.ProjectId)
 
 	if f.initted {
-		return errors.New("firebase.Init: plugin already initialized")
+		panic("firebase.Init: plugin already initialized")
 	}
 
 	if f.App == nil && f.ProjectId == "" {
-		return errors.New("firebase.Init: provide ProjectId or App")
+		panic("firebase.Init: provide ProjectId or App")
 	}
 	if f.ProjectId != "" {
 		if f.App != nil {
-			return errors.New("firebase.Init: provide either ProjectId or App, not both")
+			panic("firebase.Init: provide either ProjectId or App, not both")
 		}
 		// Configure and initialize the Firebase app.
 		firebaseApp, err := firebasev4.NewApp(ctx, &firebasev4.Config{ProjectID: projectId})
 		if err != nil {
-			return fmt.Errorf("error initializing Firebase App: %v", err)
+			panic(fmt.Errorf("error initializing Firebase App: %v", err))
 		}
 		f.App = firebaseApp
 	}
 
 	f.initted = true
-	return nil
+	return []api.Action{}
 }
 
 // DefineRetriever defines a Retriever with the given configuration.

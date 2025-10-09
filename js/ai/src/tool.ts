@@ -218,7 +218,8 @@ export async function lookupToolByName(
   const tool =
     (await registry.lookupAction(name)) ||
     (await registry.lookupAction(`/tool/${name}`)) ||
-    (await registry.lookupAction(`/prompt/${name}`));
+    (await registry.lookupAction(`/prompt/${name}`)) ||
+    (await registry.lookupAction(`/dynamic-action-provider/${name}`));
   if (!tool) {
     throw new Error(`Tool ${name} not found`);
   }
@@ -386,22 +387,26 @@ export function isDynamicTool(t: unknown): t is ToolAction {
   return isAction(t) && !t.__registry;
 }
 
-export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  registry: Registry,
+export function interrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: InterruptConfig<I, O>
 ): ToolAction<I, O> {
   const { requestMetadata, ...toolConfig } = config;
 
-  return defineTool<I, O>(
-    registry,
-    toolConfig,
-    async (input, { interrupt }) => {
-      if (!config.requestMetadata) interrupt();
-      else if (typeof config.requestMetadata === 'object')
-        interrupt(config.requestMetadata);
-      else interrupt(await Promise.resolve(config.requestMetadata(input)));
-    }
-  );
+  return tool<I, O>(toolConfig, async (input, { interrupt }) => {
+    if (!config.requestMetadata) interrupt();
+    else if (typeof config.requestMetadata === 'object')
+      interrupt(config.requestMetadata);
+    else interrupt(await Promise.resolve(config.requestMetadata(input)));
+  });
+}
+
+export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  registry: Registry,
+  config: InterruptConfig<I, O>
+): ToolAction<I, O> {
+  const i = interrupt(config);
+  registry.registerAction('tool', i);
+  return i;
 }
 
 /**
@@ -441,6 +446,8 @@ export function tool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 /**
  * Defines a dynamic tool. Dynamic tools are just like regular tools but will not be registered in the
  * Genkit registry and can be defined dynamically at runtime.
+ *
+ * @deprecated renamed to {@link tool}.
  */
 export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: ToolConfig<I, O>,

@@ -148,7 +148,7 @@ func main() {
 	logger.FromContext(ctx).Info("Starting MCP server", "name", "text-utilities", "tools", server.ListRegisteredTools())
 	logger.FromContext(ctx).Info("Ready! Run: go run client.go")
 
-	if err := server.ServeStdio(ctx); err != nil && err != context.Canceled {
+	if err := server.ServeStdio(); err != nil && err != context.Canceled {
 		logger.FromContext(ctx).Error("MCP server error", "error", err)
 		os.Exit(1)
 	}

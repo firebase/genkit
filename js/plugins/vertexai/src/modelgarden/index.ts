@@ -72,6 +72,9 @@ export {
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
+  claudeOpus4,
+  claudeOpus41,
+  claudeSonnet4,
 } from './anthropic.js';
 export { codestral, mistralLarge, mistralNemo } from './mistral.js';
 export { llama3, llama31, llama32 } from './model_garden.js';

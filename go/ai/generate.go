@@ -23,12 +23,13 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // Model represents a model that can generate content based on a request.
@@ -37,6 +38,8 @@ type Model interface {
 	Name() string
 	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
 	Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error)
+	// Register registers the model with the given registry.
+	Register(r api.Registry)
 }
 
 // ModelArg is the interface for model arguments. It can either be the retriever action itself or a reference to be looked up.
@@ -66,7 +69,9 @@ type ModelStreamCallback = func(context.Context, *ModelResponseChunk) error
 type ModelMiddleware = core.Middleware[*ModelRequest, *ModelResponse, *ModelResponseChunk]
 
 // model is an action with functions specific to model generation such as Generate().
-type model core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+type model struct {
+	core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk]
+}
 
 // generateAction is the type for a utility model generation action that takes in a GenerateActionOptions instead of a ModelRequest.
 type generateAction = core.ActionDef[*GenerateActionOptions, *ModelResponse, *ModelResponseChunk]
@@ -107,8 +112,8 @@ type ModelOptions struct {
 }
 
 // DefineGenerateAction defines a utility generate action.
-func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAction {
-	return (*generateAction)(core.DefineStreamingAction(r, "generate", core.ActionTypeUtil, nil,
+func DefineGenerateAction(ctx context.Context, r api.Registry) *generateAction {
+	return (*generateAction)(core.DefineStreamingAction(r, "generate", api.ActionTypeUtil, nil, nil,
 		func(ctx context.Context, actionOpts *GenerateActionOptions, cb ModelStreamCallback) (resp *ModelResponse, err error) {
 			logger.FromContext(ctx).Debug("GenerateAction",
 				"input", fmt.Sprintf("%#v", actionOpts))
@@ -118,17 +123,14 @@ func DefineGenerateAction(ctx context.Context, r *registry.Registry) *generateAc
 					"err", err)
 			}()
 
-			return tracing.RunInNewSpan(ctx, r.TracingState(), "generate", "util", false, actionOpts,
-				func(ctx context.Context, actionOpts *GenerateActionOptions) (*ModelResponse, error) {
-					return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
-				})
+			return GenerateWithRequest(ctx, r, actionOpts, nil, cb)
 		}))
 }
 
-// DefineModel registers the given generate function as an action, and returns a [Model] that runs it.
-func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+// NewModel creates a new [Model].
+func NewModel(name string, opts *ModelOptions, fn ModelFunc) Model {
 	if name == "" {
-		panic("ai.DefineModel: name is required")
+		panic("ai.NewModel: name is required")
 	}
 
 	if opts == nil {
@@ -141,7 +143,7 @@ func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn Model
 	}
 
 	metadata := map[string]any{
-		"type": core.ActionTypeModel,
+		"type": api.ActionTypeModel,
 		"model": map[string]any{
 			"label": opts.Label,
 			"supports": map[string]any{
@@ -163,8 +165,8 @@ func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn Model
 
 	inputSchema := core.InferSchemaMap(ModelRequest{})
 	if inputSchema != nil && opts.ConfigSchema != nil {
-		if _, ok := inputSchema["config"]; ok {
-			inputSchema["config"] = opts.ConfigSchema
+		if props, ok := inputSchema["properties"].(map[string]any); ok {
+			props["config"] = opts.ConfigSchema
 		}
 	}
 
@@ -172,27 +174,39 @@ func DefineModel(r *registry.Registry, name string, opts *ModelOptions, fn Model
 		simulateSystemPrompt(opts, nil),
 		augmentWithContext(opts, nil),
 		validateSupport(name, opts),
+		addAutomaticTelemetry(),
 	}
 	fn = core.ChainMiddleware(mws...)(fn)
 
-	return (*model)(core.DefineStreamingActionWithInputSchema(r, name, core.ActionTypeModel, metadata, inputSchema, fn))
+	return &model{
+		ActionDef: *core.NewStreamingAction(name, api.ActionTypeModel, metadata, inputSchema, fn),
+	}
+}
+
+// DefineModel creates a new [Model] and registers it.
+func DefineModel(r api.Registry, name string, opts *ModelOptions, fn ModelFunc) Model {
+	m := NewModel(name, opts, fn)
+	m.Register(r)
+	return m
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It will try to resolve the model dynamically if the model is not found.
 // It returns nil if the model was not resolved.
-func LookupModel(r *registry.Registry, name string) Model {
-	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, core.ActionTypeModel, name)
+func LookupModel(r api.Registry, name string) Model {
+	action := core.ResolveActionFor[*ModelRequest, *ModelResponse, *ModelResponseChunk](r, api.ActionTypeModel, name)
 	if action == nil {
 		return nil
 	}
-	return (*model)(action)
+	return &model{
+		ActionDef: *action,
+	}
 }
 
 // GenerateWithRequest is the central generation implementation for ai.Generate(), prompt.Execute(), and the GenerateAction direct call.
-func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
+func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActionOptions, mw []ModelMiddleware, cb ModelStreamCallback) (*ModelResponse, error) {
 	if opts.Model == "" {
-		if defaultModel, ok := r.LookupValue(registry.DefaultModelKey).(string); ok && defaultModel != "" {
+		if defaultModel, ok := r.LookupValue(api.DefaultModelKey).(string); ok && defaultModel != "" {
 			opts.Model = defaultModel
 		}
 		if opts.Model == "" {
@@ -221,6 +235,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		err := cb(ctx, &ModelResponseChunk{
 			Content: resumeOutput.toolMessage.Content,
 			Role:    RoleTool,
+			Index:   0,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
@@ -271,7 +286,7 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 		// Native constrained output is enabled only when the user has
 		// requested it, the model supports it, and there's a JSON schema.
 		outputCfg.Constrained = opts.Output.JsonSchema != nil &&
-			opts.Output.Constrained && m.(*model).SupportsConstrained(len(toolDefs) > 0)
+			opts.Output.Constrained && m.(*model).supportsConstrained(len(toolDefs) > 0)
 
 		// Add schema instructions to prompt when not using native constraints.
 		// This is a no-op for unstructured output requests.
@@ -302,56 +317,79 @@ func GenerateWithRequest(ctx context.Context, r *registry.Registry, opts *Genera
 
 	fn := core.ChainMiddleware(mw...)(m.Generate)
 
-	currentTurn := 0
-	for {
-		resp, err := fn(ctx, req, cb)
-		if err != nil {
-			return nil, err
+	// Inline recursive helper function that captures variables from parent scope.
+	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
+
+	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
+		spanMetadata := &tracing.SpanMetadata{
+			Name:    "generate",
+			Type:    "util",
+			Subtype: "util",
 		}
 
-		if formatHandler != nil {
-			resp.Message, err = formatHandler.ParseMessage(resp.Message)
+		return tracing.RunInNewSpan(ctx, spanMetadata, req, func(ctx context.Context, req *ModelRequest) (*ModelResponse, error) {
+			var wrappedCb ModelStreamCallback
+			currentRole := RoleModel
+			currentIndex := messageIndex
+
+			if cb != nil {
+				wrappedCb = func(ctx context.Context, chunk *ModelResponseChunk) error {
+					if chunk.Role != currentRole && chunk.Role != "" {
+						currentIndex++
+						currentRole = chunk.Role
+					}
+					chunk.Index = currentIndex
+					if chunk.Role == "" {
+						chunk.Role = RoleModel
+					}
+					return cb(ctx, chunk)
+				}
+			}
+
+			resp, err := fn(ctx, req, wrappedCb)
 			if err != nil {
-				logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
-				return nil, core.NewError(core.INTERNAL, "model failed to generate output matching expected schema: %v", err)
+				return nil, err
 			}
-		}
 
-		toolCount := 0
-		for _, part := range resp.Message.Content {
-			if part.IsToolRequest() {
-				toolCount++
+			if formatHandler != nil {
+				resp.Message, err = formatHandler.ParseMessage(resp.Message)
+				if err != nil {
+					logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
+					return nil, core.NewError(core.INTERNAL, "model failed to generate output matching expected schema: %v", err)
+				}
 			}
-		}
-		if toolCount == 0 || opts.ReturnToolRequests {
-			return resp, nil
-		}
 
-		if currentTurn+1 > maxTurns {
-			return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
-		}
+			if len(resp.ToolRequests()) == 0 || opts.ReturnToolRequests {
+				return resp, nil
+			}
 
-		newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
-		if err != nil {
-			return nil, err
-		}
-		if interruptMsg != nil {
-			resp.FinishReason = "interrupted"
-			resp.FinishMessage = "One or more tool calls resulted in interrupts."
-			resp.Message = interruptMsg
-			return resp, nil
-		}
-		if newReq == nil {
-			return resp, nil
-		}
+			if currentTurn+1 > maxTurns {
+				return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
+			}
 
-		req = newReq
-		currentTurn++
+			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, wrappedCb, currentIndex)
+			if err != nil {
+				return nil, err
+			}
+			if interruptMsg != nil {
+				resp.FinishReason = "interrupted"
+				resp.FinishMessage = "One or more tool calls resulted in interrupts."
+				resp.Message = interruptMsg
+				return resp, nil
+			}
+			if newReq == nil {
+				return resp, nil
+			}
+
+			return generate(ctx, newReq, currentTurn+1, currentIndex+1)
+		})
 	}
+
+	return generate(ctx, req, 0, 0)
 }
 
 // Generate generates a model response based on the provided options.
-func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*ModelResponse, error) {
+func Generate(ctx context.Context, r api.Registry, opts ...GenerateOption) (*ModelResponse, error) {
 	genOpts := &generateOptions{}
 	for _, opt := range opts {
 		if err := opt.applyGenerate(genOpts); err != nil {
@@ -364,28 +402,26 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		modelName = genOpts.Model.Name()
 	}
 
-	var dynamicTools []Tool
-	tools := make([]string, len(genOpts.Tools))
-	toolNames := make(map[string]bool)
-	for i, toolRef := range genOpts.Tools {
-		name := toolRef.Name()
-		// Redundant duplicate tool check with GenerateWithRequest otherwise we will panic when we register the dynamic tools.
-		if toolNames[name] {
-			return nil, core.NewError(core.INVALID_ARGUMENT, "ai.Generate: duplicate tool %q", name)
+	toolNames, dynamicTools, err := resolveUniqueTools(r, genOpts.Tools)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(dynamicTools) > 0 {
+		if !r.IsChild() {
+			r = r.NewChild()
 		}
-		toolNames[name] = true
-		tools[i] = name
-		// Dynamic tools wouldn't have been registered by this point.
-		if LookupTool(r, name) == nil {
-			if tool, ok := toolRef.(Tool); ok {
-				dynamicTools = append(dynamicTools, tool)
-			}
+		for _, t := range dynamicTools {
+			t.Register(r)
 		}
 	}
-	if len(dynamicTools) > 0 {
-		r = r.NewChild()
-		for _, tool := range dynamicTools {
-			tool.Register(r)
+
+	if len(genOpts.Resources) > 0 {
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		for _, res := range genOpts.Resources {
+			res.(*resource).Register(r)
 		}
 	}
 
@@ -446,7 +482,7 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 	actionOpts := &GenerateActionOptions{
 		Model:              modelName,
 		Messages:           messages,
-		Tools:              tools,
+		Tools:              toolNames,
 		MaxTurns:           genOpts.MaxTurns,
 		Config:             genOpts.Config,
 		ToolChoice:         genOpts.ToolChoice,
@@ -467,11 +503,18 @@ func Generate(ctx context.Context, r *registry.Registry, opts ...GenerateOption)
 		}
 	}
 
+	// Process resources in messages
+	processedMessages, err := processResources(ctx, r, messages)
+	if err != nil {
+		return nil, core.NewError(core.INTERNAL, "ai.Generate: error processing resources: %v", err)
+	}
+	actionOpts.Messages = processedMessages
+
 	return GenerateWithRequest(ctx, r, actionOpts, genOpts.Middleware, genOpts.Stream)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOption) (string, error) {
+func GenerateText(ctx context.Context, r api.Registry, opts ...GenerateOption) (string, error) {
 	res, err := Generate(ctx, r, opts...)
 	if err != nil {
 		return "", err
@@ -482,7 +525,7 @@ func GenerateText(ctx context.Context, r *registry.Registry, opts ...GenerateOpt
 
 // Generate run generate request for this model. Returns ModelResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
+func GenerateData[Out any](ctx context.Context, r api.Registry, opts ...GenerateOption) (*Out, *ModelResponse, error) {
 	var value Out
 	opts = append(opts, WithOutputType(value))
 
@@ -499,32 +542,22 @@ func GenerateData[Out any](ctx context.Context, r *registry.Registry, opts ...Ge
 	return &value, resp, nil
 }
 
-// Name returns the name of the model.
-func (m *model) Name() string {
-	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Name()
-}
-
 // Generate applies the [Action] to provided request.
 func (m *model) Generate(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
 	if m == nil {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "Model.Generate: generate called on a nil model; check that all models are defined")
 	}
 
-	return (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m).Run(ctx, req, cb)
+	return m.ActionDef.Run(ctx, req, cb)
 }
 
-// SupportsConstrained returns whether the model supports constrained output.
-func (m *model) SupportsConstrained(hasTools bool) bool {
+// supportsConstrained returns whether the model supports constrained output.
+func (m *model) supportsConstrained(hasTools bool) bool {
 	if m == nil {
 		return false
 	}
 
-	action := (*core.ActionDef[*ModelRequest, *ModelResponse, *ModelResponseChunk])(m)
-	if action == nil {
-		return false
-	}
-
-	metadata := action.Desc().Metadata
+	metadata := m.ActionDef.Desc().Metadata
 	if metadata == nil {
 		return false
 	}
@@ -575,7 +608,7 @@ func clone[T any](obj *T) *T {
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
-func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback) (*ModelRequest, *Message, error) {
+func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int) (*ModelRequest, *Message, error) {
 	toolCount := 0
 	if resp.Message != nil {
 		for _, part := range resp.Message.Content {
@@ -675,6 +708,7 @@ func handleToolRequests(ctx context.Context, r *registry.Registry, req *ModelReq
 		err := cb(ctx, &ModelResponseChunk{
 			Content: toolMsg.Content,
 			Role:    RoleTool,
+			Index:   messageIndex + 1,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("streaming callback failed: %w", err)
@@ -736,7 +770,7 @@ func (mr *ModelResponse) Output(v any) error {
 func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 	toolReqs := []*ToolRequest{}
 	if mr.Message == nil {
-		return nil
+		return toolReqs
 	}
 	for _, part := range mr.Message.Content {
 		if part.IsToolRequest() {
@@ -744,6 +778,33 @@ func (mr *ModelResponse) ToolRequests() []*ToolRequest {
 		}
 	}
 	return toolReqs
+}
+
+// Interrupts returns the interrupted tool request parts from the response.
+func (mr *ModelResponse) Interrupts() []*Part {
+	parts := []*Part{}
+	if mr.Message == nil {
+		return parts
+	}
+	for _, part := range mr.Message.Content {
+		if part.IsInterrupt() {
+			parts = append(parts, part)
+		}
+	}
+	return parts
+}
+
+// Media returns the media content of the [ModelResponse] as a string.
+func (mr *ModelResponse) Media() string {
+	if mr.Message == nil {
+		return ""
+	}
+	for _, part := range mr.Message.Content {
+		if part.IsMedia() {
+			return part.Text
+		}
+	}
+	return ""
 }
 
 // Text returns the text content of the [ModelResponseChunk]
@@ -805,7 +866,7 @@ func (m ModelRef) Config() any {
 // handleResumedToolRequest resolves a tool request from a previous, interrupted model turn,
 // when generation is being resumed. It determines the outcome of the tool request based on
 // pending output, or explicit 'respond' or 'restart' directives in the resume options.
-func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts *GenerateActionOptions, p *Part) (*resumedToolRequestOutput, error) {
+func handleResumedToolRequest(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions, p *Part) (*resumedToolRequestOutput, error) {
 	if p == nil || !p.IsToolRequest() {
 		return nil, core.NewError(core.INVALID_ARGUMENT, "handleResumedToolRequest: part is not a tool request")
 	}
@@ -942,7 +1003,7 @@ func handleResumedToolRequest(ctx context.Context, r *registry.Registry, genOpts
 
 // handleResumeOption amends message history to handle `resume` arguments.
 // It returns the amended history.
-func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *GenerateActionOptions) (*resumeOptionOutput, error) {
+func handleResumeOption(ctx context.Context, r api.Registry, genOpts *GenerateActionOptions) (*resumeOptionOutput, error) {
 	if genOpts.Resume == nil || (len(genOpts.Resume.Respond) == 0 && len(genOpts.Resume.Restart) == 0) {
 		return &resumeOptionOutput{revisedRequest: genOpts}, nil
 	}
@@ -1047,4 +1108,171 @@ func handleResumeOption(ctx context.Context, r *registry.Registry, genOpts *Gene
 		},
 		toolMessage: toolMessage,
 	}, nil
+}
+
+// addAutomaticTelemetry creates middleware that automatically measures latency and calculates character and media counts.
+func addAutomaticTelemetry() ModelMiddleware {
+	return func(fn ModelFunc) ModelFunc {
+		return func(ctx context.Context, req *ModelRequest, cb ModelStreamCallback) (*ModelResponse, error) {
+			startTime := time.Now()
+
+			// Call the underlying model function
+			resp, err := fn(ctx, req, cb)
+			if err != nil {
+				return nil, err
+			}
+
+			// Calculate latency
+			latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
+			if resp.LatencyMs == 0 {
+				resp.LatencyMs = latencyMs
+			}
+
+			if resp.Usage == nil {
+				resp.Usage = &GenerationUsage{}
+			}
+			if resp.Usage.InputCharacters == 0 {
+				resp.Usage.InputCharacters = countInputCharacters(req)
+			}
+			if resp.Usage.OutputCharacters == 0 {
+				resp.Usage.OutputCharacters = countOutputCharacters(resp)
+			}
+			if resp.Usage.InputImages == 0 {
+				resp.Usage.InputImages = countInputParts(req, func(part *Part) bool { return part.IsImage() })
+			}
+			if resp.Usage.OutputImages == 0 {
+				resp.Usage.OutputImages = countOutputParts(resp, func(part *Part) bool { return part.IsImage() })
+			}
+			if resp.Usage.InputVideos == 0 {
+				resp.Usage.InputVideos = countInputParts(req, func(part *Part) bool { return part.IsVideo() })
+			}
+			if resp.Usage.OutputVideos == 0 {
+				resp.Usage.OutputVideos = countOutputParts(resp, func(part *Part) bool { return part.IsVideo() })
+			}
+			if resp.Usage.InputAudioFiles == 0 {
+				resp.Usage.InputAudioFiles = countInputParts(req, func(part *Part) bool { return part.IsAudio() })
+			}
+			if resp.Usage.OutputAudioFiles == 0 {
+				resp.Usage.OutputAudioFiles = countOutputParts(resp, func(part *Part) bool { return part.IsAudio() })
+			}
+
+			return resp, nil
+		}
+	}
+}
+
+// countInputParts counts parts in the input request that match the given predicate.
+func countInputParts(req *ModelRequest, predicate func(*Part) bool) int {
+	if req == nil {
+		return 0
+	}
+
+	count := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && predicate(part) {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+// countInputCharacters counts the total characters in the input request.
+func countInputCharacters(req *ModelRequest) int {
+	if req == nil {
+		return 0
+	}
+
+	total := 0
+	for _, msg := range req.Messages {
+		if msg == nil {
+			continue
+		}
+		for _, part := range msg.Content {
+			if part != nil && part.Text != "" {
+				total += len(part.Text)
+			}
+		}
+	}
+	return total
+}
+
+// countOutputParts counts parts in the output response that match the given predicate.
+func countOutputParts(resp *ModelResponse, predicate func(*Part) bool) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	count := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && predicate(part) {
+			count++
+		}
+	}
+	return count
+}
+
+// countOutputCharacters counts the total characters in the output response.
+func countOutputCharacters(resp *ModelResponse) int {
+	if resp == nil || resp.Message == nil {
+		return 0
+	}
+
+	total := 0
+	for _, part := range resp.Message.Content {
+		if part != nil && part.Text != "" {
+			total += len(part.Text)
+		}
+	}
+	return total
+}
+
+// processResources processes messages to replace resource parts with actual content.
+func processResources(ctx context.Context, r api.Registry, messages []*Message) ([]*Message, error) {
+	processedMessages := make([]*Message, len(messages))
+	for i, msg := range messages {
+		processedContent := []*Part{}
+
+		for _, part := range msg.Content {
+			if part.IsResource() {
+				// Find and execute the matching resource
+				resourceParts, err := executeResourcePart(ctx, r, part.Resource.Uri)
+				if err != nil {
+					return nil, fmt.Errorf("failed to process resource %q: %w", part.Resource, err)
+				}
+				// Replace resource part with content parts
+				processedContent = append(processedContent, resourceParts...)
+			} else {
+				// Keep non-resource parts as-is
+				processedContent = append(processedContent, part)
+			}
+		}
+
+		processedMessages[i] = &Message{
+			Role:     msg.Role,
+			Content:  processedContent,
+			Metadata: msg.Metadata,
+		}
+	}
+
+	return processedMessages, nil
+}
+
+// executeResourcePart finds and executes a resource, returning the content parts.
+func executeResourcePart(ctx context.Context, r api.Registry, resourceURI string) ([]*Part, error) {
+	resource, input, err := FindMatchingResource(r, resourceURI)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := resource.Execute(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute resource %q: %w", resourceURI, err)
+	}
+
+	return output.Content, nil
 }

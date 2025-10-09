@@ -15,23 +15,23 @@
  */
 
 import * as assert from 'assert';
-import { GENKIT_CLIENT_HEADER, Genkit } from 'genkit';
 import { GenerateRequest, getBasicUsageStats } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-import { getVertexAIUrl } from '../../src/vertexai/client';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
+import { getVertexAIUrl } from '../../src/vertexai/client.js';
 import {
   fromImagenResponse,
   toImagenPredictRequest,
-} from '../../src/vertexai/converters';
+} from '../../src/vertexai/converters.js';
 import {
   ImagenConfig,
   ImagenConfigSchema,
   TEST_ONLY,
   defineModel,
   model,
-} from '../../src/vertexai/imagen';
+} from '../../src/vertexai/imagen.js';
 import {
   ClientOptions,
   ImagenPredictRequest,
@@ -90,7 +90,6 @@ describe('Vertex AI Imagen', () => {
   });
 
   describe('defineImagenModel()', () => {
-    let mockAi: sinon.SinonStubbedInstance<Genkit>;
     let fetchStub: sinon.SinonStub;
     const modelName = 'imagen-test-model';
     let authMock: sinon.SinonStubbedInstance<GoogleAuth>;
@@ -111,7 +110,6 @@ describe('Vertex AI Imagen', () => {
     };
 
     beforeEach(() => {
-      mockAi = sinon.createStubInstance(Genkit);
       fetchStub = sinon.stub(global, 'fetch');
       authMock = sinon.createStubInstance(GoogleAuth);
       authMock.getAccessToken.resolves('test-token');
@@ -135,12 +133,8 @@ describe('Vertex AI Imagen', () => {
     function captureModelRunner(
       clientOptions: ClientOptions
     ): (request: GenerateRequest, options: any) => Promise<any> {
-      defineModel(mockAi as any, modelName, clientOptions);
-      assert.ok(mockAi.defineModel.calledOnce);
-      const callArgs = mockAi.defineModel.firstCall.args;
-      assert.strictEqual(callArgs[0].name, `vertexai/${modelName}`);
-      assert.strictEqual(callArgs[0].configSchema, ImagenConfigSchema);
-      return callArgs[1];
+      const model = defineModel(modelName, clientOptions);
+      return model.run;
     }
 
     function getExpectedHeaders(
@@ -148,8 +142,8 @@ describe('Vertex AI Imagen', () => {
     ): Record<string, string | undefined> {
       const headers: Record<string, string | undefined> = {
         'Content-Type': 'application/json',
-        'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-        'User-Agent': GENKIT_CLIENT_HEADER,
+        'X-Goog-Api-Client': getGenkitClientHeader(),
+        'User-Agent': getGenkitClientHeader(),
         Authorization: 'Bearer test-token',
         'x-goog-user-project':
           clientOptions.kind != 'express' ? clientOptions.projectId : '',
@@ -207,12 +201,12 @@ describe('Vertex AI Imagen', () => {
 
         const expectedResponse = fromImagenResponse(mockResponse, request);
         const expectedCandidates = expectedResponse.candidates;
-        assert.deepStrictEqual(result.candidates, expectedCandidates);
-        assert.deepStrictEqual(result.usage, {
+        assert.deepStrictEqual(result.result.candidates, expectedCandidates);
+        assert.deepStrictEqual(result.result.usage, {
           ...getBasicUsageStats(request.messages, expectedCandidates as any),
           custom: { generations: 2 },
         });
-        assert.deepStrictEqual(result.custom, mockResponse);
+        assert.deepStrictEqual(result.result.custom, mockResponse);
       });
 
       it(`should throw an error if model returns no predictions for ${clientOptions.kind}`, async () => {

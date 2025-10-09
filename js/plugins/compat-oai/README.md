@@ -5,6 +5,13 @@
 
 This Genkit plugin allows to use OpenAI models through their official APIs.
 
+Official OpenAI-compatible provider documentation:
+
+- [OpenAI](https://genkit.dev/docs/integrations/openai/)
+- [xAI (Grok)](https://genkit.dev/docs/integrations/xai/)
+- [DeepSeek](https://genkit.dev/docs/integrations/deepseek/)
+- [Other compatible APIs](https://genkit.dev/docs/integrations/openai-compatible/)
+
 ## Supported models
 
 This plugin also supports OpenAI models, and custom models from other model providers.

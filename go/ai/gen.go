@@ -129,6 +129,7 @@ type GenerateActionOptions struct {
 	Output             *GenerateActionOutputConfig `json:"output,omitempty"`
 	Resume             *GenerateActionResume       `json:"resume,omitempty"`
 	ReturnToolRequests bool                        `json:"returnToolRequests,omitempty"`
+	StepName           string                      `json:"stepName,omitempty"`
 	ToolChoice         ToolChoice                  `json:"toolChoice,omitempty"`
 	Tools              []string                    `json:"tools,omitempty"`
 }
@@ -169,16 +170,16 @@ type GenerationCommonConfig struct {
 type GenerationUsage struct {
 	CachedContentTokens int                `json:"cachedContentTokens,omitempty"`
 	Custom              map[string]float64 `json:"custom,omitempty"`
-	InputAudioFiles     float64            `json:"inputAudioFiles,omitempty"`
+	InputAudioFiles     int                `json:"inputAudioFiles,omitempty"`
 	InputCharacters     int                `json:"inputCharacters,omitempty"`
 	InputImages         int                `json:"inputImages,omitempty"`
 	InputTokens         int                `json:"inputTokens,omitempty"`
-	InputVideos         float64            `json:"inputVideos,omitempty"`
-	OutputAudioFiles    float64            `json:"outputAudioFiles,omitempty"`
+	InputVideos         int                `json:"inputVideos,omitempty"`
+	OutputAudioFiles    int                `json:"outputAudioFiles,omitempty"`
 	OutputCharacters    int                `json:"outputCharacters,omitempty"`
 	OutputImages        int                `json:"outputImages,omitempty"`
 	OutputTokens        int                `json:"outputTokens,omitempty"`
-	OutputVideos        float64            `json:"outputVideos,omitempty"`
+	OutputVideos        int                `json:"outputVideos,omitempty"`
 	ThoughtsTokens      int                `json:"thoughtsTokens,omitempty"`
 	TotalTokens         int                `json:"totalTokens,omitempty"`
 }
@@ -313,6 +314,15 @@ type RerankerRequest struct {
 
 type RerankerResponse struct {
 	Documents []*RankedDocumentData `json:"documents,omitempty"`
+}
+
+type resourcePart struct {
+	Metadata map[string]any `json:"metadata,omitempty"`
+	Resource *ResourcePart  `json:"resource,omitempty"`
+}
+
+type ResourcePart struct {
+	Uri string `json:"uri,omitempty"`
 }
 
 type RetrieverRequest struct {

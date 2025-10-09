@@ -244,7 +244,7 @@ export function fromOpenAIToolCall(
   }
   const f = toolCall.function;
 
-  // Only parse arugments when it is a JSON object and the finish reason is tool_calls to avoid parsing errors
+  // Only parse arguments when it is a JSON object and the finish reason is tool_calls to avoid parsing errors
   if (choice.finish_reason === 'tool_calls') {
     return {
       toolRequest: {
@@ -521,17 +521,20 @@ export function compatOaiModelRef<
   info?: ModelInfo;
   configSchema?: CustomOptions;
   config?: any;
+  namespace?: string;
 }): ModelReference<CustomOptions> {
   const {
     name,
     info = GENERIC_MODEL_INFO,
     configSchema,
     config = undefined,
+    namespace,
   } = params;
   return modelRef({
     name,
     configSchema: configSchema || (ChatCompletionCommonConfigSchema as any),
     info: info,
     config,
+    namespace,
   });
 }

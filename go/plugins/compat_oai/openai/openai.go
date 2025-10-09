@@ -16,11 +16,11 @@ package openai
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	openaiGo "github.com/openai/openai-go"
@@ -130,7 +130,7 @@ var (
 
 	supportedEmbeddingModels = map[string]EmbedderRef{
 		openaiGo.EmbeddingModelTextEmbeddingAda002: {
-			Name:         "openai/text-embedding-ada-002",
+			Name:         "text-embedding-ada-002",
 			ConfigSchema: TextEmbeddingConfig{},
 			Dimensions:   1536,
 			Label:        "Open AI - Text Embedding ADA 002",
@@ -139,7 +139,7 @@ var (
 			},
 		},
 		openaiGo.EmbeddingModelTextEmbedding3Large: {
-			Name:         "openai/text-embedding-3-large",
+			Name:         "text-embedding-3-large",
 			ConfigSchema: TextEmbeddingConfig{},
 			Dimensions:   3072,
 			Label:        "Open AI - Text Embedding 3 Large",
@@ -148,7 +148,7 @@ var (
 			},
 		},
 		openaiGo.EmbeddingModelTextEmbedding3Small: {
-			Name:         "openai/text-embedding-3-small",
+			Name:         "text-embedding-3-small",
 			ConfigSchema: TextEmbeddingConfig{}, // Represents the configurable options
 			Dimensions:   1536,
 			Label:        "Open AI - Text Embedding 3 Small",
@@ -176,7 +176,7 @@ func (o *OpenAI) Name() string {
 }
 
 // Init implements genkit.Plugin.
-func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
+func (o *OpenAI) Init(ctx context.Context) []api.Action {
 	apiKey := o.APIKey
 
 	// if api key is not set, get it from environment variable
@@ -185,7 +185,7 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	if apiKey == "" {
-		return fmt.Errorf("openai plugin initialization failed: apiKey is required")
+		panic("openai plugin initialization failed: apiKey is required")
 	}
 
 	if o.openAICompatible == nil {
@@ -201,15 +201,14 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 	}
 
 	o.openAICompatible.Provider = provider
-	if err := o.openAICompatible.Init(ctx, g); err != nil {
-		return err
-	}
+	compatActions := o.openAICompatible.Init(ctx)
+
+	var actions []api.Action
+	actions = append(actions, compatActions...)
 
 	// define default models
 	for model, opts := range supportedModels {
-		if _, err := o.DefineModel(g, model, opts); err != nil {
-			return err
-		}
+		actions = append(actions, o.DefineModel(model, opts).(api.Action))
 	}
 
 	// define default embedders
@@ -220,34 +219,32 @@ func (o *OpenAI) Init(ctx context.Context, g *genkit.Genkit) error {
 			Supports:     embedder.Supports,
 			Dimensions:   embedder.Dimensions,
 		}
-		if _, err := o.DefineEmbedder(g, embedder.Name, opts); err != nil {
-			return err
-		}
+		actions = append(actions, o.DefineEmbedder(embedder.Name, opts).(api.Action))
 	}
 
-	return nil
+	return actions
 }
 
 func (o *OpenAI) Model(g *genkit.Genkit, name string) ai.Model {
-	return o.openAICompatible.Model(g, core.NewName(provider, name))
+	return o.openAICompatible.Model(g, api.NewName(provider, name))
 }
 
-func (o *OpenAI) DefineModel(g *genkit.Genkit, id string, opts ai.ModelOptions) (ai.Model, error) {
-	return o.openAICompatible.DefineModel(g, provider, id, opts)
+func (o *OpenAI) DefineModel(id string, opts ai.ModelOptions) ai.Model {
+	return o.openAICompatible.DefineModel(provider, id, opts)
 }
 
-func (o *OpenAI) DefineEmbedder(g *genkit.Genkit, id string, opts *ai.EmbedderOptions) (ai.Embedder, error) {
-	return o.openAICompatible.DefineEmbedder(g, provider, id, opts)
+func (o *OpenAI) DefineEmbedder(id string, opts *ai.EmbedderOptions) ai.Embedder {
+	return o.openAICompatible.DefineEmbedder(provider, id, opts)
 }
 
 func (o *OpenAI) Embedder(g *genkit.Genkit, name string) ai.Embedder {
-	return o.openAICompatible.Embedder(g, core.NewName(provider, name))
+	return o.openAICompatible.Embedder(g, api.NewName(provider, name))
 }
 
-func (o *OpenAI) ListActions(ctx context.Context) []core.ActionDesc {
+func (o *OpenAI) ListActions(ctx context.Context) []api.ActionDesc {
 	return o.openAICompatible.ListActions(ctx)
 }
 
-func (o *OpenAI) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
-	return o.openAICompatible.ResolveAction(g, atype, name)
+func (o *OpenAI) ResolveAction(atype api.ActionType, name string) api.Action {
+	return o.openAICompatible.ResolveAction(atype, name)
 }

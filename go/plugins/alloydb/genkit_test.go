@@ -47,45 +47,6 @@ var testCluster = flag.String("test-postgres-cluster", "", "postgres cluster for
 var testInstance = flag.String("test-postgres-instance", "", "postgres instance for tests")
 var testIAMEmail = flag.String("test-postgres-iam-email", "", "postgres instance for tests")
 
-func TestInit_NoConnectionPool(t *testing.T) {
-	ctx := context.Background()
-	cfg := engineConfig{}
-	engine := &PostgresEngine{Pool: cfg.connPool}
-	gcsp := &Postgres{engine: engine}
-	if err := gcsp.Init(ctx, &genkit.Genkit{}); err == nil {
-		t.Fatal("must fail if connection pool is nil")
-	}
-}
-
-func TestInit_AlreadyCalled(t *testing.T) {
-	if !areValidFlags() {
-		t.Skip("no valid postgres flags")
-	}
-
-	ctx := context.Background()
-	pEngine, err := NewPostgresEngine(ctx,
-		WithUser(*testUsername),
-		WithPassword(*testPassword),
-		WithAlloyDBInstance(*testProjectID, *testRegion, *testCluster, *testInstance),
-		WithDatabase(*testDatabase),
-		WithIAMAccountEmail(*testIAMEmail))
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	g := &genkit.Genkit{}
-
-	gcsp := &Postgres{engine: pEngine}
-	g = genkit.Init(ctx, genkit.WithPlugins(gcsp))
-
-	err = gcsp.Init(ctx, g)
-	if err == nil {
-		t.Fatal("must fail if init is called twice")
-	}
-
-}
-
 func TestPostgres(t *testing.T) {
 	if !areValidFlags() {
 		t.Skip("no valid postgres flags")

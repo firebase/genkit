@@ -21,6 +21,7 @@ import {
   JSONSchema,
   MediaPart,
   ModelReference,
+  getClientHeader as defaultGetClientHeader,
   z,
 } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
@@ -30,7 +31,7 @@ import {
   GenerateContentStreamResult,
   Part,
   isObject,
-} from './types';
+} from './types.js';
 
 /**
  * Safely extracts the error message from the error.
@@ -465,4 +466,11 @@ function aggregateMetadata<K extends keyof GenerateContentCandidate>(
       }
     }
   }
+}
+
+export function getGenkitClientHeader() {
+  if (process.env.MONOSPACE_ENV == 'true') {
+    return defaultGetClientHeader() + ' firebase-studio-vm';
+  }
+  return defaultGetClientHeader();
 }

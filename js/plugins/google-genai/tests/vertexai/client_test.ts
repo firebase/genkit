@@ -15,11 +15,11 @@
  */
 
 import * as assert from 'assert';
-import { GENKIT_CLIENT_HEADER } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { TextEncoder } from 'util';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
 import {
   embedContent,
   generateContent,
@@ -30,7 +30,7 @@ import {
   lyriaPredict,
   veoCheckOperation,
   veoPredict,
-} from '../../src/vertexai/client';
+} from '../../src/vertexai/client.js';
 import {
   ClientOptions,
   Content,
@@ -47,8 +47,8 @@ import {
   VeoOperation,
   VeoOperationRequest,
   VeoPredictRequest,
-} from '../../src/vertexai/types';
-import { NOT_SUPPORTED_IN_EXPRESS_ERROR } from '../../src/vertexai/utils';
+} from '../../src/vertexai/types.js';
+import { NOT_SUPPORTED_IN_EXPRESS_ERROR } from '../../src/vertexai/utils.js';
 
 describe('Vertex AI Client', () => {
   let fetchSpy: sinon.SinonStub;
@@ -421,8 +421,8 @@ describe('Vertex AI Client', () => {
         const getExpectedHeaders = () => {
           const headers: Record<string, string | undefined> = {
             'Content-Type': 'application/json',
-            'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-            'User-Agent': GENKIT_CLIENT_HEADER,
+            'X-Goog-Api-Client': getGenkitClientHeader(),
+            'User-Agent': getGenkitClientHeader(),
           };
           if (isExpress) {
             return {

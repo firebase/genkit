@@ -22,14 +22,14 @@ import {
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
-} from '../../src/common/converters';
-import type { GenerateContentCandidate } from '../../src/common/types';
+} from '../../src/common/converters.js';
+import type { GenerateContentCandidate } from '../../src/common/types.js';
 import {
   ExecutableCodeLanguage,
   FunctionCallingMode,
   Outcome,
   SchemaType,
-} from '../../src/common/types';
+} from '../../src/common/types.js';
 
 describe('toGeminiMessage', () => {
   const testCases = [
@@ -157,6 +157,84 @@ describe('toGeminiMessage', () => {
             fileData: {
               mimeType: 'image/png',
               fileUri: 'gs://bucket/image.png',
+            },
+          },
+        ],
+      },
+    },
+    {
+      should:
+        'should transform genkit message (fileData video content with metadata) correctly',
+      inputMessage: {
+        role: 'user',
+        content: [
+          { text: 'describe the following video:' },
+          {
+            media: {
+              contentType: 'video/mp4',
+              url: 'gs://bucket/video.mp4',
+            },
+            metadata: {
+              videoMetadata: {
+                startOffset: '10.0s',
+                endOffset: '20.5s',
+                fps: 0.5,
+              },
+            },
+          },
+        ],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [
+          { text: 'describe the following video:' },
+          {
+            fileData: {
+              mimeType: 'video/mp4',
+              fileUri: 'gs://bucket/video.mp4',
+            },
+            videoMetadata: {
+              startOffset: '10.0s',
+              endOffset: '20.5s',
+              fps: 0.5,
+            },
+          },
+        ],
+      },
+    },
+    {
+      should:
+        'should transform genkit message (fileData video content with partial metadata) correctly',
+      inputMessage: {
+        role: 'user',
+        content: [
+          { text: 'describe the following video:' },
+          {
+            media: {
+              contentType: 'video/mp4',
+              url: 'gs://bucket/video.mp4',
+            },
+            metadata: {
+              videoMetadata: {
+                startOffset: '5.3s',
+                endOffset: '15.7s',
+              },
+            },
+          },
+        ],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [
+          { text: 'describe the following video:' },
+          {
+            fileData: {
+              mimeType: 'video/mp4',
+              fileUri: 'gs://bucket/video.mp4',
+            },
+            videoMetadata: {
+              startOffset: '5.3s',
+              endOffset: '15.7s',
             },
           },
         ],
@@ -677,6 +755,47 @@ describe('fromGeminiCandidate', () => {
         finishReason: 'other',
         finishMessage: undefined,
         custom: { citationMetadata: undefined, safetyRatings: undefined },
+      },
+    },
+    {
+      should: 'should ignore empty parts',
+      geminiCandidate: {
+        index: 0,
+        content: {
+          role: 'model',
+          parts: [
+            {}, // this one should be skipped
+            {
+              text: 'Why did the dog go to the bank?\n\nTo get his bones cashed!',
+            },
+          ],
+        },
+        finishReason: 'STOP',
+        safetyRatings: [
+          { category: 'HARM_CATEGORY_HATE_SPEECH', probability: 'NEGLIGIBLE' },
+        ],
+      },
+      expectedOutput: {
+        index: 0,
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: 'Why did the dog go to the bank?\n\nTo get his bones cashed!',
+            },
+          ],
+        },
+        finishReason: 'stop',
+        finishMessage: undefined,
+        custom: {
+          citationMetadata: undefined,
+          safetyRatings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              probability: 'NEGLIGIBLE',
+            },
+          ],
+        },
       },
     },
   ];
