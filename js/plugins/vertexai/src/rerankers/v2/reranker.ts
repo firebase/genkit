@@ -57,7 +57,7 @@ function commonRef(
   configSchema: ConfigSchemaType = VertexRerankerConfigSchema
 ): RerankerReference<ConfigSchemaType> {
   return rerankerRef({
-    name: `vertexRerankers/${name}`,
+    name: `vertex-rerankers/${name}`,
     configSchema,
     info: info ?? {
       supports: {
@@ -92,7 +92,7 @@ export function reranker(
 ): RerankerReference<VertexRerankerConfigSchemaType> {
   const name = checkModelName(version);
   return rerankerRef({
-    name: `vertexRerankers/${name}`,
+    name: `vertex-rerankers/${name}`,
     configSchema: VertexRerankerConfigSchema,
     info: {
       ...GENERIC_MODEL.info,

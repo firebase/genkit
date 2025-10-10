@@ -55,7 +55,8 @@ export function modelName(name?: string): string | undefined {
     'model\/',
     'models\/',
     'embedders\/',
-    'vertexRerankers\/',
+    'vertex-model-garden\/',
+    'vertex-rerankers\/',
     'vertexai\/',
   ];
   const prefixesToRemove = new RegExp(escapedPrefixes.join('|'), 'g');

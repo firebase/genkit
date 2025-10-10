@@ -28,7 +28,7 @@ import { VertexRerankerPluginOptions } from './types.js';
 
 async function initializer(pluginOptions: VertexRerankerPluginOptions) {
   const clientOptions = await getDerivedOptions(
-    'vertexRerankers',
+    'vertex-rerankers',
     pluginOptions
   );
   return await reranker.listKnownRerankers(clientOptions);
@@ -40,7 +40,7 @@ async function resolver(
   pluginOptions: VertexRerankerPluginOptions
 ): Promise<ResolvableAction | undefined> {
   const clientOptions = await getDerivedOptions(
-    'vertexRerankers',
+    'vertex-rerankers',
     pluginOptions
   );
   if (actionType == 'reranker' && reranker.isRerankerModelName(actionName)) {
@@ -56,7 +56,7 @@ export function vertexRerankersPlugin(
   options: VertexRerankerPluginOptions
 ): GenkitPluginV2 {
   return genkitPluginV2({
-    name: 'vertexRerankers',
+    name: 'vertex-rerankers',
     init: async () => await initializer(options),
     resolve: async (actionType: ActionType, actionName: string) =>
       await resolver(actionType, actionName, options),

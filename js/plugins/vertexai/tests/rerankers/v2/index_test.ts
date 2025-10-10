@@ -32,7 +32,7 @@ describe('vertexRerankersPlugin', () => {
     });
 
     const action = ai.registry.lookupAction(
-      'reranker/vertexRerankers/semantic-ranker-fast-004'
+      'reranker/vertex-rerankers/semantic-ranker-fast-004'
     );
     assert.ok(action);
   });
@@ -59,7 +59,7 @@ describe('vertexRerankersPlugin', () => {
     });
 
     const model = await ai.registry.lookupAction(
-      'model/vertexRerankers/semantic-ranker-default@latest'
+      'model/vertex-rerankers/semantic-ranker-default@latest'
     );
     assert.strictEqual(model, undefined);
   });

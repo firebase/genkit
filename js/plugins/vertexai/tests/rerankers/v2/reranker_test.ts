@@ -99,7 +99,7 @@ describe('listKnownRerankers', () => {
     rerankers.forEach((reranker) => {
       assert.strictEqual(typeof reranker, 'function');
       assert.strictEqual(typeof reranker.__action.name, 'string');
-      assert.ok(reranker.__action.name.startsWith('vertexRerankers/'));
+      assert.ok(reranker.__action.name.startsWith('vertex-rerankers/'));
     });
   });
 });
@@ -140,7 +140,7 @@ describe('v2RerankFlow with vertexRerankers', () => {
     const documents = [Document.fromText('doc1'), Document.fromText('doc2')];
 
     const response = await ai.rerank({
-      reranker: 'vertexRerankers/semantic-ranker-fast-004',
+      reranker: 'vertex-rerankers/semantic-ranker-fast-004',
       documents,
       query: 'test query',
       options: {
