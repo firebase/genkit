@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 
-export * from './legacy/index.js';
-export * from './v2/index.js';
+export { type PluginOptions, vertexAIRerankers } from './legacy/index.js';
+export { type VertexRerankerPluginOptions, vertexRerankers } from './v2/index.js';
