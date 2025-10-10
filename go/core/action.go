@@ -183,13 +183,15 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output api.ActionRunResult[Out], err error) {
+	inputBytes, _ := json.Marshal(input)
 	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.Name(),
-		"input", fmt.Sprintf("%#v", input))
+		"input", inputBytes)
 	defer func() {
+		outputBytes, _ := json.Marshal(output)
 		logger.FromContext(ctx).Debug("Action.Run",
 			"name", a.Name(),
-			"output", fmt.Sprintf("%#v", output),
+			"output", outputBytes,
 			"err", err)
 	}()
 
