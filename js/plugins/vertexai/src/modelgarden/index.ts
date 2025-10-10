@@ -31,4 +31,8 @@ export {
   mistralNemo,
   vertexAIModelGarden,
 } from './legacy/index.js';
-export { vertexModelGarden, type PluginOptions } from './v2/index.js';
+export {
+  vertexModelGarden,
+  type PluginOptions,
+  type VertexModelGardenPlugin,
+} from './v2/index.js';
