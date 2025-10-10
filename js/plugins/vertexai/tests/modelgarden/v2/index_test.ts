@@ -37,7 +37,7 @@ describe('vertexModelGarden.model helper', () => {
     const modelName = 'claude-3-haiku@20240307';
     const model = vertexModelGarden.model(modelName);
     assert.ok(isAnthropicModelName(stripPrefix(model.name)));
-    assert.strictEqual(model.name, `vertexModelGarden/${modelName}`);
+    assert.strictEqual(model.name, `vertex-model-garden/${modelName}`);
     assert.deepStrictEqual(model.configSchema, AnthropicConfigSchema);
   });
 
@@ -45,7 +45,7 @@ describe('vertexModelGarden.model helper', () => {
     const modelName = 'mistral-large-2411';
     const model = vertexModelGarden.model(modelName);
     assert.ok(isMistralModelName(stripPrefix(model.name)));
-    assert.strictEqual(model.name, `vertexModelGarden/${modelName}`);
+    assert.strictEqual(model.name, `vertex-model-garden/${modelName}`);
     assert.deepStrictEqual(model.configSchema, MistralConfigSchema);
   });
 
@@ -53,7 +53,7 @@ describe('vertexModelGarden.model helper', () => {
     const modelName = 'meta/llama-3.1-8b-instruct-maas';
     const model = vertexModelGarden.model(modelName);
     assert.ok(isLlamaModelName(stripPrefix(model.name)));
-    assert.strictEqual(model.name, `vertexModelGarden/${modelName}`);
+    assert.strictEqual(model.name, `vertex-model-garden/${modelName}`);
     assert.deepStrictEqual(model.configSchema, LlamaConfigSchema);
   });
 
@@ -61,7 +61,7 @@ describe('vertexModelGarden.model helper', () => {
     const modelName = 'claude-foo';
     const model = vertexModelGarden.model(modelName);
     assert.ok(isAnthropicModelName(stripPrefix(model.name)));
-    assert.strictEqual(model.name, `vertexModelGarden/${modelName}`);
+    assert.strictEqual(model.name, `vertex-model-garden/${modelName}`);
     assert.deepStrictEqual(model.configSchema, AnthropicConfigSchema);
   });
 
@@ -69,7 +69,7 @@ describe('vertexModelGarden.model helper', () => {
     const modelName = 'mistral-foo';
     const model = vertexModelGarden.model(modelName);
     assert.ok(isMistralModelName(stripPrefix(model.name)));
-    assert.strictEqual(model.name, `vertexModelGarden/${modelName}`);
+    assert.strictEqual(model.name, `vertex-model-garden/${modelName}`);
     assert.deepStrictEqual(model.configSchema, MistralConfigSchema);
   });
 
@@ -77,7 +77,7 @@ describe('vertexModelGarden.model helper', () => {
     const modelName = 'meta/llama-foo';
     const model = vertexModelGarden.model(modelName);
     assert.ok(isLlamaModelName(stripPrefix(model.name)));
-    assert.strictEqual(model.name, `vertexModelGarden/${modelName}`);
+    assert.strictEqual(model.name, `vertex-model-garden/${modelName}`);
     assert.deepStrictEqual(model.configSchema, LlamaConfigSchema);
   });
 

@@ -75,7 +75,7 @@ export function vertexModelGardenPlugin(
 ): GenkitPluginV2 {
   let listActionsCache;
   return genkitPluginV2({
-    name: 'vertexModelGarden',
+    name: 'vertex-model-garden',
     init: async () => await initializer(options),
     resolve: async (actionType: ActionType, actionName: string) =>
       await resolver(actionType, actionName, options),

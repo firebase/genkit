@@ -21,7 +21,7 @@ import { LlamaConfigSchema } from '../../../src/modelgarden/v2/llama';
 import { toRequestBody } from '../../../src/modelgarden/v2/openai_compatibility';
 
 const fakeModel = modelRef({
-  name: 'vertexModelGarden/meta/llama-4-maverick-17b-128e-instruct-maas',
+  name: 'vertex-model-garden/meta/llama-4-maverick-17b-128e-instruct-maas',
   info: {
     supports: {
       multiturn: true,

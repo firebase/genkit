@@ -14,5 +14,21 @@
  * limitations under the License.
  */
 
-export * from './legacy/index.js';
-export * from './v2/index.js';
+export {
+  claude35Sonnet,
+  claude35SonnetV2,
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
+  claudeOpus4,
+  claudeOpus41,
+  claudeSonnet4,
+  codestral,
+  llama3,
+  llama31,
+  llama32,
+  mistralLarge,
+  mistralNemo,
+  vertexAIModelGarden,
+} from './legacy/index.js';
+export { vertexModelGarden, type PluginOptions } from './v2/index.js';

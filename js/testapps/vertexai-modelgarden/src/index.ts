@@ -15,7 +15,11 @@
  */
 
 import { vertexAI } from '@genkit-ai/google-genai';
-import { vertexModelGarden } from '@genkit-ai/vertexai/modelgarden';
+import {
+  vertexAIModelGarden,
+  mistralLarge,
+  vertexModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
 // Import the Genkit core libraries and plugins.
 import { genkit, z } from 'genkit';
 
@@ -32,6 +36,10 @@ const ai = genkit({
     }),
     vertexModelGarden({
       location: 'us-central1',
+    }),
+    vertexAIModelGarden({
+      location: 'us-central1',
+      models: [mistralLarge],
     }),
   ],
 });
@@ -118,6 +126,38 @@ export const mistralExplainConcept = ai.defineFlow(
     return explanation.output || { explanation: '', examples: [] };
   }
 );
+
+export const legacyMistralExplainConcept = ai.defineFlow(
+  {
+    name: 'legacy-mistral-large - explainConcept',
+      inputSchema: z.object({
+      concept: z.string().default('concurrency'),
+    }),
+    outputSchema: z.object({
+      explanation: z.string(),
+      examples: z.array(z.string()),
+    })
+  },
+    async ({ concept }) => {
+    const explanation = await ai.generate({
+      model: mistralLarge,
+      prompt: `Explain ${concept} in programming. Include practical examples.`,
+      config: {
+        version: 'mistral-large-2411',
+        temperature: 0.7,
+      },
+      output: {
+        schema: z.object({
+          explanation: z.string(),
+          examples: z.array(z.string()),
+        }),
+      },
+    });
+
+    return explanation.output || { explanation: '', examples: [] };
+  }
+);
+
 
 // Mistral small for quick validation and analysis
 export const analyzeCode = ai.defineFlow(

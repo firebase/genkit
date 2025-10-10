@@ -66,7 +66,7 @@ function commonRef(
   configSchema: ConfigSchemaType = AnthropicConfigSchema
 ): ModelReference<ConfigSchemaType> {
   return modelRef({
-    name: `vertexModelGarden/${name}`,
+    name: `vertex-model-garden/${name}`,
     configSchema,
     info: info ?? {
       supports: {
@@ -106,7 +106,7 @@ export function model(
   const name = checkModelName(version);
 
   return modelRef({
-    name: `vertexModelGarden/${name}`,
+    name: `vertex-model-garden/${name}`,
     config: options,
     configSchema: AnthropicConfigSchema,
     info: {

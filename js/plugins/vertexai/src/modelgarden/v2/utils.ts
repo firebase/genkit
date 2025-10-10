@@ -27,7 +27,7 @@ export function modelName(name?: string): string | undefined {
 
   // Remove any of these prefixes:
   const prefixesToRemove =
-    /background-model\/|model\/|models\/|embedders\/|vertexModelGarden\/|vertexai\//g;
+    /background-model\/|model\/|models\/|embedders\/|vertex-model-garden\/|vertexai\//g;
   return name.replace(prefixesToRemove, '');
 }
 
