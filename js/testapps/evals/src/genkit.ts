@@ -16,12 +16,7 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
-import {
-  gemini15Flash,
-  gemini15Pro,
-  googleAI,
-  textEmbeddingGecko001,
-} from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
 import { langchain } from 'genkitx-langchain';
 
@@ -55,12 +50,12 @@ export const ai = genkit({
       metrics: [
         {
           type: GenkitMetric.MALICIOUSNESS,
-          judge: gemini15Pro,
+          judge: googleAI.model('gemini-2.5-pro'),
           judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
         },
         {
           type: GenkitMetric.ANSWER_ACCURACY,
-          judge: gemini15Pro,
+          judge: googleAI.model('gemini-2.5-pro'),
           judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
         },
       ],
@@ -68,14 +63,14 @@ export const ai = genkit({
     devLocalVectorstore([
       {
         indexName: 'pdfQA',
-        embedder: textEmbeddingGecko001,
+        embedder: googleAI.embedder('text-embedding-004'),
       },
     ]),
     langchain({
       evaluators: {
         criteria: ['coherence'],
         labeledCriteria: ['correctness'],
-        judge: gemini15Flash,
+        judge: googleAI.model('gemini-2.5-pro'),
       },
     }),
   ],
