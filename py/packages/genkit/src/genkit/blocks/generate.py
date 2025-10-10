@@ -59,7 +59,7 @@ DEFAULT_MAX_TURNS = 5
 def define_generate_action(registry: Registry):
     """Registers generate action in the provided registry."""
 
-    async def genereate_action_fn(input: GenerateActionOptions, ctx: ActionRunContext) -> GenerateResponse:
+    async def generate_action_fn(input: GenerateActionOptions, ctx: ActionRunContext) -> GenerateResponse:
         return await generate_action(
             registry=registry,
             raw_request=input,
@@ -70,7 +70,7 @@ def define_generate_action(registry: Registry):
     registry.register_action(
         kind=ActionKind.UTIL,
         name='generate',
-        fn=genereate_action_fn,
+        fn=generate_action_fn,
     )
 
 
@@ -717,7 +717,7 @@ async def _resolve_resume_options(
     if len(tool_responses) != len(tool_requests):
         raise GenkitError(
             status='FAILED_PRECONDITION',
-            message=f'Ecxpected {len(tool_requests)} responses, but resolved to {len(tool_responses)}',
+            message=f'Expected {len(tool_requests)} responses, but resolved to {len(tool_responses)}',
         )
 
     tool_message = Message(

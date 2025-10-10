@@ -16,6 +16,9 @@
 
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
+import { disableOTelRootSpanDetection } from 'genkit/tracing';
+
+disableOTelRootSpanDetection();
 
 export const ai = genkit({
   plugins: [googleAI()],

@@ -24,7 +24,7 @@ import {
   BaseIndex,
   DEFAULT_INDEX_NAME_SUFFIX,
   ExactNearestNeighbor,
-} from './indexes';
+} from './indexes.js';
 
 import { getIAMPrincipalEmail } from './utils';
 

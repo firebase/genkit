@@ -36,17 +36,18 @@ const (
 	ToolNameRegex = `^[a-zA-Z0-9_-]{1,64}$`
 )
 
-func DefineModel(g *genkit.Genkit, client anthropic.Client, provider, name string, info ai.ModelInfo) ai.Model {
+func DefineModel(g *genkit.Genkit, client anthropic.Client, provider, name string, info ai.ModelOptions) ai.Model {
 	label := "Anthropic"
+	// TODO: trim prefixes
 	if provider == "vertexai" {
 		label = "Vertex AI"
 	}
-	meta := &ai.ModelInfo{
+	meta := &ai.ModelOptions{
 		Label:    label + "-" + name,
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
-	return genkit.DefineModel(g, provider, name, meta, func(
+	return genkit.DefineModel(g, name, meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

@@ -18,17 +18,17 @@ package modelgarden
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"sync"
 
-	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
-	ant "github.com/firebase/genkit/go/plugins/internal/anthropic"
-
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/vertex"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/api"
+	"github.com/firebase/genkit/go/genkit"
+
+	ant "github.com/firebase/genkit/go/plugins/internal/anthropic"
 )
 
 const (
@@ -48,7 +48,7 @@ func (a *Anthropic) Name() string {
 	return provider
 }
 
-func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	if a == nil {
 		a = &Anthropic{}
 	}
@@ -56,19 +56,17 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.initted {
-		return errors.New("plugin already initialized")
+		panic("plugin already initialized")
 	}
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("Anthropic.Init: %w", err)
-		}
-	}()
 
 	projectID := a.ProjectID
 	if projectID == "" {
 		projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 		if projectID == "" {
-			return fmt.Errorf("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard")
+			projectID = os.Getenv("GCLOUD_PROJECT")
+			if projectID == "" {
+				panic("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_PROJECT or GCLOUD_PROJECT in the environment. You can get a project ID at https://console.cloud.google.com/home/dashboard")
+			}
 		}
 	}
 
@@ -79,7 +77,7 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 			location = os.Getenv("GOOGLE_CLOUD_REGION")
 		}
 		if location == "" {
-			return fmt.Errorf("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
+			panic("Vertex AI Modelgarden requires setting GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION in the environment. You can get a location at https://cloud.google.com/vertex-ai/docs/general/locations")
 		}
 	}
 
@@ -90,30 +88,19 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.initted = true
 	a.client = c
 
-	for name, mi := range ant.AnthropicModels {
-		ant.DefineModel(g, a.client, provider, name, mi)
-	}
-
-	return nil
+	return []api.Action{}
 }
 
-// AnthropicModel returns the [ai.Model] with the given name.
+// AnthropicModel returns the [ai.Model] with the given id.
 // It returns nil if the model was not defined
-func AnthropicModel(g *genkit.Genkit, name string) ai.Model {
-	return genkit.LookupModel(g, provider, name)
+func AnthropicModel(g *genkit.Genkit, id string) ai.Model {
+	return genkit.LookupModel(g, api.NewName(provider, id))
 }
 
 // DefineModel adds the model to the registry
-func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) (ai.Model, error) {
-	var mi ai.ModelInfo
-	if info == nil {
-		var ok bool
-		mi, ok = ant.AnthropicModels[name]
-		if !ok {
-			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelInfo", provider, name)
-		}
-	} else {
-		mi = *info
+func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
+	if opts == nil {
+		return nil, fmt.Errorf("DefineModel called with nil ai.ModelOptions")
 	}
-	return ant.DefineModel(g, a.client, provider, name, mi), nil
+	return ant.DefineModel(g, a.client, provider, name, *opts), nil
 }

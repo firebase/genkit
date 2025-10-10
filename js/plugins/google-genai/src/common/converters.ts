@@ -30,7 +30,8 @@ import {
   Part as GeminiPart,
   Schema,
   SchemaType,
-} from './types';
+  VideoMetadata,
+} from './types.js';
 
 export function toGeminiTool(tool: ToolDefinition): FunctionDeclaration {
   const declaration: FunctionDeclaration = {
@@ -100,6 +101,7 @@ function toGeminiSchemaProperty(property?: ToolDefinition['inputSchema']) {
 }
 
 function toGeminiMedia(part: Part): GeminiPart {
+  let media: GeminiPart;
   if (part.media?.url.startsWith('data:')) {
     // Inline data
     const dataUrl = part.media.url;
@@ -107,21 +109,29 @@ function toGeminiMedia(part: Part): GeminiPart {
     const contentType =
       part.media.contentType ||
       dataUrl.substring(dataUrl.indexOf(':')! + 1, dataUrl.indexOf(';'));
-    return { inlineData: { mimeType: contentType, data: b64Data } };
+    media = { inlineData: { mimeType: contentType, data: b64Data } };
+  } else {
+    // File data
+    if (!part.media?.contentType) {
+      throw Error(
+        'Must supply a `contentType` when sending File URIs to Gemini.'
+      );
+    }
+    media = {
+      fileData: {
+        mimeType: part.media.contentType,
+        fileUri: part.media.url,
+      },
+    };
   }
 
-  // File data
-  if (!part.media?.contentType) {
-    throw Error(
-      'Must supply a `contentType` when sending File URIs to Gemini.'
-    );
+  // Video metadata
+  if (part.metadata?.videoMetadata) {
+    let videoMetadata = part.metadata.videoMetadata as VideoMetadata;
+    media.videoMetadata = { ...videoMetadata };
   }
-  return {
-    fileData: {
-      mimeType: part.media.contentType,
-      fileUri: part.media.url,
-    },
-  };
+
+  return media;
 }
 
 function toGeminiToolRequest(part: Part): GeminiPart {
@@ -195,7 +205,8 @@ function toGeminiPart(part: Part): GeminiPart {
   if (part.custom) {
     return toGeminiCustom(part);
   }
-  throw new Error('Unsupported Part type' + JSON.stringify(part));
+
+  throw new Error('Unsupported Part type ' + JSON.stringify(part));
 }
 
 function toGeminiRole(
@@ -424,7 +435,7 @@ function fromGeminiPart(part: GeminiPart, ref: string): Part {
   if (part.executableCode) return fromExecutableCode(part);
   if (part.codeExecutionResult) return fromCodeExecutionResult(part);
 
-  throw new Error('Unsupported GeminiPart type');
+  throw new Error('Unsupported GeminiPart type ' + JSON.stringify(part));
 }
 
 export function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
@@ -433,9 +444,10 @@ export function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
     index: candidate.index || 0,
     message: {
       role: 'model',
-      content: parts.map((part, index) =>
-        fromGeminiPart(part, index.toString())
-      ),
+      content: parts
+        // the model sometimes returns empty parts, ignore those.
+        .filter((p) => Object.keys(p).length > 0)
+        .map((part, index) => fromGeminiPart(part, index.toString())),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,

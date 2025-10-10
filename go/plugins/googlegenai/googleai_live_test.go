@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -66,18 +65,12 @@ func TestGoogleAILive(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx,
+	g := genkit.Init(ctx,
 		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken, carefuly inspect the user input to determine which value from the prompt corresponds to the input structure",
 		func(ctx *ai.ToolContext, input struct {
@@ -90,7 +83,7 @@ func TestGoogleAILive(t *testing.T) {
 	)
 
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
+		res, err := genkit.Embed(ctx, g, ai.WithEmbedder(embedder), ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -178,7 +171,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("tool with thinking", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&genai.GenerateContentConfig{
 				ThinkingConfig: &genai.ThinkingConfig{
@@ -331,8 +324,8 @@ func TestGoogleAILive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(strings.ToLower(resp.Text()), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -357,19 +350,19 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are an excellent animal detector, the user will provide you a request with an image, identify which animal is in there"),
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewDataPart("data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
@@ -435,7 +428,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](0.4),
@@ -457,7 +450,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](0.4),
@@ -567,7 +560,7 @@ func TestCacheHelper(t *testing.T) {
 
 func fetchImgAsBase64() (string, error) {
 	// CC0 license image
-	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
+	imgUrl := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err

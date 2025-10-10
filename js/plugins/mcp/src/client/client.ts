@@ -23,12 +23,13 @@ import {
   Root,
 } from '@modelcontextprotocol/sdk/types.js';
 import {
-  DynamicResourceAction,
-  ExecutablePrompt,
-  Genkit,
   GenkitError,
-  PromptGenerateOptions,
-  ToolAction,
+  type DynamicActionProviderAction,
+  type DynamicResourceAction,
+  type ExecutablePrompt,
+  type Genkit,
+  type PromptGenerateOptions,
+  type ToolAction,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
@@ -113,6 +114,10 @@ export type McpClientOptions = {
   sessionId?: string;
 };
 
+export type McpClientOptionsWithCache = McpClientOptions & {
+  cacheTtlMillis?: number;
+};
+
 /**
  * Represents a client connection to a single MCP (Model Context Protocol) server.
  * It handles the lifecycle of the connection (connect, disconnect, disable, re-enable, reconnect)
@@ -123,6 +128,7 @@ export type McpClientOptions = {
  */
 export class GenkitMcpClient {
   _server?: McpServerRef;
+  private _dynamicActionProvider: DynamicActionProviderAction | undefined;
 
   sessionId?: string;
   readonly name: string;
@@ -152,6 +158,16 @@ export class GenkitMcpClient {
     this._initializeConnection();
   }
 
+  set dynamicActionProvider(dap: DynamicActionProviderAction) {
+    this._dynamicActionProvider = dap;
+  }
+
+  _invalidateDapCache(): void {
+    if (this._dynamicActionProvider) {
+      this._dynamicActionProvider.invalidateCache();
+    }
+  }
+
   get serverName(): string {
     return (
       this.suppliedServerName ??
@@ -163,6 +179,7 @@ export class GenkitMcpClient {
   async updateRoots(roots: Root[]) {
     this.roots = roots;
     await this._server?.client.sendRootsListChanged();
+    this._invalidateDapCache();
   }
 
   /**
@@ -188,6 +205,7 @@ export class GenkitMcpClient {
     if (this.roots) {
       await this.updateRoots(this.roots);
     }
+    this._invalidateDapCache();
   }
 
   /**
@@ -208,6 +226,7 @@ export class GenkitMcpClient {
    */
   private async _connect() {
     if (this._server) await this._server.transport.close();
+    this._invalidateDapCache();
     logger.debug(
       `[MCP Client] Connecting MCP server '${this.serverName}' in client '${this.name}'.`
     );
@@ -249,6 +268,7 @@ export class GenkitMcpClient {
       transport,
       error,
     } as McpServerRef;
+    this._invalidateDapCache();
   }
 
   /**
@@ -262,6 +282,7 @@ export class GenkitMcpClient {
       );
       await this._server.client.close();
       this._server = undefined;
+      this._invalidateDapCache();
     }
   }
 
@@ -277,6 +298,7 @@ export class GenkitMcpClient {
       );
       await this._disconnect();
       this.disabled = true;
+      this._invalidateDapCache();
     }
   }
 
@@ -296,6 +318,7 @@ export class GenkitMcpClient {
     logger.debug(`[MCP Client] Reenabling MCP server in client '${this.name}'`);
     await this._initializeConnection();
     this.disabled = !!this._server!.error;
+    this._invalidateDapCache();
   }
 
   /**
@@ -310,6 +333,7 @@ export class GenkitMcpClient {
       );
       await this._disconnect();
       await this._initializeConnection();
+      this._invalidateDapCache();
     }
   }
 

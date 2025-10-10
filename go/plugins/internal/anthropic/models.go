@@ -21,7 +21,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/internal"
 )
 
-var AnthropicModels = map[string]ai.ModelInfo{
+var anthropicModels = map[string]ai.ModelOptions{
 	"claude-3-5-sonnet-v2": {
 		Label:    "Claude 3.5 Sonnet",
 		Supports: &internal.Multimodal,

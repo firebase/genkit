@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+import { googleAI } from '@genkit-ai/googleai';
 import { createMcpServer } from '@genkit-ai/mcp';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { genkit, z } from 'genkit/beta';
 
-const ai = genkit({});
+const ai = genkit({
+  plugins: [googleAI()],
+});
 
 ai.defineTool(
   {

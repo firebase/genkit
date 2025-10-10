@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.14.1",
+  "version": "1.21.0",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -32,6 +32,7 @@
     "@opentelemetry/sdk-metrics": "~1.25.0",
     "@opentelemetry/sdk-node": "^0.52.0",
     "@opentelemetry/sdk-trace-base": "~1.25.0",
+    "@opentelemetry/exporter-jaeger": "^1.25.0",
     "@types/json-schema": "^7.0.15",
     "ajv": "^8.12.0",
     "ajv-formats": "^3.0.1",
@@ -54,6 +55,9 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^4.9.0"
+  },
+  "optionalDependencies": {
+    "@genkit-ai/firebase": "^1.16.1"
   },
   "types": "lib/index.d.ts",
   "exports": {
@@ -92,6 +96,12 @@
       "require": "./lib/schema.js",
       "import": "./lib/schema.mjs",
       "default": "./lib/schema.js"
+    },
+    "./node": {
+      "types": "./lib/node.d.ts",
+      "require": "./lib/node.js",
+      "import": "./lib/node.mjs",
+      "default": "./lib/node.js"
     }
   },
   "typesVersions": {
@@ -116,6 +126,9 @@
       ],
       "schema": [
         "lib/schema"
+      ],
+      "node": [
+        "lib/node"
       ]
     }
   }

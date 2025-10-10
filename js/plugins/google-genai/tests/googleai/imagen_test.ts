@@ -15,27 +15,28 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, GENKIT_CLIENT_HEADER, MessageData } from 'genkit';
+import { MessageData } from 'genkit';
 import { GenerateRequest, getBasicUsageStats } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
-import { getGoogleAIUrl } from '../../src/googleai/client';
+import { getGenkitClientHeader } from '../../src/common/utils.js';
+import { getGoogleAIUrl } from '../../src/googleai/client.js';
 import {
-  defineModel,
   ImagenConfig,
   ImagenConfigSchema,
-  model,
   TEST_ONLY,
-} from '../../src/googleai/imagen';
+  defineModel,
+  model,
+} from '../../src/googleai/imagen.js';
 import {
-  ImagenPrediction,
   ImagenPredictRequest,
   ImagenPredictResponse,
+  ImagenPrediction,
 } from '../../src/googleai/types.js';
 import {
   API_KEY_FALSE_ERROR,
   MISSING_API_KEY_ERROR,
-} from '../../src/googleai/utils';
+} from '../../src/googleai/utils.js';
 
 const { toImagenParameters, fromImagenPrediction } = TEST_ONLY;
 
@@ -158,7 +159,6 @@ describe('Google AI Imagen', () => {
   });
 
   describe('defineModel()', () => {
-    let mockAi: sinon.SinonStubbedInstance<Genkit>;
     let fetchStub: sinon.SinonStub;
     let envStub: sinon.SinonStub;
 
@@ -166,7 +166,6 @@ describe('Google AI Imagen', () => {
     const defaultApiKey = 'default-api-key';
 
     beforeEach(() => {
-      mockAi = sinon.createStubInstance(Genkit);
       fetchStub = sinon.stub(global, 'fetch');
       // Stub process.env to control environment variables
       envStub = sinon.stub(process, 'env').value({});
@@ -192,18 +191,14 @@ describe('Google AI Imagen', () => {
         apiVersion?: string;
         baseUrl?: string;
       } = {}
-    ): (request: GenerateRequest) => Promise<any> {
+    ): (request: GenerateRequest, options: any) => Promise<any> {
       const name = defineOptions.name || modelName;
       const apiVersion = defineOptions.apiVersion;
       const baseUrl = defineOptions.baseUrl;
       const apiKey = defineOptions.apiKey;
 
-      defineModel(mockAi as any, name, { apiKey, apiVersion, baseUrl });
-      assert.ok(mockAi.defineModel.calledOnce, 'defineModel should be called');
-      const callArgs = mockAi.defineModel.firstCall.args;
-      assert.strictEqual(callArgs[0].name, `googleai/${name}`);
-      assert.strictEqual(callArgs[0].configSchema, ImagenConfigSchema);
-      return callArgs[1];
+      const model = defineModel(name, { apiKey, apiVersion, baseUrl });
+      return model.run;
     }
 
     it('should define a model and call fetch successfully', async () => {
@@ -229,7 +224,7 @@ describe('Google AI Imagen', () => {
       mockFetchResponse(mockResponse);
 
       const modelRunner = captureModelRunner({ apiKey: defaultApiKey });
-      const result = await modelRunner(request);
+      const result = await modelRunner(request, {});
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
@@ -244,7 +239,7 @@ describe('Google AI Imagen', () => {
       const expectedHeaders = {
         'Content-Type': 'application/json',
         'x-goog-api-key': requestApiKey, // Effective key is from request
-        'x-goog-api-client': GENKIT_CLIENT_HEADER,
+        'x-goog-api-client': getGenkitClientHeader(),
       };
       assert.deepStrictEqual(fetchArgs[1].headers, expectedHeaders);
       assert.strictEqual(fetchArgs[1].method, 'POST');
@@ -265,13 +260,13 @@ describe('Google AI Imagen', () => {
         role: 'model',
         content: expectedContent,
       };
-      assert.deepStrictEqual(result.message, expectedMessage);
-      assert.strictEqual(result.finishReason, 'stop');
+      assert.deepStrictEqual(result.result.message, expectedMessage);
+      assert.strictEqual(result.result.finishReason, 'stop');
       assert.deepStrictEqual(
-        result.usage,
+        result.result.usage,
         getBasicUsageStats(request.messages, expectedMessage)
       );
-      assert.deepStrictEqual(result.custom, mockResponse);
+      assert.deepStrictEqual(result.result.custom, mockResponse);
     });
 
     it('should use default apiKey if no request apiKey provided', async () => {
@@ -287,7 +282,7 @@ describe('Google AI Imagen', () => {
       });
 
       const modelRunner = captureModelRunner({ apiKey: defaultApiKey });
-      await modelRunner(request);
+      await modelRunner(request, {});
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
       assert.strictEqual(fetchArgs[1].headers['x-goog-api-key'], defaultApiKey);
@@ -305,9 +300,12 @@ describe('Google AI Imagen', () => {
         apiVersion,
         baseUrl,
       });
-      await modelRunner({
-        messages: [{ role: 'user', content: [{ text: 'A dog' }] }],
-      });
+      await modelRunner(
+        {
+          messages: [{ role: 'user', content: [{ text: 'A dog' }] }],
+        },
+        {}
+      );
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
@@ -323,9 +321,12 @@ describe('Google AI Imagen', () => {
       mockFetchResponse({ predictions: [] });
       const modelRunner = captureModelRunner({ apiKey: defaultApiKey });
       await assert.rejects(
-        modelRunner({
-          messages: [{ role: 'user', content: [{ text: 'A fish' }] }],
-        }),
+        modelRunner(
+          {
+            messages: [{ role: 'user', content: [{ text: 'A fish' }] }],
+          },
+          {}
+        ),
         /Model returned no predictions/
       );
       sinon.assert.calledOnce(fetchStub);
@@ -341,9 +342,12 @@ describe('Google AI Imagen', () => {
         resourceMethod: 'predict',
       });
       await assert.rejects(
-        modelRunner({
-          messages: [{ role: 'user', content: [{ text: 'A bird' }] }],
-        }),
+        modelRunner(
+          {
+            messages: [{ role: 'user', content: [{ text: 'A bird' }] }],
+          },
+          {}
+        ),
         new RegExp(`Failed to fetch from ${expectedUrl}: Network Error`)
       );
     });
@@ -358,9 +362,12 @@ describe('Google AI Imagen', () => {
         resourceMethod: 'predict',
       });
       await assert.rejects(
-        modelRunner({
-          messages: [{ role: 'user', content: [{ text: 'A plane' }] }],
-        }),
+        modelRunner(
+          {
+            messages: [{ role: 'user', content: [{ text: 'A plane' }] }],
+          },
+          {}
+        ),
         new RegExp(
           `Error fetching from ${expectedUrl}: \\[400 Error\\] Invalid argument`
         )
@@ -374,10 +381,13 @@ describe('Google AI Imagen', () => {
       });
 
       const modelRunner = captureModelRunner({ apiKey: false });
-      await modelRunner({
-        messages: [{ role: 'user', content: [{ text: 'A train' }] }],
-        config: { apiKey: requestApiKey },
-      });
+      await modelRunner(
+        {
+          messages: [{ role: 'user', content: [{ text: 'A train' }] }],
+          config: { apiKey: requestApiKey },
+        },
+        {}
+      );
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
@@ -388,10 +398,13 @@ describe('Google AI Imagen', () => {
       const modelRunner = captureModelRunner({ apiKey: false });
 
       await assert.rejects(
-        modelRunner({
-          messages: [{ role: 'user', content: [{ text: 'A car' }] }],
-          config: {},
-        }),
+        modelRunner(
+          {
+            messages: [{ role: 'user', content: [{ text: 'A car' }] }],
+            config: {},
+          },
+          {}
+        ),
         API_KEY_FALSE_ERROR
       );
       sinon.assert.notCalled(fetchStub);
@@ -401,9 +414,8 @@ describe('Google AI Imagen', () => {
       // process.env is empty due to envStub in beforeEach
       assert.throws(() => {
         // Explicitly pass undefined for apiKey
-        defineModel(mockAi as any, modelName, undefined);
+        defineModel(modelName, undefined);
       }, MISSING_API_KEY_ERROR);
-      sinon.assert.notCalled(mockAi.defineModel);
     });
 
     it('should use key from env if no key passed to defineImagenModel', async () => {
@@ -415,9 +427,12 @@ describe('Google AI Imagen', () => {
       });
 
       const modelRunner = captureModelRunner({ apiKey: undefined }); // No apiKey passed in init
-      await modelRunner({
-        messages: [{ role: 'user', content: [{ text: 'A bike' }] }],
-      });
+      await modelRunner(
+        {
+          messages: [{ role: 'user', content: [{ text: 'A bike' }] }],
+        },
+        {}
+      );
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;

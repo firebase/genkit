@@ -125,11 +125,11 @@ const loggedProcedure = t.procedure.use(async (opts) => {
 export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
   t.router({
     /** Retrieves all runnable actions. */
-    listActions: loggedProcedure.query(
-      async (): Promise<Record<string, Action>> => {
-        return manager.listActions();
-      }
-    ),
+    listActions: loggedProcedure
+      .input(apis.ListActionsRequestSchema)
+      .query(async ({ input }): Promise<Record<string, Action>> => {
+        return manager.listActions(input);
+      }),
 
     /** Runs an action. */
     runAction: loggedProcedure
@@ -169,7 +169,8 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .input(apis.ListEvalKeysRequestSchema)
       .output(apis.ListEvalKeysResponseSchema)
       .query(async ({ input }) => {
-        const response = await getEvalStore().list(input);
+        const store = await getEvalStore();
+        const response = await store.list(input);
         return {
           evalRunKeys: response.evalRunKeys,
         };
@@ -182,7 +183,8 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .query(async ({ input }) => {
         const parts = input.name.split('/');
         const evalRunId = parts[1];
-        const evalRun = await getEvalStore().load(evalRunId);
+        const store = await getEvalStore();
+        const evalRun = await store.load(evalRunId);
         if (!evalRun) {
           throw new TRPCError({
             code: 'NOT_FOUND',
@@ -198,7 +200,8 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .mutation(async ({ input }) => {
         const parts = input.name.split('/');
         const evalRunId = parts[1];
-        await getEvalStore().delete(evalRunId);
+        const store = await getEvalStore();
+        await store.delete(evalRunId);
       }),
 
     /** Retrieves all eval datasets */

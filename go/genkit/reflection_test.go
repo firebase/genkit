@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 )
 
@@ -42,12 +43,10 @@ func dec(_ context.Context, x int) (int, error) {
 
 func TestReflectionServer(t *testing.T) {
 	t.Run("server startup and shutdown", func(t *testing.T) {
-		g, err := Init(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+		g := Init(context.Background())
+
 		tc := tracing.NewTestOnlyTelemetryClient()
-		g.reg.TracingState().WriteTelemetryImmediate(tc)
+		tracing.WriteTelemetryImmediate(tc)
 
 		errCh := make(chan error, 1)
 		serverStartCh := make(chan struct{})
@@ -83,15 +82,13 @@ func TestReflectionServer(t *testing.T) {
 }
 
 func TestServeMux(t *testing.T) {
-	g, err := Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	tc := tracing.NewTestOnlyTelemetryClient()
-	g.reg.TracingState().WriteTelemetryImmediate(tc)
+	g := Init(context.Background())
 
-	core.DefineAction(g.reg, "test", "inc", "custom", nil, inc)
-	core.DefineAction(g.reg, "test", "dec", "custom", nil, dec)
+	tc := tracing.NewTestOnlyTelemetryClient()
+	tracing.WriteTelemetryImmediate(tc)
+
+	core.DefineAction(g.reg, "test/inc", api.ActionTypeCustom, nil, nil, inc)
+	core.DefineAction(g.reg, "test/dec", api.ActionTypeCustom, nil, nil, dec)
 
 	ts := httptest.NewServer(serveMux(g))
 	defer ts.Close()
@@ -116,7 +113,7 @@ func TestServeMux(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		var actions map[string]core.ActionDesc
+		var actions map[string]api.ActionDesc
 		if err := json.NewDecoder(res.Body).Decode(&actions); err != nil {
 			t.Fatal(err)
 		}
@@ -205,7 +202,7 @@ func TestServeMux(t *testing.T) {
 			}
 			return x, nil
 		}
-		core.DefineStreamingAction(g.reg, "test", "streaming", core.ActionTypeCustom, nil, streamingInc)
+		core.DefineStreamingAction(g.reg, "test/streaming", api.ActionTypeCustom, nil, nil, streamingInc)
 
 		body := `{"key": "/custom/test/streaming", "input": 3}`
 		req, err := http.NewRequest("POST", ts.URL+"/api/runAction?stream=true", strings.NewReader(body))

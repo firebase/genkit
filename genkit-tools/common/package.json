@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/tools-common",
-  "version": "1.14.1",
+  "version": "1.21.0",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rimraf ./lib",
@@ -23,7 +23,7 @@
     "express": "^4.21.0",
     "get-port": "5.1.1",
     "glob": "^10.3.12",
-    "inquirer": "^8.2.0",
+    "@inquirer/prompts": "^7.8.0",
     "js-yaml": "^4.1.0",
     "json-2-csv": "^5.5.1",
     "json-schema": "^0.4.0",

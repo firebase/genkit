@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-import { GENKIT_CLIENT_HEADER } from 'genkit';
-import { extractErrMsg } from '../common/utils';
+import {
+  extractErrMsg,
+  getGenkitClientHeader,
+  processStream,
+} from '../common/utils.js';
 import {
   ClientOptions,
   EmbedContentRequest,
   EmbedContentResponse,
-  GenerateContentCandidate,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
@@ -28,10 +30,9 @@ import {
   ImagenPredictResponse,
   ListModelsResponse,
   Model,
-  Part,
   VeoOperation,
   VeoPredictRequest,
-} from './types';
+} from './types.js';
 
 /**
  * Lists available models.
@@ -51,10 +52,11 @@ export async function listModels(
     queryParams: 'pageSize=1000',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'GET',
-    headers: getHeaders(apiKey, clientOptions),
-  };
+    apiKey,
+    clientOptions,
+  });
   const response = await makeRequest(url, fetchOptions);
   const modelResponse = JSON.parse(await response.text()) as ListModelsResponse;
   return modelResponse.models;
@@ -81,11 +83,12 @@ export async function generateContent(
     resourceMethod: 'generateContent',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(generateContentRequest),
-  };
+  });
   const response = await makeRequest(url, fetchOptions);
 
   const responseJson = (await response.json()) as GenerateContentResponse;
@@ -113,11 +116,12 @@ export async function generateContentStream(
     resourceMethod: 'streamGenerateContent',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(generateContentRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return processStream(response);
@@ -144,11 +148,12 @@ export async function embedContent(
     resourceMethod: 'embedContent',
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(embedContentRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json();
@@ -166,11 +171,12 @@ export async function imagenPredict(
     clientOptions,
   });
 
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: await getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(imagenPredictRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<ImagenPredictResponse>;
@@ -188,17 +194,18 @@ export async function veoPredict(
     clientOptions,
   });
 
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'POST',
-    headers: await getHeaders(apiKey, clientOptions),
+    apiKey,
+    clientOptions,
     body: JSON.stringify(veoPredictRequest),
-  };
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<VeoOperation>;
 }
 
-export async function checkVeoOperation(
+export async function veoCheckOperation(
   apiKey: string,
   operation: string,
   clientOptions?: ClientOptions
@@ -207,10 +214,11 @@ export async function checkVeoOperation(
     resourcePath: operation,
     clientOptions,
   });
-  const fetchOptions: RequestInit = {
+  const fetchOptions = getFetchOptions({
     method: 'GET',
-    headers: await getHeaders(apiKey, clientOptions),
-  };
+    apiKey,
+    clientOptions,
+  });
 
   const response = await makeRequest(url, fetchOptions);
   return response.json() as Promise<VeoOperation>;
@@ -253,6 +261,45 @@ export function getGoogleAIUrl(params: {
   return url;
 }
 
+function getFetchOptions(params: {
+  method: 'POST' | 'GET';
+  apiKey: string;
+  body?: string;
+  clientOptions?: ClientOptions;
+}) {
+  const fetchOptions: RequestInit = {
+    method: params.method,
+    headers: getHeaders(params.apiKey, params.clientOptions),
+  };
+  if (params.body) {
+    fetchOptions.body = params.body;
+  }
+  const signal = getAbortSignal(params.clientOptions);
+  if (signal) {
+    fetchOptions.signal = signal;
+  }
+  return fetchOptions;
+}
+
+function getAbortSignal(
+  clientOptions?: ClientOptions
+): AbortSignal | undefined {
+  const hasTimeout = (clientOptions?.timeout ?? -1) >= 0;
+  if (clientOptions?.signal !== undefined || hasTimeout) {
+    const controller = new AbortController();
+    if (hasTimeout) {
+      setTimeout(() => controller.abort(), clientOptions?.timeout);
+    }
+    if (clientOptions?.signal) {
+      clientOptions.signal.addEventListener('abort', () => {
+        controller.abort();
+      });
+    }
+    return controller.signal;
+  }
+  return undefined;
+}
+
 /**
  * Constructs the headers for an API request.
  *
@@ -274,7 +321,7 @@ function getHeaders(
     ...customHeaders,
     'Content-Type': 'application/json',
     'x-goog-api-key': apiKey,
-    'x-goog-api-client': GENKIT_CLIENT_HEADER,
+    'x-goog-api-client': getGenkitClientHeader(),
   };
 
   return headers;
@@ -316,238 +363,9 @@ async function makeRequest(
   }
 }
 
-/**
- * Aggregates multiple `GenerateContentResponse` objects into a single response.
- *
- * This function takes an array of `GenerateContentResponse` objects, from
- * a stream of responses from a generative model, and combines
- * them into a single `GenerateContentResponse`. It handles multiple candidates
- * and parts within those candidates, merging them as they arrive.
- *
- * The function prioritizes the most recent information for candidate metadata
- * (e.g., `citationMetadata`, `groundingMetadata`, `finishReason`, `finishMessage`, `safetyRatings`)
- * while concatenating the content parts.
- *
- * @param responses An array of `GenerateContentResponse` objects to aggregate.
- * @returns A single `GenerateContentResponse` object containing the aggregated data.
- */
-function aggregateResponses(
-  responses: GenerateContentResponse[]
-): GenerateContentResponse {
-  const lastResponse = responses[responses.length - 1];
-  const aggregatedResponse: GenerateContentResponse = {
-    promptFeedback: lastResponse?.promptFeedback,
-  };
-  for (const response of responses) {
-    if (response.candidates) {
-      for (const candidate of response.candidates) {
-        const index = candidate.index;
-        if (index === undefined) {
-          console.warn('Candidate missing index, skipping:', candidate);
-          continue;
-        }
-        if (!aggregatedResponse.candidates) {
-          aggregatedResponse.candidates = [];
-        }
-        if (!aggregatedResponse.candidates[index]) {
-          aggregatedResponse.candidates[index] = {
-            index,
-          } as GenerateContentCandidate;
-        }
-        // Update metadata - last one wins for each field
-        if (candidate.citationMetadata !== undefined) {
-          aggregatedResponse.candidates[index].citationMetadata =
-            candidate.citationMetadata;
-        }
-        if (candidate.groundingMetadata !== undefined) {
-          aggregatedResponse.candidates[index].groundingMetadata =
-            candidate.groundingMetadata;
-        }
-        if (candidate.finishReason !== undefined) {
-          aggregatedResponse.candidates[index].finishReason =
-            candidate.finishReason;
-        }
-        if (candidate.finishMessage !== undefined) {
-          aggregatedResponse.candidates[index].finishMessage =
-            candidate.finishMessage;
-        }
-        if (candidate.safetyRatings !== undefined) {
-          aggregatedResponse.candidates[index].safetyRatings =
-            candidate.safetyRatings;
-        }
-        if (candidate.avgLogprobs !== undefined) {
-          aggregatedResponse.candidates[index].avgLogprobs =
-            candidate.avgLogprobs;
-        }
-        if (candidate.logprobsResult !== undefined) {
-          aggregatedResponse.candidates[index].logprobsResult =
-            candidate.logprobsResult;
-        }
-
-        /**
-         * Candidates should always have content and parts, but this handles
-         * possible malformed responses.
-         */
-        if (candidate.content && candidate.content.parts) {
-          if (!aggregatedResponse.candidates[index].content) {
-            aggregatedResponse.candidates[index].content = {
-              role: candidate.content.role || 'user',
-              parts: [],
-            };
-          }
-
-          for (const part of candidate.content.parts) {
-            const newPart: Partial<Part> = {};
-            if (part.text) {
-              newPart.text = part.text;
-            }
-            if (part.functionCall) {
-              newPart.functionCall = part.functionCall;
-            }
-            if (part.executableCode) {
-              newPart.executableCode = part.executableCode;
-            }
-            if (part.codeExecutionResult) {
-              newPart.codeExecutionResult = part.codeExecutionResult;
-            }
-            if (Object.keys(newPart).length === 0) {
-              newPart.text = '';
-            }
-            aggregatedResponse.candidates[index].content.parts.push(
-              newPart as Part
-            );
-          }
-        }
-      }
-    }
-    if (response.usageMetadata) {
-      aggregatedResponse.usageMetadata = response.usageMetadata;
-    }
-  }
-  return aggregatedResponse;
-}
-
-/**
- * Processes an HTTP `Response` object containing a stream of data.
- *
- * @param response The HTTP `Response` object containing the stream. It is expected
- *                 that the response body is not null.
- * @returns A `GenerateContentStreamResult` object containing the `stream` and `response`
- *          properties.
- */
-function processStream(response: Response): GenerateContentStreamResult {
-  const inputStream = response.body!.pipeThrough(
-    new TextDecoderStream('utf8', { fatal: true })
-  );
-  const responseStream =
-    getResponseStream<GenerateContentResponse>(inputStream);
-  const [stream1, stream2] = responseStream.tee();
-  return {
-    stream: generateResponseSequence(stream1),
-    response: getResponsePromise(stream2),
-  };
-}
-
-/**
- * Transforms a stream of strings into a stream of parsed JSON objects.
- *
- * @param inputStream The ReadableStream emitting strings to be processed.
- * @returns A new ReadableStream emitting objects of type T.
- * @throws {Error} If there's an error reading from the stream, parsing JSON, or if the stream ends with unparsed text.
- */
-function getResponseStream<T>(
-  inputStream: ReadableStream<string>
-): ReadableStream<T> {
-  const responseLineRE = /^data: (.*)(?:\n\n|\r\r|\r\n\r\n)/;
-  const reader = inputStream.getReader();
-  const stream = new ReadableStream<T>({
-    start(controller) {
-      let currentText = '';
-      return pump();
-      function pump(): Promise<(() => Promise<void>) | undefined> {
-        return reader
-          .read()
-          .then(({ value, done }) => {
-            if (done) {
-              if (currentText.trim()) {
-                controller.error(new Error('Failed to parse stream'));
-                return;
-              }
-              controller.close();
-              return;
-            }
-
-            currentText += value;
-            let match = currentText.match(responseLineRE);
-            let parsedResponse: T;
-            while (match) {
-              try {
-                parsedResponse = JSON.parse(match[1]);
-              } catch (e) {
-                controller.error(
-                  new Error(`Error parsing JSON response: "${match[1]}"`)
-                );
-                return;
-              }
-              controller.enqueue(parsedResponse);
-              currentText = currentText.substring(match[0].length);
-              match = currentText.match(responseLineRE);
-            }
-            return pump();
-          })
-          .catch((e: Error) => {
-            let err = e;
-            err.stack = e.stack;
-            if (err.name === 'AbortError') {
-              err = new Error('Request aborted when reading from the stream');
-            } else {
-              err = new Error('Error reading from the stream');
-            }
-            throw err;
-          });
-      }
-    },
-  });
-  return stream;
-}
-
-/**
- * Asynchronously generates a sequence of `GenerateContentResponse` objects
- * from a ReadableStream of `GenerateContentResponse` objects.
- *
- * @param stream The ReadableStream emitting `GenerateContentResponse` objects.
- * @returns An AsyncGenerator that yields `GenerateContentResponse` objects.
- */
-async function* generateResponseSequence(
-  stream: ReadableStream<GenerateContentResponse>
-): AsyncGenerator<GenerateContentResponse> {
-  const reader = stream.getReader();
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
-    }
-    yield value;
-  }
-}
-
-/**
- * Asynchronously processes a ReadableStream of `GenerateContentResponse` objects
- * and returns a single `GenerateContentResponse` Promise.
- *
- * @param stream The ReadableStream emitting `GenerateContentResponse` objects.
- * @returns A Promise that resolves to an `GenerateContentResponse` object.
- */
-async function getResponsePromise(
-  stream: ReadableStream<GenerateContentResponse>
-): Promise<GenerateContentResponse> {
-  const allResponses: GenerateContentResponse[] = [];
-  const reader = stream.getReader();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      return aggregateResponses(allResponses);
-    }
-    allResponses.push(value);
-  }
-}
+export const TEST_ONLY = {
+  getFetchOptions,
+  getAbortSignal,
+  getHeaders,
+  makeRequest,
+};

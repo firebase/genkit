@@ -2,6 +2,18 @@
 
 This plugin provides utilities for conveninetly exposing Genkit flows and actions via Express HTTP server as REST APIs.
 
+See [official documentation](https://genkit.dev/docs/frameworks/express/) for more.
+
+## Installation
+
+To use this plugin, install it in your project:
+
+```bash
+npm i @genkit-ai/express
+```
+
+## Usage
+
 ```ts
 import { expressHandler } from '@genkit-ai/express';
 import express from 'express';
@@ -81,8 +93,46 @@ for await (const chunk of result.stream) {
 console.log(await result.output);
 ```
 
+You can also use `startFlowServer` to quickly expose multiple flows and actions:
+
+```ts
+import { startFlowServer } from '@genkit-ai/express';
+import { genkit } from 'genkit';
+
+const ai = genkit({});
+
+export const menuSuggestionFlow = ai.defineFlow(
+  {
+    name: 'menuSuggestionFlow',
+  },
+  async (restaurantTheme) => {
+    // ...
+  }
+);
+
+startFlowServer({
+  flows: [menuSuggestionFlow],
+});
+```
+
+You can also configure the server:
+
+```ts
+startFlowServer({
+  flows: [menuSuggestionFlow],
+  port: 4567,
+  cors: {
+    origin: '*',
+  },
+});
+```
+
+## Contributing
+
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 
-Usage information and reference details can be found in [Genkit documentation](https://genkit.dev/docs/get-started).
+Usage information and reference details can be found in [official Genkit documentation](https://genkit.dev/docs/get-started/).
 
-License: Apache 2.0
+## License
+
+Licensed under the Apache 2.0 License.

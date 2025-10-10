@@ -2,16 +2,6 @@
 
 Genkit is a framework for building AI-powered applications. It provides open source libraries for Node.js and Go, along with tools to help you debug and iterate quickly.
 
-## Prerequisites
-
-This guide assumes that you're familiar with building applications with Node.js.
-
-To complete this quickstart, make sure that your development environment meets
-the following requirements:
-
-- Node.js v20+
-- npm
-
 ## Install Genkit dependencies
 
 Install the following Genkit dependencies to use Genkit in your project:
@@ -29,21 +19,118 @@ Get started with Genkit in just a few lines of simple code.
 
 ```ts
 // import the Genkit and Google AI plugin libraries
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
-// configure a Genkit instance
+const ai = genkit({ plugins: [googleAI()] });
+
+const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: 'Why is Firebase awesome?'
+});
+```
+
+Genkit also lets you build strongly typed, accessible from the client, fully observable AI flows:
+
+```ts
+import { googleAI } from '@genkit-ai/google-genai';
+import { genkit, z } from 'genkit';
+
+// Initialize Genkit with the Google AI plugin
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini15Flash, // set default model
+  model: googleAI.model('gemini-2.5-flash', {
+    temperature: 0.8
+  }),
 });
 
-(async () => {
-  // make a generation request
-  const { text } = await ai.generate('Hello, Gemini!');
-  console.log(text);
-})();
+// Define input schema
+const RecipeInputSchema = z.object({
+  ingredient: z.string().describe('Main ingredient or cuisine type'),
+  dietaryRestrictions: z.string().optional().describe('Any dietary restrictions'),
+});
+
+// Define output schema
+const RecipeSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  prepTime: z.string(),
+  cookTime: z.string(),
+  servings: z.number(),
+  ingredients: z.array(z.string()),
+  instructions: z.array(z.string()),
+  tips: z.array(z.string()).optional(),
+});
+
+// Define a recipe generator flow
+export const recipeGeneratorFlow = ai.defineFlow(
+  {
+    name: 'recipeGeneratorFlow',
+    inputSchema: RecipeInputSchema,
+    outputSchema: RecipeSchema,
+  },
+  async (input, { sendChunk }) => {
+    // Create a prompt based on the input
+    const prompt = `Create a recipe with the following requirements:
+      Main ingredient: ${input.ingredient}
+      Dietary restrictions: ${input.dietaryRestrictions || 'none'}`;
+
+    // Generate structured recipe data using the same schema
+    const { output } = await ai.generate({
+      prompt,
+      output: { schema: RecipeSchema },
+      onChunk: sendChunk // stream output
+    });
+
+    if (!output) throw new Error('Failed to generate recipe');
+
+    return output;
+  }
+);
+
+// Run the flow locally
+async function main() {
+  const recipe = await recipeGeneratorFlow({
+    ingredient: 'avocado',
+    dietaryRestrictions: 'vegetarian'
+  });
+
+  console.log(recipe);
+}
+
+main().catch(console.error);
 ```
+
+You can easily serve flows as an API:
+
+```ts
+import { startFlowServer } from '@genkit-ai/express'; // npm i @genkit-ai/express
+
+startFlowServer({
+  flows: [recipeGeneratorFlow],
+});
+```
+And access the flow from the client:
+
+```ts
+import { runFlow } from 'genkit/beta/client';
+
+const { stream } = streamFlow({
+  url: 'http://localhost:3500/recipeGeneratorFlow',
+  input: {
+    ingredient: 'avocado',
+    dietaryRestrictions: 'vegetarian'
+  },
+});
+
+for await (const chunk of stream) {
+  console.log(chunk);
+}
+```
+
+For more details see: https://genkit.dev/docs/deploy-node
+
+But you can also deploy to [Firebase](https://genkit.dev/docs/firebase/) or [Cloud Run](https://genkit.dev/docs/cloud-run/), etc.
 
 ## Next steps
 

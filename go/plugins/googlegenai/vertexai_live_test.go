@@ -43,14 +43,11 @@ func TestVertexAILive(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-2.0-flash"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = (&googlegenai.VertexAI{ProjectID: projectID, Location: location}).Init(ctx, g)
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(ctx,
+		genkit.WithDefaultModel("vertexai/gemini-2.0-flash"),
+		genkit.WithPlugins(&googlegenai.VertexAI{ProjectID: projectID, Location: location}),
+	)
+
 	embedder := googlegenai.VertexAIEmbedder(g, "textembedding-gecko@003")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
@@ -126,7 +123,8 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder,
+		res, err := genkit.Embed(ctx, g,
+			ai.WithEmbedder(embedder),
 			ai.WithTextDocs("time flies like an arrow", "fruit flies like a banana"),
 		)
 		if err != nil {
@@ -216,16 +214,16 @@ func TestVertexAILive(t *testing.T) {
 			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -250,24 +248,24 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the image provided"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewDataPart("data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("image detection failed, want: donkey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
 		if location != "global" {
-			t.Skip("image generation in Vertex AI is only supported in region: global")
+			t.Skipf("image generation in Vertex AI is only supported in region: global, got: %s", location)
 		}
 		m := googlegenai.VertexAIModel(g, "gemini-2.0-flash-preview-image-generation")
 		resp, err := genkit.Generate(ctx, g,

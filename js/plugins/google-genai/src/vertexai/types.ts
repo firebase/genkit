@@ -17,12 +17,16 @@
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
   CitationMetadata,
+  CodeExecutionTool,
   Content,
   FunctionCallingMode,
+  FunctionDeclarationsTool,
   GenerateContentCandidate,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerateContentStreamResult,
+  GoogleMaps,
+  GoogleMapsTool,
   GoogleSearchRetrieval,
   GoogleSearchRetrievalTool,
   GroundingMetadata,
@@ -33,11 +37,18 @@ import {
   ImagenPredictRequest,
   ImagenPredictResponse,
   ImagenPrediction,
+  RetrievalTool,
   TaskType,
   TaskTypeSchema,
   Tool,
   ToolConfig,
-} from '../common/types';
+  isCodeExecutionTool,
+  isFunctionDeclarationsTool,
+  isGoogleMapsTool,
+  isGoogleSearchRetrievalTool,
+  isObject,
+  isRetrievalTool,
+} from '../common/types.js';
 
 // This makes it easier to import all types from one place
 export {
@@ -45,12 +56,22 @@ export {
   HarmBlockThreshold,
   HarmCategory,
   TaskTypeSchema,
+  isCodeExecutionTool,
+  isFunctionDeclarationsTool,
+  isGoogleMapsTool,
+  isGoogleSearchRetrievalTool,
+  isObject,
+  isRetrievalTool,
   type CitationMetadata,
+  type CodeExecutionTool,
   type Content,
+  type FunctionDeclarationsTool,
   type GenerateContentCandidate,
   type GenerateContentRequest,
   type GenerateContentResponse,
   type GenerateContentStreamResult,
+  type GoogleMaps,
+  type GoogleMapsTool,
   type GoogleSearchRetrieval,
   type GoogleSearchRetrievalTool,
   type GroundingMetadata,
@@ -59,33 +80,64 @@ export {
   type ImagenPredictRequest,
   type ImagenPredictResponse,
   type ImagenPrediction,
+  type RetrievalTool,
   type Tool,
   type ToolConfig,
 };
 
 /** Options for Vertex AI plugin configuration */
 export interface VertexPluginOptions {
+  /** The Vertex API key for express mode */
+  apiKey?: string | false;
   /** The Google Cloud project id to call. */
   projectId?: string;
   /** The Google Cloud region to call. */
-  location: string;
+  location?: string;
   /** Provide custom authentication configuration for connecting to Vertex AI. */
   googleAuth?: GoogleAuthOptions;
   /** Enables additional debug traces (e.g. raw model API call details). */
   experimental_debugTraces?: boolean;
 }
 
-/** Resolved options for use with the client */
-export interface ClientOptions {
+interface BaseClientOptions {
+  /** timeout in milli seconds. time out value needs to be non negative. */
+  timeout?: number;
+  signal?: AbortSignal;
+}
+
+export interface RegionalClientOptions extends BaseClientOptions {
+  kind: 'regional';
   location: string;
   projectId: string;
   authClient: GoogleAuth;
+  apiKey?: string; // In addition to regular auth
 }
+
+export interface GlobalClientOptions extends BaseClientOptions {
+  kind: 'global';
+  location: 'global';
+  projectId: string;
+  authClient: GoogleAuth;
+  apiKey?: string; // In addition to regular auth
+}
+
+export interface ExpressClientOptions extends BaseClientOptions {
+  kind: 'express';
+  apiKey: string | false | undefined; // Instead of regular auth
+}
+
+/** Resolved options for use with the client */
+export type ClientOptions =
+  | RegionalClientOptions
+  | GlobalClientOptions
+  | ExpressClientOptions;
 
 /**
  * Request options params.
  */
 export interface RequestOptions {
+  /** an apiKey to use for this request if applicable */
+  apiKey?: string | false | undefined;
   /** timeout in milli seconds. time out value needs to be non negative. */
   timeout?: number;
   /**
@@ -175,10 +227,6 @@ export declare interface MultimodalEmbeddingPrediction {
   videoEmbeddings?: VideoEmbedding[];
 }
 
-export function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
 export function isMultimodalEmbeddingPrediction(
   value: unknown
 ): value is MultimodalEmbeddingPrediction {
@@ -251,3 +299,79 @@ export declare type EmbeddingResult = {
   embedding: number[];
   metadata?: Record<string, unknown>;
 };
+
+export declare interface VeoMedia {
+  bytesBase64Encoded?: string;
+  gcsUri?: string;
+  mimeType?: string;
+}
+
+export declare interface VeoInstance {
+  prompt: string;
+  image?: VeoMedia;
+  lastFrame?: VeoMedia;
+  video?: VeoMedia;
+}
+
+export declare interface VeoParameters {
+  aspectRatio?: string;
+  durationSeconds?: number;
+  enhancePrompt?: boolean;
+  generateAudio?: boolean;
+  negativePrompt?: string;
+  personGeneration?: string;
+  resolution?: string; // Veo 3
+  sampleCount?: number;
+  seed?: number;
+  storageUri?: string;
+}
+
+export declare interface VeoPredictRequest {
+  instances: VeoInstance[];
+  parameters: VeoParameters;
+}
+
+export declare interface Operation {
+  name: string;
+  done?: boolean;
+  error?: {
+    code: number;
+    message: string;
+    details?: unknown;
+  };
+}
+
+export declare interface VeoOperation extends Operation {
+  response?: {
+    raiMediaFilteredCount?: number;
+    videos: VeoMedia[];
+  };
+}
+
+export declare interface VeoOperationRequest {
+  operationName: string;
+}
+
+export declare interface LyriaParameters {
+  sampleCount?: number;
+}
+
+export declare interface LyriaPredictRequest {
+  instances: LyriaInstance[];
+  parameters: LyriaParameters;
+}
+
+export declare interface LyriaPredictResponse {
+  predictions: LyriaPrediction[];
+}
+
+export declare interface LyriaPrediction {
+  bytesBase64Encoded: string; // Base64 encoded Wav string
+  mimeType: string; // audio/wav
+}
+
+export declare interface LyriaInstance {
+  prompt: string;
+  negativePrompt?: string;
+  seed?: number;
+}
