@@ -16,8 +16,8 @@
 
 import { vertexAI } from '@genkit-ai/google-genai';
 import {
-  vertexAIModelGarden,
   mistralLarge,
+  vertexAIModelGarden,
   vertexModelGarden,
 } from '@genkit-ai/vertexai/modelgarden';
 // Import the Genkit core libraries and plugins.
@@ -130,15 +130,15 @@ export const mistralExplainConcept = ai.defineFlow(
 export const legacyMistralExplainConcept = ai.defineFlow(
   {
     name: 'legacy-mistral-large - explainConcept',
-      inputSchema: z.object({
+    inputSchema: z.object({
       concept: z.string().default('concurrency'),
     }),
     outputSchema: z.object({
       explanation: z.string(),
       examples: z.array(z.string()),
-    })
+    }),
   },
-    async ({ concept }) => {
+  async ({ concept }) => {
     const explanation = await ai.generate({
       model: mistralLarge,
       prompt: `Explain ${concept} in programming. Include practical examples.`,
@@ -157,7 +157,6 @@ export const legacyMistralExplainConcept = ai.defineFlow(
     return explanation.output || { explanation: '', examples: [] };
   }
 );
-
 
 // Mistral small for quick validation and analysis
 export const analyzeCode = ai.defineFlow(
