@@ -193,6 +193,9 @@ export async function runEvaluation(params: {
       },
     });
     scores[name] = response.result;
+    logger.info(
+      `Finished evaluator '${action.name}'. Trace ID: ${response.telemetry?.traceId}`
+    );
   }
 
   const scoredResults = enrichResultsWithScoring(scores, evalDataset);
