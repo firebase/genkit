@@ -412,6 +412,48 @@ describe('fromOpenAiChoice', () => {
         finishReason: 'stop',
       },
     },
+    {
+      should: 'should work with reasoning_content',
+      choice: {
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: null,
+          reasoning_content: 'Let me think about this step by step...',
+          refusal: null,
+        } as any,
+        finish_reason: 'stop',
+        logprobs: null,
+      },
+      expectedOutput: {
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [{ reasoning: 'Let me think about this step by step...' }],
+        },
+      },
+    },
+    {
+      should: 'should work with both reasoning_content and content',
+      choice: {
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: 'Final answer',
+          reasoning_content: 'Let me think...',
+          refusal: null,
+        } as any,
+        finish_reason: 'stop',
+        logprobs: null,
+      },
+      expectedOutput: {
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [{ reasoning: 'Let me think...' }, { text: 'Final answer' }],
+        },
+      },
+    },
   ];
 
   for (const test of testCases) {
@@ -501,6 +543,43 @@ describe('fromOpenAiChunkChoice', () => {
           ],
         },
         finishReason: 'stop',
+      },
+    },
+    {
+      should: 'should work with reasoning_content',
+      chunkChoice: {
+        index: 0,
+        delta: {
+          role: 'assistant',
+          reasoning_content: 'Let me think about this step by step...',
+        } as any,
+        finish_reason: null,
+      },
+      expectedOutput: {
+        finishReason: 'unknown',
+        message: {
+          role: 'model',
+          content: [{ reasoning: 'Let me think about this step by step...' }],
+        },
+      },
+    },
+    {
+      should: 'should work with both reasoning_content and content',
+      chunkChoice: {
+        index: 0,
+        delta: {
+          role: 'assistant',
+          reasoning_content: 'Let me think...',
+          content: 'Final answer',
+        } as any,
+        finish_reason: 'stop',
+      },
+      expectedOutput: {
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [{ reasoning: 'Let me think...' }, { text: 'Final answer' }],
+        },
       },
     },
   ];

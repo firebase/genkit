@@ -277,19 +277,31 @@ export function fromOpenAIChoice(
   const toolRequestParts = choice.message.tool_calls?.map((toolCall) =>
     fromOpenAIToolCall(toolCall, choice)
   );
+
+  // Build content array based on what's present in the message
+  let content: Part[] = [];
+
+  if (toolRequestParts) {
+    content = toolRequestParts as ToolRequestPart[];
+  } else {
+    // Handle reasoning_content if present
+    if ('reasoning_content' in choice.message && choice.message.reasoning_content) {
+      content.push({ reasoning: choice.message.reasoning_content as string });
+    }
+
+    // Handle regular content
+    content.push(
+      jsonMode
+        ? { data: JSON.parse(choice.message.content!) }
+        : { text: choice.message.content! }
+    );
+  }
+
   return {
     finishReason: finishReasonMap[choice.finish_reason] || 'other',
     message: {
       role: 'model',
-      content: toolRequestParts
-        ? // Note: Not sure why I have to cast here exactly.
-          // Otherwise it thinks toolRequest must be 'undefined' if provided
-          (toolRequestParts as ToolRequestPart[])
-        : [
-            jsonMode
-              ? { data: JSON.parse(choice.message.content!) }
-              : { text: choice.message.content! },
-          ],
+      content,
     },
   };
 }
@@ -308,21 +320,35 @@ export function fromOpenAIChunkChoice(
   const toolRequestParts = choice.delta.tool_calls?.map((toolCall) =>
     fromOpenAIToolCall(toolCall, choice)
   );
+
+  // Build content array based on what's present in the delta
+  let content: Part[] = [];
+
+  if (toolRequestParts) {
+    content = toolRequestParts as ToolRequestPart[];
+  } else {
+    // Handle reasoning_content if present
+    if ('reasoning_content' in choice.delta && choice.delta.reasoning_content) {
+      content.push({ reasoning: choice.delta.reasoning_content as string });
+    }
+
+    // Handle regular content if present
+    if (choice.delta.content) {
+      content.push(
+        jsonMode
+          ? { data: JSON.parse(choice.delta.content) }
+          : { text: choice.delta.content }
+      );
+    }
+  }
+
   return {
     finishReason: choice.finish_reason
       ? finishReasonMap[choice.finish_reason] || 'other'
       : 'unknown',
     message: {
       role: 'model',
-      content: toolRequestParts
-        ? // Note: Not sure why I have to cast here exactly.
-          // Otherwise it thinks toolRequest must be 'undefined' if provided
-          (toolRequestParts as ToolRequestPart[])
-        : [
-            jsonMode
-              ? { data: JSON.parse(choice.delta.content!) }
-              : { text: choice.delta.content! },
-          ],
+      content,
     },
   };
 }
