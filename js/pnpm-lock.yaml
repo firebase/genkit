@@ -953,6 +953,9 @@ importers:
       '@types/node':
         specifier: ^20.11.16
         version: 20.19.1
+      '@types/sinon':
+        specifier: ^17.0.4
+        version: 17.0.4
       google-gax:
         specifier: ^4.4.1
         version: 4.6.1(encoding@0.1.13)
@@ -962,6 +965,9 @@ importers:
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      sinon:
+        specifier: ^21.0.0
+        version: 21.0.0
       tsup:
         specifier: ^8.3.5
         version: 8.5.0(postcss@8.4.47)(tsx@4.20.3)(typescript@4.9.5)(yaml@2.8.0)
@@ -3503,6 +3509,7 @@ packages:
   '@opentelemetry/exporter-jaeger@1.30.1':
     resolution: {integrity: sha512-7Ki+x7cZ/PEQxp3UyB+CWkWBqLk22yRGQ4AWIGwZlEs6rpCOdWwIFOyQDO9DdeyWtTPTvO3An/7chPZcRHOgzQ==}
     engines: {node: '>=14'}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     peerDependencies:
       '@opentelemetry/api': ^1.0.0
 
