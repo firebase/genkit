@@ -163,6 +163,84 @@ describe('toGeminiMessage', () => {
       },
     },
     {
+      should:
+        'should transform genkit message (fileData video content with metadata) correctly',
+      inputMessage: {
+        role: 'user',
+        content: [
+          { text: 'describe the following video:' },
+          {
+            media: {
+              contentType: 'video/mp4',
+              url: 'gs://bucket/video.mp4',
+            },
+            metadata: {
+              videoMetadata: {
+                startOffset: '10.0s',
+                endOffset: '20.5s',
+                fps: 0.5,
+              },
+            },
+          },
+        ],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [
+          { text: 'describe the following video:' },
+          {
+            fileData: {
+              mimeType: 'video/mp4',
+              fileUri: 'gs://bucket/video.mp4',
+            },
+            videoMetadata: {
+              startOffset: '10.0s',
+              endOffset: '20.5s',
+              fps: 0.5,
+            },
+          },
+        ],
+      },
+    },
+    {
+      should:
+        'should transform genkit message (fileData video content with partial metadata) correctly',
+      inputMessage: {
+        role: 'user',
+        content: [
+          { text: 'describe the following video:' },
+          {
+            media: {
+              contentType: 'video/mp4',
+              url: 'gs://bucket/video.mp4',
+            },
+            metadata: {
+              videoMetadata: {
+                startOffset: '5.3s',
+                endOffset: '15.7s',
+              },
+            },
+          },
+        ],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [
+          { text: 'describe the following video:' },
+          {
+            fileData: {
+              mimeType: 'video/mp4',
+              fileUri: 'gs://bucket/video.mp4',
+            },
+            videoMetadata: {
+              startOffset: '5.3s',
+              endOffset: '15.7s',
+            },
+          },
+        ],
+      },
+    },
+    {
       should: 'should re-populate thoughtSignature from reasoning metadata',
       inputMessage: {
         role: 'model',

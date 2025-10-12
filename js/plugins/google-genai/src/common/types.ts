@@ -638,6 +638,27 @@ export declare interface CodeExecutionResult {
 }
 
 /**
+ * Can be added in the same part as video media to specify
+ * which part of the video to consider and how many frames
+ * per second to analyze. VertexAI only.
+ */
+export declare interface VideoMetadata {
+  /**
+   * The video offset to start at. e.g. '3.5s'
+   */
+  startOffset?: string;
+  /**
+   * The video offset to end at e.g. '10.5s'
+   */
+  endOffset?: string;
+  /**
+   * The number of frames to consider per second
+   * 0.0 to 24.0.
+   */
+  fps?: number;
+}
+
+/**
  * This is a Gemini Part. (Users never see this
  * structure, it is just built by the converters.)
  */
@@ -651,6 +672,7 @@ export declare interface Part {
   thoughtSignature?: string;
   executableCode?: ExecutableCode;
   codeExecutionResult?: CodeExecutionResult;
+  videoMetadata?: VideoMetadata;
 }
 
 /**
@@ -856,6 +878,16 @@ export function isRetrievalTool(tool: Tool): tool is RetrievalTool {
   return (tool as RetrievalTool).retrieval !== undefined;
 }
 
+export declare interface GoogleMaps {
+  enableWidget: boolean;
+}
+export declare interface GoogleMapsTool {
+  googleMaps?: GoogleMaps;
+}
+export function isGoogleMapsTool(tool: Tool): tool is GoogleMapsTool {
+  return (tool as GoogleMapsTool).googleMaps !== undefined;
+}
+
 /**
  * Tool to retrieve public web data for grounding, powered by Google.
  */
@@ -871,6 +903,7 @@ export declare interface GoogleSearchRetrieval {
 export declare type Tool =
   | FunctionDeclarationsTool
   | RetrievalTool // Vertex AI Only
+  | GoogleMapsTool // Vertex AI Only
   | CodeExecutionTool // Google AI Only
   | GoogleSearchRetrievalTool;
 
@@ -951,10 +984,22 @@ export declare interface FunctionCallingConfig {
   allowedFunctionNames?: string[];
 }
 
+export declare interface LatLng {
+  latitude?: number;
+  longitude?: number;
+}
+
+export declare interface RetrievalConfig {
+  latLng?: LatLng;
+  languageCode?: string;
+}
+
 /** This config is shared for all tools provided in the request. */
 export declare interface ToolConfig {
   /** Function calling config. */
   functionCallingConfig?: FunctionCallingConfig;
+  /** Retrieval config */
+  retrievalConfig?: RetrievalConfig;
 }
 
 export declare interface GenerateContentRequest {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ActionMetadata, Genkit, modelActionMetadata, z } from 'genkit';
+import { ActionMetadata, modelActionMetadata, z } from 'genkit';
 import {
   GenerationCommonConfigSchema,
   ModelAction,
@@ -22,6 +22,7 @@ import {
   ModelReference,
   modelRef,
 } from 'genkit/model';
+import { model as pluginModel } from 'genkit/plugin';
 import { imagenPredict } from './client.js';
 import { fromImagenResponse, toImagenPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
@@ -124,6 +125,7 @@ export const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
             'needing to provide one. Consequently, when you provide ' +
             'this parameter you can omit a mask object.'
         )
+        .passthrough()
         .optional(),
       maskDilation: z
         .number()
@@ -157,6 +159,7 @@ export const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
         .describe('The factor to upscale the image.'),
     })
     .describe('Configuration for upscaling.')
+    .passthrough()
     .optional(),
 }).passthrough();
 export type ImagenConfigSchemaType = typeof ImagenConfigSchema;
@@ -246,27 +249,24 @@ export function listActions(models: Model[]): ActionMetadata[] {
     });
 }
 
-export function defineKnownModels(
-  ai: Genkit,
+export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, clientOptions, pluginOptions);
-  }
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineModel(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): ModelAction {
   const ref = model(name);
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,

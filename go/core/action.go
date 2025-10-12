@@ -186,11 +186,11 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output api.ActionRunResult[Out], err error) {
 	logger.FromContext(ctx).Debug("Action.Run",
-		"name", a.Name,
+		"name", a.Name(),
 		"input", fmt.Sprintf("%#v", input))
 	defer func() {
 		logger.FromContext(ctx).Debug("Action.Run",
-			"name", a.Name,
+			"name", a.Name(),
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
 	}()
@@ -260,25 +260,31 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 
 // RunJSON runs the action with a JSON input, and returns a JSON result along with telemetry info.
 func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
-	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
-	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
-		return nil, NewError(INVALID_ARGUMENT, err.Error())
-	}
-
 	var i In
 	if len(input) > 0 {
-		if err := json.Unmarshal(input, &i); err != nil {
-			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
+		// First unmarshal input into a generic value to handle unknown fields and null values which
+		// would be discard and/or converted into zero values if unmarshaled directly into the In type.
+		var rawData any
+		if err := json.Unmarshal(input, &rawData); err != nil {
+			return nil, NewError(INTERNAL, "failed to unmarshal input: %v", err)
 		}
 
-		// Adhere to the input schema if the number type is ambiguous and the input type is an any.
-		converted, err := base.ConvertJSONNumbers(i, a.desc.InputSchema)
+		normalized, err := base.NormalizeInput(rawData, a.desc.InputSchema)
 		if err != nil {
 			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
 		}
 
-		if result, ok := converted.(In); ok {
-			i = result
+		if err := base.ValidateValue(normalized, a.desc.InputSchema); err != nil {
+			return nil, NewError(INVALID_ARGUMENT, err.Error())
+		}
+
+		normalizedBytes, err := json.Marshal(normalized)
+		if err != nil {
+			return nil, NewError(INTERNAL, "failed to marshal normalized input: %v", err)
+		}
+
+		if err := json.Unmarshal(normalizedBytes, &i); err != nil {
+			return nil, NewError(INTERNAL, "failed to unmarshal normalized input: %v", err)
 		}
 	}
 
@@ -339,6 +345,8 @@ func ResolveActionFor[In, Out, Stream any](r api.Registry, atype api.ActionType,
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong api.
+//
+// Deprecated: Use ResolveActionFor.
 func LookupActionFor[In, Out, Stream any](r api.Registry, atype api.ActionType, name string) *ActionDef[In, Out, Stream] {
 	provider, id := api.ParseName(name)
 	key := api.NewKey(atype, provider, id)

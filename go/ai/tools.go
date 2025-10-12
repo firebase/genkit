@@ -19,6 +19,7 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 
@@ -79,6 +80,15 @@ type toolInterruptError struct {
 
 func (e *toolInterruptError) Error() string {
 	return "tool execution interrupted"
+}
+
+// IsToolInterruptError determines whether the error is an interrupt error returned by the tool.
+func IsToolInterruptError(err error) (bool, map[string]any) {
+	var tie *toolInterruptError
+	if errors.As(err, &tie) {
+		return true, tie.Metadata
+	}
+	return false, nil
 }
 
 // InterruptOptions provides configuration for tool interruption.
@@ -227,7 +237,7 @@ func LookupTool(r api.Registry, name string) Tool {
 	}
 	provider, id := api.ParseName(name)
 	key := api.NewKey(api.ActionTypeTool, provider, id)
-	action := r.LookupAction(key)
+	action := r.ResolveAction(key)
 	if action == nil {
 		return nil
 	}
@@ -299,4 +309,28 @@ func (t *tool) Restart(p *Part, opts *RestartOptions) *Part {
 	newToolReq.Metadata = newMeta
 
 	return newToolReq
+}
+
+// resolveUniqueTools resolves the list of tool refs to a list of all tool names and new tools that must be registered.
+// Returns an error if there are tool refs with duplicate names.
+func resolveUniqueTools(r api.Registry, toolRefs []ToolRef) (toolNames []string, newTools []Tool, err error) {
+	toolMap := make(map[string]bool)
+
+	for _, toolRef := range toolRefs {
+		name := toolRef.Name()
+
+		if toolMap[name] {
+			return nil, nil, core.NewError(core.INVALID_ARGUMENT, "duplicate tool %q", name)
+		}
+		toolMap[name] = true
+		toolNames = append(toolNames, name)
+
+		if LookupTool(r, name) == nil {
+			if tool, ok := toolRef.(Tool); ok {
+				newTools = append(newTools, tool)
+			}
+		}
+	}
+
+	return toolNames, newTools, nil
 }

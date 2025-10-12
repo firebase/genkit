@@ -41,7 +41,12 @@ func TestExtractJSONFromMarkdown(t *testing.T) {
 		{
 			desc: "simple markdown",
 			in:   "```foo bar```",
-			want: "foo bar",
+			want: "```foo bar```",
+		},
+		{
+			desc: "empty markdown",
+			in:   "``` ```",
+			want: "``` ```",
 		},
 		{
 			desc: "json markdown",
@@ -49,14 +54,29 @@ func TestExtractJSONFromMarkdown(t *testing.T) {
 			want: "{\"a\":1}",
 		},
 		{
-			desc: "json multipline markdown",
+			desc: "json multiple line markdown",
 			in:   "```json\n{\"a\": 1}\n```",
-			want: "\n{\"a\": 1}\n",
+			want: "{\"a\": 1}",
 		},
 		{
 			desc: "returns first of multiple blocks",
 			in:   "```json{\"a\":\n1}```\n```json\n{\"b\":\n1}```",
 			want: "{\"a\":\n1}",
+		},
+		{
+			desc: "yaml markdown",
+			in:   "```yaml\nkey: 1\nanother-key: 2```",
+			want: "```yaml\nkey: 1\nanother-key: 2```",
+		},
+		{
+			desc: "yaml + json markdown",
+			in:   "```yaml\nkey: 1\nanother-key: 2``` ```json\n{\"a\": 1}\n```",
+			want: "{\"a\": 1}",
+		},
+		{
+			desc: "json + yaml markdown",
+			in:   "```json\n{\"a\": 1}\n``` ```yaml\nkey: 1\nanother-key: 2```",
+			want: "{\"a\": 1}",
 		},
 	}
 	for _, tc := range tests {

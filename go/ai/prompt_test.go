@@ -536,6 +536,61 @@ func TestValidPrompt(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:       "execute with tools overriding prompt-level tools",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			tools:      []ToolRef{testTool(reg, "promptTool")},
+			input:      HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptExecuteOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+				WithTools(testTool(reg, "executeOverrideTool")),
+			},
+			wantTextOutput: "Echo: system: tool: say hello; my name is foo; ; Bar; ; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewToolRequestPart(&ToolRequest{Name: "executeOverrideTool", Input: map[string]any{"Test": "Bar"}})},
+					},
+					{
+						Role:    RoleTool,
+						Content: []*Part{NewToolResponsePart(&ToolResponse{Output: "Bar"})},
+					},
+				},
+				Tools: []*ToolDefinition{
+					{
+						Name:        "executeOverrideTool",
+						Description: "use when need to execute a test",
+						InputSchema: map[string]any{
+							"additionalProperties": bool(false),
+							"properties":           map[string]any{"Test": map[string]any{"type": string("string")}},
+							"required":             []any{string("Test")},
+							"type":                 string("object"),
+						},
+						OutputSchema: map[string]any{"type": string("string")},
+					},
+				},
+			},
+		},
 	}
 
 	cmpPart := func(a, b *Part) bool {
@@ -830,9 +885,9 @@ func TestLoadPrompt(t *testing.T) {
 	mockPromptFile := filepath.Join(tempDir, "example.prompt")
 	mockPromptContent := `---
 model: test-model
+maxTurns: 5
 description: A test prompt
 toolChoice: required
-maxTurns: 5
 returnToolRequests: true
 input:
   schema:
@@ -880,6 +935,9 @@ Hello, {{name}}!
 	}
 	if promptMetadata["model"] != "test-model" {
 		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(api.Action).Desc().Metadata["model"])
+	}
+	if promptMetadata["maxTurns"] != 5 {
+		t.Errorf("Expected maxTurns set to 5, got: %d", promptMetadata["maxTurns"])
 	}
 }
 

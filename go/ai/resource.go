@@ -244,7 +244,7 @@ func FindMatchingResource(r api.Registry, uri string) (Resource, *ResourceInput,
 
 // LookupResource looks up the resource in the registry by provided name and returns it.
 func LookupResource(r api.Registry, name string) Resource {
-	action := core.LookupActionFor[*ResourceInput, *ResourceOutput, struct{}](r, api.ActionTypeResource, name)
+	action := core.ResolveActionFor[*ResourceInput, *ResourceOutput, struct{}](r, api.ActionTypeResource, name)
 	if action == nil {
 		return nil
 	}

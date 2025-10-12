@@ -98,6 +98,7 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 			"output":       map[string]any{"schema": p.OutputSchema},
 			"defaultInput": p.DefaultInput,
 			"tools":        tools,
+			"maxTurns":     p.MaxTurns,
 		},
 	}
 	maps.Copy(meta, promptMeta)
@@ -110,7 +111,7 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r api.Registry, name string) Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, api.ActionTypeExecutablePrompt, name)
+	action := core.ResolveActionFor[any, *GenerateActionOptions, struct{}](r, api.ActionTypeExecutablePrompt, name)
 	if action == nil {
 		return nil
 	}
@@ -144,24 +145,31 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 	if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {
 		execOpts.Config = modelRef.Config()
 	}
+
 	if execOpts.Config != nil {
 		actionOpts.Config = execOpts.Config
 	}
+
 	if len(execOpts.Documents) > 0 {
 		actionOpts.Docs = execOpts.Documents
 	}
+
 	if execOpts.ToolChoice != "" {
 		actionOpts.ToolChoice = execOpts.ToolChoice
 	}
+
 	if execOpts.Model != nil {
 		actionOpts.Model = execOpts.Model.Name()
 	}
+
 	if execOpts.MaxTurns != 0 {
 		actionOpts.MaxTurns = execOpts.MaxTurns
 	}
+
 	if execOpts.ReturnToolRequests != nil {
 		actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
 	}
+
 	if execOpts.MessagesFn != nil {
 		m, err := buildVariables(execOpts.Input)
 		if err != nil {
@@ -180,7 +188,31 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 		}
 	}
 
-	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
+	toolRefs := execOpts.Tools
+	if len(toolRefs) == 0 {
+		toolRefs = make([]ToolRef, 0, len(actionOpts.Tools))
+		for _, toolName := range actionOpts.Tools {
+			toolRefs = append(toolRefs, ToolName(toolName))
+		}
+	}
+
+	toolNames, newTools, err := resolveUniqueTools(p.registry, toolRefs)
+	if err != nil {
+		return nil, err
+	}
+	actionOpts.Tools = toolNames
+
+	r := p.registry
+	if len(newTools) > 0 {
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		for _, t := range newTools {
+			t.Register(p.registry)
+		}
+	}
+
+	return GenerateWithRequest(ctx, r, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
 
 // Render renders the prompt template based on user input.
@@ -436,11 +468,11 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 				result[i] = NewTextPart(p.Text)
 			}
 		case *dotprompt.MediaPart:
-			ct, err := contentType(p.Media.URL)
+			ct, data, err := contentType(p.Media.ContentType, p.Media.URL)
 			if err != nil {
 				return nil, err
 			}
-			result[i] = NewMediaPart(ct, p.Media.URL)
+			result[i] = NewMediaPart(ct, string(data))
 		}
 	}
 	return result, nil
@@ -560,8 +592,8 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		opts.ToolChoice = toolChoice
 	}
 
-	if maxTurns, ok := metadata.Raw["maxTurns"].(int); ok {
-		opts.MaxTurns = maxTurns
+	if maxTurns, ok := metadata.Raw["maxTurns"].(uint64); ok {
+		opts.MaxTurns = int(maxTurns)
 	}
 
 	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); ok {
@@ -612,24 +644,30 @@ func variantKey(variant string) string {
 }
 
 // contentType determines the MIME content type of the given data URI
-func contentType(uri string) (string, error) {
+func contentType(ct, uri string) (string, []byte, error) {
 	if uri == "" {
-		return "", errors.New("found empty URI in part")
+		return "", nil, errors.New("found empty URI in part")
 	}
 
 	if strings.HasPrefix(uri, "gs://") || strings.HasPrefix(uri, "http") {
-		return "", errors.New("data URI is the only media type supported")
+		if ct == "" {
+			return "", nil, errors.New("must supply contentType when using media from gs:// or http(s):// URLs")
+		}
+		return ct, []byte(uri), nil
 	}
 	if contents, isData := strings.CutPrefix(uri, "data:"); isData {
 		prefix, _, found := strings.Cut(contents, ",")
 		if !found {
-			return "", errors.New("failed to parse data URI: missing comma")
+			return "", nil, errors.New("failed to parse data URI: missing comma")
 		}
 
 		if p, isBase64 := strings.CutSuffix(prefix, ";base64"); isBase64 {
-			return p, nil
+			if ct == "" {
+				ct = p
+			}
+			return ct, []byte(uri), nil
 		}
 	}
 
-	return "", errors.New("uri content type not found")
+	return "", nil, errors.New("uri content type not found")
 }
