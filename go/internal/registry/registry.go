@@ -63,7 +63,7 @@ func (r *Registry) NewChild() api.Registry {
 		actions:   map[string]api.Action{},
 		plugins:   map[string]api.Plugin{},
 		values:    map[string]any{},
-		dotprompt: r.dotprompt,
+		dotprompt: deepCopyDotPrompt(r.dotprompt),
 	}
 	return child
 }
@@ -316,5 +316,16 @@ func (r *Registry) RegisterHelper(name string, fn any) {
 func (r *Registry) Dotprompt() *dotprompt.Dotprompt {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.dotprompt
+	return deepCopyDotPrompt(r.dotprompt)
+}
+
+func deepCopyDotPrompt(dot *dotprompt.Dotprompt) *dotprompt.Dotprompt {
+	newDot := dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
+		Helpers:  make(map[string]any),
+		Partials: make(map[string]string),
+	})
+	maps.Copy(newDot.Helpers, dot.Helpers)
+	maps.Copy(newDot.Partials, dot.Partials)
+	maps.Copy(newDot.Schemas, dot.Schemas)
+	return newDot
 }
