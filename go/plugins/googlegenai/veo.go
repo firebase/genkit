@@ -135,12 +135,6 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *ai.ModelOperation {
 		} else {
 			operation.Error = fmt.Errorf("operation error: %v", veoOp.Error)
 		}
-		operation.Output = &ai.ModelResponse{
-			Message: &ai.Message{
-				Role:    ai.RoleModel,
-				Content: []*ai.Part{ai.NewTextPart("Video generation failed")},
-			},
-		}
 		return operation
 	}
 

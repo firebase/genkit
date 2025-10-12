@@ -236,12 +236,15 @@ func TestFromVeoOperation(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name              string
-		veoOp             *genai.GenerateVideosOperation
-		expectedID        string
-		expectedDone      bool
-		expectedError     error
-		expectedHasOutput bool
+		name                 string
+		veoOp                *genai.GenerateVideosOperation
+		expectedID           string
+		expectedDone         bool
+		expectedError        error
+		expectedHasOutput    bool
+		expectedStatusMsg    string
+		expectedFinishReason ai.FinishReason
+		expectedMediaParts   int
 	}{
 		{
 			name: "pending operation",
@@ -249,10 +252,13 @@ func TestFromVeoOperation(t *testing.T) {
 				Name: "operations/test-operation-123",
 				Done: false,
 			},
-			expectedID:        "operations/test-operation-123",
-			expectedDone:      false,
-			expectedError:     nil,
-			expectedHasOutput: false,
+			expectedID:           "operations/test-operation-123",
+			expectedDone:         false,
+			expectedError:        nil,
+			expectedHasOutput:    true,
+			expectedStatusMsg:    "Video generation in progress...",
+			expectedFinishReason: "",
+			expectedMediaParts:   0,
 		},
 		{
 			name: "completed operation with video",
@@ -269,10 +275,13 @@ func TestFromVeoOperation(t *testing.T) {
 					},
 				},
 			},
-			expectedID:        "operations/test-operation-456",
-			expectedDone:      true,
-			expectedError:     nil,
-			expectedHasOutput: true,
+			expectedID:           "operations/test-operation-456",
+			expectedDone:         true,
+			expectedError:        nil,
+			expectedHasOutput:    true,
+			expectedStatusMsg:    "",
+			expectedFinishReason: ai.FinishReasonStop,
+			expectedMediaParts:   1,
 		},
 		{
 			name: "operation with error",
@@ -284,10 +293,13 @@ func TestFromVeoOperation(t *testing.T) {
 					"code":    400,
 				},
 			},
-			expectedID:        "operations/test-operation-error",
-			expectedDone:      true,
-			expectedError:     fmt.Errorf("%s", "Video generation failed due to content policy"),
-			expectedHasOutput: false,
+			expectedID:           "operations/test-operation-error",
+			expectedDone:         true,
+			expectedError:        fmt.Errorf("%s", "Video generation failed due to content policy"),
+			expectedHasOutput:    false,
+			expectedStatusMsg:    "",
+			expectedFinishReason: "",
+			expectedMediaParts:   0,
 		},
 		{
 			name: "operation with malformed error",
@@ -297,13 +309,15 @@ func TestFromVeoOperation(t *testing.T) {
 				Error: map[string]any{
 					"code":    500,
 					"details": "Internal error",
-					// No "message" field
 				},
 			},
-			expectedID:        "operations/test-operation-bad-error",
-			expectedDone:      true,
-			expectedError:     fmt.Errorf("operation error: map[code:500 details:Internal error]"),
-			expectedHasOutput: false,
+			expectedID:           "operations/test-operation-bad-error",
+			expectedDone:         true,
+			expectedError:        fmt.Errorf("operation error: map[code:500 details:Internal error]"),
+			expectedHasOutput:    false,
+			expectedStatusMsg:    "",
+			expectedFinishReason: "",
+			expectedMediaParts:   0,
 		},
 		{
 			name: "completed operation with multiple videos",
@@ -325,10 +339,30 @@ func TestFromVeoOperation(t *testing.T) {
 					},
 				},
 			},
-			expectedID:        "operations/test-operation-multi",
-			expectedDone:      true,
-			expectedError:     nil,
-			expectedHasOutput: true,
+			expectedID:           "operations/test-operation-multi",
+			expectedDone:         true,
+			expectedError:        nil,
+			expectedHasOutput:    true,
+			expectedStatusMsg:    "",
+			expectedFinishReason: ai.FinishReasonStop,
+			expectedMediaParts:   2,
+		},
+		{
+			name: "completed operation without videos",
+			veoOp: &genai.GenerateVideosOperation{
+				Name: "operations/test-operation-no-videos",
+				Done: true,
+				Response: &genai.GenerateVideosResponse{
+					GeneratedVideos: []*genai.GeneratedVideo{},
+				},
+			},
+			expectedID:           "operations/test-operation-no-videos",
+			expectedDone:         true,
+			expectedError:        nil,
+			expectedHasOutput:    true,
+			expectedStatusMsg:    "Video generation completed but no videos were generated",
+			expectedFinishReason: ai.FinishReasonStop,
+			expectedMediaParts:   0,
 		},
 	}
 
@@ -345,7 +379,12 @@ func TestFromVeoOperation(t *testing.T) {
 				t.Errorf("fromVeoOperation() Done = %t, want %t", result.Done, tt.expectedDone)
 			}
 
-			// Compare errors properly - both nil or both non-nil with same message
+			// Check metadata is initialized
+			if result.Metadata == nil {
+				t.Error("fromVeoOperation() Metadata is nil, expected initialized map")
+			}
+
+			// Compare errors
 			if (result.Error == nil) != (tt.expectedError == nil) {
 				t.Errorf("fromVeoOperation() Error nil mismatch: got %v, want %v", result.Error, tt.expectedError)
 			} else if result.Error != nil && tt.expectedError != nil {
@@ -360,30 +399,50 @@ func TestFromVeoOperation(t *testing.T) {
 				t.Errorf("fromVeoOperation() has output = %t, want %t", hasOutput, tt.expectedHasOutput)
 			}
 
-			// If we expect output, validate it's a ModelResponse with correct structure
-			if tt.expectedHasOutput && result.Output != nil {
-				modelResp := result.Output
-				if modelResp.Message == nil {
-					t.Error("fromVeoOperation() ModelResponse.Message is nil")
-				} else {
-					if modelResp.Message.Role != ai.RoleModel {
-						t.Errorf("fromVeoOperation() Message.Role = %v, want %v", modelResp.Message.Role, ai.RoleModel)
-					}
+			// Only validate output structure if we expect output
+			if !tt.expectedHasOutput {
+				return
+			}
 
-					if len(modelResp.Message.Content) == 0 {
-						t.Error("fromVeoOperation() Message.Content is empty")
-					} else {
-						// Verify first content part is a media part
-						firstPart := modelResp.Message.Content[0]
-						if !firstPart.IsMedia() {
-							t.Error("fromVeoOperation() first content part is not media")
-						}
-					}
+			// Validate output structure
+			if result.Output == nil {
+				t.Fatal("fromVeoOperation() Output is nil, expected ModelResponse")
+			}
 
-					if modelResp.FinishReason != ai.FinishReasonStop {
-						t.Errorf("fromVeoOperation() FinishReason = %v, want %v", modelResp.FinishReason, ai.FinishReasonStop)
-					}
+			if result.Output.Message == nil {
+				t.Fatal("fromVeoOperation() ModelResponse.Message is nil")
+			}
+
+			if result.Output.Message.Role != ai.RoleModel {
+				t.Errorf("fromVeoOperation() Message.Role = %v, want %v", result.Output.Message.Role, ai.RoleModel)
+			}
+
+			if len(result.Output.Message.Content) == 0 {
+				t.Fatal("fromVeoOperation() Message.Content is empty")
+			}
+
+			// Check status message for text-based responses
+			if tt.expectedStatusMsg != "" {
+				firstPart := result.Output.Message.Content[0]
+				if firstPart.Text != tt.expectedStatusMsg {
+					t.Errorf("fromVeoOperation() status message = %q, want %q", firstPart.Text, tt.expectedStatusMsg)
 				}
+			}
+
+			// Check media parts count
+			mediaCount := 0
+			for _, part := range result.Output.Message.Content {
+				if part.IsMedia() {
+					mediaCount++
+				}
+			}
+			if mediaCount != tt.expectedMediaParts {
+				t.Errorf("fromVeoOperation() media parts count = %d, want %d", mediaCount, tt.expectedMediaParts)
+			}
+
+			// Check finish reason
+			if result.Output.FinishReason != tt.expectedFinishReason {
+				t.Errorf("fromVeoOperation() FinishReason = %v, want %v", result.Output.FinishReason, tt.expectedFinishReason)
 			}
 		})
 	}
