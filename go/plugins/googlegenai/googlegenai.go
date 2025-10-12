@@ -421,10 +421,15 @@ func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action 
 					LongRunning: true,
 				},
 			})
-
-			return core.NewAction(fmt.Sprintf("%s/%s", googleAIProvider, name), api.ActionTypeBackgroundModel, nil, nil,
+			actionName := fmt.Sprintf("%s/%s", googleAIProvider, name)
+			return core.NewAction(actionName, api.ActionTypeBackgroundModel, nil, nil,
 				func(ctx context.Context, input *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
-					return veoModel.Start(ctx, input)
+					op, err := veoModel.Start(ctx, input)
+					if err != nil {
+						return nil, err
+					}
+					op.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
+					return op, nil
 				})
 		}
 		return nil
@@ -445,14 +450,15 @@ func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action 
 				},
 			})
 
-			return core.NewAction(fmt.Sprintf("%s/%s", googleAIProvider, name), api.ActionTypeCheckOperation,
+			actionName := fmt.Sprintf("%s/%s", googleAIProvider, name)
+			return core.NewAction(actionName, api.ActionTypeCheckOperation,
 				map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)}, nil,
 				func(ctx context.Context, op *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
 					updatedOp, err := veoModel.Check(ctx, op)
 					if err != nil {
 						return nil, err
 					}
-					updatedOp.Action = fmt.Sprintf("/%s/%s/%s", api.ActionTypeCheckOperation, googleAIProvider, name)
+					updatedOp.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
 					return updatedOp, nil
 				})
 		}

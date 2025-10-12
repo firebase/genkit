@@ -73,7 +73,6 @@ func LookupBackgroundModel(r api.Registry, name string) BackgroundModel {
 	if action == nil {
 		return nil
 	}
-
 	return &backgroundModel{*action}
 }
 
@@ -178,14 +177,24 @@ func backgroundModelToModelFn(startFn StartModelOpFunc) ModelFunc {
 			return nil, err
 		}
 
+		var opError *OperationError
+		if op.Error != nil {
+			opError = &OperationError{Message: op.Error.Error()}
+		}
+
+		metadata := op.Metadata
+		if metadata == nil {
+			metadata = make(map[string]any)
+		}
+
 		return &ModelResponse{
 			Operation: &Operation{
 				Action:   op.Action,
 				Id:       op.ID,
 				Done:     op.Done,
 				Output:   op.Output,
-				Error:    &OperationError{Message: op.Error.Error()},
-				Metadata: op.Metadata,
+				Error:    opError,
+				Metadata: metadata,
 			},
 			Request: req,
 		}, nil
@@ -209,7 +218,7 @@ func modelOpFromResponse(resp *ModelResponse) (*ModelOperation, error) {
 		op.Error = errors.New(resp.Operation.Error.Message)
 	}
 
-	if op.Done && resp.Operation.Output != nil {
+	if resp.Operation.Output != nil {
 		if modelResp, ok := resp.Operation.Output.(*ModelResponse); ok {
 			op.Output = modelResp
 		} else {

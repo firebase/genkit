@@ -165,17 +165,17 @@ func LookupBackgroundAction[In, Out any](r api.Registry, key string) *Background
 	atype, provider, id := api.ParseKey(key)
 	name := api.NewName(provider, id)
 
-	startAction := LookupActionFor[In, *Operation[Out], struct{}](r, atype, name)
+	startAction := ResolveActionFor[In, *Operation[Out], struct{}](r, atype, name)
 	if startAction == nil {
 		return nil
 	}
 
-	checkAction := LookupActionFor[*Operation[Out], *Operation[Out], struct{}](r, api.ActionTypeCheckOperation, name)
+	checkAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, api.ActionTypeCheckOperation, name)
 	if checkAction == nil {
 		return nil
 	}
 
-	cancelAction := LookupActionFor[*Operation[Out], *Operation[Out], struct{}](r, api.ActionTypeCancelOperation, name)
+	cancelAction := ResolveActionFor[*Operation[Out], *Operation[Out], struct{}](r, api.ActionTypeCancelOperation, name)
 
 	return &BackgroundActionDef[In, Out]{
 		ActionDef: startAction,

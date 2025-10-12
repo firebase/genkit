@@ -123,23 +123,40 @@ func toVeoParameters(request *ai.ModelRequest) *genai.GenerateVideosConfig {
 // fromVeoOperation converts a Veo API operation to a Genkit core operation.
 func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *ai.ModelOperation {
 	operation := &ai.ModelOperation{
-		ID:   veoOp.Name,
-		Done: veoOp.Done,
+		ID:       veoOp.Name,
+		Done:     veoOp.Done,
+		Metadata: make(map[string]any),
 	}
 
-	// Handle operation errors if present
+	// Handle error cases
 	if veoOp.Error != nil {
-		// veoOp.Error is a map[string]any, convert to string for the operation
 		if errorMsg, ok := veoOp.Error["message"].(string); ok {
 			operation.Error = fmt.Errorf("%s", errorMsg)
 		} else {
 			operation.Error = fmt.Errorf("operation error: %v", veoOp.Error)
 		}
+		operation.Output = &ai.ModelResponse{
+			Message: &ai.Message{
+				Role:    ai.RoleModel,
+				Content: []*ai.Part{ai.NewTextPart("Video generation failed")},
+			},
+		}
+		return operation
 	}
 
-	// Convert successful response with generated videos
-	if veoOp.Response != nil && veoOp.Response.GeneratedVideos != nil {
-		// Convert generated video samples to model response format
+	// Handle in-progress operations
+	if !veoOp.Done {
+		operation.Output = &ai.ModelResponse{
+			Message: &ai.Message{
+				Role:    ai.RoleModel,
+				Content: []*ai.Part{ai.NewTextPart("Video generation in progress...")},
+			},
+		}
+		return operation
+	}
+
+	// Handle completed operations with response
+	if veoOp.Done && veoOp.Response != nil && veoOp.Response.GeneratedVideos != nil && len(veoOp.Response.GeneratedVideos) > 0 {
 		content := make([]*ai.Part, 0, len(veoOp.Response.GeneratedVideos))
 		for _, sample := range veoOp.Response.GeneratedVideos {
 			if sample.Video != nil && sample.Video.URI != "" {
@@ -148,25 +165,33 @@ func fromVeoOperation(veoOp *genai.GenerateVideosOperation) *ai.ModelOperation {
 		}
 
 		if len(content) > 0 {
-			response := &ai.ModelResponse{
+			operation.Output = &ai.ModelResponse{
 				Message: &ai.Message{
 					Role:    ai.RoleModel,
 					Content: content,
 				},
 				FinishReason: ai.FinishReasonStop,
 			}
-			operation.Output = response
+			return operation
 		}
+	}
+
+	// Handle completed operations without valid response
+	operation.Output = &ai.ModelResponse{
+		Message: &ai.Message{
+			Role:    ai.RoleModel,
+			Content: []*ai.Part{ai.NewTextPart("Video generation completed but no videos were generated")},
+		},
+		FinishReason: ai.FinishReasonStop,
 	}
 
 	return operation
 }
 
-// checkVeoOperation checks the status of a long-running Veo video generation operation..
+// checkVeoOperation checks the status of a long-running Veo video generation operation.
 func checkVeoOperation(ctx context.Context, client *genai.Client, ops *core.Operation[*ai.ModelResponse]) (*genai.GenerateVideosOperation, error) {
 	genaiOps := &genai.GenerateVideosOperation{
 		Name: ops.ID,
 	}
-	operation, err := client.Operations.GetVideosOperation(ctx, genaiOps, nil)
-	return operation, err
+	return client.Operations.GetVideosOperation(ctx, genaiOps, nil)
 }

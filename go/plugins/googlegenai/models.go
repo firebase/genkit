@@ -49,6 +49,8 @@ const (
 	textmultilingualembedding002      = "text-multilingual-embedding-002"
 	multimodalembedding               = "multimodalembedding"
 	veo20Generate001                  = "veo-2.0-generate-001"
+	veo30Generate001                  = "veo-3.0-generate-001"
+	veo30FastGenerate001              = "veo-3.0-fast-generate-001"
 )
 
 var (
@@ -76,6 +78,8 @@ var (
 		imagen3FastGenerate001,
 
 		veo20Generate001,
+		veo30Generate001,
+		veo30FastGenerate001,
 	}
 
 	googleAIModels = []string{
@@ -99,6 +103,8 @@ var (
 		imagen3Generate002,
 
 		veo20Generate001,
+		veo30Generate001,
+		veo30FastGenerate001,
 	}
 
 	supportedGeminiModels = map[string]ai.ModelOptions{
@@ -245,6 +251,32 @@ var (
 	supportedVideoModels = map[string]ai.ModelOptions{
 		veo20Generate001: {
 			Label:    "Google AI - Veo 2.0 Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageStable,
+		},
+		veo30Generate001: {
+			Label:    "Google AI - Veo 3.0 Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageStable,
+		},
+		veo30FastGenerate001: {
+			Label:    "Google AI - Veo 3.0 Fast Generate 001",
 			Versions: []string{},
 			Supports: &ai.ModelSupports{
 				Media:       true,
