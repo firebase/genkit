@@ -78,7 +78,7 @@ function initializer(serverAddress: string, params: OllamaPluginParams = {}) {
   if (params?.models) {
     for (const model of params.models) {
       actions.push(
-        createOllamaModel(model, serverAddress, params.requestHeaders)
+        defineOllamaModel(model, serverAddress, params.requestHeaders)
       );
     }
   }
@@ -114,7 +114,7 @@ function resolveAction({
 }: ResolveActionOptions) {
   switch (actionType) {
     case 'model':
-      return createOllamaModel(
+      return defineOllamaModel(
         {
           name: actionName,
         },
@@ -213,12 +213,12 @@ export const OllamaConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
 });
 
-function createOllamaModel(
+function defineOllamaModel(
   modelDef: ModelDefinition,
   serverAddress: string,
   requestHeaders?: RequestHeaders
 ) {
-  return model(
+  return model<typeof OllamaConfigSchema>(
     {
       name: modelDef.name,
       label: `Ollama - ${modelDef.name}`,
@@ -231,8 +231,8 @@ function createOllamaModel(
     },
     async (request, opts) => {
       const { topP, topK, stopSequences, maxOutputTokens, ...rest } =
-        request.config as any;
-      const options: Record<string, any> = { ...rest };
+        request.config || {};
+      const options = { ...rest };
       if (topP !== undefined) {
         options.top_p = topP;
       }
