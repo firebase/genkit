@@ -72,54 +72,57 @@ export type OllamaPlugin = {
   embedder(name: string, config?: Record<string, any>): EmbedderReference;
 };
 
-function ollamaPlugin(params: OllamaPluginParams = {}): GenkitPluginV2 {
-  const serverAddress = params.serverAddress || DEFAULT_OLLAMA_SERVER_ADDRESS;
+function initializer(serverAddress: string, params: OllamaPluginParams = {}) {
+  const actions: ResolvableAction[] = [];
 
-  return genkitPluginV2({
-    name: 'ollama',
-    init() {
-      const actions: ResolvableAction[] = [];
+  if (params?.models) {
+    for (const model of params.models) {
+      actions.push(
+        createOllamaModel(model, serverAddress, params.requestHeaders)
+      );
+    }
+  }
 
-      if (params?.models) {
-        for (const model of params.models) {
-          actions.push(
-            createOllamaModel(model, serverAddress, params.requestHeaders)
-          );
-        }
-      }
+  if (params?.embedders && params.serverAddress) {
+    for (const embedder of params.embedders) {
+      actions.push(
+        defineOllamaEmbedder({
+          name: embedder.name,
+          modelName: embedder.name,
+          dimensions: embedder.dimensions,
+          options: { ...params, serverAddress },
+        })
+      );
+    }
+  }
 
-      if (params?.embedders && params.serverAddress) {
-        for (const embedder of params.embedders) {
-          actions.push(
-            defineOllamaEmbedder({
-              name: embedder.name,
-              modelName: embedder.name,
-              dimensions: embedder.dimensions,
-              options: { ...params, serverAddress },
-            })
-          );
-        }
-      }
+  return actions;
+}
 
-      return actions;
-    },
-    async resolve(actionType, actionName) {
-      // dynamically resolve models, for embedders user must provide dimensions.
-      if (actionType === 'model') {
-        return await createOllamaModel(
-          {
-            name: actionName,
-          },
-          serverAddress,
-          params?.requestHeaders
-        );
-      }
-      return undefined;
-    },
-    async list() {
-      return await listActions(serverAddress, params?.requestHeaders);
-    },
-  });
+interface ResolveActionOptions {
+  params: OllamaPluginParams;
+  actionType: string;
+  actionName: string;
+  serverAddress: string;
+}
+
+function resolveAction({
+  params,
+  actionType,
+  actionName,
+  serverAddress,
+}: ResolveActionOptions) {
+  switch (actionType) {
+    case 'model':
+      return createOllamaModel(
+        {
+          name: actionName,
+        },
+        serverAddress,
+        params?.requestHeaders
+      );
+  }
+  return undefined;
 }
 
 async function listActions(
@@ -138,6 +141,23 @@ async function listActions(
         })
       ) || []
   );
+}
+
+function ollamaPlugin(params: OllamaPluginParams = {}): GenkitPluginV2 {
+  const serverAddress = params.serverAddress || DEFAULT_OLLAMA_SERVER_ADDRESS;
+
+  return genkitPluginV2({
+    name: 'ollama',
+    init() {
+      return initializer(serverAddress, params);
+    },
+    resolve(actionType, actionName) {
+      return resolveAction({ params, actionType, actionName, serverAddress });
+    },
+    async list() {
+      return await listActions(serverAddress, params?.requestHeaders);
+    },
+  });
 }
 
 async function listLocalModels(
@@ -510,6 +530,7 @@ function isValidOllamaTool(tool: ToolDefinition): boolean {
 }
 
 export const ollama = ollamaPlugin as OllamaPlugin;
+
 ollama.model = (
   name: string,
   config?: z.infer<typeof OllamaConfigSchema>
