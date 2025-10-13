@@ -247,7 +247,6 @@ describe('ollama models', () => {
     let fullText = '';
     let chunkCount = 0;
     for await (const chunk of streamingResult.stream) {
-      console.log(JSON.stringify(chunk, null, 2));
       fullText += chunk.text; // Each chunk contains individual words
       chunkCount++;
     }

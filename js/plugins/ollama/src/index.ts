@@ -136,7 +136,7 @@ async function listActions(
       ?.filter((m) => m.model && !m.model.includes('embed'))
       .map((m) =>
         modelActionMetadata({
-          name: m.model,
+          name: `ollama/${m.model}`,
           info: GENERIC_MODEL_INFO,
         })
       ) || []
