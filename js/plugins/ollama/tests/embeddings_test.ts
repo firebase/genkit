@@ -171,4 +171,45 @@ describe('defineOllamaEmbedder (with genkit initialization)', () => {
       }
     );
   });
+
+  it('should support per-call embedder serverAddress configuration', async () => {
+    const aiWithEmbedder = genkit({
+      plugins: [
+        ollama({
+          serverAddress: 'http://localhost:3000',
+          embedders: [{ name: 'test-embedder', dimensions: 768 }],
+        }),
+      ],
+    });
+
+    // Mock fetch to verify custom serverAddress is used
+    global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url.includes('/api/embed')) {
+        // Verify the custom serverAddress was used
+        assert.ok(url.includes('http://custom-server:11434'));
+        return new Response(
+          JSON.stringify({
+            embeddings: [[0.1, 0.2, 0.3]],
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      throw new Error(`Unknown API endpoint: ${url}`);
+    };
+
+    const result = await aiWithEmbedder.embed({
+      embedder: 'ollama/test-embedder',
+      content: 'test document',
+      options: { serverAddress: 'http://custom-server:11434' },
+    });
+
+    assert.ok(result);
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].embedding.length, 3);
+  });
 });

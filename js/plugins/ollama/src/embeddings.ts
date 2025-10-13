@@ -18,6 +18,7 @@ import { embedder } from 'genkit/plugin';
 import type { EmbedRequest, EmbedResponse } from 'ollama';
 import { DEFAULT_OLLAMA_SERVER_ADDRESS } from './constants.js';
 import type { DefineOllamaEmbeddingParams, RequestHeaders } from './types.js';
+import { OllamaEmbedderConfigSchema } from './types.js';
 
 export async function toOllamaEmbedRequest(
   modelName: string,
@@ -66,10 +67,13 @@ export function defineOllamaEmbedder({
   modelName,
   dimensions,
   options,
-}: DefineOllamaEmbeddingParams): EmbedderAction<any> {
+}: DefineOllamaEmbeddingParams): EmbedderAction<
+  typeof OllamaEmbedderConfigSchema
+> {
   return embedder(
     {
       name: `ollama/${name}`,
+      configSchema: OllamaEmbedderConfigSchema,
       info: {
         label: 'Ollama Embedding - ' + name,
         dimensions,
@@ -79,14 +83,15 @@ export function defineOllamaEmbedder({
         },
       },
     },
-    async (request, config) => {
+    async ({ input, options: requestOptions }, config) => {
       const serverAddress =
-        options.serverAddress || DEFAULT_OLLAMA_SERVER_ADDRESS;
-
+        requestOptions?.serverAddress ||
+        options.serverAddress ||
+        DEFAULT_OLLAMA_SERVER_ADDRESS;
       const { url, requestPayload, headers } = await toOllamaEmbedRequest(
         modelName,
         dimensions,
-        request.input,
+        input,
         serverAddress,
         options.requestHeaders
       );
