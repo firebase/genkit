@@ -72,14 +72,8 @@ export type OllamaPlugin = {
   embedder(name: string, config?: Record<string, any>): EmbedderReference;
 };
 
-function ollamaPlugin(params?: OllamaPluginParams): GenkitPluginV2 {
-  if (!params) {
-    params = {};
-  }
-  if (!params.serverAddress) {
-    params.serverAddress = DEFAULT_OLLAMA_SERVER_ADDRESS;
-  }
-  const serverAddress = params.serverAddress;
+function ollamaPlugin(params: OllamaPluginParams = {}): GenkitPluginV2 {
+  const serverAddress = params.serverAddress || DEFAULT_OLLAMA_SERVER_ADDRESS;
 
   return genkitPluginV2({
     name: 'ollama',
