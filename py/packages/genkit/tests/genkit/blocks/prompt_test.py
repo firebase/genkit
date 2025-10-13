@@ -158,11 +158,9 @@ test_cases_parse_partial_json = [
         },
         {"name": "foo"},
         GenerationCommonConfig.model_validate({"temperature": 11}),
-        """[ECHO] system: "hello foo ()" {"temperature":11.0}"""
+        """[ECHO] system: "hello foo (bar)" {"temperature":11.0}"""
     )
 ]
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     'test_case, prompt, input, input_option, want_rendered',

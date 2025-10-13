@@ -283,7 +283,14 @@ class ExecutablePrompt:
         if options.messages:
             resolved_msgs += options.messages
         if options.prompt:
-            resolved_msgs.append(Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt)))
+            result = await render_user_prompt(
+                self._registry,
+                input,
+                options,
+                self._cache_prompt,
+                ActionRunContext._current_context() or {}
+            )
+            resolved_msgs.append(result)
 
         # If is schema is set but format is not explicitly set, default to
         # `json` format.
@@ -430,7 +437,14 @@ async def to_generate_action_options(
         raise Exception('No model configured.')
     resolved_msgs: list[Message] = []
     if options.system:
-        resolved_msgs.append(Message(role=Role.SYSTEM, content=_normalize_prompt_arg(options.system)))
+        result = await render_system_prompt(
+            registry,
+            None,
+            options,
+            PromptCache(),
+            ActionRunContext._current_context() or {}
+        )
+        resolved_msgs.append(result)
     if options.messages:
         resolved_msgs += options.messages
     if options.prompt:
@@ -589,3 +603,39 @@ async def render_dotprompt_to_parts(
 
 
     return part_rendered
+
+
+
+async def render_user_prompt(
+    registry: Registry,
+    input: dict[str, Any],
+    options: PromptConfig,
+    prompt_cache: PromptCache,
+    context: dict[str, Any] | None = None,
+) -> Message:
+    """Renders the user prompt for a prompt action."""
+    if isinstance(options.prompt, str):
+        if prompt_cache.prompt is None:
+            prompt_cache.prompt = await registry.dotprompt.compile(options.prompt)
+
+        if options.metadata:
+            context = {**context, "state": options.metadata.get("state")}
+
+        return Message(
+            role=Role.SYSTEM,
+            content=await render_dotprompt_to_parts(
+                context,
+                prompt_cache.system,
+                input,
+                PromptMetadata(
+                    input=PromptInputConfig(
+
+                    )
+                ),
+            )
+        )
+
+    return Message(
+        role=Role.USER,
+        content=_normalize_prompt_arg(options.prompt)
+    )
