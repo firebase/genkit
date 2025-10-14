@@ -192,7 +192,7 @@ class ExecutablePrompt:
         """
         return await generate_action(
             self._registry,
-            await self.render(input=input, config=config),
+            await self.render(input=input, config=config, context=context),
             on_chunk=on_chunk,
             middleware=self._use,
             context=context if context else ActionRunContext._current_context(),
@@ -236,6 +236,7 @@ class ExecutablePrompt:
         self,
         input: dict[str, Any] | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> GenerateActionOptions:
         """Renders the prompt with the given input and configuration.
 
@@ -277,18 +278,26 @@ class ExecutablePrompt:
                 input,
                 options,
                 self._cache_prompt,
-                ActionRunContext._current_context() or {}
+                context
             )
             resolved_msgs.append(result)
         if options.messages:
-            resolved_msgs += options.messages
+            resolved_msgs.extend(
+                await render_message_prompt(
+                    self._registry,
+                    input,
+                    options,
+                    self._cache_prompt,
+                    context
+                )
+            )
         if options.prompt:
             result = await render_user_prompt(
                 self._registry,
                 input,
                 options,
                 self._cache_prompt,
-                ActionRunContext._current_context() or {}
+                context
             )
             resolved_msgs.append(result)
 
@@ -437,14 +446,7 @@ async def to_generate_action_options(
         raise Exception('No model configured.')
     resolved_msgs: list[Message] = []
     if options.system:
-        result = await render_system_prompt(
-            registry,
-            None,
-            options,
-            PromptCache(),
-            ActionRunContext._current_context() or {}
-        )
-        resolved_msgs.append(result)
+        resolved_msgs.append(Message(role=Role.SYSTEM, content=_normalize_prompt_arg(options.system)))
     if options.messages:
         resolved_msgs += options.messages
     if options.prompt:
@@ -551,10 +553,9 @@ async def render_system_prompt(
                 context,
                 prompt_cache.system,
                 input,
-
                 PromptMetadata(
                     input=PromptInputConfig(
-
+                        schema=options.input_schema,
                     )
                 ),
             )
@@ -564,6 +565,7 @@ async def render_system_prompt(
         role=Role.SYSTEM,
         content=_normalize_prompt_arg(options.system)
     )
+
 
 async def render_dotprompt_to_parts(
     context: dict[str, Any],
@@ -585,9 +587,10 @@ async def render_dotprompt_to_parts(
     Raises:
         Exception: If the template produces more than one message.
     """
+    merged_input = input_
     rendered = await prompt_function(
         data=DataArgument[dict[str, Any]](
-            input=input_,
+            input=merged_input,
             context=context,
         ),
         options=options,
@@ -606,6 +609,50 @@ async def render_dotprompt_to_parts(
 
 
 
+async def render_message_prompt(
+    registry: Registry,
+    input: dict[str, Any],
+    options: PromptConfig,
+    prompt_cache: PromptCache,
+    context: dict[str, Any] | None = None,
+) -> list[Message]:
+    """Renders the user prompt for a prompt action."""
+    if isinstance(options.messages, str):
+        if prompt_cache.messages is None:
+            prompt_cache.messages = await registry.dotprompt.compile(options.messages)
+
+        if options.metadata:
+            context = {**context, "state": options.metadata.get("state")}
+
+        messages_ = None
+        if isinstance(options.messages, list):
+            messages_ = [e.model_dump() for e in options.messages]
+
+        rendered = await prompt_cache.messages(
+            data=DataArgument[dict[str, Any]](
+                input=input,
+                context=context,
+                messages=messages_,
+            ),
+            options=PromptMetadata(
+                input=PromptInputConfig(
+                )
+            ),
+        )
+        return [Message.model_validate(e.model_dump()) for e in rendered.messages]
+
+    elif isinstance(options.messages, list):
+        return options.messages
+
+    return [
+        Message(
+            role=Role.USER,
+            content=_normalize_prompt_arg(options.prompt)
+        )
+    ]
+
+
+
 async def render_user_prompt(
     registry: Registry,
     input: dict[str, Any],
@@ -615,17 +662,17 @@ async def render_user_prompt(
 ) -> Message:
     """Renders the user prompt for a prompt action."""
     if isinstance(options.prompt, str):
-        if prompt_cache.prompt is None:
-            prompt_cache.prompt = await registry.dotprompt.compile(options.prompt)
+        if prompt_cache.user_prompt is None:
+            prompt_cache.user_prompt = await registry.dotprompt.compile(options.prompt)
 
         if options.metadata:
             context = {**context, "state": options.metadata.get("state")}
 
         return Message(
-            role=Role.SYSTEM,
+            role=Role.USER,
             content=await render_dotprompt_to_parts(
                 context,
-                prompt_cache.system,
+                prompt_cache.user_prompt,
                 input,
                 PromptMetadata(
                     input=PromptInputConfig(
