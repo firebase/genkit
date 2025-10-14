@@ -9,8 +9,8 @@ retract (
 
 require (
 	cloud.google.com/go/alloydbconn v1.15.3
-	cloud.google.com/go/bigquery v1.67.0
 	cloud.google.com/go/auth v0.16.2
+	cloud.google.com/go/bigquery v1.67.0
 	cloud.google.com/go/cloudsqlconn v1.17.2
 	cloud.google.com/go/firestore v1.18.0
 	cloud.google.com/go/logging v1.13.0
@@ -20,7 +20,7 @@ require (
 	github.com/anthropics/anthropic-sdk-go v1.9.1
 	github.com/blues/jsonata-go v1.5.4
 	github.com/goccy/go-yaml v1.17.1
-	github.com/google/dotprompt/go v0.0.0-20250923103342-a8a91d1dff59
+	github.com/google/dotprompt/go v0.0.0-20251014011017-8d056e027254
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.13.0
