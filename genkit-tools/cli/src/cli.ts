@@ -138,10 +138,11 @@ export async function startCLI(): Promise<void> {
       logger.info(program.help());
     })
   );
-  // Default action to catch unknown commands.
-  program.action(() => {
-    // print help
+  // Handle unknown commands.
+  program.on('command:*', (operands) => {
+    logger.error(`error: unknown command '${operands[0]}'`);
     logger.info(program.help());
+    process.exit(1);
   });
 
   await program.parseAsync();

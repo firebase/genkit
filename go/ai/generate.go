@@ -235,6 +235,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		err := cb(ctx, &ModelResponseChunk{
 			Content: resumeOutput.toolMessage.Content,
 			Role:    RoleTool,
+			Index:   0,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
@@ -317,9 +318,9 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	fn := core.ChainMiddleware(mw...)(m.Generate)
 
 	// Inline recursive helper function that captures variables from parent scope.
-	var generate func(context.Context, *ModelRequest, int) (*ModelResponse, error)
+	var generate func(context.Context, *ModelRequest, int, int) (*ModelResponse, error)
 
-	generate = func(ctx context.Context, req *ModelRequest, currentTurn int) (*ModelResponse, error) {
+	generate = func(ctx context.Context, req *ModelRequest, currentTurn int, messageIndex int) (*ModelResponse, error) {
 		spanMetadata := &tracing.SpanMetadata{
 			Name:    "generate",
 			Type:    "util",
@@ -327,7 +328,25 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 		}
 
 		return tracing.RunInNewSpan(ctx, spanMetadata, req, func(ctx context.Context, req *ModelRequest) (*ModelResponse, error) {
-			resp, err := fn(ctx, req, cb)
+			var wrappedCb ModelStreamCallback
+			currentRole := RoleModel
+			currentIndex := messageIndex
+
+			if cb != nil {
+				wrappedCb = func(ctx context.Context, chunk *ModelResponseChunk) error {
+					if chunk.Role != currentRole && chunk.Role != "" {
+						currentIndex++
+						currentRole = chunk.Role
+					}
+					chunk.Index = currentIndex
+					if chunk.Role == "" {
+						chunk.Role = RoleModel
+					}
+					return cb(ctx, chunk)
+				}
+			}
+
+			resp, err := fn(ctx, req, wrappedCb)
 			if err != nil {
 				return nil, err
 			}
@@ -348,7 +367,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return nil, core.NewError(core.ABORTED, "exceeded maximum tool call iterations (%d)", maxTurns)
 			}
 
-			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, cb)
+			newReq, interruptMsg, err := handleToolRequests(ctx, r, req, resp, wrappedCb, currentIndex)
 			if err != nil {
 				return nil, err
 			}
@@ -362,11 +381,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return resp, nil
 			}
 
-			return generate(ctx, newReq, currentTurn+1)
+			return generate(ctx, newReq, currentTurn+1, currentIndex+1)
 		})
 	}
 
-	return generate(ctx, req, 0)
+	return generate(ctx, req, 0, 0)
 }
 
 // Generate generates a model response based on the provided options.
@@ -589,7 +608,7 @@ func clone[T any](obj *T) *T {
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
 // need handling.
-func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback) (*ModelRequest, *Message, error) {
+func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int) (*ModelRequest, *Message, error) {
 	toolCount := 0
 	if resp.Message != nil {
 		for _, part := range resp.Message.Content {
@@ -689,6 +708,7 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 		err := cb(ctx, &ModelResponseChunk{
 			Content: toolMsg.Content,
 			Role:    RoleTool,
+			Index:   messageIndex + 1,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("streaming callback failed: %w", err)
@@ -772,6 +792,19 @@ func (mr *ModelResponse) Interrupts() []*Part {
 		}
 	}
 	return parts
+}
+
+// Media returns the media content of the [ModelResponse] as a string.
+func (mr *ModelResponse) Media() string {
+	if mr.Message == nil {
+		return ""
+	}
+	for _, part := range mr.Message.Content {
+		if part.IsMedia() {
+			return part.Text
+		}
+	}
+	return ""
 }
 
 // Text returns the text content of the [ModelResponseChunk]

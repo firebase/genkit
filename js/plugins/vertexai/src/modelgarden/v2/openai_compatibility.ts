@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { Message, z, type Genkit, type StreamingCallback } from 'genkit';
+import { Message, z } from 'genkit';
 import {
   GenerationCommonConfigSchema,
   type CandidateData,
   type GenerateRequest,
-  type GenerateResponseChunkData,
   type GenerateResponseData,
   type MessageData,
   type ModelAction,
@@ -29,6 +28,7 @@ import {
   type ToolDefinition,
   type ToolRequestPart,
 } from 'genkit/model';
+import { model as pluginModel } from 'genkit/plugin';
 import type OpenAI from 'openai';
 import type {
   ChatCompletion,
@@ -41,6 +41,7 @@ import type {
   ChatCompletionTool,
   CompletionChoice,
 } from 'openai/resources/index.mjs';
+import { checkModelName } from './utils';
 
 /**
  * See https://platform.openai.com/docs/api-reference/chat/create.
@@ -118,7 +119,7 @@ export const OpenAIConfigSchema = GenerationCommonConfigSchema.extend({
       'A unique identifier representing your end-user to monitor and detect abuse.'
     )
     .optional(),
-});
+}).passthrough();
 
 export function toOpenAIRole(role: Role): ChatCompletionRole {
   switch (role) {
@@ -316,8 +317,7 @@ export function toRequestBody(
   request: GenerateRequest<typeof OpenAIConfigSchema>
 ) {
   const openAiMessages = toOpenAiMessages(request.messages);
-  const mappedModelName =
-    request.config?.version || model.version || model.name;
+  const mappedModelName = checkModelName(model.name);
   const body = {
     model: mappedModelName,
     messages: openAiMessages,
@@ -363,28 +363,29 @@ export function toRequestBody(
   return body;
 }
 
-export function openaiCompatibleModel<C extends typeof OpenAIConfigSchema>(
-  ai: Genkit,
+export function defineOpenaiCompatibleModel<
+  C extends typeof OpenAIConfigSchema,
+>(
   model: ModelReference<any>,
   clientFactory: (request: GenerateRequest<C>) => Promise<OpenAI>
 ): ModelAction<C> {
-  const modelId = model.name;
-  if (!model) throw new Error(`Unsupported model: ${name}`);
+  const modelId = checkModelName(model.name);
+  if (!modelId) throw new Error(`Unsupported model: ${modelId}`);
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      name: modelId,
+      name: model.name,
       ...model.info,
       configSchema: model.configSchema,
     },
     async (
       request: GenerateRequest<C>,
-      sendChunk?: StreamingCallback<GenerateResponseChunkData>
+      { streamingRequested, sendChunk }
     ): Promise<GenerateResponseData> => {
       let response: ChatCompletion;
       const client = await clientFactory(request);
       const body = toRequestBody(model, request);
-      if (sendChunk) {
+      if (streamingRequested) {
         const stream = client.beta.chat.completions.stream({
           ...body,
           stream: true,
