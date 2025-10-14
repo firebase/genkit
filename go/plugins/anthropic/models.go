@@ -20,7 +20,15 @@ import (
 	"context"
 
 	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/plugins/internal"
 )
+
+var defaultClaudeOpts = ai.ModelOptions{
+	Supports: &internal.Multimodal,
+	Versions: []string{},
+	Stage:    ai.ModelStageStable,
+}
 
 // listModels returns a list of model names supported by the Anthropic client
 func listModels(ctx context.Context, client *anthropic.Client) ([]string, error) {
@@ -29,7 +37,7 @@ func listModels(ctx context.Context, client *anthropic.Client) ([]string, error)
 
 	for iter.Next() {
 		m := iter.Current()
-		models = append(models, m.DisplayName)
+		models = append(models, m.ID)
 	}
 
 	if err := iter.Err(); err != nil {

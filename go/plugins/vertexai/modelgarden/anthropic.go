@@ -102,5 +102,5 @@ func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOpt
 	if opts == nil {
 		return nil, fmt.Errorf("DefineModel called with nil ai.ModelOptions")
 	}
-	return ant.DefineModel(g, a.client, provider, name, *opts), nil
+	return ant.DefineModel(g, a.client, name, *opts), nil
 }

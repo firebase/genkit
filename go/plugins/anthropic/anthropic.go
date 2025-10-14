@@ -18,7 +18,6 @@ package anthropic
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -26,9 +25,11 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal/base"
 	ant "github.com/firebase/genkit/go/plugins/internal/anthropic"
+	"github.com/invopop/jsonschema"
 )
 
 const (
@@ -37,7 +38,9 @@ const (
 )
 
 type Anthropic struct {
-	APIKey  string           // If not provided, defaults to ANTHROPIC_API_KEY
+	APIKey  string // If not provided, defaults to ANTHROPIC_API_KEY
+	BaseURL string // Optional. If not provided, defaults to ANTHROPIC_BASE_URL
+
 	aclient anthropic.Client // Anthropic client
 	mu      sync.Mutex       // Mutex to control access
 	initted bool             // Whether the plugin has been initialized
@@ -47,7 +50,7 @@ func (a *Anthropic) Name() string {
 	return provider
 }
 
-func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	if a == nil {
 		a = &Anthropic{}
 	}
@@ -55,41 +58,44 @@ func (a *Anthropic) Init(ctx context.Context, g *genkit.Genkit) (err error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.initted {
-		return errors.New("plugin already initialized")
+		panic("plugin already initialized")
 	}
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("Anthropic.Init: %w", err)
-		}
-	}()
 
 	apiKey := a.APIKey
 	if apiKey == "" {
 		apiKey = os.Getenv("ANTHROPIC_API_KEY")
 	}
 	if apiKey == "" {
-		return fmt.Errorf("Anthropic requires setting ANTHROPIC_API_KEY in the environment")
+		panic("Anthropic requires setting ANTHROPIC_API_KEY in the environment")
 	}
 
-	ac := anthropic.NewClient(
-		option.WithAPIKey(apiKey),
-	)
+	opts := []option.RequestOption{option.WithAPIKey(apiKey)}
+
+	baseURL := a.BaseURL
+	if baseURL == "" {
+		baseURL = os.Getenv("ANTHROPIC_BASE_URL")
+	}
+	if baseURL != "" {
+		opts = append(opts, option.WithBaseURL(baseURL))
+	}
+
+	ac := anthropic.NewClient(opts...)
 	a.aclient = ac
 	a.initted = true
 
-	return nil
+	return []api.Action{}
 }
 
-func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, info *ai.ModelInfo) ai.Model {
-	return ant.DefineModel(g, a.aclient, provider, name, *info)
+func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
+	return ant.DefineModel(g, a.aclient, name, *opts), nil
 }
 
 func (a *Anthropic) IsDefinedModel(g *genkit.Genkit, name string) bool {
-	return genkit.LookupModel(g, provider, name) != nil
+	return genkit.LookupModel(g, name) != nil
 }
 
-func (a *Anthropic) ListActions(ctx context.Context) []core.ActionDesc {
-	actions := []core.ActionDesc{}
+func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
+	actions := []api.ActionDesc{}
 
 	models, err := listModels(ctx, &a.aclient)
 	if err != nil {
@@ -97,49 +103,61 @@ func (a *Anthropic) ListActions(ctx context.Context) []core.ActionDesc {
 	}
 
 	for _, name := range models {
-		metadata := map[string]any{
-			"model": map[string]any{
-				"supports": map[string]any{
-					"media":       true,
-					"multiturn":   true,
-					"systemRole":  true,
-					"tools":       true,
-					"toolChoice":  true,
-					"constrained": "no-tools",
-				},
-			},
-			"versions": []string{},
-			"stage":    string(ai.ModelStageStable),
+		model := newModel(a.aclient, name, defaultClaudeOpts)
+		if actionDef, ok := model.(api.Action); ok {
+			actions = append(actions, actionDef.Desc())
 		}
-		metadata["label"] = fmt.Sprintf("%s - %s", anthropicLabelPrefix, name)
-
-		actions = append(actions, core.ActionDesc{
-			Type:     core.ActionTypeModel,
-			Name:     fmt.Sprintf("%s/%s", provider, name),
-			Key:      fmt.Sprintf("/%s/%s/%s", core.ActionTypeModel, provider, name),
-			Metadata: metadata,
-		})
-
 	}
+
 	return actions
 }
 
-func (a *Anthropic) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
+// ResolveAction resolves an action with the given name
+func (a *Anthropic) ResolveAction(atype api.ActionType, id string) api.Action {
 	switch atype {
-	case core.ActionTypeModel:
-		ant.DefineModel(g, a.aclient, provider, name, ai.ModelInfo{
-			Label:    fmt.Sprintf("%s - %s", anthropicLabelPrefix, name),
+	case api.ActionTypeModel:
+		return newModel(a.aclient, id, ai.ModelOptions{
+			Label:    fmt.Sprintf("%s - %s", anthropicLabelPrefix, id),
 			Stage:    ai.ModelStageStable,
 			Versions: []string{},
-			Supports: &ai.ModelSupports{
-				Media:       true,
-				Multiturn:   true,
-				SystemRole:  true,
-				Tools:       true,
-				ToolChoice:  true,
-				Constrained: ai.ConstrainedSupportNoTools,
-			},
-		})
+			Supports: defaultClaudeOpts.Supports,
+		}).(api.Action)
 	}
 	return nil
+}
+
+// newModel creates a model wihout registering it
+func newModel(client anthropic.Client, name string, opts ai.ModelOptions) ai.Model {
+	config := &anthropic.MessageNewParams{}
+
+	meta := &ai.ModelOptions{
+		Label:        opts.Label,
+		Supports:     opts.Supports,
+		Versions:     opts.Versions,
+		ConfigSchema: configToMap(config),
+		Stage:        opts.Stage,
+	}
+
+	fn := func(
+		ctx context.Context,
+		input *ai.ModelRequest,
+		cb func(context.Context, *ai.ModelResponseChunk) error,
+	) (*ai.ModelResponse, error) {
+		return ant.Generate(ctx, client, name, input, cb)
+	}
+
+	return ai.NewModel(api.NewName(provider, name), meta, fn)
+}
+
+// configToMap converts a config struct to a map[string]any.
+func configToMap(config any) map[string]any {
+	r := jsonschema.Reflector{
+		DoNotReference:             true, // Prevent $ref usage
+		AllowAdditionalProperties:  false,
+		ExpandedStruct:             true,
+		RequiredFromJSONSchemaTags: true,
+	}
+	schema := r.Reflect(config)
+	result := base.SchemaAsMap(schema)
+	return result
 }

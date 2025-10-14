@@ -16,17 +16,39 @@ package main
 
 import (
 	"context"
-	"log"
 
+	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/anthropic"
+	ant "github.com/firebase/genkit/go/plugins/anthropic"
 )
 
 func main() {
 	ctx := context.Background()
 
-	_, err := genkit.Init(ctx, genkit.WithPlugins(&anthropic.Anthropic{}))
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&ant.Anthropic{}))
+
+	// Define a simple flow that generates a short story about a given topic
+	genkit.DefineStreamingFlow(g, "storyFlow", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(0.1),
+				MaxTokens:   *anthropic.IntPtr(2000),
+				Thinking: anthropic.ThinkingConfigParamUnion{
+					OfEnabled: &anthropic.ThinkingConfigEnabledParam{
+						BudgetTokens: *anthropic.IntPtr(123),
+					},
+				},
+			}),
+			ai.WithStreaming(cb),
+			ai.WithPrompt(`Tell a short story about %s`, input))
+		if err != nil {
+			return "", err
+		}
+
+		return resp.Text(), nil
+	})
+
+	<-ctx.Done()
 }

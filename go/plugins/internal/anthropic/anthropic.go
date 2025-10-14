@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -36,9 +37,16 @@ const (
 	ToolNameRegex = `^[a-zA-Z0-9_-]{1,64}$`
 )
 
-func DefineModel(g *genkit.Genkit, client anthropic.Client, provider, name string, info ai.ModelOptions) ai.Model {
+func DefineModel(g *genkit.Genkit, client anthropic.Client, name string, info ai.ModelOptions) ai.Model {
+	provider := "anthropic"
 	label := "Anthropic"
-	// TODO: trim prefixes
+
+	fmt.Printf("defining model: %s\n", name)
+	splitName := strings.Split(name, "/")
+	if len(splitName) < 2 {
+		provider = splitName[0]
+	}
+
 	if provider == "vertexai" {
 		label = "Vertex AI"
 	}
@@ -52,22 +60,24 @@ func DefineModel(g *genkit.Genkit, client anthropic.Client, provider, name strin
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return generate(ctx, client, name, input, cb)
+		return Generate(ctx, client, name, input, cb)
 	})
 }
 
 // Generate function defines how a generate request is done in Anthropic models
-func generate(
+func Generate(
 	ctx context.Context,
 	client anthropic.Client,
 	model string,
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	req, err := toAnthropicRequest(model, input)
+	req, err := toAnthropicRequest(input)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate anthropic request: %w", err)
 	}
+
+	req.Model = anthropic.Model(model)
 
 	// no streaming
 	if cb == nil {
@@ -131,7 +141,7 @@ func toAnthropicRole(role ai.Role) (anthropic.MessageParamRole, error) {
 }
 
 // toAnthropicRequest translates [ai.ModelRequest] to an Anthropic request
-func toAnthropicRequest(model string, i *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
+func toAnthropicRequest(i *ai.ModelRequest) (*anthropic.MessageNewParams, error) {
 	messages := make([]anthropic.MessageParam, 0)
 
 	req, err := configFromRequest(i)
@@ -139,9 +149,10 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (*anthropic.MessageNew
 		return nil, err
 	}
 
-	if req.Model == "" {
-		return nil, errors.New("anthropic model not provided in request")
+	if req.MaxTokens == 0 {
+		return nil, errors.New("maxTokens not set")
 	}
+
 	// configure system prompt (if given)
 	sysBlocks := []anthropic.TextBlockParam{}
 	for _, message := range i.Messages {
@@ -185,7 +196,7 @@ func toAnthropicRequest(model string, i *ai.ModelRequest) (*anthropic.MessageNew
 	return req, nil
 }
 
-// mapToStruct unmarshals a map[String]any to the expected type
+// mapToStruct unmarshals a map[string]any to the expected type
 func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
