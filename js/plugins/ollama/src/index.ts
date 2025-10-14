@@ -91,7 +91,7 @@ function initializer(serverAddress: string, params: OllamaPluginParams = {}) {
           name: embedder.name,
           modelName: embedder.name,
           dimensions: embedder.dimensions,
-          options: { ...params, serverAddress },
+          options: params,
         })
       );
     }
