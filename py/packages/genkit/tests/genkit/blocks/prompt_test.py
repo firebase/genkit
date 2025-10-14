@@ -16,6 +16,7 @@
 
 
 """Tests for the action module."""
+
 from typing import Any
 
 import pytest
@@ -143,63 +144,65 @@ async def test_prompt_with_kitchensink() -> None:
 
 test_cases_parse_partial_json = [
     (
-        "renders system prompt",
+        'renders system prompt',
         {
-            "model": "echoModel",
-            "config": {"banana": "ripe"},
-            "input_schema": {
+            'model': 'echoModel',
+            'config': {'banana': 'ripe'},
+            'input_schema': {
                 'type': 'object',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },  # Note: Schema representation might need adjustment
-            "system": "hello {{name}} ({{@state.name}})",
-            "metadata": {"state": {"name": "bar"}}
+            'system': 'hello {{name}} ({{@state.name}})',
+            'metadata': {'state': {'name': 'bar'}},
         },
-        {"name": "foo"},
-        GenerationCommonConfig.model_validate({"temperature": 11}),
+        {'name': 'foo'},
+        GenerationCommonConfig.model_validate({'temperature': 11}),
         {},
-        """[ECHO] system: "hello foo (bar)" {"temperature":11.0}"""
+        """[ECHO] system: "hello foo (bar)" {"temperature":11.0}""",
     ),
     (
-        "renders user prompt",
+        'renders user prompt',
         {
-            "model": "echoModel",
-            "config": {"banana": "ripe"},
-            "input_schema": {
+            'model': 'echoModel',
+            'config': {'banana': 'ripe'},
+            'input_schema': {
                 'type': 'object',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },  # Note: Schema representation might need adjustment
-            "prompt": "hello {{name}} ({{@state.name}})",
-            "metadata": {"state": {"name": "bar_system"}}
+            'prompt': 'hello {{name}} ({{@state.name}})',
+            'metadata': {'state': {'name': 'bar_system'}},
         },
-        {"name": "foo"},
-        GenerationCommonConfig.model_validate({"temperature": 11}),
+        {'name': 'foo'},
+        GenerationCommonConfig.model_validate({'temperature': 11}),
         {},
-        """[ECHO] user: "hello foo (bar_system)" {"temperature":11.0}"""
+        """[ECHO] user: "hello foo (bar_system)" {"temperature":11.0}""",
     ),
     (
-        "renders user prompt with context",
+        'renders user prompt with context',
         {
-            "model": "echoModel",
-            "config": {"banana": "ripe"},
-            "input_schema": {
+            'model': 'echoModel',
+            'config': {'banana': 'ripe'},
+            'input_schema': {
                 'type': 'object',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },  # Note: Schema representation might need adjustment
-            "prompt": "hello {{name}} ({{@state.name}}, {{@auth.email}})",
-            "metadata": {"state": {"name": "bar"}}
+            'prompt': 'hello {{name}} ({{@state.name}}, {{@auth.email}})',
+            'metadata': {'state': {'name': 'bar'}},
         },
-        {"name": "foo"},
-        GenerationCommonConfig.model_validate({"temperature": 11}),
-        { "auth": { "email": 'a@b.c' } },
-        """[ECHO] user: "hello foo (bar, a@b.c)" {"temperature":11.0}"""
-    )
+        {'name': 'foo'},
+        GenerationCommonConfig.model_validate({'temperature': 11}),
+        {'auth': {'email': 'a@b.c'}},
+        """[ECHO] user: "hello foo (bar, a@b.c)" {"temperature":11.0}""",
+    ),
 ]
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     'test_case, prompt, input, input_option, context, want_rendered',
@@ -212,7 +215,7 @@ async def test_prompt_rendering_dotprompt(
     input: dict[str, Any],
     input_option: GenerationCommonConfig,
     context: dict[str, Any],
-    want_rendered: str
+    want_rendered: str,
 ) -> None:
     """Test system prompt rendering."""
     ai, *_ = setup_test()
@@ -222,4 +225,3 @@ async def test_prompt_rendering_dotprompt(
     response = await my_prompt(input, input_option, context=context)
 
     assert response.text == want_rendered
-

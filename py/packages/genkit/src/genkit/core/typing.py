@@ -501,10 +501,10 @@ class MediaModel(RootModel[Any]):
     root: Any
 
 
-class Metadata(RootModel[dict[str, Any] | None]):
+class Metadata(RootModel[dict[str, Any]]):
     """Root model for metadata."""
 
-    root: dict[str, Any] | None = None
+    root: dict[str, Any]
 
 
 class Reasoning(RootModel[Any]):
@@ -537,10 +537,10 @@ class ToolResponseModel(RootModel[Any]):
     root: Any
 
 
-class Custom(RootModel[dict[str, Any] | None]):
+class Custom(RootModel[dict[str, Any]]):
     """Root model for custom."""
 
-    root: dict[str, Any] | None = None
+    root: dict[str, Any]
 
 
 class Config(RootModel[Any]):

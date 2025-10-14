@@ -21,6 +21,7 @@ This module provides types and utilities for managing prompts and templates
 used with AI models in the Genkit framework. It enables consistent prompt
 generation and management across different parts of the application.
 """
+
 from asyncio import Future
 from collections.abc import AsyncIterator
 from typing import Any
@@ -69,10 +70,9 @@ class PromptCache:
     messages: PromptFunction | None = None
 
 
-
-
 class PromptConfig(BaseModel):
     """Model for a prompt action."""
+
     variant: str | None = None
     model: str | None = None
     config: GenerationCommonConfig | dict[str, Any] | None = None
@@ -94,6 +94,7 @@ class PromptConfig(BaseModel):
     use: list[ModelMiddleware] | None = None
     docs: list[DocumentData] | None = None
     tool_responses: list[Part] | None = None
+
 
 class ExecutablePrompt:
     """A prompt that can be executed with a given input and configuration."""
@@ -168,8 +169,6 @@ class ExecutablePrompt:
         self._tool_choice = tool_choice
         self._use = use
         self._cache_prompt = PromptCache()
-
-
 
     async def __call__(
         self,
@@ -273,32 +272,14 @@ class ExecutablePrompt:
             raise Exception('No model configured.')
         resolved_msgs: list[Message] = []
         if options.system:
-            result = await render_system_prompt(
-                self._registry,
-                input,
-                options,
-                self._cache_prompt,
-                context
-            )
+            result = await render_system_prompt(self._registry, input, options, self._cache_prompt, context)
             resolved_msgs.append(result)
         if options.messages:
             resolved_msgs.extend(
-                await render_message_prompt(
-                    self._registry,
-                    input,
-                    options,
-                    self._cache_prompt,
-                    context
-                )
+                await render_message_prompt(self._registry, input, options, self._cache_prompt, context)
             )
         if options.prompt:
-            result = await render_user_prompt(
-                self._registry,
-                input,
-                options,
-                self._cache_prompt,
-                context
-            )
+            result = await render_user_prompt(self._registry, input, options, self._cache_prompt, context)
             resolved_msgs.append(result)
 
         # If is schema is set but format is not explicitly set, default to
@@ -413,10 +394,7 @@ def define_prompt(
     )
 
 
-async def to_generate_action_options(
-    registry: Registry,
-    options: PromptConfig
-) -> GenerateActionOptions:
+async def to_generate_action_options(registry: Registry, options: PromptConfig) -> GenerateActionOptions:
     """Converts the given parameters to a GenerateActionOptions object.
 
     Args:
@@ -514,6 +492,7 @@ def _normalize_prompt_arg(
     else:
         return [prompt]
 
+
 async def render_system_prompt(
     registry: Registry,
     input: dict[str, Any],
@@ -540,12 +519,11 @@ async def render_system_prompt(
     """
 
     if isinstance(options.system, str):
-
         if prompt_cache.system is None:
             prompt_cache.system = await registry.dotprompt.compile(options.system)
 
         if options.metadata:
-            context = {**context, "state": options.metadata.get("state")}
+            context = {**context, 'state': options.metadata.get('state')}
 
         return Message(
             role=Role.SYSTEM,
@@ -558,13 +536,10 @@ async def render_system_prompt(
                         schema=options.input_schema,
                     )
                 ),
-            )
+            ),
         )
 
-    return Message(
-        role=Role.SYSTEM,
-        content=_normalize_prompt_arg(options.system)
-    )
+    return Message(role=Role.SYSTEM, content=_normalize_prompt_arg(options.system))
 
 
 async def render_dotprompt_to_parts(
@@ -597,16 +572,14 @@ async def render_dotprompt_to_parts(
     )
 
     if len(rendered.messages) > 1:
-        raise Exception("parts template must produce only one message")
+        raise Exception('parts template must produce only one message')
 
     part_rendered = []
     for message in rendered.messages:
         for part in message.content:
             part_rendered.append(part.model_dump())
 
-
     return part_rendered
-
 
 
 async def render_message_prompt(
@@ -622,7 +595,7 @@ async def render_message_prompt(
             prompt_cache.messages = await registry.dotprompt.compile(options.messages)
 
         if options.metadata:
-            context = {**context, "state": options.metadata.get("state")}
+            context = {**context, 'state': options.metadata.get('state')}
 
         messages_ = None
         if isinstance(options.messages, list):
@@ -634,23 +607,14 @@ async def render_message_prompt(
                 context=context,
                 messages=messages_,
             ),
-            options=PromptMetadata(
-                input=PromptInputConfig(
-                )
-            ),
+            options=PromptMetadata(input=PromptInputConfig()),
         )
         return [Message.model_validate(e.model_dump()) for e in rendered.messages]
 
     elif isinstance(options.messages, list):
         return options.messages
 
-    return [
-        Message(
-            role=Role.USER,
-            content=_normalize_prompt_arg(options.prompt)
-        )
-    ]
-
+    return [Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))]
 
 
 async def render_user_prompt(
@@ -666,7 +630,7 @@ async def render_user_prompt(
             prompt_cache.user_prompt = await registry.dotprompt.compile(options.prompt)
 
         if options.metadata:
-            context = {**context, "state": options.metadata.get("state")}
+            context = {**context, 'state': options.metadata.get('state')}
 
         return Message(
             role=Role.USER,
@@ -674,15 +638,8 @@ async def render_user_prompt(
                 context,
                 prompt_cache.user_prompt,
                 input,
-                PromptMetadata(
-                    input=PromptInputConfig(
-
-                    )
-                ),
-            )
+                PromptMetadata(input=PromptInputConfig()),
+            ),
         )
 
-    return Message(
-        role=Role.USER,
-        content=_normalize_prompt_arg(options.prompt)
-    )
+    return Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))
