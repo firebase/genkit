@@ -217,7 +217,7 @@ async def test_prompt_rendering_dotprompt(
     context: dict[str, Any],
     want_rendered: str,
 ) -> None:
-    """Test system prompt rendering."""
+    """Test prompt rendering."""
     ai, *_ = setup_test()
 
     my_prompt = ai.define_prompt(**prompt)

@@ -589,7 +589,27 @@ async def render_message_prompt(
     prompt_cache: PromptCache,
     context: dict[str, Any] | None = None,
 ) -> list[Message]:
-    """Renders the user prompt for a prompt action."""
+    """
+    Render a message prompt using a given registry, input data, options, and a context.
+
+    This function processes different types of message options (string or list) to render
+    appropriate messages using a prompt registry and cache. If the `messages` option is of type
+    string, the function compiles the dotprompt messages from the `registry` and applies data
+    and metadata context. If the `messages` option is of type list, it either validates and
+    returns the list or processes it for message rendering. The function ensures correct message
+    output using the provided input, prompt configuration, and caching mechanism.
+
+    Arguments:
+        registry (Registry): The registry used to compile dotprompt messages.
+        input (dict[str, Any]): The input data to render messages.
+        options (PromptConfig): Configuration containing prompt options and message settings.
+        prompt_cache (PromptCache): Cache to store compiled prompt results.
+        context (dict[str, Any] | None): Optional additional context to be used for rendering.
+            Defaults to None.
+
+    Returns:
+        list[Message]: A list of rendered or validated message objects.
+    """
     if isinstance(options.messages, str):
         if prompt_cache.messages is None:
             prompt_cache.messages = await registry.dotprompt.compile(options.messages)
@@ -624,7 +644,23 @@ async def render_user_prompt(
     prompt_cache: PromptCache,
     context: dict[str, Any] | None = None,
 ) -> Message:
-    """Renders the user prompt for a prompt action."""
+    """
+    Asynchronously renders a user prompt based on the given input, context, and options,
+    utilizing a pre-compiled or dynamically compiled dotprompt template.
+
+    Arguments:
+        registry (Registry): The registry instance used to compile dotprompt templates.
+        input (dict[str, Any]): The input data used to populate the prompt.
+        options (PromptConfig): The configuration for rendering the prompt, including
+            the template type and associated metadata.
+        prompt_cache (PromptCache): A cache that stores pre-compiled prompt templates to
+            optimize rendering.
+        context (dict[str, Any] | None): Optional dynamic context data to override or
+            supplement in the rendering process.
+
+    Returns:
+        Message: A Message instance containing the rendered user prompt.
+    """
     if isinstance(options.prompt, str):
         if prompt_cache.user_prompt is None:
             prompt_cache.user_prompt = await registry.dotprompt.compile(options.prompt)
