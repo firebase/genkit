@@ -202,7 +202,8 @@ func TestGoogleAILive(t *testing.T) {
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Tools: []*genai.Tool{
-					{GoogleSearch: &genai.GoogleSearch{}}, {GoogleSearch: &genai.GoogleSearch{}},
+					{GoogleSearch: &genai.GoogleSearch{}},
+					{CodeExecution: &genai.ToolCodeExecution{}},
 				},
 			}),
 			ai.WithModel(m),
