@@ -295,6 +295,7 @@ function defineOllamaModel(
           const json = JSON.parse(chunkText);
           const message = parseMessage(json, type);
           opts.sendChunk({
+            index: 0,
             content: message.content,
           });
           textResponse += message.content[0].text;
