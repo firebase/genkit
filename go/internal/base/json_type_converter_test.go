@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -231,6 +231,19 @@ func TestUnmarshalAndNormalize(t *testing.T) {
 		_, err := UnmarshalAndNormalize[TestStruct](input, nil)
 		if err == nil {
 			t.Fatal("expected error but got none")
+		}
+	})
+
+	t.Run("null input with any type returns nil", func(t *testing.T) {
+		input := json.RawMessage(`null`)
+
+		result, err := UnmarshalAndNormalize[any](input, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if result != nil {
+			t.Errorf("expected nil, got %v", result)
 		}
 	})
 }

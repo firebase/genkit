@@ -170,6 +170,10 @@ func UnmarshalAndNormalize[T any](input json.RawMessage, schema map[string]any) 
 	// Check if T is 'any' type by comparing with a typed nil interface
 	if reflect.TypeOf(zero) == nil || reflect.TypeOf(zero).Kind() == reflect.Interface && reflect.TypeOf(zero).NumMethod() == 0 {
 		// Type T is 'any', use normalized value directly to preserve types
+		// Handle nil specially since it can't be type-asserted
+		if normalized == nil {
+			return zero, nil
+		}
 		result, ok := normalized.(T)
 		if !ok {
 			return zero, fmt.Errorf("failed to convert normalized input to target type")
