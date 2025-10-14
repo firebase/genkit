@@ -258,32 +258,9 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 
 // RunJSON runs the action with a JSON input, and returns a JSON result along with telemetry info.
 func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
-	var i In
-	if len(input) > 0 {
-		// First unmarshal input into a generic value to handle unknown fields and null values which
-		// would be discard and/or converted into zero values if unmarshaled directly into the In type.
-		var rawData any
-		if err := json.Unmarshal(input, &rawData); err != nil {
-			return nil, NewError(INTERNAL, "failed to unmarshal input: %v", err)
-		}
-
-		normalized, err := base.NormalizeInput(rawData, a.desc.InputSchema)
-		if err != nil {
-			return nil, NewError(INVALID_ARGUMENT, "invalid input: %v", err)
-		}
-
-		if err := base.ValidateValue(normalized, a.desc.InputSchema); err != nil {
-			return nil, NewError(INVALID_ARGUMENT, err.Error())
-		}
-
-		normalizedBytes, err := json.Marshal(normalized)
-		if err != nil {
-			return nil, NewError(INTERNAL, "failed to marshal normalized input: %v", err)
-		}
-
-		if err := json.Unmarshal(normalizedBytes, &i); err != nil {
-			return nil, NewError(INTERNAL, "failed to unmarshal normalized input: %v", err)
-		}
+	i, err := base.UnmarshalAndNormalize[In](input, a.desc.InputSchema)
+	if err != nil {
+		return nil, NewError(INVALID_ARGUMENT, err.Error())
 	}
 
 	var scb StreamCallback[Stream]
