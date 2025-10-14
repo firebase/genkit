@@ -176,3 +176,10 @@ export interface LocalModel {
 export interface ListLocalModelsResponse {
   models: LocalModel[];
 }
+
+export interface ResolveActionOptions {
+  params: OllamaPluginParams;
+  actionType: string;
+  actionName: string;
+  serverAddress: string;
+}

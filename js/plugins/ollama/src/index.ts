@@ -58,6 +58,7 @@ import type {
   OllamaTool,
   OllamaToolCall,
   RequestHeaders,
+  ResolveActionOptions,
 } from './types.js';
 
 export type { OllamaPluginParams };
@@ -97,13 +98,6 @@ function initializer(serverAddress: string, params: OllamaPluginParams = {}) {
   }
 
   return actions;
-}
-
-interface ResolveActionOptions {
-  params: OllamaPluginParams;
-  actionType: string;
-  actionName: string;
-  serverAddress: string;
 }
 
 function resolveAction({
@@ -220,7 +214,7 @@ function defineOllamaModel(
 ) {
   return model<typeof OllamaConfigSchema>(
     {
-      name: modelDef.name,
+      name: `ollama/${modelDef.name}`,
       label: `Ollama - ${modelDef.name}`,
       configSchema: OllamaConfigSchema,
       supports: {
