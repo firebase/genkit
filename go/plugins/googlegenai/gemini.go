@@ -480,17 +480,48 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		return nil, nil
 	}
 	if v, ok := genkitSchema["$ref"]; ok {
-		ref := v.(string)
+		ref, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid $ref value: not a string")
+		}
 		return toGeminiSchema(originalSchema, resolveRef(originalSchema, ref))
 	}
-	schema := &genai.Schema{}
 
-	switch genkitSchema["type"].(string) {
+	// Handle "anyOf" subschemas by finding the first valid schema definition
+	if v, ok := genkitSchema["anyOf"]; ok {
+		if anyOfList, isList := v.([]map[string]any); isList {
+			for _, subSchema := range anyOfList {
+				if subSchemaType, hasType := subSchema["type"]; hasType {
+					if typeStr, isString := subSchemaType.(string); isString && typeStr != "null" {
+						if title, ok := genkitSchema["title"]; ok {
+							subSchema["title"] = title
+						}
+						if description, ok := genkitSchema["description"]; ok {
+							subSchema["description"] = description
+						}
+						// Found a schema like: {"type": "string"}
+						return toGeminiSchema(originalSchema, subSchema)
+					}
+				}
+			}
+		}
+	}
+
+	schema := &genai.Schema{}
+	typeVal, ok := genkitSchema["type"]
+	if !ok {
+		return nil, fmt.Errorf("schema is missing the 'type' field: %#v", genkitSchema)
+	}
+
+	typeStr, ok := typeVal.(string)
+	if !ok {
+		return nil, fmt.Errorf("schema 'type' field is not a string, but %T", typeVal)
+	}
+
+	switch typeStr {
 	case "string":
 		schema.Type = genai.TypeString
-	case "float64":
-		schema.Type = genai.TypeNumber
-	case "number":
+	case "float64", "number":
 		schema.Type = genai.TypeNumber
 	case "integer":
 		schema.Type = genai.TypeInteger
