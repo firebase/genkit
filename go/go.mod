@@ -41,7 +41,7 @@ require (
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/tools v0.34.0
 	google.golang.org/api v0.236.0
-	google.golang.org/genai v1.24.0
+	google.golang.org/genai v1.30.0
 )
 
 require (
@@ -52,7 +52,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
