@@ -46,10 +46,11 @@ import {
   modelRef,
   type ModelAction,
 } from 'genkit/model';
-import { getGenkitClientHeader } from '../common/index.js';
+import { getGenkitClientHeader } from '../../common/index.js';
 
 /**
  * See https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
+ * @deprecated
  */
 export const MistralConfigSchema = GenerationCommonConfigSchema.extend({
   // TODO: Update this with all the parameters in
@@ -63,6 +64,9 @@ export const MistralConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
 });
 
+/**
+ * @deprecated
+ */
 export const mistralLarge = modelRef({
   name: 'vertexai/mistral-large',
   info: {
@@ -79,6 +83,9 @@ export const mistralLarge = modelRef({
   configSchema: MistralConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const mistralNemo = modelRef({
   name: 'vertexai/mistral-nemo',
   info: {
@@ -95,6 +102,9 @@ export const mistralNemo = modelRef({
   configSchema: MistralConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const codestral = modelRef({
   name: 'vertexai/codestral',
   info: {
@@ -111,6 +121,9 @@ export const codestral = modelRef({
   configSchema: MistralConfigSchema,
 });
 
+/**
+ * @deprecated
+ */
 export const SUPPORTED_MISTRAL_MODELS: Record<
   string,
   ModelReference<typeof MistralConfigSchema>
@@ -152,6 +165,9 @@ function toMistralToolRequest(toolRequest: Record<string, any>): FunctionCall {
   };
 }
 
+/**
+ * @deprecated
+ */
 export function toMistralRequest(
   model: string,
   input: GenerateRequest<typeof MistralConfigSchema>
@@ -278,7 +294,10 @@ function fromMistralMessage(message: AssistantMessage): Part[] {
   return parts;
 }
 
-// Maps Mistral finish reasons to Genkit finish reasons
+/**
+ * Maps Mistral finish reasons to Genkit finish reasons
+ * @deprecated
+ */
 export function fromMistralFinishReason(
   reason: ChatCompletionChoiceFinishReason | undefined
 ): 'length' | 'unknown' | 'stop' | 'blocked' | 'other' {
@@ -297,7 +316,10 @@ export function fromMistralFinishReason(
   }
 }
 
-// Converts a Mistral response to a Genkit response
+/**
+ * Converts a Mistral response to a Genkit response
+ * @deprecated
+ */
 export function fromMistralResponse(
   _input: GenerateRequest<typeof MistralConfigSchema>,
   response: ChatCompletionResponse
@@ -329,6 +351,7 @@ export function fromMistralResponse(
   };
 }
 
+/** @deprecated */
 export function mistralModel(
   ai: Genkit,
   modelName: string,
@@ -467,6 +490,7 @@ function validateToolSequence(messages: MistralMessage[]) {
   });
 }
 
+/** @deprecated */
 export function fromMistralCompletionChunk(chunk: CompletionChunk): Part[] {
   if (!chunk.choices?.[0]?.delta) return [];
 
