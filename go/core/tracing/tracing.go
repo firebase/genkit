@@ -102,14 +102,15 @@ func captureStackTrace() string {
 }
 
 var (
-	providerInitOnce sync.Once
+	providerInitOnce      sync.Once
+	initialTracerProvider = otel.GetTracerProvider()
 )
 
 // TracerProvider returns the global tracer provider, creating it if needed.
-func TracerProvider() *sdktrace.TracerProvider {
+func TracerProvider() trace.TracerProvider {
 	if tp := otel.GetTracerProvider(); tp != nil {
-		if sdkTP, ok := tp.(*sdktrace.TracerProvider); ok {
-			return sdkTP
+		if tp != initialTracerProvider {
+			return tp
 		}
 	}
 
@@ -120,7 +121,36 @@ func TracerProvider() *sdktrace.TracerProvider {
 		}
 	})
 
-	return otel.GetTracerProvider().(*sdktrace.TracerProvider)
+	return otel.GetTracerProvider()
+}
+
+func registerSimpleSpanProcessor(processor sdktrace.SpanExporter) {
+	type spanProcessorRegistrar interface {
+		RegisterSpanProcessor(processor sdktrace.SpanProcessor)
+	}
+
+	tp := TracerProvider()
+	if registrar, ok := tp.(spanProcessorRegistrar); ok {
+		registrar.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(processor))
+	}
+}
+
+func registerBatchSpanProcessor(processor sdktrace.SpanExporter) (shutdown func(context.Context) error) {
+	type registrar interface {
+		RegisterSpanProcessor(processor sdktrace.SpanProcessor)
+	}
+	type shutDowner interface {
+		Shutdown(ctx context.Context) error
+	}
+
+	tp := TracerProvider()
+	if r, ok := tp.(registrar); ok {
+		r.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(processor))
+		if s, ok := tp.(shutDowner); ok {
+			return s.Shutdown
+		}
+	}
+	return func(context.Context) error { return nil }
 }
 
 // Tracer returns a tracer from the global tracer provider.
@@ -128,13 +158,43 @@ func Tracer() trace.Tracer {
 	return TracerProvider().Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1"))
 }
 
+// --- Context-scoped tracer provider support ---
+
+// tracerProviderCtxKey stores an optional trace.TracerProvider in context to allow
+// subsystems (e.g., reflection server) to use their own provider without affecting the global one.
+var tracerProviderCtxKey = base.NewContextKey[trace.TracerProvider]()
+
+// ContextWithTracerProvider returns a new context that carries the given tracer provider.
+func ContextWithTracerProvider(ctx context.Context, tp trace.TracerProvider) context.Context {
+	if tp == nil {
+		return ctx
+	}
+	return tracerProviderCtxKey.NewContext(ctx, tp)
+}
+
+// TracerProviderFromContext returns the tracer provider stored in context if present,
+// otherwise falls back to the global provider.
+func TracerProviderFromContext(ctx context.Context) trace.TracerProvider {
+	if ctx != nil {
+		if tp := tracerProviderCtxKey.FromContext(ctx); tp != nil {
+			return tp
+		}
+	}
+	return TracerProvider()
+}
+
+// TracerFromContext returns a tracer from the context-bound provider if available,
+// otherwise from the global provider.
+func TracerFromContext(ctx context.Context) trace.Tracer {
+	return TracerProviderFromContext(ctx).Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1"))
+}
+
 // WriteTelemetryImmediate adds a telemetry server to the global tracer provider.
 // Traces are saved immediately as they are finished.
 // Use this for a gtrace.Store with a fast Save method,
 // such as one that writes to a file.
 func WriteTelemetryImmediate(client TelemetryClient) {
-	e := newTelemetryServerExporter(client)
-	TracerProvider().RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+	registerSimpleSpanProcessor(newTelemetryServerExporter(client))
 }
 
 // WriteTelemetryBatch adds a telemetry server to the global tracer provider.
@@ -145,9 +205,48 @@ func WriteTelemetryImmediate(client TelemetryClient) {
 // Callers must invoke the returned function at the end of the program to flush the final batch
 // and perform other cleanup.
 func WriteTelemetryBatch(client TelemetryClient) (shutdown func(context.Context) error) {
-	e := newTelemetryServerExporter(client)
-	TracerProvider().RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
-	return TracerProvider().Shutdown
+	return registerBatchSpanProcessor(newTelemetryServerExporter(client))
+}
+
+// --- Provider-scoped exporter registration helpers ---
+
+// registerSimpleSpanProcessorOnProvider registers a simple span processor on the provided tracer provider.
+func registerSimpleSpanProcessorOnProvider(tp trace.TracerProvider, processor sdktrace.SpanExporter) {
+	type spanProcessorRegistrar interface {
+		RegisterSpanProcessor(processor sdktrace.SpanProcessor)
+	}
+	if registrar, ok := tp.(spanProcessorRegistrar); ok {
+		registrar.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(processor))
+	}
+}
+
+// registerBatchSpanProcessorOnProvider registers a batch span processor on the provided tracer provider.
+// It returns a shutdown function if supported by the provider.
+func registerBatchSpanProcessorOnProvider(tp trace.TracerProvider, processor sdktrace.SpanExporter) (shutdown func(context.Context) error) {
+	type registrar interface {
+		RegisterSpanProcessor(processor sdktrace.SpanProcessor)
+	}
+	type shutDowner interface {
+		Shutdown(ctx context.Context) error
+	}
+
+	if r, ok := tp.(registrar); ok {
+		r.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(processor))
+		if s, ok := tp.(shutDowner); ok {
+			return s.Shutdown
+		}
+	}
+	return func(context.Context) error { return nil }
+}
+
+// WriteTelemetryImmediateOn adds a telemetry exporter to the specified tracer provider (simple/immediate).
+func WriteTelemetryImmediateOn(tp trace.TracerProvider, client TelemetryClient) {
+	registerSimpleSpanProcessorOnProvider(tp, newTelemetryServerExporter(client))
+}
+
+// WriteTelemetryBatchOn adds a telemetry exporter to the specified tracer provider (batched).
+func WriteTelemetryBatchOn(tp trace.TracerProvider, client TelemetryClient) (shutdown func(context.Context) error) {
+	return registerBatchSpanProcessorOnProvider(tp, newTelemetryServerExporter(client))
 }
 
 const (
@@ -183,12 +282,13 @@ func RunInNewSpan[I, O any](
 ) (O, error) {
 	// TODO: support span links.
 	log := logger.FromContext(ctx)
-	log.Debug("span start", "name", metadata.Name)
-	defer log.Debug("span end", "name", metadata.Name)
 
 	if metadata == nil {
 		metadata = &SpanMetadata{}
 	}
+
+	log.Debug("span start", "name", metadata.Name)
+	defer log.Debug("span end", "name", metadata.Name)
 
 	parentSM := spanMetaKey.FromContext(ctx)
 	isRoot := metadata.IsRoot
@@ -236,7 +336,7 @@ func RunInNewSpan[I, O any](
 		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, metadata.Type)))
 	}
 
-	ctx, span := Tracer().Start(ctx, metadata.Name, opts...)
+	ctx, span := TracerFromContext(ctx).Start(ctx, metadata.Name, opts...)
 	sm.TraceInfo = TraceInfo{
 		TraceID: span.SpanContext().TraceID().String(),
 		SpanID:  span.SpanContext().SpanID().String(),
