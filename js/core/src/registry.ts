@@ -291,10 +291,10 @@ export class Registry {
     const key = `/${type}/${action.__action.name}`;
     logger.debug(`registering ${key}`);
     if (this.actionsById.hasOwnProperty(key)) {
-      // TODO: Make this an error!
-      logger.warn(
-        `WARNING: ${key} already has an entry in the registry. Overwriting.`
-      );
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Failed to register ${key} action because it's already in the registry.`,
+      });
     }
     this.actionsById[key] = action;
     if (action.__registry) {
@@ -318,10 +318,10 @@ export class Registry {
     const key = `/${type}/${name}`;
     logger.debug(`registering ${key} (async)`);
     if (this.actionsById.hasOwnProperty(key)) {
-      // TODO: Make this an error!
-      logger.warn(
-        `WARNING: ${key} already has an entry in the registry. Overwriting.`
-      );
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: `Failed to register ${key} action because it's already in the registry.`,
+      });
     }
     this.actionsById[key] = action;
   }
