@@ -650,12 +650,12 @@ async def render_user_prompt(
 
     Arguments:
         registry (Registry): The registry instance used to compile dotprompt templates.
-        input (dict[str, Any]): The input data used to populate the prompt.
-        options (PromptConfig): The configuration for rendering the prompt, including
+        Input (dict[str, Any]): The input data used to populate the prompt.
+        Options (PromptConfig): The configuration for rendering the prompt, including
             the template type and associated metadata.
-        prompt_cache (PromptCache): A cache that stores pre-compiled prompt templates to
+        Prompt_cache (PromptCache): A cache that stores pre-compiled prompt templates to
             optimize rendering.
-        context (dict[str, Any] | None): Optional dynamic context data to override or
+        Context (dict[str, Any] | None): Optional dynamic context data to override or
             supplement in the rendering process.
 
     Returns:
