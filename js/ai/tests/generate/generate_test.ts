@@ -424,10 +424,15 @@ describe('generate', () => {
     defineModel(
       registry,
       { name: 'echo', supports: { tools: true } },
-      async (input) => ({
-        message: input.messages[0],
-        finishReason: 'stop',
-      })
+      async (input) => {
+        return {
+          message: {
+            ...input.messages[0],
+            role: 'model',
+          },
+          finishReason: 'stop',
+        };
+      }
     );
   });
 
@@ -477,6 +482,34 @@ describe('generate', () => {
           },
         },
         text: 'test://resource/value',
+      },
+    ]);
+  });
+
+  it('should handle multi-turn history with lenient (string) prompt inputs', async () => {
+    const response1 = await generate(registry, {
+      model: 'echo',
+      prompt: 'This is the first turn.',
+    });
+
+    const response2 = await generate(registry, {
+      model: 'echo',
+      messages: response1.messages,
+      prompt: 'This is the second turn.',
+    });
+
+    assert.deepStrictEqual(response2.request?.messages, [
+      {
+        role: 'user',
+        content: [{ text: 'This is the first turn.' }],
+      },
+      {
+        role: 'model',
+        content: [{ text: 'This is the first turn.' }],
+      },
+      {
+        role: 'user',
+        content: [{ text: 'This is the second turn.' }],
       },
     ]);
   });

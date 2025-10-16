@@ -340,7 +340,7 @@ function messagesFromOptions(options: GenerateOptions): MessageData[] {
     });
   }
   if (options.messages) {
-    messages.push(...options.messages);
+    messages.push(...options.messages.map((m) => Message.parseData(m)));
   }
   if (options.prompt) {
     messages.push({
