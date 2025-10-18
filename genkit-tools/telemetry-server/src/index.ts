@@ -108,7 +108,8 @@ export async function startTelemetryServer(params: {
       logger.error(`Error processing OTLP payload: ${err}`);
       response.status(500).json({
         code: 13, // INTERNAL
-        message: 'An internal error occurred while processing the OTLP payload.',
+        message:
+          'An internal error occurred while processing the OTLP payload.',
       });
     }
   });

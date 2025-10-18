@@ -20,12 +20,12 @@ import getPort from 'get-port';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import os from 'os';
 import path from 'path';
+import { Index } from '../src/file-trace-store';
 import {
   LocalFileTraceStore,
   startTelemetryServer,
   stopTelemetryApi,
 } from '../src/index';
-import { Index } from '../src/file-trace-store';
 import { sleep, span } from './utils';
 
 const TRACE_ID = '1234';
