@@ -25,7 +25,7 @@ import {
   startTelemetryServer,
   stopTelemetryApi,
 } from '../src/index';
-import { Index } from '../src/localFileTraceStore';
+import { Index } from '../src/file-trace-store';
 import { sleep, span } from './utils';
 
 const TRACE_ID = '1234';
@@ -37,10 +37,10 @@ const SPAN_B = 'bcd';
 const SPAN_C = 'cde';
 
 describe('local-file-store', () => {
-  let port;
-  let storeRoot;
-  let indexRoot;
-  let url;
+  let port: number;
+  let storeRoot: string;
+  let indexRoot: string;
+  let url: string;
 
   beforeEach(async () => {
     port = await getPort();

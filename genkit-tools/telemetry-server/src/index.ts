@@ -22,6 +22,7 @@ import { logger } from '@genkit-ai/tools-common/utils';
 import express from 'express';
 import type * as http from 'http';
 import type { TraceStore } from './types';
+import { tracesDataFromOtlp } from './utils/otlp';
 
 export { LocalFileTraceStore } from './file-trace-store.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
@@ -87,6 +88,28 @@ export async function startTelemetryServer(params: {
       );
     } catch (e) {
       next(e);
+    }
+  });
+
+  api.post('/api/otlp', async (request, response) => {
+    try {
+      if (!request.body.resourceSpans?.length) {
+        // Acknowledge and ignore empty payloads.
+        response.status(200).json({});
+        return;
+      }
+      const traces = tracesDataFromOtlp(request.body);
+      for (const trace of traces) {
+        const traceData = TraceDataSchema.parse(trace);
+        await params.traceStore.save(traceData.traceId, traceData);
+      }
+      response.status(200).json({});
+    } catch (err) {
+      logger.error(`Error processing OTLP payload: ${err}`);
+      response.status(500).json({
+        code: 13, // INTERNAL
+        message: 'An internal error occurred while processing the OTLP payload.',
+      });
     }
   });
 
