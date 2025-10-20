@@ -23,6 +23,7 @@ import {
 } from '../eval';
 import type { RuntimeManager } from '../manager/manager';
 import { GenkitToolsError, type RuntimeInfo } from '../manager/types';
+import { TraceDataSchema } from '../types';
 import type { Action } from '../types/action';
 import * as apis from '../types/apis';
 import type { EnvironmentVariable } from '../types/env';
@@ -162,6 +163,14 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .input(apis.GetTraceRequestSchema)
       .query(async ({ input }) => {
         return manager.getTrace(input);
+      }),
+
+    /** Adds a trace to the trace store */
+    addTrace: loggedProcedure
+      .input(TraceDataSchema)
+      .output(z.void())
+      .mutation(async ({ input }) => {
+        return manager.addTrace(input);
       }),
 
     /** Retrieves all eval run keys */
