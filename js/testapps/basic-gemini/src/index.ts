@@ -16,7 +16,14 @@
 
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { MediaPart, Operation, Part, StreamingCallback, genkit, z } from 'genkit';
+import {
+  MediaPart,
+  Operation,
+  Part,
+  StreamingCallback,
+  genkit,
+  z,
+} from 'genkit';
 import { Readable } from 'stream';
 import wav from 'wav';
 
@@ -365,7 +372,10 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   return operation;
 });
 
-async function waitForOperation(operation?: Operation, sendChunk?: StreamingCallback<any>) {
+async function waitForOperation(
+  operation?: Operation,
+  sendChunk?: StreamingCallback<any>
+) {
   if (!operation) {
     throw new Error('Expected the model to return an operation');
   }
