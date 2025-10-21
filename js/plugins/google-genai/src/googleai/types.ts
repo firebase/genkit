@@ -186,11 +186,16 @@ export declare interface VeoParameters {
 export declare interface VeoInstance {
   prompt: string;
   image?: VeoImage;
+  video?: VeoVideo;
 }
 
 export declare interface VeoImage {
   bytesBase64Encoded: string;
   mimeType: string;
+}
+
+export declare interface VeoVideo {
+  uri: string;
 }
 
 export declare interface VeoOperation {
