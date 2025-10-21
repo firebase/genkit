@@ -67,6 +67,8 @@ interface FullInferenceSample {
 
 const SUPPORTED_ACTION_TYPES = ['flow', 'model', 'executable-prompt'] as const;
 type SupportedActionType = (typeof SUPPORTED_ACTION_TYPES)[number];
+const GENERATE_ACTION_UTIL = '/util/generate';
+
 /**
  * Starts a new evaluation run. Intended to be used via the reflection API.
  */
@@ -430,11 +432,9 @@ async function runPromptAction(params: {
   // Step 2. Run rendered prompt on the model
   try {
     let modelInput = renderedPrompt.result;
-    if (restOfConfig) {
-      modelInput = { ...modelInput, config: restOfConfig };
-    }
+    modelInput = { ...modelInput, model, config: restOfConfig ?? {} };
     const runActionResponse = await manager.runAction({
-      key: model,
+      key: GENERATE_ACTION_UTIL,
       input: modelInput,
     });
     const traceIds = runActionResponse.telemetry?.traceId
