@@ -2,12 +2,8 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, Tuple, TYPE_CHECKING
-
-# Avoid importing dotpromptz at runtime so tests can provide a fake implementation.
-# This keeps the module importable without the dependency.
-if TYPE_CHECKING:  # pragma: no cover - type-checking only
-    from dotpromptz.dotprompt import Dotprompt
+from typing import Any, Dict, Iterable, Tuple
+from dotpromptz.dotprompt import Dotprompt
 
 from .types import LoadedPrompt, PromptFileId
 
@@ -35,7 +31,7 @@ def _parse_name_and_variant(filename: str) -> Tuple[str, str | None]:
     return base, None
 
 
-def define_partial(dp: Any, name: str, source: str) -> None:
+def define_partial(dp: Dotprompt, name: str, source: str) -> None:
     """Register a Handlebars partial with the provided `Dotprompt` instance.
 
     Mirrors JS: `registry.dotprompt.definePartial(name, source)`.
@@ -43,12 +39,12 @@ def define_partial(dp: Any, name: str, source: str) -> None:
     dp.definePartial(name, source)
 
 
-def define_helper(dp: Any, name: str, fn: Any) -> None:
+def define_helper(dp: Dotprompt, name: str, fn: Any) -> None:
     """Register a helper on the provided `Dotprompt` instance."""
     dp.defineHelper(name, fn)
 
 
-def load_prompt_file(dp: Any, file_path: str, ns: str | None = None) -> LoadedPrompt:
+def load_prompt_file(dp: Dotprompt, file_path: str, ns: str | None = None) -> LoadedPrompt:
     """Load and parse a single `.prompt` file using dotpromptz.
 
     - Reads file as UTF-8
@@ -67,7 +63,7 @@ def load_prompt_file(dp: Any, file_path: str, ns: str | None = None) -> LoadedPr
     )
 
 
-async def render_prompt_metadata(dp: Any, loaded: LoadedPrompt) -> dict[str, Any]:
+async def render_prompt_metadata(dp: Dotprompt, loaded: LoadedPrompt) -> dict[str, Any]:
     """Render metadata for a parsed template using dotpromptz.
 
     Mirrors JS: `await registry.dotprompt.renderMetadata(parsedPrompt)` and
@@ -105,7 +101,7 @@ def _iter_prompt_dir(dir_path: str) -> Iterable[Tuple[Path, str]]:
                 yield Path(current_dir) / fname, subdir
 
 
-def load_prompt_dir(dp: Any, dir_path: str, ns: str | None = None) -> Dict[str, LoadedPrompt]:
+def load_prompt_dir(dp: Dotprompt, dir_path: str, ns: str | None = None) -> Dict[str, LoadedPrompt]:
     """Recursively scan a directory, registering partials and loading prompts.
 
     Behavior mirrors JS `loadPromptFolderRecursively`:
@@ -147,7 +143,7 @@ def load_prompt_dir(dp: Any, dir_path: str, ns: str | None = None) -> Dict[str, 
     return loaded
 
 
-async def aload_prompt_file(dp: Any, file_path: str, ns: str | None = None, *, with_metadata: bool = True) -> LoadedPrompt:
+async def aload_prompt_file(dp: Dotprompt, file_path: str, ns: str | None = None, *, with_metadata: bool = True) -> LoadedPrompt:
     """Async variant that also renders metadata when requested."""
     loaded = load_prompt_file(dp, file_path, ns)
     if with_metadata:
@@ -155,7 +151,7 @@ async def aload_prompt_file(dp: Any, file_path: str, ns: str | None = None, *, w
     return loaded
 
 
-async def aload_prompt_dir(dp: Any, dir_path: str, ns: str | None = None, *, with_metadata: bool = True) -> Dict[str, LoadedPrompt]:
+async def aload_prompt_dir(dp: Dotprompt, dir_path: str, ns: str | None = None, *, with_metadata: bool = True) -> Dict[str, LoadedPrompt]:
     """Async directory loader that optionally renders metadata for each prompt."""
     loaded = load_prompt_dir(dp, dir_path, ns)
     if with_metadata:

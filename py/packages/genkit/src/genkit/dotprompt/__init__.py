@@ -17,12 +17,7 @@ now and matches the "no integration changes yet" requirement.
 """
 
 from typing import Any, Callable, Dict
-
-# Avoid runtime import to allow tests to use fakes without installing dotpromptz.
-try:
-    from dotpromptz.dotprompt import Dotprompt  # type: ignore
-except Exception:  # pragma: no cover
-    Dotprompt = object  # type: ignore
+from dotpromptz.dotprompt import Dotprompt
 
 from .types import LoadedPrompt, PromptFileId
 from .file_loader import load_prompt_dir, load_prompt_file, registry_definition_key
