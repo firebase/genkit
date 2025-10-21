@@ -133,6 +133,11 @@ class GenkitRegistry:
         """Asynchronously parse a single `.prompt` file and optionally render metadata."""
         return await dp_aload_prompt_file(self.registry.dotprompt, file_path, ns, with_metadata=with_metadata)
 
+    # --- Lookup helpers matching JS key rules ---
+    def lookup_loaded_prompt(self, name: str, variant: str | None = None, ns: str | None = None):
+        """Lookup a previously loaded .prompt by name/variant/ns."""
+        return self.registry.lookup_loaded_prompt(name, variant, ns)
+
     def flow(self, name: str | None = None, description: str | None = None) -> Callable[[Callable], Callable]:
         """Decorator to register a function as a flow.
 

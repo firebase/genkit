@@ -166,6 +166,16 @@ def test_registry_definition_key_and_ns(tmp_path: Path) -> None:
     assert loaded[key].id.variant == 'formal'
     assert loaded[key].id.ns == 'myNS'
 
+    # Verify Registry-style lookup composition via the public API (optional)
+    try:
+        from genkit.ai import Genkit  # type: ignore
+    except Exception:
+        pytest.skip('Real engine not available; skipping Genkit import check')
+    else:
+        ai = Genkit(model='echoModel', prompt_dir=str(prompts_dir), prompt_ns='myNS')
+        found = ai.lookup_loaded_prompt('sub/a', variant='formal', ns='myNS')
+        assert found is not None
+
 
 @pytest.mark.asyncio
 async def test_single_file_load_with_metadata(tmp_path: Path) -> None:
