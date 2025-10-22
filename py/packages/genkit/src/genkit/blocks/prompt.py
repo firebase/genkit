@@ -21,6 +21,7 @@ This module provides types and utilities for managing prompts and templates
 used with AI models in the Genkit framework. It enables consistent prompt
 generation and management across different parts of the application.
 """
+
 from asyncio import Future
 from collections.abc import AsyncIterator
 from typing import Any
@@ -69,10 +70,9 @@ class PromptCache:
     messages: PromptFunction | None = None
 
 
-
-
 class PromptConfig(BaseModel):
     """Model for a prompt action."""
+
     variant: str | None = None
     model: str | None = None
     config: GenerationCommonConfig | dict[str, Any] | None = None
@@ -94,6 +94,7 @@ class PromptConfig(BaseModel):
     use: list[ModelMiddleware] | None = None
     docs: list[DocumentData] | None = None
     tool_responses: list[Part] | None = None
+
 
 class ExecutablePrompt:
     """A prompt that can be executed with a given input and configuration."""
@@ -169,8 +170,6 @@ class ExecutablePrompt:
         self._use = use
         self._cache_prompt = PromptCache()
 
-
-
     async def __call__(
         self,
         input: Any | None = None,
@@ -192,7 +191,7 @@ class ExecutablePrompt:
         """
         return await generate_action(
             self._registry,
-            await self.render(input=input, config=config),
+            await self.render(input=input, config=config, context=context),
             on_chunk=on_chunk,
             middleware=self._use,
             context=context if context else ActionRunContext._current_context(),
@@ -236,6 +235,7 @@ class ExecutablePrompt:
         self,
         input: dict[str, Any] | None = None,
         config: GenerationCommonConfig | dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> GenerateActionOptions:
         """Renders the prompt with the given input and configuration.
 
@@ -272,18 +272,15 @@ class ExecutablePrompt:
             raise Exception('No model configured.')
         resolved_msgs: list[Message] = []
         if options.system:
-            result = await render_system_prompt(
-                self._registry,
-                input,
-                options,
-                self._cache_prompt,
-                ActionRunContext._current_context() or {}
-            )
+            result = await render_system_prompt(self._registry, input, options, self._cache_prompt, context)
             resolved_msgs.append(result)
         if options.messages:
-            resolved_msgs += options.messages
+            resolved_msgs.extend(
+                await render_message_prompt(self._registry, input, options, self._cache_prompt, context)
+            )
         if options.prompt:
-            resolved_msgs.append(Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt)))
+            result = await render_user_prompt(self._registry, input, options, self._cache_prompt, context)
+            resolved_msgs.append(result)
 
         # If is schema is set but format is not explicitly set, default to
         # `json` format.
@@ -397,10 +394,7 @@ def define_prompt(
     )
 
 
-async def to_generate_action_options(
-    registry: Registry,
-    options: PromptConfig
-) -> GenerateActionOptions:
+async def to_generate_action_options(registry: Registry, options: PromptConfig) -> GenerateActionOptions:
     """Converts the given parameters to a GenerateActionOptions object.
 
     Args:
@@ -498,6 +492,7 @@ def _normalize_prompt_arg(
     else:
         return [prompt]
 
+
 async def render_system_prompt(
     registry: Registry,
     input: dict[str, Any],
@@ -524,12 +519,11 @@ async def render_system_prompt(
     """
 
     if isinstance(options.system, str):
-
         if prompt_cache.system is None:
             prompt_cache.system = await registry.dotprompt.compile(options.system)
 
         if options.metadata:
-            context = {**context, "state": options.metadata.get("state")}
+            context = {**context, 'state': options.metadata.get('state')}
 
         return Message(
             role=Role.SYSTEM,
@@ -537,19 +531,16 @@ async def render_system_prompt(
                 context,
                 prompt_cache.system,
                 input,
-
                 PromptMetadata(
                     input=PromptInputConfig(
-
+                        schema=options.input_schema,
                     )
                 ),
-            )
+            ),
         )
 
-    return Message(
-        role=Role.SYSTEM,
-        content=_normalize_prompt_arg(options.system)
-    )
+    return Message(role=Role.SYSTEM, content=_normalize_prompt_arg(options.system))
+
 
 async def render_dotprompt_to_parts(
     context: dict[str, Any],
@@ -571,21 +562,120 @@ async def render_dotprompt_to_parts(
     Raises:
         Exception: If the template produces more than one message.
     """
+    merged_input = input_
     rendered = await prompt_function(
         data=DataArgument[dict[str, Any]](
-            input=input_,
+            input=merged_input,
             context=context,
         ),
         options=options,
     )
 
     if len(rendered.messages) > 1:
-        raise Exception("parts template must produce only one message")
+        raise Exception('parts template must produce only one message')
 
     part_rendered = []
     for message in rendered.messages:
         for part in message.content:
             part_rendered.append(part.model_dump())
 
-
     return part_rendered
+
+
+async def render_message_prompt(
+    registry: Registry,
+    input: dict[str, Any],
+    options: PromptConfig,
+    prompt_cache: PromptCache,
+    context: dict[str, Any] | None = None,
+) -> list[Message]:
+    """
+    Render a message prompt using a given registry, input data, options, and a context.
+
+    This function processes different types of message options (string or list) to render
+    appropriate messages using a prompt registry and cache. If the `messages` option is of type
+    string, the function compiles the dotprompt messages from the `registry` and applies data
+    and metadata context. If the `messages` option is of type list, it either validates and
+    returns the list or processes it for message rendering. The function ensures correct message
+    output using the provided input, prompt configuration, and caching mechanism.
+
+    Arguments:
+        registry (Registry): The registry used to compile dotprompt messages.
+        input (dict[str, Any]): The input data to render messages.
+        options (PromptConfig): Configuration containing prompt options and message settings.
+        prompt_cache (PromptCache): Cache to store compiled prompt results.
+        context (dict[str, Any] | None): Optional additional context to be used for rendering.
+            Defaults to None.
+
+    Returns:
+        list[Message]: A list of rendered or validated message objects.
+    """
+    if isinstance(options.messages, str):
+        if prompt_cache.messages is None:
+            prompt_cache.messages = await registry.dotprompt.compile(options.messages)
+
+        if options.metadata:
+            context = {**context, 'state': options.metadata.get('state')}
+
+        messages_ = None
+        if isinstance(options.messages, list):
+            messages_ = [e.model_dump() for e in options.messages]
+
+        rendered = await prompt_cache.messages(
+            data=DataArgument[dict[str, Any]](
+                input=input,
+                context=context,
+                messages=messages_,
+            ),
+            options=PromptMetadata(input=PromptInputConfig()),
+        )
+        return [Message.model_validate(e.model_dump()) for e in rendered.messages]
+
+    elif isinstance(options.messages, list):
+        return options.messages
+
+    return [Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))]
+
+
+async def render_user_prompt(
+    registry: Registry,
+    input: dict[str, Any],
+    options: PromptConfig,
+    prompt_cache: PromptCache,
+    context: dict[str, Any] | None = None,
+) -> Message:
+    """
+    Asynchronously renders a user prompt based on the given input, context, and options,
+    utilizing a pre-compiled or dynamically compiled dotprompt template.
+
+    Arguments:
+        registry (Registry): The registry instance used to compile dotprompt templates.
+        Input (dict[str, Any]): The input data used to populate the prompt.
+        Options (PromptConfig): The configuration for rendering the prompt, including
+            the template type and associated metadata.
+        Prompt_cache (PromptCache): A cache that stores pre-compiled prompt templates to
+            optimize rendering.
+        Context (dict[str, Any] | None): Optional dynamic context data to override or
+            supplement in the rendering process.
+
+    Returns:
+        Message: A Message instance containing the rendered user prompt.
+    """
+    if isinstance(options.prompt, str):
+        if prompt_cache.user_prompt is None:
+            prompt_cache.user_prompt = await registry.dotprompt.compile(options.prompt)
+
+        if options.metadata:
+            context = {**context, 'state': options.metadata.get('state')}
+
+        return Message(
+            role=Role.USER,
+            content=await render_dotprompt_to_parts(
+                context,
+                prompt_cache.user_prompt,
+                input,
+                PromptMetadata(input=PromptInputConfig()),
+            ),
+        )
+
+    return Message(role=Role.USER, content=_normalize_prompt_arg(options.prompt))
