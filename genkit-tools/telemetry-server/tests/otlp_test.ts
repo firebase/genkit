@@ -16,7 +16,7 @@
 
 import * as assert from 'assert';
 import { describe, it } from 'node:test';
-import { tracesDataFromOtlp } from '../src/utils/otlp';
+import { traceDataFromOtlp } from '../src/utils/otlp';
 
 describe('otlp-traces', () => {
   it('should transform OTLP payload to TraceData', () => {
@@ -145,7 +145,7 @@ describe('otlp-traces', () => {
       },
     ];
 
-    const result = tracesDataFromOtlp(otlpPayload as any);
+    const result = traceDataFromOtlp(otlpPayload as any);
     assert.deepStrictEqual(result, expectedTraceData);
   });
 
@@ -210,7 +210,7 @@ describe('otlp-traces', () => {
       },
     ];
 
-    const result = tracesDataFromOtlp(otlpPayload as any);
+    const result = traceDataFromOtlp(otlpPayload as any);
     assert.deepStrictEqual(result, expectedTraceData);
   });
 });

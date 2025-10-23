@@ -138,7 +138,7 @@ function toSpanData(span: OtlpSpan, scope: OtlpScopeSpan['scope']): SpanData {
   return spanData;
 }
 
-export function tracesDataFromOtlp(otlpData: OtlpPayload): TraceData[] {
+export function traceDataFromOtlp(otlpData: OtlpPayload): TraceData[] {
   const traces: Record<string, TraceData> = {};
 
   otlpData.resourceSpans.forEach((resourceSpan) => {

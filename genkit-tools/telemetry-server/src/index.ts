@@ -22,7 +22,7 @@ import { logger } from '@genkit-ai/tools-common/utils';
 import express from 'express';
 import type * as http from 'http';
 import type { TraceStore } from './types';
-import { tracesDataFromOtlp } from './utils/otlp';
+import { traceDataFromOtlp } from './utils/otlp';
 
 export { LocalFileTraceStore } from './file-trace-store.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
@@ -98,7 +98,7 @@ export async function startTelemetryServer(params: {
         response.status(200).json({});
         return;
       }
-      const traces = tracesDataFromOtlp(request.body);
+      const traces = traceDataFromOtlp(request.body);
       for (const trace of traces) {
         const traceData = TraceDataSchema.parse(trace);
         await params.traceStore.save(traceData.traceId, traceData);
