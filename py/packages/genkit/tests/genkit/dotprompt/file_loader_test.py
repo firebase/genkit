@@ -26,11 +26,11 @@ from genkit.dotprompt import load_prompt_dir, aload_prompt_dir
 
 
 import pytest
-from dotpromptz.dotprompt import Dotprompt as RealDotprompt
+from dotpromptz.dotprompt import Dotprompt
 
 
-def _dp() -> RealDotprompt:
-    return RealDotprompt()
+def _dp() -> Dotprompt:
+    return Dotprompt()
 
 
 def _write(path: Path, content: str) -> None:
@@ -107,7 +107,12 @@ async def test_aload_prompt_dir_renders_metadata(tmp_path: Path) -> None:
 
     assert "info" in loaded
     assert loaded["info"].metadata is not None
-    assert isinstance(loaded["info"].metadata, dict)
+    # Accept PromptMetadata object from dotpromptz or a dict
+    try:
+        from dotpromptz.typing import PromptMetadata as DpPromptMetadata  # type: ignore
+        assert isinstance(loaded["info"].metadata, (dict, DpPromptMetadata))
+    except Exception:
+        assert isinstance(loaded["info"].metadata, dict)
 
 
 def test_name_and_variant_parsing_with_multiple_dots(tmp_path: Path) -> None:
@@ -147,14 +152,11 @@ def test_registry_definition_key_and_ns(tmp_path: Path) -> None:
     assert loaded[key].id.ns == 'myNS'
 
     # Verify Registry-style lookup composition via the public API (optional)
-    try:
-        from genkit.ai import Genkit  # type: ignore
-    except Exception:
-        pytest.skip('Real engine not available; skipping Genkit import check')
-    else:
-        ai = Genkit(model='echoModel', prompt_dir=str(prompts_dir), prompt_ns='myNS')
-        found = ai.lookup_loaded_prompt('sub/a', variant='formal', ns='myNS')
-        assert found is not None
+    from genkit.core.registry import Registry
+    reg = Registry()
+    reg.load_prompt_folder(str(prompts_dir), ns='myNS')
+    found = reg.lookup_loaded_prompt('sub/a', variant='formal', ns='myNS')
+    assert found is not None
 
 
 @pytest.mark.asyncio
@@ -163,8 +165,7 @@ async def test_single_file_load_with_metadata(tmp_path: Path) -> None:
     _write(file_path, _simple_prompt_frontmatter() + "Single.\n")
 
     from genkit.dotprompt import aload_prompt_file
-
-    dp = FakeDotprompt()
+    dp = _dp()
     loaded = await aload_prompt_file(dp, str(file_path), ns='n1', with_metadata=True)
 
     assert loaded.id.name == 'single'
@@ -182,8 +183,7 @@ async def test_variant_in_subdir_with_ns_and_metadata(tmp_path: Path) -> None:
     )
 
     from genkit.dotprompt import aload_prompt_dir
-
-    dp = FakeDotprompt()
+    dp = _dp()
     loaded = await aload_prompt_dir(dp, str(prompts_dir), ns='nsX', with_metadata=True)
 
     # Expect key: nsX/subdir/name.variant with our builder behavior
