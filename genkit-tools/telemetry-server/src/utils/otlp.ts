@@ -46,8 +46,9 @@ interface OtlpSpan {
   droppedAttributesCount: number;
   events: any[];
   droppedEventsCount: number;
-  status: {
+  status?: {
     code: number;
+    message?: string;
   };
   links: any[];
   droppedLinksCount: number;
@@ -111,7 +112,7 @@ function toSpanData(span: OtlpSpan, scope: OtlpScopeSpan['scope']): SpanData {
       break;
   }
 
-  return {
+  const spanData: SpanData = {
     traceId: span.traceId,
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
@@ -125,6 +126,16 @@ function toSpanData(span: OtlpSpan, scope: OtlpScopeSpan['scope']): SpanData {
     },
     spanKind,
   };
+  if (span.status && span.status.code !== 0) {
+    const status: { code: number; message?: string } = {
+      code: span.status.code,
+    };
+    if (span.status.message) {
+      status.message = span.status.message;
+    }
+    spanData.status = status;
+  }
+  return spanData;
 }
 
 export function tracesDataFromOtlp(otlpData: OtlpPayload): TraceData[] {

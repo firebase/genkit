@@ -148,4 +148,69 @@ describe('otlp-traces', () => {
     const result = tracesDataFromOtlp(otlpPayload as any);
     assert.deepStrictEqual(result, expectedTraceData);
   });
+
+  it('should transform OTLP payload with non-zero status to TraceData', () => {
+    const otlpPayload = {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [],
+            droppedAttributesCount: 0,
+          },
+          scopeSpans: [
+            {
+              scope: { name: 'genkit-tracer', version: 'v1' },
+              spans: [
+                {
+                  traceId: 'c5892692eb25cce482eb13587b73c425',
+                  spanId: '86dc3d35cc11e336',
+                  parentSpanId: 'd05557675cb95b72',
+                  name: 'generateContentStream',
+                  kind: 1,
+                  startTimeUnixNano: '1760827335359000000',
+                  endTimeUnixNano: '1760827336695073000',
+                  attributes: [],
+                  droppedAttributesCount: 0,
+                  events: [],
+                  droppedEventsCount: 0,
+                  status: { code: 2, message: 'An error occurred' },
+                  links: [],
+                  droppedLinksCount: 0,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const expectedTraceData = [
+      {
+        traceId: 'c5892692eb25cce482eb13587b73c425',
+        spans: {
+          '86dc3d35cc11e336': {
+            traceId: 'c5892692eb25cce482eb13587b73c425',
+            spanId: '86dc3d35cc11e336',
+            parentSpanId: 'd05557675cb95b72',
+            startTime: 1760827335359,
+            endTime: 1760827336695,
+            displayName: 'generateContentStream',
+            attributes: {},
+            instrumentationLibrary: {
+              name: 'genkit-tracer',
+              version: 'v1',
+            },
+            spanKind: 'INTERNAL',
+            status: {
+              code: 2,
+              message: 'An error occurred',
+            },
+          },
+        },
+      },
+    ];
+
+    const result = tracesDataFromOtlp(otlpPayload as any);
+    assert.deepStrictEqual(result, expectedTraceData);
+  });
 });
