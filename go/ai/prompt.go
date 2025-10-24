@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -244,7 +245,16 @@ func buildVariables(variables any) (map[string]any, error) {
 
 	v := reflect.Indirect(reflect.ValueOf(variables))
 	if v.Kind() == reflect.Map {
-		return variables.(map[string]any), nil
+		// ensure JSON tags are taken in consideration (allowing snake case fields)
+		jsonData, err := json.Marshal(variables)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal prompt field values: %w", err)
+		}
+		var resultVariables map[string]any
+		if err := json.Unmarshal(jsonData, &resultVariables); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal prompt field values: %w", err)
+		}
+		return resultVariables, nil
 	}
 	if v.Kind() != reflect.Struct {
 		return nil, errors.New("prompt.buildVariables: fields not a struct or pointer to a struct or a map")
