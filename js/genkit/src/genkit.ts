@@ -1053,7 +1053,7 @@ export function genkit(options: GenkitOptions): Genkit {
 }
 
 const shutdown = async () => {
-  logger.info('Shutting down all Genkit servers...');
+  logger.debug('Shutting down all Genkit servers...');
   await ReflectionServer.stopAll();
   process.exit(0);
 };
