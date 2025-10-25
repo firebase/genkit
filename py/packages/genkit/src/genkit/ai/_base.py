@@ -48,6 +48,8 @@ class GenkitBase(GenkitRegistry):
         plugins: list[Plugin] | None = None,
         model: str | None = None,
         reflection_server_spec: ServerSpec | None = None,
+        prompt_dir: str | None = None,
+        prompt_ns: str | None = None,
     ) -> None:
         """Initialize a new Genkit instance.
 
@@ -60,6 +62,13 @@ class GenkitBase(GenkitRegistry):
         super().__init__()
         self._initialize_server(reflection_server_spec)
         self._initialize_registry(model, plugins)
+        # Optional, non-breaking .prompt folder load (no auto-registration)
+        if prompt_dir:
+            try:
+                self.registry.load_prompt_folder(prompt_dir, prompt_ns)
+            except Exception:
+                # TODO: Consider logging a warning; keep non-fatal
+                pass
         define_generate_action(self.registry)
 
     def run_main(self, coro: Coroutine[Any, Any, T] | None = None) -> T:
