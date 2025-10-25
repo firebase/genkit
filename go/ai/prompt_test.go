@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,6 +29,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+//go:embed _test_data/prompts
+var embededPrompts embed.FS
 
 type InputOutput struct {
 	Text string `json:"text"`
@@ -874,6 +878,15 @@ func assertResponse(t *testing.T, resp *ModelResponse, want string) {
 	got := resp.Message.Content[0].Text
 	if got != want {
 		t.Errorf("fake model replied with %q, want %q", got, want)
+	}
+}
+
+func TestLoadPrompt_FromFS(t *testing.T) {
+	reg := registry.New()
+	LoadPromptFS(reg, embededPrompts, "_test_data/prompts", "test-namespace")
+	prompt := LookupPrompt(reg, "test-namespace/example")
+	if prompt == nil {
+		t.Fatalf("Prompt was not registered")
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -46,6 +47,7 @@ type Genkit struct {
 type genkitOptions struct {
 	DefaultModel string       // Default model to use if no other model is specified.
 	PromptDir    string       // Directory where dotprompts are stored. Will be loaded automatically on initialization.
+	PromptFS     fs.FS        // Filesystem that will be used for PromptDir lookup.
 	Plugins      []api.Plugin // Plugin to initialize automatically.
 }
 
@@ -67,6 +69,13 @@ func (o *genkitOptions) apply(gOpts *genkitOptions) error {
 			return errors.New("cannot set prompt directory more than once (WithPromptDir)")
 		}
 		gOpts.PromptDir = o.PromptDir
+	}
+
+	if o.PromptFS != nil {
+		if gOpts.PromptFS != nil {
+			return errors.New("cannot set prompt filesystem more than once (WithPromptFS)")
+		}
+		gOpts.PromptFS = o.PromptFS
 	}
 
 	if len(o.Plugins) > 0 {
@@ -104,6 +113,12 @@ func WithDefaultModel(model string) GenkitOption {
 // This option can only be applied once.
 func WithPromptDir(dir string) GenkitOption {
 	return &genkitOptions{PromptDir: dir}
+}
+
+// WithPromptFS is a more generic version of `WithPromptDir` and accepts a filesytem
+// instead of directory path
+func WithPromptFS(fsys fs.FS) GenkitOption {
+	return &genkitOptions{PromptFS: fsys}
 }
 
 // Init creates and initializes a new [Genkit] instance with the provided options.
@@ -184,7 +199,11 @@ func Init(ctx context.Context, opts ...GenkitOption) *Genkit {
 
 	ai.ConfigureFormats(r)
 	ai.DefineGenerateAction(ctx, r)
-	ai.LoadPromptDir(r, gOpts.PromptDir, "")
+	if gOpts.PromptFS == nil {
+		ai.LoadPromptDir(r, gOpts.PromptDir, "")
+	} else {
+		ai.LoadPromptFS(r, gOpts.PromptFS, gOpts.PromptDir, "")
+	}
 
 	r.RegisterValue(api.DefaultModelKey, gOpts.DefaultModel)
 	r.RegisterValue(api.PromptDirKey, gOpts.PromptDir)
