@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"maps"
 	"os"
@@ -505,12 +506,17 @@ func LoadPromptDir(r api.Registry, dir string, namespace string) {
 		return
 	}
 
-	loadPromptDir(r, path, namespace)
+	loadPromptDir(r, os.DirFS(dir), dir, namespace)
+}
+
+// LoadPromptFS loads prompts and partials from the given filesystem for the given namespace.
+func LoadPromptFS(r api.Registry, fsys fs.FS, dir string, namespace string) {
+	loadPromptDir(r, fsys, dir, namespace)
 }
 
 // loadPromptDir recursively loads prompts and partials from the directory.
-func loadPromptDir(r api.Registry, dir string, namespace string) {
-	entries, err := os.ReadDir(dir)
+func loadPromptDir(r api.Registry, fsys fs.FS, dir, namespace string) {
+	entries, err := fs.ReadDir(fsys, dir)
 	if err != nil {
 		panic(fmt.Errorf("failed to read prompt directory structure: %w", err))
 	}
@@ -519,7 +525,7 @@ func loadPromptDir(r api.Registry, dir string, namespace string) {
 		filename := entry.Name()
 		path := filepath.Join(dir, filename)
 		if entry.IsDir() {
-			loadPromptDir(r, path, namespace)
+			loadPromptDir(r, fsys, path, namespace)
 		} else if strings.HasSuffix(filename, ".prompt") {
 			if strings.HasPrefix(filename, "_") {
 				partialName := strings.TrimSuffix(filename[1:], ".prompt")
