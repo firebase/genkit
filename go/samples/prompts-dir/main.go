@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"errors"
+        "embed"
 
 	// Import Genkit and the Google AI plugin
 	"github.com/firebase/genkit/go/ai"
@@ -14,12 +15,17 @@ import (
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 )
 
+//go:embed prompts
+var prompts embed.FS
+
 func main() {
 	ctx := context.Background()
 
 	g := genkit.Init(ctx,
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
 		genkit.WithPromptDir("prompts"),
+                // Without it OS's filesystem will be used
+                genkit.WithPromptFS(prompts),
 	)
 
 	type greetingStyle struct {
