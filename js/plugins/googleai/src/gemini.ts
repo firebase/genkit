@@ -38,12 +38,12 @@ import {
   type ToolConfig,
   type UsageMetadata,
 } from '@google/generative-ai';
-import { GenkitError, z, type Genkit, type JSONSchema } from 'genkit';
+import { GenkitError, z, type JSONSchema } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
-  modelRef,
+  modelRef as createModelRef,
   type CandidateData,
   type MediaPart,
   type MessageData,
@@ -61,6 +61,7 @@ import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
+import { model } from 'genkit/plugin';
 
 // Extra type guard to keep the compiler happy and avoid a cast to any. The
 // legacy Gemini SDK is no longer maintained, and doesn't have updated types.
@@ -276,7 +277,7 @@ export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
     .optional(),
 }).passthrough();
 
-export const gemini10Pro = modelRef({
+export const gemini10Pro = createModelRef({
   name: 'googleai/gemini-1.0-pro',
   info: {
     label: 'Google AI - Gemini Pro',
@@ -293,7 +294,7 @@ export const gemini10Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini15Pro = modelRef({
+export const gemini15Pro = createModelRef({
   name: 'googleai/gemini-1.5-pro',
   info: {
     label: 'Google AI - Gemini 1.5 Pro',
@@ -314,7 +315,7 @@ export const gemini15Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini15Flash = modelRef({
+export const gemini15Flash = createModelRef({
   name: 'googleai/gemini-1.5-flash',
   info: {
     label: 'Google AI - Gemini 1.5 Flash',
@@ -337,7 +338,7 @@ export const gemini15Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini15Flash8b = modelRef({
+export const gemini15Flash8b = createModelRef({
   name: 'googleai/gemini-1.5-flash-8b',
   info: {
     label: 'Google AI - Gemini 1.5 Flash',
@@ -354,7 +355,7 @@ export const gemini15Flash8b = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20Flash = modelRef({
+export const gemini20Flash = createModelRef({
   name: 'googleai/gemini-2.0-flash',
   info: {
     label: 'Google AI - Gemini 2.0 Flash',
@@ -371,7 +372,7 @@ export const gemini20Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20FlashExp = modelRef({
+export const gemini20FlashExp = createModelRef({
   name: 'googleai/gemini-2.0-flash-exp',
   info: {
     label: 'Google AI - Gemini 2.0 Flash (Experimental)',
@@ -388,7 +389,7 @@ export const gemini20FlashExp = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20FlashLite = modelRef({
+export const gemini20FlashLite = createModelRef({
   name: 'googleai/gemini-2.0-flash-lite',
   info: {
     label: 'Google AI - Gemini 2.0 Flash Lite',
@@ -405,7 +406,7 @@ export const gemini20FlashLite = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini20ProExp0205 = modelRef({
+export const gemini20ProExp0205 = createModelRef({
   name: 'googleai/gemini-2.0-pro-exp-02-05',
   info: {
     label: 'Google AI - Gemini 2.0 Pro Exp 02-05',
@@ -422,7 +423,7 @@ export const gemini20ProExp0205 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25FlashPreview0417 = modelRef({
+export const gemini25FlashPreview0417 = createModelRef({
   name: 'googleai/gemini-2.5-flash-preview-04-17',
   info: {
     label: 'Google AI - Gemini 2.5 Flash Preview 04-17',
@@ -439,7 +440,7 @@ export const gemini25FlashPreview0417 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25FlashPreviewTts = modelRef({
+export const gemini25FlashPreviewTts = createModelRef({
   name: 'googleai/gemini-2.5-flash-preview-tts',
   info: {
     label: 'Google AI - Gemini 2.5 Flash Preview TTS',
@@ -456,7 +457,7 @@ export const gemini25FlashPreviewTts = modelRef({
   configSchema: GeminiTtsConfigSchema,
 });
 
-export const gemini25ProExp0325 = modelRef({
+export const gemini25ProExp0325 = createModelRef({
   name: 'googleai/gemini-2.5-pro-exp-03-25',
   info: {
     label: 'Google AI - Gemini 2.5 Pro Exp 03-25',
@@ -473,7 +474,7 @@ export const gemini25ProExp0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25ProPreview0325 = modelRef({
+export const gemini25ProPreview0325 = createModelRef({
   name: 'googleai/gemini-2.5-pro-preview-03-25',
   info: {
     label: 'Google AI - Gemini 2.5 Pro Preview 03-25',
@@ -490,7 +491,7 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25ProPreviewTts = modelRef({
+export const gemini25ProPreviewTts = createModelRef({
   name: 'googleai/gemini-2.5-pro-preview-tts',
   info: {
     label: 'Google AI - Gemini 2.5 Pro Preview TTS',
@@ -507,7 +508,7 @@ export const gemini25ProPreviewTts = modelRef({
   configSchema: GeminiTtsConfigSchema,
 });
 
-export const gemini25Pro = modelRef({
+export const gemini25Pro = createModelRef({
   name: 'googleai/gemini-2.5-pro',
   info: {
     label: 'Google AI - Gemini 2.5 Pro',
@@ -524,7 +525,7 @@ export const gemini25Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25Flash = modelRef({
+export const gemini25Flash = createModelRef({
   name: 'googleai/gemini-2.5-flash',
   info: {
     label: 'Google AI - Gemini 2.5 Flash',
@@ -541,7 +542,7 @@ export const gemini25Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemini25FlashLite = modelRef({
+export const gemini25FlashLite = createModelRef({
   name: 'googleai/gemini-2.5-flash-lite',
   info: {
     label: 'Google AI - Gemini 2.5 Flash Lite',
@@ -558,7 +559,7 @@ export const gemini25FlashLite = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const gemma312bit = modelRef({
+export const gemma312bit = createModelRef({
   name: 'googleai/gemma-3-12b-it',
   info: {
     label: 'Google AI - Gemma 3 12B',
@@ -575,7 +576,7 @@ export const gemma312bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
-export const gemma31bit = modelRef({
+export const gemma31bit = createModelRef({
   name: 'googleai/gemma-3-1b-it',
   info: {
     label: 'Google AI - Gemma 3 1B',
@@ -592,7 +593,7 @@ export const gemma31bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
-export const gemma327bit = modelRef({
+export const gemma327bit = createModelRef({
   name: 'googleai/gemma-3-27b-it',
   info: {
     label: 'Google AI - Gemma 3 27B',
@@ -609,7 +610,7 @@ export const gemma327bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
-export const gemma34bit = modelRef({
+export const gemma34bit = createModelRef({
   name: 'googleai/gemma-3-4b-it',
   info: {
     label: 'Google AI - Gemma 3 4B',
@@ -626,7 +627,7 @@ export const gemma34bit = modelRef({
   configSchema: GeminiGemmaConfigSchema,
 });
 
-export const gemma3ne4bit = modelRef({
+export const gemma3ne4bit = createModelRef({
   name: 'googleai/gemma-3n-e4b-it',
   info: {
     label: 'Google AI - Gemma 3n E4B',
@@ -666,7 +667,7 @@ export const SUPPORTED_GEMINI_MODELS = {
   'gemma-3n-e4b-it': gemma3ne4bit,
 };
 
-export const GENERIC_GEMINI_MODEL = modelRef({
+export const GENERIC_GEMINI_MODEL = createModelRef({
   name: 'googleai/gemini',
   configSchema: GeminiConfigSchema,
   info: {
@@ -714,7 +715,7 @@ export function gemini(
   options: GeminiConfig = {}
 ): ModelReference<typeof GeminiConfigSchema> {
   const nearestModel = nearestGeminiModelRef(version);
-  return modelRef({
+  return createModelRef({
     name: `googleai/${version}`,
     config: options,
     configSchema: GeminiConfigSchema,
@@ -1118,7 +1119,6 @@ export function cleanSchema(schema: JSONSchema): JSONSchema {
  * Defines a new GoogleAI model.
  */
 export function defineGoogleAIModel({
-  ai,
   name,
   apiKey: apiKeyOption,
   apiVersion,
@@ -1127,7 +1127,6 @@ export function defineGoogleAIModel({
   defaultConfig,
   debugTraces,
 }: {
-  ai: Genkit;
   name: string;
   apiKey?: string | false;
   apiVersion?: string;
@@ -1154,9 +1153,9 @@ export function defineGoogleAIModel({
     ? name.substring('googleai/'.length)
     : name;
 
-  const model: ModelReference<z.ZodTypeAny> =
+  const modelRef: ModelReference<z.ZodTypeAny> =
     SUPPORTED_GEMINI_MODELS[apiModelName] ??
-    modelRef({
+    createModelRef({
       name: `googleai/${apiModelName}`,
       info: {
         label: `Google AI - ${apiModelName}`,
@@ -1173,7 +1172,7 @@ export function defineGoogleAIModel({
     });
 
   const middleware: ModelMiddleware[] = [];
-  if (model.info?.supports?.media) {
+  if (modelRef.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middleware.push(
       downloadRequestMedia({
@@ -1199,15 +1198,14 @@ export function defineGoogleAIModel({
     );
   }
 
-  return ai.defineModel(
+  return model(
     {
-      apiVersion: 'v2',
-      name: model.name,
-      ...model.info,
-      configSchema: model.configSchema,
+      name: modelRef.name,
+      ...modelRef.info,
+      configSchema: GeminiConfigSchema,
       use: middleware,
     },
-    async (request, { streamingRequested, sendChunk, abortSignal }) => {
+    async (request, { streamingRequested, sendChunk, abortSignal, registry }) => {
       const options: RequestOptions = { apiClient: getGenkitClientHeader() };
       if (apiVersion) {
         options.apiVersion = apiVersion;
@@ -1228,7 +1226,7 @@ export function defineGoogleAIModel({
       // systemInstructions to be provided as a separate input. The first
       // message detected with role=system will be used for systemInstructions.
       let systemInstruction: GeminiMessage | undefined = undefined;
-      if (model.info?.supports?.systemRole) {
+      if (modelRef.info?.supports?.systemRole) {
         const systemMessage = messages.find((m) => m.role === 'system');
         if (systemMessage) {
           messages.splice(messages.indexOf(systemMessage), 1);
@@ -1257,9 +1255,11 @@ export function defineGoogleAIModel({
       if (codeExecutionFromConfig) {
         tools.push({
           codeExecution:
-            request.config.codeExecution === true
-              ? {}
-              : request.config.codeExecution,
+            requestConfig.codeExecution ?
+              requestConfig.codeExecution === true
+                ? {}
+                : requestConfig.codeExecution
+              : {},
         });
       }
 
@@ -1306,7 +1306,7 @@ export function defineGoogleAIModel({
         generationConfig.responseSchema = cleanSchema(request.output.schema);
       }
 
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const msg = toGeminiMessage(messages[messages.length - 1], modelRef);
 
       const fromJSONModeScopedGeminiCandidate = (
         candidate: GeminiCandidate
@@ -1321,11 +1321,11 @@ export function defineGoogleAIModel({
         toolConfig,
         history: messages
           .slice(0, -1)
-          .map((message) => toGeminiMessage(message, model)),
+          .map((message) => toGeminiMessage(message, modelRef)),
         safetySettings: safetySettingsFromConfig,
       } as StartChatParams;
       const modelVersion = (versionFromConfig ||
-        model.version ||
+        modelRef.version ||
         apiModelName) as string;
       const cacheConfigDetails = extractCacheConfig(request);
 
@@ -1428,9 +1428,9 @@ export function defineGoogleAIModel({
 
       // If debugTraces is enable, we wrap the actual model call with a span, add raw
       // API params as for input.
-      return debugTraces
+      return debugTraces && registry
         ? await runInNewSpan(
-            ai.registry,
+            registry,
             {
               metadata: {
                 name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
