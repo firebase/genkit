@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Bloom Labs Inc
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,34 +14,38 @@
  * limitations under the License.
  */
 
-import { genkitPluginV2, model, modelActionMetadata } from 'genkit/plugin';
 import Anthropic from '@anthropic-ai/sdk';
-
 import {
-  claude4Sonnet,
-  claude4Opus,
-  claude37Sonnet,
-  claude35Sonnet,
-  claude3Opus,
-  claude3Sonnet,
-  claude3Haiku,
-  claude35Haiku,
-  claudeModel,
-  SUPPORTED_CLAUDE_MODELS,
-} from './claude.js';
+  genkitPluginV2,
+  modelActionMetadata,
+  type GenkitPluginV2,
+} from 'genkit/plugin';
+
+import { ActionMetadata } from 'genkit';
 import { ModelAction } from 'genkit/model';
 import { ActionType } from 'genkit/registry';
-import { ActionMetadata } from 'genkit';
-
-export {
-  claude4Sonnet,
-  claude4Opus,
-  claude37Sonnet,
+import {
+  SUPPORTED_CLAUDE_MODELS,
+  claude35Haiku,
   claude35Sonnet,
+  claude37Sonnet,
+  claude3Haiku,
   claude3Opus,
   claude3Sonnet,
-  claude3Haiku,
+  claude4Opus,
+  claude4Sonnet,
+  claudeModel,
+} from './claude.js';
+
+export {
   claude35Haiku,
+  claude35Sonnet,
+  claude37Sonnet,
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
+  claude4Opus,
+  claude4Sonnet,
 };
 
 export interface PluginOptions {
@@ -51,22 +55,26 @@ export interface PluginOptions {
 
 async function list(client: Anthropic): Promise<ActionMetadata[]> {
   const clientModels = (await client.models.list()).data;
+  const result: ActionMetadata[] = [];
 
-  return clientModels
-    .map((modelInfo) => {
-      // Remove the date suffix from the model id
-      const normalizedId = modelInfo.id.replace(/-\d{8}$/, '');
-      // Get the model reference from the supported models
-      const ref = SUPPORTED_CLAUDE_MODELS[normalizedId];
-      // Return the model action metadata if the model is supported
-      return ref ? modelActionMetadata({
-        name: ref.name,
-        info: ref.info,
-        configSchema: ref.configSchema,
-      }) : undefined;
-    })
-    // Filter out undefined values
-    .filter((metadata) => metadata !== undefined);
+  for (const modelInfo of clientModels) {
+    // Remove the date suffix from the model id
+    const normalizedId = modelInfo.id.replace(/-\d{8}$/, '');
+    // Get the model reference from the supported models
+    const ref = SUPPORTED_CLAUDE_MODELS[normalizedId];
+    // Add the model action metadata if the model is supported
+    if (ref) {
+      result.push(
+        modelActionMetadata({
+          name: ref.name,
+          info: ref.info,
+          configSchema: ref.configSchema,
+        })
+      );
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -99,7 +107,7 @@ async function list(client: Anthropic): Promise<ActionMetadata[]> {
  * ```
  */
 // TODO: add support for voyage embeddings and tool use (both not documented well in docs.anthropic.com)
-export const anthropic = (options?: PluginOptions) => {
+export const anthropic = (options?: PluginOptions): GenkitPluginV2 => {
   let apiKey = options?.apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -126,10 +134,7 @@ export const anthropic = (options?: PluginOptions) => {
     },
     resolve: (actionType: ActionType, name: string) => {
       if (actionType === 'model') {
-        return claudeModel(
-          name,
-          client
-        );
+        return claudeModel(name, client);
       }
       return undefined;
     },
@@ -137,7 +142,7 @@ export const anthropic = (options?: PluginOptions) => {
       if (listActionsCache) return listActionsCache;
       listActionsCache = await list(client);
       return listActionsCache;
-    }
+    },
   });
 };
 

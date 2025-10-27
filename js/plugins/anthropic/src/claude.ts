@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Bloom Labs Inc
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,34 @@
  * limitations under the License.
  */
 
-import { Message as GenkitMessage, z } from 'genkit';
+import type Anthropic from '@anthropic-ai/sdk';
 import type {
-  GenerateResponseData,
+  ContentBlock,
+  ImageBlockParam,
+  Message,
+  MessageCreateParams,
+  MessageParam,
+  MessageStreamEvent,
+  TextBlock,
+  TextBlockParam,
+  Tool,
+  ToolResultBlockParam,
+  ToolUseBlockParam,
+} from '@anthropic-ai/sdk/resources/messages.mjs';
+import type {
   GenerateRequest,
+  GenerateResponseData,
   MessageData,
+  ModelReference,
   Part,
   Role,
   StreamingCallback,
-  ModelReference,
 } from 'genkit';
-import { GenerationCommonConfigSchema } from 'genkit';
+import {
+  GenerationCommonConfigSchema,
+  Message as GenkitMessage,
+  z,
+} from 'genkit';
 import type {
   CandidateData,
   GenerateResponseChunkData,
@@ -32,20 +49,6 @@ import type {
   ToolDefinition,
 } from 'genkit/model';
 import { modelRef } from 'genkit/model';
-import type Anthropic from '@anthropic-ai/sdk';
-import type {
-  ImageBlockParam,
-  TextBlock,
-  TextBlockParam,
-  MessageCreateParams,
-  Tool,
-  ToolResultBlockParam,
-  ContentBlock,
-  Message,
-  MessageParam,
-  MessageStreamEvent,
-  ToolUseBlockParam,
-} from '@anthropic-ai/sdk/resources/messages.mjs';
 import { model } from 'genkit/plugin';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({

@@ -1,6 +1,6 @@
 {
-  "name": "genkitx-anthropic",
-  "description": "Firebase Genkit AI framework plugin for Anthropic APIs.",
+  "name": "@genkit-ai/anthropic",
+  "description": "Genkit AI framework plugin for Anthropic APIs.",
   "keywords": [
     "genkit",
     "genkit-plugin",
@@ -16,36 +16,39 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.25.0",
+  "version": "1.21.0",
   "type": "commonjs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BloomLabsInc/genkit-plugins.git",
-    "directory": "plugins/anthropic"
+    "url": "https://github.com/firebase/genkit.git",
+    "directory": "js/plugins/anthropic"
   },
-  "author": "BloomLabsInc",
+  "author": "genkit",
   "license": "Apache-2.0",
   "peerDependencies": {
-    "genkit": "^1.19.3"
+    "genkit": "workspace:^"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
-    "@types/node": "^20.12.12",
+    "@types/node": "^20.11.16",
+    "genkit": "workspace:*",
     "jest": "^29.7.0",
     "npm-run-all": "^4.1.5",
+    "rimraf": "^6.0.1",
     "ts-jest": "^29.1.2",
-    "tsup": "^8.0.2",
-    "typescript": "^5.4.5"
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^4.9.0"
   },
   "types": "./lib/index.d.ts",
   "exports": {
     ".": {
+      "types": "./lib/index.d.ts",
       "require": "./lib/index.js",
       "import": "./lib/index.mjs",
-      "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     }
   },
@@ -59,9 +62,9 @@
   "scripts": {
     "check": "tsc",
     "compile": "tsup-node",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "jest --coverage"
+    "test": "jest --verbose"
   }
 }
