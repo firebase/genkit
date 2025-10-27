@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Bloom Labs Inc
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import type { Options } from 'tsup';
-import { defineConfig } from 'tsup';
-
+import { defineConfig, type Options } from 'tsup';
 import { defaultOptions } from '../../tsup.common';
 
 export default defineConfig({

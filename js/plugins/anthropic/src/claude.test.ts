@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Bloom Labs Inc
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,29 +14,21 @@
  * limitations under the License.
  */
 
-import {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-  jest,
-} from '@jest/globals';
-import type {
-  GenerateResponseData,
-  Part,
-  GenerateRequest,
-  MessageData,
-  Role,
-  Genkit,
-} from 'genkit';
+import type Anthropic from '@anthropic-ai/sdk';
 import type {
   Message,
-  MessageParam,
   MessageCreateParams,
+  MessageParam,
   MessageStreamEvent,
 } from '@anthropic-ai/sdk/resources/messages.mjs';
-import type Anthropic from '@anthropic-ai/sdk';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import type {
+  GenerateRequest,
+  GenerateResponseData,
+  MessageData,
+  Part,
+  Role,
+} from 'genkit';
 import type { CandidateData, ToolDefinition } from 'genkit/model';
 
 import type { AnthropicConfigSchema } from './claude';
