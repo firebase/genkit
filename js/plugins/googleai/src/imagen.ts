@@ -16,16 +16,16 @@
 
 import { GenkitError, MessageData, z } from 'genkit';
 import {
-  getBasicUsageStats,
   modelRef as createModelRef,
+  getBasicUsageStats,
   type GenerateRequest,
   type ModelAction,
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
+import { model } from 'genkit/plugin';
 import { getApiKeyFromEnvVar } from './common.js';
 import { predictModel } from './predict.js';
-import { model } from 'genkit/plugin';
 
 export type KNOWN_IMAGEN_MODELS = 'imagen-3.0-generate-002';
 

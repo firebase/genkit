@@ -42,8 +42,8 @@ import { GenkitError, z, type JSONSchema } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   modelRef as createModelRef,
+  getBasicUsageStats,
   type CandidateData,
   type MediaPart,
   type MessageData,
@@ -57,11 +57,11 @@ import {
   type ToolResponsePart,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
+import { model } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import { getApiKeyFromEnvVar, getGenkitClientHeader } from './common';
 import { handleCacheIfNeeded } from './context-caching';
 import { extractCacheConfig } from './context-caching/utils';
-import { model } from 'genkit/plugin';
 
 // Extra type guard to keep the compiler happy and avoid a cast to any. The
 // legacy Gemini SDK is no longer maintained, and doesn't have updated types.
@@ -1205,7 +1205,10 @@ export function defineGoogleAIModel({
       configSchema: GeminiConfigSchema,
       use: middleware,
     },
-    async (request, { streamingRequested, sendChunk, abortSignal, registry }) => {
+    async (
+      request,
+      { streamingRequested, sendChunk, abortSignal, registry }
+    ) => {
       const options: RequestOptions = { apiClient: getGenkitClientHeader() };
       if (apiVersion) {
         options.apiVersion = apiVersion;
@@ -1254,12 +1257,11 @@ export function defineGoogleAIModel({
 
       if (codeExecutionFromConfig) {
         tools.push({
-          codeExecution:
-            requestConfig.codeExecution ?
-              requestConfig.codeExecution === true
-                ? {}
-                : requestConfig.codeExecution
-              : {},
+          codeExecution: requestConfig.codeExecution
+            ? requestConfig.codeExecution === true
+              ? {}
+              : requestConfig.codeExecution
+            : {},
         });
       }
 

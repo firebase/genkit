@@ -25,9 +25,9 @@ import {
   type EmbedderReference,
 } from 'genkit';
 import { embedderRef as createEmbedderRef } from 'genkit/embedder';
+import { embedder } from 'genkit/plugin';
 import { getApiKeyFromEnvVar } from './common.js';
 import type { PluginOptions } from './index.js';
-import { embedder } from 'genkit/plugin';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',

@@ -14,12 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  GenerateResponseData,
-  GenkitError,
-  Operation,
-  z,
-} from 'genkit';
+import { GenerateResponseData, GenkitError, Operation, z } from 'genkit';
 import {
   BackgroundModelAction,
   modelRef as createModelRef,
@@ -27,9 +22,9 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
+import { backgroundModel } from 'genkit/plugin';
 import { getApiKeyFromEnvVar } from './common.js';
 import { Operation as ApiOperation, checkOp, predictModel } from './predict.js';
-import { backgroundModel } from 'genkit/plugin';
 
 export type KNOWN_VEO_MODELS = 'veo-2.0-generate-001';
 

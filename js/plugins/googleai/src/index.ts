@@ -25,7 +25,11 @@ import {
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { modelRef } from 'genkit/model';
-import { genkitPluginV2, ResolvableAction, type GenkitPluginV2 } from 'genkit/plugin';
+import {
+  ResolvableAction,
+  genkitPluginV2,
+  type GenkitPluginV2,
+} from 'genkit/plugin';
 import type { ActionType } from 'genkit/registry';
 import { getApiKeyFromEnvVar } from './common.js';
 import {
@@ -111,7 +115,9 @@ export interface PluginOptions {
   experimental_debugTraces?: boolean;
 }
 
-async function initializer(options?: PluginOptions): Promise<ResolvableAction[]> {
+async function initializer(
+  options?: PluginOptions
+): Promise<ResolvableAction[]> {
   let apiVersions = ['v1'];
   const actions: ResolvableAction[] = [];
 
@@ -125,24 +131,28 @@ async function initializer(options?: PluginOptions): Promise<ResolvableAction[]>
 
   if (apiVersions.includes('v1beta')) {
     Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
-      actions.push(defineGoogleAIModel({
-        name,
-        apiKey: options?.apiKey,
-        apiVersion: 'v1beta',
-        baseUrl: options?.baseUrl,
-        debugTraces: options?.experimental_debugTraces,
-      }))
+      actions.push(
+        defineGoogleAIModel({
+          name,
+          apiKey: options?.apiKey,
+          apiVersion: 'v1beta',
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
+      )
     );
   }
   if (apiVersions.includes('v1')) {
     Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
-      actions.push(defineGoogleAIModel({
-        name,
-        apiKey: options?.apiKey,
-        apiVersion: undefined,
-        baseUrl: options?.baseUrl,
-        debugTraces: options?.experimental_debugTraces,
-      }))
+      actions.push(
+        defineGoogleAIModel({
+          name,
+          apiKey: options?.apiKey,
+          apiVersion: undefined,
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
+      )
     );
     Object.keys(EMBEDDER_MODELS).forEach((name) =>
       actions.push(defineGoogleAIEmbedder(name, { apiKey: options?.apiKey }))
@@ -158,16 +168,18 @@ async function initializer(options?: PluginOptions): Promise<ResolvableAction[]>
             modelOrRef.name.split('/')[1];
       const modelRef =
         typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-      actions.push(defineGoogleAIModel({
-        name: modelName,
-        apiKey: options?.apiKey,
-        baseUrl: options?.baseUrl,
-        info: {
-          ...modelRef.info,
-          label: `Google AI - ${modelName}`,
-        },
-        debugTraces: options?.experimental_debugTraces,
-      }));
+      actions.push(
+        defineGoogleAIModel({
+          name: modelName,
+          apiKey: options?.apiKey,
+          baseUrl: options?.baseUrl,
+          info: {
+            ...modelRef.info,
+            label: `Google AI - ${modelName}`,
+          },
+          debugTraces: options?.experimental_debugTraces,
+        })
+      );
     }
   }
 
@@ -195,7 +207,10 @@ async function resolver(
   return undefined;
 }
 
-function resolveModel(actionName: string, options?: PluginOptions): ResolvableAction | undefined {
+function resolveModel(
+  actionName: string,
+  options?: PluginOptions
+): ResolvableAction | undefined {
   if (actionName.startsWith('imagen')) {
     return defineImagenModel(actionName, options?.apiKey);
   }
@@ -336,7 +351,7 @@ export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
       if (listActionsCache) return listActionsCache;
       listActionsCache = await listActions(options);
       return listActionsCache;
-    }
+    },
   });
 }
 
