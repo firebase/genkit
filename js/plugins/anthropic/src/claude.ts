@@ -220,6 +220,11 @@ export const SUPPORTED_CLAUDE_MODELS: Record<
   'claude-4-1-opus': claude41Opus,
 };
 
+export type KnownClaudeModels = keyof typeof SUPPORTED_CLAUDE_MODELS;
+export type ClaudeModelName = string;
+export type AnthropicConfigSchemaType = typeof AnthropicConfigSchema;
+export type ClaudeConfig = z.infer<typeof AnthropicConfigSchema>;
+
 /**
  * Converts a Genkit role to the corresponding Anthropic role.
  */
@@ -392,7 +397,7 @@ export function toAnthropicMessageContent(
     // Handle non-PDF media (images) - existing logic
     const { data, contentType } =
       extractDataFromBase64Url(part.media.url) ?? {};
-    if (!data) {
+    if (!data || !contentType) {
       throw new Error(
         `Invalid genkit part media provided to toAnthropicMessageContent: ${JSON.stringify(
           part.media
@@ -725,6 +730,34 @@ const GENERIC_CLAUDE_MODEL_INFO = {
     output: ['text'],
   },
 };
+
+/**
+ * Creates a model reference for a Claude model.
+ * This allows referencing models without initializing the plugin.
+ */
+export function claudeModelReference(
+  name: string,
+  config?: z.infer<typeof AnthropicConfigSchema>
+): ModelReference<typeof AnthropicConfigSchema> {
+  const knownModel = SUPPORTED_CLAUDE_MODELS[name];
+  if (knownModel) {
+    return modelRef({
+      name: knownModel.name,
+      namespace: 'anthropic',
+      info: knownModel.info,
+      configSchema: knownModel.configSchema,
+      config,
+    });
+  }
+
+  // For unknown models, create a basic reference
+  return modelRef({
+    name,
+    namespace: 'anthropic',
+    configSchema: AnthropicConfigSchema,
+    config,
+  });
+}
 
 /**
  * Defines a Claude model with the given name and Anthropic client.

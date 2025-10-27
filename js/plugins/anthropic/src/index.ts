@@ -21,10 +21,14 @@ import {
   type GenkitPluginV2,
 } from 'genkit/plugin';
 
-import { ActionMetadata } from 'genkit';
+import { ActionMetadata, ModelReference, z } from 'genkit';
 import { ModelAction } from 'genkit/model';
 import { ActionType } from 'genkit/registry';
 import {
+  AnthropicConfigSchemaType,
+  ClaudeConfig,
+  ClaudeModelName,
+  KnownClaudeModels,
   SUPPORTED_CLAUDE_MODELS,
   claude35Haiku,
   claude3Haiku,
@@ -34,6 +38,7 @@ import {
   claude4Opus,
   claude4Sonnet,
   claudeModel,
+  claudeModelReference,
 } from './claude.js';
 import { InternalPluginOptions, PluginOptions, __testClient } from './types.js';
 
@@ -123,7 +128,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  * });
  * ```
  */
-export const anthropic = (options?: PluginOptions): GenkitPluginV2 => {
+function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
   const client = getAnthropicClient(options);
 
   let listActionsCache: ActionMetadata[] | null = null;
@@ -153,6 +158,27 @@ export const anthropic = (options?: PluginOptions): GenkitPluginV2 => {
       return listActionsCache;
     },
   });
+}
+
+export type AnthropicPlugin = {
+  (pluginOptions?: PluginOptions): GenkitPluginV2;
+  model(
+    name: KnownClaudeModels | (ClaudeModelName & {}),
+    config?: ClaudeConfig
+  ): ModelReference<AnthropicConfigSchemaType>;
+  model(name: string, config?: any): ModelReference<z.ZodTypeAny>;
+};
+
+/**
+ * Anthropic AI plugin for Genkit.
+ * Includes Claude models (3, 3.5, 3.7, and 4 series).
+ */
+export const anthropic = anthropicPlugin as AnthropicPlugin;
+(anthropic as any).model = (
+  name: string,
+  config?: any
+): ModelReference<z.ZodTypeAny> => {
+  return claudeModelReference(name, config);
 };
 
 export default anthropic;
