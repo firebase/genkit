@@ -27,7 +27,6 @@ import { ActionType } from 'genkit/registry';
 import {
   SUPPORTED_CLAUDE_MODELS,
   claude35Haiku,
-  claude35Sonnet,
   claude37Sonnet,
   claude3Haiku,
   claude3Opus,
@@ -38,7 +37,6 @@ import {
 
 export {
   claude35Haiku,
-  claude35Sonnet,
   claude37Sonnet,
   claude3Haiku,
   claude3Opus,
@@ -83,7 +81,6 @@ async function list(client: Anthropic): Promise<ActionMetadata[]> {
  * environment variables. It initializes the Anthropic client and makes available the Claude models for use.
  *
  * Exports:
- * - claude35Sonnet: Reference to the Claude 3.5 Sonnet model.
  * - claude3Haiku: Reference to the Claude 3 Haiku model.
  * - claude3Opus: Reference to the Claude 3 Opus model.
  * - anthropic: The main plugin function to interact with the Anthropic AI.
