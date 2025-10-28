@@ -36,7 +36,6 @@ import {
 import {
   evaluatorName,
   generateTestCaseId,
-  getAction,
   getEvalExtractors,
   getModelInput,
   hasAction,
@@ -387,13 +386,15 @@ async function runPromptAction(params: {
   promptConfig?: any;
 }): Promise<InferenceRunState> {
   const { manager, actionRef, sample, context, promptConfig } = { ...params };
-
-  const { model: modelFromConfig, ...restOfConfig } = promptConfig ?? {};
-  const model = await resolveModel({ manager, actionRef, modelFromConfig });
-  if (!model) {
+  const { model: modelFromConfig, ...restOfConfig } = promptConfig;
+  if (!modelFromConfig) {
     throw new Error(
-      'Could not resolve model. Please specify model and try again'
+      'Missing model: Please specific model for prompt evaluation'
     );
+  }
+  const model = modelFromConfig.split('/model/').pop();
+  if (!model) {
+    throw new Error(`Improper model provided: ${modelFromConfig}`);
   }
   let state: InferenceRunState;
   let renderedPrompt: {
@@ -432,7 +433,12 @@ async function runPromptAction(params: {
   // Step 2. Run rendered prompt on the model
   try {
     let modelInput = renderedPrompt.result;
-    modelInput = { ...modelInput, model, config: restOfConfig ?? {} };
+    // Override with runtime specific config
+    if (Object.keys(restOfConfig ?? {}).length > 0) {
+      modelInput = { ...modelInput, model, config: restOfConfig };
+    } else {
+      modelInput = { ...modelInput, model };
+    }
     const runActionResponse = await manager.runAction({
       key: GENERATE_ACTION_UTIL,
       input: modelInput,
@@ -539,23 +545,6 @@ async function gatherEvalInput(params: {
     custom,
     traceIds: traceIds,
   };
-}
-
-async function resolveModel(params: {
-  manager: RuntimeManager;
-  actionRef: string;
-  modelFromConfig?: string;
-}) {
-  const { manager, actionRef, modelFromConfig } = { ...params };
-
-  // Prefer to use modelFromConfig
-  if (modelFromConfig) {
-    return modelFromConfig;
-  }
-
-  const actionData = await getAction({ manager, actionRef });
-  const promptMetadata = actionData?.metadata?.prompt as any;
-  return promptMetadata?.model ? `/model/${promptMetadata?.model}` : undefined;
 }
 
 function getSpanErrorMessage(span: SpanData): string | undefined {
