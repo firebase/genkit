@@ -1,0 +1,20 @@
+---
+model: test-model
+maxTurns: 5
+description: A test prompt
+toolChoice: required
+returnToolRequests: true
+input:
+  schema:
+    type: object
+    properties:
+      name:
+        type: string
+  default:
+    name: world
+output:
+  format: text
+  schema:
+    type: string
+---
+Hello, {{name}}!
