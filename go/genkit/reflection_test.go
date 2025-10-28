@@ -90,7 +90,11 @@ func TestServeMux(t *testing.T) {
 	core.DefineAction(g.reg, "test/inc", api.ActionTypeCustom, nil, nil, inc)
 	core.DefineAction(g.reg, "test/dec", api.ActionTypeCustom, nil, nil, dec)
 
-	ts := httptest.NewServer(serveMux(g))
+	s := &reflectionServer{
+		Server: &http.Server{},
+	}
+	ts := httptest.NewServer(serveMux(g, s))
+	s.Addr = strings.TrimPrefix(ts.URL, "http://")
 	defer ts.Close()
 
 	t.Parallel()
@@ -103,6 +107,26 @@ func TestServeMux(t *testing.T) {
 		defer res.Body.Close()
 		if res.StatusCode != http.StatusOK {
 			t.Errorf("health check failed: got status %d, want %d", res.StatusCode, http.StatusOK)
+		}
+
+		// Test with correct runtime ID
+		res, err = http.Get(ts.URL + "/api/__health?id=" + s.runtimeID())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("health check with correct id failed: got status %d, want %d", res.StatusCode, http.StatusOK)
+		}
+
+		// Test with incorrect runtime ID
+		res, err = http.Get(ts.URL + "/api/__health?id=invalid-id")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusServiceUnavailable {
+			t.Errorf("health check with incorrect id failed: got status %d, want %d", res.StatusCode, http.StatusServiceUnavailable)
 		}
 	})
 

@@ -17,7 +17,7 @@
 import { GenerateRequest, GenkitError } from 'genkit';
 import process from 'process';
 import { extractMedia } from '../common/utils.js';
-import { ImagenInstance, VeoImage } from './types.js';
+import { ImagenInstance, VeoImage, VeoVideo } from './types.js';
 
 export {
   checkModelName,
@@ -126,22 +126,29 @@ export function extractVeoImage(
   request: GenerateRequest
 ): VeoImage | undefined {
   const media = request.messages.at(-1)?.content.find((p) => !!p.media)?.media;
-  if (media) {
-    const img = media.url.split(',')[1];
-    if (img && media.contentType) {
-      return {
-        bytesBase64Encoded: img,
-        mimeType: media.contentType!,
-      };
-    } else if (img) {
-      // Content Type is not optional
-      throw new GenkitError({
-        status: 'INVALID_ARGUMENT',
-        message: 'content type is required for images',
-      });
-    }
+  if (!media?.contentType?.startsWith('image/')) {
+    return undefined;
+  }
+  const bytes = media?.url.split(',')[1];
+  if (bytes) {
+    return {
+      bytesBase64Encoded: bytes,
+      mimeType: media.contentType,
+    };
   }
   return undefined;
+}
+
+export function extractVeoVideo(
+  request: GenerateRequest
+): VeoVideo | undefined {
+  const media = request.messages.at(-1)?.content.find((p) => !!p.media)?.media;
+  if (!media?.contentType?.startsWith('video/')) {
+    return undefined;
+  }
+  return {
+    uri: media.url,
+  };
 }
 
 export function extractImagenImage(

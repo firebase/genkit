@@ -16,16 +16,17 @@
 
 import type { TraceData, TraceQueryFilter } from '@genkit-ai/tools-common';
 import * as assert from 'assert';
+import fs from 'fs';
 import getPort from 'get-port';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import os from 'os';
 import path from 'path';
+import { Index } from '../src/file-trace-store';
 import {
   LocalFileTraceStore,
   startTelemetryServer,
   stopTelemetryApi,
 } from '../src/index';
-import { Index } from '../src/localFileTraceStore';
 import { sleep, span } from './utils';
 
 const TRACE_ID = '1234';
@@ -37,10 +38,10 @@ const SPAN_B = 'bcd';
 const SPAN_C = 'cde';
 
 describe('local-file-store', () => {
-  let port;
-  let storeRoot;
-  let indexRoot;
-  let url;
+  let port: number;
+  let storeRoot: string;
+  let indexRoot: string;
+  let url: string;
 
   beforeEach(async () => {
     port = await getPort();
@@ -276,16 +277,20 @@ describe('local-file-store', () => {
 });
 
 describe('index', () => {
-  let indexRoot;
+  let indexRoot: string;
   let index: Index;
 
   beforeEach(async () => {
     indexRoot = path.resolve(
       os.tmpdir(),
-      `./telemetry-server-api-test-${Date.now()}/traces_idx`
+      `./telemetry-server-api-test-${Date.now()}-${Math.floor(Math.random() * 1000)}/traces_idx`
     );
 
     index = new Index(indexRoot);
+  });
+
+  afterEach(() => {
+    fs.rmSync(indexRoot, { recursive: true, force: true });
   });
 
   it('should index and search spans', () => {

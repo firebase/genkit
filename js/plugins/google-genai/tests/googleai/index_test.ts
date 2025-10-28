@@ -434,11 +434,11 @@ describe('GoogleAI Plugin', () => {
           supportedGenerationMethods: ['embedContent'],
         },
         {
-          name: 'models/imagen-3.0-generate-002',
+          name: 'models/imagen-4.0-generate-001',
           supportedGenerationMethods: ['predict'],
         },
         {
-          name: 'models/veo-2.0-generate-001',
+          name: 'models/veo-3.1-generate-preview',
           supportedGenerationMethods: ['predictLongRunning'],
         },
         {
@@ -457,9 +457,9 @@ describe('GoogleAI Plugin', () => {
         actionNames,
         [
           'googleai/gemini-2.5-pro',
-          'googleai/imagen-3.0-generate-002',
+          'googleai/imagen-4.0-generate-001',
           'googleai/text-embedding-004',
-          'googleai/veo-2.0-generate-001',
+          'googleai/veo-3.1-generate-preview',
         ].sort()
       );
 
@@ -474,12 +474,12 @@ describe('GoogleAI Plugin', () => {
       assert.strictEqual(embedderAction?.actionType, 'embedder');
 
       const imagenAction = actions.find(
-        (a) => a.name === 'googleai/imagen-3.0-generate-002'
+        (a) => a.name === 'googleai/imagen-4.0-generate-001'
       );
       assert.strictEqual(imagenAction?.actionType, 'model');
 
       const veoAction = actions.find(
-        (a) => a.name === 'googleai/veo-2.0-generate-001'
+        (a) => a.name === 'googleai/veo-3.1-generate-preview'
       );
       assert.strictEqual(veoAction?.actionType, 'model');
     });
