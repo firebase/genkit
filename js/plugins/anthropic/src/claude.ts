@@ -109,7 +109,6 @@ export const claude37Sonnet = modelRef({
   version: 'claude-3-7-sonnet-latest',
 });
 
-
 export const claude3Opus = modelRef({
   name: 'claude-3-opus',
   namespace: 'anthropic',
@@ -127,7 +126,6 @@ export const claude3Opus = modelRef({
   configSchema: AnthropicConfigSchema,
   version: 'claude-3-opus-20240229',
 });
-
 
 export const claude3Haiku = modelRef({
   name: 'claude-3-haiku',
