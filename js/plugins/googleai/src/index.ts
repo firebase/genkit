@@ -130,8 +130,8 @@ async function initializer(
   }
 
   if (apiVersions.includes('v1beta')) {
-    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
-      actions.push(
+    actions.push(
+      ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
         defineGoogleAIModel({
           name,
           apiKey: options?.apiKey,
@@ -143,8 +143,8 @@ async function initializer(
     );
   }
   if (apiVersions.includes('v1')) {
-    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
-      actions.push(
+    actions.push(
+      ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
         defineGoogleAIModel({
           name,
           apiKey: options?.apiKey,
@@ -154,8 +154,10 @@ async function initializer(
         })
       )
     );
-    Object.keys(EMBEDDER_MODELS).forEach((name) =>
-      actions.push(defineGoogleAIEmbedder(name, { apiKey: options?.apiKey }))
+    actions.push(
+      ...Object.keys(EMBEDDER_MODELS).map((name) =>
+        defineGoogleAIEmbedder(name, { apiKey: options?.apiKey })
+      )
     );
   }
 

@@ -1205,10 +1205,7 @@ export function defineGoogleAIModel({
       configSchema: GeminiConfigSchema,
       use: middleware,
     },
-    async (
-      request,
-      { streamingRequested, sendChunk, abortSignal, registry }
-    ) => {
+    async (request, { streamingRequested, sendChunk, abortSignal }) => {
       const options: RequestOptions = { apiClient: getGenkitClientHeader() };
       if (apiVersion) {
         options.apiVersion = apiVersion;
@@ -1430,9 +1427,8 @@ export function defineGoogleAIModel({
 
       // If debugTraces is enable, we wrap the actual model call with a span, add raw
       // API params as for input.
-      return debugTraces && registry
+      return debugTraces
         ? await runInNewSpan(
-            registry,
             {
               metadata: {
                 name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
