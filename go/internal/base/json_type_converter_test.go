@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package base
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 )
@@ -135,4 +136,114 @@ func TestNormalizeInput(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUnmarshalAndNormalize(t *testing.T) {
+	type TestStruct struct {
+		Name   string `json:"name"`
+		Age    int64  `json:"age"`
+		Active bool   `json:"active"`
+	}
+
+	t.Run("unmarshal into structured type", func(t *testing.T) {
+		input := json.RawMessage(`{"name":"John","age":30,"active":true}`)
+		schema := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"name":   map[string]any{"type": "string"},
+				"age":    map[string]any{"type": "integer"},
+				"active": map[string]any{"type": "boolean"},
+			},
+		}
+		expected := TestStruct{Name: "John", Age: 30, Active: true}
+
+		result, err := UnmarshalAndNormalize[TestStruct](input, schema)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !reflect.DeepEqual(result, expected) {
+			t.Errorf("result mismatch:\nExpected: %+v\nGot: %+v", expected, result)
+		}
+	})
+
+	t.Run("unmarshal into any type preserves types", func(t *testing.T) {
+		input := json.RawMessage(`{"name":"John","age":30,"count":42.0}`)
+		schema := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"name":  map[string]any{"type": "string"},
+				"age":   map[string]any{"type": "integer"},
+				"count": map[string]any{"type": "integer"},
+			},
+		}
+		expected := map[string]any{"name": "John", "age": int64(30), "count": int64(42)}
+
+		result, err := UnmarshalAndNormalize[any](input, schema)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !reflect.DeepEqual(result, expected) {
+			t.Errorf("result mismatch:\nExpected: %+v (%T)\nGot: %+v (%T)", expected, expected, result, result)
+		}
+	})
+
+	t.Run("empty input returns zero value", func(t *testing.T) {
+		input := json.RawMessage(``)
+		expected := TestStruct{}
+
+		result, err := UnmarshalAndNormalize[TestStruct](input, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !reflect.DeepEqual(result, expected) {
+			t.Errorf("result mismatch:\nExpected: %+v\nGot: %+v", expected, result)
+		}
+	})
+
+	t.Run("removes null fields", func(t *testing.T) {
+		input := json.RawMessage(`{"name":"John","age":30,"active":null}`)
+		schema := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"name":   map[string]any{"type": "string"},
+				"age":    map[string]any{"type": "integer"},
+				"active": map[string]any{"type": "boolean"},
+			},
+		}
+		expected := TestStruct{Name: "John", Age: 30, Active: false}
+
+		result, err := UnmarshalAndNormalize[TestStruct](input, schema)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !reflect.DeepEqual(result, expected) {
+			t.Errorf("result mismatch:\nExpected: %+v\nGot: %+v", expected, result)
+		}
+	})
+
+	t.Run("invalid JSON returns error", func(t *testing.T) {
+		input := json.RawMessage(`{invalid json}`)
+
+		_, err := UnmarshalAndNormalize[TestStruct](input, nil)
+		if err == nil {
+			t.Fatal("expected error but got none")
+		}
+	})
+
+	t.Run("null input with any type returns nil", func(t *testing.T) {
+		input := json.RawMessage(`null`)
+
+		result, err := UnmarshalAndNormalize[any](input, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if result != nil {
+			t.Errorf("expected nil, got %v", result)
+		}
+	})
 }

@@ -312,9 +312,9 @@ func (r *Registry) RegisterHelper(name string, fn any) {
 	r.dotprompt.Helpers[name] = fn
 }
 
-// Dotprompt returns the dotprompt instance.
+// Dotprompt returns a clone of the Dotprompt instance.
 func (r *Registry) Dotprompt() *dotprompt.Dotprompt {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.dotprompt
+	return r.dotprompt.Clone()
 }

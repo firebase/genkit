@@ -19,6 +19,7 @@ package ai
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 
@@ -79,6 +80,15 @@ type toolInterruptError struct {
 
 func (e *toolInterruptError) Error() string {
 	return "tool execution interrupted"
+}
+
+// IsToolInterruptError determines whether the error is an interrupt error returned by the tool.
+func IsToolInterruptError(err error) (bool, map[string]any) {
+	var tie *toolInterruptError
+	if errors.As(err, &tie) {
+		return true, tie.Metadata
+	}
+	return false, nil
 }
 
 // InterruptOptions provides configuration for tool interruption.

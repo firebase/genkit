@@ -82,6 +82,12 @@ func TestGoogleAILive(t *testing.T) {
 		},
 	)
 
+	answerOfEverythingTool := genkit.DefineTool(g, "answerOfEverything", "use this tool when the user asks for the answer of life, the universe and everything",
+		func(ctx *ai.ToolContext, input any) (int, error) {
+			return 42, nil
+		},
+	)
+
 	t.Run("embedder", func(t *testing.T) {
 		res, err := genkit.Embed(ctx, g, ai.WithEmbedder(embedder), ai.WithTextDocs("yellow banana"))
 		if err != nil {
@@ -191,7 +197,43 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
-
+	t.Run("api side tools", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		_, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Tools: []*genai.Tool{
+					{GoogleSearch: &genai.GoogleSearch{}},
+					{CodeExecution: &genai.ToolCodeExecution{}},
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("When is the next lunar eclipse in US?"))
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("api and custom tools", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Tools: []*genai.Tool{
+					{GoogleSearch: &genai.GoogleSearch{}},
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithTools(gablorkenTool, answerOfEverythingTool),
+			ai.WithPrompt("What is the answer of life?"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// api tools should not be used when custom tools are present
+		if len(resp.Request.Tools) != 2 {
+			t.Fatalf("got %d tools, want: 2", len(resp.Request.Tools))
+		}
+		if !strings.Contains(resp.Text(), "42") {
+			t.Fatalf("got %s, want: 42", resp.Text())
+		}
+	})
 	t.Run("tool with json output", func(t *testing.T) {
 		type weatherQuery struct {
 			Location string `json:"location"`

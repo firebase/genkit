@@ -18,16 +18,18 @@ import { z, type Genkit, type ModelReference } from 'genkit';
 import { modelRef, type GenerateRequest, type ModelAction } from 'genkit/model';
 import type { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
-import { getGenkitClientHeader } from '../common/index.js';
+import { getGenkitClientHeader } from '../../common/index.js';
 import {
   OpenAIConfigSchema,
   openaiCompatibleModel,
 } from './openai_compatibility.js';
 
+/** @deprecated */
 export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({
   location: z.string().optional(),
 });
 
+/** @deprecated */
 export const llama31 = modelRef({
   name: 'vertexai/llama-3.1',
   info: {
@@ -48,6 +50,7 @@ export const llama31 = modelRef({
   version: 'meta/llama3-405b-instruct-maas',
 }) as ModelReference<typeof ModelGardenModelConfigSchema>;
 
+/** @deprecated */
 export const llama32 = modelRef({
   name: 'vertexai/llama-3.2',
   info: {
@@ -85,12 +88,14 @@ export const llama3 = modelRef({
   version: 'meta/llama3-405b-instruct-maas',
 }) as ModelReference<typeof ModelGardenModelConfigSchema>;
 
+/** @deprecated */
 export const SUPPORTED_OPENAI_FORMAT_MODELS = {
   'llama3-405b': llama3,
   'llama-3.1': llama31,
   'llama-3.2': llama32,
 };
 
+/** @deprecated */
 export function modelGardenOpenaiCompatibleModel(
   ai: Genkit,
   name: string,

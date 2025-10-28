@@ -17,6 +17,7 @@
 import axios, { type AxiosError } from 'axios';
 import chokidar from 'chokidar';
 import EventEmitter from 'events';
+import * as fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 import {
@@ -390,6 +391,10 @@ export class RuntimeManager {
    */
   private async handleNewDevUi(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, toolsInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -433,6 +438,10 @@ export class RuntimeManager {
    */
   private async handleNewRuntime(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, runtimeInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -448,7 +457,12 @@ export class RuntimeManager {
           runtimeInfo.name = runtimeInfo.id;
         }
         const fileName = path.basename(filePath);
-        if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
+        if (
+          await checkServerHealth(
+            runtimeInfo.reflectionServerUrl,
+            runtimeInfo.id
+          )
+        ) {
           if (
             runtimeInfo.reflectionApiSpecVersion !=
             GENKIT_REFLECTION_API_SPEC_VERSION
@@ -529,7 +543,9 @@ export class RuntimeManager {
   private async performHealthChecks() {
     const healthCheckPromises = Object.entries(this.filenameToRuntimeMap).map(
       async ([fileName, runtime]) => {
-        if (!(await checkServerHealth(runtime.reflectionServerUrl))) {
+        if (
+          !(await checkServerHealth(runtime.reflectionServerUrl, runtime.id))
+        ) {
           await this.removeRuntime(fileName);
         }
       }
@@ -541,19 +557,14 @@ export class RuntimeManager {
    * Removes the runtime file which will trigger the removal watcher.
    */
   private async removeRuntime(fileName: string) {
-    const runtime = this.filenameToRuntimeMap[fileName];
-    if (runtime) {
-      try {
-        const runtimesDir = await findRuntimesDir(this.projectRoot);
-        const runtimeFilePath = path.join(runtimesDir, fileName);
-        await fs.unlink(runtimeFilePath);
-      } catch (error) {
-        logger.debug(`Failed to delete runtime file: ${error}`);
-      }
-      logger.debug(
-        `Removed unhealthy runtime with ID ${runtime.id} from manager.`
-      );
+    try {
+      const runtimesDir = await findRuntimesDir(this.projectRoot);
+      const runtimeFilePath = path.join(runtimesDir, fileName);
+      await fs.unlink(runtimeFilePath);
+    } catch (error) {
+      logger.debug(`Failed to delete runtime file: ${error}`);
     }
+    logger.debug(`Removed unhealthy runtime ${fileName} from manager.`);
   }
 }
 

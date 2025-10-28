@@ -69,7 +69,6 @@ export interface McpServerOptions {
  *
  * @param options Configuration for the MCP Client Host, including the definitions of MCP servers to connect to.
  * @returns A new instance of GenkitMcpHost.
- * @deprecated Please use defineMcpHost instead.
  */
 export function createMcpHost(options: McpHostOptions) {
   return new GenkitMcpHost(options);
@@ -135,7 +134,6 @@ export function defineMcpHost(ai: Genkit, options: McpHostOptionsWithCache) {
  * @param options Configuration for the MCP Client, defining how it connects
  *                to the MCP server and its behavior.
  * @returns A new instance of GenkitMcpClient.
- * @deprecated Please use defineMcpClient instead.
  */
 export function createMcpClient(options: McpClientOptions) {
   return new GenkitMcpClient(options);

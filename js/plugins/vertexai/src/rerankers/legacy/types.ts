@@ -16,7 +16,7 @@
 
 import { z } from 'genkit';
 import type { GoogleAuth } from 'google-auth-library';
-import type { CommonPluginOptions } from '../common/types.js';
+import type { CommonPluginOptions } from '../../common/types.js';
 
 // Define the schema for the options used in the Vertex AI reranker
 export const VertexAIRerankerOptionsSchema = z.object({

@@ -45,6 +45,9 @@ func TestConvertRequest(t *testing.T) {
 			Temperature:     genai.Ptr[float32](0.4),
 			TopK:            genai.Ptr[float32](0.1),
 			TopP:            genai.Ptr[float32](1.0),
+			Tools: []*genai.Tool{
+				{GoogleSearch: &genai.GoogleSearch{}},
+			},
 			ThinkingConfig: &genai.ThinkingConfig{
 				IncludeThoughts: false,
 				ThinkingBudget:  genai.Ptr[int32](0),
@@ -74,6 +77,18 @@ func TestConvertRequest(t *testing.T) {
 					},
 					"object": map[string]any{
 						"type": string("object"),
+					},
+					"domain": map[string]any{
+						"anyOf": []map[string]any{
+							{
+								"type": string("string"),
+							},
+							{
+								"type": string("null"),
+							},
+						},
+						"default": "null",
+						"title":   string("Domain"),
 					},
 				},
 			},
@@ -150,6 +165,9 @@ func TestConvertRequest(t *testing.T) {
 		}
 		if gcc.ThinkingConfig == nil {
 			t.Errorf("ThinkingConfig should not be empty")
+		}
+		if len(gcc.Tools) != 1 {
+			t.Errorf("tools should have been: 1, got: %d", len(gcc.Tools))
 		}
 	})
 	t.Run("use valid tools outside genkit", func(t *testing.T) {

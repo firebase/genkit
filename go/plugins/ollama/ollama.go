@@ -40,7 +40,7 @@ import (
 const provider = "ollama"
 
 var (
-	mediaSupportedModels = []string{"llava", "bakllava", "llava-llama3", "llava:13b", "llava:7b", "llava:latest"}
+	mediaSupportedModels = []string{"llava", "bakllava", "llava-llama3", "llava:13b", "llava:7b", "llava:latest", "gemma3:4b", "gemma3:12b", "gemma3:27b"}
 	toolSupportedModels  = []string{
 		"qwq", "mistral-small3.1", "llama3.3", "llama3.2", "llama3.1", "mistral",
 		"qwen2.5", "qwen2.5-coder", "qwen2", "mistral-nemo", "mixtral", "smollm2",

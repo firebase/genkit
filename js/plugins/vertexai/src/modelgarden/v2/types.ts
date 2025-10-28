@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 import type { ModelReference } from 'genkit';
-import type { CommonPluginOptions } from '../common/types.js';
+import type { CommonPluginOptions } from '../../common/types.js';
 
 /**
  * Evaluation metric config. Use `metricSpec` to define the behavior of the metric.
@@ -26,7 +26,7 @@ import type { CommonPluginOptions } from '../common/types.js';
 
 /** Options specific to Model Garden configuration */
 export interface ModelGardenOptions {
-  models: ModelReference<any>[];
+  models?: ModelReference<any>[];
   openAiBaseUrlTemplate?: string;
 }
 
