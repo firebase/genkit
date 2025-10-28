@@ -208,7 +208,7 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 			r = r.NewChild()
 		}
 		for _, t := range newTools {
-			t.Register(p.registry)
+			t.Register(r)
 		}
 	}
 
