@@ -31,7 +31,6 @@ import {
   claude37Sonnet,
   claude3Haiku,
   claude3Opus,
-  claude3Sonnet,
   claude4Opus,
   claude4Sonnet,
   claudeModel,
@@ -43,7 +42,6 @@ export {
   claude37Sonnet,
   claude3Haiku,
   claude3Opus,
-  claude3Sonnet,
   claude4Opus,
   claude4Sonnet,
 };
@@ -87,7 +85,6 @@ async function list(client: Anthropic): Promise<ActionMetadata[]> {
  * Exports:
  * - claude35Sonnet: Reference to the Claude 3.5 Sonnet model.
  * - claude3Haiku: Reference to the Claude 3 Haiku model.
- * - claude3Sonnet: Reference to the Claude 3 Sonnet model.
  * - claude3Opus: Reference to the Claude 3 Opus model.
  * - anthropic: The main plugin function to interact with the Anthropic AI.
  *
