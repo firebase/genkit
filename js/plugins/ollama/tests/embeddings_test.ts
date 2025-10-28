@@ -15,35 +15,42 @@
  */
 import { Genkit, genkit } from 'genkit';
 import assert from 'node:assert';
-import { beforeEach, describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it } from 'node:test';
 import { ollama } from '../src';
 import { defineOllamaEmbedder } from '../src/embeddings.js';
 import type { OllamaPluginParams } from '../src/types.js';
 
-// Mock fetch to simulate API responses
-global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
-  const url = typeof input === 'string' ? input : input.toString();
-  if (url.includes('/api/embed')) {
-    if (options?.body && JSON.stringify(options.body).includes('fail')) {
+// Store original fetch to restore after tests
+const originalFetch = global.fetch;
+
+/**
+ * Creates a mock fetch function for embedding tests
+ */
+function createDefaultMockFetch(): typeof fetch {
+  return async (input: RequestInfo | URL, options?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url.includes('/api/embed')) {
+      if (options?.body && JSON.stringify(options.body).includes('fail')) {
+        return {
+          ok: false,
+          statusText: 'Internal Server Error',
+          json: async () => ({}),
+        } as Response;
+      }
+
+      const body = options?.body ? JSON.parse(options.body as string) : {};
+      const inputCount = body.input ? body.input.length : 1;
+
       return {
-        ok: false,
-        statusText: 'Internal Server Error',
-        json: async () => ({}),
+        ok: true,
+        json: async () => ({
+          embeddings: Array(inputCount).fill([0.1, 0.2, 0.3]),
+        }),
       } as Response;
     }
-
-    const body = options?.body ? JSON.parse(options.body as string) : {};
-    const inputCount = body.input ? body.input.length : 1;
-
-    return {
-      ok: true,
-      json: async () => ({
-        embeddings: Array(inputCount).fill([0.1, 0.2, 0.3]), // Return embedding for each input
-      }),
-    } as Response;
-  }
-  throw new Error('Unknown API endpoint');
-};
+    throw new Error('Unknown API endpoint');
+  };
+}
 
 const options: OllamaPluginParams = {
   models: [{ name: 'test-model' }],
@@ -51,6 +58,14 @@ const options: OllamaPluginParams = {
 };
 
 describe('defineOllamaEmbedder (without genkit initialization)', () => {
+  beforeEach(() => {
+    global.fetch = createDefaultMockFetch();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   it('should successfully return embeddings when called directly', async () => {
     const embedder = defineOllamaEmbedder({
       name: 'test-embedder',
@@ -121,9 +136,14 @@ describe('defineOllamaEmbedder (with genkit initialization)', () => {
   let ai: Genkit;
 
   beforeEach(() => {
+    global.fetch = createDefaultMockFetch();
     ai = genkit({
       plugins: [ollama(options)],
     });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('should successfully return embeddings', async () => {
@@ -173,16 +193,7 @@ describe('defineOllamaEmbedder (with genkit initialization)', () => {
   });
 
   it('should support per-call embedder serverAddress configuration', async () => {
-    const aiWithEmbedder = genkit({
-      plugins: [
-        ollama({
-          serverAddress: 'http://localhost:3000',
-          embedders: [{ name: 'test-embedder', dimensions: 768 }],
-        }),
-      ],
-    });
-
-    // Mock fetch to verify custom serverAddress is used
+    // Override mock fetch for this specific test
     global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
 
@@ -202,6 +213,15 @@ describe('defineOllamaEmbedder (with genkit initialization)', () => {
       throw new Error(`Unknown API endpoint: ${url}`);
     };
 
+    const aiWithEmbedder = genkit({
+      plugins: [
+        ollama({
+          serverAddress: 'http://localhost:3000',
+          embedders: [{ name: 'test-embedder', dimensions: 768 }],
+        }),
+      ],
+    });
+
     const result = await aiWithEmbedder.embed({
       embedder: 'ollama/test-embedder',
       content: 'test document',
@@ -211,5 +231,46 @@ describe('defineOllamaEmbedder (with genkit initialization)', () => {
     assert.ok(result);
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0].embedding.length, 3);
+  });
+
+  it('should initialize embedders when serverAddress is not explicitly provided (uses default)', async () => {
+    // Override mock fetch for this specific test
+    global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url.includes('/api/embed')) {
+        // Verify the default serverAddress was used
+        assert.ok(url.includes('http://localhost:11434'));
+        return new Response(
+          JSON.stringify({
+            embeddings: [[0.4, 0.5, 0.6]],
+          }),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      throw new Error(`Unknown API endpoint: ${url}`);
+    };
+
+    // Initialize plugin WITHOUT serverAddress, relying on default
+    const aiWithDefaultServer = genkit({
+      plugins: [
+        ollama({
+          embedders: [{ name: 'default-embedder', dimensions: 768 }],
+        }),
+      ],
+    });
+
+    const result = await aiWithDefaultServer.embed({
+      embedder: 'ollama/default-embedder',
+      content: 'test with default server',
+    });
+
+    assert.ok(result);
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].embedding.length, 3);
+    assert.deepStrictEqual(result[0].embedding, [0.4, 0.5, 0.6]);
   });
 });

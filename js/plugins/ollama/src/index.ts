@@ -84,7 +84,7 @@ function initializer(serverAddress: string, params: OllamaPluginParams = {}) {
     }
   }
 
-  if (params?.embedders && params.serverAddress) {
+  if (params?.embedders) {
     for (const embedder of params.embedders) {
       actions.push(
         defineOllamaEmbedder({
