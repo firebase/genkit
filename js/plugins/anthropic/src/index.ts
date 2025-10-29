@@ -32,6 +32,9 @@ import {
   claude3Opus,
   claude4Opus,
   claude4Sonnet,
+  claude45Haiku,
+  claude45Sonnet,
+  claude41Opus,
   claudeModel,
 } from './claude.js';
 
@@ -42,6 +45,9 @@ export {
   claude3Opus,
   claude4Opus,
   claude4Sonnet,
+  claude45Haiku,
+  claude45Sonnet,
+  claude41Opus,
 };
 
 export interface PluginOptions {

@@ -665,40 +665,6 @@ describe('toAnthropicRequestBody', () => {
     expectedOutput: MessageCreateParams;
   }[] = [
     {
-      should: '(claude-3-5-sonnet) handles request with text messages',
-      modelName: 'claude-3-5-sonnet',
-      genkitRequest: {
-        messages: [
-          { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
-        ],
-        output: { format: 'text' },
-        config: {
-          metadata: {
-            user_id: 'exampleUser123',
-          },
-        },
-      },
-      expectedOutput: {
-        max_tokens: 4096,
-        messages: [
-          {
-            content: [
-              {
-                text: 'Tell a joke about dogs.',
-                type: 'text',
-                citations: null,
-              },
-            ],
-            role: 'user',
-          },
-        ],
-        model: 'claude-3-5-sonnet-latest',
-        metadata: {
-          user_id: 'exampleUser123',
-        },
-      },
-    },
-    {
       should: '(claude-3-5-haiku) handles request with text messages',
       modelName: 'claude-3-5-haiku',
       genkitRequest: {
@@ -795,40 +761,6 @@ describe('toAnthropicRequestBody', () => {
           },
         ],
         model: 'claude-3-haiku-20240307',
-        metadata: {
-          user_id: 'exampleUser123',
-        },
-      },
-    },
-    {
-      should: '(claude-3-sonnet) handles request with text messages',
-      modelName: 'claude-3-sonnet',
-      genkitRequest: {
-        messages: [
-          { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
-        ],
-        output: { format: 'text' },
-        config: {
-          metadata: {
-            user_id: 'exampleUser123',
-          },
-        },
-      },
-      expectedOutput: {
-        max_tokens: 4096,
-        messages: [
-          {
-            content: [
-              {
-                text: 'Tell a joke about dogs.',
-                type: 'text',
-                citations: null,
-              },
-            ],
-            role: 'user',
-          },
-        ],
-        model: 'claude-3-sonnet-20240229',
         metadata: {
           user_id: 'exampleUser123',
         },
