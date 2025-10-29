@@ -28,15 +28,15 @@ describe('Anthropic Integration', () => {
     process.env.ANTHROPIC_API_KEY = 'test-api-key';
 
     // Import and initialize after mocking
-    const { anthropic } = await import('../src/index.js');
+    const indexModule = await import('../lib/index.js');
     ai = genkit({
-      plugins: [anthropic()],
+      plugins: [indexModule.default()],
     });
   });
 
   it('should successfully generate a response', async () => {
     const result = await ai.generate({
-      model: 'anthropic/claude-3-5-sonnet',
+      model: 'anthropic/claude-3-5-haiku',
       prompt: 'Hello',
     });
 

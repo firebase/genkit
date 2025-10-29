@@ -29,10 +29,10 @@ describe('Anthropic Plugin', () => {
     process.env.ANTHROPIC_API_KEY = 'test-api-key';
 
     // Import after mocking is set up
-    const indexModule = await import('../src/index.js');
-    anthropic = indexModule.anthropic;
+    const indexModule = await import('../lib/index.js');
+    anthropic = indexModule.default;
 
-    const claudeModule = await import('../src/claude.js');
+    const claudeModule = await import('../lib/claude.js');
     SUPPORTED_CLAUDE_MODELS = claudeModule.SUPPORTED_CLAUDE_MODELS;
   });
 
