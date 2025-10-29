@@ -235,7 +235,6 @@ export const claude41Opus = modelRef({
   version: 'claude-opus-4-1-latest',
 });
 
-
 export const SUPPORTED_CLAUDE_MODELS: Record<
   string,
   ModelReference<typeof AnthropicConfigSchema>
