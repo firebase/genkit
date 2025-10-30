@@ -44,7 +44,7 @@ func TestVertexAILive(t *testing.T) {
 
 	ctx := context.Background()
 	g := genkit.Init(ctx,
-		genkit.WithDefaultModel("vertexai/gemini-2.0-flash"),
+		genkit.WithDefaultModel("vertexai/gemini-2.5-flash"),
 		genkit.WithPlugins(&googlegenai.VertexAI{ProjectID: projectID, Location: location}),
 	)
 
@@ -267,7 +267,7 @@ func TestVertexAILive(t *testing.T) {
 		if location != "global" {
 			t.Skipf("image generation in Vertex AI is only supported in region: global, got: %s", location)
 		}
-		m := googlegenai.VertexAIModel(g, "gemini-2.0-flash-preview-image-generation")
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-image")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				ResponseModalities: []string{"IMAGE", "TEXT"},
