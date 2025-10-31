@@ -20,13 +20,16 @@ import {
   modelActionMetadata,
   type ActionMetadata,
   type EmbedderReference,
-  type Genkit,
   type ModelReference,
   type z,
 } from 'genkit';
 import { logger } from 'genkit/logging';
 import { modelRef } from 'genkit/model';
-import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import {
+  ResolvableAction,
+  genkitPluginV2,
+  type GenkitPluginV2,
+} from 'genkit/plugin';
 import type { ActionType } from 'genkit/registry';
 import { getApiKeyFromEnvVar } from './common.js';
 import {
@@ -112,8 +115,11 @@ export interface PluginOptions {
   experimental_debugTraces?: boolean;
 }
 
-async function initializer(ai: Genkit, options?: PluginOptions) {
+async function initializer(
+  options?: PluginOptions
+): Promise<ResolvableAction[]> {
   let apiVersions = ['v1'];
+  const actions: ResolvableAction[] = [];
 
   if (options?.apiVersion) {
     if (Array.isArray(options?.apiVersion)) {
@@ -124,30 +130,34 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
   }
 
   if (apiVersions.includes('v1beta')) {
-    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
-      defineGoogleAIModel({
-        ai,
-        name,
-        apiKey: options?.apiKey,
-        apiVersion: 'v1beta',
-        baseUrl: options?.baseUrl,
-        debugTraces: options?.experimental_debugTraces,
-      })
+    actions.push(
+      ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+        defineGoogleAIModel({
+          name,
+          apiKey: options?.apiKey,
+          apiVersion: 'v1beta',
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
+      )
     );
   }
   if (apiVersions.includes('v1')) {
-    Object.keys(SUPPORTED_GEMINI_MODELS).forEach((name) =>
-      defineGoogleAIModel({
-        ai,
-        name,
-        apiKey: options?.apiKey,
-        apiVersion: undefined,
-        baseUrl: options?.baseUrl,
-        debugTraces: options?.experimental_debugTraces,
-      })
+    actions.push(
+      ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+        defineGoogleAIModel({
+          name,
+          apiKey: options?.apiKey,
+          apiVersion: undefined,
+          baseUrl: options?.baseUrl,
+          debugTraces: options?.experimental_debugTraces,
+        })
+      )
     );
-    Object.keys(EMBEDDER_MODELS).forEach((name) =>
-      defineGoogleAIEmbedder(ai, name, { apiKey: options?.apiKey })
+    actions.push(
+      ...Object.keys(EMBEDDER_MODELS).map((name) =>
+        defineGoogleAIEmbedder(name, { apiKey: options?.apiKey })
+      )
     );
   }
 
@@ -160,50 +170,55 @@ async function initializer(ai: Genkit, options?: PluginOptions) {
             modelOrRef.name.split('/')[1];
       const modelRef =
         typeof modelOrRef === 'string' ? gemini(modelOrRef) : modelOrRef;
-      defineGoogleAIModel({
-        ai,
-        name: modelName,
-        apiKey: options?.apiKey,
-        baseUrl: options?.baseUrl,
-        info: {
-          ...modelRef.info,
-          label: `Google AI - ${modelName}`,
-        },
-        debugTraces: options?.experimental_debugTraces,
-      });
+      actions.push(
+        defineGoogleAIModel({
+          name: modelName,
+          apiKey: options?.apiKey,
+          baseUrl: options?.baseUrl,
+          info: {
+            ...modelRef.info,
+            label: `Google AI - ${modelName}`,
+          },
+          debugTraces: options?.experimental_debugTraces,
+        })
+      );
     }
   }
+
+  return actions;
 }
 
 async function resolver(
-  ai: Genkit,
   actionType: ActionType,
   actionName: string,
   options?: PluginOptions
-) {
+): Promise<ResolvableAction | undefined> {
   if (actionType === 'embedder') {
-    resolveEmbedder(ai, actionName, options);
+    return resolveEmbedder(actionName, options);
   } else if (actionName.startsWith('veo')) {
     // we do it this way because the request may come in for
     // action type 'model' and action name 'veo-...'. That case should
     // be a noop. It's just the order or model lookup.
     if (actionType === 'background-model') {
-      defineVeoModel(ai, actionName, options?.apiKey);
+      return defineVeoModel(actionName, options?.apiKey);
     }
   } else if (actionType === 'model') {
-    resolveModel(ai, actionName, options);
+    return resolveModel(actionName, options);
   }
+
+  return undefined;
 }
 
-function resolveModel(ai: Genkit, actionName: string, options?: PluginOptions) {
+function resolveModel(
+  actionName: string,
+  options?: PluginOptions
+): ResolvableAction | undefined {
   if (actionName.startsWith('imagen')) {
-    defineImagenModel(ai, actionName, options?.apiKey);
-    return;
+    return defineImagenModel(actionName, options?.apiKey);
   }
 
   const modelRef = gemini(actionName);
-  defineGoogleAIModel({
-    ai,
+  return defineGoogleAIModel({
     name: modelRef.name,
     apiKey: options?.apiKey,
     baseUrl: options?.baseUrl,
@@ -216,11 +231,10 @@ function resolveModel(ai: Genkit, actionName: string, options?: PluginOptions) {
 }
 
 function resolveEmbedder(
-  ai: Genkit,
   actionName: string,
   options?: PluginOptions
-) {
-  defineGoogleAIEmbedder(ai, `googleai/${actionName}`, {
+): ResolvableAction | undefined {
+  return defineGoogleAIEmbedder(`googleai/${actionName}`, {
     apiKey: options?.apiKey,
   });
 }
@@ -328,23 +342,23 @@ async function listActions(options?: PluginOptions): Promise<ActionMetadata[]> {
 /**
  * Google Gemini Developer API plugin.
  */
-export function googleAIPlugin(options?: PluginOptions): GenkitPlugin {
+export function googleAIPlugin(options?: PluginOptions): GenkitPluginV2 {
   let listActionsCache;
-  return genkitPlugin(
-    'googleai',
-    async (ai: Genkit) => await initializer(ai, options),
-    async (ai: Genkit, actionType: ActionType, actionName: string) =>
-      await resolver(ai, actionType, actionName, options),
-    async () => {
+  return genkitPluginV2({
+    name: 'googleai',
+    init: async () => await initializer(options),
+    resolve: async (actionType: ActionType, actionName: string) =>
+      await resolver(actionType, actionName, options),
+    list: async () => {
       if (listActionsCache) return listActionsCache;
       listActionsCache = await listActions(options);
       return listActionsCache;
-    }
-  );
+    },
+  });
 }
 
 export type GoogleAIPlugin = {
-  (params?: PluginOptions): GenkitPlugin;
+  (params?: PluginOptions): GenkitPluginV2;
   model(
     name: keyof typeof SUPPORTED_GEMINI_MODELS | (`gemini-${string}` & {}),
     config?: z.infer<typeof GeminiConfigSchema>
