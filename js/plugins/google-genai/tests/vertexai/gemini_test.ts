@@ -123,7 +123,7 @@ describe('Vertex AI Gemini', () => {
 
   describe('gemini() function', () => {
     it('returns a ModelReference for a known model string', () => {
-      const name = 'gemini-2.0-flash';
+      const name = 'gemini-2.5-flash';
       const modelRef: ModelReference<typeof GeminiConfigSchema> = model(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn);
@@ -141,7 +141,7 @@ describe('Vertex AI Gemini', () => {
     it('applies options to the ModelReference', () => {
       const options = { temperature: 0.9, topK: 20 };
       const modelRef: ModelReference<typeof GeminiConfigSchema> = model(
-        'gemini-2.0-flash',
+        'gemini-2.5-flash',
         options
       );
       assert.deepStrictEqual(modelRef.config, options);
@@ -580,8 +580,8 @@ describe('Vertex AI Gemini', () => {
   describe('defineModel - Regional Client', () => {
     runCommonTests(defaultRegionalClientOptions);
 
-    it('handles googleSearchRetrieval tool for gemini-1.5', async () => {
-      const model = defineModel('gemini-1.5-pro', defaultRegionalClientOptions);
+    it('handles googleSearchRetrieval tool for gemini-2.5', async () => {
+      const model = defineModel('gemini-2.5-pro', defaultRegionalClientOptions);
       mockFetchResponse(defaultApiResponse);
       const request: GenerateRequest<typeof GeminiConfigSchema> = {
         ...minimalRequest,

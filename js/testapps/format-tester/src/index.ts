@@ -150,11 +150,10 @@ for (const format in prompts) {
 let models = process.argv.slice(2);
 if (!models.length) {
   models = [
-    'vertexai/gemini-1.5-pro',
-    'vertexai/gemini-1.5-flash',
-    'googleai/gemini-1.5-pro',
-    'googleai/gemini-1.5-flash',
-    'googleai/gemini-2.0-flash',
+    'vertexai/gemini-2.5-pro',
+    'vertexai/gemini-2.5-flash',
+    'googleai/gemini-2.5-pro',
+    'googleai/gemini-2.5-flash',
   ];
 }
 

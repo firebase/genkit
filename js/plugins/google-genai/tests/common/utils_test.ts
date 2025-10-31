@@ -55,15 +55,15 @@ describe('Common Utils', () => {
   describe('extractVersion', () => {
     it('should return version from modelRef if present', () => {
       const ref = modelRef({
-        name: 'vertexai/gemini-1.5-pro',
-        version: 'gemini-1.5-pro-001',
+        name: 'vertexai/gemini-2.5-pro',
+        version: 'gemini-2.5-pro-001',
       });
-      assert.strictEqual(extractVersion(ref), 'gemini-1.5-pro-001');
+      assert.strictEqual(extractVersion(ref), 'gemini-2.5-pro-001');
     });
 
     it('should extract version from name if version field is missing', () => {
-      const ref = modelRef({ name: 'vertexai/gemini-1.5-flash' });
-      assert.strictEqual(extractVersion(ref), 'gemini-1.5-flash');
+      const ref = modelRef({ name: 'vertexai/gemini-2.5-flash' });
+      assert.strictEqual(extractVersion(ref), 'gemini-2.5-flash');
     });
 
     it('should work with embedderRef', () => {
@@ -75,12 +75,12 @@ describe('Common Utils', () => {
   describe('modelName', () => {
     it('extracts model name from a full path', () => {
       assert.strictEqual(
-        modelName('models/googleai/gemini-1.5-pro'),
-        'gemini-1.5-pro'
+        modelName('models/googleai/gemini-2.5-pro'),
+        'gemini-2.5-pro'
       );
       assert.strictEqual(
-        modelName('vertexai/gemini-1.5-flash'),
-        'gemini-1.5-flash'
+        modelName('vertexai/gemini-2.5-flash'),
+        'gemini-2.5-flash'
       );
       assert.strictEqual(modelName('model/foo'), 'foo');
       assert.strictEqual(modelName('embedders/bar'), 'bar');
@@ -102,8 +102,8 @@ describe('Common Utils', () => {
 
   describe('checkModelName', () => {
     it('extracts model name from a full path', () => {
-      const name = 'models/vertexai/gemini-1.5-pro';
-      assert.strictEqual(checkModelName(name), 'gemini-1.5-pro');
+      const name = 'models/vertexai/gemini-2.5-pro';
+      assert.strictEqual(checkModelName(name), 'gemini-2.5-pro');
     });
 
     it('returns name if no prefix', () => {

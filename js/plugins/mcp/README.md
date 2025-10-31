@@ -3,6 +3,7 @@
 See [Genkit MCP documentation](https://genkit.dev/docs/model-context-protocol/).
 
 This plugin provides integration between Genkit and the [Model Context Protocol](https://modelcontextprotocol.io) (MCP). MCP is an open standard allowing developers to build "servers" which provide tools, resources, and prompts to clients. Genkit MCP allows Genkit developers to:
+
 - Consume MCP tools, prompts, and resources as a client using `createMcpHost` or `createMcpClient`.
 - Provide Genkit tools and prompts as an MCP server using `createMcpServer`.
 
@@ -45,7 +46,7 @@ const ai = genkit({
 (async () => {
   // Provide MCP tools to the model of your choice.
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: `Analyze all files in ${process.cwd()}.`,
     tools: await mcpHost.getActiveTools(ai),
     resources: await mcpHost.getActiveResources(ai),
@@ -61,21 +62,20 @@ The `createMcpHost` function initializes a `GenkitMcpHost` instance, which handl
 
 ### `createMcpHost()` Options
 
--   **`name`**: (optional, string) A name for the MCP host plugin itself. Defaults to 'genkitx-mcp'.
--   **`version`**: (optional, string) The version of the MCP host plugin. Defaults to "1.0.0".
--   **`rawToolResponses`**: (optional, boolean) When `true`, tool responses are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility. Defaults to `false`.
--   **`mcpServers`**: (required, object) An object where each key is a client-side name (namespace) for an MCP server, and the value is the configuration for that server.
+- **`name`**: (optional, string) A name for the MCP host plugin itself. Defaults to 'genkitx-mcp'.
+- **`version`**: (optional, string) The version of the MCP host plugin. Defaults to "1.0.0".
+- **`rawToolResponses`**: (optional, boolean) When `true`, tool responses are returned in their raw MCP format; otherwise, they are processed for Genkit compatibility. Defaults to `false`.
+- **`mcpServers`**: (required, object) An object where each key is a client-side name (namespace) for an MCP server, and the value is the configuration for that server.
 
     Each server configuration object can include:
-    -   **`disabled`**: (optional, boolean) If `true`, this server connection will not be attempted. Defaults to `false`.
-    -   One of the following server connection configurations:
-        -   Parameters for launching a local server process using the stdio MCP transport.
-            -   **`command`**: (required, string) Shell command path for launching the MCP server (e.g., `npx`, `python`).
-            -   **`args`**: (optional, string[]) Array of string arguments to pass to the command.
-            -   **`env`**: (optional, Record<string, string>) Key-value object of environment variables.
-        -   **`url`**: (string) The URL of a remote server to connect to using the Streamable HTTP MCP transport.
-        -   **`transport`**: An existing MCP transport object for connecting to the server.
-
+  - **`disabled`**: (optional, boolean) If `true`, this server connection will not be attempted. Defaults to `false`.
+  - One of the following server connection configurations:
+    - Parameters for launching a local server process using the stdio MCP transport.
+      - **`command`**: (required, string) Shell command path for launching the MCP server (e.g., `npx`, `python`).
+      - **`args`**: (optional, string[]) Array of string arguments to pass to the command.
+      - **`env`**: (optional, Record<string, string>) Key-value object of environment variables.
+    - **`url`**: (string) The URL of a remote server to connect to using the Streamable HTTP MCP transport.
+    - **`transport`**: An existing MCP transport object for connecting to the server.
 
 ## MCP Client (Single Server)
 
@@ -107,7 +107,7 @@ const ai = genkit({
   const fsTools = await myFsClient.getActiveTools(ai);
 
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'), // Replace with your model
+    model: googleAI.model('gemini-2.5-flash'), // Replace with your model
     prompt: 'List files in ' + process.cwd(),
     tools: fsTools,
   });
@@ -120,9 +120,10 @@ const ai = genkit({
 ### `createMcpClient()` Options
 
 The `createMcpClient` function takes an `McpClientOptions` object:
--   **`name`**: (required, string) A unique name for this client instance. This name will be used as the namespace for its tools and prompts.
--   **`version`**: (optional, string) Version for this client instance. Defaults to "1.0.0".
--   Additionally, it supports all options from `McpServerConfig` (e.g., `disabled`, `rawToolResponses`, and transport configurations), as detailed in the `createMcpHost` options section.
+
+- **`name`**: (required, string) A unique name for this client instance. This name will be used as the namespace for its tools and prompts.
+- **`version`**: (optional, string) Version for this client instance. Defaults to "1.0.0".
+- Additionally, it supports all options from `McpServerConfig` (e.g., `disabled`, `rawToolResponses`, and transport configurations), as detailed in the `createMcpHost` options section.
 
 ### Using MCP Actions (Tools, Prompts)
 
@@ -131,6 +132,7 @@ Both `GenkitMcpHost` (via `getActiveTools()`) and `GenkitMcpClient` (via `getAct
 MCP prompts can be fetched using `McpHost.getPrompt(serverName, promptName)` or `mcpClient.getPrompt(promptName)`. These return an `ExecutablePrompt`.
 
 All MCP actions (tools, prompts, resources) are namespaced.
+
 - For `createMcpHost`, the namespace is the key you provide for that server in the `mcpServers` configuration (e.g., `localFs/read_file`).
 - For `createMcpClient`, the namespace is the `name` you provide in its options (e.g., `myFileSystemClient/list_resources`).
 
@@ -230,6 +232,7 @@ server.setup().then(async () => {
 The `createMcpServer` function returns a `GenkitMcpServer` instance. The `start()` method on this instance will start an MCP server (using the stdio transport by default) that exposes all registered Genkit tools and prompts. To start the server with a different MCP transport, you can pass the transport instance to the `start()` method (e.g., `server.start(customMcpTransport)`).
 
 ### `createMcpServer()` Options
+
 - **`name`**: (required, string) The name you want to give your server for MCP inspection.
 - **`version`**: (optional, string) The version your server will advertise to clients. Defaults to "1.0.0".
 
