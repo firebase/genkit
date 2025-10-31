@@ -66,7 +66,7 @@ func TestGoogleAILive(t *testing.T) {
 	ctx := context.Background()
 
 	g := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+		genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
 
@@ -359,7 +359,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you what animal is in the image?"),
-					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
+					ai.NewMediaPart("image/jpeg", "data:image/jpeg;base64,"+i),
 				),
 			),
 		)
@@ -396,7 +396,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/jpg;base64,"+i),
+					ai.NewDataPart("data:image/jpeg;base64,"+i),
 				),
 			),
 		)
@@ -408,7 +408,7 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-preview-image-generation")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-image")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(genai.GenerateContentConfig{
 				ResponseModalities: []string{"IMAGE", "TEXT"},
@@ -641,8 +641,8 @@ func TestCacheHelper(t *testing.T) {
 
 func fetchImgAsBase64() (string, error) {
 	// CC0 license image
-	imgUrl := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
-	resp, err := http.Get(imgUrl)
+	imgURL := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
+	resp, err := http.Get(imgURL)
 	if err != nil {
 		return "", err
 	}

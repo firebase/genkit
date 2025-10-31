@@ -36,7 +36,7 @@ func main() {
 	// Define a simple flow that generates jokes about a given topic with a context of bananas
 	genkit.DefineFlow(g, "contextFlow", func(ctx context.Context, input string) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModelName("googleai/gemini-2.0-flash"),
+			ai.WithModelName("googleai/gemini-2.5-flash"),
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 			}),

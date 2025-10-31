@@ -29,10 +29,10 @@ func TestGenerateTelemetry_PipelineIntegration(t *testing.T) {
 
 	// Create span using the TracerProvider - this triggers the full pipeline
 	ctx := context.Background()
-	_, span := f.tracer.Start(ctx, "googleai/gemini-2.0-pro-flash")
+	_, span := f.tracer.Start(ctx, "googleai/gemini-2.5-pro")
 
 	span.SetAttributes(
-		attribute.String("genkit:name", "googleai/gemini-2.0-pro-flash"),
+		attribute.String("genkit:name", "googleai/gemini-2.5-pro"),
 		attribute.String("genkit:metadata:subtype", "model"),
 		attribute.String("genkit:path", "/{chatFlow,t:flow}/{generate,t:action}"),
 		attribute.String("genkit:input", inputJSON),
@@ -74,11 +74,11 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 			name: "successful generation captures all metrics",
 			attrs: map[string]string{
 				"genkit:type":             "action",
-				"genkit:name":             "googleai/gemini-2.0-pro-flash",
+				"genkit:name":             "googleai/gemini-2.5-pro",
 				"genkit:metadata:subtype": "model",
 				"genkit:path":             "/{chatFlow,t:flow}/{generate,t:action}",
 			},
-			inputJSON:            `{"model":"googleai/gemini-2.5-flash","messages":[{"content":[{"text":"Hello world"}],"role":"user"}]}`,
+			inputJSON:            `{"model":"googleai/gemini-2.5-pro","messages":[{"content":[{"text":"Hello world"}],"role":"user"}]}`,
 			outputJSON:           `{"message":{"content":[{"text":"Hello! How can I help you today?"}],"role":"model"},"usage":{"inputTokens":12,"outputTokens":8,"inputCharacters":11,"outputCharacters":33,"inputImages":1,"outputImages":0},"latencyMs":342.5}`,
 			expectMetrics:        true,
 			expectedStatus:       "success",
@@ -98,11 +98,11 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 			name: "failed generation captures error metrics",
 			attrs: map[string]string{
 				"genkit:type":             "action",
-				"genkit:name":             "googleai/gemini-2.0-pro-flash",
+				"genkit:name":             "googleai/gemini-2.5-pro",
 				"genkit:metadata:subtype": "model",
 				"genkit:path":             "/{errorFlow,t:flow}/{generate,t:action}",
 			},
-			inputJSON:            `{"model":"googleai/gemini-2.5-flash","messages":[{"content":[{"text":"Invalid prompt"}],"role":"user"}]}`,
+			inputJSON:            `{"model":"googleai/gemini-2.5-pro","messages":[{"content":[{"text":"Invalid prompt"}],"role":"user"}]}`,
 			outputJSON:           `{"usage":{"inputCharacters":14}}`,
 			expectMetrics:        true,
 			expectedStatus:       "failure",
@@ -116,11 +116,11 @@ func TestGenerateTelemetry_MetricCapture(t *testing.T) {
 			name: "generation with video and audio captures multimedia metrics",
 			attrs: map[string]string{
 				"genkit:type":             "action",
-				"genkit:name":             "googleai/gemini-2.0-pro-flash",
+				"genkit:name":             "googleai/gemini-2.5-pro-flash",
 				"genkit:metadata:subtype": "model",
 				"genkit:path":             "/{multimediaFlow,t:flow}/{generate,t:action}",
 			},
-			inputJSON:            `{"model":"googleai/gemini-2.5-flash","messages":[{"content":[{"text":"Analyze this video and audio"}],"role":"user"}]}`,
+			inputJSON:            `{"model":"googleai/gemini-2.5-pro","messages":[{"content":[{"text":"Analyze this video and audio"}],"role":"user"}]}`,
 			outputJSON:           `{"message":{"content":[{"text":"Analysis complete"}],"role":"model"},"usage":{"inputTokens":5,"outputTokens":3,"inputCharacters":26,"outputCharacters":17,"inputImages":0,"outputImages":1,"inputVideos":2,"outputVideos":0,"inputAudioFiles":1,"outputAudioFiles":0},"latencyMs":1250.3}`,
 			expectMetrics:        true,
 			expectedStatus:       "success",
