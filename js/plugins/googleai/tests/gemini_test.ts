@@ -25,8 +25,8 @@ import {
   cleanSchema,
   fromGeminiCandidate,
   gemini,
-  gemini15Flash,
-  gemini15Pro,
+  gemini25Flash,
+  gemini25Pro,
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
@@ -552,8 +552,8 @@ describe('plugin', () => {
         plugins: [googleAI()],
       });
 
-      assert.ok(await ai.registry.lookupAction(`/model/${gemini15Flash.name}`));
-      assert.ok(await ai.registry.lookupAction(`/model/${gemini15Pro.name}`));
+      assert.ok(await ai.registry.lookupAction(`/model/${gemini25Flash.name}`));
+      assert.ok(await ai.registry.lookupAction(`/model/${gemini25Pro.name}`));
     });
 
     it('allow referencing models using `gemini` helper', async () => {
@@ -606,7 +606,7 @@ describe('plugin', () => {
       assertEqualModelInfo(
         pro002Ref.info!,
         'Google AI - gemini-2.5-pro-002',
-        gemini15Pro.info!
+        gemini25Pro.info!
       );
       const pro002 = await ai.registry.lookupAction(`/model/${pro002Ref.name}`);
       assert.ok(pro002);
@@ -614,14 +614,14 @@ describe('plugin', () => {
       assertEqualModelInfo(
         pro002.__action.metadata?.model,
         'Google AI - gemini-2.5-pro-002',
-        gemini15Pro.info!
+        gemini25Pro.info!
       );
 
       assert.strictEqual(flash002Ref.name, 'googleai/gemini-2.5-flash-002');
       assertEqualModelInfo(
         flash002Ref.info!,
         'Google AI - gemini-2.5-flash-002',
-        gemini15Flash.info!
+        gemini25Flash.info!
       );
       const flash002 = await ai.registry.lookupAction(
         `/model/${flash002Ref.name}`
@@ -634,7 +634,7 @@ describe('plugin', () => {
       assertEqualModelInfo(
         flash002.__action.metadata?.model,
         'Google AI - gemini-2.5-flash-002',
-        gemini15Flash.info!
+        gemini25Flash.info!
       );
 
       const bananaRef = gemini('gemini-4.0-banana');
