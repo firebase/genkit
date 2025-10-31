@@ -20,6 +20,7 @@ import {
 } from '@genkit-ai/telemetry-server';
 import type { Status } from '@genkit-ai/tools-common';
 import {
+  ProcessManager,
   RuntimeManager,
   type GenkitToolsError,
 } from '@genkit-ai/tools-common/manager';
@@ -63,6 +64,26 @@ export async function startManager(
     projectRoot,
   });
   return manager;
+}
+
+export async function startDevProcessManager(
+  projectRoot: string,
+  command: string,
+  args: string[]
+): Promise<{ manager: RuntimeManager; processPromise: Promise<void> }> {
+  const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
+  const processManager = new ProcessManager(command, args, {
+    GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
+    GENKIT_ENV: 'dev',
+  });
+  const manager = await RuntimeManager.create({
+    telemetryServerUrl,
+    manageHealth: true,
+    projectRoot,
+    processManager,
+  });
+  const processPromise = processManager.start();
+  return { manager, processPromise };
 }
 
 /**
