@@ -56,7 +56,7 @@ async def wait_for_310(fut: asyncio.Future[T], timeout: float | None = None) -> 
         raise TimeoutError() from e
 
 
-if sys.version_info < (3, 11):
+if sys.version_info < (3, 14):
     wait_for = wait_for_310
 else:
     wait_for = asyncio.wait_for
