@@ -26,7 +26,12 @@ import { model as pluginModel } from 'genkit/plugin';
 import { imagenPredict } from './client.js';
 import { fromImagenResponse, toImagenPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
-import { checkModelName, extractVersion, modelName } from './utils.js';
+import {
+  calculateRequestOptions,
+  checkModelName,
+  extractVersion,
+  modelName,
+} from './utils.js';
 
 /**
  * See https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api.
@@ -272,7 +277,11 @@ export function defineModel(
       configSchema: ref.configSchema,
     },
     async (request, { abortSignal }) => {
-      const clientOpt = { ...clientOptions, signal: abortSignal };
+      const clientOpt = calculateRequestOptions(
+        { ...clientOptions, signal: abortSignal },
+        request.config
+      );
+
       const imagenPredictRequest = toImagenPredictRequest(request);
 
       const response = await imagenPredict(

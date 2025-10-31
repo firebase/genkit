@@ -26,7 +26,11 @@ import { model as pluginModel } from 'genkit/plugin';
 import { lyriaPredict } from './client.js';
 import { fromLyriaResponse, toLyriaPredictRequest } from './converters.js';
 import { ClientOptions, Model, VertexPluginOptions } from './types.js';
-import { checkModelName, extractVersion } from './utils.js';
+import {
+  calculateRequestOptions,
+  checkModelName,
+  extractVersion,
+} from './utils.js';
 
 export const LyriaConfigSchema = z
   .object({
@@ -48,6 +52,12 @@ export const LyriaConfigSchema = z
       .describe(
         'Optional. The number of audio samples to generate. Default is 1 if not specified and seed is not used. Cannot be used with seed in the same request.'
       ),
+    location: z
+      .string()
+      .describe(
+        'Lyria is only available in global. If you initialize your plugin with a different region, you must set this to global.'
+      )
+      .optional(),
   })
   .passthrough();
 export type LyriaConfigSchemaType = typeof LyriaConfigSchema;
@@ -135,7 +145,10 @@ export function defineModel(
       configSchema: ref.configSchema,
     },
     async (request, { abortSignal }) => {
-      const clientOpt = { ...clientOptions, signal: abortSignal };
+      const clientOpt = calculateRequestOptions(
+        { ...clientOptions, signal: abortSignal },
+        request.config
+      );
       const lyriaPredictRequest = toLyriaPredictRequest(request);
 
       const response = await lyriaPredict(

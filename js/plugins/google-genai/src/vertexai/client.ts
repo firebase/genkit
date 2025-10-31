@@ -199,7 +199,9 @@ export async function veoPredict(
   });
 
   const response = await makeRequest(url, fetchOptions);
-  return response.json() as Promise<VeoOperation>;
+  const operation = await response.json();
+  operation.clientOptions = clientOptions; // for the check
+  return operation as Promise<VeoOperation>;
 }
 
 export async function veoCheckOperation(
@@ -220,7 +222,9 @@ export async function veoCheckOperation(
   });
 
   const response = await makeRequest(url, fetchOptions);
-  return response.json() as Promise<VeoOperation>;
+  const operation = await response.json();
+  operation.clientOptions = clientOptions; // for future checks
+  return operation as Promise<VeoOperation>;
 }
 
 export function getVertexAIUrl(params: {
