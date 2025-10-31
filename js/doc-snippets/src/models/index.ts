@@ -19,13 +19,13 @@ import { genkit } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: googleAI.model('gemini-2.0-flash'),
+  model: googleAI.model('gemini-2.5-flash'),
 });
 
 async function fn01() {
   // [START ex01]
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: 'Invent a menu item for a pirate themed restaurant.',
   });
   // [END ex01]
@@ -34,7 +34,7 @@ async function fn01() {
 async function fn02() {
   // [START ex02]
   const { text } = await ai.generate({
-    model: 'googleai/gemini-2.0-flash-001',
+    model: 'googleai/gemini-2.5-flash-001',
     prompt: 'Invent a menu item for a pirate themed restaurant.',
   });
   // [END ex02]

@@ -213,7 +213,7 @@ describe('GoogleAI Plugin', () => {
 
   describe('googleAI.model', () => {
     it('should return a gemini ModelReference with correct schema', () => {
-      const modelName = 'gemini-2.0-flash';
+      const modelName = 'gemini-2.5-flash';
       const modelRef = googleAI.model(modelName);
       assert.strictEqual(
         modelRef.name,
@@ -367,15 +367,15 @@ describe('GoogleAI Plugin', () => {
     });
 
     it('should handle names with googleai/ prefix', () => {
-      const modelName = 'googleai/gemini-2.0-pro';
+      const modelName = 'googleai/gemini-2.5-pro';
       const modelRef = googleAI.model(modelName);
       assert.strictEqual(modelRef.name, modelName);
     });
 
     it('should handle names with models/ prefix', () => {
-      const modelName = 'models/gemini-2.0-pro';
+      const modelName = 'models/gemini-2.5-pro';
       const modelRef = googleAI.model(modelName);
-      assert.strictEqual(modelRef.name, 'googleai/gemini-2.0-pro');
+      assert.strictEqual(modelRef.name, 'googleai/gemini-2.5-pro');
     });
   });
 
@@ -487,7 +487,7 @@ describe('GoogleAI Plugin', () => {
     it('should filter out deprecated models', async () => {
       const mockModels = [
         {
-          name: 'models/gemini-1.5-flash',
+          name: 'models/gemini-2.5-flash',
           supportedGenerationMethods: ['generateContent'],
         },
         {
@@ -517,7 +517,7 @@ describe('GoogleAI Plugin', () => {
       const plugin = googleAI();
       const actions = await plugin.list!();
       const actionNames = actions.map((a) => a.name);
-      assert.deepStrictEqual(actionNames, ['googleai/gemini-1.5-flash']);
+      assert.deepStrictEqual(actionNames, ['googleai/gemini-2.5-flash']);
     });
 
     it('should handle fetch errors gracefully', async () => {

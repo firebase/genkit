@@ -51,15 +51,15 @@ describe('plugin', () => {
     });
 
     const pro = await ai.registry.lookupAction(
-      `/model/${gemini('gemini-1.5-pro').name}`
+      `/model/${gemini('gemini-2.5-pro').name}`
     );
     assert.ok(pro);
-    assert.strictEqual(pro.__action.name, 'vertexai/gemini-1.5-pro');
+    assert.strictEqual(pro.__action.name, 'vertexai/gemini-2.5-pro');
     const flash = await ai.registry.lookupAction(
-      `/model/${gemini('gemini-1.5-flash').name}`
+      `/model/${gemini('gemini-2.5-flash').name}`
     );
     assert.ok(flash);
-    assert.strictEqual(flash.__action.name, 'vertexai/gemini-1.5-flash');
+    assert.strictEqual(flash.__action.name, 'vertexai/gemini-2.5-flash');
   });
 
   it('references dynamic models', async () => {
@@ -79,46 +79,46 @@ describe('plugin', () => {
   });
 
   it('references pre-registered models', async () => {
-    const flash002Ref = gemini('gemini-1.5-flash-002');
+    const flash002Ref = gemini('gemini-2.5-flash-002');
     const ai = genkit({
       plugins: [
         vertexAI({
           location: 'us-central1',
-          models: ['gemini-1.5-pro-002', flash002Ref, 'gemini-4.0-banana'],
+          models: ['gemini-2.5-pro-002', flash002Ref, 'gemini-4.0-banana'],
         }),
       ],
     });
 
-    const pro002Ref = gemini('gemini-1.5-pro-002');
-    assert.strictEqual(pro002Ref.name, 'vertexai/gemini-1.5-pro-002');
+    const pro002Ref = gemini('gemini-2.5-pro-002');
+    assert.strictEqual(pro002Ref.name, 'vertexai/gemini-2.5-pro-002');
     assertEqualModelInfo(
       pro002Ref.info!,
-      'Vertex AI - gemini-1.5-pro-002',
+      'Vertex AI - gemini-2.5-pro-002',
       gemini15Pro.info!
     );
     const pro002 = await ai.registry.lookupAction(`/model/${pro002Ref.name}`);
     assert.ok(pro002);
-    assert.strictEqual(pro002.__action.name, 'vertexai/gemini-1.5-pro-002');
+    assert.strictEqual(pro002.__action.name, 'vertexai/gemini-2.5-pro-002');
     assertEqualModelInfo(
       pro002.__action.metadata?.model,
-      'Vertex AI - gemini-1.5-pro-002',
+      'Vertex AI - gemini-2.5-pro-002',
       gemini15Pro.info!
     );
 
-    assert.strictEqual(flash002Ref.name, 'vertexai/gemini-1.5-flash-002');
+    assert.strictEqual(flash002Ref.name, 'vertexai/gemini-2.5-flash-002');
     assertEqualModelInfo(
       flash002Ref.info!,
-      'Vertex AI - gemini-1.5-flash-002',
+      'Vertex AI - gemini-2.5-flash-002',
       gemini15Flash.info!
     );
     const flash002 = await ai.registry.lookupAction(
       `/model/${flash002Ref.name}`
     );
     assert.ok(flash002);
-    assert.strictEqual(flash002.__action.name, 'vertexai/gemini-1.5-flash-002');
+    assert.strictEqual(flash002.__action.name, 'vertexai/gemini-2.5-flash-002');
     assertEqualModelInfo(
       flash002.__action.metadata?.model,
-      'Vertex AI - gemini-1.5-flash-002',
+      'Vertex AI - gemini-2.5-flash-002',
       gemini15Flash.info!
     );
 

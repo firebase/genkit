@@ -185,7 +185,7 @@ describe('VertexAI Plugin', () => {
 
   describe('Helper Functions', () => {
     it('vertexAI.model should return a ModelReference for Gemini with correct schema', () => {
-      const modelName = 'gemini-2.0-flash';
+      const modelName = 'gemini-2.5-flash';
       const modelRef = vertexAI.model(modelName);
       assert.strictEqual(
         modelRef.name,
@@ -354,7 +354,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use auth token for Gemini generateContent', async () => {
-        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-2.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -442,7 +442,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use API key for Gemini generateContent', async () => {
-        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-2.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -473,7 +473,7 @@ describe('VertexAI Plugin', () => {
         assert.ok(!url.includes('?key=test-api-key'));
         assert.ok(
           url.includes('aiplatform.googleapis.com') &&
-            !url.includes('us-central1-')
+          !url.includes('us-central1-')
         );
       });
 
@@ -537,7 +537,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use API key for Gemini generateContent', async () => {
-        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-2.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -568,7 +568,7 @@ describe('VertexAI Plugin', () => {
         assert.ok(!url.includes('test-express-api-key'));
         assert.ok(
           url.includes('aiplatform.googleapis.com') &&
-            !url.includes('us-central1-')
+          !url.includes('us-central1-')
         );
       });
 

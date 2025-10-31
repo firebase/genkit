@@ -174,8 +174,8 @@ export const GenerationCommonConfigSchema = z
     version: z
       .string()
       .describe(
-        'A specific version of a model family, e.g. `gemini-2.0-flash` ' +
-          'for the `googleai` family.'
+        'A specific version of a model family, e.g. `gemini-2.5-flash` ' +
+        'for the `googleai` family.'
       )
       .optional(),
     temperature: z

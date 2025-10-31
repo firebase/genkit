@@ -152,7 +152,7 @@ export const streamFlowVertex = ai.defineFlow(
   },
   async (prompt, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: vertexAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
+      model: vertexAI.model('gemini-2.5-flash', { temperature: 0.77 }),
       prompt,
     });
 
@@ -172,7 +172,7 @@ export const streamFlowGemini = ai.defineFlow(
   },
   async (prompt, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
+      model: googleAI.model('gemini-2.5-flash', { temperature: 0.77 }),
       prompt,
     });
 
@@ -208,7 +208,7 @@ export const streamJsonFlow = ai.defineFlow(
   },
   async (count, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.0-flash'),
+      model: googleAI.model('gemini-2.5-flash'),
       output: {
         schema: GameCharactersSchema,
       },
@@ -510,7 +510,7 @@ export const dynamicToolCaller = ai.defineFlow(
     );
 
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.0-flash'),
+      model: googleAI.model('gemini-2.5-flash'),
       config: {
         temperature: 1,
       },
@@ -905,7 +905,7 @@ ai.defineFlow(
   },
   async ({ url, prompt, model }) => {
     const { text } = await ai.generate({
-      model: model || 'googleai/gemini-2.0-flash',
+      model: model || 'googleai/gemini-2.5-flash',
       prompt: [{ text: prompt }, { media: { url, contentType: 'video/mp4' } }],
     });
     return text;
@@ -914,7 +914,7 @@ ai.defineFlow(
 
 ai.defineFlow('geminiImages', async (_, { sendChunk }) => {
   const { response, stream } = ai.generateStream({
-    model: googleAI.model('gemini-2.0-flash-preview-image-generation'),
+    model: googleAI.model('gemini-2.5-flash-image'),
     prompt: `generate an image of a banana riding a bicycle`,
     config: {
       responseModalities: ['TEXT', 'IMAGE'],
@@ -1043,14 +1043,14 @@ ai.defineFlow(
       .string()
       .default(
         "Genkit (pronounced as Gen Kit). here's the dialog:\n\n" +
-          'Speaker1: "Genkit is an amazing Gen AI **library**!"\n' +
-          'Speaker2: "Library? I thought it was a **framework**."\n' +
-          'Speaker1: "No, it\'s definitely a library. You just import components and use functions. It\'s a toolkit, not a prescriptive structure for your whole app."\n' +
-          'Speaker2: "But it defines how you *structure* your Gen AI application. It has its own lifecycle, handles models and prompts. You build *on top* of it, which is framework-like."\n' +
-          "Speaker1: \"It doesn't dictate your *entire* app's architecture. You can use it for just one feature. Like NumPy, it's powerful functions, not an overall design.\"\n" +
-          'Speaker2: "Yet it orchestrates your Gen AI pipeline, managing things from data to output. That\'s more than just functions; it\'s an integrated system, providing the structure and conventions. That sounds like a framework."\n' +
-          'Speaker1: "It\'s an opinionated library then, or a specialized toolkit."\n' +
-          'Speaker2: "And that is why the line often blurs."'
+        'Speaker1: "Genkit is an amazing Gen AI **library**!"\n' +
+        'Speaker2: "Library? I thought it was a **framework**."\n' +
+        'Speaker1: "No, it\'s definitely a library. You just import components and use functions. It\'s a toolkit, not a prescriptive structure for your whole app."\n' +
+        'Speaker2: "But it defines how you *structure* your Gen AI application. It has its own lifecycle, handles models and prompts. You build *on top* of it, which is framework-like."\n' +
+        "Speaker1: \"It doesn't dictate your *entire* app's architecture. You can use it for just one feature. Like NumPy, it's powerful functions, not an overall design.\"\n" +
+        'Speaker2: "Yet it orchestrates your Gen AI pipeline, managing things from data to output. That\'s more than just functions; it\'s an integrated system, providing the structure and conventions. That sounds like a framework."\n' +
+        'Speaker1: "It\'s an opinionated library then, or a specialized toolkit."\n' +
+        'Speaker2: "And that is why the line often blurs."'
       ),
     outputSchema: z.void(),
   },
@@ -1116,7 +1116,7 @@ async function saveWaveFile(
 
 ai.defineFlow('googleSearch', async (thing) => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: `What is a banana?`,
     config: { tools: [{ googleSearch: {} }] },
   });
@@ -1126,7 +1126,7 @@ ai.defineFlow('googleSearch', async (thing) => {
 
 ai.defineFlow('googleSearchRetrieval', async (thing) => {
   const { text } = await ai.generate({
-    model: vertexAI.model('gemini-2.0-flash'),
+    model: vertexAI.model('gemini-2.5-flash'),
     prompt: `What is a banana?`,
     config: { googleSearchRetrieval: {} },
   });
@@ -1148,7 +1148,7 @@ ai.defineFlow('googleai-imagen', async (thing) => {
 
 ai.defineFlow('meme-of-the-day', async () => {
   const { text: script } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: googleAI.model('gemini-2.5-flash'),
     prompt:
       'Write a detailed script for a 8 second video. The video should be a meme of the day. ' +
       'A Silly DIY FAIL situation like a: broken tools, or bad weather or crooked assembly, etc. Be creative. The FAIL should be very obvious. ' +
@@ -1270,7 +1270,7 @@ ai.defineResource(
 
 ai.defineFlow('resource', async () => {
   return await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: [
       { text: 'analyze this: ' },
       { resource: { uri: 'my://resource/value' } },

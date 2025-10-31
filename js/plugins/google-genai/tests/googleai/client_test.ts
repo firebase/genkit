@@ -108,12 +108,12 @@ describe('Google AI Client', () => {
 
     it('should build URL with resourceMethod', () => {
       const url = getGoogleAIUrl({
-        resourcePath: 'models/gemini-2.0-pro',
+        resourcePath: 'models/gemini-2.5-pro',
         resourceMethod: 'generateContent',
       });
       assert.strictEqual(
         url,
-        `${defaultBaseUrl}/${defaultApiVersion}/models/gemini-2.0-pro:generateContent`
+        `${defaultBaseUrl}/${defaultApiVersion}/models/gemini-2.5-pro:generateContent`
       );
     });
 
@@ -164,7 +164,7 @@ describe('Google AI Client', () => {
   describe('listModels', () => {
     it('should return a list of models', async () => {
       const mockModels: Model[] = [
-        { name: 'models/gemini-2.0-pro' } as Model,
+        { name: 'models/gemini-2.5-pro' } as Model,
         { name: 'models/gemini-2.5-flash' } as Model,
       ];
       mockFetchResponse({ models: mockModels });
@@ -242,7 +242,7 @@ describe('Google AI Client', () => {
   });
 
   describe('generateContent', () => {
-    const model = 'gemini-2.0-pro';
+    const model = 'gemini-2.5-pro';
     const request: GenerateContentRequest = {
       contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
     };

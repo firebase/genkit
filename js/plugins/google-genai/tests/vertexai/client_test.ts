@@ -135,13 +135,13 @@ describe('Vertex AI Client', () => {
       it('should build URL for generateContent', () => {
         const url = getVertexAIUrl({
           includeProjectAndLocation: true,
-          resourcePath: 'publishers/google/models/gemini-2.0-pro',
+          resourcePath: 'publishers/google/models/gemini-2.5-pro',
           resourceMethod: 'generateContent',
           clientOptions: opts,
         });
         assert.strictEqual(
           url,
-          'https://us-east1-aiplatform.googleapis.com/v1beta1/projects/test-proj/locations/us-east1/publishers/google/models/gemini-2.0-pro:generateContent'
+          'https://us-east1-aiplatform.googleapis.com/v1beta1/projects/test-proj/locations/us-east1/publishers/google/models/gemini-2.5-pro:generateContent'
         );
       });
 
@@ -288,13 +288,13 @@ describe('Vertex AI Client', () => {
       it('should build URL for generateContent', () => {
         const url = getVertexAIUrl({
           includeProjectAndLocation: true,
-          resourcePath: 'publishers/google/models/gemini-2.0-pro',
+          resourcePath: 'publishers/google/models/gemini-2.5-pro',
           resourceMethod: 'generateContent',
           clientOptions: opts,
         });
         assert.strictEqual(
           url,
-          'https://aiplatform.googleapis.com/v1beta1/projects/test-proj/locations/global/publishers/google/models/gemini-2.0-pro:generateContent'
+          'https://aiplatform.googleapis.com/v1beta1/projects/test-proj/locations/global/publishers/google/models/gemini-2.5-pro:generateContent'
         );
       });
     });
@@ -340,13 +340,13 @@ describe('Vertex AI Client', () => {
       it('should build URL for generateContent', () => {
         const url = getVertexAIUrl({
           includeProjectAndLocation: true, // This is ignored for express
-          resourcePath: 'publishers/google/models/gemini-2.0-pro',
+          resourcePath: 'publishers/google/models/gemini-2.5-pro',
           resourceMethod: 'generateContent',
           clientOptions: opts,
         });
         assert.strictEqual(
           url,
-          'https://aiplatform.googleapis.com/v1beta1/publishers/google/models/gemini-2.0-pro:generateContent'
+          'https://aiplatform.googleapis.com/v1beta1/publishers/google/models/gemini-2.5-pro:generateContent'
         );
       });
 
@@ -490,7 +490,7 @@ describe('Vertex AI Client', () => {
           if (!isExpress) {
             it('should return a list of models', async () => {
               const mockModels: Model[] = [
-                { name: 'gemini-2.0-pro', launchStage: 'GA' },
+                { name: 'gemini-2.5-pro', launchStage: 'GA' },
               ];
               mockFetchResponse({ publisherModels: mockModels });
 
@@ -523,7 +523,7 @@ describe('Vertex AI Client', () => {
           const request: GenerateContentRequest = {
             contents: [{ role: 'user', parts: [{ text: 'hello' }] }],
           };
-          const model = 'gemini-2.0-pro';
+          const model = 'gemini-2.5-pro';
           const tunedModel = 'endpoints/123456789';
 
           it('should return GenerateContentResponse for published model', async () => {

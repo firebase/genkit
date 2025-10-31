@@ -88,7 +88,7 @@ interface ParsedRegistryKey {
 /**
  * Parses the registry key into key parts as per the key format convention. Ex:
  *  - mcp-host:tool/my-tool
- *  - /model/googleai/gemini-2.0-flash
+ *  - /model/googleai/gemini-2.5-flash
  *  - /prompt/my-plugin/folder/my-prompt
  *  - /util/generate
  */
@@ -124,7 +124,7 @@ export function parseRegistryKey(
     // Invalid key format
     return undefined;
   }
-  // ex: /model/googleai/gemini-2.0-flash or /prompt/my-plugin/folder/my-prompt
+  // ex: /model/googleai/gemini-2.5-flash or /prompt/my-plugin/folder/my-prompt
   if (tokens.length >= 4) {
     return {
       actionType: tokens[1] as ActionType,
@@ -224,7 +224,7 @@ export class Registry {
     if (
       parsedKey?.dynamicActionHost &&
       this.actionsById[
-        `/dynamic-action-provider/${parsedKey.dynamicActionHost}`
+      `/dynamic-action-provider/${parsedKey.dynamicActionHost}`
       ]
     ) {
       // If it's a dynamic action provider, get the dynamic action.
