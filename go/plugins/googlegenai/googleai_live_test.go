@@ -359,7 +359,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you what animal is in the image?"),
-					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
+					ai.NewMediaPart("image/jpeg", "data:image/jpeg;base64,"+i),
 				),
 			),
 		)
@@ -396,7 +396,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/jpg;base64,"+i),
+					ai.NewDataPart("data:image/jpeg;base64,"+i),
 				),
 			),
 		)

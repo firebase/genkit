@@ -48,7 +48,7 @@ func TestVertexAILive(t *testing.T) {
 		genkit.WithPlugins(&googlegenai.VertexAI{ProjectID: projectID, Location: location}),
 	)
 
-	embedder := googlegenai.VertexAIEmbedder(g, "textembedding-gecko@003")
+	embedder := googlegenai.VertexAIEmbedder(g, "gemini-embedding-001")
 
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
@@ -332,7 +332,7 @@ func TestVertexAILive(t *testing.T) {
 			t.Skipf("thinking in Vertex AI is only supported in these regions: [global, us-central1], got: %q", location)
 		}
 
-		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-05-20")
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(
 				genai.GenerateContentConfig{
@@ -364,7 +364,7 @@ func TestVertexAILive(t *testing.T) {
 			t.Skipf("thinking in Vertex AI is only supported in these regions: [global, us-central1], got: %q", location)
 		}
 
-		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-preview-05-20")
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithConfig(
 				genai.GenerateContentConfig{
