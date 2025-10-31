@@ -180,7 +180,7 @@ class Genkit(GenkitBase):
                     output_schema=output_schema,
                     output_constrained=output_constrained,
                     docs=docs,
-                )
+                ),
             ),
             on_chunk=on_chunk,
             middleware=use,
