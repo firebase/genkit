@@ -166,6 +166,21 @@ export class ReflectionServer {
           response.status(404).send(`action ${key} not found`);
           return;
         }
+        // Set up onTelemetry callback to send trace ID in headers early
+        // This callback should only fire once for the root action span
+        const onTelemetryCallback = (traceId: string, spanId: string) => {
+          response.setHeader('X-Genkit-Trace-Id', traceId);
+          response.setHeader('X-Genkit-Span-Id', spanId);
+          response.setHeader('X-Genkit-Version', GENKIT_VERSION);
+          if (stream === 'true') {
+            response.setHeader('Content-Type', 'text/plain');
+            response.setHeader('Transfer-Encoding', 'chunked');
+          } else {
+            response.setHeader('Content-Type', 'application/json');
+          }
+          response.statusCode = 200;
+          response.flushHeaders();
+        };
         if (stream === 'true') {
           try {
             const callback = (chunk) => {
@@ -175,6 +190,7 @@ export class ReflectionServer {
               context,
               onChunk: callback,
               telemetryLabels,
+              onTelemetry: onTelemetryCallback,
             });
             await flushTracing();
             response.write(
@@ -207,14 +223,19 @@ export class ReflectionServer {
             response.end();
           }
         } else {
-          const result = await action.run(input, { context, telemetryLabels });
+          // Non-streaming: send JSON response
+          const result = await action.run(input, {
+            context,
+            telemetryLabels,
+            onTelemetry: onTelemetryCallback,
+          });
           await flushTracing();
-          response.send({
+          response.end(JSON.stringify({
             result: result.result,
             telemetry: {
               traceId: result.telemetry.traceId,
             },
-          } as RunActionResponse);
+          } as RunActionResponse));
         }
       } catch (err) {
         const { message, stack, traceId } = err as any;
@@ -269,7 +290,13 @@ export class ReflectionServer {
       if (err.traceId) {
         errorResponse.details.traceId = err.traceId;
       }
-      res.status(500).json(errorResponse);
+      
+      // Headers may have been sent already (via onTelemetry), so check before setting status
+      if (!res.headersSent) {
+        res.status(500).json(errorResponse);
+      } else {
+        res.end(JSON.stringify(errorResponse));
+      }
     });
 
     this.port = await this.findPort();

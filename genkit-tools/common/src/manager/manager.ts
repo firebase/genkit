@@ -47,7 +47,7 @@ import {
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;
-export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
+export const GENKIT_REFLECTION_API_SPEC_VERSION = 2;
 
 interface RuntimeManagerOptions {
   /** URL of the telemetry server. */
@@ -173,7 +173,8 @@ export class RuntimeManager {
    */
   async runAction(
     input: apis.RunActionRequest,
-    streamingCallback?: StreamingCallback<any>
+    streamingCallback?: StreamingCallback<any>,
+    onTraceId?: (traceId: string) => void
   ): Promise<RunActionResponse> {
     const runtime = input.runtimeId
       ? this.getRuntimeById(input.runtimeId)
@@ -202,6 +203,12 @@ export class RuntimeManager {
       if (response.headers['x-genkit-version']) {
         genkitVersion = response.headers['x-genkit-version'];
       }
+      
+      const earlyTraceId = response.headers['x-genkit-trace-id'];
+      if (earlyTraceId && onTraceId) {
+        onTraceId(earlyTraceId);
+      }
+      
       const stream = response.data;
 
       let buffer = '';
@@ -256,20 +263,53 @@ export class RuntimeManager {
       });
       return promise;
     } else {
+      // runAction should use chunked JSON streaming to send early headers
       const response = await axios
         .post(`${runtime.reflectionServerUrl}/api/runAction`, input, {
           headers: {
             'Content-Type': 'application/json',
           },
+          responseType: 'stream',  // Use stream to get early headers
         })
         .catch((err) =>
           this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
         );
-      const resp = RunActionResponseSchema.parse(response.data);
-      if (response.headers['x-genkit-version']) {
-        resp.genkitVersion = response.headers['x-genkit-version'];
+      
+      const earlyTraceId = response.headers['x-genkit-trace-id'];
+      if (earlyTraceId && onTraceId) {
+        onTraceId(earlyTraceId);
       }
-      return resp;
+      
+      return new Promise<RunActionResponse>((resolve, reject) => {
+        let buffer = '';
+        
+        response.data.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString();
+        });
+        
+        response.data.on('end', () => {
+          try {
+            const responseData = JSON.parse(buffer);
+            
+            // Handle backward compatibility - add trace ID from header if not in body
+            if (!responseData.telemetry && earlyTraceId) {
+              responseData.telemetry = { traceId: earlyTraceId };
+            }
+            
+            const parsed = RunActionResponseSchema.parse(responseData);
+            if (response.headers['x-genkit-version']) {
+              parsed.genkitVersion = response.headers['x-genkit-version'];
+            }
+            resolve(parsed);
+          } catch (err) {
+            reject(new GenkitToolsError(`Failed to parse response: ${err}`));
+          }
+        });
+        
+        response.data.on('error', (err: Error) => {
+          reject(err);
+        });
+      });
     }
   }
 

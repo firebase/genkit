@@ -131,13 +131,6 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
         return manager.listActions(input);
       }),
 
-    /** Runs an action. */
-    runAction: loggedProcedure
-      .input(apis.RunActionRequestSchema)
-      .mutation(async ({ input }) => {
-        return manager.runAction(input);
-      }),
-
     /** Generate a .prompt file from messages and model config. */
     createPrompt: loggedProcedure
       .input(apis.CreatePromptRequestSchema)

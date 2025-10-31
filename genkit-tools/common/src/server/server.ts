@@ -66,23 +66,75 @@ export function startServer(manager: RuntimeManager, port: number) {
     res.status(200).send('');
   });
 
+  // Plain HTTP runAction endpoint (non-streaming)
+  app.options('/api/runAction', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(200).send('');
+  });
+
+  app.post(
+    '/api/runAction',
+    bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
+    async (req, res) => {
+      const { key, input, context, runtimeId } = req.body;
+      
+      try {
+        const resultPromise = manager.runAction(
+          { key, input, context, runtimeId },
+          undefined, // no streaming callback
+          (traceId) => {
+            // Send headers immediately when trace ID is available
+            // This is the first place headers are sent, so no check needed
+            res.setHeader('X-Genkit-Trace-Id', traceId);
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+            res.statusCode = 200;
+            res.flushHeaders();
+          }
+        );
+        
+        const result = await resultPromise;
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        const error = err as GenkitToolsError;
+        
+        // If headers not sent, we can send error status
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          });
+        }
+        res.end(JSON.stringify({ error: error.data }));
+      }
+    }
+  );
+
   app.post(
     '/api/streamAction',
     bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
     async (req, res) => {
       const { key, input, context } = req.body;
-      res.writeHead(200, {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': 'text/plain',
-        'Transfer-Encoding': 'chunked',
-      });
+      
+      // Set streaming headers immediately
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      res.statusCode = 200;
+      res.flushHeaders();
 
       try {
         const result = await manager.runAction(
           { key, input, context },
           (chunk) => {
             res.write(JSON.stringify(chunk) + '\n');
+          },
+          (traceId) => {
+            // Add trace ID to headers when available (headers already sent, but we can add more)
+            res.setHeader('X-Genkit-Trace-Id', traceId);
           }
         );
         res.write(JSON.stringify(result));
