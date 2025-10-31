@@ -473,7 +473,7 @@ describe('VertexAI Plugin', () => {
         assert.ok(!url.includes('?key=test-api-key'));
         assert.ok(
           url.includes('aiplatform.googleapis.com') &&
-          !url.includes('us-central1-')
+            !url.includes('us-central1-')
         );
       });
 
@@ -568,7 +568,7 @@ describe('VertexAI Plugin', () => {
         assert.ok(!url.includes('test-express-api-key'));
         assert.ok(
           url.includes('aiplatform.googleapis.com') &&
-          !url.includes('us-central1-')
+            !url.includes('us-central1-')
         );
       });
 

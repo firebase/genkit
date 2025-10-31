@@ -224,7 +224,7 @@ export class Registry {
     if (
       parsedKey?.dynamicActionHost &&
       this.actionsById[
-      `/dynamic-action-provider/${parsedKey.dynamicActionHost}`
+        `/dynamic-action-provider/${parsedKey.dynamicActionHost}`
       ]
     ) {
       // If it's a dynamic action provider, get the dynamic action.
