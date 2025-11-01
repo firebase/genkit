@@ -166,6 +166,20 @@ func NewToolWithInputSchema[Out any](name, description string, inputSchema map[s
 	return &tool{Action: toolAction}
 }
 
+// ToolSchema is a struct that contains the input and output schemas for a tool.
+type ToolSchema struct {
+	Input  map[string]any
+	Output map[string]any
+}
+
+// NewToolWithOutputSchema creates a new [Tool] with a custom output schema. It can be passed directly to [Generate].
+func NewToolWithSchema[In, Out any](name, description string, schema ToolSchema, fn ToolFunc[In, Out]) Tool {
+	metadata, wrappedFn := implementTool(name, description, fn)
+	metadata["dynamic"] = true
+	toolAction := core.NewStructuredAction(name, api.ActionTypeTool, metadata, schema.Input, schema.Output, wrappedFn)
+	return &tool{Action: toolAction}
+}
+
 // implementTool creates the metadata and wrapped function common to both DefineTool and NewTool.
 func implementTool[In, Out any](name, description string, fn ToolFunc[In, Out]) (map[string]any, func(context.Context, In) (Out, error)) {
 	metadata := map[string]any{
