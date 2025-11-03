@@ -37,6 +37,7 @@ import {
   claude4Sonnet,
   claudeModel,
 } from './claude.js';
+import { PluginOptions } from './types.js';
 
 export {
   claude35Haiku,
@@ -49,11 +50,6 @@ export {
   claude4Opus,
   claude4Sonnet,
 };
-
-export interface PluginOptions {
-  apiKey?: string;
-  cacheSystemPrompt?: boolean;
-}
 
 async function list(client: Anthropic): Promise<ActionMetadata[]> {
   const clientModels = (await client.models.list()).data;

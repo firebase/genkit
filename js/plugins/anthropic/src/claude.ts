@@ -27,7 +27,7 @@ import type {
   Tool,
   ToolResultBlockParam,
   ToolUseBlockParam,
-} from '@anthropic-ai/sdk/resources/messages.mjs';
+} from '@anthropic-ai/sdk/resources/messages';
 import type {
   GenerateRequest,
   GenerateResponseData,
@@ -50,6 +50,8 @@ import type {
 } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import { model } from 'genkit/plugin';
+
+import { MediaType, type Media } from './types.js';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   tool_choice: z
@@ -269,11 +271,6 @@ export function toAnthropicRole(
   }
 }
 
-interface Media {
-  url: string;
-  contentType?: string;
-}
-
 const isMediaObject = (obj: unknown): obj is Media =>
   typeof obj === 'object' &&
   obj !== null &&
@@ -305,6 +302,8 @@ export function toAnthropicToolResponseContent(
       )}.`
     );
   }
+
+  // Check if the output is a media object or a string
   const isMedia = isMediaObject(part.toolResponse?.output);
   const isString = typeof part.toolResponse?.output === 'string';
   let base64Data;
@@ -315,15 +314,23 @@ export function toAnthropicToolResponseContent(
   } else if (isString) {
     base64Data = extractDataFromBase64Url(part.toolResponse?.output as string);
   }
+
+  // Resolve the media type
+  const resolvedMediaType: string | undefined =
+    (part.toolResponse?.output as Media)?.contentType ??
+    base64Data?.contentType;
+  if (!resolvedMediaType || !(resolvedMediaType in MediaType)) {
+    throw new Error(`Invalid media type: ${resolvedMediaType}`);
+  }
+  const mediaTypeValue: MediaType = resolvedMediaType as MediaType;
+
   return base64Data
     ? {
         type: 'image',
         source: {
           type: 'base64',
           data: base64Data.data,
-          media_type:
-            (part.toolResponse?.output as Media)?.contentType ??
-            base64Data.contentType,
+          media_type: mediaTypeValue,
         },
       }
     : {
@@ -357,13 +364,21 @@ export function toAnthropicMessageContent(
         )}.`
       );
     }
+
+    // Resolve the media type
+    const resolvedMediaType: string | undefined =
+      part.media.contentType ?? contentType;
+    if (!resolvedMediaType || !(resolvedMediaType in MediaType)) {
+      throw new Error(`Invalid media type: ${resolvedMediaType}`);
+    }
+    const mediaTypeValue: MediaType = resolvedMediaType as MediaType;
+
     return {
       type: 'image',
       source: {
         type: 'base64',
         data,
-        // @ts-expect-error TODO: improve these types
-        media_type: part.media.contentType ?? contentType,
+        media_type: mediaTypeValue,
       },
     };
   }
