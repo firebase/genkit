@@ -56,6 +56,27 @@ export function extractErrMsg(e: unknown): string {
 }
 
 /**
+ * Custom replacer function for JSON.stringify to truncate long string fields.
+ * Truncates strings to the first 100 and last 10 characters
+ * if the original string is longer than 110 characters.
+ *
+ * @param key The key of the property being stringified.
+ * @param value The value of the property being stringified.
+ * @return The transformed value, or the original value if no transformation is needed.
+ */
+export function stringTruncator(key: string, value: unknown): unknown {
+  const beginLength = 100;
+  const endLength = 10;
+  const totalLength = beginLength + endLength;
+  if (typeof value === 'string' && value.length > totalLength) {
+    const start = value.substring(0, 100);
+    const end = value.substring(value.length - 10);
+    return `${start}...[TRUNCATED]...${end}`;
+  }
+  return value; // Return the original value for other keys or non-string values
+}
+
+/**
  * Gets the un-prefixed model name from a modelReference
  */
 export function extractVersion(
@@ -170,6 +191,10 @@ export function displayUrl(url: string): string {
   return url.substring(0, 25) + '...' + url.substring(url.length - 25);
 }
 
+function isMediaPart(part: GenkitPart): part is MediaPart {
+  return (part as MediaPart).media !== undefined;
+}
+
 /**
  *
  * @param request A generate request to extract from
@@ -185,11 +210,33 @@ export function extractMedia(
     isDefault?: boolean;
   }
 ): MediaPart['media'] | undefined {
-  const predicate = (part: GenkitPart) => {
-    const media = part.media;
-    if (!media) {
-      return false;
-    }
+  const mediaArray = extractMediaArray(request, params);
+  if (mediaArray?.length) {
+    return mediaArray[0].media;
+  }
+
+  return undefined;
+}
+
+/**
+ *
+ * @param request A generate request to extract from
+ * @param metadataType The media must have metadata matching this type if isDefault is false
+ * @param isDefault 'true' allows missing metadata type to match as well.
+ * @returns
+ */
+export function extractMediaArray(
+  request: GenerateRequest,
+  params: {
+    metadataType?: string;
+    /* If there is no metadata type, it will match if isDefault is true */
+    isDefault?: boolean;
+  }
+): MediaPart[] | undefined {
+  // MediaPart filter:  Keeps parts matching `params.metadataType`,
+  // or parts with no metadata type if `params.isDefault` is true.
+  // Keeps everything if no params are specified.
+  const matchesMediaParams = (part: MediaPart) => {
     if (params.metadataType || params.isDefault) {
       // We need to check the metadata type
       const metadata = part.metadata;
@@ -202,17 +249,33 @@ export function extractMedia(
     return true;
   };
 
-  const media = request.messages.at(-1)?.content.find(predicate)?.media;
+  const mediaArray = request.messages
+    .at(-1)
+    ?.content.filter(isMediaPart)
+    .filter(matchesMediaParams)
+    ?.map((mediaPart) => {
+      let media = mediaPart.media;
+      if (media && !media?.contentType) {
+        // Add the mimeType
+        media = {
+          url: media.url,
+          contentType: extractMimeType(media.url),
+        };
+      }
 
-  // Add the mimeType
-  if (media && !media?.contentType) {
-    return {
-      url: media.url,
-      contentType: extractMimeType(media.url),
-    };
+      return {
+        media,
+        metadata: {
+          referenceType: mediaPart.metadata?.referenceType ?? 'asset',
+        },
+      };
+    });
+
+  if (mediaArray?.length) {
+    return mediaArray;
   }
 
-  return media;
+  return undefined;
 }
 
 /**
