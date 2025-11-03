@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "pavelj-genkit-test1"
+  },
+  "databaseURL": "https://pavelj-genkit-test1-default-rtdb.firebaseio.com/"
+}
