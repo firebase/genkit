@@ -699,40 +699,6 @@ describe('toAnthropicRequestBody', () => {
       },
     },
     {
-      should: '(claude-3-opus) handles request with text messages',
-      modelName: 'claude-3-opus',
-      genkitRequest: {
-        messages: [
-          { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
-        ],
-        output: { format: 'text' },
-        config: {
-          metadata: {
-            user_id: 'exampleUser123',
-          },
-        },
-      },
-      expectedOutput: {
-        max_tokens: 4096,
-        messages: [
-          {
-            content: [
-              {
-                text: 'Tell a joke about dogs.',
-                type: 'text',
-                citations: null,
-              },
-            ],
-            role: 'user',
-          },
-        ],
-        model: 'claude-3-opus-20240229',
-        metadata: {
-          user_id: 'exampleUser123',
-        },
-      },
-    },
-    {
       should: '(claude-3-haiku) handles request with text messages',
       modelName: 'claude-3-haiku',
       genkitRequest: {

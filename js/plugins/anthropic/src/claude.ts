@@ -33,6 +33,7 @@ import type {
   GenerateResponseData,
   MessageData,
   ModelReference,
+  ModelResponseData,
   Part,
   Role,
   StreamingCallback,
@@ -43,7 +44,6 @@ import {
   z,
 } from 'genkit';
 import type {
-  CandidateData,
   GenerateResponseChunkData,
   ModelAction,
   ToolDefinition,
@@ -91,42 +91,6 @@ export const claude4Sonnet = modelRef({
   },
   configSchema: AnthropicConfigSchema,
   version: 'claude-sonnet-4-20250514',
-});
-
-export const claude37Sonnet = modelRef({
-  name: 'claude-3-7-sonnet',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-3-7-sonnet-20250219', 'claude-3-7-sonnet-latest'],
-    label: 'Anthropic - Claude 3.7 Sonnet',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicConfigSchema,
-  version: 'claude-3-7-sonnet-latest',
-});
-
-export const claude3Opus = modelRef({
-  name: 'claude-3-opus',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-3-opus-20240229'],
-    label: 'Anthropic - Claude 3 Opus',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicConfigSchema,
-  version: 'claude-3-opus-20240229',
 });
 
 export const claude3Haiku = modelRef({
@@ -241,8 +205,6 @@ export const SUPPORTED_CLAUDE_MODELS: Record<
   string,
   ModelReference<typeof AnthropicConfigSchema>
 > = {
-  'claude-3-7-sonnet': claude37Sonnet,
-  'claude-3-opus': claude3Opus,
   'claude-3-haiku': claude3Haiku,
   'claude-3-5-haiku': claude35Haiku,
   'claude-4-sonnet': claude4Sonnet,
@@ -315,30 +277,36 @@ export function toAnthropicToolResponseContent(
     base64Data = extractDataFromBase64Url(part.toolResponse?.output as string);
   }
 
-  // Resolve the media type
-  const resolvedMediaType: string | undefined =
-    (part.toolResponse?.output as Media)?.contentType ??
-    base64Data?.contentType;
-  if (!resolvedMediaType || !(resolvedMediaType in MediaType)) {
-    throw new Error(`Invalid media type: ${resolvedMediaType}`);
-  }
-  const mediaTypeValue: MediaType = resolvedMediaType as MediaType;
+  // Handle media content
+  if (base64Data) {
+    const resolvedMediaType: string | undefined =
+      (part.toolResponse?.output as Media)?.contentType ??
+      base64Data?.contentType;
+    if (
+      !resolvedMediaType ||
+      !Object.values(MediaType).includes(resolvedMediaType as MediaType)
+    ) {
+      throw new Error(`Invalid media type: ${resolvedMediaType}`);
+    }
+    const mediaTypeValue: MediaType = resolvedMediaType as MediaType;
 
-  return base64Data
-    ? {
-        type: 'image',
-        source: {
-          type: 'base64',
-          data: base64Data.data,
-          media_type: mediaTypeValue,
-        },
-      }
-    : {
-        type: 'text',
-        text: isString
-          ? (part.toolResponse?.output as string)
-          : JSON.stringify(part.toolResponse?.output),
-      };
+    return {
+      type: 'image',
+      source: {
+        type: 'base64',
+        data: base64Data.data,
+        media_type: mediaTypeValue,
+      },
+    };
+  }
+
+  // Handle text content
+  return {
+    type: 'text',
+    text: isString
+      ? (part.toolResponse?.output as string)
+      : JSON.stringify(part.toolResponse?.output),
+  };
 }
 
 /**
@@ -365,11 +333,14 @@ export function toAnthropicMessageContent(
       );
     }
 
-    // Resolve the media type
+    // Resolve and validate the media type
     const resolvedMediaType: string | undefined =
       part.media.contentType ?? contentType;
-    if (!resolvedMediaType || !(resolvedMediaType in MediaType)) {
+    if (!resolvedMediaType) {
       throw new Error(`Invalid media type: ${resolvedMediaType}`);
+    }
+    if (!Object.values(MediaType).includes(resolvedMediaType as MediaType)) {
+      throw new Error(`Unsupported media type: ${resolvedMediaType}`);
     }
     const mediaTypeValue: MediaType = resolvedMediaType as MediaType;
 
@@ -503,8 +474,7 @@ export function fromAnthropicContentBlockChunk(
 
 export function fromAnthropicStopReason(
   reason: Message['stop_reason']
-  // TODO: CandidateData is deprecated
-): CandidateData['finishReason'] {
+): ModelResponseData['finishReason'] {
   switch (reason) {
     case 'max_tokens':
       return 'length';

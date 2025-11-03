@@ -27,9 +27,7 @@ import { ActionType } from 'genkit/registry';
 import {
   SUPPORTED_CLAUDE_MODELS,
   claude35Haiku,
-  claude37Sonnet,
   claude3Haiku,
-  claude3Opus,
   claude41Opus,
   claude45Haiku,
   claude45Sonnet,
@@ -41,9 +39,7 @@ import { PluginOptions } from './types.js';
 
 export {
   claude35Haiku,
-  claude37Sonnet,
   claude3Haiku,
-  claude3Opus,
   claude41Opus,
   claude45Haiku,
   claude45Sonnet,
@@ -102,7 +98,6 @@ async function list(client: Anthropic): Promise<ActionMetadata[]> {
  * });
  * ```
  */
-// TODO: add support for voyage embeddings and tool use (both not documented well in docs.anthropic.com)
 export const anthropic = (options?: PluginOptions): GenkitPluginV2 => {
   let apiKey = options?.apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
