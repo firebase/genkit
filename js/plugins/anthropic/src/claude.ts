@@ -33,6 +33,7 @@ import type {
   GenerateResponseData,
   MessageData,
   ModelReference,
+  ModelResponseData,
   Part,
   Role,
   StreamingCallback,
@@ -43,7 +44,6 @@ import {
   z,
 } from 'genkit';
 import type {
-  CandidateData,
   GenerateResponseChunkData,
   ModelAction,
   ToolDefinition,
@@ -503,8 +503,7 @@ export function fromAnthropicContentBlockChunk(
 
 export function fromAnthropicStopReason(
   reason: Message['stop_reason']
-  // TODO: CandidateData is deprecated
-): CandidateData['finishReason'] {
+): ModelResponseData['finishReason'] {
   switch (reason) {
     case 'max_tokens':
       return 'length';

@@ -102,7 +102,6 @@ async function list(client: Anthropic): Promise<ActionMetadata[]> {
  * });
  * ```
  */
-// TODO: add support for voyage embeddings and tool use (both not documented well in docs.anthropic.com)
 export const anthropic = (options?: PluginOptions): GenkitPluginV2 => {
   let apiKey = options?.apiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
