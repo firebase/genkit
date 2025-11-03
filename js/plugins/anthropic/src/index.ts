@@ -27,9 +27,7 @@ import { ActionType } from 'genkit/registry';
 import {
   SUPPORTED_CLAUDE_MODELS,
   claude35Haiku,
-  claude37Sonnet,
   claude3Haiku,
-  claude3Opus,
   claude41Opus,
   claude45Haiku,
   claude45Sonnet,
@@ -41,9 +39,7 @@ import { PluginOptions } from './types.js';
 
 export {
   claude35Haiku,
-  claude37Sonnet,
   claude3Haiku,
-  claude3Opus,
   claude41Opus,
   claude45Haiku,
   claude45Sonnet,

@@ -93,42 +93,6 @@ export const claude4Sonnet = modelRef({
   version: 'claude-sonnet-4-20250514',
 });
 
-export const claude37Sonnet = modelRef({
-  name: 'claude-3-7-sonnet',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-3-7-sonnet-20250219', 'claude-3-7-sonnet-latest'],
-    label: 'Anthropic - Claude 3.7 Sonnet',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicConfigSchema,
-  version: 'claude-3-7-sonnet-latest',
-});
-
-export const claude3Opus = modelRef({
-  name: 'claude-3-opus',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-3-opus-20240229'],
-    label: 'Anthropic - Claude 3 Opus',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicConfigSchema,
-  version: 'claude-3-opus-20240229',
-});
-
 export const claude3Haiku = modelRef({
   name: 'claude-3-haiku',
   namespace: 'anthropic',
@@ -241,8 +205,6 @@ export const SUPPORTED_CLAUDE_MODELS: Record<
   string,
   ModelReference<typeof AnthropicConfigSchema>
 > = {
-  'claude-3-7-sonnet': claude37Sonnet,
-  'claude-3-opus': claude3Opus,
   'claude-3-haiku': claude3Haiku,
   'claude-3-5-haiku': claude35Haiku,
   'claude-4-sonnet': claude4Sonnet,
