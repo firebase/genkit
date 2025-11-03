@@ -162,6 +162,28 @@ describe('Vertex AI Imagen', () => {
         clientOptions,
       });
 
+      it(`should handle location override for ${clientOptions.kind}`, async () => {
+        if (clientOptions.kind === 'express') {
+          return; // Not applicable
+        }
+        const request: GenerateRequest<typeof ImagenConfigSchema> = {
+          messages: [{ role: 'user', content: [{ text: 'A cat' }] }],
+          config: { location: 'europe-west4' },
+        };
+        const mockPrediction: ImagenPrediction = {
+          bytesBase64Encoded: 'abc',
+          mimeType: 'image/png',
+        };
+        mockFetchResponse({ predictions: [mockPrediction] });
+        const modelRunner = captureModelRunner(clientOptions);
+        await modelRunner(request, {});
+
+        sinon.assert.calledOnce(fetchStub);
+        const fetchArgs = fetchStub.lastCall.args;
+        const actualUrl = fetchArgs[0];
+        assert.ok(actualUrl.includes('europe-west4'));
+      });
+
       it(`should define a model and call fetch successfully for ${clientOptions.kind}`, async () => {
         const request: GenerateRequest<typeof ImagenConfigSchema> = {
           messages: [{ role: 'user', content: [{ text: 'A cat' }] }],

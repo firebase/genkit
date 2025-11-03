@@ -491,6 +491,45 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatalf("thoughts tokens should not be zero or greater than 100, got: %d", resp.Usage.ThoughtsTokens)
 		}
 	})
+	t.Run("thinking stream with structured output", func(t *testing.T) {
+		type Output struct {
+			Text string `json:"text"`
+		}
+
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.4),
+				ThinkingConfig: &genai.ThinkingConfig{
+					IncludeThoughts: true,
+					ThinkingBudget:  genai.Ptr[int32](1024),
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithOutputType(Output{}),
+			ai.WithPrompt("Analogize photosynthesis and growing up."),
+			ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
+				return nil
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		var out Output
+		err = resp.Output(&out)
+		if err != nil {
+			t.Fatalf("unable to unmarshal response: %v", err)
+		}
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1024 {
+			t.Fatalf("thoughts tokens should not be zero or greater than 1024, got: %d", resp.Usage.ThoughtsTokens)
+		}
+		if resp.Reasoning() == "" {
+			t.Fatalf("no reasoning found")
+		}
+	})
 	t.Run("thinking disabled", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
