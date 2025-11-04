@@ -35,7 +35,7 @@ import {
   claude4Sonnet,
   claudeModel,
 } from './claude.js';
-import { PluginOptions } from './types.js';
+import { InternalPluginOptions, PluginOptions, __testClient } from './types.js';
 
 export {
   claude35Haiku,
@@ -72,6 +72,31 @@ async function list(client: Anthropic): Promise<ActionMetadata[]> {
 }
 
 /**
+ * Gets or creates an Anthropic client instance.
+ * Supports test client injection for internal testing.
+ */
+function getAnthropicClient(options?: PluginOptions): Anthropic {
+  // Check for test client injection first (internal use only)
+  const internalOptions = options as InternalPluginOptions | undefined;
+  if (internalOptions?.[__testClient]) {
+    return internalOptions[__testClient];
+  }
+
+  // Production path: create real client
+  const apiKey = options?.apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      'Please pass in the API key or set the ANTHROPIC_API_KEY environment variable'
+    );
+  }
+  const defaultHeaders: Record<string, string> = {};
+  if (options?.cacheSystemPrompt == true) {
+    defaultHeaders['anthropic-beta'] = 'prompt-caching-2024-07-31';
+  }
+  return new Anthropic({ apiKey, defaultHeaders });
+}
+
+/**
  * This module provides an interface to the Anthropic AI models through the Genkit plugin system.
  * It allows users to interact with various Claude models by providing an API key and optional configuration.
  *
@@ -99,17 +124,7 @@ async function list(client: Anthropic): Promise<ActionMetadata[]> {
  * ```
  */
 export const anthropic = (options?: PluginOptions): GenkitPluginV2 => {
-  let apiKey = options?.apiKey || process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'Please pass in the API key or set the ANTHROPIC_API_KEY environment variable'
-    );
-  }
-  let defaultHeaders = {};
-  if (options?.cacheSystemPrompt == true) {
-    defaultHeaders['anthropic-beta'] = 'prompt-caching-2024-07-31';
-  }
-  const client = new Anthropic({ apiKey, defaultHeaders });
+  const client = getAnthropicClient(options);
 
   let listActionsCache: ActionMetadata[] | null = null;
 

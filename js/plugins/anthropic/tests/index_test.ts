@@ -16,29 +16,18 @@
 
 import * as assert from 'assert';
 import { genkit } from 'genkit';
-import { before, describe, it } from 'node:test';
-import { setupAnthropicMock } from './mocks/setup-anthropic-mock.js';
-
-setupAnthropicMock();
+import { describe, it } from 'node:test';
+import { SUPPORTED_CLAUDE_MODELS } from '../src/claude.js';
+import anthropic from '../src/index.js';
+import { PluginOptions, __testClient } from '../src/types.js';
+import { createMockAnthropicClient } from './mocks/anthropic-client.js';
 
 describe('Anthropic Plugin', () => {
-  let anthropic: any;
-  let SUPPORTED_CLAUDE_MODELS: any;
-
-  before(async () => {
-    process.env.ANTHROPIC_API_KEY = 'test-api-key';
-
-    // Import after mocking is set up
-    const indexModule = await import('../lib/index.js');
-    anthropic = indexModule.default;
-
-    const claudeModule = await import('../lib/claude.js');
-    SUPPORTED_CLAUDE_MODELS = claudeModule.SUPPORTED_CLAUDE_MODELS;
-  });
-
   it('should register all supported Claude models', async () => {
+    const mockClient = createMockAnthropicClient();
+
     const ai = genkit({
-      plugins: [anthropic()],
+      plugins: [anthropic({ [__testClient]: mockClient } as PluginOptions)],
     });
 
     for (const modelName of Object.keys(SUPPORTED_CLAUDE_MODELS)) {
