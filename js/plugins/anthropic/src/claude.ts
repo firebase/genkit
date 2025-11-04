@@ -277,30 +277,36 @@ export function toAnthropicToolResponseContent(
     base64Data = extractDataFromBase64Url(part.toolResponse?.output as string);
   }
 
-  // Resolve the media type
-  const resolvedMediaType: string | undefined =
-    (part.toolResponse?.output as Media)?.contentType ??
-    base64Data?.contentType;
-  if (!resolvedMediaType || !(resolvedMediaType in MediaType)) {
-    throw new Error(`Invalid media type: ${resolvedMediaType}`);
-  }
-  const mediaTypeValue: MediaType = resolvedMediaType as MediaType;
+  // Handle media content
+  if (base64Data) {
+    const resolvedMediaType: string | undefined =
+      (part.toolResponse?.output as Media)?.contentType ??
+      base64Data?.contentType;
+    if (
+      !resolvedMediaType ||
+      !Object.values(MediaType).includes(resolvedMediaType as MediaType)
+    ) {
+      throw new Error(`Invalid media type: ${resolvedMediaType}`);
+    }
+    const mediaTypeValue: MediaType = resolvedMediaType as MediaType;
 
-  return base64Data
-    ? {
-        type: 'image',
-        source: {
-          type: 'base64',
-          data: base64Data.data,
-          media_type: mediaTypeValue,
-        },
-      }
-    : {
-        type: 'text',
-        text: isString
-          ? (part.toolResponse?.output as string)
-          : JSON.stringify(part.toolResponse?.output),
-      };
+    return {
+      type: 'image',
+      source: {
+        type: 'base64',
+        data: base64Data.data,
+        media_type: mediaTypeValue,
+      },
+    };
+  }
+
+  // Handle text content
+  return {
+    type: 'text',
+    text: isString
+      ? (part.toolResponse?.output as string)
+      : JSON.stringify(part.toolResponse?.output),
+  };
 }
 
 /**
@@ -327,11 +333,14 @@ export function toAnthropicMessageContent(
       );
     }
 
-    // Resolve the media type
+    // Resolve and validate the media type
     const resolvedMediaType: string | undefined =
       part.media.contentType ?? contentType;
-    if (!resolvedMediaType || !(resolvedMediaType in MediaType)) {
+    if (!resolvedMediaType) {
       throw new Error(`Invalid media type: ${resolvedMediaType}`);
+    }
+    if (!Object.values(MediaType).includes(resolvedMediaType as MediaType)) {
+      throw new Error(`Unsupported media type: ${resolvedMediaType}`);
     }
     const mediaTypeValue: MediaType = resolvedMediaType as MediaType;
 

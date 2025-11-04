@@ -28,7 +28,7 @@ describe('Anthropic Integration', () => {
     process.env.ANTHROPIC_API_KEY = 'test-api-key';
 
     // Import and initialize after mocking
-    const indexModule = await import('../lib/index.js');
+    const indexModule = await import('../src/index.js');
     ai = genkit({
       plugins: [indexModule.default()],
     });
