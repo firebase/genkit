@@ -556,7 +556,7 @@ func LookupTool(g *Genkit, name string) ai.Tool {
 //	// Define the prompt
 //	capitalPrompt := genkit.DefinePrompt(g, "findCapital",
 //		ai.WithDescription("Finds the capital of a country."),
-//		ai.WithModelName("googleai/gemini-1.5-flash"), // Specify the model
+//		ai.WithModelName("googleai/gemini-2.5-flash"), // Specify the model
 //		ai.WithSystem("You are a helpful geography assistant."),
 //		ai.WithPrompt("What is the capital of {{country}}?"),
 //		ai.WithInputType(GeoInput{Country: "USA"}),
