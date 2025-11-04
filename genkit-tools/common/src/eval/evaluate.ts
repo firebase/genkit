@@ -534,6 +534,16 @@ async function gatherEvalInput(params: {
   const error =
     actionType === 'model' ? getErrorFromModelResponse(output) : undefined;
 
+  if (Object.hasOwn(output, 'genkit:ai:internal')) {
+    // HACK HACK HACK
+    const internal = output['genkit:ai:internal'];
+    delete output['genkit:ai:internal'];
+    if (custom) {
+      custom = { ...custom, traceId: internal.traceId };
+    } else {
+      custom = { traceId: internal.traceId };
+    }
+  }
   return {
     // TODO Replace this with unified trace class
     testCaseId: state.testCaseId,
