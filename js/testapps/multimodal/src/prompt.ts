@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { vertexAI } from '@genkit-ai/vertexai';
+import { vertexAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
 import { ai } from './genkit.js';
 

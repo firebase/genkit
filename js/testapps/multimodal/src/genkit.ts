@@ -15,7 +15,7 @@
  */
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { multimodalEmbedding001, vertexAI } from '@genkit-ai/vertexai';
+import { vertexAI } from '@genkit-ai/google-genai';
 import { genkit, type Genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { pinecone } from 'genkitx-pinecone';
@@ -40,13 +40,13 @@ export const ai: Genkit = genkit({
     pinecone([
       {
         indexId: 'pinecone-multimodal-index',
-        embedder: multimodalEmbedding001,
+        embedder: vertexAI.embedder('multimodalembedding@001'),
       },
     ]),
     chroma([
       {
         collectionName: 'multimodal_collection',
-        embedder: multimodalEmbedding001,
+        embedder: vertexAI.embedder('multimodalembedding@001'),
         createCollectionIfMissing: true,
         clientParams: async () => {
           // Replace this with your Cloud Run Instance URL
@@ -67,7 +67,7 @@ export const ai: Genkit = genkit({
     devLocalVectorstore([
       {
         indexName: 'localMultiModalIndex',
-        embedder: multimodalEmbedding001,
+        embedder: vertexAI.embedder('multimodalembedding@001'),
       },
     ]),
   ],

@@ -17,12 +17,12 @@
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
 import {
-  MediaPart,
-  Operation,
-  Part,
-  StreamingCallback,
   genkit,
   z,
+  type MediaPart,
+  type Operation,
+  type Part,
+  type StreamingCallback,
 } from 'genkit';
 import { Readable } from 'stream';
 import wav from 'wav';
