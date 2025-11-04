@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/google-genai';
 import { ai } from '../genkit.js';
 import { DataMenuQuestionInputSchema } from '../types';
 
 export const s04_ragDataMenuPrompt = ai.definePrompt(
   {
     name: 's04_ragDataMenu',
-    model: gemini15Flash,
+    model: googleAI.model('gemini-2.5-flash'),
     input: { schema: DataMenuQuestionInputSchema },
     output: { format: 'text' },
     config: { temperature: 0.3 },
