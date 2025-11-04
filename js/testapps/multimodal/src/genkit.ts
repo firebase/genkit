@@ -15,10 +15,7 @@
  */
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import {
-  multimodalEmbedding001,
-  vertexAI,
-} from '@genkit-ai/vertexai';
+import { multimodalEmbedding001, vertexAI } from '@genkit-ai/vertexai';
 import { genkit, type Genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { pinecone } from 'genkitx-pinecone';
