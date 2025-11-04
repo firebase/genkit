@@ -138,7 +138,7 @@ func WithPromptDir(dir string) GenkitOption {
 //		// Assumes a prompt file at ./prompts/jokePrompt.prompt
 //		g := genkit.Init(ctx,
 //			genkit.WithPlugins(&googlegenai.GoogleAI{}),
-//			genkit.WithDefaultModel("googleai/gemini-2.0-flash"),
+//			genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
 //			genkit.WithPromptDir("./prompts"),
 //		)
 //
@@ -637,7 +637,7 @@ func GenerateWithRequest(ctx context.Context, g *Genkit, actionOpts *ai.Generate
 // Example:
 //
 //	resp, err := genkit.Generate(ctx, g,
-//		ai.WithModelName("googleai/gemini-2.0-flash"),
+//		ai.WithModelName("googleai/gemini-2.5-flash"),
 //		ai.WithPrompt("Write a short poem about clouds."),
 //		ai.WithConfig(&genai.GenerateContentConfig{MaxOutputTokens: 50}),
 //	)
