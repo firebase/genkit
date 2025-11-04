@@ -17,6 +17,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type {
   ContentBlock,
+  DocumentBlockParam,
   ImageBlockParam,
   Message,
   MessageCreateParams,
@@ -52,6 +53,11 @@ import { modelRef } from 'genkit/model';
 import { model } from 'genkit/plugin';
 
 import { MediaType, type Media } from './types.js';
+
+/**
+ * Default maximum output tokens for Claude models when not specified in the request.
+ */
+const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   tool_choice: z
@@ -239,6 +245,14 @@ const isMediaObject = (obj: unknown): obj is Media =>
   'url' in obj &&
   typeof (obj as Media).url === 'string';
 
+/**
+ * Checks if a URL is a data URL (starts with 'data:').
+ * This follows the Google GenAI plugin pattern for distinguishing inline data from file references.
+ */
+const isDataUrl = (url: string): boolean => {
+  return url.startsWith('data:');
+};
+
 const extractDataFromBase64Url = (
   url: string
 ): { data: string; contentType: string } | null => {
@@ -314,8 +328,15 @@ export function toAnthropicToolResponseContent(
  */
 export function toAnthropicMessageContent(
   part: Part
-): TextBlock | ImageBlockParam | ToolUseBlockParam | ToolResultBlockParam {
+):
+  | TextBlock
+  | ImageBlockParam
+  | DocumentBlockParam
+  | ToolUseBlockParam
+  | ToolResultBlockParam {
   if (part.text) {
+    // Anthropic SDK expects citations field to be explicitly set to null
+    // when not provided (tests confirm this pattern is correct)
     return {
       type: 'text',
       text: part.text,
@@ -323,6 +344,52 @@ export function toAnthropicMessageContent(
     };
   }
   if (part.media) {
+    const resolvedContentType = part.media.contentType;
+
+    // Check if this is a PDF document
+    if (resolvedContentType === 'application/pdf') {
+      const url = part.media.url;
+
+      if (isDataUrl(url)) {
+        // Extract base64 data and MIME type from data URL
+        const base64Match = url.match(/^data:([^;]+);base64,(.+)$/);
+        if (!base64Match) {
+          throw new Error(
+            `Invalid PDF data URL format: ${url.substring(0, 50)}...`
+          );
+        }
+
+        const extractedContentType = base64Match[1];
+        const base64Data = base64Match[2];
+
+        // Verify the extracted type matches PDF
+        if (extractedContentType !== 'application/pdf') {
+          throw new Error(
+            `PDF contentType mismatch: expected application/pdf, got ${extractedContentType}`
+          );
+        }
+
+        return {
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: 'application/pdf',
+            data: base64Data,
+          },
+        };
+      } else {
+        // File URL (HTTP/HTTPS/other) - contentType is already verified as 'application/pdf'
+        return {
+          type: 'document',
+          source: {
+            type: 'url',
+            url: url,
+          },
+        };
+      }
+    }
+
+    // Handle non-PDF media (images) - existing logic
     const { data, contentType } =
       extractDataFromBase64Url(part.media.url) ?? {};
     if (!data) {
@@ -354,17 +421,31 @@ export function toAnthropicMessageContent(
     };
   }
   if (part.toolRequest) {
+    if (!part.toolRequest.ref) {
+      throw new Error(
+        `Tool request ref is required for Anthropic API. Part: ${JSON.stringify(
+          part.toolRequest
+        )}`
+      );
+    }
     return {
       type: 'tool_use',
-      id: part.toolRequest.ref!,
+      id: part.toolRequest.ref,
       name: part.toolRequest.name,
       input: part.toolRequest.input,
     };
   }
   if (part.toolResponse) {
+    if (!part.toolResponse.ref) {
+      throw new Error(
+        `Tool response ref is required for Anthropic API. Part: ${JSON.stringify(
+          part.toolResponse
+        )}`
+      );
+    }
     return {
       type: 'tool_result',
-      tool_use_id: part.toolResponse.ref!,
+      tool_use_id: part.toolResponse.ref,
       content: [toAnthropicToolResponseContent(part)],
     };
   }
@@ -440,7 +521,12 @@ function fromAnthropicContentBlock(contentBlock: ContentBlock): Part {
   } else if (contentBlock.type === 'redacted_thinking') {
     return { text: contentBlock.data };
   } else {
-    // Handle other content block types
+    // Handle unexpected content block types
+    // Log warning for debugging, but return empty text to avoid breaking the flow
+    const unknownType = (contentBlock as { type: string }).type;
+    console.warn(
+      `Unexpected Anthropic content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
+    );
     return { text: '' };
   }
 }
@@ -518,7 +604,7 @@ export function fromAnthropicResponse(response: Message): GenerateResponseData {
  * @param stream Whether to stream the response.
  * @param cacheSystemPrompt Whether to cache the system prompt.
  * @returns The converted Anthropic API request body.
- * @throws An error if the specified model is not supported or if an unsupported output format is requested.
+ * @throws An error if an unsupported output format is requested.
  */
 export function toAnthropicRequestBody(
   modelName: string,
@@ -526,10 +612,11 @@ export function toAnthropicRequestBody(
   stream?: boolean,
   cacheSystemPrompt?: boolean
 ): MessageCreateParams {
+  // Use supported model ref if available for version mapping, otherwise use modelName directly
   const model = SUPPORTED_CLAUDE_MODELS[modelName];
-  if (!model) throw new Error(`Unsupported model: ${modelName}`);
   const { system, messages } = toAnthropicMessages(request.messages);
-  const mappedModelName = request.config?.version ?? model.version ?? modelName;
+  const mappedModelName =
+    request.config?.version ?? model?.version ?? modelName;
   const body: MessageCreateParams = {
     system:
       cacheSystemPrompt && system
@@ -543,7 +630,7 @@ export function toAnthropicRequestBody(
         : system,
     messages,
     tools: request.tools?.map(toAnthropicTool),
-    max_tokens: request.config?.maxOutputTokens ?? 4096,
+    max_tokens: request.config?.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
     model: mappedModelName,
     top_k: request.config?.topK,
     top_p: request.config?.topP,
@@ -559,11 +646,15 @@ export function toAnthropicRequestBody(
       `Only text output format is supported for Claude models currently`
     );
   }
-  for (const key in body) {
-    if (!body[key] || (Array.isArray(body[key]) && !body[key].length))
-      delete body[key];
-  }
-  return body;
+  // Remove undefined, null, and empty array values using a type-safe approach
+  const cleanedBody = Object.fromEntries(
+    Object.entries(body).filter(([_, value]) => {
+      if (value === undefined || value === null) return false;
+      if (Array.isArray(value) && value.length === 0) return false;
+      return true;
+    })
+  ) as MessageCreateParams;
+  return cleanedBody;
 }
 
 /**
@@ -620,21 +711,40 @@ export function claudeRunner(
 }
 
 /**
+ * Generic Claude model info for unknown/unsupported models.
+ * Used when a model name is not in SUPPORTED_CLAUDE_MODELS.
+ */
+const GENERIC_CLAUDE_MODEL_INFO = {
+  versions: [],
+  label: 'Anthropic - Claude',
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: true,
+    systemRole: true,
+    output: ['text'],
+  },
+};
+
+/**
  * Defines a Claude model with the given name and Anthropic client.
+ * accepts any model name and lets the APIvalidate it. If the model is in SUPPORTED_CLAUDE_MODELS, uses that modelRef
+ * for better defaults; otherwise creates a generic model reference.
  */
 export function claudeModel(
   name: string,
   client: Anthropic,
   cacheSystemPrompt?: boolean
 ): ModelAction<typeof AnthropicConfigSchema> {
+  // Use supported model ref if available, otherwise create generic model ref
   const modelRef = SUPPORTED_CLAUDE_MODELS[name];
-  if (!modelRef) throw new Error(`Unsupported model: ${name}`);
+  const modelInfo = modelRef ? modelRef.info : GENERIC_CLAUDE_MODEL_INFO;
 
   return model(
     {
       name: `anthropic/${name}`,
-      ...modelRef.info,
-      configSchema: modelRef.configSchema,
+      ...modelInfo,
+      configSchema: AnthropicConfigSchema,
     },
     claudeRunner(name, client, cacheSystemPrompt)
   );
