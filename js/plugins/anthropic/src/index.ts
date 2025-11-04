@@ -140,7 +140,10 @@ export const anthropic = (options?: PluginOptions): GenkitPluginV2 => {
     },
     resolve: (actionType: ActionType, name: string) => {
       if (actionType === 'model') {
-        return claudeModel(name, client);
+        // Strip the 'anthropic/' namespace prefix if present
+        const modelName = name.startsWith('anthropic/') ? name.slice(10) : name;
+        // Follow Google GenAI pattern: accept any model name and let the API validate it
+        return claudeModel(modelName, client, options?.cacheSystemPrompt);
       }
       return undefined;
     },

@@ -46,7 +46,12 @@ import {
   toAnthropicTool,
   toAnthropicToolResponseContent,
 } from '../src/claude.js';
-import { createMockAnthropicClient } from './mocks/anthropic-client.js';
+import {
+  createMockAnthropicClient,
+  mockContentBlockStart,
+  mockTextChunk,
+  mockToolUseChunk,
+} from './mocks/anthropic-client.js';
 
 describe('toAnthropicRole', () => {
   const testCases: {
@@ -124,6 +129,56 @@ describe('toAnthropicMessageContent', () => {
       () => toAnthropicMessageContent({ fake: 'part' } as Part),
       /Unsupported genkit part fields encountered for current message role: {"fake":"part"}/
     );
+  });
+
+  it('should throw if media with file URL cannot be processed as image', () => {
+    // File URLs without contentType cannot be processed (they're not data URLs)
+    // This will fall through to image handling which requires data URLs
+    assert.throws(
+      () =>
+        toAnthropicMessageContent({
+          media: {
+            url: 'https://example.com/document.pdf',
+            // contentType missing - won't be recognized as PDF
+          },
+        }),
+      /Invalid genkit part media provided to toAnthropicMessageContent/
+    );
+  });
+
+  it('should handle PDF with base64 data URL correctly', () => {
+    const result = toAnthropicMessageContent({
+      media: {
+        url: 'data:application/pdf;base64,JVBERi0xLjQKJ',
+        contentType: 'application/pdf',
+      },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: 'application/pdf',
+        data: 'JVBERi0xLjQKJ',
+      },
+    });
+  });
+
+  it('should handle PDF with HTTP/HTTPS URL correctly', () => {
+    const result = toAnthropicMessageContent({
+      media: {
+        url: 'https://example.com/document.pdf',
+        contentType: 'application/pdf',
+      },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'document',
+      source: {
+        type: 'url',
+        url: 'https://example.com/document.pdf',
+      },
+    });
   });
 });
 
@@ -387,6 +442,127 @@ describe('toAnthropicMessages', () => {
                   type: 'base64',
                   data: 'R0lGODlhAQABAAAAACw=',
                   media_type: 'image/gif',
+                },
+                type: 'image',
+              },
+            ],
+            role: 'user',
+          },
+        ],
+        system: undefined,
+      },
+    },
+    {
+      should: 'should transform PDF with base64 data URL correctly',
+      inputMessages: [
+        {
+          role: 'user',
+          content: [
+            {
+              media: {
+                url: 'data:application/pdf;base64,JVBERi0xLjQKJ',
+                contentType: 'application/pdf',
+              },
+            },
+          ],
+        },
+      ],
+      expectedOutput: {
+        messages: [
+          {
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: 'JVBERi0xLjQKJ',
+                },
+              },
+            ],
+            role: 'user',
+          },
+        ],
+        system: undefined,
+      },
+    },
+    {
+      should: 'should transform PDF with HTTP/HTTPS URL correctly',
+      inputMessages: [
+        {
+          role: 'user',
+          content: [
+            {
+              media: {
+                url: 'https://example.com/document.pdf',
+                contentType: 'application/pdf',
+              },
+            },
+          ],
+        },
+      ],
+      expectedOutput: {
+        messages: [
+          {
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'url',
+                  url: 'https://example.com/document.pdf',
+                },
+              },
+            ],
+            role: 'user',
+          },
+        ],
+        system: undefined,
+      },
+    },
+    {
+      should: 'should transform PDF alongside text and images correctly',
+      inputMessages: [
+        {
+          role: 'user',
+          content: [
+            { text: 'Analyze this PDF and image:' },
+            {
+              media: {
+                url: 'data:application/pdf;base64,JVBERi0xLjQKJ',
+                contentType: 'application/pdf',
+              },
+            },
+            {
+              media: {
+                url: 'data:image/png;base64,R0lGODlhAQABAAAAACw=',
+                contentType: 'image/png',
+              },
+            },
+          ],
+        },
+      ],
+      expectedOutput: {
+        messages: [
+          {
+            content: [
+              {
+                text: 'Analyze this PDF and image:',
+                type: 'text',
+                citations: null,
+              },
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: 'JVBERi0xLjQKJ',
+                },
+              },
+              {
+                source: {
+                  type: 'base64',
+                  data: 'R0lGODlhAQABAAAAACw=',
+                  media_type: 'image/png',
                 },
                 type: 'image',
               },
@@ -743,14 +919,14 @@ describe('toAnthropicRequestBody', () => {
     });
   }
 
-  it('should throw if model is not supported', () => {
-    assert.throws(
-      () =>
-        toAnthropicRequestBody('fake-model', {
-          messages: [],
-        } as GenerateRequest<typeof AnthropicConfigSchema>),
-      /Unsupported model: fake-model/
-    );
+  it('should accept any model name and use it directly', () => {
+    // Following Google GenAI pattern: accept any model name, let API validate
+    const result = toAnthropicRequestBody('fake-model', {
+      messages: [],
+    } as GenerateRequest<typeof AnthropicConfigSchema>);
+
+    // Should not throw, and should use the model name directly
+    assert.strictEqual(result.model, 'fake-model');
   });
 
   it('should throw if output format is not text', () => {
@@ -830,6 +1006,7 @@ describe('claudeRunner', () => {
       {
         model: 'claude-3-5-haiku-latest',
         max_tokens: 4096,
+        stream: false,
       },
       {
         signal: abortSignal,
@@ -894,18 +1071,224 @@ describe('claudeModel', () => {
     assert.strictEqual(typeof modelAction, 'function');
   });
 
-  it('should throw for unsupported models', () => {
-    assert.throws(
-      () => claudeModel('unsupported-model', {} as Anthropic),
-      /Unsupported model: unsupported-model/
+  it('should accept any model name and create a model action', () => {
+    // Following Google GenAI pattern: accept any model name, let API validate
+    const modelAction = claudeModel('unsupported-model', {} as Anthropic);
+    assert.ok(modelAction, 'Should create model action for any model name');
+    assert.strictEqual(typeof modelAction, 'function');
+  });
+
+  it('should handle streaming with multiple text chunks', async () => {
+    const mockClient = createMockAnthropicClient({
+      streamChunks: [
+        mockContentBlockStart('Hello'),
+        mockTextChunk(' world'),
+        mockTextChunk('!'),
+      ],
+      messageResponse: {
+        content: [{ type: 'text', text: 'Hello world!', citations: null }],
+        usage: {
+          input_tokens: 5,
+          output_tokens: 10,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        },
+      },
+    });
+
+    const chunks: any[] = [];
+    const streamingCallback = mock.fn((chunk: any) => {
+      chunks.push(chunk);
+    });
+
+    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const abortSignal = new AbortController().signal;
+
+    const result = await runner(
+      { messages: [{ role: 'user', content: [{ text: 'Hi' }] }] },
+      { streamingRequested: true, sendChunk: streamingCallback, abortSignal }
+    );
+
+    // Verify we received all the streaming chunks
+    assert.ok(chunks.length > 0, 'Should have received streaming chunks');
+    assert.strictEqual(chunks.length, 3, 'Should have received 3 chunks');
+
+    // Verify the final result
+    assert.ok(result.candidates);
+    assert.strictEqual(
+      result.candidates[0].message.content[0].text,
+      'Hello world!'
+    );
+    assert.ok(result.usage);
+    assert.strictEqual(result.usage.inputTokens, 5);
+    assert.strictEqual(result.usage.outputTokens, 10);
+  });
+
+  it('should handle tool use in streaming mode', async () => {
+    const mockClient = createMockAnthropicClient({
+      streamChunks: [
+        mockToolUseChunk('toolu_123', 'get_weather', { city: 'NYC' }),
+      ],
+      messageResponse: {
+        content: [
+          {
+            type: 'tool_use',
+            id: 'toolu_123',
+            name: 'get_weather',
+            input: { city: 'NYC' },
+          },
+        ],
+        stop_reason: 'tool_use',
+        usage: {
+          input_tokens: 15,
+          output_tokens: 25,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        },
+      },
+    });
+
+    const chunks: any[] = [];
+    const streamingCallback = mock.fn((chunk: any) => {
+      chunks.push(chunk);
+    });
+
+    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const abortSignal = new AbortController().signal;
+
+    const result = await runner(
+      {
+        messages: [
+          { role: 'user', content: [{ text: 'What is the weather?' }] },
+        ],
+        tools: [
+          {
+            name: 'get_weather',
+            description: 'Get the weather for a city',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                city: { type: 'string' },
+              },
+              required: ['city'],
+            },
+          },
+        ],
+      },
+      { streamingRequested: true, sendChunk: streamingCallback, abortSignal }
+    );
+
+    // Verify we received the tool use chunk
+    assert.ok(chunks.length > 0, 'Should have received chunks');
+
+    // Verify the final result contains tool use
+    assert.ok(result.candidates);
+    const toolRequest = result.candidates[0].message.content.find(
+      (p) => p.toolRequest
+    );
+    assert.ok(toolRequest, 'Should have a tool request');
+    assert.strictEqual(toolRequest.toolRequest?.name, 'get_weather');
+    assert.deepStrictEqual(toolRequest.toolRequest?.input, { city: 'NYC' });
+  });
+
+  it('should handle streaming errors and partial responses', async () => {
+    const streamError = new Error('Network error during streaming');
+    const mockClient = createMockAnthropicClient({
+      streamChunks: [mockContentBlockStart('Hello'), mockTextChunk(' world')],
+      streamErrorAfterChunk: 1, // Throw error after first chunk
+      streamError: streamError,
+      messageResponse: {
+        content: [{ type: 'text', text: 'Hello world', citations: null }],
+        usage: {
+          input_tokens: 5,
+          output_tokens: 10,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        },
+      },
+    });
+
+    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const abortSignal = new AbortController().signal;
+    const chunks: any[] = [];
+    const sendChunk = (chunk: any) => {
+      chunks.push(chunk);
+    };
+
+    // Should throw error during streaming
+    await assert.rejects(
+      async () => {
+        await runner(
+          { messages: [{ role: 'user', content: [{ text: 'Hi' }] }] },
+          {
+            streamingRequested: true,
+            sendChunk,
+            abortSignal,
+          }
+        );
+      },
+      (error: Error) => {
+        // Verify error is propagated
+        assert.strictEqual(error.message, 'Network error during streaming');
+        // Verify we received at least one chunk before error
+        assert.ok(
+          chunks.length > 0,
+          'Should have received some chunks before error'
+        );
+        return true;
+      }
     );
   });
 
-  it.todo('should handle streaming with multiple text chunks');
+  it('should handle abort signal during streaming', async () => {
+    const mockClient = createMockAnthropicClient({
+      streamChunks: [
+        mockContentBlockStart('Hello'),
+        mockTextChunk(' world'),
+        mockTextChunk('!'),
+      ],
+      messageResponse: {
+        content: [{ type: 'text', text: 'Hello world!', citations: null }],
+        usage: {
+          input_tokens: 5,
+          output_tokens: 15,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        },
+      },
+    });
 
-  it.todo('should handle tool use in streaming mode');
+    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const abortController = new AbortController();
+    const chunks: any[] = [];
+    const sendChunk = (chunk: any) => {
+      chunks.push(chunk);
+      // Abort after first chunk
+      if (chunks.length === 1) {
+        abortController.abort();
+      }
+    };
 
-  it.todo('should handle streaming errors and partial responses');
-
-  it.todo('should handle abort signal during streaming');
+    // Should throw AbortError when signal is aborted
+    await assert.rejects(
+      async () => {
+        await runner(
+          { messages: [{ role: 'user', content: [{ text: 'Hi' }] }] },
+          {
+            streamingRequested: true,
+            sendChunk,
+            abortSignal: abortController.signal,
+          }
+        );
+      },
+      (error: Error) => {
+        // Verify abort error is thrown
+        assert.ok(
+          error.name === 'AbortError' || error.message.includes('AbortError'),
+          'Should throw AbortError'
+        );
+        return true;
+      }
+    );
+  });
 });

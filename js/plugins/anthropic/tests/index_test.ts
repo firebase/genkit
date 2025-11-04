@@ -39,13 +39,145 @@ describe('Anthropic Plugin', () => {
     }
   });
 
-  it.todo('should throw error when API key is missing');
+  it('should throw error when API key is missing', () => {
+    // Save original env var if it exists
+    const originalApiKey = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
 
-  it.todo('should use API key from environment variable');
+    try {
+      assert.throws(() => {
+        anthropic({} as PluginOptions);
+      }, /Please pass in the API key or set the ANTHROPIC_API_KEY environment variable/);
+    } finally {
+      // Restore original env var
+      if (originalApiKey !== undefined) {
+        process.env.ANTHROPIC_API_KEY = originalApiKey;
+      }
+    }
+  });
 
-  it.todo('should resolve models dynamically via resolve function');
+  it('should use API key from environment variable', () => {
+    // Save original env var if it exists
+    const originalApiKey = process.env.ANTHROPIC_API_KEY;
+    const testApiKey = 'test-api-key-from-env';
 
-  it.todo('should list available models from API');
+    try {
+      // Set test API key
+      process.env.ANTHROPIC_API_KEY = testApiKey;
 
-  it.todo('should cache list results on subsequent calls?');
+      // Plugin should initialize without throwing
+      const plugin = anthropic({} as PluginOptions);
+      assert.ok(plugin);
+      assert.strictEqual(plugin.name, 'anthropic');
+    } finally {
+      // Restore original env var
+      if (originalApiKey !== undefined) {
+        process.env.ANTHROPIC_API_KEY = originalApiKey;
+      } else {
+        delete process.env.ANTHROPIC_API_KEY;
+      }
+    }
+  });
+
+  it('should resolve models dynamically via resolve function', async () => {
+    const mockClient = createMockAnthropicClient();
+    const plugin = anthropic({ [__testClient]: mockClient } as PluginOptions);
+
+    assert.ok(plugin.resolve, 'Plugin should have resolve method');
+
+    // Test resolving a valid model
+    const validModel = plugin.resolve!('model', 'anthropic/claude-3-5-haiku');
+    assert.ok(validModel, 'Should resolve valid model');
+    assert.strictEqual(typeof validModel, 'function');
+
+    // Test resolving an unknown model name - should return a model action
+    // (following Google GenAI pattern: accept any model name, let API validate)
+    const unknownModel = plugin.resolve!(
+      'model',
+      'anthropic/unknown-model-xyz'
+    );
+    assert.ok(unknownModel, 'Should resolve unknown model name');
+    assert.strictEqual(
+      typeof unknownModel,
+      'function',
+      'Should return a model action'
+    );
+
+    // Test resolving with invalid action type (using 'tool' as invalid for this context)
+    const invalidActionType = plugin.resolve!(
+      'tool',
+      'anthropic/claude-3-5-haiku'
+    );
+    assert.strictEqual(
+      invalidActionType,
+      undefined,
+      'Should return undefined for invalid action type'
+    );
+  });
+
+  it('should list available models from API', async () => {
+    const mockClient = createMockAnthropicClient({
+      modelList: [
+        { id: 'claude-3-5-haiku-20241022', display_name: 'Claude 3.5 Haiku' },
+        { id: 'claude-3-5-sonnet-20241022', display_name: 'Claude 3.5 Sonnet' },
+        { id: 'claude-sonnet-4-20250514', display_name: 'Claude 4 Sonnet' },
+      ],
+    });
+
+    const plugin = anthropic({ [__testClient]: mockClient } as PluginOptions);
+    assert.ok(plugin.list, 'Plugin should have list method');
+
+    const models = await plugin.list!();
+
+    assert.ok(Array.isArray(models), 'Should return an array');
+    assert.ok(models.length > 0, 'Should return at least one model');
+
+    // Verify model structure
+    for (const model of models) {
+      assert.ok(model.name, 'Model should have a name');
+      // ActionMetadata has name and other properties, but kind is not required
+    }
+
+    // Verify mock was called
+    const listStub = mockClient.models.list as any;
+    assert.strictEqual(
+      listStub.mock.calls.length,
+      1,
+      'models.list should be called once'
+    );
+  });
+
+  it('should cache list results on subsequent calls?', async () => {
+    const mockClient = createMockAnthropicClient({
+      modelList: [
+        { id: 'claude-3-5-haiku-20241022', display_name: 'Claude 3.5 Haiku' },
+      ],
+    });
+
+    const plugin = anthropic({ [__testClient]: mockClient } as PluginOptions);
+    assert.ok(plugin.list, 'Plugin should have list method');
+
+    // First call
+    const firstResult = await plugin.list!();
+    assert.ok(firstResult, 'First call should return results');
+
+    // Second call
+    const secondResult = await plugin.list!();
+    assert.ok(secondResult, 'Second call should return results');
+
+    // Verify both results are the same (reference equality for cache)
+    assert.strictEqual(
+      firstResult,
+      secondResult,
+      'Results should be cached (same reference)'
+    );
+
+    // Verify models.list was only called once due to caching
+    const listStub = mockClient.models.list as any;
+    assert.strictEqual(
+      listStub.mock.calls.length,
+      1,
+      'models.list should only be called once due to caching'
+    );
+  });
 });

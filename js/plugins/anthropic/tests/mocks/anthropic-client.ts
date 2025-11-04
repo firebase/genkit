@@ -23,9 +23,13 @@ import { mock } from 'node:test';
 
 export interface MockAnthropicClientOptions {
   messageResponse?: Partial<Message>;
+  sequentialResponses?: Partial<Message>[]; // For tool calling - multiple responses
   streamChunks?: MessageStreamEvent[];
   modelList?: Array<{ id: string; display_name?: string }>;
   shouldError?: Error;
+  streamErrorAfterChunk?: number; // Throw error after this many chunks
+  streamError?: Error; // Error to throw during streaming
+  abortSignal?: AbortSignal; // Abort signal to check
 }
 
 /**
@@ -39,19 +43,41 @@ export function createMockAnthropicClient(
     ...options.messageResponse,
   };
 
+  // Support sequential responses for tool calling workflows
+  let callCount = 0;
   const createStub = options.shouldError
     ? mock.fn(async () => {
         throw options.shouldError;
       })
-    : mock.fn(async () => messageResponse);
+    : options.sequentialResponses
+      ? mock.fn(async () => {
+          const response =
+            options.sequentialResponses![callCount] || messageResponse;
+          callCount++;
+          return {
+            ...mockDefaultMessage(),
+            ...response,
+          };
+        })
+      : mock.fn(async () => messageResponse);
 
   const streamStub = options.shouldError
     ? mock.fn(() => {
         throw options.shouldError;
       })
-    : mock.fn(() =>
-        createMockStream(options.streamChunks || [], messageResponse as Message)
-      );
+    : mock.fn((body: any, opts?: { signal?: AbortSignal }) => {
+        // Check abort signal before starting stream
+        if (opts?.signal?.aborted) {
+          throw new Error('AbortError');
+        }
+        return createMockStream(
+          options.streamChunks || [],
+          messageResponse as Message,
+          options.streamErrorAfterChunk,
+          options.streamError,
+          opts?.signal
+        );
+      });
 
   const listStub = options.shouldError
     ? mock.fn(async () => {
@@ -75,12 +101,34 @@ export function createMockAnthropicClient(
 /**
  * Creates a mock async iterable stream for streaming responses
  */
-function createMockStream(chunks: MessageStreamEvent[], finalMsg: Message) {
+function createMockStream(
+  chunks: MessageStreamEvent[],
+  finalMsg: Message,
+  errorAfterChunk?: number,
+  streamError?: Error,
+  abortSignal?: AbortSignal
+) {
   let index = 0;
   return {
     [Symbol.asyncIterator]() {
       return {
         async next() {
+          // Check abort signal
+          if (abortSignal?.aborted) {
+            const error = new Error('AbortError');
+            error.name = 'AbortError';
+            throw error;
+          }
+
+          // Check if we should throw an error after this chunk
+          if (
+            errorAfterChunk !== undefined &&
+            streamError &&
+            index >= errorAfterChunk
+          ) {
+            throw streamError;
+          }
+
           if (index < chunks.length) {
             return { value: chunks[index++], done: false };
           }
@@ -89,6 +137,12 @@ function createMockStream(chunks: MessageStreamEvent[], finalMsg: Message) {
       };
     },
     async finalMessage() {
+      // Check abort signal before returning final message
+      if (abortSignal?.aborted) {
+        const error = new Error('AbortError');
+        error.name = 'AbortError';
+        throw error;
+      }
       return finalMsg;
     },
   };
