@@ -14,12 +14,29 @@
  * limitations under the License.
  */
 
+import type Anthropic from '@anthropic-ai/sdk';
+
+/**
+ * Internal symbol for dependency injection in tests.
+ * Not part of the public API.
+ * @internal
+ */
+export const __testClient = Symbol('testClient');
+
 /**
  * Plugin configuration options for the Anthropic plugin.
  */
 export interface PluginOptions {
   apiKey?: string;
   cacheSystemPrompt?: boolean;
+}
+
+/**
+ * Internal plugin options that include test client injection.
+ * @internal
+ */
+export interface InternalPluginOptions extends PluginOptions {
+  [__testClient]?: Anthropic;
 }
 
 /**

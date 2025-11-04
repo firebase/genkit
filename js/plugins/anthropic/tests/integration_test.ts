@@ -15,23 +15,18 @@
  */
 
 import * as assert from 'assert';
-import { genkit, type Genkit } from 'genkit';
-import { before, describe, it } from 'node:test';
-import { setupAnthropicMock } from './mocks/setup-anthropic-mock.js';
+import { genkit } from 'genkit';
+import { describe, it } from 'node:test';
+import { anthropic } from '../src/index.js';
+import { __testClient } from '../src/types.js';
+import { createMockAnthropicClient } from './mocks/anthropic-client.js';
 
-setupAnthropicMock();
+import { PluginOptions } from '../src/types.js';
 
 describe('Anthropic Integration', () => {
-  let ai: Genkit;
-
-  before(async () => {
-    process.env.ANTHROPIC_API_KEY = 'test-api-key';
-
-    // Import and initialize after mocking
-    const { anthropic } = await import('../src/index.ts');
-    ai = genkit({
-      plugins: [anthropic()],
-    });
+  const mockClient = createMockAnthropicClient();
+  const ai = genkit({
+    plugins: [anthropic({ [__testClient]: mockClient } as PluginOptions)],
   });
 
   it('should successfully generate a response', async () => {
