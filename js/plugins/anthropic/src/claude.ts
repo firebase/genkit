@@ -272,7 +272,7 @@ export function toAnthropicToolResponseContent(
   part: Part
 ): TextBlockParam | ImageBlockParam {
   if (!part.toolResponse) {
-    throw Error(
+    throw new Error(
       `Invalid genkit part provided to toAnthropicToolResponseContent: ${JSON.stringify(
         part
       )}.`
@@ -393,7 +393,7 @@ export function toAnthropicMessageContent(
     const { data, contentType } =
       extractDataFromBase64Url(part.media.url) ?? {};
     if (!data) {
-      throw Error(
+      throw new Error(
         `Invalid genkit part media provided to toAnthropicMessageContent: ${JSON.stringify(
           part.media
         )}.`
@@ -404,7 +404,7 @@ export function toAnthropicMessageContent(
     const resolvedMediaType: string | undefined =
       part.media.contentType ?? contentType;
     if (!resolvedMediaType) {
-      throw new Error(`Invalid media type: ${resolvedMediaType}`);
+      throw new Error('Media type is required but was not provided');
     }
     if (!Object.values(MediaType).includes(resolvedMediaType as MediaType)) {
       throw new Error(`Unsupported media type: ${resolvedMediaType}`);
@@ -449,7 +449,7 @@ export function toAnthropicMessageContent(
       content: [toAnthropicToolResponseContent(part)],
     };
   }
-  throw Error(
+  throw new Error(
     `Unsupported genkit part fields encountered for current message role: ${JSON.stringify(
       part
     )}.`
@@ -728,7 +728,7 @@ const GENERIC_CLAUDE_MODEL_INFO = {
 
 /**
  * Defines a Claude model with the given name and Anthropic client.
- * accepts any model name and lets the APIvalidate it. If the model is in SUPPORTED_CLAUDE_MODELS, uses that modelRef
+ * Accepts any model name and lets the API validate it. If the model is in SUPPORTED_CLAUDE_MODELS, uses that modelRef
  * for better defaults; otherwise creates a generic model reference.
  */
 export function claudeModel(
