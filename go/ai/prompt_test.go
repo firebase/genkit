@@ -942,10 +942,7 @@ Hello, {{name}}!
 }
 
 func TestLoadPromptSnakeCase(t *testing.T) {
-	// Create a temporary directory for testing
 	tempDir := t.TempDir()
-
-	// Create a mock .prompt file
 	mockPromptFile := filepath.Join(tempDir, "snake.prompt")
 	mockPromptContent := `---
 model: googleai/gemini-2.5-flash
@@ -964,16 +961,12 @@ input:
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
-	// Initialize a mock registry
 	reg := registry.New()
-
-	// Call loadPrompt
 	LoadPrompt(reg, tempDir, "snake.prompt", "snake-namespace")
 
-	// Verify that the prompt was registered correctly
 	prompt := LookupPrompt(reg, "snake-namespace/snake")
 	if prompt == nil {
-		t.Fatalf("Prompt was not registered")
+		t.Fatalf("prompt was not registered")
 	}
 
 	type SnakeInput struct {
@@ -982,7 +975,9 @@ input:
 	}
 
 	input := map[string]any{"items": []SnakeInput{
-		{TeamColor: "RED", TeamName: "Firebase"}, {TeamColor: "BLUE", TeamName: "Gophers"}, {TeamColor: "GREEN", TeamName: "Google"},
+		{TeamColor: "RED", TeamName: "Firebase"},
+		{TeamColor: "BLUE", TeamName: "Gophers"},
+		{TeamColor: "GREEN", TeamName: "Google"},
 	}}
 
 	actionOpts, err := prompt.Render(context.Background(), input)
@@ -993,21 +988,19 @@ input:
 		t.Fatal("expecting messages to be rendered")
 	}
 	renderedPrompt := actionOpts.Messages[0].Text()
-	t.Logf("renderedPrompt: %s", renderedPrompt)
-
-	for line := range strings.SplitSeq(renderedPrompt, ",") {
+	for line := range strings.SplitSeq(renderedPrompt, "\n") {
 		trimmedLine := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmedLine, "RED") {
 			if !strings.Contains(trimmedLine, "Firebase") {
-				t.Fatalf("wrong template render, want: RED,Firebase, got: RED,")
+				t.Fatalf("wrong template render, want: RED,Firebase, got: %s", trimmedLine)
 			}
 		} else if strings.HasPrefix(trimmedLine, "BLUE") {
-			if !strings.Contains(trimmedLine, "Google") {
-				t.Fatalf("wrong template render, want: BLUE,Gophers, got: BLUE,")
+			if !strings.Contains(trimmedLine, "Gophers") {
+				t.Fatalf("wrong template render, want: BLUE,Gophers, got: %s", trimmedLine)
 			}
 		} else if strings.HasPrefix(trimmedLine, "GREEN") {
 			if !strings.Contains(trimmedLine, "Google") {
-				t.Fatalf("wrong template render, want: GREEN,Google, got: GREEN,")
+				t.Fatalf("wrong template render, want: GREEN,Google, got: %s", trimmedLine)
 			}
 		}
 	}
