@@ -33,11 +33,11 @@ func main() {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("anthropic/claude-sonnet-4-20250514"),
 			ai.WithConfig(&anthropic.MessageNewParams{
-				Temperature: anthropic.Float(0.1),
+				Temperature: anthropic.Float(1),
 				MaxTokens:   *anthropic.IntPtr(2000),
 				Thinking: anthropic.ThinkingConfigParamUnion{
 					OfEnabled: &anthropic.ThinkingConfigEnabledParam{
-						BudgetTokens: *anthropic.IntPtr(123),
+						BudgetTokens: *anthropic.IntPtr(1024),
 					},
 				},
 			}),
