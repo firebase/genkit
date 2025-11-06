@@ -146,25 +146,22 @@ export class LocalFileTraceStore implements TraceStore {
         existing.endTime = trace.endTime;
         trace = existing;
       }
-      fs.writeFileSync(
-        path.resolve(this.storeRoot, `${id}`),
-        JSON.stringify(trace)
-      );
+      console.log(`NEW TELEMETRY SAVED........ ${id}`);
+      const filePath = path.resolve(this.storeRoot, `${id}`);
+      const tmpFilePath = filePath + '.tmp';
+      fs.writeFileSync(tmpFilePath, JSON.stringify(trace));
+      fs.renameSync(tmpFilePath, filePath);
+      console.log(`NEW TRACE SAVED........ ${JSON.stringify(trace)}`);
       const hasRootSpan = !!Object.values(rawTrace.spans).find(
         (s) => !s.parentSpanId
       );
       if (this.index && hasRootSpan) {
-        // re-load the full trace, there are likely spans written there previously.
-        const fullTrace = await this.load(rawTrace.traceId);
-        if (!fullTrace) {
-          throw new Error(
-            'unable to read the trace that was just written... "this should never happen"'
-          );
-        }
-        this.index.add(fullTrace);
+        this.index.add(trace);
       }
     } finally {
+      console.log('Releasing SAVE LOCK');
       release();
+      console.log('Released');
     }
   }
 
