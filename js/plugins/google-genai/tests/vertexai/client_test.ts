@@ -680,7 +680,11 @@ describe('Vertex AI Client', () => {
             it('should return VeoOperation', async () => {
               const mockResponse: VeoOperation = { name: 'operations/123' };
               mockFetchResponse(mockResponse);
-              await veoPredict(model, request, currentOptions);
+              const result = await veoPredict(model, request, currentOptions);
+              assert.deepStrictEqual(result, {
+                ...mockResponse,
+                clientOptions: currentOptions,
+              });
 
               const expectedUrl = getResourceUrl(model, 'predictLongRunning');
               sinon.assert.calledOnceWithExactly(fetchSpy, expectedUrl, {
@@ -711,7 +715,15 @@ describe('Vertex AI Client', () => {
                 done: true,
               };
               mockFetchResponse(mockResponse);
-              await veoCheckOperation(model, request, currentOptions);
+              const result = await veoCheckOperation(
+                model,
+                request,
+                currentOptions
+              );
+              assert.deepStrictEqual(result, {
+                ...mockResponse,
+                clientOptions: currentOptions,
+              });
 
               const expectedUrl = getResourceUrl(
                 model,

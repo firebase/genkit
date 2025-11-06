@@ -16,7 +16,7 @@
 
 import { vertexAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { genkit, z } from 'genkit';
+import { genkit, Operation, Part, StreamingCallback, z } from 'genkit';
 import wav from 'wav';
 
 const ai = genkit({
@@ -42,6 +42,9 @@ ai.defineFlow('multimodal-input', async () => {
 
   const { text } = await ai.generate({
     model: vertexAI.model('gemini-2.5-flash'),
+    config: {
+      location: 'global',
+    },
     prompt: [
       { text: 'describe this photo' },
       {
@@ -317,10 +320,156 @@ ai.defineFlow('imagen-image-generation', async (_) => {
   return media;
 });
 
+async function waitForOperation(
+  operation?: Operation,
+  sendChunk?: StreamingCallback<any>
+) {
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    sendChunk?.('check status of operation ' + operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  if (operation.error) {
+    sendChunk?.('Error: ' + operation.error.message);
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
+
+  return operation;
+}
+
+ai.defineFlow('veo-text-prompt', async (_, { sendChunk }) => {
+  let { operation } = await ai.generate({
+    model: vertexAI.model('veo-3.0-generate-001'),
+    prompt: [
+      {
+        text: 'slowly flying over a meadow in full bloom',
+      },
+    ],
+    config: {
+      durationSeconds: 8,
+      aspectRatio: '16:9',
+      personGeneration: 'allow_adult',
+    },
+  });
+
+  const doneOp = await waitForOperation(operation, sendChunk);
+
+  const mediaPart = doneOp.output?.message?.content.find(
+    (p: Part) => !!p.media
+  );
+  if (!mediaPart) {
+    throw new Error('Failed to find the generated video');
+  }
+
+  // Download for now until we have DevUI support for video
+  const videoBuffer = Buffer.from(mediaPart.media.url.split(',')[1], 'base64');
+  fs.writeFileSync('veo-output.mp4', videoBuffer);
+
+  return mediaPart.media;
+});
+
+// An example of using Ver 3 model to make a static photo move.
+ai.defineFlow('veo-photo-move', async (_, { sendChunk }) => {
+  const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  let { operation } = await ai.generate({
+    model: vertexAI.model('veo-3.0-generate-001'),
+    prompt: [
+      {
+        text: 'make the subject in the photo move',
+      },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${startingImage}`,
+        },
+      },
+    ],
+    config: {
+      durationSeconds: 8,
+      aspectRatio: '9:16',
+      personGeneration: 'allow_adult',
+    },
+  });
+
+  const doneOp = await waitForOperation(operation, sendChunk);
+
+  const mediaPart = doneOp.output?.message?.content.find(
+    (p: Part) => !!p.media
+  );
+  if (!mediaPart) {
+    throw new Error('Failed to find the generated video');
+  }
+
+  // Download for now until we have DevUI support for video
+  const videoBuffer = Buffer.from(mediaPart.media.url.split(',')[1], 'base64');
+  fs.writeFileSync('veo-output.mp4', videoBuffer);
+
+  return mediaPart.media;
+});
+
+ai.defineFlow('veo-reference-images', async (_, { sendChunk }) => {
+  const roomImage = fs.readFileSync('my_room.png', { encoding: 'base64' });
+  const palmImage = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
+
+  let { operation } = await ai.generate({
+    model: vertexAI.model('veo-3.1-generate-preview'),
+    config: { location: 'us-central1' },
+    prompt: [
+      {
+        text: 'Give the plant legs and friendly cartoon eyes and have it bounce into the room from the left',
+      },
+      {
+        media: {
+          contentType: 'image/png',
+          url: `data:image/png;base64,${roomImage}`,
+        },
+        metadata: {
+          type: 'referenceImages',
+          referenceType: 'asset',
+        },
+      },
+      {
+        media: {
+          contentType: 'image/png',
+          url: `data:image/png;base64,${palmImage}`,
+        },
+        metadata: {
+          type: 'referenceImages',
+          referenceType: 'asset',
+        },
+      },
+    ],
+  });
+
+  const doneOp = await waitForOperation(operation, sendChunk);
+
+  const mediaPart = doneOp.output?.message?.content.find(
+    (p: Part) => !!p.media
+  );
+  if (!mediaPart) {
+    throw new Error('Failed to find the generated video');
+  }
+
+  // Download for now until we have DevUI support for video
+  const videoBuffer = Buffer.from(mediaPart.media.url.split(',')[1], 'base64');
+  fs.writeFileSync('veo-output.mp4', videoBuffer);
+
+  return mediaPart.media;
+});
+
 // Music generation with Lyria
 ai.defineFlow('lyria-music-generation', async (_) => {
   const { media } = await ai.generate({
     model: vertexAI.model('lyria-002'),
+    config: {
+      location: 'global',
+    },
     prompt: 'generate a relaxing song with piano and violin',
   });
 
@@ -362,4 +511,16 @@ async function toWav(
     writer.write(pcmData);
     writer.end();
   });
+}
+
+function bytesBase64EncodedReplacer(key: string, value: unknown): unknown {
+  const startLength = 200;
+  const endLength = 10;
+  const totalLength = startLength + endLength;
+  if (typeof value === 'string' && value.length > totalLength) {
+    const start = value.substring(0, startLength);
+    const end = value.substring(value.length - endLength);
+    return `${start}...[TRUNCATED]...${end}`;
+  }
+  return value; // Return the original value for other keys or non-string values
 }

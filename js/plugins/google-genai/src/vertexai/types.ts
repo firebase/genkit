@@ -306,11 +306,21 @@ export declare interface VeoMedia {
   mimeType?: string;
 }
 
+export declare interface VeoReferenceImage {
+  image: VeoMedia;
+  referenceType: string;
+}
+
+export declare interface VeoMask extends VeoMedia {
+  mask: string;
+}
+
 export declare interface VeoInstance {
   prompt: string;
   image?: VeoMedia;
   lastFrame?: VeoMedia;
   video?: VeoMedia;
+  referenceImages?: VeoReferenceImage[];
 }
 
 export declare interface VeoParameters {
@@ -339,6 +349,7 @@ export declare interface Operation {
     message: string;
     details?: unknown;
   };
+  clientOptions?: ClientOptions; // Added so we can call check with the same ones
 }
 
 export declare interface VeoOperation extends Operation {

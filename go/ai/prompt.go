@@ -208,7 +208,7 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 			r = r.NewChild()
 		}
 		for _, t := range newTools {
-			t.Register(p.registry)
+			t.Register(r)
 		}
 	}
 
@@ -296,16 +296,18 @@ func (p *prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		return nil, err
 	}
 
+	dp := p.registry.Dotprompt()
+
 	messages := []*Message{}
-	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
+	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, dp)
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
+	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, dp)
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
+	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, dp)
 	if err != nil {
 		return nil, err
 	}
@@ -547,13 +549,15 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		return nil
 	}
 
-	parsedPrompt, err := r.Dotprompt().Parse(string(source))
+	dp := r.Dotprompt()
+
+	parsedPrompt, err := dp.Parse(string(source))
 	if err != nil {
 		slog.Error("Failed to parse file as dotprompt", "file", sourceFile, "error", err)
 		return nil
 	}
 
-	metadata, err := r.Dotprompt().RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
+	metadata, err := dp.RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
 	if err != nil {
 		slog.Error("Failed to render dotprompt metadata", "file", sourceFile, "error", err)
 		return nil

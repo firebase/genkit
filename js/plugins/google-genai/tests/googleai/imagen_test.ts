@@ -49,7 +49,7 @@ describe('Google AI Imagen', () => {
 
   describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
-      const modelName = 'imagen-3.0-generate-002';
+      const modelName = 'imagen-4.0-generate-001';
       const ref = model(modelName);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.ok(ref.info?.supports?.media);
@@ -63,7 +63,7 @@ describe('Google AI Imagen', () => {
     });
 
     it('should apply config to a known model', () => {
-      const modelName = 'imagen-3.0-generate-002';
+      const modelName = 'imagen-4.0-generate-001';
       const config: ImagenConfig = { numberOfImages: 2 };
       const ref = model(modelName, config);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
@@ -79,9 +79,9 @@ describe('Google AI Imagen', () => {
     });
 
     it('should handle model name with prefix', () => {
-      const modelName = 'models/imagen-3.0-generate-002';
+      const modelName = 'models/imagen-4.0-generate-001';
       const ref = model(modelName);
-      assert.strictEqual(ref.name, 'googleai/imagen-3.0-generate-002');
+      assert.strictEqual(ref.name, 'googleai/imagen-4.0-generate-001');
     });
   });
 

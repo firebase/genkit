@@ -20,7 +20,7 @@
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
-    "@genkit-ai/vertexai": "workspace:*"
+    "@genkit-ai/google-genai": "workspace:*"
   },
   "devDependencies": {
     "rimraf": "^6.0.1",

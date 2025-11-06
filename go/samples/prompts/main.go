@@ -227,6 +227,12 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 		},
 	)
 
+	answerOfEverythingTool := genkit.DefineTool(g, "answerOfEverything", "use this tool when the user asks for the answer of life, the universe and everything",
+		func(ctx *ai.ToolContext, input any) (int, error) {
+			return 42, nil
+		},
+	)
+
 	type Output struct {
 		Gablorken float64 `json:"gablorken"`
 	}
@@ -236,7 +242,7 @@ func PromptWithTool(ctx context.Context, g *genkit.Genkit) {
 		g, "PromptWithTool",
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 		ai.WithMaxTurns(1),
-		ai.WithTools(gablorkenTool),
+		ai.WithTools(gablorkenTool, answerOfEverythingTool),
 		ai.WithOutputType(Output{}),
 		ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
 	)
