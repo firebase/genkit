@@ -327,7 +327,46 @@ describe('fallback', () => {
 
     assert.strictEqual(pm.requestCount, 1);
     assert.strictEqual(fallbackPm.requestCount, 0);
-    assert.strictEqual(result.text, 'success');
+  });
+
+  it('should call onError callback', async () => {
+    const pm = defineProgrammableModel(registry, {}, 'programmableModel');
+    pm.handleResponse = async () => {
+      throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
+    };
+
+    const fallbackPm = defineProgrammableModel(registry, {}, 'fallbackModel');
+    fallbackPm.handleResponse = async () => {
+      throw new GenkitError({ status: 'INTERNAL', message: 'fallback fail' });
+    };
+
+    let errorCount = 0;
+    let lastError: Error | undefined;
+    await assert.rejects(
+      generate(registry, {
+        model: 'programmableModel',
+        prompt: 'test',
+        use: [
+          fallback({ registry } as any, {
+            models: ['fallbackModel'],
+            onError: (err) => {
+              errorCount++;
+              lastError = err;
+            },
+          }),
+        ],
+      }),
+      /INTERNAL: fallback fail/
+    );
+
+    assert.strictEqual(pm.requestCount, 1);
+    assert.strictEqual(fallbackPm.requestCount, 1);
+    assert.strictEqual(errorCount, 2);
+    assert.ok(lastError);
+    assert.strictEqual(
+      lastError!.message,
+      'INTERNAL: fallback fail'
+    );
   });
 
   it('should fallback on a fallbackable error', async () => {

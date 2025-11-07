@@ -280,6 +280,20 @@ const DEFAULT_RETRY_STATUSES: StatusName[] = [
 
 /**
  * Creates a middleware that retries requests on specific error statuses.
+ *
+ * ```ts
+ * const { text } = await ai.generate({
+ *   model: googleAI.model('gemini-2.5-pro'),
+ *   prompt: 'You are a helpful AI assistant named Walt, say hello',
+ *   use: [
+ *     retry({
+ *       maxRetries: 2,
+ *       initialDelayMs: 1000,
+ *       backoffFactor: 2,
+ *     }),
+ *   ],
+ * });
+ * ```
  */
 export function retry(options: RetryOptions = {}): ModelMiddleware {
   const {
@@ -336,22 +350,40 @@ export interface FallbackOptions {
    * @default ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED', 'ABORTED', 'INTERNAL']
    */
   statuses?: StatusName[];
+  /**
+   * A callback to be executed on each fallback attempt.
+   */
+  onError?: (error: Error) => void;
 }
 
 /**
  * Creates a middleware that falls back to a different model on specific error statuses.
+ *
+ * ```ts
+ * const { text } = await ai.generate({
+ *   model: googleAI.model('gemini-2.5-pro'),
+ *   prompt: 'You are a helpful AI assistant named Walt, say hello',
+ *   use: [
+ *     fallback(ai, {
+ *       models: [googleAI.model('gemini-2.5-flash')],
+ *       statuses: ['RESOURCE_EXHAUSTED'],
+ *     }),
+ *   ],
+ * });
+ * ```
  */
 export function fallback(
   ai: HasRegistry,
   options: FallbackOptions
 ): ModelMiddleware {
-  const { models, statuses = DEFAULT_RETRY_STATUSES } = options;
+  const { models, statuses = DEFAULT_RETRY_STATUSES, onError } = options;
 
   return async (req, next) => {
     try {
       return await next(req);
     } catch (e) {
       if (e instanceof GenkitError && statuses.includes(e.status)) {
+        onError?.(e);
         let lastError: any = e;
         for (const model of models) {
           try {
@@ -360,6 +392,7 @@ export function fallback(
           } catch (e2) {
             lastError = e2;
             if (e2 instanceof GenkitError && statuses.includes(e2.status)) {
+              onError?.(e2);
               continue;
             }
             throw e2;
