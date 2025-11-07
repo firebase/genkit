@@ -44,10 +44,16 @@ import {
   toOpenAITextAndMedia,
 } from '../src/model';
 
-jest.mock('@genkit-ai/ai/model', () => ({
-  ...(jest.requireActual('@genkit-ai/ai/model') as Record<string, unknown>),
-  defineModel: jest.fn(),
-}));
+jest.mock('genkit/model', () => {
+  const originalModule =
+    jest.requireActual<typeof import('genkit/model')>('genkit/model');
+  return {
+    ...originalModule,
+    defineModel: jest.fn((_, runner) => {
+      return runner;
+    }),
+  };
+});
 
 describe('toOpenAIRole', () => {
   const testCases: {
