@@ -356,7 +356,7 @@ export function retry(options: RetryOptions = {}): ModelMiddleware {
             onError?.(error, i + 1);
             let delay = currentDelay;
             if (!noJitter) {
-              delay = delay * (1 + Math.random());
+              delay = delay + (1000 * Math.pow(2, i) * Math.random());
             }
             await new Promise((resolve) => __setTimeout(resolve, delay));
             currentDelay = Math.min(currentDelay * backoffFactor, maxDelayMs);

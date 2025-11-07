@@ -430,8 +430,8 @@ describe('retry', () => {
 
     assert.strictEqual(requestCount, 2);
     assert.strictEqual(result.text, 'success');
-    assert.ok(totalDelay > 50);
-    assert.ok(totalDelay <= 100);
+    assert.ok(totalDelay >= 50);
+    assert.ok(totalDelay <= 1050);
   });
 
   it('should respect max delay', async () => {
