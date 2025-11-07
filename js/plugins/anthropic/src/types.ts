@@ -15,6 +15,8 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
+import { z } from 'genkit';
+import { GenerationCommonConfigSchema } from 'genkit/model';
 
 /**
  * Internal symbol for dependency injection in tests.
@@ -38,6 +40,35 @@ export interface PluginOptions {
 export interface InternalPluginOptions extends PluginOptions {
   [__testClient]?: Anthropic;
 }
+
+export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
+  tool_choice: z
+    .union([
+      z.object({
+        type: z.literal('auto'),
+      }),
+      z.object({
+        type: z.literal('any'),
+      }),
+      z.object({
+        type: z.literal('tool'),
+        name: z.string(),
+      }),
+    ])
+    .optional(),
+  metadata: z
+    .object({
+      user_id: z.string().optional(),
+    })
+    .optional(),
+  beta: z
+    .object({
+      enabled: z.boolean().default(false),
+      filesApi: z.boolean().default(false),
+      webSearch: z.boolean().default(false),
+    })
+    .optional(),
+});
 
 /**
  * Media object representation with URL and optional content type.
