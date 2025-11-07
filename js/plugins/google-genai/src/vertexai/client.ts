@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { GenkitError, StatusName } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import {
   extractErrMsg,
@@ -369,12 +370,31 @@ async function makeRequest(
       } catch (e) {
         // Not JSON or expected format, use the raw text
       }
-      throw new Error(
-        `Error fetching from ${url}: [${response.status} ${response.statusText}] ${errorMessage}`
-      );
+      let status: StatusName = 'UNKNOWN';
+      switch (response.status) {
+        case 429:
+          status = 'RESOURCE_EXHAUSTED';
+          break;
+        case 400:
+          status = 'INVALID_ARGUMENT';
+          break;
+        case 500:
+          status = 'INTERNAL';
+          break;
+        case 503:
+          status = 'UNAVAILABLE';
+          break;
+      }
+      throw new GenkitError({
+        status,
+        message: `Error fetching from ${url}: [${response.status} ${response.statusText}] ${errorMessage}`,
+      });
     }
     return response;
   } catch (e: unknown) {
+    if (e instanceof GenkitError) {
+      throw e;
+    }
     console.error(e);
     throw new Error(`Failed to fetch from ${url}: ${extractErrMsg(e)}`);
   }
