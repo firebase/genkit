@@ -363,10 +363,7 @@ describe('fallback', () => {
     assert.strictEqual(fallbackPm.requestCount, 1);
     assert.strictEqual(errorCount, 2);
     assert.ok(lastError);
-    assert.strictEqual(
-      lastError!.message,
-      'INTERNAL: fallback fail'
-    );
+    assert.strictEqual(lastError!.message, 'INTERNAL: fallback fail');
   });
 
   it('should fallback on a fallbackable error', async () => {

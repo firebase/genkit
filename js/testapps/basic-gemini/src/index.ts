@@ -60,16 +60,16 @@ ai.defineFlow('basic-hi-with-retry', async () => {
 });
 
 ai.defineFlow('basic-hi-with-fallback', async () => {
-const { text } = await ai.generate({
-  model: googleAI.model('gemini-2.5-soemthing-that-does-not-exist'),
-  prompt: 'You are a helpful AI assistant named Walt, say hello',
-  use: [
-    fallback(ai, {
-      models: [googleAI.model('gemini-2.5-flash')],
-      statuses: ['UNKNOWN'],
-    }),
-  ],
-});
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-soemthing-that-does-not-exist'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    use: [
+      fallback(ai, {
+        models: [googleAI.model('gemini-2.5-flash')],
+        statuses: ['UNKNOWN'],
+      }),
+    ],
+  });
 
   return text;
 });
