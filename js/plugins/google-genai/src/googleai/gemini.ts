@@ -573,7 +573,11 @@ export function defineModel(
       };
 
       if (request.output?.constrained && jsonMode) {
-        generationConfig.responseSchema = cleanSchema(request.output.schema);
+        if (pluginOptions?.legacyResponseSchema) {
+          generationConfig.responseSchema = cleanSchema(request.output.schema);
+        } else {
+          generationConfig.responseJsonSchema = request.output.schema;
+        }
       }
 
       const msg = toGeminiMessage(messages[messages.length - 1], ref);

@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-import { googleAI } from '@genkit-ai/google-genai';
+import { googleAI, vertexAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
 import {
   genkit,
   z,
   type MediaPart,
+  type ModelReference,
   type Operation,
   type Part,
   type StreamingCallback,
@@ -27,16 +28,48 @@ import {
 import { Readable } from 'stream';
 import wav from 'wav';
 
+const useVertex = process.env.USE_VERTEX === 'true';
+
+const geminiFlash: ModelReference<any> = useVertex
+  ? vertexAI.model('gemini-2.5-flash')
+  : googleAI.model('gemini-2.5-flash');
+
+const geminiPro: ModelReference<any> = useVertex
+  ? vertexAI.model('gemini-2.5-pro')
+  : googleAI.model('gemini-2.5-pro');
+
+const nanoBanana: ModelReference<any> = useVertex
+  ? vertexAI.model('gemini-2.5-flash-image')
+  : googleAI.model('gemini-2.5-flash-image');
+
+const imagen: ModelReference<any> = useVertex
+  ? vertexAI.model('imagen-3.0-generate-002')
+  : googleAI.model('imagen-3.0-generate-002');
+
+const geminiTTS: ModelReference<any> = useVertex
+  ? vertexAI.model('gemini-2.5-flash-preview-tts')
+  : googleAI.model('gemini-2.5-flash-preview-tts');
+
+const veo3: ModelReference<any> = useVertex
+  ? vertexAI.model('veo-3.0-generate-001')
+  : googleAI.model('veo-3.0-generate-001');
+
+const veo31: ModelReference<any> = useVertex
+  ? vertexAI.model('veo-3.1-generate-preview')
+  : googleAI.model('veo-3.1-generate-preview');
+
 const ai = genkit({
   plugins: [
-    // Provide the key via the GOOGLE_GENAI_API_KEY environment variable or arg { apiKey: 'yourkey'}
-    googleAI({ experimental_debugTraces: true }),
+    useVertex
+      ? vertexAI({ experimental_debugTraces: true })
+      : // Provide the key via the GOOGLE_GENAI_API_KEY environment variable or arg { apiKey: 'yourkey'}
+        googleAI({ experimental_debugTraces: true }),
   ],
 });
 
 ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: geminiFlash,
     prompt: 'You are a helpful AI assistant named Walt, say hello',
   });
 
@@ -48,7 +81,7 @@ ai.defineFlow('multimodal-input', async () => {
   const photoBase64 = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: geminiFlash,
     prompt: [
       { text: 'describe this photo' },
       {
@@ -66,7 +99,7 @@ ai.defineFlow('multimodal-input', async () => {
 // YouTube videos
 ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: geminiFlash,
     prompt: [
       {
         text: 'transcribe this video',
@@ -86,7 +119,7 @@ ai.defineFlow('youtube-videos', async (_, { sendChunk }) => {
 // streaming
 ai.defineFlow('streaming', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: geminiFlash,
     prompt: 'Write a poem about AI.',
   });
 
@@ -102,7 +135,7 @@ ai.defineFlow('streaming', async (_, { sendChunk }) => {
 // Search grounding
 ai.defineFlow('search-grounding', async () => {
   const { text, raw } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash'),
+    model: geminiFlash,
     prompt: 'Who is Albert Einstein?',
     config: {
       tools: [{ googleSearch: {} }],
@@ -160,7 +193,7 @@ ai.defineFlow(
   },
   async (location, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: geminiFlash,
       config: {
         temperature: 1,
       },
@@ -176,11 +209,72 @@ ai.defineFlow(
   }
 );
 
+// Tool calling with structured output
+ai.defineFlow(
+  {
+    name: 'structured-tool-calling',
+    inputSchema: z.string().default('Paris, France'),
+    outputSchema: z
+      .object({
+        temp: z.number(),
+        unit: z.enum(['F', 'C']),
+      })
+      .nullable(),
+    streamSchema: z.any(),
+  },
+  async (location, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: geminiFlash,
+      config: {
+        temperature: 1,
+      },
+      output: {
+        schema: z.object({
+          temp: z.number(),
+          unit: z.enum(['F', 'C']),
+        }),
+      },
+      tools: [getWeather, celsiusToFahrenheit],
+      prompt: `What's the weather in ${location}? Convert the temperature to Fahrenheit.`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.output);
+    }
+
+    return (await response).output;
+  }
+);
+
+const baseCategorySchema = z.object({
+  name: z.string(),
+});
+
+type Category = z.infer<typeof baseCategorySchema> & {
+  subcategories?: Category[];
+};
+
+const categorySchema: z.ZodType<Category> = baseCategorySchema.extend({
+  subcategories: z.lazy(() =>
+    categorySchema
+      .array()
+      .describe('make sure there are at least 2-3 levels of subcategories')
+      .optional()
+  ),
+});
+
+const WeaponSchema = z.object({
+  name: z.string(),
+  damage: z.number(),
+  category: categorySchema,
+});
+
 const RpgCharacterSchema = z.object({
   name: z.string().describe('name of the character'),
   backstory: z.string().describe("character's backstory, about a paragraph"),
-  weapons: z.array(z.string()),
+  weapons: z.array(WeaponSchema),
   class: z.enum(['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER']),
+  affiliation: z.string().optional(),
 });
 
 // A simple example of structured output.
@@ -192,7 +286,7 @@ ai.defineFlow(
   },
   async (name, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: googleAI.model('gemini-2.5-flash'),
+      model: geminiFlash,
       config: {
         temperature: 2, // we want creativity
       },
@@ -212,7 +306,7 @@ ai.defineFlow(
 ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   const { message } = await ai.generate({
     prompt: 'what is heavier, one kilo of steel or one kilo of feathers',
-    model: googleAI.model('gemini-2.5-pro'),
+    model: geminiPro,
     config: {
       thinkingConfig: {
         thinkingBudget: 1024,
@@ -231,7 +325,7 @@ ai.defineFlow('gemini-image-editing', async (_) => {
   const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
 
   const { media } = await ai.generate({
-    model: googleAI.model('gemini-2.5-flash-image-preview'),
+    model: nanoBanana,
     prompt: [
       { text: 'add the plant to my room' },
       { media: { url: `data:image/png;base64,${plant}` } },
@@ -248,7 +342,7 @@ ai.defineFlow('gemini-image-editing', async (_) => {
 // A simple example of image generation with Gemini.
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
-    model: googleAI.model('imagen-3.0-generate-002'),
+    model: imagen,
     prompt: `generate an image of a banana riding a bicycle`,
   });
 
@@ -268,7 +362,7 @@ ai.defineFlow(
   },
   async (prompt) => {
     const { media } = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      model: geminiTTS,
       config: {
         responseModalities: ['AUDIO'],
         // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
@@ -326,7 +420,7 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-3.0-generate-001'),
+    model: veo3,
     prompt: [
       {
         text: 'make the subject in the photo move',
@@ -399,7 +493,7 @@ ai.defineFlow('veo-extend-video', async (_, { sendChunk }) => {
   // Veo can only extend videos originally generated by veo.
   // Generate an original video
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-3.1-generate-preview'),
+    model: veo31,
     prompt: [
       {
         text: 'An origami butterfly flaps its wings and flies out of the french doors into the garden.',
@@ -423,7 +517,7 @@ ai.defineFlow('veo-extend-video', async (_, { sendChunk }) => {
   sendChunk('Beginning Extension of Video');
 
   ({ operation } = await ai.generate({
-    model: googleAI.model('veo-3.1-generate-preview'),
+    model: veo31,
     prompt: [
       {
         text: 'Track the butterfly into the garden as it lands on an orange origami flower. A fluffy white puppy runs up and gently pats the flower.',

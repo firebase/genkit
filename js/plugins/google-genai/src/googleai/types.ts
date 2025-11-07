@@ -76,6 +76,8 @@ export interface GoogleAIPluginOptions {
   apiVersion?: string;
   baseUrl?: string;
   experimental_debugTraces?: boolean;
+  /** Use `responseSchema` field instead of `responseJsonSchema`. */
+  legacyResponseSchema?: boolean;
 }
 
 /**
