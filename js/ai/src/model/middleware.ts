@@ -305,6 +305,16 @@ const DEFAULT_RETRY_STATUSES: StatusName[] = [
   'INTERNAL',
 ];
 
+const DEFAULT_FALLBACK_STATUSES: StatusName[] = [
+  'UNAVAILABLE',
+  'DEADLINE_EXCEEDED',
+  'RESOURCE_EXHAUSTED',
+  'ABORTED',
+  'INTERNAL',
+  'NOT_FOUND',
+  'UNIMPLEMENTED',
+];
+
 /**
  * Creates a middleware that retries requests on specific error statuses.
  *
@@ -356,7 +366,7 @@ export function retry(options: RetryOptions = {}): ModelMiddleware {
             onError?.(error, i + 1);
             let delay = currentDelay;
             if (!noJitter) {
-              delay = delay + (1000 * Math.pow(2, i) * Math.random());
+              delay = delay + 1000 * Math.pow(2, i) * Math.random();
             }
             await new Promise((resolve) => __setTimeout(resolve, delay));
             currentDelay = Math.min(currentDelay * backoffFactor, maxDelayMs);
@@ -380,7 +390,7 @@ export interface FallbackOptions {
   models: ModelArgument[];
   /**
    * An array of `StatusName` values that should trigger a fallback.
-   * @default ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED', 'ABORTED', 'INTERNAL']
+   * @default ['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'RESOURCE_EXHAUSTED', 'ABORTED', 'INTERNAL', 'NOT_FOUND', 'UNIMPLEMENTED']
    */
   statuses?: StatusName[];
   /**
@@ -409,7 +419,7 @@ export function fallback(
   ai: HasRegistry,
   options: FallbackOptions
 ): ModelMiddleware {
-  const { models, statuses = DEFAULT_RETRY_STATUSES, onError } = options;
+  const { models, statuses = DEFAULT_FALLBACK_STATUSES, onError } = options;
 
   return async (req, next) => {
     try {
