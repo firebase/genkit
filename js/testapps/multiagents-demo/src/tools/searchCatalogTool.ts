@@ -1,5 +1,5 @@
 import { z } from 'genkit';
-import { mockCatalog } from '../data/mockCatalog';
+import { mockCatalog } from '../data/catalog';
 import { ai } from '../config/genkit';
 
 export const searchCatalogTool = ai.defineTool(

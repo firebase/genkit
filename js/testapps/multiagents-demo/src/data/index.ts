@@ -1,1 +1,1 @@
-export { mockCatalog } from './mockCatalog';
+export { mockCatalog } from './catalog';

@@ -1,4 +1,4 @@
-import { mockCatalog } from '../data/mockCatalog';
+import { mockCatalog } from '../data/catalog';
 import { ai } from '../config/genkit';
 
 export const fetchCatalogTool = ai.defineTool(
