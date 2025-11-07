@@ -15,6 +15,7 @@
  */
 
 import { GenkitError, StatusName } from 'genkit';
+import { logger } from 'genkit/logging';
 import {
   extractErrMsg,
   getGenkitClientHeader,
@@ -34,7 +35,6 @@ import {
   VeoOperation,
   VeoPredictRequest,
 } from './types.js';
-import { logger } from 'genkit/logging';
 
 /**
  * Lists available models.
