@@ -423,7 +423,7 @@ describe('retry', () => {
         retry({
           maxRetries: 2,
           initialDelayMs: 50,
-          noJitter: false, // do hitter
+          noJitter: false, // do jitter
         }),
       ],
     });
