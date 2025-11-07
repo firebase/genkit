@@ -39,7 +39,7 @@ import {
   claude4Sonnet,
   claudeModel,
   claudeModelReference,
-} from './claude.js';
+} from './models.js';
 import { InternalPluginOptions, PluginOptions, __testClient } from './types.js';
 
 export {
