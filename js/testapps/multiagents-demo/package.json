@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@types/wav": "^1.0.4",
+    "dotenv": "^16.4.5",
     "typescript": "^5.6.2"
   }
 }

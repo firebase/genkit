@@ -1632,6 +1632,9 @@ importers:
       '@types/wav':
         specifier: ^1.0.4
         version: 1.0.4
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.5.0
       typescript:
         specifier: ^5.6.2
         version: 5.8.3

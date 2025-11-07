@@ -7,7 +7,7 @@ import { agent as representativeAgent } from './representativeAgent';
 export const agent = ai.definePrompt({
   name: 'triageAgent',
   description: 'Triage Agent',
-  model: "googleai/gemini-2.5-flash-lite",
+  model: "googleai/gemini-2.5-flash",
   tools: [catalogAgent, paymentAgent, representativeAgent],
   system: `You are an AI customer service agent for TechStore Computer Shop.
     Greet the user and ask them how you can help. Route them to the appropriate specialist agent:
