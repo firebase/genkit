@@ -1,10 +1,10 @@
 import { ai } from '../config/genkit';
-import { catalogAgent } from './catalogAgent';
-import { paymentAgent } from './paymentAgent';
-import { representativeAgent } from './representativeAgent';
+import { agent as catalogAgent } from './catalogAgent';
+import { agent as paymentAgent } from './paymentAgent';
+import { agent as representativeAgent } from './representativeAgent';
 
 // The triage agent routes customers to the appropriate specialist
-export const triageAgent = ai.definePrompt({
+export const agent = ai.definePrompt({
   name: 'triageAgent',
   description: 'Triage Agent',
   model: "googleai/gemini-2.5-flash",

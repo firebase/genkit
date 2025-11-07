@@ -2,7 +2,7 @@ import { ai } from "../config/genkit";
 import { getStoreInfoTool } from "../tools";
 
 // Simple agent for providing store information
-export const representativeAgent = ai.definePrompt({
+export const agent = ai.definePrompt({
     name: 'representativeAgent',
     model: "googleai/gemini-2.0-flash",
     description:

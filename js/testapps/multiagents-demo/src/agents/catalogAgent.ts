@@ -3,7 +3,7 @@ import { ai } from "../config/genkit";
 import { fetchCatalogTool, fetchMostPopularItemsTool, getProductDetailsTool, searchCatalogTool } from "../tools";
 
 // Simple agent for browsing and searching products
-export const catalogAgent = ai.definePrompt({
+export const agent = ai.definePrompt({
     name: 'catalogAgent',
     description: 'Catalog Agent can help customers browse and search products',
     model: "googleai/gemini-2.5-flash",

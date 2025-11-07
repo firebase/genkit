@@ -2,7 +2,7 @@ import { ai } from "../config/genkit";
 import { processPaymentTool } from "../tools";
 
 // Simple agent for processing payments
-export const paymentAgent = ai.definePrompt({
+export const agent = ai.definePrompt({
     name: 'paymentAgent',
     model: "googleai/gemini-2.5-flash-lite",
     description:

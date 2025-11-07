@@ -1605,6 +1605,37 @@ importers:
         specifier: ^5.3.3
         version: 5.8.3
 
+  testapps/multiagents-demo:
+    dependencies:
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/google-cloud':
+        specifier: workspace:*
+        version: link:../../plugins/google-cloud
+      '@genkit-ai/google-genai':
+        specifier: workspace:*
+        version: link:../../plugins/google-genai
+      express:
+        specifier: ^4.20.0
+        version: 4.21.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+      node-fetch:
+        specifier: 3.3.2
+        version: 3.3.2
+      wav:
+        specifier: ^1.0.2
+        version: 1.0.2
+    devDependencies:
+      '@types/wav':
+        specifier: ^1.0.4
+        version: 1.0.4
+      typescript:
+        specifier: ^5.6.2
+        version: 5.8.3
+
   testapps/multimodal:
     dependencies:
       '@genkit-ai/dev-local-vectorstore':
