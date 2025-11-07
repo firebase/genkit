@@ -30,7 +30,7 @@ import {
 } from '../../src/model.js';
 import {
   CONTEXT_PREFACE,
-  __setRetryTimeout,
+  TEST_ONLY,
   augmentWithContext,
   fallback,
   retry,
@@ -40,6 +40,8 @@ import {
   type AugmentWithContextOptions,
 } from '../../src/model/middleware.js';
 import { defineProgrammableModel } from '../helpers.js';
+
+const { setRetryTimeout } = TEST_ONLY;
 
 initNodeFeatures();
 
@@ -188,7 +190,7 @@ describe('retry', () => {
       };
     };
 
-    __setRetryTimeout((callback, ms) => {
+    setRetryTimeout((callback, ms) => {
       callback();
       return 0 as any;
     });
@@ -219,7 +221,7 @@ describe('retry', () => {
       };
     };
 
-    __setRetryTimeout((callback, ms) => {
+    setRetryTimeout((callback, ms) => {
       callback();
       return 0 as any;
     });
@@ -242,7 +244,7 @@ describe('retry', () => {
       throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
     };
 
-    __setRetryTimeout((callback, ms) => {
+    setRetryTimeout((callback, ms) => {
       callback();
       return 0 as any;
     });
@@ -267,7 +269,7 @@ describe('retry', () => {
       throw new Error('test error');
     };
 
-    __setRetryTimeout((callback, ms) => {
+    setRetryTimeout((callback, ms) => {
       callback();
       return 0 as any;
     });
@@ -335,7 +337,7 @@ describe('retry', () => {
     };
 
     let totalDelay = 0;
-    __setRetryTimeout((callback, ms) => {
+    setRetryTimeout((callback, ms) => {
       totalDelay += ms!;
       callback();
       return 0 as any;
@@ -369,7 +371,7 @@ describe('retry', () => {
     };
 
     let totalDelay = 0;
-    __setRetryTimeout((callback, ms) => {
+    setRetryTimeout((callback, ms) => {
       totalDelay += ms!;
       callback();
       return 0 as any;
@@ -410,7 +412,7 @@ describe('retry', () => {
     };
 
     let totalDelay = 0;
-    __setRetryTimeout((callback, ms) => {
+    setRetryTimeout((callback, ms) => {
       totalDelay += ms!;
       callback();
       return 0 as any;
@@ -451,7 +453,7 @@ describe('retry', () => {
     };
 
     let totalDelay = 0;
-    __setRetryTimeout((callback, ms) => {
+    setRetryTimeout((callback, ms) => {
       totalDelay += ms!;
       callback();
       return 0 as any;

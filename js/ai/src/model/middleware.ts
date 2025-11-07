@@ -291,11 +291,13 @@ let __setTimeout: (
  * FOR TESTING ONLY.
  * @internal
  */
-export function __setRetryTimeout(
-  impl: (callback: (...args: any[]) => void, ms?: number) => NodeJS.Timeout
-) {
-  __setTimeout = impl;
-}
+export const TEST_ONLY = {
+  setRetryTimeout(
+    impl: (callback: (...args: any[]) => void, ms?: number) => NodeJS.Timeout
+  ) {
+    __setTimeout = impl;
+  },
+};
 
 const DEFAULT_RETRY_STATUSES: StatusName[] = [
   'UNAVAILABLE',
