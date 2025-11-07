@@ -256,18 +256,43 @@ export interface RetryOptions {
   statuses?: StatusName[];
   /**
    * The initial delay between retries, in milliseconds.
-   * @default 0
+   * @default 1000
    */
   initialDelayMs?: number;
   /**
+   * The maximum delay between retries, in milliseconds.
+   * @default 60000
+   */
+  maxDelayMs?: number;
+  /**
    * The factor by which the delay increases after each retry (exponential backoff).
-   * @default 1
+   * @default 2
    */
   backoffFactor?: number;
+  /**
+   * Whether to disable jitter on the delay.
+   * @default false
+   */
+  noJitter?: boolean;
   /**
    * A callback to be executed on each retry attempt.
    */
   onError?: (error: Error, attempt: number) => void;
+}
+
+let __setTimeout: (
+  callback: (...args: any[]) => void,
+  ms?: number
+) => NodeJS.Timeout = setTimeout;
+
+/**
+ * FOR TESTING ONLY.
+ * @internal
+ */
+export function __setRetryTimeout(
+  impl: (callback: (...args: any[]) => void, ms?: number) => NodeJS.Timeout
+) {
+  __setTimeout = impl;
 }
 
 const DEFAULT_RETRY_STATUSES: StatusName[] = [
@@ -299,8 +324,10 @@ export function retry(options: RetryOptions = {}): ModelMiddleware {
   const {
     maxRetries = 3,
     statuses = DEFAULT_RETRY_STATUSES,
-    initialDelayMs = 0,
-    backoffFactor = 1,
+    initialDelayMs = 1000,
+    maxDelayMs = 60000,
+    backoffFactor = 2,
+    noJitter = false,
     onError,
   } = options;
 
@@ -325,8 +352,12 @@ export function retry(options: RetryOptions = {}): ModelMiddleware {
 
           if (shouldRetry) {
             onError?.(error, i + 1);
-            await new Promise((resolve) => setTimeout(resolve, currentDelay));
-            currentDelay *= backoffFactor;
+            let delay = currentDelay;
+            if (!noJitter) {
+              delay = delay * (1 + Math.random());
+            }
+            await new Promise((resolve) => __setTimeout(resolve, delay));
+            currentDelay = Math.min(currentDelay * backoffFactor, maxDelayMs);
             continue;
           }
         }

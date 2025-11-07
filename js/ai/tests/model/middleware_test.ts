@@ -30,6 +30,7 @@ import {
 } from '../../src/model.js';
 import {
   CONTEXT_PREFACE,
+  __setRetryTimeout,
   augmentWithContext,
   fallback,
   retry,
@@ -187,6 +188,11 @@ describe('retry', () => {
       };
     };
 
+    __setRetryTimeout((callback, ms) => {
+      callback();
+      return 0 as any;
+    });
+
     const result = await generate(registry, {
       model: 'programmableModel',
       prompt: 'test',
@@ -213,6 +219,11 @@ describe('retry', () => {
       };
     };
 
+    __setRetryTimeout((callback, ms) => {
+      callback();
+      return 0 as any;
+    });
+
     const result = await generate(registry, {
       model: 'programmableModel',
       prompt: 'test',
@@ -230,6 +241,11 @@ describe('retry', () => {
       requestCount++;
       throw new GenkitError({ status: 'UNAVAILABLE', message: 'test' });
     };
+
+    __setRetryTimeout((callback, ms) => {
+      callback();
+      return 0 as any;
+    });
 
     await assert.rejects(
       generate(registry, {
@@ -250,6 +266,11 @@ describe('retry', () => {
       requestCount++;
       throw new Error('test error');
     };
+
+    __setRetryTimeout((callback, ms) => {
+      callback();
+      return 0 as any;
+    });
 
     let errorCount = 0;
     let lastError: Error | undefined;
@@ -295,6 +316,164 @@ describe('retry', () => {
     );
 
     assert.strictEqual(requestCount, 1);
+  });
+
+  it('should respect initial delay', async () => {
+    const pm = defineProgrammableModel(registry);
+    let requestCount = 0;
+    pm.handleResponse = async (req, sc) => {
+      requestCount++;
+      if (requestCount < 2) {
+        throw new Error('generic error');
+      }
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: 'success' }],
+        },
+      };
+    };
+
+    let totalDelay = 0;
+    __setRetryTimeout((callback, ms) => {
+      totalDelay += ms!;
+      callback();
+      return 0 as any;
+    });
+
+    const result = await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'test',
+      use: [retry({ maxRetries: 2, initialDelayMs: 50, noJitter: true })],
+    });
+
+    assert.strictEqual(requestCount, 2);
+    assert.strictEqual(result.text, 'success');
+    assert.strictEqual(totalDelay, 50);
+  });
+
+  it('should respect backoff factor', async () => {
+    const pm = defineProgrammableModel(registry);
+    let requestCount = 0;
+    pm.handleResponse = async (req, sc) => {
+      requestCount++;
+      if (requestCount < 3) {
+        throw new Error('generic error');
+      }
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: 'success' }],
+        },
+      };
+    };
+
+    let totalDelay = 0;
+    __setRetryTimeout((callback, ms) => {
+      totalDelay += ms!;
+      callback();
+      return 0 as any;
+    });
+
+    const result = await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'test',
+      use: [
+        retry({
+          maxRetries: 3,
+          initialDelayMs: 20,
+          backoffFactor: 2,
+          noJitter: true,
+        }),
+      ],
+    });
+
+    assert.strictEqual(requestCount, 3);
+    assert.strictEqual(result.text, 'success');
+    assert.strictEqual(totalDelay, 20 + 40);
+  });
+
+  it('should apply jitter', async () => {
+    const pm = defineProgrammableModel(registry);
+    let requestCount = 0;
+    pm.handleResponse = async (req, sc) => {
+      requestCount++;
+      if (requestCount < 2) {
+        throw new Error('generic error');
+      }
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: 'success' }],
+        },
+      };
+    };
+
+    let totalDelay = 0;
+    __setRetryTimeout((callback, ms) => {
+      totalDelay += ms!;
+      callback();
+      return 0 as any;
+    });
+
+    const result = await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'test',
+      use: [
+        retry({
+          maxRetries: 2,
+          initialDelayMs: 50,
+          noJitter: false, // do hitter
+        }),
+      ],
+    });
+
+    assert.strictEqual(requestCount, 2);
+    assert.strictEqual(result.text, 'success');
+    assert.ok(totalDelay > 50);
+    assert.ok(totalDelay <= 100);
+  });
+
+  it('should respect max delay', async () => {
+    const pm = defineProgrammableModel(registry);
+    let requestCount = 0;
+    pm.handleResponse = async (req, sc) => {
+      requestCount++;
+      if (requestCount < 3) {
+        throw new Error('generic error');
+      }
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: 'success' }],
+        },
+      };
+    };
+
+    let totalDelay = 0;
+    __setRetryTimeout((callback, ms) => {
+      totalDelay += ms!;
+      callback();
+      return 0 as any;
+    });
+
+    const result = await generate(registry, {
+      model: 'programmableModel',
+      prompt: 'test',
+      use: [
+        retry({
+          maxRetries: 3,
+          initialDelayMs: 20,
+          backoffFactor: 2,
+          maxDelayMs: 30,
+          noJitter: true,
+        }),
+      ],
+    });
+
+    assert.strictEqual(requestCount, 3);
+    assert.strictEqual(result.text, 'success');
+    assert.strictEqual(totalDelay, 20 + 30);
   });
 });
 
