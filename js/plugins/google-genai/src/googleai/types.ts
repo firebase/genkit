@@ -97,6 +97,10 @@ export interface ClientOptions {
    */
   timeout?: number;
   /**
+   * Api Key for Gemini API
+   */
+  apiKey?: string;
+  /**
    * Version of API endpoint to call (e.g. "v1" or "v1beta"). If not specified,
    * defaults to 'v1beta'.
    */
