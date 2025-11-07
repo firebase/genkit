@@ -1,0 +1,1 @@
+export { mockCatalog } from './mockCatalog';
