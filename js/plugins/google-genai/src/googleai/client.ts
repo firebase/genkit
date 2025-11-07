@@ -34,6 +34,7 @@ import {
   VeoOperation,
   VeoPredictRequest,
 } from './types.js';
+import { logger } from 'genkit/logging';
 
 /**
  * Lists available models.
@@ -375,10 +376,10 @@ async function makeRequest(
     }
     return response;
   } catch (e: unknown) {
+    logger.error(e);
     if (e instanceof GenkitError) {
       throw e;
     }
-    console.error(e);
     throw new Error(`Failed to fetch from ${url}: ${extractErrMsg(e)}`);
   }
 }
