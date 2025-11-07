@@ -270,7 +270,9 @@ export interface RetryOptions {
    */
   backoffFactor?: number;
   /**
-   * Whether to disable jitter on the delay.
+   * Whether to disable jitter on the delay. Jitter adds a random factor to the
+   * delay to help prevent a "thundering herd" of clients all retrying at the
+   * same time.
    * @default false
    */
   noJitter?: boolean;
