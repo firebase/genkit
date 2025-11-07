@@ -15,8 +15,8 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk';
-import { GenerationCommonConfigSchema } from 'genkit/model';
 import { z } from 'genkit';
+import { GenerationCommonConfigSchema } from 'genkit/model';
 
 /**
  * Internal symbol for dependency injection in tests.
@@ -61,11 +61,13 @@ export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
       user_id: z.string().optional(),
     })
     .optional(),
-  beta: z.object({
-    enabled: z.boolean().default(false),
-    filesApi: z.boolean().default(false),
-    webSearch: z.boolean().default(false),
-  }).optional(),
+  beta: z
+    .object({
+      enabled: z.boolean().default(false),
+      filesApi: z.boolean().default(false),
+      webSearch: z.boolean().default(false),
+    })
+    .optional(),
 });
 
 /**

@@ -21,18 +21,13 @@ import type {
   ModelReference,
   StreamingCallback,
 } from 'genkit';
-import {
-  z,
-} from 'genkit';
-import type {
-  GenerateResponseChunkData,
-  ModelAction,
-} from 'genkit/model';
+import { z } from 'genkit';
+import type { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import { model } from 'genkit/plugin';
 
-import { AnthropicConfigSchema } from './types.js';
 import { BetaRunner, RegularRunner } from './runner.js';
+import { AnthropicConfigSchema } from './types.js';
 
 export const claude4Sonnet = modelRef({
   name: 'claude-4-sonnet',
@@ -203,7 +198,9 @@ export function claudeRunner(
     }
   ): Promise<GenerateResponseData> => {
     const isBeta = request.config?.beta?.enabled ?? false;
-    const api = isBeta ? new BetaRunner(name, client, cacheSystemPrompt) : new RegularRunner(name, client, cacheSystemPrompt);
+    const api = isBeta
+      ? new BetaRunner(name, client, cacheSystemPrompt)
+      : new RegularRunner(name, client, cacheSystemPrompt);
     return api.run(request, { streamingRequested, sendChunk, abortSignal });
   };
 }

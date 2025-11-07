@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Anthropic } from "@anthropic-ai/sdk";
+import { Anthropic } from '@anthropic-ai/sdk';
 import type {
   ContentBlock,
   DocumentBlockParam,
@@ -38,15 +38,11 @@ import type {
   Part,
   Role,
 } from 'genkit';
-import {
-  Message as GenkitMessage,
-} from 'genkit';
-import type {
-  ToolDefinition,
-} from 'genkit/model';
+import { Message as GenkitMessage } from 'genkit';
+import type { ToolDefinition } from 'genkit/model';
 
-import { AnthropicConfigSchema, Media, MediaType } from "./types";
-import { SUPPORTED_CLAUDE_MODELS } from "./models";
+import { SUPPORTED_CLAUDE_MODELS } from './models';
+import { AnthropicConfigSchema, Media, MediaType } from './types';
 
 export abstract class Runner {
   protected name: string;
@@ -83,10 +79,12 @@ export abstract class Runner {
   }
 
   protected isMediaObject(obj: unknown): obj is Media {
-    return typeof obj === 'object' &&
-    obj !== null &&
-    'url' in obj &&
-    typeof (obj as Media).url === 'string';
+    return (
+      typeof obj === 'object' &&
+      obj !== null &&
+      'url' in obj &&
+      typeof (obj as Media).url === 'string'
+    );
   }
 
   /**
@@ -95,7 +93,7 @@ export abstract class Runner {
    */
   protected isDataUrl(url: string): boolean {
     return url.startsWith('data:');
-  };
+  }
 
   protected extractDataFromBase64Url(
     url: string
@@ -107,7 +105,7 @@ export abstract class Runner {
         data: match[2],
       }
     );
-  };
+  }
 
   /**
    * Converts a Genkit message Part to the corresponding Anthropic TextBlockParam or ImageBlockParam.
@@ -132,7 +130,9 @@ export abstract class Runner {
         (part.toolResponse?.output as Media).url
       );
     } else if (isString) {
-      base64Data = this.extractDataFromBase64Url(part.toolResponse?.output as string);
+      base64Data = this.extractDataFromBase64Url(
+        part.toolResponse?.output as string
+      );
     }
 
     // Handle media content
@@ -310,7 +310,9 @@ export abstract class Runner {
     messages: MessageParam[];
   } {
     const system =
-      messages[0]?.role === 'system' ? messages[0].content?.[0]?.text : undefined;
+      messages[0]?.role === 'system'
+        ? messages[0].content?.[0]?.text
+        : undefined;
     const messagesToIterate = system ? messages.slice(1) : messages;
     const anthropicMsgs: MessageParam[] = [];
     for (const message of messagesToIterate) {
@@ -474,7 +476,8 @@ export abstract class Runner {
           : system,
       messages,
       tools: request.tools?.map(this.toAnthropicTool),
-      max_tokens: request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
+      max_tokens:
+        request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
       model: mappedModelName,
       top_k: request.config?.topK,
       top_p: request.config?.topP,
@@ -501,11 +504,14 @@ export abstract class Runner {
     return cleanedBody;
   }
 
-  public abstract run(request: GenerateRequest<typeof AnthropicConfigSchema>, options: {
-    streamingRequested: boolean;
-    sendChunk: (chunk: GenerateResponseChunkData) => void;
-    abortSignal: AbortSignal;
-  }): Promise<GenerateResponseData>;
+  public abstract run(
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    options: {
+      streamingRequested: boolean;
+      sendChunk: (chunk: GenerateResponseChunkData) => void;
+      abortSignal: AbortSignal;
+    }
+  ): Promise<GenerateResponseData>;
 }
 
 export class BetaRunner extends Runner {
@@ -513,11 +519,14 @@ export class BetaRunner extends Runner {
     super(name, client, cacheSystemPrompt);
   }
 
-  public async run(request: GenerateRequest<typeof AnthropicConfigSchema>, options: {
-    streamingRequested: boolean;
-    sendChunk: (chunk: GenerateResponseChunkData) => void;
-    abortSignal: AbortSignal;
-  }): Promise<GenerateResponseData> {
+  public async run(
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    options: {
+      streamingRequested: boolean;
+      sendChunk: (chunk: GenerateResponseChunkData) => void;
+      abortSignal: AbortSignal;
+    }
+  ): Promise<GenerateResponseData> {
     const { streamingRequested, sendChunk, abortSignal } = options;
 
     let response: Message;
@@ -529,7 +538,9 @@ export class BetaRunner extends Runner {
     );
 
     if (streamingRequested) {
-      const stream = this.client.beta.messages.stream(body, { signal: abortSignal });
+      const stream = this.client.beta.messages.stream(body, {
+        signal: abortSignal,
+      });
       for await (const chunk of stream) {
         const c = this.fromAnthropicContentBlockChunk(chunk);
         if (c) {
@@ -539,7 +550,7 @@ export class BetaRunner extends Runner {
           });
         }
       }
-      response = await stream.finalMessage() as Message;
+      response = (await stream.finalMessage()) as Message;
     } else {
       response = (await this.client.beta.messages.create(body, {
         signal: abortSignal,
@@ -554,11 +565,14 @@ export class RegularRunner extends Runner {
     super(name, client, cacheSystemPrompt);
   }
 
-  public async run(request: GenerateRequest<typeof AnthropicConfigSchema>, options: {
-    streamingRequested: boolean;
-    sendChunk: (chunk: GenerateResponseChunkData) => void;
-    abortSignal: AbortSignal;
-  }): Promise<GenerateResponseData> {
+  public async run(
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    options: {
+      streamingRequested: boolean;
+      sendChunk: (chunk: GenerateResponseChunkData) => void;
+      abortSignal: AbortSignal;
+    }
+  ): Promise<GenerateResponseData> {
     const { streamingRequested, sendChunk, abortSignal } = options;
 
     let response: Message;
@@ -580,7 +594,7 @@ export class RegularRunner extends Runner {
           });
         }
       }
-      response = await stream.finalMessage() as Message;
+      response = (await stream.finalMessage()) as Message;
     } else {
       response = (await this.client.messages.create(body, {
         signal: abortSignal,
