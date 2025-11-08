@@ -6,7 +6,7 @@ import { fetchCatalogTool, fetchMostPopularItemsTool, getProductDetailsTool, sea
 export const agent = ai.definePrompt({
     name: 'catalogAgent',
     description: 'Catalog Agent can help customers browse and search products',
-    model: "googleai/gemini-2.5-flash",
+    model: "googleai/gemini-2.5-pro",
     tools: [
       fetchCatalogTool,
       fetchMostPopularItemsTool,
