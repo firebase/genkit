@@ -1148,3 +1148,65 @@ Hello!
 		t.Fatalf("Failed to execute prompt: %v", err)
 	}
 }
+
+func TestMultiMessagesRenderPrompt(t *testing.T) {
+	tempDir := t.TempDir()
+
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+---
+<<<dotprompt:role:system>>>
+
+You are a pirate!
+
+<<<dotprompt:role:user>>>
+Hello!
+`
+
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	prompt := LoadPrompt(registry.New(), tempDir, "example.prompt", "multi-namespace-roles")
+
+	actionOpts, err := prompt.Render(context.Background(), map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to execute prompt: %v", err)
+	}
+
+	// Check that actionOpts is not nil
+	if actionOpts == nil {
+		t.Fatal("Expected actionOpts to be non-nil")
+	}
+
+	// Check that we have exactly 2 messages (system and user)
+	if len(actionOpts.Messages) != 2 {
+		t.Fatalf("Expected 2 messages, got %d", len(actionOpts.Messages))
+	}
+
+	// Check first message (system role)
+	systemMsg := actionOpts.Messages[0]
+	if systemMsg.Role != RoleSystem {
+		t.Errorf("Expected first message role to be 'system', got '%s'", systemMsg.Role)
+	}
+	if len(systemMsg.Content) == 0 {
+		t.Fatal("Expected system message to have content")
+	}
+	if systemMsg.Content[0].Text != "You are a pirate!" {
+		t.Errorf("Expected system message text to be 'You are a pirate!', got '%s'", systemMsg.Content[0].Text)
+	}
+
+	// Check second message (user role)
+	userMsg := actionOpts.Messages[1]
+	if userMsg.Role != RoleUser {
+		t.Errorf("Expected second message role to be 'user', got '%s'", userMsg.Role)
+	}
+	if len(userMsg.Content) == 0 {
+		t.Fatal("Expected user message to have content")
+	}
+	if userMsg.Content[0].Text != "Hello!" {
+		t.Errorf("Expected user message text to be 'Hello!', got '%s'", userMsg.Content[0].Text)
+	}
+}

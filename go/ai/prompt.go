@@ -624,7 +624,54 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	}
 
 	key := promptKey(name, variant, namespace)
-	prompt := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
+
+	dpMessages, err := dotprompt.ToMessages(parsedPrompt.Template, &dotprompt.DataArgument{})
+	if err != nil {
+		slog.Error("Failed to convert prompt template to messages", "file", sourceFile, "error", err)
+		return nil
+	}
+
+	var systemText string
+	var nonSystemMessages []*Message
+	for _, dpMsg := range dpMessages {
+		parts, err := convertToPartPointers(dpMsg.Content)
+		if err != nil {
+			slog.Error("Failed to convert message parts", "file", sourceFile, "error", err)
+			return nil
+		}
+
+		role := Role(dpMsg.Role)
+		if role == RoleSystem {
+			var textParts []string
+			for _, part := range parts {
+				if part.IsText() {
+					textParts = append(textParts, part.Text)
+				}
+			}
+
+			if len(textParts) > 0 {
+				systemText = strings.Join(textParts, " ")
+			}
+		} else {
+			nonSystemMessages = append(nonSystemMessages, &Message{Role: role, Content: parts})
+		}
+	}
+
+	promptOpts := []PromptOption{opts}
+
+	// Add system prompt if found
+	if systemText != "" {
+		promptOpts = append(promptOpts, WithSystem(systemText))
+	}
+
+	// If there are non-system messages, use WithMessages, otherwise use WithPrompt for template
+	if len(nonSystemMessages) > 0 {
+		promptOpts = append(promptOpts, WithMessages(nonSystemMessages...))
+	} else if systemText == "" {
+		promptOpts = append(promptOpts, WithPrompt(parsedPrompt.Template))
+	}
+
+	prompt := DefinePrompt(r, key, promptOpts...)
 
 	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
 
