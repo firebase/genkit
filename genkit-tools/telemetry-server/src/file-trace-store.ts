@@ -146,12 +146,10 @@ export class LocalFileTraceStore implements TraceStore {
         existing.endTime = trace.endTime;
         trace = existing;
       }
-      console.log(`NEW TELEMETRY SAVED........ ${id}`);
-      const filePath = path.resolve(this.storeRoot, `${id}`);
-      const tmpFilePath = filePath + '.tmp';
-      fs.writeFileSync(tmpFilePath, JSON.stringify(trace));
-      fs.renameSync(tmpFilePath, filePath);
-      console.log(`NEW TRACE SAVED........ ${JSON.stringify(trace)}`);
+      fs.writeFileSync(
+        path.resolve(this.storeRoot, `${id}`),
+        JSON.stringify(trace)
+      );
       const hasRootSpan = !!Object.values(rawTrace.spans).find(
         (s) => !s.parentSpanId
       );
@@ -159,9 +157,7 @@ export class LocalFileTraceStore implements TraceStore {
         this.index.add(trace);
       }
     } finally {
-      console.log('Releasing SAVE LOCK');
       release();
-      console.log('Released');
     }
   }
 

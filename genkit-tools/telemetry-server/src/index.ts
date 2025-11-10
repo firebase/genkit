@@ -15,10 +15,12 @@
  */
 
 import {
+  TraceData,
   TraceDataSchema,
   TraceQueryFilterSchema,
 } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
+import { randomBytes } from 'crypto';
 import express from 'express';
 import type * as http from 'http';
 import type { TraceStore } from './types';
@@ -27,7 +29,15 @@ import { traceDataFromOtlp } from './utils/otlp';
 export { LocalFileTraceStore } from './file-trace-store.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
 
+type Span = TraceData['spans'][string];
+
 let server: http.Server;
+let traceBuffer: Map<string, TraceData[]>;
+let traceStore: TraceStore;
+
+function generateId(bytes = 8): string {
+  return randomBytes(bytes).toString('hex');
+}
 
 /**
  * Starts the telemetry server with the provided params
@@ -45,7 +55,9 @@ export async function startTelemetryServer(params: {
   maxRequestBodySize?: string | number;
 }) {
   await params.traceStore.init();
+  traceStore = params.traceStore;
   const api = express();
+  traceBuffer = new Map<string, TraceData[]>();
 
   api.use(express.json({ limit: params.maxRequestBodySize ?? '30mb' }));
 
@@ -65,6 +77,15 @@ export async function startTelemetryServer(params: {
   api.post('/api/traces', async (request, response, next) => {
     try {
       const traceData = TraceDataSchema.parse(request.body);
+      const bufferedTraces = traceBuffer.get(traceData.traceId);
+      if (bufferedTraces) {
+        for (const bufferedTrace of bufferedTraces) {
+          for (const span of Object.values(bufferedTrace.spans)) {
+            traceData.spans[span.spanId] = span;
+          }
+        }
+        traceBuffer.delete(traceData.traceId);
+      }
       await params.traceStore.save(traceData.traceId, traceData);
       response.status(200).send('OK');
     } catch (e) {
@@ -90,6 +111,44 @@ export async function startTelemetryServer(params: {
       next(e);
     }
   });
+
+  api.post(
+    '/api/otlp/:parentTraceId/:parentSpanId',
+    async (request, response) => {
+      try {
+        const { parentTraceId, parentSpanId } = request.params;
+
+        if (!request.body.resourceSpans?.length) {
+          // Acknowledge and ignore empty payloads.
+          response.status(200).json({});
+          return;
+        }
+        const traces = traceDataFromOtlp(request.body);
+        if (!traceBuffer.has(parentTraceId)) {
+          traceBuffer.set(parentTraceId, []);
+        }
+        const bufferedTraces = traceBuffer.get(parentTraceId)!;
+        for (const trace of traces) {
+          const traceData = TraceDataSchema.parse(trace);
+          for (const span of Object.values(traceData.spans)) {
+            span.traceId = parentTraceId;
+            if (!span.parentSpanId) {
+              span.parentSpanId = parentSpanId;
+            }
+          }
+          bufferedTraces.push(traceData);
+        }
+        response.status(200).json({});
+      } catch (err) {
+        logger.error(`Error processing OTLP payload: ${err}`);
+        response.status(500).json({
+          code: 13, // INTERNAL
+          message:
+            'An internal error occurred while processing the OTLP payload.',
+        });
+      }
+    }
+  );
 
   api.post('/api/otlp', async (request, response) => {
     try {
@@ -144,6 +203,58 @@ export async function startTelemetryServer(params: {
  * Stops Telemetry API and any running dependencies.
  */
 export async function stopTelemetryApi() {
+  if (traceBuffer && traceStore) {
+    console.log('Force flushing traces......');
+    for (const [traceId, bufferedTraces] of traceBuffer.entries()) {
+      if (!bufferedTraces.length) continue;
+
+      const topSpanId = generateId(8);
+      let startTime = Infinity;
+      let endTime = 0;
+      const spans: { [spanId: string]: Span } = {};
+
+      for (const trace of bufferedTraces) {
+        for (const span of Object.values(trace.spans)) {
+          // Not saving traceId for debugging
+          spans[span.spanId] = span;
+          if (span.startTime < startTime) {
+            startTime = span.startTime;
+          }
+          if (span.endTime > endTime) {
+            endTime = span.endTime;
+          }
+        }
+      }
+
+      for (const span of Object.values(spans)) {
+        if (!span.parentSpanId) {
+          span.parentSpanId = topSpanId;
+        }
+      }
+
+      spans[topSpanId] = {
+        spanId: topSpanId,
+        traceId: traceId,
+        startTime: startTime,
+        endTime: endTime,
+        attributes: {},
+        displayName: 'synthetic-parent',
+        instrumentationLibrary: { name: 'genkit-tracer', version: 'v1' },
+        spanKind: 'INTERNAL',
+        status: { code: 0 },
+      };
+
+      const traceData: TraceData = {
+        traceId: traceId,
+        spans: spans,
+        displayName: `flushed-trace-${traceId}`,
+      };
+
+      await traceStore.save(traceId, traceData);
+    }
+    traceBuffer.clear();
+  }
+
   await Promise.all([
     new Promise<void>((resolve) => {
       if (server) {

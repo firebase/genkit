@@ -492,7 +492,7 @@ async function gatherEvalInput(params: {
   // Only the last collected trace to be used for evaluation.
   const traceId = traceIds.at(-1)!;
   // Sleep a bit!
-  (await new Promise(resolve => setTimeout(resolve, 2000)));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
   const trace = await manager.getTrace({
     traceId,
   });
