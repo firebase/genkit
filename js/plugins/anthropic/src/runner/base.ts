@@ -41,31 +41,18 @@ import {
   MediaTypeSchema,
 } from '../types.js';
 
-/**
- * Type constraint for runner type parameters.
- */
-export type RunnerTypes = {
-  Message: unknown;
-  Stream: AsyncIterable<unknown> & { finalMessage(): Promise<unknown> };
-  StreamEvent: unknown;
-  RequestBody: unknown;
-  StreamingRequestBody: unknown;
-  Tool: unknown;
-  MessageParam: unknown;
-  ContentBlockParam: unknown;
-  ToolResponseContent: unknown;
-};
-
-type RunnerMessage<T extends RunnerTypes> = T['Message'];
-type RunnerStream<T extends RunnerTypes> = T['Stream'];
-type RunnerStreamEvent<T extends RunnerTypes> = T['StreamEvent'];
-type RunnerRequestBody<T extends RunnerTypes> = T['RequestBody'];
-type RunnerStreamingRequestBody<T extends RunnerTypes> =
-  T['StreamingRequestBody'];
-type RunnerTool<T extends RunnerTypes> = T['Tool'];
-type RunnerMessageParam<T extends RunnerTypes> = T['MessageParam'];
-type RunnerToolResponseContent<T extends RunnerTypes> =
-  T['ToolResponseContent'];
+import {
+  RunnerContentBlockParam,
+  RunnerMessage,
+  RunnerMessageParam,
+  RunnerRequestBody,
+  RunnerStream,
+  RunnerStreamEvent,
+  RunnerStreamingRequestBody,
+  RunnerTool,
+  RunnerToolResponseContent,
+  RunnerTypes,
+} from './types.js';
 
 export abstract class BaseRunner<TTypes extends RunnerTypes> {
   protected name: string;
@@ -250,7 +237,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
    */
   protected abstract toAnthropicMessageContent(
     part: Part
-  ): TTypes['ContentBlockParam'];
+  ): RunnerContentBlockParam<TTypes>;
 
   /**
    * Converts Genkit messages to Anthropic format.
