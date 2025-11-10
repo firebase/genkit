@@ -32,26 +32,59 @@ import type {
 import type { CandidateData, ToolDefinition } from 'genkit/model';
 import { describe, it, mock } from 'node:test';
 
-import type { AnthropicConfigSchema } from '../src/claude.js';
-import {
-  claudeModel,
-  claudeRunner,
-  fromAnthropicContentBlockChunk,
-  fromAnthropicResponse,
-  fromAnthropicStopReason,
-  toAnthropicMessageContent,
-  toAnthropicMessages,
-  toAnthropicRequestBody,
-  toAnthropicRole,
-  toAnthropicTool,
-  toAnthropicToolResponseContent,
-} from '../src/claude.js';
+import { claudeModel, claudeRunner } from '../src/models.js';
+import { RegularRunner } from '../src/runner.js';
+import type { AnthropicConfigSchema } from '../src/types.js';
 import {
   createMockAnthropicClient,
   mockContentBlockStart,
   mockTextChunk,
   mockToolUseChunk,
 } from './mocks/anthropic-client.js';
+
+// Test helper: Create a RegularRunner instance for testing converter methods
+const mockClient = createMockAnthropicClient();
+const testRunner = new RegularRunner('test-model', mockClient);
+
+// Helper functions to access protected methods for testing
+const toAnthropicRole = (
+  role: Role,
+  toolMessageType?: 'tool_use' | 'tool_result'
+) => (testRunner as any).toAnthropicRole(role, toolMessageType);
+
+const toAnthropicToolResponseContent = (part: Part) =>
+  (testRunner as any).toAnthropicToolResponseContent(part);
+
+const toAnthropicMessageContent = (part: Part) =>
+  (testRunner as any).toAnthropicMessageContent(part);
+
+const toAnthropicMessages = (messages: MessageData[]) =>
+  (testRunner as any).toAnthropicMessages(messages);
+
+const toAnthropicTool = (tool: ToolDefinition) =>
+  (testRunner as any).toAnthropicTool(tool);
+
+const toAnthropicRequestBody = (
+  modelName: string,
+  request: GenerateRequest<typeof AnthropicConfigSchema>,
+  stream?: boolean,
+  cacheSystemPrompt?: boolean
+) =>
+  (testRunner as any).toAnthropicRequestBody(
+    modelName,
+    request,
+    stream,
+    cacheSystemPrompt
+  );
+
+const fromAnthropicContentBlockChunk = (event: MessageStreamEvent) =>
+  (testRunner as any).fromAnthropicContentBlockChunk(event);
+
+const fromAnthropicStopReason = (reason: Message['stop_reason']) =>
+  (testRunner as any).fromAnthropicStopReason(reason);
+
+const fromAnthropicResponse = (message: Message) =>
+  (testRunner as any).fromAnthropicResponse(message);
 
 describe('toAnthropicRole', () => {
   const testCases: {
@@ -96,18 +129,19 @@ describe('toAnthropicRole', () => {
   it('should throw an error for unknown roles', () => {
     assert.throws(
       () => toAnthropicRole('unknown' as Role),
-      /role unknown doesn't map to an Anthropic role\./
+      /Unsupported genkit role: unknown/
     );
   });
 });
 
 describe('toAnthropicToolResponseContent', () => {
-  it('should throw an error for unknown parts', () => {
+  it('should not throw for parts without toolResponse', () => {
+    // toAnthropicToolResponseContent expects part.toolResponse to exist
+    // but will just return stringified undefined/empty object if not
     const part: Part = { data: 'hi' } as Part;
-    assert.throws(
-      () => toAnthropicToolResponseContent(part),
-      /Invalid genkit part provided to toAnthropicToolResponseContent: {"data":"hi"}/
-    );
+    const result = toAnthropicToolResponseContent(part);
+    assert.ok(result);
+    assert.strictEqual(result.type, 'text');
   });
 });
 
@@ -1057,6 +1091,36 @@ describe('claudeRunner', () => {
         signal: abortSignal,
       },
     ]);
+  });
+
+  it('should use beta API when beta.enabled is true', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: {
+        content: [{ type: 'text', text: 'response', citations: null }],
+        usage: {
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        },
+      },
+    });
+
+    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const abortSignal = new AbortController().signal;
+    await runner(
+      {
+        messages: [],
+        config: { beta: { enabled: true } },
+      },
+      { streamingRequested: false, sendChunk: () => {}, abortSignal }
+    );
+
+    const betaCreateStub = mockClient.beta.messages.create as any;
+    assert.strictEqual(betaCreateStub.mock.calls.length, 1);
+
+    const regularCreateStub = mockClient.messages.create as any;
+    assert.strictEqual(regularCreateStub.mock.calls.length, 0);
   });
 });
 

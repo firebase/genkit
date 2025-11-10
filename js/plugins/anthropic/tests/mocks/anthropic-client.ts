@@ -16,6 +16,10 @@
 
 import type Anthropic from '@anthropic-ai/sdk';
 import type {
+  BetaMessage,
+  BetaRawMessageStreamEvent,
+} from '@anthropic-ai/sdk/resources/beta/messages.mjs';
+import type {
   Message,
   MessageStreamEvent,
 } from '@anthropic-ai/sdk/resources/messages.mjs';
@@ -42,6 +46,7 @@ export function createMockAnthropicClient(
     ...mockDefaultMessage(),
     ...options.messageResponse,
   };
+  const betaMessageResponse = toBetaMessage(messageResponse);
 
   // Support sequential responses for tool calling workflows
   let callCount = 0;
@@ -61,6 +66,23 @@ export function createMockAnthropicClient(
         })
       : mock.fn(async () => messageResponse);
 
+  let betaCallCount = 0;
+  const betaCreateStub = options.shouldError
+    ? mock.fn(async () => {
+        throw options.shouldError;
+      })
+    : options.sequentialResponses
+      ? mock.fn(async () => {
+          const response =
+            options.sequentialResponses![betaCallCount] || messageResponse;
+          betaCallCount++;
+          return toBetaMessage({
+            ...mockDefaultMessage(),
+            ...response,
+          });
+        })
+      : mock.fn(async () => betaMessageResponse);
+
   const streamStub = options.shouldError
     ? mock.fn(() => {
         throw options.shouldError;
@@ -73,6 +95,26 @@ export function createMockAnthropicClient(
         return createMockStream(
           options.streamChunks || [],
           messageResponse as Message,
+          options.streamErrorAfterChunk,
+          options.streamError,
+          opts?.signal
+        );
+      });
+
+  const betaStreamStub = options.shouldError
+    ? mock.fn(() => {
+        throw options.shouldError;
+      })
+    : mock.fn((body: any, opts?: { signal?: AbortSignal }) => {
+        if (opts?.signal?.aborted) {
+          throw new Error('AbortError');
+        }
+        const betaChunks = (options.streamChunks || []).map((chunk) =>
+          toBetaStreamEvent(chunk)
+        );
+        return createMockStream(
+          betaChunks,
+          toBetaMessage(messageResponse),
           options.streamErrorAfterChunk,
           options.streamError,
           opts?.signal
@@ -95,15 +137,21 @@ export function createMockAnthropicClient(
     models: {
       list: listStub,
     },
+    beta: {
+      messages: {
+        create: betaCreateStub,
+        stream: betaStreamStub,
+      },
+    },
   } as unknown as Anthropic;
 }
 
 /**
  * Creates a mock async iterable stream for streaming responses
  */
-function createMockStream(
-  chunks: MessageStreamEvent[],
-  finalMsg: Message,
+function createMockStream<TMessageType, TEventType>(
+  chunks: TEventType[],
+  finalMsg: TMessageType,
   errorAfterChunk?: number,
   streamError?: Error,
   abortSignal?: AbortSignal
@@ -130,9 +178,9 @@ function createMockStream(
           }
 
           if (index < chunks.length) {
-            return { value: chunks[index++], done: false };
+            return { value: chunks[index++] as TEventType, done: false };
           }
-          return { value: undefined, done: true };
+          return { value: undefined as unknown as TEventType, done: true };
         },
       };
     },
@@ -143,7 +191,7 @@ function createMockStream(
         error.name = 'AbortError';
         throw error;
       }
-      return finalMsg;
+      return finalMsg as TMessageType;
     },
   };
 }
@@ -315,4 +363,27 @@ export function mockMessageWithContent(
     content,
     stop_reason: 'end_turn',
   };
+}
+
+function toBetaMessage(message: Message): BetaMessage {
+  return {
+    ...message,
+    container: null,
+    context_management: null,
+    usage: {
+      cache_creation: null,
+      cache_creation_input_tokens: message.usage.cache_creation_input_tokens,
+      cache_read_input_tokens: message.usage.cache_read_input_tokens,
+      input_tokens: message.usage.input_tokens,
+      output_tokens: message.usage.output_tokens,
+      server_tool_use: null,
+      service_tier: null,
+    },
+  };
+}
+
+function toBetaStreamEvent(
+  event: MessageStreamEvent
+): BetaRawMessageStreamEvent {
+  return event as unknown as BetaRawMessageStreamEvent;
 }
