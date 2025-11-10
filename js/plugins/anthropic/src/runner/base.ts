@@ -52,6 +52,7 @@ export type RunnerTypes = {
   StreamingRequestBody: unknown;
   Tool: unknown;
   MessageParam: unknown;
+  ContentBlockParam: unknown;
   ToolResponseContent: unknown;
 };
 
@@ -247,7 +248,9 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
    * Converts a Genkit Part to the corresponding Anthropic content block.
    * Each runner implements this to return its specific API type.
    */
-  protected abstract toAnthropicMessageContent(part: Part): any;
+  protected abstract toAnthropicMessageContent(
+    part: Part
+  ): TTypes['ContentBlockParam'];
 
   /**
    * Converts Genkit messages to Anthropic format.
@@ -262,25 +265,32 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
       messages[0]?.role === 'system'
         ? messages[0].content?.[0]?.text
         : undefined;
+
     const messagesToIterate = system ? messages.slice(1) : messages;
     const anthropicMsgs: RunnerMessageParam<TTypes>[] = [];
+
     for (const message of messagesToIterate) {
       const msg = new GenkitMessage(message);
+
+      // Detect tool message kind from Genkit Parts (no SDK typing needed)
+      const hadToolUse = msg.content.some((p) => !!p.toolRequest);
+      const hadToolResult = msg.content.some((p) => !!p.toolResponse);
+
+      const toolMessageType = hadToolUse
+        ? ('tool_use' as const)
+        : hadToolResult
+          ? ('tool_result' as const)
+          : undefined;
+
+      const role = this.toAnthropicRole(message.role, toolMessageType);
+
       const content = msg.content.map((part) =>
         this.toAnthropicMessageContent(part)
       );
-      const toolMessageType = content.find(
-        (c: any) => c.type === 'tool_use' || c.type === 'tool_result'
-      );
-      const role = this.toAnthropicRole(
-        message.role,
-        toolMessageType?.type as 'tool_use' | 'tool_result' | undefined
-      );
-      anthropicMsgs.push({
-        role: role,
-        content,
-      } as RunnerMessageParam<TTypes>);
+
+      anthropicMsgs.push({ role, content } as RunnerMessageParam<TTypes>);
     }
+
     return { system, messages: anthropicMsgs };
   }
 

@@ -15,6 +15,7 @@
  */
 
 import { Anthropic } from '@anthropic-ai/sdk';
+import { BetaMessageStream } from '@anthropic-ai/sdk/lib/BetaMessageStream.js';
 import type {
   BetaContentBlock,
   BetaImageBlockParam,
@@ -29,10 +30,12 @@ import type {
   BetaServerToolUseBlock,
   BetaStopReason,
   BetaTextBlockParam,
+  BetaTool,
   BetaToolResultBlockParam,
   BetaToolUseBlock,
   BetaToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/beta/messages';
+
 import type {
   GenerateRequest,
   GenerateResponseData,
@@ -40,8 +43,6 @@ import type {
   Part,
 } from 'genkit';
 
-import { BetaMessageStream } from '@anthropic-ai/sdk/lib/BetaMessageStream.js';
-import type { BetaTool } from '@anthropic-ai/sdk/resources/beta/messages';
 import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema } from '../types.js';
 import { BaseRunner } from './base.js';
@@ -60,6 +61,12 @@ type BetaRunnerTypes = {
   Tool: BetaTool;
   MessageParam: BetaMessageParam;
   ToolResponseContent: BetaTextBlockParam | BetaImageBlockParam;
+  ContentBlockParam:
+    | BetaTextBlockParam
+    | BetaImageBlockParam
+    | BetaRequestDocumentBlock
+    | BetaToolUseBlockParam
+    | BetaToolResultBlockParam;
 };
 
 /**
@@ -70,6 +77,11 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     super(name, client, cacheSystemPrompt);
   }
 
+  /**
+   * Map a Genkit Part -> Anthropic beta content block param.
+   * Supports: text, images (base64 data URLs), PDFs (document source),
+   * tool_use (client tool request), tool_result (client tool response).
+   */
   protected toAnthropicMessageContent(
     part: Part
   ):
@@ -78,12 +90,12 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     | BetaRequestDocumentBlock
     | BetaToolUseBlockParam
     | BetaToolResultBlockParam {
+    // Text
     if (part.text) {
-      return {
-        type: 'text',
-        text: part.text,
-      };
+      return { type: 'text', text: part.text };
     }
+
+    // Media
     if (part.media) {
       if (part.media.contentType === 'application/pdf') {
         return {
@@ -102,6 +114,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         },
       };
     }
+
+    // Tool request (client tool use)
     if (part.toolRequest) {
       if (!part.toolRequest.ref) {
         throw new Error(
@@ -117,6 +131,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         input: part.toolRequest.input,
       };
     }
+
+    // Tool response (client tool result)
     if (part.toolResponse) {
       if (!part.toolResponse.ref) {
         throw new Error(
@@ -132,6 +148,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       };
       return betaResult;
     }
+
     throw new Error(
       `Unsupported genkit part fields encountered for current message role: ${JSON.stringify(
         part
@@ -143,32 +160,30 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     body: BetaMessageCreateParamsNonStreaming,
     abortSignal: AbortSignal
   ): Promise<BetaMessage> {
-    return this.client.beta.messages.create(body, {
-      signal: abortSignal,
-    });
+    return this.client.beta.messages.create(body, { signal: abortSignal });
   }
 
   protected streamMessages(
     body: BetaMessageCreateParamsStreaming,
     abortSignal: AbortSignal
   ): BetaMessageStream {
-    return this.client.beta.messages.stream(body, {
-      signal: abortSignal,
-    });
+    return this.client.beta.messages.stream(body, { signal: abortSignal });
   }
 
+  /**
+   * Build non-streaming request body.
+   */
   protected toAnthropicRequestBody(
     modelName: string,
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): BetaMessageCreateParamsNonStreaming {
-    // Use supported model ref if available for version mapping, otherwise use modelName directly
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? model?.version ?? modelName;
 
-    // Convert system to beta format with cache control if needed
+    // Convert system: either raw string or cached text block array
     const betaSystem =
       system === undefined
         ? undefined
@@ -186,24 +201,16 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
-      messages: messages,
+      messages,
     };
 
-    if (betaSystem !== undefined) {
-      body.system = betaSystem;
-    }
-    if (request.config?.stopSequences !== undefined) {
+    if (betaSystem !== undefined) body.system = betaSystem;
+    if (request.config?.stopSequences !== undefined)
       body.stop_sequences = request.config.stopSequences;
-    }
-    if (request.config?.temperature !== undefined) {
+    if (request.config?.temperature !== undefined)
       body.temperature = request.config.temperature;
-    }
-    if (request.config?.topK !== undefined) {
-      body.top_k = request.config.topK;
-    }
-    if (request.config?.topP !== undefined) {
-      body.top_p = request.config.topP;
-    }
+    if (request.config?.topK !== undefined) body.top_k = request.config.topK;
+    if (request.config?.topP !== undefined) body.top_p = request.config.topP;
     if (request.config?.tool_choice !== undefined) {
       body.tool_choice = request.config
         .tool_choice as BetaMessageCreateParams['tool_choice'];
@@ -225,18 +232,19 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     return body;
   }
 
+  /**
+   * Build streaming request body.
+   */
   protected toAnthropicStreamingRequestBody(
     modelName: string,
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): BetaMessageCreateParamsStreaming {
-    // Use supported model ref if available for version mapping, otherwise use modelName directly
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? model?.version ?? modelName;
 
-    // Convert system to beta format with cache control if needed
     const betaSystem =
       system === undefined
         ? undefined
@@ -254,25 +262,17 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
-      messages: messages,
+      messages,
       stream: true,
     };
 
-    if (betaSystem !== undefined) {
-      body.system = betaSystem;
-    }
-    if (request.config?.stopSequences !== undefined) {
+    if (betaSystem !== undefined) body.system = betaSystem;
+    if (request.config?.stopSequences !== undefined)
       body.stop_sequences = request.config.stopSequences;
-    }
-    if (request.config?.temperature !== undefined) {
+    if (request.config?.temperature !== undefined)
       body.temperature = request.config.temperature;
-    }
-    if (request.config?.topK !== undefined) {
-      body.top_k = request.config.topK;
-    }
-    if (request.config?.topP !== undefined) {
-      body.top_p = request.config.topP;
-    }
+    if (request.config?.topK !== undefined) body.top_k = request.config.topK;
+    if (request.config?.topP !== undefined) body.top_p = request.config.topP;
     if (request.config?.tool_choice !== undefined) {
       body.tool_choice = request.config
         .tool_choice as BetaMessageCreateParams['tool_choice'];
@@ -327,6 +327,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       if (event.delta.type === 'thinking_delta') {
         return { text: event.delta.thinking };
       }
+      // server/client tool input_json_delta not supported yet
       return undefined;
     }
     return undefined;
@@ -353,7 +354,9 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
       default: {
         const unknownType = (contentBlock as { type: string }).type;
         console.warn(
-          `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
+          `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(
+            contentBlock
+          )}`
         );
         return { text: '' };
       }
