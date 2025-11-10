@@ -27,7 +27,7 @@ import { modelRef } from 'genkit/model';
 import { model } from 'genkit/plugin';
 
 import { BetaRunner, Runner } from './runner/index.js';
-import { AnthropicConfigSchema } from './types.js';
+import { AnthropicConfigSchema, resolveBetaEnabled } from './types.js';
 
 export const claude4Sonnet = modelRef({
   name: 'claude-4-sonnet',
@@ -178,12 +178,14 @@ export type ClaudeConfig = z.infer<typeof AnthropicConfigSchema>;
  * @param name The name of the Claude model.
  * @param client The Anthropic client instance.
  * @param cacheSystemPrompt Whether to cache the system prompt.
+ * @param defaultApiVersion Plugin-wide default API surface.
  * @returns The runner that Genkit will call when the model is invoked.
  */
 export function claudeRunner(
   name: string,
   client: Anthropic,
-  cacheSystemPrompt?: boolean
+  cacheSystemPrompt?: boolean,
+  defaultApiVersion?: 'stable' | 'beta'
 ) {
   return async (
     request: GenerateRequest<typeof AnthropicConfigSchema>,
@@ -197,7 +199,7 @@ export function claudeRunner(
       abortSignal: AbortSignal;
     }
   ): Promise<GenerateResponseData> => {
-    const isBeta = request.config?.beta?.enabled ?? false;
+    const isBeta = resolveBetaEnabled(request.config, defaultApiVersion);
     const api = isBeta
       ? new BetaRunner(name, client, cacheSystemPrompt)
       : new Runner(name, client, cacheSystemPrompt);
@@ -257,7 +259,8 @@ export function claudeModelReference(
 export function claudeModel(
   name: string,
   client: Anthropic,
-  cacheSystemPrompt?: boolean
+  cacheSystemPrompt?: boolean,
+  defaultApiVersion?: 'stable' | 'beta'
 ): ModelAction<typeof AnthropicConfigSchema> {
   // Use supported model ref if available, otherwise create generic model ref
   const modelRef = KNOWN_CLAUDE_MODELS[name];
@@ -269,6 +272,6 @@ export function claudeModel(
       ...modelInfo,
       configSchema: AnthropicConfigSchema,
     },
-    claudeRunner(name, client, cacheSystemPrompt)
+    claudeRunner(name, client, cacheSystemPrompt, defaultApiVersion)
   );
 }
