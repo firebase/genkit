@@ -44,6 +44,12 @@ type RunnerTypes = {
   Tool: Tool;
   MessageParam: MessageParam;
   ToolResponseContent: TextBlockParam | ImageBlockParam;
+  ContentBlockParam:
+    | TextBlockParam
+    | ImageBlockParam
+    | DocumentBlockParam
+    | ToolUseBlockParam
+    | ToolResultBlockParam;
 };
 
 export class Runner extends BaseRunner<RunnerTypes> {
@@ -66,6 +72,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
         citations: null,
       };
     }
+
     if (part.media) {
       if (part.media.contentType === 'application/pdf') {
         return {
@@ -84,6 +91,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
         },
       };
     }
+
     if (part.toolRequest) {
       if (!part.toolRequest.ref) {
         throw new Error(
@@ -99,6 +107,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
         input: part.toolRequest.input,
       };
     }
+
     if (part.toolResponse) {
       if (!part.toolResponse.ref) {
         throw new Error(
@@ -113,6 +122,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
         content: [this.toAnthropicToolResponseContent(part)],
       };
     }
+
     throw new Error(
       `Unsupported genkit part fields encountered for current message role: ${JSON.stringify(
         part
@@ -125,11 +135,11 @@ export class Runner extends BaseRunner<RunnerTypes> {
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): MessageCreateParamsNonStreaming {
-    // Use supported model ref if available for version mapping, otherwise use modelName directly
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? model?.version ?? modelName;
+
     const systemValue =
       system === undefined
         ? undefined
@@ -142,6 +152,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
               },
             ]
           : system;
+
     const body: MessageCreateParamsNonStreaming = {
       model: mappedModelName,
       max_tokens:
@@ -188,11 +199,11 @@ export class Runner extends BaseRunner<RunnerTypes> {
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
   ): MessageCreateParamsStreaming {
-    // Use supported model ref if available for version mapping, otherwise use modelName directly
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? model?.version ?? modelName;
+
     const systemValue =
       system === undefined
         ? undefined
@@ -205,6 +216,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
               },
             ]
           : system;
+
     const body: MessageCreateParamsStreaming = {
       model: mappedModelName,
       max_tokens:
@@ -251,18 +263,14 @@ export class Runner extends BaseRunner<RunnerTypes> {
     body: MessageCreateParamsNonStreaming,
     abortSignal: AbortSignal
   ): Promise<Message> {
-    return await this.client.messages.create(body, {
-      signal: abortSignal,
-    });
+    return await this.client.messages.create(body, { signal: abortSignal });
   }
 
   protected streamMessages(
     body: MessageCreateParamsStreaming,
     abortSignal: AbortSignal
   ): MessageStream {
-    return this.client.messages.stream(body, {
-      signal: abortSignal,
-    });
+    return this.client.messages.stream(body, { signal: abortSignal });
   }
 
   protected toGenkitResponse(message: Message): GenerateResponseData {
