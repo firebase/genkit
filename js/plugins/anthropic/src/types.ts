@@ -78,9 +78,23 @@ export interface Media {
   contentType?: string;
 }
 
-export enum MediaType {
-  JPEG = 'image/jpeg',
-  PNG = 'image/png',
-  GIF = 'image/gif',
-  WEBP = 'image/webp',
-}
+export const MediaSchema = z.object({
+  url: z.string(),
+  contentType: z.string().optional(),
+});
+
+export const MediaTypeSchema = z.enum([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+]);
+
+export type MediaType = z.infer<typeof MediaTypeSchema>;
+
+export const MEDIA_TYPES = {
+  JPEG: 'image/jpeg',
+  PNG: 'image/png',
+  GIF: 'image/gif',
+  WEBP: 'image/webp',
+} as const satisfies Record<string, MediaType>;

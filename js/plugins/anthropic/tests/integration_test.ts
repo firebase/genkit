@@ -132,6 +132,9 @@ describe('Anthropic Integration', () => {
           output_tokens: 15,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
+          cache_creation: null,
+          server_tool_use: null,
+          service_tier: null,
         },
       },
     });
@@ -240,6 +243,9 @@ describe('Anthropic Integration', () => {
           output_tokens: 50,
           cache_creation_input_tokens: 5,
           cache_read_input_tokens: 10,
+          cache_creation: null,
+          server_tool_use: null,
+          service_tier: null,
         },
       },
     });
