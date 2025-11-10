@@ -20,7 +20,8 @@ import type {
   DocumentBlockParam,
   ImageBlockParam,
   Message,
-  MessageCreateParams,
+  MessageCreateParamsNonStreaming,
+  MessageCreateParamsStreaming,
   MessageParam,
   MessageStreamEvent,
   TextBlockParam,
@@ -30,7 +31,7 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages';
 import type { GenerateRequest, GenerateResponseData, Part } from 'genkit';
 
-import { SUPPORTED_CLAUDE_MODELS } from '../models.js';
+import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema } from '../types.js';
 import { BaseRunner } from './base.js';
 
@@ -38,7 +39,8 @@ type RunnerTypes = {
   Message: Message;
   Stream: MessageStream;
   StreamEvent: MessageStreamEvent;
-  RequestBody: MessageCreateParams;
+  RequestBody: MessageCreateParamsNonStreaming;
+  StreamingRequestBody: MessageCreateParamsStreaming;
   Tool: Tool;
   MessageParam: MessageParam;
   ToolResponseContent: TextBlockParam | ImageBlockParam;
@@ -121,11 +123,10 @@ export class Runner extends BaseRunner<RunnerTypes> {
   protected toAnthropicRequestBody(
     modelName: string,
     request: GenerateRequest<typeof AnthropicConfigSchema>,
-    stream?: boolean,
     cacheSystemPrompt?: boolean
-  ): MessageCreateParams {
+  ): MessageCreateParamsNonStreaming {
     // Use supported model ref if available for version mapping, otherwise use modelName directly
-    const model = SUPPORTED_CLAUDE_MODELS[modelName];
+    const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? model?.version ?? modelName;
@@ -141,7 +142,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
               },
             ]
           : system;
-    const body: MessageCreateParams = {
+    const body: MessageCreateParamsNonStreaming = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
@@ -152,9 +153,6 @@ export class Runner extends BaseRunner<RunnerTypes> {
       body.system = systemValue;
     }
 
-    if (stream !== undefined) {
-      body.stream = stream as false;
-    }
     if (request.tools) {
       body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
     }
@@ -185,17 +183,81 @@ export class Runner extends BaseRunner<RunnerTypes> {
     return body;
   }
 
-  protected createMessage(
-    body: MessageCreateParams,
+  protected toAnthropicStreamingRequestBody(
+    modelName: string,
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    cacheSystemPrompt?: boolean
+  ): MessageCreateParamsStreaming {
+    // Use supported model ref if available for version mapping, otherwise use modelName directly
+    const model = KNOWN_CLAUDE_MODELS[modelName];
+    const { system, messages } = this.toAnthropicMessages(request.messages);
+    const mappedModelName =
+      request.config?.version ?? model?.version ?? modelName;
+    const systemValue =
+      system === undefined
+        ? undefined
+        : cacheSystemPrompt
+          ? [
+              {
+                type: 'text' as const,
+                text: system,
+                cache_control: { type: 'ephemeral' as const },
+              },
+            ]
+          : system;
+    const body: MessageCreateParamsStreaming = {
+      model: mappedModelName,
+      max_tokens:
+        request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
+      messages,
+      stream: true,
+    };
+
+    if (systemValue !== undefined) {
+      body.system = systemValue;
+    }
+
+    if (request.tools) {
+      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
+    }
+    if (request.config?.topK !== undefined) {
+      body.top_k = request.config.topK;
+    }
+    if (request.config?.topP !== undefined) {
+      body.top_p = request.config.topP;
+    }
+    if (request.config?.temperature !== undefined) {
+      body.temperature = request.config.temperature;
+    }
+    if (request.config?.stopSequences !== undefined) {
+      body.stop_sequences = request.config.stopSequences;
+    }
+    if (request.config?.metadata !== undefined) {
+      body.metadata = request.config.metadata;
+    }
+    if (request.config?.tool_choice !== undefined) {
+      body.tool_choice = request.config.tool_choice;
+    }
+
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+    return body;
+  }
+
+  protected async createMessage(
+    body: MessageCreateParamsNonStreaming,
     abortSignal: AbortSignal
-  ): Promise<Message | MessageStream> {
-    return this.client.messages.create(body, {
+  ): Promise<Message> {
+    return await this.client.messages.create(body, {
       signal: abortSignal,
-    }) as Promise<Message | MessageStream>;
+    });
   }
 
   protected streamMessages(
-    body: MessageCreateParams,
+    body: MessageCreateParamsStreaming,
     abortSignal: AbortSignal
   ): MessageStream {
     return this.client.messages.stream(body, {

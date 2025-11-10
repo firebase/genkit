@@ -155,7 +155,7 @@ export const claude41Opus = modelRef({
   version: 'claude-opus-4-1-latest',
 });
 
-export const SUPPORTED_CLAUDE_MODELS: Record<
+export const KNOWN_CLAUDE_MODELS: Record<
   string,
   ModelReference<typeof AnthropicConfigSchema>
 > = {
@@ -168,7 +168,7 @@ export const SUPPORTED_CLAUDE_MODELS: Record<
   'claude-4-1-opus': claude41Opus,
 };
 
-export type KnownClaudeModels = keyof typeof SUPPORTED_CLAUDE_MODELS;
+export type KnownClaudeModels = keyof typeof KNOWN_CLAUDE_MODELS;
 export type ClaudeModelName = string;
 export type AnthropicConfigSchemaType = typeof AnthropicConfigSchema;
 export type ClaudeConfig = z.infer<typeof AnthropicConfigSchema>;
@@ -229,7 +229,7 @@ export function claudeModelReference(
   name: string,
   config?: z.infer<typeof AnthropicConfigSchema>
 ): ModelReference<typeof AnthropicConfigSchema> {
-  const knownModel = SUPPORTED_CLAUDE_MODELS[name];
+  const knownModel = KNOWN_CLAUDE_MODELS[name];
   if (knownModel) {
     return modelRef({
       name: knownModel.name,
@@ -260,7 +260,7 @@ export function claudeModel(
   cacheSystemPrompt?: boolean
 ): ModelAction<typeof AnthropicConfigSchema> {
   // Use supported model ref if available, otherwise create generic model ref
-  const modelRef = SUPPORTED_CLAUDE_MODELS[name];
+  const modelRef = KNOWN_CLAUDE_MODELS[name];
   const modelInfo = modelRef ? modelRef.info : GENERIC_CLAUDE_MODEL_INFO;
 
   return model(

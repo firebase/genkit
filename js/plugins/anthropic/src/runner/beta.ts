@@ -17,18 +17,21 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import type {
   BetaContentBlock,
-  BetaContentBlockParam,
   BetaImageBlockParam,
   BetaMCPToolUseBlock,
   BetaMessage,
   MessageCreateParams as BetaMessageCreateParams,
+  MessageCreateParamsNonStreaming as BetaMessageCreateParamsNonStreaming,
+  MessageCreateParamsStreaming as BetaMessageCreateParamsStreaming,
   BetaMessageParam,
   BetaRawMessageStreamEvent,
+  BetaRequestDocumentBlock,
   BetaServerToolUseBlock,
   BetaStopReason,
   BetaTextBlockParam,
   BetaToolResultBlockParam,
   BetaToolUseBlock,
+  BetaToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/beta/messages';
 import type {
   GenerateRequest,
@@ -39,7 +42,7 @@ import type {
 
 import { BetaMessageStream } from '@anthropic-ai/sdk/lib/BetaMessageStream.js';
 import type { BetaTool } from '@anthropic-ai/sdk/resources/beta/messages';
-import { SUPPORTED_CLAUDE_MODELS } from '../models.js';
+import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema } from '../types.js';
 import { BaseRunner } from './base.js';
 
@@ -52,7 +55,8 @@ type BetaRunnerTypes = {
   Message: BetaMessage;
   Stream: BetaMessageStream;
   StreamEvent: BetaRawMessageStreamEvent;
-  RequestBody: BetaMessageCreateParams;
+  RequestBody: BetaMessageCreateParamsNonStreaming;
+  StreamingRequestBody: BetaMessageCreateParamsStreaming;
   Tool: BetaTool;
   MessageParam: BetaMessageParam;
   ToolResponseContent: BetaTextBlockParam | BetaImageBlockParam;
@@ -66,7 +70,14 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     super(name, client, cacheSystemPrompt);
   }
 
-  protected toAnthropicMessageContent(part: Part): BetaContentBlockParam {
+  protected toAnthropicMessageContent(
+    part: Part
+  ):
+    | BetaTextBlockParam
+    | BetaImageBlockParam
+    | BetaRequestDocumentBlock
+    | BetaToolUseBlockParam
+    | BetaToolResultBlockParam {
     if (part.text) {
       return {
         type: 'text',
@@ -129,17 +140,16 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
   }
 
   protected createMessage(
-    body: BetaMessageCreateParams,
+    body: BetaMessageCreateParamsNonStreaming,
     abortSignal: AbortSignal
-  ): Promise<BetaMessage | BetaMessageStream> {
-    // TODO: try to avoid cast
+  ): Promise<BetaMessage> {
     return this.client.beta.messages.create(body, {
       signal: abortSignal,
-    }) as Promise<BetaMessage | BetaMessageStream>;
+    });
   }
 
   protected streamMessages(
-    body: BetaMessageCreateParams,
+    body: BetaMessageCreateParamsStreaming,
     abortSignal: AbortSignal
   ): BetaMessageStream {
     return this.client.beta.messages.stream(body, {
@@ -150,11 +160,10 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
   protected toAnthropicRequestBody(
     modelName: string,
     request: GenerateRequest<typeof AnthropicConfigSchema>,
-    stream?: boolean,
     cacheSystemPrompt?: boolean
-  ): BetaMessageCreateParams {
+  ): BetaMessageCreateParamsNonStreaming {
     // Use supported model ref if available for version mapping, otherwise use modelName directly
-    const model = SUPPORTED_CLAUDE_MODELS[modelName];
+    const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
       request.config?.version ?? model?.version ?? modelName;
@@ -173,7 +182,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
             ]
           : system;
 
-    const body: BetaMessageCreateParams = {
+    const body: BetaMessageCreateParamsNonStreaming = {
       model: mappedModelName,
       max_tokens:
         request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
@@ -183,8 +192,74 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     if (betaSystem !== undefined) {
       body.system = betaSystem;
     }
-    if (stream !== undefined) {
-      body.stream = stream as false;
+    if (request.config?.stopSequences !== undefined) {
+      body.stop_sequences = request.config.stopSequences;
+    }
+    if (request.config?.temperature !== undefined) {
+      body.temperature = request.config.temperature;
+    }
+    if (request.config?.topK !== undefined) {
+      body.top_k = request.config.topK;
+    }
+    if (request.config?.topP !== undefined) {
+      body.top_p = request.config.topP;
+    }
+    if (request.config?.tool_choice !== undefined) {
+      body.tool_choice = request.config
+        .tool_choice as BetaMessageCreateParams['tool_choice'];
+    }
+    if (request.config?.metadata !== undefined) {
+      body.metadata = request.config
+        .metadata as BetaMessageCreateParams['metadata'];
+    }
+    if (request.tools) {
+      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
+    }
+
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+
+    return body;
+  }
+
+  protected toAnthropicStreamingRequestBody(
+    modelName: string,
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    cacheSystemPrompt?: boolean
+  ): BetaMessageCreateParamsStreaming {
+    // Use supported model ref if available for version mapping, otherwise use modelName directly
+    const model = KNOWN_CLAUDE_MODELS[modelName];
+    const { system, messages } = this.toAnthropicMessages(request.messages);
+    const mappedModelName =
+      request.config?.version ?? model?.version ?? modelName;
+
+    // Convert system to beta format with cache control if needed
+    const betaSystem =
+      system === undefined
+        ? undefined
+        : cacheSystemPrompt
+          ? [
+              {
+                type: 'text' as const,
+                text: system,
+                cache_control: { type: 'ephemeral' as const },
+              },
+            ]
+          : system;
+
+    const body: BetaMessageCreateParamsStreaming = {
+      model: mappedModelName,
+      max_tokens:
+        request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
+      messages: messages,
+      stream: true,
+    };
+
+    if (betaSystem !== undefined) {
+      body.system = betaSystem;
     }
     if (request.config?.stopSequences !== undefined) {
       body.stop_sequences = request.config.stopSequences;

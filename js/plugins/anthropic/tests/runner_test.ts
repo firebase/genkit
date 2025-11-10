@@ -43,8 +43,39 @@ import {
 } from './mocks/anthropic-client.js';
 
 // Test helper: Create a Runner instance for testing converter methods
+// Type interface to access protected methods in tests
+type RunnerProtectedMethods = {
+  toAnthropicRole: (
+    role: Role,
+    toolMessageType?: 'tool_use' | 'tool_result'
+  ) => 'user' | 'assistant';
+  toAnthropicToolResponseContent: (part: Part) => any;
+  toAnthropicMessageContent: (part: Part) => any;
+  toAnthropicMessages: (messages: MessageData[]) => {
+    system?: string;
+    messages: any[];
+  };
+  toAnthropicTool: (tool: ToolDefinition) => any;
+  toAnthropicRequestBody: (
+    modelName: string,
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    cacheSystemPrompt?: boolean
+  ) => any;
+  toAnthropicStreamingRequestBody: (
+    modelName: string,
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    cacheSystemPrompt?: boolean
+  ) => any;
+  fromAnthropicContentBlockChunk: (
+    event: MessageStreamEvent
+  ) => Part | undefined;
+  fromAnthropicStopReason: (reason: Message['stop_reason']) => any;
+  fromAnthropicResponse: (message: Message) => GenerateResponseData;
+};
+
 const mockClient = createMockAnthropicClient();
-const testRunner = new Runner('test-model', mockClient);
+const testRunner = new Runner('test-model', mockClient) as Runner &
+  RunnerProtectedMethods;
 
 const createUsage = (
   overrides: Partial<Message['usage']> = {}
@@ -58,46 +89,6 @@ const createUsage = (
   service_tier: null,
   ...overrides,
 });
-
-// Helper functions to access protected methods for testing
-const toAnthropicRole = (
-  role: Role,
-  toolMessageType?: 'tool_use' | 'tool_result'
-) => (testRunner as any).toAnthropicRole(role, toolMessageType);
-
-const toAnthropicToolResponseContent = (part: Part) =>
-  (testRunner as any).toAnthropicToolResponseContent(part);
-
-const toAnthropicMessageContent = (part: Part) =>
-  (testRunner as any).toAnthropicMessageContent(part);
-
-const toAnthropicMessages = (messages: MessageData[]) =>
-  (testRunner as any).toAnthropicMessages(messages);
-
-const toAnthropicTool = (tool: ToolDefinition) =>
-  (testRunner as any).toAnthropicTool(tool);
-
-const toAnthropicRequestBody = (
-  modelName: string,
-  request: GenerateRequest<typeof AnthropicConfigSchema>,
-  stream?: boolean,
-  cacheSystemPrompt?: boolean
-) =>
-  (testRunner as any).toAnthropicRequestBody(
-    modelName,
-    request,
-    stream,
-    cacheSystemPrompt
-  );
-
-const fromAnthropicContentBlockChunk = (event: MessageStreamEvent) =>
-  (testRunner as any).fromAnthropicContentBlockChunk(event);
-
-const fromAnthropicStopReason = (reason: Message['stop_reason']) =>
-  (testRunner as any).fromAnthropicStopReason(reason);
-
-const fromAnthropicResponse = (message: Message) =>
-  (testRunner as any).fromAnthropicResponse(message);
 
 describe('toAnthropicRole', () => {
   const testCases: {
@@ -131,7 +122,7 @@ describe('toAnthropicRole', () => {
         ? ` when toolMessageType is "${test.toolMessageType}"`
         : ''
     }`, () => {
-      const actualOutput = toAnthropicRole(
+      const actualOutput = testRunner.toAnthropicRole(
         test.genkitRole,
         test.toolMessageType
       );
@@ -141,7 +132,7 @@ describe('toAnthropicRole', () => {
 
   it('should throw an error for unknown roles', () => {
     assert.throws(
-      () => toAnthropicRole('unknown' as Role),
+      () => testRunner.toAnthropicRole('unknown' as Role),
       /Unsupported genkit role: unknown/
     );
   });
@@ -152,7 +143,7 @@ describe('toAnthropicToolResponseContent', () => {
     // toAnthropicToolResponseContent expects part.toolResponse to exist
     // but will just return stringified undefined/empty object if not
     const part: Part = { data: 'hi' } as Part;
-    const result = toAnthropicToolResponseContent(part);
+    const result = testRunner.toAnthropicToolResponseContent(part);
     assert.ok(result);
     assert.strictEqual(result.type, 'text');
   });
@@ -162,7 +153,7 @@ describe('toAnthropicMessageContent', () => {
   it('should throw if a media part contains invalid media', () => {
     assert.throws(
       () =>
-        toAnthropicMessageContent({
+        testRunner.toAnthropicMessageContent({
           media: {
             url: '',
           },
@@ -173,7 +164,7 @@ describe('toAnthropicMessageContent', () => {
 
   it('should throw if the provided part is invalid', () => {
     assert.throws(
-      () => toAnthropicMessageContent({ fake: 'part' } as Part),
+      () => testRunner.toAnthropicMessageContent({ fake: 'part' } as Part),
       /Unsupported genkit part fields encountered for current message role: {"fake":"part"}/
     );
   });
@@ -183,7 +174,7 @@ describe('toAnthropicMessageContent', () => {
     // This will fall through to image handling which requires data URLs
     assert.throws(
       () =>
-        toAnthropicMessageContent({
+        testRunner.toAnthropicMessageContent({
           media: {
             url: 'https://example.com/document.pdf',
             // contentType missing - won't be recognized as PDF
@@ -194,7 +185,7 @@ describe('toAnthropicMessageContent', () => {
   });
 
   it('should handle PDF with base64 data URL correctly', () => {
-    const result = toAnthropicMessageContent({
+    const result = testRunner.toAnthropicMessageContent({
       media: {
         url: 'data:application/pdf;base64,JVBERi0xLjQKJ',
         contentType: 'application/pdf',
@@ -212,7 +203,7 @@ describe('toAnthropicMessageContent', () => {
   });
 
   it('should handle PDF with HTTP/HTTPS URL correctly', () => {
-    const result = toAnthropicMessageContent({
+    const result = testRunner.toAnthropicMessageContent({
       media: {
         url: 'https://example.com/document.pdf',
         contentType: 'application/pdf',
@@ -624,7 +615,7 @@ describe('toAnthropicMessages', () => {
 
   for (const test of testCases) {
     it(test.should, () => {
-      const actualOutput = toAnthropicMessages(test.inputMessages);
+      const actualOutput = testRunner.toAnthropicMessages(test.inputMessages);
       assert.deepStrictEqual(actualOutput, test.expectedOutput);
     });
   }
@@ -643,7 +634,7 @@ describe('toAnthropicTool', () => {
         required: ['topic'],
       },
     };
-    const actualOutput = toAnthropicTool(tool);
+    const actualOutput = testRunner.toAnthropicTool(tool);
     assert.deepStrictEqual(actualOutput, {
       name: 'tellAJoke',
       description: 'Tell a joke',
@@ -720,10 +711,27 @@ describe('fromAnthropicContentBlockChunk', () => {
 
   for (const test of testCases) {
     it(test.should, () => {
-      const actualOutput = fromAnthropicContentBlockChunk(test.event);
+      const actualOutput = testRunner.fromAnthropicContentBlockChunk(
+        test.event
+      );
       assert.deepStrictEqual(actualOutput, test.expectedOutput);
     });
   }
+
+  it('should throw for unsupported tool input streaming deltas', () => {
+    assert.throws(
+      () =>
+        testRunner.fromAnthropicContentBlockChunk({
+          index: 0,
+          type: 'content_block_delta',
+          delta: {
+            type: 'input_json_delta',
+            partial_json: '{"foo":',
+          },
+        } as MessageStreamEvent),
+      /Anthropic streaming tool input \(input_json_delta\) is not yet supported/
+    );
+  });
 });
 
 describe('fromAnthropicStopReason', () => {
@@ -759,7 +767,9 @@ describe('fromAnthropicStopReason', () => {
 
   for (const test of testCases) {
     it(`should map Anthropic stop reason "${test.inputStopReason}" to Genkit finish reason "${test.expectedFinishReason}"`, () => {
-      const actualOutput = fromAnthropicStopReason(test.inputStopReason);
+      const actualOutput = testRunner.fromAnthropicStopReason(
+        test.inputStopReason
+      );
       assert.strictEqual(actualOutput, test.expectedFinishReason);
     });
   }
@@ -864,7 +874,7 @@ describe('fromAnthropicResponse', () => {
 
   for (const test of testCases) {
     it(test.should, () => {
-      const actualOutput = fromAnthropicResponse(test.message);
+      const actualOutput = testRunner.fromAnthropicResponse(test.message);
       // Check custom field exists and is the message
       assert.ok(actualOutput.custom);
       assert.strictEqual(actualOutput.custom, test.message);
@@ -958,7 +968,7 @@ describe('toAnthropicRequestBody', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      const actualOutput = toAnthropicRequestBody(
+      const actualOutput = testRunner.toAnthropicRequestBody(
         test.modelName,
         test.genkitRequest
       );
@@ -968,7 +978,7 @@ describe('toAnthropicRequestBody', () => {
 
   it('should accept any model name and use it directly', () => {
     // Following Google GenAI pattern: accept any model name, let API validate
-    const result = toAnthropicRequestBody('fake-model', {
+    const result = testRunner.toAnthropicRequestBody('fake-model', {
       messages: [],
     } as GenerateRequest<typeof AnthropicConfigSchema>);
 
@@ -979,7 +989,7 @@ describe('toAnthropicRequestBody', () => {
   it('should throw if output format is not text', () => {
     assert.throws(
       () =>
-        toAnthropicRequestBody('claude-3-5-haiku', {
+        testRunner.toAnthropicRequestBody('claude-3-5-haiku', {
           messages: [],
           tools: [],
           output: { format: 'media' },
@@ -998,10 +1008,9 @@ describe('toAnthropicRequestBody', () => {
     };
 
     // Test with caching enabled
-    const outputWithCaching = toAnthropicRequestBody(
+    const outputWithCaching = testRunner.toAnthropicRequestBody(
       'claude-3-5-haiku',
       request,
-      false,
       true
     );
     assert.deepStrictEqual(outputWithCaching.system, [
@@ -1013,16 +1022,68 @@ describe('toAnthropicRequestBody', () => {
     ]);
 
     // Test with caching disabled
-    const outputWithoutCaching = toAnthropicRequestBody(
+    const outputWithoutCaching = testRunner.toAnthropicRequestBody(
       'claude-3-5-haiku',
       request,
-      false,
       false
     );
     assert.strictEqual(
       outputWithoutCaching.system,
       'You are a helpful assistant'
     );
+  });
+});
+
+describe('toAnthropicStreamingRequestBody', () => {
+  it('should set stream to true', () => {
+    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
+      messages: [{ role: 'user', content: [{ text: 'Hello' }] }],
+      output: { format: 'text' },
+    };
+
+    const output = testRunner.toAnthropicStreamingRequestBody(
+      'claude-3-5-haiku',
+      request
+    );
+
+    assert.strictEqual(output.stream, true);
+    assert.strictEqual(output.model, 'claude-3-5-haiku-latest');
+    assert.strictEqual(output.max_tokens, 4096);
+  });
+
+  it('should support system prompt caching in streaming mode', () => {
+    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
+      messages: [
+        { role: 'system', content: [{ text: 'You are a helpful assistant' }] },
+        { role: 'user', content: [{ text: 'Hello' }] },
+      ],
+      output: { format: 'text' },
+    };
+
+    const outputWithCaching = testRunner.toAnthropicStreamingRequestBody(
+      'claude-3-5-haiku',
+      request,
+      true
+    );
+    assert.deepStrictEqual(outputWithCaching.system, [
+      {
+        type: 'text',
+        text: 'You are a helpful assistant',
+        cache_control: { type: 'ephemeral' },
+      },
+    ]);
+    assert.strictEqual(outputWithCaching.stream, true);
+
+    const outputWithoutCaching = testRunner.toAnthropicStreamingRequestBody(
+      'claude-3-5-haiku',
+      request,
+      false
+    );
+    assert.strictEqual(
+      outputWithoutCaching.system,
+      'You are a helpful assistant'
+    );
+    assert.strictEqual(outputWithoutCaching.stream, true);
   });
 });
 
@@ -1053,7 +1114,7 @@ describe('claudeRunner', () => {
       {
         model: 'claude-3-5-haiku-latest',
         max_tokens: 4096,
-        stream: false,
+        messages: [],
       },
       {
         signal: abortSignal,
@@ -1098,6 +1159,7 @@ describe('claudeRunner', () => {
       {
         model: 'claude-3-5-haiku-latest',
         max_tokens: 4096,
+        messages: [],
         stream: true,
       },
       {
@@ -1124,7 +1186,7 @@ describe('claudeRunner', () => {
     await runner(
       {
         messages: [],
-        config: { beta: { enabled: true } },
+        config: { beta: { enabled: true, filesApi: false, webSearch: false } },
       },
       { streamingRequested: false, sendChunk: () => {}, abortSignal }
     );
