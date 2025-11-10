@@ -1168,7 +1168,7 @@ describe('claudeRunner', () => {
     ]);
   });
 
-  it('should use beta API when beta.enabled is true', async () => {
+  it('should use beta API when apiVersion is beta', async () => {
     const mockClient = createMockAnthropicClient({
       messageResponse: {
         content: [{ type: 'text', text: 'response', citations: null }],
@@ -1186,7 +1186,7 @@ describe('claudeRunner', () => {
     await runner(
       {
         messages: [],
-        config: { beta: { enabled: true, filesApi: false, webSearch: false } },
+        config: { apiVersion: 'beta' },
       },
       { streamingRequested: false, sendChunk: () => {}, abortSignal }
     );
@@ -1196,6 +1196,112 @@ describe('claudeRunner', () => {
 
     const regularCreateStub = mockClient.messages.create as any;
     assert.strictEqual(regularCreateStub.mock.calls.length, 0);
+  });
+
+  it('should use beta API when defaultApiVersion is beta', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: {
+        content: [{ type: 'text', text: 'response', citations: null }],
+        usage: createUsage({
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        }),
+      },
+    });
+
+    const runner = claudeRunner(
+      'claude-3-5-haiku',
+      mockClient,
+      undefined,
+      'beta'
+    );
+    const abortSignal = new AbortController().signal;
+    await runner(
+      {
+        messages: [],
+      },
+      { streamingRequested: false, sendChunk: () => {}, abortSignal }
+    );
+
+    const betaCreateStub = mockClient.beta.messages.create as any;
+    assert.strictEqual(betaCreateStub.mock.calls.length, 1);
+
+    const regularCreateStub = mockClient.messages.create as any;
+    assert.strictEqual(regularCreateStub.mock.calls.length, 0);
+  });
+
+  it('should use request apiVersion over defaultApiVersion', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: {
+        content: [{ type: 'text', text: 'response', citations: null }],
+        usage: createUsage({
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        }),
+      },
+    });
+
+    // defaultApiVersion is 'stable', but request overrides to 'beta'
+    const runner = claudeRunner(
+      'claude-3-5-haiku',
+      mockClient,
+      undefined,
+      'stable'
+    );
+    const abortSignal = new AbortController().signal;
+    await runner(
+      {
+        messages: [],
+        config: { apiVersion: 'beta' },
+      },
+      { streamingRequested: false, sendChunk: () => {}, abortSignal }
+    );
+
+    const betaCreateStub = mockClient.beta.messages.create as any;
+    assert.strictEqual(betaCreateStub.mock.calls.length, 1);
+
+    const regularCreateStub = mockClient.messages.create as any;
+    assert.strictEqual(regularCreateStub.mock.calls.length, 0);
+  });
+
+  it('should use stable API when defaultApiVersion is beta but request overrides to stable', async () => {
+    const mockClient = createMockAnthropicClient({
+      messageResponse: {
+        content: [{ type: 'text', text: 'response', citations: null }],
+        usage: createUsage({
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        }),
+      },
+    });
+
+    // defaultApiVersion is 'beta', but request overrides to 'stable'
+    const runner = claudeRunner(
+      'claude-3-5-haiku',
+      mockClient,
+      undefined,
+      'beta'
+    );
+    const abortSignal = new AbortController().signal;
+    await runner(
+      {
+        messages: [],
+        config: { apiVersion: 'stable' },
+      },
+      { streamingRequested: false, sendChunk: () => {}, abortSignal }
+    );
+
+    const betaCreateStub = mockClient.beta.messages.create as any;
+    assert.strictEqual(betaCreateStub.mock.calls.length, 0);
+
+    const regularCreateStub = mockClient.messages.create as any;
+    assert.strictEqual(regularCreateStub.mock.calls.length, 1);
   });
 });
 

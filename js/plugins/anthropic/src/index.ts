@@ -130,6 +130,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  */
 function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
   const client = getAnthropicClient(options);
+  const defaultApiVersion = options?.apiVersion;
 
   let listActionsCache: ActionMetadata[] | null = null;
 
@@ -138,7 +139,12 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
     init: async () => {
       const actions: ModelAction[] = [];
       for (const name of Object.keys(KNOWN_CLAUDE_MODELS)) {
-        const action = claudeModel(name, client, options?.cacheSystemPrompt);
+        const action = claudeModel(
+          name,
+          client,
+          options?.cacheSystemPrompt,
+          defaultApiVersion
+        );
         actions.push(action);
       }
       return actions;
@@ -148,7 +154,12 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
         // Strip the 'anthropic/' namespace prefix if present
         const modelName = name.startsWith('anthropic/') ? name.slice(10) : name;
         // Follow Google GenAI pattern: accept any model name and let the API validate it
-        return claudeModel(modelName, client, options?.cacheSystemPrompt);
+        return claudeModel(
+          modelName,
+          client,
+          options?.cacheSystemPrompt,
+          defaultApiVersion
+        );
       }
       return undefined;
     },

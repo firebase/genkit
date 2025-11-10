@@ -31,6 +31,8 @@ export const __testClient = Symbol('testClient');
 export interface PluginOptions {
   apiKey?: string;
   cacheSystemPrompt?: boolean;
+  /** Default API surface for all requests unless overridden per-request. */
+  apiVersion?: 'stable' | 'beta';
 }
 
 /**
@@ -61,13 +63,8 @@ export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
       user_id: z.string().optional(),
     })
     .optional(),
-  beta: z
-    .object({
-      enabled: z.boolean().default(false),
-      filesApi: z.boolean().default(false),
-      webSearch: z.boolean().default(false),
-    })
-    .optional(),
+  /** Optional shorthand to pick API surface for this request. */
+  apiVersion: z.enum(['stable', 'beta']).optional(),
 });
 
 /**
@@ -98,3 +95,21 @@ export const MEDIA_TYPES = {
   GIF: 'image/gif',
   WEBP: 'image/webp',
 } as const satisfies Record<string, MediaType>;
+
+/**
+ * Resolve whether beta API should be used for this call.
+ * Priority:
+ *   1. request.config.apiVersion (per-request override - explicit stable or beta)
+ *   2. pluginDefaultApiVersion (plugin-wide default)
+ *   3. otherwise stable
+ */
+export function resolveBetaEnabled(
+  cfg: z.infer<typeof AnthropicConfigSchema> | undefined,
+  pluginDefaultApiVersion?: 'stable' | 'beta'
+): boolean {
+  if (cfg?.apiVersion !== undefined) {
+    return cfg.apiVersion === 'beta';
+  }
+  if (pluginDefaultApiVersion === 'beta') return true;
+  return false;
+}
