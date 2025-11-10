@@ -33,7 +33,7 @@ import type { CandidateData, ToolDefinition } from 'genkit/model';
 import { describe, it, mock } from 'node:test';
 
 import { claudeModel, claudeRunner } from '../src/models.js';
-import { RegularRunner } from '../src/runner.js';
+import { Runner } from '../src/runner/runner.js';
 import type { AnthropicConfigSchema } from '../src/types.js';
 import {
   createMockAnthropicClient,
@@ -42,9 +42,22 @@ import {
   mockToolUseChunk,
 } from './mocks/anthropic-client.js';
 
-// Test helper: Create a RegularRunner instance for testing converter methods
+// Test helper: Create a Runner instance for testing converter methods
 const mockClient = createMockAnthropicClient();
-const testRunner = new RegularRunner('test-model', mockClient);
+const testRunner = new Runner('test-model', mockClient);
+
+const createUsage = (
+  overrides: Partial<Message['usage']> = {}
+): Message['usage'] => ({
+  cache_creation: null,
+  cache_creation_input_tokens: 0,
+  cache_read_input_tokens: 0,
+  input_tokens: 0,
+  output_tokens: 0,
+  server_tool_use: null,
+  service_tier: null,
+  ...overrides,
+});
 
 // Helper functions to access protected methods for testing
 const toAnthropicRole = (
@@ -774,12 +787,12 @@ describe('fromAnthropicResponse', () => {
             citations: null,
           },
         ],
-        usage: {
+        usage: createUsage({
           input_tokens: 10,
           output_tokens: 20,
           cache_creation_input_tokens: null,
           cache_read_input_tokens: null,
-        },
+        }),
       },
       expectedOutput: {
         candidates: [
@@ -815,12 +828,12 @@ describe('fromAnthropicResponse', () => {
             input: { topic: 'dogs' },
           },
         ],
-        usage: {
+        usage: createUsage({
           input_tokens: 10,
           output_tokens: 20,
           cache_creation_input_tokens: null,
           cache_read_input_tokens: null,
-        },
+        }),
       },
       expectedOutput: {
         candidates: [
@@ -1018,12 +1031,12 @@ describe('claudeRunner', () => {
     const mockClient = createMockAnthropicClient({
       messageResponse: {
         content: [{ type: 'text', text: 'response', citations: null }],
-        usage: {
+        usage: createUsage({
           input_tokens: 10,
           output_tokens: 20,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
-        },
+        }),
       },
     });
 
@@ -1062,12 +1075,12 @@ describe('claudeRunner', () => {
       ],
       messageResponse: {
         content: [{ type: 'text', text: 'response', citations: null }],
-        usage: {
+        usage: createUsage({
           input_tokens: 10,
           output_tokens: 20,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
-        },
+        }),
       },
     });
 
@@ -1097,12 +1110,12 @@ describe('claudeRunner', () => {
     const mockClient = createMockAnthropicClient({
       messageResponse: {
         content: [{ type: 'text', text: 'response', citations: null }],
-        usage: {
+        usage: createUsage({
           input_tokens: 10,
           output_tokens: 20,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
-        },
+        }),
       },
     });
 
@@ -1151,12 +1164,12 @@ describe('claudeModel', () => {
       ],
       messageResponse: {
         content: [{ type: 'text', text: 'Hello world!', citations: null }],
-        usage: {
+        usage: createUsage({
           input_tokens: 5,
           output_tokens: 10,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
-        },
+        }),
       },
     });
 
@@ -1203,12 +1216,12 @@ describe('claudeModel', () => {
           },
         ],
         stop_reason: 'tool_use',
-        usage: {
+        usage: createUsage({
           input_tokens: 15,
           output_tokens: 25,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
-        },
+        }),
       },
     });
 
@@ -1263,12 +1276,12 @@ describe('claudeModel', () => {
       streamError: streamError,
       messageResponse: {
         content: [{ type: 'text', text: 'Hello world', citations: null }],
-        usage: {
+        usage: createUsage({
           input_tokens: 5,
           output_tokens: 10,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
-        },
+        }),
       },
     });
 
@@ -1313,12 +1326,12 @@ describe('claudeModel', () => {
       ],
       messageResponse: {
         content: [{ type: 'text', text: 'Hello world!', citations: null }],
-        usage: {
+        usage: createUsage({
           input_tokens: 5,
           output_tokens: 15,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
-        },
+        }),
       },
     });
 

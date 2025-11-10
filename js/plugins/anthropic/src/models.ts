@@ -26,7 +26,7 @@ import type { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import { model } from 'genkit/plugin';
 
-import { BetaRunner, RegularRunner } from './runner.js';
+import { BetaRunner, Runner } from './runner/index.js';
 import { AnthropicConfigSchema } from './types.js';
 
 export const claude4Sonnet = modelRef({
@@ -200,7 +200,7 @@ export function claudeRunner(
     const isBeta = request.config?.beta?.enabled ?? false;
     const api = isBeta
       ? new BetaRunner(name, client, cacheSystemPrompt)
-      : new RegularRunner(name, client, cacheSystemPrompt);
+      : new Runner(name, client, cacheSystemPrompt);
     return api.run(request, { streamingRequested, sendChunk, abortSignal });
   };
 }

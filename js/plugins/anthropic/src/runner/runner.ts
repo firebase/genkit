@@ -1,0 +1,213 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { Anthropic } from '@anthropic-ai/sdk';
+import { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.js';
+import type {
+  DocumentBlockParam,
+  ImageBlockParam,
+  Message,
+  MessageCreateParams,
+  MessageParam,
+  MessageStreamEvent,
+  TextBlockParam,
+  Tool,
+  ToolResultBlockParam,
+  ToolUseBlockParam,
+} from '@anthropic-ai/sdk/resources/messages';
+import type { GenerateRequest, GenerateResponseData, Part } from 'genkit';
+
+import { SUPPORTED_CLAUDE_MODELS } from '../models.js';
+import { AnthropicConfigSchema } from '../types.js';
+import { BaseRunner } from './base.js';
+
+type RunnerTypes = {
+  Message: Message;
+  Stream: MessageStream;
+  StreamEvent: MessageStreamEvent;
+  RequestBody: MessageCreateParams;
+  Tool: Tool;
+  MessageParam: MessageParam;
+  ToolResponseContent: TextBlockParam | ImageBlockParam;
+};
+
+export class Runner extends BaseRunner<RunnerTypes> {
+  constructor(name: string, client: Anthropic, cacheSystemPrompt?: boolean) {
+    super(name, client, cacheSystemPrompt);
+  }
+
+  protected toAnthropicMessageContent(
+    part: Part
+  ):
+    | TextBlockParam
+    | ImageBlockParam
+    | DocumentBlockParam
+    | ToolUseBlockParam
+    | ToolResultBlockParam {
+    if (part.text) {
+      return {
+        type: 'text',
+        text: part.text,
+        citations: null,
+      };
+    }
+    if (part.media) {
+      if (part.media.contentType === 'application/pdf') {
+        return {
+          type: 'document',
+          source: this.toPdfDocumentSource(part.media),
+        };
+      }
+
+      const { data, mediaType } = this.toImageSource(part.media);
+      return {
+        type: 'image',
+        source: {
+          type: 'base64',
+          data,
+          media_type: mediaType,
+        },
+      };
+    }
+    if (part.toolRequest) {
+      if (!part.toolRequest.ref) {
+        throw new Error(
+          `Tool request ref is required for Anthropic API. Part: ${JSON.stringify(
+            part.toolRequest
+          )}`
+        );
+      }
+      return {
+        type: 'tool_use',
+        id: part.toolRequest.ref,
+        name: part.toolRequest.name,
+        input: part.toolRequest.input,
+      };
+    }
+    if (part.toolResponse) {
+      if (!part.toolResponse.ref) {
+        throw new Error(
+          `Tool response ref is required for Anthropic API. Part: ${JSON.stringify(
+            part.toolResponse
+          )}`
+        );
+      }
+      return {
+        type: 'tool_result',
+        tool_use_id: part.toolResponse.ref,
+        content: [this.toAnthropicToolResponseContent(part)],
+      };
+    }
+    throw new Error(
+      `Unsupported genkit part fields encountered for current message role: ${JSON.stringify(
+        part
+      )}.`
+    );
+  }
+
+  protected toAnthropicRequestBody(
+    modelName: string,
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    stream?: boolean,
+    cacheSystemPrompt?: boolean
+  ): MessageCreateParams {
+    // Use supported model ref if available for version mapping, otherwise use modelName directly
+    const model = SUPPORTED_CLAUDE_MODELS[modelName];
+    const { system, messages } = this.toAnthropicMessages(request.messages);
+    const mappedModelName =
+      request.config?.version ?? model?.version ?? modelName;
+    const systemValue =
+      system === undefined
+        ? undefined
+        : cacheSystemPrompt
+          ? [
+              {
+                type: 'text' as const,
+                text: system,
+                cache_control: { type: 'ephemeral' as const },
+              },
+            ]
+          : system;
+    const body: MessageCreateParams = {
+      model: mappedModelName,
+      max_tokens:
+        request.config?.maxOutputTokens ?? this.DEFAULT_MAX_OUTPUT_TOKENS,
+      messages,
+    };
+
+    if (systemValue !== undefined) {
+      body.system = systemValue;
+    }
+
+    if (stream !== undefined) {
+      body.stream = stream as false;
+    }
+    if (request.tools) {
+      body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
+    }
+    if (request.config?.topK !== undefined) {
+      body.top_k = request.config.topK;
+    }
+    if (request.config?.topP !== undefined) {
+      body.top_p = request.config.topP;
+    }
+    if (request.config?.temperature !== undefined) {
+      body.temperature = request.config.temperature;
+    }
+    if (request.config?.stopSequences !== undefined) {
+      body.stop_sequences = request.config.stopSequences;
+    }
+    if (request.config?.metadata !== undefined) {
+      body.metadata = request.config.metadata;
+    }
+    if (request.config?.tool_choice !== undefined) {
+      body.tool_choice = request.config.tool_choice;
+    }
+
+    if (request.output?.format && request.output.format !== 'text') {
+      throw new Error(
+        `Only text output format is supported for Claude models currently`
+      );
+    }
+    return body;
+  }
+
+  protected createMessage(
+    body: MessageCreateParams,
+    abortSignal: AbortSignal
+  ): Promise<Message | MessageStream> {
+    return this.client.messages.create(body, {
+      signal: abortSignal,
+    }) as Promise<Message | MessageStream>;
+  }
+
+  protected streamMessages(
+    body: MessageCreateParams,
+    abortSignal: AbortSignal
+  ): MessageStream {
+    return this.client.messages.stream(body, {
+      signal: abortSignal,
+    });
+  }
+
+  protected toGenkitResponse(message: Message): GenerateResponseData {
+    return this.fromAnthropicResponse(message);
+  }
+
+  protected toGenkitPart(event: MessageStreamEvent): Part | undefined {
+    return this.fromAnthropicContentBlockChunk(event);
+  }
+}

@@ -205,12 +205,7 @@ export interface CreateMockAnthropicMessageOptions {
     input: any;
   };
   stopReason?: Message['stop_reason'];
-  usage?: {
-    input_tokens?: number;
-    output_tokens?: number;
-    cache_creation_input_tokens?: number;
-    cache_read_input_tokens?: number;
-  };
+  usage?: Partial<Message['usage']>;
 }
 
 /**
@@ -248,6 +243,17 @@ export function createMockAnthropicMessage(
     });
   }
 
+  const usage: Message['usage'] = {
+    cache_creation: null,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+    input_tokens: 10,
+    output_tokens: 20,
+    server_tool_use: null,
+    service_tier: null,
+    ...(options.usage ?? {}),
+  };
+
   return {
     id: options.id || 'msg_test123',
     type: 'message',
@@ -257,13 +263,7 @@ export function createMockAnthropicMessage(
     stop_reason:
       options.stopReason || (options.toolUse ? 'tool_use' : 'end_turn'),
     stop_sequence: null,
-    usage: {
-      input_tokens: options.usage?.input_tokens ?? 10,
-      output_tokens: options.usage?.output_tokens ?? 20,
-      cache_creation_input_tokens:
-        options.usage?.cache_creation_input_tokens ?? 0,
-      cache_read_input_tokens: options.usage?.cache_read_input_tokens ?? 0,
-    },
+    usage,
   };
 }
 
@@ -371,13 +371,13 @@ function toBetaMessage(message: Message): BetaMessage {
     container: null,
     context_management: null,
     usage: {
-      cache_creation: null,
+      cache_creation: message.usage.cache_creation,
       cache_creation_input_tokens: message.usage.cache_creation_input_tokens,
       cache_read_input_tokens: message.usage.cache_read_input_tokens,
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
-      server_tool_use: null,
-      service_tier: null,
+      server_tool_use: message.usage.server_tool_use,
+      service_tier: message.usage.service_tier,
     },
   };
 }
