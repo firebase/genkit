@@ -46,6 +46,8 @@ type StreamCallback[Stream any] = func(context.Context, Stream) error
 // output which it validates against.
 //
 // Each time an ActionDef is run, it results in a new trace span.
+//
+// For internal use only.
 type ActionDef[In, Out, Stream any] struct {
 	fn   StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
 	desc *api.ActionDesc                // Descriptor of the action.
@@ -159,7 +161,7 @@ func newAction[In, Out, Stream any](
 		},
 		desc: &api.ActionDesc{
 			Type:         atype,
-			Key:          fmt.Sprintf("/%s/%s", atype, name),
+			Key:          api.KeyFromName(atype, name),
 			Name:         name,
 			Description:  description,
 			InputSchema:  inputSchema,
