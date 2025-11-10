@@ -28,8 +28,8 @@ import {
   AnthropicConfigSchemaType,
   ClaudeConfig,
   ClaudeModelName,
+  KNOWN_CLAUDE_MODELS,
   KnownClaudeModels,
-  SUPPORTED_CLAUDE_MODELS,
   claude35Haiku,
   claude3Haiku,
   claude41Opus,
@@ -60,7 +60,7 @@ async function list(client: Anthropic): Promise<ActionMetadata[]> {
     // Remove the date suffix from the model id
     const normalizedId = modelInfo.id.replace(/-\d{8}$/, '');
     // Get the model reference from the supported models
-    const ref = SUPPORTED_CLAUDE_MODELS[normalizedId];
+    const ref = KNOWN_CLAUDE_MODELS[normalizedId];
     // Add the model action metadata if the model is supported
     if (ref) {
       result.push(
@@ -137,7 +137,7 @@ function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {
     name: 'anthropic',
     init: async () => {
       const actions: ModelAction[] = [];
-      for (const name of Object.keys(SUPPORTED_CLAUDE_MODELS)) {
+      for (const name of Object.keys(KNOWN_CLAUDE_MODELS)) {
         const action = claudeModel(name, client, options?.cacheSystemPrompt);
         actions.push(action);
       }

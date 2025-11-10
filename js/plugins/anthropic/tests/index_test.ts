@@ -18,7 +18,7 @@ import * as assert from 'assert';
 import { genkit } from 'genkit';
 import { describe, it } from 'node:test';
 import anthropic from '../src/index.js';
-import { SUPPORTED_CLAUDE_MODELS } from '../src/models.js';
+import { KNOWN_CLAUDE_MODELS } from '../src/models.js';
 import { PluginOptions, __testClient } from '../src/types.js';
 import { createMockAnthropicClient } from './mocks/anthropic-client.js';
 
@@ -30,7 +30,7 @@ describe('Anthropic Plugin', () => {
       plugins: [anthropic({ [__testClient]: mockClient } as PluginOptions)],
     });
 
-    for (const modelName of Object.keys(SUPPORTED_CLAUDE_MODELS)) {
+    for (const modelName of Object.keys(KNOWN_CLAUDE_MODELS)) {
       const modelPath = `/model/anthropic/${modelName}`;
       const expectedBaseName = `anthropic/${modelName}`;
       const model = await ai.registry.lookupAction(modelPath);

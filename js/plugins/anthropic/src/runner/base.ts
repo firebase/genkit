@@ -17,6 +17,7 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import type {
   ContentBlock,
+  DocumentBlockParam,
   Message,
   MessageStreamEvent,
 } from '@anthropic-ai/sdk/resources/messages';
@@ -48,6 +49,7 @@ export type RunnerTypes = {
   Stream: AsyncIterable<unknown> & { finalMessage(): Promise<unknown> };
   StreamEvent: unknown;
   RequestBody: unknown;
+  StreamingRequestBody: unknown;
   Tool: unknown;
   MessageParam: unknown;
   ToolResponseContent: unknown;
@@ -57,6 +59,8 @@ type RunnerMessage<T extends RunnerTypes> = T['Message'];
 type RunnerStream<T extends RunnerTypes> = T['Stream'];
 type RunnerStreamEvent<T extends RunnerTypes> = T['StreamEvent'];
 type RunnerRequestBody<T extends RunnerTypes> = T['RequestBody'];
+type RunnerStreamingRequestBody<T extends RunnerTypes> =
+  T['StreamingRequestBody'];
 type RunnerTool<T extends RunnerTypes> = T['Tool'];
 type RunnerMessageParam<T extends RunnerTypes> = T['MessageParam'];
 type RunnerToolResponseContent<T extends RunnerTypes> =
@@ -125,16 +129,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
     );
   }
 
-  protected toPdfDocumentSource(media: Media):
-    | {
-        type: 'base64';
-        media_type: 'application/pdf';
-        data: string;
-      }
-    | {
-        type: 'url';
-        url: string;
-      } {
+  protected toPdfDocumentSource(media: Media): DocumentBlockParam['source'] {
     if (media.contentType !== 'application/pdf') {
       throw new Error(
         `PDF contentType mismatch: expected application/pdf, got ${media.contentType}`
@@ -341,6 +336,14 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
     event: MessageStreamEvent
   ): Part | undefined {
     if (
+      event.type === 'content_block_delta' &&
+      event.delta.type === 'input_json_delta'
+    ) {
+      throw new Error(
+        'Anthropic streaming tool input (input_json_delta) is not yet supported. Please disable streaming or upgrade this plugin.'
+      );
+    }
+    if (
       event.type !== 'content_block_start' &&
       event.type !== 'content_block_delta'
     ) {
@@ -403,30 +406,40 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
   }
 
   /**
-   * Converts an Anthropic request to an Anthropic API request body.
+   * Converts an Anthropic request to a non-streaming Anthropic API request body.
    * @param modelName The name of the Anthropic model to use.
    * @param request The Genkit GenerateRequest to convert.
-   * @param stream Whether to stream the response.
    * @param cacheSystemPrompt Whether to cache the system prompt.
-   * @returns The converted Anthropic API request body.
+   * @returns The converted Anthropic API non-streaming request body.
    * @throws An error if an unsupported output format is requested.
    */
   protected abstract toAnthropicRequestBody(
     modelName: string,
     request: GenerateRequest<typeof AnthropicConfigSchema>,
-    stream?: boolean,
     cacheSystemPrompt?: boolean
   ): RunnerRequestBody<TTypes>;
+
+  /**
+   * Converts an Anthropic request to a streaming Anthropic API request body.
+   * @param modelName The name of the Anthropic model to use.
+   * @param request The Genkit GenerateRequest to convert.
+   * @param cacheSystemPrompt Whether to cache the system prompt.
+   * @returns The converted Anthropic API streaming request body.
+   * @throws An error if an unsupported output format is requested.
+   */
+  protected abstract toAnthropicStreamingRequestBody(
+    modelName: string,
+    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    cacheSystemPrompt?: boolean
+  ): RunnerStreamingRequestBody<TTypes>;
 
   protected abstract createMessage(
     body: RunnerRequestBody<TTypes>,
     abortSignal: AbortSignal
-  ):
-    | Promise<RunnerMessage<TTypes> | RunnerStream<TTypes>>
-    | PromiseLike<RunnerMessage<TTypes> | RunnerStream<TTypes>>;
+  ): Promise<RunnerMessage<TTypes>>;
 
   protected abstract streamMessages(
-    body: RunnerRequestBody<TTypes>,
+    body: RunnerStreamingRequestBody<TTypes>,
     abortSignal: AbortSignal
   ): RunnerStream<TTypes>;
 
@@ -448,14 +461,12 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
   ): Promise<GenerateResponseData> {
     const { streamingRequested, sendChunk, abortSignal } = options;
 
-    const body = this.toAnthropicRequestBody(
-      this.name,
-      request,
-      streamingRequested,
-      this.cacheSystemPrompt
-    );
-
     if (streamingRequested) {
+      const body = this.toAnthropicStreamingRequestBody(
+        this.name,
+        request,
+        this.cacheSystemPrompt
+      );
       const stream = this.streamMessages(body, abortSignal);
       for await (const event of stream) {
         const part = this.toGenkitPart(event);
@@ -470,17 +481,12 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
       return this.toGenkitResponse(finalMessage);
     }
 
+    const body = this.toAnthropicRequestBody(
+      this.name,
+      request,
+      this.cacheSystemPrompt
+    );
     const response = await this.createMessage(body, abortSignal);
-    // Type narrowing: ensure we got a message, not a stream
-    if (
-      typeof response === 'object' &&
-      response !== null &&
-      'finalMessage' in response
-    ) {
-      throw new Error(
-        'Unexpected stream returned from non-streaming createMessage request'
-      );
-    }
-    return this.toGenkitResponse(response as RunnerMessage<TTypes>);
+    return this.toGenkitResponse(response);
   }
 }

@@ -87,7 +87,7 @@ export function createMockAnthropicClient(
     ? mock.fn(() => {
         throw options.shouldError;
       })
-    : mock.fn((body: any, opts?: { signal?: AbortSignal }) => {
+    : mock.fn((_body: any, opts?: { signal?: AbortSignal }) => {
         // Check abort signal before starting stream
         if (opts?.signal?.aborted) {
           throw new Error('AbortError');
@@ -105,7 +105,7 @@ export function createMockAnthropicClient(
     ? mock.fn(() => {
         throw options.shouldError;
       })
-    : mock.fn((body: any, opts?: { signal?: AbortSignal }) => {
+    : mock.fn((_body: any, opts?: { signal?: AbortSignal }) => {
         if (opts?.signal?.aborted) {
           throw new Error('AbortError');
         }
@@ -376,7 +376,7 @@ function toBetaMessage(message: Message): BetaMessage {
       cache_read_input_tokens: message.usage.cache_read_input_tokens,
       input_tokens: message.usage.input_tokens,
       output_tokens: message.usage.output_tokens,
-      server_tool_use: message.usage.server_tool_use,
+      server_tool_use: message.usage.server_tool_use as any,
       service_tier: message.usage.service_tier,
     },
   };
