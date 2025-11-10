@@ -14,14 +14,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package anthropic
+package modelgarden
 
 import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal"
 )
 
-var anthropicModels = map[string]ai.ModelOptions{
+// AnthropicModels is a list of models supported in VertexAI
+// Keep this list updated since models cannot be dynamically listed
+// if we are authenticating with Google Credentials
+var AnthropicModels = map[string]ai.ModelOptions{
 	"claude-3-5-sonnet-v2": {
 		Label:    "Claude 3.5 Sonnet",
 		Supports: &internal.Multimodal,
@@ -61,5 +64,20 @@ var anthropicModels = map[string]ai.ModelOptions{
 		Label:    "Claude Sonnet 4",
 		Supports: &internal.Multimodal,
 		Versions: []string{"claude-sonnet-4@20250514"},
+	},
+	"claude-opus-4-1": {
+		Label:    "Claude 4.1 Opus",
+		Supports: &internal.Multimodal,
+		Versions: []string{"claude-opus-4-1-20250805"},
+	},
+	"claude-sonnet-4-5": {
+		Label:    "Claude 4.5 Sonnet",
+		Supports: &internal.Multimodal,
+		Versions: []string{"claude-sonnet-4-5-20250929"},
+	},
+	"claude-haiku-4-5": {
+		Label:    "Claude 4.5 Haiku",
+		Supports: &internal.Multimodal,
+		Versions: []string{"claude-haiku-4-5-20251001"},
 	},
 }

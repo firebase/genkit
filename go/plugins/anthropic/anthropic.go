@@ -88,7 +88,7 @@ func (a *Anthropic) Init(ctx context.Context) []api.Action {
 }
 
 func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
-	return ant.DefineModel(g, a.aclient, name, *opts), nil
+	return ant.DefineModel(a.aclient, provider, name, *opts), nil
 }
 
 func (a *Anthropic) IsDefinedModel(g *genkit.Genkit, name string) bool {

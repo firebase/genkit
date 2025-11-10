@@ -85,10 +85,18 @@ func (a *Anthropic) Init(ctx context.Context) []api.Action {
 		vertex.WithGoogleAuth(context.Background(), location, projectID),
 	)
 
+	// Claude models in VertexAI cannot be listed using the Anthropic SDK
+	// Models must be defined manually
+	var actions []api.Action
+	for name, opts := range AnthropicModels {
+		model := ant.DefineModel(a.client, provider, name, opts)
+		actions = append(actions, model.(api.Action))
+	}
+
 	a.initted = true
 	a.client = c
 
-	return []api.Action{}
+	return actions
 }
 
 // AnthropicModel returns the [ai.Model] with the given id.
@@ -98,9 +106,9 @@ func AnthropicModel(g *genkit.Genkit, id string) ai.Model {
 }
 
 // DefineModel adds the model to the registry
-func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
+func (a *Anthropic) DefineModel(name string, opts *ai.ModelOptions) (ai.Model, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("DefineModel called with nil ai.ModelOptions")
 	}
-	return ant.DefineModel(g, a.client, name, *opts), nil
+	return ant.DefineModel(a.client, provider, name, *opts), nil
 }

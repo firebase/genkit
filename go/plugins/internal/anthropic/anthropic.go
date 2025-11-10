@@ -23,10 +23,9 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/invopop/jsonschema"
 
@@ -37,15 +36,8 @@ const (
 	ToolNameRegex = `^[a-zA-Z0-9_-]{1,64}$`
 )
 
-func DefineModel(g *genkit.Genkit, client anthropic.Client, name string, info ai.ModelOptions) ai.Model {
-	provider := "anthropic"
+func DefineModel(client anthropic.Client, provider, name string, info ai.ModelOptions) ai.Model {
 	label := "Anthropic"
-
-	fmt.Printf("defining model: %s\n", name)
-	splitName := strings.Split(name, "/")
-	if len(splitName) < 2 {
-		provider = splitName[0]
-	}
 
 	if provider == "vertexai" {
 		label = "Vertex AI"
@@ -55,7 +47,9 @@ func DefineModel(g *genkit.Genkit, client anthropic.Client, name string, info ai
 		Supports: info.Supports,
 		Versions: info.Versions,
 	}
-	return genkit.DefineModel(g, name, meta, func(
+
+	fmt.Printf("defining model: %s/%s\n", provider, name)
+	return ai.NewModel(api.NewName(provider, name), meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,

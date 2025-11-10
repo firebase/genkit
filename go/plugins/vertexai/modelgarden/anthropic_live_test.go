@@ -19,28 +19,18 @@ package modelgarden_test
 import (
 	"context"
 	"encoding/base64"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
 )
 
-var (
-	provider  = flag.String("provider", "", "Modelgarden provider to test against")
-	projectID = flag.String("projectid", "", "Modelgarden project")
-	location  = flag.String("location", "us-east5", "Geographic location")
-)
-
 func TestAnthropicLive(t *testing.T) {
-	if *provider != "anthropic" {
-		t.Skipf("skipping Anthropic")
-	}
-
 	ctx := context.Background()
 	g := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
 
@@ -54,9 +44,9 @@ func TestAnthropicLive(t *testing.T) {
 	t.Run("model version ok", func(t *testing.T) {
 		m := modelgarden.AnthropicModel(g, "claude-opus-4")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(&ai.GenerationCommonConfig{
-				Temperature: 1,
-				Version:     "claude-opus-4@20250514",
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				MaxTokens:   1024,
 			}),
 			ai.WithModel(m),
 			ai.WithSystem("talk to me like an evil pirate and say ARR several times but be very short"),
