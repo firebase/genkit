@@ -17,8 +17,8 @@
 import * as assert from 'assert';
 import { genkit } from 'genkit';
 import { describe, it } from 'node:test';
-import { SUPPORTED_CLAUDE_MODELS } from '../src/claude.js';
 import anthropic from '../src/index.js';
+import { SUPPORTED_CLAUDE_MODELS } from '../src/models.js';
 import { PluginOptions, __testClient } from '../src/types.js';
 import { createMockAnthropicClient } from './mocks/anthropic-client.js';
 
