@@ -2,11 +2,11 @@
 
 <h1 align="center">Firebase Genkit <> Anthropic AI Plugin</h1>
 
-<h4 align="center">Anthropic AI Community Plugin for Google Firebase Genkit</h4>
+<h4 align="center">Anthropic AI plugin for Google Firebase Genkit</h4>
 
 <div align="center">
    <img alt="Github lerna version" src="https://img.shields.io/github/lerna-json/v/BloomLabsInc/genkit-plugins?label=version">
-   <img alt="NPM Downloads" src="https://img.shields.io/npm/dw/genkitx-anthropic">
+   <img alt="NPM Downloads" src="https://img.shields.io/npm/dw/%40genkit-ai%2Fanthropic">
    <img alt="GitHub Org's stars" src="https://img.shields.io/github/stars/BloomLabsInc?style=social">
    <img alt="GitHub License" src="https://img.shields.io/github/license/BloomLabsInc/genkit-plugins">
    <img alt="Static Badge" src="https://img.shields.io/badge/yes-a?label=maintained">
@@ -18,24 +18,19 @@
    <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/BloomLabsInc/genkit-plugins">
 </div>
 
-`genkitx-anthropic` is a community plugin for using Anthropic AI and all its supported models with [Firebase Genkit](https://github.com/firebase/genkit).
-
-This Genkit plugin allows to use Anthropic AI models through their official APIs.
-
-If you want to use Anthropic AI models through Google Vertex AI, please refer
-to the [official Vertex AI plugin](https://www.npmjs.com/package/@genkit-ai/vertexai).
+`@genkit-ai/anthropic` is the official Anthropic plugin for [Firebase Genkit](https://github.com/firebase/genkit). It supersedes the earlier community package `genkitx-anthropic` and is now maintained by Google.
 
 ## Supported models
 
-The plugin supports the most recent Anthropic models:
-**Claude 3.7 Sonnet**, **Claude 3.5 Sonnet**, **Claude 3 Opus**, **Claude 3 Sonnet**, and **Claude 3 Haiku**.
+The plugin supports the most recent Anthropic models: **Claude 3.7 Sonnet**, **Claude 3.5 Sonnet**, **Claude 3 Opus**, **Claude 3 Sonnet**, and **Claude 3 Haiku**.
 
 ## Installation
 
 Install the plugin in your project with your favorite package manager:
 
-- `npm install genkitx-anthropic`
-- `yarn add genkitx-anthropic`
+- `npm install @genkit-ai/anthropic`
+- `yarn add @genkit-ai/anthropic`
+- `pnpm add @genkit-ai/anthropic`
 
 ## Usage
 
@@ -43,7 +38,7 @@ Install the plugin in your project with your favorite package manager:
 
 ```typescript
 import { genkit } from 'genkit';
-import { anthropic, claude35Sonnet } from 'genkitx-anthropic';
+import { anthropic, claude35Sonnet } from '@genkit-ai/anthropic';
 
 const ai = genkit({
   plugins: [anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })],
@@ -58,7 +53,7 @@ The simplest way to generate text is by using the `generate` method:
 
 ```typescript
 const response = await ai.generate({
-  model: claude3Haiku, // model imported from genkitx-anthropic
+  model: claude3Haiku, // model imported from @genkit-ai/anthropic
   prompt: 'Tell me a joke.',
 });
 
@@ -68,7 +63,7 @@ console.log(response.text);
 ### Multi-modal prompt
 
 ```typescript
-// ...intialize Genkit instance (as shown above)...
+// ...initialize Genkit instance (as shown above)...
 
 const response = await ai.generate({
   prompt: [
@@ -106,20 +101,24 @@ export const jokeFlow = ai.defineFlow(
 );
 ```
 
+## Acknowledgements
+
+This plugin builds on the community work published as [`genkitx-anthropic`](https://github.com/BloomLabsInc/genkit-plugins/blob/main/plugins/anthropic/README.md) by Bloom Labs Inc. Their Apache 2.0–licensed implementation provided the foundation for this maintained package.
+
 ## Contributing
 
 Want to contribute to the project? That's awesome! Head over to our [Contribution Guidelines](CONTRIBUTING.md).
 
 ## Need support?
 
-> \[!NOTE\]\
+> [!NOTE]
 > This repository depends on Google's Firebase Genkit. For issues and questions related to Genkit, please refer to instructions available in [Genkit's repository](https://github.com/firebase/genkit).
 
-Reach out by opening a discussion on [Github Discussions](https://github.com/BloomLabsInc/genkitx-openai/discussions).
+Reach out by opening a discussion on [GitHub Discussions](https://github.com/BloomLabsInc/genkitx-openai/discussions).
 
 ## Credits
 
-This plugin is proudly maintained by the team at [**Bloom Labs Inc**](https://github.com/BloomLabsInc). 🔥
+This plugin is maintained by Google with acknowledgement to the community contributions from [Bloom Labs Inc](https://github.com/BloomLabsInc).
 
 ## License
 
