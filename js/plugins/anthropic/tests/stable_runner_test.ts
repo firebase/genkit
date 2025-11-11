@@ -1073,6 +1073,135 @@ describe('toAnthropicRequestBody', () => {
       'You are a helpful assistant'
     );
   });
+
+  it('should concatenate multiple text parts in system message', () => {
+    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            { text: 'Always be concise.' },
+            { text: 'Use proper grammar.' },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    };
+
+    const output = testRunner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      false
+    );
+
+    assert.strictEqual(
+      output.system,
+      'You are a helpful assistant.\n\nAlways be concise.\n\nUse proper grammar.'
+    );
+  });
+
+  it('should concatenate multiple text parts in system message with caching', () => {
+    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            { text: 'Always be concise.' },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    };
+
+    const output = testRunner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      true
+    );
+
+    assert.deepStrictEqual(output.system, [
+      {
+        type: 'text',
+        text: 'You are a helpful assistant.\n\nAlways be concise.',
+        cache_control: { type: 'ephemeral' },
+      },
+    ]);
+  });
+
+  it('should throw error if system message contains media', () => {
+    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            {
+              media: {
+                url: 'data:image/png;base64,iVBORw0KGgoAAAANS',
+                contentType: 'image/png',
+              },
+            },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    };
+
+    assert.throws(
+      () =>
+        testRunner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      /System messages can only contain text content/
+    );
+  });
+
+  it('should throw error if system message contains tool requests', () => {
+    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            { toolRequest: { name: 'getTool', input: {}, ref: '123' } },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    };
+
+    assert.throws(
+      () =>
+        testRunner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      /System messages can only contain text content/
+    );
+  });
+
+  it('should throw error if system message contains tool responses', () => {
+    const request: GenerateRequest<typeof AnthropicConfigSchema> = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            { toolResponse: { name: 'getTool', output: {}, ref: '123' } },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    };
+
+    assert.throws(
+      () =>
+        testRunner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      /System messages can only contain text content/
+    );
+  });
 });
 
 describe('toAnthropicStreamingRequestBody', () => {

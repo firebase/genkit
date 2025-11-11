@@ -19,7 +19,6 @@ import { BetaMessageStream } from '@anthropic-ai/sdk/lib/BetaMessageStream.js';
 import type {
   BetaContentBlock,
   BetaImageBlockParam,
-  BetaMCPToolUseBlock,
   BetaMessage,
   MessageCreateParams as BetaMessageCreateParams,
   MessageCreateParamsNonStreaming as BetaMessageCreateParamsNonStreaming,
@@ -27,12 +26,10 @@ import type {
   BetaMessageParam,
   BetaRawMessageStreamEvent,
   BetaRequestDocumentBlock,
-  BetaServerToolUseBlock,
   BetaStopReason,
   BetaTextBlockParam,
   BetaTool,
   BetaToolResultBlockParam,
-  BetaToolUseBlock,
   BetaToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/beta/messages';
 
@@ -62,13 +59,12 @@ const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
   'bash_code_execution_tool_result',
   'text_editor_code_execution_tool_result',
   'mcp_tool_result',
+  'mcp_tool_use',
   'container_upload',
 ]);
 
-type BetaToolUseLike =
-  | BetaToolUseBlock
-  | BetaServerToolUseBlock
-  | BetaMCPToolUseBlock;
+const unsupportedServerToolError = (blockType: string): string =>
+  `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
 
 type BetaRunnerTypes = {
   Message: BetaMessage;
@@ -350,9 +346,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         blockType &&
         BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(blockType)
       ) {
-        throw new Error(
-          `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`
-        );
+        throw new Error(unsupportedServerToolError(blockType));
       }
       return this.fromBetaContentBlock(event.content_block);
     }
@@ -371,16 +365,36 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
   private fromBetaContentBlock(contentBlock: BetaContentBlock): Part {
     switch (contentBlock.type) {
-      case 'tool_use':
-      case 'mcp_tool_use':
-      case 'server_tool_use':
+      case 'tool_use': {
         return {
           toolRequest: {
             ref: contentBlock.id,
-            name: this.betaToolName(contentBlock),
+            name: contentBlock.name ?? 'unknown_tool',
             input: contentBlock.input,
           },
         };
+      }
+
+      case 'mcp_tool_use':
+        throw new Error(unsupportedServerToolError(contentBlock.type));
+
+      case 'server_tool_use': {
+        const baseName = contentBlock.name ?? 'unknown_tool';
+        const serverToolName =
+          'server_name' in contentBlock && contentBlock.server_name
+            ? `${contentBlock.server_name}/${baseName}`
+            : baseName;
+        return {
+          text: `[Anthropic server tool ${serverToolName}] input: ${JSON.stringify(contentBlock.input)}`,
+          custom: {
+            anthropicServerToolUse: {
+              id: contentBlock.id,
+              name: serverToolName,
+              input: contentBlock.input,
+            },
+          },
+        };
+      }
 
       case 'web_search_tool_result':
         return this.toWebSearchToolResultPart({
@@ -400,9 +414,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
       default: {
         if (BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(contentBlock.type)) {
-          throw new Error(
-            `Genkit Anthropic plugin does not yet support server-managed tool block '${contentBlock.type}'. Please retry against the stable API or wait for dedicated support.`
-          );
+          throw new Error(unsupportedServerToolError(contentBlock.type));
         }
         const unknownType = (contentBlock as { type: string }).type;
         console.warn(
@@ -413,13 +425,6 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         return { text: '' };
       }
     }
-  }
-
-  private betaToolName(block: BetaToolUseLike): string {
-    if ('server_name' in block && block.server_name) {
-      return `${block.server_name}/${block.name}`;
-    }
-    return block.name ?? 'unknown_tool';
   }
 
   private fromBetaStopReason(

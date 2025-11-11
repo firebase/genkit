@@ -292,12 +292,33 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     system?: string;
     messages: RunnerMessageParam<ApiTypes>[];
   } {
-    const system =
-      messages[0]?.role === 'system'
-        ? messages[0].content?.[0]?.text
-        : undefined;
+    let system: string | undefined;
 
-    const messagesToIterate = system ? messages.slice(1) : messages;
+    if (messages[0]?.role === 'system') {
+      const systemMessage = messages[0];
+      const textParts: string[] = [];
+
+      for (const part of systemMessage.content ?? []) {
+        if (part.text) {
+          textParts.push(part.text);
+        } else if (part.media || part.toolRequest || part.toolResponse) {
+          throw new Error(
+            'System messages can only contain text content. Media, tool requests, and tool responses are not supported in system messages.'
+          );
+        }
+      }
+
+      // Concatenate multiple text parts into a single string.
+      // Note: The Anthropic SDK supports system as string | Array<TextBlockParam>,
+      // so we could alternatively preserve the multi-part structure as:
+      //   system = textParts.map(text => ({ type: 'text', text }))
+      // However, concatenation is simpler and maintains semantic equivalence while
+      // keeping the cache control logic straightforward in the concrete runners.
+      system = textParts.length > 0 ? textParts.join('\n\n') : undefined;
+    }
+
+    const messagesToIterate =
+      system !== undefined ? messages.slice(1) : messages;
     const anthropicMsgs: RunnerMessageParam<ApiTypes>[] = [];
 
     for (const message of messagesToIterate) {
