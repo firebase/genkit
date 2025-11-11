@@ -301,13 +301,21 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .min(0)
         .max(24576)
         .describe(
-          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+          'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. ' +
             '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
             'dependent. The thinking budget parameter gives the model guidance ' +
             'on the number of thinking tokens it can use when generating a ' +
             'response. A greater number of tokens is typically associated with ' +
             'more detailed thinking, which is needed for solving more complex ' +
             'tasks. '
+        )
+        .optional(),
+      thinkingLevel: z
+        .enum(['LOW', 'MEDIUM', 'HIGH'])
+        .describe(
+          'For Gemini 3.0 - Indicates the thinking level. A higher level ' +
+            'is associated with more detailed thinking, which is needed for solving ' +
+            'more complex tasks.'
         )
         .optional(),
     })
@@ -376,6 +384,7 @@ function commonRef(
 export const GENERIC_MODEL = commonRef('gemini');
 
 export const KNOWN_MODELS = {
+  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
