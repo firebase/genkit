@@ -35,12 +35,12 @@ import {
   type ClaudeRunnerParams,
 } from './types.js';
 
-export const claude4Sonnet = modelRef({
-  name: 'claude-4-sonnet',
+export const claudeSonnet4 = modelRef({
+  name: 'claude-sonnet-4',
   namespace: 'anthropic',
   info: {
     versions: ['claude-sonnet-4-20250514'],
-    label: 'Anthropic - Claude 4 Sonnet',
+    label: 'Anthropic - Claude Sonnet 4',
     supports: {
       multiturn: true,
       tools: true,
@@ -71,12 +71,12 @@ export const claude3Haiku = modelRef({
   version: 'claude-3-haiku-20240307',
 });
 
-export const claude4Opus = modelRef({
-  name: 'claude-4-opus',
+export const claudeOpus4 = modelRef({
+  name: 'claude-opus-4',
   namespace: 'anthropic',
   info: {
     versions: ['claude-opus-4-20250514'],
-    label: 'Anthropic - Claude 4 Opus',
+    label: 'Anthropic - Claude Opus 4',
     supports: {
       multiturn: true,
       tools: true,
@@ -107,12 +107,12 @@ export const claude35Haiku = modelRef({
   version: 'claude-3-5-haiku-latest',
 });
 
-export const claude45Sonnet = modelRef({
-  name: 'claude-4-5-sonnet',
+export const claudeSonnet45 = modelRef({
+  name: 'claude-sonnet-4.5',
   namespace: 'anthropic',
   info: {
-    versions: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4-5-latest'],
-    label: 'Anthropic - Claude 4.5 Sonnet',
+    versions: ['claude-sonnet-4.5-20250929', 'claude-sonnet-4.5-latest'],
+    label: 'Anthropic - Claude Sonnet 4.5',
     supports: {
       multiturn: true,
       tools: true,
@@ -122,15 +122,15 @@ export const claude45Sonnet = modelRef({
     },
   },
   configSchema: AnthropicConfigSchema,
-  version: 'claude-sonnet-4-5-latest',
+  version: 'claude-sonnet-4.5-latest',
 });
 
-export const claude45Haiku = modelRef({
-  name: 'claude-4-5-haiku',
+export const claudeHaiku45 = modelRef({
+  name: 'claude-haiku-4.5',
   namespace: 'anthropic',
   info: {
-    versions: ['claude-haiku-4-5-20251001', 'claude-haiku-4-5-latest'],
-    label: 'Anthropic - Claude 4.5 Haiku',
+    versions: ['claude-haiku-4.5-20251001', 'claude-haiku-4.5-latest'],
+    label: 'Anthropic - Claude Haiku 4.5',
     supports: {
       multiturn: true,
       tools: true,
@@ -140,15 +140,15 @@ export const claude45Haiku = modelRef({
     },
   },
   configSchema: AnthropicConfigSchema,
-  version: 'claude-haiku-4-5-latest',
+  version: 'claude-haiku-4.5-latest',
 });
 
-export const claude41Opus = modelRef({
-  name: 'claude-4-1-opus',
+export const claudeOpus41 = modelRef({
+  name: 'claude-opus-4.1',
   namespace: 'anthropic',
   info: {
-    versions: ['claude-opus-4-1-20250805', 'claude-opus-4-1-latest'],
-    label: 'Anthropic - Claude 4.1 Opus',
+    versions: ['claude-opus-4.1-20250805', 'claude-opus-4.1-latest'],
+    label: 'Anthropic - Claude Opus 4.1',
     supports: {
       multiturn: true,
       tools: true,
@@ -158,7 +158,7 @@ export const claude41Opus = modelRef({
     },
   },
   configSchema: AnthropicConfigSchema,
-  version: 'claude-opus-4-1-latest',
+  version: 'claude-opus-4.1-latest',
 });
 
 export const KNOWN_CLAUDE_MODELS: Record<
@@ -167,18 +167,18 @@ export const KNOWN_CLAUDE_MODELS: Record<
 > = {
   'claude-3-haiku': claude3Haiku,
   'claude-3-5-haiku': claude35Haiku,
-  'claude-4-sonnet': claude4Sonnet,
-  'claude-4-opus': claude4Opus,
-  'claude-4-5-sonnet': claude45Sonnet,
-  'claude-4-5-haiku': claude45Haiku,
-  'claude-4-1-opus': claude41Opus,
+  'claude-sonnet-4': claudeSonnet4,
+  'claude-opus-4': claudeOpus4,
+  'claude-sonnet-4.5': claudeSonnet45,
+  'claude-haiku-4.5': claudeHaiku45,
+  'claude-opus-4.1': claudeOpus41,
 };
 
 /**
  * Generic Claude model info for unknown/unsupported models.
  * Used when a model name is not in KNOWN_CLAUDE_MODELS.
  */
-const GENERIC_CLAUDE_MODEL_INFO = {
+export const GENERIC_CLAUDE_MODEL_INFO = {
   versions: [],
   label: 'Anthropic - Claude',
   supports: {
