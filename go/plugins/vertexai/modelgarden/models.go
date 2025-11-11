@@ -25,59 +25,48 @@ import (
 // Keep this list updated since models cannot be dynamically listed
 // if we are authenticating with Google Credentials
 var AnthropicModels = map[string]ai.ModelOptions{
-	"claude-3-5-sonnet-v2": {
+	"claude-3-5-sonnet-v2@20241022": {
 		Label:    "Claude 3.5 Sonnet",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-3-5-sonnet-v2@20241022"},
 	},
-	"claude-3-5-sonnet": {
+	"claude-3-5-sonnet@20240620": {
 		Label:    "Claude 3.5 Sonnet",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-3-5-sonnet@20240620"},
 	},
-	"claude-3-sonnet": {
+	"claude-3-sonnet@20240229": {
 		Label:    "Claude 3 Sonnet",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-3-sonnet@20240229"},
 	},
-	"claude-3-haiku": {
+	"claude-3-haiku@20240307": {
 		Label:    "Claude 3 Haiku",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-3-haiku@20240307"},
 	},
-	"claude-3-opus": {
+	"claude-3-opus@20240229": {
 		Label:    "Claude 3 Opus",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-3-opus@20240229"},
 	},
-	"claude-3-7-sonnet": {
+	"claude-3-7-sonnet@20250219": {
 		Label:    "Claude 3.7 Sonnet",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-3-7-sonnet@20250219"},
 	},
-	"claude-opus-4": {
+	"claude-opus-4@20250514": {
 		Label:    "Claude Opus 4",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-opus-4@20250514"},
 	},
-	"claude-sonnet-4": {
+	"claude-sonnet-4@20250514": {
 		Label:    "Claude Sonnet 4",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-sonnet-4@20250514"},
 	},
-	"claude-opus-4-1": {
+	"claude-opus-4-1-20250805": {
 		Label:    "Claude 4.1 Opus",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-opus-4-1-20250805"},
 	},
-	"claude-sonnet-4-5": {
+	"claude-sonnet-4-5-20250929": {
 		Label:    "Claude 4.5 Sonnet",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-sonnet-4-5-20250929"},
 	},
-	"claude-haiku-4-5": {
+	"claude-haiku-4-5-20251001": {
 		Label:    "Claude 4.5 Haiku",
 		Supports: &internal.Multimodal,
-		Versions: []string{"claude-haiku-4-5-20251001"},
 	},
 }

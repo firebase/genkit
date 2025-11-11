@@ -35,19 +35,23 @@ const (
 	provider = "vertexai"
 )
 
+// Anthropic is a Genkit plugin for interacting with Anthropic models in Vertex AI Model Garden
 type Anthropic struct {
-	ProjectID string
-	Location  string
+	ProjectID string // Google Cloud project to use for Vertex AI. If empty, the value of the environment variable GOOGLE_CLOUD_PROJECT or GCLOUD_PROJECT will be consulted in that order
+	Location  string // Location of the Vertex AI service. If empty, the value of the environment variable GOOGLE_CLOUD_LOCATION or GOOGLE_CLOUD_REGION will be consulted in that order
 
-	client  anthropic.Client
-	mu      sync.Mutex
-	initted bool
+	client  anthropic.Client // Client for the model garden service
+	mu      sync.Mutex       // Mutex to control access
+	initted bool             // Whether the plugin has been initialized
 }
 
+// Name returns the name of the plugin
 func (a *Anthropic) Name() string {
 	return provider
 }
 
+// Init initializes the VertexAI Model Garden for Anthropic plugin and all its known models.
+// After calling Init, you may call [DefineModel] to create and register any additional models.
 func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	if a == nil {
 		a = &Anthropic{}
@@ -84,6 +88,8 @@ func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	c := anthropic.NewClient(
 		vertex.WithGoogleAuth(context.Background(), location, projectID),
 	)
+	a.client = c
+	a.initted = true
 
 	// Claude models in VertexAI cannot be listed using the Anthropic SDK
 	// Models must be defined manually
@@ -92,9 +98,6 @@ func (a *Anthropic) Init(ctx context.Context) []api.Action {
 		model := ant.DefineModel(a.client, provider, name, opts)
 		actions = append(actions, model.(api.Action))
 	}
-
-	a.initted = true
-	a.client = c
 
 	return actions
 }

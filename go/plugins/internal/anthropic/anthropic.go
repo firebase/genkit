@@ -48,7 +48,6 @@ func DefineModel(client anthropic.Client, provider, name string, info ai.ModelOp
 		Versions: info.Versions,
 	}
 
-	fmt.Printf("defining model: %s/%s\n", provider, name)
 	return ai.NewModel(api.NewName(provider, name), meta, func(
 		ctx context.Context,
 		input *ai.ModelRequest,
@@ -321,7 +320,7 @@ func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 		var p *ai.Part
 		switch part.AsAny().(type) {
 		case anthropic.ThinkingBlock:
-			p = ai.NewReasoningPart(part.Text, []byte(part.Signature))
+			p = ai.NewReasoningPart(part.Thinking, []byte(part.Signature))
 		case anthropic.TextBlock:
 			p = ai.NewTextPart(string(part.Text))
 		case anthropic.ToolUseBlock:
