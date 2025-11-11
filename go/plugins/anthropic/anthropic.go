@@ -91,14 +91,11 @@ func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOpt
 	return ant.DefineModel(a.aclient, provider, name, *opts), nil
 }
 
-func (a *Anthropic) IsDefinedModel(g *genkit.Genkit, name string) bool {
-	return genkit.LookupModel(g, name) != nil
-}
-
 func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	actions := []api.ActionDesc{}
 
 	models, err := listModels(ctx, &a.aclient)
+	fmt.Printf("models found: %#v\n\n", models)
 	if err != nil {
 		return nil
 	}
@@ -106,11 +103,20 @@ func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	for _, name := range models {
 		model := newModel(a.aclient, name, defaultClaudeOpts)
 		if actionDef, ok := model.(api.Action); ok {
+			fmt.Printf("model: %s\n", actionDef.Desc())
 			actions = append(actions, actionDef.Desc())
 		}
 	}
 
 	return actions
+}
+
+func Model(g *genkit.Genkit, name string) ai.Model {
+	return genkit.LookupModel(g, api.NewName(provider, name))
+}
+
+func IsDefinedModel(g *genkit.Genkit, name string) bool {
+	return genkit.LookupModel(g, api.NewName(provider, name)) != nil
 }
 
 // ResolveAction resolves an action with the given name
