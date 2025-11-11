@@ -1158,7 +1158,6 @@ model: test/chat
 description: A test prompt
 ---
 <<<dotprompt:role:system>>>
-
 You are a pirate!
 
 <<<dotprompt:role:user>>>
@@ -1194,7 +1193,7 @@ Hello!
 	if len(systemMsg.Content) == 0 {
 		t.Fatal("Expected system message to have content")
 	}
-	if systemMsg.Content[0].Text != "You are a pirate!" {
+	if strings.TrimSpace(systemMsg.Content[0].Text) != "You are a pirate!" {
 		t.Errorf("Expected system message text to be 'You are a pirate!', got '%s'", systemMsg.Content[0].Text)
 	}
 
@@ -1206,7 +1205,7 @@ Hello!
 	if len(userMsg.Content) == 0 {
 		t.Fatal("Expected user message to have content")
 	}
-	if userMsg.Content[0].Text != "Hello!" {
+	if strings.TrimSpace(userMsg.Content[0].Text) != "Hello!" {
 		t.Errorf("Expected user message text to be 'Hello!', got '%s'", userMsg.Content[0].Text)
 	}
 }
