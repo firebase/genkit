@@ -159,7 +159,7 @@ describe('toAnthropicMessageContent', () => {
             url: '',
           },
         }),
-      /Invalid genkit part media provided to toAnthropicMessageContent: {"url":""}/
+      /Media url is required but was not provided/
     );
   });
 
@@ -170,19 +170,20 @@ describe('toAnthropicMessageContent', () => {
     );
   });
 
-  it('should throw if media with file URL cannot be processed as image', () => {
-    // File URLs without contentType cannot be processed (they're not data URLs)
-    // This will fall through to image handling which requires data URLs
-    assert.throws(
-      () =>
-        testRunner.toAnthropicMessageContent({
-          media: {
-            url: 'https://example.com/document.pdf',
-            // contentType missing - won't be recognized as PDF
-          },
-        }),
-      /Invalid genkit part media provided to toAnthropicMessageContent/
-    );
+  it('should treat remote URLs without explicit content type as image URLs', () => {
+    const result = testRunner.toAnthropicMessageContent({
+      media: {
+        url: 'https://example.com/image.png',
+      },
+    });
+
+    assert.deepStrictEqual(result, {
+      type: 'image',
+      source: {
+        type: 'url',
+        url: 'https://example.com/image.png',
+      },
+    });
   });
 
   it('should handle PDF with base64 data URL correctly', () => {
@@ -1791,8 +1792,31 @@ describe('BaseRunner helper utilities', () => {
       contentType: 'image/png',
     });
 
+    assert.strictEqual(source.kind, 'base64');
+    if (source.kind !== 'base64') {
+      throw new Error('Expected base64 image source');
+    }
     assert.strictEqual(source.mediaType, 'image/png');
     assert.strictEqual(source.data, 'AAA');
+  });
+
+  it('should pass through remote image URLs', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
+
+    const source = runner['toImageSource']({
+      url: 'https://example.com/image.png',
+      contentType: 'image/png',
+    });
+
+    assert.strictEqual(source.kind, 'url');
+    if (source.kind !== 'url') {
+      throw new Error('Expected url image source');
+    }
+    assert.strictEqual(source.url, 'https://example.com/image.png');
   });
 });
 

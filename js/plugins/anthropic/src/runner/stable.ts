@@ -87,13 +87,22 @@ export class Runner extends BaseRunner<RunnerTypes> {
         };
       }
 
-      const { data, mediaType } = this.toImageSource(part.media);
+      const source = this.toImageSource(part.media);
+      if (source.kind === 'base64') {
+        return {
+          type: 'image',
+          source: {
+            type: 'base64',
+            data: source.data,
+            media_type: source.mediaType,
+          },
+        };
+      }
       return {
         type: 'image',
         source: {
-          type: 'base64',
-          data,
-          media_type: mediaType,
+          type: 'url',
+          url: source.url,
         },
       };
     }
