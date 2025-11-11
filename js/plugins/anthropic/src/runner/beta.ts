@@ -43,6 +43,7 @@ import type {
 import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { BaseRunner } from './base.js';
+import { RunnerTypes } from './types.js';
 
 /**
  * Server-managed tool blocks emitted by the beta API that Genkit cannot yet
@@ -66,7 +67,7 @@ const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
 const unsupportedServerToolError = (blockType: string): string =>
   `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`;
 
-type BetaRunnerTypes = {
+interface BetaRunnerTypes extends RunnerTypes {
   Message: BetaMessage;
   Stream: BetaMessageStream;
   StreamEvent: BetaRawMessageStreamEvent;
@@ -81,7 +82,7 @@ type BetaRunnerTypes = {
     | BetaRequestDocumentBlock
     | BetaToolUseBlockParam
     | BetaToolResultBlockParam;
-};
+}
 
 /**
  * Runner for the Anthropic Beta API.

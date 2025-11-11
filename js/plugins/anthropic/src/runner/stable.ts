@@ -40,8 +40,8 @@ import type {
 import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { BaseRunner } from './base.js';
-
-type RunnerTypes = {
+import { RunnerTypes as BaseRunnerTypes } from './types.js';
+interface RunnerTypes extends BaseRunnerTypes {
   Message: Message;
   Stream: MessageStream;
   StreamEvent: MessageStreamEvent;
@@ -56,7 +56,7 @@ type RunnerTypes = {
     | DocumentBlockParam
     | ToolUseBlockParam
     | ToolResultBlockParam;
-};
+}
 
 export class Runner extends BaseRunner<RunnerTypes> {
   constructor(params: ClaudeRunnerParams) {

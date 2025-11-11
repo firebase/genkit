@@ -62,8 +62,8 @@
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "tsx --test --experimental-test-module-mocks tests/*_test.ts",
+    "test": "tsx --test tests/*_test.ts",
     "test:file": "tsx --test --experimental-test-module-mocks",
-    "test:coverage": "tsx --test --experimental-test-module-mocks --experimental-test-coverage --test-coverage-include='src/**/*.ts' ./tests/**/*_test.ts"
+    "test:coverage": "tsx --test --experimental-test-coverage --test-coverage-include='src/**/*.ts' ./tests/**/*_test.ts"
   }
 }
