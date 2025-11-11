@@ -200,6 +200,27 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       'Retrieve public web data for grounding, powered by Google Search.'
     )
     .optional(),
+  fileSearch: z
+    .object({
+      fileSearchStoreNames: z
+        .array(z.string())
+        .describe(
+          'The names of the fileSearchStores to retrieve from. ' +
+            'Example: fileSearchStores/my-file-search-store-123'
+        ),
+      metadataFilter: z
+        .string()
+        .optional()
+        .describe(
+          'Metadata filter to apply to the semantic retrieval documents and chunks.'
+        ),
+      topK: z
+        .number()
+        .optional()
+        .describe('The number of semantic retrieval chunks to retrieve.'),
+    })
+    .passthrough()
+    .optional(),
   temperature: z
     .number()
     .min(0)
@@ -539,6 +560,7 @@ export function defineModel(
         version: versionFromConfig,
         functionCallingConfig,
         googleSearchRetrieval,
+        fileSearch,
         tools: toolsFromConfig,
         ...restOfConfigOptions
       } = requestOptions;
@@ -559,6 +581,12 @@ export function defineModel(
           googleSearch:
             googleSearchRetrieval === true ? {} : googleSearchRetrieval,
         } as GoogleSearchRetrievalTool);
+      }
+
+      if (fileSearch) {
+        tools.push({
+          fileSearch,
+        });
       }
 
       let toolConfig: ToolConfig | undefined;

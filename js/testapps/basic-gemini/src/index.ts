@@ -27,6 +27,11 @@ import {
 import { fallback, retry } from 'genkit/model/middleware';
 import { Readable } from 'stream';
 import wav from 'wav';
+import {
+  createFileSearchStore,
+  deleteFileSearchStore,
+  uploadBlobToFileSearchStore,
+} from './helper.js';
 
 const ai = genkit({
   plugins: [
@@ -139,6 +144,34 @@ ai.defineFlow('search-grounding', async () => {
       tools: [{ googleSearch: {} }],
     },
   });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
+// File Search
+ai.defineFlow('file-search', async () => {
+  // Use the google/genai SDK to upload the story BLOB to a new
+  // file search store
+  const storeName = await createFileSearchStore();
+  await uploadBlobToFileSearchStore(storeName);
+
+  // Use the file search store in your generate request
+  const { text, raw } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: "What is the character's name in the story?",
+    config: {
+      fileSearch: {
+        fileSearchStoreNames: [storeName],
+        metadataFilter: 'author=foo',
+      },
+    },
+  });
+
+  // Clean up the file search store again
+  await deleteFileSearchStore(storeName);
 
   return {
     text,

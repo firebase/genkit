@@ -154,6 +154,33 @@ export function isGoogleSearchRetrievalTool(
 }
 
 /**
+ * The FileSearch tool that retrieves knowledge from Semantic Retrieval corpora.
+ * Files are imported to Semantic Retrieval corpora using the ImportFile API
+ */
+export declare interface FileSearchTool {
+  fileSearch: FileSearch;
+}
+
+export declare interface FileSearch {
+  /**
+   * The names of the fileSearchStores to retrieve from.
+   * Example: fileSearchStores/my-file-search-store-123
+   */
+  fileSearchStoreNames: string[];
+  /**
+   * Metadata filter to apply to the semantic retrieval documents and chunks.
+   */
+  metadataFilter?: string;
+  /**
+   * The number of semantic retrieval chunks to retrieve.
+   */
+  topK?: number;
+}
+export function isFileSearchTool(tool: Tool): tool is FileSearchTool {
+  return (tool as FileSearchTool).fileSearch !== undefined;
+}
+
+/**
  * Grounding support.
  */
 export declare interface GroundingSupport {
@@ -905,6 +932,7 @@ export declare type Tool =
   | RetrievalTool // Vertex AI Only
   | GoogleMapsTool // Vertex AI Only
   | CodeExecutionTool // Google AI Only
+  | FileSearchTool // Google AI Only
   | GoogleSearchRetrievalTool;
 
 /**
