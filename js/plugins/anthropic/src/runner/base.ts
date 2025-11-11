@@ -16,18 +16,12 @@
  */
 
 import { Anthropic } from '@anthropic-ai/sdk';
-import type {
-  ContentBlock,
-  DocumentBlockParam,
-  Message,
-  MessageStreamEvent,
-} from '@anthropic-ai/sdk/resources/messages';
+import type { DocumentBlockParam } from '@anthropic-ai/sdk/resources/messages';
 import type {
   GenerateRequest,
   GenerateResponseChunkData,
   GenerateResponseData,
   MessageData,
-  ModelResponseData,
   Part,
   Role,
 } from 'genkit';
@@ -55,7 +49,7 @@ import {
   RunnerTypes,
 } from './types.js';
 
-export abstract class BaseRunner<TTypes extends RunnerTypes> {
+export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
   protected name: string;
   protected client: Anthropic;
   protected cacheSystemPrompt?: boolean;
@@ -182,7 +176,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
    */
   protected toAnthropicToolResponseContent(
     part: Part
-  ): RunnerToolResponseContent<TTypes> {
+  ): RunnerToolResponseContent<ApiTypes> {
     const output = part.toolResponse?.output ?? {};
 
     // Handle Media objects (images returned by tools)
@@ -197,7 +191,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
             data,
             media_type: contentType,
           },
-        } as RunnerToolResponseContent<TTypes>;
+        };
       }
     }
 
@@ -215,21 +209,21 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
               data,
               media_type: contentType,
             },
-          } as RunnerToolResponseContent<TTypes>;
+          };
         }
       }
       // Regular string output
       return {
         type: 'text',
         text: output,
-      } as RunnerToolResponseContent<TTypes>;
+      };
     }
 
     // Handle other outputs by stringifying
     return {
       type: 'text',
       text: JSON.stringify(output),
-    } as RunnerToolResponseContent<TTypes>;
+    };
   }
 
   /**
@@ -238,7 +232,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
    */
   protected abstract toAnthropicMessageContent(
     part: Part
-  ): RunnerContentBlockParam<TTypes>;
+  ): RunnerContentBlockParam<ApiTypes>;
 
   /**
    * Converts Genkit messages to Anthropic format.
@@ -247,7 +241,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
    */
   protected toAnthropicMessages(messages: MessageData[]): {
     system?: string;
-    messages: RunnerMessageParam<TTypes>[];
+    messages: RunnerMessageParam<ApiTypes>[];
   } {
     const system =
       messages[0]?.role === 'system'
@@ -255,7 +249,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
         : undefined;
 
     const messagesToIterate = system ? messages.slice(1) : messages;
-    const anthropicMsgs: RunnerMessageParam<TTypes>[] = [];
+    const anthropicMsgs: RunnerMessageParam<ApiTypes>[] = [];
 
     for (const message of messagesToIterate) {
       const msg = new GenkitMessage(message);
@@ -276,7 +270,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
         this.toAnthropicMessageContent(part)
       );
 
-      anthropicMsgs.push({ role, content } as RunnerMessageParam<TTypes>);
+      anthropicMsgs.push({ role, content });
     }
 
     return { system, messages: anthropicMsgs };
@@ -285,122 +279,12 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
   /**
    * Converts a Genkit ToolDefinition to an Anthropic Tool object.
    */
-  protected toAnthropicTool(tool: ToolDefinition): RunnerTool<TTypes> {
+  protected toAnthropicTool(tool: ToolDefinition): RunnerTool<ApiTypes> {
     return {
       name: tool.name,
       description: tool.description,
       input_schema: tool.inputSchema,
-    } as RunnerTool<TTypes>;
-  }
-
-  /**
-   * Converts an Anthropic content block to a Genkit Part object.
-   * @param contentBlock The Anthropic content block to convert.
-   * @returns The converted Genkit Part object.
-   * @param event The Anthropic message stream event to convert.
-   * @returns The converted Genkit Part object if the event is a content block
-   *          start or delta, otherwise undefined.
-   */
-  protected fromAnthropicContentBlock(contentBlock: ContentBlock): Part {
-    if (contentBlock.type === 'tool_use') {
-      return {
-        toolRequest: {
-          ref: contentBlock.id,
-          name: contentBlock.name,
-          input: contentBlock.input,
-        },
-      };
-    } else if (contentBlock.type === 'text') {
-      return { text: contentBlock.text };
-    } else if (contentBlock.type === 'thinking') {
-      return { text: contentBlock.thinking };
-    } else if (contentBlock.type === 'redacted_thinking') {
-      return { text: contentBlock.data };
-    } else {
-      // Handle unexpected content block types
-      // Log warning for debugging, but return empty text to avoid breaking the flow
-      const unknownType = (contentBlock as { type: string }).type;
-      console.warn(
-        `Unexpected Anthropic content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
-      );
-      return { text: '' };
-    }
-  }
-
-  /**
-   * Converts an Anthropic message stream event to a Genkit Part object.
-   */
-  protected fromAnthropicContentBlockChunk(
-    event: MessageStreamEvent
-  ): Part | undefined {
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta.type === 'input_json_delta'
-    ) {
-      throw new Error(
-        'Anthropic streaming tool input (input_json_delta) is not yet supported. Please disable streaming or upgrade this plugin.'
-      );
-    }
-    if (
-      event.type !== 'content_block_start' &&
-      event.type !== 'content_block_delta'
-    ) {
-      return;
-    }
-    const eventField =
-      event.type === 'content_block_start' ? 'content_block' : 'delta';
-    return ['text', 'text_delta'].includes(event[eventField].type)
-      ? {
-          text: event[eventField].text,
-        }
-      : {
-          toolRequest: {
-            ref: event[eventField].id,
-            name: event[eventField].name,
-            input: event[eventField].input,
-          },
-        };
-  }
-
-  protected fromAnthropicStopReason(
-    reason: Message['stop_reason']
-  ): ModelResponseData['finishReason'] {
-    switch (reason) {
-      case 'max_tokens':
-        return 'length';
-      case 'end_turn':
-      // fall through
-      case 'stop_sequence':
-      // fall through
-      case 'tool_use':
-        return 'stop';
-      case null:
-        return 'unknown';
-      default:
-        return 'other';
-    }
-  }
-
-  protected fromAnthropicResponse(response: Message): GenerateResponseData {
-    return {
-      candidates: [
-        {
-          index: 0,
-          finishReason: this.fromAnthropicStopReason(response.stop_reason),
-          message: {
-            role: 'model',
-            content: response.content.map((block) =>
-              this.fromAnthropicContentBlock(block)
-            ),
-          },
-        },
-      ],
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
-      custom: response,
-    };
+    } as RunnerTool<ApiTypes>;
   }
 
   /**
@@ -415,7 +299,7 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
     modelName: string,
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
-  ): RunnerRequestBody<TTypes>;
+  ): RunnerRequestBody<ApiTypes>;
 
   /**
    * Converts an Anthropic request to a streaming Anthropic API request body.
@@ -429,24 +313,24 @@ export abstract class BaseRunner<TTypes extends RunnerTypes> {
     modelName: string,
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     cacheSystemPrompt?: boolean
-  ): RunnerStreamingRequestBody<TTypes>;
+  ): RunnerStreamingRequestBody<ApiTypes>;
 
   protected abstract createMessage(
-    body: RunnerRequestBody<TTypes>,
+    body: RunnerRequestBody<ApiTypes>,
     abortSignal: AbortSignal
-  ): Promise<RunnerMessage<TTypes>>;
+  ): Promise<RunnerMessage<ApiTypes>>;
 
   protected abstract streamMessages(
-    body: RunnerStreamingRequestBody<TTypes>,
+    body: RunnerStreamingRequestBody<ApiTypes>,
     abortSignal: AbortSignal
-  ): RunnerStream<TTypes>;
+  ): RunnerStream<ApiTypes>;
 
   protected abstract toGenkitResponse(
-    message: RunnerMessage<TTypes>
+    message: RunnerMessage<ApiTypes>
   ): GenerateResponseData;
 
   protected abstract toGenkitPart(
-    event: RunnerStreamEvent<TTypes>
+    event: RunnerStreamEvent<ApiTypes>
   ): Part | undefined;
 
   public async run(

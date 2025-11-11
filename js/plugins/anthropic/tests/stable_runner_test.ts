@@ -668,6 +668,33 @@ describe('fromAnthropicContentBlockChunk', () => {
       expectedOutput: { text: 'Hello, World!' },
     },
     {
+      should:
+        'should return thinking part from content_block_start thinking event',
+      event: {
+        index: 0,
+        type: 'content_block_start',
+        content_block: {
+          type: 'thinking',
+          thinking: 'Let me reason through this.',
+          signature: 'sig_123',
+        },
+      },
+      expectedOutput: { text: 'Let me reason through this.' },
+    },
+    {
+      should:
+        'should return redacted thinking part from content_block_start event',
+      event: {
+        index: 0,
+        type: 'content_block_start',
+        content_block: {
+          type: 'redacted_thinking',
+          data: 'encrypted-data',
+        },
+      },
+      expectedOutput: { text: 'encrypted-data' },
+    },
+    {
       should: 'should return text delta part from content_block_delta event',
       event: {
         index: 0,
@@ -678,6 +705,18 @@ describe('fromAnthropicContentBlockChunk', () => {
         },
       },
       expectedOutput: { text: 'Hello, World!' },
+    },
+    {
+      should: 'should return thinking delta part as text content',
+      event: {
+        index: 0,
+        type: 'content_block_delta',
+        delta: {
+          type: 'thinking_delta',
+          thinking: 'Step by step...',
+        },
+      },
+      expectedOutput: { text: 'Step by step...' },
     },
     {
       should: 'should return tool use requests',
