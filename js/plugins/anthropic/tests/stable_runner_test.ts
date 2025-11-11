@@ -1253,12 +1253,11 @@ describe('claudeRunner', () => {
     });
 
     // defaultApiVersion is 'stable', but request overrides to 'beta'
-    const runner = claudeRunner(
-      'claude-3-5-haiku',
-      mockClient,
-      undefined,
-      'stable'
-    );
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      defaultApiVersion: 'stable',
+    });
     const abortSignal = new AbortController().signal;
     await runner(
       {
@@ -1289,12 +1288,11 @@ describe('claudeRunner', () => {
     });
 
     // defaultApiVersion is 'beta', but request overrides to 'stable'
-    const runner = claudeRunner(
-      'claude-3-5-haiku',
-      mockClient,
-      undefined,
-      'beta'
-    );
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      defaultApiVersion: 'beta',
+    });
     const abortSignal = new AbortController().signal;
     await runner(
       {
@@ -1357,7 +1355,10 @@ describe('claudeRunner param object', () => {
 
   it('should throw when client is omitted from params object', () => {
     assert.throws(() => {
-      claudeRunner('claude-3-5-haiku', undefined as unknown as Anthropic);
+      claudeRunner({
+        name: 'claude-3-5-haiku',
+        client: undefined as unknown as Anthropic,
+      });
     }, /Anthropic client is required to create a runner/);
   });
 });
@@ -1459,7 +1460,10 @@ describe('claudeModel', () => {
       chunks.push(chunk);
     });
 
-    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
     const abortSignal = new AbortController().signal;
 
     const result = await runner(
@@ -1521,7 +1525,10 @@ describe('claudeModel', () => {
       chunks.push(chunk);
     });
 
-    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
     const abortSignal = new AbortController().signal;
 
     const result = await runner(
@@ -1576,7 +1583,10 @@ describe('claudeModel', () => {
       },
     });
 
-    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
     const abortSignal = new AbortController().signal;
     const chunks: any[] = [];
     const sendChunk = (chunk: any) => {
@@ -1626,7 +1636,10 @@ describe('claudeModel', () => {
       },
     });
 
-    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
     const abortController = new AbortController();
     const chunks: any[] = [];
     const sendChunk = (chunk: any) => {
