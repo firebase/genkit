@@ -95,7 +95,6 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
 
   /**
    * Checks if a URL is a data URL (starts with 'data:').
-   * This follows the Google GenAI plugin pattern for distinguishing inline data from file references.
    */
   protected isDataUrl(url: string): boolean {
     return url.startsWith('data:');
