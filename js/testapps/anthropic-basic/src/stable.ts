@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { anthropic } from '@genkit-ai/anthropic';
+import { anthropic, claudeSonnet45 } from '@genkit-ai/anthropic';
 import { genkit } from 'genkit';
 
 const ai = genkit({
@@ -26,7 +26,7 @@ const ai = genkit({
 
 ai.defineFlow('anthropic-stable-hello', async () => {
   const { text } = await ai.generate({
-    model: anthropic.model('claude-3-5-haiku'),
+    model: claudeSonnet45,
     prompt: 'You are a friendly Claude assistant. Greet the user briefly.',
   });
 
@@ -35,7 +35,7 @@ ai.defineFlow('anthropic-stable-hello', async () => {
 
 ai.defineFlow('anthropic-stable-stream', async (_, { sendChunk }) => {
   const { stream } = ai.generateStream({
-    model: anthropic.model('claude-3-5-haiku'),
+    model: claudeSonnet45,
     prompt: 'Compose a short limerick about using Genkit with Anthropic.',
   });
 

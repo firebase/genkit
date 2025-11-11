@@ -69,7 +69,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
     );
   }
   const defaultHeaders: Record<string, string> = {};
-  if (options?.cacheSystemPrompt == true) {
+  if (options?.cacheSystemPrompt) {
     defaultHeaders['anthropic-beta'] = 'prompt-caching-2024-07-31';
   }
   return new Anthropic({ apiKey, defaultHeaders });
