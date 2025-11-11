@@ -33,13 +33,12 @@ import type { CandidateData, ToolDefinition } from 'genkit/model';
 import { describe, it, mock } from 'node:test';
 
 import { claudeModel, claudeRunner } from '../src/models.js';
-import { Runner } from '../src/runner/runner.js';
+import { Runner } from '../src/runner/stable.js';
 import type { AnthropicConfigSchema } from '../src/types.js';
 import {
   createMockAnthropicClient,
   mockContentBlockStart,
   mockTextChunk,
-  mockToolUseChunk,
 } from './mocks/anthropic-client.js';
 
 // Test helper: Create a Runner instance for testing converter methods
@@ -1101,7 +1100,10 @@ describe('claudeRunner', () => {
       },
     });
 
-    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
     const abortSignal = new AbortController().signal;
     await runner(
       { messages: [] },
@@ -1146,7 +1148,10 @@ describe('claudeRunner', () => {
     });
 
     const streamingCallback = mock.fn();
-    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
     const abortSignal = new AbortController().signal;
     await runner(
       { messages: [] },
@@ -1181,7 +1186,10 @@ describe('claudeRunner', () => {
       },
     });
 
-    const runner = claudeRunner('claude-3-5-haiku', mockClient);
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
     const abortSignal = new AbortController().signal;
     await runner(
       {
@@ -1211,12 +1219,11 @@ describe('claudeRunner', () => {
       },
     });
 
-    const runner = claudeRunner(
-      'claude-3-5-haiku',
-      mockClient,
-      undefined,
-      'beta'
-    );
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      defaultApiVersion: 'beta',
+    });
     const abortSignal = new AbortController().signal;
     await runner(
       {
@@ -1305,7 +1312,113 @@ describe('claudeRunner', () => {
   });
 });
 
+describe('claudeRunner param object', () => {
+  it('should run requests when constructed with params object', async () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      cacheSystemPrompt: true,
+    });
+    const abortSignal = new AbortController().signal;
+
+    await runner(
+      { messages: [{ role: 'user', content: [{ text: 'hi' }] }] },
+      { streamingRequested: false, sendChunk: () => {}, abortSignal }
+    );
+
+    const createStub = mockClient.messages.create as any;
+    assert.strictEqual(createStub.mock.calls.length, 1);
+    assert.strictEqual(
+      createStub.mock.calls[0].arguments[0].messages[0].content[0].text,
+      'hi'
+    );
+  });
+
+  it('should route to beta runner when defaultApiVersion is beta', async () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = claudeRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      defaultApiVersion: 'beta',
+    });
+    await runner(
+      { messages: [] },
+      {
+        streamingRequested: false,
+        sendChunk: () => {},
+        abortSignal: new AbortController().signal,
+      }
+    );
+
+    const betaCreateStub = mockClient.beta.messages.create as any;
+    assert.strictEqual(betaCreateStub.mock.calls.length, 1);
+  });
+
+  it('should throw when client is omitted from params object', () => {
+    assert.throws(() => {
+      claudeRunner('claude-3-5-haiku', undefined as unknown as Anthropic);
+    }, /Anthropic client is required to create a runner/);
+  });
+});
+
 describe('claudeModel', () => {
+  it('should fall back to generic metadata for unknown models', async () => {
+    const mockClient = createMockAnthropicClient();
+    const modelAction = claudeModel({
+      name: 'unknown-model',
+      client: mockClient,
+    });
+
+    const abortSignal = new AbortController().signal;
+    await (modelAction as any)(
+      { messages: [{ role: 'user', content: [{ text: 'hi' }] }] },
+      {
+        streamingRequested: false,
+        sendChunk: () => {},
+        abortSignal,
+      }
+    );
+
+    const createStub = mockClient.messages.create as any;
+    assert.strictEqual(createStub.mock.calls.length, 1);
+    const request = createStub.mock.calls[0].arguments[0];
+    assert.strictEqual(request.model, 'unknown-model');
+  });
+  it('should support params object configuration', async () => {
+    const mockClient = createMockAnthropicClient();
+    const modelAction = claudeModel({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      defaultApiVersion: 'beta',
+      cacheSystemPrompt: true,
+    });
+
+    const abortSignal = new AbortController().signal;
+    await (modelAction as any)(
+      { messages: [], config: { maxOutputTokens: 128 } },
+      {
+        streamingRequested: false,
+        sendChunk: () => {},
+        abortSignal,
+      }
+    );
+
+    const betaCreateStub = mockClient.beta.messages.create as any;
+    assert.strictEqual(betaCreateStub.mock.calls.length, 1);
+    assert.strictEqual(
+      betaCreateStub.mock.calls[0].arguments[0].max_tokens,
+      128
+    );
+  });
+
+  it('should throw when client is omitted in params object', () => {
+    assert.throws(
+      () => claudeModel('claude-3-5-haiku'),
+      /Anthropic client is required to create a model action/
+    );
+  });
+
   it('should correctly define supported Claude models', () => {
     const mockClient = createMockAnthropicClient();
     const modelName = 'claude-3-5-haiku';
@@ -1370,10 +1483,20 @@ describe('claudeModel', () => {
   });
 
   it('should handle tool use in streaming mode', async () => {
+    const streamChunks = [
+      {
+        type: 'content_block_start',
+        index: 0,
+        content_block: {
+          type: 'tool_use',
+          id: 'toolu_123',
+          name: 'get_weather',
+          input: { city: 'NYC' },
+        },
+      } as MessageStreamEvent,
+    ];
     const mockClient = createMockAnthropicClient({
-      streamChunks: [
-        mockToolUseChunk('toolu_123', 'get_weather', { city: 'NYC' }),
-      ],
+      streamChunks,
       messageResponse: {
         content: [
           {
@@ -1534,6 +1657,218 @@ describe('claudeModel', () => {
         );
         return true;
       }
+    );
+  });
+
+  it('should handle unknown models using generic settings', async () => {
+    const mockClient = createMockAnthropicClient();
+    const modelAction = claudeModel({
+      name: 'unknown-model',
+      client: mockClient,
+    });
+
+    const abortSignal = new AbortController().signal;
+    await (modelAction as any)(
+      { messages: [{ role: 'user', content: [{ text: 'hi' }] }] },
+      {
+        streamingRequested: false,
+        sendChunk: () => {},
+        abortSignal,
+      }
+    );
+
+    const createStub = mockClient.messages.create as any;
+    assert.strictEqual(createStub.mock.calls.length, 1);
+    assert.strictEqual(
+      createStub.mock.calls[0].arguments[0].model,
+      'unknown-model'
+    );
+  });
+});
+
+describe('BaseRunner helper utilities', () => {
+  it('should throw descriptive errors for invalid PDF data URLs', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner('claude-3-5-haiku', mockClient);
+
+    assert.throws(
+      () =>
+        runner['toPdfDocumentSource']({
+          url: 'data:text/plain;base64,AAA',
+          contentType: 'application/pdf',
+        } as any),
+      /PDF contentType mismatch/
+    );
+  });
+
+  it('should stringify non-media tool responses', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner('claude-3-5-haiku', mockClient);
+
+    const result = runner['toAnthropicToolResponseContent']({
+      toolResponse: {
+        ref: 'call_1',
+        name: 'tool',
+        output: { value: 42 },
+      },
+    } as any);
+
+    assert.deepStrictEqual(result, {
+      type: 'text',
+      text: JSON.stringify({ value: 42 }),
+    });
+  });
+
+  it('should parse image data URLs', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner('claude-3-5-haiku', mockClient);
+
+    const source = runner['toImageSource']({
+      url: 'data:image/png;base64,AAA',
+      contentType: 'image/png',
+    });
+
+    assert.strictEqual(source.mediaType, 'image/png');
+    assert.strictEqual(source.data, 'AAA');
+  });
+});
+
+describe('Runner request bodies and error branches', () => {
+  it('should include optional config fields in non-streaming request body', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner('claude-3-5-haiku', mockClient, true) as Runner &
+      RunnerProtectedMethods;
+
+    const body = runner['toAnthropicRequestBody'](
+      'claude-3-5-haiku',
+      {
+        messages: [
+          {
+            role: 'system',
+            content: [{ text: 'You are helpful.' }],
+          },
+          {
+            role: 'user',
+            content: [{ text: 'Tell me a joke' }],
+          },
+        ],
+        config: {
+          maxOutputTokens: 256,
+          topK: 3,
+          topP: 0.75,
+          temperature: 0.6,
+          stopSequences: ['END'],
+          metadata: { user_id: 'user-xyz' },
+          tool_choice: { type: 'auto' },
+        },
+        tools: [
+          {
+            name: 'get_weather',
+            description: 'Returns the weather',
+            inputSchema: { type: 'object' },
+          },
+        ],
+      } as unknown as GenerateRequest<typeof AnthropicConfigSchema>,
+      true
+    );
+
+    assert.strictEqual(body.model, 'claude-3-5-haiku-latest');
+    assert.ok(Array.isArray(body.system));
+    assert.strictEqual(body.system?.[0].cache_control?.type, 'ephemeral');
+    assert.strictEqual(body.max_tokens, 256);
+    assert.strictEqual(body.top_k, 3);
+    assert.strictEqual(body.top_p, 0.75);
+    assert.strictEqual(body.temperature, 0.6);
+    assert.deepStrictEqual(body.stop_sequences, ['END']);
+    assert.deepStrictEqual(body.metadata, { user_id: 'user-xyz' });
+    assert.deepStrictEqual(body.tool_choice, { type: 'auto' });
+    assert.strictEqual(body.tools?.length, 1);
+  });
+
+  it('should include optional config fields in streaming request body', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner('claude-3-5-haiku', mockClient, true) as Runner &
+      RunnerProtectedMethods;
+
+    const body = runner['toAnthropicStreamingRequestBody'](
+      'claude-3-5-haiku',
+      {
+        messages: [
+          {
+            role: 'system',
+            content: [{ text: 'Stay brief.' }],
+          },
+          {
+            role: 'user',
+            content: [{ text: 'Summarize the weather.' }],
+          },
+        ],
+        config: {
+          maxOutputTokens: 64,
+          topK: 2,
+          topP: 0.6,
+          temperature: 0.4,
+          stopSequences: ['STOP'],
+          metadata: { user_id: 'user-abc' },
+          tool_choice: { type: 'any' },
+        },
+        tools: [
+          {
+            name: 'summarize_weather',
+            description: 'Summarizes a forecast',
+            inputSchema: { type: 'object' },
+          },
+        ],
+      } as unknown as GenerateRequest<typeof AnthropicConfigSchema>,
+      true
+    );
+
+    assert.strictEqual(body.stream, true);
+    assert.ok(Array.isArray(body.system));
+    assert.strictEqual(body.max_tokens, 64);
+    assert.strictEqual(body.top_k, 2);
+    assert.strictEqual(body.top_p, 0.6);
+    assert.strictEqual(body.temperature, 0.4);
+    assert.deepStrictEqual(body.stop_sequences, ['STOP']);
+    assert.deepStrictEqual(body.metadata, { user_id: 'user-abc' });
+    assert.deepStrictEqual(body.tool_choice, { type: 'any' });
+    assert.strictEqual(body.tools?.length, 1);
+  });
+
+  it('should throw descriptive errors for missing tool refs', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner('claude-3-5-haiku', mockClient, false) as Runner &
+      RunnerProtectedMethods;
+
+    assert.throws(
+      () =>
+        runner['toAnthropicMessageContent']({
+          toolRequest: {
+            name: 'get_weather',
+            input: {},
+          },
+        } as any),
+      /Tool request ref is required/
+    );
+
+    assert.throws(
+      () =>
+        runner['toAnthropicMessageContent']({
+          toolResponse: {
+            ref: undefined,
+            name: 'get_weather',
+            output: 'Sunny',
+          },
+        } as any),
+      /Tool response ref is required/
+    );
+
+    assert.throws(
+      () =>
+        runner['toAnthropicMessageContent']({
+          data: 'unexpected',
+        } as any),
+      /Unsupported genkit part fields/
     );
   });
 });

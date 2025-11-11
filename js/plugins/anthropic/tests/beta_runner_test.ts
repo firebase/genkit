@@ -1,0 +1,342 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { Anthropic } from '@anthropic-ai/sdk';
+import * as assert from 'assert';
+import { describe, it, mock } from 'node:test';
+
+import { BetaRunner } from '../src/runner/beta.js';
+import { createMockAnthropicClient } from './mocks/anthropic-client.js';
+
+describe('BetaRunner', () => {
+  it('should map all supported Part shapes to beta content blocks', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+
+    const exposed = runner as any;
+
+    const textPart = exposed.toAnthropicMessageContent({
+      text: 'Hello',
+    } as any);
+    assert.deepStrictEqual(textPart, { type: 'text', text: 'Hello' });
+
+    const pdfPart = exposed.toAnthropicMessageContent({
+      media: {
+        url: 'data:application/pdf;base64,JVBERi0xLjQKJ',
+        contentType: 'application/pdf',
+      },
+    } as any);
+    assert.strictEqual(pdfPart.type, 'document');
+
+    const imagePart = exposed.toAnthropicMessageContent({
+      media: {
+        url: 'data:image/png;base64,AAA',
+        contentType: 'image/png',
+      },
+    } as any);
+    assert.strictEqual(imagePart.type, 'image');
+
+    const toolUsePart = exposed.toAnthropicMessageContent({
+      toolRequest: {
+        ref: 'tool1',
+        name: 'get_weather',
+        input: { city: 'NYC' },
+      },
+    } as any);
+    assert.deepStrictEqual(toolUsePart, {
+      type: 'tool_use',
+      id: 'tool1',
+      name: 'get_weather',
+      input: { city: 'NYC' },
+    });
+
+    const toolResultPart = exposed.toAnthropicMessageContent({
+      toolResponse: {
+        ref: 'tool1',
+        name: 'get_weather',
+        output: 'Sunny',
+      },
+    } as any);
+    assert.strictEqual(toolResultPart.type, 'tool_result');
+
+    assert.throws(() => exposed.toAnthropicMessageContent({} as any));
+  });
+
+  it('should convert beta stream events to Genkit Parts', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+
+    const exposed = runner as any;
+    const textPart = exposed.toGenkitPart({
+      type: 'content_block_start',
+      index: 0,
+      content_block: { type: 'text', text: 'hi' },
+    } as any);
+    assert.deepStrictEqual(textPart, { text: 'hi' });
+
+    const serverToolEvent = {
+      type: 'content_block_start',
+      index: 0,
+      content_block: {
+        type: 'server_tool_use',
+        id: 'toolu_test',
+        name: 'myTool',
+        input: { foo: 'bar' },
+        server_name: 'srv',
+      },
+    } as any;
+    const toolPart = exposed.toGenkitPart(serverToolEvent);
+    assert.deepStrictEqual(toolPart, {
+      toolRequest: {
+        ref: 'toolu_test',
+        name: 'srv/myTool',
+        input: { foo: 'bar' },
+      },
+    });
+
+    const deltaPart = exposed.toGenkitPart({
+      type: 'content_block_delta',
+      index: 0,
+      delta: { type: 'thinking_delta', thinking: 'hmm' },
+    } as any);
+    assert.deepStrictEqual(deltaPart, { text: 'hmm' });
+
+    const ignored = exposed.toGenkitPart({ type: 'message_stop' } as any);
+    assert.strictEqual(ignored, undefined);
+  });
+
+  it('should map beta stop reasons correctly', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+
+    const finishReason = runner['fromBetaStopReason'](
+      'model_context_window_exceeded'
+    );
+    assert.strictEqual(finishReason, 'length');
+
+    const pauseReason = runner['fromBetaStopReason']('pause_turn');
+    assert.strictEqual(pauseReason, 'stop');
+  });
+
+  it('should execute streaming calls and surface errors', async () => {
+    const streamError = new Error('stream failed');
+    const mockClient = createMockAnthropicClient({
+      streamChunks: [
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: 'hi' },
+        } as any,
+      ],
+      streamErrorAfterChunk: 1,
+      streamError,
+    });
+
+    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const sendChunk = mock.fn();
+    await assert.rejects(async () =>
+      runner.run({ messages: [] } as any, {
+        streamingRequested: true,
+        sendChunk,
+        abortSignal: new AbortController().signal,
+      })
+    );
+    assert.strictEqual(sendChunk.mock.calls.length, 1);
+
+    const abortController = new AbortController();
+    abortController.abort();
+    await assert.rejects(async () =>
+      runner.run({ messages: [] } as any, {
+        streamingRequested: true,
+        sendChunk: () => {},
+        abortSignal: abortController.signal,
+      })
+    );
+  });
+
+  it('should throw when tool refs are missing in message content', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const exposed = runner as any;
+
+    assert.throws(() =>
+      exposed.toAnthropicMessageContent({
+        toolRequest: {
+          name: 'get_weather',
+          input: {},
+        },
+      } as any)
+    );
+
+    assert.throws(() =>
+      exposed.toAnthropicMessageContent({
+        toolResponse: {
+          name: 'get_weather',
+          output: 'ok',
+        },
+      } as any)
+    );
+
+    assert.throws(() =>
+      exposed.toAnthropicMessageContent({
+        media: {
+          url: 'data:image/png;base64,',
+          contentType: undefined,
+        },
+      } as any)
+    );
+  });
+
+  it('should build request bodies with optional config fields', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner(
+      'claude-3-5-haiku',
+      mockClient as Anthropic,
+      true
+    ) as any;
+
+    const request = {
+      messages: [
+        {
+          role: 'system',
+          content: [{ text: 'You are helpful.' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'Tell me a joke' }],
+        },
+      ],
+      config: {
+        maxOutputTokens: 128,
+        topK: 4,
+        topP: 0.65,
+        temperature: 0.55,
+        stopSequences: ['DONE'],
+        metadata: { user_id: 'beta-user' },
+        tool_choice: { type: 'tool', name: 'get_weather' },
+      },
+      tools: [
+        {
+          name: 'get_weather',
+          description: 'Returns the weather',
+          inputSchema: { type: 'object' },
+        },
+      ],
+    } satisfies any;
+
+    const body = runner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      true
+    );
+
+    assert.strictEqual(body.model, 'claude-3-5-haiku-latest');
+    assert.ok(Array.isArray(body.system));
+    assert.strictEqual(body.max_tokens, 128);
+    assert.strictEqual(body.top_k, 4);
+    assert.strictEqual(body.top_p, 0.65);
+    assert.strictEqual(body.temperature, 0.55);
+    assert.deepStrictEqual(body.stop_sequences, ['DONE']);
+    assert.deepStrictEqual(body.metadata, { user_id: 'beta-user' });
+    assert.deepStrictEqual(body.tool_choice, {
+      type: 'tool',
+      name: 'get_weather',
+    });
+    assert.strictEqual(body.tools?.length, 1);
+
+    const streamingBody = runner.toAnthropicStreamingRequestBody(
+      'claude-3-5-haiku',
+      request,
+      true
+    );
+    assert.strictEqual(streamingBody.stream, true);
+    assert.ok(Array.isArray(streamingBody.system));
+  });
+
+  it('should fall back to unknown tool name when metadata missing', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const exposed = runner as any;
+
+    const part = exposed.fromBetaContentBlock({
+      type: 'mcp_tool_use',
+      id: 'toolu_unknown',
+      input: {},
+    });
+
+    assert.deepStrictEqual(part, {
+      toolRequest: {
+        ref: 'toolu_unknown',
+        name: 'unknown_tool',
+        input: {},
+      },
+    });
+  });
+
+  it('should convert additional beta content block types', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+
+    const thinkingPart = (runner as any).fromBetaContentBlock({
+      type: 'thinking',
+      thinking: 'pondering',
+    });
+    assert.deepStrictEqual(thinkingPart, { text: 'pondering' });
+
+    const redactedPart = (runner as any).fromBetaContentBlock({
+      type: 'redacted_thinking',
+      data: '[redacted]',
+    });
+    assert.deepStrictEqual(redactedPart, { text: '[redacted]' });
+
+    const toolPart = (runner as any).fromBetaContentBlock({
+      type: 'tool_use',
+      id: 'toolu_x',
+      name: 'plainTool',
+      input: { value: 1 },
+    });
+    assert.deepStrictEqual(toolPart, {
+      toolRequest: {
+        ref: 'toolu_x',
+        name: 'plainTool',
+        input: { value: 1 },
+      },
+    });
+
+    const warnMock = mock.method(console, 'warn', () => {});
+    const fallbackPart = (runner as any).fromBetaContentBlock({
+      type: 'mystery',
+    });
+    assert.deepStrictEqual(fallbackPart, { text: '' });
+    assert.strictEqual(warnMock.mock.calls.length, 1);
+    warnMock.mock.restore();
+  });
+
+  it('should map additional stop reasons', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const exposed = runner as any;
+
+    const refusal = exposed.fromBetaStopReason('refusal');
+    assert.strictEqual(refusal, 'other');
+
+    const unknown = exposed.fromBetaStopReason('something-new');
+    assert.strictEqual(unknown, 'other');
+
+    const nullReason = exposed.fromBetaStopReason(null);
+    assert.strictEqual(nullReason, 'unknown');
+  });
+});

@@ -16,4 +16,4 @@
 
 export { BaseRunner } from './base.js';
 export { BetaRunner } from './beta.js';
-export { Runner } from './runner.js';
+export { Runner } from './stable.js';

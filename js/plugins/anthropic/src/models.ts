@@ -27,7 +27,12 @@ import { modelRef } from 'genkit/model';
 import { model } from 'genkit/plugin';
 
 import { BetaRunner, Runner } from './runner/index.js';
-import { AnthropicConfigSchema, resolveBetaEnabled } from './types.js';
+import {
+  AnthropicConfigSchema,
+  resolveBetaEnabled,
+  type ClaudeModelParams,
+  type ClaudeRunnerParams,
+} from './types.js';
 
 export const claude4Sonnet = modelRef({
   name: 'claude-4-sonnet',
@@ -168,6 +173,22 @@ export const KNOWN_CLAUDE_MODELS: Record<
   'claude-4-1-opus': claude41Opus,
 };
 
+/**
+ * Generic Claude model info for unknown/unsupported models.
+ * Used when a model name is not in SUPPORTED_CLAUDE_MODELS.
+ */
+const GENERIC_CLAUDE_MODEL_INFO = {
+  versions: [],
+  label: 'Anthropic - Claude',
+  supports: {
+    multiturn: true,
+    tools: true,
+    media: true,
+    systemRole: true,
+    output: ['text'],
+  },
+};
+
 export type KnownClaudeModels = keyof typeof KNOWN_CLAUDE_MODELS;
 export type ClaudeModelName = string;
 export type AnthropicConfigSchemaType = typeof AnthropicConfigSchema;
@@ -182,11 +203,45 @@ export type ClaudeConfig = z.infer<typeof AnthropicConfigSchema>;
  * @returns The runner that Genkit will call when the model is invoked.
  */
 export function claudeRunner(
+  params: ClaudeRunnerParams
+): ReturnType<typeof createClaudeRunner>;
+export function claudeRunner(
   name: string,
   client: Anthropic,
   cacheSystemPrompt?: boolean,
   defaultApiVersion?: 'stable' | 'beta'
+): ReturnType<typeof createClaudeRunner>;
+export function claudeRunner(
+  paramsOrName: ClaudeRunnerParams | string,
+  client?: Anthropic,
+  cacheSystemPrompt?: boolean,
+  defaultApiVersion?: 'stable' | 'beta'
 ) {
+  const params =
+    typeof paramsOrName === 'string'
+      ? {
+          name: paramsOrName,
+          client:
+            client ??
+            (() => {
+              throw new Error(
+                'Anthropic client is required to create a runner'
+              );
+            })(),
+          cacheSystemPrompt,
+          defaultApiVersion,
+        }
+      : paramsOrName;
+
+  return createClaudeRunner(params);
+}
+
+function createClaudeRunner({
+  name,
+  client,
+  cacheSystemPrompt,
+  defaultApiVersion,
+}: ClaudeRunnerParams) {
   let stableRunner: Runner | null = null;
   let betaRunner: BetaRunner | null = null;
 
@@ -209,22 +264,6 @@ export function claudeRunner(
     return runner.run(request, { streamingRequested, sendChunk, abortSignal });
   };
 }
-
-/**
- * Generic Claude model info for unknown/unsupported models.
- * Used when a model name is not in SUPPORTED_CLAUDE_MODELS.
- */
-const GENERIC_CLAUDE_MODEL_INFO = {
-  versions: [],
-  label: 'Anthropic - Claude',
-  supports: {
-    multiturn: true,
-    tools: true,
-    media: true,
-    systemRole: true,
-    output: ['text'],
-  },
-};
 
 /**
  * Creates a model reference for a Claude model.
@@ -256,15 +295,37 @@ export function claudeModelReference(
 
 /**
  * Defines a Claude model with the given name and Anthropic client.
- * Accepts any model name and lets the API validate it. If the model is in SUPPORTED_CLAUDE_MODELS, uses that modelRef
+ * Accepts any model name and lets the API validate it. If the model is in KNOWN_CLAUDE_MODELS, uses that modelRef
  * for better defaults; otherwise creates a generic model reference.
  */
 export function claudeModel(
-  name: string,
-  client: Anthropic,
+  paramsOrName: ClaudeModelParams | string,
+  client?: Anthropic,
   cacheSystemPrompt?: boolean,
   defaultApiVersion?: 'stable' | 'beta'
 ): ModelAction<typeof AnthropicConfigSchema> {
+  const params =
+    typeof paramsOrName === 'string'
+      ? {
+          name: paramsOrName,
+          client:
+            client ??
+            (() => {
+              throw new Error(
+                'Anthropic client is required to create a model action'
+              );
+            })(),
+          cacheSystemPrompt,
+          defaultApiVersion,
+        }
+      : paramsOrName;
+
+  const {
+    name,
+    client: runnerClient,
+    cacheSystemPrompt: cachePrompt,
+    defaultApiVersion: apiVersion,
+  } = params;
   // Use supported model ref if available, otherwise create generic model ref
   const modelRef = KNOWN_CLAUDE_MODELS[name];
   const modelInfo = modelRef ? modelRef.info : GENERIC_CLAUDE_MODEL_INFO;
@@ -275,6 +336,11 @@ export function claudeModel(
       ...modelInfo,
       configSchema: AnthropicConfigSchema,
     },
-    claudeRunner(name, client, cacheSystemPrompt, defaultApiVersion)
+    claudeRunner({
+      name,
+      client: runnerClient,
+      cacheSystemPrompt: cachePrompt,
+      defaultApiVersion: apiVersion,
+    })
   );
 }

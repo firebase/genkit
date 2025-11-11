@@ -43,6 +43,26 @@ export interface InternalPluginOptions extends PluginOptions {
   [__testClient]?: Anthropic;
 }
 
+/**
+ * Shared parameters required to construct Claude helpers.
+ */
+interface ClaudeHelperParamsBase {
+  name: string;
+  client: Anthropic;
+  cacheSystemPrompt?: boolean;
+  defaultApiVersion?: 'stable' | 'beta';
+}
+
+/**
+ * Parameters for creating a Claude model action.
+ */
+export interface ClaudeModelParams extends ClaudeHelperParamsBase {}
+
+/**
+ * Parameters for creating a Claude runner.
+ */
+export interface ClaudeRunnerParams extends ClaudeHelperParamsBase {}
+
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   tool_choice: z
     .union([

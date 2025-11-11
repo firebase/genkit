@@ -263,4 +263,34 @@ describe('Anthropic Integration', () => {
     assert.strictEqual(result.usage.inputTokens, 25);
     assert.strictEqual(result.usage.outputTokens, 50);
   });
+
+  it('should route requests through beta surface when plugin default is beta', async () => {
+    const mockClient = createMockAnthropicClient();
+    const ai = genkit({
+      plugins: [
+        anthropic({
+          apiVersion: 'beta',
+          [__testClient]: mockClient,
+        } as PluginOptions),
+      ],
+    });
+
+    await ai.generate({
+      model: 'anthropic/claude-3-5-haiku',
+      prompt: 'Hello',
+    });
+
+    const betaCreateStub = mockClient.beta.messages.create as any;
+    assert.strictEqual(
+      betaCreateStub.mock.calls.length,
+      1,
+      'Beta API should be used'
+    );
+    const regularCreateStub = mockClient.messages.create as any;
+    assert.strictEqual(
+      regularCreateStub.mock.calls.length,
+      0,
+      'Stable API should not be used'
+    );
+  });
 });
