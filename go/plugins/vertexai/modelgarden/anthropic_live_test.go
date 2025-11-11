@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -31,6 +32,13 @@ import (
 )
 
 func TestAnthropicLive(t *testing.T) {
+	if _, ok := requireEnv("GOOGLE_CLOUD_PROJECT"); !ok {
+		t.Skip("GOOGLE_CLOUD_PROJECT not found in the environment")
+	}
+	if _, ok := requireEnv("GOOGLE_CLOUD_LOCATION"); !ok {
+		t.Skip("GOOGLE_CLOUD_LOCATION not found in the environment")
+	}
+
 	ctx := context.Background()
 	g := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
 
@@ -271,4 +279,13 @@ func fetchImgAsBase64() (string, error) {
 
 	base64string := base64.StdEncoding.EncodeToString(imageBytes)
 	return base64string, nil
+}
+
+func requireEnv(key string) (string, bool) {
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return "", false
+	}
+
+	return value, true
 }
