@@ -47,6 +47,24 @@ import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { BaseRunner } from './base.js';
 
+/**
+ * Server-managed tool blocks emitted by the beta API that Genkit cannot yet
+ * interpret. We fail fast on these so callers do not accidentally treat them as
+ * locally executable tool invocations.
+ */
+/**
+ * Server tool types that exist in beta but are not yet supported.
+ * Note: server_tool_use and web_search_tool_result ARE supported (same as stable API).
+ */
+const BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES = new Set<string>([
+  'web_fetch_tool_result',
+  'code_execution_tool_result',
+  'bash_code_execution_tool_result',
+  'text_editor_code_execution_tool_result',
+  'mcp_tool_result',
+  'container_upload',
+]);
+
 type BetaToolUseLike =
   | BetaToolUseBlock
   | BetaServerToolUseBlock
@@ -318,6 +336,15 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
 
   protected toGenkitPart(event: BetaRawMessageStreamEvent): Part | undefined {
     if (event.type === 'content_block_start') {
+      const blockType = (event.content_block as { type?: string }).type;
+      if (
+        blockType &&
+        BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(blockType)
+      ) {
+        throw new Error(
+          `Anthropic beta runner does not yet support server-managed tool block '${blockType}'. Please retry against the stable API or wait for dedicated support.`
+        );
+      }
       return this.fromBetaContentBlock(event.content_block);
     }
     if (event.type === 'content_block_delta') {
@@ -336,8 +363,8 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
   private fromBetaContentBlock(contentBlock: BetaContentBlock): Part {
     switch (contentBlock.type) {
       case 'tool_use':
-      case 'server_tool_use':
       case 'mcp_tool_use':
+      case 'server_tool_use':
         return {
           toolRequest: {
             ref: contentBlock.id,
@@ -345,13 +372,34 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
             input: contentBlock.input,
           },
         };
+
+      case 'web_search_tool_result':
+        return {
+          text: `[Anthropic server tool result ${contentBlock.tool_use_id}] ${JSON.stringify(contentBlock.content)}`,
+          custom: {
+            anthropicServerToolResult: {
+              type: contentBlock.type,
+              toolUseId: contentBlock.tool_use_id,
+              content: contentBlock.content,
+            },
+          },
+        };
+
       case 'text':
         return { text: contentBlock.text };
+
       case 'thinking':
         return { text: contentBlock.thinking };
+
       case 'redacted_thinking':
-        return { text: contentBlock.data };
+        return { custom: { redactedThinking: contentBlock.data } };
+
       default: {
+        if (BETA_UNSUPPORTED_SERVER_TOOL_BLOCK_TYPES.has(contentBlock.type)) {
+          throw new Error(
+            `Genkit Anthropic plugin does not yet support server-managed tool block '${contentBlock.type}'. Please retry against the stable API or wait for dedicated support.`
+          );
+        }
         const unknownType = (contentBlock as { type: string }).type;
         console.warn(
           `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(

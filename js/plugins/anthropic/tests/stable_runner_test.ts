@@ -694,7 +694,7 @@ describe('fromAnthropicContentBlockChunk', () => {
           data: 'encrypted-data',
         },
       },
-      expectedOutput: { text: 'encrypted-data' },
+      expectedOutput: { custom: { redactedThinking: 'encrypted-data' } },
     },
     {
       should: 'should return text delta part from content_block_delta event',
