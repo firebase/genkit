@@ -73,8 +73,10 @@ type RunnerProtectedMethods = {
 };
 
 const mockClient = createMockAnthropicClient();
-const testRunner = new Runner('test-model', mockClient) as Runner &
-  RunnerProtectedMethods;
+const testRunner = new Runner({
+  name: 'test-model',
+  client: mockClient,
+}) as Runner & RunnerProtectedMethods;
 
 const createUsage = (
   overrides: Partial<Message['usage']> = {}
@@ -1741,7 +1743,10 @@ describe('claudeModel', () => {
 describe('BaseRunner helper utilities', () => {
   it('should throw descriptive errors for invalid PDF data URLs', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new Runner('claude-3-5-haiku', mockClient);
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
 
     assert.throws(
       () =>
@@ -1755,7 +1760,10 @@ describe('BaseRunner helper utilities', () => {
 
   it('should stringify non-media tool responses', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new Runner('claude-3-5-haiku', mockClient);
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
 
     const result = runner['toAnthropicToolResponseContent']({
       toolResponse: {
@@ -1773,7 +1781,10 @@ describe('BaseRunner helper utilities', () => {
 
   it('should parse image data URLs', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new Runner('claude-3-5-haiku', mockClient);
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
 
     const source = runner['toImageSource']({
       url: 'data:image/png;base64,AAA',
@@ -1788,8 +1799,11 @@ describe('BaseRunner helper utilities', () => {
 describe('Runner request bodies and error branches', () => {
   it('should include optional config fields in non-streaming request body', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new Runner('claude-3-5-haiku', mockClient, true) as Runner &
-      RunnerProtectedMethods;
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      cacheSystemPrompt: true,
+    }) as Runner & RunnerProtectedMethods;
 
     const body = runner['toAnthropicRequestBody'](
       'claude-3-5-haiku',
@@ -1839,8 +1853,11 @@ describe('Runner request bodies and error branches', () => {
 
   it('should include optional config fields in streaming request body', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new Runner('claude-3-5-haiku', mockClient, true) as Runner &
-      RunnerProtectedMethods;
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      cacheSystemPrompt: true,
+    }) as Runner & RunnerProtectedMethods;
 
     const body = runner['toAnthropicStreamingRequestBody'](
       'claude-3-5-haiku',
@@ -1889,8 +1906,11 @@ describe('Runner request bodies and error branches', () => {
 
   it('should throw descriptive errors for missing tool refs', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new Runner('claude-3-5-haiku', mockClient, false) as Runner &
-      RunnerProtectedMethods;
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+      cacheSystemPrompt: false,
+    }) as Runner & RunnerProtectedMethods;
 
     assert.throws(
       () =>
