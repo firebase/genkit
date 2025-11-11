@@ -181,3 +181,56 @@ describe('Anthropic Plugin', () => {
     );
   });
 });
+
+describe('Anthropic resolve helpers', () => {
+  it('should resolve model names without anthropic/ prefix', () => {
+    const mockClient = createMockAnthropicClient();
+    const plugin = anthropic({ [__testClient]: mockClient } as PluginOptions);
+
+    const action = plugin.resolve?.('model', 'claude-3-5-haiku');
+    assert.ok(action, 'Should resolve model without prefix');
+    assert.strictEqual(typeof action, 'function');
+  });
+
+  it('anthropic.model should return namespaced reference with config', () => {
+    const reference = anthropic.model('claude-3-5-haiku', {
+      temperature: 0.25,
+    });
+
+    const referenceAny = reference as any;
+    assert.ok(referenceAny, 'Model reference should be created');
+    assert.strictEqual(referenceAny.namespace, 'anthropic');
+    assert.ok(referenceAny.name.includes('claude-3-5-haiku'));
+    assert.strictEqual(referenceAny.config?.temperature, 0.25);
+  });
+
+  it('should apply system prompt caching when cacheSystemPrompt is true', async () => {
+    const mockClient = createMockAnthropicClient();
+    const plugin = anthropic({
+      cacheSystemPrompt: true,
+      [__testClient]: mockClient,
+    } as PluginOptions);
+
+    const action = plugin.resolve?.('model', 'anthropic/claude-3-5-haiku');
+    assert.ok(action, 'Action should be resolved');
+
+    const abortSignal = new AbortController().signal;
+    await (action as any)(
+      {
+        messages: [
+          {
+            role: 'system',
+            content: [{ text: 'You are helpful.' }],
+          },
+        ],
+      },
+      { streamingRequested: false, sendChunk: () => {}, abortSignal }
+    );
+
+    const createStub = mockClient.messages.create as any;
+    assert.strictEqual(createStub.mock.calls.length, 1);
+    const requestBody = createStub.mock.calls[0].arguments[0];
+    assert.ok(Array.isArray(requestBody.system));
+    assert.strictEqual(requestBody.system[0].cache_control.type, 'ephemeral');
+  });
+});
