@@ -374,16 +374,11 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         };
 
       case 'web_search_tool_result':
-        return {
-          text: `[Anthropic server tool result ${contentBlock.tool_use_id}] ${JSON.stringify(contentBlock.content)}`,
-          custom: {
-            anthropicServerToolResult: {
-              type: contentBlock.type,
-              toolUseId: contentBlock.tool_use_id,
-              content: contentBlock.content,
-            },
-          },
-        };
+        return this.toWebSearchToolResultPart({
+          type: contentBlock.type,
+          toolUseId: contentBlock.tool_use_id,
+          content: contentBlock.content,
+        });
 
       case 'text':
         return { text: contentBlock.text };

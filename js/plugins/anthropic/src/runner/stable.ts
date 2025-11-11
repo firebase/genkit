@@ -330,16 +330,11 @@ export class Runner extends BaseRunner<RunnerTypes> {
           };
 
         case 'web_search_tool_result':
-          return {
-            text: `[Anthropic server tool result ${block.tool_use_id}] ${JSON.stringify(block.content)}`,
-            custom: {
-              anthropicServerToolResult: {
-                type: block.type,
-                toolUseId: block.tool_use_id,
-                content: block.content,
-              },
-            },
-          };
+          return this.toWebSearchToolResultPart({
+            type: block.type,
+            toolUseId: block.tool_use_id,
+            content: block.content,
+          });
 
         case 'text':
           return { text: block.text };
@@ -388,16 +383,11 @@ export class Runner extends BaseRunner<RunnerTypes> {
         };
 
       case 'web_search_tool_result':
-        return {
-          text: `[Anthropic server tool result ${contentBlock.tool_use_id}] ${JSON.stringify(contentBlock.content)}`,
-          custom: {
-            anthropicServerToolResult: {
-              type: contentBlock.type,
-              toolUseId: contentBlock.tool_use_id,
-              content: contentBlock.content,
-            },
-          },
-        };
+        return this.toWebSearchToolResultPart({
+          type: contentBlock.type,
+          toolUseId: contentBlock.tool_use_id,
+          content: contentBlock.content,
+        });
 
       case 'tool_use':
         return {
