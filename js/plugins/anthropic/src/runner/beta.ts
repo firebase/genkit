@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-import { Anthropic } from '@anthropic-ai/sdk';
 import { BetaMessageStream } from '@anthropic-ai/sdk/lib/BetaMessageStream.js';
 import type {
   BetaContentBlock,
@@ -45,7 +44,7 @@ import type {
 } from 'genkit';
 
 import { KNOWN_CLAUDE_MODELS } from '../models.js';
-import { AnthropicConfigSchema } from '../types.js';
+import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { BaseRunner } from './base.js';
 
 type BetaToolUseLike =
@@ -74,8 +73,8 @@ type BetaRunnerTypes = {
  * Runner for the Anthropic Beta API.
  */
 export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
-  constructor(name: string, client: Anthropic, cacheSystemPrompt?: boolean) {
-    super(name, client, cacheSystemPrompt);
+  constructor(params: ClaudeRunnerParams) {
+    super(params);
   }
 
   /**

@@ -200,13 +200,10 @@ export type ClaudeConfig = z.infer<typeof AnthropicConfigSchema>;
  * @param params Configuration for the Claude runner.
  * @returns The runner that Genkit will call when the model is invoked.
  */
-export function claudeRunner({
-  name,
-  client,
-  cacheSystemPrompt,
-  defaultApiVersion,
-}: ClaudeRunnerParams) {
-  if (!client) {
+export function claudeRunner(params: ClaudeRunnerParams) {
+  const { defaultApiVersion, ...runnerParams } = params;
+
+  if (!runnerParams.client) {
     throw new Error('Anthropic client is required to create a runner');
   }
 
@@ -227,8 +224,8 @@ export function claudeRunner({
   ): Promise<GenerateResponseData> => {
     const isBeta = resolveBetaEnabled(request.config, defaultApiVersion);
     const runner = isBeta
-      ? (betaRunner ??= new BetaRunner(name, client, cacheSystemPrompt))
-      : (stableRunner ??= new Runner(name, client, cacheSystemPrompt));
+      ? (betaRunner ??= new BetaRunner(runnerParams))
+      : (stableRunner ??= new Runner(runnerParams));
     return runner.run(request, { streamingRequested, sendChunk, abortSignal });
   };
 }

@@ -30,17 +30,19 @@ type RunnerTypes = {
   ToolResponseContent: unknown;
 };
 
-type RunnerMessage<T extends RunnerTypes> = T['Message'];
-type RunnerStream<T extends RunnerTypes> = T['Stream'];
-type RunnerStreamEvent<T extends RunnerTypes> = T['StreamEvent'];
-type RunnerRequestBody<T extends RunnerTypes> = T['RequestBody'];
-type RunnerStreamingRequestBody<T extends RunnerTypes> =
-  T['StreamingRequestBody'];
-type RunnerTool<T extends RunnerTypes> = T['Tool'];
-type RunnerMessageParam<T extends RunnerTypes> = T['MessageParam'];
-type RunnerContentBlockParam<T extends RunnerTypes> = T['ContentBlockParam'];
-type RunnerToolResponseContent<T extends RunnerTypes> =
-  T['ToolResponseContent'];
+type RunnerMessage<ApiTypes extends RunnerTypes> = ApiTypes['Message'];
+type RunnerStream<ApiTypes extends RunnerTypes> = ApiTypes['Stream'];
+type RunnerStreamEvent<ApiTypes extends RunnerTypes> = ApiTypes['StreamEvent'];
+type RunnerRequestBody<ApiTypes extends RunnerTypes> = ApiTypes['RequestBody'];
+type RunnerStreamingRequestBody<ApiTypes extends RunnerTypes> =
+  ApiTypes['StreamingRequestBody'];
+type RunnerTool<ApiTypes extends RunnerTypes> = ApiTypes['Tool'];
+type RunnerMessageParam<ApiTypes extends RunnerTypes> =
+  ApiTypes['MessageParam'];
+type RunnerContentBlockParam<ApiTypes extends RunnerTypes> =
+  ApiTypes['ContentBlockParam'];
+type RunnerToolResponseContent<ApiTypes extends RunnerTypes> =
+  ApiTypes['ToolResponseContent'];
 
 export {
   RunnerContentBlockParam,

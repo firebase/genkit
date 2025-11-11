@@ -23,11 +23,11 @@ import { createMockAnthropicClient } from './mocks/anthropic-client.js';
 
 describe('BetaRunner.toAnthropicMessageContent', () => {
   function createRunner() {
-    return new BetaRunner(
-      'anthropic/claude-3-5-haiku',
-      createMockAnthropicClient(),
-      false
-    );
+    return new BetaRunner({
+      name: 'anthropic/claude-3-5-haiku',
+      client: createMockAnthropicClient(),
+      cacheSystemPrompt: false,
+    });
   }
 
   it('converts PDF media parts into document blocks', () => {
@@ -133,7 +133,10 @@ import { mock } from 'node:test';
 describe('BetaRunner', () => {
   it('should map all supported Part shapes to beta content blocks', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
 
     const exposed = runner as any;
 
@@ -186,7 +189,10 @@ describe('BetaRunner', () => {
 
   it('should convert beta stream events to Genkit Parts', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
 
     const exposed = runner as any;
     const textPart = exposed.toGenkitPart({
@@ -229,7 +235,10 @@ describe('BetaRunner', () => {
 
   it('should map beta stop reasons correctly', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
 
     const finishReason = runner['fromBetaStopReason'](
       'model_context_window_exceeded'
@@ -254,7 +263,10 @@ describe('BetaRunner', () => {
       streamError,
     });
 
-    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
     const sendChunk = mock.fn();
     await assert.rejects(async () =>
       runner.run({ messages: [] } as any, {
@@ -278,7 +290,10 @@ describe('BetaRunner', () => {
 
   it('should throw when tool refs are missing in message content', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
     const exposed = runner as any;
 
     assert.throws(() =>
@@ -311,11 +326,11 @@ describe('BetaRunner', () => {
 
   it('should build request bodies with optional config fields', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner(
-      'claude-3-5-haiku',
-      mockClient as Anthropic,
-      true
-    ) as any;
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+      cacheSystemPrompt: true,
+    }) as any;
 
     const request = {
       messages: [
@@ -377,7 +392,10 @@ describe('BetaRunner', () => {
 
   it('should fall back to unknown tool name when metadata missing', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
     const exposed = runner as any;
 
     const part = exposed.fromBetaContentBlock({
@@ -397,7 +415,10 @@ describe('BetaRunner', () => {
 
   it('should convert additional beta content block types', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
 
     const thinkingPart = (runner as any).fromBetaContentBlock({
       type: 'thinking',
@@ -436,7 +457,10 @@ describe('BetaRunner', () => {
 
   it('should map additional stop reasons', () => {
     const mockClient = createMockAnthropicClient();
-    const runner = new BetaRunner('claude-test', mockClient as Anthropic);
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
     const exposed = runner as any;
 
     const refusal = exposed.fromBetaStopReason('refusal');

@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-import { Anthropic } from '@anthropic-ai/sdk';
 import { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.js';
 import type {
   ContentBlock,
@@ -39,7 +38,7 @@ import type {
 } from 'genkit';
 
 import { KNOWN_CLAUDE_MODELS } from '../models.js';
-import { AnthropicConfigSchema } from '../types.js';
+import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { BaseRunner } from './base.js';
 
 type RunnerTypes = {
@@ -60,8 +59,8 @@ type RunnerTypes = {
 };
 
 export class Runner extends BaseRunner<RunnerTypes> {
-  constructor(name: string, client: Anthropic, cacheSystemPrompt?: boolean) {
-    super(name, client, cacheSystemPrompt);
+  constructor(params: ClaudeRunnerParams) {
+    super(params);
   }
 
   protected toAnthropicMessageContent(

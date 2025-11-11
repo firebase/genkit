@@ -34,6 +34,7 @@ import {
   MediaSchema,
   MediaType,
   MediaTypeSchema,
+  type ClaudeRunnerParams,
 } from '../types.js';
 
 import {
@@ -59,10 +60,10 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
    */
   protected readonly DEFAULT_MAX_OUTPUT_TOKENS = 4096;
 
-  constructor(name: string, client: Anthropic, cacheSystemPrompt?: boolean) {
-    this.name = name;
-    this.client = client;
-    this.cacheSystemPrompt = cacheSystemPrompt;
+  constructor(params: ClaudeRunnerParams) {
+    this.name = params.name;
+    this.client = params.client;
+    this.cacheSystemPrompt = params.cacheSystemPrompt;
   }
 
   /**
@@ -94,7 +95,6 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
 
   /**
    * Checks if a URL is a data URL (starts with 'data:').
-   * This follows the Google GenAI plugin pattern for distinguishing inline data from file references.
    */
   protected isDataUrl(url: string): boolean {
     return url.startsWith('data:');
