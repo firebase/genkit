@@ -18,6 +18,7 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.js';
 import type {
+  ContentBlock,
   DocumentBlockParam,
   ImageBlockParam,
   Message,
@@ -30,7 +31,12 @@ import type {
   ToolResultBlockParam,
   ToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/messages';
-import type { GenerateRequest, GenerateResponseData, Part } from 'genkit';
+import type {
+  GenerateRequest,
+  GenerateResponseData,
+  ModelResponseData,
+  Part,
+} from 'genkit';
 
 import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema } from '../types.js';
@@ -280,5 +286,141 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
   protected toGenkitPart(event: MessageStreamEvent): Part | undefined {
     return this.fromAnthropicContentBlockChunk(event);
+  }
+
+  protected fromAnthropicContentBlockChunk(
+    event: MessageStreamEvent
+  ): Part | undefined {
+    // Handle content_block_delta events
+    if (event.type === 'content_block_delta') {
+      const delta = event.delta;
+
+      if (delta.type === 'input_json_delta') {
+        throw new Error(
+          'Anthropic streaming tool input (input_json_delta) is not yet supported. Please disable streaming or upgrade this plugin.'
+        );
+      }
+
+      if (delta.type === 'text_delta') {
+        return { text: delta.text };
+      }
+
+      if (delta.type === 'thinking_delta') {
+        return { text: delta.thinking };
+      }
+
+      // signature_delta - ignore
+      return undefined;
+    }
+
+    // Handle content_block_start events
+    if (event.type === 'content_block_start') {
+      const block = event.content_block;
+
+      if (block.type === 'text') {
+        return { text: block.text };
+      }
+
+      if (block.type === 'thinking') {
+        return { text: block.thinking };
+      }
+
+      if (block.type === 'redacted_thinking') {
+        return { text: block.data };
+      }
+
+      if (block.type === 'tool_use') {
+        return {
+          toolRequest: {
+            ref: block.id,
+            name: block.name,
+            input: block.input,
+          },
+        };
+      }
+
+      // server_tool_use, web_search_tool_result, or unknown types - treat as tool_use
+      if ('id' in block && 'name' in block) {
+        return {
+          toolRequest: {
+            ref: block.id,
+            name: block.name,
+            input: 'input' in block ? block.input : undefined,
+          },
+        };
+      }
+    }
+
+    // Other event types (message_start, message_delta, etc.) - ignore
+    return undefined;
+  }
+
+  protected fromAnthropicContentBlock(contentBlock: ContentBlock): Part {
+    switch (contentBlock.type) {
+      case 'tool_use':
+        return {
+          toolRequest: {
+            ref: contentBlock.id,
+            name: contentBlock.name,
+            input: contentBlock.input,
+          },
+        };
+      case 'text':
+        return { text: contentBlock.text };
+      case 'thinking':
+        return { text: contentBlock.thinking };
+      case 'redacted_thinking':
+        return { text: contentBlock.data };
+      default: {
+        // Handle unexpected content block types
+        // Log warning for debugging, but return empty text to avoid breaking the flow
+        const unknownType = (contentBlock as { type: string }).type;
+        console.warn(
+          `Unexpected Anthropic content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
+        );
+        return { text: '' };
+      }
+    }
+  }
+
+  protected fromAnthropicStopReason(
+    reason: Message['stop_reason']
+  ): ModelResponseData['finishReason'] {
+    switch (reason) {
+      case 'max_tokens':
+        return 'length';
+      case 'end_turn':
+      // fall through
+      case 'stop_sequence':
+      // fall through
+      case 'tool_use':
+        return 'stop';
+      case null:
+        return 'unknown';
+      default:
+        return 'other';
+    }
+  }
+
+  protected fromAnthropicResponse(response: Message): GenerateResponseData {
+    return {
+      candidates: [
+        {
+          index: 0,
+          finishReason: this.fromAnthropicStopReason(response.stop_reason),
+          message: {
+            role: 'model',
+            content: response.content.map((block) =>
+              this.fromAnthropicContentBlock(block)
+            ),
+          },
+        },
+      ],
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+      custom: response,
+    };
   }
 }
