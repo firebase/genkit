@@ -176,7 +176,7 @@ export const KNOWN_CLAUDE_MODELS: Record<
 
 /**
  * Generic Claude model info for unknown/unsupported models.
- * Used when a model name is not in SUPPORTED_CLAUDE_MODELS.
+ * Used when a model name is not in KNOWN_CLAUDE_MODELS.
  */
 const GENERIC_CLAUDE_MODEL_INFO = {
   versions: [],

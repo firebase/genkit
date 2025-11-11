@@ -184,19 +184,19 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     const mappedModelName =
       request.config?.version ?? model?.version ?? modelName;
 
-    // Convert system: either raw string or cached text block array
-    const betaSystem =
-      system === undefined
-        ? undefined
-        : cacheSystemPrompt
-          ? [
-              {
-                type: 'text' as const,
-                text: system,
-                cache_control: { type: 'ephemeral' as const },
-              },
-            ]
-          : system;
+    let betaSystem: BetaMessageCreateParamsNonStreaming['system'];
+
+    if (system !== undefined) {
+      betaSystem = cacheSystemPrompt
+        ? [
+            {
+              type: 'text' as const,
+              text: system,
+              cache_control: { type: 'ephemeral' as const },
+            },
+          ]
+        : system;
+    }
 
     const body: BetaMessageCreateParamsNonStreaming = {
       model: mappedModelName,

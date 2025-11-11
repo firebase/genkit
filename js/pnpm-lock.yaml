@@ -153,10 +153,6 @@ importers:
       zod-to-json-schema:
         specifier: ^3.22.4
         version: 3.24.5(zod@3.25.67)
-    optionalDependencies:
-      '@genkit-ai/firebase':
-        specifier: ^1.16.1
-        version: 1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.4.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.22.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.4.0(encoding@0.1.13))(firebase@11.9.1))
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
@@ -183,12 +179,18 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 2b79f7091 (refactor(anthropic): add basic testapp and remove nested ternary)
     optionalDependencies:
       '@genkit-ai/firebase':
         specifier: ^1.16.1
         version: 1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.4.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.22.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.4.0(encoding@0.1.13))(firebase@11.9.1))
+<<<<<<< HEAD
 =======
 >>>>>>> 6f4fc016b (refactor(anthropic): a lot of refactoring and add beta api)
+=======
+>>>>>>> 2b79f7091 (refactor(anthropic): add basic testapp and remove nested ternary)
 
   doc-snippets:
     dependencies:
@@ -987,6 +989,7 @@ importers:
         version: 4.104.0(encoding@0.1.13)(ws@8.18.3)(zod@3.25.67)
 =======
         version: 4.104.0(encoding@0.1.13)(zod@3.25.67)
+<<<<<<< HEAD
     optionalDependencies:
       '@google-cloud/bigquery':
         specifier: ^7.8.0
@@ -995,6 +998,8 @@ importers:
         specifier: '>=12.2'
         version: 13.4.0(encoding@0.1.13)
 >>>>>>> 5cbe620e1 (refactor(anthropic): a lot of refactoring and add beta api)
+=======
+>>>>>>> ead4341c2 (refactor(anthropic): add basic testapp and remove nested ternary)
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -1026,6 +1031,29 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
+    optionalDependencies:
+      '@google-cloud/bigquery':
+        specifier: ^7.8.0
+        version: 7.9.4(encoding@0.1.13)
+      firebase-admin:
+        specifier: '>=12.2'
+        version: 13.4.0(encoding@0.1.13)
+
+  testapps/anthropic-basic:
+    dependencies:
+      '@genkit-ai/anthropic':
+        specifier: workspace:*
+        version: link:../../plugins/anthropic
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+    devDependencies:
+      tsx:
+        specifier: ^4.19.2
+        version: 4.20.3
+      typescript:
+        specifier: ^5.6.2
+        version: 5.8.3
 
   testapps/basic-gemini:
     dependencies:
