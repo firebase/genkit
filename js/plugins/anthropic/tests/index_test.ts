@@ -15,12 +15,19 @@
  */
 
 import * as assert from 'assert';
-import { genkit } from 'genkit';
+import { genkit, type ActionMetadata } from 'genkit';
+import type { ModelInfo } from 'genkit/model';
 import { describe, it } from 'node:test';
 import anthropic from '../src/index.js';
 import { KNOWN_CLAUDE_MODELS } from '../src/models.js';
 import { PluginOptions, __testClient } from '../src/types.js';
 import { createMockAnthropicClient } from './mocks/anthropic-client.js';
+
+function getModelInfo(
+  metadata: ActionMetadata | undefined
+): ModelInfo | undefined {
+  return metadata?.metadata?.model as ModelInfo | undefined;
+}
 
 describe('Anthropic Plugin', () => {
   it('should register all supported Claude models', async () => {
@@ -119,8 +126,14 @@ describe('Anthropic Plugin', () => {
     const mockClient = createMockAnthropicClient({
       modelList: [
         { id: 'claude-3-5-haiku-20241022', display_name: 'Claude 3.5 Haiku' },
+        {
+          id: 'claude-3-5-haiku-latest',
+          display_name: 'Claude 3.5 Haiku Latest',
+        },
         { id: 'claude-3-5-sonnet-20241022', display_name: 'Claude 3.5 Sonnet' },
         { id: 'claude-sonnet-4-20250514', display_name: 'Claude 4 Sonnet' },
+        { id: 'claude-new-5-20251212', display_name: 'Claude New 5' },
+        { id: 'claude-experimental-latest' },
       ],
     });
 
@@ -132,11 +145,72 @@ describe('Anthropic Plugin', () => {
     assert.ok(Array.isArray(models), 'Should return an array');
     assert.ok(models.length > 0, 'Should return at least one model');
 
-    // Verify model structure
-    for (const model of models) {
-      assert.ok(model.name, 'Model should have a name');
-      // ActionMetadata has name and other properties, but kind is not required
-    }
+    const names = models.map((model) => model.name).sort();
+    assert.ok(
+      names.includes('anthropic/claude-3-5-haiku'),
+      'Known model should be listed once with normalized name'
+    );
+    assert.strictEqual(
+      names.filter((name) => name === 'anthropic/claude-3-5-haiku').length,
+      1,
+      'Known model entries should be deduplicated'
+    );
+    assert.ok(
+      names.includes('anthropic/claude-3-5-sonnet-20241022'),
+      'Unknown Claude 3.5 Sonnet should be listed with full model ID'
+    );
+    assert.ok(
+      names.includes('anthropic/claude-sonnet-4'),
+      'Known Claude Sonnet 4 model should be listed'
+    );
+    assert.ok(
+      names.includes('anthropic/claude-new-5-20251212'),
+      'Unknown model IDs should surface as-is'
+    );
+    assert.ok(
+      names.includes('anthropic/claude-experimental-latest'),
+      'Latest-suffixed unknown models should be surfaced'
+    );
+
+    const haikuMetadata = models.find(
+      (model) => model.name === 'anthropic/claude-3-5-haiku'
+    );
+    assert.ok(haikuMetadata, 'Haiku metadata should exist');
+    const haikuInfo = getModelInfo(haikuMetadata);
+    assert.ok(haikuInfo, 'Haiku model info should exist');
+    assert.ok(
+      haikuInfo?.versions?.includes('claude-3-5-haiku-20241022'),
+      'Known versions should include dated identifier'
+    );
+    assert.ok(
+      haikuInfo?.versions?.includes('claude-3-5-haiku-latest'),
+      'Additional variants should be merged into versions'
+    );
+
+    const newModelMetadata = models.find(
+      (model) => model.name === 'anthropic/claude-new-5-20251212'
+    );
+    const newModelInfo = getModelInfo(newModelMetadata);
+    assert.strictEqual(
+      newModelInfo?.label,
+      'Claude New 5',
+      'Unknown models should preserve display name as label'
+    );
+
+    const experimentalMetadata = models.find(
+      (model) => model.name === 'anthropic/claude-experimental-latest'
+    );
+    const experimentalInfo = getModelInfo(experimentalMetadata);
+    assert.strictEqual(
+      experimentalInfo?.label,
+      'Anthropic - claude-experimental',
+      'Unknown latest variants should derive fallback label from normalized id'
+    );
+    assert.deepStrictEqual(
+      experimentalInfo?.versions,
+      ['claude-experimental-latest'],
+      'Unknown models should capture version identifiers'
+    );
 
     // Verify mock was called
     const listStub = mockClient.models.list as any;

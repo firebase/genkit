@@ -29,52 +29,124 @@ import {
   AnthropicConfigSchemaType,
   ClaudeConfig,
   ClaudeModelName,
+  GENERIC_CLAUDE_MODEL_INFO,
   KNOWN_CLAUDE_MODELS,
   KnownClaudeModels,
   claude35Haiku,
   claude3Haiku,
-  claude41Opus,
-  claude45Haiku,
-  claude45Sonnet,
-  claude4Opus,
-  claude4Sonnet,
+  claudeHaiku45,
   claudeModel,
   claudeModelReference,
+  claudeOpus4,
+  claudeOpus41,
+  claudeSonnet4,
+  claudeSonnet45,
 } from './models.js';
-import { InternalPluginOptions, PluginOptions, __testClient } from './types.js';
+import {
+  AnthropicConfigSchema,
+  InternalPluginOptions,
+  PluginOptions,
+  __testClient,
+} from './types.js';
 
 export {
   claude35Haiku,
   claude3Haiku,
-  claude41Opus,
-  claude45Haiku,
-  claude45Sonnet,
-  claude4Opus,
-  claude4Sonnet,
+  claudeHaiku45,
+  claudeOpus4,
+  claudeOpus41,
+  claudeSonnet4,
+  claudeSonnet45,
 };
+
+function normalizeModelId(modelId: string): string {
+  return modelId.replace(/-(?:\d{8}|latest)$/i, '');
+}
+
+type ModelMetadataParams = Parameters<typeof modelActionMetadata>[0];
 
 async function list(client: Anthropic): Promise<ActionMetadata[]> {
   const clientModels = (await client.models.list()).data;
-  const result: ActionMetadata[] = [];
+  const metadataByName = new Map<string, ModelMetadataParams>();
+  const orderedNames: string[] = [];
 
   for (const modelInfo of clientModels) {
-    // Remove the date suffix from the model id
-    const normalizedId = modelInfo.id.replace(/-\d{8}$/, '');
-    // Get the model reference from the supported models
-    const ref = KNOWN_CLAUDE_MODELS[normalizedId];
-    // Add the model action metadata if the model is supported
-    if (ref) {
-      result.push(
-        modelActionMetadata({
-          name: ref.name,
-          info: ref.info,
-          configSchema: ref.configSchema,
-        })
-      );
+    const modelId = modelInfo.id;
+    if (!modelId) {
+      continue;
     }
+
+    const normalizedId = normalizeModelId(modelId);
+    const ref = KNOWN_CLAUDE_MODELS[normalizedId];
+
+    if (ref) {
+      const existing = metadataByName.get(ref.name);
+      const baseInfo = existing?.info ?? ref.info;
+      const mergedVersions = new Set(
+        baseInfo?.versions ?? ref.info?.versions ?? []
+      );
+      mergedVersions.add(modelId);
+
+      const info = {
+        ...baseInfo,
+        versions: Array.from(mergedVersions),
+      };
+
+      metadataByName.set(ref.name, {
+        name: ref.name,
+        info,
+        configSchema: ref.configSchema,
+      });
+
+      if (!existing) {
+        orderedNames.push(ref.name);
+      }
+      continue;
+    }
+
+    const fallbackName = `anthropic/${modelId}`;
+    const existingFallback = metadataByName.get(fallbackName);
+    const fallbackLabel =
+      modelInfo.display_name ??
+      (normalizedId !== modelId
+        ? `Anthropic - ${normalizedId}`
+        : `Anthropic - ${modelId}`);
+
+    if (existingFallback) {
+      const info = {
+        ...existingFallback.info,
+        versions: existingFallback.info?.versions
+          ? Array.from(
+              new Set([...(existingFallback.info.versions ?? []), modelId])
+            )
+          : [modelId],
+      };
+      metadataByName.set(fallbackName, {
+        ...existingFallback,
+        info,
+      });
+      continue;
+    }
+
+    metadataByName.set(fallbackName, {
+      name: fallbackName,
+      info: {
+        ...GENERIC_CLAUDE_MODEL_INFO,
+        label: fallbackLabel,
+        versions: modelId ? [modelId] : [...GENERIC_CLAUDE_MODEL_INFO.versions],
+        supports: {
+          ...GENERIC_CLAUDE_MODEL_INFO.supports,
+          output: [...GENERIC_CLAUDE_MODEL_INFO.supports.output],
+        },
+      },
+      configSchema: AnthropicConfigSchema,
+    });
+    orderedNames.push(fallbackName);
   }
 
-  return result;
+  return orderedNames.map((name) =>
+    modelActionMetadata(metadataByName.get(name)!)
+  );
 }
 
 /**
