@@ -76,7 +76,7 @@ function mergeKnownModelMetadata({
     : (ref.info?.versions ?? []);
 
   // Track every concrete model ID surfaced by the API so they appear as selectable versions.
-  const versions = new Set<string>(priorVersions as string[]);
+  const versions = new Set<string>(priorVersions);
   versions.add(modelId);
 
   metadataByName.set(ref.name, {
@@ -89,7 +89,7 @@ function mergeKnownModelMetadata({
   });
 
   if (!existing) {
-    // Preserve the discovery order for deterministic iteration.
+    // Preserve the discovery order for determinism.
     orderedNames.push(ref.name);
   }
 }
@@ -121,9 +121,7 @@ function mergeFallbackModelMetadata({
   const existing = metadataByName.get(fallbackName);
   const fallbackLabel =
     displayName ??
-    (normalizedId !== modelId
-      ? `Anthropic - ${normalizedId}`
-      : `Anthropic - ${modelId}`);
+    `Anthropic - ${normalizedId !== modelId ? normalizedId : modelId}`;
 
   if (existing) {
     const priorVersions = existing.info?.versions ?? [];
@@ -158,6 +156,16 @@ function mergeFallbackModelMetadata({
   orderedNames.push(fallbackName);
 }
 
+/**
+ * Retrieves available Anthropic models from the API and converts them into Genkit action metadata.
+ *
+ * This function queries the Anthropic API for the list of available models, matches them against
+ * known Claude models, and generates metadata for both known and unknown models. The resulting
+ * metadata includes version information and configuration schemas suitable for use in Genkit.
+ *
+ * @param client - The Anthropic API client instance
+ * @returns A promise that resolves to an array of action metadata for all discovered models
+ */
 export async function listActions(
   client: Anthropic
 ): Promise<ActionMetadata[]> {
@@ -194,7 +202,11 @@ export async function listActions(
     });
   }
 
-  return orderedNames.map((name) =>
-    modelActionMetadata(metadataByName.get(name)!)
-  );
+  return orderedNames.map((name) => {
+    const metadata = metadataByName.get(name);
+    if (!metadata) {
+      throw new Error(`Missing metadata for model: ${name}`);
+    }
+    return modelActionMetadata(metadata);
+  });
 }
