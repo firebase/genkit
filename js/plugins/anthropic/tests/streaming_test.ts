@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import type { ModelAction } from '@genkit-ai/ai/model';
 import * as assert from 'assert';
+import type { ModelAction } from 'genkit/model';
 import { describe, mock, test } from 'node:test';
 import { anthropic } from '../src/index.js';
-import { __testClient } from '../src/types.js';
+import { PluginOptions, __testClient } from '../src/types.js';
 import {
   createMockAnthropicClient,
   createMockAnthropicMessage,
@@ -28,7 +28,7 @@ import {
 } from './mocks/anthropic-client.js';
 
 describe('Streaming Integration Tests', () => {
-  test('should use streaming API when streamingRequested is true', async () => {
+  test('should use streaming API when onChunk is provided', async () => {
     const mockClient = createMockAnthropicClient({
       streamChunks: [
         mockContentBlockStart('Hello'),
@@ -43,9 +43,9 @@ describe('Streaming Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
 
-    const modelAction = plugin.resolve(
+    const modelAction = plugin.resolve!(
       'model',
       'claude-3-5-haiku-20241022'
     ) as ModelAction;
@@ -56,8 +56,7 @@ describe('Streaming Integration Tests', () => {
         output: { format: 'text' },
       },
       {
-        streamingRequested: true,
-        sendChunk: mock.fn(),
+        onChunk: mock.fn() as any,
         abortSignal: new AbortController().signal,
       }
     );
@@ -65,7 +64,7 @@ describe('Streaming Integration Tests', () => {
     // Verify final response
     assert.ok(response, 'Response should be returned');
     assert.ok(
-      response.candidates[0].message.content[0].text,
+      response.candidates?.[0]?.message.content[0].text,
       'Response should have text content'
     );
 
@@ -104,9 +103,9 @@ describe('Streaming Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
 
-    const modelAction = plugin.resolve(
+    const modelAction = plugin.resolve!(
       'model',
       'claude-3-5-haiku-20241022'
     ) as ModelAction;
@@ -117,8 +116,7 @@ describe('Streaming Integration Tests', () => {
         output: { format: 'text' },
       },
       {
-        streamingRequested: true,
-        sendChunk: mock.fn(),
+        onChunk: mock.fn() as any,
         abortSignal: new AbortController().signal,
       }
     );
@@ -144,9 +142,9 @@ describe('Streaming Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
 
-    const modelAction = plugin.resolve(
+    const modelAction = plugin.resolve!(
       'model',
       'claude-3-5-haiku-20241022'
     ) as ModelAction;
@@ -170,14 +168,13 @@ describe('Streaming Integration Tests', () => {
         output: { format: 'text' },
       },
       {
-        streamingRequested: true,
-        sendChunk: mock.fn(),
+        onChunk: mock.fn() as any,
         abortSignal: new AbortController().signal,
       }
     );
 
     // Verify tool use in response
-    assert.ok(response.candidates[0].message.content[0].toolRequest);
+    assert.ok(response.candidates?.[0]?.message.content[0].toolRequest);
     assert.strictEqual(
       response.candidates[0].message.content[0].toolRequest?.name,
       'get_weather'
@@ -196,9 +193,9 @@ describe('Streaming Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
 
-    const modelAction = plugin.resolve(
+    const modelAction = plugin.resolve!(
       'model',
       'claude-3-5-haiku-20241022'
     ) as ModelAction;
@@ -215,8 +212,7 @@ describe('Streaming Integration Tests', () => {
           output: { format: 'text' },
         },
         {
-          streamingRequested: true,
-          sendChunk: mock.fn(),
+          onChunk: mock.fn() as any,
           abortSignal: abortController.signal,
         }
       );
@@ -239,9 +235,9 @@ describe('Streaming Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
 
-    const modelAction = plugin.resolve(
+    const modelAction = plugin.resolve!(
       'model',
       'claude-3-5-haiku-20241022'
     ) as ModelAction;
@@ -253,8 +249,7 @@ describe('Streaming Integration Tests', () => {
           output: { format: 'text' },
         },
         {
-          streamingRequested: true,
-          sendChunk: mock.fn(),
+          onChunk: mock.fn() as any,
           abortSignal: new AbortController().signal,
         }
       );
@@ -275,9 +270,9 @@ describe('Streaming Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
 
-    const modelAction = plugin.resolve(
+    const modelAction = plugin.resolve!(
       'model',
       'claude-3-5-haiku-20241022'
     ) as ModelAction;
@@ -288,8 +283,7 @@ describe('Streaming Integration Tests', () => {
         output: { format: 'text' },
       },
       {
-        streamingRequested: true,
-        sendChunk: mock.fn(),
+        onChunk: mock.fn() as any,
         abortSignal: new AbortController().signal,
       }
     );
@@ -312,9 +306,9 @@ describe('Streaming Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
 
-    const modelAction = plugin.resolve(
+    const modelAction = plugin.resolve!(
       'model',
       'claude-3-5-haiku-20241022'
     ) as ModelAction;
@@ -325,8 +319,7 @@ describe('Streaming Integration Tests', () => {
         output: { format: 'text' },
       },
       {
-        streamingRequested: true,
-        sendChunk: mock.fn(),
+        onChunk: mock.fn() as any,
         abortSignal: new AbortController().signal,
       }
     );
@@ -336,7 +329,7 @@ describe('Streaming Integration Tests', () => {
     assert.strictEqual(response.usage?.outputTokens, 25);
   });
 
-  test('should not stream when streamingRequested is false', async () => {
+  test('should not stream when onChunk is not provided', async () => {
     const mockClient = createMockAnthropicClient({
       messageResponse: createMockAnthropicMessage({
         text: 'Non-streaming response',
@@ -346,31 +339,20 @@ describe('Streaming Integration Tests', () => {
     const plugin = anthropic({
       apiKey: 'test-key',
       [__testClient]: mockClient,
-    });
+    } as PluginOptions);
 
-    const modelAction = plugin.resolve(
+    const modelAction = plugin.resolve!(
       'model',
       'claude-3-5-haiku-20241022'
     ) as ModelAction;
 
-    const streamingCallback = mock.fn();
-
-    const response = await modelAction(
+    await modelAction(
       {
         messages: [{ role: 'user', content: [{ text: 'Hello' }] }],
       },
       {
-        streamingRequested: false,
-        sendChunk: streamingCallback,
         abortSignal: new AbortController().signal,
       }
-    );
-
-    // Verify streaming callback was NOT called
-    assert.strictEqual(
-      streamingCallback.mock.calls.length,
-      0,
-      'Streaming callback should not be called'
     );
 
     // Verify non-streaming API was called
