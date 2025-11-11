@@ -93,7 +93,7 @@ export const claude35Haiku = modelRef({
   name: 'claude-3-5-haiku',
   namespace: 'anthropic',
   info: {
-    versions: ['claude-3-5-haiku-20241022', 'claude-3-5-haiku-latest'],
+    versions: ['claude-3-5-haiku-20241022', 'claude-3-5-haiku'],
     label: 'Anthropic - Claude 3.5 Haiku',
     supports: {
       multiturn: true,
@@ -108,10 +108,10 @@ export const claude35Haiku = modelRef({
 });
 
 export const claudeSonnet45 = modelRef({
-  name: 'claude-sonnet-4.5',
+  name: 'claude-sonnet-4-5',
   namespace: 'anthropic',
   info: {
-    versions: ['claude-sonnet-4.5-20250929', 'claude-sonnet-4.5-latest'],
+    versions: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4-5'],
     label: 'Anthropic - Claude Sonnet 4.5',
     supports: {
       multiturn: true,
@@ -122,14 +122,14 @@ export const claudeSonnet45 = modelRef({
     },
   },
   configSchema: AnthropicConfigSchema,
-  version: 'claude-sonnet-4.5-latest',
+  version: 'claude-sonnet-4-5',
 });
 
 export const claudeHaiku45 = modelRef({
-  name: 'claude-haiku-4.5',
+  name: 'claude-haiku-4-5',
   namespace: 'anthropic',
   info: {
-    versions: ['claude-haiku-4.5-20251001', 'claude-haiku-4.5-latest'],
+    versions: ['claude-haiku-4-5-20251001', 'claude-haiku-4-5'],
     label: 'Anthropic - Claude Haiku 4.5',
     supports: {
       multiturn: true,
@@ -140,14 +140,14 @@ export const claudeHaiku45 = modelRef({
     },
   },
   configSchema: AnthropicConfigSchema,
-  version: 'claude-haiku-4.5-latest',
+  version: 'claude-haiku-4-5',
 });
 
 export const claudeOpus41 = modelRef({
   name: 'claude-opus-4.1',
   namespace: 'anthropic',
   info: {
-    versions: ['claude-opus-4.1-20250805', 'claude-opus-4.1-latest'],
+    versions: ['claude-opus-4-1-20250805', 'claude-opus-4-1'],
     label: 'Anthropic - Claude Opus 4.1',
     supports: {
       multiturn: true,
@@ -158,7 +158,7 @@ export const claudeOpus41 = modelRef({
     },
   },
   configSchema: AnthropicConfigSchema,
-  version: 'claude-opus-4.1-latest',
+  version: 'claude-opus-4-1',
 });
 
 export const KNOWN_CLAUDE_MODELS: Record<
@@ -169,9 +169,9 @@ export const KNOWN_CLAUDE_MODELS: Record<
   'claude-3-5-haiku': claude35Haiku,
   'claude-sonnet-4': claudeSonnet4,
   'claude-opus-4': claudeOpus4,
-  'claude-sonnet-4.5': claudeSonnet45,
-  'claude-haiku-4.5': claudeHaiku45,
-  'claude-opus-4.1': claudeOpus41,
+  'claude-sonnet-4-5': claudeSonnet45,
+  'claude-haiku-4-5': claudeHaiku45,
+  'claude-opus-4-1': claudeOpus41,
 };
 
 /**
