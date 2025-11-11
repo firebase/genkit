@@ -187,6 +187,9 @@ export function claudeRunner(
   cacheSystemPrompt?: boolean,
   defaultApiVersion?: 'stable' | 'beta'
 ) {
+  let stableRunner: Runner | null = null;
+  let betaRunner: BetaRunner | null = null;
+
   return async (
     request: GenerateRequest<typeof AnthropicConfigSchema>,
     {
@@ -200,10 +203,10 @@ export function claudeRunner(
     }
   ): Promise<GenerateResponseData> => {
     const isBeta = resolveBetaEnabled(request.config, defaultApiVersion);
-    const api = isBeta
-      ? new BetaRunner(name, client, cacheSystemPrompt)
-      : new Runner(name, client, cacheSystemPrompt);
-    return api.run(request, { streamingRequested, sendChunk, abortSignal });
+    const runner = isBeta
+      ? (betaRunner ??= new BetaRunner(name, client, cacheSystemPrompt))
+      : (stableRunner ??= new Runner(name, client, cacheSystemPrompt));
+    return runner.run(request, { streamingRequested, sendChunk, abortSignal });
   };
 }
 
