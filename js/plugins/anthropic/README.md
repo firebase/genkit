@@ -4,25 +4,11 @@
 
 <h4 align="center">Anthropic AI plugin for Google Firebase Genkit</h4>
 
-<div align="center">
-   <img alt="Github lerna version" src="https://img.shields.io/github/lerna-json/v/BloomLabsInc/genkit-plugins?label=version">
-   <img alt="NPM Downloads" src="https://img.shields.io/npm/dw/%40genkit-ai%2Fanthropic">
-   <img alt="GitHub Org's stars" src="https://img.shields.io/github/stars/BloomLabsInc?style=social">
-   <img alt="GitHub License" src="https://img.shields.io/github/license/BloomLabsInc/genkit-plugins">
-   <img alt="Static Badge" src="https://img.shields.io/badge/yes-a?label=maintained">
-</div>
-
-<div align="center">
-   <img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues/BloomLabsInc/genkit-plugins?color=blue">
-   <img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues-pr/BloomLabsInc/genkit-plugins?color=blue">
-   <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/BloomLabsInc/genkit-plugins">
-</div>
-
 `@genkit-ai/anthropic` is the official Anthropic plugin for [Firebase Genkit](https://github.com/firebase/genkit). It supersedes the earlier community package `genkitx-anthropic` and is now maintained by Google.
 
 ## Supported models
 
-The plugin supports the most recent Anthropic models: **Claude 3.7 Sonnet**, **Claude 3.5 Sonnet**, **Claude 3 Opus**, **Claude 3 Sonnet**, and **Claude 3 Haiku**.
+The plugin supports the most recent Anthropic models: **Claude Sonnet 4.5**, **Claude Opus 4.1**, **Claude Haiku 4.5**, **Claude Sonnet 4**, **Claude Opus 4**, **Claude 3.5 Haiku**, and **Claude 3 Haiku**.
 
 ## Installation
 
@@ -101,6 +87,51 @@ export const jokeFlow = ai.defineFlow(
 );
 ```
 
+### Direct model usage (without Genkit instance)
+
+The plugin supports Genkit Plugin API v2, which allows you to use models directly without initializing the full Genkit framework:
+
+```typescript
+import { anthropic } from '@genkit-ai/anthropic';
+
+// Create a model reference directly
+const claude = anthropic.model('claude-sonnet-4.5');
+
+// Use the model directly
+const response = await claude({
+  messages: [
+    {
+      role: 'user',
+      content: [{ text: 'Tell me a joke.' }],
+    },
+  ],
+});
+
+console.log(response);
+```
+
+You can also import pre-configured model references:
+
+```typescript
+import { claudeSonnet45, claudeOpus41, claude35Haiku } from '@genkit-ai/anthropic';
+
+// Use the model reference directly
+const response = await claudeSonnet45({
+  messages: [
+    {
+      role: 'user',
+      content: [{ text: 'Hello!' }],
+    },
+  ],
+});
+```
+
+This approach is useful for:
+
+- Framework developers who need raw model access
+- Testing models in isolation
+- Using Genkit models in non-Genkit applications
+
 ## Acknowledgements
 
 This plugin builds on the community work published as [`genkitx-anthropic`](https://github.com/BloomLabsInc/genkit-plugins/blob/main/plugins/anthropic/README.md) by Bloom Labs Inc. Their Apache 2.0–licensed implementation provided the foundation for this maintained package.
@@ -114,7 +145,6 @@ Want to contribute to the project? That's awesome! Head over to our [Contributio
 > [!NOTE]
 > This repository depends on Google's Firebase Genkit. For issues and questions related to Genkit, please refer to instructions available in [Genkit's repository](https://github.com/firebase/genkit).
 
-Reach out by opening a discussion on [GitHub Discussions](https://github.com/BloomLabsInc/genkitx-openai/discussions).
 
 ## Credits
 
