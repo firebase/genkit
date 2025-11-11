@@ -112,6 +112,12 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     );
   }
 
+  /**
+   * Both the stable and beta Anthropic SDKs accept the same JSON shape for PDF
+   * document sources (either `type: 'base64'` with a base64 payload or `type: 'url'`
+   * with a public URL). Even though the return type references the stable SDK
+   * union, TypeScript’s structural typing lets the beta runner reuse this helper.
+   */
   protected toPdfDocumentSource(media: Media): DocumentBlockParam['source'] {
     if (media.contentType !== 'application/pdf') {
       throw new Error(
