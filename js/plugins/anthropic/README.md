@@ -1,4 +1,4 @@
-![Firebase Genkit + Anthropic AI](https://github.com/BloomLabsInc/genkit-plugins/blob/main/assets/genkit-anthropic.png?raw=true)
+# Firebase Genkit + Anthropic AI
 
 <h1 align="center">Firebase Genkit <> Anthropic AI Plugin</h1>
 
