@@ -178,19 +178,10 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 2b79f7091 (refactor(anthropic): add basic testapp and remove nested ternary)
     optionalDependencies:
       '@genkit-ai/firebase':
         specifier: ^1.16.1
         version: 1.16.1(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.4.0(encoding@0.1.13))(firebase@11.9.1)(genkit@1.22.0(@google-cloud/firestore@7.11.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@13.4.0(encoding@0.1.13))(firebase@11.9.1))
-<<<<<<< HEAD
-=======
->>>>>>> 6f4fc016b (refactor(anthropic): a lot of refactoring and add beta api)
-=======
->>>>>>> 2b79f7091 (refactor(anthropic): add basic testapp and remove nested ternary)
 
   doc-snippets:
     dependencies:
