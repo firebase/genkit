@@ -24,6 +24,7 @@ import {
   type Part,
   type StreamingCallback,
 } from 'genkit';
+import { fallback, retry } from 'genkit/model/middleware';
 import { Readable } from 'stream';
 import wav from 'wav';
 
@@ -38,6 +39,36 @@ ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-2.5-flash'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
+  });
+
+  return text;
+});
+
+ai.defineFlow('basic-hi-with-retry', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-pro'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    use: [
+      retry({
+        maxRetries: 2,
+        onError: (e, attempt) => console.log('--- oops ', attempt, e),
+      }),
+    ],
+  });
+
+  return text;
+});
+
+ai.defineFlow('basic-hi-with-fallback', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-soemthing-that-does-not-exist'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    use: [
+      fallback(ai, {
+        models: [googleAI.model('gemini-2.5-flash')],
+        statuses: ['UNKNOWN'],
+      }),
+    ],
   });
 
   return text;

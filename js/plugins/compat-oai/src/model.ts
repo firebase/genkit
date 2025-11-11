@@ -26,10 +26,17 @@ import type {
   StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
-import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
+import {
+  GenerationCommonConfigSchema,
+  GenkitError,
+  Message,
+  StatusName,
+  modelRef,
+  z,
+} from 'genkit';
 import type { ModelAction, ModelInfo, ToolDefinition } from 'genkit/model';
 import { model } from 'genkit/plugin';
-import type OpenAI from 'openai';
+import OpenAI, { APIError } from 'openai';
 import type {
   ChatCompletion,
   ChatCompletionChunk,
@@ -459,50 +466,75 @@ export function openAIModelRunner(
       abortSignal?: AbortSignal;
     }
   ): Promise<GenerateResponseData> => {
-    let response: ChatCompletion;
-    const body = toOpenAIRequestBody(name, request, requestBuilder);
-    if (options?.streamingRequested) {
-      const stream = client.beta.chat.completions.stream(
-        {
-          ...body,
-          stream: true,
-          stream_options: {
-            include_usage: true,
+    try {
+      let response: ChatCompletion;
+      const body = toOpenAIRequestBody(name, request, requestBuilder);
+      if (options?.streamingRequested) {
+        const stream = client.beta.chat.completions.stream(
+          {
+            ...body,
+            stream: true,
+            stream_options: {
+              include_usage: true,
+            },
           },
-        },
-        { signal: options?.abortSignal }
-      );
-      for await (const chunk of stream) {
-        chunk.choices?.forEach((chunk) => {
-          const c = fromOpenAIChunkChoice(chunk);
-          options?.sendChunk!({
-            index: chunk.index,
-            content: c.message?.content ?? [],
+          { signal: options?.abortSignal }
+        );
+        for await (const chunk of stream) {
+          chunk.choices?.forEach((chunk) => {
+            const c = fromOpenAIChunkChoice(chunk);
+            options?.sendChunk!({
+              index: chunk.index,
+              content: c.message?.content ?? [],
+            });
           });
+        }
+        response = await stream.finalChatCompletion();
+      } else {
+        response = await client.chat.completions.create(body, {
+          signal: options?.abortSignal,
         });
       }
-      response = await stream.finalChatCompletion();
-    } else {
-      response = await client.chat.completions.create(body, {
-        signal: options?.abortSignal,
-      });
-    }
-    const standardResponse: GenerateResponseData = {
-      usage: {
-        inputTokens: response.usage?.prompt_tokens,
-        outputTokens: response.usage?.completion_tokens,
-        totalTokens: response.usage?.total_tokens,
-      },
-      raw: response,
-    };
-    if (response.choices.length === 0) {
-      return standardResponse;
-    } else {
-      const choice = response.choices[0];
-      return {
-        ...fromOpenAIChoice(choice, request.output?.format === 'json'),
-        ...standardResponse,
+      const standardResponse: GenerateResponseData = {
+        usage: {
+          inputTokens: response.usage?.prompt_tokens,
+          outputTokens: response.usage?.completion_tokens,
+          totalTokens: response.usage?.total_tokens,
+        },
+        raw: response,
       };
+      if (response.choices.length === 0) {
+        return standardResponse;
+      } else {
+        const choice = response.choices[0];
+        return {
+          ...fromOpenAIChoice(choice, request.output?.format === 'json'),
+          ...standardResponse,
+        };
+      }
+    } catch (e) {
+      if (e instanceof APIError) {
+        let status: StatusName = 'UNKNOWN';
+        switch (e.status) {
+          case 429:
+            status = 'RESOURCE_EXHAUSTED';
+            break;
+          case 400:
+            status = 'INVALID_ARGUMENT';
+            break;
+          case 500:
+            status = 'INTERNAL';
+            break;
+          case 503:
+            status = 'UNAVAILABLE';
+            break;
+        }
+        throw new GenkitError({
+          status,
+          message: e.message,
+        });
+      }
+      throw e;
     }
   };
 }
