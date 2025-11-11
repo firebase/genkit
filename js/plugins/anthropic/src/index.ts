@@ -40,6 +40,8 @@ import {
 } from './models.js';
 import { InternalPluginOptions, PluginOptions, __testClient } from './types.js';
 
+const PROMPT_CACHING_BETA_HEADER_VALUE = 'prompt-caching-2024-07-31';
+
 export {
   claude35Haiku,
   claude3Haiku,
@@ -70,7 +72,7 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
   }
   const defaultHeaders: Record<string, string> = {};
   if (options?.cacheSystemPrompt) {
-    defaultHeaders['anthropic-beta'] = 'prompt-caching-2024-07-31';
+    defaultHeaders['anthropic-beta'] = PROMPT_CACHING_BETA_HEADER_VALUE;
   }
   return new Anthropic({ apiKey, defaultHeaders });
 }
