@@ -157,29 +157,47 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     };
   }
 
-  protected toImageSource(media: Media): {
-    data: string;
-    mediaType: MediaType;
-  } {
-    const extracted = this.extractDataFromBase64Url(media.url);
-    const { data, contentType } = extracted ?? {};
-    if (!data || !contentType) {
-      throw new Error(
-        `Invalid genkit part media provided to toAnthropicMessageContent: ${JSON.stringify(
-          media
-        )}.`
-      );
+  /**
+   * Normalizes Genkit `Media` into either a base64 payload or a remote URL
+   * accepted by the Anthropic SDK. Anthropic supports both `data:` URLs (which
+   * we forward as base64) and remote `https` URLs without additional handling.
+   */
+  protected toImageSource(
+    media: Media
+  ):
+    | { kind: 'base64'; data: string; mediaType: MediaType }
+    | { kind: 'url'; url: string } {
+    if (this.isDataUrl(media.url)) {
+      const extracted = this.extractDataFromBase64Url(media.url);
+      const { data, contentType } = extracted ?? {};
+      if (!data || !contentType) {
+        throw new Error(
+          `Invalid genkit part media provided to toAnthropicMessageContent: ${JSON.stringify(
+            media
+          )}.`
+        );
+      }
+      const resolvedMediaType = media.contentType ?? contentType;
+      if (!resolvedMediaType) {
+        throw new Error('Media type is required but was not provided');
+      }
+      if (!this.isMediaType(resolvedMediaType)) {
+        throw new Error(`Unsupported media type: ${resolvedMediaType}`);
+      }
+      return {
+        kind: 'base64',
+        data,
+        mediaType: resolvedMediaType,
+      };
     }
-    const resolvedMediaType = media.contentType ?? contentType;
-    if (!resolvedMediaType) {
-      throw new Error('Media type is required but was not provided');
+
+    if (!media.url) {
+      throw new Error('Media url is required but was not provided');
     }
-    if (!this.isMediaType(resolvedMediaType)) {
-      throw new Error(`Unsupported media type: ${resolvedMediaType}`);
-    }
+
     return {
-      data,
-      mediaType: resolvedMediaType,
+      kind: 'url',
+      url: media.url,
     };
   }
 
