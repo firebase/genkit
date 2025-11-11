@@ -16,7 +16,14 @@
  */
 
 /**
- * Type constraint for runner type parameters.
+ * Type contract that each Anthropic runner passes into the generic `BaseRunner`.
+ *
+ * The concrete runners (stable vs. beta SDKs) bind these slots to their SDK’s
+ * concrete interfaces so the shared logic in `BaseRunner` can stay strongly typed
+ * without knowing which SDK variant it is talking to.
+ *
+ * Properties are `unknown` by default, so every subclass must plug in the
+ * correct Anthropic types to keep the generic plumbing sound.
  */
 type RunnerTypes = {
   Message: unknown;
@@ -31,16 +38,30 @@ type RunnerTypes = {
 };
 
 type RunnerMessage<ApiTypes extends RunnerTypes> = ApiTypes['Message'];
+
+/** Streaming handle that yields Anthropic events and exposes the final message. */
 type RunnerStream<ApiTypes extends RunnerTypes> = ApiTypes['Stream'];
+
+/** Discrete event emitted by the Anthropic stream (delta, block start, etc.). */
 type RunnerStreamEvent<ApiTypes extends RunnerTypes> = ApiTypes['StreamEvent'];
+
+/** Non-streaming request payload shape for create-message calls. */
 type RunnerRequestBody<ApiTypes extends RunnerTypes> = ApiTypes['RequestBody'];
 type RunnerStreamingRequestBody<ApiTypes extends RunnerTypes> =
   ApiTypes['StreamingRequestBody'];
+
+/** Tool definition compatible with the target Anthropic SDK. */
 type RunnerTool<ApiTypes extends RunnerTypes> = ApiTypes['Tool'];
+
+/** Anthropic message param shape used when sending history to the API. */
 type RunnerMessageParam<ApiTypes extends RunnerTypes> =
   ApiTypes['MessageParam'];
+
+/** Content block that the runner sends to Anthropic for a single part. */
 type RunnerContentBlockParam<ApiTypes extends RunnerTypes> =
   ApiTypes['ContentBlockParam'];
+
+/** Tool response block that Anthropic expects when returning tool output. */
 type RunnerToolResponseContent<ApiTypes extends RunnerTypes> =
   ApiTypes['ToolResponseContent'];
 

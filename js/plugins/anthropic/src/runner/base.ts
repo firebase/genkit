@@ -50,6 +50,13 @@ import {
   RunnerTypes,
 } from './types.js';
 
+/**
+ * Shared runner logic for Anthropic SDK integrations.
+ *
+ * Concrete subclasses pass in their SDK-specific type bundle via `RunnerTypes`,
+ * letting this base class handle message/tool translation once for both the
+ * stable and beta APIs that share the same conceptual surface.
+ */
 export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
   protected name: string;
   protected client: Anthropic;
@@ -229,6 +236,24 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     return {
       type: 'text',
       text: JSON.stringify(output),
+    };
+  }
+
+  protected toWebSearchToolResultPart(params: {
+    toolUseId: string;
+    content: unknown;
+    type: string;
+  }): Part {
+    const { toolUseId, content, type } = params;
+    return {
+      text: `[Anthropic server tool result ${toolUseId}] ${JSON.stringify(content)}`,
+      custom: {
+        anthropicServerToolResult: {
+          type,
+          toolUseId,
+          content,
+        },
+      },
     };
   }
 
