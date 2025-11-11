@@ -430,7 +430,9 @@ describe('BetaRunner', () => {
       type: 'redacted_thinking',
       data: '[redacted]',
     });
-    assert.deepStrictEqual(redactedPart, { text: '[redacted]' });
+    assert.deepStrictEqual(redactedPart, {
+      custom: { redactedThinking: '[redacted]' },
+    });
 
     const toolPart = (runner as any).fromBetaContentBlock({
       type: 'tool_use',

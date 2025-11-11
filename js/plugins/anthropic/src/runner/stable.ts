@@ -316,37 +316,56 @@ export class Runner extends BaseRunner<RunnerTypes> {
     if (event.type === 'content_block_start') {
       const block = event.content_block;
 
-      if (block.type === 'text') {
-        return { text: block.text };
-      }
+      switch (block.type) {
+        case 'server_tool_use':
+          return {
+            text: `[Anthropic server tool ${block.name}] input: ${JSON.stringify(block.input)}`,
+            custom: {
+              anthropicServerToolUse: {
+                id: block.id,
+                name: block.name,
+                input: block.input,
+              },
+            },
+          };
 
-      if (block.type === 'thinking') {
-        return { text: block.thinking };
-      }
+        case 'web_search_tool_result':
+          return {
+            text: `[Anthropic server tool result ${block.tool_use_id}] ${JSON.stringify(block.content)}`,
+            custom: {
+              anthropicServerToolResult: {
+                type: block.type,
+                toolUseId: block.tool_use_id,
+                content: block.content,
+              },
+            },
+          };
 
-      if (block.type === 'redacted_thinking') {
-        return { text: block.data };
-      }
+        case 'text':
+          return { text: block.text };
 
-      if (block.type === 'tool_use') {
-        return {
-          toolRequest: {
-            ref: block.id,
-            name: block.name,
-            input: block.input,
-          },
-        };
-      }
+        case 'thinking':
+          return { text: block.thinking };
 
-      // server_tool_use, web_search_tool_result, or unknown types - treat as tool_use
-      if ('id' in block && 'name' in block) {
-        return {
-          toolRequest: {
-            ref: block.id,
-            name: block.name,
-            input: 'input' in block ? block.input : undefined,
-          },
-        };
+        case 'redacted_thinking':
+          return { custom: { redactedThinking: block.data } };
+
+        case 'tool_use':
+          return {
+            toolRequest: {
+              ref: block.id,
+              name: block.name,
+              input: block.input,
+            },
+          };
+
+        default: {
+          const unknownType = (block as { type: string }).type;
+          console.warn(
+            `Unexpected Anthropic content block type in stream: ${unknownType}. Returning undefined. Content block: ${JSON.stringify(block)}`
+          );
+          return undefined;
+        }
       }
     }
 
@@ -356,6 +375,30 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
   protected fromAnthropicContentBlock(contentBlock: ContentBlock): Part {
     switch (contentBlock.type) {
+      case 'server_tool_use':
+        return {
+          text: `[Anthropic server tool ${contentBlock.name}] input: ${JSON.stringify(contentBlock.input)}`,
+          custom: {
+            anthropicServerToolUse: {
+              id: contentBlock.id,
+              name: contentBlock.name,
+              input: contentBlock.input,
+            },
+          },
+        };
+
+      case 'web_search_tool_result':
+        return {
+          text: `[Anthropic server tool result ${contentBlock.tool_use_id}] ${JSON.stringify(contentBlock.content)}`,
+          custom: {
+            anthropicServerToolResult: {
+              type: contentBlock.type,
+              toolUseId: contentBlock.tool_use_id,
+              content: contentBlock.content,
+            },
+          },
+        };
+
       case 'tool_use':
         return {
           toolRequest: {
@@ -364,15 +407,17 @@ export class Runner extends BaseRunner<RunnerTypes> {
             input: contentBlock.input,
           },
         };
+
       case 'text':
         return { text: contentBlock.text };
+
       case 'thinking':
         return { text: contentBlock.thinking };
+
       case 'redacted_thinking':
-        return { text: contentBlock.data };
+        return { custom: { redactedThinking: contentBlock.data } };
+
       default: {
-        // Handle unexpected content block types
-        // Log warning for debugging, but return empty text to avoid breaking the flow
         const unknownType = (contentBlock as { type: string }).type;
         console.warn(
           `Unexpected Anthropic content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
