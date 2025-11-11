@@ -215,10 +215,13 @@ describe('BetaRunner', () => {
     } as any;
     const toolPart = exposed.toGenkitPart(serverToolEvent);
     assert.deepStrictEqual(toolPart, {
-      toolRequest: {
-        ref: 'toolu_test',
-        name: 'srv/myTool',
-        input: { foo: 'bar' },
+      text: '[Anthropic server tool srv/myTool] input: {"foo":"bar"}',
+      custom: {
+        anthropicServerToolUse: {
+          id: 'toolu_test',
+          name: 'srv/myTool',
+          input: { foo: 'bar' },
+        },
       },
     });
 
@@ -231,6 +234,29 @@ describe('BetaRunner', () => {
 
     const ignored = exposed.toGenkitPart({ type: 'message_stop' } as any);
     assert.strictEqual(ignored, undefined);
+  });
+
+  it('should throw on unsupported mcp tool stream events', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-test',
+      client: mockClient as Anthropic,
+    });
+
+    const exposed = runner as any;
+    assert.throws(
+      () =>
+        exposed.toGenkitPart({
+          type: 'content_block_start',
+          index: 0,
+          content_block: {
+            type: 'mcp_tool_use',
+            id: 'toolu_unsupported',
+            input: {},
+          },
+        }),
+      /server-managed tool block 'mcp_tool_use'/
+    );
   });
 
   it('should map beta stop reasons correctly', () => {
@@ -390,7 +416,164 @@ describe('BetaRunner', () => {
     assert.ok(Array.isArray(streamingBody.system));
   });
 
-  it('should fall back to unknown tool name when metadata missing', () => {
+  it('should concatenate multiple text parts in system message', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            { text: 'Always be concise.' },
+            { text: 'Use proper grammar.' },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    } satisfies any;
+
+    const body = runner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      false
+    );
+
+    assert.strictEqual(
+      body.system,
+      'You are a helpful assistant.\n\nAlways be concise.\n\nUse proper grammar.'
+    );
+  });
+
+  it('should concatenate multiple text parts in system message with caching', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            { text: 'Always be concise.' },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    } satisfies any;
+
+    const body = runner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      request,
+      true
+    );
+
+    assert.ok(Array.isArray(body.system));
+    assert.deepStrictEqual(body.system, [
+      {
+        type: 'text',
+        text: 'You are a helpful assistant.\n\nAlways be concise.',
+        cache_control: { type: 'ephemeral' },
+      },
+    ]);
+  });
+
+  it('should throw error if system message contains media', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            {
+              media: {
+                url: 'data:image/png;base64,iVBORw0KGgoAAAANS',
+                contentType: 'image/png',
+              },
+            },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    } satisfies any;
+
+    assert.throws(
+      () => runner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      /System messages can only contain text content/
+    );
+  });
+
+  it('should throw error if system message contains tool requests', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            { toolRequest: { name: 'getTool', input: {}, ref: '123' } },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    } satisfies any;
+
+    assert.throws(
+      () => runner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      /System messages can only contain text content/
+    );
+  });
+
+  it('should throw error if system message contains tool responses', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new BetaRunner({
+      name: 'claude-3-5-haiku',
+      client: mockClient as Anthropic,
+    }) as any;
+
+    const request = {
+      messages: [
+        {
+          role: 'system',
+          content: [
+            { text: 'You are a helpful assistant.' },
+            { toolResponse: { name: 'getTool', output: {}, ref: '123' } },
+          ],
+        },
+        { role: 'user', content: [{ text: 'Hi' }] },
+      ],
+      output: { format: 'text' },
+    } satisfies any;
+
+    assert.throws(
+      () => runner.toAnthropicRequestBody('claude-3-5-haiku', request, false),
+      /System messages can only contain text content/
+    );
+  });
+
+  it('should throw for unsupported mcp tool use blocks', () => {
     const mockClient = createMockAnthropicClient();
     const runner = new BetaRunner({
       name: 'claude-test',
@@ -398,19 +581,15 @@ describe('BetaRunner', () => {
     });
     const exposed = runner as any;
 
-    const part = exposed.fromBetaContentBlock({
-      type: 'mcp_tool_use',
-      id: 'toolu_unknown',
-      input: {},
-    });
-
-    assert.deepStrictEqual(part, {
-      toolRequest: {
-        ref: 'toolu_unknown',
-        name: 'unknown_tool',
-        input: {},
-      },
-    });
+    assert.throws(
+      () =>
+        exposed.fromBetaContentBlock({
+          type: 'mcp_tool_use',
+          id: 'toolu_unknown',
+          input: {},
+        }),
+      /server-managed tool block 'mcp_tool_use'/
+    );
   });
 
   it('should convert additional beta content block types', () => {
@@ -445,6 +624,24 @@ describe('BetaRunner', () => {
         ref: 'toolu_x',
         name: 'plainTool',
         input: { value: 1 },
+      },
+    });
+
+    const serverToolPart = (runner as any).fromBetaContentBlock({
+      type: 'server_tool_use',
+      id: 'srv_tool_1',
+      name: 'serverTool',
+      input: { arg: 'value' },
+      server_name: 'srv',
+    });
+    assert.deepStrictEqual(serverToolPart, {
+      text: '[Anthropic server tool srv/serverTool] input: {"arg":"value"}',
+      custom: {
+        anthropicServerToolUse: {
+          id: 'srv_tool_1',
+          name: 'srv/serverTool',
+          input: { arg: 'value' },
+        },
       },
     });
 
