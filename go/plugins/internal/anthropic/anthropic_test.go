@@ -151,3 +151,231 @@ func TestAnthropicConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestToAnthropicTools(t *testing.T) {
+	tests := []struct {
+		name        string
+		tools       []*ai.ToolDefinition
+		expected    []anthropic.ToolUnionParam
+		expectedErr string
+	}{
+		{
+			name: "valid tool",
+			tools: []*ai.ToolDefinition{
+				{
+					Name:        "my-tool",
+					Description: "my tool description",
+				},
+			},
+			expected: []anthropic.ToolUnionParam{
+				{
+					OfTool: &anthropic.ToolParam{
+						Name:        "my-tool",
+						Description: anthropic.String("my tool description"),
+						InputSchema: toAnthropicSchema[map[string]any](),
+					},
+				},
+			},
+		},
+		{
+			name: "empty tool name",
+			tools: []*ai.ToolDefinition{
+				{
+					Name:        "",
+					Description: "my tool description",
+				},
+			},
+			expectedErr: "tool name is required",
+		},
+		{
+			name: "invalid tool name",
+			tools: []*ai.ToolDefinition{
+				{
+					Name:        "invalid tool name",
+					Description: "my tool description",
+				},
+			},
+			expectedErr: "tool name must match regex",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := toAnthropicTools(tt.tools)
+			if tt.expectedErr != "" {
+				if err == nil {
+					t.Errorf("expecting error containing %q, got nil", tt.expectedErr)
+				} else if !strings.Contains(err.Error(), tt.expectedErr) {
+					t.Errorf("expecting error to contain %q, but got: %q", tt.expectedErr, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("expected no error, got: %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("toAnthropicTools() got = %+v, want %+v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestToAnthropicParts(t *testing.T) {
+	tests := []struct {
+		name        string
+		parts       []*ai.Part
+		expected    []anthropic.ContentBlockParamUnion
+		expectedErr string
+	}{
+		{
+			name: "text part",
+			parts: []*ai.Part{
+				ai.NewTextPart("hello"),
+			},
+			expected: []anthropic.ContentBlockParamUnion{
+				anthropic.NewTextBlock("hello"),
+			},
+		},
+		{
+			name: "tool request part",
+			parts: []*ai.Part{
+				ai.NewToolRequestPart(&ai.ToolRequest{
+					Ref:   "ref1",
+					Input: map[string]any{"arg": "value"},
+					Name:  "tool1",
+				}),
+			},
+			expected: []anthropic.ContentBlockParamUnion{
+				anthropic.NewToolUseBlock("ref1", map[string]any{"arg": "value"}, "tool1"),
+			},
+		},
+		{
+			name: "tool response part",
+			parts: []*ai.Part{
+				ai.NewToolResponsePart(&ai.ToolResponse{
+					Ref:    "ref1",
+					Output: map[string]any{"result": "ok"},
+				}),
+			},
+			expected: []anthropic.ContentBlockParamUnion{
+				anthropic.NewToolResultBlock("ref1", `{"result":"ok"}`, false),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := toAnthropicParts(tt.parts)
+			if tt.expectedErr != "" {
+				if err == nil {
+					t.Errorf("expecting error containing %q, got nil", tt.expectedErr)
+				} else if !strings.Contains(err.Error(), tt.expectedErr) {
+					t.Errorf("expecting error to contain %q, but got: %q", tt.expectedErr, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("expected no error, got: %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("toAnthropicParts() got = %+v, want %+v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestToAnthropicRequest(t *testing.T) {
+	tests := []struct {
+		name        string
+		req         *ai.ModelRequest
+		expected    *anthropic.MessageNewParams
+		expectedErr string
+	}{
+		{
+			name: "simple request",
+			req: &ai.ModelRequest{
+				Messages: []*ai.Message{
+					{
+						Role:    ai.RoleUser,
+						Content: []*ai.Part{ai.NewTextPart("hello")},
+					},
+				},
+				Config: map[string]any{
+					"max_tokens": 10,
+				},
+			},
+			expected: &anthropic.MessageNewParams{
+				MaxTokens: 10,
+				Messages: []anthropic.MessageParam{
+					anthropic.NewUserMessage(anthropic.NewTextBlock("hello")),
+				},
+			},
+		},
+		{
+			name: "with system prompt",
+			req: &ai.ModelRequest{
+				Messages: []*ai.Message{
+					{
+						Role:    ai.RoleSystem,
+						Content: []*ai.Part{ai.NewTextPart("system prompt")},
+					},
+					{
+						Role:    ai.RoleUser,
+						Content: []*ai.Part{ai.NewTextPart("hello")},
+					},
+				},
+				Config: map[string]any{
+					"max_tokens": 10,
+				},
+			},
+			expected: &anthropic.MessageNewParams{
+				MaxTokens: 10,
+				System: []anthropic.TextBlockParam{
+					{Text: "system prompt"},
+				},
+				Messages: []anthropic.MessageParam{
+					anthropic.NewUserMessage(anthropic.NewTextBlock("hello")),
+				},
+			},
+		},
+		{
+			name: "no max tokens",
+			req: &ai.ModelRequest{
+				Messages: []*ai.Message{
+					{
+						Role:    ai.RoleUser,
+						Content: []*ai.Part{ai.NewTextPart("hello")},
+					},
+				},
+			},
+			expectedErr: "maxTokens not set",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := toAnthropicRequest(tt.req)
+			if tt.expectedErr != "" {
+				if err == nil {
+					t.Errorf("expecting error containing %q, got nil", tt.expectedErr)
+				} else if !strings.Contains(err.Error(), tt.expectedErr) {
+					t.Errorf("expecting error to contain %q, but got: %q", tt.expectedErr, err.Error())
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("expected no error, got: %v", err)
+			}
+			// Can't directly compare because of function pointers in schema
+			if got.MaxTokens != tt.expected.MaxTokens {
+				t.Errorf("toAnthropicRequest() got MaxTokens = %d, want %d", got.MaxTokens, tt.expected.MaxTokens)
+			}
+			if len(got.System) != len(tt.expected.System) {
+				t.Errorf("toAnthropicRequest() got System len = %d, want %d", len(got.System), len(tt.expected.System))
+			}
+			if len(got.Messages) != len(tt.expected.Messages) {
+				t.Errorf("toAnthropicRequest() got Messages len = %d, want %d", len(got.Messages), len(tt.expected.Messages))
+			}
+		})
+	}
+}
