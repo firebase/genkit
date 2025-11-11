@@ -14,12 +14,121 @@
  * limitations under the License.
  */
 
-import { Anthropic } from '@anthropic-ai/sdk';
 import * as assert from 'assert';
-import { describe, it, mock } from 'node:test';
+import type { Part } from 'genkit';
+import { describe, it } from 'node:test';
 
 import { BetaRunner } from '../src/runner/beta.js';
 import { createMockAnthropicClient } from './mocks/anthropic-client.js';
+
+describe('BetaRunner.toAnthropicMessageContent', () => {
+  function createRunner() {
+    return new BetaRunner(
+      'anthropic/claude-3-5-haiku',
+      createMockAnthropicClient(),
+      false
+    );
+  }
+
+  it('converts PDF media parts into document blocks', () => {
+    const runner = createRunner();
+    const part: Part = {
+      media: {
+        contentType: 'application/pdf',
+        url: 'data:application/pdf;base64,UEsDBAoAAAAAAD',
+      },
+    };
+
+    const result = (runner as any).toAnthropicMessageContent(part);
+
+    assert.strictEqual(result.type, 'document');
+    assert.ok(result.source);
+    assert.strictEqual(result.source.type, 'base64');
+    assert.strictEqual(result.source.media_type, 'application/pdf');
+    assert.ok(result.source.data);
+  });
+
+  it('throws when tool request ref is missing', () => {
+    const runner = createRunner();
+    const part: Part = {
+      toolRequest: {
+        name: 'do_something',
+        input: { foo: 'bar' },
+      },
+    };
+
+    assert.throws(() => {
+      (runner as any).toAnthropicMessageContent(part);
+    }, /Tool request ref is required/);
+  });
+
+  it('maps tool request with ref into tool_use block', () => {
+    const runner = createRunner();
+    const part: Part = {
+      toolRequest: {
+        ref: 'tool-123',
+        name: 'do_something',
+        input: { foo: 'bar' },
+      },
+    };
+
+    const result = (runner as any).toAnthropicMessageContent(part);
+
+    assert.strictEqual(result.type, 'tool_use');
+    assert.strictEqual(result.id, 'tool-123');
+    assert.strictEqual(result.name, 'do_something');
+    assert.deepStrictEqual(result.input, { foo: 'bar' });
+  });
+
+  it('throws when tool response ref is missing', () => {
+    const runner = createRunner();
+    const part: Part = {
+      toolResponse: {
+        name: 'do_something',
+        output: 'done',
+      },
+    };
+
+    assert.throws(() => {
+      (runner as any).toAnthropicMessageContent(part);
+    }, /Tool response ref is required/);
+  });
+
+  it('maps tool response into tool_result block containing text response', () => {
+    const runner = createRunner();
+    const part: Part = {
+      toolResponse: {
+        name: 'do_something',
+        ref: 'tool-abc',
+        output: 'done',
+      },
+    };
+
+    const result = (runner as any).toAnthropicMessageContent(part);
+
+    assert.strictEqual(result.type, 'tool_result');
+    assert.strictEqual(result.tool_use_id, 'tool-abc');
+    assert.deepStrictEqual(result.content, [{ type: 'text', text: 'done' }]);
+  });
+});
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { Anthropic } from '@anthropic-ai/sdk';
+import { mock } from 'node:test';
 
 describe('BetaRunner', () => {
   it('should map all supported Part shapes to beta content blocks', () => {

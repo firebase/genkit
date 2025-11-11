@@ -1,0 +1,29 @@
+{
+  "name": "anthropic-basic",
+  "version": "1.0.0",
+  "description": "Sample Genkit app showcasing Anthropic plugin stable and beta usage.",
+  "main": "lib/stable.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start:stable": "node lib/stable.js",
+    "start:beta": "node lib/beta.js",
+    "dev:stable": "genkit start -- npx tsx --watch src/stable.ts",
+    "dev:beta": "genkit start -- npx tsx --watch src/beta.ts"
+  },
+  "keywords": [
+    "genkit",
+    "anthropic",
+    "sample"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "genkit": "workspace:*",
+    "@genkit-ai/anthropic": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "tsx": "^4.19.2"
+  }
+}
