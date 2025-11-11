@@ -285,6 +285,27 @@ describe('Google AI Gemini', () => {
           googleSearch: {},
         });
       });
+
+      it('uses baseUrl and apiVersion from call config', async () => {
+        const model = defineModel('gemini-2.5-flash', {
+          ...defaultPluginOptions,
+          baseUrl: 'https://my.custom.base.path',
+          apiVersion: 'v1custom',
+        });
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+        };
+        await model.run(request);
+        sinon.assert.calledOnce(fetchStub);
+
+        const fetchArgs = fetchStub.lastCall.args;
+        const url = fetchArgs[0];
+        assert.ok(
+          url.startsWith('https://my.custom.base.path/v1custom/models'),
+          `Expected URL to start with "https://my.custom.base.path/v1custom/models", but it was "${url}"`
+        );
+      });
     });
 
     describe('Error Handling', () => {
