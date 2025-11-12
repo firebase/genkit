@@ -102,7 +102,10 @@ export async function resolveToolRequest(
   // if it's a prompt action, go ahead and render the preamble
   if (isPromptAction(tool)) {
     const metadata = tool.__action.metadata as Record<string, any>;
-    const preamble = {...await tool(part.toolRequest.input), model: metadata.prompt?.model};
+    const preamble = {
+      ...(await tool(part.toolRequest.input)),
+      model: metadata.prompt?.model,
+    };
     const response = {
       toolResponse: {
         name: part.toolRequest.name,
