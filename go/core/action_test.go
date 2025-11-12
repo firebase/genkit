@@ -19,10 +19,10 @@ package core
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"slices"
 	"testing"
 
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/registry"
 )
@@ -32,11 +32,8 @@ func inc(_ context.Context, x int, _ noStream) (int, error) {
 }
 
 func TestActionRun(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := defineAction(r, "test", "inc", ActionTypeCustom, nil, nil, inc)
+	r := registry.New()
+	a := defineAction(r, "test/inc", api.ActionTypeCustom, nil, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -47,11 +44,8 @@ func TestActionRun(t *testing.T) {
 }
 
 func TestActionRunJSON(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := defineAction(r, "test", "inc", ActionTypeCustom, nil, nil, inc)
+	r := registry.New()
+	a := defineAction(r, "test/inc", api.ActionTypeCustom, nil, nil, inc)
 	input := []byte("3")
 	want := []byte("4")
 	got, err := a.RunJSON(context.Background(), input, nil)
@@ -77,11 +71,8 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := defineAction(r, "test", "count", ActionTypeCustom, nil, nil, count)
+	r := registry.New()
+	a := defineAction(r, "test/count", api.ActionTypeCustom, nil, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -112,23 +103,18 @@ func TestActionStreaming(t *testing.T) {
 }
 
 func TestActionTracing(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	provider := "test"
+	r := registry.New()
 	tc := tracing.NewTestOnlyTelemetryClient()
-	r.TracingState().WriteTelemetryImmediate(tc)
-	const actionName = "TestTracing-inc"
-	a := defineAction(r, provider, actionName, ActionTypeCustom, nil, nil, inc)
+	tracing.WriteTelemetryImmediate(tc)
+	name := api.NewName("test", "TestTracing-inc")
+	a := defineAction(r, name, api.ActionTypeCustom, nil, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}
 	// The same trace store is used for all tests, so there might be several traces.
 	// Look for this one, which has a unique name.
-	fullActionName := fmt.Sprintf("%s/%s", provider, actionName)
 	for _, td := range tc.Traces {
-		if td.DisplayName == fullActionName {
+		if td.DisplayName == name {
 			// Spot check: expect a single span.
 			if g, w := len(td.Spans), 1; g != w {
 				t.Errorf("got %d spans, want %d", g, w)
@@ -136,5 +122,5 @@ func TestActionTracing(t *testing.T) {
 			return
 		}
 	}
-	t.Fatalf("did not find trace named %q", actionName)
+	t.Fatalf("did not find trace named %q", name)
 }

@@ -15,11 +15,18 @@
  */
 
 import type { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
+import { ModelAction } from '@genkit-ai/ai/model';
 import { Operation, z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
-import { dynamicTool, genkit, type GenkitBeta } from '../src/beta';
+import { interrupt } from '../../ai/src/tool';
+import {
+  dynamicResource,
+  dynamicTool,
+  genkit,
+  type GenkitBeta,
+} from '../src/beta';
 import {
   defineEchoModel,
   defineProgrammableModel,
@@ -306,6 +313,7 @@ describe('generate', () => {
   describe('tools', () => {
     let ai: GenkitBeta;
     let pm: ProgrammableModel;
+    let echo: ModelAction;
 
     beforeEach(() => {
       class Extra {
@@ -319,7 +327,7 @@ describe('generate', () => {
         context: { something: new Extra() },
       });
       pm = defineProgrammableModel(ai);
-      defineEchoModel(ai);
+      echo = defineEchoModel(ai);
     });
 
     it('call the tool', async () => {
@@ -581,6 +589,64 @@ describe('generate', () => {
           ],
         }
       );
+    });
+
+    it('calls the dynamic resource', async () => {
+      const dynamicTestResource = dynamicResource(
+        {
+          name: 'dynamicTestTool',
+          uri: 'foo://foo',
+          description: 'description',
+        },
+        async () => ({ content: [{ text: 'dynamic text' }] })
+      );
+      ai.defineResource(
+        {
+          name: 'regularResource',
+          template: 'bar://{value}',
+          description: 'description 2',
+        },
+        async () => ({ content: [{ text: 'regular text' }] })
+      );
+
+      const { text } = await ai.generate({
+        model: 'echoModel',
+        prompt: [
+          { text: 'some text' },
+          { resource: { uri: 'foo://foo' } },
+          { resource: { uri: 'bar://bar' } },
+        ],
+        resources: [dynamicTestResource],
+      });
+      assert.strictEqual(
+        text,
+        'Echo: some text,dynamic text,regular text; config: {}'
+      );
+      assert.deepStrictEqual((echo as any).__test__lastRequest.messages, [
+        {
+          role: 'user',
+          content: [
+            { text: 'some text' },
+            {
+              metadata: {
+                resource: {
+                  uri: 'foo://foo',
+                },
+              },
+              text: 'dynamic text',
+            },
+            {
+              metadata: {
+                resource: {
+                  template: 'bar://{value}',
+                  uri: 'bar://bar',
+                },
+              },
+              text: 'regular text',
+            },
+          ],
+        },
+      ]);
     });
 
     it('interrupts the dynamic tool with no impl', async () => {
@@ -891,6 +957,10 @@ describe('generate', () => {
           return interrupt();
         }
       );
+      const dynamicInterrupt = interrupt({
+        name: 'dynamicInterrupt',
+        description: 'description',
+      });
 
       // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
@@ -925,6 +995,13 @@ describe('generate', () => {
                         ref: 'ref789',
                       },
                     },
+                    {
+                      toolRequest: {
+                        name: 'dynamicInterrupt',
+                        input: { doIt: true },
+                        ref: 'ref890',
+                      },
+                    },
                   ]
                 : [{ text: 'done' }],
           },
@@ -933,7 +1010,12 @@ describe('generate', () => {
 
       const response = await ai.generate({
         prompt: 'call the tool',
-        tools: ['interruptingTool', 'simpleTool', 'resumableTool'],
+        tools: [
+          'interruptingTool',
+          'simpleTool',
+          'resumableTool',
+          dynamicInterrupt,
+        ],
       });
 
       assert.strictEqual(reqCounter, 1);
@@ -972,6 +1054,16 @@ describe('generate', () => {
             input: {
               doIt: true,
             },
+          },
+        },
+        {
+          metadata: { interrupt: true },
+          toolRequest: {
+            input: {
+              doIt: true,
+            },
+            name: 'dynamicInterrupt',
+            ref: 'ref890',
           },
         },
       ]);
@@ -1017,6 +1109,16 @@ describe('generate', () => {
               },
             },
           },
+          {
+            metadata: { interrupt: true },
+            toolRequest: {
+              input: {
+                doIt: true,
+              },
+              name: 'dynamicInterrupt',
+              ref: 'ref890',
+            },
+          },
         ],
       });
       assert.deepStrictEqual(pm.lastRequest, {
@@ -1055,6 +1157,16 @@ describe('generate', () => {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
             name: 'resumableTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'dynamicInterrupt',
             outputSchema: {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },

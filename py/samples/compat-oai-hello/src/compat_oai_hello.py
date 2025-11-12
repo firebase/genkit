@@ -14,7 +14,28 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""OpenAI sample."""
+"""OpenAI hello sample.
+
+Key features demonstrated in this sample:
+
+| Feature Description                                      | Example Function / Code Snippet        |
+|----------------------------------------------------------|----------------------------------------|
+| Plugin Initialization                                    | `ai = Genkit(plugins=[OpenAI()])`      |
+| Default Model Configuration                              | `ai = Genkit(model=...)`               |
+| Defining Flows                                           | `@ai.flow()` decorator (multiple uses) |
+| Defining Tools                                           | `@ai.tool()` decorator (multiple uses) |
+| Pydantic for Tool Input Schema                           | `GablorkenOutputSchema`                |
+| Simple arithmetic addition(Input integers a,b)           | `sum_two_numbers2`                     |
+| Simple Generation (Prompt String)                        | `say_hi`                               |
+| Generation with Messages (`Message`, `Role`, `TextPart`) | `say_hi_constrained`                   |
+| Generated response as stream (Prompt String)             | `say_hi_stream`                        |
+| Generation with Tools                                    | `calculate_gablorken`                  |
+| Generate current weather response using tools            | `get_weather_flow`                     |
+| Weather response generated as stream                     | `get_weather_flow_stream`              |
+| Tool Response Handling with context                      | `generate_character`                   |
+
+
+"""
 
 from decimal import Decimal
 
@@ -35,6 +56,18 @@ class MyInput(BaseModel):
 
     a: int = Field(description='a field')
     b: int = Field(description='b field')
+
+
+class HelloSchema(BaseModel):
+    """Hello schema.
+
+    Args:
+        text: The text to say hello to.
+        receiver: The receiver of the hello.
+    """
+
+    text: str
+    receiver: str
 
 
 @ai.flow()
@@ -216,6 +249,42 @@ def gablorken_tool(input_: GablorkenInput) -> int:
 
 
 @ai.flow()
+async def calculate_gablorken(value: int):
+    """Generate a request to calculate gablorken according to gablorken_tool.
+
+    Args:
+        value: Input data containing number
+
+    Returns:
+        A GenerateRequest object with the evaluation output
+    """
+    response = await ai.generate(
+        prompt=f'what is the gablorken of {value}',
+        model=openai_model('gpt-4'),
+        tools=['gablorkenTool'],
+    )
+
+    return response.message.content[0].root.text
+
+
+@ai.flow()
+async def say_hi_constrained(hi_input: str):
+    """Generate a request to greet a user with response following `HelloSchema` schema.
+
+    Args:
+        hi_input: Input data containing user information.
+
+    Returns:
+        A `HelloSchema` object with the greeting message.
+    """
+    response = await ai.generate(
+        prompt='hi ' + hi_input,
+        output_schema=HelloSchema,
+    )
+    return response.output
+
+
+@ai.flow()
 async def generate_character(name: str, ctx: ActionRunContext):
     """Generate an RPG character.
 
@@ -252,7 +321,10 @@ async def main() -> None:
     await logger.ainfo(sum_two_numbers2(MyInput(a=1, b=3)))
 
     await logger.ainfo(await say_hi('John Doe'))
+    await logger.ainfo(await say_hi_constrained('John Doe'))
     await logger.ainfo(await say_hi_stream('John Doe'))
+
+    await logger.ainfo(await calculate_gablorken(33))
     await logger.ainfo(await get_weather_flow('London and Paris'))
     await logger.ainfo(await get_weather_flow_stream('London and Paris'))
 

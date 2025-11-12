@@ -19,9 +19,12 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, run } from '../src/flow.js';
 import { defineAction, getContext, z } from '../src/index.js';
+import { initNodeFeatures } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 import { enableTelemetry } from '../src/tracing.js';
 import { TestSpanExporter } from './utils.js';
+
+initNodeFeatures();
 
 const spanExporter = new TestSpanExporter();
 enableTelemetry({
@@ -183,7 +186,7 @@ describe('flow', () => {
               streamingCallback({ count: i });
             }
           }
-          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getContext(registry))}`;
+          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getContext())}`;
         }
       );
 
@@ -211,7 +214,7 @@ describe('flow', () => {
           outputSchema: z.string(),
         },
         async (input) => {
-          return `bar ${input} ${JSON.stringify(getContext(registry))}`;
+          return `bar ${input} ${JSON.stringify(getContext())}`;
         }
       );
 
@@ -337,6 +340,24 @@ describe('flow', () => {
     });
   });
 
+  describe('run', () => {
+    it('should run the action', async () => {
+      const act = async () => 'bar';
+
+      const result = await run('action', act, registry);
+
+      assert.equal(result, 'bar');
+    });
+
+    it('should run the action with input', async () => {
+      const act = async (input: string) => `${input} bar`;
+
+      const result = await run('action', 'foo', act, registry);
+
+      assert.equal(result, 'foo bar');
+    });
+  });
+
   describe('telemetry', async () => {
     beforeEach(() => {
       spanExporter.exportedSpans = [];
@@ -345,7 +366,9 @@ describe('flow', () => {
     it('should create a trace', async () => {
       const testFlow = createTestFlow(registry);
 
-      const result = await testFlow('foo');
+      const result = await testFlow('foo', {
+        telemetryLabels: { custom: 'label' },
+      });
 
       assert.equal(result, 'bar foo');
       assert.strictEqual(spanExporter.exportedSpans.length, 1);
@@ -359,6 +382,32 @@ describe('flow', () => {
         'genkit:path': '/{testFlow,t:flow}',
         'genkit:state': 'success',
         'genkit:type': 'action',
+        custom: 'label',
+      });
+    });
+
+    it('should create a trace when streaming', async () => {
+      const testFlow = createTestFlow(registry);
+
+      const { output } = testFlow.stream('foo', {
+        telemetryLabels: { custom: 'label' },
+      });
+      const result = await output;
+
+      assert.equal(result, 'bar foo');
+      assert.strictEqual(spanExporter.exportedSpans.length, 1);
+      assert.strictEqual(spanExporter.exportedSpans[0].displayName, 'testFlow');
+      assert.deepStrictEqual(spanExporter.exportedSpans[0].attributes, {
+        'genkit:input': '"foo"',
+        'genkit:isRoot': true,
+        'genkit:metadata:subtype': 'flow',
+        'genkit:metadata:context': '{}',
+        'genkit:name': 'testFlow',
+        'genkit:output': '"bar foo"',
+        'genkit:path': '/{testFlow,t:flow}',
+        'genkit:state': 'success',
+        'genkit:type': 'action',
+        custom: 'label',
       });
     });
 
@@ -392,7 +441,9 @@ describe('flow', () => {
           );
         }
       );
-      const result = await testFlow('foo', { context: { user: 'pavel' } });
+      const result = await testFlow('foo', {
+        context: { user: 'pavel' },
+      });
 
       assert.equal(result, 'foo bar');
       assert.strictEqual(spanExporter.exportedSpans.length, 3);

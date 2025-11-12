@@ -21,10 +21,11 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/shared"
 )
 
-// mapToStruct unmarshals a map[string]any to the expected config type.
+// mapToStruct unmarshals a map[string]any to the expected config api.
 func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
@@ -35,9 +36,12 @@ func mapToStruct(m map[string]any, v any) error {
 
 // ModelGenerator handles OpenAI generation requests
 type ModelGenerator struct {
-	client    *openai.Client
-	modelName string
-	request   *openai.ChatCompletionNewParams
+	client     *openai.Client
+	modelName  string
+	request    *openai.ChatCompletionNewParams
+	messages   []openai.ChatCompletionMessageParamUnion
+	tools      []openai.ChatCompletionToolParam
+	toolChoice openai.ChatCompletionToolChoiceOptionUnionParam
 	// Store any errors that occur during building
 	err error
 }
@@ -52,7 +56,7 @@ func NewModelGenerator(client *openai.Client, modelName string) *ModelGenerator 
 		client:    client,
 		modelName: modelName,
 		request: &openai.ChatCompletionNewParams{
-			Model: openai.F(modelName),
+			Model: (modelName),
 		},
 	}
 }
@@ -75,51 +79,68 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 		case ai.RoleSystem:
 			oaiMessages = append(oaiMessages, openai.SystemMessage(content))
 		case ai.RoleModel:
-			oaiMessages = append(oaiMessages, openai.AssistantMessage(content))
-
-			am := openai.ChatCompletionAssistantMessageParam{
-				Role: openai.F(openai.ChatCompletionAssistantMessageParamRoleAssistant),
+			am := openai.ChatCompletionAssistantMessageParam{}
+			am.Content.OfString = param.NewOpt(content)
+			toolCalls, err := convertToolCalls(msg.Content)
+			if err != nil {
+				g.err = err
+				return g
 			}
-			if msg.Content[0].Text != "" {
-				am.Content = openai.F([]openai.ChatCompletionAssistantMessageParamContentUnion{
-					openai.TextPart(msg.Content[0].Text),
-				})
-			}
-			toolCalls := convertToolCalls(msg.Content)
 			if len(toolCalls) > 0 {
-				am.ToolCalls = openai.F(toolCalls)
+				am.ToolCalls = (toolCalls)
 			}
-			oaiMessages = append(oaiMessages, am)
+			oaiMessages = append(oaiMessages, openai.ChatCompletionMessageParamUnion{
+				OfAssistant: &am,
+			})
 		case ai.RoleTool:
 			for _, p := range msg.Content {
 				if !p.IsToolResponse() {
 					continue
 				}
-				tm := openai.ToolMessage(
-					// NOTE: Temporarily set its name instead of its ref (i.e. call_xxxxx) since it's not defined in the ai.ToolResponse struct.
-					p.ToolResponse.Name,
-					anyToJSONString(p.ToolResponse.Output),
-				)
+				// Use the captured tool call ID (Ref) if available, otherwise fall back to tool name
+				toolCallID := p.ToolResponse.Ref
+				if toolCallID == "" {
+					toolCallID = p.ToolResponse.Name
+				}
+
+				toolOutput, err := anyToJSONString(p.ToolResponse.Output)
+				if err != nil {
+					g.err = err
+					return g
+				}
+				tm := openai.ToolMessage(toolOutput, toolCallID)
 				oaiMessages = append(oaiMessages, tm)
 			}
+		case ai.RoleUser:
+			parts := []openai.ChatCompletionContentPartUnionParam{}
+			for _, p := range msg.Content {
+				if p.IsText() {
+					parts = append(parts, openai.TextContentPart(p.Text))
+				}
+				if p.IsMedia() {
+					part := openai.ImageContentPart(
+						openai.ChatCompletionContentPartImageImageURLParam{
+							URL: p.Text,
+						})
+					parts = append(parts, part)
+					continue
+				}
+			}
+			if len(parts) > 0 {
+				oaiMessages = append(oaiMessages, openai.ChatCompletionMessageParamUnion{
+					OfUser: &openai.ChatCompletionUserMessageParam{
+						Content: openai.ChatCompletionUserMessageParamContentUnion{OfArrayOfContentParts: parts},
+					},
+				})
+			}
 		default:
-			oaiMessages = append(oaiMessages, openai.UserMessage(content))
+			// ignore parts from not supported roles
+			continue
 		}
-	}
-	g.request.Messages = openai.F(oaiMessages)
-	return g
-}
 
-// OpenaiConfig mirrors the OpenAI API configuration fields
-type OpenAIConfig struct {
-	// Maximum number of tokens to generate
-	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
-	// Temperature for sampling
-	Temperature float64 `json:"temperature,omitempty"`
-	// Top-p value for nucleus sampling
-	TopP float64 `json:"top_p,omitempty"`
-	// List of sequences where the model will stop generating
-	StopSequences []string `json:"stop_sequences,omitempty"`
+	}
+	g.messages = oaiMessages
+	return g
 }
 
 // WithConfig adds configuration parameters from the model request
@@ -135,15 +156,15 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	var openaiConfig OpenAIConfig
+	var openaiConfig openai.ChatCompletionNewParams
 	switch cfg := config.(type) {
-	case OpenAIConfig:
+	case openai.ChatCompletionNewParams:
 		openaiConfig = cfg
-	case *OpenAIConfig:
+	case *openai.ChatCompletionNewParams:
 		openaiConfig = *cfg
 	case map[string]any:
 		if err := mapToStruct(cfg, &openaiConfig); err != nil {
-			g.err = fmt.Errorf("failed to convert config to OpenAIConfig: %w", err)
+			g.err = fmt.Errorf("failed to convert config to openai.ChatCompletionNewParams: %w", err)
 			return g
 		}
 	default:
@@ -151,26 +172,14 @@ func (g *ModelGenerator) WithConfig(config any) *ModelGenerator {
 		return g
 	}
 
-	// Map fields from OpenaiConfig to OpenAI request
-	if openaiConfig.MaxOutputTokens != 0 {
-		g.request.MaxCompletionTokens = openai.F(int64(openaiConfig.MaxOutputTokens))
-	}
-	if len(openaiConfig.StopSequences) > 0 {
-		g.request.Stop = openai.F[openai.ChatCompletionNewParamsStopUnion](
-			openai.ChatCompletionNewParamsStopArray(openaiConfig.StopSequences))
-	}
-	if openaiConfig.Temperature != 0 {
-		g.request.Temperature = openai.F(openaiConfig.Temperature)
-	}
-	if openaiConfig.TopP != 0 {
-		g.request.TopP = openai.F(openaiConfig.TopP)
-	}
-
+	// keep the original model in the updated config structure
+	openaiConfig.Model = g.request.Model
+	g.request = &openaiConfig
 	return g
 }
 
 // WithTools adds tools to the request
-func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolChoice) *ModelGenerator {
+func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition) *ModelGenerator {
 	if g.err != nil {
 		return g
 	}
@@ -186,12 +195,11 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolCho
 		}
 
 		toolParams = append(toolParams, openai.ChatCompletionToolParam{
-			Type: openai.F(openai.ChatCompletionToolTypeFunction),
-			Function: openai.F(shared.FunctionDefinitionParam{
-				Name:        openai.F(tool.Name),
-				Description: openai.F(tool.Description),
-				Parameters:  openai.F(openai.FunctionParameters(tool.InputSchema)),
-				Strict:      openai.F(false), // TODO: implement strict mode
+			Function: (shared.FunctionDefinitionParam{
+				Name:        tool.Name,
+				Description: openai.String(tool.Description),
+				Parameters:  openai.FunctionParameters(tool.InputSchema),
+				Strict:      openai.Bool(false), // TODO: implement strict mode
 			}),
 		})
 	}
@@ -201,37 +209,32 @@ func (g *ModelGenerator) WithTools(tools []*ai.ToolDefinition, choice ai.ToolCho
 	// This is important to avoid sending an empty array in the request
 	// which is not supported by some vendor APIs
 	if len(toolParams) > 0 {
-		g.request.Tools = openai.F(toolParams)
-	}
-
-	switch choice {
-	case ai.ToolChoiceAuto:
-		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoAuto)
-	case ai.ToolChoiceRequired:
-		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoRequired)
-	case ai.ToolChoiceNone:
-		g.request.ToolChoice = openai.F[openai.ChatCompletionToolChoiceOptionUnionParam](openai.ChatCompletionToolChoiceOptionAutoNone)
+		g.tools = toolParams
 	}
 
 	return g
 }
 
 // Generate executes the generation request
-func (g *ModelGenerator) Generate(ctx context.Context, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
+func (g *ModelGenerator) Generate(ctx context.Context, req *ai.ModelRequest, handleChunk func(context.Context, *ai.ModelResponseChunk) error) (*ai.ModelResponse, error) {
 	// Check for any errors that occurred during building
 	if g.err != nil {
 		return nil, g.err
 	}
 
-	// Ensure messages are set
-	if len(g.request.Messages.Value) == 0 {
+	if len(g.messages) == 0 {
 		return nil, fmt.Errorf("no messages provided")
+	}
+	g.request.Messages = (g.messages)
+
+	if len(g.tools) > 0 {
+		g.request.Tools = (g.tools)
 	}
 
 	if handleChunk != nil {
 		return g.generateStream(ctx, handleChunk)
 	}
-	return g.generateComplete(ctx)
+	return g.generateComplete(ctx, req)
 }
 
 // concatenateContent concatenates text content into a single string
@@ -264,20 +267,25 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 
 	var currentToolCall *ai.ToolRequest
 	var currentArguments string
+	var toolCallCollects []struct {
+		toolCall *ai.ToolRequest
+		args     string
+	}
 
 	for stream.Next() {
 		chunk := stream.Current()
 		if len(chunk.Choices) > 0 {
 			choice := chunk.Choices[0]
+			modelChunk := &ai.ModelResponseChunk{}
 
 			switch choice.FinishReason {
-			case openai.ChatCompletionChunkChoicesFinishReasonStop, openai.ChatCompletionChunkChoicesFinishReasonToolCalls:
+			case "tool_calls", "stop":
 				fullResponse.FinishReason = ai.FinishReasonStop
-			case openai.ChatCompletionChunkChoicesFinishReasonLength:
+			case "length":
 				fullResponse.FinishReason = ai.FinishReasonLength
-			case openai.ChatCompletionChunkChoicesFinishReasonContentFilter:
+			case "content_filter":
 				fullResponse.FinishReason = ai.FinishReasonBlocked
-			case openai.ChatCompletionChunkChoicesFinishReasonFunctionCall:
+			case "function_call":
 				fullResponse.FinishReason = ai.FinishReasonOther
 			default:
 				fullResponse.FinishReason = ai.FinishReasonUnknown
@@ -286,40 +294,68 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 			// handle tool calls
 			for _, toolCall := range choice.Delta.ToolCalls {
 				// first tool call (= current tool call is nil) contains the tool call name
+				if currentToolCall != nil && toolCall.ID != "" && currentToolCall.Ref != toolCall.ID {
+					toolCallCollects = append(toolCallCollects, struct {
+						toolCall *ai.ToolRequest
+						args     string
+					}{
+						toolCall: currentToolCall,
+						args:     currentArguments,
+					})
+					currentToolCall = nil
+					currentArguments = ""
+				}
+
 				if currentToolCall == nil {
 					currentToolCall = &ai.ToolRequest{
 						Name: toolCall.Function.Name,
+						Ref:  toolCall.ID,
 					}
 				}
 
 				if toolCall.Function.Arguments != "" {
 					currentArguments += toolCall.Function.Arguments
 				}
+
+				modelChunk.Content = append(modelChunk.Content, ai.NewToolRequestPart(&ai.ToolRequest{
+					Name:  currentToolCall.Name,
+					Input: toolCall.Function.Arguments,
+					Ref:   currentToolCall.Ref,
+				}))
 			}
 
 			// when tool call is complete
-			if choice.FinishReason == openai.ChatCompletionChunkChoicesFinishReasonToolCalls && currentToolCall != nil {
+			if choice.FinishReason == "tool_calls" && currentToolCall != nil {
 				// parse accumulated arguments string
-				if currentArguments != "" {
-					currentToolCall.Input = jsonStringToMap(currentArguments)
+				for _, toolcall := range toolCallCollects {
+					args, err := jsonStringToMap(toolcall.args)
+					if err != nil {
+						return nil, fmt.Errorf("could not parse tool args: %w", err)
+					}
+					toolcall.toolCall.Input = args
+					fullResponse.Message.Content = append(fullResponse.Message.Content, ai.NewToolRequestPart(toolcall.toolCall))
 				}
-
-				fullResponse.Message.Content = []*ai.Part{ai.NewToolRequestPart(currentToolCall)}
-				return &fullResponse, nil
+				if currentArguments != "" {
+					args, err := jsonStringToMap(currentArguments)
+					if err != nil {
+						return nil, fmt.Errorf("could not parse tool args: %w", err)
+					}
+					currentToolCall.Input = args
+				}
+				fullResponse.Message.Content = append(fullResponse.Message.Content, ai.NewToolRequestPart(currentToolCall))
 			}
 
 			content := chunk.Choices[0].Delta.Content
-			modelChunk := &ai.ModelResponseChunk{
-				Content: []*ai.Part{ai.NewTextPart(content)},
+			// when starting a tool call, the content is empty
+			if content != "" {
+				modelChunk.Content = append(modelChunk.Content, ai.NewTextPart(content))
+				fullResponse.Message.Content = append(fullResponse.Message.Content, modelChunk.Content...)
 			}
 
 			if err := handleChunk(ctx, modelChunk); err != nil {
 				return nil, fmt.Errorf("callback error: %w", err)
 			}
 
-			fullResponse.Message.Content = append(fullResponse.Message.Content, modelChunk.Content...)
-
-			// Update Usage
 			fullResponse.Usage.InputTokens += int(chunk.Usage.PromptTokens)
 			fullResponse.Usage.OutputTokens += int(chunk.Usage.CompletionTokens)
 			fullResponse.Usage.TotalTokens += int(chunk.Usage.TotalTokens)
@@ -334,14 +370,14 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 }
 
 // generateComplete generates a complete model response
-func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelResponse, error) {
+func (g *ModelGenerator) generateComplete(ctx context.Context, req *ai.ModelRequest) (*ai.ModelResponse, error) {
 	completion, err := g.client.Chat.Completions.New(ctx, *g.request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create completion: %w", err)
 	}
 
 	resp := &ai.ModelResponse{
-		Request: &ai.ModelRequest{},
+		Request: req,
 		Usage: &ai.GenerationUsage{
 			InputTokens:  int(completion.Usage.PromptTokens),
 			OutputTokens: int(completion.Usage.CompletionTokens),
@@ -355,13 +391,13 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 	choice := completion.Choices[0]
 
 	switch choice.FinishReason {
-	case openai.ChatCompletionChoicesFinishReasonStop, openai.ChatCompletionChoicesFinishReasonToolCalls:
+	case "stop", "tool_calls":
 		resp.FinishReason = ai.FinishReasonStop
-	case openai.ChatCompletionChoicesFinishReasonLength:
+	case "length":
 		resp.FinishReason = ai.FinishReasonLength
-	case openai.ChatCompletionChoicesFinishReasonContentFilter:
+	case "content_filter":
 		resp.FinishReason = ai.FinishReasonBlocked
-	case openai.ChatCompletionChoicesFinishReasonFunctionCall:
+	case "function_call":
 		resp.FinishReason = ai.FinishReasonOther
 	default:
 		resp.FinishReason = ai.FinishReasonUnknown
@@ -370,63 +406,81 @@ func (g *ModelGenerator) generateComplete(ctx context.Context) (*ai.ModelRespons
 	// handle tool calls
 	var toolRequestParts []*ai.Part
 	for _, toolCall := range choice.Message.ToolCalls {
+		args, err := jsonStringToMap(toolCall.Function.Arguments)
+		if err != nil {
+			return nil, err
+		}
 		toolRequestParts = append(toolRequestParts, ai.NewToolRequestPart(&ai.ToolRequest{
+			Ref:   toolCall.ID,
 			Name:  toolCall.Function.Name,
-			Input: jsonStringToMap(toolCall.Function.Arguments),
+			Input: args,
 		}))
 	}
+
+	// content and tool call may exist simultaneously
+	if completion.Choices[0].Message.Content != "" {
+		resp.Message.Content = append(resp.Message.Content, ai.NewTextPart(completion.Choices[0].Message.Content))
+	}
+
 	if len(toolRequestParts) > 0 {
-		resp.Message.Content = toolRequestParts
+		resp.Message.Content = append(resp.Message.Content, toolRequestParts...)
 		return resp, nil
 	}
 
-	resp.Message.Content = []*ai.Part{
-		ai.NewTextPart(completion.Choices[0].Message.Content),
-	}
 	return resp, nil
 }
 
-func convertToolCalls(content []*ai.Part) []openai.ChatCompletionMessageToolCallParam {
+func convertToolCalls(content []*ai.Part) ([]openai.ChatCompletionMessageToolCallParam, error) {
 	var toolCalls []openai.ChatCompletionMessageToolCallParam
 	for _, p := range content {
 		if !p.IsToolRequest() {
 			continue
 		}
-		toolCall := convertToolCall(p)
-		toolCalls = append(toolCalls, toolCall)
+		toolCall, err := convertToolCall(p)
+		if err != nil {
+			return nil, err
+		}
+		toolCalls = append(toolCalls, *toolCall)
 	}
-	return toolCalls
+	return toolCalls, nil
 }
 
-func convertToolCall(part *ai.Part) openai.ChatCompletionMessageToolCallParam {
-	param := openai.ChatCompletionMessageToolCallParam{
-		// NOTE: Temporarily set its name instead of its ref (i.e. call_xxxxx) since it's not defined in the ai.ToolRequest struct.
-		ID:   openai.F(part.ToolRequest.Name),
-		Type: openai.F(openai.ChatCompletionMessageToolCallTypeFunction),
-		Function: openai.F(openai.ChatCompletionMessageToolCallFunctionParam{
-			Name: openai.F(part.ToolRequest.Name),
+func convertToolCall(part *ai.Part) (*openai.ChatCompletionMessageToolCallParam, error) {
+	toolCallID := part.ToolRequest.Ref
+	if toolCallID == "" {
+		toolCallID = part.ToolRequest.Name
+	}
+
+	param := &openai.ChatCompletionMessageToolCallParam{
+		ID: (toolCallID),
+		Function: (openai.ChatCompletionMessageToolCallFunctionParam{
+			Name: (part.ToolRequest.Name),
 		}),
 	}
 
+	args, err := anyToJSONString(part.ToolRequest.Input)
+	if err != nil {
+		return nil, err
+	}
 	if part.ToolRequest.Input != nil {
-		param.Function.Value.Arguments = openai.F(anyToJSONString(part.ToolRequest.Input))
+		param.Function.Arguments = args
 	}
 
-	return param
+	return param, nil
 }
 
-func jsonStringToMap(jsonString string) map[string]any {
+func jsonStringToMap(jsonString string) (map[string]any, error) {
 	var result map[string]any
 	if err := json.Unmarshal([]byte(jsonString), &result); err != nil {
-		panic(fmt.Errorf("unmarshal failed to parse json string %s: %w", jsonString, err))
+		return nil, fmt.Errorf("unmarshal failed to parse json string %s: %w", jsonString, err)
 	}
-	return result
+	return result, nil
 }
 
-func anyToJSONString(data any) string {
+func anyToJSONString(data any) (string, error) {
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {
-		panic(fmt.Errorf("failed to marshal any to JSON string: data, %#v %w", data, err))
+		return "", fmt.Errorf("failed to marshal any to JSON string: data, %#v %w", data, err)
 	}
-	return string(jsonBytes)
+	return string(jsonBytes), nil
 }

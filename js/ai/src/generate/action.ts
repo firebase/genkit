@@ -16,9 +16,8 @@
 
 import {
   GenkitError,
+  StreamingCallback,
   defineAction,
-  getStreamingCallback,
-  runWithStreamingCallback,
   stripUndefinedProps,
   type Action,
   type z,
@@ -34,10 +33,10 @@ import {
 import type { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
-  GenerateResponseChunk,
   GenerationResponseError,
   tagAsPreamble,
 } from '../generate.js';
+import { GenerateResponseChunk } from '../generate/chunk.js';
 import {
   GenerateActionOptionsSchema,
   GenerateResponseChunkSchema,
@@ -57,7 +56,11 @@ import {
   type Part,
   type Role,
 } from '../model.js';
-import { findMatchingResource } from '../resource.js';
+import {
+  findMatchingResource,
+  resolveResources,
+  type ResourceAction,
+} from '../resource.js';
 import { resolveTools, toToolDefinition, type ToolAction } from '../tool.js';
 import {
   assertValidToolNames,
@@ -83,19 +86,20 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
       streamSchema: GenerateResponseChunkSchema,
     },
     async (request, { streamingRequested, sendChunk }) => {
-      const generateFn = () =>
+      const generateFn = (
+        sendChunk?: StreamingCallback<GenerateResponseChunk>
+      ) =>
         generate(registry, {
           rawRequest: request,
           currentTurn: 0,
           messageIndex: 0,
           // Generate util action does not support middleware. Maybe when we add named/registered middleware....
           middleware: [],
+          streamingCallback: sendChunk,
         });
       return streamingRequested
-        ? runWithStreamingCallback(
-            registry,
-            (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
-            generateFn
+        ? generateFn((c: GenerateResponseChunk) =>
+            sendChunk(c.toJSON ? c.toJSON() : c)
           )
         : generateFn();
     }
@@ -113,6 +117,7 @@ export async function generateHelper(
     currentTurn?: number;
     messageIndex?: number;
     abortSignal?: AbortSignal;
+    streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   }
 ): Promise<GenerateResponseData> {
   const currentTurn = options.currentTurn ?? 0;
@@ -122,14 +127,14 @@ export async function generateHelper(
     registry,
     {
       metadata: {
-        name: 'generate',
+        name: options.rawRequest.stepName || 'generate',
       },
       labels: {
         [SPAN_TYPE_ATTR]: 'util',
       },
     },
     async (metadata) => {
-      metadata.name = 'generate';
+      metadata.name = options.rawRequest.stepName || 'generate';
       metadata.input = options.rawRequest;
       const output = await generate(registry, {
         rawRequest: options.rawRequest,
@@ -137,6 +142,7 @@ export async function generateHelper(
         currentTurn,
         messageIndex,
         abortSignal: options.abortSignal,
+        streamingCallback: options.streamingCallback,
       });
       metadata.output = JSON.stringify(output);
       return output;
@@ -149,14 +155,15 @@ async function resolveParameters(
   registry: Registry,
   request: GenerateActionOptions
 ) {
-  const [model, tools, format] = await Promise.all([
+  const [model, tools, resources, format] = await Promise.all([
     resolveModel(registry, request.model, { warnDeprecated: true }).then(
       (r) => r.modelAction
     ),
     resolveTools(registry, request.tools),
+    resolveResources(registry, request.resources),
     resolveFormat(registry, request.output),
   ]);
-  return { model, tools, format };
+  return { model, tools, resources, format };
 }
 
 /** Given a raw request and a formatter, apply the formatter's logic and instructions to the request. */
@@ -234,20 +241,22 @@ async function generate(
     currentTurn,
     messageIndex,
     abortSignal,
+    streamingCallback,
   }: {
     rawRequest: GenerateActionOptions;
     middleware: ModelMiddleware[] | undefined;
     currentTurn: number;
     messageIndex: number;
     abortSignal?: AbortSignal;
+    streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   }
 ): Promise<GenerateResponseData> {
-  const { model, tools, format } = await resolveParameters(
+  const { model, tools, resources, format } = await resolveParameters(
     registry,
     rawRequest
   );
   rawRequest = applyFormat(rawRequest, format);
-  rawRequest = await applyResources(registry, rawRequest);
+  rawRequest = await applyResources(registry, rawRequest, resources);
 
   // check to make sure we don't have overlapping tool names *before* generation
   await assertValidToolNames(tools);
@@ -300,52 +309,50 @@ async function generate(
     });
   };
 
-  const streamingCallback = getStreamingCallback(registry);
-
   // if resolving the 'resume' option above generated a tool message, stream it.
   if (resumedToolMessage && streamingCallback) {
     streamingCallback(makeChunk('tool', resumedToolMessage));
   }
 
-  const response = await runWithStreamingCallback(
-    registry,
-    streamingCallback &&
-      ((chunk: GenerateResponseChunkData) =>
-        streamingCallback(makeChunk('model', chunk))),
-    async () => {
-      const dispatch = async (
-        index: number,
-        req: z.infer<typeof GenerateRequestSchema>
-      ) => {
-        if (!middleware || index === middleware.length) {
-          // end of the chain, call the original model action
-          return await model(req, { abortSignal });
-        }
-
-        const currentMiddleware = middleware[index];
-        return currentMiddleware(req, async (modifiedReq) =>
-          dispatch(index + 1, modifiedReq || req)
-        );
-      };
-
-      const modelResponse = await dispatch(0, request);
-
-      if (model.__action.actionType === 'background-model') {
-        return new GenerateResponse(
-          { operation: modelResponse },
-          {
-            request,
-            parser: format?.handler(request.output?.schema).parseMessage,
-          }
-        );
-      }
-
-      return new GenerateResponse(modelResponse, {
-        request,
-        parser: format?.handler(request.output?.schema).parseMessage,
+  var response: GenerateResponse;
+  const dispatch = async (
+    index: number,
+    req: z.infer<typeof GenerateRequestSchema>
+  ) => {
+    if (!middleware || index === middleware.length) {
+      // end of the chain, call the original model action
+      return await model(req, {
+        abortSignal,
+        onChunk:
+          streamingCallback &&
+          (((chunk: GenerateResponseChunkData) =>
+            streamingCallback &&
+            streamingCallback(makeChunk('model', chunk))) as any),
       });
     }
-  );
+
+    const currentMiddleware = middleware[index];
+    return currentMiddleware(req, async (modifiedReq) =>
+      dispatch(index + 1, modifiedReq || req)
+    );
+  };
+
+  const modelResponse = await dispatch(0, request);
+
+  if (model.__action.actionType === 'background-model') {
+    response = new GenerateResponse(
+      { operation: modelResponse },
+      {
+        request,
+        parser: format?.handler(request.output?.schema).parseMessage,
+      }
+    );
+  } else {
+    response = new GenerateResponse(modelResponse, {
+      request,
+      parser: format?.handler(request.output?.schema).parseMessage,
+    });
+  }
   if (model.__action.actionType === 'background-model') {
     return response.toJSON();
   }
@@ -405,6 +412,8 @@ async function generate(
     middleware: middleware,
     currentTurn: currentTurn + 1,
     messageIndex: messageIndex + 1,
+    streamingCallback,
+    abortSignal,
   });
 }
 
@@ -477,7 +486,8 @@ function getRoleFromPart(part: Part): Role {
 
 async function applyResources(
   registry: Registry,
-  rawRequest: GenerateActionOptions
+  rawRequest: GenerateActionOptions,
+  resources: ResourceAction[]
 ): Promise<GenerateActionOptions> {
   // quick check, if no resources bail.
   if (!rawRequest.messages.find((m) => !!m.content.find((c) => c.resource))) {
@@ -496,7 +506,12 @@ async function applyResources(
         updatedContent.push(p);
         continue;
       }
-      const resource = await findMatchingResource(registry, p.resource);
+
+      const resource = await findMatchingResource(
+        registry,
+        resources,
+        p.resource
+      );
       if (!resource) {
         throw new GenkitError({
           status: 'NOT_FOUND',

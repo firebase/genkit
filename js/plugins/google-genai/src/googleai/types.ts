@@ -25,13 +25,18 @@ import {
   GoogleSearchRetrievalTool,
   HarmBlockThreshold,
   HarmCategory,
+  ImagenInstance,
+  ImagenParameters,
+  ImagenPredictRequest,
+  ImagenPredictResponse,
+  ImagenPrediction,
   Part,
   SafetySetting,
   TaskType,
   TaskTypeSchema,
   Tool,
   ToolConfig,
-} from '../common/types';
+} from '../common/types.js';
 
 // This makes it easier to import all types from one place.
 export {
@@ -46,13 +51,18 @@ export {
   type GenerateContentStreamResult,
   type GenerationConfig,
   type GoogleSearchRetrievalTool,
+  type ImagenInstance,
+  type ImagenParameters,
+  type ImagenPredictRequest,
+  type ImagenPredictResponse,
+  type ImagenPrediction,
   type Part,
   type SafetySetting,
   type Tool,
   type ToolConfig,
 };
 
-export interface PluginOptions {
+export interface GoogleAIPluginOptions {
   /**
    * Provide the API key to use to authenticate with the Gemini API. By
    * default, an API key must be provided explicitly here or through the
@@ -69,14 +79,27 @@ export interface PluginOptions {
 }
 
 /**
- * Params passed to getGenerativeModel() or GoogleAIFileManager().
+ * Options passed to the client
  * @public
  */
-export interface RequestOptions {
+export interface ClientOptions {
+  /**
+   * An object that may be used to abort asynchronous requests. The request may
+   * also be aborted due to the expiration of the timeout value, if provided.
+   *
+   * NOTE: AbortSignal is a client-only operation. Using it to cancel an
+   * operation will not cancel the request in the service. You will still
+   * be charged usage for any applicable operations.
+   */
+  signal?: AbortSignal;
   /**
    * Request timeout in milliseconds.
    */
   timeout?: number;
+  /**
+   * Api Key for Gemini API
+   */
+  apiKey?: string;
   /**
    * Version of API endpoint to call (e.g. "v1" or "v1beta"). If not specified,
    * defaults to 'v1beta'.
@@ -149,4 +172,45 @@ export interface EmbedContentResponse {
  */
 export interface ContentEmbedding {
   values: number[];
+}
+
+export declare interface VeoPredictRequest {
+  instances: VeoInstance[];
+  parameters: VeoParameters;
+}
+
+export declare interface VeoParameters {
+  negativePrompt?: string;
+  aspectRatio?: string;
+  personGeneration?: string;
+  durationSeconds?: number;
+  enhancePrompt?: boolean;
+}
+
+export declare interface VeoInstance {
+  prompt: string;
+  image?: VeoImage;
+  video?: VeoVideo;
+}
+
+export declare interface VeoImage {
+  bytesBase64Encoded: string;
+  mimeType: string;
+}
+
+export declare interface VeoVideo {
+  uri: string;
+}
+
+export declare interface VeoOperation {
+  name: string;
+  done?: boolean;
+  error?: {
+    message: string;
+  };
+  response?: {
+    generateVideoResponse: {
+      generatedSamples: { video: { uri: string } }[];
+    };
+  };
 }

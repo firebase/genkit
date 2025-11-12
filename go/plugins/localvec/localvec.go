@@ -33,6 +33,8 @@ import (
 	"slices"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -51,25 +53,28 @@ func Init() error { return nil }
 
 // DefineRetriever defines a Retriever and docStore which is also used by the retriever.
 // The name uniquely identifies the Retriever in the registry.
-func DefineRetriever(g *genkit.Genkit, name string, cfg Config) (*DocStore, ai.Retriever, error) {
+func DefineRetriever(g *genkit.Genkit, name string, cfg Config, opts *ai.RetrieverOptions) (*DocStore, ai.Retriever, error) {
 	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
 		return nil, nil, err
 	}
-	return ds,
-		genkit.DefineRetriever(g, provider, name, ds.retrieve),
-		nil
+
+	if opts != nil && opts.ConfigSchema == nil {
+		opts.ConfigSchema = core.InferSchemaMap(RetrieverOptions{})
+	}
+
+	return ds, genkit.DefineRetriever(g, api.NewName(provider, name), opts, ds.retrieve), nil
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
 func IsDefinedRetriever(g *genkit.Genkit, name string) bool {
-	return genkit.LookupRetriever(g, provider, name) != nil
+	return genkit.LookupRetriever(g, api.NewName(provider, name)) != nil
 }
 
 // Retriever returns the retriever with the given name.
 // The name must match the [Config.Name] value passed to [Init].
 func Retriever(g *genkit.Genkit, name string) ai.Retriever {
-	return genkit.LookupRetriever(g, provider, name)
+	return genkit.LookupRetriever(g, api.NewName(provider, name))
 }
 
 // DocStore implements a local vector database.

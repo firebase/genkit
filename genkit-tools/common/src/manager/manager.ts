@@ -17,6 +17,7 @@
 import axios, { type AxiosError } from 'axios';
 import chokidar from 'chokidar';
 import EventEmitter from 'events';
+import * as fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 import {
@@ -91,15 +92,10 @@ export class RuntimeManager {
   }
 
   /**
-   * Lists all active runtimes.
+   * Lists all active runtimes
    */
-  listRuntimes(): Record<string, RuntimeInfo> {
-    return Object.fromEntries(
-      Object.values(this.filenameToRuntimeMap).map((runtime) => [
-        runtime.id,
-        runtime,
-      ])
-    );
+  listRuntimes(): RuntimeInfo[] {
+    return Object.values(this.filenameToRuntimeMap);
   }
 
   /**
@@ -154,12 +150,17 @@ export class RuntimeManager {
   /**
    * Retrieves all runnable actions.
    */
-  async listActions(): Promise<Record<string, Action>> {
-    // TODO: Allow selecting a runtime by pid.
-    const runtime = this.getMostRecentRuntime();
+  async listActions(
+    input?: apis.ListActionsRequest
+  ): Promise<Record<string, Action>> {
+    const runtime = input?.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
     if (!runtime) {
       throw new Error(
-        'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+        input?.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
     const response = await axios
@@ -175,11 +176,14 @@ export class RuntimeManager {
     input: apis.RunActionRequest,
     streamingCallback?: StreamingCallback<any>
   ): Promise<RunActionResponse> {
-    // TODO: Allow selecting a runtime by pid.
-    const runtime = this.getMostRecentRuntime();
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
     if (!runtime) {
       throw new Error(
-        'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+        input.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
       );
     }
     if (streamingCallback) {
@@ -321,6 +325,17 @@ export class RuntimeManager {
   }
 
   /**
+   * Adds a trace to the trace store
+   */
+  async addTrace(input: TraceData): Promise<void> {
+    await axios
+      .post(`${this.telemetryServerUrl}/api/traces/`, input)
+      .catch((err) =>
+        this.httpErrorHandler(err, 'Error writing trace to store.')
+      );
+  }
+
+  /**
    * Notifies the runtime of dependencies it may need (e.g. telemetry server URL).
    */
   private async notifyRuntime(runtime: RuntimeInfo) {
@@ -387,6 +402,10 @@ export class RuntimeManager {
    */
   private async handleNewDevUi(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, toolsInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -430,6 +449,10 @@ export class RuntimeManager {
    */
   private async handleNewRuntime(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, runtimeInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -441,8 +464,16 @@ export class RuntimeManager {
       );
 
       if (isValidRuntimeInfo(runtimeInfo)) {
+        if (!runtimeInfo.name) {
+          runtimeInfo.name = runtimeInfo.id;
+        }
         const fileName = path.basename(filePath);
-        if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
+        if (
+          await checkServerHealth(
+            runtimeInfo.reflectionServerUrl,
+            runtimeInfo.id
+          )
+        ) {
           if (
             runtimeInfo.reflectionApiSpecVersion !=
             GENKIT_REFLECTION_API_SPEC_VERSION
@@ -523,7 +554,9 @@ export class RuntimeManager {
   private async performHealthChecks() {
     const healthCheckPromises = Object.entries(this.filenameToRuntimeMap).map(
       async ([fileName, runtime]) => {
-        if (!(await checkServerHealth(runtime.reflectionServerUrl))) {
+        if (
+          !(await checkServerHealth(runtime.reflectionServerUrl, runtime.id))
+        ) {
           await this.removeRuntime(fileName);
         }
       }
@@ -535,19 +568,14 @@ export class RuntimeManager {
    * Removes the runtime file which will trigger the removal watcher.
    */
   private async removeRuntime(fileName: string) {
-    const runtime = this.filenameToRuntimeMap[fileName];
-    if (runtime) {
-      try {
-        const runtimesDir = await findRuntimesDir(this.projectRoot);
-        const runtimeFilePath = path.join(runtimesDir, fileName);
-        await fs.unlink(runtimeFilePath);
-      } catch (error) {
-        logger.debug(`Failed to delete runtime file: ${error}`);
-      }
-      logger.debug(
-        `Removed unhealthy runtime with ID ${runtime.id} from manager.`
-      );
+    try {
+      const runtimesDir = await findRuntimesDir(this.projectRoot);
+      const runtimeFilePath = path.join(runtimesDir, fileName);
+      await fs.unlink(runtimeFilePath);
+    } catch (error) {
+      logger.debug(`Failed to delete runtime file: ${error}`);
     }
+    logger.debug(`Removed unhealthy runtime ${fileName} from manager.`);
   }
 }
 
@@ -564,10 +592,12 @@ function isValidRuntimeInfo(data: any): data is RuntimeInfo {
 
   return (
     typeof data === 'object' &&
+    data !== null &&
     typeof data.id === 'string' &&
     typeof data.pid === 'number' &&
     typeof data.reflectionServerUrl === 'string' &&
     typeof data.timestamp === 'string' &&
-    !isNaN(Date.parse(timestamp))
+    !isNaN(Date.parse(timestamp)) &&
+    (data.name === undefined || typeof data.name === 'string')
   );
 }

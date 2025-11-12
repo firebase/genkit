@@ -15,6 +15,7 @@
  */
 
 import { z, type PluginProvider } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -31,6 +32,8 @@ import {
 } from '../../src/model.js';
 import { defineResource } from '../../src/resource.js';
 import { defineTool } from '../../src/tool.js';
+
+initNodeFeatures();
 
 describe('toGenerateRequest', () => {
   const registry = new Registry();
@@ -79,6 +82,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -97,6 +101,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -129,6 +134,7 @@ describe('toGenerateRequest', () => {
         messages: [{ role: 'user', content: [{ text: 'Add 10 and 5.' }] }],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             description: 'add two numbers together',
@@ -164,6 +170,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -216,6 +223,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -238,6 +246,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {},
       },
@@ -255,6 +264,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: [{ content: [{ text: 'context here' }] }],
+        resources: [],
         tools: [],
         output: {},
       },
@@ -300,6 +310,7 @@ describe('toGenerateRequest', () => {
         ],
         config: undefined,
         docs: undefined,
+        resources: [],
         tools: [],
         output: {
           constrained: true,
@@ -431,7 +442,7 @@ describe('generate', () => {
     );
   });
 
-  it('applies resources', async () => {
+  it('applies resources in the registry', async () => {
     defineResource(
       registry,
       { name: 'testResource', template: 'test://resource/{param}' },
@@ -524,5 +535,71 @@ describe('generate', () => {
         ['Testing streaming', 'Testing streaming']
       );
     });
+
+    it('should stream out chunks (v2 model)', async () => {
+      const registry = new Registry();
+
+      defineModel(
+        registry,
+        { apiVersion: 'v2', name: 'echo-streaming', supports: { tools: true } },
+        async (input, { sendChunk }) => {
+          sendChunk({ content: [{ text: 'hello, ' }] });
+          sendChunk({ content: [{ text: 'world!' }] });
+          return {
+            message: input.messages[0],
+            finishReason: 'stop',
+          };
+        }
+      );
+
+      const { response, stream } = generateStream(registry, {
+        model: 'echo-streaming',
+        prompt: 'Testing streaming',
+      });
+
+      const streamed: any[] = [];
+      for await (const chunk of stream) {
+        streamed.push(chunk.toJSON());
+      }
+      assert.deepStrictEqual(streamed, [
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'hello, ' }],
+        },
+        {
+          index: 0,
+          role: 'model',
+          content: [{ text: 'world!' }],
+        },
+      ]);
+      assert.deepEqual(
+        (await response).messages.map((m) => m.content[0].text),
+        ['Testing streaming', 'Testing streaming']
+      );
+    });
+  });
+
+  it('should use custom stepName parameter in tracing', async () => {
+    const response = await generate(registry, {
+      model: 'echo',
+      prompt: 'Testing custom step name',
+      stepName: 'test-generate-custom',
+    });
+    assert.deepEqual(
+      response.messages.map((m) => m.content[0].text),
+      ['Testing custom step name', 'Testing custom step name']
+    );
+  });
+
+  it('should default to "generate" name when no stepName is provided', async () => {
+    const response = await generate(registry, {
+      model: 'echo',
+      prompt: 'Testing default step name',
+    });
+    assert.deepEqual(
+      response.messages.map((m) => m.content[0].text),
+      ['Testing default step name', 'Testing default step name']
+    );
   });
 });

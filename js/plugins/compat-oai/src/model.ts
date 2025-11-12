@@ -17,8 +17,8 @@
 
 import type {
   GenerateRequest,
+  GenerateResponseChunkData,
   GenerateResponseData,
-  Genkit,
   MessageData,
   ModelReference,
   Part,
@@ -26,17 +26,22 @@ import type {
   StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
-import { GenerationCommonConfigSchema, Message, z } from 'genkit';
-import type {
-  GenerateResponseChunkData,
-  ModelAction,
-  ToolDefinition,
-} from 'genkit/model';
-import type OpenAI from 'openai';
+import {
+  GenerationCommonConfigSchema,
+  GenkitError,
+  Message,
+  StatusName,
+  modelRef,
+  z,
+} from 'genkit';
+import type { ModelAction, ModelInfo, ToolDefinition } from 'genkit/model';
+import { model } from 'genkit/plugin';
+import OpenAI, { APIError } from 'openai';
 import type {
   ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionContentPart,
+  ChatCompletionCreateParams,
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
@@ -48,6 +53,11 @@ import type {
 const VisualDetailLevelSchema = z.enum(['auto', 'low', 'high']).optional();
 
 type VisualDetailLevel = z.infer<typeof VisualDetailLevelSchema>;
+
+export type ModelRequestBuilder = (
+  req: GenerateRequest,
+  params: ChatCompletionCreateParams
+) => void;
 
 export const ChatCompletionCommonConfigSchema =
   GenerationCommonConfigSchema.extend({
@@ -241,7 +251,7 @@ export function fromOpenAIToolCall(
   }
   const f = toolCall.function;
 
-  // Only parse arugments when it is a JSON object and the finish reason is tool_calls to avoid parsing errors
+  // Only parse arguments when it is a JSON object and the finish reason is tool_calls to avoid parsing errors
   if (choice.finish_reason === 'tool_calls') {
     return {
       toolRequest: {
@@ -274,19 +284,36 @@ export function fromOpenAIChoice(
   const toolRequestParts = choice.message.tool_calls?.map((toolCall) =>
     fromOpenAIToolCall(toolCall, choice)
   );
+
+  // Build content array based on what's present in the message
+  let content: Part[] = [];
+
+  if (toolRequestParts) {
+    content = toolRequestParts as ToolRequestPart[];
+  } else {
+    // Handle reasoning_content if present
+    if (
+      'reasoning_content' in choice.message &&
+      choice.message.reasoning_content
+    ) {
+      content.push({ reasoning: choice.message.reasoning_content as string });
+    }
+
+    // Handle regular content if present
+    if (choice.message.content) {
+      content.push(
+        jsonMode
+          ? { data: JSON.parse(choice.message.content!) }
+          : { text: choice.message.content! }
+      );
+    }
+  }
+
   return {
     finishReason: finishReasonMap[choice.finish_reason] || 'other',
     message: {
       role: 'model',
-      content: toolRequestParts
-        ? // Note: Not sure why I have to cast here exactly.
-          // Otherwise it thinks toolRequest must be 'undefined' if provided
-          (toolRequestParts as ToolRequestPart[])
-        : [
-            jsonMode
-              ? { data: JSON.parse(choice.message.content!) }
-              : { text: choice.message.content! },
-          ],
+      content,
     },
   };
 }
@@ -305,21 +332,35 @@ export function fromOpenAIChunkChoice(
   const toolRequestParts = choice.delta.tool_calls?.map((toolCall) =>
     fromOpenAIToolCall(toolCall, choice)
   );
+
+  // Build content array based on what's present in the delta
+  let content: Part[] = [];
+
+  if (toolRequestParts) {
+    content = toolRequestParts as ToolRequestPart[];
+  } else {
+    // Handle reasoning_content if present
+    if ('reasoning_content' in choice.delta && choice.delta.reasoning_content) {
+      content.push({ reasoning: choice.delta.reasoning_content as string });
+    }
+
+    // Handle regular content if present
+    if (choice.delta.content) {
+      content.push(
+        jsonMode
+          ? { data: JSON.parse(choice.delta.content!) }
+          : { text: choice.delta.content! }
+      );
+    }
+  }
+
   return {
     finishReason: choice.finish_reason
       ? finishReasonMap[choice.finish_reason] || 'other'
       : 'unknown',
     message: {
       role: 'model',
-      content: toolRequestParts
-        ? // Note: Not sure why I have to cast here exactly.
-          // Otherwise it thinks toolRequest must be 'undefined' if provided
-          (toolRequestParts as ToolRequestPart[])
-        : [
-            jsonMode
-              ? { data: JSON.parse(choice.delta.content!) }
-              : { text: choice.delta.content! },
-          ],
+      content,
     },
   };
 }
@@ -333,7 +374,8 @@ export function fromOpenAIChunkChoice(
  */
 export function toOpenAIRequestBody(
   modelName: string,
-  request: GenerateRequest
+  request: GenerateRequest,
+  requestBuilder?: ModelRequestBuilder
 ) {
   const messages = toOpenAIMessages(
     request.messages,
@@ -358,7 +400,7 @@ export function toOpenAIRequestBody(
   if (toolsFromConfig) {
     tools.push(...(toolsFromConfig as any[]));
   }
-  const body = {
+  let body = {
     model: modelVersion ?? modelName,
     messages,
     tools: tools.length > 0 ? tools : undefined,
@@ -369,14 +411,29 @@ export function toOpenAIRequestBody(
     presence_penalty,
     top_logprobs,
     logprobs,
-    ...restOfConfig, // passthrough for other config
   } as ChatCompletionCreateParamsNonStreaming;
-
+  if (requestBuilder) {
+    // If override provided, apply the override to the OpenAI request.
+    // User must control passthrough config too.
+    requestBuilder(request, body);
+  } else {
+    body = { ...body, ...restOfConfig }; // passthrough for other config
+  }
   const response_format = request.output?.format;
   if (response_format === 'json') {
-    body.response_format = {
-      type: 'json_object',
-    };
+    if (request.output?.schema) {
+      body.response_format = {
+        type: 'json_schema',
+        json_schema: {
+          name: 'output',
+          schema: request.output!.schema,
+        },
+      };
+    } else {
+      body.response_format = {
+        type: 'json_object',
+      };
+    }
   } else if (response_format === 'text') {
     body.response_format = {
       type: 'text',
@@ -396,50 +453,88 @@ export function toOpenAIRequestBody(
  * @param client The OpenAI client instance.
  * @returns The runner that Genkit will call when the model is invoked.
  */
-export function openAIModelRunner(name: string, client: OpenAI) {
+export function openAIModelRunner(
+  name: string,
+  client: OpenAI,
+  requestBuilder?: ModelRequestBuilder
+) {
   return async (
     request: GenerateRequest,
-    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+    options?: {
+      streamingRequested?: boolean;
+      sendChunk?: StreamingCallback<GenerateResponseChunkData>;
+      abortSignal?: AbortSignal;
+    }
   ): Promise<GenerateResponseData> => {
-    let response: ChatCompletion;
-    const body = toOpenAIRequestBody(name, request);
-    if (streamingCallback) {
-      const stream = client.beta.chat.completions.stream({
-        ...body,
-        stream: true,
-        stream_options: {
-          include_usage: true,
-        },
-      });
-      for await (const chunk of stream) {
-        chunk.choices?.forEach((chunk) => {
-          const c = fromOpenAIChunkChoice(chunk);
-          streamingCallback({
-            index: chunk.index,
-            content: c.message?.content ?? [],
+    try {
+      let response: ChatCompletion;
+      const body = toOpenAIRequestBody(name, request, requestBuilder);
+      if (options?.streamingRequested) {
+        const stream = client.beta.chat.completions.stream(
+          {
+            ...body,
+            stream: true,
+            stream_options: {
+              include_usage: true,
+            },
+          },
+          { signal: options?.abortSignal }
+        );
+        for await (const chunk of stream) {
+          chunk.choices?.forEach((chunk) => {
+            const c = fromOpenAIChunkChoice(chunk);
+            options?.sendChunk!({
+              index: chunk.index,
+              content: c.message?.content ?? [],
+            });
           });
+        }
+        response = await stream.finalChatCompletion();
+      } else {
+        response = await client.chat.completions.create(body, {
+          signal: options?.abortSignal,
         });
       }
-      response = await stream.finalChatCompletion();
-    } else {
-      response = await client.chat.completions.create(body);
-    }
-    const standardResponse: GenerateResponseData = {
-      usage: {
-        inputTokens: response.usage?.prompt_tokens,
-        outputTokens: response.usage?.completion_tokens,
-        totalTokens: response.usage?.total_tokens,
-      },
-      raw: response,
-    };
-    if (response.choices.length === 0) {
-      return standardResponse;
-    } else {
-      const choice = response.choices[0];
-      return {
-        ...fromOpenAIChoice(choice, request.output?.format === 'json'),
-        ...standardResponse,
+      const standardResponse: GenerateResponseData = {
+        usage: {
+          inputTokens: response.usage?.prompt_tokens,
+          outputTokens: response.usage?.completion_tokens,
+          totalTokens: response.usage?.total_tokens,
+        },
+        raw: response,
       };
+      if (response.choices.length === 0) {
+        return standardResponse;
+      } else {
+        const choice = response.choices[0];
+        return {
+          ...fromOpenAIChoice(choice, request.output?.format === 'json'),
+          ...standardResponse,
+        };
+      }
+    } catch (e) {
+      if (e instanceof APIError) {
+        let status: StatusName = 'UNKNOWN';
+        switch (e.status) {
+          case 429:
+            status = 'RESOURCE_EXHAUSTED';
+            break;
+          case 400:
+            status = 'INVALID_ARGUMENT';
+            break;
+          case 500:
+            status = 'INTERNAL';
+            break;
+          case 503:
+            status = 'UNAVAILABLE';
+            break;
+        }
+        throw new GenkitError({
+          status,
+          message: e.message,
+        });
+      }
+      throw e;
     }
   };
 }
@@ -463,20 +558,56 @@ export function openAIModelRunner(name: string, client: OpenAI) {
 export function defineCompatOpenAIModel<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
-  ai: Genkit;
   name: string;
   client: OpenAI;
   modelRef?: ModelReference<CustomOptions>;
+  requestBuilder?: ModelRequestBuilder;
 }): ModelAction {
-  const { ai, name, client, modelRef } = params;
-  const model = name.split('/').pop();
+  const { name, client, modelRef, requestBuilder } = params;
+  const modelName = name.substring(name.indexOf('/') + 1);
 
-  return ai.defineModel(
+  return model(
     {
       name,
       ...modelRef?.info,
       configSchema: modelRef?.configSchema,
     },
-    openAIModelRunner(model!, client)
+    openAIModelRunner(modelName!, client, requestBuilder)
   );
+}
+
+const GENERIC_MODEL_INFO: ModelInfo = {
+  supports: {
+    multiturn: true,
+    media: true,
+    tools: true,
+    toolChoice: true,
+    systemRole: true,
+  },
+};
+
+/** ModelRef helper, with reasonable defaults for OpenAI-compatible providers */
+export function compatOaiModelRef<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: {
+  name: string;
+  info?: ModelInfo;
+  configSchema?: CustomOptions;
+  config?: any;
+  namespace?: string;
+}): ModelReference<CustomOptions> {
+  const {
+    name,
+    info = GENERIC_MODEL_INFO,
+    configSchema,
+    config = undefined,
+    namespace,
+  } = params;
+  return modelRef({
+    name,
+    configSchema: configSchema || (ChatCompletionCommonConfigSchema as any),
+    info: info,
+    config,
+    namespace,
+  });
 }

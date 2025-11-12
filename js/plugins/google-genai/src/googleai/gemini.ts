@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { Genkit, GenkitError, z } from 'genkit';
+import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
+  GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
   ModelInfo,
@@ -25,6 +26,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
+import { model as pluginModel } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import {
   fromGeminiCandidate,
@@ -32,44 +34,55 @@ import {
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
-} from '../common/converters';
-import { cleanSchema, nearestModelRef } from '../common/utils';
+} from '../common/converters.js';
 import {
   generateContent,
   generateContentStream,
   getGoogleAIUrl,
-} from './client';
+} from './client.js';
 import {
+  ClientOptions,
   Content as GeminiMessage,
   GenerateContentRequest,
   GenerateContentResponse,
   GenerationConfig,
+  GoogleAIPluginOptions,
   GoogleSearchRetrievalTool,
-  RequestOptions,
+  Model,
   SafetySetting,
   Tool,
   ToolConfig,
-} from './types';
-import { getApiKeyFromEnvVar } from './utils';
+} from './types.js';
+import {
+  calculateApiKey,
+  calculateRequestOptions,
+  checkApiKey,
+  checkModelName,
+  cleanSchema,
+  extractVersion,
+  removeClientOptionOverrides,
+} from './utils.js';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
  */
-const SafetySettingsSchema = z.object({
-  category: z.enum([
-    'HARM_CATEGORY_UNSPECIFIED',
-    'HARM_CATEGORY_HATE_SPEECH',
-    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-    'HARM_CATEGORY_HARASSMENT',
-    'HARM_CATEGORY_DANGEROUS_CONTENT',
-  ]),
-  threshold: z.enum([
-    'BLOCK_LOW_AND_ABOVE',
-    'BLOCK_MEDIUM_AND_ABOVE',
-    'BLOCK_ONLY_HIGH',
-    'BLOCK_NONE',
-  ]),
-});
+const SafetySettingsSchema = z
+  .object({
+    category: z.enum([
+      'HARM_CATEGORY_UNSPECIFIED',
+      'HARM_CATEGORY_HATE_SPEECH',
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_HARASSMENT',
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+    ]),
+    threshold: z.enum([
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+    ]),
+  })
+  .passthrough();
 
 const VoiceConfigSchema = z
   .object({
@@ -129,6 +142,18 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .string()
     .describe('Overrides the plugin-configured API key, if specified.')
     .optional(),
+  baseUrl: z
+    .string()
+    .describe(
+      'Overrides the plugin-configured or default baseUrl, if specified.'
+    )
+    .optional(),
+  apiVersion: z
+    .string()
+    .describe(
+      'Overrides the plugin-configured or default apiVersion, if specified.'
+    )
+    .optional(),
   safetySettings: z
     .array(SafetySettingsSchema)
     .describe(
@@ -160,6 +185,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .passthrough()
     .optional(),
   responseModalities: z
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
@@ -174,8 +200,53 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       'Retrieve public web data for grounding, powered by Google Search.'
     )
     .optional(),
+  temperature: z
+    .number()
+    .min(0)
+    .max(2)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 1.0.'
+    )
+    .optional(),
+  topP: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe(
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
+    )
+    .optional(),
+  thinkingConfig: z
+    .object({
+      includeThoughts: z
+        .boolean()
+        .describe(
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only if the model supports ' +
+            'thought and thoughts are available.'
+        )
+        .optional(),
+      thinkingBudget: z
+        .number()
+        .min(0)
+        .max(24576)
+        .describe(
+          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+            '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
+            'dependent. The thinking budget parameter gives the model guidance ' +
+            'on the number of thinking tokens it can use when generating a ' +
+            'response. A greater number of tokens is typically associated with ' +
+            'more detailed thinking, which is needed for solving more complex ' +
+            'tasks. '
+        )
+        .optional(),
+    })
+    .passthrough()
+    .optional(),
 }).passthrough();
-export type GeminiConfig = z.infer<typeof GeminiConfigSchema>;
+export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
+export type GeminiConfig = z.infer<GeminiConfigSchemaType>;
 
 export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
   speechConfig: z
@@ -205,28 +276,37 @@ export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
     .passthrough()
     .optional(),
 }).passthrough();
+export type GeminiTtsConfigSchemaType = typeof GeminiTtsConfigSchema;
+export type GeminiTtsConfig = z.infer<GeminiTtsConfigSchemaType>;
 
-// For commonRef
-type ConfigSchema = typeof GeminiConfigSchema | typeof GeminiTtsConfigSchema;
+export const GemmaConfigSchema = GeminiConfigSchema.extend({
+  temperature: z
+    .number()
+    .min(0.0)
+    .max(1.0)
+    .describe(
+      GenerationCommonConfigDescriptions.temperature +
+        ' The default value is 1.0.'
+    )
+    .optional(),
+}).passthrough();
+export type GemmaConfigSchemaType = typeof GemmaConfigSchema;
+export type GemmaConfig = z.infer<GemmaConfigSchemaType>;
 
-const TTS_MODEL_INFO: ModelInfo = {
-  supports: {
-    multiturn: false,
-    media: false,
-    tools: false,
-    toolChoice: false,
-    systemRole: false,
-    constrained: 'no-tools',
-  },
-};
+// This contains all the Gemini config schema types
+type ConfigSchemaType =
+  | GeminiConfigSchemaType
+  | GeminiTtsConfigSchemaType
+  | GemmaConfigSchemaType;
 
 function commonRef(
   name: string,
   info?: ModelInfo,
-  configSchema: ConfigSchema = GeminiConfigSchema
-): ModelReference<ConfigSchema> {
+  configSchema: ConfigSchemaType = GeminiConfigSchema
+): ModelReference<ConfigSchemaType> {
   return modelRef({
     name: `googleai/${name}`,
+    configSchema,
     info: info ?? {
       supports: {
         multiturn: true,
@@ -235,129 +315,161 @@ function commonRef(
         toolChoice: true,
         systemRole: true,
         constrained: 'no-tools',
+        output: ['text', 'json'],
       },
     },
-    configSchema,
   });
 }
 
-export const KNOWN_GEMINI_MODELS = {
+const GENERIC_MODEL = commonRef('gemini');
+const GENERIC_TTS_MODEL = commonRef(
+  'gemini-tts',
+  {
+    supports: {
+      multiturn: false,
+      media: false,
+      tools: false,
+      toolChoice: false,
+      systemRole: false,
+      constrained: 'no-tools',
+    },
+  },
+  GeminiTtsConfigSchema
+);
+const GENERIC_GEMMA_MODEL = commonRef(
+  'gemma-generic',
+  undefined,
+  GemmaConfigSchema
+);
+
+const KNOWN_GEMINI_MODELS = {
+  'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
+  'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
+  'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
+  'gemini-2.5-flash-image-preview': commonRef('gemini-2.5-flash-image-preview'),
+  'gemini-2.5-flash-image': commonRef('gemini-2.5-flash-image'),
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
+  'gemini-2.0-flash-preview-image-generation': commonRef(
+    'gemini-2.0-flash-preview-image-generation'
+  ),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
-  'gemini-2.0-pro-exp-02-05': commonRef('gemini-2.0-pro-exp-02-05'),
-  'gemini-2.0-flash-exp': commonRef('gemini-2.0-flash-exp'),
-  'gemini-2.5-pro-exp-03-25': commonRef('gemini-2.5-pro-exp-03-25'),
-  'gemini-2.5-pro-preview-03-25': commonRef('gemini-2.5-pro-preview-03-25'),
-  'gemini-2.5-flash-preview-04-17': commonRef('gemini-2.5-flash-preview-04-17'),
+};
+export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
+export type GeminiModelName = `gemini-${string}`;
+export function isGeminiModelName(value: string): value is GeminiModelName {
+  return value.startsWith('gemini-') && !value.endsWith('-tts');
+}
+
+const KNOWN_TTS_MODELS = {
   'gemini-2.5-flash-preview-tts': commonRef(
     'gemini-2.5-flash-preview-tts',
-    TTS_MODEL_INFO,
+    { ...GENERIC_TTS_MODEL.info },
     GeminiTtsConfigSchema
   ),
   'gemini-2.5-pro-preview-tts': commonRef(
     'gemini-2.5-pro-preview-tts',
-    TTS_MODEL_INFO,
+    { ...GENERIC_TTS_MODEL.info },
     GeminiTtsConfigSchema
   ),
+};
+export type KnownTtsModels = keyof typeof KNOWN_TTS_MODELS;
+export type TTSModelName = `gemini-${string}-tts`;
+export function isTTSModelName(value: string): value is TTSModelName {
+  return value.startsWith('gemini-') && value.endsWith('-tts');
+}
+
+const KNOWN_GEMMA_MODELS = {
+  'gemma-3-12b-it': commonRef('gemma-3-12b-it', undefined, GemmaConfigSchema),
+  'gemma-3-1b-it': commonRef('gemma-3-1b-it', undefined, GemmaConfigSchema),
+  'gemma-3-27b-it': commonRef('gemma-3-27b-it', undefined, GemmaConfigSchema),
+  'gemma-3-4b-it': commonRef('gemma-3-4b-it', undefined, GemmaConfigSchema),
+  'gemma-3n-e4b-it': commonRef('gemma-3n-e4b-it', undefined, GemmaConfigSchema),
 } as const;
+export type KnownGemmaModels = keyof typeof KNOWN_GEMMA_MODELS;
+export type GemmaModelName = `gemma-${string}`;
+export function isGemmaModelName(value: string): value is GemmaModelName {
+  return value.startsWith('gemma-');
+}
 
-export const GENERIC_GEMINI_MODEL = commonRef('gemini');
+const KNOWN_MODELS = {
+  ...KNOWN_GEMINI_MODELS,
+  ...KNOWN_TTS_MODELS,
+  ...KNOWN_GEMMA_MODELS,
+};
 
-/**
- * Known model names, to allow code completion for convenience. Allows other model names.
- */
-export type GeminiVersionString =
-  | keyof typeof KNOWN_GEMINI_MODELS
-  | (string & {});
+export function model(
+  version: string,
+  config: GeminiConfig | GeminiTtsConfig | GemmaConfig = {}
+): ModelReference<ConfigSchemaType> {
+  const name = checkModelName(version);
 
-/**
- * Returns a reference to a model that can be used in generate calls.
- *
- * ```js
- * await ai.generate({
- *   prompt: 'hi',
- *   model: gemini('gemini-2.5-flash')
- * });
- * ```
- */
-export function gemini(
-  version: GeminiVersionString,
-  options: GeminiConfig = {}
-): ModelReference<typeof GeminiConfigSchema> {
-  const nearestModel = nearestModelRef(
-    version,
-    KNOWN_GEMINI_MODELS,
-    GENERIC_GEMINI_MODEL
-  );
+  if (isTTSModelName(name)) {
+    return modelRef({
+      name: `googleai/${name}`,
+      config,
+      configSchema: GeminiTtsConfigSchema,
+      info: { ...GENERIC_TTS_MODEL.info },
+    });
+  }
+
+  if (isGemmaModelName(name)) {
+    return modelRef({
+      name: `googleai/${name}`,
+      config,
+      configSchema: GemmaConfigSchema,
+      info: { ...GENERIC_GEMMA_MODEL.info },
+    });
+  }
+
   return modelRef({
-    name: `googleai/${version}`,
-    config: options,
-    configSchema: nearestModel.configSchema,
-    info: {
-      ...nearestModel.info,
-    },
+    name: `googleai/${name}`,
+    config,
+    configSchema: GeminiConfigSchema,
+    info: { ...GENERIC_MODEL.info },
   });
+}
+
+// Takes a full list of models, filters for current Gemini models only
+// and returns a modelActionMetadata for each.
+export function listActions(models: Model[]): ActionMetadata[] {
+  return (
+    models
+      .filter((m) => m.supportedGenerationMethods.includes('generateContent'))
+      // Filter out deprecated
+      .filter((m) => !m.description || !m.description.includes('deprecated'))
+      .map((m) => {
+        const ref = model(m.name);
+        return modelActionMetadata({
+          name: ref.name,
+          info: ref.info,
+          configSchema: ref.configSchema,
+        });
+      })
+  );
+}
+
+export function listKnownModels(options?: GoogleAIPluginOptions) {
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, options)
+  );
 }
 
 /**
  * Defines a new GoogleAI Gemini model.
  */
-export function defineGeminiModel({
-  ai,
-  name,
-  apiKey: apiKeyOption,
-  apiVersion,
-  baseUrl,
-  info,
-  defaultConfig,
-  debugTraces,
-}: {
-  ai: Genkit;
-  name: string;
-  apiKey?: string | false;
-  apiVersion?: string;
-  baseUrl?: string;
-  info?: ModelInfo;
-  defaultConfig?: GeminiConfig;
-  debugTraces?: boolean;
-}): ModelAction {
-  let apiKey: string | undefined;
-  // DO NOT infer API key from environment variable if plugin was configured with `{apiKey: false}`.
-  if (apiKeyOption !== false) {
-    apiKey = apiKeyOption || getApiKeyFromEnvVar();
-    if (!apiKey) {
-      throw new GenkitError({
-        status: 'FAILED_PRECONDITION',
-        message:
-          'Please pass in the API key or set the GEMINI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-          'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai',
-      });
-    }
-  }
-
-  const apiModelName = name.startsWith('googleai/')
-    ? name.substring('googleai/'.length)
-    : name;
-
-  const model: ModelReference<z.ZodTypeAny> =
-    KNOWN_GEMINI_MODELS[apiModelName] ??
-    modelRef({
-      name: `googleai/${apiModelName}`,
-      info: {
-        supports: {
-          multiturn: true,
-          media: true,
-          tools: true,
-          systemRole: true,
-          output: ['text', 'json'],
-        },
-        ...info,
-      },
-      configSchema: GeminiConfigSchema,
-    });
+export function defineModel(
+  name: string,
+  pluginOptions?: GoogleAIPluginOptions
+): ModelAction {
+  checkApiKey(pluginOptions?.apiKey);
+  const ref = model(name);
+  const clientOptions: ClientOptions = {
+    apiVersion: pluginOptions?.apiVersion,
+    baseUrl: pluginOptions?.baseUrl,
+  };
 
   const middleware: ModelMiddleware[] = [];
-  if (model.info?.supports?.media) {
+  if (ref.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
     middleware.push(
       downloadRequestMedia({
@@ -383,22 +495,18 @@ export function defineGeminiModel({
     );
   }
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      name: model.name,
-      ...model.info,
-      configSchema: model.configSchema,
+      name: ref.name,
+      ...ref.info,
+      configSchema: ref.configSchema,
       use: middleware,
     },
-    async (request, sendChunk) => {
-      const options: RequestOptions = {
-        apiVersion,
-        baseUrl,
-      };
-      const requestConfig: z.infer<typeof GeminiConfigSchema> = {
-        ...defaultConfig,
-        ...request.config,
-      };
+    async (request, { streamingRequested, sendChunk, abortSignal }) => {
+      const clientOpt = calculateRequestOptions(
+        { ...clientOptions, signal: abortSignal },
+        request.config
+      );
 
       // Make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
@@ -421,6 +529,9 @@ export function defineGeminiModel({
         });
       }
 
+      const requestOptions: z.infer<ConfigSchemaType> = {
+        ...request.config,
+      };
       const {
         apiKey: apiKeyFromConfig,
         safetySettings: safetySettingsFromConfig,
@@ -430,14 +541,12 @@ export function defineGeminiModel({
         googleSearchRetrieval,
         tools: toolsFromConfig,
         ...restOfConfigOptions
-      } = requestConfig;
+      } = requestOptions;
 
       if (codeExecutionFromConfig) {
         tools.push({
           codeExecution:
-            request.config.codeExecution === true
-              ? {}
-              : request.config.codeExecution,
+            codeExecutionFromConfig === true ? {} : codeExecutionFromConfig,
         });
       }
 
@@ -475,7 +584,7 @@ export function defineGeminiModel({
           tools.length === 0);
 
       const generationConfig: GenerationConfig = {
-        ...restOfConfigOptions,
+        ...removeClientOptionOverrides(restOfConfigOptions),
         candidateCount: request.candidates || undefined,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
@@ -484,7 +593,7 @@ export function defineGeminiModel({
         generationConfig.responseSchema = cleanSchema(request.output.schema);
       }
 
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const msg = toGeminiMessage(messages[messages.length - 1], ref);
 
       let generateContentRequest: GenerateContentRequest = {
         systemInstruction,
@@ -494,31 +603,25 @@ export function defineGeminiModel({
         safetySettings: safetySettingsFromConfig?.filter(
           (setting) => setting.category !== 'HARM_CATEGORY_UNSPECIFIED'
         ) as SafetySetting[],
-        contents: messages.map((message) => toGeminiMessage(message, model)),
+        contents: messages.map((message) => toGeminiMessage(message, ref)),
       };
 
-      const modelVersion = (versionFromConfig ||
-        model.version ||
-        apiModelName) as string;
+      const modelVersion = versionFromConfig || extractVersion(ref);
 
-      apiKey = apiKeyFromConfig || apiKey;
-      if (!apiKey) {
-        throw new GenkitError({
-          status: 'INVALID_ARGUMENT',
-          message:
-            'GoogleAI plugin was initialized with {apiKey: false} but no apiKey configuration was passed at call time.',
-        });
-      }
+      const generateApiKey = calculateApiKey(
+        pluginOptions?.apiKey,
+        requestOptions.apiKey
+      );
 
       const callGemini = async () => {
         let response: GenerateContentResponse;
 
-        if (sendChunk) {
+        if (streamingRequested) {
           const result = await generateContentStream(
-            apiKey!,
+            generateApiKey,
             modelVersion,
             generateContentRequest,
-            options
+            clientOpt
           );
 
           for await (const item of result.stream) {
@@ -533,10 +636,10 @@ export function defineGeminiModel({
           response = await result.response;
         } else {
           response = await generateContent(
-            apiKey!,
+            generateApiKey,
             modelVersion,
             generateContentRequest,
-            options
+            clientOpt
           );
         }
 
@@ -560,6 +663,7 @@ export function defineGeminiModel({
             ...getBasicUsageStats(request.messages, candidateData),
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount,
+            thoughtsTokens: response.usageMetadata?.thoughtsTokenCount,
             totalTokens: response.usageMetadata?.totalTokenCount,
             cachedContentTokens:
               response.usageMetadata?.cachedContentTokenCount,
@@ -569,25 +673,24 @@ export function defineGeminiModel({
 
       // If debugTraces is enabled, we wrap the actual model call with a span, add raw
       // API params as for input.
-      return debugTraces
+      return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
-            ai.registry,
             {
               metadata: {
-                name: sendChunk ? 'sendMessageStream' : 'sendMessage',
+                name: streamingRequested ? 'sendMessageStream' : 'sendMessage',
               },
             },
             async (metadata) => {
               metadata.input = {
                 apiEndpoint: getGoogleAIUrl({
                   resourcePath: '',
-                  requestOptions: options,
+                  clientOptions: clientOpt,
                 }),
                 cache: {},
                 model: modelVersion,
                 generateContentOptions: generateContentRequest,
                 parts: msg.parts,
-                options,
+                options: clientOpt,
               };
               const response = await callGemini();
               metadata.output = response.custom;
@@ -598,3 +701,5 @@ export function defineGeminiModel({
     }
   );
 }
+
+export const TEST_ONLY = { KNOWN_MODELS };

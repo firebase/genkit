@@ -17,6 +17,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { Runtime } from '../manager/types';
+import { isConnectionRefusedError } from './errors';
 import { logger } from './logger';
 
 export interface DevToolsInfo {
@@ -138,15 +139,15 @@ export async function detectRuntime(directory: string): Promise<Runtime> {
 /**
  * Checks the health of a server with a /api/__health endpoint.
  */
-export async function checkServerHealth(url: string): Promise<boolean> {
+export async function checkServerHealth(
+  url: string,
+  id?: string
+): Promise<boolean> {
   try {
-    const response = await fetch(`${url}/api/__health`);
+    const response = await fetch(`${url}/api/__health${id ? `?id=${id}` : ''}`);
     return response.status === 200;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.cause as any).code === 'ECONNREFUSED'
-    ) {
+    if (isConnectionRefusedError(error)) {
       return false;
     }
   }
@@ -187,10 +188,7 @@ export async function waitUntilUnresponsive(
     try {
       const health = await fetch(`${url}/api/__health`);
     } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.cause as any).code === 'ECONNREFUSED'
-      ) {
+      if (isConnectionRefusedError(error)) {
         return true;
       }
     }

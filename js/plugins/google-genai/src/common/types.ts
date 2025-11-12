@@ -39,8 +39,12 @@ export enum FunctionCallingMode {
   NONE = 'NONE',
 }
 
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 /**
- * The reason why the reponse is blocked.
+ * The reason why the response is blocked.
  */
 export enum BlockReason {
   /** Unspecified block reason. */
@@ -140,6 +144,14 @@ export declare interface GoogleSearchRetrievalTool {
   googleSearchRetrieval?: GoogleSearchRetrieval;
   googleSearch?: GoogleSearchRetrieval;
 }
+export function isGoogleSearchRetrievalTool(
+  tool: Tool
+): tool is GoogleSearchRetrievalTool {
+  return (
+    (tool as GoogleSearchRetrievalTool).googleSearchRetrieval !== undefined ||
+    (tool as GoogleSearchRetrievalTool).googleSearch !== undefined
+  );
+}
 
 /**
  * Grounding support.
@@ -148,7 +160,7 @@ export declare interface GroundingSupport {
   /** Optional. Segment of the content this support belongs to. */
   segment?: GroundingSupportSegment;
   /**
-   * Optional. A arrau of indices (into {@link GroundingChunk}) specifying the
+   * Optional. A array of indices (into {@link GroundingChunk}) specifying the
    * citations associated with the claim. For instance [1,3,4] means
    * that grounding_chunk[1], grounding_chunk[3],
    * grounding_chunk[4] are the retrieved content attributed to the claim.
@@ -370,6 +382,8 @@ export declare interface UsageMetadata {
   totalTokenCount?: number;
   /** Optional. Number of tokens in the cached content. */
   cachedContentTokenCount?: number;
+  /** Optional. Number of tokens present in thoughts output. */
+  thoughtsTokenCount?: number;
 }
 
 export const TaskTypeSchema = z.enum([
@@ -431,7 +445,7 @@ export declare interface GoogleDate {
   year?: number;
   /**
    * Month of the date. Must be from 1 to 12, or 0 to specify a year without a
-   * monthi and day.
+   * month and day.
    */
   month?: number;
   /**
@@ -624,6 +638,27 @@ export declare interface CodeExecutionResult {
 }
 
 /**
+ * Can be added in the same part as video media to specify
+ * which part of the video to consider and how many frames
+ * per second to analyze. VertexAI only.
+ */
+export declare interface VideoMetadata {
+  /**
+   * The video offset to start at. e.g. '3.5s'
+   */
+  startOffset?: string;
+  /**
+   * The video offset to end at e.g. '10.5s'
+   */
+  endOffset?: string;
+  /**
+   * The number of frames to consider per second
+   * 0.0 to 24.0.
+   */
+  fps?: number;
+}
+
+/**
  * This is a Gemini Part. (Users never see this
  * structure, it is just built by the converters.)
  */
@@ -637,6 +672,7 @@ export declare interface Part {
   thoughtSignature?: string;
   executableCode?: ExecutableCode;
   codeExecutionResult?: CodeExecutionResult;
+  videoMetadata?: VideoMetadata;
 }
 
 /**
@@ -737,6 +773,11 @@ export declare interface FunctionDeclarationsTool {
    */
   functionDeclarations?: FunctionDeclaration[];
 }
+export function isFunctionDeclarationsTool(
+  tool: Tool
+): tool is FunctionDeclarationsTool {
+  return (tool as FunctionDeclarationsTool).functionDeclarations !== undefined;
+}
 
 /**
  * Google AI Only. Enables the model to execute code as part of generation.
@@ -748,6 +789,9 @@ export declare interface CodeExecutionTool {
    * subfields added in the future.
    */
   codeExecution: {};
+}
+export function isCodeExecutionTool(tool: Tool): tool is CodeExecutionTool {
+  return (tool as CodeExecutionTool).codeExecution !== undefined;
 }
 
 /**
@@ -830,6 +874,19 @@ export declare interface RetrievalTool {
   /** Optional. {@link Retrieval}. */
   retrieval?: Retrieval;
 }
+export function isRetrievalTool(tool: Tool): tool is RetrievalTool {
+  return (tool as RetrievalTool).retrieval !== undefined;
+}
+
+export declare interface GoogleMaps {
+  enableWidget: boolean;
+}
+export declare interface GoogleMapsTool {
+  googleMaps?: GoogleMaps;
+}
+export function isGoogleMapsTool(tool: Tool): tool is GoogleMapsTool {
+  return (tool as GoogleMapsTool).googleMaps !== undefined;
+}
 
 /**
  * Tool to retrieve public web data for grounding, powered by Google.
@@ -846,6 +903,7 @@ export declare interface GoogleSearchRetrieval {
 export declare type Tool =
   | FunctionDeclarationsTool
   | RetrievalTool // Vertex AI Only
+  | GoogleMapsTool // Vertex AI Only
   | CodeExecutionTool // Google AI Only
   | GoogleSearchRetrievalTool;
 
@@ -875,7 +933,6 @@ export declare interface GenerationConfig {
   /**
    * Optional. Positive values penalize tokens that repeatedly appear in the generated text, decreasing the probability of repeating content.
    * This maximum value for frequencyPenalty is up to, but not including, 2.0. Its minimum value is -2.0.
-   * Supported by gemini-1.5-pro and gemini-1.5-flash only. */
   frequencyPenalty?: number;
   /**
    * Google AI Only. If True, export the logprobs results in response.
@@ -926,10 +983,22 @@ export declare interface FunctionCallingConfig {
   allowedFunctionNames?: string[];
 }
 
+export declare interface LatLng {
+  latitude?: number;
+  longitude?: number;
+}
+
+export declare interface RetrievalConfig {
+  latLng?: LatLng;
+  languageCode?: string;
+}
+
 /** This config is shared for all tools provided in the request. */
 export declare interface ToolConfig {
   /** Function calling config. */
   functionCallingConfig?: FunctionCallingConfig;
+  /** Retrieval config */
+  retrievalConfig?: RetrievalConfig;
 }
 
 export declare interface GenerateContentRequest {
@@ -962,10 +1031,42 @@ export declare interface GenerateContentRequest {
 
 /**
  * Result from calling generateContentStream.
- * It constains both the stream and the final aggregated response.
+ * It contains both the stream and the final aggregated response.
  * @public
  */
 export declare interface GenerateContentStreamResult {
   stream: AsyncGenerator<GenerateContentResponse>;
   response: Promise<GenerateContentResponse>;
+}
+
+export declare interface ImagenParameters {
+  sampleCount?: number;
+  aspectRatio?: string;
+  negativePrompt?: string; // Vertex only
+  seed?: number; // Vertex only
+  language?: string; // Vertex only
+  personGeneration?: string;
+  safetySetting?: string; // Vertex only
+  addWatermark?: boolean; // Vertex only
+  storageUri?: string; // Vertex only
+}
+
+export declare interface ImagenPredictRequest {
+  instances: ImagenInstance[];
+  parameters: ImagenParameters;
+}
+
+export declare interface ImagenPredictResponse {
+  predictions: ImagenPrediction[];
+}
+
+export declare interface ImagenPrediction {
+  bytesBase64Encoded: string;
+  mimeType: string;
+}
+
+export declare interface ImagenInstance {
+  prompt: string;
+  image?: { bytesBase64Encoded: string };
+  mask?: { image?: { bytesBase64Encoded: string } };
 }

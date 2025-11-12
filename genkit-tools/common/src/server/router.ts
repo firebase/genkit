@@ -23,6 +23,7 @@ import {
 } from '../eval';
 import type { RuntimeManager } from '../manager/manager';
 import { GenkitToolsError, type RuntimeInfo } from '../manager/types';
+import { TraceDataSchema } from '../types';
 import type { Action } from '../types/action';
 import * as apis from '../types/apis';
 import type { EnvironmentVariable } from '../types/env';
@@ -125,11 +126,11 @@ const loggedProcedure = t.procedure.use(async (opts) => {
 export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
   t.router({
     /** Retrieves all runnable actions. */
-    listActions: loggedProcedure.query(
-      async (): Promise<Record<string, Action>> => {
-        return manager.listActions();
-      }
-    ),
+    listActions: loggedProcedure
+      .input(apis.ListActionsRequestSchema)
+      .query(async ({ input }): Promise<Record<string, Action>> => {
+        return manager.listActions(input);
+      }),
 
     /** Runs an action. */
     runAction: loggedProcedure
@@ -164,12 +165,21 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
         return manager.getTrace(input);
       }),
 
+    /** Adds a trace to the trace store */
+    addTrace: loggedProcedure
+      .input(TraceDataSchema)
+      .output(z.void())
+      .mutation(async ({ input }) => {
+        return manager.addTrace(input);
+      }),
+
     /** Retrieves all eval run keys */
     listEvalRunKeys: loggedProcedure
       .input(apis.ListEvalKeysRequestSchema)
       .output(apis.ListEvalKeysResponseSchema)
       .query(async ({ input }) => {
-        const response = await getEvalStore().list(input);
+        const store = await getEvalStore();
+        const response = await store.list(input);
         return {
           evalRunKeys: response.evalRunKeys,
         };
@@ -182,7 +192,8 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .query(async ({ input }) => {
         const parts = input.name.split('/');
         const evalRunId = parts[1];
-        const evalRun = await getEvalStore().load(evalRunId);
+        const store = await getEvalStore();
+        const evalRun = await store.load(evalRunId);
         if (!evalRun) {
           throw new TRPCError({
             code: 'NOT_FOUND',
@@ -198,7 +209,8 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .mutation(async ({ input }) => {
         const parts = input.name.split('/');
         const evalRunId = parts[1];
-        await getEvalStore().delete(evalRunId);
+        const store = await getEvalStore();
+        await store.delete(evalRunId);
       }),
 
     /** Retrieves all eval datasets */
@@ -280,12 +292,23 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
     }),
 
     /**
-     * Get the current active Genkit Runtime. Useful for one-off requests.
-     * Currently used by the Dev UI to "poll", since IDX cannot support SSE
-     * at this time.
+     * Get the current active Genkit Runtime.
+     *
+     * Currently used by the Dev UI to "poll", since IDX cannot support SSE at
+     * this time.
      */
     getCurrentRuntime: t.procedure.query(() => {
       return manager.getMostRecentRuntime() ?? ({} as RuntimeInfo);
+    }),
+
+    /**
+     * Get all active Genkit Runtimes.
+     *
+     * Currently used by the Dev UI to "poll", since IDX cannot support SSE at
+     * this time.
+     */
+    getActiveRuntimes: t.procedure.query(() => {
+      return manager.listRuntimes();
     }),
   });
 

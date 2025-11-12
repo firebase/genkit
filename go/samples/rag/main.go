@@ -43,6 +43,8 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/evaluators"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
@@ -81,12 +83,7 @@ func main() {
 			MetricType: evaluators.EvaluatorJsonata,
 		},
 	}
-	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}, &evaluators.GenkitEval{Metrics: metrics}))
 
 	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
 	if embedder == nil {
@@ -96,20 +93,24 @@ func main() {
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-	docStore, retriever, err := localvec.DefineRetriever(g, "simpleQa", localvec.Config{Embedder: embedder})
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: core.InferSchemaMap(localvec.RetrieverOptions{}),
+		Label:        "simpleQa",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
+		},
+	}
+	docStore, retriever, err := localvec.DefineRetriever(g, "simpleQa", localvec.Config{Embedder: embedder}, retOpts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	simpleQaPrompt, err := genkit.DefinePrompt(g, "simpleQaPrompt",
-		ai.WithModelName("googleai/gemini-2.0-flash"),
+	simpleQaPrompt := genkit.DefinePrompt(g, "simpleQaPrompt",
+		ai.WithModelName("googleai/gemini-2.5-flash"),
 		ai.WithPrompt(simpleQaPromptTemplate),
 		ai.WithInputType(simpleQaPromptInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// Dummy evaluator for testing
 	evalOptions := ai.EvaluatorOptions{
@@ -117,7 +118,8 @@ func main() {
 		Definition:  "Just says true or false randomly",
 		IsBilled:    false,
 	}
-	genkit.DefineEvaluator(g, "custom", "simpleEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
+
+	genkit.DefineEvaluator(g, api.NewName("custom", "simpleEvaluator"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorCallbackRequest) (*ai.EvaluatorCallbackResponse, error) {
 		m := make(map[string]any)
 		m["reasoning"] = "No good reason"
 		score := ai.Score{
@@ -133,7 +135,7 @@ func main() {
 		return &callbackResponse, nil
 	})
 
-	genkit.DefineBatchEvaluator(g, "custom", "simpleBatchEvaluator", &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
+	genkit.DefineBatchEvaluator(g, api.NewName("custom", "simpleBatchEvaluator"), &evalOptions, func(ctx context.Context, req *ai.EvaluatorRequest) (*ai.EvaluatorResponse, error) {
 		var evalResponses []ai.EvaluationResult
 		for _, datapoint := range req.Dataset {
 			m := make(map[string]any)
@@ -155,16 +157,20 @@ func main() {
 
 	genkit.DefineFlow(g, "simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
+		d4 := ai.DocumentFromText("India will become a new capital of France", nil)
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
 
-		err := localvec.Index(ctx, []*ai.Document{d1, d2, d3}, docStore)
+		err := localvec.Index(ctx, []*ai.Document{d1, d2, d3, d4}, docStore)
 		if err != nil {
 			return "", err
 		}
 
 		dRequest := ai.DocumentFromText(input.Question, nil)
-		response, err := ai.Retrieve(ctx, retriever, ai.WithDocs(dRequest))
+		response, err := genkit.Retrieve(ctx, g,
+			ai.WithRetriever(retriever),
+			ai.WithDocs(dRequest),
+			ai.WithConfig(&localvec.RetrieverOptions{K: 2}))
 		if err != nil {
 			return "", err
 		}

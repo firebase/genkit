@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -31,28 +30,25 @@ func main() {
 	// Config parameter, the Google AI plugin will get the API key from the
 	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Define a simple flow that generates jokes about a given topic
-	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
+	genkit.DefineStreamingFlow(g, "jokesFlow", func(ctx context.Context, input string, cb ai.ModelStreamCallback) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModelName("googleai/gemini-2.5-flash"),
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Temperature: genai.Ptr[float32](1.0),
 				ThinkingConfig: &genai.ThinkingConfig{
-					ThinkingBudget: genai.Ptr[int32](0), // disable thinking in the generate call
+					ThinkingBudget: genai.Ptr[int32](0),
 				},
 			}),
+			ai.WithStreaming(cb),
 			ai.WithPrompt(`Tell short jokes about %s`, input))
 		if err != nil {
 			return "", err
 		}
 
-		text := resp.Text()
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	<-ctx.Done()

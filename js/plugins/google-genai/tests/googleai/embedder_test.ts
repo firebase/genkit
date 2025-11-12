@@ -15,36 +15,26 @@
  */
 
 import * as assert from 'assert';
-import { Document, Genkit, GenkitError } from 'genkit';
+import { Document, GenkitError } from 'genkit';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import {
-  GeminiEmbeddingConfig,
-  defineGoogleAIEmbedder,
-} from '../../src/googleai/embedder';
-import { EmbedContentResponse, PluginOptions } from '../../src/googleai/types';
+  EmbeddingConfig,
+  defineEmbedder,
+} from '../../src/googleai/embedder.js';
+import {
+  EmbedContentResponse,
+  GoogleAIPluginOptions,
+} from '../../src/googleai/types.js';
+import { MISSING_API_KEY_ERROR } from '../../src/googleai/utils.js';
 
 describe('defineGoogleAIEmbedder', () => {
-  let mockGenkit: sinon.SinonStubbedInstance<Genkit>;
   let fetchStub: sinon.SinonStub;
   const ORIGINAL_ENV = process.env;
 
-  let embedderFunc: (
-    input: Document[],
-    options?: GeminiEmbeddingConfig
-  ) => Promise<any>;
-
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV }; // Shallow clone ORIGINAL_ENV
-    mockGenkit = sinon.createStubInstance(Genkit);
     fetchStub = sinon.stub(global, 'fetch');
-
-    mockGenkit.defineEmbedder.callsFake((config, func) => {
-      embedderFunc = func;
-      return {
-        name: config.name,
-      } as any;
-    });
   });
 
   afterEach(() => {
@@ -61,42 +51,9 @@ describe('defineGoogleAIEmbedder', () => {
     fetchStub.resolves(response);
   }
 
-  const defaultPluginOptions: PluginOptions = {
+  const defaultPluginOptions: GoogleAIPluginOptions = {
     apiKey: 'test-api-key-option',
   };
-
-  it('defines an embedder with the correct name and info for known model', () => {
-    defineGoogleAIEmbedder(
-      mockGenkit,
-      'text-embedding-004',
-      defaultPluginOptions
-    );
-    sinon.assert.calledOnce(mockGenkit.defineEmbedder);
-    const args = mockGenkit.defineEmbedder.lastCall.args[0];
-    assert.strictEqual(args.name, 'googleai/text-embedding-004');
-    assert.strictEqual(args.info?.label, 'Google Gen AI - Text Embedding 001');
-    assert.strictEqual(args.info.dimensions, 768);
-  });
-
-  it('defines an embedder with a custom name', () => {
-    defineGoogleAIEmbedder(mockGenkit, 'custom-model', defaultPluginOptions);
-    sinon.assert.calledOnce(mockGenkit.defineEmbedder);
-    const args = mockGenkit.defineEmbedder.lastCall.args[0];
-    assert.strictEqual(args.name, 'googleai/custom-model');
-    assert.strictEqual(args.info?.label, 'Google AI - custom-model');
-  });
-
-  it('handles custom name with prefix', () => {
-    defineGoogleAIEmbedder(
-      mockGenkit,
-      'googleai/custom-model',
-      defaultPluginOptions
-    );
-    sinon.assert.calledOnce(mockGenkit.defineEmbedder);
-    const args = mockGenkit.defineEmbedder.lastCall.args[0];
-    assert.strictEqual(args.name, 'googleai/custom-model');
-    assert.strictEqual(args.info?.label, 'Google AI - custom-model');
-  });
 
   describe('API Key Handling', () => {
     beforeEach(() => {
@@ -108,18 +65,19 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('throws if no API key is provided in options or env', () => {
       assert.throws(() => {
-        defineGoogleAIEmbedder(mockGenkit, 'text-embedding-004', {});
-      }, /Please pass in the API key or set either GEMINI_API_KEY or GOOGLE_API_KEY environment variable/);
+        defineEmbedder('text-embedding-004', {});
+      }, MISSING_API_KEY_ERROR);
     });
 
     it('uses API key from pluginOptions if provided', async () => {
-      defineGoogleAIEmbedder(
-        mockGenkit,
+      const embedder = defineEmbedder(
         'text-embedding-004',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [] } });
-      await embedderFunc([new Document({ content: [{ text: 'test' }] })]);
+      await embedder.run({
+        input: [new Document({ content: [{ text: 'test' }] })],
+      });
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];
       assert.strictEqual(
@@ -130,9 +88,11 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('uses API key from GEMINI_API_KEY env var', async () => {
       process.env.GEMINI_API_KEY = 'gemini-key';
-      defineGoogleAIEmbedder(mockGenkit, 'text-embedding-004', {});
+      const embedder = defineEmbedder('text-embedding-004', {});
       mockFetchResponse({ embedding: { values: [] } });
-      await embedderFunc([new Document({ content: [{ text: 'test' }] })]);
+      await embedder.run({
+        input: [new Document({ content: [{ text: 'test' }] })],
+      });
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];
       assert.strictEqual(fetchOptions.headers['x-goog-api-key'], 'gemini-key');
@@ -140,9 +100,11 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('uses API key from GOOGLE_API_KEY env var', async () => {
       process.env.GOOGLE_API_KEY = 'google-key';
-      defineGoogleAIEmbedder(mockGenkit, 'text-embedding-004', {});
+      const embedder = defineEmbedder('text-embedding-004', {});
       mockFetchResponse({ embedding: { values: [] } });
-      await embedderFunc([new Document({ content: [{ text: 'test' }] })]);
+      await embedder.run({
+        input: [new Document({ content: [{ text: 'test' }] })],
+      });
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];
       assert.strictEqual(fetchOptions.headers['x-goog-api-key'], 'google-key');
@@ -150,9 +112,11 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('uses API key from GOOGLE_GENAI_API_KEY env var', async () => {
       process.env.GOOGLE_GENAI_API_KEY = 'google-genai-key';
-      defineGoogleAIEmbedder(mockGenkit, 'text-embedding-004', {});
+      const embedder = defineEmbedder('text-embedding-004', {});
       mockFetchResponse({ embedding: { values: [] } });
-      await embedderFunc([new Document({ content: [{ text: 'test' }] })]);
+      await embedder.run({
+        input: [new Document({ content: [{ text: 'test' }] })],
+      });
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];
       assert.strictEqual(
@@ -163,13 +127,14 @@ describe('defineGoogleAIEmbedder', () => {
 
     it('pluginOptions apiKey takes precedence over env vars', async () => {
       process.env.GEMINI_API_KEY = 'gemini-key';
-      defineGoogleAIEmbedder(
-        mockGenkit,
+      const embedder = defineEmbedder(
         'text-embedding-004',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [] } });
-      await embedderFunc([new Document({ content: [{ text: 'test' }] })]);
+      await embedder.run({
+        input: [new Document({ content: [{ text: 'test' }] })],
+      });
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];
       assert.strictEqual(
@@ -179,11 +144,13 @@ describe('defineGoogleAIEmbedder', () => {
     });
 
     it('throws if apiKey is false in pluginOptions and not provided in call options', async () => {
-      defineGoogleAIEmbedder(mockGenkit, 'text-embedding-004', {
+      const embedder = defineEmbedder('text-embedding-004', {
         apiKey: false,
       });
       await assert.rejects(
-        embedderFunc([new Document({ content: [{ text: 'test' }] })]),
+        embedder.run({
+          input: [new Document({ content: [{ text: 'test' }] })],
+        }),
         (err: GenkitError) => {
           assert.strictEqual(err.status, 'INVALID_ARGUMENT');
           assert.match(
@@ -197,12 +164,15 @@ describe('defineGoogleAIEmbedder', () => {
     });
 
     it('uses API key from call options if apiKey is false in pluginOptions', async () => {
-      defineGoogleAIEmbedder(mockGenkit, 'text-embedding-004', {
+      const embedder = defineEmbedder('text-embedding-004', {
         apiKey: false,
       });
       mockFetchResponse({ embedding: { values: [] } });
-      await embedderFunc([new Document({ content: [{ text: 'test' }] })], {
-        apiKey: 'call-time-api-key',
+      await embedder.run({
+        input: [new Document({ content: [{ text: 'test' }] })],
+        options: {
+          apiKey: 'call-time-api-key',
+        },
       });
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];
@@ -213,14 +183,16 @@ describe('defineGoogleAIEmbedder', () => {
     });
 
     it('call options apiKey takes precedence over pluginOptions apiKey', async () => {
-      defineGoogleAIEmbedder(
-        mockGenkit,
+      const embedder = defineEmbedder(
         'text-embedding-004',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [] } });
-      await embedderFunc([new Document({ content: [{ text: 'test' }] })], {
-        apiKey: 'call-time-api-key',
+      await embedder.run({
+        input: [new Document({ content: [{ text: 'test' }] })],
+        options: {
+          apiKey: 'call-time-api-key',
+        },
       });
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];
@@ -236,8 +208,7 @@ describe('defineGoogleAIEmbedder', () => {
     const testDoc2 = new Document({ content: [{ text: 'World' }] });
 
     it('calls embedContent for each document', async () => {
-      defineGoogleAIEmbedder(
-        mockGenkit,
+      const embedder = defineEmbedder(
         'text-embedding-004',
         defaultPluginOptions
       );
@@ -262,11 +233,11 @@ describe('defineGoogleAIEmbedder', () => {
         })
       );
 
-      const result = await embedderFunc([testDoc1, testDoc2]);
+      const result = await embedder.run({ input: [testDoc1, testDoc2] });
 
       sinon.assert.calledTwice(fetchStub);
       const expectedUrl =
-        'https://generativelanguage.googleapis.com/v1beta/embedders/text-embedding-004:embedContent';
+        'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent';
 
       // Call 1
       const fetchArgs1 = fetchStub.firstCall.args;
@@ -284,25 +255,24 @@ describe('defineGoogleAIEmbedder', () => {
       };
       assert.deepStrictEqual(JSON.parse(fetchArgs2[1].body), expectedRequest2);
 
-      assert.deepStrictEqual(result, {
+      assert.deepStrictEqual(result.result, {
         embeddings: [{ embedding: [0.1, 0.2] }, { embedding: [0.3, 0.4] }],
       });
     });
 
     it('calls embedContent with taskType, title, and outputDimensionality options', async () => {
-      defineGoogleAIEmbedder(
-        mockGenkit,
+      const embedder = defineEmbedder(
         'text-embedding-004',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [0.1] } });
 
-      const config: GeminiEmbeddingConfig = {
+      const config: EmbeddingConfig = {
         taskType: 'RETRIEVAL_DOCUMENT',
         title: 'Doc Title',
         outputDimensionality: 256,
       };
-      await embedderFunc([testDoc1], config);
+      await embedder.run({ input: [testDoc1], options: config });
 
       sinon.assert.calledOnce(fetchStub);
       const fetchOptions = fetchStub.lastCall.args[1];
@@ -318,32 +288,31 @@ describe('defineGoogleAIEmbedder', () => {
     });
 
     it('uses the correct model name in the URL', async () => {
-      defineGoogleAIEmbedder(mockGenkit, 'custom-model', defaultPluginOptions);
+      const embedder = defineEmbedder('custom-model', defaultPluginOptions);
       mockFetchResponse({ embedding: { values: [0.1] } });
 
-      await embedderFunc([testDoc1]);
+      await embedder.run({ input: [testDoc1] });
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
       const expectedUrl =
-        'https://generativelanguage.googleapis.com/v1beta/embedders/custom-model:embedContent';
+        'https://generativelanguage.googleapis.com/v1beta/models/custom-model:embedContent';
       assert.strictEqual(fetchArgs[0], expectedUrl);
     });
 
     it('uses the correct model name in the URL with prefix', async () => {
-      defineGoogleAIEmbedder(
-        mockGenkit,
+      const embedder = defineEmbedder(
         'googleai/custom-model',
         defaultPluginOptions
       );
       mockFetchResponse({ embedding: { values: [0.1] } });
 
-      await embedderFunc([testDoc1]);
+      await embedder.run({ input: [testDoc1] });
 
       sinon.assert.calledOnce(fetchStub);
       const fetchArgs = fetchStub.lastCall.args;
       const expectedUrl =
-        'https://generativelanguage.googleapis.com/v1beta/embedders/custom-model:embedContent';
+        'https://generativelanguage.googleapis.com/v1beta/models/custom-model:embedContent';
       assert.strictEqual(fetchArgs[0], expectedUrl);
     });
   });

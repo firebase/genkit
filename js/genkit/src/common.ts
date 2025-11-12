@@ -19,6 +19,8 @@ export {
   BaseDataPointSchema,
   Document,
   DocumentDataSchema,
+  GenerateResponse,
+  GenerateResponseChunk,
   GenerationBlockedError,
   GenerationCommonConfigSchema,
   GenerationResponseError,
@@ -33,6 +35,7 @@ export {
   ToolCallSchema,
   ToolInterruptError,
   ToolSchema,
+  dynamicResource,
   embedderActionMetadata,
   embedderRef,
   evaluatorRef,
@@ -40,8 +43,10 @@ export {
   modelActionMetadata,
   modelRef,
   rerankerRef,
+  resource,
   retrieverRef,
   type DocumentData,
+  type DynamicResourceAction,
   type EmbedderAction,
   type EmbedderArgument,
   type EmbedderInfo,
@@ -57,8 +62,6 @@ export {
   type GenerateOptions,
   type GenerateRequest,
   type GenerateRequestData,
-  type GenerateResponse,
-  type GenerateResponseChunk,
   type GenerateResponseChunkData,
   type GenerateResponseData,
   type GenerateStreamOptions,
@@ -82,12 +85,14 @@ export {
   type Part,
   type PromptAction,
   type PromptConfig,
+  type PromptGenerateOptions,
   type RankedDocument,
   type RerankerAction,
   type RerankerArgument,
   type RerankerInfo,
   type RerankerParams,
   type RerankerReference,
+  type ResourceAction,
   type ResumeOptions,
   type RetrieverAction,
   type RetrieverArgument,
@@ -112,7 +117,7 @@ export {
   type SessionData,
   type SessionStore,
 } from '@genkit-ai/ai/session';
-export { dynamicTool } from '@genkit-ai/ai/tool';
+export { dynamicTool, tool } from '@genkit-ai/ai/tool';
 export {
   GENKIT_CLIENT_HEADER,
   GENKIT_VERSION,
@@ -124,6 +129,7 @@ export {
   UserFacingError,
   defineJsonSchema,
   defineSchema,
+  getClientHeader,
   getCurrentEnv,
   getStreamingCallback,
   isDevEnv,
@@ -132,6 +138,7 @@ export {
   type Action,
   type ActionContext,
   type ActionMetadata,
+  type DynamicActionProviderAction,
   type Flow,
   type FlowConfig,
   type FlowFn,
@@ -148,3 +155,6 @@ export {
   type StreamingResponse,
   type TelemetryConfig,
 } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
+
+initNodeFeatures();
