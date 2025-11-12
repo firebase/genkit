@@ -25,7 +25,7 @@ import (
 )
 
 var defaultClaudeOpts = ai.ModelOptions{
-	Supports: &internal.Multimodal,
+	Supports: &internal.MultimodalNoConstrained,
 	Versions: []string{},
 	Stage:    ai.ModelStageStable,
 }

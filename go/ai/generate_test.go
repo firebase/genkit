@@ -98,7 +98,8 @@ func TestStreamingChunksHaveRoleAndIndex(t *testing.T) {
 			From        string
 			To          string
 			Temperature float64
-		}) (float64, error) {
+		},
+		) (float64, error) {
 			if input.From == "celsius" && input.To == "fahrenheit" {
 				return input.Temperature*9/5 + 32, nil
 			}
@@ -363,7 +364,7 @@ func TestGenerate(t *testing.T) {
 	bananaModel := DefineModel(r, "test/banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
-				Content: []*Part{NewTextPart("stream!")},
+				Content: []*Part{NewTextPart("stream!"), NewReasoningPart("hmm...", []byte{})},
 			})
 		}
 
@@ -376,6 +377,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("constructs request", func(t *testing.T) {
 		wantText := JSON
 		wantStreamText := "stream!"
+		wantReasoningText := "hmm..."
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
 				{
@@ -429,6 +431,7 @@ func TestGenerate(t *testing.T) {
 		}
 
 		streamText := ""
+		reasoningText := ""
 		res, err := Generate(context.Background(), r,
 			WithModel(bananaModel),
 			WithSystem("You are a helpful assistant."),
@@ -449,6 +452,7 @@ func TestGenerate(t *testing.T) {
 			WithToolChoice(ToolChoiceAuto),
 			WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {
 				streamText += grc.Text()
+				reasoningText += grc.Reasoning()
 				return nil
 			}),
 		)
@@ -462,6 +466,9 @@ func TestGenerate(t *testing.T) {
 		}
 		if diff := cmp.Diff(streamText, wantStreamText); diff != "" {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+		if diff := cmp.Diff(reasoningText, wantReasoningText); diff != "" {
+			t.Errorf("Reasoning() diff (+got -want):\n%s", diff)
 		}
 		if diff := cmp.Diff(wantRequest, res.Request, test_utils.IgnoreNoisyParts([]string{
 			"{*ai.ModelRequest}.Messages[0].Content[1].Text", "{*ai.ModelRequest}.Messages[0].Content[1].Metadata",

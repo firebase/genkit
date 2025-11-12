@@ -71,6 +71,7 @@ func Generate(
 	}
 
 	req.Model = anthropic.Model(model)
+	// TODO: add validation when users override genkit primitives in anthropic configuration
 
 	// no streaming
 	if cb == nil {
@@ -95,40 +96,27 @@ func Generate(
 			if err != nil {
 				return nil, err
 			}
-
-			content := []*ai.Part{}
-			switch event := event.AsAny().(type) {
-			case anthropic.ContentBlockDeltaEvent:
-				if event.Delta.Type == "thinking_delta" {
-					content = append(content, ai.NewReasoningPart(event.Delta.Thinking, []byte(event.Delta.Signature)))
-				} else {
-					content = append(content, ai.NewTextPart(event.Delta.Text))
-				}
-				err := cb(ctx, &ai.ModelResponseChunk{
-					Content: content,
-				})
-				if err != nil {
-					return nil, err
-				}
-			case anthropic.MessageStopEvent:
-				fmt.Printf("== received stop seq\n")
-				for _, m := range message.Content {
-					fmt.Printf("\tcontent block: %s\n", m.Type)
-				}
-				r, err := toGenkitResponse(&message)
-				if err != nil {
-					return nil, err
-				}
-				r.Request = input
-				return r, nil
+			tc, err := toGenkitResponse(&message)
+			if err != nil {
+				return nil, err
+			}
+			err = cb(ctx, &ai.ModelResponseChunk{
+				Content: tc.Message.Content,
+			})
+			if err != nil {
+				return nil, err
 			}
 		}
 		if stream.Err() != nil {
 			return nil, stream.Err()
 		}
+		r, err := toGenkitResponse(&message)
+		if err != nil {
+			return nil, err
+		}
+		r.Request = input
+		return r, nil
 	}
-
-	return nil, nil
 }
 
 func toAnthropicRole(role ai.Role) (anthropic.MessageParamRole, error) {
@@ -327,21 +315,22 @@ func toGenkitResponse(m *anthropic.Message) (*ai.ModelResponse, error) {
 
 	msg := &ai.Message{}
 	msg.Role = ai.RoleModel
-	for _, part := range m.Content {
+
+	blocks := m.ToParam()
+	for _, block := range blocks.Content {
 		var p *ai.Part
-		switch part.AsAny().(type) {
-		case anthropic.ThinkingBlock:
-			p = ai.NewReasoningPart(part.Thinking, []byte(part.Signature))
-		case anthropic.TextBlock:
-			p = ai.NewTextPart(string(part.Text))
-		case anthropic.ToolUseBlock:
+		if block.OfText != nil {
+			p = ai.NewTextPart(block.OfText.Text)
+		}
+		if block.OfToolUse != nil {
 			p = ai.NewToolRequestPart(&ai.ToolRequest{
-				Ref:   part.ID,
-				Input: part.Input,
-				Name:  part.Name,
+				Ref:   block.OfToolUse.ID,
+				Input: block.OfToolUse.Input,
+				Name:  block.OfToolUse.Name,
 			})
-		default:
-			return nil, fmt.Errorf("unknown part: %#v", part)
+		}
+		if block.OfThinking != nil {
+			p = ai.NewReasoningPart(block.OfThinking.Thinking, []byte(block.OfThinking.Signature))
 		}
 		msg.Content = append(msg.Content, p)
 	}

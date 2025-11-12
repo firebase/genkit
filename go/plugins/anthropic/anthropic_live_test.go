@@ -57,7 +57,7 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatalf("not a pirate :( :%s", resp.Text())
 		}
 	})
-	t.Run("model version nok", func(t *testing.T) {
+	t.Run("model version not ok", func(t *testing.T) {
 		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&anthropic.MessageNewParams{
@@ -155,6 +155,7 @@ func TestAnthropicLive(t *testing.T) {
 	t.Run("streaming with thinking", func(t *testing.T) {
 		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		out := ""
+		reasoningStream := ""
 
 		final, err := genkit.Generate(ctx, g,
 			ai.WithPrompt("Tell me a short story about a frog and a princess"),
@@ -172,6 +173,9 @@ func TestAnthropicLive(t *testing.T) {
 				for _, p := range c.Content {
 					if p.IsText() {
 						out += p.Text
+					}
+					if p.IsReasoning() {
+						reasoningStream += p.Text
 					}
 				}
 				return nil
@@ -192,6 +196,9 @@ func TestAnthropicLive(t *testing.T) {
 		}
 		if final.Reasoning() == "" {
 			t.Fatal("empty reasoning found")
+		}
+		if final.Reasoning() != reasoningStream {
+			t.Fatalf("mismatch reasoning, got: %s, want: %s", reasoningStream, final.Reasoning())
 		}
 		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 {
 			t.Fatalf("empty usage stats: %#v", *final.Usage)
@@ -241,12 +248,60 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatalf("empty usage stats: %#v", *final.Usage)
 		}
 	})
+	t.Run("tools streaming with constrained gen", func(t *testing.T) {
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
+		answerOfEverythingTool := genkit.DefineTool(
+			g,
+			"answerOfEverythingTool",
+			"use this tool when the user asks for the answer of everything or the universe",
+			func(ctx *ai.ToolContext, input *any) (int, error) {
+				return 42, nil
+			},
+		)
+		type Output struct {
+			AnswerOfEverything int `json:"answer_of_everything"`
+		}
+
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("what's the answer of everything?"),
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				Thinking: anthropic.ThinkingConfigParamUnion{
+					OfEnabled: &anthropic.ThinkingConfigEnabledParam{
+						BudgetTokens: 1024,
+					},
+				},
+				MaxTokens: 2048,
+			}),
+			ai.WithOutputType(Output{}),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				return nil
+			}),
+
+			ai.WithTools(answerOfEverythingTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.Reasoning() == "" {
+			t.Fatal("empty reasoning found")
+		}
+
+		var out Output
+		err = resp.Output(&out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.AnswerOfEverything != 42 {
+			t.Fatalf("constrained generation failed, want: 42, got: %d", out.AnswerOfEverything)
+		}
+	})
 }
 
 func fetchImgAsBase64() (string, error) {
 	// CC0 license image
-	imgUrl := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
-	resp, err := http.Get(imgUrl)
+	imgURL := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
+	resp, err := http.Get(imgURL)
 	if err != nil {
 		return "", err
 	}
