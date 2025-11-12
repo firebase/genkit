@@ -33,7 +33,7 @@
   },
   "peerDependencies": {
     "genkit": "workspace:^",
-    "express": "^4.21.1"
+    "express": "^4.21.1 || ^5.0.0"
   },
   "devDependencies": {
     "get-port": "^5.1.0",
