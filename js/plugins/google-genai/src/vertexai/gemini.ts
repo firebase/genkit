@@ -616,9 +616,14 @@ export function defineModel(
       const modelVersion = versionFromConfig || extractVersion(ref);
 
       if (jsonMode && request.output?.constrained) {
-        generateContentRequest.generationConfig!.responseSchema = cleanSchema(
-          request.output.schema
-        );
+        if (pluginOptions?.legacyResponseSchema) {
+          generateContentRequest.generationConfig!.responseSchema = cleanSchema(
+            request.output.schema
+          );
+        } else {
+          generateContentRequest.generationConfig!.responseJsonSchema =
+            request.output.schema;
+        }
       }
 
       const callGemini = async () => {

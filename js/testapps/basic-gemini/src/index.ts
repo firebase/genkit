@@ -207,11 +207,72 @@ ai.defineFlow(
   }
 );
 
+// Tool calling with structured output
+ai.defineFlow(
+  {
+    name: 'structured-tool-calling',
+    inputSchema: z.string().default('Paris, France'),
+    outputSchema: z
+      .object({
+        temp: z.number(),
+        unit: z.enum(['F', 'C']),
+      })
+      .nullable(),
+    streamSchema: z.any(),
+  },
+  async (location, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.5-flash'),
+      config: {
+        temperature: 1,
+      },
+      output: {
+        schema: z.object({
+          temp: z.number(),
+          unit: z.enum(['F', 'C']),
+        }),
+      },
+      tools: [getWeather, celsiusToFahrenheit],
+      prompt: `What's the weather in ${location}? Convert the temperature to Fahrenheit.`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.output);
+    }
+
+    return (await response).output;
+  }
+);
+
+const baseCategorySchema = z.object({
+  name: z.string(),
+});
+
+type Category = z.infer<typeof baseCategorySchema> & {
+  subcategories?: Category[];
+};
+
+const categorySchema: z.ZodType<Category> = baseCategorySchema.extend({
+  subcategories: z.lazy(() =>
+    categorySchema
+      .array()
+      .describe('make sure there are at least 2-3 levels of subcategories')
+      .optional()
+  ),
+});
+
+const WeaponSchema = z.object({
+  name: z.string(),
+  damage: z.number(),
+  category: categorySchema,
+});
+
 const RpgCharacterSchema = z.object({
   name: z.string().describe('name of the character'),
   backstory: z.string().describe("character's backstory, about a paragraph"),
-  weapons: z.array(z.string()),
+  weapons: z.array(WeaponSchema),
   class: z.enum(['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER']),
+  affiliation: z.string().optional(),
 });
 
 // A simple example of structured output.
