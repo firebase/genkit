@@ -94,6 +94,84 @@ func TestAnthropicLive(t *testing.T) {
 			t.Fatalf("want: cat, got: %s", resp.Text())
 		}
 	})
+	t.Run("media content stream", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := ""
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystem("You are a professional image detective that talks like an evil pirate that loves animals, your task is to tell the name of the animal in the image but be very short"),
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				MaxTokens:   1024,
+			}),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				out += c.Content[0].Text
+				return nil
+			}),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("", "data:image/jpeg;base64,"+i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != resp.Text() {
+			t.Fatalf("want: %s, got: %s", resp.Text(), out)
+		}
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("want: cat, got: %s", resp.Text())
+		}
+	})
+	t.Run("media content stream with thinking", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := ""
+		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystem(`You are a professional image detective that
+			talks like an evil pirate that loves animals, your task is to tell the name
+			of the animal in the image but be very short`),
+			ai.WithModel(m),
+			ai.WithConfig(&anthropic.MessageNewParams{
+				Temperature: anthropic.Float(1),
+				MaxTokens:   2048,
+				Thinking: anthropic.ThinkingConfigParamUnion{
+					OfEnabled: &anthropic.ThinkingConfigEnabledParam{
+						BudgetTokens: 1024,
+					},
+				},
+			}),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				for _, p := range c.Content {
+					if p.IsText() {
+						out += c.Content[0].Text
+					}
+				}
+				return nil
+			}),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("", "data:image/jpeg;base64,"+i))))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out != resp.Text() {
+			t.Fatalf("want: %s, got: %s", resp.Text(), out)
+		}
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("want: cat, got: %s", resp.Text())
+		}
+		if resp.Reasoning() == "" {
+			t.Fatalf("empty reasoning found")
+		}
+	})
 	t.Run("tools", func(t *testing.T) {
 		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		myJokeTool := genkit.DefineTool(

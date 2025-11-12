@@ -111,10 +111,6 @@ func Generate(
 					return nil, err
 				}
 			case anthropic.MessageStopEvent:
-				fmt.Printf("== received stop seq\n")
-				for _, m := range message.Content {
-					fmt.Printf("\tcontent block: %s\n", m.Type)
-				}
 				r, err := toGenkitResponse(&message)
 				if err != nil {
 					return nil, err

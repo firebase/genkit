@@ -353,6 +353,14 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return nil, err
 			}
 
+			if formatHandler != nil {
+				resp.Message, err = formatHandler.ParseMessage(resp.Message)
+				if err != nil {
+					logger.FromContext(ctx).Debug("model failed to generate output matching expected schema", "error", err.Error())
+					return nil, core.NewError(core.INTERNAL, "model failed to generate output matching expected schema: %v", err)
+				}
+			}
+
 			if len(resp.ToolRequests()) == 0 || opts.ReturnToolRequests {
 				return resp, nil
 			}
