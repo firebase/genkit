@@ -28,6 +28,7 @@ import {
 import * as apis from '../types/apis';
 import type { GenkitError } from '../types/error';
 import type { TraceData } from '../types/trace';
+import { backfillSpanStates } from '../utils/spanState';
 import { logger } from '../utils/logger';
 import {
   checkServerHealth,
@@ -321,7 +322,7 @@ export class RuntimeManager {
         )
       );
 
-    return response.data as TraceData;
+    return backfillSpanStates(response.data as TraceData);
   }
 
   /**
