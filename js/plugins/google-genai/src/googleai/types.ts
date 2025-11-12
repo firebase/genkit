@@ -76,6 +76,8 @@ export interface GoogleAIPluginOptions {
   apiVersion?: string;
   baseUrl?: string;
   experimental_debugTraces?: boolean;
+  /** Use `responseSchema` field instead of `responseJsonSchema`. */
+  legacyResponseSchema?: boolean;
 }
 
 /**
@@ -96,6 +98,10 @@ export interface ClientOptions {
    * Request timeout in milliseconds.
    */
   timeout?: number;
+  /**
+   * Api Key for Gemini API
+   */
+  apiKey?: string;
   /**
    * Version of API endpoint to call (e.g. "v1" or "v1beta"). If not specified,
    * defaults to 'v1beta'.

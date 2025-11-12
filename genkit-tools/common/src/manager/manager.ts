@@ -333,6 +333,17 @@ export class RuntimeManager {
   }
 
   /**
+   * Adds a trace to the trace store
+   */
+  async addTrace(input: TraceData): Promise<void> {
+    await axios
+      .post(`${this.telemetryServerUrl}/api/traces/`, input)
+      .catch((err) =>
+        this.httpErrorHandler(err, 'Error writing trace to store.')
+      );
+  }
+
+  /**
    * Notifies the runtime of dependencies it may need (e.g. telemetry server URL).
    */
   private async notifyRuntime(runtime: RuntimeInfo) {

@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
 import { ai } from '../genkit.js';
 import { TextMenuQuestionInputSchema } from '../types.js';
 
 export const s05_readMenuPrompt = ai.definePrompt({
   name: 's05_readMenu',
-  model: gemini15Flash,
+  model: googleAI.model('gemini-2.5-flash'),
   input: {
     schema: z.object({
       imageUrl: z.string(),
@@ -39,7 +39,7 @@ from the following image of a restaurant menu.
 
 export const s05_textMenuPrompt = ai.definePrompt({
   name: 's05_textMenu',
-  model: gemini15Flash,
+  model: googleAI.model('gemini-2.5-flash'),
   input: { schema: TextMenuQuestionInputSchema },
   output: { format: 'text' },
   config: { temperature: 0.3 },

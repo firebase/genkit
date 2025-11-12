@@ -221,6 +221,11 @@ function applyTransferPreamble(
     return rawRequest;
   }
 
+  // if the transfer preamble has a model, use it for the next request
+  if (transferPreamble?.model) {
+    rawRequest.model = transferPreamble.model;
+  }
+
   return stripUndefinedProps({
     ...rawRequest,
     messages: [
@@ -402,8 +407,10 @@ async function generate(
 
   let nextRequest = {
     ...rawRequest,
+
     messages: [...rawRequest.messages, generatedMessage.toJSON(), toolMessage!],
   };
+
   nextRequest = applyTransferPreamble(nextRequest, transferPreamble);
 
   // then recursively call for another loop

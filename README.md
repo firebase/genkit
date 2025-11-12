@@ -1,5 +1,6 @@
 ![Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Genkit')
 ![Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Genkit')
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/firebase/genkit)
 
 [Genkit](https://genkit.dev) is an open-source framework for building full-stack AI-powered applications, built and used in production by Google's Firebase. It provides SDKs for multiple programming languages with varying levels of stability:
 

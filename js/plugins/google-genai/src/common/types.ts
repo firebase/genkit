@@ -933,7 +933,6 @@ export declare interface GenerationConfig {
   /**
    * Optional. Positive values penalize tokens that repeatedly appear in the generated text, decreasing the probability of repeating content.
    * This maximum value for frequencyPenalty is up to, but not including, 2.0. Its minimum value is -2.0.
-   * Supported by gemini-1.5-pro and gemini-1.5-flash only. */
   frequencyPenalty?: number;
   /**
    * Google AI Only. If True, export the logprobs results in response.
@@ -961,6 +960,46 @@ export declare interface GenerationConfig {
    * If set, a compatible responseMimeType must also be set.
    */
   responseSchema?: Schema;
+
+  /**
+   * Optional. Output schema of the generated response. This is an alternative to
+   * `response_schema` that accepts [JSON Schema](https://json-schema.org/).
+   *
+   * If set, `response_schema` must be omitted, but `response_mime_type` is
+   * required.
+   *
+   * While the full JSON Schema may be sent, not all features are supported.
+   * Specifically, only the following properties are supported:
+   *
+   * - `$id`
+   * - `$defs`
+   * - `$ref`
+   * - `$anchor`
+   * - `type`
+   * - `format`
+   * - `title`
+   * - `description`
+   * - `enum` (for strings and numbers)
+   * - `items`
+   * - `prefixItems`
+   * - `minItems`
+   * - `maxItems`
+   * - `minimum`
+   * - `maximum`
+   * - `anyOf`
+   * - `oneOf` (interpreted the same as `anyOf`)
+   * - `properties`
+   * - `additionalProperties`
+   * - `required`
+   *
+   * The non-standard `propertyOrdering` property may also be set.
+   *
+   * Cyclic references are unrolled to a limited degree and, as such, may only
+   * be used within non-required properties. (Nullable properties are not
+   * sufficient.) If `$ref` is set on a sub-schema, no other properties, except
+   * for than those starting as a `$`, may be set.
+   */
+  responseJsonSchema?: Record<string, any>;
 }
 
 /**

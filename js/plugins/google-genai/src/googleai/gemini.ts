@@ -55,10 +55,12 @@ import {
 } from './types.js';
 import {
   calculateApiKey,
+  calculateRequestOptions,
   checkApiKey,
   checkModelName,
   cleanSchema,
   extractVersion,
+  removeClientOptionOverrides,
 } from './utils.js';
 
 /**
@@ -139,6 +141,18 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   apiKey: z
     .string()
     .describe('Overrides the plugin-configured API key, if specified.')
+    .optional(),
+  baseUrl: z
+    .string()
+    .describe(
+      'Overrides the plugin-configured or default baseUrl, if specified.'
+    )
+    .optional(),
+  apiVersion: z
+    .string()
+    .describe(
+      'Overrides the plugin-configured or default apiVersion, if specified.'
+    )
     .optional(),
   safetySettings: z
     .array(SafetySettingsSchema)
@@ -489,7 +503,10 @@ export function defineModel(
       use: middleware,
     },
     async (request, { streamingRequested, sendChunk, abortSignal }) => {
-      const clientOpt = { ...clientOptions, signal: abortSignal };
+      const clientOpt = calculateRequestOptions(
+        { ...clientOptions, signal: abortSignal },
+        request.config
+      );
 
       // Make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
@@ -567,13 +584,17 @@ export function defineModel(
           tools.length === 0);
 
       const generationConfig: GenerationConfig = {
-        ...restOfConfigOptions,
+        ...removeClientOptionOverrides(restOfConfigOptions),
         candidateCount: request.candidates || undefined,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
 
       if (request.output?.constrained && jsonMode) {
-        generationConfig.responseSchema = cleanSchema(request.output.schema);
+        if (pluginOptions?.legacyResponseSchema) {
+          generationConfig.responseSchema = cleanSchema(request.output.schema);
+        } else {
+          generationConfig.responseJsonSchema = request.output.schema;
+        }
       }
 
       const msg = toGeminiMessage(messages[messages.length - 1], ref);

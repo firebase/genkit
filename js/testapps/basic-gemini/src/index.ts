@@ -17,13 +17,14 @@
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
 import {
-  MediaPart,
-  Operation,
-  Part,
-  StreamingCallback,
   genkit,
   z,
+  type MediaPart,
+  type Operation,
+  type Part,
+  type StreamingCallback,
 } from 'genkit';
+import { fallback, retry } from 'genkit/model/middleware';
 import { Readable } from 'stream';
 import wav from 'wav';
 
@@ -38,6 +39,36 @@ ai.defineFlow('basic-hi', async () => {
   const { text } = await ai.generate({
     model: googleAI.model('gemini-2.5-flash'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
+  });
+
+  return text;
+});
+
+ai.defineFlow('basic-hi-with-retry', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-pro'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    use: [
+      retry({
+        maxRetries: 2,
+        onError: (e, attempt) => console.log('--- oops ', attempt, e),
+      }),
+    ],
+  });
+
+  return text;
+});
+
+ai.defineFlow('basic-hi-with-fallback', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-soemthing-that-does-not-exist'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    use: [
+      fallback(ai, {
+        models: [googleAI.model('gemini-2.5-flash')],
+        statuses: ['UNKNOWN'],
+      }),
+    ],
   });
 
   return text;
@@ -176,11 +207,72 @@ ai.defineFlow(
   }
 );
 
+// Tool calling with structured output
+ai.defineFlow(
+  {
+    name: 'structured-tool-calling',
+    inputSchema: z.string().default('Paris, France'),
+    outputSchema: z
+      .object({
+        temp: z.number(),
+        unit: z.enum(['F', 'C']),
+      })
+      .nullable(),
+    streamSchema: z.any(),
+  },
+  async (location, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.5-flash'),
+      config: {
+        temperature: 1,
+      },
+      output: {
+        schema: z.object({
+          temp: z.number(),
+          unit: z.enum(['F', 'C']),
+        }),
+      },
+      tools: [getWeather, celsiusToFahrenheit],
+      prompt: `What's the weather in ${location}? Convert the temperature to Fahrenheit.`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.output);
+    }
+
+    return (await response).output;
+  }
+);
+
+const baseCategorySchema = z.object({
+  name: z.string(),
+});
+
+type Category = z.infer<typeof baseCategorySchema> & {
+  subcategories?: Category[];
+};
+
+const categorySchema: z.ZodType<Category> = baseCategorySchema.extend({
+  subcategories: z.lazy(() =>
+    categorySchema
+      .array()
+      .describe('make sure there are at least 2-3 levels of subcategories')
+      .optional()
+  ),
+});
+
+const WeaponSchema = z.object({
+  name: z.string(),
+  damage: z.number(),
+  category: categorySchema,
+});
+
 const RpgCharacterSchema = z.object({
   name: z.string().describe('name of the character'),
   backstory: z.string().describe("character's backstory, about a paragraph"),
-  weapons: z.array(z.string()),
+  weapons: z.array(WeaponSchema),
   class: z.enum(['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER']),
+  affiliation: z.string().optional(),
 });
 
 // A simple example of structured output.
