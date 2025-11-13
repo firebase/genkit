@@ -491,6 +491,9 @@ function aggregateResponses(
           if (part.codeExecutionResult) {
             newPart.codeExecutionResult = part.codeExecutionResult;
           }
+          if (part.inlineData) {
+            newPart.inlineData = part.inlineData;
+          }
           if (Object.keys(newPart).length === 0) {
             newPart.text = '';
           }
