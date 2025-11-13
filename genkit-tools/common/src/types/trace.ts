@@ -154,8 +154,10 @@ export type TraceData = z.infer<typeof TraceDataSchema>;
 
 export const NestedSpanDataSchema = SpanDataSchema.extend({
   spans: z.lazy(() => z.array(SpanDataSchema)),
+  placeholder: z.boolean().optional(),
 });
 
 export type NestedSpanData = z.infer<typeof SpanDataSchema> & {
   spans?: SpanData[];
+  placeholder?: boolean;
 };

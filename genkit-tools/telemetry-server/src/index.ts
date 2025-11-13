@@ -242,6 +242,12 @@ export async function startTelemetryServer(params: {
       for (const trace of traces) {
         const traceData = TraceDataSchema.parse(trace);
         await params.traceStore.save(traceData.traceId, traceData);
+        // Broadcast span updates to all subscribed clients
+        broadcastManager.broadcast(traceData.traceId, {
+          type: 'upsert',
+          traceId: traceData.traceId,
+          spans: traceData.spans,
+        });
       }
       response.status(200).json({});
     } catch (err) {
