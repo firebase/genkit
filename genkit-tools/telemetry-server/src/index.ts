@@ -28,7 +28,6 @@ export { LocalFileTraceStore } from './file-trace-store.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
 
 let server: http.Server;
-let traceStore: TraceStore;
 
 /**
  * Starts the telemetry server with the provided params
@@ -46,7 +45,6 @@ export async function startTelemetryServer(params: {
   maxRequestBodySize?: string | number;
 }) {
   await params.traceStore.init();
-  traceStore = params.traceStore;
   const api = express();
 
   api.use(express.json({ limit: params.maxRequestBodySize ?? '30mb' }));

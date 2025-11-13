@@ -154,7 +154,14 @@ export class LocalFileTraceStore implements TraceStore {
         (s) => !s.parentSpanId
       );
       if (this.index && hasRootSpan) {
-        this.index.add(trace);
+        // re-load the full trace, there are likely spans written there previously.
+        const fullTrace = await this.load(rawTrace.traceId);
+        if (!fullTrace) {
+          throw new Error(
+            'unable to read the trace that was just written... "this should never happen"'
+          );
+        }
+        this.index.add(fullTrace);
       }
     } finally {
       release();

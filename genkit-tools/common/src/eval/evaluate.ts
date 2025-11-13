@@ -491,15 +491,11 @@ async function gatherEvalInput(params: {
 
   // Only the last collected trace to be used for evaluation.
   const traceId = traceIds.at(-1)!;
-  // Sleep a bit!
+  // Sleep to let traces persist.
   await new Promise((resolve) => setTimeout(resolve, 2000));
   const trace = await manager.getTrace({
     traceId,
   });
-  console.log('debug!!!!');
-  console.log(traceIds);
-  console.log(JSON.stringify(trace));
-  console.log('debug!!!!');
 
   // Always use original input for models and prompts.
   const input = actionType === 'flow' ? extractors.input(trace) : state.input;
@@ -512,9 +508,6 @@ async function gatherEvalInput(params: {
   }
 
   const nestedSpan = stackTraceSpans(trace);
-  console.log('debug!!!!');
-  console.log(nestedSpan);
-  console.log('debug!!!!');
   if (!nestedSpan) {
     return {
       testCaseId: state.testCaseId,
@@ -543,16 +536,6 @@ async function gatherEvalInput(params: {
   const error =
     actionType === 'model' ? getErrorFromModelResponse(output) : undefined;
 
-  if (Object.hasOwn(output, 'genkit:ai:internal')) {
-    // HACK HACK HACK
-    const internal = output['genkit:ai:internal'];
-    delete output['genkit:ai:internal'];
-    if (custom) {
-      custom = { ...custom, traceId: internal.traceId };
-    } else {
-      custom = { traceId: internal.traceId };
-    }
-  }
   return {
     // TODO Replace this with unified trace class
     testCaseId: state.testCaseId,
