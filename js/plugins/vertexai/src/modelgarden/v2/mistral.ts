@@ -98,6 +98,7 @@ export const KNOWN_MODELS = {
   'mistral-large-2411': commonRef('mistral-large-2411'),
   'mistral-ocr-2505': commonRef('mistral-ocr-2505'),
   'mistral-small-2503': commonRef('mistral-small-2503'),
+  'codestral-2': commonRef('codestral-2'),
   'codestral-2501': commonRef('codestral-2501'),
 };
 export type KnownModels = keyof typeof KNOWN_MODELS;

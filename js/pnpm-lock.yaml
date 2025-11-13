@@ -1407,12 +1407,9 @@ importers:
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
-      '@genkit-ai/googleai':
+      '@genkit-ai/google-genai':
         specifier: workspace:*
-        version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
-        specifier: workspace:*
-        version: link:../../plugins/vertexai
+        version: link:../../plugins/google-genai
       '@google/generative-ai':
         specifier: ^0.15.0
         version: 0.15.0

@@ -370,9 +370,6 @@ const KNOWN_GEMINI_MODELS = {
   'gemini-2.5-flash-image-preview': commonRef('gemini-2.5-flash-image-preview'),
   'gemini-2.5-flash-image': commonRef('gemini-2.5-flash-image'),
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
-  'gemini-2.0-flash-preview-image-generation': commonRef(
-    'gemini-2.0-flash-preview-image-generation'
-  ),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
 };
 export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
