@@ -764,6 +764,7 @@ describe('otlp-endpoint (with parent)', () => {
     assert.strictEqual(span.traceId, parentTraceId);
     assert.strictEqual(span.parentSpanId, parentSpanId);
     assert.strictEqual(span.spanId, 'childSpanId1');
+    assert.strictEqual(span.attributes['genkit:otlp-traceId'], 'childTraceId');
   });
 
   it('saves a trace with multiple spans', async () => {

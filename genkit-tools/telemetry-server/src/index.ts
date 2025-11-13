@@ -106,6 +106,7 @@ export async function startTelemetryServer(params: {
         for (const traceData of traces) {
           traceData.traceId = parentTraceId;
           for (const span of Object.values(traceData.spans)) {
+            span.attributes['genkit:otlp-traceId'] = span.traceId;
             span.traceId = parentTraceId;
             if (!span.parentSpanId) {
               span.parentSpanId = parentSpanId;
