@@ -38,6 +38,7 @@ const (
 	anthropicLabelPrefix = "Anthropic"
 )
 
+// Anthropic is a Genkit plugin for interacting with the Anthropic services
 type Anthropic struct {
 	APIKey  string // If not provided, defaults to ANTHROPIC_API_KEY
 	BaseURL string // Optional. If not provided, defaults to ANTHROPIC_BASE_URL
@@ -47,10 +48,12 @@ type Anthropic struct {
 	initted bool             // Whether the plugin has been initialized
 }
 
+// Name returns the name of the plugin
 func (a *Anthropic) Name() string {
 	return provider
 }
 
+// Init initializes the Anthropic plugin and all known models
 func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	if a == nil {
 		a = &Anthropic{}
@@ -87,10 +90,15 @@ func (a *Anthropic) Init(ctx context.Context) []api.Action {
 	return []api.Action{}
 }
 
+// DefineModel defines an unknown model with the given name.
+// The second argument describes the capability of the model.
+// Use [IsDefinedModel] to determine if a model is already defined.
+// After [Init] is called, only the known models are defined.
 func (a *Anthropic) DefineModel(g *genkit.Genkit, name string, opts *ai.ModelOptions) (ai.Model, error) {
 	return ant.DefineModel(a.aclient, provider, name, *opts), nil
 }
 
+// ListActions lists all the actions supported by the Anthropic plugin
 func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	actions := []api.ActionDesc{}
 
@@ -111,10 +119,12 @@ func (a *Anthropic) ListActions(ctx context.Context) []api.ActionDesc {
 	return actions
 }
 
+// Model returns a previously registered model
 func Model(g *genkit.Genkit, name string) ai.Model {
 	return genkit.LookupModel(g, api.NewName(provider, name))
 }
 
+// IsDefinedModel returns whether a model is already defined
 func IsDefinedModel(g *genkit.Genkit, name string) bool {
 	return genkit.LookupModel(g, api.NewName(provider, name)) != nil
 }
