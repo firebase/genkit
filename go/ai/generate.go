@@ -383,7 +383,22 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 				return resp, nil
 			}
 
-			return generate(ctx, newReq, currentTurn+1, currentIndex+1)
+			finalResp, err := generate(ctx, newReq, currentTurn+1, currentIndex+1)
+			if err != nil {
+				return nil, err
+			}
+
+			// accumulate Reasoning parts for every tool call
+			if finalResp.Message != nil && resp.Message != nil {
+				var reasoningParts []*Part
+				for _, part := range resp.Message.Content {
+					if part.IsReasoning() {
+						reasoningParts = append(reasoningParts, part)
+					}
+				}
+				finalResp.Message.Content = append(reasoningParts, finalResp.Message.Content...)
+			}
+			return finalResp, nil
 		})
 	}
 
@@ -726,11 +741,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 // Text returns the contents of the first candidate in a
 // [ModelResponse] as a string. It returns an empty string if there
 // are no candidates or if the candidate has no message.
-func (gr *ModelResponse) Text() string {
-	if gr.Message == nil {
+func (mr *ModelResponse) Text() string {
+	if mr.Message == nil {
 		return ""
 	}
-	return gr.Message.Text()
+	return mr.Message.Text()
 }
 
 // History returns messages from the request combined with the response message
@@ -822,6 +837,19 @@ func (c *ModelResponseChunk) Text() string {
 	var sb strings.Builder
 	for _, p := range c.Content {
 		if p.IsText() || p.IsData() {
+			sb.WriteString(p.Text)
+		}
+	}
+	return sb.String()
+}
+
+func (c *ModelResponseChunk) Reasoning() string {
+	if len(c.Content) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, p := range c.Content {
+		if p.IsReasoning() {
 			sb.WriteString(p.Text)
 		}
 	}
