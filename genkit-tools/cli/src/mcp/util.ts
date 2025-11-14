@@ -15,19 +15,15 @@
  */
 
 import { RuntimeManager } from '@genkit-ai/tools-common/manager';
-import { findProjectRoot } from '@genkit-ai/tools-common/utils';
 import { startManager } from '../utils/manager-utils';
 
 /** Lazy loader for RuntimeManager to defer `.genkit/` creation. */
-export function lazyLoadManager(projectRoot?: string) {
+export function lazyLoadManager(projectRoot: string) {
   let manager: RuntimeManager | undefined;
   return {
     async getManager() {
       if (!manager) {
-        manager = await startManager(
-          projectRoot ?? (await findProjectRoot()),
-          true
-        );
+        manager = await startManager(projectRoot, true);
       }
       return manager;
     },

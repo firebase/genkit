@@ -23,7 +23,7 @@ import { defineTraceTools } from './trace';
 import { defineUsageGuideTool } from './usage';
 import { lazyLoadManager } from './util';
 
-export async function startMcpServer(projectRoot?: string) {
+export async function startMcpServer(projectRoot: string) {
   const server = new McpServer({
     name: 'Genkit MCP',
     version: '0.0.2',
