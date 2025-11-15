@@ -454,6 +454,9 @@ func (g *generator) generateDoc(s *Schema, ic *itemConfig) {
 // typeExpr returns a Go type expression denoting the type represented by the schema.
 func (g *generator) typeExpr(s *Schema) (string, error) {
 	// A reference to another type refers to that type by name. Use the name.
+	if s == nil {
+		return "any", nil
+	}
 	if s.Ref != "" {
 		name, ok := strings.CutPrefix(s.Ref, refPrefix)
 		if !ok {
