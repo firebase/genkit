@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import z from 'zod';
-import { MediaPartSchema, TextPartSchema } from './parts.js';
+import { MediaPartSchema, TextPartSchema } from './parts';
 
 //
 // IMPORTANT: Keep this file in sync with genkit/ai/src/document.ts!
