@@ -814,6 +814,58 @@ describe('generate', () => {
       assert.strictEqual(text, '{"foo":"bar a@b.c"}');
     });
 
+    it('calls the multipart tool', async () => {
+      const t = ai.defineTool(
+        { name: 'testTool', description: 'description', multipart: true },
+        async () => ({
+          output: 'tool called',
+          content: [{ text: 'part 1' }],
+        })
+      );
+
+      // first response is a tool call, the subsequent responses are just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const { text, messages } = await ai.generate({
+        prompt: 'call the tool',
+        tools: [t],
+      });
+
+      assert.strictEqual(text, 'done');
+      assert.strictEqual(messages.length, 4);
+      const toolMessage = messages[2];
+      assert.strictEqual(toolMessage.role, 'tool');
+      assert.deepStrictEqual(toolMessage.content, [
+        {
+          toolResponse: {
+            name: 'testTool',
+            ref: 'ref123',
+            output: 'tool called',
+            content: [{ text: 'part 1' }],
+            payloadStrategy: 'both',
+          },
+        },
+      ]);
+    });
+
     it('streams the tool responses', async () => {
       ai.defineTool(
         { name: 'testTool', description: 'description' },

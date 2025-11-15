@@ -53,6 +53,7 @@ const ACTION_TYPES = [
   'reranker',
   'retriever',
   'tool',
+  'multipart-tool',
   'util',
   'resource',
 ] as const;

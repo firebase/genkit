@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GenkitError, stripUndefinedProps } from '@genkit-ai/core';
+import { GenkitError, stripUndefinedProps, z } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import type { Registry } from '@genkit-ai/core/registry';
 import type {
@@ -25,8 +25,10 @@ import type {
   ToolRequestPart,
   ToolResponsePart,
 } from '../model.js';
+import { ToolResponse } from '../parts.js';
 import { isPromptAction } from '../prompt.js';
 import {
+  MultipartToolResponseSchema,
   ToolInterruptError,
   isToolRequest,
   resolveTools,
@@ -120,15 +122,33 @@ export async function resolveToolRequest(
   // otherwise, execute the tool and catch interrupts
   try {
     const output = await tool(part.toolRequest.input, toRunOptions(part));
-    const response = stripUndefinedProps({
-      toolResponse: {
-        name: part.toolRequest.name,
-        ref: part.toolRequest.ref,
-        output,
-      },
-    });
+    if (tool.__action.actionType === 'multipart-tool') {
+      const multipartResponse = output as z.infer<
+        typeof MultipartToolResponseSchema
+      >;
+      const strategy = multipartResponse.fallbackOutput ? 'fallback' : 'both';
+      const response = stripUndefinedProps({
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output: multipartResponse.output || multipartResponse.fallbackOutput,
+          content: multipartResponse.content,
+          payloadStrategy: strategy,
+        } as ToolResponse,
+      });
 
-    return { response };
+      return { response };
+    } else {
+      const response = stripUndefinedProps({
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output,
+        },
+      });
+
+      return { response };
+    }
   } catch (e) {
     if (
       e instanceof ToolInterruptError ||
