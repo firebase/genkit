@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { z } from 'zod';
-import { DocumentDataSchema } from './document.js';
+import { DocumentDataSchema } from './document';
 import {
   CustomPartSchema,
   DataPartSchema,
@@ -34,7 +34,7 @@ import {
   type TextPart,
   type ToolRequestPart,
   type ToolResponsePart,
-} from './parts.js';
+} from './parts';
 export {
   CustomPartSchema,
   DataPartSchema,
