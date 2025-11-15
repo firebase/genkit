@@ -107,6 +107,46 @@ describe('defineInterrupt', () => {
       type: 'string',
     });
   });
+
+  describe('multipart tools', () => {
+    it('should define a multipart tool', async () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test', multipart: true },
+        async () => {
+          return {
+            output: 'main output',
+            content: [{ text: 'part 1' }],
+          };
+        }
+      );
+      assert.equal(t.__action.metadata.type, 'multipart-tool');
+      assert.equal(t.__action.actionType, 'multipart-tool');
+      const result = await t({});
+      assert.deepStrictEqual(result, {
+        output: 'main output',
+        content: [{ text: 'part 1' }],
+      });
+    });
+
+    it('should handle fallback output', async () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test', multipart: true },
+        async () => {
+          return {
+            fallbackOutput: 'fallback',
+            content: [{ text: 'part 1' }],
+          };
+        }
+      );
+      const result = await t({});
+      assert.deepStrictEqual(result, {
+        fallbackOutput: 'fallback',
+        content: [{ text: 'part 1' }],
+      });
+    });
+  });
 });
 
 describe('defineTool', () => {
