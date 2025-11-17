@@ -85,18 +85,24 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  * environment variables. It initializes the Anthropic client and makes available the Claude models for use.
  *
  * Exports:
+ * - claude35Haiku: Reference to the Claude 3.5 Haiku model.
  * - claude3Haiku: Reference to the Claude 3 Haiku model.
- * - claude3Opus: Reference to the Claude 3 Opus model.
+ * - claudeHaiku45: Reference to the Claude Haiku 4.5 model.
+ * - claudeOpus4: Reference to the Claude Opus 4 model.
+ * - claudeOpus41: Reference to the Claude Opus 4.1 model.
+ * - claudeSonnet4: Reference to the Claude Sonnet 4 model.
+ * - claudeSonnet45: Reference to the Claude Sonnet 4.5 model.
  * - anthropic: The main plugin function to interact with the Anthropic AI.
  *
  * Usage:
- * To use the Claude models, initialize the anthropic plugin inside `configureGenkit` and pass the configuration options. If no API key is provided in the options, the environment variable `ANTHROPIC_API_KEY` must be set. If you want to cache the system prompt, set `cacheSystemPrompt` to `true`. **Note:** Prompt caching is in beta and may change. To learn more, see https://docs.anthropic.com/en/docs/prompt-caching.
+ * To use the Claude models, initialize the anthropic plugin inside `genkit()` and pass the configuration options. If no API key is provided in the options, the environment variable `ANTHROPIC_API_KEY` must be set. If you want to cache the system prompt, set `cacheSystemPrompt` to `true`. **Note:** Prompt caching is in beta and may change. To learn more, see https://docs.anthropic.com/en/docs/prompt-caching.
  *
  * Example:
  * ```
- * import anthropic from 'genkitx-anthropic';
+ * import { anthropic } from '@genkit-ai/anthropic';
+ * import { genkit } from 'genkit';
  *
- * export default configureGenkit({
+ * const ai = genkit({
  *  plugins: [
  *    anthropic({ apiKey: 'your-api-key', cacheSystemPrompt: false })
  *    ... // other plugins

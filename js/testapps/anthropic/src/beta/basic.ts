@@ -26,6 +26,7 @@ const ai = genkit({
 
 const betaHaiku = anthropic.model('claude-3-5-haiku', { apiVersion: 'beta' });
 const betaSonnet = anthropic.model('claude-4-5-sonnet', { apiVersion: 'beta' });
+const betaOpus41 = anthropic.model('claude-opus-4-1', { apiVersion: 'beta' });
 
 ai.defineFlow('anthropic-beta-hello', async () => {
   const { text } = await ai.generate({
@@ -61,4 +62,15 @@ ai.defineFlow('anthropic-beta-stream', async (_, { sendChunk }) => {
   }
 
   return collected.join('');
+});
+
+ai.defineFlow('anthropic-beta-opus41', async () => {
+  const { text } = await ai.generate({
+    model: betaOpus41,
+    prompt:
+      'You are Claude Opus 4.1 on the beta API. Provide a brief greeting that confirms you are using the beta API.',
+    config: { temperature: 0.6 },
+  });
+
+  return text;
 });
