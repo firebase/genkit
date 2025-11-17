@@ -16,6 +16,7 @@
 
 import {
   action,
+  ActionFnArg,
   assertUnstable,
   isAction,
   stripUndefinedProps,
@@ -279,7 +280,7 @@ export function toToolDefinition(
   return out;
 }
 
-export interface ToolFnOptions {
+export interface ToolFnOptions extends ActionFnArg<never> {
   /**
    * A function that can be called during tool execution that will result in the tool
    * getting interrupted (immediately) and tool request returned to the upstream caller.
@@ -300,7 +301,7 @@ export type MultipartToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
 ) => Promise<{
   output?: z.infer<O>;
   fallbackOutput?: z.infer<O>;
-  content: Part[];
+  content?: Part[];
 }>;
 
 export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
@@ -326,6 +327,10 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 ): ToolAction<I, O> | MultipartToolAction<I, O> {
   const a = tool(config, fn);
   registry.registerAction(config.multipart ? 'tool.v2' : 'tool', a);
+  if (!config.multipart) {
+    // For non-multipart tools, we register a v2 tool action as well
+    registry.registerAction('tool.v2', basicToolV2(config, fn as ToolFn<I, O>));
+  }
   return a as ToolAction<I, O>;
 }
 
@@ -505,10 +510,25 @@ function basicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return a;
 }
 
+function basicToolV2<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  config: ToolConfig<I, O>,
+  fn?: ToolFn<I, O>
+): MultipartToolAction<I, O> {
+  return multipartTool(config, async (input, ctx) => {
+    if (!fn) {
+      const interrupt = interruptTool(ctx.registry);
+      return interrupt();
+    }
+    return {
+      output: await fn(input, ctx),
+    };
+  });
+}
+
 export const MultipartToolResponseSchema = z.object({
   output: z.any().optional(),
   fallbackOutput: z.any().optional(),
-  content: z.array(PartSchema),
+  content: z.array(PartSchema).optional(),
 });
 
 function multipartTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(

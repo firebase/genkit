@@ -307,4 +307,20 @@ describe('defineTool', () => {
       );
     });
   });
+
+  it('should register a v1 tool as v2 as well', async () => {
+    defineTool(registry, { name: 'test', description: 'test' }, async () => {});
+    assert.ok(await registry.lookupAction('/tool/test'));
+    assert.ok(await registry.lookupAction('/tool.v2/test'));
+  });
+
+  it('should only register a multipart tool as v2', async () => {
+    defineTool(
+      registry,
+      { name: 'test', description: 'test', multipart: true },
+      async () => {}
+    );
+    assert.ok(await registry.lookupAction('/tool.v2/test'));
+    assert.equal(await registry.lookupAction('/tool/test'), undefined);
+  });
 });
