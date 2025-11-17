@@ -179,11 +179,18 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
           )}.`
         );
       }
-      const resolvedMediaType = media.contentType ?? contentType;
+
+      const resolvedMediaType = contentType;
       if (!resolvedMediaType) {
         throw new Error('Media type is required but was not provided');
       }
       if (!this.isMediaType(resolvedMediaType)) {
+        // Provide helpful error message for text files
+        if (resolvedMediaType === 'text/plain') {
+          throw new Error(
+            `Unsupported media type: ${resolvedMediaType}. Text files should be sent as text content in the message, not as media. For example, use { text: '...' } instead of { media: { url: '...', contentType: 'text/plain' } }`
+          );
+        }
         throw new Error(`Unsupported media type: ${resolvedMediaType}`);
       }
       return {
@@ -195,6 +202,20 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
 
     if (!media.url) {
       throw new Error('Media url is required but was not provided');
+    }
+
+    // For non-data URLs, use the provided contentType or default to a generic type
+    // Note: Anthropic will validate the actual content when fetching from URL
+    if (media.contentType) {
+      if (!this.isMediaType(media.contentType)) {
+        // Provide helpful error message for text files
+        if (media.contentType === 'text/plain') {
+          throw new Error(
+            `Unsupported media type: ${media.contentType}. Text files should be sent as text content in the message, not as media. For example, use { text: '...' } instead of { media: { url: '...', contentType: 'text/plain' } }`
+          );
+        }
+        throw new Error(`Unsupported media type: ${media.contentType}`);
+      }
     }
 
     return {
@@ -216,7 +237,16 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
     if (this.isMediaObject(output)) {
       const { data, contentType } =
         this.extractDataFromBase64Url(output.url) ?? {};
-      if (data && contentType && this.isMediaType(contentType)) {
+      if (data && contentType) {
+        if (!this.isMediaType(contentType)) {
+          // Provide helpful error message for text files
+          if (contentType === 'text/plain') {
+            throw new Error(
+              `Unsupported media type: ${contentType}. Text files should be sent as text content, not as media.`
+            );
+          }
+          throw new Error(`Unsupported media type: ${contentType}`);
+        }
         return {
           type: 'image',
           source: {
@@ -234,7 +264,16 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
       if (this.isDataUrl(output)) {
         const { data, contentType } =
           this.extractDataFromBase64Url(output) ?? {};
-        if (data && contentType && this.isMediaType(contentType)) {
+        if (data && contentType) {
+          if (!this.isMediaType(contentType)) {
+            // Provide helpful error message for text files
+            if (contentType === 'text/plain') {
+              throw new Error(
+                `Unsupported media type: ${contentType}. Text files should be sent as text content, not as media.`
+              );
+            }
+            throw new Error(`Unsupported media type: ${contentType}`);
+          }
           return {
             type: 'image',
             source: {

@@ -184,6 +184,121 @@ describe('Anthropic Integration', () => {
     assert.ok(result.text, 'Should generate response for image input');
   });
 
+  it('should handle WEBP image inputs', async () => {
+    const mockClient = createMockAnthropicClient();
+    const ai = genkit({
+      plugins: [anthropic({ [__testClient]: mockClient } as PluginOptions)],
+    });
+
+    const result = await ai.generate({
+      model: 'anthropic/claude-3-5-haiku',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { text: 'Describe this image:' },
+            {
+              media: {
+                url: 'data:image/webp;base64,AAA',
+                contentType: 'image/webp',
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    assert.ok(result.text, 'Should generate response for WEBP image input');
+    // Verify the request was made with correct media_type
+    const createStub = mockClient.messages.create as any;
+    assert.strictEqual(createStub.mock.calls.length, 1);
+    const requestBody = createStub.mock.calls[0].arguments[0];
+    const imageContent = requestBody.messages[0].content.find(
+      (c: any) => c.type === 'image'
+    );
+    assert.ok(imageContent, 'Should have image content in request');
+    assert.strictEqual(
+      imageContent.source.media_type,
+      'image/webp',
+      'Should use WEBP media type from data URL'
+    );
+  });
+
+  it('should handle WEBP image with mismatched contentType (prefers data URL)', async () => {
+    const mockClient = createMockAnthropicClient();
+    const ai = genkit({
+      plugins: [anthropic({ [__testClient]: mockClient } as PluginOptions)],
+    });
+
+    const result = await ai.generate({
+      model: 'anthropic/claude-3-5-haiku',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              media: {
+                // Data URL says WEBP, but contentType says PNG - should use WEBP
+                url: 'data:image/webp;base64,AAA',
+                contentType: 'image/png',
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    assert.ok(result.text, 'Should generate response for WEBP image input');
+    // Verify the request was made with WEBP (from data URL), not PNG (from contentType)
+    const createStub = mockClient.messages.create as any;
+    assert.strictEqual(createStub.mock.calls.length, 1);
+    const requestBody = createStub.mock.calls[0].arguments[0];
+    const imageContent = requestBody.messages[0].content.find(
+      (c: any) => c.type === 'image'
+    );
+    assert.ok(imageContent, 'Should have image content in request');
+    assert.strictEqual(
+      imageContent.source.media_type,
+      'image/webp',
+      'Should prefer data URL content type (webp) over contentType (png)'
+    );
+  });
+
+  it('should throw helpful error for text/plain media', async () => {
+    const mockClient = createMockAnthropicClient();
+    const ai = genkit({
+      plugins: [anthropic({ [__testClient]: mockClient } as PluginOptions)],
+    });
+
+    await assert.rejects(
+      async () => {
+        await ai.generate({
+          model: 'anthropic/claude-3-5-haiku',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  media: {
+                    url: 'data:text/plain;base64,AAA',
+                    contentType: 'text/plain',
+                  },
+                },
+              ],
+            },
+          ],
+        });
+      },
+      (error: Error) => {
+        return (
+          error.message.includes('Text files should be sent as text content') &&
+          error.message.includes('text:')
+        );
+      },
+      'Should throw helpful error for text/plain media'
+    );
+  });
+
   it('should forward thinking config and surface reasoning in responses', async () => {
     const thinkingContent = [
       {

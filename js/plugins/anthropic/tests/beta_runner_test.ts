@@ -110,6 +110,111 @@ describe('BetaRunner.toAnthropicMessageContent', () => {
     assert.strictEqual(result.tool_use_id, 'tool-abc');
     assert.deepStrictEqual(result.content, [{ type: 'text', text: 'done' }]);
   });
+
+  it('should handle WEBP image data URLs', () => {
+    const runner = createRunner();
+    const part: Part = {
+      media: {
+        contentType: 'image/webp',
+        url: 'data:image/webp;base64,AAA',
+      },
+    };
+
+    const result = (runner as any).toAnthropicMessageContent(part);
+
+    assert.strictEqual(result.type, 'image');
+    assert.strictEqual(result.source.type, 'base64');
+    assert.strictEqual(result.source.media_type, 'image/webp');
+    assert.strictEqual(result.source.data, 'AAA');
+  });
+
+  it('should prefer data URL content type over media.contentType for WEBP', () => {
+    const runner = createRunner();
+    const part: Part = {
+      media: {
+        // Even if contentType says PNG, data URL says WEBP - should use WEBP
+        contentType: 'image/png',
+        url: 'data:image/webp;base64,AAA',
+      },
+    };
+
+    const result = (runner as any).toAnthropicMessageContent(part);
+
+    assert.strictEqual(result.type, 'image');
+    assert.strictEqual(result.source.type, 'base64');
+    // Key fix: should use data URL type (webp), not contentType (png)
+    assert.strictEqual(result.source.media_type, 'image/webp');
+    assert.strictEqual(result.source.data, 'AAA');
+  });
+
+  it('should throw helpful error for text/plain in toAnthropicMessageContent', () => {
+    const runner = createRunner();
+    const part: Part = {
+      media: {
+        contentType: 'text/plain',
+        url: 'data:text/plain;base64,AAA',
+      },
+    };
+
+    assert.throws(
+      () => {
+        (runner as any).toAnthropicMessageContent(part);
+      },
+      (error: Error) => {
+        return (
+          error.message.includes('Text files should be sent as text content') &&
+          error.message.includes('text:')
+        );
+      }
+    );
+  });
+
+  it('should throw helpful error for text/plain with remote URL', () => {
+    const runner = createRunner();
+    const part: Part = {
+      media: {
+        contentType: 'text/plain',
+        url: 'https://example.com/file.txt',
+      },
+    };
+
+    assert.throws(
+      () => {
+        (runner as any).toAnthropicMessageContent(part);
+      },
+      (error: Error) => {
+        return (
+          error.message.includes('Text files should be sent as text content') &&
+          error.message.includes('text:')
+        );
+      }
+    );
+  });
+
+  it('should throw helpful error for text/plain in tool response', () => {
+    const runner = createRunner();
+    const part: Part = {
+      toolResponse: {
+        ref: 'call_123',
+        name: 'get_file',
+        output: {
+          url: 'data:text/plain;base64,AAA',
+          contentType: 'text/plain',
+        },
+      },
+    };
+
+    assert.throws(
+      () => {
+        (runner as any).toAnthropicToolResponseContent(part);
+      },
+      (error: Error) => {
+        return error.message.includes(
+          'Text files should be sent as text content'
+        );
+      }
+    );
+  });
 });
 /**
  * Copyright 2025 Google LLC

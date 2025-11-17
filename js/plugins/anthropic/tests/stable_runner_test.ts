@@ -1989,6 +1989,175 @@ describe('BaseRunner helper utilities', () => {
     }
     assert.strictEqual(source.url, 'https://example.com/image.png');
   });
+
+  it('should parse WEBP image data URLs with matching contentType', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
+
+    const source = runner['toImageSource']({
+      url: 'data:image/webp;base64,AAA',
+      contentType: 'image/webp',
+    });
+
+    assert.strictEqual(source.kind, 'base64');
+    if (source.kind !== 'base64') {
+      throw new Error('Expected base64 image source');
+    }
+    assert.strictEqual(source.mediaType, 'image/webp');
+    assert.strictEqual(source.data, 'AAA');
+  });
+
+  it('should prefer data URL content type over media.contentType for WEBP', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
+
+    // Even if contentType says PNG, data URL says WEBP - should use WEBP
+    const source = runner['toImageSource']({
+      url: 'data:image/webp;base64,AAA',
+      contentType: 'image/png',
+    });
+
+    assert.strictEqual(source.kind, 'base64');
+    if (source.kind !== 'base64') {
+      throw new Error('Expected base64 image source');
+    }
+    // Key fix: should use data URL type (webp), not contentType (png)
+    assert.strictEqual(source.mediaType, 'image/webp');
+    assert.strictEqual(source.data, 'AAA');
+  });
+
+  it('should handle WEBP via toAnthropicMessageContent', () => {
+    const result = testRunner.toAnthropicMessageContent({
+      media: {
+        url: 'data:image/webp;base64,AAA',
+        contentType: 'image/webp',
+      },
+    });
+
+    assert.strictEqual(result.type, 'image');
+    assert.strictEqual(result.source.type, 'base64');
+    assert.strictEqual(result.source.media_type, 'image/webp');
+    assert.strictEqual(result.source.data, 'AAA');
+  });
+
+  it('should handle WEBP in tool response content', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
+
+    const result = runner['toAnthropicToolResponseContent']({
+      toolResponse: {
+        ref: 'call_123',
+        name: 'get_image',
+        output: {
+          url: 'data:image/webp;base64,AAA',
+          contentType: 'image/webp',
+        },
+      },
+    } as any);
+
+    assert.strictEqual(result.type, 'image');
+    assert.strictEqual(result.source.type, 'base64');
+    assert.strictEqual(result.source.media_type, 'image/webp');
+    assert.strictEqual(result.source.data, 'AAA');
+  });
+
+  it('should throw helpful error for text/plain in toImageSource', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
+
+    assert.throws(
+      () =>
+        runner['toImageSource']({
+          url: 'data:text/plain;base64,AAA',
+          contentType: 'text/plain',
+        }),
+      (error: Error) => {
+        return (
+          error.message.includes('Text files should be sent as text content') &&
+          error.message.includes('text:')
+        );
+      }
+    );
+  });
+
+  it('should throw helpful error for text/plain in toAnthropicMessageContent', () => {
+    assert.throws(
+      () =>
+        testRunner.toAnthropicMessageContent({
+          media: {
+            url: 'data:text/plain;base64,AAA',
+            contentType: 'text/plain',
+          },
+        }),
+      (error: Error) => {
+        return (
+          error.message.includes('Text files should be sent as text content') &&
+          error.message.includes('text:')
+        );
+      }
+    );
+  });
+
+  it('should throw helpful error for text/plain in tool response', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
+
+    assert.throws(
+      () =>
+        runner['toAnthropicToolResponseContent']({
+          toolResponse: {
+            ref: 'call_123',
+            name: 'get_file',
+            output: {
+              url: 'data:text/plain;base64,AAA',
+              contentType: 'text/plain',
+            },
+          },
+        } as any),
+      (error: Error) => {
+        return error.message.includes(
+          'Text files should be sent as text content'
+        );
+      }
+    );
+  });
+
+  it('should throw helpful error for text/plain with remote URL', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    });
+
+    assert.throws(
+      () =>
+        runner['toImageSource']({
+          url: 'https://example.com/file.txt',
+          contentType: 'text/plain',
+        }),
+      (error: Error) => {
+        return (
+          error.message.includes('Text files should be sent as text content') &&
+          error.message.includes('text:')
+        );
+      }
+    );
+  });
 });
 
 describe('Runner request bodies and error branches', () => {
