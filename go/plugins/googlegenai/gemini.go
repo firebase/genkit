@@ -300,7 +300,7 @@ func generate(
 		if err != nil {
 			return nil, err
 		}
-		for i, c := range chunk.Candidates {
+		for _, c := range chunk.Candidates {
 			tc, err := translateCandidate(c)
 			if err != nil {
 				return nil, err
@@ -311,8 +311,7 @@ func generate(
 			if err != nil {
 				return nil, err
 			}
-			// stream only supports text
-			chunks = append(chunks, c.Content.Parts[i])
+			chunks = append(chunks, c.Content.Parts...)
 		}
 		// keep the last chunk for usage metadata
 		resp = chunk

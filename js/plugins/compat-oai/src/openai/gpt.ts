@@ -26,6 +26,7 @@ const MULTIMODAL_MODEL_INFO: ModelInfo = {
     media: true,
     systemRole: true,
     output: ['text', 'json'],
+    constrained: 'all',
   },
 };
 

@@ -487,7 +487,7 @@ describe('GoogleAI Plugin', () => {
     it('should filter out deprecated models', async () => {
       const mockModels = [
         {
-          name: 'models/gemini-1.5-flash',
+          name: 'models/gemini-2.5-flash',
           supportedGenerationMethods: ['generateContent'],
         },
         {
@@ -517,7 +517,7 @@ describe('GoogleAI Plugin', () => {
       const plugin = googleAI();
       const actions = await plugin.list!();
       const actionNames = actions.map((a) => a.name);
-      assert.deepStrictEqual(actionNames, ['googleai/gemini-1.5-flash']);
+      assert.deepStrictEqual(actionNames, ['googleai/gemini-2.5-flash']);
     });
 
     it('should handle fetch errors gracefully', async () => {

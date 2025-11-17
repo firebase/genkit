@@ -271,6 +271,9 @@ describe('Google AI Gemini', () => {
           config: {
             codeExecution: true,
             googleSearchRetrieval: {},
+            fileSearch: {
+              fileSearchStoreNames: ['foo'],
+            },
           },
         };
         await model.run(request);
@@ -279,11 +282,37 @@ describe('Google AI Gemini', () => {
           fetchStub.lastCall.args[1].body
         );
         assert.ok(Array.isArray(apiRequest.tools));
-        assert.strictEqual(apiRequest.tools?.length, 3);
+        assert.strictEqual(apiRequest.tools?.length, 4);
         assert.deepStrictEqual(apiRequest.tools?.[1], { codeExecution: {} });
         assert.deepStrictEqual(apiRequest.tools?.[2], {
           googleSearch: {},
         });
+        assert.deepStrictEqual(apiRequest.tools?.[3], {
+          fileSearch: {
+            fileSearchStoreNames: ['foo'],
+          },
+        });
+      });
+
+      it('uses baseUrl and apiVersion from call config', async () => {
+        const model = defineModel('gemini-2.5-flash', {
+          ...defaultPluginOptions,
+          baseUrl: 'https://my.custom.base.path',
+          apiVersion: 'v1custom',
+        });
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+        };
+        await model.run(request);
+        sinon.assert.calledOnce(fetchStub);
+
+        const fetchArgs = fetchStub.lastCall.args;
+        const url = fetchArgs[0];
+        assert.ok(
+          url.startsWith('https://my.custom.base.path/v1custom/models'),
+          `Expected URL to start with "https://my.custom.base.path/v1custom/models", but it was "${url}"`
+        );
       });
     });
 

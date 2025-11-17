@@ -354,7 +354,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use auth token for Gemini generateContent', async () => {
-        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-2.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -442,7 +442,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use API key for Gemini generateContent', async () => {
-        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-2.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );
@@ -537,7 +537,7 @@ describe('VertexAI Plugin', () => {
       });
 
       it('should use API key for Gemini generateContent', async () => {
-        const modelRef = vertexAI.model('gemini-1.5-flash');
+        const modelRef = vertexAI.model('gemini-2.5-flash');
         const generateAction = await ai.registry.lookupAction(
           '/model/' + modelRef.name
         );

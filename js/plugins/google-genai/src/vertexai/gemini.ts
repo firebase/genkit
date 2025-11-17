@@ -54,7 +54,7 @@ import {
   VertexPluginOptions,
 } from './types.js';
 import {
-  calculateApiKey,
+  calculateRequestOptions,
   checkModelName,
   cleanSchema,
   extractVersion,
@@ -509,41 +509,10 @@ export function defineModel(
         ...restOfConfig
       } = requestConfig;
 
-      if (
-        location &&
-        clientOptions.kind != 'express' &&
-        clientOptions.location != location
-      ) {
-        // Override the location if it's specified in the request
-        if (location == 'global') {
-          clientOpt = {
-            kind: 'global',
-            location: 'global',
-            projectId: clientOptions.projectId,
-            authClient: clientOptions.authClient,
-            apiKey: clientOptions.apiKey,
-            signal: abortSignal,
-          };
-        } else {
-          clientOpt = {
-            kind: 'regional',
-            location,
-            projectId: clientOptions.projectId,
-            authClient: clientOptions.authClient,
-            apiKey: clientOptions.apiKey,
-            signal: abortSignal,
-          };
-        }
-      }
-      if (clientOptions.kind == 'express') {
-        clientOpt.apiKey = calculateApiKey(
-          clientOptions.apiKey,
-          apiKeyFromConfig
-        );
-      } else if (apiKeyFromConfig) {
-        // Regional or Global can still use APIKey for billing (not auth)
-        clientOpt.apiKey = apiKeyFromConfig;
-      }
+      clientOpt = calculateRequestOptions(clientOpt, {
+        location,
+        apiKey: apiKeyFromConfig,
+      });
 
       const labels = toGeminiLabels(labelsFromConfig);
 
@@ -647,9 +616,14 @@ export function defineModel(
       const modelVersion = versionFromConfig || extractVersion(ref);
 
       if (jsonMode && request.output?.constrained) {
-        generateContentRequest.generationConfig!.responseSchema = cleanSchema(
-          request.output.schema
-        );
+        if (pluginOptions?.legacyResponseSchema) {
+          generateContentRequest.generationConfig!.responseSchema = cleanSchema(
+            request.output.schema
+          );
+        } else {
+          generateContentRequest.generationConfig!.responseJsonSchema =
+            request.output.schema;
+        }
       }
 
       const callGemini = async () => {

@@ -239,10 +239,31 @@ ai.defineFlow(
   }
 );
 
+const baseCategorySchema = z.object({
+  name: z.string(),
+});
+
+type Category = z.infer<typeof baseCategorySchema> & {
+  subcategories?: Category[];
+};
+
+const categorySchema: z.ZodType<Category> = baseCategorySchema.extend({
+  subcategories: z
+    .lazy(() => categorySchema.array())
+    .describe('make sure there are 2-3 levels of subcategories')
+    .optional(),
+});
+
+const WeaponSchema = z.object({
+  name: z.string(),
+  damage: z.number(),
+  category: categorySchema,
+});
+
 const RpgCharacterSchema = z.object({
   name: z.string().describe('name of the character'),
   backstory: z.string().describe("character's backstory, about a paragraph"),
-  weapons: z.array(z.string()),
+  weapons: z.array(WeaponSchema),
   class: z.enum(['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER']),
 });
 

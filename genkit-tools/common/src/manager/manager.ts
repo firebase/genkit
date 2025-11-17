@@ -39,6 +39,7 @@ import {
   retriable,
   type DevToolsInfo,
 } from '../utils/utils';
+import { ProcessManager } from './process-manager';
 import {
   GenkitToolsError,
   RuntimeEvent,
@@ -57,9 +58,12 @@ interface RuntimeManagerOptions {
   manageHealth?: boolean;
   /** Project root dir. If not provided will be inferred from CWD. */
   projectRoot: string;
+  /** An optional process manager for the main application process. */
+  processManager?: ProcessManager;
 }
 
 export class RuntimeManager {
+  readonly processManager?: ProcessManager;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
@@ -68,8 +72,11 @@ export class RuntimeManager {
   private constructor(
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
-    readonly projectRoot: string
-  ) {}
+    readonly projectRoot: string,
+    processManager?: ProcessManager
+  ) {
+    this.processManager = processManager;
+  }
 
   /**
    * Creates a new runtime manager.
@@ -78,7 +85,8 @@ export class RuntimeManager {
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
       options.manageHealth ?? true,
-      options.projectRoot
+      options.projectRoot,
+      options.processManager
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
@@ -362,6 +370,17 @@ export class RuntimeManager {
       );
 
     return response.data as TraceData;
+  }
+
+  /**
+   * Adds a trace to the trace store
+   */
+  async addTrace(input: TraceData): Promise<void> {
+    await axios
+      .post(`${this.telemetryServerUrl}/api/traces/`, input)
+      .catch((err) =>
+        this.httpErrorHandler(err, 'Error writing trace to store.')
+      );
   }
 
   /**
