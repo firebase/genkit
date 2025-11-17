@@ -588,8 +588,8 @@ async function resolveFullToolNames(
   if (await registry.lookupAction(`/tool/${name}`)) {
     return [`/tool/${name}`];
   }
-  if (await registry.lookupAction(`/multipart-tool/${name}`)) {
-    return [`/multipart-tool/${name}`];
+  if (await registry.lookupAction(`/tool.v2/${name}`)) {
+    return [`/tool.v2/${name}`];
   }
   if (await registry.lookupAction(`/prompt/${name}`)) {
     return [`/prompt/${name}`];

@@ -101,7 +101,7 @@ export type ToolAction<
   };
 
 /**
- * An action with a `multipart-tool` type.
+ * An action with a `tool.v2` type.
  */
 export type MultipartToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -115,7 +115,7 @@ export type MultipartToolAction<
   Resumable<I, O> & {
     __action: {
       metadata: {
-        type: 'multipart-tool';
+        type: 'tool.v2';
       };
     };
   };
@@ -238,7 +238,7 @@ export async function lookupToolByName(
   const tool =
     (await registry.lookupAction(name)) ||
     (await registry.lookupAction(`/tool/${name}`)) ||
-    (await registry.lookupAction(`/multipart-tool/${name}`)) ||
+    (await registry.lookupAction(`/tool.v2/${name}`)) ||
     (await registry.lookupAction(`/prompt/${name}`)) ||
     (await registry.lookupAction(`/dynamic-action-provider/${name}`));
   if (!tool) {
@@ -325,7 +325,7 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   fn?: ToolFn<I, O> | MultipartToolFn<I, O>
 ): ToolAction<I, O> | MultipartToolAction<I, O> {
   const a = tool(config, fn);
-  registry.registerAction(config.multipart ? 'multipart-tool' : 'tool', a);
+  registry.registerAction(config.multipart ? 'tool.v2' : 'tool', a);
   return a as ToolAction<I, O>;
 }
 
@@ -519,8 +519,8 @@ function multipartTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     {
       ...config,
       outputSchema: MultipartToolResponseSchema,
-      actionType: 'multipart-tool',
-      metadata: { ...(config.metadata || {}), type: 'multipart-tool' },
+      actionType: 'tool.v2',
+      metadata: { ...(config.metadata || {}), type: 'tool.v2' },
     },
     (i, runOptions) => {
       const interrupt = interruptTool(runOptions.registry);

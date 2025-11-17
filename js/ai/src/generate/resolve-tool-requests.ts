@@ -122,7 +122,7 @@ export async function resolveToolRequest(
   // otherwise, execute the tool and catch interrupts
   try {
     const output = await tool(part.toolRequest.input, toRunOptions(part));
-    if (tool.__action.actionType === 'multipart-tool') {
+    if (tool.__action.actionType === 'tool.v2') {
       const multipartResponse = output as z.infer<
         typeof MultipartToolResponseSchema
       >;

@@ -120,8 +120,8 @@ describe('defineInterrupt', () => {
           };
         }
       );
-      assert.equal(t.__action.metadata.type, 'multipart-tool');
-      assert.equal(t.__action.actionType, 'multipart-tool');
+      assert.equal(t.__action.metadata.type, 'tool.v2');
+      assert.equal(t.__action.actionType, 'tool.v2');
       const result = await t({});
       assert.deepStrictEqual(result, {
         output: 'main output',
