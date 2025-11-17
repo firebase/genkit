@@ -323,4 +323,16 @@ describe('defineTool', () => {
     assert.ok(await registry.lookupAction('/tool.v2/test'));
     assert.equal(await registry.lookupAction('/tool/test'), undefined);
   });
+
+  it('should wrap v1 tool output when called as v2', async () => {
+    defineTool(
+      registry,
+      { name: 'test', description: 'test' },
+      async () => 'foo'
+    );
+    const action = await registry.lookupAction('/tool.v2/test');
+    assert.ok(action);
+    const result = await action!({});
+    assert.deepStrictEqual(result, { output: 'foo' });
+  });
 });
