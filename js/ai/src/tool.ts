@@ -540,7 +540,11 @@ function multipartTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       ...config,
       outputSchema: MultipartToolResponseSchema,
       actionType: 'tool.v2',
-      metadata: { ...(config.metadata || {}), type: 'tool.v2' },
+      metadata: {
+        ...(config.metadata || {}),
+        type: 'tool.v2',
+        tool: { multipart: true },
+      },
     },
     (i, runOptions) => {
       const interrupt = interruptTool(runOptions.registry);
