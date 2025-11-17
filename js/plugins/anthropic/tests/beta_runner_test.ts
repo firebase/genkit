@@ -230,7 +230,7 @@ describe('BetaRunner', () => {
       index: 0,
       delta: { type: 'thinking_delta', thinking: 'hmm' },
     } as any);
-    assert.deepStrictEqual(deltaPart, { text: 'hmm' });
+    assert.deepStrictEqual(deltaPart, { reasoning: 'hmm' });
 
     const ignored = exposed.toGenkitPart({ type: 'message_stop' } as any);
     assert.strictEqual(ignored, undefined);
@@ -377,6 +377,7 @@ describe('BetaRunner', () => {
         stopSequences: ['DONE'],
         metadata: { user_id: 'beta-user' },
         tool_choice: { type: 'tool', name: 'get_weather' },
+        thinking: { enabled: true, budgetTokens: 2048 },
       },
       tools: [
         {
@@ -406,6 +407,10 @@ describe('BetaRunner', () => {
       name: 'get_weather',
     });
     assert.strictEqual(body.tools?.length, 1);
+    assert.deepStrictEqual(body.thinking, {
+      type: 'enabled',
+      budget_tokens: 2048,
+    });
 
     const streamingBody = runner.toAnthropicStreamingRequestBody(
       'claude-3-5-haiku',
@@ -414,6 +419,22 @@ describe('BetaRunner', () => {
     );
     assert.strictEqual(streamingBody.stream, true);
     assert.ok(Array.isArray(streamingBody.system));
+    assert.deepStrictEqual(streamingBody.thinking, {
+      type: 'enabled',
+      budget_tokens: 2048,
+    });
+
+    const disabledBody = runner.toAnthropicRequestBody(
+      'claude-3-5-haiku',
+      {
+        messages: [],
+        config: {
+          thinking: { enabled: false },
+        },
+      } satisfies any,
+      false
+    );
+    assert.deepStrictEqual(disabledBody.thinking, { type: 'disabled' });
   });
 
   it('should concatenate multiple text parts in system message', () => {
@@ -602,8 +623,12 @@ describe('BetaRunner', () => {
     const thinkingPart = (runner as any).fromBetaContentBlock({
       type: 'thinking',
       thinking: 'pondering',
+      signature: 'sig_456',
     });
-    assert.deepStrictEqual(thinkingPart, { text: 'pondering' });
+    assert.deepStrictEqual(thinkingPart, {
+      reasoning: 'pondering',
+      custom: { anthropicThinking: { signature: 'sig_456' } },
+    });
 
     const redactedPart = (runner as any).fromBetaContentBlock({
       type: 'redacted_thinking',

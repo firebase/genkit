@@ -64,7 +64,7 @@ export interface ClaudeModelParams extends ClaudeHelperParamsBase {}
  */
 export interface ClaudeRunnerParams extends ClaudeHelperParamsBase {}
 
-export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
+export const AnthropicBaseConfigSchema = GenerationCommonConfigSchema.extend({
   tool_choice: z
     .union([
       z.object({
@@ -87,6 +87,36 @@ export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   /** Optional shorthand to pick API surface for this request. */
   apiVersion: z.enum(['stable', 'beta']).optional(),
 });
+
+export type AnthropicBaseConfigSchemaType = typeof AnthropicBaseConfigSchema;
+
+export const ThinkingConfigSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    budgetTokens: z.number().int().min(1_024).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.enabled && value.budgetTokens === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['budgetTokens'],
+        message: 'budgetTokens is required when thinking is enabled',
+      });
+    }
+  });
+
+export const AnthropicThinkingConfigSchema = AnthropicBaseConfigSchema.extend({
+  thinking: ThinkingConfigSchema.optional(),
+});
+
+export const AnthropicConfigSchema = AnthropicThinkingConfigSchema;
+
+export type ThinkingConfig = z.infer<typeof ThinkingConfigSchema>;
+export type AnthropicBaseConfig = z.infer<typeof AnthropicBaseConfigSchema>;
+export type AnthropicThinkingConfig = z.infer<
+  typeof AnthropicThinkingConfigSchema
+>;
+export type ClaudeConfig = AnthropicThinkingConfig | AnthropicBaseConfig;
 
 /**
  * Media object representation with URL and optional content type.
@@ -125,7 +155,7 @@ export const MEDIA_TYPES = {
  *   3. otherwise stable
  */
 export function resolveBetaEnabled(
-  cfg: z.infer<typeof AnthropicConfigSchema> | undefined,
+  cfg: AnthropicThinkingConfig | AnthropicBaseConfig | undefined,
   pluginDefaultApiVersion?: 'stable' | 'beta'
 ): boolean {
   if (cfg?.apiVersion !== undefined) {

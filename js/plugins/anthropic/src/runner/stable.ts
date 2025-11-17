@@ -20,11 +20,14 @@ import type {
   DocumentBlockParam,
   ImageBlockParam,
   Message,
+  MessageCreateParams,
   MessageCreateParamsNonStreaming,
   MessageCreateParamsStreaming,
   MessageParam,
   MessageStreamEvent,
+  RedactedThinkingBlockParam,
   TextBlockParam,
+  ThinkingBlockParam,
   Tool,
   ToolResultBlockParam,
   ToolUseBlockParam,
@@ -54,7 +57,9 @@ interface RunnerTypes extends BaseRunnerTypes {
     | ImageBlockParam
     | DocumentBlockParam
     | ToolUseBlockParam
-    | ToolResultBlockParam;
+    | ToolResultBlockParam
+    | ThinkingBlockParam
+    | RedactedThinkingBlockParam;
 }
 
 export class Runner extends BaseRunner<RunnerTypes> {
@@ -69,7 +74,31 @@ export class Runner extends BaseRunner<RunnerTypes> {
     | ImageBlockParam
     | DocumentBlockParam
     | ToolUseBlockParam
-    | ToolResultBlockParam {
+    | ToolResultBlockParam
+    | ThinkingBlockParam
+    | RedactedThinkingBlockParam {
+    if (part.reasoning) {
+      const signature = this.getThinkingSignature(part);
+      if (!signature) {
+        throw new Error(
+          'Anthropic thinking parts require a signature when sending back to the API. Preserve the `custom.anthropicThinking.signature` value from the original response.'
+        );
+      }
+      return {
+        type: 'thinking',
+        thinking: part.reasoning,
+        signature,
+      };
+    }
+
+    const redactedThinking = this.getRedactedThinkingData(part);
+    if (redactedThinking !== undefined) {
+      return {
+        type: 'redacted_thinking',
+        data: redactedThinking,
+      };
+    }
+
     if (part.text) {
       return {
         type: 'text',
@@ -199,6 +228,12 @@ export class Runner extends BaseRunner<RunnerTypes> {
     if (request.config?.tool_choice !== undefined) {
       body.tool_choice = request.config.tool_choice;
     }
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    );
+    if (thinkingConfig) {
+      body.thinking = thinkingConfig as MessageCreateParams['thinking'];
+    }
 
     if (request.output?.format && request.output.format !== 'text') {
       throw new Error(
@@ -264,6 +299,13 @@ export class Runner extends BaseRunner<RunnerTypes> {
     if (request.config?.tool_choice !== undefined) {
       body.tool_choice = request.config.tool_choice;
     }
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    );
+    if (thinkingConfig) {
+      body.thinking =
+        thinkingConfig as MessageCreateParamsStreaming['thinking'];
+    }
 
     if (request.output?.format && request.output.format !== 'text') {
       throw new Error(
@@ -313,7 +355,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
       }
 
       if (delta.type === 'thinking_delta') {
-        return { text: delta.thinking };
+        return { reasoning: delta.thinking };
       }
 
       // signature_delta - ignore
@@ -348,7 +390,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
           return { text: block.text };
 
         case 'thinking':
-          return { text: block.thinking };
+          return this.createThinkingPart(block.thinking, block.signature);
 
         case 'redacted_thinking':
           return { custom: { redactedThinking: block.data } };
@@ -410,7 +452,10 @@ export class Runner extends BaseRunner<RunnerTypes> {
         return { text: contentBlock.text };
 
       case 'thinking':
-        return { text: contentBlock.thinking };
+        return this.createThinkingPart(
+          contentBlock.thinking,
+          contentBlock.signature
+        );
 
       case 'redacted_thinking':
         return { custom: { redactedThinking: contentBlock.data } };

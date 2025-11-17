@@ -65,6 +65,27 @@ const response = await ai.generate({
 console.log(response.text);
 ```
 
+### Extended thinking
+
+Claude 4 models can expose their internal reasoning. Enable it per-request with the Anthropic thinking config and read the reasoning from the response:
+
+```typescript
+const response = await ai.generate({
+  prompt: 'Walk me through your reasoning for Fermat’s little theorem.',
+  config: {
+    thinking: {
+      enabled: true,
+      budgetTokens: 4096, // Must be >= 1024 and less than max_tokens
+    },
+  },
+});
+
+console.log(response.text);       // Final assistant answer
+console.log(response.reasoning);  // Summarized thinking steps
+```
+
+When thinking is enabled, request bodies sent through the plugin include the `thinking` payload (`{ type: 'enabled', budget_tokens: … }`) that Anthropic’s API expects, and streamed responses deliver `reasoning` parts as they arrive so you can render the chain-of-thought incrementally.
+
 ### Within a flow
 
 ```typescript

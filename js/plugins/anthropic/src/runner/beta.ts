@@ -24,9 +24,11 @@ import type {
   MessageCreateParamsStreaming as BetaMessageCreateParamsStreaming,
   BetaMessageParam,
   BetaRawMessageStreamEvent,
+  BetaRedactedThinkingBlockParam,
   BetaRequestDocumentBlock,
   BetaStopReason,
   BetaTextBlockParam,
+  BetaThinkingBlockParam,
   BetaTool,
   BetaToolResultBlockParam,
   BetaToolUseBlockParam,
@@ -80,7 +82,9 @@ interface BetaRunnerTypes extends RunnerTypes {
     | BetaImageBlockParam
     | BetaRequestDocumentBlock
     | BetaToolUseBlockParam
-    | BetaToolResultBlockParam;
+    | BetaToolResultBlockParam
+    | BetaThinkingBlockParam
+    | BetaRedactedThinkingBlockParam;
 }
 
 /**
@@ -103,7 +107,31 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     | BetaImageBlockParam
     | BetaRequestDocumentBlock
     | BetaToolUseBlockParam
-    | BetaToolResultBlockParam {
+    | BetaToolResultBlockParam
+    | BetaThinkingBlockParam
+    | BetaRedactedThinkingBlockParam {
+    if (part.reasoning) {
+      const signature = this.getThinkingSignature(part);
+      if (!signature) {
+        throw new Error(
+          'Anthropic thinking parts require a signature when sending back to the API. Preserve the `custom.anthropicThinking.signature` value from the original response.'
+        );
+      }
+      return {
+        type: 'thinking',
+        thinking: part.reasoning,
+        signature,
+      };
+    }
+
+    const redactedThinking = this.getRedactedThinkingData(part);
+    if (redactedThinking !== undefined) {
+      return {
+        type: 'redacted_thinking',
+        data: redactedThinking,
+      };
+    }
+
     // Text
     if (part.text) {
       return { type: 'text', text: part.text };
@@ -245,6 +273,12 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     if (request.tools) {
       body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
     }
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    );
+    if (thinkingConfig) {
+      body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
+    }
 
     if (request.output?.format && request.output.format !== 'text') {
       throw new Error(
@@ -307,6 +341,12 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
     if (request.tools) {
       body.tools = request.tools.map((tool) => this.toAnthropicTool(tool));
     }
+    const thinkingConfig = this.toAnthropicThinkingConfig(
+      request.config?.thinking
+    );
+    if (thinkingConfig) {
+      body.thinking = thinkingConfig as BetaMessageCreateParams['thinking'];
+    }
 
     if (request.output?.format && request.output.format !== 'text') {
       throw new Error(
@@ -355,7 +395,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         return { text: event.delta.text };
       }
       if (event.delta.type === 'thinking_delta') {
-        return { text: event.delta.thinking };
+        return { reasoning: event.delta.thinking };
       }
       // server/client tool input_json_delta not supported yet
       return undefined;
@@ -407,7 +447,10 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
         return { text: contentBlock.text };
 
       case 'thinking':
-        return { text: contentBlock.thinking };
+        return this.createThinkingPart(
+          contentBlock.thinking,
+          contentBlock.signature
+        );
 
       case 'redacted_thinking':
         return { custom: { redactedThinking: contentBlock.data } };

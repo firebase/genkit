@@ -34,7 +34,7 @@ import { describe, it, mock } from 'node:test';
 
 import { claudeModel, claudeRunner } from '../src/models.js';
 import { Runner } from '../src/runner/stable.js';
-import type { AnthropicConfigSchema } from '../src/types.js';
+import { AnthropicConfigSchema } from '../src/types.js';
 import {
   createMockAnthropicClient,
   mockContentBlockStart,
@@ -682,7 +682,10 @@ describe('fromAnthropicContentBlockChunk', () => {
           signature: 'sig_123',
         },
       },
-      expectedOutput: { text: 'Let me reason through this.' },
+      expectedOutput: {
+        reasoning: 'Let me reason through this.',
+        custom: { anthropicThinking: { signature: 'sig_123' } },
+      },
     },
     {
       should:
@@ -719,7 +722,7 @@ describe('fromAnthropicContentBlockChunk', () => {
           thinking: 'Step by step...',
         },
       },
-      expectedOutput: { text: 'Step by step...' },
+      expectedOutput: { reasoning: 'Step by step...' },
     },
     {
       should: 'should return tool use requests',
@@ -1271,10 +1274,13 @@ describe('claudeRunner', () => {
       },
     });
 
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
     await runner(
       { messages: [] },
@@ -1319,10 +1325,13 @@ describe('claudeRunner', () => {
     });
 
     const streamingCallback = mock.fn();
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
     await runner(
       { messages: [] },
@@ -1357,10 +1366,13 @@ describe('claudeRunner', () => {
       },
     });
 
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
     await runner(
       {
@@ -1390,11 +1402,14 @@ describe('claudeRunner', () => {
       },
     });
 
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-      defaultApiVersion: 'beta',
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+        defaultApiVersion: 'beta',
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
     await runner(
       {
@@ -1424,11 +1439,14 @@ describe('claudeRunner', () => {
     });
 
     // defaultApiVersion is 'stable', but request overrides to 'beta'
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-      defaultApiVersion: 'stable',
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+        defaultApiVersion: 'stable',
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
     await runner(
       {
@@ -1459,11 +1477,14 @@ describe('claudeRunner', () => {
     });
 
     // defaultApiVersion is 'beta', but request overrides to 'stable'
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-      defaultApiVersion: 'beta',
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+        defaultApiVersion: 'beta',
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
     await runner(
       {
@@ -1484,11 +1505,14 @@ describe('claudeRunner', () => {
 describe('claudeRunner param object', () => {
   it('should run requests when constructed with params object', async () => {
     const mockClient = createMockAnthropicClient();
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-      cacheSystemPrompt: true,
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+        cacheSystemPrompt: true,
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
 
     await runner(
@@ -1506,11 +1530,14 @@ describe('claudeRunner param object', () => {
 
   it('should route to beta runner when defaultApiVersion is beta', async () => {
     const mockClient = createMockAnthropicClient();
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-      defaultApiVersion: 'beta',
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+        defaultApiVersion: 'beta',
+      },
+      AnthropicConfigSchema
+    );
     await runner(
       { messages: [] },
       {
@@ -1526,10 +1553,13 @@ describe('claudeRunner param object', () => {
 
   it('should throw when client is omitted from params object', () => {
     assert.throws(() => {
-      claudeRunner({
-        name: 'claude-3-5-haiku',
-        client: undefined as unknown as Anthropic,
-      });
+      claudeRunner(
+        {
+          name: 'claude-3-5-haiku',
+          client: undefined as unknown as Anthropic,
+        },
+        AnthropicConfigSchema
+      );
     }, /Anthropic client is required to create a runner/);
   });
 });
@@ -1631,10 +1661,13 @@ describe('claudeModel', () => {
       chunks.push(chunk);
     });
 
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
 
     const result = await runner(
@@ -1696,10 +1729,13 @@ describe('claudeModel', () => {
       chunks.push(chunk);
     });
 
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
 
     const result = await runner(
@@ -1754,10 +1790,13 @@ describe('claudeModel', () => {
       },
     });
 
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+      },
+      AnthropicConfigSchema
+    );
     const abortSignal = new AbortController().signal;
     const chunks: any[] = [];
     const sendChunk = (chunk: any) => {
@@ -1807,10 +1846,13 @@ describe('claudeModel', () => {
       },
     });
 
-    const runner = claudeRunner({
-      name: 'claude-3-5-haiku',
-      client: mockClient,
-    });
+    const runner = claudeRunner(
+      {
+        name: 'claude-3-5-haiku',
+        client: mockClient,
+      },
+      AnthropicConfigSchema
+    );
     const abortController = new AbortController();
     const chunks: any[] = [];
     const sendChunk = (chunk: any) => {
@@ -1979,6 +2021,7 @@ describe('Runner request bodies and error branches', () => {
           stopSequences: ['END'],
           metadata: { user_id: 'user-xyz' },
           tool_choice: { type: 'auto' },
+          thinking: { enabled: true, budgetTokens: 2048 },
         },
         tools: [
           {
@@ -2002,6 +2045,10 @@ describe('Runner request bodies and error branches', () => {
     assert.deepStrictEqual(body.metadata, { user_id: 'user-xyz' });
     assert.deepStrictEqual(body.tool_choice, { type: 'auto' });
     assert.strictEqual(body.tools?.length, 1);
+    assert.deepStrictEqual(body.thinking, {
+      type: 'enabled',
+      budget_tokens: 2048,
+    });
   });
 
   it('should include optional config fields in streaming request body', () => {
@@ -2033,6 +2080,7 @@ describe('Runner request bodies and error branches', () => {
           stopSequences: ['STOP'],
           metadata: { user_id: 'user-abc' },
           tool_choice: { type: 'any' },
+          thinking: { enabled: true, budgetTokens: 1536 },
         },
         tools: [
           {
@@ -2055,6 +2103,31 @@ describe('Runner request bodies and error branches', () => {
     assert.deepStrictEqual(body.metadata, { user_id: 'user-abc' });
     assert.deepStrictEqual(body.tool_choice, { type: 'any' });
     assert.strictEqual(body.tools?.length, 1);
+    assert.deepStrictEqual(body.thinking, {
+      type: 'enabled',
+      budget_tokens: 1536,
+    });
+  });
+
+  it('should disable thinking when explicitly turned off', () => {
+    const mockClient = createMockAnthropicClient();
+    const runner = new Runner({
+      name: 'claude-3-5-haiku',
+      client: mockClient,
+    }) as Runner & RunnerProtectedMethods;
+
+    const body = runner['toAnthropicRequestBody'](
+      'claude-3-5-haiku',
+      {
+        messages: [],
+        config: {
+          thinking: { enabled: false },
+        },
+      } as unknown as GenerateRequest<typeof AnthropicConfigSchema>,
+      false
+    );
+
+    assert.deepStrictEqual(body.thinking, { type: 'disabled' });
   });
 
   it('should throw descriptive errors for missing tool refs', () => {

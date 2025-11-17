@@ -29,13 +29,16 @@ import { model } from 'genkit/plugin';
 
 import { BetaRunner, Runner } from './runner/index.js';
 import {
+  AnthropicBaseConfigSchema,
+  AnthropicBaseConfigSchemaType,
   AnthropicConfigSchema,
+  AnthropicThinkingConfigSchema,
   resolveBetaEnabled,
   type ClaudeModelParams,
   type ClaudeRunnerParams,
 } from './types.js';
 
-export const claudeSonnet4 = modelRef({
+export const claudeSonnet4 = modelRef<AnthropicThinkingConfigSchemaType>({
   name: 'claude-sonnet-4',
   namespace: 'anthropic',
   info: {
@@ -49,11 +52,11 @@ export const claudeSonnet4 = modelRef({
       output: ['text'],
     },
   },
-  configSchema: AnthropicConfigSchema,
+  configSchema: AnthropicThinkingConfigSchema,
   version: 'claude-sonnet-4-20250514',
 });
 
-export const claude3Haiku = modelRef({
+export const claude3Haiku = modelRef<AnthropicBaseConfigSchemaType>({
   name: 'claude-3-haiku',
   namespace: 'anthropic',
   info: {
@@ -67,11 +70,11 @@ export const claude3Haiku = modelRef({
       output: ['text'],
     },
   },
-  configSchema: AnthropicConfigSchema,
+  configSchema: AnthropicBaseConfigSchema,
   version: 'claude-3-haiku-20240307',
 });
 
-export const claudeOpus4 = modelRef({
+export const claudeOpus4 = modelRef<AnthropicThinkingConfigSchemaType>({
   name: 'claude-opus-4',
   namespace: 'anthropic',
   info: {
@@ -85,11 +88,11 @@ export const claudeOpus4 = modelRef({
       output: ['text'],
     },
   },
-  configSchema: AnthropicConfigSchema,
+  configSchema: AnthropicThinkingConfigSchema,
   version: 'claude-opus-4-20250514',
 });
 
-export const claude35Haiku = modelRef({
+export const claude35Haiku = modelRef<AnthropicBaseConfigSchemaType>({
   name: 'claude-3-5-haiku',
   namespace: 'anthropic',
   info: {
@@ -103,11 +106,11 @@ export const claude35Haiku = modelRef({
       output: ['text'],
     },
   },
-  configSchema: AnthropicConfigSchema,
+  configSchema: AnthropicBaseConfigSchema,
   version: 'claude-3-5-haiku-latest',
 });
 
-export const claudeSonnet45 = modelRef({
+export const claudeSonnet45 = modelRef<AnthropicThinkingConfigSchemaType>({
   name: 'claude-sonnet-4-5',
   namespace: 'anthropic',
   info: {
@@ -121,11 +124,11 @@ export const claudeSonnet45 = modelRef({
       output: ['text'],
     },
   },
-  configSchema: AnthropicConfigSchema,
+  configSchema: AnthropicThinkingConfigSchema,
   version: 'claude-sonnet-4-5',
 });
 
-export const claudeHaiku45 = modelRef({
+export const claudeHaiku45 = modelRef<AnthropicThinkingConfigSchemaType>({
   name: 'claude-haiku-4-5',
   namespace: 'anthropic',
   info: {
@@ -139,12 +142,12 @@ export const claudeHaiku45 = modelRef({
       output: ['text'],
     },
   },
-  configSchema: AnthropicConfigSchema,
+  configSchema: AnthropicThinkingConfigSchema,
   version: 'claude-haiku-4-5',
 });
 
-export const claudeOpus41 = modelRef({
-  name: 'claude-opus-4.1',
+export const claudeOpus41 = modelRef<AnthropicThinkingConfigSchemaType>({
+  name: 'claude-opus-4-1',
   namespace: 'anthropic',
   info: {
     versions: ['claude-opus-4-1-20250805', 'claude-opus-4-1'],
@@ -157,13 +160,15 @@ export const claudeOpus41 = modelRef({
       output: ['text'],
     },
   },
-  configSchema: AnthropicConfigSchema,
+  configSchema: AnthropicThinkingConfigSchema,
   version: 'claude-opus-4-1',
 });
 
 export const KNOWN_CLAUDE_MODELS: Record<
   string,
-  ModelReference<typeof AnthropicConfigSchema>
+  ModelReference<
+    AnthropicBaseConfigSchemaType | AnthropicThinkingConfigSchemaType
+  >
 > = {
   'claude-3-haiku': claude3Haiku,
   'claude-3-5-haiku': claude35Haiku,
@@ -193,14 +198,20 @@ export const GENERIC_CLAUDE_MODEL_INFO = {
 export type KnownClaudeModels = keyof typeof KNOWN_CLAUDE_MODELS;
 export type ClaudeModelName = string;
 export type AnthropicConfigSchemaType = typeof AnthropicConfigSchema;
+export type AnthropicThinkingConfigSchemaType =
+  typeof AnthropicThinkingConfigSchema;
 export type ClaudeConfig = z.infer<typeof AnthropicConfigSchema>;
 
 /**
  * Creates the runner used by Genkit to interact with the Claude model.
  * @param params Configuration for the Claude runner.
+ * @param configSchema The config schema for this model (used for type inference).
  * @returns The runner that Genkit will call when the model is invoked.
  */
-export function claudeRunner(params: ClaudeRunnerParams) {
+export function claudeRunner<TConfigSchema extends z.ZodTypeAny>(
+  params: ClaudeRunnerParams,
+  configSchema: TConfigSchema
+) {
   const { defaultApiVersion, ...runnerParams } = params;
 
   if (!runnerParams.client) {
@@ -211,7 +222,7 @@ export function claudeRunner(params: ClaudeRunnerParams) {
   let betaRunner: BetaRunner | null = null;
 
   return async (
-    request: GenerateRequest<typeof AnthropicConfigSchema>,
+    request: GenerateRequest<TConfigSchema>,
     {
       streamingRequested,
       sendChunk,
@@ -222,11 +233,22 @@ export function claudeRunner(params: ClaudeRunnerParams) {
       abortSignal: AbortSignal;
     }
   ): Promise<GenerateResponseData> => {
-    const isBeta = resolveBetaEnabled(request.config, defaultApiVersion);
+    // Cast to AnthropicConfigSchema for internal runner which expects the full schema
+    const normalizedRequest = request as unknown as GenerateRequest<
+      typeof AnthropicConfigSchema
+    >;
+    const isBeta = resolveBetaEnabled(
+      normalizedRequest.config,
+      defaultApiVersion
+    );
     const runner = isBeta
       ? (betaRunner ??= new BetaRunner(runnerParams))
       : (stableRunner ??= new Runner(runnerParams));
-    return runner.run(request, { streamingRequested, sendChunk, abortSignal });
+    return runner.run(normalizedRequest, {
+      streamingRequested,
+      sendChunk,
+      abortSignal,
+    });
   };
 }
 
@@ -237,7 +259,7 @@ export function claudeRunner(params: ClaudeRunnerParams) {
 export function claudeModelReference(
   name: string,
   config?: z.infer<typeof AnthropicConfigSchema>
-): ModelReference<typeof AnthropicConfigSchema> {
+): ModelReference<z.ZodTypeAny> {
   const knownModel = KNOWN_CLAUDE_MODELS[name];
   if (knownModel) {
     return modelRef({
@@ -268,7 +290,7 @@ export function claudeModel(
   client?: Anthropic,
   cacheSystemPrompt?: boolean,
   defaultApiVersion?: 'stable' | 'beta'
-): ModelAction<typeof AnthropicConfigSchema> {
+): ModelAction<z.ZodTypeAny> {
   const params =
     typeof paramsOrName === 'string'
       ? {
@@ -294,18 +316,24 @@ export function claudeModel(
   // Use supported model ref if available, otherwise create generic model ref
   const modelRef = KNOWN_CLAUDE_MODELS[name];
   const modelInfo = modelRef ? modelRef.info : GENERIC_CLAUDE_MODEL_INFO;
+  const configSchema = modelRef?.configSchema ?? AnthropicConfigSchema;
 
-  return model(
+  return model<
+    AnthropicBaseConfigSchemaType | AnthropicThinkingConfigSchemaType
+  >(
     {
       name: `anthropic/${name}`,
       ...modelInfo,
-      configSchema: AnthropicConfigSchema,
+      configSchema: configSchema,
     },
-    claudeRunner({
-      name,
-      client: runnerClient,
-      cacheSystemPrompt: cachePrompt,
-      defaultApiVersion: apiVersion,
-    })
+    claudeRunner(
+      {
+        name,
+        client: runnerClient,
+        cacheSystemPrompt: cachePrompt,
+        defaultApiVersion: apiVersion,
+      },
+      configSchema
+    )
   );
 }

@@ -23,6 +23,7 @@ import {
   createMockAnthropicClient,
   createMockAnthropicMessage,
   mockContentBlockStart,
+  mockMessageWithContent,
   mockMessageWithToolUse,
   mockTextChunk,
 } from './mocks/anthropic-client.js';
@@ -183,6 +184,57 @@ describe('Anthropic Integration', () => {
     assert.ok(result.text, 'Should generate response for image input');
   });
 
+  it('should forward thinking config and surface reasoning in responses', async () => {
+    const thinkingContent = [
+      {
+        type: 'thinking' as const,
+        thinking: 'Let me analyze the problem carefully.',
+        signature: 'sig_reasoning_123',
+      },
+      {
+        type: 'text' as const,
+        text: 'The answer is 42.',
+        citations: null,
+      },
+    ];
+    const mockClient = createMockAnthropicClient({
+      messageResponse: mockMessageWithContent(thinkingContent),
+    });
+
+    const ai = genkit({
+      plugins: [anthropic({ [__testClient]: mockClient } as PluginOptions)],
+    });
+
+    const thinkingConfig = { enabled: true, budgetTokens: 2048 };
+    const result = await ai.generate({
+      model: 'anthropic/claude-3-5-haiku',
+      prompt: 'What is the meaning of life?',
+      config: { thinking: thinkingConfig },
+    });
+
+    const createStub = mockClient.messages.create as any;
+    assert.strictEqual(createStub.mock.calls.length, 1);
+    const requestBody = createStub.mock.calls[0].arguments[0];
+    assert.deepStrictEqual(requestBody.thinking, {
+      type: 'enabled',
+      budget_tokens: 2048,
+    });
+
+    assert.strictEqual(
+      result.reasoning,
+      'Let me analyze the problem carefully.'
+    );
+    const assistantMessage = result.messages[result.messages.length - 1];
+    const reasoningPart = assistantMessage.content.find(
+      (part) => part.reasoning
+    );
+    assert.ok(reasoningPart, 'Expected reasoning part in assistant message');
+    assert.strictEqual(
+      reasoningPart?.custom?.anthropicThinking?.signature,
+      'sig_reasoning_123'
+    );
+  });
+
   it('should propagate API errors correctly', async () => {
     const apiError = new Error('API Error: 401 Unauthorized');
     const mockClient = createMockAnthropicClient({
@@ -292,5 +344,84 @@ describe('Anthropic Integration', () => {
       0,
       'Stable API should not be used'
     );
+  });
+
+  it('should stream thinking deltas as reasoning chunks', async () => {
+    const thinkingConfig = { enabled: true, budgetTokens: 3072 };
+    const streamChunks = [
+      {
+        type: 'content_block_start',
+        index: 0,
+        content_block: {
+          type: 'thinking',
+          thinking: '',
+          signature: 'sig_stream_123',
+        },
+      } as any,
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: {
+          type: 'thinking_delta',
+          thinking: 'Analyzing intermediate steps.',
+        },
+      } as any,
+      {
+        type: 'content_block_start',
+        index: 1,
+        content_block: {
+          type: 'text',
+          text: '',
+        },
+      } as any,
+      mockTextChunk('Final streamed response.'),
+    ];
+    const finalMessage = mockMessageWithContent([
+      {
+        type: 'thinking',
+        thinking: 'Analyzing intermediate steps.',
+        signature: 'sig_stream_123',
+      },
+      {
+        type: 'text',
+        text: 'Final streamed response.',
+        citations: null,
+      },
+    ]);
+    const mockClient = createMockAnthropicClient({
+      streamChunks,
+      messageResponse: finalMessage,
+    });
+
+    const ai = genkit({
+      plugins: [anthropic({ [__testClient]: mockClient } as PluginOptions)],
+    });
+
+    const chunks: any[] = [];
+    const result = await ai.generate({
+      model: 'anthropic/claude-3-5-haiku',
+      prompt: 'Explain how you reason.',
+      streamingCallback: (chunk) => chunks.push(chunk),
+      config: { thinking: thinkingConfig },
+    });
+
+    const streamStub = mockClient.messages.stream as any;
+    assert.strictEqual(streamStub.mock.calls.length, 1);
+    const streamRequest = streamStub.mock.calls[0].arguments[0];
+    assert.deepStrictEqual(streamRequest.thinking, {
+      type: 'enabled',
+      budget_tokens: 3072,
+    });
+
+    const hasReasoningChunk = chunks.some((chunk) =>
+      (chunk.content || []).some(
+        (part: any) => part.reasoning === 'Analyzing intermediate steps.'
+      )
+    );
+    assert.ok(
+      hasReasoningChunk,
+      'Expected reasoning chunk in streaming callback'
+    );
+    assert.strictEqual(result.reasoning, 'Analyzing intermediate steps.');
   });
 });

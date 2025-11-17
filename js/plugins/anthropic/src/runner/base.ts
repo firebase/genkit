@@ -34,6 +34,7 @@ import {
   MediaType,
   MediaTypeSchema,
   type ClaudeRunnerParams,
+  type ThinkingConfig,
 } from '../types.js';
 
 import {
@@ -48,6 +49,8 @@ import {
   RunnerToolResponseContent,
   RunnerTypes,
 } from './types.js';
+
+const ANTHROPIC_THINKING_CUSTOM_KEY = 'anthropicThinking';
 
 /**
  * Shared runner logic for Anthropic SDK integrations.
@@ -254,6 +257,71 @@ export abstract class BaseRunner<ApiTypes extends RunnerTypes> {
       type: 'text',
       text: JSON.stringify(output),
     };
+  }
+
+  protected createThinkingPart(thinking: string, signature?: string): Part {
+    const custom =
+      signature !== undefined
+        ? {
+            [ANTHROPIC_THINKING_CUSTOM_KEY]: { signature },
+          }
+        : undefined;
+    return custom
+      ? {
+          reasoning: thinking,
+          custom,
+        }
+      : {
+          reasoning: thinking,
+        };
+  }
+
+  protected getThinkingSignature(part: Part): string | undefined {
+    const custom = part.custom as Record<string, unknown> | undefined;
+    const thinkingValue = custom?.[ANTHROPIC_THINKING_CUSTOM_KEY];
+    if (
+      typeof thinkingValue === 'object' &&
+      thinkingValue !== null &&
+      'signature' in thinkingValue &&
+      typeof (thinkingValue as { signature: unknown }).signature === 'string'
+    ) {
+      return (thinkingValue as { signature: string }).signature;
+    }
+    return undefined;
+  }
+
+  protected getRedactedThinkingData(part: Part): string | undefined {
+    const custom = part.custom as Record<string, unknown> | undefined;
+    const redacted = custom?.redactedThinking;
+    return typeof redacted === 'string' ? redacted : undefined;
+  }
+
+  protected toAnthropicThinkingConfig(
+    config: ThinkingConfig | undefined
+  ):
+    | { type: 'enabled'; budget_tokens: number }
+    | { type: 'disabled' }
+    | undefined {
+    if (!config) return undefined;
+
+    const { enabled, budgetTokens } = config;
+
+    if (enabled === true) {
+      if (budgetTokens === undefined) {
+        return undefined;
+      }
+      return { type: 'enabled', budget_tokens: budgetTokens };
+    }
+
+    if (enabled === false) {
+      return { type: 'disabled' };
+    }
+
+    if (budgetTokens !== undefined) {
+      return { type: 'enabled', budget_tokens: budgetTokens };
+    }
+
+    return undefined;
   }
 
   protected toWebSearchToolResultPart(params: {
