@@ -40,6 +40,7 @@ import type {
   ModelResponseData,
   Part,
 } from 'genkit';
+import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
@@ -460,7 +461,7 @@ export class BetaRunner extends BaseRunner<BetaRunnerTypes> {
           throw new Error(unsupportedServerToolError(contentBlock.type));
         }
         const unknownType = (contentBlock as { type: string }).type;
-        console.warn(
+        logger.warn(
           `Unexpected Anthropic beta content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(
             contentBlock
           )}`

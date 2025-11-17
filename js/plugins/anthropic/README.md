@@ -84,7 +84,21 @@ console.log(response.text);       // Final assistant answer
 console.log(response.reasoning);  // Summarized thinking steps
 ```
 
-When thinking is enabled, request bodies sent through the plugin include the `thinking` payload (`{ type: 'enabled', budget_tokens: … }`) that Anthropic’s API expects, and streamed responses deliver `reasoning` parts as they arrive so you can render the chain-of-thought incrementally.
+When thinking is enabled, request bodies sent through the plugin include the `thinking` payload (`{ type: 'enabled', budget_tokens: … }`) that Anthropic's API expects, and streamed responses deliver `reasoning` parts as they arrive so you can render the chain-of-thought incrementally.
+
+### Beta API Limitations
+
+The beta API surface provides access to experimental features, but some server-managed tool blocks are not yet supported by this plugin. The following beta API features will cause an error if encountered:
+
+- `web_fetch_tool_result`
+- `code_execution_tool_result`
+- `bash_code_execution_tool_result`
+- `text_editor_code_execution_tool_result`
+- `mcp_tool_result`
+- `mcp_tool_use`
+- `container_upload`
+
+Note that `server_tool_use` and `web_search_tool_result` ARE supported and work with both stable and beta APIs.
 
 ### Within a flow
 

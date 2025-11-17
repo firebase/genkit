@@ -38,6 +38,7 @@ import type {
   ModelResponseData,
   Part,
 } from 'genkit';
+import { logger } from 'genkit/logging';
 
 import { KNOWN_CLAUDE_MODELS } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
@@ -406,7 +407,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
         default: {
           const unknownType = (block as { type: string }).type;
-          console.warn(
+          logger.warn(
             `Unexpected Anthropic content block type in stream: ${unknownType}. Returning undefined. Content block: ${JSON.stringify(block)}`
           );
           return undefined;
@@ -462,7 +463,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
 
       default: {
         const unknownType = (contentBlock as { type: string }).type;
-        console.warn(
+        logger.warn(
           `Unexpected Anthropic content block type: ${unknownType}. Returning empty text. Content block: ${JSON.stringify(contentBlock)}`
         );
         return { text: '' };
