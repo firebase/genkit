@@ -1019,7 +1019,7 @@ importers:
         specifier: '>=12.2'
         version: 13.4.0(encoding@0.1.13)
 
-  testapps/anthropic-basic:
+  testapps/anthropic:
     dependencies:
       '@genkit-ai/anthropic':
         specifier: workspace:*
