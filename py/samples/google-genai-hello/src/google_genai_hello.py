@@ -38,9 +38,11 @@ Key features demonstrated in this sample:
 | Pydantic for Structured Output Schema                    | `RpgCharacter`                         |
 | Unconstrained Structured Output                          | `generate_character_unconstrained`     |
 | Multi-modal Output Configuration                         | `generate_images`                      |
-| GCP otel tracing                                         | `add_gcp_telemetry()`                  |
+| GCP Telemetry (Traces and Metrics)                       | `add_gcp_telemetry()`                  |
 
 """
+
+import os
 
 import structlog
 from pydantic import BaseModel, Field
@@ -52,9 +54,7 @@ from genkit.plugins.evaluators import (
     MetricConfig,
     PluginOptions,
 )
-from genkit.plugins.google_cloud.telemetry.tracing import (
-    add_gcp_telemetry,
-)
+from genkit.plugins.google_cloud import add_gcp_telemetry
 from genkit.plugins.google_genai import (
     EmbeddingTaskType,
     GeminiConfigSchema,
@@ -185,6 +185,14 @@ async def say_hi(name: str):
     resp = await ai.generate(
         prompt=f'hi {name}',
     )
+
+    await logger.ainfo(
+        'generation_response',
+        has_usage=hasattr(resp, 'usage'),
+        usage_dict=resp.usage.model_dump() if hasattr(resp, 'usage') and resp.usage else None,
+        text_length=len(resp.text),
+    )
+
     return resp.text
 
 
