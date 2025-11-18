@@ -291,6 +291,10 @@ func (p *Part) unmarshalPartFromSchema(s partSchema) {
 	case s.Custom != nil:
 		p.Kind = PartCustom
 		p.Custom = s.Custom
+	case s.Reasoning != "":
+		p.Kind = PartReasoning
+		p.Text = s.Reasoning
+		p.ContentType = "plain/text"
 	default:
 		p.Kind = PartText
 		p.Text = s.Text

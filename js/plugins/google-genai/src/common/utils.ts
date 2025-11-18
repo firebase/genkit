@@ -479,7 +479,10 @@ function aggregateResponses(
           if (part.thought) {
             newPart.thought = part.thought;
           }
-          if (part.text) {
+          if (part.thoughtSignature) {
+            newPart.thoughtSignature = part.thoughtSignature;
+          }
+          if (typeof part.text === 'string') {
             newPart.text = part.text;
           }
           if (part.functionCall) {

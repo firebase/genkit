@@ -8,7 +8,8 @@
     "start": "node lib/index.js",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "genkit:dev": "genkit start -- npx tsx --watch src/index.ts"
+    "genkit:dev:googleai": "genkit start -- npx tsx --watch src/index.ts",
+    "genkit:dev:vertexai": "genkit start -- npx tsx --watch src/index-vertexai.ts"
   },
   "keywords": [],
   "author": "",

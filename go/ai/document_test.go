@@ -110,3 +110,34 @@ func TestDocumentJSON(t *testing.T) {
 		t.Errorf("mismatch (-want, +got)\n%s", diff)
 	}
 }
+
+func TestReasoningPartJSON(t *testing.T) {
+	reasoningText := "This is my reasoning process"
+	signature := []byte("sig123")
+
+	originalPart := NewReasoningPart(reasoningText, signature)
+
+	b, err := json.Marshal(originalPart)
+	if err != nil {
+		t.Fatalf("failed to marshal reasoning part: %v", err)
+	}
+
+	t.Logf("marshaled reasoning part: %s\n", string(b))
+
+	var unmarshaledPart Part
+	if err := json.Unmarshal(b, &unmarshaledPart); err != nil {
+		t.Fatalf("failed to unmarshal reasoning part: %v", err)
+	}
+
+	if !unmarshaledPart.IsReasoning() {
+		t.Errorf("unmarshaled part is not reasoning, got kind: %v", unmarshaledPart.Kind)
+	}
+
+	if unmarshaledPart.Text != reasoningText {
+		t.Errorf("unmarshaled reasoning text = %q, want %q", unmarshaledPart.Text, reasoningText)
+	}
+
+	if unmarshaledPart.ContentType != "plain/text" {
+		t.Errorf("unmarshaled reasoning content type = %q, want %q", unmarshaledPart.ContentType, "plain/text")
+	}
+}
