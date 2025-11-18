@@ -66,7 +66,7 @@ ai.defineFlow('basic-hi-with-retry', async () => {
 
 ai.defineFlow('basic-hi-with-fallback', async () => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-soemthing-that-does-not-exist'),
+    model: googleAI.model('gemini-2.5-something-that-does-not-exist'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
     use: [
       fallback(ai, {
@@ -78,6 +78,33 @@ ai.defineFlow('basic-hi-with-fallback', async () => {
 
   return text;
 });
+
+// Gemini 3.0 thinkingLevel config
+ai.defineFlow(
+  {
+    name: 'thinking-level',
+    inputSchema: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  },
+  async (level) => {
+    const { text } = await ai.generate({
+      model: googleAI.model('gemini-3-pro-preview'),
+      prompt:
+        'Alice, Bob, and Carol each live in a different house on the ' +
+        'same street: red, green, and blue. The person who lives in the red house ' +
+        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ' +
+        'green house is to the left of the red house. Alice does not own a cat. ' +
+        'The person in the blue house owns a fish. ' +
+        'Who lives in each house, and what pet do they own? Provide your ' +
+        'step-by-step reasoning.',
+      config: {
+        thinkingConfig: {
+          thinkingLevel: level,
+        },
+      },
+    });
+    return text;
+  }
+);
 
 // Multimodal input
 ai.defineFlow('multimodal-input', async () => {
