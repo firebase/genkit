@@ -17,6 +17,7 @@
 import {
   TraceDataSchema,
   TraceQueryFilterSchema,
+  type SpanData,
   type TraceData,
 } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
@@ -69,18 +70,17 @@ class BroadcastManager {
   /**
    * Broadcast span updates to all subscribers of a traceId.
    */
-  broadcast(traceId: string, message: {
-    type: 'upsert' | 'done';
+  broadcast(traceId: string, event: {
+    type: 'span_start' | 'span_end';
     traceId: string;
-    spans?: TraceData['spans'];
-    traceData?: TraceData;
+    span: SpanData;
   }): void {
     const connections = this.connections.get(traceId);
     if (!connections || connections.size === 0) {
       return;
     }
 
-    const data = JSON.stringify(message);
+    const data = JSON.stringify(event);
     const messageToSend = `${data}\n\n`;
 
     // Send to all connections, removing dead ones
@@ -189,12 +189,19 @@ export async function startTelemetryServer(params: {
       const traceData = TraceDataSchema.parse(request.body);
       await params.traceStore.save(traceData.traceId, traceData);
       
-      // Broadcast span updates to all subscribed clients
-      broadcastManager.broadcast(traceData.traceId, {
-        type: 'upsert',
-        traceId: traceData.traceId,
-        spans: traceData.spans,
-      });
+      // Convert each span to an event and broadcast individually
+      for (const [_, span] of Object.entries(traceData.spans)) {
+        const event: {
+          type: 'span_start' | 'span_end';
+          traceId: string;
+          span: SpanData;
+        } = {
+          type: span.endTime > 0 ? 'span_end' : 'span_start',
+          traceId: traceData.traceId,
+          span
+        };
+        broadcastManager.broadcast(traceData.traceId, event);
+      }
       
       response.status(200).send('OK');
     } catch (e) {

@@ -17,7 +17,6 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
-  SimpleSpanProcessor,
   type SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { logger } from '../logging.js';
@@ -25,6 +24,7 @@ import type { TelemetryConfig } from '../telemetryTypes.js';
 import { setTelemetryProvider } from '../tracing.js';
 import { isDevEnv } from '../utils.js';
 import { TraceServerExporter, setTelemetryServerUrl } from './exporter.js';
+import { RealtimeSpanProcessor } from './realtime-span-processor.js';
 
 let telemetrySDK: NodeSDK | null = null;
 let nodeOtelConfig: TelemetryConfig | null = null;
@@ -89,8 +89,9 @@ async function cleanUpTracing(): Promise<void> {
  */
 function createTelemetryServerProcessor(): SpanProcessor {
   const exporter = new TraceServerExporter();
+  // Use RealtimeSpanProcessor in dev for real-time span updates
   return isDevEnv()
-    ? new SimpleSpanProcessor(exporter)
+    ? new RealtimeSpanProcessor(exporter)
     : new BatchSpanProcessor(exporter);
 }
 
