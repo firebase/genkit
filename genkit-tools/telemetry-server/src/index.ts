@@ -81,7 +81,7 @@ class BroadcastManager {
     }
 
     const data = JSON.stringify(message);
-    const messageToSend = `data: ${data}\n\n`;
+    const messageToSend = `${data}\n\n`;
 
     // Send to all connections, removing dead ones
     const deadConnections: Response[] = [];
@@ -169,24 +169,14 @@ export async function startTelemetryServer(params: {
       const currentTrace = await params.traceStore.load(traceId);
       if (currentTrace) {
         const snapshot = JSON.stringify(currentTrace);
-        response.write(`data: ${snapshot}\n\n`);
+        response.write(`${snapshot}\n\n`);
       }
       
       // Register this connection for broadcasts
       broadcastManager.subscribe(traceId, response);
       
-      // Keep connection alive with periodic heartbeat
-      const heartbeatInterval = setInterval(() => {
-        try {
-          response.write(': heartbeat\n\n');
-        } catch (error) {
-          clearInterval(heartbeatInterval);
-        }
-      }, 30000); // 30 second heartbeat
-      
       // Clean up on disconnect
       response.on('close', () => {
-        clearInterval(heartbeatInterval);
         broadcastManager.unsubscribe(traceId, response);
       });
     } catch (e) {
@@ -231,41 +221,6 @@ export async function startTelemetryServer(params: {
     }
   });
 
-  api.post(
-    '/api/otlp/:parentTraceId/:parentSpanId',
-    async (request, response) => {
-      try {
-        const { parentTraceId, parentSpanId } = request.params;
-
-        if (!request.body.resourceSpans?.length) {
-          // Acknowledge and ignore empty payloads.
-          response.status(200).json({});
-          return;
-        }
-        const traces = traceDataFromOtlp(request.body);
-        for (const traceData of traces) {
-          traceData.traceId = parentTraceId;
-          for (const span of Object.values(traceData.spans)) {
-            span.attributes['genkit:otlp-traceId'] = span.traceId;
-            span.traceId = parentTraceId;
-            if (!span.parentSpanId) {
-              span.parentSpanId = parentSpanId;
-            }
-          }
-          await params.traceStore.save(parentTraceId, traceData);
-        }
-        response.status(200).json({});
-      } catch (err) {
-        logger.error(`Error processing OTLP payload: ${err}`);
-        response.status(500).json({
-          code: 13, // INTERNAL
-          message:
-            'An internal error occurred while processing the OTLP payload.',
-        });
-      }
-    }
-  );
-
   api.post('/api/otlp', async (request, response) => {
     try {
       if (!request.body.resourceSpans?.length) {
@@ -274,14 +229,9 @@ export async function startTelemetryServer(params: {
         return;
       }
       const traces = traceDataFromOtlp(request.body);
-      for (const traceData of traces) {
+      for (const trace of traces) {
+        const traceData = TraceDataSchema.parse(trace);
         await params.traceStore.save(traceData.traceId, traceData);
-        // Broadcast span updates to all subscribed clients
-        broadcastManager.broadcast(traceData.traceId, {
-          type: 'upsert',
-          traceId: traceData.traceId,
-          spans: traceData.spans,
-        });
       }
       response.status(200).json({});
     } catch (err) {

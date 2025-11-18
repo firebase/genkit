@@ -61,6 +61,12 @@ export const GetTraceRequestSchema = z.object({
 
 export type GetTraceRequest = z.infer<typeof GetTraceRequestSchema>;
 
+export const StreamTraceRequestSchema = z.object({
+  traceId: z.string().describe('ID of the trace to stream.'),
+});
+
+export type StreamTraceRequest = z.infer<typeof StreamTraceRequestSchema>;
+
 export const ListActionsRequestSchema = z
   .object({
     runtimeId: z

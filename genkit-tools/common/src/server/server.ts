@@ -145,6 +145,55 @@ export function startServer(manager: RuntimeManager, port: number) {
     }
   );
 
+  app.options('/api/streamTrace', async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(200).send('');
+  });
+
+  app.post(
+    '/api/streamTrace',
+    bodyParser.json({ limit: MAX_PAYLOAD_SIZE }),
+    async (req, res) => {
+      const { traceId } = req.body;
+      
+      if (!traceId) {
+        res.status(400).json({ error: 'traceId is required' });
+        return;
+      }
+
+      // Set streaming headers immediately
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      res.setHeader('X-Genkit-Trace-Id', traceId);
+      res.statusCode = 200;
+      res.flushHeaders();
+
+      try {
+        await manager.streamTrace(
+          { traceId },
+          (chunk) => {
+            // Forward each chunk from telemetry server as chunked JSON
+            res.write(JSON.stringify(chunk) + '\n');
+          }
+        );
+        res.end();
+      } catch (err) {
+        const error = err as GenkitToolsError;
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          });
+        }
+        res.write(JSON.stringify({ error: error.data || { message: error.message } }));
+        res.end();
+      }
+    }
+  );
+
   app.get('/api/__health', (_, res) => {
     res.status(200).send('');
   });

@@ -39,7 +39,6 @@ import {
   retriable,
   type DevToolsInfo,
 } from '../utils/utils';
-import { ProcessManager } from './process-manager';
 import {
   GenkitToolsError,
   RuntimeEvent,
@@ -49,7 +48,7 @@ import {
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;
-export const GENKIT_REFLECTION_API_SPEC_VERSION = 2;
+export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 interface RuntimeManagerOptions {
   /** URL of the telemetry server. */
@@ -58,12 +57,9 @@ interface RuntimeManagerOptions {
   manageHealth?: boolean;
   /** Project root dir. If not provided will be inferred from CWD. */
   projectRoot: string;
-  /** An optional process manager for the main application process. */
-  processManager?: ProcessManager;
 }
 
 export class RuntimeManager {
-  readonly processManager?: ProcessManager;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
@@ -72,11 +68,8 @@ export class RuntimeManager {
   private constructor(
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
-    readonly projectRoot: string,
-    processManager?: ProcessManager
-  ) {
-    this.processManager = processManager;
-  }
+    readonly projectRoot: string
+  ) {}
 
   /**
    * Creates a new runtime manager.
@@ -85,8 +78,7 @@ export class RuntimeManager {
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
       options.manageHealth ?? true,
-      options.projectRoot,
-      options.processManager
+      options.projectRoot
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
@@ -370,6 +362,76 @@ export class RuntimeManager {
       );
 
     return response.data as TraceData;
+  }
+
+  /**
+   * Streams trace updates in real-time from the telemetry server.
+   * Connects to the telemetry server's SSE endpoint and forwards updates via callback.
+   */
+  async streamTrace(
+    input: apis.StreamTraceRequest,
+    streamingCallback: StreamingCallback<any>
+  ): Promise<void> {
+    const { traceId } = input;
+    
+    if (!this.telemetryServerUrl) {
+      throw new Error(
+        'Telemetry server URL not configured. Cannot stream trace updates.'
+      );
+    }
+
+    const response = await axios
+      .get(`${this.telemetryServerUrl}/api/traces/${traceId}/stream`, {
+        headers: {
+          Accept: 'text/event-stream',
+        },
+        responseType: 'stream',
+      })
+      .catch((err) =>
+        this.httpErrorHandler(
+          err,
+          `Error streaming trace for traceId='${traceId}'`
+        )
+      );
+
+    const stream = response.data;
+    let buffer = '';
+
+    // Return a promise that resolves when the stream ends
+    return new Promise<void>((resolve, reject) => {
+      stream.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+        
+        // Process complete messages (ending with \n\n)
+        while (buffer.includes('\n\n')) {
+          const messageEnd = buffer.indexOf('\n\n');
+          const message = buffer.substring(0, messageEnd).trim();
+          buffer = buffer.substring(messageEnd + 2);
+
+          // Skip empty messages
+          if (!message) {
+            continue;
+          }
+
+          // Parse JSON directly
+          try {
+            const parsed = JSON.parse(message);
+            streamingCallback(parsed);
+          } catch (err) {
+            logger.error(`Error parsing stream data: ${err}`);
+          }
+        }
+      });
+
+      stream.on('end', () => {
+        resolve();
+      });
+
+      stream.on('error', (err: Error) => {
+        logger.error(`Stream error for traceId='${traceId}': ${err}`);
+        reject(err);
+      });
+    });
   }
 
   /**
