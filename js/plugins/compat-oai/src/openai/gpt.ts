@@ -248,6 +248,10 @@ const gpt5ChatLatest = openAIModelRef({
     },
   },
 });
+const gpt5_1 = openAIModelRef({
+  name: 'openai/gpt-5.1',
+  info: GPT_5_MODEL_INFO,
+});
 
 export const SUPPORTED_GPT_MODELS = {
   'gpt-4.5': gpt45,
@@ -279,4 +283,5 @@ export const SUPPORTED_GPT_MODELS = {
   'gpt-5-mini': gpt5Mini,
   'gpt-5-nano': gpt5Nano,
   'gpt-5-chat-latest': gpt5ChatLatest,
+  'gpt-5.1': gpt5_1,
 } as const;
