@@ -20,6 +20,7 @@ import {
   MessageData,
   ModelReference,
   Part,
+  TextPart,
   ToolDefinition,
 } from 'genkit/model';
 import {
@@ -131,26 +132,26 @@ function toGeminiMedia(part: Part): GeminiPart {
     media.videoMetadata = { ...videoMetadata };
   }
 
-  return media;
+  return maybeAddGeminiThoughtSignature(part, media);
 }
 
 function toGeminiToolRequest(part: Part): GeminiPart {
   if (!part.toolRequest?.input) {
     throw Error('Invalid ToolRequestPart: input was missing.');
   }
-  return {
+  return maybeAddGeminiThoughtSignature(part, {
     functionCall: {
       name: part.toolRequest.name,
       args: part.toolRequest.input,
     },
-  };
+  });
 }
 
 function toGeminiToolResponse(part: Part): GeminiPart {
   if (!part.toolResponse?.output) {
     throw Error('Invalid ToolResponsePart: output was missing.');
   }
-  return {
+  return maybeAddGeminiThoughtSignature(part, {
     functionResponse: {
       name: part.toolResponse.name,
       response: {
@@ -158,7 +159,7 @@ function toGeminiToolResponse(part: Part): GeminiPart {
         content: part.toolResponse.output,
       },
     },
-  };
+  });
 }
 
 function toGeminiReasoning(part: Part): GeminiPart {
@@ -174,21 +175,38 @@ function toGeminiReasoning(part: Part): GeminiPart {
 
 function toGeminiCustom(part: Part): GeminiPart {
   if (part.custom?.codeExecutionResult) {
-    return {
+    return maybeAddGeminiThoughtSignature(part, {
       codeExecutionResult: part.custom.codeExecutionResult,
-    };
+    });
   }
   if (part.custom?.executableCode) {
-    return {
+    return maybeAddGeminiThoughtSignature(part, {
       executableCode: part.custom.executableCode,
-    };
+    });
   }
   throw new Error('Unsupported Custom Part type');
 }
 
+function toGeminiText(part: Part): GeminiPart {
+  return maybeAddGeminiThoughtSignature(part, { text: part.text ?? '' });
+}
+
+function maybeAddGeminiThoughtSignature(
+  part: Part,
+  geminiPart: GeminiPart
+): GeminiPart {
+  if (part.metadata?.thoughtSignature) {
+    return {
+      ...geminiPart,
+      thoughtSignature: part.metadata.thoughtSignature as string,
+    };
+  }
+  return geminiPart;
+}
+
 function toGeminiPart(part: Part): GeminiPart {
-  if (part.text) {
-    return { text: part.text };
+  if (typeof part.text === 'string') {
+    return toGeminiText(part);
   }
   if (part.media) {
     return toGeminiMedia(part);
@@ -314,11 +332,25 @@ function fromGeminiFinishReason(
     case 'SPII': // blocked for potentially containing Sensitive Personally Identifiable Information
       return 'blocked';
     case 'MALFORMED_FUNCTION_CALL':
+    case 'MISSING_THOUGHT_SIGNATURE':
     case 'OTHER':
       return 'other';
     default:
       return 'unknown';
   }
+}
+
+function maybeAddThoughtSignature(geminiPart: GeminiPart, part: Part): Part {
+  if (geminiPart.thoughtSignature) {
+    return {
+      ...part,
+      metadata: {
+        ...part?.metadata,
+        thoughtSignature: geminiPart.thoughtSignature,
+      },
+    };
+  }
+  return part;
 }
 
 function fromGeminiThought(part: GeminiPart): Part {
@@ -340,12 +372,13 @@ function fromGeminiInlineData(part: GeminiPart): Part {
   const { mimeType, data } = part.inlineData;
   // Combine data and mimeType into a data URL
   const dataUrl = `data:${mimeType};base64,${data}`;
-  return {
+
+  return maybeAddThoughtSignature(part, {
     media: {
       url: dataUrl,
       contentType: mimeType,
     },
-  };
+  });
 }
 
 function fromGeminiFileData(part: GeminiPart): Part {
@@ -359,12 +392,12 @@ function fromGeminiFileData(part: GeminiPart): Part {
     );
   }
 
-  return {
+  return maybeAddThoughtSignature(part, {
     media: {
       url: part.fileData?.fileUri,
       contentType: part.fileData?.mimeType,
     },
-  };
+  });
 }
 
 function fromGeminiFunctionCall(part: GeminiPart, ref: string): Part {
@@ -373,13 +406,13 @@ function fromGeminiFunctionCall(part: GeminiPart, ref: string): Part {
       'Invalid Gemini Function Call Part: missing function call data'
     );
   }
-  return {
+  return maybeAddThoughtSignature(part, {
     toolRequest: {
       name: part.functionCall.name,
       input: part.functionCall.args,
       ref,
     },
-  };
+  });
 }
 
 function fromGeminiFunctionResponse(part: GeminiPart, ref?: string): Part {
@@ -388,46 +421,50 @@ function fromGeminiFunctionResponse(part: GeminiPart, ref?: string): Part {
       'Invalid Gemini Function Call Part: missing function call data'
     );
   }
-  return {
+  return maybeAddThoughtSignature(part, {
     toolResponse: {
       name: part.functionResponse.name.replace(/__/g, '/'), // restore slashes
       output: part.functionResponse.response,
       ref,
     },
-  };
+  });
 }
 
 function fromExecutableCode(part: GeminiPart): Part {
   if (!part.executableCode) {
     throw new Error('Invalid GeminiPart: missing executableCode');
   }
-  return {
+  return maybeAddThoughtSignature(part, {
     custom: {
       executableCode: {
         language: part.executableCode.language,
         code: part.executableCode.code,
       },
     },
-  };
+  });
 }
 
 function fromCodeExecutionResult(part: GeminiPart): Part {
   if (!part.codeExecutionResult) {
     throw new Error('Invalid GeminiPart: missing codeExecutionResult');
   }
-  return {
+  return maybeAddThoughtSignature(part, {
     custom: {
       codeExecutionResult: {
         outcome: part.codeExecutionResult.outcome,
         output: part.codeExecutionResult.output,
       },
     },
-  };
+  });
+}
+
+function fromGeminiText(part: GeminiPart): Part {
+  return maybeAddThoughtSignature(part, { text: part.text } as TextPart);
 }
 
 function fromGeminiPart(part: GeminiPart, ref: string): Part {
   if (part.thought) return fromGeminiThought(part as any);
-  if (typeof part.text === 'string') return { text: part.text };
+  if (typeof part.text === 'string') return fromGeminiText(part);
   if (part.inlineData) return fromGeminiInlineData(part);
   if (part.fileData) return fromGeminiFileData(part);
   if (part.functionCall) return fromGeminiFunctionCall(part, ref);
