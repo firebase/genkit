@@ -17,14 +17,25 @@
 
 """Firebase Plugin for Genkit."""
 
+from genkit.plugins.google_cloud.telemetry.tracing import add_gcp_telemetry
+
 
 def package_name() -> str:
     """Get the package name for the Firebase plugin.
 
     Returns:
-        The fully qualified package name as a string.
+        Package name string.
     """
     return 'genkit.plugins.firebase'
 
 
-__all__ = ['package_name']
+def add_firebase_telemetry() -> None:
+    """Add Firebase telemetry export to Google Cloud Observability.
+
+    Exports traces to Cloud Trace and metrics to Cloud Monitoring.
+    In development (GENKIT_ENV=dev), telemetry is disabled by default.
+    """
+    add_gcp_telemetry(force_export=False)
+
+
+__all__ = ['package_name', 'add_firebase_telemetry']
