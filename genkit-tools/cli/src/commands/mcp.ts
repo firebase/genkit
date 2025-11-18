@@ -17,7 +17,6 @@
 import { findProjectRoot, forceStderr } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { startMcpServer } from '../mcp/server';
-import { startManager } from '../utils/manager-utils';
 
 interface McpOptions {
   projectRoot?: string;
@@ -29,9 +28,5 @@ export const mcp = new Command('mcp')
   .description('run MCP stdio server (EXPERIMENTAL, subject to change)')
   .action(async (options: McpOptions) => {
     forceStderr();
-    const manager = await startManager(
-      options.projectRoot ?? (await findProjectRoot()),
-      true
-    );
-    await startMcpServer(manager);
+    await startMcpServer(options.projectRoot ?? (await findProjectRoot()));
   });
