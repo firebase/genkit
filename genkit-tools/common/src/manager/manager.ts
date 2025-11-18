@@ -45,6 +45,7 @@ import {
   type RuntimeInfo,
   type StreamingCallback,
 } from './types';
+import { ProcessManager } from './process-manager';
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;
@@ -57,6 +58,8 @@ interface RuntimeManagerOptions {
   manageHealth?: boolean;
   /** Project root dir. If not provided will be inferred from CWD. */
   projectRoot: string;
+  /** An optional process manager for the main application process. */
+  processManager?: ProcessManager;
 }
 
 export class RuntimeManager {
@@ -68,7 +71,9 @@ export class RuntimeManager {
   private constructor(
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
-    readonly projectRoot: string
+    readonly projectRoot: string,
+    readonly processManager?: ProcessManager
+
   ) {}
 
   /**

@@ -25,7 +25,7 @@ export const GENKIT_VERSION = version;
  * Genkit client header for API calls.
  */
 export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${process.versions.node}`;
-export const GENKIT_REFLECTION_API_SPEC_VERSION = 2;
+export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 export { z } from 'zod';
 export * from './action.js';
