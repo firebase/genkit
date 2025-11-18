@@ -511,7 +511,7 @@ func TestValidPrompt(t *testing.T) {
 				WithInput(HelloPromptInput{Name: "foo"}),
 				WithMessages(NewModelTextMessage("I remember you said your name is {{Name}}")),
 			},
-			wantTextOutput: "Echo: system: say hello; my name is foo; I remember you said your name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantTextOutput: "Echo: system: say hello; I remember you said your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
 			wantGenerated: &ModelRequest{
 				Config: &GenerationCommonConfig{
 					Temperature: 11,
@@ -526,12 +526,12 @@ func TestValidPrompt(t *testing.T) {
 						Content: []*Part{NewTextPart("say hello")},
 					},
 					{
-						Role:    RoleUser,
-						Content: []*Part{NewTextPart("my name is foo")},
-					},
-					{
 						Role:    RoleModel,
 						Content: []*Part{NewTextPart("I remember you said your name is foo")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
 					},
 				},
 			},

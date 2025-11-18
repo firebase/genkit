@@ -182,10 +182,26 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 			},
 		}
 
-		actionOpts.Messages, err = renderMessages(ctx, tempOpts, actionOpts.Messages, m, execOpts.Input, p.registry.Dotprompt())
+		execMsgs, err := renderMessages(ctx, tempOpts, []*Message{}, m, execOpts.Input, p.registry.Dotprompt())
 		if err != nil {
 			return nil, err
 		}
+
+		var systemMsgs []*Message
+		var msgs []*Message
+		foundNonSystem := false
+
+		for _, msg := range actionOpts.Messages {
+			if msg.Role == RoleSystem && !foundNonSystem {
+				systemMsgs = append(systemMsgs, msg)
+			} else {
+				foundNonSystem = true
+				msgs = append(msgs, msg)
+			}
+		}
+
+		actionOpts.Messages = append(systemMsgs, execMsgs...)
+		actionOpts.Messages = append(actionOpts.Messages, msgs...)
 	}
 
 	toolRefs := execOpts.Tools
