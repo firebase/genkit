@@ -109,8 +109,9 @@ func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
 			}
 		}
 
+		accumulated := accumulatedText.String()
 		var newParts []*Part
-		lines := base.GetJSONObjectLines(accumulatedText.String())
+		lines := base.GetJSONObjectLines(accumulated)
 		for _, line := range lines {
 			var schemaBytes []byte
 			schemaBytes, err := json.Marshal(a.config.Schema["items"])
@@ -118,7 +119,7 @@ func (a arrayHandler) ParseMessage(m *Message) (*Message, error) {
 				return nil, fmt.Errorf("expected schema is not valid: %w", err)
 			}
 			if err = base.ValidateRaw([]byte(line), schemaBytes); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to validate line %q from accumulated %q: %w", line, accumulated, err)
 			}
 
 			newParts = append(newParts, NewJSONPart(line))

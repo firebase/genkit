@@ -122,20 +122,37 @@ func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 // jsonMarkdownRegex specifically looks for "json" language identifier
 var jsonMarkdownRegex = regexp.MustCompile("(?s)```json(.*?)```")
 
+// genericMarkdownRegex looks for any code fence without language identifier
+var genericMarkdownRegex = regexp.MustCompile("(?s)```(.*?)```")
+
 // ExtractJSONFromMarkdown returns the contents of the first fenced code block in
 // the markdown text md. If there is none, it returns md.
 func ExtractJSONFromMarkdown(md string) string {
+	// First try to match json-specific fence
 	matches := jsonMarkdownRegex.FindStringSubmatch(md)
-	if len(matches) < 2 {
-		return md
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
 	}
-	// capture group 1 matches the actual fenced JSON block
-	return strings.TrimSpace(matches[1])
+	
+	// Fall back to generic code fence
+	matches = genericMarkdownRegex.FindStringSubmatch(md)
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
+	}
+	
+	// No fence found, return original
+	return md
 }
 
 // GetJSONObjectLines splits a string by newlines, trims whitespace from each line,
 // and returns a slice containing only the lines that start with '{'.
 func GetJSONObjectLines(text string) []string {
+	return GetJsonLines(text, "{")
+}
+
+// GetJsonLines splits a string by newlines, trims whitespace from each line,
+// and returns a slice containing only the lines that start with the prefix.
+func GetJsonLines(text string, prefix string) []string {
 	jsonText := ExtractJSONFromMarkdown(text)
 
 	// Handle both actual "\n" newline strings, as well as newline bytes
@@ -152,7 +169,7 @@ func GetJSONObjectLines(text string) []string {
 
 		// Trim leading and trailing whitespace from the current line.
 		trimmedLine := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmedLine, "{") {
+		if strings.HasPrefix(trimmedLine, prefix) {
 			result = append(result, trimmedLine)
 		}
 	}

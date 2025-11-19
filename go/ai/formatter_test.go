@@ -1295,22 +1295,23 @@ func TestArrayParser(t *testing.T) {
 				},
 				"additionalProperties": false,
 			},
-			response: &Message{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart(JSONMarkdown(`[{"id": 1, "name": "test"}, {"id": 2}]\n`)),
-				},
+		response: &Message{
+			Role: RoleModel,
+			Content: []*Part{
+				NewTextPart(JSONMarkdown(`{"id": 1, "name": "test"}\n{"id": 2}\n`)),
 			},
-			want: &Message{
-				Role: RoleModel,
-				Content: []*Part{
-					NewJSONPart("[{\"id\": 1, \"name\": \"test\"}, {\"id\": 2}]"),
-				},
-			},
-			wantErr: false,
 		},
-		{
-			name: "contains unexpected field fails",
+		want: &Message{
+			Role: RoleModel,
+			Content: []*Part{
+				NewJSONPart("{\"id\": 1, \"name\": \"test\"}"),
+				NewJSONPart("{\"id\": 2}"),
+			},
+		},
+		wantErr: false,
+	},
+	{
+		name: "contains unexpected field fails",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1323,16 +1324,16 @@ func TestArrayParser(t *testing.T) {
 				},
 				"additionalProperties": false,
 			},
-			response: &Message{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart(JSONMarkdown(`[{"id": 1, "foo": "bar"}]`)),
-				},
+		response: &Message{
+			Role: RoleModel,
+			Content: []*Part{
+				NewTextPart(JSONMarkdown(`{"id": 1, "foo": "bar"}`)),
 			},
-			wantErr: true,
 		},
-		{
-			name: "parses empty array",
+		wantErr: true,
+	},
+	{
+		name: "parses empty array",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1349,16 +1350,14 @@ func TestArrayParser(t *testing.T) {
 					NewTextPart("[]"),
 				},
 			},
-			want: &Message{
-				Role: RoleModel,
-				Content: []*Part{
-					NewJSONPart("[]"),
-				},
-			},
-			wantErr: false,
+		want: &Message{
+			Role:    RoleModel,
+			Content: nil,
 		},
-		{
-			name: "parses array with preamble and code fence",
+		wantErr: false,
+	},
+	{
+		name: "parses array with preamble and code fence",
 			schema: map[string]any{
 				"type": "array",
 				"items": map[string]any{
@@ -1372,17 +1371,18 @@ func TestArrayParser(t *testing.T) {
 			response: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewTextPart("Here are the objects:\n\n```\n[{\"id\": 1},{\"id\": 2}]\n```"),
+					NewTextPart("Here are the objects:\n\n```\n{\"id\": 1}\n{\"id\": 2}\n```"),
 				},
 			},
-			want: &Message{
-				Role: RoleModel,
-				Content: []*Part{
-					NewJSONPart("[{\"id\": 1},{\"id\": 2}]"),
-				},
+		want: &Message{
+			Role: RoleModel,
+			Content: []*Part{
+				NewJSONPart("{\"id\": 1}"),
+				NewJSONPart("{\"id\": 2}"),
 			},
-			wantErr: false,
 		},
+		wantErr: false,
+	},
 	}
 
 	for _, tt := range tests {
