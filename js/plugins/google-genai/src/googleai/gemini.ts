@@ -52,6 +52,7 @@ import {
   SafetySetting,
   Tool,
   ToolConfig,
+  UrlContextTool,
 } from './types.js';
 import {
   calculateApiKey,
@@ -220,6 +221,10 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .describe('The number of semantic retrieval chunks to retrieve.'),
     })
     .passthrough()
+    .optional(),
+  urlContext: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe('Return grounding metadata from links included in the query')
     .optional(),
   temperature: z
     .number()
@@ -567,6 +572,7 @@ export function defineModel(
         functionCallingConfig,
         googleSearchRetrieval,
         fileSearch,
+        urlContext,
         tools: toolsFromConfig,
         ...restOfConfigOptions
       } = requestOptions;
@@ -593,6 +599,12 @@ export function defineModel(
         tools.push({
           fileSearch,
         });
+      }
+
+      if (urlContext) {
+        tools.push({
+          urlContext: urlContext === true ? {} : urlContext,
+        } as UrlContextTool);
       }
 
       let toolConfig: ToolConfig | undefined;

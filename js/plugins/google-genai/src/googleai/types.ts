@@ -36,6 +36,7 @@ import {
   TaskTypeSchema,
   Tool,
   ToolConfig,
+  UrlContextTool,
 } from '../common/types.js';
 
 // This makes it easier to import all types from one place.
@@ -60,6 +61,7 @@ export {
   type SafetySetting,
   type Tool,
   type ToolConfig,
+  type UrlContextTool,
 };
 
 export interface GoogleAIPluginOptions {
