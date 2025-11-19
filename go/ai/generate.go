@@ -607,9 +607,56 @@ func clone[T any](obj *T) *T {
 	return &newObj
 }
 
+// toolExecution represents a single tool execution request with its context.
+type toolExecution struct {
+	index      int
+	part       *Part
+	tool       Tool
+	concurrent bool
+}
+
+// executeToolRequest executes a single tool request and sends the result to the result channel.
+func executeToolRequest(ctx context.Context, exec toolExecution, revisedMsg *Message, resultChan chan<- result[any]) {
+	toolReq := exec.part.ToolRequest
+	output, err := exec.tool.RunRaw(ctx, toolReq.Input)
+	if err != nil {
+		var tie *toolInterruptError
+		if errors.As(err, &tie) {
+			logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", toolReq.Name, tie.Metadata)
+
+			newPart := clone(exec.part)
+			if newPart.Metadata == nil {
+				newPart.Metadata = make(map[string]any)
+			}
+			if tie.Metadata != nil {
+				newPart.Metadata["interrupt"] = tie.Metadata
+			} else {
+				newPart.Metadata["interrupt"] = true
+			}
+
+			revisedMsg.Content[exec.index] = newPart
+			resultChan <- result[any]{exec.index, nil, tie}
+			return
+		}
+
+		resultChan <- result[any]{exec.index, nil, core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
+		return
+	}
+
+	newPart := clone(exec.part)
+	if newPart.Metadata == nil {
+		newPart.Metadata = make(map[string]any)
+	}
+	newPart.Metadata["pendingOutput"] = output
+	revisedMsg.Content[exec.index] = newPart
+
+	resultChan <- result[any]{exec.index, output, nil}
+}
+
 // handleToolRequests processes any tool requests in the response, returning
 // either a new request to continue the conversation or nil if no tool requests
-// need handling.
+// need handling. Tools that don't support concurrency are executed sequentially first,
+// then concurrent tools are executed in parallel.
 func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, resp *ModelResponse, cb ModelStreamCallback, messageIndex int) (*ModelRequest, *Message, error) {
 	toolCount := 0
 	if resp.Message != nil {
@@ -624,58 +671,50 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 		return nil, nil, nil
 	}
 
-	resultChan := make(chan result[any])
+	resultChan := make(chan result[any], toolCount)
 	toolMsg := &Message{Role: RoleTool}
 	revisedMsg := clone(resp.Message)
 
+	var sequentialTools []toolExecution
+	var concurrentTools []toolExecution
+
+	// Separate tools into sequential and concurrent groups
 	for i, part := range revisedMsg.Content {
 		if !part.IsToolRequest() {
 			continue
 		}
 
-		go func(idx int, p *Part) {
-			toolReq := p.ToolRequest
-			tool := LookupTool(r, p.ToolRequest.Name)
-			if tool == nil {
-				resultChan <- result[any]{idx, nil, core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
-				return
-			}
+		toolReq := part.ToolRequest
+		tool := LookupTool(r, part.ToolRequest.Name)
+		if tool == nil {
+			resultChan <- result[any]{i, nil, core.NewError(core.NOT_FOUND, "tool %q not found", toolReq.Name)}
+			continue
+		}
 
-			output, err := tool.RunRaw(ctx, toolReq.Input)
-			if err != nil {
-				var tie *toolInterruptError
-				if errors.As(err, &tie) {
-					logger.FromContext(ctx).Debug("tool %q triggered an interrupt: %v", toolReq.Name, tie.Metadata)
+		exec := toolExecution{
+			index:      i,
+			part:       part,
+			tool:       tool,
+			concurrent: tool.Concurrent(),
+		}
 
-					newPart := clone(p)
-					if newPart.Metadata == nil {
-						newPart.Metadata = make(map[string]any)
-					}
-					if tie.Metadata != nil {
-						newPart.Metadata["interrupt"] = tie.Metadata
-					} else {
-						newPart.Metadata["interrupt"] = true
-					}
+		if exec.concurrent {
+			concurrentTools = append(concurrentTools, exec)
+		} else {
+			sequentialTools = append(sequentialTools, exec)
+		}
+	}
 
-					revisedMsg.Content[idx] = newPart
+	// Execute sequential tools first
+	for _, exec := range sequentialTools {
+		executeToolRequest(ctx, exec, revisedMsg, resultChan)
+	}
 
-					resultChan <- result[any]{idx, nil, tie}
-					return
-				}
-
-				resultChan <- result[any]{idx, nil, core.NewError(core.INTERNAL, "tool %q failed: %v", toolReq.Name, err)}
-				return
-			}
-
-			newPart := clone(p)
-			if newPart.Metadata == nil {
-				newPart.Metadata = make(map[string]any)
-			}
-			newPart.Metadata["pendingOutput"] = output
-			revisedMsg.Content[idx] = newPart
-
-			resultChan <- result[any]{idx, output, nil}
-		}(i, part)
+	// Execute concurrent tools in parallel
+	for _, exec := range concurrentTools {
+		go func(e toolExecution) {
+			executeToolRequest(ctx, e, revisedMsg, resultChan)
+		}(exec)
 	}
 
 	var toolResps []*Part
