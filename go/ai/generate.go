@@ -340,10 +340,20 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 						currentIndex++
 						currentRole = chunk.Role
 					}
-					chunk.Index = currentIndex
 					if chunk.Role == "" {
 						chunk.Role = RoleModel
 					}
+					// For model streams, the plugin provides a relative chunk index.
+					// We make it absolute by adding the current message index.
+					if chunk.Role == RoleModel {
+						chunk.Index = currentIndex + chunk.Index
+					} else {
+						// For other roles (like Tool), the caller is assumed to provide the
+						// correct absolute index.
+						chunk.Index = currentIndex
+					}
+					fmt.Printf("[%d] returning chunk: %#v\n", chunk.Index, chunk)
+					fmt.Printf("\t== chunk content: %s\n", chunk.Text())
 					return cb(ctx, chunk)
 				}
 			}

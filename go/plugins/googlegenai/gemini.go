@@ -290,11 +290,12 @@ func generate(
 
 	// Streaming version.
 	iter := client.Models.GenerateContentStream(ctx, model, contents, gcc)
-	var r *ai.ModelResponse
 
+	var r *ai.ModelResponse
 	// merge all streamed responses
 	var resp *genai.GenerateContentResponse
-	var chunks []*genai.Part
+	chunks := []*ai.Part{}
+	index := 0
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
@@ -307,27 +308,22 @@ func generate(
 			}
 			err = cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
+				Role:    ai.RoleModel,
+				Index:   index,
 			})
 			if err != nil {
 				return nil, err
 			}
-			chunks = append(chunks, c.Content.Parts...)
+			chunks = append(chunks, tc.Message.Content...)
 		}
+		index += 1
 		// keep the last chunk for usage metadata
 		resp = chunk
 	}
 
-	// manually merge all candidate responses, iterator does not provide a
-	// merged response utility
-	merged := []*genai.Candidate{
-		{
-			Content: &genai.Content{
-				Parts: chunks,
-			},
-		},
-	}
-	resp.Candidates = merged
 	r, err = translateResponse(resp)
+	r.Message.Content = chunks
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate contents: %w", err)
 	}
@@ -704,6 +700,7 @@ func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
 func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 	m := &ai.ModelResponse{}
+	fmt.Printf("finish reason: %v, finish message: %s\n", cand.FinishReason, cand.FinishMessage)
 	switch cand.FinishReason {
 	case genai.FinishReasonStop:
 		m.FinishReason = ai.FinishReasonStop
@@ -715,16 +712,16 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		m.FinishReason = ai.FinishReasonBlocked
 	case genai.FinishReasonOther:
 		m.FinishReason = ai.FinishReasonOther
-	default: // Unspecified
-		m.FinishReason = ai.FinishReasonUnknown
+		// default: // Unspecified
+		// 	m.FinishReason = ai.FinishReasonUnknown
 	}
 
+	m.FinishMessage = cand.FinishMessage
 	if cand.Content == nil {
 		return nil, fmt.Errorf("no valid candidates were found in the generate response")
 	}
 	msg := &ai.Message{}
 	msg.Role = ai.Role(cand.Content.Role)
-
 	// iterate over the candidate parts, only one struct member
 	// must be populated, more than one is considered an error
 	for _, part := range cand.Content.Parts {
