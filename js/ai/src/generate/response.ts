@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Operation } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
 import {
   GenerationBlockedError,
@@ -48,6 +49,10 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   raw: unknown;
   /** The request that generated this response. */
   request?: GenerateRequest;
+  /** Model generation long running operation. */
+  operation?: Operation<GenerateResponseData>;
+  /** Name of the model used. */
+  model?: string;
   /** The parser for output parsing of this response. */
   parser?: MessageParser<O>;
 
@@ -62,6 +67,20 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     const generatedMessage =
       response.message || response.candidates?.[0]?.message;
     if (generatedMessage) {
+      if (
+        options?.request?.output?.contentType ||
+        options?.request?.output?.format
+      ) {
+        generatedMessage.metadata = {
+          ...generatedMessage.metadata,
+          generate: {
+            output: {
+              contentType: options?.request?.output?.contentType,
+              format: options?.request?.output?.format,
+            },
+          },
+        };
+      }
       this.message = new Message<O>(generatedMessage, {
         parser: options?.parser,
       });
@@ -74,6 +93,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     this.custom = response.custom || {};
     this.raw = response.raw || this.custom;
     this.request = options?.request;
+    this.operation = response?.operation;
   }
 
   /**
@@ -87,7 +107,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       );
     }
 
-    if (!this.message) {
+    if (!this.message && !this.operation) {
       throw new GenerationResponseError(
         this,
         `Model did not generate a message. Finish reason: '${this.finishReason}': ${this.finishMessage}`
@@ -203,9 +223,11 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       usage: this.usage,
       custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
       request: this.request,
+      operation: this.operation,
     };
     if (!out.finishMessage) delete out.finishMessage;
     if (!out.request) delete out.request;
+    if (!out.operation) delete out.operation;
     return out;
   }
 }

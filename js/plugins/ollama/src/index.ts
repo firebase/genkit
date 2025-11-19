@@ -203,8 +203,6 @@ export const OllamaConfigSchema = GenerationCommonConfigSchema.extend({
     .optional(),
   topK: z
     .number()
-    .min(1)
-    .max(40)
     .describe(
       GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
     )
@@ -432,21 +430,28 @@ function toOllamaRequest(
           toolResponses.push(c.toolResponse);
         }
       });
-      // Add tool responses, if any.
-      toolResponses.forEach((t) => {
-        messages.push({
-          role,
-          content:
-            typeof t.output === 'string' ? t.output : JSON.stringify(t.output),
+      if (toolResponses.length > 0) {
+        toolResponses.forEach((t) => {
+          messages.push({
+            role,
+            content:
+              typeof t.output === 'string'
+                ? t.output
+                : JSON.stringify(t.output),
+            tool_name: t.name,
+          });
         });
-      });
-      messages.push({
-        role: role,
-        content: toolRequests.length > 0 ? '' : messageText,
-        images: images.length > 0 ? images : undefined,
-        tool_calls:
-          toolRequests.length > 0 ? toOllamaToolCall(toolRequests) : undefined,
-      });
+      } else {
+        messages.push({
+          role: role,
+          content: toolRequests.length > 0 ? '' : messageText,
+          images: images.length > 0 ? images : undefined,
+          tool_calls:
+            toolRequests.length > 0
+              ? toOllamaToolCall(toolRequests)
+              : undefined,
+        });
+      }
     });
     request.messages = messages;
   } else {

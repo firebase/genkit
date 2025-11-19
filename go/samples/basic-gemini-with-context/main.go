@@ -17,11 +17,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 func main() {
@@ -31,18 +31,14 @@ func main() {
 	// Config parameter, the Google AI plugin will get the API key from the
 	// GEMINI_API_KEY or GOOGLE_API_KEY environment variable, which is the recommended
 	// practice.
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Define a simple flow that generates jokes about a given topic with a context of bananas
 	genkit.DefineFlow(g, "contextFlow", func(ctx context.Context, input string) (string, error) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithModelName("googleai/gemini-2.0-flash"),
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Temperature: 1,
-				Version:     "gemini-2.0-flash-001",
+			ai.WithModelName("googleai/gemini-2.5-flash"),
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](1.0),
 			}),
 			ai.WithPrompt(fmt.Sprintf(`Tell silly short jokes about %s`, input)),
 			ai.WithDocs(ai.DocumentFromText("Bananas are plentiful in the tropics.", nil)))

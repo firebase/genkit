@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
@@ -32,7 +33,7 @@ type InputOutput struct {
 	Text string `json:"text"`
 }
 
-func testTool(reg *registry.Registry, name string) Tool {
+func testTool(reg api.Registry, name string) Tool {
 	return DefineTool(reg, name, "use when need to execute a test",
 		func(ctx *ToolContext, input struct {
 			Test string
@@ -70,41 +71,28 @@ func TestOutputFormat(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			reg, err := registry.New()
-			if err != nil {
-				t.Fatal(err)
-			}
+			reg := registry.New()
 
 			if test.output == nil {
-				_, err = DefinePrompt(
+				DefinePrompt(
 					reg, "aModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputFormat(test.format),
 				)
 			} else {
-				_, err = DefinePrompt(
+				DefinePrompt(
 					reg, "bModel",
 					WithInputType(InputOutput{Text: "test"}),
 					WithOutputType(test.output),
 					WithOutputFormat(test.format),
 				)
 			}
-			if err != nil {
-				if test.err {
-					t.Logf("got expected error %v", err)
-					return
-				}
-				t.Fatal(err)
-			}
 		})
 	}
 }
 
 func TestInputFormat(t *testing.T) {
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg := registry.New()
 
 	type hello struct {
 		Name string `json:"name"`
@@ -135,19 +123,12 @@ func TestInputFormat(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var err error
-			var p *Prompt
+			var p Prompt
 
 			if test.inputType != nil {
-				p, err = DefinePrompt(reg, test.name,
-					WithPrompt(test.templateText),
-					WithInputType(test.inputType),
-				)
+				p = DefinePrompt(reg, test.name, WithPrompt(test.templateText), WithInputType(test.inputType))
 			} else {
-				p, err = DefinePrompt(reg, test.name, WithPrompt(test.templateText))
-			}
-
-			if err != nil {
-				t.Fatal(err)
+				p = DefinePrompt(reg, test.name, WithPrompt(test.templateText))
 			}
 
 			req, err := p.Render(context.Background(), test.input)
@@ -166,9 +147,9 @@ type HelloPromptInput struct {
 	Name string
 }
 
-func definePromptModel(reg *registry.Registry) Model {
-	return DefineModel(reg, "test", "chat",
-		&ModelInfo{Supports: &ModelSupports{
+func definePromptModel(reg api.Registry) Model {
+	return DefineModel(reg, "test/chat",
+		&ModelOptions{Supports: &ModelSupports{
 			Tools:      true,
 			Multiturn:  true,
 			ToolChoice: true,
@@ -236,10 +217,7 @@ func definePromptModel(reg *registry.Registry) Model {
 }
 
 func TestValidPrompt(t *testing.T) {
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg := registry.New()
 
 	ConfigureFormats(reg)
 
@@ -521,6 +499,98 @@ func TestValidPrompt(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:       "execute with MessagesFn option",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is {{Name}}",
+			input:      HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptExecuteOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+				WithMessages(NewModelTextMessage("I remember you said your name is {{Name}}")),
+			},
+			wantTextOutput: "Echo: system: say hello; I remember you said your name is foo; my name is foo; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewTextPart("I remember you said your name is foo")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+				},
+			},
+		},
+		{
+			name:       "execute with tools overriding prompt-level tools",
+			model:      model,
+			config:     &GenerationCommonConfig{Temperature: 11},
+			inputType:  HelloPromptInput{},
+			systemText: "say hello",
+			promptText: "my name is foo",
+			tools:      []ToolRef{testTool(reg, "promptTool")},
+			input:      HelloPromptInput{Name: "foo"},
+			executeOptions: []PromptExecuteOption{
+				WithInput(HelloPromptInput{Name: "foo"}),
+				WithTools(testTool(reg, "executeOverrideTool")),
+			},
+			wantTextOutput: "Echo: system: tool: say hello; my name is foo; ; Bar; ; config: {\n  \"temperature\": 11\n}; context: null",
+			wantGenerated: &ModelRequest{
+				Config: &GenerationCommonConfig{
+					Temperature: 11,
+				},
+				Output: &ModelOutputConfig{
+					ContentType: "text/plain",
+				},
+				ToolChoice: "required",
+				Messages: []*Message{
+					{
+						Role:    RoleSystem,
+						Content: []*Part{NewTextPart("say hello")},
+					},
+					{
+						Role:    RoleUser,
+						Content: []*Part{NewTextPart("my name is foo")},
+					},
+					{
+						Role:    RoleModel,
+						Content: []*Part{NewToolRequestPart(&ToolRequest{Name: "executeOverrideTool", Input: map[string]any{"Test": "Bar"}})},
+					},
+					{
+						Role:    RoleTool,
+						Content: []*Part{NewToolResponsePart(&ToolResponse{Output: "Bar"})},
+					},
+				},
+				Tools: []*ToolDefinition{
+					{
+						Name:        "executeOverrideTool",
+						Description: "use when need to execute a test",
+						InputSchema: map[string]any{
+							"additionalProperties": bool(false),
+							"properties":           map[string]any{"Test": map[string]any{"type": string("string")}},
+							"required":             []any{string("Test")},
+							"type":                 string("object"),
+						},
+						OutputSchema: map[string]any{"type": string("string")},
+					},
+				},
+			},
+		},
 	}
 
 	cmpPart := func(a, b *Part) bool {
@@ -565,10 +635,7 @@ func TestValidPrompt(t *testing.T) {
 				opts = append(opts, WithPromptFn(test.promptFn))
 			}
 
-			p, err := DefinePrompt(reg, test.name, opts...)
-			if err != nil {
-				t.Fatal(err)
-			}
+			p := DefinePrompt(reg, test.name, opts...)
 
 			output, err := p.Execute(context.Background(), test.executeOptions...)
 			if err != nil {
@@ -612,20 +679,14 @@ func testGenerate(ctx context.Context, req *ModelRequest, cb func(context.Contex
 }
 
 func TestOptionsPatternExecute(t *testing.T) {
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg := registry.New()
 
 	ConfigureFormats(reg)
 
-	testModel := DefineModel(reg, "options", "test", nil, testGenerate)
+	testModel := DefineModel(reg, "options/test", nil, testGenerate)
 
 	t.Run("Streaming", func(t *testing.T) {
-		p, err := DefinePrompt(reg, "TestExecute", WithInputType(InputOutput{}), WithPrompt("TestExecute"))
-		if err != nil {
-			t.Fatal(err)
-		}
+		p := DefinePrompt(reg, "TestExecute", WithInputType(InputOutput{}), WithPrompt("TestExecute"))
 
 		streamText := ""
 		resp, err := p.Execute(
@@ -651,10 +712,7 @@ func TestOptionsPatternExecute(t *testing.T) {
 	})
 
 	t.Run("WithModelName", func(t *testing.T) {
-		p, err := DefinePrompt(reg, "TestModelname", WithInputType(InputOutput{}), WithPrompt("TestModelname"))
-		if err != nil {
-			t.Fatal(err)
-		}
+		p := DefinePrompt(reg, "TestModelname", WithInputType(InputOutput{}), WithPrompt("TestModelname"))
 
 		resp, err := p.Execute(
 			context.Background(),
@@ -672,14 +730,12 @@ func TestOptionsPatternExecute(t *testing.T) {
 }
 
 func TestDefaultsOverride(t *testing.T) {
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg := registry.New()
+
 	// Set up default formats
 	ConfigureFormats(reg)
 
-	testModel := DefineModel(reg, "defineoptions", "test", nil, testGenerate)
+	testModel := DefineModel(reg, "defineoptions/test", nil, testGenerate)
 	model := definePromptModel(reg)
 
 	tests := []struct {
@@ -784,10 +840,7 @@ func TestDefaultsOverride(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			p, err := DefinePrompt(reg, test.name, test.define...)
-			if err != nil {
-				t.Fatal(err)
-			}
+			p := DefinePrompt(reg, test.name, test.define...)
 
 			output, err := p.Execute(
 				context.Background(),
@@ -832,9 +885,9 @@ func TestLoadPrompt(t *testing.T) {
 	mockPromptFile := filepath.Join(tempDir, "example.prompt")
 	mockPromptContent := `---
 model: test-model
+maxTurns: 5
 description: A test prompt
 toolChoice: required
-maxTurns: 5
 returnToolRequests: true
 input:
   schema:
@@ -849,19 +902,15 @@ output:
   schema:
     type: string
 ---
-
 Hello, {{name}}!
 `
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call loadPrompt
 	LoadPrompt(reg, tempDir, "example.prompt", "test-namespace")
@@ -872,29 +921,94 @@ Hello, {{name}}!
 		t.Fatalf("Prompt was not registered")
 	}
 
-	if prompt.action.Desc().InputSchema == nil {
+	if prompt.(api.Action).Desc().InputSchema == nil {
 		t.Fatal("Input schema is nil")
 	}
 
-	if prompt.action.Desc().InputSchema.Type != "object" {
-		t.Errorf("Expected input schema type 'object', got '%s'", prompt.action.Desc().InputSchema.Type)
+	if prompt.(api.Action).Desc().InputSchema["type"] != "object" {
+		t.Errorf("Expected input schema type 'object', got '%s'", prompt.(api.Action).Desc().InputSchema["type"])
 	}
 
-	promptMetadata, ok := prompt.action.Desc().Metadata["prompt"].(map[string]any)
+	promptMetadata, ok := prompt.(api.Action).Desc().Metadata["prompt"].(map[string]any)
 	if !ok {
-		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.action.Desc().Metadata["prompt"])
+		t.Fatalf("Expected Metadata['prompt'] to be a map, but got %T", prompt.(api.Action).Desc().Metadata["prompt"])
 	}
 	if promptMetadata["model"] != "test-model" {
-		t.Errorf("Expected model name 'test-model', got '%s'", prompt.action.Desc().Metadata["model"])
+		t.Errorf("Expected model name 'test-model', got '%s'", prompt.(api.Action).Desc().Metadata["model"])
+	}
+	if promptMetadata["maxTurns"] != 5 {
+		t.Errorf("Expected maxTurns set to 5, got: %d", promptMetadata["maxTurns"])
+	}
+}
+
+func TestLoadPromptSnakeCase(t *testing.T) {
+	tempDir := t.TempDir()
+	mockPromptFile := filepath.Join(tempDir, "snake.prompt")
+	mockPromptContent := `---
+model: googleai/gemini-2.5-flash
+input:
+  schema:
+    items(array):
+      teamColor: string
+      team_name: string
+---
+{{#each items as |it|}}
+{{ it.teamColor }},{{ it.team_name }}
+{{/each}}
+`
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	reg := registry.New()
+	LoadPrompt(reg, tempDir, "snake.prompt", "snake-namespace")
+
+	prompt := LookupPrompt(reg, "snake-namespace/snake")
+	if prompt == nil {
+		t.Fatalf("prompt was not registered")
+	}
+
+	type SnakeInput struct {
+		TeamColor string `json:"teamColor"` // intentionally leaving camel case to test snake + camel support
+		TeamName  string `json:"team_name"`
+	}
+
+	input := map[string]any{"items": []SnakeInput{
+		{TeamColor: "RED", TeamName: "Firebase"},
+		{TeamColor: "BLUE", TeamName: "Gophers"},
+		{TeamColor: "GREEN", TeamName: "Google"},
+	}}
+
+	actionOpts, err := prompt.Render(context.Background(), input)
+	if err != nil {
+		t.Fatalf("error rendering prompt: %v", err)
+	}
+	if actionOpts.Messages == nil {
+		t.Fatal("expecting messages to be rendered")
+	}
+	renderedPrompt := actionOpts.Messages[0].Text()
+	for line := range strings.SplitSeq(renderedPrompt, "\n") {
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "RED") {
+			if !strings.Contains(trimmedLine, "Firebase") {
+				t.Fatalf("wrong template render, want: RED,Firebase, got: %s", trimmedLine)
+			}
+		} else if strings.HasPrefix(trimmedLine, "BLUE") {
+			if !strings.Contains(trimmedLine, "Gophers") {
+				t.Fatalf("wrong template render, want: BLUE,Gophers, got: %s", trimmedLine)
+			}
+		} else if strings.HasPrefix(trimmedLine, "GREEN") {
+			if !strings.Contains(trimmedLine, "Google") {
+				t.Fatalf("wrong template render, want: GREEN,Google, got: %s", trimmedLine)
+			}
+		}
 	}
 }
 
 func TestLoadPrompt_FileNotFound(t *testing.T) {
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call loadPrompt with a non-existent file
 	LoadPrompt(reg, "./nonexistent", "missing.prompt", "test-namespace")
@@ -913,16 +1027,13 @@ func TestLoadPrompt_InvalidPromptFile(t *testing.T) {
 	// Create an invalid .prompt file
 	invalidPromptFile := filepath.Join(tempDir, "invalid.prompt")
 	invalidPromptContent := `invalid json content`
-	err := os.WriteFile(invalidPromptFile, []byte(invalidPromptContent), 0644)
+	err := os.WriteFile(invalidPromptFile, []byte(invalidPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create invalid prompt file: %v", err)
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call loadPrompt
 	LoadPrompt(reg, tempDir, "invalid.prompt", "test-namespace")
@@ -947,16 +1058,13 @@ description: A test prompt
 
 Hello, {{name}}!
 `
-	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call loadPrompt
 	LoadPrompt(reg, tempDir, "example.variant.prompt", "test-namespace")
@@ -975,7 +1083,7 @@ func TestLoadPromptFolder(t *testing.T) {
 	// Create mock prompt and partial files
 	mockPromptFile := filepath.Join(tempDir, "example.prompt")
 	mockSubDir := filepath.Join(tempDir, "subdir")
-	err := os.Mkdir(mockSubDir, 0755)
+	err := os.Mkdir(mockSubDir, 0o755)
 	if err != nil {
 		t.Fatalf("Failed to create subdirectory: %v", err)
 	}
@@ -998,23 +1106,20 @@ output:
 Hello, {{name}}!
 `
 
-	err = os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644)
+	err = os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file: %v", err)
 	}
 
 	// Create a mock prompt file in the subdirectory
 	mockSubPromptFile := filepath.Join(mockSubDir, "sub_example.prompt")
-	err = os.WriteFile(mockSubPromptFile, []byte(mockPromptContent), 0644)
+	err = os.WriteFile(mockSubPromptFile, []byte(mockPromptContent), 0o644)
 	if err != nil {
 		t.Fatalf("Failed to create mock prompt file in subdirectory: %v", err)
 	}
 
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 
 	// Call LoadPromptFolder
 	LoadPromptDir(reg, tempDir, "test-namespace")
@@ -1037,14 +1142,10 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 	reg := &registry.Registry{}
 
 	// Call LoadPromptFolder with a non-existent directory
-	err := LoadPromptDir(reg, "./nonexistent", "test-namespace")
-	if err == nil {
-		t.Fatalf("Error should returned")
-	}
+	LoadPromptDir(reg, "", "test-namespace")
 
 	// Verify that no prompts were registered
-	prompt := LookupPrompt(reg, "example")
-	if prompt != nil {
+	if prompt := LookupPrompt(reg, "example"); prompt != nil {
 		t.Fatalf("Prompt should not have been registered for a non-existent directory")
 	}
 }
@@ -1053,34 +1154,17 @@ func TestLoadPromptFolder_DirectoryNotFound(t *testing.T) {
 // and using both partials and helpers.
 func TestDefinePartialAndHelper(t *testing.T) {
 	// Initialize a mock registry
-	reg, err := registry.New()
-	if err != nil {
-		t.Fatalf("Failed to create registry: %v", err)
-	}
+	reg := registry.New()
 	ConfigureFormats(reg)
 
 	model := definePromptModel(reg)
 
-	if err = reg.DefinePartial("header", "Welcome {{name}}!"); err != nil {
-		t.Fatalf("Failed to define partial: %v", err)
-	}
-	if err = reg.DefineHelper("uppercase", func(s string) string {
+	reg.RegisterPartial("header", "Welcome {{name}}!")
+	reg.RegisterHelper("uppercase", func(s string) string {
 		return strings.ToUpper(s)
-	}); err != nil {
-		t.Fatalf("Failed to define helper: %v", err)
-	}
+	})
 
-	// Duplicate partial and helper definitions should return an error
-	if err = reg.DefinePartial("header", "Welcome {{name}}!"); err == nil {
-		t.Fatalf("Expected error defining partial with duplicate name")
-	}
-	if err = reg.DefineHelper("uppercase", func(s string) string {
-		return ""
-	}); err == nil {
-		t.Fatalf("Expected error defining helper with duplicate name")
-	}
-
-	p, err := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
+	p := DefinePrompt(reg, "test", WithPrompt(`{{> header}} {{uppercase greeting}}`), WithModel(model))
 
 	result, err := p.Execute(context.Background(), WithInput(map[string]any{
 		"name":     "User",
@@ -1093,5 +1177,100 @@ func TestDefinePartialAndHelper(t *testing.T) {
 	testOutput := "Welcome User!HELLO"
 	if result.Request.Messages[0].Content[0].Text != testOutput {
 		t.Errorf("got %q want %q", result.Request.Messages[0].Content[0].Text, testOutput)
+	}
+}
+
+func TestMultiMessagesPrompt(t *testing.T) {
+	// Create a temporary directory for testing
+	tempDir := t.TempDir()
+
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+---
+{{ role "system" }}
+
+You are a pirate!
+
+{{ role "user" }}
+Hello!
+`
+	err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	// Initialize a mock registry
+	reg := registry.New()
+	ConfigureFormats(reg)
+	definePromptModel(reg)
+
+	prompt := LoadPrompt(reg, tempDir, "example.prompt", "multi-namespace")
+
+	_, err = prompt.Execute(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to execute prompt: %v", err)
+	}
+}
+
+func TestMultiMessagesRenderPrompt(t *testing.T) {
+	tempDir := t.TempDir()
+
+	mockPromptFile := filepath.Join(tempDir, "example.prompt")
+	mockPromptContent := `---
+model: test/chat
+description: A test prompt
+---
+<<<dotprompt:role:system>>>
+You are a pirate!
+
+<<<dotprompt:role:user>>>
+Hello!
+`
+
+	if err := os.WriteFile(mockPromptFile, []byte(mockPromptContent), 0644); err != nil {
+		t.Fatalf("Failed to create mock prompt file: %v", err)
+	}
+
+	prompt := LoadPrompt(registry.New(), tempDir, "example.prompt", "multi-namespace-roles")
+
+	actionOpts, err := prompt.Render(context.Background(), map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to execute prompt: %v", err)
+	}
+
+	// Check that actionOpts is not nil
+	if actionOpts == nil {
+		t.Fatal("Expected actionOpts to be non-nil")
+	}
+
+	// Check that we have exactly 2 messages (system and user)
+	if len(actionOpts.Messages) != 2 {
+		t.Fatalf("Expected 2 messages, got %d", len(actionOpts.Messages))
+	}
+
+	// Check first message (system role)
+	systemMsg := actionOpts.Messages[0]
+	if systemMsg.Role != RoleSystem {
+		t.Errorf("Expected first message role to be 'system', got '%s'", systemMsg.Role)
+	}
+	if len(systemMsg.Content) == 0 {
+		t.Fatal("Expected system message to have content")
+	}
+	if strings.TrimSpace(systemMsg.Content[0].Text) != "You are a pirate!" {
+		t.Errorf("Expected system message text to be 'You are a pirate!', got '%s'", systemMsg.Content[0].Text)
+	}
+
+	// Check second message (user role)
+	userMsg := actionOpts.Messages[1]
+	if userMsg.Role != RoleUser {
+		t.Errorf("Expected second message role to be 'user', got '%s'", userMsg.Role)
+	}
+	if len(userMsg.Content) == 0 {
+		t.Fatal("Expected user message to have content")
+	}
+	if strings.TrimSpace(userMsg.Content[0].Text) != "Hello!" {
+		t.Errorf("Expected user message text to be 'Hello!', got '%s'", userMsg.Content[0].Text)
 	}
 }

@@ -29,6 +29,19 @@ export const GENKIT_REFLECTION_API_SPEC_VERSION = 1;
 
 export { z } from 'zod';
 export * from './action.js';
+export { getAsyncContext } from './async-context.js';
+export {
+  OperationSchema,
+  backgroundAction,
+  defineBackgroundAction,
+  isBackgroundAction,
+  registerBackgroundAction,
+  type BackgroundAction,
+  type BackgroundActionFnArg,
+  type BackgroundActionParams,
+  type BackgroundActionRunOptions,
+  type Operation,
+} from './background-action.js';
 export {
   apiKey,
   getContext,
@@ -38,6 +51,12 @@ export {
   type ContextProvider,
   type RequestData,
 } from './context.js';
+export {
+  defineDynamicActionProvider,
+  type DapConfig,
+  type DapFn,
+  type DynamicActionProviderAction,
+} from './dynamic-action-provider.js';
 export {
   GenkitError,
   UnstableApiError,
@@ -49,6 +68,7 @@ export {
 } from './error.js';
 export {
   defineFlow,
+  flow,
   run,
   type Flow,
   type FlowConfig,
@@ -60,3 +80,18 @@ export * from './reflection.js';
 export { defineJsonSchema, defineSchema, type JSONSchema } from './schema.js';
 export * from './telemetryTypes.js';
 export * from './utils.js';
+
+const clientHeaderGlobalKey = '__genkit_ClientHeader';
+
+/** Additional attribution information to include in the x-goog-api-client header. */
+export function getClientHeader() {
+  if (global[clientHeaderGlobalKey]) {
+    return GENKIT_CLIENT_HEADER + ' ' + global[clientHeaderGlobalKey];
+  }
+  return GENKIT_CLIENT_HEADER;
+}
+
+/** Sets additional attribution information to include in the x-goog-api-client header. */
+export function setClientHeader(header: string) {
+  global[clientHeaderGlobalKey] = header;
+}

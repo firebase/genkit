@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	partialparser "github.com/blaze2305/partial-json-parser"
 	"github.com/blaze2305/partial-json-parser/options"
@@ -98,14 +99,21 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 			return nil, errors.New("message has no content")
 		}
 
-		for i, part := range m.Content {
-			if !part.IsText() {
-				continue
-			}
+		var nonTextParts []*Part
+		accumulatedText := strings.Builder{}
 
-			text := base.ExtractJSONFromMarkdown(part.Text)
+		for _, part := range m.Content {
+			if !part.IsText() {
+				nonTextParts = append(nonTextParts, part)
+			} else {
+				accumulatedText.WriteString(part.Text)
+			}
+		}
+
+		newParts := []*Part{}
+		text := base.ExtractJSONFromMarkdown(accumulatedText.String())
+		if text != "" {
 			if j.config.Schema != nil {
-				var schemaBytes []byte
 				schemaBytes, err := json.Marshal(j.config.Schema)
 				if err != nil {
 					return nil, fmt.Errorf("expected schema is not valid: %w", err)
@@ -118,9 +126,12 @@ func (j jsonHandler) ParseMessage(m *Message) (*Message, error) {
 					return nil, errors.New("message is not a valid JSON")
 				}
 			}
-
-			m.Content[i] = NewJSONPart(text)
+			newParts = append(newParts, NewJSONPart(text))
 		}
+
+		newParts = append(newParts, nonTextParts...)
+
+		m.Content = newParts
 	}
 
 	return m, nil

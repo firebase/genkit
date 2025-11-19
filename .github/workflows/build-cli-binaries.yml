@@ -1,0 +1,256 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Build CLI Binaries
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+          - os: macos-14  # x64/Intel
+            target: darwin-x64
+          - os: macos-latest  # ARM64/M1
+            target: darwin-arm64
+          - os: windows-latest
+            target: win32-x64
+          # Note: Windows ARM64 currently runs x64 binaries through emulation
+          # Native ARM64 support is not yet available in Bun
+          # See: https://github.com/oven-sh/bun/pull/11430
+          # - os: windows-11-arm
+          #   target: win32-arm64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.11.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install root dependencies
+        run: pnpm i
+      
+      - name: Install genkit-tools dependencies
+        run: pnpm pnpm-install-genkit-tools
+      
+      - name: Build genkit-tools
+        run: pnpm build:genkit-tools
+      
+      - name: Set binary extension
+        id: binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == win32-* ]]; then
+            echo "ext=.exe" >> $GITHUB_OUTPUT
+          else
+            echo "ext=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Compile CLI binary
+        shell: bash
+        run: |
+          cd genkit-tools/cli
+          pnpm compile:bun
+          
+          # Handle the binary name based on OS
+          if [[ "${{ matrix.os }}" == windows-* ]]; then
+            # On Windows, Bun outputs genkit.exe
+            mv dist/bin/genkit.exe "dist/bin/genkit-${{ matrix.target }}.exe"
+          else
+            # On Unix-like systems, no extension
+            mv dist/bin/genkit "dist/bin/genkit-${{ matrix.target }}"
+          fi
+      
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: genkit-${{ matrix.target }}
+          path: genkit-tools/cli/dist/bin/genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }}
+          retention-days: 1  # TODO: Consider increasing to 7 days for better debugging capability
+
+  test:
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+          - os: macos-14
+            target: darwin-x64
+          - os: macos-latest
+            target: darwin-arm64
+          - os: windows-latest
+            target: win32-x64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Set binary extension
+        id: binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == win32-* ]]; then
+            echo "ext=.exe" >> $GITHUB_OUTPUT
+          else
+            echo "ext=" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Download binary artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: genkit-${{ matrix.target }}
+          path: ./
+      
+      - name: Make binary executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x genkit-${{ matrix.target }}
+      
+      - name: Test --help command
+        shell: bash
+        run: |
+          echo "Testing genkit --help"
+          ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} --help
+      
+      - name: Test --version command
+        shell: bash
+        run: |
+          echo "Testing genkit --version"
+          ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} --version
+      
+      - name: Verify UI commands exist
+        shell: bash
+        run: |
+          echo "Verifying UI commands are available"
+          ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} ui:start --help
+          ./genkit-${{ matrix.target }}${{ steps.binary.outputs.ext }} ui:stop --help
+      
+      - name: Test UI start functionality (Unix only)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "Testing genkit ui:start"
+          
+          # Start UI in background, piping any prompts to accept them
+          (echo "" | ./genkit-${{ matrix.target }} ui:start 2>&1 | tee ui_output.log) &
+          UI_PID=$!
+          
+          # Give it time to start
+          sleep 5
+          
+          # Check if it started successfully by looking for the expected output
+          if grep -q "Genkit Developer UI started at:" ui_output.log 2>/dev/null; then
+            echo "✓ UI started successfully"
+            cat ui_output.log
+            
+            # Try to stop it gracefully
+            echo "Testing genkit ui:stop"
+            ./genkit-${{ matrix.target }} ui:stop || true
+            
+            # Give it time to stop
+            sleep 2
+          else
+            echo "UI output:"
+            cat ui_output.log 2>/dev/null || echo "No output captured"
+            
+            # Check if process is still running
+            if ps -p $UI_PID > /dev/null 2>&1; then
+              echo "Process is running but didn't produce expected output"
+              kill $UI_PID 2>/dev/null || true
+            else
+              echo "Process exited (might be due to cookie prompt or missing project)"
+            fi
+          fi
+          
+          # Clean up any remaining processes
+          pkill -f "genkit.*ui:start" 2>/dev/null || true
+      
+      - name: Test UI start functionality (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Write-Host "Testing genkit ui:start"
+          
+          # Create empty input file first for redirecting stdin
+          "" | Out-File -FilePath ".\empty.txt"
+          
+          # Start UI in background, redirecting input to handle prompts
+          $process = Start-Process -FilePath ".\genkit-${{ matrix.target }}.exe" `
+            -ArgumentList "ui:start" `
+            -RedirectStandardInput ".\empty.txt" `
+            -RedirectStandardOutput ".\ui_output.log" `
+            -RedirectStandardError ".\ui_error.log" `
+            -PassThru `
+            -NoNewWindow
+          
+          # Give it time to start
+          Start-Sleep -Seconds 5
+          
+          # Read the output
+          $output = Get-Content ".\ui_output.log" -ErrorAction SilentlyContinue
+          $errorOutput = Get-Content ".\ui_error.log" -ErrorAction SilentlyContinue
+          
+          if ($output -match "Genkit Developer UI started at:") {
+            Write-Host "✓ UI started successfully"
+            Write-Host "Output:"
+            $output | Write-Host
+            
+            # Try to stop it gracefully
+            Write-Host "Testing genkit ui:stop"
+            & ".\genkit-${{ matrix.target }}.exe" ui:stop
+            
+            Start-Sleep -Seconds 2
+          } else {
+            Write-Host "UI did not start as expected"
+            Write-Host "Output:"
+            $output | Write-Host
+            Write-Host "Error:"
+            $errorOutput | Write-Host
+            
+            # Check if process is still running
+            if (-not $process.HasExited) {
+              Write-Host "Process is still running, terminating..."
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            } else {
+              Write-Host "Process exited (might be due to cookie prompt or missing project)"
+            }
+          }
+          
+          # Clean up any remaining genkit processes
+          Get-Process | Where-Object { $_.ProcessName -match "genkit" } | Stop-Process -Force -ErrorAction SilentlyContinue

@@ -23,7 +23,7 @@ import type {
   ListEvalKeysResponse,
   UpdateDatasetRequest,
 } from './apis';
-import { GenerateRequestSchema } from './model';
+import { GenerateActionOptionsSchema, GenerateRequestSchema } from './model';
 
 /**
  * This file defines schema and types that are used by the Eval store.
@@ -50,6 +50,17 @@ export const ModelInferenceInputJSONSchema = zodToJsonSchema(
  */
 export const GenerateRequestJSONSchema = zodToJsonSchema(
   GenerateRequestSchema,
+  {
+    $refStrategy: 'none',
+    removeAdditionalStrategy: 'strict',
+  }
+) as JSONSchema7;
+
+/**
+ * Combined GenerateInput JSON schema to support eval-inference using models
+ */
+export const GenerateInputJSONSchema = zodToJsonSchema(
+  z.union([GenerateRequestSchema, GenerateActionOptionsSchema]),
   {
     $refStrategy: 'none',
     removeAdditionalStrategy: 'strict',
@@ -123,6 +134,7 @@ export const EvalInputSchema = z.object({
   error: z.string().optional(),
   context: z.array(z.any()).optional(),
   reference: z.any().optional(),
+  custom: z.record(z.string(), z.any()).optional(),
   traceIds: z.array(z.string()),
 });
 export type EvalInput = z.infer<typeof EvalInputSchema>;
@@ -240,7 +252,12 @@ export const DatasetSchemaSchema = z.object({
 });
 
 /** Type of dataset, useful for UI niceties. */
-export const DatasetTypeSchema = z.enum(['UNKNOWN', 'FLOW', 'MODEL']);
+export const DatasetTypeSchema = z.enum([
+  'UNKNOWN',
+  'FLOW',
+  'MODEL',
+  'EXECUTABLE_PROMPT',
+]);
 export type DatasetType = z.infer<typeof DatasetTypeSchema>;
 
 /**

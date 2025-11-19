@@ -524,7 +524,7 @@ capabilities in code:
 
     ```yaml
     ---
-    model: vertexai/gemini-1.5-flash
+    model: vertexai/gemini-2.5-flash
     config:
       temperature: 0.9
     input:

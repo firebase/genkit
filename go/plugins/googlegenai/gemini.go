@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -28,21 +29,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/base"
-	"github.com/invopop/jsonschema"
-
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"github.com/invopop/jsonschema"
 	"google.golang.org/genai"
 )
 
 const (
-	// Thinking budget limit
-	thinkingBudgetMax = 24576
-
 	// Tool name regex
 	toolNameRegex = "^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$"
 )
@@ -89,13 +86,19 @@ func configToMap(config any) map[string]any {
 	r := jsonschema.Reflector{
 		DoNotReference: true, // Prevent $ref usage
 		ExpandedStruct: true, // Include all fields directly
+		// NOTE: keep track of updated fields in [genai.GenerateContentConfig] since
+		// they could create runtime panics when parsing fields with type recursion
+		IgnoredTypes: []any{
+			genai.Schema{},
+		},
 	}
+
 	schema := r.Reflect(config)
 	result := base.SchemaAsMap(schema)
 	return result
 }
 
-// mapToStruct unmarshals a map[string]any to the expected config type.
+// mapToStruct unmarshals a map[string]any to the expected config api.
 func mapToStruct(m map[string]any, v any) error {
 	jsonData, err := json.Marshal(m)
 	if err != nil {
@@ -104,131 +107,14 @@ func mapToStruct(m map[string]any, v any) error {
 	return json.Unmarshal(jsonData, v)
 }
 
-// toGeminiSafetySettings converts a list of [SafetySetting] to a list of [genai.SafetySetting].
-func toGeminiSafetySettings(settings []*SafetySetting) []*genai.SafetySetting {
-	if len(settings) == 0 {
-		return nil
-	}
-
-	result := make([]*genai.SafetySetting, len(settings))
-	for i, s := range settings {
-		result[i] = &genai.SafetySetting{
-			Method:    genai.HarmBlockMethod(s.Method),
-			Category:  genai.HarmCategory(s.Category),
-			Threshold: genai.HarmBlockThreshold(s.Threshold),
-		}
-	}
-	return result
-}
-
-type HarmCategory string
-
-const (
-	// The harm category is unspecified.
-	HarmCategoryUnspecified HarmCategory = "HARM_CATEGORY_UNSPECIFIED"
-	// The harm category is hate speech.
-	HarmCategoryHateSpeech HarmCategory = "HARM_CATEGORY_HATE_SPEECH"
-	// The harm category is dangerous content.
-	HarmCategoryDangerousContent HarmCategory = "HARM_CATEGORY_DANGEROUS_CONTENT"
-	// The harm category is harassment.
-	HarmCategoryHarassment HarmCategory = "HARM_CATEGORY_HARASSMENT"
-	// The harm category is sexually explicit content.
-	HarmCategorySexuallyExplicit HarmCategory = "HARM_CATEGORY_SEXUALLY_EXPLICIT"
-	// The harm category is civic integrity.
-	HarmCategoryCivicIntegrity HarmCategory = "HARM_CATEGORY_CIVIC_INTEGRITY"
-)
-
-// Specify if the threshold is used for probability or severity score. If not specified,
-// the threshold is used for probability score.
-type HarmBlockMethod string
-
-const (
-	// The harm block method is unspecified.
-	HarmBlockMethodUnspecified HarmBlockMethod = "HARM_BLOCK_METHOD_UNSPECIFIED"
-	// The harm block method uses both probability and severity scores.
-	HarmBlockMethodSeverity HarmBlockMethod = "SEVERITY"
-	// The harm block method uses the probability score.
-	HarmBlockMethodProbability HarmBlockMethod = "PROBABILITY"
-)
-
-// The harm block threshold.
-type HarmBlockThreshold string
-
-const (
-	// Unspecified harm block threshold.
-	HarmBlockThresholdUnspecified HarmBlockThreshold = "HARM_BLOCK_THRESHOLD_UNSPECIFIED"
-	// Block low threshold and above (i.e. block more).
-	HarmBlockThresholdBlockLowAndAbove HarmBlockThreshold = "BLOCK_LOW_AND_ABOVE"
-	// Block medium threshold and above.
-	HarmBlockThresholdBlockMediumAndAbove HarmBlockThreshold = "BLOCK_MEDIUM_AND_ABOVE"
-	// Block only high threshold (i.e. block less).
-	HarmBlockThresholdBlockOnlyHigh HarmBlockThreshold = "BLOCK_ONLY_HIGH"
-	// Block none.
-	HarmBlockThresholdBlockNone HarmBlockThreshold = "BLOCK_NONE"
-	// Turn off the safety filter.
-	HarmBlockThresholdOff HarmBlockThreshold = "OFF"
-)
-
-// Safety settings.
-type SafetySetting struct {
-	// Determines if the harm block method uses probability or probability
-	// and severity scores.
-	Method HarmBlockMethod `json:"method,omitempty"`
-	// Required. Harm category.
-	Category HarmCategory `json:"category,omitempty"`
-	// Required. The harm block threshold.
-	Threshold HarmBlockThreshold `json:"threshold,omitempty"`
-}
-
-// Thinking configuration to control reasoning
-type ThinkingConfig struct {
-	// Indicates whether the response should include thoughts (if available and supported)
-	IncludeThoughts bool `json:"includeThoughts,omitempty"`
-	// Thinking budget in tokens. If set to zero, thinking gets disabled
-	ThinkingBudget int32 `json:"thinkingBudget,omitempty"`
-}
-
-type Modality string
-
-const (
-	// Indicates the model should return images
-	ImageMode Modality = "IMAGE"
-	// Indicates the model should return text
-	TextMode Modality = "TEXT"
-)
-
-// GeminiConfig mirrors GenerateContentConfig without direct genai dependency
-type GeminiConfig struct {
-	// MaxOutputTokens is the maximum number of tokens to generate.
-	MaxOutputTokens int `json:"maxOutputTokens,omitempty"`
-	// StopSequences is the list of sequences where the model will stop generating further tokens.
-	StopSequences []string `json:"stopSequences,omitempty"`
-	// Temperature is the temperature to use for the model.
-	Temperature float64 `json:"temperature,omitempty"`
-	// TopK is the number of top tokens to consider for the model.
-	TopK int `json:"topK,omitempty"`
-	// TopP is the top-p value to use for the model.
-	TopP float64 `json:"topP,omitempty"`
-	// Version is the version of the model to use.
-	Version string `json:"version,omitempty"`
-	// SafetySettings is the list of safety settings to use for the model.
-	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
-	// CodeExecution is whether to allow executing of code generated by the model.
-	CodeExecution bool `json:"codeExecution,omitempty"`
-	// Response modalities for returned model messages
-	ResponseModalities []Modality `json:"responseModalities,omitempty"`
-	// Thinking configuration controls the model's internal reasoning process
-	ThinkingConfig *ThinkingConfig `json:"thinkingConfig,omitempty"`
-}
-
-// configFromRequest converts any supported config type to [GeminiConfig].
-func configFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
-	var result GeminiConfig
+// configFromRequest converts any supported config type to [genai.GenerateContentConfig].
+func configFromRequest(input *ai.ModelRequest) (*genai.GenerateContentConfig, error) {
+	var result genai.GenerateContentConfig
 
 	switch config := input.Config.(type) {
-	case GeminiConfig:
+	case genai.GenerateContentConfig:
 		result = config
-	case *GeminiConfig:
+	case *genai.GenerateContentConfig:
 		result = *config
 	case map[string]any:
 		// TODO: Log warnings if unknown parameters are found.
@@ -244,18 +130,24 @@ func configFromRequest(input *ai.ModelRequest) (*GeminiConfig, error) {
 	return &result, nil
 }
 
-// DefineModel defines a model in the registry
-func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.ModelInfo) ai.Model {
+// newModel creates a model without registering it
+func newModel(client *genai.Client, name string, opts ai.ModelOptions) ai.Model {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
 	}
 
-	meta := &ai.ModelInfo{
-		Label:        info.Label,
-		Supports:     info.Supports,
-		Versions:     info.Versions,
-		ConfigSchema: configToMap(&GeminiConfig{}),
+	var config any
+	config = &genai.GenerateContentConfig{}
+	if strings.Contains(name, "imagen") {
+		config = &genai.GenerateImagesConfig{}
+	}
+	meta := &ai.ModelOptions{
+		Label:        opts.Label,
+		Supports:     opts.Supports,
+		Versions:     opts.Versions,
+		ConfigSchema: configToMap(config),
+		Stage:        opts.Stage,
 	}
 
 	fn := func(
@@ -263,10 +155,15 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 		input *ai.ModelRequest,
 		cb func(context.Context, *ai.ModelResponseChunk) error,
 	) (*ai.ModelResponse, error) {
-		return generate(ctx, client, name, input, cb)
+		switch config.(type) {
+		case *genai.GenerateImagesConfig:
+			return generateImage(ctx, client, name, input, cb)
+		default:
+			return generate(ctx, client, name, input, cb)
+		}
 	}
 	// the gemini api doesn't support downloading media from http(s)
-	if info.Supports.Media {
+	if opts.Supports.Media {
 		fn = core.ChainMiddleware(ai.DownloadRequestMedia(&ai.DownloadMediaOptions{
 			MaxBytes: 1024 * 1024 * 20, // 20MB
 			Filter: func(part *ai.Part) bool {
@@ -276,36 +173,35 @@ func defineModel(g *genkit.Genkit, client *genai.Client, name string, info ai.Mo
 				}
 				// Gemini can handle these URLs
 				return !slices.Contains(
-					[]string{"www.youtube.com", "youtube.com", "youtu.be"},
+					[]string{
+						"generativelanguage.googleapis.com",
+						"www.youtube.com", "youtube.com", "youtu.be",
+					},
 					u.Hostname(),
 				)
 			},
 		}))(fn)
 	}
-	return genkit.DefineModel(g, provider, name, meta, fn)
+	return ai.NewModel(api.NewName(provider, name), meta, fn)
 }
 
-// DefineEmbedder defines embeddings for the provided contents and embedder
-// model
-func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embedder {
+// newEmbedder creates an embedder without registering it
+func newEmbedder(client *genai.Client, name string, embedOpts *ai.EmbedderOptions) ai.Embedder {
 	provider := googleAIProvider
 	if client.ClientConfig().Backend == genai.BackendVertexAI {
 		provider = vertexAIProvider
 	}
 
-	return genkit.DefineEmbedder(g, provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	if embedOpts.ConfigSchema == nil {
+		embedOpts.ConfigSchema = core.InferSchemaMap(genai.EmbedContentConfig{})
+	}
+
+	return ai.NewEmbedder(api.NewName(provider, name), embedOpts, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		var content []*genai.Content
 		var embedConfig *genai.EmbedContentConfig
 
-		// check if request options matches VertexAI configuration
-		if opts, _ := req.Options.(*EmbedOptions); opts != nil {
-			if provider == googleAIProvider {
-				return nil, fmt.Errorf("wrong options provided for %s provider, got %T", provider, opts)
-			}
-			embedConfig = &genai.EmbedContentConfig{
-				Title:    opts.Title,
-				TaskType: opts.TaskType,
-			}
+		if config, ok := req.Options.(*genai.EmbedContentConfig); ok {
+			embedConfig = config
 		}
 
 		for _, doc := range req.Input {
@@ -330,7 +226,7 @@ func defineEmbedder(g *genkit.Genkit, client *genai.Client, name string) ai.Embe
 	})
 }
 
-// Generate requests a generate call to the specified model with the provided
+// Generate requests generate call to the specified model with the provided
 // configuration
 func generate(
 	ctx context.Context,
@@ -339,15 +235,8 @@ func generate(
 	input *ai.ModelRequest,
 	cb func(context.Context, *ai.ModelResponseChunk) error,
 ) (*ai.ModelResponse, error) {
-	// Extract configuration to get the model version
-	config, err := configFromRequest(input)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update model with version if specified
-	if config.Version != "" {
-		model = config.Version
+	if model == "" {
+		return nil, errors.New("model not provided")
 	}
 
 	cache, err := handleCache(ctx, client, input, model)
@@ -358,23 +247,6 @@ func generate(
 	gcc, err := toGeminiRequest(input, cache)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(config.ResponseModalities) > 0 {
-		err := validateResponseModalities(model, config.ResponseModalities)
-		if err != nil {
-			return nil, err
-		}
-		for _, m := range config.ResponseModalities {
-			gcc.ResponseModalities = append(gcc.ResponseModalities, string(m))
-		}
-
-		// prevent an error in the client where:
-		// if TEXT modality is not present and the model supports it, the client
-		// will return an error
-		if !slices.Contains(gcc.ResponseModalities, string(genai.ModalityText)) {
-			gcc.ResponseModalities = append(gcc.ResponseModalities, string(genai.ModalityText))
-		}
 	}
 
 	var contents []*genai.Content
@@ -404,11 +276,14 @@ func generate(
 		if err != nil {
 			return nil, err
 		}
-		r := translateResponse(resp)
+		r, err := translateResponse(resp)
+		if err != nil {
+			return nil, err
+		}
 
 		r.Request = input
 		if cache != nil {
-			r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
+			r.Message.Metadata = cacheMetadata(r.Message.Metadata, cache)
 		}
 		return r, nil
 	}
@@ -425,16 +300,18 @@ func generate(
 		if err != nil {
 			return nil, err
 		}
-		for i, c := range chunk.Candidates {
-			tc := translateCandidate(c)
-			err := cb(ctx, &ai.ModelResponseChunk{
+		for _, c := range chunk.Candidates {
+			tc, err := translateCandidate(c)
+			if err != nil {
+				return nil, err
+			}
+			err = cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
 			})
 			if err != nil {
 				return nil, err
 			}
-			// stream only supports text
-			chunks = append(chunks, c.Content.Parts[i])
+			chunks = append(chunks, c.Content.Parts...)
 		}
 		// keep the last chunk for usage metadata
 		resp = chunk
@@ -450,45 +327,56 @@ func generate(
 		},
 	}
 	resp.Candidates = merged
-	r = translateResponse(resp)
+	r, err = translateResponse(resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate contents: %w", err)
+	}
 	r.Request = input
 	if cache != nil {
-		r.Message.Metadata = setCacheMetadata(r.Message.Metadata, cache)
+		r.Message.Metadata = cacheMetadata(r.Message.Metadata, cache)
 	}
 
 	return r, nil
 }
 
-// toGeminiRequest translates from [*ai.ModelRequest] to
-// *genai.GenerateContentParameters
+// toGeminiRequest translates an [*ai.ModelRequest] to
+// *genai.GenerateContentConfig
 func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai.GenerateContentConfig, error) {
-	gcc := genai.GenerateContentConfig{
-		CandidateCount: 1,
-	}
-
-	c, err := configFromRequest(input)
+	gcc, err := configFromRequest(input)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert standard fields
-	if c.MaxOutputTokens != 0 {
-		gcc.MaxOutputTokens = int32(c.MaxOutputTokens)
+	// candidate count might not be set to 1 and will keep its zero value if not set
+	// e.g. default value from reflection server is 0
+	if gcc.CandidateCount == 0 {
+		gcc.CandidateCount = 1
 	}
-	if len(c.StopSequences) > 0 {
-		gcc.StopSequences = c.StopSequences
+
+	// Genkit primitive fields must be used instead of go-genai fields
+	// i.e.: system prompt, tools, cached content, response schema, etc
+	if gcc.CandidateCount != 1 {
+		return nil, errors.New("multiple candidates is not supported")
 	}
-	if c.Temperature != 0 {
-		gcc.Temperature = genai.Ptr(float32(c.Temperature))
+	if gcc.SystemInstruction != nil {
+		return nil, errors.New("system instruction must be set using Genkit feature: ai.WithSystemPrompt()")
 	}
-	if c.TopK != 0 {
-		gcc.TopK = genai.Ptr(float32(c.TopK))
+	if gcc.Tools != nil {
+		for _, t := range gcc.Tools {
+			if t.FunctionDeclarations != nil {
+				return nil, errors.New("tool functions must be set using Genkit feature: ai.WithTools()")
+			}
+		}
 	}
-	if c.TopP != 0 {
-		gcc.TopP = genai.Ptr(float32(c.TopP))
+	if gcc.CachedContent != "" {
+		return nil, errors.New("cached content must be set using Genkit feature: ai.WithCacheTTL()")
 	}
-	// Convert non-primitive fields
-	gcc.SafetySettings = toGeminiSafetySettings(c.SafetySettings)
+	if gcc.ResponseSchema != nil {
+		return nil, errors.New("response schema must be set using Genkit feature: ai.WithTools() or ai.WithOuputType()")
+	}
+	if gcc.ResponseMIMEType != "" {
+		return nil, errors.New("response MIME type must be set using Genkit feature: ai.WithOuputType()")
+	}
 
 	// Set response MIME type based on output format if specified
 	hasOutput := input.Output != nil
@@ -527,28 +415,6 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		gcc.ToolConfig = tc
 	}
 
-	// Add CodeExecution tool if enabled in config
-	if c.CodeExecution {
-		// Initialize tools array if it doesn't exist yet
-		if gcc.Tools == nil {
-			gcc.Tools = []*genai.Tool{}
-		}
-		// Add the CodeExecution tool
-		gcc.Tools = append(gcc.Tools, &genai.Tool{
-			CodeExecution: &genai.ToolCodeExecution{},
-		})
-	}
-
-	if c.ThinkingConfig != nil {
-		if c.ThinkingConfig.ThinkingBudget < 0 || c.ThinkingConfig.ThinkingBudget > thinkingBudgetMax {
-			return nil, fmt.Errorf("thinkingBudget should be between 0 and %d", thinkingBudgetMax)
-		}
-		gcc.ThinkingConfig = &genai.ThinkingConfig{
-			IncludeThoughts: c.ThinkingConfig.IncludeThoughts,
-			ThinkingBudget:  &c.ThinkingConfig.ThinkingBudget,
-		}
-	}
-
 	var systemParts []*genai.Part
 	for _, m := range input.Messages {
 		if m.Role == ai.RoleSystem {
@@ -571,29 +437,14 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 		gcc.CachedContent = cache.Name
 	}
 
-	return &gcc, nil
-}
-
-// validateResponseModalities checks if response modality is valid for the requested model
-func validateResponseModalities(model string, modalities []Modality) error {
-	for _, m := range modalities {
-		switch m {
-		case ImageMode:
-			if !slices.Contains(imageGenModels, model) {
-				return fmt.Errorf("IMAGE response modality is not supported for model %q", model)
-			}
-		case TextMode:
-			continue
-		default:
-			return fmt.Errorf("unknown response modality provided: %q", m)
-		}
-	}
-	return nil
+	return gcc, nil
 }
 
 // toGeminiTools translates a slice of [ai.ToolDefinition] to a slice of [genai.Tool].
 func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
+	functions := []*genai.FunctionDeclaration{}
+
 	for _, t := range inTools {
 		if !validToolName(t.Name) {
 			return nil, fmt.Errorf(`invalid tool name: %q, must start with a letter or an underscore, must be alphanumeric, underscores, dots or dashes with a max length of 64 chars`, t.Name)
@@ -607,8 +458,15 @@ func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 			Parameters:  inputSchema,
 			Description: t.Description,
 		}
-		outTools = append(outTools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
+		functions = append(functions, fd)
 	}
+
+	if len(functions) > 0 {
+		outTools = append(outTools, &genai.Tool{
+			FunctionDeclarations: functions,
+		})
+	}
+
 	return outTools, nil
 }
 
@@ -621,17 +479,48 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		return nil, nil
 	}
 	if v, ok := genkitSchema["$ref"]; ok {
-		ref := v.(string)
+		ref, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid $ref value: not a string")
+		}
 		return toGeminiSchema(originalSchema, resolveRef(originalSchema, ref))
 	}
-	schema := &genai.Schema{}
 
-	switch genkitSchema["type"].(string) {
+	// Handle "anyOf" subschemas by finding the first valid schema definition
+	if v, ok := genkitSchema["anyOf"]; ok {
+		if anyOfList, isList := v.([]map[string]any); isList {
+			for _, subSchema := range anyOfList {
+				if subSchemaType, hasType := subSchema["type"]; hasType {
+					if typeStr, isString := subSchemaType.(string); isString && typeStr != "null" {
+						if title, ok := genkitSchema["title"]; ok {
+							subSchema["title"] = title
+						}
+						if description, ok := genkitSchema["description"]; ok {
+							subSchema["description"] = description
+						}
+						// Found a schema like: {"type": "string"}
+						return toGeminiSchema(originalSchema, subSchema)
+					}
+				}
+			}
+		}
+	}
+
+	schema := &genai.Schema{}
+	typeVal, ok := genkitSchema["type"]
+	if !ok {
+		return nil, fmt.Errorf("schema is missing the 'type' field: %#v", genkitSchema)
+	}
+
+	typeStr, ok := typeVal.(string)
+	if !ok {
+		return nil, fmt.Errorf("schema 'type' field is not a string, but %T", typeVal)
+	}
+
+	switch typeStr {
 	case "string":
 		schema.Type = genai.TypeString
-	case "float64":
-		schema.Type = genai.TypeNumber
-	case "number":
+	case "float64", "number":
 		schema.Type = genai.TypeNumber
 	case "integer":
 		schema.Type = genai.TypeInteger
@@ -645,10 +534,10 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		return nil, fmt.Errorf("schema type %q not allowed", genkitSchema["type"])
 	}
 	if v, ok := genkitSchema["required"]; ok {
-		schema.Required = castToStringArray(v.([]any))
+		schema.Required = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["propertyOrdering"]; ok {
-		schema.PropertyOrdering = castToStringArray(v.([]any))
+		schema.PropertyOrdering = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["description"]; ok {
 		schema.Description = v.(string)
@@ -660,35 +549,27 @@ func toGeminiSchema(originalSchema map[string]any, genkitSchema map[string]any) 
 		schema.Title = v.(string)
 	}
 	if v, ok := genkitSchema["minItems"]; ok {
-		i, err := strconv.ParseInt(v.(string), 10, 64)
-		if err != nil {
-			return nil, err
+		if i64, ok := castToInt64(v); ok {
+			schema.MinItems = genai.Ptr(i64)
 		}
-		schema.MinItems = genai.Ptr[int64](i)
 	}
 	if v, ok := genkitSchema["maxItems"]; ok {
-		i, err := strconv.ParseInt(v.(string), 10, 64)
-		if err != nil {
-			return nil, err
+		if i64, ok := castToInt64(v); ok {
+			schema.MaxItems = genai.Ptr(i64)
 		}
-		schema.MaxItems = genai.Ptr[int64](i)
 	}
 	if v, ok := genkitSchema["maximum"]; ok {
-		i, err := strconv.ParseFloat(v.(string), 64)
-		if err != nil {
-			return nil, err
+		if f64, ok := castToFloat64(v); ok {
+			schema.Maximum = genai.Ptr(f64)
 		}
-		schema.Maximum = genai.Ptr[float64](i)
 	}
 	if v, ok := genkitSchema["minimum"]; ok {
-		i, err := strconv.ParseFloat(v.(string), 64)
-		if err != nil {
-			return nil, err
+		if f64, ok := castToFloat64(v); ok {
+			schema.Minimum = genai.Ptr(f64)
 		}
-		schema.Minimum = genai.Ptr[float64](i)
 	}
 	if v, ok := genkitSchema["enum"]; ok {
-		schema.Enum = castToStringArray(v.([]any))
+		schema.Enum = castToStringArray(v)
 	}
 	if v, ok := genkitSchema["items"]; ok {
 		items, err := toGeminiSchema(originalSchema, v.(map[string]any))
@@ -721,13 +602,73 @@ func resolveRef(originalSchema map[string]any, ref string) map[string]any {
 	return defs[name].(map[string]any)
 }
 
-func castToStringArray(i []any) []string {
-	// Is there a better way to do this??
-	var r []string
-	for _, v := range i {
-		r = append(r, v.(string))
+// castToStringArray converts either []any or []string to []string, filtering non-strings.
+// This handles enum values from JSON Schema which may come as either type depending on unmarshaling.
+// Filter out non-string types from if v is []any type.
+func castToStringArray(v any) []string {
+	switch a := v.(type) {
+	case []string:
+		// Return a shallow copy to avoid aliasing
+		out := make([]string, 0, len(a))
+		for _, s := range a {
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	case []any:
+		var out []string
+		for _, it := range a {
+			if s, ok := it.(string); ok && s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
 	}
-	return r
+}
+
+// castToInt64 converts v to int64 when possible.
+func castToInt64(v any) (int64, bool) {
+	switch t := v.(type) {
+	case int:
+		return int64(t), true
+	case int64:
+		return t, true
+	case float64:
+		return int64(t), true
+	case string:
+		if i, err := strconv.ParseInt(t, 10, 64); err == nil {
+			return i, true
+		}
+	case json.Number:
+		if i, err := t.Int64(); err == nil {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// castToFloat64 converts v to float64 when possible.
+func castToFloat64(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	case string:
+		if f, err := strconv.ParseFloat(t, 64); err == nil {
+			return f, true
+		}
+	case json.Number:
+		if f, err := t.Float64(); err == nil {
+			return f, true
+		}
+	}
+	return 0, false
 }
 
 func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*genai.ToolConfig, error) {
@@ -761,7 +702,7 @@ func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*
 }
 
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
-func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
+func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 	m := &ai.ModelResponse{}
 	switch cand.FinishReason {
 	case genai.FinishReasonStop:
@@ -777,6 +718,10 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 	default: // Unspecified
 		m.FinishReason = ai.FinishReasonUnknown
 	}
+
+	if cand.Content == nil {
+		return nil, fmt.Errorf("no valid candidates were found in the generate response")
+	}
 	msg := &ai.Message{}
 	msg.Role = ai.Role(cand.Content.Role)
 
@@ -786,16 +731,17 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		var p *ai.Part
 		partFound := 0
 
-		if part.Text != "" {
+		if part.Thought {
+			p = ai.NewReasoningPart(part.Text, part.ThoughtSignature)
 			partFound++
+		}
+		if part.Text != "" && !part.Thought {
 			p = ai.NewTextPart(part.Text)
-			if part.Thought {
-				p = ai.NewReasoningPart(part.Text)
-			}
+			partFound++
 		}
 		if part.InlineData != nil {
 			partFound++
-			p = ai.NewMediaPart(part.InlineData.MIMEType, base64.StdEncoding.EncodeToString(part.InlineData.Data))
+			p = ai.NewMediaPart(part.InlineData.MIMEType, "data:"+part.InlineData.MIMEType+";base64,"+base64.StdEncoding.EncodeToString((part.InlineData.Data)))
 		}
 		if part.FileData != nil {
 			partFound++
@@ -825,18 +771,26 @@ func translateCandidate(cand *genai.Candidate) *ai.ModelResponse {
 		if partFound > 1 {
 			panic(fmt.Sprintf("expected only 1 content part in response, got %d, part: %#v", partFound, part))
 		}
+		if p == nil {
+			continue
+		}
 
 		msg.Content = append(msg.Content, p)
 	}
 	m.Message = msg
-	return m
+	return m, nil
 }
 
 // Translate from a genai.GenerateContentResponse to a ai.ModelResponse.
-func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
+func translateResponse(resp *genai.GenerateContentResponse) (*ai.ModelResponse, error) {
 	var r *ai.ModelResponse
+	var err error
+
 	if len(resp.Candidates) > 0 {
-		r = translateCandidate(resp.Candidates[0])
+		r, err = translateCandidate(resp.Candidates[0])
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		r = &ai.ModelResponse{}
 	}
@@ -852,7 +806,7 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.ModelResponse {
 		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
 		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
 	}
-	return r
+	return r, nil
 }
 
 // toGeminiParts converts a slice of [ai.Part] to a slice of [genai.Part].
@@ -871,9 +825,20 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 // toGeminiPart converts a [ai.Part] to a [genai.Part].
 func toGeminiPart(p *ai.Part) (*genai.Part, error) {
 	switch {
-	case p.IsText():
-		return genai.NewPartFromText(p.Text), nil
 	case p.IsReasoning():
+		// TODO: go-genai does not support genai.NewPartFromThought()
+		signature := []byte{}
+		if p.Metadata != nil {
+			if sig, ok := p.Metadata["signature"].([]byte); ok {
+				signature = sig
+			}
+		}
+		return &genai.Part{
+			Thought:          true,
+			Text:             p.Text,
+			ThoughtSignature: signature,
+		}, nil
+	case p.IsText():
 		return genai.NewPartFromText(p.Text), nil
 	case p.IsMedia():
 		if strings.HasPrefix(p.Text, "data:") {

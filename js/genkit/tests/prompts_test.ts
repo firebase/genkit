@@ -72,6 +72,36 @@ describe('definePrompt', () => {
     defineEchoModel(ai);
   });
 
+  it('should define the prompt', async () => {
+    const prompt = ai.definePrompt({
+      name: 'hi',
+      metadata: { foo: 'bar' },
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
+      },
+      messages: async (input) => {
+        return [
+          {
+            role: 'user',
+            content: [{ text: `hi ${input.name}` }],
+          },
+        ];
+      },
+    });
+
+    assert.deepStrictEqual(prompt.ref, {
+      name: 'hi',
+      metadata: { foo: 'bar' },
+    });
+
+    const lookedUpPrompt = ai.prompt('hi');
+    // This is a known limitation -- prompt lookup is async under the hood,
+    // so we can't actually get the metadata...
+    assert.deepStrictEqual(lookedUpPrompt.ref, { name: 'hi' }); // ideally metadata should be: { foo: 'bar' }
+  });
+
   it('should apply middleware to a prompt call', async () => {
     const prompt = ai.definePrompt({
       name: 'hi',
@@ -662,7 +692,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('renderes dotprompt messages', async () => {
+    it('renders dotprompt messages', async () => {
       const hi = ai.definePrompt({
         name: 'hi',
         input: {
@@ -1115,6 +1145,11 @@ describe('prompt', () => {
       returnToolRequests: true,
       toolChoice: 'required',
       tools: ['toolA', 'toolB'],
+      metadata: {
+        prompt: {
+          foo: 'bar',
+        },
+      },
     });
   });
 
@@ -1447,7 +1482,7 @@ describe('asTool', () => {
 
     // transfer to toolPrompt...
 
-    // first response be tools call, the subsequent just text response from agent b.
+    // first response is a tool call, the subsequent responses are just text response from agent b.
     let reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {
@@ -1536,7 +1571,7 @@ describe('asTool', () => {
 
     // transfer back to to agent A...
 
-    // first response be tools call, the subsequent just text response from agent a.
+    // first response is a tool call, the subsequent responses are just text response from agent a.
     reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {

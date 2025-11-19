@@ -25,7 +25,7 @@ const toolNames: string[] = tools.map((item) => {
   if (typeof item === 'string') {
     return item;
   } else {
-    return item.name;
+    return item.__action.name;
   }
 });
 

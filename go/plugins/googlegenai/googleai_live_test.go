@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -32,43 +31,48 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
-// The tests here only work with an API key set to a valid value.
-var (
-	apiKey = flag.String("key", "", "Gemini API key")
-	cache  = flag.String("cache", "", "Local file to cache (large text document)")
-)
+// To run this test suite: go test -v -run TestGoogleAI
+
+var cache = flag.String("cache", "", "Local file to cache (large text document)")
+
+func requireEnv(key string) (string, bool) {
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return "", false
+	}
+
+	return value, true
+}
 
 // We can't test the DefineAll functions along with the other tests because
 // we get duplicate definitions of models.
 var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
 
 func TestGoogleAILive(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
+	apiKey, ok := requireEnv("GEMINI_API_KEY")
+	if !ok {
+		apiKey, ok = requireEnv("GOOGLE_API_KEY")
+		if !ok {
+			t.Skip("no gemini api key provided, set either GEMINI_API_KEY or GOOGLE_API_KEY in environment")
+		}
 	}
-
 	if *testAll {
 		t.Skip("-all provided")
 	}
 
 	ctx := context.Background()
 
-	g, err := genkit.Init(ctx,
-		genkit.WithDefaultModel("googleai/gemini-1.5-flash"),
-		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
+	g := genkit.Init(ctx,
+		genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
+		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: apiKey}),
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	embedder := googlegenai.GoogleAIEmbedder(g, "embedding-001")
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken, carefuly inspect the user input to determine which value from the prompt corresponds to the input structure",
 		func(ctx *ai.ToolContext, input struct {
 			Value int
 			Over  float64
@@ -78,8 +82,14 @@ func TestGoogleAILive(t *testing.T) {
 		},
 	)
 
+	answerOfEverythingTool := genkit.DefineTool(g, "answerOfEverything", "use this tool when the user asks for the answer of life, the universe and everything",
+		func(ctx *ai.ToolContext, input any) (int, error) {
+			return 42, nil
+		},
+	)
+
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder, ai.WithTextDocs("yellow banana"))
+		res, err := genkit.Embed(ctx, g, ai.WithEmbedder(embedder), ai.WithTextDocs("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -166,6 +176,64 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool with thinking", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				ThinkingConfig: &genai.ThinkingConfig{
+					ThinkingBudget: genai.Ptr[int32](1024),
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("what is a gablorken of value 2 over 3.5?"),
+			ai.WithTools(gablorkenTool))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Message.Content[0].Text
+		const want = "11.31"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+	})
+	t.Run("api side tools", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		_, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Tools: []*genai.Tool{
+					{GoogleSearch: &genai.GoogleSearch{}},
+					{CodeExecution: &genai.ToolCodeExecution{}},
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithPrompt("When is the next lunar eclipse in US?"))
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("api and custom tools", func(t *testing.T) {
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Tools: []*genai.Tool{
+					{GoogleSearch: &genai.GoogleSearch{}},
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithTools(gablorkenTool, answerOfEverythingTool),
+			ai.WithPrompt("What is the answer of life?"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// api tools should not be used when custom tools are present
+		if len(resp.Request.Tools) != 2 {
+			t.Fatalf("got %d tools, want: 2", len(resp.Request.Tools))
+		}
+		if !strings.Contains(resp.Text(), "42") {
+			t.Fatalf("got %s, want: 42", resp.Text())
+		}
+	})
 	t.Run("tool with json output", func(t *testing.T) {
 		type weatherQuery struct {
 			Location string `json:"location"`
@@ -201,7 +269,7 @@ func TestGoogleAILive(t *testing.T) {
 	})
 	t.Run("avoid tool", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3.5?"),
 			ai.WithTools(gablorkenTool),
 			ai.WithToolChoice(ai.ToolChoiceNone),
 		)
@@ -229,10 +297,7 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPrompt("write a summary of the content"),
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}))
+			ai.WithPrompt("write a summary of the content"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -254,9 +319,6 @@ func TestGoogleAILive(t *testing.T) {
 		}
 
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
@@ -293,19 +355,19 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewMediaPart("image/png", "data:image/png;base64,"+i),
+					ai.NewTextPart("do you what animal is in the image?"),
+					ai.NewMediaPart("image/jpeg", "data:image/jpeg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -330,26 +392,26 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are an excellent animal detector, the user will provide you a request with an image, identify which animal is in there"),
 			ai.WithMessages(
 				ai.NewUserMessage(
 					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewDataPart("data:image/jpeg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("image generation", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.0-flash-preview-image-generation")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-image")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(googlegenai.GeminiConfig{
-				ResponseModalities: []googlegenai.Modality{googlegenai.ImageMode, googlegenai.TextMode},
+			ai.WithConfig(genai.GenerateContentConfig{
+				ResponseModalities: []string{"IMAGE", "TEXT"},
 			}),
 			ai.WithMessages(
 				ai.NewUserTextMessage("generate an image of a dog wearing a black tejana while playing the accordion"),
@@ -408,13 +470,13 @@ func TestGoogleAILive(t *testing.T) {
 		}
 	})
 	t.Run("thinking", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(googlegenai.GeminiConfig{
-				Temperature: 0.4,
-				ThinkingConfig: &googlegenai.ThinkingConfig{
+			ai.WithConfig(genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.4),
+				ThinkingConfig: &genai.ThinkingConfig{
 					IncludeThoughts: true,
-					ThinkingBudget:  100,
+					ThinkingBudget:  genai.Ptr[int32](1024),
 				},
 			}),
 			ai.WithModel(m),
@@ -425,18 +487,57 @@ func TestGoogleAILive(t *testing.T) {
 		if resp == nil {
 			t.Fatal("nil response obtanied")
 		}
-		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 100 {
-			t.Fatal("thoughts tokens should not be zero or greater than 100")
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1024 {
+			t.Fatalf("thoughts tokens should not be zero or greater than 100, got: %d", resp.Usage.ThoughtsTokens)
+		}
+	})
+	t.Run("thinking stream with structured output", func(t *testing.T) {
+		type Output struct {
+			Text string `json:"text"`
+		}
+
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.4),
+				ThinkingConfig: &genai.ThinkingConfig{
+					IncludeThoughts: true,
+					ThinkingBudget:  genai.Ptr[int32](1024),
+				},
+			}),
+			ai.WithModel(m),
+			ai.WithOutputType(Output{}),
+			ai.WithPrompt("Analogize photosynthesis and growing up."),
+			ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
+				return nil
+			}),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp == nil {
+			t.Fatal("nil response obtanied")
+		}
+		var out Output
+		err = resp.Output(&out)
+		if err != nil {
+			t.Fatalf("unable to unmarshal response: %v", err)
+		}
+		if resp.Usage.ThoughtsTokens == 0 || resp.Usage.ThoughtsTokens > 1024 {
+			t.Fatalf("thoughts tokens should not be zero or greater than 1024, got: %d", resp.Usage.ThoughtsTokens)
+		}
+		if resp.Reasoning() == "" {
+			t.Fatalf("no reasoning found")
 		}
 	})
 	t.Run("thinking disabled", func(t *testing.T) {
-		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash-preview-04-17")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithConfig(googlegenai.GeminiConfig{
-				Temperature: 0.4,
-				ThinkingConfig: &googlegenai.ThinkingConfig{
+			ai.WithConfig(genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.4),
+				ThinkingConfig: &genai.ThinkingConfig{
 					IncludeThoughts: false,
-					ThinkingBudget:  0,
+					ThinkingBudget:  genai.Ptr[int32](0),
 				},
 			}),
 			ai.WithModel(m),
@@ -539,8 +640,9 @@ func TestCacheHelper(t *testing.T) {
 }
 
 func fetchImgAsBase64() (string, error) {
-	imgUrl := "https://www.bluey.tv/wp-content/uploads/2023/07/Bluey.png"
-	resp, err := http.Get(imgUrl)
+	// CC0 license image
+	imgURL := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
+	resp, err := http.Get(imgURL)
 	if err != nil {
 		return "", err
 	}

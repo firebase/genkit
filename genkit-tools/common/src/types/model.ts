@@ -20,12 +20,15 @@ import {
   DocumentDataSchema,
   MediaPartSchema,
   ReasoningPartSchema,
+  ResourcePartSchema,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type ReasoningPart,
+  type ResourcePart,
   type TextPart,
   type ToolRequestPart,
   type ToolResponsePart,
@@ -34,12 +37,16 @@ export {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
+  ReasoningPartSchema,
+  ResourcePartSchema,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type ReasoningPart,
+  type ResourcePart,
   type TextPart,
   type ToolRequestPart,
   type ToolResponsePart,
@@ -48,6 +55,23 @@ export {
 //
 // IMPORTANT: Keep this file in sync with genkit/ai/src/model.ts!
 //
+
+/**
+ * Zod schema of an opration representing a background task.
+ */
+export const OperationSchema = z.object({
+  action: z.string().optional(),
+  id: z.string(),
+  done: z.boolean().optional(),
+  output: z.any().optional(),
+  error: z.object({ message: z.string() }).passthrough().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
+
+/**
+ * Operation data.
+ */
+export type OperationData = z.infer<typeof OperationSchema>;
 
 /**
  * Zod schema of message part.
@@ -60,6 +84,7 @@ export const PartSchema = z.union([
   DataPartSchema,
   CustomPartSchema,
   ReasoningPartSchema,
+  ResourcePartSchema,
 ]);
 
 /**
@@ -305,6 +330,7 @@ export const ModelResponseSchema = z.object({
   custom: z.unknown(),
   raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
+  operation: OperationSchema.optional(),
 });
 
 /**
@@ -380,5 +406,7 @@ export const GenerateActionOptionsSchema = z.object({
   returnToolRequests: z.boolean().optional(),
   /** Maximum number of tool call iterations that can be performed in a single generate call (default 5). */
   maxTurns: z.number().optional(),
+  /** Custom step name for this generate call to display in trace views. Defaults to "generate". */
+  stepName: z.string().optional(),
 });
 export type GenerateActionOptions = z.infer<typeof GenerateActionOptionsSchema>;

@@ -63,7 +63,7 @@ export class ValidationError extends GenkitError {
 }
 
 /**
- * Convertes a Zod schema into a JSON schema, utilizing an in-memory cache for known objects.
+ * Converts a Zod schema into a JSON schema, utilizing an in-memory cache for known objects.
  * @param options Provide a json schema and/or zod schema. JSON schema has priority.
  * @returns A JSON schema.
  */
@@ -76,7 +76,6 @@ export function toJsonSchema({
   if (jsonSchema) return jsonSchema;
   if (jsonSchemas.has(schema!)) return jsonSchemas.get(schema!)!;
   const outSchema = zodToJsonSchema(schema!, {
-    $refStrategy: 'none',
     removeAdditionalStrategy: 'strict',
   });
   jsonSchemas.set(schema!, outSchema as JSONSchema);
@@ -123,14 +122,16 @@ export function validateSchema(
 }
 
 /**
- * Parses raw data object agaisnt the provided schema.
+ * Parses raw data object against the provided schema.
  */
 export function parseSchema<T = unknown>(
   data: unknown,
   options: ProvidedSchema
 ): T {
   const { valid, errors, schema } = validateSchema(data, options);
-  if (!valid) throw new ValidationError({ data, errors: errors!, schema });
+  if (!valid) {
+    throw new ValidationError({ data, errors: errors!, schema });
+  }
   return data as T;
 }
 

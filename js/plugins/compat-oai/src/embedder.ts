@@ -17,91 +17,44 @@
 
 // import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
 
-import type { Genkit } from 'genkit';
-import { embedderRef, z } from 'genkit';
+import type { EmbedderAction, EmbedderReference } from 'genkit';
+import { embedder } from 'genkit/plugin';
 import OpenAI from 'openai';
 
-import type { PluginOptions } from './index.js';
+/**
+ * Method to define a new Genkit Embedder that is compatibale with the Open AI
+ * Embeddings API. 
+ *
+ * @param params An object containing parameters for defining the OpenAI embedder.
+ * @param params.ai The Genkit AI instance.
+ * @param params.name The name of the embedder.
+ * @param params.client The OpenAI client instance.
+ * @param params.embedderRef Optional reference to the embedder's configuration and
+ * custom options.
 
-export const TextEmbeddingConfigSchema = z.object({
-  dimensions: z.number().optional(),
-  encodingFormat: z.union([z.literal('float'), z.literal('base64')]).optional(),
-});
+ * @returns the created {@link EmbedderAction}
+ */
+export function defineCompatOpenAIEmbedder(params: {
+  name: string;
+  client: OpenAI;
+  embedderRef?: EmbedderReference;
+}): EmbedderAction {
+  const { name, client, embedderRef } = params;
+  const modelName = name.substring(name.indexOf('/') + 1);
 
-export type TextEmbeddingGeckoConfig = z.infer<
-  typeof TextEmbeddingConfigSchema
->;
-
-export const TextEmbeddingInputSchema = z.string();
-
-export const textEmbedding3Small = embedderRef({
-  name: 'openai/text-embedding-3-small',
-  configSchema: TextEmbeddingConfigSchema,
-  info: {
-    dimensions: 1536,
-    label: 'Open AI - Text Embedding 3 Small',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const textEmbedding3Large = embedderRef({
-  name: 'openai/text-embedding-3-large',
-  configSchema: TextEmbeddingConfigSchema,
-  info: {
-    dimensions: 3072,
-    label: 'Open AI - Text Embedding 3 Large',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const textEmbeddingAda002 = embedderRef({
-  name: 'openai/text-embedding-ada-002',
-  configSchema: TextEmbeddingConfigSchema,
-  info: {
-    dimensions: 1536,
-    label: 'Open AI - Text Embedding ADA 002',
-    supports: {
-      input: ['text'],
-    },
-  },
-});
-
-export const SUPPORTED_EMBEDDING_MODELS = {
-  'text-embedding-3-small': textEmbedding3Small,
-  'text-embedding-3-large': textEmbedding3Large,
-  'text-embedding-ada-002': textEmbeddingAda002,
-};
-
-export function openaiEmbedder(
-  ai: Genkit,
-  name: string,
-  options?: PluginOptions
-) {
-  const apiKey = options?.apiKey || process.env.OPENAI_API_KEY;
-  if (!apiKey)
-    throw new Error(
-      'please pass in the API key or set the OPENAI_API_KEY environment variable'
-    );
-  const model = SUPPORTED_EMBEDDING_MODELS[name];
-  if (!model) throw new Error(`Unsupported model: ${name}`);
-
-  const client = new OpenAI({ apiKey });
-  return ai.defineEmbedder(
+  return embedder(
     {
-      info: model.info!,
-      configSchema: TextEmbeddingConfigSchema,
-      name: model.name,
+      name,
+      configSchema: embedderRef?.configSchema,
+      ...embedderRef?.info,
     },
-    async (input, options) => {
+    async (req) => {
+      const { encodingFormat: encoding_format, ...restOfConfig } = req.options;
       const embeddings = await client.embeddings.create({
-        model: name,
-        input: input.map((d) => d.text),
-        dimensions: options?.dimensions,
-        encoding_format: options?.encodingFormat,
+        model: modelName!,
+        input: req.input.map((d) => d.text),
+        encoding_format,
+        ...restOfConfig,
       });
       return {
         embeddings: embeddings.data.map((d) => ({ embedding: d.embedding })),

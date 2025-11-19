@@ -209,7 +209,15 @@ class Ollama(Plugin):
 
     @cached_property
     def list_actions(self) -> list[dict[str, str]]:
-        """."""
+        """Generate a list of available actions or models.
+
+        Returns:
+            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
+                - name (str): The name of the action or model.
+                - kind (ActionKind): The type or category of the action.
+                - info (dict): The metadata dictionary describing the model configuration and properties.
+                - config_schema (type): The schema class used for validating the model's configuration.
+        """
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:

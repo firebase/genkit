@@ -17,6 +17,7 @@
 import {
   FunctionCallingMode,
   FunctionDeclarationSchemaType,
+  UsageMetadata,
   type Content,
   type FunctionDeclaration,
   type Part as GeminiPart,
@@ -34,13 +35,7 @@ import {
   type VertexAI,
 } from '@google-cloud/vertexai';
 import { ApiClient } from '@google-cloud/vertexai/build/src/resources/index.js';
-import {
-  GENKIT_CLIENT_HEADER,
-  GenkitError,
-  z,
-  type Genkit,
-  type JSONSchema,
-} from 'genkit';
+import { GenkitError, z, type Genkit, type JSONSchema } from 'genkit';
 import {
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
@@ -63,10 +58,17 @@ import {
 } from 'genkit/model/middleware';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
-
+import { getGenkitClientHeader } from './common/index.js';
 import type { PluginOptions } from './common/types.js';
 import { handleCacheIfNeeded } from './context-caching/index.js';
 import { extractCacheConfig } from './context-caching/utils.js';
+
+// Extra type guard to keep the compiler happy and avoid a cast to any. The
+// legacy Gemini SDK is no longer maintained, and doesn't have updated types.
+// However, the REST API returns the data we want.
+type ExtendedUsageMetadata = UsageMetadata & {
+  thoughtsTokenCount?: number;
+};
 
 export const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -128,30 +130,16 @@ const GoogleSearchRetrievalSchema = z.object({
 
 /**
  * Zod schema of Gemini model options.
- * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/medlm, for further information.
+ * Please refer to: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference#generationconfig, for further information.
  */
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
-  maxOutputTokens: z
-    .number()
-    .min(1)
-    .max(8192)
-    .describe(GenerationCommonConfigDescriptions.maxOutputTokens)
-    .optional(),
   temperature: z
     .number()
     .min(0.0)
-    .max(1.0)
+    .max(2.0)
     .describe(
       GenerationCommonConfigDescriptions.temperature +
-        ' The default value is 0.2.'
-    )
-    .optional(),
-  topK: z
-    .number()
-    .min(1)
-    .max(40)
-    .describe(
-      GenerationCommonConfigDescriptions.topK + ' The default value is 40.'
+        ' The default value is 1.0.'
     )
     .optional(),
   topP: z
@@ -159,7 +147,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .min(0)
     .max(1.0)
     .describe(
-      GenerationCommonConfigDescriptions.topP + ' The default value is 0.8.'
+      GenerationCommonConfigDescriptions.topP + ' The default value is 0.95.'
     )
     .optional(),
   location: z
@@ -267,6 +255,29 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .optional(),
+  thinkingConfig: z
+    .object({
+      includeThoughts: z
+        .boolean()
+        .describe(
+          'Indicates whether to include thoughts in the response.' +
+            'If true, thoughts are returned only when available.'
+        )
+        .optional(),
+      thinkingBudget: z
+        .number()
+        .min(0)
+        .max(24576)
+        .describe(
+          'The thinking budget parameter gives the model guidance on the ' +
+            'number of thinking tokens it can use when generating a response. ' +
+            'A greater number of tokens is typically associated with more detailed ' +
+            'thinking, which is needed for solving more complex tasks. ' +
+            'Setting the thinking budget to 0 disables thinking.'
+        )
+        .optional(),
+    })
     .optional(),
 }).passthrough();
 
@@ -554,6 +565,56 @@ export const gemini25ProPreview0325 = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini25Pro = modelRef({
+  name: 'vertexai/gemini-2.5-pro',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Pro',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+export const gemini25Flash = modelRef({
+  name: 'vertexai/gemini-2.5-flash',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Flash',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini25FlashLite = modelRef({
+  name: 'vertexai/gemini-2.5-flash-lite',
+  info: {
+    label: 'Vertex AI - Gemini 2.5 Flash Lite',
+    versions: [],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const GENERIC_GEMINI_MODEL = modelRef({
   name: 'vertexai/gemini',
   configSchema: GeminiConfigSchema,
@@ -584,6 +645,9 @@ export const SUPPORTED_V15_MODELS = {
   'gemini-2.5-pro-exp-03-25': gemini25ProExp0325,
   'gemini-2.5-pro-preview-03-25': gemini25ProPreview0325,
   'gemini-2.5-flash-preview-04-17': gemini25FlashPreview0417,
+  'gemini-2.5-flash': gemini25Flash,
+  'gemini-2.5-pro': gemini25Pro,
+  'gemini-2.5-flash-lite': gemini25FlashLite,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {
@@ -901,7 +965,7 @@ function convertSchemaProperty(property) {
   }
   if (propertyType === 'object') {
     const nestedProperties = {};
-    Object.keys(property.properties).forEach((key) => {
+    Object.keys(property.properties ?? {}).forEach((key) => {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
@@ -1182,7 +1246,7 @@ export function defineGeminiModel({
             model: modelVersion,
           },
           {
-            apiClient: GENKIT_CLIENT_HEADER,
+            apiClient: getGenkitClientHeader(),
           }
         );
       } else {
@@ -1191,7 +1255,7 @@ export function defineGeminiModel({
             model: modelVersion,
           },
           {
-            apiClient: GENKIT_CLIENT_HEADER,
+            apiClient: getGenkitClientHeader(),
           }
         );
       }
@@ -1237,16 +1301,18 @@ export function defineGeminiModel({
           fromGeminiCandidate(c, jsonMode)
         );
 
+        const usageMetadata = response.usageMetadata as ExtendedUsageMetadata;
+
         return {
           candidates: candidateData,
           custom: response,
           usage: {
             ...getBasicUsageStats(request.messages, candidateData),
-            inputTokens: response.usageMetadata?.promptTokenCount,
-            outputTokens: response.usageMetadata?.candidatesTokenCount,
-            totalTokens: response.usageMetadata?.totalTokenCount,
-            cachedContentTokens:
-              response.usageMetadata?.cachedContentTokenCount,
+            inputTokens: usageMetadata?.promptTokenCount,
+            outputTokens: usageMetadata?.candidatesTokenCount,
+            totalTokens: usageMetadata?.totalTokenCount,
+            thoughtsTokens: usageMetadata?.thoughtsTokenCount,
+            cachedContentTokens: usageMetadata?.cachedContentTokenCount,
           },
         };
       };

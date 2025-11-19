@@ -17,15 +17,20 @@
 
 """Tests for the action module."""
 
+from typing import Any
+
 import pytest
 from pydantic import BaseModel, Field
 
 from genkit.ai import Genkit
 from genkit.core.typing import (
+    GenerateActionOptions,
+    GenerationCommonConfig,
     Message,
     Role,
     TextPart,
     ToolChoice,
+    ToolDefinition,
 )
 from genkit.testing import (
     define_echo_model,
@@ -48,7 +53,7 @@ async def test_simple_prompt() -> None:
     """Test simple prompt rendering."""
     ai, *_ = setup_test()
 
-    want_txt = '[ECHO] user: "hi" {"temperature": 11}'
+    want_txt = '[ECHO] user: "hi" {"temperature":11.0}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'temperature': 11})
 
@@ -66,7 +71,7 @@ async def test_simple_prompt_with_override_config() -> None:
     """Test the config provided at render time is used."""
     ai, *_ = setup_test()
 
-    want_txt = '[ECHO] user: "hi" {"temperature": 12}'
+    want_txt = '[ECHO] user: "hi" {"temperature":12.0}'
 
     my_prompt = ai.define_prompt(prompt='hi', config={'banana': True})
 
@@ -120,7 +125,7 @@ async def test_prompt_with_kitchensink() -> None:
         tools=['testTool'],
         tool_choice=ToolChoice.REQUIRED,
         max_turns=5,
-        input_schema=PromptInput,
+        input_schema=PromptInput.model_json_schema(),
         output_constrained=True,
         output_format='json',
         description='a prompt descr',
@@ -135,3 +140,88 @@ async def test_prompt_with_kitchensink() -> None:
     _, response = my_prompt.stream()
 
     assert (await response).text == want_txt
+
+
+test_cases_parse_partial_json = [
+    (
+        'renders system prompt',
+        {
+            'model': 'echoModel',
+            'config': {'banana': 'ripe'},
+            'input_schema': {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                },
+            },  # Note: Schema representation might need adjustment
+            'system': 'hello {{name}} ({{@state.name}})',
+            'metadata': {'state': {'name': 'bar'}},
+        },
+        {'name': 'foo'},
+        GenerationCommonConfig.model_validate({'temperature': 11}),
+        {},
+        """[ECHO] system: "hello foo (bar)" {"temperature":11.0}""",
+    ),
+    (
+        'renders user prompt',
+        {
+            'model': 'echoModel',
+            'config': {'banana': 'ripe'},
+            'input_schema': {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                },
+            },  # Note: Schema representation might need adjustment
+            'prompt': 'hello {{name}} ({{@state.name}})',
+            'metadata': {'state': {'name': 'bar_system'}},
+        },
+        {'name': 'foo'},
+        GenerationCommonConfig.model_validate({'temperature': 11}),
+        {},
+        """[ECHO] user: "hello foo (bar_system)" {"temperature":11.0}""",
+    ),
+    (
+        'renders user prompt with context',
+        {
+            'model': 'echoModel',
+            'config': {'banana': 'ripe'},
+            'input_schema': {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string'},
+                },
+            },  # Note: Schema representation might need adjustment
+            'prompt': 'hello {{name}} ({{@state.name}}, {{@auth.email}})',
+            'metadata': {'state': {'name': 'bar'}},
+        },
+        {'name': 'foo'},
+        GenerationCommonConfig.model_validate({'temperature': 11}),
+        {'auth': {'email': 'a@b.c'}},
+        """[ECHO] user: "hello foo (bar, a@b.c)" {"temperature":11.0}""",
+    ),
+]
+
+@pytest.mark.skip(reason="issues when running on CI")
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'test_case, prompt, input, input_option, context, want_rendered',
+    test_cases_parse_partial_json,
+    ids=[tc[0] for tc in test_cases_parse_partial_json],
+)
+async def test_prompt_rendering_dotprompt(
+    test_case: str,
+    prompt: dict[str, Any],
+    input: dict[str, Any],
+    input_option: GenerationCommonConfig,
+    context: dict[str, Any],
+    want_rendered: str,
+) -> None:
+    """Test prompt rendering."""
+    ai, *_ = setup_test()
+
+    my_prompt = ai.define_prompt(**prompt)
+
+    response = await my_prompt(input, input_option, context=context)
+
+    assert response.text == want_rendered

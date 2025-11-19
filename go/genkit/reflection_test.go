@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
 )
 
@@ -42,12 +43,10 @@ func dec(_ context.Context, x int) (int, error) {
 
 func TestReflectionServer(t *testing.T) {
 	t.Run("server startup and shutdown", func(t *testing.T) {
-		g, err := Init(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
+		g := Init(context.Background())
+
 		tc := tracing.NewTestOnlyTelemetryClient()
-		g.reg.TracingState().WriteTelemetryImmediate(tc)
+		tracing.WriteTelemetryImmediate(tc)
 
 		errCh := make(chan error, 1)
 		serverStartCh := make(chan struct{})
@@ -83,17 +82,19 @@ func TestReflectionServer(t *testing.T) {
 }
 
 func TestServeMux(t *testing.T) {
-	g, err := Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := Init(context.Background())
+
 	tc := tracing.NewTestOnlyTelemetryClient()
-	g.reg.TracingState().WriteTelemetryImmediate(tc)
+	tracing.WriteTelemetryImmediate(tc)
 
-	core.DefineAction(g.reg, "test", "inc", "custom", nil, inc)
-	core.DefineAction(g.reg, "test", "dec", "custom", nil, dec)
+	core.DefineAction(g.reg, "test/inc", api.ActionTypeCustom, nil, nil, inc)
+	core.DefineAction(g.reg, "test/dec", api.ActionTypeCustom, nil, nil, dec)
 
-	ts := httptest.NewServer(serveMux(g))
+	s := &reflectionServer{
+		Server: &http.Server{},
+	}
+	ts := httptest.NewServer(serveMux(g, s))
+	s.Addr = strings.TrimPrefix(ts.URL, "http://")
 	defer ts.Close()
 
 	t.Parallel()
@@ -107,6 +108,26 @@ func TestServeMux(t *testing.T) {
 		if res.StatusCode != http.StatusOK {
 			t.Errorf("health check failed: got status %d, want %d", res.StatusCode, http.StatusOK)
 		}
+
+		// Test with correct runtime ID
+		res, err = http.Get(ts.URL + "/api/__health?id=" + s.runtimeID())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("health check with correct id failed: got status %d, want %d", res.StatusCode, http.StatusOK)
+		}
+
+		// Test with incorrect runtime ID
+		res, err = http.Get(ts.URL + "/api/__health?id=invalid-id")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusServiceUnavailable {
+			t.Errorf("health check with incorrect id failed: got status %d, want %d", res.StatusCode, http.StatusServiceUnavailable)
+		}
 	})
 
 	t.Run("list actions", func(t *testing.T) {
@@ -116,7 +137,7 @@ func TestServeMux(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		var actions map[string]core.ActionDesc
+		var actions map[string]api.ActionDesc
 		if err := json.NewDecoder(res.Body).Decode(&actions); err != nil {
 			t.Fatal(err)
 		}
@@ -205,7 +226,7 @@ func TestServeMux(t *testing.T) {
 			}
 			return x, nil
 		}
-		core.DefineStreamingAction(g.reg, "test", "streaming", core.ActionTypeCustom, nil, streamingInc)
+		core.DefineStreamingAction(g.reg, "test/streaming", api.ActionTypeCustom, nil, nil, streamingInc)
 
 		body := `{"key": "/custom/test/streaming", "input": 3}`
 		req, err := http.NewRequest("POST", ts.URL+"/api/runAction?stream=true", strings.NewReader(body))

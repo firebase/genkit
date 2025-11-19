@@ -14,11 +14,7 @@ npm i --save @genkit-ai/dev-local-vectorstore
 
 ```ts
 import { Document, genkit } from 'genkit';
-import {
-  googleAI,
-  gemini20Flash, // Replaced gemini15Flash with gemini20Flash
-  textEmbeddingGecko001,
-} from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 import {
   devLocalVectorstore,
   devLocalIndexerRef,
@@ -31,11 +27,11 @@ const ai = genkit({
     devLocalVectorstore([
       {
         indexName: 'BobFacts',
-        embedder: textEmbeddingGecko001,
+        embedder: googleAI.embedder('text-embedding-004'),
       },
     ]),
   ],
-  model: gemini20Flash, // Use gemini20Flash
+  model: googleAI.model('gemini-2.5-flash'),
 });
 
 // Reference to a local vector database storing Genkit documentation
@@ -75,6 +71,6 @@ main();
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 
-Usage information and reference details can be found in [Genkit documentation](https://genkit.dev/docs/get-started).
+Usage information and reference details can be found in [official Genkit documentation](https://genkit.dev/docs/get-started/).
 
 License: Apache 2.0

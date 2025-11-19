@@ -15,11 +15,18 @@
  */
 
 import type { GenerateResponseChunkData, MessageData } from '@genkit-ai/ai';
-import { z, type JSONSchema7 } from '@genkit-ai/core';
+import { ModelAction } from '@genkit-ai/ai/model';
+import { Operation, z, type JSONSchema7 } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { modelRef } from '../../ai/src/model';
-import { genkit, type GenkitBeta } from '../src/beta';
+import { interrupt } from '../../ai/src/tool';
+import {
+  dynamicResource,
+  dynamicTool,
+  genkit,
+  type GenkitBeta,
+} from '../src/beta';
 import {
   defineEchoModel,
   defineProgrammableModel,
@@ -154,12 +161,13 @@ describe('generate', () => {
     it('rethrows response errors', async () => {
       ai.defineModel(
         {
+          apiVersion: 'v2',
           name: 'blockingModel',
         },
-        async (request, streamingCallback) => {
-          if (streamingCallback) {
+        async (request, { sendChunk, streamingRequested }) => {
+          if (streamingRequested) {
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '3',
@@ -168,7 +176,7 @@ describe('generate', () => {
               });
             });
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '2',
@@ -177,7 +185,7 @@ describe('generate', () => {
               });
             });
             await runAsync(() => {
-              streamingCallback({
+              sendChunk({
                 content: [
                   {
                     text: '1',
@@ -305,13 +313,21 @@ describe('generate', () => {
   describe('tools', () => {
     let ai: GenkitBeta;
     let pm: ProgrammableModel;
+    let echo: ModelAction;
 
     beforeEach(() => {
+      class Extra {
+        toJSON() {
+          return 'extra';
+        }
+      }
       ai = genkit({
         model: 'programmableModel',
+        // testing with a non-serializable data in the context
+        context: { something: new Extra() },
       });
       pm = defineProgrammableModel(ai);
-      defineEchoModel(ai);
+      echo = defineEchoModel(ai);
     });
 
     it('call the tool', async () => {
@@ -320,7 +336,7 @@ describe('generate', () => {
         async () => 'tool called'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -399,13 +415,59 @@ describe('generate', () => {
       );
     });
 
+    it('call the tool with context', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async (_, { context }) => JSON.stringify(context)
+      );
+
+      // first response is a tool call, the subsequent responses are just text response from agent b.
+      let reqCounter = 0;
+      pm.handleResponse = async (req, sc) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              reqCounter++ === 0
+                ? {
+                    toolRequest: {
+                      name: 'testTool',
+                      input: {},
+                      ref: 'ref123',
+                    },
+                  }
+                : { text: 'done' },
+            ],
+          },
+        };
+      };
+
+      const { messages } = await ai.generate({
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      assert.deepStrictEqual(messages[2], {
+        role: 'tool',
+        content: [
+          {
+            toolResponse: {
+              name: 'testTool',
+              output: '{"something":"extra"}',
+              ref: 'ref123',
+            },
+          },
+        ],
+      });
+    });
+
     it('calls the dynamic tool', async () => {
       const schema = {
         properties: {
           foo: { type: 'string' },
         },
       } as JSONSchema7;
-      const dynamicTestTool1 = ai.dynamicTool(
+      const dynamicTestTool1 = dynamicTool(
         {
           name: 'dynamicTestTool1',
           inputJsonSchema: schema,
@@ -422,7 +484,7 @@ describe('generate', () => {
         async () => 'tool called 2'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -529,7 +591,65 @@ describe('generate', () => {
       );
     });
 
-    it.only('interrupts the dynamic tool with no impl', async () => {
+    it('calls the dynamic resource', async () => {
+      const dynamicTestResource = dynamicResource(
+        {
+          name: 'dynamicTestTool',
+          uri: 'foo://foo',
+          description: 'description',
+        },
+        async () => ({ content: [{ text: 'dynamic text' }] })
+      );
+      ai.defineResource(
+        {
+          name: 'regularResource',
+          template: 'bar://{value}',
+          description: 'description 2',
+        },
+        async () => ({ content: [{ text: 'regular text' }] })
+      );
+
+      const { text } = await ai.generate({
+        model: 'echoModel',
+        prompt: [
+          { text: 'some text' },
+          { resource: { uri: 'foo://foo' } },
+          { resource: { uri: 'bar://bar' } },
+        ],
+        resources: [dynamicTestResource],
+      });
+      assert.strictEqual(
+        text,
+        'Echo: some text,dynamic text,regular text; config: {}'
+      );
+      assert.deepStrictEqual((echo as any).__test__lastRequest.messages, [
+        {
+          role: 'user',
+          content: [
+            { text: 'some text' },
+            {
+              metadata: {
+                resource: {
+                  uri: 'foo://foo',
+                },
+              },
+              text: 'dynamic text',
+            },
+            {
+              metadata: {
+                resource: {
+                  template: 'bar://{value}',
+                  uri: 'bar://bar',
+                },
+              },
+              text: 'regular text',
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('interrupts the dynamic tool with no impl', async () => {
       const schema = {
         properties: {
           foo: { type: 'string' },
@@ -541,7 +661,7 @@ describe('generate', () => {
         description: 'description',
       });
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -602,7 +722,7 @@ describe('generate', () => {
         }
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -654,7 +774,7 @@ describe('generate', () => {
         }
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -700,7 +820,7 @@ describe('generate', () => {
         async () => 'tool called'
       );
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         if (sc) {
@@ -837,8 +957,12 @@ describe('generate', () => {
           return interrupt();
         }
       );
+      const dynamicInterrupt = interrupt({
+        name: 'dynamicInterrupt',
+        description: 'description',
+      });
 
-      // first response be tools call, the subsequent just text response from agent b.
+      // first response is a tool call, the subsequent responses are just text response from agent b.
       let reqCounter = 0;
       pm.handleResponse = async (req, sc) => {
         return {
@@ -871,6 +995,13 @@ describe('generate', () => {
                         ref: 'ref789',
                       },
                     },
+                    {
+                      toolRequest: {
+                        name: 'dynamicInterrupt',
+                        input: { doIt: true },
+                        ref: 'ref890',
+                      },
+                    },
                   ]
                 : [{ text: 'done' }],
           },
@@ -879,7 +1010,12 @@ describe('generate', () => {
 
       const response = await ai.generate({
         prompt: 'call the tool',
-        tools: ['interruptingTool', 'simpleTool', 'resumableTool'],
+        tools: [
+          'interruptingTool',
+          'simpleTool',
+          'resumableTool',
+          dynamicInterrupt,
+        ],
       });
 
       assert.strictEqual(reqCounter, 1);
@@ -918,6 +1054,16 @@ describe('generate', () => {
             input: {
               doIt: true,
             },
+          },
+        },
+        {
+          metadata: { interrupt: true },
+          toolRequest: {
+            input: {
+              doIt: true,
+            },
+            name: 'dynamicInterrupt',
+            ref: 'ref890',
           },
         },
       ]);
@@ -963,6 +1109,16 @@ describe('generate', () => {
               },
             },
           },
+          {
+            metadata: { interrupt: true },
+            toolRequest: {
+              input: {
+                doIt: true,
+              },
+              name: 'dynamicInterrupt',
+              ref: 'ref890',
+            },
+          },
         ],
       });
       assert.deepStrictEqual(pm.lastRequest, {
@@ -1001,6 +1157,16 @@ describe('generate', () => {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
             name: 'resumableTool',
+            outputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+          },
+          {
+            description: 'description',
+            inputSchema: {
+              $schema: 'http://json-schema.org/draft-07/schema#',
+            },
+            name: 'dynamicInterrupt',
             outputSchema: {
               $schema: 'http://json-schema.org/draft-07/schema#',
             },
@@ -1194,6 +1360,87 @@ describe('generate', () => {
           role: 'model',
         },
       ]);
+    });
+  });
+
+  describe('long running', () => {
+    let ai: GenkitBeta;
+    let pm: ProgrammableModel;
+
+    beforeEach(() => {
+      ai = genkit({
+        model: 'programmableModel',
+      });
+      pm = defineProgrammableModel(ai);
+    });
+
+    it('starts the operation', async () => {
+      ai.defineTool(
+        { name: 'testTool', description: 'description' },
+        async () => 'tool called'
+      );
+
+      ai.defineBackgroundModel({
+        name: 'bkg-model',
+        async start(_) {
+          return {
+            id: '123',
+          };
+        },
+        async check(operation) {
+          return {
+            id: '123',
+          };
+        },
+      });
+
+      const { operation } = await ai.generate({
+        model: 'bkg-model',
+        prompt: 'call the tool',
+        tools: ['testTool'],
+      });
+
+      delete (operation as any).latencyMs;
+      assert.deepStrictEqual(operation, {
+        action: '/background-model/bkg-model',
+        id: '123',
+      });
+    });
+
+    it('checks operation status', async () => {
+      const newOp = {
+        id: '123',
+        done: true,
+        output: {
+          finishReason: 'stop',
+          message: {
+            role: 'model',
+            content: [{ text: 'done' }],
+          },
+        },
+      } as Operation;
+
+      ai.defineBackgroundModel({
+        name: 'bkg-model',
+        async start(_) {
+          return {
+            id: '123',
+          };
+        },
+        async check(operation) {
+          return { ...newOp };
+        },
+      });
+
+      const operation = await ai.checkOperation({
+        action: '/background-model/bkg-model',
+        id: '123',
+      });
+
+      assert.deepStrictEqual(operation, {
+        ...newOp,
+        action: '/background-model/bkg-model',
+      });
     });
   });
 });

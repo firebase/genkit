@@ -31,6 +31,7 @@ import {
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
+  findProjectRoot,
   hasAction,
   loadInferenceDatasetFile,
   logger,
@@ -90,7 +91,7 @@ export const evalFlow = new Command('eval:flow')
   .option('-f, --force', 'Automatically accept all interactive prompts')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunCliOptions) => {
-      await runWithManager(async (manager) => {
+      await runWithManager(await findProjectRoot(), async (manager) => {
         const actionRef = `/flow/${flowName}`;
         if (!data && !options.input) {
           throw new Error(

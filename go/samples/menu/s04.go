@@ -22,12 +22,12 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
+	"google.golang.org/genai"
 )
 
 func setup04(ctx context.Context, g *genkit.Genkit, docStore *localvec.DocStore, retriever ai.Retriever, model ai.Model) error {
-	ragDataMenuPrompt, err := genkit.DefinePrompt(g, "s04_ragDataMenu",
+	ragDataMenuPrompt := genkit.DefinePrompt(g, "s04_ragDataMenu",
 		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
@@ -46,13 +46,10 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(dataMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.3,
+		ai.WithConfig(&genai.GenerateContentConfig{
+			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)
-	if err != nil {
-		return err
-	}
 
 	type flowOutput struct {
 		Rows int `json:"rows"`
@@ -83,7 +80,8 @@ Answer this customer's question:
 
 	genkit.DefineFlow(g, "s04_ragMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
-			resp, err := ai.Retrieve(ctx, retriever,
+			resp, err := genkit.Retrieve(ctx, g,
+				ai.WithRetriever(retriever),
 				ai.WithTextDocs(input.Question),
 				ai.WithConfig(&localvec.RetrieverOptions{
 					K: 3,

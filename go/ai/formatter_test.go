@@ -23,10 +23,10 @@ import (
 )
 
 func TestConstrainedGenerate(t *testing.T) {
-	JSON := "\n{\"foo\": \"bar\"}\n"
+	JSON := "{\"foo\": \"bar\"}"
 	JSONmd := "```json" + JSON + "```"
 
-	modelInfo := ModelInfo{
+	modelOpts := ModelOptions{
 		Label: modelName,
 		Supports: &ModelSupports{
 			Multiturn:   true,
@@ -38,7 +38,7 @@ func TestConstrainedGenerate(t *testing.T) {
 		Versions: []string{"echo-001", "echo-002"},
 	}
 
-	formatModel := DefineModel(r, "test", "format", &modelInfo, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
+	formatModel := DefineModel(r, "test/format", &modelOpts, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
 				Content: []*Part{NewJSONPart("{\"Foo\": \"bar\"}")},
@@ -305,7 +305,7 @@ func TestConstrainedGenerate(t *testing.T) {
 			Tools:  []*ToolDefinition{},
 		}
 
-		p, err := DefinePrompt(r, "formatPrompt",
+		p := DefinePrompt(r, "formatPrompt",
 			WithPrompt("generate json"),
 			WithModel(formatModel),
 			WithOutputType(struct {
@@ -313,9 +313,6 @@ func TestConstrainedGenerate(t *testing.T) {
 			}{}),
 			WithCustomConstrainedOutput(),
 		)
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		res, err := p.Execute(
 			context.Background(),
@@ -535,7 +532,7 @@ func TestJsonParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("\n{\"name\": \"John\", \"age\": 19}\n"),
+					NewJSONPart("{\"name\": \"John\", \"age\": 19}"),
 				},
 			},
 			wantErr: false,
@@ -576,7 +573,7 @@ func TestJsonParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("\n{\"id\": 1}\n"),
+					NewJSONPart("{\"id\": 1}"),
 				},
 			},
 			wantErr: false,
@@ -1670,31 +1667,432 @@ func TestEnumParser(t *testing.T) {
 	}
 }
 
-func TestEnumStreamingParser(t *testing.T) {
+func TestJsonParserStreaming(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response *Message
+		want     *Message
+		wantErr  bool
+	}{
+		{
+			name: "parses streaming JSON from multiple parts",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+					"age":  map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"name`),
+					NewTextPart(`": "John", `),
+					NewTextPart(`"age": 19}`),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart(`{"name": "John", "age": 19}`),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "parses streaming JSON with markdown from multiple parts",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id": map[string]any{"type": "integer"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("```json\n"),
+					NewTextPart(`{"id"`),
+					NewTextPart(`: 1}`),
+					NewTextPart("\n```"),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart("{\"id\": 1}"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "preserves non-text parts with streaming JSON",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"name"`),
+					NewTextPart(`: "test"}`),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart(`{"name": "test"}`),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "no text part present streaming JSON",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := jsonFormatter{}
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+			message, err := handler.ParseMessage(tt.response)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestJsonlParserStreaming(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response *Message
+		want     *Message
+		wantErr  bool
+	}{
+		{
+			name: "parses streaming JSONL from multiple parts",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"id": 1, "na`),
+					NewTextPart(`me": "Alice"}\n`),
+					NewTextPart(`{"id": 2, "`),
+					NewTextPart(`name": "Bob"}`),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart(`{"id": 1, "name": "Alice"}`),
+					NewJSONPart(`{"id": 2, "name": "Bob"}`),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "parses streaming JSONL with mixed content",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"id"`),
+					NewTextPart(`: 1}\n{"id": 2}`),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart(`{"id": 1}`),
+					NewJSONPart(`{"id": 2}`),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "no text part present streaming JSONL",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := jsonlFormatter{}
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+			message, err := handler.ParseMessage(tt.response)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestArrayParserStreaming(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]any
+		response *Message
+		want     *Message
+		wantErr  bool
+	}{
+		{
+			name: "parses streaming array from multiple parts",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+					"required": []string{"id"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`{"id": 1, "na`),
+					NewTextPart(`me": "test"}\n`),
+					NewTextPart(`{"id"`),
+					NewTextPart(`: 2}`),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart(`{"id": 1, "name": "test"}`),
+					NewJSONPart(`{"id": 2}`),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "parses array with preamble and code fence",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("Here are the"),
+					NewTextPart("objects:\n\n```\n"),
+					NewTextPart(" {\"id\": 1}\n"),
+					NewTextPart("{\"id\": 2}\n```"),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewJSONPart("{\"id\": 1}"),
+					NewJSONPart("{\"id\": 2}"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "no text part present streaming array",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+					"required": []string{"id"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formatter := arrayFormatter{}
+			handler, err := formatter.Handler(tt.schema)
+			if err != nil {
+				t.Fatalf("Handler() error = %v", err)
+			}
+			message, err := handler.ParseMessage(tt.response)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
+				}
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestEnumParserStreaming(t *testing.T) {
 	type TestEnum struct {
 		FavColor string `json:"fav_color,omitempty" jsonschema:"enum=red,enum=green,enum=blue"`
 	}
 
 	enumSchema := base.SchemaAsMap(base.InferJSONSchema(TestEnum{}))
 
-	// Test enum streaming parser works in same way as regular parser
 	tests := []struct {
 		name     string
 		schema   map[string]any
-		response *ModelResponseChunk
-		want     *ModelResponseChunk
+		response *Message
+		want     *Message
 		wantErr  bool
 	}{
 		{
-			name:   "parses simple enum value",
+			name:   "parses streaming enum from multiple parts",
 			schema: enumSchema,
-			response: &ModelResponseChunk{
+			response: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewTextPart("red"),
+					NewTextPart(`"gr`),
+					NewTextPart(`een"`),
 				},
 			},
-			want: &ModelResponseChunk{
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("green"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "parses streaming enum with whitespace",
+			schema: enumSchema,
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart(`  "re`),
+					NewTextPart(`d"`),
+				},
+			},
+			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
 					NewTextPart("red"),
@@ -1703,18 +2101,53 @@ func TestEnumStreamingParser(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:   "trims whitespace",
+			name:   "fails on invalid streaming enum",
 			schema: enumSchema,
-			response: &ModelResponseChunk{
+			response: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewTextPart("  green\n"),
+					NewTextPart(`yel`),
+					NewTextPart(`low`),
 				},
 			},
-			want: &ModelResponseChunk{
+			wantErr: true,
+		},
+		{
+			name:   "preserves non-text parts with streaming enum",
+			schema: enumSchema,
+			response: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewTextPart("green"),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+					NewTextPart(`bl`),
+					NewTextPart(`ue`),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("blue"),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "no text parts present with streaming enum",
+			schema: enumSchema,
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+					NewTextPart(`bl`),
+					NewTextPart(`ue`),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("blue"),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
 				},
 			},
 			wantErr: false,
@@ -1728,172 +2161,19 @@ func TestEnumStreamingParser(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Handler() error = %v", err)
 			}
+			message, err := handler.ParseMessage(tt.response)
 
-			messageChunk, err := handler.ParseChunk(tt.response)
-			if err != nil {
-				t.Errorf("ParseChunk() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if diff := cmp.Diff(tt.want, messageChunk); diff != "" {
-				t.Errorf("Request msgs diff (+got -want):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestFormatterStreaming(t *testing.T) {
-	modelInfo := ModelInfo{
-		Label: modelName,
-		Supports: &ModelSupports{
-			Multiturn:   true,
-			Tools:       true,
-			SystemRole:  true,
-			Media:       false,
-			Constrained: ConstrainedSupportAll,
-		},
-		Versions: []string{"echo-001", "echo-002"},
-	}
-
-	type TestJson struct {
-		Name string `json:"name"`
-		Age  int    `json:"age"`
-	}
-
-	type TestEnum struct {
-		FavColor string `json:"fav_color,omitempty" jsonschema:"enum=red,enum=green,enum=blue"`
-	}
-
-	tests := []struct {
-		name       string
-		format     string
-		outputtype any
-		response   *ModelResponseChunk
-		want       *ModelResponseChunk
-	}{
-		{
-			name:       "JSON streaming",
-			format:     "json",
-			outputtype: TestJson{},
-			response: &ModelResponseChunk{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart(JSONMarkdown(`{"name": "John", "age": 19}`)),
-				},
-			},
-			want: &ModelResponseChunk{
-
-				Role: RoleModel,
-				Content: []*Part{
-					NewJSONPart("{\"name\": \"John\", \"age\": 19}"),
-				},
-			},
-		},
-		{
-			name:   "Text streaming",
-			format: "text",
-			response: &ModelResponseChunk{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart("Hello"),
-				},
-			},
-			want: &ModelResponseChunk{
-
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart("Hello"),
-				},
-			},
-		},
-		{
-			name:       "JSONL streaming",
-			format:     "jsonl",
-			outputtype: []TestJson{},
-			response: &ModelResponseChunk{
-
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart(`{"name": "John", "age": 19}\n`),
-				},
-			},
-			want: &ModelResponseChunk{
-				Role: RoleModel,
-				Content: []*Part{
-					NewJSONPart(`{"name": "John", "age": 19}`),
-				},
-			},
-		},
-		{
-			name:       "array streaming",
-			format:     "array",
-			outputtype: []TestJson{},
-			response: &ModelResponseChunk{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart(`[{"name": "John", "age": 19,`),
-				},
-			},
-			want: &ModelResponseChunk{
-				Role: RoleModel,
-				Content: []*Part{
-					NewJSONPart(`[{"name": "John", "age": 19}]`),
-				},
-			},
-		},
-		{
-			name:       "parses simple enum value",
-			format:     "enum",
-			outputtype: TestEnum{},
-			response: &ModelResponseChunk{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart("red"),
-				},
-			},
-			want: &ModelResponseChunk{
-				Role: RoleModel,
-				Content: []*Part{
-					NewTextPart("red"),
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			formatModel := DefineModel(r, "test", tt.name, &modelInfo, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
-				if msc != nil {
-					msc(ctx, tt.response)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseMessage() error = %v, wantErr %v", err, tt.wantErr)
+				if err != nil {
+					t.Logf("Error message: %v", err)
 				}
-
-				return &ModelResponse{
-					Request: gr,
-					Message: NewModelTextMessage(tt.response.Text()),
-				}, nil
-			})
-
-			streamText := ""
-
-			var options []GenerateOption
-			options = append(options, WithOutputFormat(tt.format))
-			options = append(options, WithModel(formatModel))
-			options = append(options, WithSystem("You are a helpful assistant."))
-			options = append(options, WithStreaming(func(ctx context.Context, grc *ModelResponseChunk) error {
-				streamText += grc.Text()
-				return nil
-			}))
-
-			if tt.outputtype != nil {
-				options = append(options, WithOutputType(tt.outputtype))
 			}
 
-			_, err := Generate(context.Background(), r, options...)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if diff := cmp.Diff(streamText, tt.want.Text()); diff != "" {
-				t.Errorf("Text() diff (+got -want):\n%s", diff)
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, message); diff != "" {
+					t.Errorf("Request msgs diff (+got -want):\n%s", diff)
+				}
 			}
 		})
 	}

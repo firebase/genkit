@@ -18,7 +18,10 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { action, defineAction } from '../src/action.js';
+import { initNodeFeatures } from '../src/node.js';
 import { Registry } from '../src/registry.js';
+
+initNodeFeatures();
 
 describe('action', () => {
   var registry: Registry;
@@ -28,7 +31,6 @@ describe('action', () => {
 
   it('applies middleware', async () => {
     const act = action(
-      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -53,7 +55,6 @@ describe('action', () => {
 
   it('returns telemetry info', async () => {
     const act = action(
-      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -89,7 +90,6 @@ describe('action', () => {
   it('run the action with options', async () => {
     let passedContext;
     const act = action(
-      registry,
       {
         name: 'foo',
         inputSchema: z.string(),
@@ -118,11 +118,57 @@ describe('action', () => {
     assert.deepStrictEqual(chunks, [1, 2, 3]);
   });
 
+  it('runs the action with context plus registry global context', async () => {
+    let passedContext;
+    let calledWithStreamingRequestedValue;
+    const act = action(
+      {
+        name: 'foo',
+        inputSchema: z.string(),
+        outputSchema: z.number(),
+        actionType: 'util',
+      },
+      async (input, { sendChunk, context, streamingRequested }) => {
+        calledWithStreamingRequestedValue = streamingRequested;
+        passedContext = context;
+        sendChunk(1);
+        sendChunk(2);
+        sendChunk(3);
+        return input.length;
+      }
+    );
+
+    registry.context = { bar: 'baz' };
+    act.__registry = registry;
+
+    await act.run('1234', {
+      context: { foo: 'bar' },
+    });
+
+    assert.strictEqual(calledWithStreamingRequestedValue, false);
+    assert.deepStrictEqual(passedContext, {
+      foo: 'bar',
+      bar: 'baz', // these come from glboal registry context
+    });
+
+    registry.context = { bar2: 'baz2' };
+    const { output } = act.stream('1234', {
+      context: { foo2: 'bar2' },
+    });
+    await output;
+
+    assert.strictEqual(calledWithStreamingRequestedValue, true);
+    assert.deepStrictEqual(passedContext, {
+      foo2: 'bar2',
+      bar2: 'baz2', // these come from glboal registry context
+    });
+  });
+
   it('should stream the response', async () => {
     const action = defineAction(
       registry,
       { name: 'hello', actionType: 'custom' },
-      async (input, { sendChunk }) => {
+      async (input, { sendChunk, streamingRequested }) => {
         sendChunk({ count: 1 });
         sendChunk({ count: 2 });
         sendChunk({ count: 3 });
@@ -180,5 +226,43 @@ describe('action', () => {
     const response = await act(undefined);
 
     assert.strictEqual(response, 'traceId=true spanId=true');
+  });
+
+  it('passes through the abort signal', async () => {
+    var gotAbortSignal;
+    const act = defineAction(
+      registry,
+      { name: 'child', actionType: 'custom' },
+      async (_, ctx) => {
+        gotAbortSignal = ctx.abortSignal;
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      }
+    );
+
+    const signal = new AbortController().signal;
+    await act(undefined, { abortSignal: signal });
+
+    assert.strictEqual(gotAbortSignal, signal);
+  });
+
+  it('passes through the abort signal with middleware', async () => {
+    var gotAbortSignal;
+    const act = defineAction(
+      registry,
+      {
+        name: 'child',
+        actionType: 'custom',
+        use: [async (input, next) => (await next(input + 'middle1')) + 1],
+      },
+      async (_, ctx) => {
+        gotAbortSignal = ctx.abortSignal;
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      }
+    );
+
+    const signal = new AbortController().signal;
+    await act(undefined, { abortSignal: signal });
+
+    assert.strictEqual(gotAbortSignal, signal);
   });
 });
