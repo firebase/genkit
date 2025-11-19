@@ -21,6 +21,7 @@ This module provides types and utilities for managing prompts and templates
 used with AI models in the Genkit framework. It enables consistent prompt
 generation and management across different parts of the application.
 """
+
 from asyncio import Future
 from collections.abc import AsyncIterator
 from typing import Any
@@ -69,10 +70,9 @@ class PromptCache:
     messages: PromptFunction | None = None
 
 
-
-
 class PromptConfig(BaseModel):
     """Model for a prompt action."""
+
     variant: str | None = None
     model: str | None = None
     config: GenerationCommonConfig | dict[str, Any] | None = None
@@ -94,6 +94,7 @@ class PromptConfig(BaseModel):
     use: list[ModelMiddleware] | None = None
     docs: list[DocumentData] | None = None
     tool_responses: list[Part] | None = None
+
 
 class ExecutablePrompt:
     """A prompt that can be executed with a given input and configuration."""
@@ -168,8 +169,6 @@ class ExecutablePrompt:
         self._tool_choice = tool_choice
         self._use = use
         self._cache_prompt = PromptCache()
-
-
 
     async def __call__(
         self,
@@ -273,11 +272,7 @@ class ExecutablePrompt:
         resolved_msgs: list[Message] = []
         if options.system:
             result = await render_system_prompt(
-                self._registry,
-                input,
-                options,
-                self._cache_prompt,
-                ActionRunContext._current_context() or {}
+                self._registry, input, options, self._cache_prompt, ActionRunContext._current_context() or {}
             )
             resolved_msgs.append(result)
         if options.messages:
@@ -397,10 +392,7 @@ def define_prompt(
     )
 
 
-async def to_generate_action_options(
-    registry: Registry,
-    options: PromptConfig
-) -> GenerateActionOptions:
+async def to_generate_action_options(registry: Registry, options: PromptConfig) -> GenerateActionOptions:
     """Converts the given parameters to a GenerateActionOptions object.
 
     Args:
@@ -498,6 +490,7 @@ def _normalize_prompt_arg(
     else:
         return [prompt]
 
+
 async def render_system_prompt(
     registry: Registry,
     input: dict[str, Any],
@@ -524,12 +517,11 @@ async def render_system_prompt(
     """
 
     if isinstance(options.system, str):
-
         if prompt_cache.system is None:
             prompt_cache.system = await registry.dotprompt.compile(options.system)
 
         if options.metadata:
-            context = {**context, "state": options.metadata.get("state")}
+            context = {**context, 'state': options.metadata.get('state')}
 
         return Message(
             role=Role.SYSTEM,
@@ -537,19 +529,12 @@ async def render_system_prompt(
                 context,
                 prompt_cache.system,
                 input,
-
-                PromptMetadata(
-                    input=PromptInputConfig(
-
-                    )
-                ),
-            )
+                PromptMetadata(input=PromptInputConfig()),
+            ),
         )
 
-    return Message(
-        role=Role.SYSTEM,
-        content=_normalize_prompt_arg(options.system)
-    )
+    return Message(role=Role.SYSTEM, content=_normalize_prompt_arg(options.system))
+
 
 async def render_dotprompt_to_parts(
     context: dict[str, Any],
@@ -580,12 +565,11 @@ async def render_dotprompt_to_parts(
     )
 
     if len(rendered.messages) > 1:
-        raise Exception("parts template must produce only one message")
+        raise Exception('parts template must produce only one message')
 
     part_rendered = []
     for message in rendered.messages:
         for part in message.content:
             part_rendered.append(part.model_dump())
-
 
     return part_rendered

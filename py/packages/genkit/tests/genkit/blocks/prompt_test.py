@@ -16,6 +16,7 @@
 
 
 """Tests for the action module."""
+
 from typing import Any
 
 import pytest
@@ -143,22 +144,22 @@ async def test_prompt_with_kitchensink() -> None:
 
 test_cases_parse_partial_json = [
     (
-        "renders user prompt",
+        'renders user prompt',
         {
-            "model": "echoModel",
-            "config": {"banana": "ripe"},
-            "input_schema": {
+            'model': 'echoModel',
+            'config': {'banana': 'ripe'},
+            'input_schema': {
                 'type': 'object',
                 'properties': {
                     'name': {'type': 'string'},
                 },
             },  # Note: Schema representation might need adjustment
-            "system": "hello {{name}} ({{@state.name}})",
-            "metadata": {"state": {"name": "bar"}}
+            'system': 'hello {{name}} ({{@state.name}})',
+            'metadata': {'state': {'name': 'bar'}},
         },
-        {"name": "foo"},
-        GenerationCommonConfig.model_validate({"temperature": 11}),
-        """[ECHO] system: "hello foo ()" {"temperature":11.0}"""
+        {'name': 'foo'},
+        GenerationCommonConfig.model_validate({'temperature': 11}),
+        """[ECHO] system: "hello foo ()" {"temperature":11.0}""",
     )
 ]
 
@@ -174,7 +175,7 @@ async def test_prompt_with_system(
     prompt: dict[str, Any],
     input: dict[str, Any],
     input_option: GenerationCommonConfig,
-    want_rendered: str
+    want_rendered: str,
 ) -> None:
     """Test system prompt rendering."""
     ai, *_ = setup_test()
@@ -184,4 +185,3 @@ async def test_prompt_with_system(
     response = await my_prompt(input, input_option)
 
     assert response.text == want_rendered
-
