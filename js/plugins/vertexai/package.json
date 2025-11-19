@@ -17,11 +17,11 @@
     "genai",
     "generative-ai"
   ],
-  "version": "1.21.0",
+  "version": "1.24.0",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
-    "compile": "tsup-node",
+    "compile": "cross-env NODE_OPTIONS=\"--max-old-space-size=16384\" npx tsup-node",
     "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
@@ -61,7 +61,8 @@
     "sinon": "^21.0.0",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
-    "typescript": "^4.9.0"
+    "typescript": "^4.9.0",
+    "cross-env": "10.1.0"
   },
   "types": "./lib/index.d.ts",
   "exports": {

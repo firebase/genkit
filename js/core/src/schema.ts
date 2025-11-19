@@ -76,7 +76,6 @@ export function toJsonSchema({
   if (jsonSchema) return jsonSchema;
   if (jsonSchemas.has(schema!)) return jsonSchemas.get(schema!)!;
   const outSchema = zodToJsonSchema(schema!, {
-    $refStrategy: 'none',
     removeAdditionalStrategy: 'strict',
   });
   jsonSchemas.set(schema!, outSchema as JSONSchema);

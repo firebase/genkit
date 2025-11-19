@@ -16,9 +16,22 @@
 
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { MediaPart, genkit, z } from 'genkit';
+import {
+  genkit,
+  z,
+  type MediaPart,
+  type Operation,
+  type Part,
+  type StreamingCallback,
+} from 'genkit';
+import { fallback, retry } from 'genkit/model/middleware';
 import { Readable } from 'stream';
 import wav from 'wav';
+import {
+  createFileSearchStore,
+  deleteFileSearchStore,
+  uploadBlobToFileSearchStore,
+} from './helper.js';
 
 const ai = genkit({
   plugins: [
@@ -35,6 +48,63 @@ ai.defineFlow('basic-hi', async () => {
 
   return text;
 });
+
+ai.defineFlow('basic-hi-with-retry', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-pro'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    use: [
+      retry({
+        maxRetries: 2,
+        onError: (e, attempt) => console.log('--- oops ', attempt, e),
+      }),
+    ],
+  });
+
+  return text;
+});
+
+ai.defineFlow('basic-hi-with-fallback', async () => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.5-something-that-does-not-exist'),
+    prompt: 'You are a helpful AI assistant named Walt, say hello',
+    use: [
+      fallback(ai, {
+        models: [googleAI.model('gemini-2.5-flash')],
+        statuses: ['UNKNOWN'],
+      }),
+    ],
+  });
+
+  return text;
+});
+
+// Gemini 3.0 thinkingLevel config
+ai.defineFlow(
+  {
+    name: 'thinking-level',
+    inputSchema: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  },
+  async (level) => {
+    const { text } = await ai.generate({
+      model: googleAI.model('gemini-3-pro-preview'),
+      prompt:
+        'Alice, Bob, and Carol each live in a different house on the ' +
+        'same street: red, green, and blue. The person who lives in the red house ' +
+        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ' +
+        'green house is to the left of the red house. Alice does not own a cat. ' +
+        'The person in the blue house owns a fish. ' +
+        'Who lives in each house, and what pet do they own? Provide your ' +
+        'step-by-step reasoning.',
+      config: {
+        thinkingConfig: {
+          thinkingLevel: level,
+        },
+      },
+    });
+    return text;
+  }
+);
 
 // Multimodal input
 ai.defineFlow('multimodal-input', async () => {
@@ -108,6 +178,53 @@ ai.defineFlow('search-grounding', async () => {
   };
 });
 
+// Url context
+ai.defineFlow('url-context', async () => {
+  const { text, raw } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt:
+      'Compare the ingredients and cooking times from the recipes at ' +
+      'https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 ' +
+      'and https://www.allrecipes.com/recipe/70679/simple-whole-roasted-chicken/',
+    config: {
+      urlContext: {},
+    },
+  });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
+// File Search
+ai.defineFlow('file-search', async () => {
+  // Use the google/genai SDK to upload the story BLOB to a new
+  // file search store
+  const storeName = await createFileSearchStore();
+  await uploadBlobToFileSearchStore(storeName);
+
+  // Use the file search store in your generate request
+  const { text, raw } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: "What is the character's name in the story?",
+    config: {
+      fileSearch: {
+        fileSearchStoreNames: [storeName],
+        metadataFilter: 'author=foo',
+      },
+    },
+  });
+
+  // Clean up the file search store again
+  await deleteFileSearchStore(storeName);
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
 const getWeather = ai.defineTool(
   {
     name: 'getWeather',
@@ -169,11 +286,72 @@ ai.defineFlow(
   }
 );
 
+// Tool calling with structured output
+ai.defineFlow(
+  {
+    name: 'structured-tool-calling',
+    inputSchema: z.string().default('Paris, France'),
+    outputSchema: z
+      .object({
+        temp: z.number(),
+        unit: z.enum(['F', 'C']),
+      })
+      .nullable(),
+    streamSchema: z.any(),
+  },
+  async (location, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.5-flash'),
+      config: {
+        temperature: 1,
+      },
+      output: {
+        schema: z.object({
+          temp: z.number(),
+          unit: z.enum(['F', 'C']),
+        }),
+      },
+      tools: [getWeather, celsiusToFahrenheit],
+      prompt: `What's the weather in ${location}? Convert the temperature to Fahrenheit.`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.output);
+    }
+
+    return (await response).output;
+  }
+);
+
+const baseCategorySchema = z.object({
+  name: z.string(),
+});
+
+type Category = z.infer<typeof baseCategorySchema> & {
+  subcategories?: Category[];
+};
+
+const categorySchema: z.ZodType<Category> = baseCategorySchema.extend({
+  subcategories: z.lazy(() =>
+    categorySchema
+      .array()
+      .describe('make sure there are at least 2-3 levels of subcategories')
+      .optional()
+  ),
+});
+
+const WeaponSchema = z.object({
+  name: z.string(),
+  damage: z.number(),
+  category: categorySchema,
+});
+
 const RpgCharacterSchema = z.object({
   name: z.string().describe('name of the character'),
   backstory: z.string().describe("character's backstory, about a paragraph"),
-  weapons: z.array(z.string()),
+  weapons: z.array(WeaponSchema),
   class: z.enum(['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER']),
+  affiliation: z.string().optional(),
 });
 
 // A simple example of structured output.
@@ -314,12 +492,12 @@ async function toWav(
   });
 }
 
-// An example of using Ver 2 model to make a static photo move.
+// An example of using Ver 3 model to make a static photo move.
 ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
 
   let { operation } = await ai.generate({
-    model: googleAI.model('veo-2.0-generate-001'),
+    model: googleAI.model('veo-3.0-generate-001'),
     prompt: [
       {
         text: 'make the subject in the photo move',
@@ -332,7 +510,7 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
       },
     ],
     config: {
-      durationSeconds: 5,
+      durationSeconds: 8,
       aspectRatio: '9:16',
       personGeneration: 'allow_adult',
     },
@@ -360,6 +538,102 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   }
   sendChunk('Writing results to photo.mp4');
   await downloadVideo(video, 'photo.mp4');
+  sendChunk('Done!');
+
+  return operation;
+});
+
+async function waitForOperation(
+  operation?: Operation,
+  sendChunk?: StreamingCallback<any>
+) {
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    sendChunk?.('check status of operation ' + operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  if (operation.error) {
+    sendChunk?.('Error: ' + operation.error.message);
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
+
+  return operation;
+}
+
+ai.defineFlow('veo-extend-video', async (_, { sendChunk }) => {
+  sendChunk('Beginning generation of original video');
+  // Veo can only extend videos originally generated by veo.
+  // Generate an original video
+  let { operation } = await ai.generate({
+    model: googleAI.model('veo-3.1-generate-preview'),
+    prompt: [
+      {
+        text: 'An origami butterfly flaps its wings and flies out of the french doors into the garden.',
+      },
+    ],
+  });
+
+  const doneOp = await waitForOperation(operation, sendChunk);
+  const video1 = doneOp.output?.message?.content.find((p: Part) => !!p.media);
+  if (!video1) {
+    throw new Error(
+      'failed to find video in operation response: ' +
+        JSON.stringify(doneOp, null, 2)
+    );
+  }
+
+  sendChunk('Writing results of initial video to videoOriginal.mp4');
+  await downloadVideo(video1, 'videoOriginal.mp4');
+  sendChunk('Downloaded!');
+
+  sendChunk('Beginning Extension of Video');
+
+  ({ operation } = await ai.generate({
+    model: googleAI.model('veo-3.1-generate-preview'),
+    prompt: [
+      {
+        text: 'Track the butterfly into the garden as it lands on an orange origami flower. A fluffy white puppy runs up and gently pats the flower.',
+      },
+      {
+        media: {
+          contentType: 'video/mp4',
+          url: video1.media.url,
+        },
+      },
+    ],
+    config: {
+      durationSeconds: 8,
+      aspectRatio: '16:9', // Must match the original
+    },
+  }));
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    sendChunk('check status of operation ' + operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  if (operation.error) {
+    sendChunk('Error: ' + operation.error.message);
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
+
+  // operation done, download generated video to disk
+  const video = operation.output?.message?.content.find((p) => !!p.media);
+  if (!video) {
+    throw new Error('Failed to find the generated video');
+  }
+  sendChunk('Writing results to videoExtended.mp4');
+  await downloadVideo(video, 'videoExtended.mp4');
   sendChunk('Done!');
 
   return operation;
