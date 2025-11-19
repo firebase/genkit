@@ -22,6 +22,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import { FinishReason } from '../../src/common/types.js';
 import { getGenkitClientHeader } from '../../src/common/utils.js';
+import { getVertexAIUrl } from '../../src/vertexai/client.js';
 import {
   GeminiConfigSchema,
   defineModel,
@@ -332,6 +333,29 @@ describe('Vertex AI Gemini', () => {
         assert.strictEqual(apiRequest.generationConfig?.maxOutputTokens, 100);
       });
 
+      it('passes thinkingLevel to the API', async () => {
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            thinkingConfig: {
+              thinkingLevel: 'HIGH',
+            },
+          },
+        };
+        const model = defineModel('gemini-3-pro-preview', clientOptions);
+        await model.run(request);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(apiRequest.generationConfig, {
+          thinkingConfig: {
+            thinkingLevel: 'HIGH',
+          },
+        });
+      });
+
       it('sends labels when provided in config', async () => {
         mockFetchResponse(defaultApiResponse);
         const myLabels = { env: 'test', version: '1' };
@@ -573,6 +597,39 @@ describe('Vertex AI Gemini', () => {
           fetchArgs[1].headers,
           getExpectedHeaders(overrideKey)
         );
+      });
+
+      it('handles config.location override', async () => {
+        if (clientOptions.kind === 'express') {
+          return; // location override not applicable to express
+        }
+        mockFetchResponse(defaultApiResponse);
+        const overrideLocation = 'europe-west1';
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+          config: { location: overrideLocation },
+        };
+        const model = defineModel('gemini-2.5-flash', clientOptions);
+        await model.run(request);
+        sinon.assert.calledOnce(fetchStub);
+        const fetchArgs = fetchStub.lastCall.args;
+        const url = fetchArgs[0];
+
+        const newClientOptions = {
+          ...clientOptions,
+          location: overrideLocation,
+          kind: 'regional' as const,
+        };
+
+        const expectedUrl = getVertexAIUrl({
+          includeProjectAndLocation: true,
+          resourcePath: 'publishers/google/models/gemini-2.5-flash',
+          resourceMethod: 'generateContent',
+          clientOptions: newClientOptions,
+        });
+
+        assert.strictEqual(url, expectedUrl);
+        assert.ok(url.includes(overrideLocation));
       });
     });
   }

@@ -119,7 +119,7 @@ text templates (e.g. using a templating language such as Handlebars):
 
 ```dotprompt
 ---
-model: vertexai/gemini-1.5-flash
+model: vertexai/gemini-2.5-flash
 config:
   temperature: 0.9
 input:

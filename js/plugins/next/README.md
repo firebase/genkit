@@ -10,7 +10,7 @@ const simpleFlow = ai.defineFlow(
   'simpleFlow',
   async (input, streamingCallback) => {
     const { text } = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       prompt: input,
       streamingCallback: (chunk) => streamingCallback(chunk.text),
     });

@@ -452,6 +452,41 @@ describe('fromGeminiCandidate', () => {
     },
     {
       should:
+        'should transform gemini candidate with thoughtSignature correctly',
+      geminiCandidate: {
+        index: 0,
+        content: {
+          role: 'model',
+          parts: [
+            {
+              text: 'I have a thought.',
+              thoughtSignature: 'xyz-789',
+            },
+          ],
+        },
+        finishReason: 'STOP',
+      },
+      expectedOutput: {
+        index: 0,
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: 'I have a thought.',
+              metadata: { thoughtSignature: 'xyz-789' },
+            },
+          ],
+        },
+        finishReason: 'stop',
+        finishMessage: undefined,
+        custom: {
+          citationMetadata: undefined,
+          safetyRatings: undefined,
+        },
+      },
+    },
+    {
+      should:
         'should transform gemini candidate to genkit candidate (function call parts) correctly',
       geminiCandidate: {
         index: 0,

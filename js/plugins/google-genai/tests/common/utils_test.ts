@@ -62,8 +62,8 @@ describe('Common Utils', () => {
     });
 
     it('should extract version from name if version field is missing', () => {
-      const ref = modelRef({ name: 'vertexai/gemini-1.5-flash' });
-      assert.strictEqual(extractVersion(ref), 'gemini-1.5-flash');
+      const ref = modelRef({ name: 'vertexai/gemini-2.5-flash' });
+      assert.strictEqual(extractVersion(ref), 'gemini-2.5-flash');
     });
 
     it('should work with embedderRef', () => {
@@ -79,8 +79,8 @@ describe('Common Utils', () => {
         'gemini-1.5-pro'
       );
       assert.strictEqual(
-        modelName('vertexai/gemini-1.5-flash'),
-        'gemini-1.5-flash'
+        modelName('vertexai/gemini-2.5-flash'),
+        'gemini-2.5-flash'
       );
       assert.strictEqual(modelName('model/foo'), 'foo');
       assert.strictEqual(modelName('embedders/bar'), 'bar');
