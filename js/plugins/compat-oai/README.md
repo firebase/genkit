@@ -197,7 +197,7 @@ Want to contribute to the project? That's awesome! Head over to our [Contributio
 ## Need help?
 
  - [Genkit Discord](https://genkit.dev/discord)
- - [Hithub Issues](https://github.com/firebase/genkit/issues)
+ - [Github Issues](https://github.com/firebase/genkit/issues)
 
 ## License
 
