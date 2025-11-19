@@ -352,8 +352,6 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 						// correct absolute index.
 						chunk.Index = currentIndex
 					}
-					fmt.Printf("[%d] returning chunk: %#v\n", chunk.Index, chunk)
-					fmt.Printf("\t== chunk content: %s\n", chunk.Text())
 					return cb(ctx, chunk)
 				}
 			}

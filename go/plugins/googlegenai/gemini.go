@@ -292,8 +292,9 @@ func generate(
 	iter := client.Models.GenerateContentStream(ctx, model, contents, gcc)
 
 	var r *ai.ModelResponse
-	// merge all streamed responses
 	var resp *genai.GenerateContentResponse
+
+	genaiParts := []*genai.Part{}
 	chunks := []*ai.Part{}
 	index := 0
 	for chunk, err := range iter {
@@ -314,13 +315,31 @@ func generate(
 			if err != nil {
 				return nil, err
 			}
+			genaiParts = append(genaiParts, c.Content.Parts...)
 			chunks = append(chunks, tc.Message.Content...)
 		}
 		index += 1
-		// keep the last chunk for usage metadata
 		resp = chunk
+
 	}
 
+	if resp.Candidates == nil {
+		return nil, fmt.Errorf("no valid candidates found")
+	}
+
+	// preserve original parts since they will be included in the
+	// "custom" response field
+	merged := []*genai.Candidate{
+		{
+			FinishReason: resp.Candidates[0].FinishReason,
+			Content: &genai.Content{
+				Role:  string(ai.RoleModel),
+				Parts: genaiParts,
+			},
+		},
+	}
+
+	resp.Candidates = merged
 	r, err = translateResponse(resp)
 	r.Message.Content = chunks
 
@@ -712,8 +731,6 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		m.FinishReason = ai.FinishReasonBlocked
 	case genai.FinishReasonOther:
 		m.FinishReason = ai.FinishReasonOther
-		// default: // Unspecified
-		// 	m.FinishReason = ai.FinishReasonUnknown
 	}
 
 	m.FinishMessage = cand.FinishMessage
@@ -796,13 +813,20 @@ func translateResponse(resp *genai.GenerateContentResponse) (*ai.ModelResponse, 
 		r.Usage = &ai.GenerationUsage{}
 	}
 
+	// populate "custom" with plugin custom information
+	custom := make(map[string]any)
+	custom["candidates"] = resp.Candidates
+
 	if u := resp.UsageMetadata; u != nil {
 		r.Usage.InputTokens = int(u.PromptTokenCount)
 		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
 		r.Usage.TotalTokens = int(u.TotalTokenCount)
 		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
 		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
+		custom["usageMetadata"] = resp.UsageMetadata
 	}
+
+	r.Custom = custom
 	return r, nil
 }
 
