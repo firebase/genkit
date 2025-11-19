@@ -47,7 +47,7 @@ from typing import Any, Type
 import structlog
 from pydantic import BaseModel
 
-from genkit.blocks.embedding import EmbedderFn
+from genkit.blocks.embedding import EmbedderFn, EmbedderOptions, define_embedder as define_embedder_ref
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
@@ -73,6 +73,7 @@ from genkit.core.typing import (
     SpanMetadata,
     ToolChoice,
 )
+from tornado.options import options
 
 EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'
 EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition'
@@ -465,27 +466,36 @@ class GenkitRegistry:
         """Define a custom embedder action.
 
         Args:
-            name: Name of the model.
+            name: Name of the embedder.
             fn: Function implementing the embedder behavior.
             config_schema: Optional schema for embedder configuration.
-            metadata: Optional metadata for the model.
+            metadata: Optional metadata for the embedder.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata if metadata else {}
-        if 'embedder' not in embedder_meta:
-            embedder_meta['embedder'] = {}
+        embedder_info: dist[str,Any] | None = None
+        if metadata and 'embedder' in meatadata:
+            embedder_info = {k: v for k, v in metadata['embedder'].items() if k!= 'customOptions'}
 
-        if config_schema:
-            embedder_meta['embedder']['customOptions'] = to_json_schema(config_schema)
+        options:EmbedderOptions = {
+            'name': name,
+            'config_schema': config_schema,
+            'info': embedder_info,
+        }
 
         embedder_description = get_func_description(fn, description)
-        return self.registry.register_action(
-            name=name,
-            kind=ActionKind.EMBEDDER,
-            fn=fn,
-            metadata=embedder_meta,
+        return define_embedder_ref(
+            registry=self.registry,
+            options=options,
+            runner=fn,
             description=embedder_description,
         )
+        # return self.registry.register_action(
+        #     name=name,
+        #     kind=ActionKind.EMBEDDER,
+        #     fn=fn,
+        #     metadata=embedder_meta,
+        #     description=embedder_description,
+        # )
 
     def define_format(self, format: FormatDef) -> None:
         """Registers a custom format in the registry.

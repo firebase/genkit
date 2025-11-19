@@ -23,7 +23,8 @@ functionality, ensuring proper registration and management of Genkit resources.
 
 import unittest
 
-from genkit.ai._registry import get_func_description
+from genkit.ai._registry import GenkitRegistry, get_func_description
+from genkit.core.typing import EmbedRequest, EmbedResponse,Embedding
 
 
 class TestGetFuncDescription(unittest.TestCase):
@@ -68,7 +69,63 @@ class TestGetFuncDescription(unittest.TestCase):
 
         description = get_func_description(test_func)
         self.assertEqual(description, '')
+class TestRegistryEmbedder(unittest.TestCase):
+    """Test embedder registration in GenkitRegistry."""
 
+    def test_define_embedder_registration(self) -> None:
+        """Test that define_embedder registers embedder in registry."""
+
+        def mock_embedder_fn(request: EmbedRequest) -> EmbedResponse:
+            return EmbedResponse(embeddings=[Embedding(embedding=[0.1, 0.2])])
+
+        registry = GenkitRegistry()
+
+        action = registry.define_embedder(
+            name='test-embedder',
+            fn=mock_embedder_fn,
+            config_schema=None,
+            metadata=None,
+            description='Test embedder'
+        )
+
+        self.assertEqual(action.name, 'test-embedder')
+        self.assertEqual(action.kind.value, 'embedder')
+
+        from genkit.core.action.types import ActionKind
+        registered_action = registry.registry.lookup_action(ActionKind.EMBEDDER, 'test-embedder')
+        self.assertIsNotNone(registered_action)
+        self.assertEqual(registered_action.name, 'test-embedder')
+
+    def test_define_embedder_with_metadata_and_info(self) -> None:
+        """Test that define_embedder properly extracts info from metadata."""
+
+        def mock_embedder_fn(request: EmbedRequest) -> EmbedResponse:
+            return EmbedResponse(embeddings=[Embedding(embedding=[0.1, 0.2])])
+
+        registry = GenkitRegistry()
+
+        metadata = {
+            'embedder': {
+                'dimensions': 768,
+                'label': 'Test Embedder',
+                'customOptions': {'should': 'be excluded'}
+            }
+        }
+
+        action = registry.define_embedder(
+            name='test-embedder-with-info',
+            fn=mock_embedder_fn,
+            config_schema=None,
+            metadata=metadata,
+            description='Test embedder with info'
+        )
+
+        self.assertEqual(action.name, 'test-embedder-with-info')
+        self.assertEqual(action.kind.value, 'embedder')
+        self.assertEqual(action.description, 'Test embedder with info')
+
+        self.assertIn('embedder', action.metadata)
+        embedder_meta = action.metadata['embedder']
 
 if __name__ == '__main__':
     unittest.main()
