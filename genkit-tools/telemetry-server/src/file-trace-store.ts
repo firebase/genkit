@@ -430,12 +430,23 @@ export class Index {
       // different index files.
       .sort((a, b) => (b!['start'] as number) - (a!['start'] as number));
 
+    // Dedupe by trace ID, keeping the most recent entry (first seen after sorting)
+    const deduped = [] as Record<string, string | number>[];
+    const seenIds = new Set<string>();
+    for (const entry of fullData) {
+      const id = entry['id'] as string;
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        deduped.push(entry);
+      }
+    }
+
     const result = {
-      data: fullData.slice(startFromIndex, startFromIndex + query.limit),
+      data: deduped.slice(startFromIndex, startFromIndex + query.limit),
     } as IndexSearchResult;
 
     // if there are more results, populate stop index.
-    if (startFromIndex + query.limit < fullData.length) {
+    if (startFromIndex + query.limit < deduped.length) {
       result.pageLastIndex = startFromIndex + query.limit;
     }
 
