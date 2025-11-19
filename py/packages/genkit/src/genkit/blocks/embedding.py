@@ -101,8 +101,8 @@ def embedder(
     runner: EmbedderFn,
 ) -> EmbedderAction:
     """Creates embedder model for the provided EmbedderFn model implementation.
-    Unlike define_embedder this function does not register the embedder in the registry."""
-     # Create metadata
+    This function does not register the embedder in the registry."""
+
     embedder_meta: dict[str, Any] = {}
     if 'embedder' not in embedder_meta:
         embedder_meta['embedder'] = {}
@@ -127,7 +127,6 @@ def define_embedder(
     runner: EmbedderFn,
 ) -> EmbedderAction:
     """Creates embedder model for the provided EmbedderFn model implementation.
-
     This function registers the embedder in the registry."""
 
     # Create metadata
@@ -194,7 +193,6 @@ async def embed_many(
     """Batch embedding function."""
     resolved = await _resolve_embedder(registry, params['embedder'])
 
-    # Convert content to DocumentData if it's strings
     input_docs = []
     for content in params['content']:
         if isinstance(content, str):
@@ -204,7 +202,6 @@ async def embed_many(
         else:
             input_docs.append(content)
 
-    # Merge options: reference config/version + caller-provided options
     merged_options: dict[str, Any] | None = None
     if resolved.get('version') is not None or resolved.get('config'):
         merged_options = {}
@@ -263,14 +260,14 @@ async def _resolve_embedder(
             version=None,
         )
     elif hasattr(embedder_arg, 'name'):
-        # It's an EmbedderAction
+        # if it's an EmbedderAction
         return ResolvedEmbedder(
             embedder_action=embedder_arg,
             config=None,
             version=None,
         )
     elif isinstance(embedder_arg, dict) and 'name' in embedder_arg:
-        # It's an EmbedderReference - extract config and version
+        # if it's an EmbedderReference - extract config and version
         ref = embedder_arg
         action = await registry.lookup_action(f"/embedder/{ref['name']}")
         if action is None:
