@@ -111,7 +111,7 @@ func (j jsonlHandler) ParseMessage(m *Message) (*Message, error) {
 		}
 
 		var newParts []*Part
-		lines := base.GetJSONObjectLines(accumulatedText.String())
+		lines := base.GetJsonLines(accumulatedText.String(), "{")
 		for _, line := range lines {
 			if j.config.Schema != nil {
 				var schemaBytes []byte

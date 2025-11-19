@@ -133,21 +133,15 @@ func ExtractJSONFromMarkdown(md string) string {
 	if len(matches) >= 2 {
 		return strings.TrimSpace(matches[1])
 	}
-	
+
 	// Fall back to generic code fence
 	matches = genericMarkdownRegex.FindStringSubmatch(md)
 	if len(matches) >= 2 {
 		return strings.TrimSpace(matches[1])
 	}
-	
+
 	// No fence found, return original
 	return md
-}
-
-// GetJSONObjectLines splits a string by newlines, trims whitespace from each line,
-// and returns a slice containing only the lines that start with '{'.
-func GetJSONObjectLines(text string) []string {
-	return GetJsonLines(text, "{")
 }
 
 // GetJsonLines splits a string by newlines, trims whitespace from each line,
