@@ -234,10 +234,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	opts = resumeOutput.revisedRequest
 
 	if resumeOutput.toolMessage != nil && cb != nil {
+		idx := 0
 		err := cb(ctx, &ModelResponseChunk{
 			Content: resumeOutput.toolMessage.Content,
 			Role:    RoleTool,
-			Index:   0,
+			Index:   &idx,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
@@ -340,17 +341,9 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 						currentIndex++
 						currentRole = chunk.Role
 					}
+					chunk.Index = &currentIndex
 					if chunk.Role == "" {
 						chunk.Role = RoleModel
-					}
-					// For model streams, the plugin provides a relative chunk index.
-					// We make it absolute by adding the current message index.
-					if chunk.Role == RoleModel {
-						chunk.Index = currentIndex + chunk.Index
-					} else {
-						// For other roles (like Tool), the caller is assumed to provide the
-						// correct absolute index.
-						chunk.Index = currentIndex
 					}
 					return cb(ctx, chunk)
 				}
@@ -715,10 +708,11 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 	toolMsg.Content = toolResps
 
 	if cb != nil {
+		idx := messageIndex + 1
 		err := cb(ctx, &ModelResponseChunk{
 			Content: toolMsg.Content,
 			Role:    RoleTool,
-			Index:   messageIndex + 1,
+			Index:   &idx,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("streaming callback failed: %w", err)

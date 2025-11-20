@@ -292,7 +292,7 @@ func generate(
 	iter := client.Models.GenerateContentStream(ctx, model, contents, gcc)
 
 	var r *ai.ModelResponse
-	var resp *genai.GenerateContentResponse
+	var genaiResp *genai.GenerateContentResponse
 
 	genaiParts := []*genai.Part{}
 	chunks := []*ai.Part{}
@@ -310,7 +310,7 @@ func generate(
 			err = cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
 				Role:    ai.RoleModel,
-				Index:   index,
+				Index:   &index,
 			})
 			if err != nil {
 				return nil, err
@@ -319,11 +319,11 @@ func generate(
 			chunks = append(chunks, tc.Message.Content...)
 		}
 		index += 1
-		resp = chunk
+		genaiResp = chunk
 
 	}
 
-	if resp.Candidates == nil {
+	if len(genaiResp.Candidates) == 0 {
 		return nil, fmt.Errorf("no valid candidates found")
 	}
 
@@ -331,7 +331,7 @@ func generate(
 	// "custom" response field
 	merged := []*genai.Candidate{
 		{
-			FinishReason: resp.Candidates[0].FinishReason,
+			FinishReason: genaiResp.Candidates[0].FinishReason,
 			Content: &genai.Content{
 				Role:  string(ai.RoleModel),
 				Parts: genaiParts,
@@ -339,8 +339,8 @@ func generate(
 		},
 	}
 
-	resp.Candidates = merged
-	r, err = translateResponse(resp)
+	genaiResp.Candidates = merged
+	r, err = translateResponse(genaiResp)
 	r.Message.Content = chunks
 
 	if err != nil {
@@ -719,7 +719,6 @@ func toGeminiToolChoice(toolChoice ai.ToolChoice, tools []*ai.ToolDefinition) (*
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.ModelResponse.
 func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 	m := &ai.ModelResponse{}
-	fmt.Printf("finish reason: %v, finish message: %s\n", cand.FinishReason, cand.FinishMessage)
 	switch cand.FinishReason {
 	case genai.FinishReasonStop:
 		m.FinishReason = ai.FinishReasonStop

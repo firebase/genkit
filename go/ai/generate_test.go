@@ -98,7 +98,8 @@ func TestStreamingChunksHaveRoleAndIndex(t *testing.T) {
 			From        string
 			To          string
 			Temperature float64
-		}) (float64, error) {
+		},
+		) (float64, error) {
 			if input.From == "celsius" && input.To == "fahrenheit" {
 				return input.Temperature*9/5 + 32, nil
 			}
@@ -185,7 +186,7 @@ func TestStreamingChunksHaveRoleAndIndex(t *testing.T) {
 	if chunks[0].Role != RoleModel {
 		t.Errorf("Expected first chunk to have role 'model', got %s", chunks[0].Role)
 	}
-	if chunks[0].Index != 0 {
+	if *chunks[0].Index != 0 {
 		t.Errorf("Expected first chunk to have index 0, got %d", chunks[0].Index)
 	}
 
@@ -193,7 +194,7 @@ func TestStreamingChunksHaveRoleAndIndex(t *testing.T) {
 	for _, chunk := range chunks {
 		if chunk.Role == RoleTool {
 			toolChunkFound = true
-			if chunk.Index != 1 {
+			if *chunk.Index != 1 {
 				t.Errorf("Expected tool chunk to have index 1, got %d", chunk.Index)
 			}
 		}
