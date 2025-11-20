@@ -410,6 +410,26 @@ ai.defineFlow('gemini-image-editing', async (_) => {
     ],
     config: {
       responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '1:1',
+      },
+    },
+  });
+
+  return media;
+});
+
+// Nano banana pro config
+ai.defineFlow('nano-banana-pro', async (_) => {
+  const { media } = await ai.generate({
+    model: googleAI.model('gemini-3-pro-image-preview'),
+    prompt: 'Generate a picture of a sunset in the mountains by a lake',
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '3:4',
+        imageSize: '1K',
+      },
     },
   });
 
