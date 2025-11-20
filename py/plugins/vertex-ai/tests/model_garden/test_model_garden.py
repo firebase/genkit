@@ -65,6 +65,7 @@ def model_garden_instance(client):
                     'constrained': None,
                     'content_type': None,
                     'context': None,
+                    'long_running': None,
                     'multiturn': True,
                     'media': True,
                     'tools': True,
