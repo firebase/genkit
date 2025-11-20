@@ -320,6 +320,48 @@ export class RuntimeManager {
   }
 
   /**
+   * Cancels an in-flight action by trace ID
+   */
+  async cancelAction(
+    input: { traceId: string; runtimeId?: string }
+  ): Promise<{ message: string }> {
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
+    if (!runtime) {
+      throw new Error(
+        input.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running.'
+      );
+    }
+
+    try {
+      const response = await axios.post(
+        `${runtime.reflectionServerUrl}/api/cancelAction`,
+        { traceId: input.traceId },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (err) {
+      const axiosError = err as AxiosError;
+      if (axiosError.response?.status === 404) {
+        const error = new GenkitToolsError('Action not found or already completed');
+        error.data = { 
+          message: 'Action not found or already completed' 
+        } as any;
+        (error.data as any).statusCode = 404;
+        throw error;
+      }
+      throw this.httpErrorHandler(axiosError);
+    }
+  }
+
+  /**
    * Retrieves all traces
    */
   async listTraces(

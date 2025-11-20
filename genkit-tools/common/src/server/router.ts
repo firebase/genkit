@@ -27,6 +27,7 @@ import { GenkitToolsError, type RuntimeInfo } from '../manager/types';
 import { TraceDataSchema } from '../types';
 import type { Action } from '../types/action';
 import * as apis from '../types/apis';
+import { CancelActionRequestSchema } from '../types/apis';
 import type { EnvironmentVariable } from '../types/env';
 import * as evals from '../types/eval';
 import type { PromptFrontmatter } from '../types/prompt';
@@ -321,6 +322,13 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       await manager.processManager?.kill();
       return true;
     }),
+
+    /** Cancels a long-running action. */
+    cancelAction: loggedProcedure
+      .input(CancelActionRequestSchema)
+      .mutation(async ({ input }) => {
+        return manager.cancelAction(input);
+      }),
   });
 
 export type ToolsServerRouter = ReturnType<typeof TOOLS_SERVER_ROUTER>;

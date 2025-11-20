@@ -106,6 +106,18 @@ export const RunActionRequestSchema = z.object({
 
 export type RunActionRequest = z.infer<typeof RunActionRequestSchema>;
 
+export const CancelActionRequestSchema = z.object({
+  traceId: z
+    .string()
+    .describe('ID of the trace associated with the action to cancel.'),
+  runtimeId: z
+    .string()
+    .optional()
+    .describe('ID of the Genkit runtime where the action is running.'),
+});
+
+export type CancelActionRequest = z.infer<typeof CancelActionRequestSchema>;
+
 export const CreatePromptRequestSchema = z.object({
   model: z.string(),
   messages: z.array(MessageSchema),
