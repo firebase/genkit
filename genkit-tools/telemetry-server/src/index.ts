@@ -47,7 +47,7 @@ export async function startTelemetryServer(params: {
   await params.traceStore.init();
   const api = express();
 
-  api.use(express.json({ limit: params.maxRequestBodySize ?? '30mb' }));
+  api.use(express.json({ limit: params.maxRequestBodySize ?? '50mb' }));
 
   api.get('/api/__health', async (_, response) => {
     response.status(200).send('OK');
