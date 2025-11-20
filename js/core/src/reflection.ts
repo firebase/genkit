@@ -51,6 +51,18 @@ export interface ReflectionServerOptions {
 }
 
 /**
+ * Checks if an error is an AbortError (from AbortController.abort()).
+ */
+function isAbortError(err: any): boolean {
+  return (
+    err?.name === 'AbortError' ||
+    (typeof DOMException !== 'undefined' &&
+      err instanceof DOMException &&
+      err.name === 'AbortError')
+  );
+}
+
+/**
  * Reflection server exposes an API for inspecting and interacting with Genkit in development.
  *
  * This is for use in development environments.
@@ -71,6 +83,11 @@ export class ReflectionServer {
   private server: Server | null = null;
   /** Path to the runtime file. Null if server is not running. */
   private runtimeFilePath: string | null = null;
+  /** Map of active actions indexed by trace ID for cancellation support. */
+  private activeActions = new Map<string, {
+    abortController: AbortController;
+    startTime: Date;
+  }>();
 
   constructor(registry: Registry, options?: ReflectionServerOptions) {
     this.registry = registry;
@@ -168,6 +185,8 @@ export class ReflectionServer {
       const { key, input, context, telemetryLabels } = request.body;
       const { stream } = request.query;
       logger.debug(`Running action \`${key}\` with stream=${stream}...`);
+      const abortController = new AbortController();
+      let traceId: string | undefined;
       try {
         const action = await this.registry.lookupAction(key);
         if (!action) {
@@ -176,8 +195,13 @@ export class ReflectionServer {
         }
         // Set up onTelemetry callback to send trace ID in headers early
         // This callback should only fire once for the root action span
-        const onTelemetryCallback = (traceId: string, spanId: string) => {
-          response.setHeader('X-Genkit-Trace-Id', traceId);
+        const onTelemetryCallback = (tid: string, spanId: string) => {
+          traceId = tid; // Update traceId for cleanup later
+          this.activeActions.set(tid, {
+            abortController,
+            startTime: new Date(),
+          });
+          response.setHeader('X-Genkit-Trace-Id', tid);
           response.setHeader('X-Genkit-Span-Id', spanId);
           response.setHeader('X-Genkit-Version', GENKIT_VERSION);
           if (stream === 'true') {
@@ -199,6 +223,7 @@ export class ReflectionServer {
               onChunk: callback,
               telemetryLabels,
               onTelemetry: onTelemetryCallback,
+              abortSignal: abortController.signal,
             });
             await flushTracing();
             response.write(
@@ -214,8 +239,10 @@ export class ReflectionServer {
             const { message, stack } = err as Error;
             // since we're streaming, we must do special error handling here -- the headers are already sent.
             const errorResponse: Status = {
-              code: StatusCodes.INTERNAL,
-              message,
+              code: isAbortError(err)
+                ? StatusCodes.CANCELLED
+                : StatusCodes.INTERNAL,
+              message: isAbortError(err) ? 'Action was cancelled' : message,
               details: {
                 stack,
               },
@@ -236,6 +263,7 @@ export class ReflectionServer {
             context,
             telemetryLabels,
             onTelemetry: onTelemetryCallback,
+            abortSignal: abortController.signal,
           });
           await flushTracing();
           response.end(JSON.stringify({
@@ -246,8 +274,47 @@ export class ReflectionServer {
           } as RunActionResponse));
         }
       } catch (err) {
-        const { message, stack, traceId } = err as any;
-        next({ message, stack, traceId });
+        if (isAbortError(err)) {
+          // Handle cancellation - headers may have been sent via onTelemetry
+          const errorResponse: Status = {
+            code: StatusCodes.CANCELLED,
+            message: 'Action was cancelled',
+            details: {},
+          };
+          if (response.headersSent) {
+            response.end(JSON.stringify({ error: errorResponse }));
+          } else {
+            response.status(200).json({ error: errorResponse });
+          }
+        } else {
+          const { message, stack } = err as Error;
+          next({ message, stack });
+        }
+      } finally {
+        if (traceId) {
+          this.activeActions.delete(traceId);
+        }
+      }
+    });
+
+    server.post('/api/cancelAction', async (request, response) => {
+      const { traceId } = request.body;
+
+      if (!traceId || typeof traceId !== 'string') {
+        response.status(400).json({ error: 'traceId is required' });
+        return;
+      }
+
+      const activeAction = this.activeActions.get(traceId);
+
+      if (activeAction) {
+        activeAction.abortController.abort();
+        this.activeActions.delete(traceId);
+        response.status(200).json({ message: 'Action cancelled' });
+      } else {
+        response.status(404).json({
+          message: 'Action not found or already completed',
+        });
       }
     });
 
@@ -295,9 +362,6 @@ export class ReflectionServer {
           stack,
         },
       };
-      if (err.traceId) {
-        errorResponse.details.traceId = err.traceId;
-      }
       
       // Headers may have been sent already (via onTelemetry), so check before setting status
       if (!res.headersSent) {
