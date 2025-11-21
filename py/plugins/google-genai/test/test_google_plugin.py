@@ -31,6 +31,8 @@ from genkit.ai import Genkit, GENKIT_CLIENT_HEADER
 from genkit.blocks.embedding import embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.registry import ActionKind
+from genkit.core.typing import EmbedderOptions, EmbedderSupports
+from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai import (
     GoogleAI,
     VertexAI,
@@ -279,8 +281,12 @@ def test_googleai_list_actions(googleai_plugin_instance):
         ),
         embedder_action_metadata(
             name=googleai_name('model2'),
-            info=default_embedder_info('model2'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model2').get('label'),
+                supports=EmbedderSupports(input=default_embedder_info('model2').get('supports', {}).get('input')),
+                dimensions=default_embedder_info('model2').get('dimensions'),
+                config_schema=to_json_schema(EmbedContentConfig),
+            ),
         ),
         model_action_metadata(
             name=googleai_name('model3'),
@@ -289,8 +295,12 @@ def test_googleai_list_actions(googleai_plugin_instance):
         ),
         embedder_action_metadata(
             name=googleai_name('model3'),
-            info=default_embedder_info('model3'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model3').get('label'),
+                supports=EmbedderSupports(input=default_embedder_info('model3').get('supports', {}).get('input')),
+                dimensions=default_embedder_info('model3').get('dimensions'),
+                config_schema=to_json_schema(EmbedContentConfig),
+            ),
         ),
     ]
 
@@ -684,8 +694,13 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
         ),
         embedder_action_metadata(
             name=vertexai_name('model2_embeddings'),
-            info=default_embedder_info('model2_embeddings'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model2_embeddings').get('label'),
+                supports=EmbedderSupports(
+                    input=default_embedder_info('model2_embeddings').get('supports', {}).get('input')),
+                dimensions=default_embedder_info('model2_embeddings').get('dimensions'),
+                config_schema=to_json_schema(EmbedContentConfig),
+            ),
         ),
         model_action_metadata(
             name=vertexai_name('model2_embeddings'),
@@ -694,9 +709,17 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
         ),
         embedder_action_metadata(
             name=vertexai_name('model3_embedder'),
-            info=default_embedder_info('model3_embedder'),
-            config_schema=EmbedContentConfig,
+            options=EmbedderOptions(
+                label=default_embedder_info('model3_embedder').get('label'),
+                supports=EmbedderSupports(
+                    input=default_embedder_info('model3_embedder').get('supports', {}).get('input')),
+                dimensions=default_embedder_info('model3_embedder').get('dimensions'),
+                config_schema=to_json_schema(EmbedContentConfig),
+            ),
         ),
+        #     info=default_embedder_info('model3_embedder'),
+        #     config_schema=EmbedContentConfig,
+        # ),
         model_action_metadata(
             name=vertexai_name('model3_embedder'),
             info=google_model_info('model3_embedder').model_dump(),

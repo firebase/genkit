@@ -26,7 +26,6 @@ from typing import Any
 
 from genkit.aio import Channel
 from genkit.blocks.document import Document
-from genkit.blocks.embedding import EmbedRequest, EmbedResponse
 from genkit.blocks.generate import (
     StreamingCallback as ModelStreamingCallback,
     generate_action,
@@ -39,6 +38,7 @@ from genkit.blocks.model import (
 from genkit.blocks.prompt import PromptConfig, to_generate_action_options
 from genkit.core.action import ActionRunContext
 from genkit.core.action.types import ActionKind
+from genkit.core.typing import EmbedRequest, EmbedResponse, EmbedderRef
 from genkit.types import (
     DocumentData,
     GenerationCommonConfig,
@@ -335,3 +335,31 @@ class Genkit(GenkitBase):
         retrieve_action = self.registry.lookup_action(ActionKind.RETRIEVER, retriever)
 
         return (await retrieve_action.arun(RetrieverRequest(query=query, options=options))).response
+
+    async def embed(
+        self,
+        embedder: str | EmbedderRef | None = None, # Allow EmbedderRef
+        documents: list[Document] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> EmbedResponse:
+
+        embedder_name: str
+        embedder_config: dict[str, Any] = {}
+
+        if isinstance(embedder, EmbedderRef):
+            embedder_name = embedder.name
+            embedder_config = embedder.config or {}
+            if embedder.version:
+                embedder_config['version'] = embedder.version # Handle version from ref
+        elif isinstance(embedder, str):
+            embedder_name = embedder
+        else:
+            # Handle case where embedder is None
+            raise ValueError("Embedder must be specified as a string name or an EmbedderRef.")
+
+        # Merge options passed to embed() with config from EmbedderRef
+        final_options = {**(embedder_config or {}), **(options or {})}
+
+        embed_action = self.registry.lookup_action(ActionKind.EMBEDDER, embedder_name)
+
+        return (await embed_action.arun(EmbedRequest(input=documents, options=final_options))).response

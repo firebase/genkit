@@ -25,6 +25,8 @@ import ollama as ollama_api
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.blocks.embedding import embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.core.schema import to_json_schema
+from genkit.core.typing import EmbedderOptions, EmbedderSupports
 from genkit.core.registry import ActionKind
 from genkit.plugins.ollama.constants import (
     DEFAULT_OLLAMA_SERVER_URL,
@@ -234,14 +236,11 @@ class Ollama(Plugin):
                 actions.append(
                     embedder_action_metadata(
                         name=ollama_name(_name),
-                        config_schema=ollama_api.Options,
-                        info={
-                            'label': f'Ollama Embedding - {_name}',
-                            'dimensions': None,
-                            'supports': {
-                                'input': ['text'],
-                            },
-                        },
+                        options=EmbedderOptions(
+                            config_schema=to_json_schema(ollama_api.Options),
+                            label=f'Ollama Embedding - {_name}',
+                            supports=EmbedderSupports(input=['text']),
+                        )
                     )
                 )
             else:

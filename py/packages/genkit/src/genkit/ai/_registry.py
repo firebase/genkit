@@ -47,7 +47,6 @@ from typing import Any, Type
 import structlog
 from pydantic import BaseModel
 
-from genkit.blocks.embedding import EmbedderFn
 from genkit.blocks.evaluator import BatchEvaluatorFn, EvaluatorFn
 from genkit.blocks.formats.types import FormatDef
 from genkit.blocks.model import ModelFn, ModelMiddleware
@@ -72,6 +71,8 @@ from genkit.core.typing import (
     Score,
     SpanMetadata,
     ToolChoice,
+    EmbedderOptions,
+    EmbedderFn,
 )
 
 EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'
@@ -458,8 +459,7 @@ class GenkitRegistry:
         self,
         name: str,
         fn: EmbedderFn,
-        config_schema: BaseModel | dict[str, Any] | None = None,
-        metadata: dict[str, Any] | None = None,
+        options: EmbedderOptions | None = None,
         description: str | None = None,
     ) -> Action:
         """Define a custom embedder action.
@@ -471,19 +471,28 @@ class GenkitRegistry:
             metadata: Optional metadata for the model.
             description: Optional description for the embedder.
         """
-        embedder_meta: dict[str, Any] = metadata if metadata else {}
-        if 'embedder' not in embedder_meta:
-            embedder_meta['embedder'] = {}
+        embedder_metadata: dict[str, Any] = {}
+        if options:
+            if options.label:
+                embedder_metadata['embedder']['label'] = options.label
+            if options.dimensions:
+                embedder_metadata['embedder']['dimensions'] = options.dimensions
+            if options.supports:
+                embedder_metadata['embedder']['supports'] = options.supports.model_dump(exclude_none=True,
+                                                                                        by_alias=True)
+            if options.config_schema:
+                embedder_metadata['embedder']['customOptions'] = to_json_schema(options.config_schema)
 
-        if config_schema:
-            embedder_meta['embedder']['customOptions'] = to_json_schema(config_schema)
+        # Fallback to default if 'embedder' key doesn't exist
+        if 'embedder' not in embedder_metadata:
+            embedder_metadata['embedder'] = {}
 
         embedder_description = get_func_description(fn, description)
         return self.registry.register_action(
             name=name,
             kind=ActionKind.EMBEDDER,
             fn=fn,
-            metadata=embedder_meta,
+            metadata=embedder_metadata,
             description=embedder_description,
         )
 

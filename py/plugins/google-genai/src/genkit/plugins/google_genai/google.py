@@ -28,6 +28,8 @@ from genkit.blocks.embedding import embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import ActionMetadata
 from genkit.core.registry import ActionKind
+from genkit.core.typing import EmbedderOptions, EmbedderSupports
+from genkit.core.schema import to_json_schema
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
     GeminiEmbeddingModels,
@@ -242,11 +244,17 @@ class GoogleAI(Plugin):
                 )
 
             if 'embedContent' in m.supported_actions:
+                embed_info = default_embedder_info(name)
+                print(f"DEBUG: Processing embedder '{name}', embed_info: {embed_info}")
                 actions_list.append(
                     embedder_action_metadata(
                         name=googleai_name(name),
-                        info=default_embedder_info(name),
-                        config_schema=EmbedContentConfig,
+                        options=EmbedderOptions(
+                            label=embed_info.get('label'),
+                            supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
+                            dimensions=embed_info.get('dimensions'),
+                            config_schema=to_json_schema(EmbedContentConfig),
+                        )
                     )
                 )
 
@@ -428,11 +436,17 @@ class VertexAI(Plugin):
         for m in self._client.models.list():
             name = m.name.replace('publishers/google/models/', '')
             if 'embed' in name.lower():
+                embed_info = default_embedder_info(name)
+                print(f"DEBUG: Processing embedder '{name}', embed_info: {embed_info}")
                 actions_list.append(
                     embedder_action_metadata(
                         name=vertexai_name(name),
-                        info=default_embedder_info(name),
-                        config_schema=EmbedContentConfig,
+                        options=EmbedderOptions(
+                            label=embed_info.get('label'),
+                            supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
+                            dimensions=embed_info.get('dimensions'),
+                            config_schema=to_json_schema(EmbedContentConfig),
+                        )
                     )
                 )
             # List all the vertexai models for generate actions
@@ -469,3 +483,23 @@ def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
         http_options.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
 
     return http_options
+if __name__ == '__main__':
+    print("--- Debugging default_embedder_info ---")
+
+    test_name_2 = 'model3_embedder'
+    print(f"\nCalling default_embedder_info for '{test_name_2}':")
+    info_2 = default_embedder_info(test_name_2)
+    print(f"Result for '{test_name_2}': {info_2}")
+
+    # You can also iterate through known embedder names
+    print("\n--- All Vertex AI Embedders ---")
+    for name in VertexEmbeddingModels:
+        info = default_embedder_info(name)
+        print(f"'{name}': {info}")
+
+    print("\n--- All Google AI Embedders ---")
+    for name in GeminiEmbeddingModels:
+        info = default_embedder_info(name)
+        print(f"'{name}': {info}")
+
+    print("\n--- Debugging complete ---")

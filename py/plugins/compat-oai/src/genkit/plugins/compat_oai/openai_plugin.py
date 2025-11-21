@@ -29,7 +29,8 @@ from genkit.blocks.embedding import embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
 from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
-from genkit.core.typing import GenerationCommonConfig
+from genkit.core.typing import GenerationCommonConfig, EmbedderOptions, EmbedderSupports
+from genkit.core.schema import to_json_schema
 from genkit.plugins.compat_oai.models import (
     SUPPORTED_OPENAI_COMPAT_MODELS,
     SUPPORTED_OPENAI_MODELS,
@@ -191,14 +192,11 @@ class OpenAI(Plugin):
                 actions.append(
                     embedder_action_metadata(
                         name=open_ai_name(_name),
-                        config_schema=Embedding,
-                        info={
-                            'label': f'OpenAI Embedding - {_name}',
-                            'dimensions': None,
-                            'supports': {
-                                'input': ['text'],
-                            },
-                        },
+                        options=EmbedderOptions(
+                            config_schema=to_json_schema(Embedding),
+                            label=f'OpenAI Embedding - {_name}',
+                            supports=EmbedderSupports(input=['text']),
+                        )
                     )
                 )
             else:

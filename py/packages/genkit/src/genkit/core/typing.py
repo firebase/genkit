@@ -33,7 +33,7 @@ else:  # noqa
     from enum import StrEnum  # noqa
 
 
-from typing import Any
+from typing import Any, Awaitable, Callable, Protocol, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
@@ -1013,3 +1013,47 @@ class ModelResponse(BaseModel):
     raw: Raw | None = None
     request: Request | None = None
     operation: Operation | None = None
+
+T = TypeVar('T')
+P = TypeVar('P')
+
+class EmbedderFn(Protocol[T, P]):
+    """Protocol for embedder function."""
+
+    def __call__(
+        self,
+        request: EmbedRequest,
+        options: dict[str, Any] | None = None,
+    ) -> Awaitable[EmbedResponse]:
+        """Embeds a list of documents.
+
+        Args:
+            request: The embed request.
+            options: Configuration options for the embedder.
+
+        Returns:
+            The embed response.
+        """
+        ...
+
+class EmbedderRef(BaseModel):
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: str
+    config: dict[str, Any] | None = None
+    version: str | None = None
+
+class EmbedderSupports(BaseModel):
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    input: list[str] | None = None
+    multilingual: bool | None = None
+
+class EmbedderOptions(BaseModel):
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    dimensions: int | None = None
+    label: str | None = None
+    supports: EmbedderSupports | None = None
+    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+
