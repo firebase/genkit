@@ -271,7 +271,7 @@ type ModelResponseChunk struct {
 	Aggregated bool    `json:"aggregated,omitempty"`
 	Content    []*Part `json:"content,omitempty"`
 	Custom     any     `json:"custom,omitempty"`
-	Index      int     `json:"index,omitempty"`
+	Index      int     `json:"index"`
 	Role       Role    `json:"role,omitempty"`
 }
 
