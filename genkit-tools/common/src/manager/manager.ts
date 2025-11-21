@@ -39,13 +39,13 @@ import {
   retriable,
   type DevToolsInfo,
 } from '../utils/utils';
-import { ProcessManager } from './process-manager';
 import {
   GenkitToolsError,
   RuntimeEvent,
   type RuntimeInfo,
   type StreamingCallback,
 } from './types';
+import { ProcessManager } from './process-manager';
 
 const STREAM_DELIMITER = '\n';
 const HEALTH_CHECK_INTERVAL = 5000;
@@ -63,7 +63,6 @@ interface RuntimeManagerOptions {
 }
 
 export class RuntimeManager {
-  readonly processManager?: ProcessManager;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
@@ -73,10 +72,9 @@ export class RuntimeManager {
     readonly telemetryServerUrl: string | undefined,
     private manageHealth: boolean,
     readonly projectRoot: string,
-    processManager?: ProcessManager
-  ) {
-    this.processManager = processManager;
-  }
+    readonly processManager?: ProcessManager
+
+  ) {}
 
   /**
    * Creates a new runtime manager.
@@ -85,8 +83,7 @@ export class RuntimeManager {
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
       options.manageHealth ?? true,
-      options.projectRoot,
-      options.processManager
+      options.projectRoot
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
@@ -182,7 +179,8 @@ export class RuntimeManager {
    */
   async runAction(
     input: apis.RunActionRequest,
-    streamingCallback?: StreamingCallback<any>
+    streamingCallback?: StreamingCallback<any>,
+    onTraceId?: (traceId: string) => void
   ): Promise<RunActionResponse> {
     const runtime = input.runtimeId
       ? this.getRuntimeById(input.runtimeId)
@@ -211,6 +209,12 @@ export class RuntimeManager {
       if (response.headers['x-genkit-version']) {
         genkitVersion = response.headers['x-genkit-version'];
       }
+      
+      const earlyTraceId = response.headers['x-genkit-trace-id'];
+      if (earlyTraceId && onTraceId) {
+        onTraceId(earlyTraceId);
+      }
+      
       const stream = response.data;
 
       let buffer = '';
@@ -265,20 +269,95 @@ export class RuntimeManager {
       });
       return promise;
     } else {
+      // runAction should use chunked JSON streaming to send early headers
       const response = await axios
         .post(`${runtime.reflectionServerUrl}/api/runAction`, input, {
           headers: {
             'Content-Type': 'application/json',
           },
+          responseType: 'stream',  // Use stream to get early headers
         })
         .catch((err) =>
           this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
         );
-      const resp = RunActionResponseSchema.parse(response.data);
-      if (response.headers['x-genkit-version']) {
-        resp.genkitVersion = response.headers['x-genkit-version'];
+      
+      const earlyTraceId = response.headers['x-genkit-trace-id'];
+      if (earlyTraceId && onTraceId) {
+        onTraceId(earlyTraceId);
       }
-      return resp;
+      
+      return new Promise<RunActionResponse>((resolve, reject) => {
+        let buffer = '';
+        
+        response.data.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString();
+        });
+        
+        response.data.on('end', () => {
+          try {
+            const responseData = JSON.parse(buffer);
+            
+            // Handle backward compatibility - add trace ID from header if not in body
+            if (!responseData.telemetry && earlyTraceId) {
+              responseData.telemetry = { traceId: earlyTraceId };
+            }
+            
+            const parsed = RunActionResponseSchema.parse(responseData);
+            if (response.headers['x-genkit-version']) {
+              parsed.genkitVersion = response.headers['x-genkit-version'];
+            }
+            resolve(parsed);
+          } catch (err) {
+            reject(new GenkitToolsError(`Failed to parse response: ${err}`));
+          }
+        });
+        
+        response.data.on('error', (err: Error) => {
+          reject(err);
+        });
+      });
+    }
+  }
+
+  /**
+   * Cancels an in-flight action by trace ID
+   */
+  async cancelAction(
+    input: { traceId: string; runtimeId?: string }
+  ): Promise<{ message: string }> {
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
+    if (!runtime) {
+      throw new Error(
+        input.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running.'
+      );
+    }
+
+    try {
+      const response = await axios.post(
+        `${runtime.reflectionServerUrl}/api/cancelAction`,
+        { traceId: input.traceId },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (err) {
+      const axiosError = err as AxiosError;
+      if (axiosError.response?.status === 404) {
+        const error = new GenkitToolsError('Action not found or already completed');
+        error.data = { 
+          message: 'Action not found or already completed' 
+        } as any;
+        (error.data as any).statusCode = 404;
+        throw error;
+      }
+      throw this.httpErrorHandler(axiosError);
     }
   }
 
@@ -330,6 +409,76 @@ export class RuntimeManager {
       );
 
     return response.data as TraceData;
+  }
+
+  /**
+   * Streams trace updates in real-time from the telemetry server.
+   * Connects to the telemetry server's SSE endpoint and forwards updates via callback.
+   */
+  async streamTrace(
+    input: apis.StreamTraceRequest,
+    streamingCallback: StreamingCallback<any>
+  ): Promise<void> {
+    const { traceId } = input;
+    
+    if (!this.telemetryServerUrl) {
+      throw new Error(
+        'Telemetry server URL not configured. Cannot stream trace updates.'
+      );
+    }
+
+    const response = await axios
+      .get(`${this.telemetryServerUrl}/api/traces/${traceId}/stream`, {
+        headers: {
+          Accept: 'text/event-stream',
+        },
+        responseType: 'stream',
+      })
+      .catch((err) =>
+        this.httpErrorHandler(
+          err,
+          `Error streaming trace for traceId='${traceId}'`
+        )
+      );
+
+    const stream = response.data;
+    let buffer = '';
+
+    // Return a promise that resolves when the stream ends
+    return new Promise<void>((resolve, reject) => {
+      stream.on('data', (chunk: Buffer) => {
+        buffer += chunk.toString();
+        
+        // Process complete messages (ending with \n\n)
+        while (buffer.includes('\n\n')) {
+          const messageEnd = buffer.indexOf('\n\n');
+          const message = buffer.substring(0, messageEnd).trim();
+          buffer = buffer.substring(messageEnd + 2);
+
+          // Skip empty messages
+          if (!message) {
+            continue;
+          }
+
+          // Parse JSON directly
+          try {
+            const parsed = JSON.parse(message);
+            streamingCallback(parsed);
+          } catch (err) {
+            logger.error(`Error parsing stream data: ${err}`);
+          }
+        }
+      });
+
+      stream.on('end', () => {
+        resolve();
+      });
+
+      stream.on('error', (err: Error) => {
+        logger.error(`Stream error for traceId='${traceId}': ${err}`);
+        reject(err);
+      });
+    });
   }
 
   /**
