@@ -338,13 +338,7 @@ class ToolRequest(BaseModel):
     ref: str | None = None
     name: str
     input: Any | None = None
-
-
-class PayloadStrategy(StrEnum):
-    """Enumeration of payloadstrategy values."""
-
-    BOTH = 'both'
-    FALLBACK = 'fallback'
+    partial: bool | None = None
 
 
 class ToolResponse(BaseModel):
@@ -354,7 +348,6 @@ class ToolResponse(BaseModel):
     ref: str | None = None
     name: str
     output: Any | None = None
-    payload_strategy: PayloadStrategy | None = Field(None, alias='payloadStrategy')
     content: list | None = None
 
 
