@@ -54,6 +54,7 @@ func (t ToolName) Name() string {
 // with JSON input anyway.
 type tool struct {
 	api.Action
+	concurrent bool
 }
 
 // Tool represents a tool that can be called by a model.
@@ -71,6 +72,9 @@ type Tool interface {
 	Restart(toolReq *Part, opts *RestartOptions) *Part
 	// Register registers the tool with the given registry.
 	Register(r api.Registry)
+	// Concurrent returns whether this tool can be safely called concurrently with other tools.
+	// Tools that return false will be executed sequentially before concurrent tools.
+	Concurrent() bool
 }
 
 // toolInterruptError represents an intentional interruption of tool execution.
@@ -127,43 +131,84 @@ type ToolContext struct {
 	OriginalInput any
 }
 
+// ToolOptions provides configuration options for tool creation.
+type ToolOptions struct {
+	// Concurrent indicates whether the tool can be safely called concurrently with other tools.
+	// Defaults to true if not specified.
+	Concurrent *bool
+}
+
+// ToolOption is a function that configures a ToolOptions.
+type ToolOption func(*ToolOptions)
+
+// WithConcurrent sets whether the tool supports concurrent execution.
+func WithConcurrent(concurrent bool) ToolOption {
+	return func(opts *ToolOptions) {
+		opts.Concurrent = &concurrent
+	}
+}
+
 // DefineTool creates a new [Tool] and registers it.
+// By default, tools support concurrent execution.
 func DefineTool[In, Out any](
 	r api.Registry,
 	name, description string,
 	fn ToolFunc[In, Out],
+	opts ...ToolOption,
 ) Tool {
-	metadata, wrappedFn := implementTool(name, description, fn)
+	metadata, wrappedFn, concurrent := implementToolWithOptions(name, description, fn, false, opts...)
 	toolAction := core.DefineAction(r, name, api.ActionTypeTool, metadata, nil, wrappedFn)
-	return &tool{Action: toolAction}
+	return &tool{Action: toolAction, concurrent: concurrent}
 }
 
 // DefineToolWithInputSchema creates a new [Tool] with a custom input schema and registers it.
+// By default, tools support concurrent execution.
 func DefineToolWithInputSchema[Out any](
 	r api.Registry,
 	name, description string,
 	inputSchema map[string]any,
 	fn ToolFunc[any, Out],
+	opts ...ToolOption,
 ) Tool {
-	metadata, wrappedFn := implementTool(name, description, fn)
+	metadata, wrappedFn, concurrent := implementToolWithOptions(name, description, fn, false, opts...)
 	toolAction := core.DefineAction(r, name, api.ActionTypeTool, metadata, inputSchema, wrappedFn)
-	return &tool{Action: toolAction}
+	return &tool{Action: toolAction, concurrent: concurrent}
 }
 
 // NewTool creates a new [Tool]. It can be passed directly to [Generate].
-func NewTool[In, Out any](name, description string, fn ToolFunc[In, Out]) Tool {
-	metadata, wrappedFn := implementTool(name, description, fn)
-	metadata["dynamic"] = true
+// By default, tools support concurrent execution.
+func NewTool[In, Out any](name, description string, fn ToolFunc[In, Out], opts ...ToolOption) Tool {
+	metadata, wrappedFn, concurrent := implementToolWithOptions(name, description, fn, true, opts...)
 	toolAction := core.NewAction(name, api.ActionTypeTool, metadata, nil, wrappedFn)
-	return &tool{Action: toolAction}
+	return &tool{Action: toolAction, concurrent: concurrent}
 }
 
 // NewToolWithInputSchema creates a new [Tool] with a custom input schema. It can be passed directly to [Generate].
-func NewToolWithInputSchema[Out any](name, description string, inputSchema map[string]any, fn ToolFunc[any, Out]) Tool {
-	metadata, wrappedFn := implementTool(name, description, fn)
-	metadata["dynamic"] = true
+// By default, tools support concurrent execution.
+func NewToolWithInputSchema[Out any](name, description string, inputSchema map[string]any, fn ToolFunc[any, Out], opts ...ToolOption) Tool {
+	metadata, wrappedFn, concurrent := implementToolWithOptions(name, description, fn, true, opts...)
 	toolAction := core.NewAction(name, api.ActionTypeTool, metadata, inputSchema, wrappedFn)
-	return &tool{Action: toolAction}
+	return &tool{Action: toolAction, concurrent: concurrent}
+}
+
+// implementToolWithOptions creates the metadata, wrapped function, and concurrent flag for tool creation.
+func implementToolWithOptions[In, Out any](name, description string, fn ToolFunc[In, Out], dynamic bool, opts ...ToolOption) (map[string]any, func(context.Context, In) (Out, error), bool) {
+	toolOpts := &ToolOptions{}
+	for _, opt := range opts {
+		opt(toolOpts)
+	}
+	concurrent := true
+	if toolOpts.Concurrent != nil {
+		concurrent = *toolOpts.Concurrent
+	}
+
+	metadata, wrappedFn := implementTool(name, description, fn)
+	if dynamic {
+		metadata["dynamic"] = true
+	}
+	metadata["concurrent"] = concurrent
+
+	return metadata, wrappedFn, concurrent
 }
 
 // implementTool creates the metadata and wrapped function common to both DefineTool and NewTool.
@@ -206,6 +251,11 @@ func (t *tool) Definition() *ToolDefinition {
 	}
 }
 
+// Concurrent returns whether this tool can be safely called concurrently with other tools.
+func (t *tool) Concurrent() bool {
+	return t.concurrent
+}
+
 // RunRaw runs this tool using the provided raw map format data (JSON parsed
 // as map[string]any).
 func (t *tool) RunRaw(ctx context.Context, input any) (any, error) {
@@ -241,7 +291,14 @@ func LookupTool(r api.Registry, name string) Tool {
 	if action == nil {
 		return nil
 	}
-	return &tool{Action: action}
+	// Read concurrent flag from metadata, default to true
+	concurrent := true
+	if action.Desc().Metadata != nil {
+		if val, ok := action.Desc().Metadata["concurrent"].(bool); ok {
+			concurrent = val
+		}
+	}
+	return &tool{Action: action, concurrent: concurrent}
 }
 
 // Respond creates a tool response for an interrupted tool call to pass to the [WithToolResponses] option to [Generate].
