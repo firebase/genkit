@@ -296,7 +296,6 @@ func generate(
 
 	genaiParts := []*genai.Part{}
 	chunks := []*ai.Part{}
-	index := 0
 	for chunk, err := range iter {
 		// abort stream if error found in the iterator items
 		if err != nil {
@@ -310,7 +309,6 @@ func generate(
 			err = cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
 				Role:    ai.RoleModel,
-				Index:   index,
 			})
 			if err != nil {
 				return nil, err
@@ -318,7 +316,6 @@ func generate(
 			genaiParts = append(genaiParts, c.Content.Parts...)
 			chunks = append(chunks, tc.Message.Content...)
 		}
-		index += 1
 		genaiResp = chunk
 
 	}
