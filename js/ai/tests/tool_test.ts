@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/core';
+import { action, z } from '@genkit-ai/core';
 import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { afterEach, describe, it } from 'node:test';
-import { defineInterrupt, defineTool } from '../src/tool.js';
+import {
+  defineInterrupt,
+  defineTool,
+  isDynamicTool,
+  tool,
+} from '../src/tool.js';
 
 initNodeFeatures();
 
@@ -106,6 +111,52 @@ describe('defineInterrupt', () => {
     assert.deepStrictEqual(simple2.__action.outputJsonSchema, {
       type: 'string',
     });
+  });
+});
+
+describe('isDynamicTool', () => {
+  let registry = new Registry();
+  registry.apiStability = 'beta';
+  afterEach(() => {
+    registry = new Registry();
+    registry.apiStability = 'beta';
+  });
+
+  it('should return true for a dynamic tool', () => {
+    const dynamic = tool({ name: 'dynamic', description: 'test' });
+    assert.strictEqual(isDynamicTool(dynamic), true);
+  });
+
+  it('should remain dynamic after registration', () => {
+    const dynamic = tool({ name: 'dynamic', description: 'test' });
+    assert.strictEqual(isDynamicTool(dynamic), true);
+
+    registry.registerAction('tool', dynamic);
+
+    assert.strictEqual(isDynamicTool(dynamic), true);
+  });
+
+  it('should return false for a registered tool', () => {
+    const regular = defineTool(
+      registry,
+      { name: 'regular', description: 'test' },
+      async () => {}
+    );
+    assert.strictEqual(isDynamicTool(regular), false);
+  });
+
+  it('should return false for a non-tool action', () => {
+    const regularAction = action(
+      { actionType: 'util', name: 'regularAction', description: 'test' },
+      async () => {}
+    );
+    assert.strictEqual(isDynamicTool(regularAction), false);
+  });
+
+  it('should return false for a non-action', () => {
+    assert.strictEqual(isDynamicTool({}), false);
+    assert.strictEqual(isDynamicTool('tool'), false);
+    assert.strictEqual(isDynamicTool(123), false);
   });
 });
 
