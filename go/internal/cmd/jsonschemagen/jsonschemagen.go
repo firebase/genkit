@@ -43,11 +43,11 @@ var (
 	noFormat   = flag.Bool("nofmt", false, "do not format output")
 	configFile = flag.String("config", "", "config filename")
 
-	// fieldOmitEmptyConfig maps schemas (e.g., "ModelResponseChunk") to fields (e.g., "index")
-	// that should *not* receive the `omitempty` JSON tag.
+	// fieldOmitEmptyTag maps schemas (e.g., "ModelResponseChunk") to fields (e.g., "index")
+	// that should not receive the `omitempty` JSON tag.
 	fieldOmitEmptyTag = map[string]map[string]struct{}{
 		"ModelResponseChunk": {
-			"index": {},
+			"index": {}, // fields should be as defined in core/schemas.config
 		},
 	}
 )
