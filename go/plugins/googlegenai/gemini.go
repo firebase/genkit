@@ -310,7 +310,7 @@ func generate(
 			err = cb(ctx, &ai.ModelResponseChunk{
 				Content: tc.Message.Content,
 				Role:    ai.RoleModel,
-				Index:   &index,
+				Index:   index,
 			})
 			if err != nil {
 				return nil, err

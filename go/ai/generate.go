@@ -234,11 +234,10 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 	opts = resumeOutput.revisedRequest
 
 	if resumeOutput.toolMessage != nil && cb != nil {
-		idx := 0
 		err := cb(ctx, &ModelResponseChunk{
 			Content: resumeOutput.toolMessage.Content,
 			Role:    RoleTool,
-			Index:   &idx,
+			Index:   0,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("streaming callback failed for resumed tool message: %w", err)
@@ -341,7 +340,7 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 						currentIndex++
 						currentRole = chunk.Role
 					}
-					chunk.Index = &currentIndex
+					chunk.Index = currentIndex
 					if chunk.Role == "" {
 						chunk.Role = RoleModel
 					}
@@ -708,11 +707,10 @@ func handleToolRequests(ctx context.Context, r api.Registry, req *ModelRequest, 
 	toolMsg.Content = toolResps
 
 	if cb != nil {
-		idx := messageIndex + 1
 		err := cb(ctx, &ModelResponseChunk{
 			Content: toolMsg.Content,
 			Role:    RoleTool,
-			Index:   &idx,
+			Index:   messageIndex + 1,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("streaming callback failed: %w", err)
