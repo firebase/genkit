@@ -18,7 +18,9 @@ import * as assert from 'assert';
 import { GenkitError, embedderRef, modelRef } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { describe, it } from 'node:test';
+import { GenerateContentResponse } from '../../src/common/types.js';
 import {
+  aggregateResponses,
   checkModelName,
   checkSupportedMimeType,
   cleanSchema,
@@ -506,6 +508,128 @@ describe('Common Utils', () => {
       };
       const cleaned = cleanSchema(schema);
       assert.deepStrictEqual(cleaned, schema);
+    });
+  });
+
+  describe('aggregateResponses', () => {
+    it('should aggregate streaming function call parts', () => {
+      const responses: GenerateContentResponse[] = [
+        {
+          candidates: [
+            {
+              index: 0,
+              content: {
+                role: 'model',
+                parts: [
+                  {
+                    functionCall: {
+                      name: 'findFlights',
+                      id: '1234',
+                      willContinue: true,
+                    },
+                    thoughtSignature: 'thoughtSignature1234',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          candidates: [
+            {
+              index: 0,
+              content: {
+                role: 'model',
+                parts: [
+                  {
+                    functionCall: {
+                      willContinue: true,
+                      partialArgs: [
+                        {
+                          jsonPath: '$.flights[0].departure_airport',
+                          stringValue: 'SFO',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          candidates: [
+            {
+              index: 0,
+              content: {
+                role: 'model',
+                parts: [
+                  {
+                    functionCall: {
+                      willContinue: true,
+                      partialArgs: [
+                        {
+                          jsonPath: '$.flights[0].arrival_airport',
+                          stringValue: 'JFK',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          candidates: [
+            {
+              index: 0,
+              content: {
+                role: 'model',
+                parts: [
+                  {
+                    functionCall: {
+                      name: 'findFlights',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ];
+
+      const aggregated = aggregateResponses(responses);
+
+      const expected = {
+        candidates: [
+          {
+            index: 0,
+            content: {
+              role: 'model',
+              parts: [
+                {
+                  functionCall: {
+                    name: 'findFlights',
+                    id: '1234',
+                    args: {
+                      flights: [
+                        {
+                          departure_airport: 'SFO',
+                          arrival_airport: 'JFK',
+                        },
+                      ],
+                    },
+                  },
+                  thoughtSignature: 'thoughtSignature1234',
+                },
+              ],
+            },
+          },
+        ],
+      };
+
+      assert.deepStrictEqual(aggregated, expected);
     });
   });
 });

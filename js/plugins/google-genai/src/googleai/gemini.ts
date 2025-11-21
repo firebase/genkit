@@ -16,6 +16,7 @@
 
 import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
+  CandidateData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
@@ -424,7 +425,7 @@ const KNOWN_MODELS = {
   ...KNOWN_GEMMA_MODELS,
 };
 
-export function model(
+export function googleaiModelRef(
   version: string,
   config: GeminiConfig | GeminiTtsConfig | GemmaConfig = {}
 ): ModelReference<ConfigSchemaType> {
@@ -465,7 +466,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const ref = model(m.name);
+        const ref = googleaiModelRef(m.name);
         return modelActionMetadata({
           name: ref.name,
           info: ref.info,
@@ -489,7 +490,7 @@ export function defineModel(
   pluginOptions?: GoogleAIPluginOptions
 ): ModelAction {
   checkApiKey(pluginOptions?.apiKey);
-  const ref = model(name);
+  const ref = googleaiModelRef(name);
   const clientOptions: ClientOptions = {
     apiVersion: pluginOptions?.apiVersion,
     baseUrl: pluginOptions?.baseUrl,
@@ -661,10 +662,11 @@ export function defineModel(
             generateContentRequest,
             clientOpt
           );
-
+          const chunks: CandidateData[] = [];
           for await (const item of result.stream) {
             item.candidates?.forEach((candidate) => {
-              const c = fromGeminiCandidate(candidate);
+              const c = fromGeminiCandidate(candidate, chunks);
+              chunks.push(c);
               sendChunk({
                 index: c.index,
                 content: c.message.content,
@@ -692,7 +694,8 @@ export function defineModel(
           });
         }
 
-        const candidateData = candidates.map(fromGeminiCandidate) || [];
+        const candidateData =
+          candidates.map((c) => fromGeminiCandidate(c)) || [];
 
         return {
           candidates: candidateData,

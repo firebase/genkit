@@ -164,7 +164,7 @@ export const googleAI = googleAIPlugin as GoogleAIPlugin;
     return imagen.model(name, config);
   }
   // gemma, tts, gemini and unknown model families.
-  return gemini.model(name, config);
+  return gemini.googleaiModelRef(name, config);
 };
 googleAI.embedder = (
   name: string,
