@@ -15,17 +15,17 @@
  */
 
 import { OperationSchema, z } from '@genkit-ai/core';
+import { DocumentDataSchema } from './document.js';
 import {
   CustomPartSchema,
   DataPartSchema,
-  DocumentDataSchema,
   MediaPartSchema,
   ReasoningPartSchema,
   ResourcePartSchema,
   TextPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
-} from './document.js';
+} from './parts.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
