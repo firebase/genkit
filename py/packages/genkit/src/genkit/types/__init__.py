@@ -32,6 +32,9 @@ from genkit.core.typing import (
     Embedding,
     EmbedRequest,
     EmbedResponse,
+    EmbedderOptions,
+    EmbedderRef,
+    EmbedderSupports,
     EvalFnResponse,
     EvalRequest,
     EvalResponse,
@@ -108,4 +111,7 @@ __all__ = [
     ToolRequestPart.__name__,
     ToolResponse.__name__,
     ToolResponsePart.__name__,
+    EmbedderOptions.__name__,
+    EmbedderRef.__name__,
+    EmbedderSupports.__name__,
 ]
