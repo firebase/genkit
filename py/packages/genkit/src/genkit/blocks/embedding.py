@@ -22,33 +22,16 @@ from typing import Any
 from genkit.ai import ActionKind
 from genkit.core.action import ActionMetadata
 from genkit.core.schema import to_json_schema
-from genkit.core.typing import EmbedRequest, EmbedResponse, EmbedderOptions, EmbedderRef, EmbedderSupports,EmbedderFn
+from genkit.core.typing import EmbedRequest, EmbedResponse, EmbedderOptions, EmbedderRef, EmbedderSupports
 from pydantic import BaseModel
-# type EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
-# EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
 
+EmbedderFn = Callable[[EmbedRequest], EmbedResponse]
 
-# def embedder_action_metadata(
-#     name: str,
-#     info: dict[str, Any] | None = None,
-#     config_schema: Any | None = None,
-# ) -> ActionMetadata:
-#     """Generates an ActionMetadata for embedders."""
-#     info = info if info is not None else {}
-#     return ActionMetadata(
-#         kind=ActionKind.EMBEDDER,
-#         name=name,
-#         input_json_schema=to_json_schema(EmbedRequest),
-#         output_json_schema=to_json_schema(EmbedResponse),
-#         metadata={'embedder': {**info, 'customOptions': to_json_schema(config_schema) if config_schema else None}},
-#     )
 
 def embedder_action_metadata(
     name: str,
-    #info: dict[str, Any] | None = None,
     options: EmbedderOptions | None = None,
 ) -> ActionMetadata:
-
     options = options if options is not None else EmbedderOptions()
     embedder_metadata_dict = {'embedder': {}}
 
@@ -60,7 +43,9 @@ def embedder_action_metadata(
     if options.supports:
         embedder_metadata_dict['embedder']['supports'] = options.supports.model_dump(exclude_none=True, by_alias=True)
 
-    embedder_metadata_dict['embedder']['customOptions'] = to_json_schema(options.config_schema) if options.config_schema else None
+    embedder_metadata_dict['embedder']['customOptions'] = (
+        to_json_schema(options.config_schema) if options.config_schema else None
+    )
 
     return ActionMetadata(
         kind=ActionKind.EMBEDDER,
@@ -68,10 +53,9 @@ def embedder_action_metadata(
         input_json_schema=to_json_schema(EmbedRequest),
         output_json_schema=to_json_schema(EmbedResponse),
         metadata=embedder_metadata_dict,
-
     )
 
-# New helper function
+
 def create_embedder_ref(name: str, config: dict[str, Any] | None = None, version: str | None = None) -> EmbedderRef:
     """Creates an EmbedderRef instance."""
     return EmbedderRef(name=name, config=config, version=version)

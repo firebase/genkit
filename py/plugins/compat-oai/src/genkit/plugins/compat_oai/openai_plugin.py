@@ -196,7 +196,7 @@ class OpenAI(Plugin):
                             config_schema=to_json_schema(Embedding),
                             label=f'OpenAI Embedding - {_name}',
                             supports=EmbedderSupports(input=['text']),
-                        )
+                        ),
                     )
                 )
             else:

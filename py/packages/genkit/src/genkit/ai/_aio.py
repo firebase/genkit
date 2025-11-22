@@ -338,11 +338,10 @@ class Genkit(GenkitBase):
 
     async def embed(
         self,
-        embedder: str | EmbedderRef | None = None, # Allow EmbedderRef
+        embedder: str | EmbedderRef | None = None,
         documents: list[Document] | None = None,
         options: dict[str, Any] | None = None,
     ) -> EmbedResponse:
-
         embedder_name: str
         embedder_config: dict[str, Any] = {}
 
@@ -350,12 +349,12 @@ class Genkit(GenkitBase):
             embedder_name = embedder.name
             embedder_config = embedder.config or {}
             if embedder.version:
-                embedder_config['version'] = embedder.version # Handle version from ref
+                embedder_config['version'] = embedder.version  # Handle version from ref
         elif isinstance(embedder, str):
             embedder_name = embedder
         else:
             # Handle case where embedder is None
-            raise ValueError("Embedder must be specified as a string name or an EmbedderRef.")
+            raise ValueError('Embedder must be specified as a string name or an EmbedderRef.')
 
         # Merge options passed to embed() with config from EmbedderRef
         final_options = {**(embedder_config or {}), **(options or {})}

@@ -18,7 +18,15 @@
 
 from genkit.blocks.embedding import embedder_action_metadata, create_embedder_ref
 from genkit.core.action import ActionMetadata, Action
-from genkit.core.typing import EmbedderOptions, EmbedderSupports, EmbedderRef, EmbedRequest, EmbedResponse, Embedding, Part
+from genkit.core.typing import (
+    EmbedderOptions,
+    EmbedderSupports,
+    EmbedderRef,
+    EmbedRequest,
+    EmbedResponse,
+    Embedding,
+    Part,
+)
 from genkit.blocks.document import Document
 from genkit.core.schema import to_json_schema
 from genkit.core.action.types import ActionResponse
@@ -28,25 +36,16 @@ from genkit.ai._aio import Genkit
 from pydantic import BaseModel
 
 
-# def test_embedder_action_metadata():
-#     """Test for embedder_action_metadata."""
-#     action_metadata = embedder_action_metadata(
-#         name='test_model',
-#         info={'label': 'test_label'},
-#         config_schema=None,
-#     )
-#
-#     assert isinstance(action_metadata, ActionMetadata)
-#     assert action_metadata.input_json_schema is not None
-#     assert action_metadata.output_json_schema is not None
-#     assert action_metadata.metadata == {'embedder': {'customOptions': None, 'label': 'test_label'}}
-
 def test_embedder_action_metadata():
     """Test for embedder_action_metadata with basic options."""
     options = EmbedderOptions(label='Test Embedder', dimensions=128)
     action_metadata = embedder_action_metadata(
         name='test_model',
-        options=options,
+        info={
+            'label': options.label.root,
+            'dimensions': options.dimensions.root,
+        },
+        config_schema=None,
     )
 
     assert isinstance(action_metadata, ActionMetadata)
@@ -54,14 +53,16 @@ def test_embedder_action_metadata():
     assert action_metadata.output_json_schema is not None
     assert action_metadata.metadata == {
         'embedder': {
-            'label': 'Test Embedder',
-            'dimensions': 128,
+            'label': options.label.root,
+            'dimensions': options.dimensions.root,
             'customOptions': None,
         }
     }
 
+
 def test_embedder_action_metadata_with_supports_and_config_schema():
     """Test for embedder_action_metadata with supports and config_schema."""
+
     class CustomConfig(BaseModel):
         param1: str
         param2: int
@@ -70,7 +71,7 @@ def test_embedder_action_metadata_with_supports_and_config_schema():
         label='Advanced Embedder',
         dimensions=256,
         supports=EmbedderSupports(input=['text', 'image'], multilingual=True),
-        config_schema=to_json_schema(CustomConfig) # Pass the JSON schema directly
+        config_schema=to_json_schema(CustomConfig),
     )
     action_metadata = embedder_action_metadata(
         name='advanced_model',
@@ -79,7 +80,7 @@ def test_embedder_action_metadata_with_supports_and_config_schema():
 
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata['embedder']['label'] == 'Advanced Embedder'
-    assert action_metadata.metadata['embedder']['dimensions'] == 256
+    assert action_metadata.metadata['embedder']['dimensions'] == options.label.root
     assert action_metadata.metadata['embedder']['supports'] == {
         'input': ['text', 'image'],
         'multilingual': True,
@@ -94,11 +95,13 @@ def test_embedder_action_metadata_with_supports_and_config_schema():
         'required': ['param1', 'param2'],
     }
 
+
 def test_embedder_action_metadata_no_options():
     """Test embedder_action_metadata when no options are provided."""
     action_metadata = embedder_action_metadata(name='default_model')
     assert isinstance(action_metadata, ActionMetadata)
     assert action_metadata.metadata == {'embedder': {'customOptions': None, 'dimensions': None}}
+
 
 def test_create_embedder_ref_basic():
     """Test basic creation of EmbedderRef."""
@@ -106,6 +109,7 @@ def test_create_embedder_ref_basic():
     assert ref.name == 'my-embedder'
     assert ref.config is None
     assert ref.version is None
+
 
 def test_create_embedder_ref_with_config():
     """Test creation of EmbedderRef with configuration."""
@@ -115,12 +119,14 @@ def test_create_embedder_ref_with_config():
     assert ref.config == config
     assert ref.version is None
 
+
 def test_create_embedder_ref_with_version():
     """Test creation of EmbedderRef with a version."""
     ref = create_embedder_ref('versioned-embedder', version='v1.0')
     assert ref.name == 'versioned-embedder'
     assert ref.config is None
     assert ref.version == 'v1.0'
+
 
 def test_create_embedder_ref_with_config_and_version():
     """Test creation of EmbedderRef with both config and version."""
@@ -130,8 +136,10 @@ def test_create_embedder_ref_with_config_and_version():
     assert ref.config == config
     assert ref.version == 'beta'
 
+
 class MockGenkitRegistry:
     """A mock registry to simulate action lookup."""
+
     def __init__(self):
         self.actions = {}
 
@@ -145,7 +153,7 @@ class MockGenkitRegistry:
         async def mock_arun_side_effect(request, *args, **kwargs):
             # Call the actual (fake) embedder function directly
             embed_response = await fn(request)
-            return ActionResponse(response=embed_response, trace_id="mock_trace_id")
+            return ActionResponse(response=embed_response, trace_id='mock_trace_id')
 
         mock_action.arun = AsyncMock(side_effect=mock_arun_side_effect)
         self.actions[(kind, name)] = mock_action
@@ -154,20 +162,21 @@ class MockGenkitRegistry:
     def lookup_action(self, kind, name):
         return self.actions.get((kind, name))
 
+
 @pytest.fixture
 def mock_genkit_instance():
     """Fixture for a Genkit instance with a mock registry."""
     registry = MockGenkitRegistry()
-    genkit_instance = Genkit()  # Create Genkit instance without registry argument
-    genkit_instance.registry = registry  # Assign the mock registry to the instance
+    genkit_instance = Genkit()
+    genkit_instance.registry = registry
     return genkit_instance, registry
+
 
 @pytest.mark.asyncio
 async def test_embed_with_embedder_ref(mock_genkit_instance):
     """Test the embed method using EmbedderRef."""
     genkit_instance, registry = mock_genkit_instance
 
-    # Define an embedder in the mock registry
     async def fake_embedder_fn(request: EmbedRequest) -> EmbedResponse:
         return EmbedResponse(embeddings=[Embedding(embedding=[1.0, 2.0, 3.0])])
 
@@ -175,41 +184,30 @@ async def test_embed_with_embedder_ref(mock_genkit_instance):
         label='Fake Embedder',
         dimensions=3,
         supports=EmbedderSupports(input=['text']),
-        config_schema={'type': 'object', 'properties': {'param': {'type': 'string'}}}
+        config_schema={'type': 'object', 'properties': {'param': {'type': 'string'}}},
     )
     registry.register_action(
         name='my-plugin/my-embedder',
         kind='embedder',
         fn=fake_embedder_fn,
         metadata=embedder_action_metadata('my-plugin/my-embedder', options=embedder_options).metadata,
-        description='A fake embedder for testing'
+        description='A fake embedder for testing',
     )
 
-    # Create an EmbedderRef
-    embedder_ref = create_embedder_ref(
-        'my-plugin/my-embedder',
-        config={'param': 'value'},
-        version='v1'
-    )
+    embedder_ref = create_embedder_ref('my-plugin/my-embedder', config={'param': 'value'}, version='v1')
 
     documents = [Document.from_text('hello world')]
 
-    # Call the embed method
     response = await genkit_instance.embed(
-        embedder=embedder_ref,
-        documents=documents,
-        options={'additional_option': True}
+        embedder=embedder_ref, documents=documents, options={'additional_option': True}
     )
 
-    # Assertions
     assert response.embeddings[0].embedding == [1.0, 2.0, 3.0]
 
-    # Verify that lookup_action was called correctly
     embed_action = registry.lookup_action('embedder', 'my-plugin/my-embedder')
     assert embed_action is not None
     embed_action.arun.assert_called_once()
 
-    # Get the EmbedRequest passed to the mock action
     called_request = embed_action.arun.call_args[0][0]
     assert isinstance(called_request, EmbedRequest)
     assert called_request.input == documents
@@ -231,15 +229,13 @@ async def test_embed_with_string_name_and_options(mock_genkit_instance):
         kind='embedder',
         fn=fake_embedder_fn,
         metadata=embedder_action_metadata('another-embedder', options=embedder_options).metadata,
-        description='Another fake embedder'
+        description='Another fake embedder',
     )
 
     documents = [Document.from_text('test text')]
 
     response = await genkit_instance.embed(
-        embedder='another-embedder',
-        documents=documents,
-        options={'custom_setting': 'high'}
+        embedder='another-embedder', documents=documents, options={'custom_setting': 'high'}
     )
 
     assert response.embeddings[0].embedding == [4.0, 5.0, 6.0]
@@ -247,11 +243,12 @@ async def test_embed_with_string_name_and_options(mock_genkit_instance):
     called_request = embed_action.arun.call_args[0][0]
     assert called_request.options == {'custom_setting': 'high'}
 
+
 @pytest.mark.asyncio
 async def test_embed_missing_embedder_raises_error(mock_genkit_instance):
     """Test that embedding with a missing embedder raises an error."""
     genkit_instance, _ = mock_genkit_instance
     documents = [Document.from_text('some text')]
 
-    with pytest.raises(ValueError, match="Embedder must be specified as a string name or an EmbedderRef."):
+    with pytest.raises(ValueError, match='Embedder must be specified as a string name or an EmbedderRef.'):
         await genkit_instance.embed(documents=documents)

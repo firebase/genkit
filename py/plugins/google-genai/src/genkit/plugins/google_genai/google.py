@@ -254,7 +254,7 @@ class GoogleAI(Plugin):
                             supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
                             dimensions=embed_info.get('dimensions'),
                             config_schema=to_json_schema(EmbedContentConfig),
-                        )
+                        ),
                     )
                 )
 
@@ -446,7 +446,7 @@ class VertexAI(Plugin):
                             supports=EmbedderSupports(input=embed_info.get('supports', {}).get('input')),
                             dimensions=embed_info.get('dimensions'),
                             config_schema=to_json_schema(EmbedContentConfig),
-                        )
+                        ),
                     )
                 )
             # List all the vertexai models for generate actions
@@ -483,23 +483,3 @@ def _inject_attribution_headers(http_options: HttpOptions | dict | None = None):
         http_options.headers['user-agent'] += f' {GENKIT_CLIENT_HEADER}'
 
     return http_options
-if __name__ == '__main__':
-    print("--- Debugging default_embedder_info ---")
-
-    test_name_2 = 'model3_embedder'
-    print(f"\nCalling default_embedder_info for '{test_name_2}':")
-    info_2 = default_embedder_info(test_name_2)
-    print(f"Result for '{test_name_2}': {info_2}")
-
-    # You can also iterate through known embedder names
-    print("\n--- All Vertex AI Embedders ---")
-    for name in VertexEmbeddingModels:
-        info = default_embedder_info(name)
-        print(f"'{name}': {info}")
-
-    print("\n--- All Google AI Embedders ---")
-    for name in GeminiEmbeddingModels:
-        info = default_embedder_info(name)
-        print(f"'{name}': {info}")
-
-    print("\n--- Debugging complete ---")

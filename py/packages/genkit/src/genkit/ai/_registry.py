@@ -72,7 +72,6 @@ from genkit.core.typing import (
     SpanMetadata,
     ToolChoice,
     EmbedderOptions,
-    EmbedderFn,
 )
 
 EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName'
@@ -478,12 +477,12 @@ class GenkitRegistry:
             if options.dimensions:
                 embedder_metadata['embedder']['dimensions'] = options.dimensions
             if options.supports:
-                embedder_metadata['embedder']['supports'] = options.supports.model_dump(exclude_none=True,
-                                                                                        by_alias=True)
+                embedder_metadata['embedder']['supports'] = options.supports.model_dump(
+                    exclude_none=True, by_alias=True
+                )
             if options.config_schema:
                 embedder_metadata['embedder']['customOptions'] = to_json_schema(options.config_schema)
 
-        # Fallback to default if 'embedder' key doesn't exist
         if 'embedder' not in embedder_metadata:
             embedder_metadata['embedder'] = {}
 

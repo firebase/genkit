@@ -262,7 +262,29 @@ else: # noqa
     ]
     cleaned_content = '\n'.join(filtered_lines)
 
+    # Inject EmbedderFn type alias after imports
+    embedder_fn_injection = """
+# EmbedderFn type alias for embedder functions
+from typing import Callable, Awaitable
+
+EmbedderFn = Callable[['EmbedRequest'], Awaitable['EmbedResponse']]
+"""
+
     final_output = header_text + future_import + '\n' + str_enum_block + '\n\n' + cleaned_content
+
+    # Insert EmbedderFn after the typing imports but before class definitions
+    # Find the position after "from pydantic import" and "from typing import"
+    lines = final_output.split('\n')
+    insert_index = -1
+    for i, line in enumerate(lines):
+        if line.startswith('from pydantic import'):
+            insert_index = i + 1
+            break
+
+    if insert_index > 0:
+        lines.insert(insert_index, embedder_fn_injection)
+        final_output = '\n'.join(lines)
+
     if not final_output.endswith('\n'):
         final_output += '\n'
     return final_output

@@ -697,7 +697,8 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
             options=EmbedderOptions(
                 label=default_embedder_info('model2_embeddings').get('label'),
                 supports=EmbedderSupports(
-                    input=default_embedder_info('model2_embeddings').get('supports', {}).get('input')),
+                    input=default_embedder_info('model2_embeddings').get('supports', {}).get('input')
+                ),
                 dimensions=default_embedder_info('model2_embeddings').get('dimensions'),
                 config_schema=to_json_schema(EmbedContentConfig),
             ),
@@ -712,7 +713,8 @@ def test_vertexai_list_actions(vertexai_plugin_instance):
             options=EmbedderOptions(
                 label=default_embedder_info('model3_embedder').get('label'),
                 supports=EmbedderSupports(
-                    input=default_embedder_info('model3_embedder').get('supports', {}).get('input')),
+                    input=default_embedder_info('model3_embedder').get('supports', {}).get('input')
+                ),
                 dimensions=default_embedder_info('model3_embedder').get('dimensions'),
                 config_schema=to_json_schema(EmbedContentConfig),
             ),

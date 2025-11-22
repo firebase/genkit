@@ -33,9 +33,13 @@ else:  # noqa
     from enum import StrEnum  # noqa
 
 
-from typing import Any, Awaitable, Callable, Protocol, TypeVar
+# EmbedderFn type alias for embedder functions
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
+
+EmbedderFn = Callable[['EmbedRequest'], Awaitable['EmbedResponse']]
 
 
 class Model(RootModel[Any]):
@@ -90,6 +94,15 @@ class ToolResponse(BaseModel):
     ref: str | None = None
     name: str
     output: Any | None = None
+
+
+class EmbedderSupports(BaseModel):
+    """Model for embeddersupports data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    input: list[str] | None = None
+    multiturn: bool | None = None
+    multilingual: bool | None = None
 
 
 class Embedding(BaseModel):
@@ -715,6 +728,35 @@ class EmbedResponse(BaseModel):
     embeddings: list[Embedding]
 
 
+class EmbedderInfo(BaseModel):
+    """Model for embedderinfo data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    label: str | None = None
+    dimensions: float | None = None
+    supports: EmbedderSupports | None = None
+
+
+class EmbedderOptions(BaseModel):
+    """Model for embedderoptions data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    label: str | None = None
+    dimensions: float | None = None
+    supports: EmbedderSupports | None = None
+    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
+
+
+class EmbedderRef(BaseModel):
+    """Model for embedderref data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: str
+    info: EmbedderInfo | None = None
+    config: Any | None = None
+    version: str | None = None
+
+
 class BaseEvalDataPoint(BaseModel):
     """Model for baseevaldatapoint data."""
 
@@ -1013,47 +1055,3 @@ class ModelResponse(BaseModel):
     raw: Raw | None = None
     request: Request | None = None
     operation: Operation | None = None
-
-T = TypeVar('T')
-P = TypeVar('P')
-
-class EmbedderFn(Protocol[T, P]):
-    """Protocol for embedder function."""
-
-    def __call__(
-        self,
-        request: EmbedRequest,
-        options: dict[str, Any] | None = None,
-    ) -> Awaitable[EmbedResponse]:
-        """Embeds a list of documents.
-
-        Args:
-            request: The embed request.
-            options: Configuration options for the embedder.
-
-        Returns:
-            The embed response.
-        """
-        ...
-
-class EmbedderRef(BaseModel):
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    name: str
-    config: dict[str, Any] | None = None
-    version: str | None = None
-
-class EmbedderSupports(BaseModel):
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    input: list[str] | None = None
-    multilingual: bool | None = None
-
-class EmbedderOptions(BaseModel):
-
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    dimensions: int | None = None
-    label: str | None = None
-    supports: EmbedderSupports | None = None
-    config_schema: dict[str, Any] | None = Field(None, alias='configSchema')
-

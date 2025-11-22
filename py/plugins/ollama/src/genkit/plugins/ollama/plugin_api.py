@@ -240,7 +240,7 @@ class Ollama(Plugin):
                             config_schema=to_json_schema(ollama_api.Options),
                             label=f'Ollama Embedding - {_name}',
                             supports=EmbedderSupports(input=['text']),
-                        )
+                        ),
                     )
                 )
             else:
