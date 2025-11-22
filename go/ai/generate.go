@@ -300,6 +300,11 @@ func GenerateWithRequest(ctx context.Context, r api.Registry, opts *GenerateActi
 			// This is optional to make the output config internally consistent.
 			outputCfg.Schema = nil
 		}
+
+		// Handle output format parsing for chunks
+		if cb != nil {
+			cb = formatHandler.StreamCallback(cb)
+		}
 	}
 
 	req := &ModelRequest{

@@ -363,7 +363,7 @@ func TestGenerate(t *testing.T) {
 	bananaModel := DefineModel(r, "test/banana", &metadata, func(ctx context.Context, gr *ModelRequest, msc ModelStreamCallback) (*ModelResponse, error) {
 		if msc != nil {
 			msc(ctx, &ModelResponseChunk{
-				Content: []*Part{NewTextPart("stream!")},
+				Content: []*Part{NewJSONPart(JSON)},
 			})
 		}
 
@@ -375,7 +375,7 @@ func TestGenerate(t *testing.T) {
 
 	t.Run("constructs request", func(t *testing.T) {
 		wantText := JSON
-		wantStreamText := "stream!"
+		wantStreamText := "{\"subject\": \"bananas\", \"location\": \"tropics\"}"
 		wantRequest := &ModelRequest{
 			Messages: []*Message{
 				{
