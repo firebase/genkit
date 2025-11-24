@@ -126,14 +126,12 @@ export async function resolveToolRequest(
       const multipartResponse = output as z.infer<
         typeof MultipartToolResponseSchema
       >;
-      const strategy = multipartResponse.fallbackOutput ? 'fallback' : 'both';
       const response = stripUndefinedProps({
         toolResponse: {
           name: part.toolRequest.name,
           ref: part.toolRequest.ref,
-          output: multipartResponse.output || multipartResponse.fallbackOutput,
+          output: multipartResponse.output,
           content: multipartResponse.content,
-          payloadStrategy: strategy,
         } as ToolResponse,
       });
 

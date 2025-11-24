@@ -300,7 +300,6 @@ export type MultipartToolFn<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
   ctx: ToolFnOptions & ToolRunOptions
 ) => Promise<{
   output?: z.infer<O>;
-  fallbackOutput?: z.infer<O>;
   content?: Part[];
 }>;
 
@@ -527,7 +526,6 @@ function basicToolV2<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 
 export const MultipartToolResponseSchema = z.object({
   output: z.any().optional(),
-  fallbackOutput: z.any().optional(),
   content: z.array(PartSchema).optional(),
 });
 

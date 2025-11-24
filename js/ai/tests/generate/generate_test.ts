@@ -681,7 +681,6 @@ describe('generate', () => {
                   text: 'part 1',
                 },
               ],
-              payloadStrategy: 'both',
             },
           },
         ],
@@ -707,7 +706,7 @@ describe('generate', () => {
       },
       async () => {
         return {
-          fallbackOutput: 'fallback output',
+          output: 'fallback output',
           content: [{ text: 'part 1' }],
         };
       }
@@ -775,7 +774,6 @@ describe('generate', () => {
                   text: 'part 1',
                 },
               ],
-              payloadStrategy: 'fallback',
             },
           },
         ],

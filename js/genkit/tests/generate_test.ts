@@ -860,7 +860,6 @@ describe('generate', () => {
             ref: 'ref123',
             output: 'tool called',
             content: [{ text: 'part 1' }],
-            payloadStrategy: 'both',
           },
         },
       ]);

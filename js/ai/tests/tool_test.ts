@@ -135,14 +135,12 @@ describe('defineInterrupt', () => {
         { name: 'test', description: 'test', multipart: true },
         async () => {
           return {
-            fallbackOutput: 'fallback',
             content: [{ text: 'part 1' }],
           };
         }
       );
       const result = await t({});
       assert.deepStrictEqual(result, {
-        fallbackOutput: 'fallback',
         content: [{ text: 'part 1' }],
       });
     });
