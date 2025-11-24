@@ -16,6 +16,7 @@
 
 import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
+  CandidateData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
@@ -252,6 +253,12 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
+      /**
+       * When set to true, arguments of a single function call will be streamed out in
+       * multiple parts/contents/responses. Partial parameter results will be returned in the
+       * [FunctionCall.partial_args] field. This field is not supported in Gemini API.
+       */
+      streamFunctionCallArguments: z.boolean().optional(),
     })
     .describe(
       'Controls how the model uses the provided tools (function declarations). ' +
@@ -399,7 +406,7 @@ export function isGeminiModelName(value?: string): value is GeminiModelName {
   return !!value?.startsWith('gemini-') && !value.includes('embedding');
 }
 
-export function model(
+export function vertexModelRef(
   version: string,
   options: GeminiConfig = {}
 ): ModelReference<typeof GeminiConfigSchema> {
@@ -430,7 +437,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
         !KNOWN_DECOMISSIONED_MODELS.includes(modelName(m.name) || '')
     )
     .map((m) => {
-      const ref = model(m.name);
+      const ref = vertexModelRef(m.name);
       return modelActionMetadata({
         name: ref.name,
         info: ref.info,
@@ -456,7 +463,7 @@ export function defineModel(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): ModelAction {
-  const ref = model(name);
+  const ref = vertexModelRef(name);
   const middlewares: ModelMiddleware[] = [];
   if (ref.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
@@ -536,6 +543,7 @@ export function defineModel(
       if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
+            ...functionCallingConfig,
             allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
             mode: toGeminiFunctionModeEnum(functionCallingConfig.mode),
           },
@@ -646,10 +654,12 @@ export function defineModel(
             clientOpt
           );
 
+          const chunks: CandidateData[] = [];
           for await (const item of result.stream) {
             (item as GenerateContentResponse).candidates?.forEach(
               (candidate) => {
-                const c = fromGeminiCandidate(candidate);
+                const c = fromGeminiCandidate(candidate, chunks);
+                chunks.push(c);
                 sendChunk({
                   index: c.index,
                   content: c.message.content,

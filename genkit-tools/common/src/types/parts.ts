@@ -86,6 +86,8 @@ export const ToolRequestSchema = z.object({
   name: z.string(),
   /** The input parameters for the tool, usually a JSON object. */
   input: z.unknown().optional(),
+  /** Whether the request is a partial chunk. */
+  partial: z.boolean().optional(),
 });
 
 /**
@@ -108,7 +110,6 @@ const ToolResponseSchemaBase = z.object({
   name: z.string(),
   /** The output data returned from the tool, usually a JSON object. */
   output: z.unknown().optional(),
-  payloadStrategy: z.enum(['both', 'fallback']).optional(), // default: both
 });
 
 /**

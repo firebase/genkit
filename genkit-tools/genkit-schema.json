@@ -1246,7 +1246,10 @@
         "name": {
           "type": "string"
         },
-        "input": {}
+        "input": {},
+        "partial": {
+          "type": "boolean"
+        }
       },
       "required": [
         "name"
@@ -1263,13 +1266,6 @@
           "type": "string"
         },
         "output": {},
-        "payloadStrategy": {
-          "type": "string",
-          "enum": [
-            "both",
-            "fallback"
-          ]
-        },
         "content": {
           "type": "array"
         }
