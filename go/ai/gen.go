@@ -391,8 +391,8 @@ type toolRequestPart struct {
 // the results of running a specific tool on the arguments passed to the client
 // by the model in a [ToolRequest].
 type ToolResponse struct {
-	Content []*Part `json:"content,omitempty"`
-	Name    string  `json:"name,omitempty"`
+	Content []any  `json:"content,omitempty"`
+	Name    string `json:"name,omitempty"`
 	// Output is a JSON object describing the results of running the tool.
 	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
 	Output any    `json:"output,omitempty"`
