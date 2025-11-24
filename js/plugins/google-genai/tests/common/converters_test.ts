@@ -1088,7 +1088,7 @@ describe('toGeminiFunctionModeEnum', () => {
   });
 });
 
-describe('applyStreamingJsonPath', () => {
+describe('applyGeminiPartialArgs', () => {
   const testCases = [
     {
       should: 'apply a simple string value',
