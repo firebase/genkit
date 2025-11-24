@@ -1006,7 +1006,7 @@ importers:
         specifier: workspace:*
         version: link:../../plugins/google-genai
       '@google/genai':
-        specifier: 1.30.0
+        specifier: ^1.30.0
         version: 1.30.0
       express:
         specifier: ^4.20.0

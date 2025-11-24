@@ -16,10 +16,10 @@
   "license": "ISC",
   "dependencies": {
     "genkit": "workspace:*",
-    "@google/genai": "1.30.0",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/google-genai": "workspace:*",
+    "@google/genai": "^1.30.0",
     "express": "^4.20.0",
     "node-fetch": "3.3.2",
     "wav": "^1.0.2"
