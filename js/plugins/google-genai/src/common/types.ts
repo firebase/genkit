@@ -305,9 +305,9 @@ export declare interface FunctionCall {
   name?: string;
   /** The arguments to pass to the function. */
   args?: object;
-  /** Optional. The partial argument value of the function call. If provided, represents the arguments/fields that are streamed incrementally. This field is not supported in Gemini API. */
+  /** Optional. The partial argument value of the function call. If provided, represents the arguments/fields that are streamed incrementally. */
   partialArgs?: PartialArg[];
-  /** Optional. Whether this is the last part of the FunctionCall. If true, another partial message for the current FunctionCall is expected to follow. This field is not supported in Gemini API. */
+  /** Optional. Whether this is the last part of the FunctionCall. If true, another partial message for the current FunctionCall is expected to follow. */
   willContinue?: boolean;
 }
 

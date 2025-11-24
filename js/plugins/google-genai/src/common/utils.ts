@@ -25,7 +25,7 @@ import {
   z,
 } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
-import { applyStreamingJsonPath } from './converters.js';
+import { applyGeminiPartialArgs } from './converters.js';
 import {
   GenerateContentCandidate,
   GenerateContentResponse,
@@ -427,7 +427,12 @@ function handleFunctionCall(
 } {
   // If there's an active partial tool request, we're in the middle of a stream.
   if (activePartialToolRequest) {
-    applyStreamingJsonPath(activePartialToolRequest.functionCall!.args!, part);
+    if (part.functionCall?.partialArgs) {
+      applyGeminiPartialArgs(
+        activePartialToolRequest.functionCall!.args!,
+        part.functionCall.partialArgs
+      );
+    }
     // If `willContinue` is false, this is the end of the stream.
     if (!part.functionCall!.willContinue) {
       newPart.thoughtSignature = activePartialToolRequest.thoughtSignature;
@@ -452,7 +457,12 @@ function handleFunctionCall(
         args: part.functionCall!.args || {},
       },
     };
-    applyStreamingJsonPath(activePartialToolRequest.functionCall!.args!, part);
+    if (part.functionCall?.partialArgs) {
+      applyGeminiPartialArgs(
+        activePartialToolRequest.functionCall!.args!,
+        part.functionCall.partialArgs
+      );
+    }
     // This is the start of a partial, so we skip adding it to the parts list.
     return {
       shouldContinue: true,
@@ -468,7 +478,7 @@ function handleFunctionCall(
   };
 }
 
-export function aggregateResponses(
+function aggregateResponses(
   responses: GenerateContentResponse[]
 ): GenerateContentResponse {
   const lastResponse = responses.at(-1);
@@ -604,3 +614,5 @@ export function getGenkitClientHeader() {
   }
   return defaultGetClientHeader();
 }
+
+export const TEST_ONLY = { aggregateResponses };

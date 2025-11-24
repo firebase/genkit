@@ -20,7 +20,7 @@ import { GenerateRequest } from 'genkit/model';
 import { describe, it } from 'node:test';
 import { GenerateContentResponse } from '../../src/common/types.js';
 import {
-  aggregateResponses,
+  TEST_ONLY,
   checkModelName,
   checkSupportedMimeType,
   cleanSchema,
@@ -32,6 +32,8 @@ import {
   extractVersion,
   modelName,
 } from '../../src/common/utils.js';
+
+const { aggregateResponses } = TEST_ONLY;
 
 describe('Common Utils', () => {
   describe('extractErrMsg', () => {
