@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"testing"
@@ -43,10 +42,7 @@ func TestAnthropicLive(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
 
 	t.Run("invalid model", func(t *testing.T) {
 		m := modelgarden.AnthropicModel(g, "claude-not-valid-v2")
@@ -100,14 +96,13 @@ func TestAnthropicLive(t *testing.T) {
 			ai.WithModel(m),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
+					ai.NewTextPart("do you know which animal is in the image?"),
 					ai.NewMediaPart("", "data:image/jpeg;base64,"+i))))
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		if !strings.Contains(resp.Text(), "donkey") {
-			t.Fatalf("it should've said donkey but got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("want: cat, got: %s", resp.Text())
 		}
 	})
 
@@ -209,7 +204,7 @@ func TestAnthropicLive(t *testing.T) {
 
 func fetchImgAsBase64() (string, error) {
 	// CC0 license image
-	imgUrl := "https://pd.w.org/2025/05/64268380a8c42af85.63713105-2048x1152.jpg"
+	imgUrl := "https://pd.w.org/2025/07/896686fbbcd9990c9.84605288-2048x1365.jpg"
 	resp, err := http.Get(imgUrl)
 	if err != nil {
 		return "", err

@@ -32,35 +32,47 @@ func main() {
 	oai := &oai.OpenAI{
 		APIKey: apiKey,
 	}
-	g, err := genkit.Init(ctx, genkit.WithPlugins(oai))
-	if err != nil {
-		log.Fatalf("failed to create Genkit: %v", err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(oai))
 
 	genkit.DefineFlow(g, "basic", func(ctx context.Context, subject string) (string, error) {
 		gpt4o := oai.Model(g, "gpt-4o")
 
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
 		config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5), MaxTokens: openai.Int(100)}
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithPrompt(prompt), ai.WithConfig(config))
+		resp, err := genkit.Generate(ctx, g, ai.WithModel(gpt4o), ai.WithPrompt(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("foo: %s", foo.Text()), nil
+		return fmt.Sprintf("resp: %s", resp.Text()), nil
 	})
 
 	genkit.DefineFlow(g, "defined-model", func(ctx context.Context, subject string) (string, error) {
 		gpt4oMini := oai.Model(g, "gpt-4o-mini")
-		if err != nil {
-			return "", err
-		}
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
 		config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5)}
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPrompt(prompt), ai.WithConfig(config))
+		resp, err := genkit.Generate(ctx, g, ai.WithModel(gpt4oMini), ai.WithPrompt(prompt), ai.WithConfig(config))
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("foo: %s", foo.Text()), nil
+		return resp.Text(), nil
+	})
+
+	genkit.DefineFlow(g, "media", func(ctx context.Context, subject string) (string, error) {
+		gpt4oMini := oai.Model(g, "gpt-4o-mini")
+		config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5)}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithModel(gpt4oMini),
+			ai.WithConfig(config),
+			ai.WithMessages(
+				ai.NewUserMessage(ai.NewTextPart("Hi, I'll provide you a quick request in the following message")),
+				ai.NewUserMessage(
+					ai.NewTextPart("can you tell me which animal is in the provided image?"),
+					ai.NewMediaPart("image/jpg", "https://pd.w.org/2025/07/58268765f177911d4.13750400-2048x1365.jpg"),
+				)))
+		if err != nil {
+			return "", err
+		}
+		return resp.Text(), nil
 	})
 
 	mux := http.NewServeMux()

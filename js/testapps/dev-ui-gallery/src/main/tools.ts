@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { gemini15Flash } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 import { z } from 'genkit';
 import { WeatherSchema } from '../common/types';
 import { ai } from '../genkit.js';
@@ -45,11 +45,40 @@ ai.defineTool(
   {
     name: 'getTime',
     description: 'Get the current time',
-    inputSchema: z.object({ timezone: z.string().optional() }),
+    inputSchema: z.object({
+      city: z.string().min(16),
+      state: z.string().optional(),
+      hours: z.number().multipleOf(12).min(12).max(24),
+      timezone: z.string().default('EST'),
+    }),
     outputSchema: z.object({ time: z.number() }),
   },
   async () => {
     return { time: Date.now() };
+  }
+);
+
+ai.defineTool(
+  {
+    name: 'getSomePreformattedText',
+    description: 'Gets some pre-formatted text to display on the UI.',
+    inputSchema: z.object({ message: z.string().optional() }),
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    return `Here is some pre-formatted text\n\n${input.message}\n\nWow, that's nice!`;
+  }
+);
+
+ai.defineTool(
+  {
+    name: 'getSomeMarkdown',
+    description: 'Gets some markdown formatted text to display on the UI.',
+    inputSchema: z.object({ message: z.string().optional() }),
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    return `# Rendering Markdown\nHere is some **markdown** text:\n${input.message}\nWow, that's nice!`;
   }
 );
 
@@ -64,7 +93,7 @@ const template = `
 
 export const weatherPrompt = ai.definePrompt({
   name: 'weatherPrompt',
-  model: gemini15Flash,
+  model: googleAI.model('gemini-2.5-flash'),
   input: {
     schema: WeatherSchema,
   },

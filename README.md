@@ -3,22 +3,22 @@
 
 [Genkit](https://genkit.dev) is an open-source framework for building full-stack AI-powered applications, built and used in production by Google's Firebase. It provides SDKs for multiple programming languages with varying levels of stability:
 
-- **JavaScript/TypeScript (Stable)**: Production-ready with full feature support
-- **Go (Beta)**: Feature-complete but may have breaking changes
+- **JavaScript/TypeScript**: Production-ready with full feature support
+- **Go**: Production-ready with full feature support
 - **Python (Alpha)**: Early development with core functionality
 
-It offers a unified interface for integrating AI models from providers like [Google](https://genkit.dev/docs/plugins/google-genai), [OpenAI](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-openai), [Anthropic](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic), [Ollama](https://genkit.dev/docs/plugins/ollama/), and more. Rapidly build and deploy production-ready chatbots, automations, and recommendation systems using streamlined APIs for multimodal content, structured outputs, tool calling, and agentic workflows.
+It offers a unified interface for integrating AI models from providers like [Google](https://genkit.dev/docs/plugins/google-genai), [OpenAI](https://genkit.dev/docs/plugins/openai), [Anthropic](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic), [Ollama](https://genkit.dev/docs/plugins/ollama/), and more. Rapidly build and deploy production-ready chatbots, automations, and recommendation systems using streamlined APIs for multimodal content, structured outputs, tool calling, and agentic workflows.
 
 Get started with just a few lines of code:
 
 ```ts
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const ai = genkit({ plugins: [googleAI()] });
 
 const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash'),
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: 'Why is Firebase awesome?'
 });
 ```
@@ -35,7 +35,7 @@ them, at no cost to you.
 <table>
   <tr>
     <td><strong>Broad AI model support</strong></td>
-    <td>Use a unified interface to integrate with hundreds of models from providers like <a href="https://genkit.dev/docs/plugins/google-genai">Google</a>, <a href="https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-openai">
+    <td>Use a unified interface to integrate with hundreds of models from providers like <a href="https://genkit.dev/docs/plugins/google-genai">Google</a>, <a href="https://genkit.dev/docs/plugins/openai">
     OpenAI</a>, <a href="https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic">
     Anthropic</a>, <a href="https://genkit.dev/docs/plugins/ollama">Ollama</a>, and more. Explore, compare, and use the best models for your needs.</td>
   </tr>
@@ -50,7 +50,7 @@ them, at no cost to you.
   </tr>
   <tr>
     <td><strong>Cross-language support</strong></td>
-    <td>Build with the language that best fits your project. Genkit provides SDKs for JavaScript/TypeScript (Stable), Go (Beta), and Python (Alpha) with consistent APIs and capabilities across all supported languages.</td>
+    <td>Build with the language that best fits your project. Genkit provides SDKs for JavaScript/TypeScript, Go, and Python (Alpha) with consistent APIs and capabilities across all supported languages.</td>
   </tr>
   <tr>
     <td><strong>Deploy anywhere</strong></td>
@@ -92,7 +92,7 @@ Genkit is designed for server-side deployment in multiple language environments,
 <tr>
   <td><span>1</span></td>
   <td>Choose your language and model provider</td>
-  <td>Select the Genkit SDK for your preferred language (JavaScript/TypeScript (Stable), Go (Beta), or Python (Alpha)). Choose a model provider like <a href="https://genkit.dev/docs/plugins/google-genai">Google Gemini</a> or Anthropic, and get an API key. Some providers, like <a href="https://genkit.dev/docs/plugins/vertex-ai">Vertex AI</a>, may rely on a different means of authentication.</td>
+  <td>Select the Genkit SDK for your preferred language (JavaScript/TypeScript, Go, or Python (Alpha)). Choose a model provider like <a href="https://genkit.dev/docs/plugins/google-genai">Google Gemini</a> or Anthropic, and get an API key. Some providers, like <a href="https://genkit.dev/docs/plugins/vertex-ai">Vertex AI</a>, may rely on a different means of authentication.</td>
 </tr>
 <tr>
   <td><span>2</span></td>
@@ -113,8 +113,8 @@ Genkit is designed for server-side deployment in multiple language environments,
 
 ## Get started
 
-- [JavaScript/TypeScript quickstart](https://genkit.dev/docs/get-started) (Stable)
-- [Go quickstart](https://genkit.dev/go/docs/get-started-go) (Beta)
+- [JavaScript/TypeScript quickstart](https://genkit.dev/docs/get-started)
+- [Go quickstart](https://genkit.dev/go/docs/get-started-go)
 - [Python quickstart](https://genkit.dev/python/docs/get-started/) (Alpha)
 
 ## Development tools
@@ -155,8 +155,12 @@ Want to skip the local setup? Click below to try out Genkit using [Firebase Stud
 
 - [**Join us on Discord**](https://discord.gg/qXt5zzQKpc) – Get help, share
 ideas, and chat with other developers.
-- [**Contribute on GitHub**](https://github.com/firebase/genkit/issues) – Report 
+- [**Contribute on GitHub**](https://github.com/firebase/genkit/issues) – Report
 bugs, suggest features, or explore the source code.
+- [**Contribute to Documentation and Samples**](https://github.com/genkit-ai/) – Report
+issues in Genkit's [documentation](https://github.com/genkit-ai/docsite), or contribute to the [samples](https://github.com/genkit-ai/samples).
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/firebase/genkit)
 
 ## Contributing
 
@@ -164,4 +168,4 @@ Contributions to Genkit are welcome and highly appreciated! See our [Contributio
 
 ## Authors
 
-Genkit is built by [Firebase](https://firebase.google.com/products/genkit) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).
+Genkit is built by [Firebase](https://firebase.google.com/) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).

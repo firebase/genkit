@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import googleAI from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { genkit, MediaPart, z } from 'genkit';
+import { MediaPart, genkit, z } from 'genkit';
 import { Readable } from 'stream';
 import wav from 'wav';
 
@@ -118,7 +118,7 @@ const getWeather = ai.defineTool(
           'Location for which to get the weather, ex: San-Francisco, CA'
         ),
     }),
-    description: 'can be used to calculate gablorken value',
+    description: 'used to get current weather for a location',
   },
   async (input) => {
     // pretend we call an actual API
@@ -127,6 +127,19 @@ const getWeather = ai.defineTool(
       temperature_celcius: 21.5,
       conditions: 'cloudy',
     };
+  }
+);
+
+const celsiusToFahrenheit = ai.defineTool(
+  {
+    name: 'celsiusToFahrenheit',
+    inputSchema: z.object({
+      celsius: z.number().describe('Temperature in Celsius'),
+    }),
+    description: 'Converts Celsius to Fahrenheit',
+  },
+  async ({ celsius }) => {
+    return (celsius * 9) / 5 + 32;
   }
 );
 
@@ -144,8 +157,8 @@ ai.defineFlow(
       config: {
         temperature: 1,
       },
-      tools: [getWeather],
-      prompt: `tell what's the weather in ${location} (in Fahrenheit)`,
+      tools: [getWeather, celsiusToFahrenheit],
+      prompt: `What's the weather in ${location}? Convert the temperature to Fahrenheit.`,
     });
 
     for await (const chunk of stream) {
@@ -181,7 +194,7 @@ ai.defineFlow(
     });
 
     for await (const chunk of stream) {
-      sendChunk(chunk);
+      sendChunk(chunk.output);
     }
 
     return (await response).output!;
@@ -205,11 +218,18 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   return message;
 });
 
-// Image generation with Gemini.
-ai.defineFlow('gemini-image-generation', async (_, { sendChunk }) => {
+// Image editing with Gemini.
+ai.defineFlow('gemini-image-editing', async (_) => {
+  const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
+  const room = fs.readFileSync('my_room.png', { encoding: 'base64' });
+
   const { media } = await ai.generate({
-    model: googleAI.model('gemini-2.0-flash-preview-image-generation'),
-    prompt: `generate an image of a banana riding bicycle`,
+    model: googleAI.model('gemini-2.5-flash-image-preview'),
+    prompt: [
+      { text: 'add the plant to my room' },
+      { media: { url: `data:image/png;base64,${plant}` } },
+      { media: { url: `data:image/png;base64,${room}` } },
+    ],
     config: {
       responseModalities: ['TEXT', 'IMAGE'],
     },
@@ -222,7 +242,7 @@ ai.defineFlow('gemini-image-generation', async (_, { sendChunk }) => {
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
     model: googleAI.model('imagen-3.0-generate-002'),
-    prompt: `generate an image of a banana riding bicycle`,
+    prompt: `generate an image of a banana riding a bicycle`,
   });
 
   return media;
@@ -235,11 +255,11 @@ ai.defineFlow(
     inputSchema: z
       .string()
       .default(
-        'say that Genkit (G pronounced as J) is an amazing Gen AI library'
+        'Gemini is amazing. Can say things like: glorg, blub-blub, and ayeeeeee!!!'
       ),
     outputSchema: z.object({ media: z.string() }),
   },
-  async (query) => {
+  async (prompt) => {
     const { media } = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
@@ -251,7 +271,7 @@ ai.defineFlow(
           },
         },
       },
-      prompt: query || 'cheerefully say: Gemini is amazing!',
+      prompt,
     });
     if (!media) {
       throw new Error('no media returned');
@@ -345,10 +365,18 @@ ai.defineFlow('photo-move-veo', async (_, { sendChunk }) => {
   return operation;
 });
 
+function getApiKeyFromEnvVar(): string | undefined {
+  return (
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY
+  );
+}
+
 async function downloadVideo(video: MediaPart, path: string) {
   const fetch = (await import('node-fetch')).default;
   const videoDownloadResponse = await fetch(
-    `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
+    `${video.media!.url}&key=${getApiKeyFromEnvVar()}`
   );
   if (
     !videoDownloadResponse ||

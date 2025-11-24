@@ -200,10 +200,12 @@ export function configurePineconeRetriever<
             return Document.fromData(
               metadata[contentKey] as string,
               metadata[CONTENT_TYPE] as string,
-              JSON.parse(metadata.docMetadata as string) as Record<
-                string,
-                unknown
-              >
+              metadata.docMetadata
+                ? (JSON.parse(metadata.docMetadata as string) as Record<
+                    string,
+                    unknown
+                  >)
+                : undefined
             );
           }),
       };

@@ -28,7 +28,6 @@ const (
 	gemini20FlashPrevImageGen    = "gemini-2.0-flash-preview-image-generation"
 
 	gemini25Flash             = "gemini-2.5-flash"
-	gemini25FlashPreview0417  = "gemini-2.5-flash-preview-04-17"
 	gemini25FlashLite         = "gemini-2.5-flash-lite"
 	gemini25FlashLitePrev0617 = "gemini-2.5-flash-lite-preview-06-17"
 
@@ -49,6 +48,9 @@ const (
 	textembeddinggeckomultilingual001 = "textembedding-gecko-multilingual@001"
 	textmultilingualembedding002      = "text-multilingual-embedding-002"
 	multimodalembedding               = "multimodalembedding"
+	veo20Generate001                  = "veo-2.0-generate-001"
+	veo30Generate001                  = "veo-3.0-generate-001"
+	veo30FastGenerate001              = "veo-3.0-fast-generate-001"
 )
 
 var (
@@ -66,7 +68,6 @@ var (
 		gemini25Flash,
 		gemini25FlashLite,
 		gemini25Pro,
-		gemini25FlashPreview0417,
 		gemini25FlashLitePrev0617,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
@@ -75,6 +76,10 @@ var (
 		imagen3Generate001,
 		imagen3Generate002,
 		imagen3FastGenerate001,
+
+		veo20Generate001,
+		veo30Generate001,
+		veo30FastGenerate001,
 	}
 
 	googleAIModels = []string{
@@ -90,21 +95,19 @@ var (
 		gemini25Flash,
 		gemini25FlashLite,
 		gemini25Pro,
-		gemini25FlashPreview0417,
 		gemini25FlashLitePrev0617,
 		gemini25ProExp0325,
 		gemini25ProPreview0325,
 		gemini25ProPreview0506,
 
 		imagen3Generate002,
+
+		veo20Generate001,
+		veo30Generate001,
+		veo30FastGenerate001,
 	}
 
-	// Gemini models with native image support generation
-	imageGenModels = []string{
-		gemini20FlashPrevImageGen,
-	}
-
-	supportedGeminiModels = map[string]ai.ModelInfo{
+	supportedGeminiModels = map[string]ai.ModelOptions{
 		gemini15Flash: {
 			Label: "Gemini 1.5 Flash",
 			Versions: []string{
@@ -192,12 +195,6 @@ var (
 			Supports: &Multimodal,
 			Stage:    ai.ModelStageStable,
 		},
-		gemini25FlashPreview0417: {
-			Label:    "Gemini 2.5 Flash Preview 04-17",
-			Versions: []string{},
-			Supports: &Multimodal,
-			Stage:    ai.ModelStageUnstable,
-		},
 		gemini25ProExp0325: {
 			Label:    "Gemini 2.5 Pro Exp 03-25",
 			Versions: []string{},
@@ -230,7 +227,7 @@ var (
 		},
 	}
 
-	supportedImagenModels = map[string]ai.ModelInfo{
+	supportedImagenModels = map[string]ai.ModelOptions{
 		imagen3Generate001: {
 			Label:    "Imagen 3 Generate 001",
 			Versions: []string{},
@@ -251,112 +248,115 @@ var (
 		},
 	}
 
-	googleAIEmbedders = []string{
-		textembedding004,
-		embedding001,
+	supportedVideoModels = map[string]ai.ModelOptions{
+		veo20Generate001: {
+			Label:    "Google AI - Veo 2.0 Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageStable,
+		},
+		veo30Generate001: {
+			Label:    "Google AI - Veo 3.0 Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageStable,
+		},
+		veo30FastGenerate001: {
+			Label:    "Google AI - Veo 3.0 Fast Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageStable,
+		},
 	}
 
 	googleAIEmbedderConfig = map[string]ai.EmbedderOptions{
 		textembedding004: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Google Gen AI - Text Embedding 001",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Google Gen AI - Text Embedding 001",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		embedding001: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textembeddinggecko003: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Google Gen AI - Text Embedding Gecko 003",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Google Gen AI - Text Embedding Gecko 003",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textembeddinggecko002: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Vertex AI - Text Embedding Gecko 002",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Vertex AI - Text Embedding Gecko 002",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textembeddinggecko001: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Vertex AI - Text Embedding Gecko 001",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Vertex AI - Text Embedding Gecko 001",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textembeddinggeckomultilingual001: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Vertex AI - Text Embedding Gecko Multilingual 001",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Vertex AI - Text Embedding Gecko Multilingual 001",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		textmultilingualembedding002: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Vertex AI - Text Multilingual Embedding 001",
-				Supports: &ai.EmbedderSupports{
-					Input: []string{"text"},
-				},
+			Dimensions: 768,
+			Label:      "Vertex AI - Text Multilingual Embedding 001",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{"text"},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
 		},
 		multimodalembedding: {
-			Info: &ai.EmbedderInfo{
-				Dimensions: 768,
-				Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
-				Supports: &ai.EmbedderSupports{ // Supports object is present
-					Input: []string{
-						"text",
-						"image",
-						"video",
-					},
+			Dimensions: 768,
+			Label:      "Google Gen AI - Text Embedding Gecko (Legacy)",
+			Supports: &ai.EmbedderSupports{
+				Input: []string{
+					"text",
+					"image",
+					"video",
 				},
 			},
-			ConfigSchema: genai.EmbedContentConfig{},
 		},
-	}
-
-	vertexAIEmbedders = []string{
-		textembeddinggecko003,
-		textembeddinggecko002,
-		textembeddinggecko001,
-		textembedding004,
-		textembeddinggeckomultilingual001,
-		textmultilingualembedding002,
-		multimodalembedding,
 	}
 )
 
 // listModels returns a map of supported models and their capabilities
 // based on the detected backend
-func listModels(provider string) (map[string]ai.ModelInfo, error) {
+func listModels(provider string) (map[string]ai.ModelOptions, error) {
 	var names []string
 	var prefix string
 
@@ -371,56 +371,38 @@ func listModels(provider string) (map[string]ai.ModelInfo, error) {
 		return nil, fmt.Errorf("unknown provider detected %s", provider)
 	}
 
-	models := make(map[string]ai.ModelInfo, 0)
+	models := make(map[string]ai.ModelOptions, 0)
 	for _, n := range names {
-		var m ai.ModelInfo
+		var m ai.ModelOptions
 		var ok bool
 		if strings.HasPrefix(n, "image") {
 			m, ok = supportedImagenModels[n]
+		} else if strings.HasPrefix(n, "veo") {
+			m, ok = supportedVideoModels[n]
 		} else {
 			m, ok = supportedGeminiModels[n]
 		}
 		if !ok {
 			return nil, fmt.Errorf("model %s not found for provider %s", n, provider)
 		}
-		models[n] = ai.ModelInfo{
-			Label:    prefix + " - " + m.Label,
-			Versions: m.Versions,
-			Supports: m.Supports,
+		models[n] = ai.ModelOptions{
+			Label:        prefix + " - " + m.Label,
+			Versions:     m.Versions,
+			Supports:     m.Supports,
+			ConfigSchema: m.ConfigSchema,
+			Stage:        m.Stage,
 		}
 	}
 
 	return models, nil
 }
 
-// listEmbedders returns a list of supported embedders based on the
-// detected backend
-func listEmbedders(backend genai.Backend) (map[string]ai.EmbedderOptions, error) {
-	embeddersNames := []string{}
-
-	switch backend {
-	case genai.BackendGeminiAPI:
-		embeddersNames = googleAIEmbedders
-	case genai.BackendVertexAI:
-		embeddersNames = vertexAIEmbedders
-	default:
-		return nil, fmt.Errorf("embedders for backend %s not found", backend)
-	}
-
-	embedders := make(map[string]ai.EmbedderOptions, 0)
-	for _, n := range embeddersNames {
-		embedders[n] = googleAIEmbedderConfig[n]
-	}
-
-	return embedders, nil
-}
-
 // genaiModels collects all the available models in go-genai SDK
-// TODO: add veo models
 type genaiModels struct {
 	gemini    []string
 	imagen    []string
 	embedders []string
+	veo       []string
 }
 
 // listGenaiModels returns a list of supported models and embedders from the
@@ -428,7 +410,6 @@ type genaiModels struct {
 func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, error) {
 	models := genaiModels{}
 	allowedModels := []string{"gemini", "gemma"}
-	allowedImagenModels := []string{"imagen"}
 
 	for item, err := range client.Models.All(ctx) {
 		var name string
@@ -450,22 +431,20 @@ func listGenaiModels(ctx context.Context, client *genai.Client) (genaiModels, er
 			continue
 		}
 
-		found := slices.ContainsFunc(allowedModels, func(s string) bool {
-			return strings.Contains(name, s)
-		})
-		// filter out: Aqa, Text-bison, Chat, learnlm
-		if found {
-			models.gemini = append(models.gemini, name)
+		if slices.Contains(item.SupportedActions, "predict") && strings.Contains(name, "imagen") {
+			models.imagen = append(models.imagen, name)
 			continue
 		}
 
-		found = slices.ContainsFunc(allowedImagenModels, func(s string) bool {
-			return strings.Contains(name, s)
-		})
-		// filter out: Aqa, Text-bison, Chat, learnlm
-		if found {
-			models.imagen = append(models.imagen, name)
-			continue
+		if slices.Contains(item.SupportedActions, "generateContent") {
+			found := slices.ContainsFunc(allowedModels, func(s string) bool {
+				return strings.Contains(name, s)
+			})
+			// filter out: Aqa, Text-bison, Chat, learnlm
+			if found {
+				models.gemini = append(models.gemini, name)
+				continue
+			}
 		}
 	}
 

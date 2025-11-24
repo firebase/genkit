@@ -15,6 +15,7 @@
  */
 
 import { stripUndefinedProps, z } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { readFileSync } from 'fs';
@@ -32,6 +33,8 @@ import {
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 import { defineProgrammableModel, type ProgrammableModel } from '../helpers.js';
+
+initNodeFeatures();
 
 const SpecSuiteSchema = z
   .object({

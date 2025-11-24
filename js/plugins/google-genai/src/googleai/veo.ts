@@ -20,7 +20,6 @@ import {
   Operation,
   modelActionMetadata,
   z,
-  type Genkit,
 } from 'genkit';
 import {
   BackgroundModelAction,
@@ -29,7 +28,8 @@ import {
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
-import { checkVeoOperation, veoPredict } from './client.js';
+import { backgroundModel as pluginBackgroundModel } from 'genkit/plugin';
+import { veoCheckOperation, veoPredict } from './client.js';
 import {
   ClientOptions,
   GoogleAIPluginOptions,
@@ -43,6 +43,8 @@ import {
   checkModelName,
   extractText,
   extractVeoImage,
+  extractVeoVideo,
+  extractVersion,
   modelName,
 } from './utils.js';
 
@@ -109,6 +111,10 @@ function commonRef(
 const GENERIC_MODEL = commonRef('veo');
 
 const KNOWN_MODELS = {
+  'veo-3.1-generate-preview': commonRef('veo-3.1-generate-preview'),
+  'veo-3.1-fast-generate-preview': commonRef('veo-3.1-fast-generate-preview'),
+  'veo-3.0-generate-001': commonRef('veo-3.0-generate-001'),
+  'veo-3.0-fast-generate-001': commonRef('veo-3.0-fast-generate-001'),
   'veo-2.0-generate-001': commonRef('veo-2.0-generate-001'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
@@ -124,7 +130,6 @@ export function model(
   const name = checkModelName(version);
   return modelRef({
     name: `googleai/${name}`,
-    version: name,
     config,
     configSchema: VeoConfigSchema,
     info: { ...GENERIC_MODEL.info },
@@ -154,17 +159,16 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, options);
-  }
+export function listKnownModels(options?: GoogleAIPluginOptions) {
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, options)
+  );
 }
 
 /**
  * Defines a new GoogleAI Veo model.
  */
 export function defineModel(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): BackgroundModelAction<VeoConfigSchemaType> {
@@ -174,7 +178,7 @@ export function defineModel(
     baseUrl: pluginOptions?.baseUrl,
   };
 
-  return ai.defineBackgroundModel({
+  return pluginBackgroundModel({
     name: ref.name,
     ...ref.info,
     configSchema: ref.configSchema,
@@ -185,6 +189,7 @@ export function defineModel(
           {
             prompt: extractText(request),
             image: extractVeoImage(request),
+            video: extractVeoVideo(request),
           },
         ],
         parameters: toVeoParameters(request),
@@ -192,7 +197,7 @@ export function defineModel(
 
       const response = await veoPredict(
         apiKey,
-        ref.version as string,
+        extractVersion(ref),
         veoPredictRequest,
         clientOptions
       );
@@ -201,7 +206,7 @@ export function defineModel(
     },
     async check(operation) {
       const apiKey = calculateApiKey(pluginOptions?.apiKey, undefined);
-      const response = await checkVeoOperation(
+      const response = await veoCheckOperation(
         apiKey,
         operation.id,
         clientOptions
@@ -227,6 +232,10 @@ function toVeoParameters(
   // This is not part of the request parameters sent to the endpoint
   // It's pulled out and used separately
   delete out.apiKey;
+
+  // This was used to help us figure out which model. We no longer need
+  // it here.
+  delete out.version;
 
   return out;
 }

@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-import { z, type Document, type Genkit } from 'genkit';
+import { z, type Document } from 'genkit';
 import {
   EmbedderInfo,
   embedderRef,
   type EmbedderAction,
   type EmbedderReference,
 } from 'genkit/embedder';
-import { embedContent } from './client';
+import { embedder as pluginEmbedder } from 'genkit/plugin';
+import { embedContent } from './client.js';
 import {
   ClientOptions,
   EmbedContentRequest,
@@ -32,8 +33,8 @@ import {
   VertexPluginOptions,
   isMultimodalEmbeddingPrediction,
   isObject,
-} from './types';
-import { checkModelName } from './utils';
+} from './types.js';
+import { checkModelName, extractVersion } from './utils.js';
 
 export const EmbeddingConfigSchema = z
   .object({
@@ -116,7 +117,6 @@ export function model(
   if (KNOWN_MODELS[name]) {
     return embedderRef({
       name: `vertexai/${name}`,
-      version: name,
       configSchema: EmbeddingConfigSchema,
       config,
       info: {
@@ -128,7 +128,6 @@ export function model(
     // Generic multimodal embedder format
     return embedderRef({
       name: `vertexai/${name}`,
-      version: name,
       configSchema: EmbeddingConfigSchema,
       config,
       info: {
@@ -139,7 +138,6 @@ export function model(
   // Generic text-only embedder format
   return embedderRef({
     name: `vertexai/${name}`,
-    version: name,
     configSchema: EmbeddingConfigSchema,
     config,
     info: {
@@ -148,40 +146,40 @@ export function model(
   });
 }
 
-export function defineKnownModels(
-  ai: Genkit,
+export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineEmbedder(ai, name, clientOptions, pluginOptions);
-  }
+  return Object.keys(KNOWN_MODELS).map((name) =>
+    defineEmbedder(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineEmbedder(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): EmbedderAction<any> {
   const ref = model(name);
 
-  return ai.defineEmbedder(
+  return pluginEmbedder(
     {
       name: ref.name,
       configSchema: ref.configSchema,
       info: ref.info!,
     },
-    async (input, options?: EmbeddingConfig) => {
+    async (request) => {
       const embedContentRequest: EmbedContentRequest = {
-        instances: input.map((doc: Document) =>
-          toEmbeddingInstance(ref, doc, options)
+        instances: request.input.map((doc: Document) =>
+          toEmbeddingInstance(ref, doc, request.options)
         ),
-        parameters: { outputDimensionality: options?.outputDimensionality },
+        parameters: {
+          outputDimensionality: request.options?.outputDimensionality,
+        },
       };
 
       const response = await embedContent(
-        ref.version as string,
+        extractVersion(ref),
         embedContentRequest,
         clientOptions
       );

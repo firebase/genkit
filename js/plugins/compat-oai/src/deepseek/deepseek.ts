@@ -14,40 +14,49 @@
  * limitations under the License.
  */
 
-import { modelRef } from 'genkit/model';
-import { ChatCompletionCommonConfigSchema } from '../model';
+import { z } from 'genkit';
+import { ModelInfo, ModelReference } from 'genkit/model';
+import {
+  ChatCompletionCommonConfigSchema,
+  ModelRequestBuilder,
+  compatOaiModelRef,
+} from '../model';
 
-const deepseekChat = modelRef({
-  name: 'deepseek/deepseek-chat',
-  info: {
-    label: 'DeepSeek - DeepSeek Chat',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['text', 'json'],
-    },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
+/** DeepSeek Custom configuration schema. */
+export const DeepSeekChatCompletionConfigSchema =
+  ChatCompletionCommonConfigSchema.extend({
+    maxTokens: z.number().int().min(1).max(8192).optional(),
+  });
 
-const deepseekReasoner = modelRef({
-  name: 'deepseek/deepseek-reasoner',
-  info: {
-    label: 'DeepSeek - DeepSeek Reasoner',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: false,
-      systemRole: true,
-      output: ['text', 'json'],
+export const deepSeekRequestBuilder: ModelRequestBuilder = (req, params) => {
+  const { maxTokens } = req.config;
+  // DeepSeek still uses max_tokens
+  params.max_tokens = maxTokens;
+};
+
+/** DeepSeek ModelRef helper, with DeepSeek specific config. */
+export function deepSeekModelRef(params: {
+  name: string;
+  info?: ModelInfo;
+  config?: any;
+}): ModelReference<typeof DeepSeekChatCompletionConfigSchema> {
+  return compatOaiModelRef({
+    ...params,
+    configSchema: DeepSeekChatCompletionConfigSchema,
+    info: params.info ?? {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: false,
+        systemRole: true,
+        output: ['text', 'json'],
+      },
     },
-  },
-  configSchema: ChatCompletionCommonConfigSchema,
-});
+    namespace: 'deepseek',
+  });
+}
 
 export const SUPPORTED_DEEPSEEK_MODELS = {
-  'deepseek-reasoner': deepseekReasoner,
-  'deepseek-chat': deepseekChat,
+  'deepseek-reasoner': deepSeekModelRef({ name: 'deepseek/deepseek-reasoner' }),
+  'deepseek-chat': deepSeekModelRef({ name: 'deepseek/deepseek-chat' }),
 };

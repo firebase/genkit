@@ -21,6 +21,7 @@ from functools import cached_property
 
 from genkit.ai import GenkitRegistry, Plugin
 from genkit.blocks.model import model_action_metadata
+from genkit.core.action import ActionMetadata
 from genkit.core.action.types import ActionKind
 from genkit.plugins.compat_oai.models import SUPPORTED_OPENAI_COMPAT_MODELS
 from genkit.plugins.compat_oai.typing import OpenAIConfig
@@ -120,16 +121,17 @@ class VertexAIModelGarden(Plugin):
         model_proxy.define_model()
 
     @cached_property
-    def list_actions(self) -> list[dict[str, str]]:
+    def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
-            list of actions dicts with the following shape:
-            {
-                'name': str,
-                'kind': ActionKind,
-            }
+            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
+                - name (str): The name of the action or model.
+                - kind (ActionKind): The type or category of the action.
+                - info (dict): The metadata dictionary describing the model configuration and properties.
+                - config_schema (type): The schema class used for validating the model's configuration.
         """
+
         actions_list = []
         for model, model_info in SUPPORTED_OPENAI_COMPAT_MODELS.items():
             actions_list.append(

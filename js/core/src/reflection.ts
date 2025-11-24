@@ -20,11 +20,7 @@ import getPort, { makeRange } from 'get-port';
 import type { Server } from 'http';
 import path from 'path';
 import * as z from 'zod';
-import {
-  StatusCodes,
-  runWithStreamingCallback,
-  type Status,
-} from './action.js';
+import { StatusCodes, type Status } from './action.js';
 import { GENKIT_REFLECTION_API_SPEC_VERSION, GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import type { Registry } from './registry.js';
@@ -50,6 +46,8 @@ export interface ReflectionServerOptions {
   bodyLimit?: string;
   /** Configured environments. Defaults to `dev`. */
   configuredEnvs?: string[];
+  /** Display name that will be shown in developer tooling. */
+  name?: string;
 }
 
 /**
@@ -84,6 +82,10 @@ export class ReflectionServer {
     };
   }
 
+  get runtimeId() {
+    return `${process.pid}${this.port !== null ? `-${this.port}` : ''}`;
+  }
+
   /**
    * Finds a free port to run the server on based on the original chosen port and environment.
    */
@@ -114,7 +116,11 @@ export class ReflectionServer {
       next();
     });
 
-    server.get('/api/__health', async (_, response) => {
+    server.get('/api/__health', async (req, response) => {
+      if (req.query['id'] && req.query['id'] !== this.runtimeId) {
+        response.status(503).send('Invalid runtime ID');
+        return;
+      }
       await this.registry.listActions();
       response.status(200).send('OK');
     });
@@ -173,16 +179,11 @@ export class ReflectionServer {
             const callback = (chunk) => {
               response.write(JSON.stringify(chunk) + '\n');
             };
-            const result = await runWithStreamingCallback(
-              this.registry,
-              callback,
-              () =>
-                action.run(input, {
-                  context,
-                  onChunk: callback,
-                  telemetryLabels,
-                })
-            );
+            const result = await action.run(input, {
+              context,
+              onChunk: callback,
+              telemetryLabels,
+            });
             await flushTracing();
             response.write(
               JSON.stringify({
@@ -331,12 +332,13 @@ export class ReflectionServer {
       const timestamp = date.toISOString();
       this.runtimeFilePath = path.join(
         runtimesDir,
-        `${process.pid}-${this.port}-${time}.json`
+        `${this.runtimeId}-${time}.json`
       );
       const fileContent = JSON.stringify(
         {
-          id: process.env.GENKIT_RUNTIME_ID || process.pid.toString(),
+          id: process.env.GENKIT_RUNTIME_ID || this.runtimeId,
           pid: process.pid,
+          name: this.options.name,
           reflectionServerUrl: `http://localhost:${this.port}`,
           timestamp,
           genkitVersion: `nodejs/${GENKIT_VERSION}`,

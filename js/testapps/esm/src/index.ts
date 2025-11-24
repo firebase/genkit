@@ -15,12 +15,20 @@
  */
 
 import { checks } from '@genkit-ai/checks';
+import { openAICompatible } from '@genkit-ai/compat-oai';
+import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
+import { openAI } from '@genkit-ai/compat-oai/openai';
+import { xAI } from '@genkit-ai/compat-oai/xai';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval } from '@genkit-ai/evaluator';
 import { expressHandler } from '@genkit-ai/express';
 import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 import { firebaseContext } from '@genkit-ai/firebase/context';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
+import {
+  googleAI as newGoogleAI,
+  vertexAI as newVertexAI,
+} from '@genkit-ai/google-genai';
 import { googleAI } from '@genkit-ai/googleai';
 import {
   createMcpClient,
@@ -34,6 +42,12 @@ import { vertexAIModelGarden } from '@genkit-ai/vertexai/modelgarden';
 import { vertexAIRerankers } from '@genkit-ai/vertexai/rerankers';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
+import {
+  PostgresEngine,
+  postgres,
+  postgresIndexerRef,
+  postgresRetrieverRef,
+} from 'genkitx-cloud-sql-pg';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
@@ -54,8 +68,26 @@ genkitEval;
 createMcpClient;
 createMcpServer;
 createMcpHost;
+PostgresEngine;
+postgres;
+postgresRetrieverRef;
+postgresIndexerRef;
+openAICompatible;
+openAI;
+xAI;
+deepSeek;
+newGoogleAI;
+newVertexAI;
 
-export const ai = genkit({});
+process.env.OPENAI_API_KEY = 'fake';
+process.env.GEMINI_API_KEY = 'fake';
+
+export const ai = genkit({
+  plugins: [
+    openAI({ apiKey: 'fake-oai-key' }),
+    googleAI({ apiKey: 'fake-goog-key' }),
+  ],
+});
 const hello = ai.defineFlow('hello', () => 'hello');
 expressHandler(hello);
 appRoute(hello);

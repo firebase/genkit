@@ -26,6 +26,7 @@ import genkit.plugins.google_genai.constants as const
 from genkit.ai import GENKIT_CLIENT_HEADER, GenkitRegistry, Plugin
 from genkit.blocks.embedding import embedder_action_metadata
 from genkit.blocks.model import model_action_metadata
+from genkit.core.action import ActionMetadata
 from genkit.core.registry import ActionKind
 from genkit.plugins.google_genai.models.embedder import (
     Embedder,
@@ -218,15 +219,15 @@ class GoogleAI(Plugin):
         )
 
     @cached_property
-    def list_actions(self) -> list[dict[str, str]]:
+    def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
-            list of actions dicts with the following shape:
-            {
-                'name': str,
-                'kind': ActionKind,
-            }
+            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
+                - name (str): The name of the action or model.
+                - kind (ActionKind): The type or category of the action.
+                - info (dict): The metadata dictionary describing the model configuration and properties.
+                - config_schema (type): The schema class used for validating the model's configuration.
         """
         actions_list = list()
         for m in self._client.models.list():
@@ -413,15 +414,15 @@ class VertexAI(Plugin):
         )
 
     @cached_property
-    def list_actions(self) -> list[dict[str, str]]:
+    def list_actions(self) -> list[ActionMetadata]:
         """Generate a list of available actions or models.
 
         Returns:
-            list of actions dicts with the following shape:
-            {
-                'name': str,
-                'kind': ActionKind,
-            }
+            list[ActionMetadata]: A list of ActionMetadata objects, each with the following attributes:
+                - name (str): The name of the action or model.
+                - kind (ActionKind): The type or category of the action.
+                - info (dict): The metadata dictionary describing the model configuration and properties.
+                - config_schema (type): The schema class used for validating the model's configuration.
         """
         actions_list = list()
         for m in self._client.models.list():

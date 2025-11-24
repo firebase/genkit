@@ -22,7 +22,9 @@ import {
   validateSchema,
 } from '../eval';
 import type { RuntimeManager } from '../manager/manager';
+import { AppProcessStatus } from '../manager/process-manager';
 import { GenkitToolsError, type RuntimeInfo } from '../manager/types';
+import { TraceDataSchema } from '../types';
 import type { Action } from '../types/action';
 import * as apis from '../types/apis';
 import type { EnvironmentVariable } from '../types/env';
@@ -125,11 +127,11 @@ const loggedProcedure = t.procedure.use(async (opts) => {
 export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
   t.router({
     /** Retrieves all runnable actions. */
-    listActions: loggedProcedure.query(
-      async (): Promise<Record<string, Action>> => {
-        return manager.listActions();
-      }
-    ),
+    listActions: loggedProcedure
+      .input(apis.ListActionsRequestSchema)
+      .query(async ({ input }): Promise<Record<string, Action>> => {
+        return manager.listActions(input);
+      }),
 
     /** Runs an action. */
     runAction: loggedProcedure
@@ -162,6 +164,14 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
       .input(apis.GetTraceRequestSchema)
       .query(async ({ input }) => {
         return manager.getTrace(input);
+      }),
+
+    /** Adds a trace to the trace store */
+    addTrace: loggedProcedure
+      .input(TraceDataSchema)
+      .output(z.void())
+      .mutation(async ({ input }) => {
+        return manager.addTrace(input);
       }),
 
     /** Retrieves all eval run keys */
@@ -300,6 +310,23 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
      */
     getActiveRuntimes: t.procedure.query(() => {
       return manager.listRuntimes();
+    }),
+
+    getAppProcessStatus: t.procedure.query((): AppProcessStatus => {
+      if (!manager.processManager) {
+        return { status: 'unconfigured' };
+      }
+      return manager.processManager.status();
+    }),
+
+    restartAppProcess: t.procedure.query(async () => {
+      await manager.processManager?.restart();
+      return true;
+    }),
+
+    killAppProcess: t.procedure.query(async () => {
+      await manager.processManager?.kill();
+      return true;
     }),
   });
 

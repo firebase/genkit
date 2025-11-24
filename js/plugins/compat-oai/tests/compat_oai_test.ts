@@ -31,10 +31,12 @@ import type {
   ChatCompletionRole,
 } from 'openai/resources/index.mjs';
 
+import { APIError } from 'openai';
 import {
   fromOpenAIChoice,
   fromOpenAIChunkChoice,
   fromOpenAIToolCall,
+  ModelRequestBuilder,
   openAIModelRunner,
   toOpenAIMessages,
   toOpenAIRequestBody,
@@ -42,10 +44,16 @@ import {
   toOpenAITextAndMedia,
 } from '../src/model';
 
-jest.mock('@genkit-ai/ai/model', () => ({
-  ...(jest.requireActual('@genkit-ai/ai/model') as Record<string, unknown>),
-  defineModel: jest.fn(),
-}));
+jest.mock('genkit/model', () => {
+  const originalModule =
+    jest.requireActual<typeof import('genkit/model')>('genkit/model');
+  return {
+    ...originalModule,
+    defineModel: jest.fn((_, runner) => {
+      return runner;
+    }),
+  };
+});
 
 describe('toOpenAIRole', () => {
   const testCases: {
@@ -411,6 +419,48 @@ describe('fromOpenAiChoice', () => {
         finishReason: 'stop',
       },
     },
+    {
+      should: 'should work with reasoning_content',
+      choice: {
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: null,
+          reasoning_content: 'Let me think about this step by step...',
+          refusal: null,
+        } as any,
+        finish_reason: 'stop',
+        logprobs: null,
+      },
+      expectedOutput: {
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [{ reasoning: 'Let me think about this step by step...' }],
+        },
+      },
+    },
+    {
+      should: 'should work with both reasoning_content and content',
+      choice: {
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: 'Final answer',
+          reasoning_content: 'Let me think...',
+          refusal: null,
+        } as any,
+        finish_reason: 'stop',
+        logprobs: null,
+      },
+      expectedOutput: {
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [{ reasoning: 'Let me think...' }, { text: 'Final answer' }],
+        },
+      },
+    },
   ];
 
   for (const test of testCases) {
@@ -500,6 +550,43 @@ describe('fromOpenAiChunkChoice', () => {
           ],
         },
         finishReason: 'stop',
+      },
+    },
+    {
+      should: 'should work with reasoning_content',
+      chunkChoice: {
+        index: 0,
+        delta: {
+          role: 'assistant',
+          reasoning_content: 'Let me think about this step by step...',
+        } as any,
+        finish_reason: null,
+      },
+      expectedOutput: {
+        finishReason: 'unknown',
+        message: {
+          role: 'model',
+          content: [{ reasoning: 'Let me think about this step by step...' }],
+        },
+      },
+    },
+    {
+      should: 'should work with both reasoning_content and content',
+      chunkChoice: {
+        index: 0,
+        delta: {
+          role: 'assistant',
+          reasoning_content: 'Let me think...',
+          content: 'Final answer',
+        } as any,
+        finish_reason: 'stop',
+      },
+      expectedOutput: {
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [{ reasoning: 'Let me think...' }, { text: 'Final answer' }],
+        },
       },
     },
   ];
@@ -1283,6 +1370,33 @@ describe('toOpenAiRequestBody', () => {
       },
     });
   });
+  it('sets json_schema response_format when an output schema is provided', () => {
+    const schema = {
+      type: 'object',
+      properties: { foo: { type: 'string' } },
+      required: ['foo'],
+      additionalProperties: false,
+    };
+    const request = {
+      messages: [{ role: 'user', content: [{ text: 'hello' }] }],
+      output: { format: 'json', schema },
+    } as unknown as GenerateRequest;
+
+    const actualOutput = toOpenAIRequestBody('gpt-4o', request) as unknown as {
+      response_format?: {
+        type: string;
+        json_schema?: { name: string; schema: unknown };
+      };
+    };
+
+    expect(actualOutput.response_format).toStrictEqual({
+      type: 'json_schema',
+      json_schema: {
+        name: 'output',
+        schema,
+      },
+    });
+  });
 });
 
 describe('openAIModelRunner', () => {
@@ -1316,7 +1430,7 @@ describe('openAIModelRunner', () => {
           completions: {
             stream: jest.fn(
               () =>
-                // Simluate OpenAI SDK request streaming
+                // Simulate OpenAI SDK request streaming
                 new (class {
                   isFirstRequest = true;
                   [Symbol.asyncIterator]() {
@@ -1368,5 +1482,122 @@ describe('openAIModelRunner', () => {
       },
       { signal: abortSignal }
     );
+  });
+
+  it('should run with requestBuilder', async () => {
+    const openaiClient = {
+      chat: {
+        completions: {
+          create: jest.fn(async () => ({
+            choices: [{ message: { content: 'response' } }],
+          })),
+        },
+      },
+    };
+    const requestBuilder: ModelRequestBuilder = (req, params) => {
+      (params as any).foo = 'bar';
+    };
+    const runner = openAIModelRunner(
+      'gpt-4o',
+      openaiClient as unknown as OpenAI,
+      requestBuilder
+    );
+    await runner({ messages: [], config: { temperature: 0.1 } });
+    expect(openaiClient.chat.completions.create).toHaveBeenCalledWith(
+      {
+        model: 'gpt-4o',
+        foo: 'bar',
+        temperature: 0.1,
+      },
+      { signal: undefined }
+    );
+  });
+
+  describe('error handling', () => {
+    const testCases = [
+      {
+        name: '429',
+        error: new APIError(
+          429,
+          { error: { message: 'Rate limit exceeded' } },
+          '',
+          {}
+        ),
+        expectedStatus: 'RESOURCE_EXHAUSTED',
+      },
+      {
+        name: '400',
+        error: new APIError(
+          400,
+          { error: { message: 'Invalid request' } },
+          '',
+          {}
+        ),
+        expectedStatus: 'INVALID_ARGUMENT',
+      },
+      {
+        name: '500',
+        error: new APIError(
+          500,
+          { error: { message: 'Internal server error' } },
+          '',
+          {}
+        ),
+        expectedStatus: 'INTERNAL',
+      },
+      {
+        name: '503',
+        error: new APIError(
+          503,
+          { error: { message: 'Service unavailable' } },
+          '',
+          {}
+        ),
+        expectedStatus: 'UNAVAILABLE',
+      },
+    ];
+
+    for (const tc of testCases) {
+      it(`should convert ${tc.name} error to GenkitError`, async () => {
+        const openaiClient = {
+          chat: {
+            completions: {
+              create: jest.fn(async () => {
+                throw tc.error;
+              }),
+            },
+          },
+        };
+        const runner = openAIModelRunner(
+          'gpt-4o',
+          openaiClient as unknown as OpenAI
+        );
+        await expect(runner({ messages: [] })).rejects.toThrow(
+          expect.objectContaining({
+            status: tc.expectedStatus,
+          })
+        );
+      });
+    }
+
+    it('should re-throw non-APIError', async () => {
+      const error = new Error('Some other error');
+      const openaiClient = {
+        chat: {
+          completions: {
+            create: jest.fn(async () => {
+              throw error;
+            }),
+          },
+        },
+      };
+      const runner = openAIModelRunner(
+        'gpt-4o',
+        openaiClient as unknown as OpenAI
+      );
+      await expect(runner({ messages: [] })).rejects.toThrow(
+        'Some other error'
+      );
+    });
   });
 });
