@@ -28,29 +28,12 @@ import {
   ClaudeModelName,
   KNOWN_CLAUDE_MODELS,
   KnownClaudeModels,
-  claude35Haiku,
-  claude3Haiku,
-  claudeHaiku45,
   claudeModel,
   claudeModelReference,
-  claudeOpus4,
-  claudeOpus41,
-  claudeSonnet4,
-  claudeSonnet45,
 } from './models.js';
 import { InternalPluginOptions, PluginOptions, __testClient } from './types.js';
 
 const PROMPT_CACHING_BETA_HEADER_VALUE = 'prompt-caching-2024-07-31';
-
-export {
-  claude35Haiku,
-  claude3Haiku,
-  claudeHaiku45,
-  claudeOpus4,
-  claudeOpus41,
-  claudeSonnet4,
-  claudeSonnet45,
-};
 
 /**
  * Gets or creates an Anthropic client instance.
@@ -85,13 +68,6 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  * environment variables. It initializes the Anthropic client and makes available the Claude models for use.
  *
  * Exports:
- * - claude35Haiku: Reference to the Claude 3.5 Haiku model.
- * - claude3Haiku: Reference to the Claude 3 Haiku model.
- * - claudeHaiku45: Reference to the Claude Haiku 4.5 model.
- * - claudeOpus4: Reference to the Claude Opus 4 model.
- * - claudeOpus41: Reference to the Claude Opus 4.1 model.
- * - claudeSonnet4: Reference to the Claude Sonnet 4 model.
- * - claudeSonnet45: Reference to the Claude Sonnet 4.5 model.
  * - anthropic: The main plugin function to interact with the Anthropic AI.
  *
  * Usage:
@@ -108,6 +84,9 @@ function getAnthropicClient(options?: PluginOptions): Anthropic {
  *    ... // other plugins
  *  ]
  * });
+ *
+ * // Access models via the plugin's model() method:
+ * const model = anthropic.model('claude-sonnet-4');
  * ```
  */
 function anthropicPlugin(options?: PluginOptions): GenkitPluginV2 {

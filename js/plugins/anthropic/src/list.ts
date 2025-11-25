@@ -19,28 +19,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { modelActionMetadata } from 'genkit/plugin';
 
 import { ActionMetadata, ModelReference, z } from 'genkit';
-import {
-  GENERIC_CLAUDE_MODEL_INFO,
-  KNOWN_CLAUDE_MODELS,
-  claude35Haiku,
-  claude3Haiku,
-  claudeHaiku45,
-  claudeOpus4,
-  claudeOpus41,
-  claudeSonnet4,
-  claudeSonnet45,
-} from './models.js';
+import { GENERIC_CLAUDE_MODEL_INFO, KNOWN_CLAUDE_MODELS } from './models.js';
 import { AnthropicConfigSchema } from './types.js';
-
-export {
-  claude35Haiku,
-  claude3Haiku,
-  claudeHaiku45,
-  claudeOpus4,
-  claudeOpus41,
-  claudeSonnet4,
-  claudeSonnet45,
-};
 
 function normalizeModelId(modelId: string): string {
   // Strip date suffixes (e.g. "-20241001") or "-latest" so lookups hit canonical keys.

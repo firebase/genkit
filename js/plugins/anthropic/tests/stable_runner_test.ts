@@ -969,7 +969,7 @@ describe('toAnthropicRequestBody', () => {
             role: 'user',
           },
         ],
-        model: 'claude-3-5-haiku-latest',
+        model: 'claude-3-5-haiku',
         metadata: {
           user_id: 'exampleUser123',
         },
@@ -1220,7 +1220,7 @@ describe('toAnthropicStreamingRequestBody', () => {
     );
 
     assert.strictEqual(output.stream, true);
-    assert.strictEqual(output.model, 'claude-3-5-haiku-latest');
+    assert.strictEqual(output.model, 'claude-3-5-haiku');
     assert.strictEqual(output.max_tokens, 4096);
   });
 
@@ -1291,7 +1291,7 @@ describe('claudeRunner', () => {
     assert.strictEqual(createStub.mock.calls.length, 1);
     assert.deepStrictEqual(createStub.mock.calls[0].arguments, [
       {
-        model: 'claude-3-5-haiku-latest',
+        model: 'claude-3-5-haiku',
         max_tokens: 4096,
         messages: [],
       },
@@ -1342,7 +1342,7 @@ describe('claudeRunner', () => {
     assert.strictEqual(streamStub.mock.calls.length, 1);
     assert.deepStrictEqual(streamStub.mock.calls[0].arguments, [
       {
-        model: 'claude-3-5-haiku-latest',
+        model: 'claude-3-5-haiku',
         max_tokens: 4096,
         messages: [],
         stream: true,
@@ -2203,7 +2203,7 @@ describe('Runner request bodies and error branches', () => {
       true
     );
 
-    assert.strictEqual(body.model, 'claude-3-5-haiku-latest');
+    assert.strictEqual(body.model, 'claude-3-5-haiku');
     assert.ok(Array.isArray(body.system));
     assert.strictEqual(body.system?.[0].cache_control?.type, 'ephemeral');
     assert.strictEqual(body.max_tokens, 256);

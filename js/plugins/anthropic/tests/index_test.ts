@@ -266,14 +266,13 @@ describe('Anthropic resolve helpers', () => {
     assert.strictEqual(typeof action, 'function');
   });
 
-  it('anthropic.model should return namespaced reference with config', () => {
+  it('anthropic.model should return model reference with config', () => {
     const reference = anthropic.model('claude-3-5-haiku', {
       temperature: 0.25,
     });
 
     const referenceAny = reference as any;
     assert.ok(referenceAny, 'Model reference should be created');
-    assert.strictEqual(referenceAny.namespace, 'anthropic');
     assert.ok(referenceAny.name.includes('claude-3-5-haiku'));
     assert.strictEqual(referenceAny.config?.temperature, 0.25);
   });

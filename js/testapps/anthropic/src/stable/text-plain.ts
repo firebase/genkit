@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { anthropic, claudeSonnet45 } from '@genkit-ai/anthropic';
+import { anthropic } from '@genkit-ai/anthropic';
 import { genkit } from 'genkit';
 
 const ai = genkit({
@@ -33,7 +33,7 @@ const ai = genkit({
 ai.defineFlow('stable-text-plain-error', async () => {
   try {
     await ai.generate({
-      model: claudeSonnet45,
+      model: anthropic.model('claude-sonnet-4-5'),
       messages: [
         {
           role: 'user',
@@ -66,7 +66,7 @@ ai.defineFlow('stable-text-plain-correct', async () => {
   const textContent = 'Hello World\n\nThis is a text file content.';
 
   const { text } = await ai.generate({
-    model: claudeSonnet45,
+    model: anthropic.model('claude-sonnet-4-5'),
     messages: [
       {
         role: 'user',

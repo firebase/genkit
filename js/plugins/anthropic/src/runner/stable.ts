@@ -40,7 +40,7 @@ import type {
 } from 'genkit';
 import { logger } from 'genkit/logging';
 
-import { KNOWN_CLAUDE_MODELS } from '../models.js';
+import { KNOWN_CLAUDE_MODELS, extractVersion } from '../models.js';
 import { AnthropicConfigSchema, type ClaudeRunnerParams } from '../types.js';
 import { BaseRunner } from './base.js';
 import { RunnerTypes as BaseRunnerTypes } from './types.js';
@@ -182,7 +182,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
-      request.config?.version ?? model?.version ?? modelName;
+      request.config?.version ?? extractVersion(model, modelName);
 
     const systemValue =
       system === undefined
@@ -252,7 +252,7 @@ export class Runner extends BaseRunner<RunnerTypes> {
     const model = KNOWN_CLAUDE_MODELS[modelName];
     const { system, messages } = this.toAnthropicMessages(request.messages);
     const mappedModelName =
-      request.config?.version ?? model?.version ?? modelName;
+      request.config?.version ?? extractVersion(model, modelName);
 
     const systemValue =
       system === undefined

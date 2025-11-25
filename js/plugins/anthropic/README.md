@@ -24,12 +24,12 @@ Install the plugin in your project with your favorite package manager:
 
 ```typescript
 import { genkit } from 'genkit';
-import { anthropic, claude35Sonnet } from '@genkit-ai/anthropic';
+import { anthropic } from '@genkit-ai/anthropic';
 
 const ai = genkit({
   plugins: [anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })],
   // specify a default model for generate here if you wish:
-  model: claude35Sonnet,
+  model: anthropic.model('claude-sonnet-4-5'),
 });
 ```
 
@@ -39,7 +39,7 @@ The simplest way to generate text is by using the `generate` method:
 
 ```typescript
 const response = await ai.generate({
-  model: claude3Haiku, // model imported from @genkit-ai/anthropic
+  model: anthropic.model('claude-3-haiku'),
   prompt: 'Tell me a joke.',
 });
 
@@ -130,7 +130,7 @@ The plugin supports Genkit Plugin API v2, which allows you to use models directl
 import { anthropic } from '@genkit-ai/anthropic';
 
 // Create a model reference directly
-const claude = anthropic.model('claude-sonnet-4.5');
+const claude = anthropic.model('claude-sonnet-4-5');
 
 // Use the model directly
 const response = await claude({
@@ -145,10 +145,15 @@ const response = await claude({
 console.log(response);
 ```
 
-You can also import pre-configured model references:
+You can also create model references using the plugin's `model()` method:
 
 ```typescript
-import { claudeSonnet45, claudeOpus41, claude35Haiku } from '@genkit-ai/anthropic';
+import { anthropic } from '@genkit-ai/anthropic';
+
+// Create model references
+const claudeSonnet45 = anthropic.model('claude-sonnet-4-5');
+const claudeOpus41 = anthropic.model('claude-opus-4-1');
+const claude35Haiku = anthropic.model('claude-3-5-haiku');
 
 // Use the model reference directly
 const response = await claudeSonnet45({

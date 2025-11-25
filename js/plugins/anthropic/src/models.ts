@@ -27,6 +27,7 @@ import type { GenerateResponseChunkData, ModelAction } from 'genkit/model';
 import { modelRef } from 'genkit/model';
 import { model } from 'genkit/plugin';
 
+import type { ModelInfo } from 'genkit/model';
 import { BetaRunner, Runner } from './runner/index.js';
 import {
   AnthropicBaseConfigSchema,
@@ -38,131 +39,51 @@ import {
   type ClaudeRunnerParams,
 } from './types.js';
 
-export const claudeSonnet4 = modelRef<AnthropicThinkingConfigSchemaType>({
-  name: 'claude-sonnet-4',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-sonnet-4-20250514'],
-    label: 'Anthropic - Claude Sonnet 4',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicThinkingConfigSchema,
-  version: 'claude-sonnet-4-20250514',
-});
+// This contains all the Anthropic config schema types
+type ConfigSchemaType =
+  | AnthropicBaseConfigSchemaType
+  | AnthropicThinkingConfigSchemaType;
 
-export const claude3Haiku = modelRef<AnthropicBaseConfigSchemaType>({
-  name: 'claude-3-haiku',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-3-haiku-20240307'],
-    label: 'Anthropic - Claude 3 Haiku',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicBaseConfigSchema,
-  version: 'claude-3-haiku-20240307',
-});
+/**
+ * Creates a model reference for a Claude model.
+ * Computes the default version from info.versions array and sets it on the modelRef.
+ */
+function commonRef(
+  name: string,
+  info?: ModelInfo,
+  configSchema: ConfigSchemaType = AnthropicConfigSchema
+): ModelReference<ConfigSchemaType> {
+  // Compute default version from info.versions array
+  let defaultVersion: string | undefined;
+  if (info?.versions && info.versions.length > 0) {
+    // Prefer version with '-latest' suffix
+    const latestVersion = info.versions.find((v) => v.endsWith('-latest'));
+    if (latestVersion) {
+      defaultVersion = latestVersion;
+    } else if (info.versions.includes(name)) {
+      // If base name exists in versions array, use it directly
+      defaultVersion = name;
+    } else {
+      // Otherwise use first version
+      defaultVersion = info.versions[0];
+    }
+  }
 
-export const claudeOpus4 = modelRef<AnthropicThinkingConfigSchemaType>({
-  name: 'claude-opus-4',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-opus-4-20250514'],
-    label: 'Anthropic - Claude Opus 4',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
+  return modelRef({
+    name: `anthropic/${name}`,
+    configSchema,
+    version: defaultVersion,
+    info: info ?? {
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text'],
+      },
     },
-  },
-  configSchema: AnthropicThinkingConfigSchema,
-  version: 'claude-opus-4-20250514',
-});
-
-export const claude35Haiku = modelRef<AnthropicBaseConfigSchemaType>({
-  name: 'claude-3-5-haiku',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-3-5-haiku-20241022', 'claude-3-5-haiku'],
-    label: 'Anthropic - Claude 3.5 Haiku',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicBaseConfigSchema,
-  version: 'claude-3-5-haiku-latest',
-});
-
-export const claudeSonnet45 = modelRef<AnthropicThinkingConfigSchemaType>({
-  name: 'claude-sonnet-4-5',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4-5'],
-    label: 'Anthropic - Claude Sonnet 4.5',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicThinkingConfigSchema,
-  version: 'claude-sonnet-4-5',
-});
-
-export const claudeHaiku45 = modelRef<AnthropicThinkingConfigSchemaType>({
-  name: 'claude-haiku-4-5',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-haiku-4-5-20251001', 'claude-haiku-4-5'],
-    label: 'Anthropic - Claude Haiku 4.5',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicThinkingConfigSchema,
-  version: 'claude-haiku-4-5',
-});
-
-export const claudeOpus41 = modelRef<AnthropicThinkingConfigSchemaType>({
-  name: 'claude-opus-4-1',
-  namespace: 'anthropic',
-  info: {
-    versions: ['claude-opus-4-1-20250805', 'claude-opus-4-1'],
-    label: 'Anthropic - Claude Opus 4.1',
-    supports: {
-      multiturn: true,
-      tools: true,
-      media: true,
-      systemRole: true,
-      output: ['text'],
-    },
-  },
-  configSchema: AnthropicThinkingConfigSchema,
-  version: 'claude-opus-4-1',
-});
+  });
+}
 
 export const KNOWN_CLAUDE_MODELS: Record<
   string,
@@ -170,14 +91,126 @@ export const KNOWN_CLAUDE_MODELS: Record<
     AnthropicBaseConfigSchemaType | AnthropicThinkingConfigSchemaType
   >
 > = {
-  'claude-3-haiku': claude3Haiku,
-  'claude-3-5-haiku': claude35Haiku,
-  'claude-sonnet-4': claudeSonnet4,
-  'claude-opus-4': claudeOpus4,
-  'claude-sonnet-4-5': claudeSonnet45,
-  'claude-haiku-4-5': claudeHaiku45,
-  'claude-opus-4-1': claudeOpus41,
+  'claude-3-haiku': commonRef(
+    'claude-3-haiku',
+    {
+      versions: ['claude-3-haiku-20240307'],
+      label: 'Anthropic - Claude 3 Haiku',
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text'],
+      },
+    },
+    AnthropicBaseConfigSchema
+  ),
+  'claude-3-5-haiku': commonRef(
+    'claude-3-5-haiku',
+    {
+      versions: ['claude-3-5-haiku-20241022', 'claude-3-5-haiku'],
+      label: 'Anthropic - Claude 3.5 Haiku',
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text'],
+      },
+    },
+    AnthropicBaseConfigSchema
+  ),
+  'claude-sonnet-4': commonRef(
+    'claude-sonnet-4',
+    {
+      versions: ['claude-sonnet-4-20250514'],
+      label: 'Anthropic - Claude Sonnet 4',
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text'],
+      },
+    },
+    AnthropicThinkingConfigSchema
+  ),
+  'claude-opus-4': commonRef(
+    'claude-opus-4',
+    {
+      versions: ['claude-opus-4-20250514'],
+      label: 'Anthropic - Claude Opus 4',
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text'],
+      },
+    },
+    AnthropicThinkingConfigSchema
+  ),
+  'claude-sonnet-4-5': commonRef(
+    'claude-sonnet-4-5',
+    {
+      versions: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4-5'],
+      label: 'Anthropic - Claude Sonnet 4.5',
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text'],
+      },
+    },
+    AnthropicThinkingConfigSchema
+  ),
+  'claude-haiku-4-5': commonRef(
+    'claude-haiku-4-5',
+    {
+      versions: ['claude-haiku-4-5-20251001', 'claude-haiku-4-5'],
+      label: 'Anthropic - Claude Haiku 4.5',
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text'],
+      },
+    },
+    AnthropicThinkingConfigSchema
+  ),
+  'claude-opus-4-1': commonRef(
+    'claude-opus-4-1',
+    {
+      versions: ['claude-opus-4-1-20250805', 'claude-opus-4-1'],
+      label: 'Anthropic - Claude Opus 4.1',
+      supports: {
+        multiturn: true,
+        tools: true,
+        media: true,
+        systemRole: true,
+        output: ['text'],
+      },
+    },
+    AnthropicThinkingConfigSchema
+  ),
 };
+
+/**
+ * Gets the un-prefixed model name from a modelReference.
+ */
+export function extractVersion(
+  model: ModelReference<ConfigSchemaType> | undefined,
+  modelName: string
+): string {
+  if (model?.version) {
+    return model.version;
+  }
+  // Fallback: extract from model name (remove 'anthropic/' prefix if present)
+  return modelName.replace(/^anthropic\//, '');
+}
 
 /**
  * Generic Claude model info for unknown/unsupported models.
@@ -264,17 +297,16 @@ export function claudeModelReference(
   if (knownModel) {
     return modelRef({
       name: knownModel.name,
-      namespace: 'anthropic',
       info: knownModel.info,
       configSchema: knownModel.configSchema,
+      version: knownModel.version,
       config,
     });
   }
 
   // For unknown models, create a basic reference
   return modelRef({
-    name,
-    namespace: 'anthropic',
+    name: `anthropic/${name}`,
     configSchema: AnthropicConfigSchema,
     config,
   });

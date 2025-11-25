@@ -25,7 +25,7 @@ const ai = genkit({
 });
 
 const betaHaiku = anthropic.model('claude-3-5-haiku', { apiVersion: 'beta' });
-const betaSonnet = anthropic.model('claude-4-5-sonnet', { apiVersion: 'beta' });
+const betaSonnet = anthropic.model('claude-sonnet-4-5', { apiVersion: 'beta' });
 const betaOpus41 = anthropic.model('claude-opus-4-1', { apiVersion: 'beta' });
 
 ai.defineFlow('anthropic-beta-hello', async () => {
