@@ -167,7 +167,7 @@ export const vertexAI = vertexAIPlugin as VertexAIPlugin;
     return veo.model(name, config);
   }
   // gemini and unknown model families
-  return gemini.vertexModelRef(name, config);
+  return gemini.model(name, config);
 };
 vertexAI.embedder = (
   name: string,
