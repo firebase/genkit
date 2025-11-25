@@ -42,14 +42,10 @@ func TestPlugin(t *testing.T) {
 			option.WithAPIKey(apiKey),
 		},
 	}
-	g, err := genkit.Init(context.Background(),
+	g := genkit.Init(context.Background(),
 		genkit.WithDefaultModel("deepseek/deepseek-chat"),
 		genkit.WithPlugins(oai),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("genkit initialized")
 
 	// Define a tool for calculating gablorkens
 	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
@@ -120,14 +116,14 @@ func TestPlugin(t *testing.T) {
 
 	t.Run("tool usage with basic completion", func(t *testing.T) {
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		out := resp.Message.Content[0].Text
-		const want = "12.25"
+		out := resp.Text()
+		const want = "8"
 		if !strings.Contains(out, want) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
@@ -140,7 +136,7 @@ func TestPlugin(t *testing.T) {
 		chunks := 0
 
 		final, err := genkit.Generate(ctx, g,
-			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithPrompt("what is a gablorken of value 2 over 3?"),
 			ai.WithTools(gablorkenTool),
 			ai.WithStreaming(func(ctx context.Context, chunk *ai.ModelResponseChunk) error {
 				chunks++
@@ -159,16 +155,13 @@ func TestPlugin(t *testing.T) {
 		}
 
 		// Verify final output matches streamed content
-		finalOutput := ""
-		for _, content := range final.Message.Content {
-			finalOutput += content.Text
-		}
+		finalOutput := final.Text()
 		if streamedOutput != finalOutput {
 			t.Errorf("Streaming output doesn't match final output\nStreamed: %s\nFinal: %s",
 				streamedOutput, finalOutput)
 		}
 
-		const want = "12.25"
+		const want = "8"
 		if !strings.Contains(finalOutput, want) {
 			t.Errorf("got %q, expecting it to contain %q", finalOutput, want)
 		}

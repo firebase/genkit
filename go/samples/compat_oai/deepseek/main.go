@@ -35,21 +35,22 @@ func main() {
 			option.WithAPIKey(apiKey),
 		},
 	}
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&ds))
-	if err != nil {
-		log.Fatalf("failed to create Genkit: %v", err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&ds))
 
 	genkit.DefineFlow(g, "basic", func(ctx context.Context, subject string) (string, error) {
 		dsChat := ds.Model(g, "deepseek-chat")
 
 		prompt := fmt.Sprintf("tell me a joke about %s", subject)
 		config := &openai.ChatCompletionNewParams{Temperature: openai.Float(0.5)}
-		foo, err := genkit.Generate(ctx, g, ai.WithModel(dsChat), ai.WithPrompt(prompt), ai.WithConfig(config))
+		resp, err := genkit.Generate(ctx,
+			g,
+			ai.WithModel(dsChat),
+			ai.WithPrompt(prompt),
+			ai.WithConfig(config))
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("foo: %s", foo.Text()), nil
+		return resp.Text(), nil
 	})
 
 	mux := http.NewServeMux()

@@ -16,10 +16,9 @@ package deepseek
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/openai/openai-go/option"
@@ -39,32 +38,27 @@ func (d *DeepSeek) Name() string {
 	return provider
 }
 
-func (d *DeepSeek) Init(ctx context.Context, g *genkit.Genkit) error {
+func (d *DeepSeek) Init(ctx context.Context) []api.Action {
 	d.Opts = append(d.Opts, option.WithBaseURL(baseURL))
 
 	d.openAICompatible.Opts = d.Opts
 	d.openAICompatible.Provider = provider
-	if err := d.openAICompatible.Init(ctx, g); err != nil {
-		return err
-	}
 
-	return nil
+	return d.openAICompatible.Init(ctx)
 }
 
 func (d *DeepSeek) Model(g *genkit.Genkit, name string) ai.Model {
-	return d.openAICompatible.Model(g, name, provider)
+	return d.openAICompatible.Model(g, api.NewName(provider, name))
 }
 
-func (d *DeepSeek) DefineModel(g *genkit.Genkit, name string, info ai.ModelInfo) (ai.Model, error) {
-	return d.openAICompatible.DefineModel(g, provider, name, info)
+func (d *DeepSeek) DefineModel(g *genkit.Genkit, name string, opts ai.ModelOptions) ai.Model {
+	return d.openAICompatible.DefineModel(provider, name, opts)
 }
 
-func (d *DeepSeek) ListActions(ctx context.Context) []core.ActionDesc {
-	fmt.Printf("listing actions!!\n\n")
+func (d *DeepSeek) ListActions(ctx context.Context) []api.ActionDesc {
 	return d.openAICompatible.ListActions(ctx)
 }
 
-func (d *DeepSeek) ResolveAction(g *genkit.Genkit, atype core.ActionType, name string) error {
-	fmt.Printf("resolving actions!!\n\n")
-	return d.openAICompatible.ResolveAction(g, atype, name)
+func (d *DeepSeek) ResolveAction(atype api.ActionType, name string) api.Action {
+	return d.openAICompatible.ResolveAction(atype, name)
 }
