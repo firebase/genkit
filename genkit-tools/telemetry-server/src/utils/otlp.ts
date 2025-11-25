@@ -120,7 +120,7 @@ function toSpanData(span: OtlpSpan, scope: OtlpScopeSpan['scope']): SpanData {
     endTime: toMillis(span.endTimeUnixNano),
     displayName: span.name,
     attributes,
-    instrumentationLibrary: {
+    instrumentationScope: {
       name: scope.name,
       version: scope.version,
     },

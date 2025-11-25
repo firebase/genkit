@@ -1404,6 +1404,24 @@
       ],
       "additionalProperties": false
     },
+    "InstrumentationScope": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "schemaUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
     "Link": {
       "type": "object",
       "properties": {
@@ -1500,6 +1518,9 @@
         "instrumentationLibrary": {
           "$ref": "#/$defs/InstrumentationLibrary"
         },
+        "instrumentationScope": {
+          "$ref": "#/$defs/InstrumentationScope"
+        },
         "spanKind": {
           "type": "string"
         },
@@ -1541,7 +1562,6 @@
         "endTime",
         "attributes",
         "displayName",
-        "instrumentationLibrary",
         "spanKind"
       ],
       "additionalProperties": false
