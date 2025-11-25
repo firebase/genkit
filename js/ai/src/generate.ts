@@ -57,13 +57,19 @@ import {
   type ToolResponsePart,
 } from './model.js';
 import { isExecutablePrompt } from './prompt.js';
-import { isDynamicResourceAction, ResourceAction } from './resource.js';
+import {
+  isDynamicResourceAction,
+  resolveResources,
+  ResourceAction,
+  ResourceArgument,
+} from './resource.js';
 import {
   isDynamicTool,
   resolveTools,
   toToolDefinition,
   type ToolArgument,
 } from './tool.js';
+
 export { GenerateResponse, GenerateResponseChunk };
 
 /** Specifies how tools should be called by the model. */
@@ -121,7 +127,7 @@ export interface GenerateOptions<
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
   /** List of dynamic resources to be made available to this generate request. */
-  resources?: ResourceAction[];
+  resources?: ResourceArgument[];
   /** Specifies how tools should be called by the model.  */
   toolChoice?: ToolChoice;
   /** Configuration for the generation request. */
@@ -222,6 +228,10 @@ export async function toGenerateRequest(
   if (options.tools) {
     tools = await resolveTools(registry, options.tools);
   }
+  let resources: ResourceAction[] | undefined;
+  if (options.resources) {
+    resources = await resolveResources(registry, options.resources);
+  }
 
   const resolvedSchema = toJsonSchema({
     schema: options.output?.schema,
@@ -245,6 +255,7 @@ export async function toGenerateRequest(
     config: options.config,
     docs: options.docs,
     tools: tools?.map(toToolDefinition) || [],
+    resources: resources?.map((a) => a.__action) || [],
     output: {
       ...(resolvedFormat?.config || {}),
       ...options.output,
@@ -285,7 +296,8 @@ async function toolsToActionRefs(
 
   for (const t of toolOpt) {
     if (typeof t === 'string') {
-      tools.push(await resolveFullToolName(registry, t));
+      const names = await resolveFullToolNames(registry, t);
+      tools.push(...names);
     } else if (isAction(t) || isDynamicTool(t)) {
       tools.push(`/${t.__action.metadata?.type}/${t.__action.name}`);
     } else if (isExecutablePrompt(t)) {
@@ -296,6 +308,27 @@ async function toolsToActionRefs(
     }
   }
   return tools;
+}
+
+async function resourcesToActionRefs(
+  registry: Registry,
+  resOpt?: ResourceArgument[]
+): Promise<string[] | undefined> {
+  if (!resOpt) return;
+
+  const resources: string[] = [];
+
+  for (const r of resOpt) {
+    if (typeof r === 'string') {
+      const names = await resolveFullResourceNames(registry, r);
+      resources.push(...names);
+    } else if (isAction(r)) {
+      resources.push(`/resource/${r.__action.name}`);
+    } else {
+      throw new Error(`Unable to resolve resource: ${JSON.stringify(r)}`);
+    }
+  }
+  return resources;
 }
 
 function messagesFromOptions<
@@ -361,6 +394,10 @@ export async function generate<
   const params = await toGenerateActionOptions(registry, resolvedOptions);
 
   const tools = await toolsToActionRefs(registry, resolvedOptions.tools);
+  const resources = await resourcesToActionRefs(
+    registry,
+    resolvedOptions.resources
+  );
   const streamingCallback = stripNoop(
     resolvedOptions.onChunk ?? resolvedOptions.streamingCallback
   ) as StreamingCallback<GenerateResponseChunkData>;
@@ -375,6 +412,7 @@ export async function generate<
   const request = await toGenerateRequest(registry, {
     ...resolvedOptions,
     tools,
+    resources,
   });
   return new GenerateResponse<O>(response, {
     request: response.request ?? request,
@@ -461,6 +499,7 @@ export async function toGenerateActionOptions<
 ): Promise<GenerateActionOptions> {
   const resolvedModel = await resolveModel(registry, options.model);
   const tools = await toolsToActionRefs(registry, options.tools);
+  const resources = await resourcesToActionRefs(registry, options.resources);
   const messages: MessageData[] = messagesFromOptions(options);
 
   const resolvedSchema = toJsonSchema({
@@ -481,6 +520,7 @@ export async function toGenerateActionOptions<
     docs: options.docs,
     messages: messages,
     tools,
+    resources,
     toolChoice: options.toolChoice,
     config: {
       version: resolvedModel.version,
@@ -533,17 +573,49 @@ function stripUndefinedOptions(input?: any): any {
   return copy;
 }
 
-async function resolveFullToolName(
+async function resolveFullToolNames(
   registry: Registry,
   name: string
-): Promise<string> {
-  if (await registry.lookupAction(`/tool/${name}`)) {
-    return `/tool/${name}`;
-  } else if (await registry.lookupAction(`/prompt/${name}`)) {
-    return `/prompt/${name}`;
-  } else {
-    throw new Error(`Unable to determine type of of tool: ${name}`);
+): Promise<string[]> {
+  let names: string[];
+  const parts = name.split(':');
+  if (parts.length > 1) {
+    // Dynamic Action Provider
+    names = await registry.resolveActionNames(
+      `/dynamic-action-provider/${name}`
+    );
+    if (names.length) {
+      return names;
+    }
   }
+  if (await registry.lookupAction(`/tool/${name}`)) {
+    return [`/tool/${name}`];
+  }
+  if (await registry.lookupAction(`/prompt/${name}`)) {
+    return [`/prompt/${name}`];
+  }
+  throw new Error(`Unable to resolve tool: ${name}`);
+}
+
+async function resolveFullResourceNames(
+  registry: Registry,
+  name: string
+): Promise<string[]> {
+  let names: string[];
+  const parts = name.split(':');
+  if (parts.length > 1) {
+    // Dynamic Action Provider
+    names = await registry.resolveActionNames(
+      `/dynamic-action-provider/${name}`
+    );
+    if (names.length) {
+      return names;
+    }
+  }
+  if (await registry.lookupAction(`/resource/${name}`)) {
+    return [`/resource/${name}`];
+  }
+  throw new Error(`Unable to resolve resource: ${name}`);
 }
 
 export type GenerateStreamOptions<

@@ -15,6 +15,7 @@ import (
 	"cloud.google.com/go/auth/credentials"
 	"cloud.google.com/go/auth/httptransport"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 
@@ -404,6 +405,64 @@ func (ga *GoogleAI) ResolveAction(atype api.ActionType, name string) api.Action 
 			Supports:     supports,
 			ConfigSchema: configToMap(config),
 		}).(api.Action)
+	case api.ActionTypeBackgroundModel:
+		// Handle VEO models as background models
+		if strings.HasPrefix(name, "veo") {
+			veoModel := newVeoModel(ga.gclient, name, ai.ModelOptions{
+				Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+				Stage:    ai.ModelStageStable,
+				Versions: []string{},
+				Supports: &ai.ModelSupports{
+					Media:       true,
+					Multiturn:   false,
+					Tools:       false,
+					SystemRole:  false,
+					Output:      []string{"media"},
+					LongRunning: true,
+				},
+			})
+			actionName := fmt.Sprintf("%s/%s", googleAIProvider, name)
+			return core.NewAction(actionName, api.ActionTypeBackgroundModel, nil, nil,
+				func(ctx context.Context, input *ai.ModelRequest) (*core.Operation[*ai.ModelResponse], error) {
+					op, err := veoModel.Start(ctx, input)
+					if err != nil {
+						return nil, err
+					}
+					op.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
+					return op, nil
+				})
+		}
+		return nil
+	case api.ActionTypeCheckOperation:
+		// Handle VEO model check operations
+		if strings.HasPrefix(name, "veo") {
+			veoModel := newVeoModel(ga.gclient, name, ai.ModelOptions{
+				Label:    fmt.Sprintf("%s - %s", googleAILabelPrefix, name),
+				Stage:    ai.ModelStageStable,
+				Versions: []string{},
+				Supports: &ai.ModelSupports{
+					Media:       true,
+					Multiturn:   false,
+					Tools:       false,
+					SystemRole:  false,
+					Output:      []string{"media"},
+					LongRunning: true,
+				},
+			})
+
+			actionName := fmt.Sprintf("%s/%s", googleAIProvider, name)
+			return core.NewAction(actionName, api.ActionTypeCheckOperation,
+				map[string]any{"description": fmt.Sprintf("Check status of %s operation", name)}, nil,
+				func(ctx context.Context, op *core.Operation[*ai.ModelResponse]) (*core.Operation[*ai.ModelResponse], error) {
+					updatedOp, err := veoModel.Check(ctx, op)
+					if err != nil {
+						return nil, err
+					}
+					updatedOp.Action = api.KeyFromName(api.ActionTypeBackgroundModel, actionName)
+					return updatedOp, nil
+				})
+		}
+		return nil
 	}
 	return nil
 }

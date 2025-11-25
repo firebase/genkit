@@ -76,7 +76,6 @@ export function toJsonSchema({
   if (jsonSchema) return jsonSchema;
   if (jsonSchemas.has(schema!)) return jsonSchemas.get(schema!)!;
   const outSchema = zodToJsonSchema(schema!, {
-    $refStrategy: 'none',
     removeAdditionalStrategy: 'strict',
   });
   jsonSchemas.set(schema!, outSchema as JSONSchema);
@@ -130,7 +129,9 @@ export function parseSchema<T = unknown>(
   options: ProvidedSchema
 ): T {
   const { valid, errors, schema } = validateSchema(data, options);
-  if (!valid) throw new ValidationError({ data, errors: errors!, schema });
+  if (!valid) {
+    throw new ValidationError({ data, errors: errors!, schema });
+  }
   return data as T;
 }
 

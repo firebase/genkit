@@ -27,6 +27,7 @@ import {
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type ReasoningPart,
   type ResourcePart,
   type TextPart,
   type ToolRequestPart,
@@ -36,6 +37,7 @@ export {
   CustomPartSchema,
   DataPartSchema,
   MediaPartSchema,
+  ReasoningPartSchema,
   ResourcePartSchema,
   TextPartSchema,
   ToolRequestPartSchema,
@@ -43,6 +45,7 @@ export {
   type CustomPart,
   type DataPart,
   type MediaPart,
+  type ReasoningPart,
   type ResourcePart,
   type TextPart,
   type ToolRequestPart,
@@ -144,6 +147,8 @@ export const ModelInfoSchema = z.object({
       constrained: z.enum(['none', 'all', 'no-tools']).optional(),
       /** Model supports controlling tool choice, e.g. forced tool calling. */
       toolChoice: z.boolean().optional(),
+      /** Model supports long running operations. */
+      longRunning: z.boolean().optional(),
     })
     .optional(),
   /** At which stage of development this model is.

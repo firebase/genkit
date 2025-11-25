@@ -22,8 +22,9 @@ import { logger } from '@genkit-ai/tools-common/utils';
 import express from 'express';
 import type * as http from 'http';
 import type { TraceStore } from './types';
+import { traceDataFromOtlp } from './utils/otlp';
 
-export { LocalFileTraceStore } from './localFileTraceStore.js';
+export { LocalFileTraceStore } from './file-trace-store.js';
 export { TraceQuerySchema, type TraceQuery, type TraceStore } from './types';
 
 let server: http.Server;
@@ -46,7 +47,7 @@ export async function startTelemetryServer(params: {
   await params.traceStore.init();
   const api = express();
 
-  api.use(express.json({ limit: params.maxRequestBodySize ?? '30mb' }));
+  api.use(express.json({ limit: params.maxRequestBodySize ?? '100mb' }));
 
   api.get('/api/__health', async (_, response) => {
     response.status(200).send('OK');
@@ -87,6 +88,63 @@ export async function startTelemetryServer(params: {
       );
     } catch (e) {
       next(e);
+    }
+  });
+
+  api.post(
+    '/api/otlp/:parentTraceId/:parentSpanId',
+    async (request, response) => {
+      try {
+        const { parentTraceId, parentSpanId } = request.params;
+
+        if (!request.body.resourceSpans?.length) {
+          // Acknowledge and ignore empty payloads.
+          response.status(200).json({});
+          return;
+        }
+        const traces = traceDataFromOtlp(request.body);
+        for (const traceData of traces) {
+          traceData.traceId = parentTraceId;
+          for (const span of Object.values(traceData.spans)) {
+            span.attributes['genkit:otlp-traceId'] = span.traceId;
+            span.traceId = parentTraceId;
+            if (!span.parentSpanId) {
+              span.parentSpanId = parentSpanId;
+            }
+          }
+          await params.traceStore.save(parentTraceId, traceData);
+        }
+        response.status(200).json({});
+      } catch (err) {
+        logger.error(`Error processing OTLP payload: ${err}`);
+        response.status(500).json({
+          code: 13, // INTERNAL
+          message:
+            'An internal error occurred while processing the OTLP payload.',
+        });
+      }
+    }
+  );
+
+  api.post('/api/otlp', async (request, response) => {
+    try {
+      if (!request.body.resourceSpans?.length) {
+        // Acknowledge and ignore empty payloads.
+        response.status(200).json({});
+        return;
+      }
+      const traces = traceDataFromOtlp(request.body);
+      for (const traceData of traces) {
+        await params.traceStore.save(traceData.traceId, traceData);
+      }
+      response.status(200).json({});
+    } catch (err) {
+      logger.error(`Error processing OTLP payload: ${err}`);
+      response.status(500).json({
+        code: 13, // INTERNAL
+        message:
+          'An internal error occurred while processing the OTLP payload.',
+      });
     }
   });
 

@@ -56,7 +56,11 @@ import {
   type Part,
   type Role,
 } from '../model.js';
-import { findMatchingResource } from '../resource.js';
+import {
+  findMatchingResource,
+  resolveResources,
+  type ResourceAction,
+} from '../resource.js';
 import { resolveTools, toToolDefinition, type ToolAction } from '../tool.js';
 import {
   assertValidToolNames,
@@ -151,14 +155,15 @@ async function resolveParameters(
   registry: Registry,
   request: GenerateActionOptions
 ) {
-  const [model, tools, format] = await Promise.all([
+  const [model, tools, resources, format] = await Promise.all([
     resolveModel(registry, request.model, { warnDeprecated: true }).then(
       (r) => r.modelAction
     ),
     resolveTools(registry, request.tools),
+    resolveResources(registry, request.resources),
     resolveFormat(registry, request.output),
   ]);
-  return { model, tools, format };
+  return { model, tools, resources, format };
 }
 
 /** Given a raw request and a formatter, apply the formatter's logic and instructions to the request. */
@@ -216,6 +221,11 @@ function applyTransferPreamble(
     return rawRequest;
   }
 
+  // if the transfer preamble has a model, use it for the next request
+  if (transferPreamble?.model) {
+    rawRequest.model = transferPreamble.model;
+  }
+
   return stripUndefinedProps({
     ...rawRequest,
     messages: [
@@ -246,12 +256,12 @@ async function generate(
     streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   }
 ): Promise<GenerateResponseData> {
-  const { model, tools, format } = await resolveParameters(
+  const { model, tools, resources, format } = await resolveParameters(
     registry,
     rawRequest
   );
   rawRequest = applyFormat(rawRequest, format);
-  rawRequest = await applyResources(registry, rawRequest);
+  rawRequest = await applyResources(registry, rawRequest, resources);
 
   // check to make sure we don't have overlapping tool names *before* generation
   await assertValidToolNames(tools);
@@ -397,8 +407,10 @@ async function generate(
 
   let nextRequest = {
     ...rawRequest,
+
     messages: [...rawRequest.messages, generatedMessage.toJSON(), toolMessage!],
   };
+
   nextRequest = applyTransferPreamble(nextRequest, transferPreamble);
 
   // then recursively call for another loop
@@ -481,7 +493,8 @@ function getRoleFromPart(part: Part): Role {
 
 async function applyResources(
   registry: Registry,
-  rawRequest: GenerateActionOptions
+  rawRequest: GenerateActionOptions,
+  resources: ResourceAction[]
 ): Promise<GenerateActionOptions> {
   // quick check, if no resources bail.
   if (!rawRequest.messages.find((m) => !!m.content.find((c) => c.resource))) {
@@ -500,7 +513,12 @@ async function applyResources(
         updatedContent.push(p);
         continue;
       }
-      const resource = await findMatchingResource(registry, p.resource);
+
+      const resource = await findMatchingResource(
+        registry,
+        resources,
+        p.resource
+      );
       if (!resource) {
         throw new GenkitError({
           status: 'NOT_FOUND',

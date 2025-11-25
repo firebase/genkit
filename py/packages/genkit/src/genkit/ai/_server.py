@@ -81,7 +81,7 @@ def create_runtime(
         os.makedirs(runtime_dir)
 
     current_datetime = datetime.now()
-    runtime_file_name = f'{current_datetime.isoformat()}.json'
+    runtime_file_name = f'{current_datetime.strftime("%Y-%m-%d_%H-%M-%S.%f")}.json'
     runtime_file_path = Path(os.path.join(runtime_dir, runtime_file_name))
     metadata = json.dumps({
         'reflectionApiSpecVersion': 1,

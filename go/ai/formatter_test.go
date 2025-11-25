@@ -23,7 +23,7 @@ import (
 )
 
 func TestConstrainedGenerate(t *testing.T) {
-	JSON := "\n{\"foo\": \"bar\"}\n"
+	JSON := "{\"foo\": \"bar\"}"
 	JSONmd := "```json" + JSON + "```"
 
 	modelOpts := ModelOptions{
@@ -532,7 +532,7 @@ func TestJsonParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("\n{\"name\": \"John\", \"age\": 19}\n"),
+					NewJSONPart("{\"name\": \"John\", \"age\": 19}"),
 				},
 			},
 			wantErr: false,
@@ -573,7 +573,7 @@ func TestJsonParser(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("\n{\"id\": 1}\n"),
+					NewJSONPart("{\"id\": 1}"),
 				},
 			},
 			wantErr: false,
@@ -1062,7 +1062,7 @@ func TestJsonParserStreaming(t *testing.T) {
 			want: &Message{
 				Role: RoleModel,
 				Content: []*Part{
-					NewJSONPart("\n{\"id\": 1}\n"),
+					NewJSONPart("{\"id\": 1}"),
 				},
 			},
 			wantErr: false,
@@ -1088,6 +1088,29 @@ func TestJsonParserStreaming(t *testing.T) {
 				Role: RoleModel,
 				Content: []*Part{
 					NewJSONPart(`{"name": "test"}`),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "no text part present streaming JSON",
+			schema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name": map[string]any{"type": "string"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
 					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
 				},
 			},
@@ -1184,6 +1207,32 @@ func TestJsonlParserStreaming(t *testing.T) {
 				Content: []*Part{
 					NewJSONPart(`{"id": 1}`),
 					NewJSONPart(`{"id": 2}`),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "no text part present streaming JSONL",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id": map[string]any{"type": "integer"},
+					},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
 					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
 				},
 			},
@@ -1286,6 +1335,34 @@ func TestArrayParserStreaming(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "no text part present streaming array",
+			schema: map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":   map[string]any{"type": "integer"},
+						"name": map[string]any{"type": "string"},
+					},
+					"required": []string{"id"},
+				},
+				"additionalProperties": false,
+			},
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1377,6 +1454,26 @@ func TestEnumParserStreaming(t *testing.T) {
 		},
 		{
 			name:   "preserves non-text parts with streaming enum",
+			schema: enumSchema,
+			response: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+					NewTextPart(`bl`),
+					NewTextPart(`ue`),
+				},
+			},
+			want: &Message{
+				Role: RoleModel,
+				Content: []*Part{
+					NewTextPart("blue"),
+					NewToolRequestPart(&ToolRequest{Name: "testTool"}),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "no text parts present with streaming enum",
 			schema: enumSchema,
 			response: &Message{
 				Role: RoleModel,

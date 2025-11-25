@@ -15,7 +15,7 @@
  */
 
 import * as assert from 'assert';
-import { Genkit, MessageData } from 'genkit';
+import { MessageData } from 'genkit';
 import { GenerateRequest, getBasicUsageStats } from 'genkit/model';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
@@ -49,7 +49,7 @@ describe('Google AI Imagen', () => {
 
   describe('model()', () => {
     it('should return a ModelReference for a known model', () => {
-      const modelName = 'imagen-3.0-generate-002';
+      const modelName = 'imagen-4.0-generate-001';
       const ref = model(modelName);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
       assert.ok(ref.info?.supports?.media);
@@ -63,7 +63,7 @@ describe('Google AI Imagen', () => {
     });
 
     it('should apply config to a known model', () => {
-      const modelName = 'imagen-3.0-generate-002';
+      const modelName = 'imagen-4.0-generate-001';
       const config: ImagenConfig = { numberOfImages: 2 };
       const ref = model(modelName, config);
       assert.strictEqual(ref.name, `googleai/${modelName}`);
@@ -79,9 +79,9 @@ describe('Google AI Imagen', () => {
     });
 
     it('should handle model name with prefix', () => {
-      const modelName = 'models/imagen-3.0-generate-002';
+      const modelName = 'models/imagen-4.0-generate-001';
       const ref = model(modelName);
-      assert.strictEqual(ref.name, 'googleai/imagen-3.0-generate-002');
+      assert.strictEqual(ref.name, 'googleai/imagen-4.0-generate-001');
     });
   });
 
@@ -159,7 +159,6 @@ describe('Google AI Imagen', () => {
   });
 
   describe('defineModel()', () => {
-    let mockAi: sinon.SinonStubbedInstance<Genkit>;
     let fetchStub: sinon.SinonStub;
     let envStub: sinon.SinonStub;
 
@@ -167,7 +166,6 @@ describe('Google AI Imagen', () => {
     const defaultApiKey = 'default-api-key';
 
     beforeEach(() => {
-      mockAi = sinon.createStubInstance(Genkit);
       fetchStub = sinon.stub(global, 'fetch');
       // Stub process.env to control environment variables
       envStub = sinon.stub(process, 'env').value({});
@@ -199,12 +197,8 @@ describe('Google AI Imagen', () => {
       const baseUrl = defineOptions.baseUrl;
       const apiKey = defineOptions.apiKey;
 
-      defineModel(mockAi as any, name, { apiKey, apiVersion, baseUrl });
-      assert.ok(mockAi.defineModel.calledOnce, 'defineModel should be called');
-      const callArgs = mockAi.defineModel.firstCall.args;
-      assert.strictEqual(callArgs[0].name, `googleai/${name}`);
-      assert.strictEqual(callArgs[0].configSchema, ImagenConfigSchema);
-      return callArgs[1];
+      const model = defineModel(name, { apiKey, apiVersion, baseUrl });
+      return model.run;
     }
 
     it('should define a model and call fetch successfully', async () => {
@@ -266,13 +260,13 @@ describe('Google AI Imagen', () => {
         role: 'model',
         content: expectedContent,
       };
-      assert.deepStrictEqual(result.message, expectedMessage);
-      assert.strictEqual(result.finishReason, 'stop');
+      assert.deepStrictEqual(result.result.message, expectedMessage);
+      assert.strictEqual(result.result.finishReason, 'stop');
       assert.deepStrictEqual(
-        result.usage,
+        result.result.usage,
         getBasicUsageStats(request.messages, expectedMessage)
       );
-      assert.deepStrictEqual(result.custom, mockResponse);
+      assert.deepStrictEqual(result.result.custom, mockResponse);
     });
 
     it('should use default apiKey if no request apiKey provided', async () => {
@@ -420,9 +414,8 @@ describe('Google AI Imagen', () => {
       // process.env is empty due to envStub in beforeEach
       assert.throws(() => {
         // Explicitly pass undefined for apiKey
-        defineModel(mockAi as any, modelName, undefined);
+        defineModel(modelName, undefined);
       }, MISSING_API_KEY_ERROR);
-      sinon.assert.notCalled(mockAi.defineModel);
     });
 
     it('should use key from env if no key passed to defineImagenModel', async () => {

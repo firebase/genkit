@@ -388,6 +388,8 @@ export const GenerateActionOptionsSchema = z.object({
   messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.string()).optional(),
+  /** List of registered resource names for this generation if supported by the underlying model. */
+  resources: z.array(z.string()).optional(),
   /** Tool calling mode. `auto` lets the model decide whether to use tools, `required` forces the model to choose a tool, and `none` forces the model not to use any tools. Defaults to `auto`.  */
   toolChoice: z.enum(['auto', 'required', 'none']).optional(),
   /** Configuration for the generation request. */

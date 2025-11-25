@@ -22,7 +22,9 @@ import {
   validateSchema,
 } from '../eval';
 import type { RuntimeManager } from '../manager/manager';
+import { AppProcessStatus } from '../manager/process-manager';
 import { GenkitToolsError, type RuntimeInfo } from '../manager/types';
+import { TraceDataSchema } from '../types';
 import type { Action } from '../types/action';
 import * as apis from '../types/apis';
 import type { EnvironmentVariable } from '../types/env';
@@ -164,6 +166,14 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
         return manager.getTrace(input);
       }),
 
+    /** Adds a trace to the trace store */
+    addTrace: loggedProcedure
+      .input(TraceDataSchema)
+      .output(z.void())
+      .mutation(async ({ input }) => {
+        return manager.addTrace(input);
+      }),
+
     /** Retrieves all eval run keys */
     listEvalRunKeys: loggedProcedure
       .input(apis.ListEvalKeysRequestSchema)
@@ -300,6 +310,23 @@ export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
      */
     getActiveRuntimes: t.procedure.query(() => {
       return manager.listRuntimes();
+    }),
+
+    getAppProcessStatus: t.procedure.query((): AppProcessStatus => {
+      if (!manager.processManager) {
+        return { status: 'unconfigured' };
+      }
+      return manager.processManager.status();
+    }),
+
+    restartAppProcess: t.procedure.query(async () => {
+      await manager.processManager?.restart();
+      return true;
+    }),
+
+    killAppProcess: t.procedure.query(async () => {
+      await manager.processManager?.kill();
+      return true;
     }),
   });
 

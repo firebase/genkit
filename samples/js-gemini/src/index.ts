@@ -16,7 +16,7 @@
 
 import { googleAI } from '@genkit-ai/google-genai';
 import * as fs from 'fs';
-import { genkit, MediaPart, z } from 'genkit';
+import { MediaPart, genkit, z } from 'genkit';
 import { Readable } from 'stream';
 import wav from 'wav';
 
