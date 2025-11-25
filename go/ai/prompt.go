@@ -447,6 +447,7 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 		renderedMsg := &Message{
 			Role:    msg.Role,
 			Content: msgParts,
+			Metadata: msg.Metadata,
 		}
 		renderedMsgs = append(renderedMsgs, renderedMsg)
 	}
