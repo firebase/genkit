@@ -153,6 +153,10 @@ export function isGoogleSearchRetrievalTool(
   );
 }
 
+export declare interface UrlContextTool {
+  urlContext?: {};
+}
+
 /**
  * The FileSearch tool that retrieves knowledge from Semantic Retrieval corpora.
  * Files are imported to Semantic Retrieval corpora using the ImportFile API
@@ -961,6 +965,7 @@ export declare type Tool =
   | GoogleMapsTool // Vertex AI Only
   | CodeExecutionTool // Google AI Only
   | FileSearchTool // Google AI Only
+  | UrlContextTool // Google AI Only
   | GoogleSearchRetrievalTool;
 
 /**
