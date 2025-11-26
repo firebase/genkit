@@ -131,7 +131,6 @@ func NewBackgroundModel(name string, opts *BackgroundModelOptions, startFn Start
 		simulateSystemPrompt(&opts.ModelOptions, nil),
 		augmentWithContext(&opts.ModelOptions, nil),
 		validateSupport(name, &opts.ModelOptions),
-		addAutomaticTelemetry(),
 	}
 	fn := core.ChainMiddleware(mws...)(backgroundModelToModelFn(startFn))
 
