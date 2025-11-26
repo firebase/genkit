@@ -176,6 +176,34 @@ func TestGoogleAILive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+	t.Run("tool stream", func(t *testing.T) {
+		parts := 0
+		out := ""
+		final, err := genkit.Generate(ctx, g,
+			ai.WithPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool),
+			ai.WithStreaming(func(ctx context.Context, c *ai.ModelResponseChunk) error {
+				parts++
+				out += c.Content[0].Text
+				return nil
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out2 := ""
+		for _, p := range final.Message.Content {
+			out2 += p.Text
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
+		}
+
+		const want = "11.31"
+		if !strings.Contains(final.Text(), want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+	})
+
 	t.Run("tool with thinking", func(t *testing.T) {
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		resp, err := genkit.Generate(ctx, g,
