@@ -333,6 +333,29 @@ describe('Vertex AI Gemini', () => {
         assert.strictEqual(apiRequest.generationConfig?.maxOutputTokens, 100);
       });
 
+      it('passes thinkingLevel to the API', async () => {
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            thinkingConfig: {
+              thinkingLevel: 'HIGH',
+            },
+          },
+        };
+        const model = defineModel('gemini-3-pro-preview', clientOptions);
+        await model.run(request);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(apiRequest.generationConfig, {
+          thinkingConfig: {
+            thinkingLevel: 'HIGH',
+          },
+        });
+      });
+
       it('sends labels when provided in config', async () => {
         mockFetchResponse(defaultApiResponse);
         const myLabels = { env: 'test', version: '1' };

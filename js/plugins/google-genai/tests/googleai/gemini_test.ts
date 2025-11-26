@@ -93,7 +93,10 @@ describe('Google AI Gemini', () => {
 
   const mockCandidate = {
     index: 0,
-    content: { role: 'model', parts: [{ text: 'Hi there' }] },
+    content: {
+      role: 'model',
+      parts: [{ text: 'Hi there', thoughtSignature: 'test-signature' }],
+    },
     finishReason: 'STOP' as FinishReason,
   };
 
@@ -204,7 +207,12 @@ describe('Google AI Gemini', () => {
         const chunkArg = sendChunkSpy.lastCall.args[0];
         assert.deepStrictEqual(chunkArg, {
           index: 0,
-          content: [{ text: 'Hi there' }],
+          content: [
+            {
+              text: 'Hi there',
+              metadata: { thoughtSignature: 'test-signature' },
+            },
+          ],
         });
       });
 
@@ -274,6 +282,7 @@ describe('Google AI Gemini', () => {
             fileSearch: {
               fileSearchStoreNames: ['foo'],
             },
+            urlContext: {},
           },
         };
         await model.run(request);
@@ -282,7 +291,7 @@ describe('Google AI Gemini', () => {
           fetchStub.lastCall.args[1].body
         );
         assert.ok(Array.isArray(apiRequest.tools));
-        assert.strictEqual(apiRequest.tools?.length, 4);
+        assert.strictEqual(apiRequest.tools?.length, 5);
         assert.deepStrictEqual(apiRequest.tools?.[1], { codeExecution: {} });
         assert.deepStrictEqual(apiRequest.tools?.[2], {
           googleSearch: {},
@@ -291,6 +300,9 @@ describe('Google AI Gemini', () => {
           fileSearch: {
             fileSearchStoreNames: ['foo'],
           },
+        });
+        assert.deepStrictEqual(apiRequest.tools?.[4], {
+          urlContext: {},
         });
       });
 
@@ -313,6 +325,29 @@ describe('Google AI Gemini', () => {
           url.startsWith('https://my.custom.base.path/v1custom/models'),
           `Expected URL to start with "https://my.custom.base.path/v1custom/models", but it was "${url}"`
         );
+      });
+
+      it('passes thinkingLevel to the API', async () => {
+        const model = defineModel('gemini-3-pro-preview', defaultPluginOptions);
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            thinkingConfig: {
+              thinkingLevel: 'HIGH',
+            },
+          },
+        };
+        await model.run(request);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(apiRequest.generationConfig, {
+          thinkingConfig: {
+            thinkingLevel: 'HIGH',
+          },
+        });
       });
     });
 
@@ -384,7 +419,7 @@ describe('Google AI Gemini', () => {
     });
 
     it('returns a ModelReference for an unknown model string', () => {
-      const name = 'gemini-3.0-flash';
+      const name = 'gemini-42.0-flash';
       const modelRef = model(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);

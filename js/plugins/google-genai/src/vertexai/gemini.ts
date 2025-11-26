@@ -16,6 +16,7 @@
 
 import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
+  CandidateData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
@@ -252,6 +253,12 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
+      /**
+       * When set to true, arguments of a single function call will be streamed out in
+       * multiple parts/contents/responses. Partial parameter results will be returned in the
+       * [FunctionCall.partial_args] field. This field is not supported in Gemini API.
+       */
+      streamFunctionCallArguments: z.boolean().optional(),
     })
     .describe(
       'Controls how the model uses the provided tools (function declarations). ' +
@@ -301,13 +308,21 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .min(0)
         .max(24576)
         .describe(
-          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+          'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. ' +
             '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
             'dependent. The thinking budget parameter gives the model guidance ' +
             'on the number of thinking tokens it can use when generating a ' +
             'response. A greater number of tokens is typically associated with ' +
             'more detailed thinking, which is needed for solving more complex ' +
             'tasks. '
+        )
+        .optional(),
+      thinkingLevel: z
+        .enum(['LOW', 'MEDIUM', 'HIGH'])
+        .describe(
+          'For Gemini 3.0 - Indicates the thinking level. A higher level ' +
+            'is associated with more detailed thinking, which is needed for solving ' +
+            'more complex tasks.'
         )
         .optional(),
     })
@@ -376,6 +391,7 @@ function commonRef(
 export const GENERIC_MODEL = commonRef('gemini');
 
 export const KNOWN_MODELS = {
+  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
@@ -527,6 +543,7 @@ export function defineModel(
       if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
+            ...functionCallingConfig,
             allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
             mode: toGeminiFunctionModeEnum(functionCallingConfig.mode),
           },
@@ -637,10 +654,12 @@ export function defineModel(
             clientOpt
           );
 
+          const chunks: CandidateData[] = [];
           for await (const item of result.stream) {
             (item as GenerateContentResponse).candidates?.forEach(
               (candidate) => {
-                const c = fromGeminiCandidate(candidate);
+                const c = fromGeminiCandidate(candidate, chunks);
+                chunks.push(c);
                 sendChunk({
                   index: c.index,
                   content: c.message.content,

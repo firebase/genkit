@@ -32,6 +32,7 @@ import {
   deleteFileSearchStore,
   uploadBlobToFileSearchStore,
 } from './helper.js';
+import { RpgCharacterSchema } from './types.js';
 
 const ai = genkit({
   plugins: [
@@ -66,7 +67,7 @@ ai.defineFlow('basic-hi-with-retry', async () => {
 
 ai.defineFlow('basic-hi-with-fallback', async () => {
   const { text } = await ai.generate({
-    model: googleAI.model('gemini-2.5-soemthing-that-does-not-exist'),
+    model: googleAI.model('gemini-2.5-something-that-does-not-exist'),
     prompt: 'You are a helpful AI assistant named Walt, say hello',
     use: [
       fallback(ai, {
@@ -78,6 +79,33 @@ ai.defineFlow('basic-hi-with-fallback', async () => {
 
   return text;
 });
+
+// Gemini 3.0 thinkingLevel config
+ai.defineFlow(
+  {
+    name: 'thinking-level',
+    inputSchema: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  },
+  async (level) => {
+    const { text } = await ai.generate({
+      model: googleAI.model('gemini-3-pro-preview'),
+      prompt:
+        'Alice, Bob, and Carol each live in a different house on the ' +
+        'same street: red, green, and blue. The person who lives in the red house ' +
+        'owns a cat. Bob does not live in the green house. Carol owns a dog. The ' +
+        'green house is to the left of the red house. Alice does not own a cat. ' +
+        'The person in the blue house owns a fish. ' +
+        'Who lives in each house, and what pet do they own? Provide your ' +
+        'step-by-step reasoning.',
+      config: {
+        thinkingConfig: {
+          thinkingLevel: level,
+        },
+      },
+    });
+    return text;
+  }
+);
 
 // Multimodal input
 ai.defineFlow('multimodal-input', async () => {
@@ -142,6 +170,25 @@ ai.defineFlow('search-grounding', async () => {
     prompt: 'Who is Albert Einstein?',
     config: {
       tools: [{ googleSearch: {} }],
+    },
+  });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
+// Url context
+ai.defineFlow('url-context', async () => {
+  const { text, raw } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt:
+      'Compare the ingredients and cooking times from the recipes at ' +
+      'https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 ' +
+      'and https://www.allrecipes.com/recipe/70679/simple-whole-roasted-chicken/',
+    config: {
+      urlContext: {},
     },
   });
 
@@ -276,37 +323,6 @@ ai.defineFlow(
     return (await response).output;
   }
 );
-
-const baseCategorySchema = z.object({
-  name: z.string(),
-});
-
-type Category = z.infer<typeof baseCategorySchema> & {
-  subcategories?: Category[];
-};
-
-const categorySchema: z.ZodType<Category> = baseCategorySchema.extend({
-  subcategories: z.lazy(() =>
-    categorySchema
-      .array()
-      .describe('make sure there are at least 2-3 levels of subcategories')
-      .optional()
-  ),
-});
-
-const WeaponSchema = z.object({
-  name: z.string(),
-  damage: z.number(),
-  category: categorySchema,
-});
-
-const RpgCharacterSchema = z.object({
-  name: z.string().describe('name of the character'),
-  backstory: z.string().describe("character's backstory, about a paragraph"),
-  weapons: z.array(WeaponSchema),
-  class: z.enum(['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER']),
-  affiliation: z.string().optional(),
-});
 
 // A simple example of structured output.
 ai.defineFlow(

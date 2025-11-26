@@ -16,6 +16,7 @@
 
 import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
+  CandidateData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
@@ -52,6 +53,7 @@ import {
   SafetySetting,
   Tool,
   ToolConfig,
+  UrlContextTool,
 } from './types.js';
 import {
   calculateApiKey,
@@ -221,6 +223,10 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     })
     .passthrough()
     .optional(),
+  urlContext: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe('Return grounding metadata from links included in the query')
+    .optional(),
   temperature: z
     .number()
     .min(0)
@@ -253,13 +259,21 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .min(0)
         .max(24576)
         .describe(
-          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+          'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. ' +
             '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
             'dependent. The thinking budget parameter gives the model guidance ' +
             'on the number of thinking tokens it can use when generating a ' +
             'response. A greater number of tokens is typically associated with ' +
             'more detailed thinking, which is needed for solving more complex ' +
             'tasks. '
+        )
+        .optional(),
+      thinkingLevel: z
+        .enum(['LOW', 'MEDIUM', 'HIGH'])
+        .describe(
+          'For Gemini 3.0 - Indicates the thinking level. A higher level ' +
+            'is associated with more detailed thinking, which is needed for solving ' +
+            'more complex tasks.'
         )
         .optional(),
     })
@@ -364,6 +378,7 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
+  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
@@ -558,6 +573,7 @@ export function defineModel(
         functionCallingConfig,
         googleSearchRetrieval,
         fileSearch,
+        urlContext,
         tools: toolsFromConfig,
         ...restOfConfigOptions
       } = requestOptions;
@@ -584,6 +600,12 @@ export function defineModel(
         tools.push({
           fileSearch,
         });
+      }
+
+      if (urlContext) {
+        tools.push({
+          urlContext: urlContext === true ? {} : urlContext,
+        } as UrlContextTool);
       }
 
       let toolConfig: ToolConfig | undefined;
@@ -652,10 +674,11 @@ export function defineModel(
             generateContentRequest,
             clientOpt
           );
-
+          const chunks: CandidateData[] = [];
           for await (const item of result.stream) {
             item.candidates?.forEach((candidate) => {
-              const c = fromGeminiCandidate(candidate);
+              const c = fromGeminiCandidate(candidate, chunks);
+              chunks.push(c);
               sendChunk({
                 index: c.index,
                 content: c.message.content,
@@ -683,7 +706,8 @@ export function defineModel(
           });
         }
 
-        const candidateData = candidates.map(fromGeminiCandidate) || [];
+        const candidateData =
+          candidates.map((c) => fromGeminiCandidate(c)) || [];
 
         return {
           candidates: candidateData,
