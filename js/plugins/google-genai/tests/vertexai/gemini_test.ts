@@ -125,8 +125,7 @@ describe('Vertex AI Gemini', () => {
   describe('gemini() function', () => {
     it('returns a ModelReference for a known model string', () => {
       const name = 'gemini-2.0-flash';
-      const modelRef: ModelReference<typeof GeminiConfigSchema> =
-        model(name);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -134,8 +133,7 @@ describe('Vertex AI Gemini', () => {
 
     it('returns a ModelReference for an unknown model string', () => {
       const name = 'gemini-new-model';
-      const modelRef: ModelReference<typeof GeminiConfigSchema> =
-        model(name);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(name);
       assert.strictEqual(modelRef.name, `vertexai/${name}`);
       assert.ok(modelRef.info?.supports?.multiturn);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -143,8 +141,10 @@ describe('Vertex AI Gemini', () => {
 
     it('applies options to the ModelReference', () => {
       const options = { temperature: 0.9, topK: 20 };
-      const modelRef: ModelReference<typeof GeminiConfigSchema> =
-        model('gemini-2.0-flash', options);
+      const modelRef: ModelReference<typeof GeminiConfigSchema> = model(
+        'gemini-2.0-flash',
+        options
+      );
       assert.deepStrictEqual(modelRef.config, options);
     });
   });
