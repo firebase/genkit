@@ -445,8 +445,8 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 		}
 		// Create a new message with rendered content instead of mutating the original
 		renderedMsg := &Message{
-			Role:    msg.Role,
-			Content: msgParts,
+			Role:     msg.Role,
+			Content:  msgParts,
 			Metadata: msg.Metadata,
 		}
 		renderedMsgs = append(renderedMsgs, renderedMsg)
