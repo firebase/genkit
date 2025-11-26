@@ -1267,7 +1267,10 @@
         },
         "output": {},
         "content": {
-          "type": "array"
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Part"
+          }
         }
       },
       "required": [

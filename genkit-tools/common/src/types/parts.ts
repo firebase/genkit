@@ -121,9 +121,7 @@ export type ToolResponsePart = z.infer<typeof ToolResponseSchemaBase> & {
 
 export const ToolResponseSchema: z.ZodType<ToolResponsePart> =
   ToolResponseSchemaBase.extend({
-    content: z.array(z.any()).optional(),
-    // TODO: switch to this once we have effective recursive schema support across the board.
-    // content: z.array(z.lazy(() => PartSchema)).optional(),
+    content: z.array(z.lazy(() => PartSchema)).optional(),
   });
 
 /**
