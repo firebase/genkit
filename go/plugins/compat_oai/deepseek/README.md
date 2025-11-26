@@ -18,16 +18,15 @@ import (
   "github.com/openai/openai-go"
 )
 // Initialize the DeepSeek plugin with your API key
+// You could either use option.WithAPIKey or simply use DEEPSEEK_API_KEY
+// environment variable
 oai := &deepseek.DeepSeek{Opts: []option.RequestOption{option.WithAPIKey(apiKey)}}
 
 // Initialize Genkit with the DeepSeek plugin
-g, err := genkit.Init(ctx,
+g := genkit.Init(ctx,
     genkit.WithDefaultModel("deepseek/deepseek-chat"),
     genkit.WithPlugins(oai),
 )
-if err != nil {
-    // handle errors
-}
 
 config := &openai.ChatCompletionNewParams{
     // define optional config fields

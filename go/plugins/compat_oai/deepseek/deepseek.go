@@ -16,6 +16,7 @@ package deepseek
 
 import (
 	"context"
+	"os"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/api"
@@ -39,7 +40,16 @@ func (d *DeepSeek) Name() string {
 }
 
 func (d *DeepSeek) Init(ctx context.Context) []api.Action {
-	d.Opts = append(d.Opts, option.WithBaseURL(baseURL))
+	url := os.Getenv("DEEPSEEK_BASE_URL")
+	if url == "" {
+		url = baseURL
+	}
+	d.Opts = append([]option.RequestOption{option.WithBaseURL(url)}, d.Opts...)
+
+	apiKey := os.Getenv("DEEPSEEK_API_KEY")
+	if apiKey != "" {
+		d.Opts = append([]option.RequestOption{option.WithAPIKey(apiKey)}, d.Opts...)
+	}
 
 	d.openAICompatible.Opts = d.Opts
 	d.openAICompatible.Provider = provider
