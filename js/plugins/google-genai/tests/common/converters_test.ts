@@ -13,17 +13,22 @@ limitations under the License.
 */
 import * as assert from 'assert';
 import { z } from 'genkit';
-import type { MessageData } from 'genkit/model';
+import type { CandidateData, MessageData } from 'genkit/model';
 import { toJsonSchema } from 'genkit/schema';
 import { describe, it } from 'node:test';
 import {
+  applyGeminiPartialArgs,
   fromGeminiCandidate,
   toGeminiFunctionModeEnum,
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
 } from '../../src/common/converters.js';
-import type { GenerateContentCandidate } from '../../src/common/types.js';
+import type {
+  FunctionCall,
+  GenerateContentCandidate,
+  Part,
+} from '../../src/common/types.js';
 import {
   ExecutableCodeLanguage,
   FunctionCallingMode,
@@ -87,6 +92,7 @@ describe('toGeminiMessage', () => {
         parts: [
           {
             functionResponse: {
+              id: '0',
               name: 'tellAFunnyJoke',
               response: {
                 name: 'tellAFunnyJoke',
@@ -96,6 +102,7 @@ describe('toGeminiMessage', () => {
           },
           {
             functionResponse: {
+              id: '1',
               name: 'tellAFunnyJoke',
               response: {
                 name: 'tellAFunnyJoke',
@@ -515,14 +522,12 @@ describe('fromGeminiCandidate', () => {
               toolRequest: {
                 name: 'tellAFunnyJoke',
                 input: { topic: 'dog' },
-                ref: '0',
               },
             },
             {
               toolRequest: {
                 name: 'my__tool__name', // Expected no conversion for functionCall
                 input: { param: 'value' },
-                ref: '1',
               },
             },
           ],
@@ -842,6 +847,129 @@ describe('fromGeminiCandidate', () => {
       assert.deepStrictEqual(result, test.expectedOutput);
     });
   }
+
+  describe('fromGeminiFunctionCall partial tool requests', () => {
+    it('should handle streaming function calls', () => {
+      const chunks: CandidateData[] = [];
+      // First chunk, defines the function call
+      let result = fromGeminiCandidate(
+        {
+          index: 0,
+          content: {
+            role: 'model',
+            parts: [
+              {
+                functionCall: {
+                  name: 'getWeather',
+                  id: '1234',
+                  args: {},
+                  willContinue: true,
+                },
+                thoughtSignature: 'thoughtSignature1234',
+              },
+            ],
+          },
+        },
+        chunks
+      );
+      chunks.push(result);
+
+      assert.deepStrictEqual(result.message.content[0].toolRequest, {
+        name: 'getWeather',
+        ref: '1234',
+        input: {},
+        partial: true,
+      });
+
+      // Second chunk, adds a partial argument
+      result = fromGeminiCandidate(
+        {
+          index: 0,
+          content: {
+            role: 'model',
+            parts: [
+              {
+                functionCall: {
+                  partialArgs: [
+                    {
+                      jsonPath: '$.location',
+                      stringValue: 'Paris, France',
+                    },
+                  ],
+                  willContinue: true,
+                },
+              },
+            ],
+          },
+        },
+        chunks
+      );
+      chunks.push(result);
+
+      assert.deepStrictEqual(result.message.content[0].toolRequest, {
+        name: 'getWeather',
+        ref: '1234',
+        input: { location: 'Paris, France' },
+        partial: true,
+      });
+
+      // Third chunk, adds another partial argument
+      result = fromGeminiCandidate(
+        {
+          index: 0,
+          content: {
+            role: 'model',
+            parts: [
+              {
+                functionCall: {
+                  name: '',
+                  partialArgs: [
+                    {
+                      jsonPath: '$.unit',
+                      stringValue: 'celsius',
+                    },
+                  ],
+                  willContinue: true,
+                },
+              },
+            ],
+          },
+        },
+        chunks
+      );
+      chunks.push(result);
+
+      assert.deepStrictEqual(result.message.content[0].toolRequest, {
+        name: 'getWeather',
+        ref: '1234',
+        input: { location: 'Paris, France', unit: 'celsius' },
+        partial: true,
+      });
+
+      // Final chunk, finishes the call
+      result = fromGeminiCandidate(
+        {
+          index: 0,
+          content: {
+            role: 'model',
+            parts: [
+              {
+                functionCall: {},
+              },
+            ],
+          },
+        },
+        chunks
+      );
+      chunks.push(result);
+
+      assert.deepStrictEqual(result.message.content[0].toolRequest, {
+        name: 'getWeather',
+        ref: '1234',
+        input: { location: 'Paris, France', unit: 'celsius' },
+      });
+    });
+  });
 });
 
 describe('toGeminiTool', () => {
@@ -958,4 +1086,132 @@ describe('toGeminiFunctionModeEnum', () => {
       /unsupported function calling mode: unsupported/
     );
   });
+});
+
+describe('applyGeminiPartialArgs', () => {
+  const testCases = [
+    {
+      should: 'apply a simple string value',
+      initialArgs: {},
+      partialArgs: [{ jsonPath: '$.foo', stringValue: 'bar' }],
+      expectedArgs: { foo: 'bar' },
+    },
+    {
+      should: 'apply a simple number value',
+      initialArgs: {},
+      partialArgs: [{ jsonPath: '$.count', numberValue: 42 }],
+      expectedArgs: { count: 42 },
+    },
+    {
+      should: 'apply a simple boolean value',
+      initialArgs: {},
+      partialArgs: [{ jsonPath: '$.enabled', boolValue: true }],
+      expectedArgs: { enabled: true },
+    },
+    {
+      should: 'apply a null value',
+      initialArgs: { key: 'not-null' },
+      partialArgs: [{ jsonPath: '$.key', nullValue: 'NULL_VALUE' as const }],
+      expectedArgs: { key: null },
+    },
+    {
+      should: 'apply a value to a nested object',
+      initialArgs: {},
+      partialArgs: [{ jsonPath: '$.config.setting', stringValue: 'value' }],
+      expectedArgs: { config: { setting: 'value' } },
+    },
+    {
+      should: 'apply a value to an array index',
+      initialArgs: { items: ['a', 'b'] },
+      partialArgs: [{ jsonPath: '$.items[1]', stringValue: 'c' }],
+      expectedArgs: { items: ['a', 'bc'] },
+    },
+    {
+      should: 'create and apply a value to an array index',
+      initialArgs: { items: [] },
+      partialArgs: [{ jsonPath: '$.items[0]', stringValue: 'a' }],
+      expectedArgs: { items: ['a'] },
+    },
+    {
+      should: 'apply a value to a nested object within an array',
+      initialArgs: { data: [{ id: 1, value: 'old' }] },
+      partialArgs: [{ jsonPath: '$.data[0].value', stringValue: 'new' }],
+      expectedArgs: { data: [{ id: 1, value: 'oldnew' }] },
+    },
+    {
+      should: 'apply multiple partial args',
+      initialArgs: {},
+      partialArgs: [
+        { jsonPath: '$.name', stringValue: 'test' },
+        { jsonPath: '$.config.version', numberValue: 2 },
+      ],
+      expectedArgs: { name: 'test', config: { version: 2 } },
+    },
+    {
+      should: 'overwrite an existing value',
+      initialArgs: { property: 'initial' },
+      partialArgs: [{ jsonPath: '$.property', stringValue: 'updated' }],
+      expectedArgs: { property: 'initialupdated' },
+    },
+    {
+      should: 'create deeply nested objects and arrays',
+      initialArgs: {},
+      partialArgs: [{ jsonPath: '$.a.b[0].c', stringValue: 'deep' }],
+      expectedArgs: { a: { b: [{ c: 'deep' }] } },
+    },
+    {
+      should: 'create a nested array',
+      initialArgs: {},
+      partialArgs: [{ jsonPath: '$.data[0][0]', stringValue: 'nested' }],
+      expectedArgs: { data: [['nested']] },
+    },
+    {
+      should: 'apply a value to a multi-dimensional array',
+      initialArgs: {
+        matrix: [
+          [1, 2],
+          [3, 4],
+        ],
+      },
+      partialArgs: [{ jsonPath: '$.matrix[1][0]', numberValue: 5 }],
+      expectedArgs: {
+        matrix: [
+          [1, 2],
+          [5, 4],
+        ],
+      },
+    },
+    {
+      should: 'add a new property to an existing object',
+      initialArgs: { user: { name: 'John' } },
+      partialArgs: [{ jsonPath: '$.user.age', numberValue: 30 }],
+      expectedArgs: { user: { name: 'John', age: 30 } },
+    },
+    {
+      should: 'add a new element to an existing array',
+      initialArgs: { scores: [10, 20] },
+      partialArgs: [{ jsonPath: '$.scores[2]', numberValue: 30 }],
+      expectedArgs: { scores: [10, 20, 30] },
+    },
+  ];
+  for (const test of testCases) {
+    it(`should ${test.should}`, () => {
+      const functionCall: FunctionCall = {
+        name: 'test',
+        args: test.initialArgs,
+      };
+      const part: Part = {
+        functionCall: {
+          name: 'test',
+          args: {},
+          partialArgs: test.partialArgs,
+        },
+      };
+      applyGeminiPartialArgs(
+        functionCall.args!,
+        part.functionCall?.partialArgs!
+      );
+      assert.deepStrictEqual(functionCall.args, test.expectedArgs);
+    });
+  }
 });

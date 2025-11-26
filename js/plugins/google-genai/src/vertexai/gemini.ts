@@ -16,6 +16,7 @@
 
 import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
+  CandidateData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
@@ -252,6 +253,12 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .object({
       mode: z.enum(['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE']).optional(),
       allowedFunctionNames: z.array(z.string()).optional(),
+      /**
+       * When set to true, arguments of a single function call will be streamed out in
+       * multiple parts/contents/responses. Partial parameter results will be returned in the
+       * [FunctionCall.partial_args] field. This field is not supported in Gemini API.
+       */
+      streamFunctionCallArguments: z.boolean().optional(),
     })
     .describe(
       'Controls how the model uses the provided tools (function declarations). ' +
@@ -536,6 +543,7 @@ export function defineModel(
       if (functionCallingConfig) {
         toolConfig = {
           functionCallingConfig: {
+            ...functionCallingConfig,
             allowedFunctionNames: functionCallingConfig.allowedFunctionNames,
             mode: toGeminiFunctionModeEnum(functionCallingConfig.mode),
           },
@@ -646,10 +654,12 @@ export function defineModel(
             clientOpt
           );
 
+          const chunks: CandidateData[] = [];
           for await (const item of result.stream) {
             (item as GenerateContentResponse).candidates?.forEach(
               (candidate) => {
-                const c = fromGeminiCandidate(candidate);
+                const c = fromGeminiCandidate(candidate, chunks);
+                chunks.push(c);
                 sendChunk({
                   index: c.index,
                   content: c.message.content,
