@@ -23,7 +23,7 @@ import {
   GeminiConfigSchema,
   GeminiTtsConfigSchema,
   defineModel,
-  googleaiModelRef,
+  model,
 } from '../../src/googleai/gemini.js';
 import {
   FinishReason,
@@ -396,7 +396,7 @@ describe('Google AI Gemini', () => {
   describe('gemini() function', () => {
     it('returns a ModelReference for a known model string', () => {
       const name = 'gemini-2.0-flash';
-      const modelRef = googleaiModelRef(name);
+      const modelRef = model(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -404,7 +404,7 @@ describe('Google AI Gemini', () => {
 
     it('returns a ModelReference for a tts type model string', () => {
       const name = 'gemini-2.5-flash-preview-tts';
-      const modelRef = googleaiModelRef(name);
+      const modelRef = model(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, false);
       assert.strictEqual(modelRef.configSchema, GeminiTtsConfigSchema);
@@ -412,7 +412,7 @@ describe('Google AI Gemini', () => {
 
     it('returns a ModelReference for an image type model string', () => {
       const name = 'gemini-2.5-flash-image';
-      const modelRef = googleaiModelRef(name);
+      const modelRef = model(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
@@ -420,7 +420,7 @@ describe('Google AI Gemini', () => {
 
     it('returns a ModelReference for an unknown model string', () => {
       const name = 'gemini-42.0-flash';
-      const modelRef = googleaiModelRef(name);
+      const modelRef = model(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);
       assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);

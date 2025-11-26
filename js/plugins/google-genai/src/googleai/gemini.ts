@@ -430,7 +430,7 @@ const KNOWN_MODELS = {
   ...KNOWN_GEMMA_MODELS,
 };
 
-export function googleaiModelRef(
+export function model(
   version: string,
   config: GeminiConfig | GeminiTtsConfig | GemmaConfig = {}
 ): ModelReference<ConfigSchemaType> {
@@ -471,7 +471,7 @@ export function listActions(models: Model[]): ActionMetadata[] {
       // Filter out deprecated
       .filter((m) => !m.description || !m.description.includes('deprecated'))
       .map((m) => {
-        const ref = googleaiModelRef(m.name);
+        const ref = model(m.name);
         return modelActionMetadata({
           name: ref.name,
           info: ref.info,
@@ -495,7 +495,7 @@ export function defineModel(
   pluginOptions?: GoogleAIPluginOptions
 ): ModelAction {
   checkApiKey(pluginOptions?.apiKey);
-  const ref = googleaiModelRef(name);
+  const ref = model(name);
   const clientOptions: ClientOptions = {
     apiVersion: pluginOptions?.apiVersion,
     baseUrl: pluginOptions?.baseUrl,

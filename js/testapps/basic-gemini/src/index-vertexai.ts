@@ -350,7 +350,7 @@ ai.defineFlow(
         temperature: 2, // we want creativity
       },
       output: { schema: RpgCharacterSchema },
-      prompt: `Generate sample data`,
+      prompt: `Generate an RPC character called ${name}`,
     });
 
     for await (const chunk of stream) {
