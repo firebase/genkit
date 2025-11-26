@@ -248,6 +248,22 @@ const getWeather = ai.defineTool(
   }
 );
 
+const screenshot = ai.defineTool(
+  {
+    name: 'screenshot',
+    multipart: true,
+    description: 'takes a screenshot',
+  },
+  async () => {
+    // pretend we call an actual API
+    const picture = fs.readFileSync('my_room.png', { encoding: 'base64' });
+    return {
+      output: 'success',
+      content: [{ media: { url: `data:image/png;base64,${picture}` } }],
+    };
+  }
+);
+
 const celsiusToFahrenheit = ai.defineTool(
   {
     name: 'celsiusToFahrenheit',
@@ -281,6 +297,31 @@ ai.defineFlow(
 
     for await (const chunk of stream) {
       sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+// Multipart tool calling
+ai.defineFlow(
+  {
+    name: 'multipart-tool-calling',
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (_, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-3-pro-preview'),
+      config: {
+        temperature: 1,
+      },
+      tools: [screenshot],
+      prompt: `Tell me what I'm seeing on the screen.`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.output);
     }
 
     return (await response).text;
