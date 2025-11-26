@@ -427,6 +427,8 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 		return nil, err
 	}
 
+	// Create new message copies to avoid mutating shared messages during concurrent execution
+	renderedMsgs := make([]*Message, 0, len(msgs))
 	for _, msg := range msgs {
 		msgParts := []*Part{}
 		for _, part := range msg.Content {
@@ -436,12 +438,21 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 					return nil, err
 				}
 				msgParts = append(msgParts, parts...)
+			} else {
+				// Preserve non-text parts as-is
+				msgParts = append(msgParts, part)
 			}
 		}
-		msg.Content = msgParts
+		// Create a new message with rendered content instead of mutating the original
+		renderedMsg := &Message{
+			Role:     msg.Role,
+			Content:  msgParts,
+			Metadata: msg.Metadata,
+		}
+		renderedMsgs = append(renderedMsgs, renderedMsg)
 	}
 
-	return append(messages, msgs...), nil
+	return append(messages, renderedMsgs...), nil
 }
 
 // renderPrompt renders a prompt template using dotprompt functionalities
