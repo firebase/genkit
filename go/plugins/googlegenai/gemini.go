@@ -727,7 +727,7 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 	}
 	msg := &ai.Message{}
 	msg.Role = ai.Role(cand.Content.Role)
-
+	//var signature []byte
 	// iterate over the candidate parts, only one struct member
 	// must be populated, more than one is considered an error
 	for _, part := range cand.Content.Parts {
@@ -777,6 +777,12 @@ func translateCandidate(cand *genai.Candidate) (*ai.ModelResponse, error) {
 		if p == nil {
 			continue
 		}
+		if p.Metadata == nil {
+			p.Metadata = make(map[string]any)
+		}
+		if part.ThoughtSignature != nil {
+			p.Metadata["signature"] = part.ThoughtSignature
+		}
 
 		msg.Content = append(msg.Content, p)
 	}
@@ -819,6 +825,9 @@ func toGeminiParts(parts []*ai.Part) ([]*genai.Part, error) {
 		part, err := toGeminiPart(p)
 		if err != nil {
 			return nil, err
+		}
+		if si, ok := p.Metadata["signature"]; ok {
+			part.ThoughtSignature = si.([]byte)
 		}
 		res = append(res, part)
 	}
