@@ -179,6 +179,25 @@ ai.defineFlow('search-grounding', async () => {
   };
 });
 
+// Url context
+ai.defineFlow('url-context', async () => {
+  const { text, raw } = await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt:
+      'Compare the ingredients and cooking times from the recipes at ' +
+      'https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 ' +
+      'and https://www.allrecipes.com/recipe/70679/simple-whole-roasted-chicken/',
+    config: {
+      urlContext: {},
+    },
+  });
+
+  return {
+    text,
+    groundingMetadata: (raw as any)?.candidates[0]?.groundingMetadata,
+  };
+});
+
 // File Search
 ai.defineFlow('file-search', async () => {
   // Use the google/genai SDK to upload the story BLOB to a new

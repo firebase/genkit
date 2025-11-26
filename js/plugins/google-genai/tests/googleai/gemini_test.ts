@@ -282,6 +282,7 @@ describe('Google AI Gemini', () => {
             fileSearch: {
               fileSearchStoreNames: ['foo'],
             },
+            urlContext: {},
           },
         };
         await model.run(request);
@@ -290,7 +291,7 @@ describe('Google AI Gemini', () => {
           fetchStub.lastCall.args[1].body
         );
         assert.ok(Array.isArray(apiRequest.tools));
-        assert.strictEqual(apiRequest.tools?.length, 4);
+        assert.strictEqual(apiRequest.tools?.length, 5);
         assert.deepStrictEqual(apiRequest.tools?.[1], { codeExecution: {} });
         assert.deepStrictEqual(apiRequest.tools?.[2], {
           googleSearch: {},
@@ -299,6 +300,9 @@ describe('Google AI Gemini', () => {
           fileSearch: {
             fileSearchStoreNames: ['foo'],
           },
+        });
+        assert.deepStrictEqual(apiRequest.tools?.[4], {
+          urlContext: {},
         });
       });
 
