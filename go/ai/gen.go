@@ -392,9 +392,10 @@ type ToolDefinition struct {
 type ToolRequest struct {
 	// Input is a JSON object describing the input values to the tool.
 	// An example might be map[string]any{"country":"USA", "president":3}.
-	Input any    `json:"input,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Ref   string `json:"ref,omitempty"`
+	Input   any    `json:"input,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Partial bool   `json:"partial,omitempty"`
+	Ref     string `json:"ref,omitempty"`
 }
 
 type toolRequestPart struct {
@@ -406,7 +407,8 @@ type toolRequestPart struct {
 // the results of running a specific tool on the arguments passed to the client
 // by the model in a [ToolRequest].
 type ToolResponse struct {
-	Name string `json:"name,omitempty"`
+	Content []any  `json:"content,omitempty"`
+	Name    string `json:"name,omitempty"`
 	// Output is a JSON object describing the results of running the tool.
 	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
 	Output any    `json:"output,omitempty"`
