@@ -30,6 +30,7 @@ import {
   GenerateContentCandidate as GeminiCandidate,
   Content as GeminiContent,
   Part as GeminiPart,
+  PartialArg,
   Schema,
   SchemaType,
   VideoMetadata,
@@ -403,12 +404,16 @@ function fromGeminiFileData(part: GeminiPart): Part {
   });
 }
 
-export function applyStreamingJsonPath(target: object, geminiPart: GeminiPart) {
-  if (!geminiPart.functionCall?.partialArgs) {
-    return;
-  }
-
-  for (const partialArg of geminiPart.functionCall.partialArgs) {
+/**
+ * Applies Gemini partial args to the target object.
+ *
+ * https://docs.cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1/Content#PartialArg
+ */
+export function applyGeminiPartialArgs(
+  target: object,
+  partialArgs: PartialArg[]
+) {
+  for (const partialArg of partialArgs) {
     if (!partialArg.jsonPath) {
       continue;
     }
@@ -428,6 +433,8 @@ export function applyStreamingJsonPath(target: object, geminiPart: GeminiPart) {
 
     let current: any = target;
     const path = JSONPath.toPathArray(partialArg.jsonPath);
+    // ex: for path '$.data[0][0]' toPathArray returns: ['$', 'data', '0', '0']
+    // we skip the first (root) reference and dereference the rest.
     for (let i = 1; i < path.length - 1; i++) {
       const key = path[i];
       const nextKey = path[i + 1];
@@ -501,17 +508,17 @@ function handleFunctionCallPartials(
       : undefined;
 
   // if the current functionCall has partialArgs, we try to apply the diff to the
-  // potentilly including the previous partial part.
+  // potentially including the previous partial part.
   if (part.functionCall.partialArgs) {
     const newInput = prevPartialToolRequestPart?.toolRequest?.input
       ? JSON.parse(JSON.stringify(prevPartialToolRequestPart.toolRequest.input))
       : {};
-    applyStreamingJsonPath(newInput, part);
+    applyGeminiPartialArgs(newInput, part.functionCall.partialArgs);
     req.input = newInput;
   }
 
   // If there's a previous partial part, we copy some fields over, because the
-  // API wil not return these.
+  // API will not return these.
   if (prevPartialToolRequestPart) {
     if (!req.name) {
       req.name = prevPartialToolRequestPart.toolRequest.name;

@@ -17,7 +17,7 @@ import type { CandidateData, MessageData } from 'genkit/model';
 import { toJsonSchema } from 'genkit/schema';
 import { describe, it } from 'node:test';
 import {
-  applyStreamingJsonPath,
+  applyGeminiPartialArgs,
   fromGeminiCandidate,
   toGeminiFunctionModeEnum,
   toGeminiMessage,
@@ -1088,7 +1088,7 @@ describe('toGeminiFunctionModeEnum', () => {
   });
 });
 
-describe('applyStreamingJsonPath', () => {
+describe('applyGeminiPartialArgs', () => {
   const testCases = [
     {
       should: 'apply a simple string value',
@@ -1207,7 +1207,10 @@ describe('applyStreamingJsonPath', () => {
           partialArgs: test.partialArgs,
         },
       };
-      applyStreamingJsonPath(functionCall.args!, part);
+      applyGeminiPartialArgs(
+        functionCall.args!,
+        part.functionCall?.partialArgs!
+      );
       assert.deepStrictEqual(functionCall.args, test.expectedArgs);
     });
   }
