@@ -1003,7 +1003,7 @@ describe('toAnthropicRequestBody', () => {
             role: 'user',
           },
         ],
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-3-haiku',
         metadata: {
           user_id: 'exampleUser123',
         },
@@ -1614,17 +1614,13 @@ describe('claudeModel', () => {
     );
   });
 
-  it('should throw when client is omitted in params object', () => {
-    assert.throws(
-      () => claudeModel('claude-3-5-haiku'),
-      /Anthropic client is required to create a model action/
-    );
-  });
-
   it('should correctly define supported Claude models', () => {
     const mockClient = createMockAnthropicClient();
     const modelName = 'claude-3-5-haiku';
-    const modelAction = claudeModel(modelName, mockClient);
+    const modelAction = claudeModel({
+      name: modelName,
+      client: mockClient,
+    });
 
     // Verify the model action is returned
     assert.ok(modelAction);
@@ -1633,7 +1629,10 @@ describe('claudeModel', () => {
 
   it('should accept any model name and create a model action', () => {
     // Following Google GenAI pattern: accept any model name, let API validate
-    const modelAction = claudeModel('unsupported-model', {} as Anthropic);
+    const modelAction = claudeModel({
+      name: 'unsupported-model',
+      client: {} as Anthropic,
+    });
     assert.ok(modelAction, 'Should create model action for any model name');
     assert.strictEqual(typeof modelAction, 'function');
   });

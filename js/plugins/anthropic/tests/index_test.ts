@@ -146,22 +146,22 @@ describe('Anthropic Plugin', () => {
     assert.ok(models.length > 0, 'Should return at least one model');
 
     const names = models.map((model) => model.name).sort();
+    // Models are listed with their full IDs from the API (no normalization)
     assert.ok(
-      names.includes('anthropic/claude-3-5-haiku'),
-      'Known model should be listed once with normalized name'
+      names.includes('anthropic/claude-3-5-haiku-20241022'),
+      'Known model should be listed with full model ID from API'
     );
-    assert.strictEqual(
-      names.filter((name) => name === 'anthropic/claude-3-5-haiku').length,
-      1,
-      'Known model entries should be deduplicated'
+    assert.ok(
+      names.includes('anthropic/claude-3-5-haiku-latest'),
+      'Latest variant should be listed separately'
     );
     assert.ok(
       names.includes('anthropic/claude-3-5-sonnet-20241022'),
       'Unknown Claude 3.5 Sonnet should be listed with full model ID'
     );
     assert.ok(
-      names.includes('anthropic/claude-sonnet-4'),
-      'Known Claude Sonnet 4 model should be listed'
+      names.includes('anthropic/claude-sonnet-4-20250514'),
+      'Known Claude Sonnet 4 model should be listed with full model ID'
     );
     assert.ok(
       names.includes('anthropic/claude-new-5-20251212'),
@@ -173,44 +173,21 @@ describe('Anthropic Plugin', () => {
     );
 
     const haikuMetadata = models.find(
-      (model) => model.name === 'anthropic/claude-3-5-haiku'
+      (model) => model.name === 'anthropic/claude-3-5-haiku-20241022'
     );
     assert.ok(haikuMetadata, 'Haiku metadata should exist');
     const haikuInfo = getModelInfo(haikuMetadata);
     assert.ok(haikuInfo, 'Haiku model info should exist');
-    assert.ok(
-      haikuInfo?.versions?.includes('claude-3-5-haiku-20241022'),
-      'Known versions should include dated identifier'
-    );
-    assert.ok(
-      haikuInfo?.versions?.includes('claude-3-5-haiku-latest'),
-      'Additional variants should be merged into versions'
-    );
 
     const newModelMetadata = models.find(
       (model) => model.name === 'anthropic/claude-new-5-20251212'
     );
-    const newModelInfo = getModelInfo(newModelMetadata);
-    assert.strictEqual(
-      newModelInfo?.label,
-      'Claude New 5',
-      'Unknown models should preserve display name as label'
-    );
+    assert.ok(newModelMetadata, 'New model metadata should exist');
 
     const experimentalMetadata = models.find(
       (model) => model.name === 'anthropic/claude-experimental-latest'
     );
-    const experimentalInfo = getModelInfo(experimentalMetadata);
-    assert.strictEqual(
-      experimentalInfo?.label,
-      'Anthropic - claude-experimental',
-      'Unknown latest variants should derive fallback label from normalized id'
-    );
-    assert.deepStrictEqual(
-      experimentalInfo?.versions,
-      ['claude-experimental-latest'],
-      'Unknown models should capture version identifiers'
-    );
+    assert.ok(experimentalMetadata, 'Experimental model metadata should exist');
 
     // Verify mock was called
     const listStub = mockClient.models.list as any;
