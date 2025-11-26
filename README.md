@@ -160,7 +160,7 @@ bugs, suggest features, or explore the source code.
 - [**Contribute to Documentation and Samples**](https://github.com/genkit-ai/) – Report
 issues in Genkit's [documentation](https://github.com/genkit-ai/docsite), or contribute to the [samples](https://github.com/genkit-ai/samples).
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/firebase/genkit)
+[Ask Code Wiki](https://codewiki.google/github.com/firebase/genkit)
 
 ## Contributing
 
