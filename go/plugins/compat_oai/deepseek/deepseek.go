@@ -31,14 +31,19 @@ const (
 )
 
 type DeepSeek struct {
-	Opts             []option.RequestOption
+	// Optional: Opts are additional options for the client.
+	// Can include other options like WithOrganization, WithBaseURL, etc.
+	Opts []option.RequestOption
+
 	openAICompatible compat_oai.OpenAICompatible
 }
 
+// Name returns the name of the plugin
 func (d *DeepSeek) Name() string {
 	return provider
 }
 
+// Init initializes the DeepSeek plugin
 func (d *DeepSeek) Init(ctx context.Context) []api.Action {
 	url := os.Getenv("DEEPSEEK_BASE_URL")
 	if url == "" {
@@ -57,18 +62,23 @@ func (d *DeepSeek) Init(ctx context.Context) []api.Action {
 	return d.openAICompatible.Init(ctx)
 }
 
+// Model returns the [ai.Model] with the given name.
+// It returns nil if the model is not found
 func (d *DeepSeek) Model(g *genkit.Genkit, name string) ai.Model {
 	return d.openAICompatible.Model(g, api.NewName(provider, name))
 }
 
+// DefineModel defines a model in the registry
 func (d *DeepSeek) DefineModel(g *genkit.Genkit, name string, opts ai.ModelOptions) ai.Model {
 	return d.openAICompatible.DefineModel(provider, name, opts)
 }
 
+// ListActions lists the resolvable actions of the plugin
 func (d *DeepSeek) ListActions(ctx context.Context) []api.ActionDesc {
 	return d.openAICompatible.ListActions(ctx)
 }
 
+// ResolveAction resolves the supported actions from the plugin
 func (d *DeepSeek) ResolveAction(atype api.ActionType, name string) api.Action {
 	return d.openAICompatible.ResolveAction(atype, name)
 }
