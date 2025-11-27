@@ -19,7 +19,6 @@
 from genkit.blocks.embedding import embedder_action_metadata
 from genkit.core.action import ActionMetadata
 
-
 def test_embedder_action_metadata():
     """Test for embedder_action_metadata."""
     action_metadata = embedder_action_metadata(
