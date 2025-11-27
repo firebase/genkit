@@ -45,7 +45,8 @@ from genkit.blocks.model import (
     GenerateResponseWrapper,
     ModelMiddleware,
 )
-from genkit.core.action import ActionRunContext
+from genkit.core.action import ActionRunContext, Action
+from genkit.core.action._action import define_action_with_input_schema
 from genkit.core.registry import Registry
 from genkit.core.schema import to_json_schema
 from genkit.core.typing import (
@@ -370,7 +371,7 @@ def define_prompt(
     Returns:
         An ExecutablePrompt instance.
     """
-    return ExecutablePrompt(
+    prompt = ExecutablePrompt(
         registry,
         variant=variant,
         model=model,
@@ -391,6 +392,14 @@ def define_prompt(
         tools=tools,
         tool_choice=tool_choice,
         use=use,
+    )
+
+    define_action_with_input_schema(
+        registry,
+        prompt,
+        input_schema=input_schema,
+        metadata=metadata,
+        fn=to_generate_action_options,
     )
 
 
