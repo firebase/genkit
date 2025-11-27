@@ -8,7 +8,7 @@
 
 ## Supported models
 
-The plugin supports the most recent Anthropic models: **Claude Haiku 4.5**, **Claude Sonnet 4.5**, and **Claude Opus 4.5**.
+The plugin supports the most recent Anthropic models: **Claude Haiku 4.5**, **Claude Sonnet 4.5**, and **Claude Opus 4.5**. Additionally, the plugin supports all of the [non-retired older models](https://platform.claude.com/docs/en/about-claude/model-deprecations#model-status).
 
 ## Installation
 
