@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GenkitError, z } from 'genkit';
+import { GenkitError, ToolRequest, z } from 'genkit';
 import {
   CandidateData,
   MessageData,
@@ -23,12 +23,14 @@ import {
   TextPart,
   ToolDefinition,
 } from 'genkit/model';
+import { JSONPath } from 'jsonpath-plus';
 import {
   FunctionCallingMode,
   FunctionDeclaration,
   GenerateContentCandidate as GeminiCandidate,
   Content as GeminiContent,
   Part as GeminiPart,
+  PartialArg,
   Schema,
   SchemaType,
   VideoMetadata,
@@ -139,38 +141,41 @@ function toGeminiToolRequest(part: Part): GeminiPart {
   if (!part.toolRequest?.input) {
     throw Error('Invalid ToolRequestPart: input was missing.');
   }
-  return maybeAddGeminiThoughtSignature(part, {
-    functionCall: {
-      name: part.toolRequest.name,
-      args: part.toolRequest.input,
-    },
-  });
+  const functionCall: GeminiPart['functionCall'] = {
+    name: part.toolRequest.name,
+    args: part.toolRequest.input,
+  };
+  if (part.toolRequest.ref) {
+    functionCall.id = part.toolRequest.ref;
+  }
+  return maybeAddGeminiThoughtSignature(part, { functionCall });
 }
 
 function toGeminiToolResponse(part: Part): GeminiPart {
   if (!part.toolResponse?.output) {
     throw Error('Invalid ToolResponsePart: output was missing.');
   }
-  return maybeAddGeminiThoughtSignature(part, {
-    functionResponse: {
+  const functionResponse: GeminiPart['functionResponse'] = {
+    name: part.toolResponse.name,
+    response: {
       name: part.toolResponse.name,
-      response: {
-        name: part.toolResponse.name,
-        content: part.toolResponse.output,
-      },
+      content: part.toolResponse.output,
     },
+  };
+  if (part.toolResponse.ref) {
+    functionResponse.id = part.toolResponse.ref;
+  }
+  return maybeAddGeminiThoughtSignature(part, {
+    functionResponse,
   });
 }
 
 function toGeminiReasoning(part: Part): GeminiPart {
   const out: GeminiPart = { thought: true };
-  if (typeof part.metadata?.thoughtSignature === 'string') {
-    out.thoughtSignature = part.metadata.thoughtSignature;
-  }
   if (part.reasoning?.length) {
     out.text = part.reasoning;
   }
-  return out;
+  return maybeAddGeminiThoughtSignature(part, out);
 }
 
 function toGeminiCustom(part: Part): GeminiPart {
@@ -354,10 +359,9 @@ function maybeAddThoughtSignature(geminiPart: GeminiPart, part: Part): Part {
 }
 
 function fromGeminiThought(part: GeminiPart): Part {
-  return {
+  return maybeAddThoughtSignature(part, {
     reasoning: part.text || '',
-    metadata: { thoughtSignature: part.thoughtSignature },
-  };
+  });
 }
 
 function fromGeminiInlineData(part: GeminiPart): Part {
@@ -400,34 +404,153 @@ function fromGeminiFileData(part: GeminiPart): Part {
   });
 }
 
-function fromGeminiFunctionCall(part: GeminiPart, ref: string): Part {
+/**
+ * Applies Gemini partial args to the target object.
+ *
+ * https://docs.cloud.google.com/vertex-ai/generative-ai/docs/reference/rest/v1/Content#PartialArg
+ */
+export function applyGeminiPartialArgs(
+  target: object,
+  partialArgs: PartialArg[]
+) {
+  for (const partialArg of partialArgs) {
+    if (!partialArg.jsonPath) {
+      continue;
+    }
+    let value: boolean | string | number | null | undefined;
+    if (partialArg.boolValue !== undefined) {
+      value = partialArg.boolValue;
+    } else if (partialArg.nullValue !== undefined) {
+      value = null;
+    } else if (partialArg.numberValue !== undefined) {
+      value = partialArg.numberValue;
+    } else if (partialArg.stringValue !== undefined) {
+      value = partialArg.stringValue;
+    }
+    if (value === undefined) {
+      continue;
+    }
+
+    let current: any = target;
+    const path = JSONPath.toPathArray(partialArg.jsonPath);
+    // ex: for path '$.data[0][0]' toPathArray returns: ['$', 'data', '0', '0']
+    // we skip the first (root) reference and dereference the rest.
+    for (let i = 1; i < path.length - 1; i++) {
+      const key = path[i];
+      const nextKey = path[i + 1];
+      if (current[key] === undefined) {
+        if (!isNaN(parseInt(nextKey, 10))) {
+          current[key] = [];
+        } else {
+          current[key] = {};
+        }
+      }
+      current = current[key];
+    }
+
+    const finalKey = path[path.length - 1];
+    if (
+      partialArg.stringValue !== undefined &&
+      typeof current[finalKey] === 'string'
+    ) {
+      current[finalKey] += partialArg.stringValue;
+    } else {
+      current[finalKey] = value as any;
+    }
+  }
+}
+
+function fromGeminiFunctionCall(
+  part: GeminiPart,
+  previousChunks?: CandidateData[]
+): Part {
   if (!part.functionCall) {
     throw Error(
       'Invalid Gemini Function Call Part: missing function call data'
     );
   }
-  return maybeAddThoughtSignature(part, {
-    toolRequest: {
-      name: part.functionCall.name,
-      input: part.functionCall.args,
-      ref,
-    },
-  });
+  const req: Partial<ToolRequest> = {
+    name: part.functionCall.name,
+    input: part.functionCall.args,
+  };
+
+  if (part.functionCall.id) {
+    req.ref = part.functionCall.id;
+  }
+
+  if (part.functionCall.willContinue) {
+    req.partial = true;
+  }
+
+  handleFunctionCallPartials(req, part, previousChunks);
+
+  const toolRequest: Part = { toolRequest: req as ToolRequest };
+
+  return maybeAddThoughtSignature(part, toolRequest);
 }
 
-function fromGeminiFunctionResponse(part: GeminiPart, ref?: string): Part {
+function handleFunctionCallPartials(
+  req: Partial<ToolRequest>,
+  part: GeminiPart,
+  previousChunks?: CandidateData[]
+) {
+  if (!part.functionCall) {
+    throw Error(
+      'Invalid Gemini Function Call Part: missing function call data'
+    );
+  }
+
+  // we try to find if there's a previous partial tool request part.
+  const prevPart = previousChunks?.at(-1)?.message.content?.at(-1);
+  const prevPartialToolRequestPart =
+    prevPart?.toolRequest && prevPart?.toolRequest.partial
+      ? prevPart
+      : undefined;
+
+  // if the current functionCall has partialArgs, we try to apply the diff to the
+  // potentially including the previous partial part.
+  if (part.functionCall.partialArgs) {
+    const newInput = prevPartialToolRequestPart?.toolRequest?.input
+      ? JSON.parse(JSON.stringify(prevPartialToolRequestPart.toolRequest.input))
+      : {};
+    applyGeminiPartialArgs(newInput, part.functionCall.partialArgs);
+    req.input = newInput;
+  }
+
+  // If there's a previous partial part, we copy some fields over, because the
+  // API will not return these.
+  if (prevPartialToolRequestPart) {
+    if (!req.name) {
+      req.name = prevPartialToolRequestPart.toolRequest.name;
+    }
+    if (!req.ref) {
+      req.ref = prevPartialToolRequestPart.toolRequest.ref;
+    }
+    // This is a special case for the final partial function call chunk from the API,
+    // it will have nothing... so we need to make sure to copy the input
+    // from the previous.
+    if (req.input === undefined) {
+      req.input = prevPartialToolRequestPart.toolRequest.input;
+    }
+  }
+}
+
+function fromGeminiFunctionResponse(part: GeminiPart): Part {
   if (!part.functionResponse) {
     throw new Error(
       'Invalid Gemini Function Call Part: missing function call data'
     );
   }
-  return maybeAddThoughtSignature(part, {
+  const toolResponse: Part = {
     toolResponse: {
       name: part.functionResponse.name.replace(/__/g, '/'), // restore slashes
       output: part.functionResponse.response,
-      ref,
     },
-  });
+  };
+  if (part.functionResponse.id) {
+    toolResponse.toolResponse.ref = part.functionResponse.id;
+  }
+  return maybeAddThoughtSignature(part, toolResponse);
 }
 
 function fromExecutableCode(part: GeminiPart): Part {
@@ -462,20 +585,26 @@ function fromGeminiText(part: GeminiPart): Part {
   return maybeAddThoughtSignature(part, { text: part.text } as TextPart);
 }
 
-function fromGeminiPart(part: GeminiPart, ref: string): Part {
+function fromGeminiPart(
+  part: GeminiPart,
+  previousChunks?: CandidateData[]
+): Part {
   if (part.thought) return fromGeminiThought(part as any);
   if (typeof part.text === 'string') return fromGeminiText(part);
   if (part.inlineData) return fromGeminiInlineData(part);
   if (part.fileData) return fromGeminiFileData(part);
-  if (part.functionCall) return fromGeminiFunctionCall(part, ref);
-  if (part.functionResponse) return fromGeminiFunctionResponse(part, ref);
+  if (part.functionCall) return fromGeminiFunctionCall(part, previousChunks);
+  if (part.functionResponse) return fromGeminiFunctionResponse(part);
   if (part.executableCode) return fromExecutableCode(part);
   if (part.codeExecutionResult) return fromCodeExecutionResult(part);
 
   throw new Error('Unsupported GeminiPart type ' + JSON.stringify(part));
 }
 
-export function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
+export function fromGeminiCandidate(
+  candidate: GeminiCandidate,
+  previousChunks?: CandidateData[]
+): CandidateData {
   const parts = candidate.content?.parts || [];
   const genkitCandidate: CandidateData = {
     index: candidate.index || 0,
@@ -484,7 +613,7 @@ export function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
       content: parts
         // the model sometimes returns empty parts, ignore those.
         .filter((p) => Object.keys(p).length > 0)
-        .map((part, index) => fromGeminiPart(part, index.toString())),
+        .map((part) => fromGeminiPart(part, previousChunks)),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,

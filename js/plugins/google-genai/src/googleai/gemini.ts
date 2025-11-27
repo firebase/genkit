@@ -16,6 +16,7 @@
 
 import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
+  CandidateData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
@@ -673,10 +674,11 @@ export function defineModel(
             generateContentRequest,
             clientOpt
           );
-
+          const chunks: CandidateData[] = [];
           for await (const item of result.stream) {
             item.candidates?.forEach((candidate) => {
-              const c = fromGeminiCandidate(candidate);
+              const c = fromGeminiCandidate(candidate, chunks);
+              chunks.push(c);
               sendChunk({
                 index: c.index,
                 content: c.message.content,
@@ -704,7 +706,8 @@ export function defineModel(
           });
         }
 
-        const candidateData = candidates.map(fromGeminiCandidate) || [];
+        const candidateData =
+          candidates.map((c) => fromGeminiCandidate(c)) || [];
 
         return {
           candidates: candidateData,
