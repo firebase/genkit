@@ -1,6 +1,6 @@
 [project]
 dependencies = [
-  "dotpromptz",
+  "dotpromptz>=0.1.3",
   "genkit",
   "genkit-plugin-dev-local-vectorstore",
   "genkit-plugin-compat-oai",
@@ -82,7 +82,6 @@ omit = [
 default-groups = ["dev", "lint"]
 
 [tool.uv.sources]
-dotpromptz                          = { git = "https://github.com/google/dotprompt.git", subdirectory = "python/dotpromptz", rev = "main" }
 genkit                              = { workspace = true }
 genkit-plugin-compat-oai            = { workspace = true }
 genkit-plugin-dev-local-vectorstore = { workspace = true }
