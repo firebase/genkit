@@ -14,19 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""Telemetry exports for Google Cloud plugin."""
 
-"""Google Cloud Plugin for Genkit."""
+from .tracing import add_gcp_telemetry
 
-from .telemetry import add_gcp_telemetry
-
-
-def package_name() -> str:
-    """Get the package name for the Google Cloud plugin.
-
-    Returns:
-        The fully qualified package name as a string.
-    """
-    return 'genkit.plugins.google_cloud'
-
-
-__all__ = ['package_name', 'add_gcp_telemetry']
+__all__ = ['add_gcp_telemetry']

@@ -25,18 +25,29 @@ The module includes:
     - A custom span exporter for sending trace data to a telemetry GCP server
 """
 
+import logging
+import uuid
 from collections.abc import Sequence
 
 import structlog
 from google.api_core import exceptions as core_exceptions, retry as retries
 from google.cloud.trace_v2 import BatchWriteSpansRequest
+from opentelemetry import metrics
+from opentelemetry.exporter.cloud_monitoring import CloudMonitoringMetricsExporter
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
-from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.sdk.trace.export import (
-    SpanExportResult,
+from opentelemetry.resourcedetector.gcp_resource_detector import (
+    GoogleCloudResourceDetector,
 )
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import SERVICE_INSTANCE_ID, SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace.export import SpanExportResult
 
+from genkit.core.environment import is_dev_environment
 from genkit.core.tracing import add_custom_exporter
+
+from .metrics import record_generate_metrics
 
 logger = structlog.get_logger(__name__)
 
@@ -67,6 +78,9 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
             server-side success).
         """
         try:
+            for span in spans:
+                record_generate_metrics(span)
+
             self.client.batch_write_spans(
                 request=BatchWriteSpansRequest(
                     name=f'projects/{self.project_id}',
@@ -82,37 +96,45 @@ class GenkitGCPExporter(CloudTraceSpanExporter):
                     deadline=120.0,
                 ),
             )
-        # pylint: disable=broad-except
         except Exception as ex:
             logger.error('Error while writing to Cloud Trace', exc_info=ex)
             return SpanExportResult.FAILURE
 
         return SpanExportResult.SUCCESS
 
-    def add_tracer_attributes(self, spans: Sequence[ReadableSpan]) -> Sequence[ReadableSpan]:
-        """Adds the instrumentation library attribute.
 
-        Args:
-            spans: Sequence of spans to modify.
+def add_gcp_telemetry(force_export: bool = True) -> None:
+    """Configure GCP telemetry export for traces and metrics.
 
-        Returns:
-            Sequence of spans modified.
-        """
-        modified_spans: list[ReadableSpan] = []
+    Args:
+        force_export: Export regardless of environment. Defaults to True.
+    """
+    should_export = force_export or not is_dev_environment()
+    if not should_export:
+        return
 
-        for span in spans:
-            modified_spans.append(
-                span.attributes.update({
-                    'instrumentationLibrary': {
-                        'name': 'genkit-tracer',
-                        'version': 'v1',
-                    },
-                })
-            )
-
-        return modified_spans
-
-
-def add_gcp_telemetry() -> None:
-    """Inits and adds GCP telemetry exporter."""
     add_custom_exporter(GenkitGCPExporter(), 'gcp_telemetry_server')
+
+    try:
+        resource = Resource.create({
+            SERVICE_NAME: 'genkit',
+            SERVICE_INSTANCE_ID: str(uuid.uuid4()),
+        })
+
+        # Suppress detector warnings during GCP resource detection
+        detector_logger = logging.getLogger('opentelemetry.resourcedetector.gcp_resource_detector')
+        original_level = detector_logger.level
+        detector_logger.setLevel(logging.ERROR)
+
+        try:
+            resource = resource.merge(GoogleCloudResourceDetector().detect())
+        finally:
+            detector_logger.setLevel(original_level)
+
+        metric_reader = PeriodicExportingMetricReader(
+            exporter=CloudMonitoringMetricsExporter(),
+            export_interval_millis=60000,
+        )
+        metrics.set_meter_provider(MeterProvider(metric_readers=[metric_reader], resource=resource))
+    except Exception as e:
+        logger.error('Failed to configure metrics exporter', error=str(e))
