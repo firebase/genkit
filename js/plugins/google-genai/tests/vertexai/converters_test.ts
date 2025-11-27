@@ -15,9 +15,9 @@
  */
 
 import * as assert from 'assert';
-import { GenerateRequest, z } from 'genkit';
+import { GenerateRequest, Operation, z } from 'genkit';
 import { describe, it } from 'node:test';
-import { HarmBlockThreshold, HarmCategory } from '../../src/common/types';
+import { HarmBlockThreshold, HarmCategory } from '../../src/common/types.js';
 import {
   fromImagenResponse,
   fromLyriaResponse,
@@ -26,20 +26,22 @@ import {
   toGeminiSafetySettings,
   toImagenPredictRequest,
   toLyriaPredictRequest,
+  toVeoClientOptions,
   toVeoMedia,
   toVeoModel,
   toVeoOperationRequest,
   toVeoPredictRequest,
-} from '../../src/vertexai/converters';
-import { SafetySettingsSchema } from '../../src/vertexai/gemini';
-import { ImagenConfigSchema } from '../../src/vertexai/imagen';
-import { LyriaConfigSchema } from '../../src/vertexai/lyria';
+} from '../../src/vertexai/converters.js';
+import { SafetySettingsSchema } from '../../src/vertexai/gemini.js';
+import { ImagenConfigSchema } from '../../src/vertexai/imagen.js';
+import { LyriaConfigSchema } from '../../src/vertexai/lyria.js';
 import {
+  ClientOptions,
   ImagenPredictResponse,
   LyriaPredictResponse,
   VeoOperation,
-} from '../../src/vertexai/types';
-import { VeoConfigSchema } from '../../src/vertexai/veo';
+} from '../../src/vertexai/types.js';
+import { VeoConfigSchema } from '../../src/vertexai/veo.js';
 
 describe('Vertex AI Converters', () => {
   describe('toGeminiSafetySettings', () => {
@@ -460,6 +462,58 @@ describe('Vertex AI Converters', () => {
         parameters: {},
       });
     });
+
+    it('should handle referenceImages media parts', () => {
+      const request: GenerateRequest<typeof VeoConfigSchema> = {
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { text: 'A video of a sunrise' },
+              {
+                media: {
+                  url: 'data:image/jpeg;base64,REFIMAGEDATA1',
+                  contentType: 'image/jpeg',
+                },
+                metadata: { type: 'referenceImages', referenceType: 'asset' },
+              },
+              {
+                media: {
+                  url: 'gs://bucket/refimage2.png',
+                  contentType: 'image/png',
+                },
+                metadata: { type: 'referenceImages', referenceType: 'style' },
+              },
+            ],
+          },
+        ],
+      };
+      const result = toVeoPredictRequest(request);
+      assert.deepStrictEqual(result, {
+        instances: [
+          {
+            prompt: 'A video of a sunrise',
+            referenceImages: [
+              {
+                image: {
+                  bytesBase64Encoded: 'REFIMAGEDATA1',
+                  mimeType: 'image/jpeg',
+                },
+                referenceType: 'asset',
+              },
+              {
+                image: {
+                  gcsUri: 'gs://bucket/refimage2.png',
+                  mimeType: 'image/png',
+                },
+                referenceType: 'style',
+              },
+            ],
+          },
+        ],
+        parameters: {},
+      });
+    });
   });
 
   describe('fromVeoOperation', () => {
@@ -533,6 +587,28 @@ describe('Vertex AI Converters', () => {
         error: { message: 'Invalid argument' },
       });
     });
+
+    it('should convert operation with clientOptions', () => {
+      const clientOptions: ClientOptions = {
+        kind: 'regional',
+        location: 'us-west1',
+        projectId: 'foo',
+        authClient: {} as any,
+      };
+      const veoOp: VeoOperation = {
+        name: 'operations/789',
+        done: false,
+        clientOptions: clientOptions,
+      };
+      const result = fromVeoOperation(veoOp);
+      assert.deepStrictEqual(result, {
+        id: 'operations/789',
+        done: false,
+        metadata: {
+          clientOptions: clientOptions,
+        },
+      });
+    });
   });
 
   describe('toVeoModel', () => {
@@ -554,6 +630,52 @@ describe('Vertex AI Converters', () => {
       assert.deepStrictEqual(result, {
         operationName: 'operations/abcdef',
       });
+    });
+  });
+
+  describe('toVeoClientOptions', () => {
+    const defaultClientOptions: ClientOptions = {
+      kind: 'regional',
+      location: 'us-central1',
+      projectId: 'default-project',
+      authClient: {} as any,
+    };
+    const opClientOptions: ClientOptions = {
+      kind: 'global',
+      location: 'global',
+      projectId: 'op-project',
+      authClient: {} as any,
+    };
+
+    it('should return client options from operation metadata if present', () => {
+      const op: Operation = {
+        id: 'op1',
+        done: false,
+        metadata: {
+          clientOptions: opClientOptions,
+        },
+      };
+      const result = toVeoClientOptions(op, defaultClientOptions);
+      assert.deepStrictEqual(result, opClientOptions);
+    });
+
+    it('should return default client options if not in operation metadata', () => {
+      const op: Operation = {
+        id: 'op2',
+        done: false,
+      };
+      const result = toVeoClientOptions(op, defaultClientOptions);
+      assert.deepStrictEqual(result, defaultClientOptions);
+    });
+
+    it('should return default client options if metadata is empty', () => {
+      const op: Operation = {
+        id: 'op3',
+        done: false,
+        metadata: {},
+      };
+      const result = toVeoClientOptions(op, defaultClientOptions);
+      assert.deepStrictEqual(result, defaultClientOptions);
     });
   });
 });

@@ -32,11 +32,13 @@ import {
   ImagenPredictResponse,
   ImagenPrediction,
   SafetySetting,
-} from '../common/types';
-import { SafetySettingsSchema } from './gemini';
-import { ImagenConfigSchemaType } from './imagen';
-import { LyriaConfigSchemaType } from './lyria';
+} from '../common/types.js';
+import { extractMediaArray } from '../common/utils.js';
+import { SafetySettingsSchema } from './gemini.js';
+import { ImagenConfigSchemaType } from './imagen.js';
+import { LyriaConfigSchemaType } from './lyria.js';
 import {
+  ClientOptions,
   LyriaInstance,
   LyriaParameters,
   LyriaPredictRequest,
@@ -47,14 +49,14 @@ import {
   VeoOperation,
   VeoOperationRequest,
   VeoPredictRequest,
-} from './types';
+} from './types.js';
 import {
   checkSupportedMimeType,
   extractMedia,
   extractMimeType,
   extractText,
-} from './utils';
-import { VeoConfigSchemaType } from './veo';
+} from './utils.js';
+import { VeoConfigSchemaType } from './veo.js';
 
 export function toGeminiSafetySettings(
   genkitSettings?: z.infer<typeof SafetySettingsSchema>[]
@@ -267,10 +269,23 @@ function toVeoInstances(
   let instance: VeoInstance = {
     prompt: extractText(request),
   };
-  const supportedImageTypes = ['image/jpeg', 'image/png'];
-  const supportedVideoTypes = ['video/mp4'];
 
-  const imageMedia = extractMedia(request, { metadataType: 'image' });
+  const supportedImageTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const supportedVideoTypes = [
+    'video/mov',
+    'video/mpeg',
+    'video/mp4',
+    'video/mpg',
+    'video/avi',
+    'video/wmv',
+    'video/mpegps',
+    'video/flv',
+  ];
+
+  const imageMedia = extractMedia(request, {
+    metadataType: 'image',
+    isDefault: true,
+  });
   if (imageMedia) {
     checkSupportedMimeType(imageMedia, supportedImageTypes);
     instance.image = toVeoMedia(imageMedia);
@@ -287,6 +302,17 @@ function toVeoInstances(
     checkSupportedMimeType(videoMedia, supportedVideoTypes);
     instance.video = toVeoMedia(videoMedia);
   }
+
+  const referenceImages = extractMediaArray(request, {
+    metadataType: 'referenceImages',
+  });
+  if (referenceImages) {
+    instance.referenceImages = referenceImages.map((refImage) => ({
+      image: toVeoMedia(refImage.media),
+      referenceType: refImage.metadata?.referenceType as string,
+    }));
+  }
+
   return [instance];
 }
 
@@ -336,6 +362,11 @@ export function fromVeoOperation(
   if (fromOp.error) {
     toOp.error = { message: fromOp.error.message };
   }
+  if (fromOp.clientOptions) {
+    toOp.metadata = {
+      clientOptions: fromOp.clientOptions,
+    };
+  }
 
   if (fromOp.response) {
     toOp.output = {
@@ -380,4 +411,11 @@ export function toVeoOperationRequest(
   return {
     operationName: op.id,
   };
+}
+
+export function toVeoClientOptions(
+  op: Operation<GenerateResponseData>,
+  clientOpt: ClientOptions
+): ClientOptions {
+  return op.metadata?.clientOptions ?? clientOpt;
 }

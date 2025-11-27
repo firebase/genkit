@@ -40,7 +40,7 @@ import (
 const provider = "ollama"
 
 var (
-	mediaSupportedModels = []string{"llava", "bakllava", "llava-llama3", "llava:13b", "llava:7b", "llava:latest"}
+	mediaSupportedModels = []string{"llava", "bakllava", "llava-llama3", "llava:13b", "llava:7b", "llava:latest", "gemma3:4b", "gemma3:12b", "gemma3:27b"}
 	toolSupportedModels  = []string{
 		"qwq", "mistral-small3.1", "llama3.3", "llama3.2", "llama3.1", "mistral",
 		"qwen2.5", "qwen2.5-coder", "qwen2", "mistral-nemo", "mixtral", "smollm2",
@@ -48,7 +48,7 @@ var (
 		"phi4-mini", "granite3.1-dense", "granite3-dense", "granite3.2", "athene-v2",
 		"nemotron-mini", "nemotron", "llama3-groq-tool-use", "aya-expanse", "granite3-moe",
 		"granite3.2-vision", "granite3.1-moe", "cogito", "command-r7b", "firefunction-v2",
-		"granite3.3", "command-a", "command-r7b-arabic",
+		"granite3.3", "command-a", "command-r7b-arabic", "gpt-oss",
 	}
 	roleMapping = map[ai.Role]string{
 		ai.RoleUser:   "user",
@@ -87,7 +87,7 @@ func (o *Ollama) DefineModel(g *genkit.Genkit, model ModelDefinition, opts *ai.M
 		Supports: modelOpts.Supports,
 		Versions: []string{},
 	}
-	gen := &generator{model: model, serverAddress: o.ServerAddress}
+	gen := &generator{model: model, serverAddress: o.ServerAddress, timeout: o.Timeout}
 	return genkit.DefineModel(g, api.NewName(provider, model.Name), meta, gen.generate)
 }
 
@@ -111,6 +111,7 @@ type ModelDefinition struct {
 type generator struct {
 	model         ModelDefinition
 	serverAddress string
+	timeout       int
 }
 
 type ollamaMessage struct {
@@ -196,6 +197,7 @@ type ollamaModelResponse struct {
 // Ollama provides configuration options for the Init function.
 type Ollama struct {
 	ServerAddress string // Server address of oLLama.
+	Timeout       int    // Response timeout in seconds (defaulted to 30 seconds)
 
 	mu      sync.Mutex // Mutex to control access.
 	initted bool       // Whether the plugin has been initialized.
@@ -218,6 +220,9 @@ func (o *Ollama) Init(ctx context.Context) []api.Action {
 		panic("ollama: need ServerAddress")
 	}
 	o.initted = true
+	if o.Timeout == 0 {
+		o.Timeout = 30
+	}
 	return []api.Action{}
 }
 
@@ -274,7 +279,7 @@ func (g *generator) generate(ctx context.Context, input *ai.ModelRequest, cb fun
 		payload = chatReq
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: time.Duration(g.timeout) * time.Second}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err

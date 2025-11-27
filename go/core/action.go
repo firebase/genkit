@@ -46,6 +46,8 @@ type StreamCallback[Stream any] = func(context.Context, Stream) error
 // output which it validates against.
 //
 // Each time an ActionDef is run, it results in a new trace span.
+//
+// For internal use only.
 type ActionDef[In, Out, Stream any] struct {
 	fn   StreamingFunc[In, Out, Stream] // Function that is called during runtime. May not actually support streaming.
 	desc *api.ActionDesc                // Descriptor of the action.
@@ -155,12 +157,11 @@ func newAction[In, Out, Stream any](
 
 	return &ActionDef[In, Out, Stream]{
 		fn: func(ctx context.Context, input In, cb StreamCallback[Stream]) (Out, error) {
-			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
 			return fn(ctx, input, cb)
 		},
 		desc: &api.ActionDesc{
 			Type:         atype,
-			Key:          fmt.Sprintf("/%s/%s", atype, name),
+			Key:          api.KeyFromName(atype, name),
 			Name:         name,
 			Description:  description,
 			InputSchema:  inputSchema,
@@ -175,18 +176,51 @@ func (a *ActionDef[In, Out, Stream]) Name() string { return a.desc.Name }
 
 // Run executes the Action's function in a new trace span.
 func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb StreamCallback[Stream]) (output Out, err error) {
+	r, err := a.runWithTelemetry(ctx, input, cb)
+	if err != nil {
+		return base.Zero[Out](), err
+	}
+	return r.Result, nil
+}
+
+// Run executes the Action's function in a new trace span.
+func (a *ActionDef[In, Out, Stream]) runWithTelemetry(ctx context.Context, input In, cb StreamCallback[Stream]) (output api.ActionRunResult[Out], err error) {
+	inputBytes, _ := json.Marshal(input)
 	logger.FromContext(ctx).Debug("Action.Run",
-		"name", a.Name,
-		"input", fmt.Sprintf("%#v", input))
+		"name", a.Name(),
+		"input", inputBytes)
 	defer func() {
+		outputBytes, _ := json.Marshal(output)
 		logger.FromContext(ctx).Debug("Action.Run",
-			"name", a.Name,
-			"output", fmt.Sprintf("%#v", output),
+			"name", a.Name(),
+			"output", outputBytes,
 			"err", err)
 	}()
 
-	return tracing.RunInNewSpan(ctx, a.desc.Name, "action", false, input,
+	// Create span metadata and inject flow name if we're in a flow context
+	spanMetadata := &tracing.SpanMetadata{
+		Name:    a.desc.Name,
+		Type:    "action",
+		Subtype: string(a.desc.Type), // The actual action type becomes the subtype
+		// IsRoot will be automatically determined in tracing.go based on parent span presence
+	}
+
+	// Auto-inject flow name if we're in a flow context
+	if flowName := FlowNameFromContext(ctx); flowName != "" {
+		if spanMetadata.Metadata == nil {
+			spanMetadata.Metadata = make(map[string]string)
+		}
+		spanMetadata.Metadata["flow:name"] = flowName
+	}
+
+	var traceID string
+	var spanID string
+	o, err := tracing.RunInNewSpan(ctx, spanMetadata, input,
 		func(ctx context.Context, input In) (Out, error) {
+			traceInfo := tracing.SpanTraceInfo(ctx)
+			traceID = traceInfo.TraceID
+			spanID = traceInfo.SpanID
+
 			start := time.Now()
 			var err error
 			if err = base.ValidateValue(input, a.desc.InputSchema); err != nil {
@@ -207,26 +241,35 @@ func (a *ActionDef[In, Out, Stream]) Run(ctx context.Context, input In, cb Strea
 				return base.Zero[Out](), err
 			}
 			metrics.WriteActionSuccess(ctx, a.desc.Name, latency)
-
 			return output, nil
+
 		})
+	return api.ActionRunResult[Out]{
+		Result:  o,
+		TraceId: traceID,
+		SpanId:  spanID,
+	}, err
 }
 
 // RunJSON runs the action with a JSON input, and returns a JSON result.
 func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
-	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
-	if err := base.ValidateJSON(input, a.desc.InputSchema); err != nil {
+	r, err := a.RunJSONWithTelemetry(ctx, input, cb)
+	if err != nil {
+		return nil, err
+	}
+	return r.Result, nil
+}
+
+// RunJSON runs the action with a JSON input, and returns a JSON result along with telemetry info.
+func (a *ActionDef[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
+	i, err := base.UnmarshalAndNormalize[In](input, a.desc.InputSchema)
+	if err != nil {
 		return nil, NewError(INVALID_ARGUMENT, err.Error())
 	}
-	var in In
-	if input != nil {
-		if err := json.Unmarshal(input, &in); err != nil {
-			return nil, err
-		}
-	}
-	var callback func(context.Context, Stream) error
+
+	var scb StreamCallback[Stream]
 	if cb != nil {
-		callback = func(ctx context.Context, s Stream) error {
+		scb = func(ctx context.Context, s Stream) error {
 			bytes, err := json.Marshal(s)
 			if err != nil {
 				return err
@@ -234,15 +277,25 @@ func (a *ActionDef[In, Out, Stream]) RunJSON(ctx context.Context, input json.Raw
 			return cb(ctx, json.RawMessage(bytes))
 		}
 	}
-	out, err := a.Run(ctx, in, callback)
+
+	r, err := a.runWithTelemetry(ctx, i, scb)
+	if err != nil {
+		return &api.ActionRunResult[json.RawMessage]{
+			TraceId: r.TraceId,
+			SpanId:  r.SpanId,
+		}, err
+	}
+
+	bytes, err := json.Marshal(r.Result)
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := json.Marshal(out)
-	if err != nil {
-		return nil, err
-	}
-	return json.RawMessage(bytes), nil
+
+	return &api.ActionRunResult[json.RawMessage]{
+		Result:  json.RawMessage(bytes),
+		TraceId: r.TraceId,
+		SpanId:  r.SpanId,
+	}, nil
 }
 
 // Desc returns a descriptor of the action.
@@ -271,6 +324,8 @@ func ResolveActionFor[In, Out, Stream any](r api.Registry, atype api.ActionType,
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong api.
+//
+// Deprecated: Use ResolveActionFor.
 func LookupActionFor[In, Out, Stream any](r api.Registry, atype api.ActionType, name string) *ActionDef[In, Out, Stream] {
 	provider, id := api.ParseName(name)
 	key := api.NewKey(atype, provider, id)

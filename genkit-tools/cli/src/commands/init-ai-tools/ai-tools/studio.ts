@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Runtime } from '@genkit-ai/tools-common/manager';
 import { AIToolConfigResult, AIToolModule, InitConfigOptions } from '../types';
 import { getGenkitContext, updateContentInPlace } from '../utils';
 
@@ -32,9 +33,12 @@ export const studio: AIToolModule = {
    * AI rules and instructions that we must preserve. We only manage the
    * Genkit-specific section marked with our XML tags.
    */
-  async configure(options?: InitConfigOptions): Promise<AIToolConfigResult> {
+  async configure(
+    runtime: Runtime,
+    options?: InitConfigOptions
+  ): Promise<AIToolConfigResult> {
     const files: AIToolConfigResult['files'] = [];
-    const content = getGenkitContext();
+    const content = getGenkitContext(runtime);
     const { updated } = await updateContentInPlace(RULES_PATH, content);
     files.push({ path: RULES_PATH, updated });
     return { files };

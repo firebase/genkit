@@ -43,6 +43,7 @@ func main() {
 	// Initialize Genkit with the Ollama plugin
 	ollamaPlugin := &ollama.Ollama{
 		ServerAddress: "http://localhost:11434", // Default Ollama server address
+		Timeout:       60,                       // Response timeout in seconds
 	}
 
 	g := genkit.Init(ctx, genkit.WithPlugins(ollamaPlugin))
@@ -80,7 +81,6 @@ func main() {
 		ai.WithTools(weatherTool),
 		ai.WithToolChoice(ai.ToolChoiceAuto),
 	)
-
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return

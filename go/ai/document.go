@@ -19,6 +19,7 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -127,49 +128,81 @@ func NewResourcePart(uri string) *Part {
 
 // IsText reports whether the [Part] contains plain text.
 func (p *Part) IsText() bool {
-	return p.Kind == PartText
+	return p != nil && p.Kind == PartText
 }
 
 // IsMedia reports whether the [Part] contains structured media data.
 func (p *Part) IsMedia() bool {
-	return p.Kind == PartMedia
+	return p != nil && p.Kind == PartMedia
 }
 
 // IsData reports whether the [Part] contains unstructured data.
 func (p *Part) IsData() bool {
-	return p.Kind == PartData
+	return p != nil && p.Kind == PartData
 }
 
 // IsToolRequest reports whether the [Part] contains a request to run a tool.
 func (p *Part) IsToolRequest() bool {
-	return p.Kind == PartToolRequest
+	return p != nil && p.Kind == PartToolRequest
 }
 
 // IsToolResponse reports whether the [Part] contains the result of running a tool.
 func (p *Part) IsToolResponse() bool {
-	return p.Kind == PartToolResponse
+	return p != nil && p.Kind == PartToolResponse
+}
+
+// IsInterrupt reports whether the [Part] contains a tool request that was interrupted.
+func (p *Part) IsInterrupt() bool {
+	return p != nil && p.IsToolRequest() && p.Metadata != nil && p.Metadata["interrupt"] != nil
 }
 
 // IsCustom reports whether the [Part] contains custom plugin-specific data.
 func (p *Part) IsCustom() bool {
-	return p.Kind == PartCustom
+	return p != nil && p.Kind == PartCustom
 }
 
 // IsReasoning reports whether the [Part] contains a reasoning text
 func (p *Part) IsReasoning() bool {
-	return p.Kind == PartReasoning
+	return p != nil && p.Kind == PartReasoning
+}
+
+// IsImage reports whether the [Part] contains an image.
+func (p *Part) IsImage() bool {
+	if p == nil || !p.IsMedia() {
+		return false
+	}
+	return IsImageContentType(p.ContentType) || strings.HasPrefix(p.Text, "data:image/")
+}
+
+// IsVideo reports whether the [Part] contains a video.
+func (p *Part) IsVideo() bool {
+	if p == nil || !p.IsMedia() {
+		return false
+	}
+	return IsVideoContentType(p.ContentType) || strings.HasPrefix(p.Text, "data:video/")
+}
+
+// IsAudio reports whether the [Part] contains an audio file.
+func (p *Part) IsAudio() bool {
+	if p == nil || !p.IsMedia() {
+		return false
+	}
+	return IsAudioContentType(p.ContentType) || strings.HasPrefix(p.Text, "data:audio/")
 }
 
 // IsResource reports whether the [Part] contains a resource reference.
 func (p *Part) IsResource() bool {
-	return p.Kind == PartResource
+	return p != nil && p.Kind == PartResource
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
 func (p *Part) MarshalJSON() ([]byte, error) {
+	if p == nil {
+		return nil, fmt.Errorf("part is nil")
+	}
+
 	// This is not handled by the schema generator because
 	// Part is defined in TypeScript as a union.
-
 	switch p.Kind {
 	case PartText:
 		v := textPart{
@@ -258,6 +291,10 @@ func (p *Part) unmarshalPartFromSchema(s partSchema) {
 	case s.Custom != nil:
 		p.Kind = PartCustom
 		p.Custom = s.Custom
+	case s.Reasoning != "":
+		p.Kind = PartReasoning
+		p.Text = s.Reasoning
+		p.ContentType = "plain/text"
 	default:
 		p.Kind = PartText
 		p.Text = s.Text
@@ -312,4 +349,19 @@ func DocumentFromText(text string, metadata map[string]any) *Document {
 		},
 		Metadata: metadata,
 	}
+}
+
+// IsImageContentType checks if the content type represents an image.
+func IsImageContentType(contentType string) bool {
+	return strings.HasPrefix(contentType, "image/") || strings.HasPrefix(contentType, "data:image/")
+}
+
+// IsVideoContentType checks if the content type represents a video.
+func IsVideoContentType(contentType string) bool {
+	return strings.HasPrefix(contentType, "video/") || strings.HasPrefix(contentType, "data:video/")
+}
+
+// IsAudioContentType checks if the content type represents an audio file.
+func IsAudioContentType(contentType string) bool {
+	return strings.HasPrefix(contentType, "audio/") || strings.HasPrefix(contentType, "data:audio/")
 }

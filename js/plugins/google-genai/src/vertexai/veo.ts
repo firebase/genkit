@@ -20,18 +20,23 @@ import {
   modelActionMetadata,
   modelRef,
   z,
-  type Genkit,
 } from 'genkit';
 import { BackgroundModelAction, ModelInfo } from 'genkit/model';
-import { veoCheckOperation, veoPredict } from './client';
+import { backgroundModel as pluginBackgroundModel } from 'genkit/plugin';
+import { veoCheckOperation, veoPredict } from './client.js';
 import {
   fromVeoOperation,
+  toVeoClientOptions,
   toVeoModel,
   toVeoOperationRequest,
   toVeoPredictRequest,
-} from './converters';
-import { ClientOptions, Model, VertexPluginOptions } from './types';
-import { checkModelName, extractVersion } from './utils';
+} from './converters.js';
+import { ClientOptions, Model, VertexPluginOptions } from './types.js';
+import {
+  calculateRequestOptions,
+  checkModelName,
+  extractVersion,
+} from './utils.js';
 
 export const VeoConfigSchema = z
   .object({
@@ -97,6 +102,17 @@ export const VeoConfigSchema = z
       .default('optimized')
       .optional()
       .describe('Compression quality of the generated video'),
+    resizeMode: z
+      .enum(['pad', 'crop'])
+      .default('pad')
+      .optional()
+      .describe(
+        'Veo 3 only. The resize mode that the model uses to resize the video'
+      ),
+    location: z
+      .string()
+      .describe('Google Cloud region e.g. us-central1. or global')
+      .optional(),
   })
   .passthrough();
 export type VeoConfigSchemaType = typeof VeoConfigSchema;
@@ -134,8 +150,10 @@ const KNOWN_MODELS = {
   'veo-2.0-generate-001': commonRef('veo-2.0-generate-001'),
   'veo-3.0-generate-001': commonRef('veo-3.0-generate-001'),
   'veo-3.0-fast-generate-001': commonRef('veo-3.0-fast-generate-001'),
-  'veo-3.0-generate-preview': commonRef('veo-3.0-generate-preview'),
-  'veo-3.0-fast-generate-preview': commonRef('veo-3.0-fast-generate-preview'),
+  'veo-3.1-fast-generate-001': commonRef('veo-3.1-fast-generate-001'),
+  'veo-3.1-fast-generate-preview': commonRef('veo-3.1-fast-generate-preview'),
+  'veo-3.1-generate-001': commonRef('veo-3.1-generate-001'),
+  'veo-3.1-generate-preview': commonRef('veo-3.1-generate-preview'),
 } as const;
 export type KnownModels = keyof typeof KNOWN_MODELS; // For autocomplete
 export type VeoModelName = `veo-${string}`;
@@ -171,35 +189,34 @@ export function listActions(models: Model[]): ActionMetadata[] {
     });
 }
 
-export function defineKnownModels(
-  ai: Genkit,
+export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, clientOptions, pluginOptions);
-  }
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineModel(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): BackgroundModelAction<VeoConfigSchemaType> {
   const ref = model(name);
 
-  return ai.defineBackgroundModel({
+  return pluginBackgroundModel({
     name: ref.name,
     ...ref.info,
     configSchema: ref.configSchema,
     async start(request) {
+      const clientOpt = calculateRequestOptions(clientOptions, request.config);
       const veoPredictRequest = toVeoPredictRequest(request);
 
       const response = await veoPredict(
         extractVersion(ref),
         veoPredictRequest,
-        clientOptions
+        clientOpt
       );
 
       return fromVeoOperation(response);
@@ -208,7 +225,7 @@ export function defineModel(
       const response = await veoCheckOperation(
         toVeoModel(operation),
         toVeoOperationRequest(operation),
-        clientOptions
+        toVeoClientOptions(operation, clientOptions)
       );
       return fromVeoOperation(response);
     },

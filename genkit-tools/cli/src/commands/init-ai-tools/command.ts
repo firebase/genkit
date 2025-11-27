@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/tools-common/utils';
-import { checkbox } from '@inquirer/prompts';
+import { Runtime } from '@genkit-ai/tools-common/manager';
+import { detectRuntime, logger } from '@genkit-ai/tools-common/utils';
+import { checkbox, select } from '@inquirer/prompts';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import { claude } from './ai-tools/claude';
@@ -41,6 +42,12 @@ const AGENT_CHOICES: AIToolChoice[] = Object.values(AI_TOOLS).map((tool) => ({
   checked: false,
 }));
 
+/** Supported runtimes for the init:ai-tools command. */
+const SUPPORTED_RUNTIMES: Record<string, string> = {
+  nodejs: 'Node.js',
+  go: 'Go',
+};
+
 /**
  * Initializes selected AI tools with Genkit MCP server and Genkit framework
  * context to improve output quality when using those tools.
@@ -62,6 +69,20 @@ export const initAiTools = new Command('init:ai-tools')
     logger.info('  - Genkit app structure and common design patterns');
     logger.info('  - Common Genkit features and how to use them');
     logger.info('\n');
+    let runtime = await detectRuntime(process.cwd());
+    if (runtime) {
+      logger.info('Detected runtime: ' + SUPPORTED_RUNTIMES[runtime]);
+    } else {
+      logger.info('No runtime was detected in the current directory.');
+      const answer = await select({
+        message: 'Select a runtime to initialize a Genkit project:',
+        choices: Object.keys(SUPPORTED_RUNTIMES).map((runtime) => ({
+          name: SUPPORTED_RUNTIMES[runtime],
+          value: runtime,
+        })),
+      });
+      runtime = answer as Runtime;
+    }
     const selections = await checkbox({
       message: 'Which tools would you like to configure?',
       choices: AGENT_CHOICES,
@@ -76,10 +97,14 @@ export const initAiTools = new Command('init:ai-tools')
 
     logger.info('\n');
     logger.info('Configuring selected tools...');
-    await configureTools(selections, options);
+    await configureTools(runtime, selections, options);
   });
 
-async function configureTools(tools: string[], options: InitConfigOptions) {
+async function configureTools(
+  runtime: Runtime,
+  tools: string[],
+  options: InitConfigOptions
+) {
   // Configure each selected tool
   let anyUpdates = false;
 
@@ -90,7 +115,7 @@ async function configureTools(tools: string[], options: InitConfigOptions) {
       continue;
     }
 
-    const result = await tool.configure(options);
+    const result = await tool.configure(runtime, options);
 
     // Count updated files
     const updatedCount = result.files.filter((f) => f.updated).length;

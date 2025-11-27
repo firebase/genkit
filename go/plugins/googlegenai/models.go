@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"google.golang.org/genai"
 )
 
@@ -49,6 +48,9 @@ const (
 	textembeddinggeckomultilingual001 = "textembedding-gecko-multilingual@001"
 	textmultilingualembedding002      = "text-multilingual-embedding-002"
 	multimodalembedding               = "multimodalembedding"
+	veo20Generate001                  = "veo-2.0-generate-001"
+	veo30Generate001                  = "veo-3.0-generate-001"
+	veo30FastGenerate001              = "veo-3.0-fast-generate-001"
 )
 
 var (
@@ -74,6 +76,10 @@ var (
 		imagen3Generate001,
 		imagen3Generate002,
 		imagen3FastGenerate001,
+
+		veo20Generate001,
+		veo30Generate001,
+		veo30FastGenerate001,
 	}
 
 	googleAIModels = []string{
@@ -95,11 +101,10 @@ var (
 		gemini25ProPreview0506,
 
 		imagen3Generate002,
-	}
 
-	// Gemini models with native image support generation
-	imageGenModels = []string{
-		gemini20FlashPrevImageGen,
+		veo20Generate001,
+		veo30Generate001,
+		veo30FastGenerate001,
 	}
 
 	supportedGeminiModels = map[string]ai.ModelOptions{
@@ -243,9 +248,46 @@ var (
 		},
 	}
 
-	googleAIEmbedders = []string{
-		textembedding004,
-		embedding001,
+	supportedVideoModels = map[string]ai.ModelOptions{
+		veo20Generate001: {
+			Label:    "Google AI - Veo 2.0 Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageStable,
+		},
+		veo30Generate001: {
+			Label:    "Google AI - Veo 3.0 Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageStable,
+		},
+		veo30FastGenerate001: {
+			Label:    "Google AI - Veo 3.0 Fast Generate 001",
+			Versions: []string{},
+			Supports: &ai.ModelSupports{
+				Media:       true,
+				Multiturn:   false,
+				Tools:       false,
+				SystemRole:  false,
+				Output:      []string{"media"},
+				LongRunning: true,
+			},
+			Stage: ai.ModelStageStable,
+		},
 	}
 
 	googleAIEmbedderConfig = map[string]ai.EmbedderOptions{
@@ -255,7 +297,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		embedding001: {
 			Dimensions: 768,
@@ -263,7 +304,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko003: {
 			Dimensions: 768,
@@ -271,7 +311,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko002: {
 			Dimensions: 768,
@@ -279,7 +318,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggecko001: {
 			Dimensions: 768,
@@ -287,7 +325,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textembeddinggeckomultilingual001: {
 			Dimensions: 768,
@@ -295,7 +332,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		textmultilingualembedding002: {
 			Dimensions: 768,
@@ -303,7 +339,6 @@ var (
 			Supports: &ai.EmbedderSupports{
 				Input: []string{"text"},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
 		multimodalembedding: {
 			Dimensions: 768,
@@ -315,18 +350,7 @@ var (
 					"video",
 				},
 			},
-			ConfigSchema: core.InferSchemaMap(genai.EmbedContentConfig{}),
 		},
-	}
-
-	vertexAIEmbedders = []string{
-		textembeddinggecko003,
-		textembeddinggecko002,
-		textembeddinggecko001,
-		textembedding004,
-		textembeddinggeckomultilingual001,
-		textmultilingualembedding002,
-		multimodalembedding,
 	}
 )
 
@@ -353,6 +377,8 @@ func listModels(provider string) (map[string]ai.ModelOptions, error) {
 		var ok bool
 		if strings.HasPrefix(n, "image") {
 			m, ok = supportedImagenModels[n]
+		} else if strings.HasPrefix(n, "veo") {
+			m, ok = supportedVideoModels[n]
 		} else {
 			m, ok = supportedGeminiModels[n]
 		}
@@ -371,34 +397,12 @@ func listModels(provider string) (map[string]ai.ModelOptions, error) {
 	return models, nil
 }
 
-// listEmbedders returns a list of supported embedders based on the
-// detected backend
-func listEmbedders(backend genai.Backend) (map[string]ai.EmbedderOptions, error) {
-	embeddersNames := []string{}
-
-	switch backend {
-	case genai.BackendGeminiAPI:
-		embeddersNames = googleAIEmbedders
-	case genai.BackendVertexAI:
-		embeddersNames = vertexAIEmbedders
-	default:
-		return nil, fmt.Errorf("embedders for backend %s not found", backend)
-	}
-
-	embedders := make(map[string]ai.EmbedderOptions, 0)
-	for _, n := range embeddersNames {
-		embedders[n] = googleAIEmbedderConfig[n]
-	}
-
-	return embedders, nil
-}
-
 // genaiModels collects all the available models in go-genai SDK
-// TODO: add veo models
 type genaiModels struct {
 	gemini    []string
 	imagen    []string
 	embedders []string
+	veo       []string
 }
 
 // listGenaiModels returns a list of supported models and embedders from the

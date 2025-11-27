@@ -25,13 +25,14 @@ import {
   z,
 } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
+import { applyGeminiPartialArgs } from './converters.js';
 import {
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentStreamResult,
   Part,
   isObject,
-} from './types';
+} from './types.js';
 
 /**
  * Safely extracts the error message from the error.
@@ -53,6 +54,27 @@ export function extractErrMsg(e: unknown): string {
     }
   }
   return errorMessage;
+}
+
+/**
+ * Custom replacer function for JSON.stringify to truncate long string fields.
+ * Truncates strings to the first 100 and last 10 characters
+ * if the original string is longer than 110 characters.
+ *
+ * @param key The key of the property being stringified.
+ * @param value The value of the property being stringified.
+ * @return The transformed value, or the original value if no transformation is needed.
+ */
+export function stringTruncator(key: string, value: unknown): unknown {
+  const beginLength = 100;
+  const endLength = 10;
+  const totalLength = beginLength + endLength;
+  if (typeof value === 'string' && value.length > totalLength) {
+    const start = value.substring(0, 100);
+    const end = value.substring(value.length - 10);
+    return `${start}...[TRUNCATED]...${end}`;
+  }
+  return value; // Return the original value for other keys or non-string values
 }
 
 /**
@@ -170,6 +192,10 @@ export function displayUrl(url: string): string {
   return url.substring(0, 25) + '...' + url.substring(url.length - 25);
 }
 
+function isMediaPart(part: GenkitPart): part is MediaPart {
+  return (part as MediaPart).media !== undefined;
+}
+
 /**
  *
  * @param request A generate request to extract from
@@ -185,11 +211,33 @@ export function extractMedia(
     isDefault?: boolean;
   }
 ): MediaPart['media'] | undefined {
-  const predicate = (part: GenkitPart) => {
-    const media = part.media;
-    if (!media) {
-      return false;
-    }
+  const mediaArray = extractMediaArray(request, params);
+  if (mediaArray?.length) {
+    return mediaArray[0].media;
+  }
+
+  return undefined;
+}
+
+/**
+ *
+ * @param request A generate request to extract from
+ * @param metadataType The media must have metadata matching this type if isDefault is false
+ * @param isDefault 'true' allows missing metadata type to match as well.
+ * @returns
+ */
+export function extractMediaArray(
+  request: GenerateRequest,
+  params: {
+    metadataType?: string;
+    /* If there is no metadata type, it will match if isDefault is true */
+    isDefault?: boolean;
+  }
+): MediaPart[] | undefined {
+  // MediaPart filter:  Keeps parts matching `params.metadataType`,
+  // or parts with no metadata type if `params.isDefault` is true.
+  // Keeps everything if no params are specified.
+  const matchesMediaParams = (part: MediaPart) => {
     if (params.metadataType || params.isDefault) {
       // We need to check the metadata type
       const metadata = part.metadata;
@@ -202,17 +250,33 @@ export function extractMedia(
     return true;
   };
 
-  const media = request.messages.at(-1)?.content.find(predicate)?.media;
+  const mediaArray = request.messages
+    .at(-1)
+    ?.content.filter(isMediaPart)
+    .filter(matchesMediaParams)
+    ?.map((mediaPart) => {
+      let media = mediaPart.media;
+      if (media && !media?.contentType) {
+        // Add the mimeType
+        media = {
+          url: media.url,
+          contentType: extractMimeType(media.url),
+        };
+      }
 
-  // Add the mimeType
-  if (media && !media?.contentType) {
-    return {
-      url: media.url,
-      contentType: extractMimeType(media.url),
-    };
+      return {
+        media,
+        metadata: {
+          referenceType: mediaPart.metadata?.referenceType ?? 'asset',
+        },
+      };
+    });
+
+  if (mediaArray?.length) {
+    return mediaArray;
   }
 
-  return media;
+  return undefined;
 }
 
 /**
@@ -353,6 +417,67 @@ async function getResponsePromise(
   }
 }
 
+function handleFunctionCall(
+  part: Part,
+  newPart: Partial<Part>,
+  activePartialToolRequest: Part | null
+): {
+  shouldContinue: boolean;
+  newActivePartialToolRequest: Part | null;
+} {
+  // If there's an active partial tool request, we're in the middle of a stream.
+  if (activePartialToolRequest) {
+    if (part.functionCall?.partialArgs) {
+      applyGeminiPartialArgs(
+        activePartialToolRequest.functionCall!.args!,
+        part.functionCall.partialArgs
+      );
+    }
+    // If `willContinue` is false, this is the end of the stream.
+    if (!part.functionCall!.willContinue) {
+      newPart.thoughtSignature = activePartialToolRequest.thoughtSignature;
+      part.functionCall = activePartialToolRequest.functionCall;
+      delete part.functionCall!.willContinue;
+      activePartialToolRequest = null;
+    } else {
+      // If `willContinue` is true, we're still in the middle of a stream.
+      // This is a partial result, so we skip adding it to the parts list.
+      return {
+        shouldContinue: true,
+        newActivePartialToolRequest: activePartialToolRequest,
+      };
+    }
+    // If `willContinue` is true on a part and there's no active partial request,
+    // this is the start of a new streaming tool call.
+  } else if (part.functionCall!.willContinue) {
+    activePartialToolRequest = {
+      ...part,
+      functionCall: {
+        ...part.functionCall,
+        args: part.functionCall!.args || {},
+      },
+    };
+    if (part.functionCall?.partialArgs) {
+      applyGeminiPartialArgs(
+        activePartialToolRequest.functionCall!.args!,
+        part.functionCall.partialArgs
+      );
+    }
+    // This is the start of a partial, so we skip adding it to the parts list.
+    return {
+      shouldContinue: true,
+      newActivePartialToolRequest: activePartialToolRequest,
+    };
+  }
+
+  // If we're here, it's a regular, non-streaming tool call.
+  newPart.functionCall = part.functionCall;
+  return {
+    shouldContinue: false,
+    newActivePartialToolRequest: activePartialToolRequest,
+  };
+}
+
 function aggregateResponses(
   responses: GenerateContentResponse[]
 ): GenerateContentResponse {
@@ -366,6 +491,7 @@ function aggregateResponses(
   if (lastResponse.promptFeedback) {
     aggregatedResponse.promptFeedback = lastResponse.promptFeedback;
   }
+  let activePartialToolRequest: Part | null = null;
   for (const response of responses) {
     for (const candidate of response.candidates ?? []) {
       const index = candidate.index ?? 0;
@@ -416,17 +542,31 @@ function aggregateResponses(
           if (part.thought) {
             newPart.thought = part.thought;
           }
-          if (part.text) {
+          if (part.thoughtSignature) {
+            newPart.thoughtSignature = part.thoughtSignature;
+          }
+          if (typeof part.text === 'string') {
             newPart.text = part.text;
           }
           if (part.functionCall) {
-            newPart.functionCall = part.functionCall;
+            // function calls are special, there can be partials, so we need aggregate
+            // the partials into final functionCall.
+            const { shouldContinue, newActivePartialToolRequest } =
+              handleFunctionCall(part, newPart, activePartialToolRequest);
+            if (shouldContinue) {
+              activePartialToolRequest = newActivePartialToolRequest;
+              continue;
+            }
+            activePartialToolRequest = newActivePartialToolRequest;
           }
           if (part.executableCode) {
             newPart.executableCode = part.executableCode;
           }
           if (part.codeExecutionResult) {
             newPart.codeExecutionResult = part.codeExecutionResult;
+          }
+          if (part.inlineData) {
+            newPart.inlineData = part.inlineData;
           }
           if (Object.keys(newPart).length === 0) {
             newPart.text = '';
@@ -474,3 +614,5 @@ export function getGenkitClientHeader() {
   }
   return defaultGetClientHeader();
 }
+
+export const TEST_ONLY = { aggregateResponses };

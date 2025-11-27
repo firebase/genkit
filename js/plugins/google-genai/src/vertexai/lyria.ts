@@ -16,17 +16,21 @@
 
 import {
   ActionMetadata,
-  Genkit,
   modelActionMetadata,
   modelRef,
   ModelReference,
   z,
 } from 'genkit';
 import { ModelAction, ModelInfo } from 'genkit/model';
-import { lyriaPredict } from './client';
-import { fromLyriaResponse, toLyriaPredictRequest } from './converters';
-import { ClientOptions, Model, VertexPluginOptions } from './types';
-import { checkModelName, extractVersion } from './utils';
+import { model as pluginModel } from 'genkit/plugin';
+import { lyriaPredict } from './client.js';
+import { fromLyriaResponse, toLyriaPredictRequest } from './converters.js';
+import { ClientOptions, Model, VertexPluginOptions } from './types.js';
+import {
+  calculateRequestOptions,
+  checkModelName,
+  extractVersion,
+} from './utils.js';
 
 export const LyriaConfigSchema = z
   .object({
@@ -48,6 +52,12 @@ export const LyriaConfigSchema = z
       .describe(
         'Optional. The number of audio samples to generate. Default is 1 if not specified and seed is not used. Cannot be used with seed in the same request.'
       ),
+    location: z
+      .string()
+      .describe(
+        'Lyria is only available in global. If you initialize your plugin with a different region, you must set this to global.'
+      )
+      .optional(),
   })
   .passthrough();
 export type LyriaConfigSchemaType = typeof LyriaConfigSchema;
@@ -112,33 +122,33 @@ export function listActions(models: Model[]): ActionMetadata[] {
     });
 }
 
-export function defineKnownModels(
-  ai: Genkit,
+export function listKnownModels(
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, clientOptions, pluginOptions);
-  }
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, clientOptions, pluginOptions)
+  );
 }
 
 export function defineModel(
-  ai: Genkit,
   name: string,
   clientOptions: ClientOptions,
   pluginOptions?: VertexPluginOptions
 ): ModelAction {
   const ref = model(name);
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
     },
     async (request, { abortSignal }) => {
-      const clientOpt = { ...clientOptions, signal: abortSignal };
+      const clientOpt = calculateRequestOptions(
+        { ...clientOptions, signal: abortSignal },
+        request.config
+      );
       const lyriaPredictRequest = toLyriaPredictRequest(request);
 
       const response = await lyriaPredict(

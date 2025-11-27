@@ -36,20 +36,6 @@ import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import {
-  CustomPartSchema,
-  DataPartSchema,
-  MediaPartSchema,
-  TextPartSchema,
-  ToolRequestPartSchema,
-  ToolResponsePartSchema,
-  type CustomPart,
-  type DataPart,
-  type MediaPart,
-  type TextPart,
-  type ToolRequestPart,
-  type ToolResponsePart,
-} from './document.js';
-import {
   CandidateData,
   GenerateRequest,
   GenerateRequestSchema,
@@ -66,6 +52,20 @@ import {
   augmentWithContext,
   simulateConstrainedGeneration,
 } from './model/middleware.js';
+import {
+  CustomPartSchema,
+  DataPartSchema,
+  MediaPartSchema,
+  TextPartSchema,
+  ToolRequestPartSchema,
+  ToolResponsePartSchema,
+  type CustomPart,
+  type DataPart,
+  type MediaPart,
+  type TextPart,
+  type ToolRequestPart,
+  type ToolResponsePart,
+} from './parts.js';
 export { defineGenerateAction } from './generate/action.js';
 export * from './model-types.js';
 export {

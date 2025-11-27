@@ -1,6 +1,6 @@
 {
   "name": "genkit-cli",
-  "version": "1.18.0",
+  "version": "1.24.0",
   "description": "CLI for interacting with the Google Genkit AI framework",
   "license": "Apache-2.0",
   "keywords": [
@@ -18,7 +18,7 @@
   ],
   "main": "dist/index.js",
   "scripts": {
-    "build": "rm -rf dist/context && pnpm genversion && tsc && cp -r context dist/context",
+    "build": "pnpm genversion && tsc",
     "build:watch": "tsc --watch",
     "compile:bun": "bun build src/bin/genkit.ts --compile --outfile dist/bin/genkit --minify",
     "test": "jest --verbose",

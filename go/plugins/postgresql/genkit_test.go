@@ -65,7 +65,7 @@ func TestPostgres(t *testing.T) {
 	}
 
 	postgres := &Postgres{
-		engine: pEngine,
+		Engine: pEngine,
 	}
 
 	g := genkit.Init(ctx, genkit.WithPlugins(postgres))

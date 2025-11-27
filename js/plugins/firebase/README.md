@@ -1,5 +1,10 @@
 # Firebase plugin for Genkit
 
+See the official documentation for more:
+
+- [Deploying Genkit with Firebase](https://genkit.dev/docs/deployment/firebase/)
+- [Genkit monitoring with Firebase](https://genkit.dev/docs/observability/getting-started/)
+
 ## Installing the plugin
 
 ```bash
@@ -23,6 +28,6 @@ const ai = genkit({
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 
-Usage information and reference details can be found in [Genkit documentation](https://genkit.dev/docs/get-started).
+Usage information and reference details can be found in [Genkit documentation](https://genkit.dev/).
 
 License: Apache 2.0

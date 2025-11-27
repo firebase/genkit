@@ -14,14 +14,9 @@
  * limitations under the License.
  */
 
+import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
-  ActionMetadata,
-  Genkit,
-  GenkitError,
-  modelActionMetadata,
-  z,
-} from 'genkit';
-import {
+  CandidateData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
@@ -32,6 +27,7 @@ import {
   modelRef,
 } from 'genkit/model';
 import { downloadRequestMedia } from 'genkit/model/middleware';
+import { model as pluginModel } from 'genkit/plugin';
 import { runInNewSpan } from 'genkit/tracing';
 import {
   fromGeminiCandidate,
@@ -39,12 +35,12 @@ import {
   toGeminiMessage,
   toGeminiSystemInstruction,
   toGeminiTool,
-} from '../common/converters';
+} from '../common/converters.js';
 import {
   generateContent,
   generateContentStream,
   getGoogleAIUrl,
-} from './client';
+} from './client.js';
 import {
   ClientOptions,
   Content as GeminiMessage,
@@ -57,33 +53,38 @@ import {
   SafetySetting,
   Tool,
   ToolConfig,
-} from './types';
+  UrlContextTool,
+} from './types.js';
 import {
   calculateApiKey,
+  calculateRequestOptions,
   checkApiKey,
   checkModelName,
   cleanSchema,
   extractVersion,
-} from './utils';
+  removeClientOptionOverrides,
+} from './utils.js';
 
 /**
  * See https://ai.google.dev/gemini-api/docs/safety-settings#safety-filters.
  */
-const SafetySettingsSchema = z.object({
-  category: z.enum([
-    'HARM_CATEGORY_UNSPECIFIED',
-    'HARM_CATEGORY_HATE_SPEECH',
-    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-    'HARM_CATEGORY_HARASSMENT',
-    'HARM_CATEGORY_DANGEROUS_CONTENT',
-  ]),
-  threshold: z.enum([
-    'BLOCK_LOW_AND_ABOVE',
-    'BLOCK_MEDIUM_AND_ABOVE',
-    'BLOCK_ONLY_HIGH',
-    'BLOCK_NONE',
-  ]),
-});
+const SafetySettingsSchema = z
+  .object({
+    category: z.enum([
+      'HARM_CATEGORY_UNSPECIFIED',
+      'HARM_CATEGORY_HATE_SPEECH',
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_HARASSMENT',
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+    ]),
+    threshold: z.enum([
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+    ]),
+  })
+  .passthrough();
 
 const VoiceConfigSchema = z
   .object({
@@ -143,6 +144,18 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .string()
     .describe('Overrides the plugin-configured API key, if specified.')
     .optional(),
+  baseUrl: z
+    .string()
+    .describe(
+      'Overrides the plugin-configured or default baseUrl, if specified.'
+    )
+    .optional(),
+  apiVersion: z
+    .string()
+    .describe(
+      'Overrides the plugin-configured or default apiVersion, if specified.'
+    )
+    .optional(),
   safetySettings: z
     .array(SafetySettingsSchema)
     .describe(
@@ -174,6 +187,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         'predict a function call and guarantee function schema adherence. ' +
         'With NONE, the model is prohibited from making function calls.'
     )
+    .passthrough()
     .optional(),
   responseModalities: z
     .array(z.enum(['TEXT', 'IMAGE', 'AUDIO']))
@@ -187,6 +201,31 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .describe(
       'Retrieve public web data for grounding, powered by Google Search.'
     )
+    .optional(),
+  fileSearch: z
+    .object({
+      fileSearchStoreNames: z
+        .array(z.string())
+        .describe(
+          'The names of the fileSearchStores to retrieve from. ' +
+            'Example: fileSearchStores/my-file-search-store-123'
+        ),
+      metadataFilter: z
+        .string()
+        .optional()
+        .describe(
+          'Metadata filter to apply to the semantic retrieval documents and chunks.'
+        ),
+      topK: z
+        .number()
+        .optional()
+        .describe('The number of semantic retrieval chunks to retrieve.'),
+    })
+    .passthrough()
+    .optional(),
+  urlContext: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe('Return grounding metadata from links included in the query')
     .optional(),
   temperature: z
     .number()
@@ -220,7 +259,7 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .min(0)
         .max(24576)
         .describe(
-          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+          'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. ' +
             '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
             'dependent. The thinking budget parameter gives the model guidance ' +
             'on the number of thinking tokens it can use when generating a ' +
@@ -229,7 +268,16 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
             'tasks. '
         )
         .optional(),
+      thinkingLevel: z
+        .enum(['LOW', 'MEDIUM', 'HIGH'])
+        .describe(
+          'For Gemini 3.0 - Indicates the thinking level. A higher level ' +
+            'is associated with more detailed thinking, which is needed for solving ' +
+            'more complex tasks.'
+        )
+        .optional(),
     })
+    .passthrough()
     .optional(),
 }).passthrough();
 export type GeminiConfigSchemaType = typeof GeminiConfigSchema;
@@ -330,14 +378,13 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
+  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
   'gemini-2.5-flash-image-preview': commonRef('gemini-2.5-flash-image-preview'),
+  'gemini-2.5-flash-image': commonRef('gemini-2.5-flash-image'),
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
-  'gemini-2.0-flash-preview-image-generation': commonRef(
-    'gemini-2.0-flash-preview-image-generation'
-  ),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
 };
 export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
@@ -434,17 +481,16 @@ export function listActions(models: Model[]): ActionMetadata[] {
   );
 }
 
-export function defineKnownModels(ai: Genkit, options?: GoogleAIPluginOptions) {
-  for (const name of Object.keys(KNOWN_MODELS)) {
-    defineModel(ai, name, options);
-  }
+export function listKnownModels(options?: GoogleAIPluginOptions) {
+  return Object.keys(KNOWN_MODELS).map((name: string) =>
+    defineModel(name, options)
+  );
 }
 
 /**
  * Defines a new GoogleAI Gemini model.
  */
 export function defineModel(
-  ai: Genkit,
   name: string,
   pluginOptions?: GoogleAIPluginOptions
 ): ModelAction {
@@ -482,16 +528,18 @@ export function defineModel(
     );
   }
 
-  return ai.defineModel(
+  return pluginModel(
     {
-      apiVersion: 'v2',
       name: ref.name,
       ...ref.info,
       configSchema: ref.configSchema,
       use: middleware,
     },
     async (request, { streamingRequested, sendChunk, abortSignal }) => {
-      const clientOpt = { ...clientOptions, signal: abortSignal };
+      const clientOpt = calculateRequestOptions(
+        { ...clientOptions, signal: abortSignal },
+        request.config
+      );
 
       // Make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
@@ -524,6 +572,8 @@ export function defineModel(
         version: versionFromConfig,
         functionCallingConfig,
         googleSearchRetrieval,
+        fileSearch,
+        urlContext,
         tools: toolsFromConfig,
         ...restOfConfigOptions
       } = requestOptions;
@@ -544,6 +594,18 @@ export function defineModel(
           googleSearch:
             googleSearchRetrieval === true ? {} : googleSearchRetrieval,
         } as GoogleSearchRetrievalTool);
+      }
+
+      if (fileSearch) {
+        tools.push({
+          fileSearch,
+        });
+      }
+
+      if (urlContext) {
+        tools.push({
+          urlContext: urlContext === true ? {} : urlContext,
+        } as UrlContextTool);
       }
 
       let toolConfig: ToolConfig | undefined;
@@ -569,13 +631,17 @@ export function defineModel(
           tools.length === 0);
 
       const generationConfig: GenerationConfig = {
-        ...restOfConfigOptions,
+        ...removeClientOptionOverrides(restOfConfigOptions),
         candidateCount: request.candidates || undefined,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
 
       if (request.output?.constrained && jsonMode) {
-        generationConfig.responseSchema = cleanSchema(request.output.schema);
+        if (pluginOptions?.legacyResponseSchema) {
+          generationConfig.responseSchema = cleanSchema(request.output.schema);
+        } else {
+          generationConfig.responseJsonSchema = request.output.schema;
+        }
       }
 
       const msg = toGeminiMessage(messages[messages.length - 1], ref);
@@ -608,10 +674,11 @@ export function defineModel(
             generateContentRequest,
             clientOpt
           );
-
+          const chunks: CandidateData[] = [];
           for await (const item of result.stream) {
             item.candidates?.forEach((candidate) => {
-              const c = fromGeminiCandidate(candidate);
+              const c = fromGeminiCandidate(candidate, chunks);
+              chunks.push(c);
               sendChunk({
                 index: c.index,
                 content: c.message.content,
@@ -639,7 +706,8 @@ export function defineModel(
           });
         }
 
-        const candidateData = candidates.map(fromGeminiCandidate) || [];
+        const candidateData =
+          candidates.map((c) => fromGeminiCandidate(c)) || [];
 
         return {
           candidates: candidateData,
@@ -660,7 +728,6 @@ export function defineModel(
       // API params as for input.
       return pluginOptions?.experimental_debugTraces
         ? await runInNewSpan(
-            ai.registry,
             {
               metadata: {
                 name: streamingRequested ? 'sendMessageStream' : 'sendMessage',

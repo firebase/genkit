@@ -170,16 +170,16 @@ type GenerationCommonConfig struct {
 type GenerationUsage struct {
 	CachedContentTokens int                `json:"cachedContentTokens,omitempty"`
 	Custom              map[string]float64 `json:"custom,omitempty"`
-	InputAudioFiles     float64            `json:"inputAudioFiles,omitempty"`
+	InputAudioFiles     int                `json:"inputAudioFiles,omitempty"`
 	InputCharacters     int                `json:"inputCharacters,omitempty"`
 	InputImages         int                `json:"inputImages,omitempty"`
 	InputTokens         int                `json:"inputTokens,omitempty"`
-	InputVideos         float64            `json:"inputVideos,omitempty"`
-	OutputAudioFiles    float64            `json:"outputAudioFiles,omitempty"`
+	InputVideos         int                `json:"inputVideos,omitempty"`
+	OutputAudioFiles    int                `json:"outputAudioFiles,omitempty"`
 	OutputCharacters    int                `json:"outputCharacters,omitempty"`
 	OutputImages        int                `json:"outputImages,omitempty"`
 	OutputTokens        int                `json:"outputTokens,omitempty"`
-	OutputVideos        float64            `json:"outputVideos,omitempty"`
+	OutputVideos        int                `json:"outputVideos,omitempty"`
 	ThoughtsTokens      int                `json:"thoughtsTokens,omitempty"`
 	TotalTokens         int                `json:"totalTokens,omitempty"`
 }
@@ -223,6 +223,7 @@ type ModelSupports struct {
 	Constrained ConstrainedSupport `json:"constrained,omitempty"`
 	ContentType []string           `json:"contentType,omitempty"`
 	Context     bool               `json:"context,omitempty"`
+	LongRunning bool               `json:"longRunning,omitempty"`
 	Media       bool               `json:"media,omitempty"`
 	Multiturn   bool               `json:"multiturn,omitempty"`
 	Output      []string           `json:"output,omitempty"`
@@ -257,8 +258,10 @@ type ModelResponse struct {
 	FinishMessage string       `json:"finishMessage,omitempty"`
 	FinishReason  FinishReason `json:"finishReason,omitempty"`
 	// LatencyMs is the time the request took in milliseconds.
-	LatencyMs float64  `json:"latencyMs,omitempty"`
-	Message   *Message `json:"message,omitempty"`
+	LatencyMs float64    `json:"latencyMs,omitempty"`
+	Message   *Message   `json:"message,omitempty"`
+	Operation *Operation `json:"operation,omitempty"`
+	Raw       any        `json:"raw,omitempty"`
 	// Request is the [ModelRequest] struct used to trigger this response.
 	Request *ModelRequest `json:"request,omitempty"`
 	// Usage describes how many resources were used by this generation request.
@@ -273,6 +276,19 @@ type ModelResponseChunk struct {
 	Custom     any     `json:"custom,omitempty"`
 	Index      int     `json:"index,omitempty"`
 	Role       Role    `json:"role,omitempty"`
+}
+
+type Operation struct {
+	Action   string          `json:"action,omitempty"`
+	Done     bool            `json:"done,omitempty"`
+	Error    *OperationError `json:"error,omitempty"`
+	Id       string          `json:"id,omitempty"`
+	Metadata map[string]any  `json:"metadata,omitempty"`
+	Output   any             `json:"output,omitempty"`
+}
+
+type OperationError struct {
+	Message string `json:"message,omitempty"`
 }
 
 // OutputConfig describes the structure that the model's output
@@ -376,9 +392,10 @@ type ToolDefinition struct {
 type ToolRequest struct {
 	// Input is a JSON object describing the input values to the tool.
 	// An example might be map[string]any{"country":"USA", "president":3}.
-	Input any    `json:"input,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Ref   string `json:"ref,omitempty"`
+	Input   any    `json:"input,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Partial bool   `json:"partial,omitempty"`
+	Ref     string `json:"ref,omitempty"`
 }
 
 type toolRequestPart struct {
@@ -390,7 +407,8 @@ type toolRequestPart struct {
 // the results of running a specific tool on the arguments passed to the client
 // by the model in a [ToolRequest].
 type ToolResponse struct {
-	Name string `json:"name,omitempty"`
+	Content []any  `json:"content,omitempty"`
+	Name    string `json:"name,omitempty"`
 	// Output is a JSON object describing the results of running the tool.
 	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
 	Output any    `json:"output,omitempty"`

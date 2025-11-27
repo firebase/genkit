@@ -77,24 +77,31 @@ func (e enumHandler) ParseMessage(m *Message) (*Message, error) {
 			return nil, errors.New("message has no content")
 		}
 
-		for i, part := range m.Content {
+		var nonTextParts []*Part
+		accumulatedText := strings.Builder{}
+		for _, part := range m.Content {
 			if !part.IsText() {
-				continue
+				nonTextParts = append(nonTextParts, part)
+			} else {
+				accumulatedText.WriteString(part.Text)
 			}
-
-			// replace single and double quotes
-			re := regexp.MustCompile(`['"]`)
-			clean := re.ReplaceAllString(part.Text, "")
-
-			// trim whitespace
-			trimmed := strings.TrimSpace(clean)
-
-			if !slices.Contains(e.enums, trimmed) {
-				return nil, fmt.Errorf("message %s not in list of valid enums: %s", trimmed, strings.Join(e.enums, ", "))
-			}
-
-			m.Content[i] = NewTextPart(trimmed)
 		}
+
+		// replace single and double quotes
+		re := regexp.MustCompile(`['"]`)
+		clean := re.ReplaceAllString(accumulatedText.String(), "")
+
+		// trim whitespace
+		trimmed := strings.TrimSpace(clean)
+
+		if !slices.Contains(e.enums, trimmed) {
+			return nil, fmt.Errorf("message %s not in list of valid enums: %s", trimmed, strings.Join(e.enums, ", "))
+		}
+
+		newParts := []*Part{NewTextPart(trimmed)}
+		newParts = append(newParts, nonTextParts...)
+
+		m.Content = newParts
 	}
 
 	return m, nil

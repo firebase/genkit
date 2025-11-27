@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -111,6 +112,7 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 			"output":       map[string]any{"schema": p.OutputSchema},
 			"defaultInput": p.DefaultInput,
 			"tools":        tools,
+			"maxTurns":     p.MaxTurns,
 		},
 	}
 	maps.Copy(meta, promptMeta)
@@ -123,7 +125,7 @@ func DefinePrompt(r api.Registry, name string, opts ...PromptOption) Prompt {
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(r api.Registry, name string) Prompt {
-	action := core.LookupActionFor[any, *GenerateActionOptions, struct{}](r, api.ActionTypeExecutablePrompt, name)
+	action := core.ResolveActionFor[any, *GenerateActionOptions, struct{}](r, api.ActionTypeExecutablePrompt, name)
 	if action == nil {
 		return nil
 	}
@@ -152,9 +154,6 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 			return nil, fmt.Errorf("Prompt.Execute: error applying options: %w", err)
 		}
 	}
-
-	p.MessagesFn = mergeMessagesFn(p.MessagesFn, execOpts.MessagesFn)
-
 	// Render() should populate all data from the prompt. Prompt fields should
 	// *not* be referenced in this function as it may have been loaded from
 	// the registry and is missing the options passed in at definition.
@@ -166,26 +165,90 @@ func (p *prompt) Execute(ctx context.Context, opts ...PromptExecuteOption) (*Mod
 	if modelRef, ok := execOpts.Model.(ModelRef); ok && execOpts.Config == nil {
 		execOpts.Config = modelRef.Config()
 	}
+
 	if execOpts.Config != nil {
 		actionOpts.Config = execOpts.Config
 	}
+
 	if len(execOpts.Documents) > 0 {
 		actionOpts.Docs = execOpts.Documents
 	}
+
 	if execOpts.ToolChoice != "" {
 		actionOpts.ToolChoice = execOpts.ToolChoice
 	}
+
 	if execOpts.Model != nil {
 		actionOpts.Model = execOpts.Model.Name()
 	}
+
 	if execOpts.MaxTurns != 0 {
 		actionOpts.MaxTurns = execOpts.MaxTurns
 	}
+
 	if execOpts.ReturnToolRequests != nil {
 		actionOpts.ReturnToolRequests = *execOpts.ReturnToolRequests
 	}
 
-	return GenerateWithRequest(ctx, p.registry, actionOpts, execOpts.Middleware, execOpts.Stream)
+	if execOpts.MessagesFn != nil {
+		m, err := buildVariables(execOpts.Input)
+		if err != nil {
+			return nil, err
+		}
+
+		tempOpts := promptOptions{
+			commonGenOptions: commonGenOptions{
+				MessagesFn: execOpts.MessagesFn,
+			},
+		}
+
+		execMsgs, err := renderMessages(ctx, tempOpts, []*Message{}, m, execOpts.Input, p.registry.Dotprompt())
+		if err != nil {
+			return nil, err
+		}
+
+		var systemMsgs []*Message
+		var msgs []*Message
+		foundNonSystem := false
+
+		for _, msg := range actionOpts.Messages {
+			if msg.Role == RoleSystem && !foundNonSystem {
+				systemMsgs = append(systemMsgs, msg)
+			} else {
+				foundNonSystem = true
+				msgs = append(msgs, msg)
+			}
+		}
+
+		actionOpts.Messages = append(systemMsgs, execMsgs...)
+		actionOpts.Messages = append(actionOpts.Messages, msgs...)
+	}
+
+	toolRefs := execOpts.Tools
+	if len(toolRefs) == 0 {
+		toolRefs = make([]ToolRef, 0, len(actionOpts.Tools))
+		for _, toolName := range actionOpts.Tools {
+			toolRefs = append(toolRefs, ToolName(toolName))
+		}
+	}
+
+	toolNames, newTools, err := resolveUniqueTools(p.registry, toolRefs)
+	if err != nil {
+		return nil, err
+	}
+	actionOpts.Tools = toolNames
+
+	r := p.registry
+	if len(newTools) > 0 {
+		if !r.IsChild() {
+			r = r.NewChild()
+		}
+		for _, t := range newTools {
+			t.Register(r)
+		}
+	}
+
+	return GenerateWithRequest(ctx, r, actionOpts, execOpts.Middleware, execOpts.Stream)
 }
 
 // Render renders the prompt template based on user input.
@@ -208,31 +271,6 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 	return p.Run(ctx, input, nil)
 }
 
-// mergeMessagesFn merges two messages functions.
-func mergeMessagesFn(promptFn, reqFn MessagesFn) MessagesFn {
-	if reqFn == nil {
-		return promptFn
-	}
-
-	if promptFn == nil {
-		return reqFn
-	}
-
-	return func(ctx context.Context, input any) ([]*Message, error) {
-		promptMsgs, err := promptFn(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-
-		reqMsgs, err := reqFn(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-
-		return append(promptMsgs, reqMsgs...), nil
-	}
-}
-
 // buildVariables returns a map holding prompt field values based
 // on a struct or a pointer to a struct. The struct value should have
 // JSON tags that correspond to the Prompt's input schema.
@@ -244,7 +282,16 @@ func buildVariables(variables any) (map[string]any, error) {
 
 	v := reflect.Indirect(reflect.ValueOf(variables))
 	if v.Kind() == reflect.Map {
-		return variables.(map[string]any), nil
+		// ensure JSON tags are taken in consideration (allowing snake case fields)
+		jsonData, err := json.Marshal(variables)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal prompt field values: %w", err)
+		}
+		var resultVariables map[string]any
+		if err := json.Unmarshal(jsonData, &resultVariables); err != nil {
+			return nil, fmt.Errorf("unable to unmarshal prompt field values: %w", err)
+		}
+		return resultVariables, nil
 	}
 	if v.Kind() != reflect.Struct {
 		return nil, errors.New("prompt.buildVariables: fields not a struct or pointer to a struct or a map")
@@ -296,16 +343,18 @@ func (p *prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		return nil, err
 	}
 
+	dp := p.registry.Dotprompt()
+
 	messages := []*Message{}
-	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
+	messages, err = renderSystemPrompt(ctx, p.promptOptions, messages, m, input, dp)
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
+	messages, err = renderMessages(ctx, p.promptOptions, messages, m, input, dp)
 	if err != nil {
 		return nil, err
 	}
-	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, p.registry.Dotprompt())
+	messages, err = renderUserPrompt(ctx, p.promptOptions, messages, m, input, dp)
 	if err != nil {
 		return nil, err
 	}
@@ -399,6 +448,8 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 		return nil, err
 	}
 
+	// Create new message copies to avoid mutating shared messages during concurrent execution
+	renderedMsgs := make([]*Message, 0, len(msgs))
 	for _, msg := range msgs {
 		msgParts := []*Part{}
 		for _, part := range msg.Content {
@@ -408,12 +459,21 @@ func renderMessages(ctx context.Context, opts promptOptions, messages []*Message
 					return nil, err
 				}
 				msgParts = append(msgParts, parts...)
+			} else {
+				// Preserve non-text parts as-is
+				msgParts = append(msgParts, part)
 			}
 		}
-		msg.Content = msgParts
+		// Create a new message with rendered content instead of mutating the original
+		renderedMsg := &Message{
+			Role:     msg.Role,
+			Content:  msgParts,
+			Metadata: msg.Metadata,
+		}
+		renderedMsgs = append(renderedMsgs, renderedMsg)
 	}
 
-	return append(messages, msgs...), nil
+	return append(messages, renderedMsgs...), nil
 }
 
 // renderPrompt renders a prompt template using dotprompt functionalities
@@ -468,11 +528,11 @@ func convertToPartPointers(parts []dotprompt.Part) ([]*Part, error) {
 				result[i] = NewTextPart(p.Text)
 			}
 		case *dotprompt.MediaPart:
-			ct, err := contentType(p.Media.URL)
+			ct, data, err := contentType(p.Media.ContentType, p.Media.URL)
 			if err != nil {
 				return nil, err
 			}
-			result[i] = NewMediaPart(ct, p.Media.URL)
+			result[i] = NewMediaPart(ct, string(data))
 		}
 	}
 	return result, nil
@@ -547,13 +607,15 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		return nil
 	}
 
-	parsedPrompt, err := r.Dotprompt().Parse(string(source))
+	dp := r.Dotprompt()
+
+	parsedPrompt, err := dp.Parse(string(source))
 	if err != nil {
 		slog.Error("Failed to parse file as dotprompt", "file", sourceFile, "error", err)
 		return nil
 	}
 
-	metadata, err := r.Dotprompt().RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
+	metadata, err := dp.RenderMetadata(string(source), &parsedPrompt.PromptMetadata)
 	if err != nil {
 		slog.Error("Failed to render dotprompt metadata", "file", sourceFile, "error", err)
 		return nil
@@ -594,8 +656,8 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		opts.ToolChoice = toolChoice
 	}
 
-	if maxTurns, ok := metadata.Raw["maxTurns"].(int); ok {
-		opts.MaxTurns = maxTurns
+	if maxTurns, ok := metadata.Raw["maxTurns"].(uint64); ok {
+		opts.MaxTurns = int(maxTurns)
 	}
 
 	if returnToolRequests, ok := metadata.Raw["returnToolRequests"].(bool); ok {
@@ -622,7 +684,54 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	}
 
 	key := promptKey(name, variant, namespace)
-	prompt := DefinePrompt(r, key, opts, WithPrompt(parsedPrompt.Template))
+
+	dpMessages, err := dotprompt.ToMessages(parsedPrompt.Template, &dotprompt.DataArgument{})
+	if err != nil {
+		slog.Error("Failed to convert prompt template to messages", "file", sourceFile, "error", err)
+		return nil
+	}
+
+	var systemText string
+	var nonSystemMessages []*Message
+	for _, dpMsg := range dpMessages {
+		parts, err := convertToPartPointers(dpMsg.Content)
+		if err != nil {
+			slog.Error("Failed to convert message parts", "file", sourceFile, "error", err)
+			return nil
+		}
+
+		role := Role(dpMsg.Role)
+		if role == RoleSystem {
+			var textParts []string
+			for _, part := range parts {
+				if part.IsText() {
+					textParts = append(textParts, part.Text)
+				}
+			}
+
+			if len(textParts) > 0 {
+				systemText = strings.Join(textParts, " ")
+			}
+		} else {
+			nonSystemMessages = append(nonSystemMessages, &Message{Role: role, Content: parts})
+		}
+	}
+
+	promptOpts := []PromptOption{opts}
+
+	// Add system prompt if found
+	if systemText != "" {
+		promptOpts = append(promptOpts, WithSystem(systemText))
+	}
+
+	// If there are non-system messages, use WithMessages, otherwise use WithPrompt for template
+	if len(nonSystemMessages) > 0 {
+		promptOpts = append(promptOpts, WithMessages(nonSystemMessages...))
+	} else if systemText == "" {
+		promptOpts = append(promptOpts, WithPrompt(parsedPrompt.Template))
+	}
+
+	prompt := DefinePrompt(r, key, promptOpts...)
 
 	slog.Debug("Registered Dotprompt", "name", key, "file", sourceFile)
 
@@ -646,24 +755,30 @@ func variantKey(variant string) string {
 }
 
 // contentType determines the MIME content type of the given data URI
-func contentType(uri string) (string, error) {
+func contentType(ct, uri string) (string, []byte, error) {
 	if uri == "" {
-		return "", errors.New("found empty URI in part")
+		return "", nil, errors.New("found empty URI in part")
 	}
 
 	if strings.HasPrefix(uri, "gs://") || strings.HasPrefix(uri, "http") {
-		return "", errors.New("data URI is the only media type supported")
+		if ct == "" {
+			return "", nil, errors.New("must supply contentType when using media from gs:// or http(s):// URLs")
+		}
+		return ct, []byte(uri), nil
 	}
 	if contents, isData := strings.CutPrefix(uri, "data:"); isData {
 		prefix, _, found := strings.Cut(contents, ",")
 		if !found {
-			return "", errors.New("failed to parse data URI: missing comma")
+			return "", nil, errors.New("failed to parse data URI: missing comma")
 		}
 
 		if p, isBase64 := strings.CutSuffix(prefix, ";base64"); isBase64 {
-			return p, nil
+			if ct == "" {
+				ct = p
+			}
+			return ct, []byte(uri), nil
 		}
 	}
 
-	return "", errors.New("uri content type not found")
+	return "", nil, errors.New("uri content type not found")
 }

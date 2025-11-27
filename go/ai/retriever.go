@@ -115,8 +115,8 @@ func NewRetriever(name string, opts *RetrieverOptions, fn RetrieverFunc) Retriev
 
 	inputSchema := core.InferSchemaMap(RetrieverRequest{})
 	if inputSchema != nil && opts.ConfigSchema != nil {
-		if _, ok := inputSchema["options"]; ok {
-			inputSchema["options"] = opts.ConfigSchema
+		if props, ok := inputSchema["properties"].(map[string]any); ok {
+			props["options"] = opts.ConfigSchema
 		}
 	}
 
@@ -136,7 +136,7 @@ func DefineRetriever(r api.Registry, name string, opts *RetrieverOptions, fn Ret
 // It will try to resolve the retriever dynamically if the retriever is not found.
 // It returns nil if the retriever was not resolved.
 func LookupRetriever(r api.Registry, name string) Retriever {
-	action := core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, api.ActionTypeRetriever, name)
+	action := core.ResolveActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](r, api.ActionTypeRetriever, name)
 	if action == nil {
 		return nil
 	}

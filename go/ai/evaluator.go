@@ -184,8 +184,8 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 
 	inputSchema := core.InferSchemaMap(EvaluatorRequest{})
 	if inputSchema != nil && opts.ConfigSchema != nil {
-		if _, ok := inputSchema["options"]; ok {
-			inputSchema["options"] = opts.ConfigSchema
+		if props, ok := inputSchema["properties"].(map[string]any); ok {
+			props["options"] = opts.ConfigSchema
 		}
 	}
 
@@ -196,7 +196,12 @@ func NewEvaluator(name string, opts *EvaluatorOptions, fn EvaluatorFunc) Evaluat
 				if datapoint.TestCaseId == "" {
 					datapoint.TestCaseId = uuid.New().String()
 				}
-				_, err := tracing.RunInNewSpan(ctx, fmt.Sprintf("TestCase %s", datapoint.TestCaseId), "evaluator", false, datapoint,
+				spanMetadata := &tracing.SpanMetadata{
+					Name:    fmt.Sprintf("TestCase %s", datapoint.TestCaseId),
+					Type:    "evaluator",
+					Subtype: "evaluator",
+				}
+				_, err := tracing.RunInNewSpan(ctx, spanMetadata, datapoint,
 					func(ctx context.Context, input *Example) (*EvaluatorCallbackResponse, error) {
 						traceId := trace.SpanContextFromContext(ctx).TraceID().String()
 						spanId := trace.SpanContextFromContext(ctx).SpanID().String()
@@ -286,7 +291,7 @@ func DefineBatchEvaluator(r api.Registry, name string, opts *EvaluatorOptions, f
 // LookupEvaluator looks up an [Evaluator] registered by [DefineEvaluator].
 // It returns nil if the evaluator was not defined.
 func LookupEvaluator(r api.Registry, name string) Evaluator {
-	action := core.LookupActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, api.ActionTypeEvaluator, name)
+	action := core.ResolveActionFor[*EvaluatorRequest, *EvaluatorResponse, struct{}](r, api.ActionTypeEvaluator, name)
 	if action == nil {
 		return nil
 	}
