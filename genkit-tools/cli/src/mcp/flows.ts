@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-import { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { record } from '@genkit-ai/tools-common/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
 import z from 'zod';
 import { McpRunToolEvent } from './analytics.js';
+import { lazyLoadManager } from './util.js';
 
-export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
+export function defineFlowTools(
+  server: McpServer,
+  manager: ReturnType<typeof lazyLoadManager>
+) {
   server.registerTool(
     'list_flows',
     {
@@ -30,8 +33,8 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
     },
     async () => {
       await record(new McpRunToolEvent('list_flows'));
-
-      const actions = await manager.listActions();
+      const runtimeManager = await manager.getManager();
+      const actions = await runtimeManager.listActions();
 
       let flows = '';
       for (const key of Object.keys(actions)) {
@@ -70,7 +73,8 @@ export function defineFlowTools(server: McpServer, manager: RuntimeManager) {
       await record(new McpRunToolEvent('run_flow'));
 
       try {
-        const response = await manager.runAction({
+        const runtimeManager = await manager.getManager();
+        const response = await runtimeManager.runAction({
           key: `/flow/${flowName}`,
           input: input !== undefined ? JSON.parse(input) : undefined,
         });
