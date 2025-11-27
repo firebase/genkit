@@ -29,6 +29,8 @@ import { ensureBasicTelemetryInstrumentation } from '../tracing.js';
 import type { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
 export const spanMetadataAlsKey = 'core.tracing.instrumentation.span';
+export const lastGenkitSpanIdAlsKey =
+  'core.tracing.instrumentation.lastGenkitSpanId';
 
 export const ATTR_PREFIX = 'genkit';
 /** @hidden */
@@ -38,6 +40,7 @@ const TRACER_VERSION = 'v1';
 
 type SpanContext = {
   metadata: SpanMetadata;
+  labels?: Record<string, string>;
 } & TraceMetadata;
 
 interface RunInNewSpanOpts {
@@ -110,6 +113,7 @@ export async function runInNewSpan<T>(
       const spanContext = {
         ...parentStep,
         metadata: opts.metadata,
+        labels: opts.labels,
       } as SpanContext;
       try {
         opts.metadata.path = buildPath(
@@ -118,10 +122,32 @@ export async function runInNewSpan<T>(
           opts.labels
         );
 
+        const lastGenkitSpanId =
+          getAsyncContext().getStore<string>(lastGenkitSpanIdAlsKey) || '';
+        const isGenkitSpan = !!opts.labels?.[SPAN_TYPE_ATTR];
+        if (isGenkitSpan && parentStep) {
+          const parentIsGenkit = !!parentStep.labels?.[SPAN_TYPE_ATTR];
+          if (!parentIsGenkit && lastGenkitSpanId) {
+            otSpan.setAttribute(
+              ATTR_PREFIX + ':lastKnownParentSpanId',
+              lastGenkitSpanId
+            );
+          }
+        }
+
         const output = await getAsyncContext().run(
           spanMetadataAlsKey,
           spanContext,
-          () => fn(opts.metadata, otSpan, isInRoot)
+          () => {
+            if (isGenkitSpan) {
+              return getAsyncContext().run(
+                lastGenkitSpanIdAlsKey,
+                otSpan.spanContext().spanId,
+                () => fn(opts.metadata, otSpan, isInRoot)
+              );
+            }
+            return fn(opts.metadata, otSpan, isInRoot);
+          }
         );
         if (opts.metadata.state !== 'error') {
           opts.metadata.state = 'success';

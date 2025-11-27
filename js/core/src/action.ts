@@ -85,6 +85,14 @@ export interface ActionRunOptions<S> {
    * Abort signal for the action request.
    */
   abortSignal?: AbortSignal;
+
+  /**
+   * Callback that fires immediately when the root span is created for the action,
+   * providing early access to telemetry data (trace ID, span ID).
+   * This is useful for scenarios where telemetry needs to be available before the action completes.
+   * Note: This only fires once for the root action span, not for nested spans.
+   */
+  onTelemetry?: (traceId: string, spanId: string) => void;
 }
 
 /**
@@ -340,7 +348,10 @@ export function action<
         }
 
         traceId = span.spanContext().traceId;
-        spanId = span.spanContext().spanId;
+        spanId = span.spanContext().spanId;        
+        if (options?.onTelemetry) {
+          options.onTelemetry(traceId, spanId);
+        }
         metadata.name = actionName;
         metadata.input = input;
 
