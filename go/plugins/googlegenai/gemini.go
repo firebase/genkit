@@ -815,6 +815,7 @@ func translateResponse(resp *genai.GenerateContentResponse) (*ai.ModelResponse, 
 		r.Usage.CachedContentTokens = int(u.CachedContentTokenCount)
 		r.Usage.ThoughtsTokens = int(u.ThoughtsTokenCount)
 	}
+	r.Raw = resp
 	return r, nil
 }
 

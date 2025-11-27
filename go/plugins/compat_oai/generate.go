@@ -354,6 +354,7 @@ func convertChatCompletionToModelResponse(completion *openai.ChatCompletion) (*a
 			Role:    ai.RoleModel,
 			Content: make([]*ai.Part, 0),
 		},
+		Raw: completion,
 	}
 
 	// Map finish reason
