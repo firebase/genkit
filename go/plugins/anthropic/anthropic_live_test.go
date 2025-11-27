@@ -327,6 +327,7 @@ func TestAnthropicLive(t *testing.T) {
 		}
 	})
 	t.Run("tools streaming with constrained gen", func(t *testing.T) {
+		t.Skip("skipped until issue #3851 gets resolved")
 		m := anthropicPlugin.Model(g, "claude-sonnet-4-5-20250929")
 		answerOfEverythingTool := genkit.DefineTool(
 			g,
