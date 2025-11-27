@@ -14,20 +14,15 @@
  * limitations under the License.
  */
 
-import {
-  GenerateResponseData,
-  GenkitError,
-  Operation,
-  z,
-  type Genkit,
-} from 'genkit';
+import { GenerateResponseData, GenkitError, Operation, z } from 'genkit';
 import {
   BackgroundModelAction,
-  modelRef,
+  modelRef as createModelRef,
   type GenerateRequest,
   type ModelInfo,
   type ModelReference,
 } from 'genkit/model';
+import { backgroundModel } from 'genkit/plugin';
 import { getApiKeyFromEnvVar } from './common.js';
 import { Operation as ApiOperation, checkOp, predictModel } from './predict.js';
 
@@ -127,7 +122,6 @@ export const GENERIC_VEO_INFO = {
 } as ModelInfo;
 
 export function defineVeoModel(
-  ai: Genkit,
   name: string,
   apiKey?: string | false
 ): BackgroundModelAction<typeof VeoConfigSchema> {
@@ -143,7 +137,7 @@ export function defineVeoModel(
     }
   }
   const modelName = `googleai/${name}`;
-  const model: ModelReference<z.ZodTypeAny> = modelRef({
+  const modelRef: ModelReference<z.ZodTypeAny> = createModelRef({
     name: modelName,
     info: {
       ...GENERIC_VEO_INFO,
@@ -152,9 +146,9 @@ export function defineVeoModel(
     configSchema: VeoConfigSchema,
   });
 
-  return ai.defineBackgroundModel({
+  return backgroundModel({
     name: modelName,
-    ...model.info,
+    ...modelRef.info,
     configSchema: VeoConfigSchema,
     async start(request) {
       const instance: VeoInstance = {
@@ -169,7 +163,7 @@ export function defineVeoModel(
         VeoInstance,
         ApiOperation,
         VeoParameters
-      >(model.version || name, apiKey as string, 'predictLongRunning');
+      >(modelRef.version || name, apiKey as string, 'predictLongRunning');
       const response = await predictClient([instance], toParameters(request));
 
       return toGenkitOp(response);
