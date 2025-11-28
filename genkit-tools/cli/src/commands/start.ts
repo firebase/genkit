@@ -26,6 +26,7 @@ interface RunOptions {
   noui?: boolean;
   port?: string;
   open?: boolean;
+  experimentalReflectionV2?: boolean;
 }
 
 /** Command to run code in dev mode and/or the Dev UI. */
@@ -34,6 +35,10 @@ export const start = new Command('start')
   .option('-n, --noui', 'do not start the Dev UI', false)
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
+  .option(
+    '--experimental-reflection-v2',
+    'start the experimental reflection server (WebSocket)'
+  )
   .action(async (options: RunOptions) => {
     const projectRoot = await findProjectRoot();
     if (projectRoot.includes('/.Trash/')) {
@@ -49,14 +54,20 @@ export const start = new Command('start')
       const result = await startDevProcessManager(
         projectRoot,
         start.args[0],
-        start.args.slice(1)
+        start.args.slice(1),
+        options.experimentalReflectionV2
       );
       manager = result.manager;
       processPromise = result.processPromise;
     } else {
-      manager = await startManager(projectRoot, true);
+      manager = await startManager(
+        projectRoot,
+        true,
+        options.experimentalReflectionV2
+      );
       processPromise = new Promise(() => {});
     }
+
     if (!options.noui) {
       let port: number;
       if (options.port) {
