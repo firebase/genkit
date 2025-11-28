@@ -395,7 +395,6 @@ export class RuntimeManager extends BaseRuntimeManager {
     }
   }
 
-
   /**
    * Notifies the runtime of dependencies it may need (e.g. telemetry server URL).
    */
@@ -587,7 +586,6 @@ export class RuntimeManager extends BaseRuntimeManager {
       logger.debug(`Removed runtime with id ${runtime.id}.`);
     }
   }
-
 
   /**
    * Performs health checks on all runtimes.

@@ -17,13 +17,21 @@
 import EventEmitter from 'events';
 import getPort, { makeRange } from 'get-port';
 import { WebSocket, WebSocketServer } from 'ws';
-import { Action, RunActionResponse, RunActionResponseSchema } from '../types/action';
+import {
+  Action,
+  RunActionResponse,
+  RunActionResponseSchema,
+} from '../types/action';
 import * as apis from '../types/apis';
-import { GenkitToolsError } from './types';
 import { DevToolsInfo } from '../utils/utils';
-import { BaseRuntimeManager, GENKIT_REFLECTION_API_SPEC_VERSION } from './manager';
+import { BaseRuntimeManager } from './manager';
 import { ProcessManager } from './process-manager';
-import { RuntimeEvent, RuntimeInfo, StreamingCallback } from './types';
+import {
+  GenkitToolsError,
+  RuntimeEvent,
+  RuntimeInfo,
+  StreamingCallback,
+} from './types';
 
 interface JsonRpcRequest {
   jsonrpc: '2.0';
@@ -62,7 +70,8 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     number | string,
     { resolve: (value: any) => void; reject: (reason?: any) => void }
   > = new Map();
-  private streamCallbacks: Map<number | string, StreamingCallback<any>> = new Map();
+  private streamCallbacks: Map<number | string, StreamingCallback<any>> =
+    new Map();
   private eventEmitter = new EventEmitter();
   private requestIdCounter = 0;
 
@@ -163,14 +172,16 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
 
     this.runtimes.set(runtimeInfo.id, { ws, info: runtimeInfo });
     this.eventEmitter.emit(RuntimeEvent.ADD, runtimeInfo);
-    
+
     // Send success response
     if (request.id) {
-      ws.send(JSON.stringify({
-        jsonrpc: '2.0',
-        result: null,
-        id: request.id
-      }));
+      ws.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          result: null,
+          id: request.id,
+        })
+      );
     }
 
     // Configure the runtime immediately
@@ -218,7 +229,11 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     }
   }
 
-  private async sendRequest(runtimeId: string, method: string, params?: any): Promise<any> {
+  private async sendRequest(
+    runtimeId: string,
+    method: string,
+    params?: any
+  ): Promise<any> {
     const runtime = this.runtimes.get(runtimeId);
     if (!runtime) {
       throw new Error(`Runtime ${runtimeId} not found`);
@@ -235,19 +250,19 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
       runtime.ws.send(JSON.stringify(message));
-      
+
       // Timeout cleanup
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
           reject(new Error(`Request ${id} timed out`));
         }
-      }, 30000); 
+      }, 30000);
     });
   }
-  
+
   private sendNotification(runtimeId: string, method: string, params?: any) {
-     const runtime = this.runtimes.get(runtimeId);
+    const runtime = this.runtimes.get(runtimeId);
     if (!runtime) {
       console.warn(`Runtime ${runtimeId} not found, cannot send notification`);
       return;
@@ -262,7 +277,7 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
 
   private notifyRuntime(runtimeId: string) {
     this.sendNotification(runtimeId, 'configure', {
-        telemetryServerUrl: this.telemetryServerUrl,
+      telemetryServerUrl: this.telemetryServerUrl,
     });
   }
 
@@ -301,8 +316,8 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
   ): Promise<Record<string, Action>> {
     const runtimeId = input?.runtimeId || this.getMostRecentRuntime()?.id;
     if (!runtimeId) {
-        // No runtimes connected
-        return {};
+      // No runtimes connected
+      return {};
     }
     return this.sendRequest(runtimeId, 'listActions');
   }
@@ -321,16 +336,16 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     if (!runtimeId) {
       throw new Error('No runtime found');
     }
-    
+
     const runtime = this.runtimes.get(runtimeId);
     if (!runtime) {
-        throw new Error(`Runtime ${runtimeId} not found`);
+      throw new Error(`Runtime ${runtimeId} not found`);
     }
 
     const id = ++this.requestIdCounter;
-    
+
     if (streamingCallback) {
-        this.streamCallbacks.set(id, streamingCallback);
+      this.streamCallbacks.set(id, streamingCallback);
     }
 
     const message: JsonRpcRequest = {
@@ -346,15 +361,16 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
       runtime.ws.send(JSON.stringify(message));
-      
-      // Timeout cleanup? Maybe longer for actions.
-    }).then((result) => {
-        return RunActionResponseSchema.parse(result);
-    }).finally(() => {
-        if (streamingCallback) {
-            this.streamCallbacks.delete(id);
-        }
-    });
-  }
 
+      // Timeout cleanup? Maybe longer for actions.
+    })
+      .then((result) => {
+        return RunActionResponseSchema.parse(result);
+      })
+      .finally(() => {
+        if (streamingCallback) {
+          this.streamCallbacks.delete(id);
+        }
+      });
+  }
 }

@@ -41,10 +41,10 @@ describe('genkit', () => {
       const instance = genkit({});
       // reflectionServer is private, cast to any to inspect
       const reflectionServer = (instance as any).reflectionServer;
-      
+
       assert.ok(reflectionServer, 'Reflection server should be initialized');
       assert.strictEqual(reflectionServer.url, 'ws://localhost:1234');
-      
+
       // Clean up
       await instance.stopServers();
     } finally {

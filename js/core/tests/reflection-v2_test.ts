@@ -19,9 +19,9 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import { WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { action } from '../src/action.js';
+import { initNodeFeatures } from '../src/node.js';
 import { ReflectionServerV2 } from '../src/reflection-v2.js';
 import { Registry } from '../src/registry.js';
-import { initNodeFeatures } from '../src/node.js';
 
 initNodeFeatures();
 
@@ -160,7 +160,9 @@ describe('ReflectionServerV2', () => {
               );
             } else if (msg.id === '456') {
               if (msg.error) {
-                reject(new Error(`runAction error: ${JSON.stringify(msg.error)}`));
+                reject(
+                  new Error(`runAction error: ${JSON.stringify(msg.error)}`)
+                );
                 return;
               }
               assert.strictEqual(msg.result.result.bar, 'baz');
@@ -225,7 +227,9 @@ describe('ReflectionServerV2', () => {
               chunks.push(msg.params.chunk);
             } else if (msg.id === '789') {
               if (msg.error) {
-                reject(new Error(`streamAction error: ${JSON.stringify(msg.error)}`));
+                reject(
+                  new Error(`streamAction error: ${JSON.stringify(msg.error)}`)
+                );
                 return;
               }
               assert.strictEqual(msg.result.result, 'done');
