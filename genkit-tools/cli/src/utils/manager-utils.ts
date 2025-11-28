@@ -85,7 +85,7 @@ export async function startDevProcessManager(
 
   let reflectionV2Port: number | undefined;
   if (experimentalReflectionV2) {
-    reflectionV2Port = await getPort({ port: makeRange(3100, 3200) });
+    reflectionV2Port = await getPort({ port: makeRange(3200, 3400) });
     env['GENKIT_REFLECTION_V2_SERVER'] = `http://localhost:${reflectionV2Port}`;
   }
 

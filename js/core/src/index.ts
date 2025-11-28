@@ -77,6 +77,7 @@ export {
 } from './flow.js';
 export * from './plugin.js';
 export * from './reflection.js';
+export * from './reflection-v2.js';
 export { defineJsonSchema, defineSchema, type JSONSchema } from './schema.js';
 export * from './telemetryTypes.js';
 export * from './utils.js';

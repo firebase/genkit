@@ -30,4 +30,26 @@ describe('genkit', () => {
     assert.ok(getClientHeader().includes('genkit-node/'));
     assert.ok(getClientHeader().includes('foo'));
   });
+
+  it('initializes ReflectionServerV2 when GENKIT_REFLECTION_V2_SERVER is set', async () => {
+    process.env.GENKIT_REFLECTION_V2_SERVER = 'ws://localhost:1234';
+    // Ensure we are in dev env for reflection server to start
+    const originalEnv = process.env.GENKIT_ENV;
+    process.env.GENKIT_ENV = 'dev';
+
+    try {
+      const instance = genkit({});
+      // reflectionServer is private, cast to any to inspect
+      const reflectionServer = (instance as any).reflectionServer;
+      
+      assert.ok(reflectionServer, 'Reflection server should be initialized');
+      assert.strictEqual(reflectionServer.url, 'ws://localhost:1234');
+      
+      // Clean up
+      await instance.stopServers();
+    } finally {
+      delete process.env.GENKIT_REFLECTION_V2_SERVER;
+      process.env.GENKIT_ENV = originalEnv;
+    }
+  });
 });

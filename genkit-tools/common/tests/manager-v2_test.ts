@@ -27,7 +27,6 @@ describe('RuntimeManagerV2', () => {
   beforeEach(async () => {
     manager = await RuntimeManagerV2.create({
       projectRoot: './',
-      reflectionV2Port: 0, // Let it pick a random port
     });
     port = manager.port!;
   });
@@ -179,5 +178,82 @@ describe('RuntimeManagerV2', () => {
     expect(chunks[1]).toEqual({ content: ' World' });
     expect(response.result).toBe('Hello World');
     expect(response.telemetry).toBeDefined();
+  });
+
+  it('should handle streaming errors and massage the error object', async () => {
+    wsClient = new WebSocket(`ws://localhost:${port}`);
+
+    await new Promise<void>((resolve) => {
+      wsClient.on('open', () => {
+        wsClient.send(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'register',
+            params: { id: 'test-runtime-error', pid: 1234 },
+            id: 1,
+          })
+        );
+        setTimeout(resolve, 100);
+      });
+    });
+
+    wsClient.on('message', (data) => {
+      const message = JSON.parse(data.toString());
+      if (message.method === 'runAction' && message.params.stream) {
+        // Send chunk 1
+        wsClient.send(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'streamChunk',
+            params: { requestId: message.id, chunk: { content: 'Hello' } },
+          })
+        );
+        // Send error
+        const errorResponse = {
+          code: -32000,
+          message: 'Test Error',
+          data: {
+            code: 13,
+            message: 'Test Error',
+            details: {
+              stack: 'Error stack...',
+              traceId: 'trace-123',
+            },
+          },
+        };
+        wsClient.send(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: errorResponse,
+            id: message.id,
+          })
+        );
+      }
+    });
+
+    const chunks: any[] = [];
+    try {
+      await manager.runAction(
+        {
+          key: 'testAction',
+          input: {},
+        },
+        (chunk) => {
+          chunks.push(chunk);
+        }
+      );
+      throw new Error('Should have thrown');
+    } catch (err: any) {
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0]).toEqual({ content: 'Hello' });
+      expect(err.message).toBe('Test Error');
+      expect(err.data).toBeDefined();
+      expect(err.data.data.genkitErrorMessage).toBe('Test Error');
+      expect(err.data.stack).toBe('Error stack...');
+      expect(err.data.data.genkitErrorDetails).toEqual({
+        stack: 'Error stack...',
+        traceId: 'trace-123',
+      });
+    }
   });
 });

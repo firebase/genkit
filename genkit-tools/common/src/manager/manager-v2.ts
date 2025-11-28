@@ -97,7 +97,7 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
    */
   private async startWebSocketServer(port?: number): Promise<{ port: number }> {
     if (!port) {
-      port = await getPort({ port: makeRange(3100, 3200) });
+      port = await getPort({ port: makeRange(3200, 3400) });
     }
     this.wss = new WebSocketServer({ port });
 
@@ -110,6 +110,7 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       ws.on('message', (data) => {
         try {
           const message = JSON.parse(data.toString()) as JsonRpcMessage;
+          console.log('cli message', JSON.stringify(message));
           this.handleMessage(ws, message);
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
@@ -188,7 +189,18 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     const pending = this.pendingRequests.get(response.id);
     if (pending) {
       if (response.error) {
-        pending.reject(new GenkitToolsError(response.error.message, response.error.data));
+        const errorData = response.error.data || {};
+        const massagedData = {
+          ...errorData,
+          stack: errorData.details?.stack,
+          data: {
+            genkitErrorMessage: errorData.message,
+            genkitErrorDetails: errorData.details,
+          },
+        };
+        const error = new GenkitToolsError(response.error.message);
+        error.data = massagedData;
+        pending.reject(error);
       } else {
         pending.resolve(response.result);
       }
