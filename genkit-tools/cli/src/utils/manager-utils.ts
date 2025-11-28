@@ -55,13 +55,15 @@ export async function resolveTelemetryServer(
  */
 export async function startManager(
   projectRoot: string,
-  manageHealth?: boolean
-): Promise<RuntimeManager> {
+  manageHealth?: boolean,
+  experimentalReflectionV2?: boolean
+): Promise<RuntimeManager | any> {
   const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
   const manager = RuntimeManager.create({
     telemetryServerUrl,
     manageHealth,
     projectRoot,
+    experimentalReflectionV2,
   });
   return manager;
 }
@@ -69,18 +71,32 @@ export async function startManager(
 export async function startDevProcessManager(
   projectRoot: string,
   command: string,
-  args: string[]
-): Promise<{ manager: RuntimeManager; processPromise: Promise<void> }> {
+  args: string[],
+  experimentalReflectionV2?: boolean
+): Promise<{
+  manager: RuntimeManager | any;
+  processPromise: Promise<void>;
+}> {
   const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
-  const processManager = new ProcessManager(command, args, {
+  const env: Record<string, string> = {
     GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
     GENKIT_ENV: 'dev',
-  });
+  };
+
+  let reflectionV2Port: number | undefined;
+  if (experimentalReflectionV2) {
+    reflectionV2Port = await getPort({ port: makeRange(3100, 3200) });
+    env['GENKIT_REFLECTION_V2_SERVER'] = `http://localhost:${reflectionV2Port}`;
+  }
+
+  const processManager = new ProcessManager(command, args, env);
   const manager = await RuntimeManager.create({
     telemetryServerUrl,
     manageHealth: true,
     projectRoot,
     processManager,
+    experimentalReflectionV2,
+    reflectionV2Port,
   });
   const processPromise = processManager.start();
   return { manager, processPromise };
