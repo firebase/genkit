@@ -134,6 +134,11 @@ function toGeminiMedia(part: Part): GeminiPart {
     media.videoMetadata = { ...videoMetadata };
   }
 
+  // Media resolution
+  if (part.metadata?.mediaResolution) {
+    media.mediaResolution = { ...part.metadata.mediaResolution };
+  }
+
   return maybeAddGeminiThoughtSignature(part, media);
 }
 
