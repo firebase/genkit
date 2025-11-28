@@ -378,6 +378,28 @@ ai.defineFlow('reasoning', async (_, { sendChunk }) => {
   return message;
 });
 
+// Media resolution
+ai.defineFlow('gemini-media-resolution', async (_) => {
+  const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });
+  const { text } = await ai.generate({
+    model: vertexAI.model('gemini-3-pro-preview'),
+    prompt: [
+      { text: 'What is in this picture?' },
+      {
+        media: { url: `data:image/png;base64,${plant}` },
+        metadata: {
+          mediaResolution: {
+            // Or MEDIA_RESOLUTION_LOW Or MEDIA_RESOLUTION_MEDIUM
+            level: 'MEDIA_RESOLUTION_HIGH',
+          },
+        },
+      },
+    ],
+  });
+
+  return text;
+});
+
 // Image editing with Gemini.
 ai.defineFlow('gemini-image-editing', async (_) => {
   const plant = fs.readFileSync('palm_tree.png', { encoding: 'base64' });

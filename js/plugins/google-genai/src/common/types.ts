@@ -717,6 +717,16 @@ export declare interface VideoMetadata {
   fps?: number;
 }
 
+export enum MediaResolutionLevel {
+  MEDIA_RESOUTION_LOW = 'MEDIA_RESOUTION_LOW',
+  MEDIA_RESOLUTION_MEDIUM = 'MEDIA_RESOLUTION_MEDIUM',
+  MEDIA_RESOLUTION_HIGH = 'MEDIA_RESOLUTION_HIGH',
+}
+
+export declare interface MediaResolution {
+  level?: MediaResolutionLevel;
+}
+
 /**
  * This is a Gemini Part. (Users never see this
  * structure, it is just built by the converters.)
@@ -732,6 +742,7 @@ export declare interface Part {
   executableCode?: ExecutableCode;
   codeExecutionResult?: CodeExecutionResult;
   videoMetadata?: VideoMetadata;
+  mediaResolution?: MediaResolution;
 }
 
 /**
