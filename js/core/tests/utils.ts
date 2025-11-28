@@ -41,7 +41,7 @@ export class TestSpanExporter implements SpanExporter {
       displayName: span.name,
       links: span.links,
       spanKind: SpanKind[span.kind],
-      parentSpanId: span.parentSpanId,
+      parentSpanId: span.parentSpanContext?.spanId,
       sameProcessAsParentSpan: { value: !span.spanContext().isRemote },
       status: span.status,
       timeEvents: {

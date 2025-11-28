@@ -184,6 +184,12 @@ type GenerationUsage struct {
 	TotalTokens         int                `json:"totalTokens,omitempty"`
 }
 
+type InstrumentationScope struct {
+	Name      string `json:"name,omitempty"`
+	SchemaUrl string `json:"schemaUrl,omitempty"`
+	Version   string `json:"version,omitempty"`
+}
+
 type Media struct {
 	ContentType string `json:"contentType,omitempty"`
 	Url         string `json:"url,omitempty"`

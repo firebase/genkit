@@ -80,6 +80,12 @@ export const InstrumentationLibrarySchema = z.object({
   schemaUrl: z.string().optional().readonly(),
 });
 
+export const InstrumentationScopeSchema = z.object({
+  name: z.string().readonly(),
+  version: z.string().optional().readonly(),
+  schemaUrl: z.string().optional().readonly(),
+});
+
 export const SpanDataSchema = z.object({
   spanId: z.string(),
   traceId: z.string(),
@@ -89,7 +95,8 @@ export const SpanDataSchema = z.object({
   attributes: z.record(z.string(), z.any()),
   displayName: z.string(),
   links: z.array(LinkSchema).optional(),
-  instrumentationLibrary: InstrumentationLibrarySchema,
+  instrumentationLibrary: InstrumentationLibrarySchema.optional(),
+  instrumentationScope: InstrumentationScopeSchema.optional(),
   spanKind: z.string(),
   sameProcessAsParentSpan: z.object({ value: z.boolean() }).optional(),
   status: SpanStatusSchema.optional(),

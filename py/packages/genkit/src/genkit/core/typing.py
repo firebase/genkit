@@ -382,6 +382,15 @@ class InstrumentationLibrary(BaseModel):
     schema_url: str | None = Field(None, alias='schemaUrl')
 
 
+class InstrumentationScope(BaseModel):
+    """Model for instrumentationscope data."""
+
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: str
+    version: str | None = None
+    schema_url: str | None = Field(None, alias='schemaUrl')
+
+
 class PathMetadata(BaseModel):
     """Model for pathmetadata data."""
 
@@ -775,7 +784,8 @@ class SpanData(BaseModel):
     attributes: dict[str, Any]
     display_name: str = Field(..., alias='displayName')
     links: list[Link] | None = None
-    instrumentation_library: InstrumentationLibrary = Field(..., alias='instrumentationLibrary')
+    instrumentation_library: InstrumentationLibrary | None = Field(None, alias='instrumentationLibrary')
+    instrumentation_scope: InstrumentationScope | None = Field(None, alias='instrumentationScope')
     span_kind: str = Field(..., alias='spanKind')
     same_process_as_parent_span: SameProcessAsParentSpan | None = Field(None, alias='sameProcessAsParentSpan')
     status: SpanStatus | None = None

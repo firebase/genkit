@@ -97,7 +97,16 @@ export const LinkSchema = z.object({
 });
 
 /**
- * Zod schema for instrumentation library.
+ * Zod schema for instrumentation scope.
+ */
+export const InstrumentationScopeSchema = z.object({
+  name: z.string().readonly(),
+  version: z.string().optional().readonly(),
+  schemaUrl: z.string().optional().readonly(),
+});
+
+/**
+ * Zod schema for legacy instrumentation library.
  */
 export const InstrumentationLibrarySchema = z.object({
   name: z.string().readonly(),
@@ -118,7 +127,8 @@ export const SpanDataSchema = z
     attributes: z.record(z.string(), z.unknown()),
     displayName: z.string(),
     links: z.array(LinkSchema).optional(),
-    instrumentationLibrary: InstrumentationLibrarySchema,
+    instrumentationLibrary: InstrumentationLibrarySchema.optional(),
+    instrumentationScope: InstrumentationScopeSchema.optional(),
     spanKind: z.string(),
     sameProcessAsParentSpan: z.object({ value: z.boolean() }).optional(),
     status: SpanStatusSchema.optional(),
