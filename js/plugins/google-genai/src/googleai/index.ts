@@ -61,7 +61,7 @@ async function resolver(
       } else if (imagen.isImagenModelName(actionName)) {
         return await imagen.defineModel(actionName, options);
       } else {
-        // gemini, tts, gemma, unknown models
+        // gemini, tts, image, gemma, unknown models
         return await gemini.defineModel(actionName, options);
       }
       break;
@@ -130,6 +130,10 @@ export type GoogleAIPlugin = {
     config: gemini.GeminiTtsConfig
   ): ModelReference<gemini.GeminiTtsConfigSchemaType>;
   model(
+    name: gemini.KnownImageModels | (gemini.ImageModelName & {}),
+    config: gemini.GeminiImageConfig
+  ): ModelReference<gemini.GeminiImageConfigSchemaType>;
+  model(
     name: gemini.KnownGeminiModels | (gemini.GeminiModelName & {}),
     config?: gemini.GeminiConfig
   ): ModelReference<gemini.GeminiConfigSchemaType>;
@@ -163,7 +167,7 @@ export const googleAI = googleAIPlugin as GoogleAIPlugin;
   if (imagen.isImagenModelName(name)) {
     return imagen.model(name, config);
   }
-  // gemma, tts, gemini and unknown model families.
+  // gemma, tts, image, gemini and unknown model families.
   return gemini.model(name, config);
 };
 googleAI.embedder = (

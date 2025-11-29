@@ -24,6 +24,7 @@ import {
 import {
   TEST_ONLY as GEMINI_TEST_ONLY,
   GeminiConfigSchema,
+  GeminiImageConfigSchema,
   GeminiTtsConfigSchema,
   GemmaConfigSchema,
 } from '../../src/googleai/gemini.js';
@@ -313,6 +314,54 @@ describe('GoogleAI Plugin', () => {
         modelRef.config?.aspectRatio,
         '16:9',
         'should be 16:9'
+      );
+    });
+
+    it('should return an image model reference for new models', () => {
+      const modelRef = googleAI.model('gemini-new-image-foo');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.ok(
+        modelRef.info?.supports?.multiturn,
+        'Gemini Image model should support multiturn'
+      );
+    });
+
+    it('should return an Image model reference with correct schema', () => {
+      const modelRef = googleAI.model('gemini-2.5-flash-image');
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.ok(
+        modelRef.info?.supports?.multiturn,
+        'Gemini Image model should support multiturn'
+      );
+    });
+
+    it('should have config values for image model', () => {
+      const modelRef = googleAI.model('gemini-2.5-flash-image', {
+        imageConfig: {
+          aspectRatio: '16:9',
+          imageSize: '1K',
+        },
+      });
+      assert.strictEqual(
+        modelRef.configSchema,
+        GeminiImageConfigSchema,
+        'Should have GeminiImageConfigSchema'
+      );
+      assert.deepStrictEqual(
+        modelRef.config?.imageConfig,
+        {
+          aspectRatio: '16:9',
+          imageSize: '1K',
+        },
+        'should have correct imageConfig'
       );
     });
 

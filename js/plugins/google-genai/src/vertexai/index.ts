@@ -124,7 +124,11 @@ function vertexAIPlugin(options?: VertexPluginOptions): GenkitPluginV2 {
 export type VertexAIPlugin = {
   (pluginOptions?: VertexPluginOptions): GenkitPluginV2;
   model(
-    name: gemini.KnownModels | (gemini.GeminiModelName & {}),
+    name: gemini.KnownImageModels | (gemini.ImageModelName & {}),
+    config?: gemini.GeminiImageConfig
+  ): ModelReference<gemini.GeminiImageConfigSchemaType>;
+  model(
+    name: gemini.KnownGeminiModels | (gemini.GeminiModelName & {}),
     config?: gemini.GeminiConfig
   ): ModelReference<gemini.GeminiConfigSchemaType>;
   model(
@@ -166,7 +170,7 @@ export const vertexAI = vertexAIPlugin as VertexAIPlugin;
   if (veo.isVeoModelName(name)) {
     return veo.model(name, config);
   }
-  // gemini and unknown model families
+  // gemini, image and unknown model families
   return gemini.model(name, config);
 };
 vertexAI.embedder = (
