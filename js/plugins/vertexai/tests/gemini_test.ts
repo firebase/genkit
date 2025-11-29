@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { GenerateContentCandidate } from '@google-cloud/vertexai';
+import type { GenerateContentCandidate } from '@google-cloud/vertexai';
 import * as assert from 'assert';
-import { MessageData, z } from 'genkit';
+import { z, type MessageData } from 'genkit';
 import { toJsonSchema } from 'genkit/schema';
 import { describe, it } from 'node:test';
 import {
@@ -157,6 +157,17 @@ describe('toGeminiMessages', () => {
             },
           },
         ],
+      },
+    },
+    {
+      should: 'should re-populate thoughtSignature from reasoning metadata',
+      inputMessage: {
+        role: 'model',
+        content: [{ reasoning: '', metadata: { thoughtSignature: 'abc123' } }],
+      },
+      expectedOutput: {
+        role: 'model',
+        parts: [{ thought: true, thoughtSignature: 'abc123' }],
       },
     },
   ];
@@ -388,6 +399,102 @@ describe('fromGeminiCandidate', () => {
         },
       },
     },
+    {
+      should:
+        'should transform gemini candidate to genkit candidate (thought parts) correctly',
+      geminiCandidate: {
+        content: {
+          role: 'model',
+          parts: [
+            {
+              thought: true,
+              thoughtSignature: 'abc123',
+            },
+            {
+              thought: true,
+              text: 'thought with text',
+              thoughtSignature: 'def456',
+            },
+          ],
+        },
+        finishReason: 'STOP',
+        safetyRatings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.11858909,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.11456649,
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.13857833,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.11417085,
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            probability: 'NEGLIGIBLE',
+            probabilityScore: 0.28012377,
+            severity: 'HARM_SEVERITY_NEGLIGIBLE',
+            severityScore: 0.112405084,
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            probability: 'NEGLIGIBLE',
+          },
+        ],
+      },
+      expectedOutput: {
+        index: 0,
+        message: {
+          role: 'model',
+          content: [
+            {
+              reasoning: '',
+              metadata: { thoughtSignature: 'abc123' },
+            },
+            {
+              reasoning: 'thought with text',
+              metadata: { thoughtSignature: 'def456' },
+            },
+          ],
+        },
+        finishReason: 'stop',
+        finishMessage: undefined,
+        custom: {
+          citationMetadata: undefined,
+          safetyRatings: [
+            {
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.11858909,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.11456649,
+            },
+            {
+              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.13857833,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.11417085,
+            },
+            {
+              category: 'HARM_CATEGORY_HARASSMENT',
+              probability: 'NEGLIGIBLE',
+              probabilityScore: 0.28012377,
+              severity: 'HARM_SEVERITY_NEGLIGIBLE',
+              severityScore: 0.112405084,
+            },
+            {
+              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              probability: 'NEGLIGIBLE',
+            },
+          ],
+        },
+      },
+    },
   ];
   for (const test of testCases) {
     it(test.should, () => {
@@ -435,7 +542,7 @@ describe('cleanSchema', () => {
 });
 
 describe('toGeminiTool', () => {
-  it('', async () => {
+  it('converts to gemini tool', async () => {
     const got = toGeminiTool({
       name: 'foo',
       description: 'tool foo',
@@ -489,5 +596,25 @@ describe('toGeminiTool', () => {
       },
     };
     assert.deepStrictEqual(got, want);
+  });
+
+  it('converts empty object schema', async () => {
+    const got = toGeminiTool({
+      name: 'foo',
+      description: 'tool foo',
+      inputSchema: {
+        type: 'object',
+      },
+    });
+
+    assert.deepStrictEqual(got, {
+      description: 'tool foo',
+      name: 'foo',
+      parameters: {
+        properties: {},
+        required: undefined,
+        type: 'OBJECT',
+      },
+    });
   });
 });

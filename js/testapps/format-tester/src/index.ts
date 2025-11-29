@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { googleAI, vertexAI } from '@genkit-ai/google-genai';
 import {
   claude35Sonnet,
   claude35SonnetV2,
   vertexAIModelGarden,
 } from '@genkit-ai/vertexai/modelgarden';
-import { Flow, GenerateOptions, genkit, z } from 'genkit';
+import { genkit, z, type Flow, type GenerateOptions } from 'genkit';
 import { logger } from 'genkit/logging';
 
 logger.setLogLevel('debug');
@@ -150,10 +149,10 @@ for (const format in prompts) {
 let models = process.argv.slice(2);
 if (!models.length) {
   models = [
-    'vertexai/gemini-1.5-pro',
-    'vertexai/gemini-1.5-flash',
-    'googleai/gemini-1.5-pro',
-    'googleai/gemini-1.5-flash',
+    'vertexai/gemini-2.5-pro',
+    'vertexai/gemini-2.5-flash',
+    'googleai/gemini-2.5-pro',
+    'googleai/gemini-2.5-flash',
     'googleai/gemini-2.0-flash',
   ];
 }

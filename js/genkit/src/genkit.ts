@@ -15,33 +15,7 @@
  */
 
 import {
-  BaseDataPointSchema,
-  Document,
-  EmbedderInfo,
-  EmbedderParams,
-  Embedding,
-  EvalResponses,
-  EvaluatorParams,
-  ExecutablePrompt,
-  GenerateOptions,
-  GenerateRequest,
-  GenerateResponse,
-  GenerateResponseData,
-  GenerateStreamOptions,
-  GenerateStreamResponse,
-  GenerationCommonConfigSchema,
-  IndexerParams,
-  ModelArgument,
-  Part,
-  PromptConfig,
-  PromptGenerateOptions,
-  RankedDocument,
-  RerankerParams,
-  RetrieverAction,
-  RetrieverInfo,
-  RetrieverParams,
-  ToolAction,
-  ToolConfig,
+  checkOperation,
   defineHelper,
   definePartial,
   definePrompt,
@@ -54,67 +28,115 @@ import {
   prompt,
   rerank,
   retrieve,
+  type BaseDataPointSchema,
+  type Document,
+  type EmbedderInfo,
+  type EmbedderParams,
+  type Embedding,
+  type EvalResponses,
+  type EvaluatorParams,
+  type ExecutablePrompt,
+  type GenerateOptions,
+  type GenerateRequest,
+  type GenerateResponse,
+  type GenerateResponseChunk,
+  type GenerateResponseData,
+  type GenerateStreamOptions,
+  type GenerateStreamResponse,
+  type GenerationCommonConfigSchema,
+  type IndexerParams,
+  type ModelArgument,
+  type Part,
+  type PromptConfig,
+  type PromptGenerateOptions,
+  type RankedDocument,
+  type RerankerParams,
+  type RetrieverAction,
+  type RetrieverInfo,
+  type RetrieverParams,
+  type ToolAction,
+  type ToolConfig,
 } from '@genkit-ai/ai';
 import {
-  EmbedderAction,
-  EmbedderArgument,
-  EmbedderFn,
-  EmbeddingBatch,
   defineEmbedder,
   embedMany,
+  type EmbedderAction,
+  type EmbedderArgument,
+  type EmbedderFn,
+  type EmbeddingBatch,
 } from '@genkit-ai/ai/embedder';
 import {
-  EvaluatorAction,
-  EvaluatorFn,
   defineEvaluator,
+  type EvaluatorAction,
+  type EvaluatorFn,
 } from '@genkit-ai/ai/evaluator';
 import { configureFormats } from '@genkit-ai/ai/formats';
 import {
-  DefineModelOptions,
-  GenerateResponseChunkData,
-  ModelAction,
+  defineBackgroundModel,
   defineGenerateAction,
   defineModel,
+  type BackgroundModelAction,
+  type DefineBackgroundModelOptions,
+  type DefineModelOptions,
+  type GenerateResponseChunkData,
+  type ModelAction,
 } from '@genkit-ai/ai/model';
 import {
-  RerankerFn,
-  RerankerInfo,
   defineReranker,
+  type RerankerFn,
+  type RerankerInfo,
 } from '@genkit-ai/ai/reranker';
 import {
-  DocumentData,
-  IndexerAction,
-  IndexerFn,
-  RetrieverFn,
-  SimpleRetrieverOptions,
   defineIndexer,
   defineRetriever,
   defineSimpleRetriever,
   index,
+  type DocumentData,
+  type IndexerAction,
+  type IndexerFn,
+  type RetrieverFn,
+  type SimpleRetrieverOptions,
 } from '@genkit-ai/ai/retriever';
-import { ToolFn } from '@genkit-ai/ai/tool';
+import { dynamicTool, type ToolFn } from '@genkit-ai/ai/tool';
 import {
-  Action,
-  ActionContext,
-  FlowConfig,
-  FlowFn,
+  ActionFnArg,
   GenkitError,
-  JSONSchema,
+  Operation,
   ReflectionServer,
-  StreamingCallback,
+  defineDynamicActionProvider,
   defineFlow,
   defineJsonSchema,
   defineSchema,
   getContext,
+  isAction,
+  isBackgroundAction,
   isDevEnv,
+  registerBackgroundAction,
   run,
-  z,
+  setClientHeader,
+  type Action,
+  type ActionContext,
+  type DapConfig,
+  type DapFn,
+  type DynamicActionProviderAction,
+  type FlowConfig,
+  type FlowFn,
+  type JSONSchema,
+  type StreamingCallback,
+  type z,
 } from '@genkit-ai/core';
-import { HasRegistry } from '@genkit-ai/core/registry';
-import { BaseEvalDataPointSchema } from './evaluator.js';
+import { Channel } from '@genkit-ai/core/async';
+import type { HasRegistry } from '@genkit-ai/core/registry';
+import type { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import { GenkitPlugin } from './plugin.js';
-import { Registry } from './registry.js';
+import {
+  ResolvableAction,
+  isPluginV2,
+  type GenkitPlugin,
+  type GenkitPluginV2,
+} from './plugin.js';
+import { Registry, type ActionType } from './registry.js';
+import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
 /**
  * @deprecated use `ai.definePrompt({messages: fn})`
@@ -129,11 +151,17 @@ export type PromptFn<
  */
 export interface GenkitOptions {
   /** List of plugins to load. */
-  plugins?: GenkitPlugin[];
+  plugins?: (GenkitPlugin | GenkitPluginV2)[];
   /** Directory where dotprompts are stored. */
   promptDir?: string;
   /** Default model to use if no model is specified. */
   model?: ModelArgument<any>;
+  /** Additional runtime context data for flows and tools. */
+  context?: ActionContext;
+  /** Display name that will be shown in developer tooling. */
+  name?: string;
+  /** Additional attribution information to include in the x-goog-api-client header. */
+  clientHeader?: string;
 }
 
 /**
@@ -162,12 +190,19 @@ export class Genkit implements HasRegistry {
   constructor(options?: GenkitOptions) {
     this.options = options || {};
     this.registry = new Registry();
+    if (this.options.context) {
+      this.registry.context = this.options.context;
+    }
     this.configure();
     if (isDevEnv() && !disableReflectionApi) {
       this.reflectionServer = new ReflectionServer(this.registry, {
         configuredEnvs: ['dev'],
+        name: this.options.name,
       });
       this.reflectionServer.start().catch((e) => logger.error);
+    }
+    if (options?.clientHeader) {
+      setClientHeader(options?.clientHeader);
     }
   }
 
@@ -200,6 +235,27 @@ export class Genkit implements HasRegistry {
   }
 
   /**
+   * Defines a dynamic tool. Dynamic tools are just like regular tools ({@link Genkit.defineTool}) but will not be registered in the
+   * Genkit registry and can be defined dynamically at runtime.
+   */
+  dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: ToolConfig<I, O>,
+    fn?: ToolFn<I, O>
+  ): ToolAction<I, O> {
+    return dynamicTool(config, fn) as ToolAction<I, O>;
+  }
+
+  /**
+   * Defines and registers a dynamic action provider (e.g. mcp host)
+   */
+  defineDynamicActionProvider(
+    config: DapConfig | string,
+    fn: DapFn
+  ): DynamicActionProviderAction {
+    return defineDynamicActionProvider(this.registry, config, fn);
+  }
+
+  /**
    * Defines and registers a schema from a Zod schema.
    *
    * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
@@ -221,13 +277,48 @@ export class Genkit implements HasRegistry {
    * Defines a new model and adds it to the registry.
    */
   defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: {
+      apiVersion: 'v2';
+    } & DefineModelOptions<CustomOptionsSchema>,
+    runner: (
+      request: GenerateRequest<CustomOptionsSchema>,
+      options: ActionFnArg<GenerateResponseChunkData>
+    ) => Promise<GenerateResponseData>
+  ): ModelAction<CustomOptionsSchema>;
+
+  /**
+   * Defines a new model and adds it to the registry.
+   */
+  defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
     options: DefineModelOptions<CustomOptionsSchema>,
     runner: (
       request: GenerateRequest<CustomOptionsSchema>,
       streamingCallback?: StreamingCallback<GenerateResponseChunkData>
     ) => Promise<GenerateResponseData>
+  ): ModelAction<CustomOptionsSchema>;
+
+  /**
+   * Defines a new model and adds it to the registry.
+   */
+  defineModel<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: any,
+    runner: (
+      request: GenerateRequest<CustomOptionsSchema>,
+      streamingCallback: any
+    ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema> {
     return defineModel(this.registry, options, runner);
+  }
+
+  /**
+   * Defines a new background model and adds it to the registry.
+   */
+  defineBackgroundModel<
+    CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: DefineBackgroundModelOptions<CustomOptionsSchema>
+  ): BackgroundModelAction<CustomOptionsSchema> {
+    return defineBackgroundModel(this.registry, options);
   }
 
   /**
@@ -243,6 +334,7 @@ export class Genkit implements HasRegistry {
     options?: { variant?: string }
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
     return this.wrapExecutablePromptPromise(
+      `${name}${options?.variant ? `.${options?.variant}` : ''}`,
       prompt(this.registry, name, {
         ...options,
         dir: this.options.promptDir ?? './prompts',
@@ -254,7 +346,10 @@ export class Genkit implements HasRegistry {
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>) {
+  >(
+    name: string,
+    promise: Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>>
+  ) {
     const executablePrompt = (async (
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>
@@ -262,12 +357,13 @@ export class Genkit implements HasRegistry {
       return (await promise)(input, opts);
     }) as ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
+    executablePrompt.ref = { name };
+
     executablePrompt.render = async (
-      opt: PromptGenerateOptions<O, CustomOptions> & {
-        input?: I;
-      }
+      input?: I,
+      opts?: PromptGenerateOptions<O, CustomOptions>
     ): Promise<GenerateOptions<O, CustomOptions>> => {
-      return (await promise).render(opt.input, opt) as Promise<
+      return (await promise).render(input, opts) as Promise<
         GenerateOptions<O, CustomOptions>
       >;
     };
@@ -276,13 +372,39 @@ export class Genkit implements HasRegistry {
       input?: I,
       opts?: PromptGenerateOptions<O, CustomOptions>
     ): GenerateStreamResponse<O> => {
-      return this.generateStream(
-        promise.then((action) =>
-          action.render(input, {
-            ...opts,
-          })
-        )
+      let channel = new Channel<GenerateResponseChunk>();
+
+      const generated = runInNewSpan(
+        this.registry,
+        {
+          metadata: {
+            name,
+            input,
+          },
+          labels: {
+            [SPAN_TYPE_ATTR]: 'dotprompt',
+          },
+        },
+        () =>
+          generate<O, CustomOptions>(
+            this.registry,
+            promise.then((action) =>
+              action.render(input, {
+                ...opts,
+                onChunk: (chunk) => channel.send(chunk),
+              })
+            )
+          )
       );
+      generated.then(
+        () => channel.close(),
+        (err) => channel.error(err)
+      );
+
+      return {
+        response: generated,
+        stream: channel,
+      };
     };
 
     executablePrompt.asTool = async (): Promise<ToolAction<I, O>> => {
@@ -445,14 +567,14 @@ export class Genkit implements HasRegistry {
   }
 
   /**
-   * create a handlebards helper (https://handlebarsjs.com/guide/block-helpers.html) to be used in dotpormpt templates.
+   * create a handlebars helper (https://handlebarsjs.com/guide/block-helpers.html) to be used in dotprompt templates.
    */
   defineHelper(name: string, fn: Handlebars.HelperDelegate): void {
     defineHelper(this.registry, name, fn);
   }
 
   /**
-   * Creates a handlebars partial (https://handlebarsjs.com/guide/partials.html) to be used in dotpormpt templates.
+   * Creates a handlebars partial (https://handlebarsjs.com/guide/partials.html) to be used in dotprompt templates.
    */
   definePartial(name: string, source: string): void {
     definePartial(this.registry, name, source);
@@ -536,7 +658,7 @@ export class Genkit implements HasRegistry {
    * ```ts
    * const ai = genkit({
    *   plugins: [googleAI()],
-   *   model: gemini15Flash, // default model
+   *   model: googleAI.model('gemini-2.5-flash'), // default model
    * })
    *
    * const { text } = await ai.generate('hi');
@@ -552,7 +674,7 @@ export class Genkit implements HasRegistry {
    * ```ts
    * const ai = genkit({
    *   plugins: [googleAI()],
-   *   model: gemini15Flash, // default model
+   *   model: googleAI.model('gemini-2.5-flash'), // default model
    * })
    *
    * const { text } = await ai.generate([
@@ -586,7 +708,7 @@ export class Genkit implements HasRegistry {
    *   ],
    *   messages: conversationHistory,
    *   tools: [ userInfoLookup ],
-   *   model: gemini15Flash,
+   *   model: googleAI.model('gemini-2.5-flash'),
    * });
    * ```
    */
@@ -628,7 +750,7 @@ export class Genkit implements HasRegistry {
    * ```ts
    * const ai = genkit({
    *   plugins: [googleAI()],
-   *   model: gemini15Flash, // default model
+   *   model: googleAI.model('gemini-2.5-flash'), // default model
    * })
    *
    * const { response, stream } = ai.generateStream('hi');
@@ -648,7 +770,7 @@ export class Genkit implements HasRegistry {
    * ```ts
    * const ai = genkit({
    *   plugins: [googleAI()],
-   *   model: gemini15Flash, // default model
+   *   model: googleAI.model('gemini-2.5-flash'), // default model
    * })
    *
    * const { response, stream } = ai.generateStream([
@@ -686,7 +808,7 @@ export class Genkit implements HasRegistry {
    *   ],
    *   messages: conversationHistory,
    *   tools: [ userInfoLookup ],
-   *   model: gemini15Flash,
+   *   model: googleAI.model('gemini-2.5-flash'),
    * });
    * for await (const chunk of stream) {
    *   console.log(chunk.text);
@@ -718,6 +840,29 @@ export class Genkit implements HasRegistry {
     }
     return generateStream(this.registry, options);
   }
+
+  /**
+   * Checks the status of of a given operation. Returns a new operation which will contain the updated status.
+   *
+   * ```ts
+   * let operation = await ai.generateOperation({
+   *   model: googleAI.model('veo-2.0-generate-001'),
+   *   prompt: 'A banana riding a bicycle.',
+   * });
+   *
+   * while (!operation.done) {
+   *   operation = await ai.checkOperation(operation!);
+   *   await new Promise((resolve) => setTimeout(resolve, 5000));
+   * }
+   * ```
+   *
+   * @param operation
+   * @returns
+   */
+  checkOperation<T>(operation: Operation<T>): Promise<Operation<T>> {
+    return checkOperation(this.registry, operation);
+  }
+
   /**
    * A flow step that executes the provided function. Each run step is recorded separately in the trace.
    *
@@ -772,7 +917,7 @@ export class Genkit implements HasRegistry {
    * return `undefined`.
    */
   currentContext(): ActionContext | undefined {
-    return getContext(this);
+    return getContext();
   }
 
   /**
@@ -799,15 +944,63 @@ export class Genkit implements HasRegistry {
       );
     }
     plugins.forEach((plugin) => {
-      const loadedPlugin = plugin(this);
-      logger.debug(`Registering plugin ${loadedPlugin.name}...`);
-      activeRegistry.registerPluginProvider(loadedPlugin.name, {
-        name: loadedPlugin.name,
-        async initializer() {
-          logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
-          await loadedPlugin.initializer();
-        },
-      });
+      if (isPluginV2(plugin)) {
+        logger.debug(`Registering v2 plugin ${plugin.name}...`);
+        activeRegistry.registerPluginProvider(plugin.name, {
+          name: plugin.name,
+          async initializer() {
+            logger.debug(`Initializing plugin ${plugin.name}:`);
+            if (!plugin.init) return;
+            const resolvedActions = await plugin.init();
+            resolvedActions?.forEach((resolvedAction) => {
+              registerActionV2(activeRegistry, resolvedAction, plugin);
+            });
+          },
+          async resolver(action: ActionType, target: string) {
+            if (!plugin.resolve) return;
+            const resolvedAction = await plugin.resolve(action, target);
+            if (resolvedAction) {
+              registerActionV2(activeRegistry, resolvedAction, plugin);
+            }
+          },
+          async listActions() {
+            if (typeof plugin.list === 'function') {
+              return (await plugin.list()).map((a) => {
+                if (a.name.startsWith(`${plugin.name}/`)) {
+                  return a;
+                }
+                return {
+                  ...a,
+                  // Apply namespace for v2 plugins.
+                  name: `${plugin.name}/${a.name}`,
+                };
+              });
+            }
+            return [];
+          },
+        });
+      } else {
+        const loadedPlugin = (plugin as GenkitPlugin)(this);
+        logger.debug(`Registering plugin ${loadedPlugin.name}...`);
+        activeRegistry.registerPluginProvider(loadedPlugin.name, {
+          name: loadedPlugin.name,
+          async initializer() {
+            logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
+            await loadedPlugin.initializer();
+          },
+          async resolver(action: ActionType, target: string) {
+            if (loadedPlugin.resolver) {
+              await loadedPlugin.resolver(action, target);
+            }
+          },
+          async listActions() {
+            if (loadedPlugin.listActions) {
+              return await loadedPlugin.listActions();
+            }
+            return [];
+          },
+        });
+      }
     });
   }
 
@@ -817,6 +1010,35 @@ export class Genkit implements HasRegistry {
   async stopServers() {
     await this.reflectionServer?.stop();
     this.reflectionServer = null;
+  }
+}
+
+function registerActionV2(
+  registry: Registry,
+  resolvedAction: ResolvableAction,
+  plugin: GenkitPluginV2
+) {
+  if (isBackgroundAction(resolvedAction)) {
+    registerBackgroundAction(registry, resolvedAction, {
+      namespace: plugin.name,
+    });
+  } else if (isAction(resolvedAction)) {
+    if (!resolvedAction.__action.actionType) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: 'Action type is missing for ' + resolvedAction.__action.name,
+      });
+    }
+    registry.registerAction(
+      resolvedAction.__action.actionType,
+      resolvedAction,
+      { namespace: plugin.name }
+    );
+  } else {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message: 'Unknown action type returned from plugin ' + plugin.name,
+    });
   }
 }
 
@@ -831,7 +1053,7 @@ export function genkit(options: GenkitOptions): Genkit {
 }
 
 const shutdown = async () => {
-  logger.info('Shutting down all Genkit servers...');
+  logger.debug('Shutting down all Genkit servers...');
   await ReflectionServer.stopAll();
   process.exit(0);
 };

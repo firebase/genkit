@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import { Action, Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
-import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { type Action, type Genkit, type z } from 'genkit';
+import type { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
-import { GoogleAuth } from 'google-auth-library';
-import { VertexAIEvaluationMetricType } from './evaluation.js';
+import type { GoogleAuth } from 'google-auth-library';
+import { getGenkitClientHeader } from '../common/index.js';
+import type { VertexAIEvaluationMetricType } from './evaluation.js';
 
 export class EvaluatorFactory {
   constructor(
@@ -87,7 +88,7 @@ export class EvaluatorFactory {
           method: 'POST',
           body: JSON.stringify(request),
           headers: {
-            'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+            'X-Goog-Api-Client': getGenkitClientHeader(),
           },
         });
         metadata.output = response.data;

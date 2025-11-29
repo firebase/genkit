@@ -15,7 +15,7 @@
  */
 
 import { TraceFlags } from '@opentelemetry/api';
-import { ReadableSpan, TimedEvent } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan, TimedEvent } from '@opentelemetry/sdk-trace-base';
 import { resolveCurrentPrincipal } from './auth.js';
 
 /**
@@ -59,7 +59,9 @@ export function extractOuterFeatureNameFromPath(path: string) {
     return '<unknown>';
   }
   const first = path.split('/')[1];
-  const featureName = first?.match('{(.+),t:(flow|action|prompt|helper)');
+  const featureName = first?.match(
+    '{(.+),t:(flow|action|prompt|dotprompt|helper)'
+  );
   return featureName ? featureName[1] : '<unknown>';
 }
 

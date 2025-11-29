@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { Document, Genkit, z } from 'genkit';
+import { z, type Document, type Genkit } from 'genkit';
 import {
-  EmbedderAction,
-  EmbedderReference,
   embedderRef,
+  type EmbedderAction,
+  type EmbedderReference,
 } from 'genkit/embedder';
-import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from './common/types.js';
-import { PredictClient, predictModel } from './predict.js';
+import type { GoogleAuth } from 'google-auth-library';
+import type { PluginOptions } from './common/types.js';
+import { predictModel, type PredictClient } from './predict.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -88,6 +88,17 @@ export const multimodalEmbedding001 = commonRef('multimodalembedding@001', [
   'image',
   'video',
 ]);
+export const geminiEmbedding001 = embedderRef({
+  name: 'vertexai/gemini-embedding-001',
+  configSchema: VertexEmbeddingConfigSchema,
+  info: {
+    dimensions: 3072,
+    label: 'Vertex AI - gemini-embedding-001',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
 
 export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   'textembedding-gecko@003': textEmbeddingGecko003,
@@ -96,6 +107,7 @@ export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   'textembedding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
   'text-multilingual-embedding-002': textMultilingualEmbedding002,
   'multimodalembedding@001': multimodalEmbedding001,
+  'gemini-embedding-001': geminiEmbedding001,
 };
 
 // https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/multimodal-embeddings-api#request_body
@@ -228,7 +240,7 @@ function checkValidDocument(
       }
       return true;
     }
-    throw new Error('Unknown multimodal embedder: ' + embedder.name);
+    return false;
   } else {
     // Not multimodal - unexpected usage.
     // Currently text-only embedders just ignore media.
@@ -247,7 +259,19 @@ export function defineVertexAIEmbedder(
   client: GoogleAuth,
   options: PluginOptions
 ): EmbedderAction<any> {
-  const embedder = SUPPORTED_EMBEDDER_MODELS[name];
+  const embedder =
+    SUPPORTED_EMBEDDER_MODELS[name] ??
+    embedderRef({
+      name: `vertexai/${name}`,
+      configSchema: VertexEmbeddingConfigSchema,
+      info: {
+        dimensions: 768,
+        label: `Vertex AI - ${name}`,
+        supports: {
+          input: ['text', 'image', 'video'],
+        },
+      },
+    });
   const predictClients: Record<
     string,
     PredictClient<EmbeddingInstance, EmbeddingPrediction>

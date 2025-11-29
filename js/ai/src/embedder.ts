@@ -14,10 +14,18 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, z } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import {
+  action,
+  defineAction,
+  z,
+  type Action,
+  type ActionFnArg,
+  type ActionMetadata,
+  type ActionParams,
+} from '@genkit-ai/core';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { Document, DocumentData, DocumentDataSchema } from './document.js';
+import { Document, DocumentDataSchema, type DocumentData } from './document.js';
 
 /**
  * A batch (array) of embeddings.
@@ -49,6 +57,11 @@ const EmbedRequestSchema = z.object({
   input: z.array(DocumentDataSchema),
   options: z.any().optional(),
 });
+
+export interface EmbedRequest<O = any> {
+  input: Document[];
+  options?: O;
+}
 
 /**
  * Zod schema of an embed response.
@@ -88,6 +101,62 @@ function withMetadata<CustomOptions extends z.ZodTypeAny>(
   return withMeta;
 }
 
+export interface EmbedderOptions<ConfigSchema extends z.ZodTypeAny> {
+  name: string;
+  configSchema?: ConfigSchema;
+  info?: EmbedderInfo;
+}
+
+/**
+ * Creates embedder model for the provided {@link EmbedderFn} model implementation.
+ *
+ * Unlike `defineEmbedder` this function does not register the embedder in the reigistry.
+ */
+export function embedder<ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+  options: EmbedderOptions<ConfigSchema>,
+  runner: (
+    input: EmbedRequest<z.infer<ConfigSchema>>,
+    opts: ActionFnArg<any>
+  ) => Promise<EmbedResponse>
+) {
+  const embedder = action(embedderActionOptions(options), (i, opts) =>
+    runner(
+      {
+        input: i.input.map((dd) => new Document(dd)),
+        options: i.options,
+      },
+      opts
+    )
+  );
+  const ewm = withMetadata(
+    embedder as Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
+    options.configSchema
+  );
+  return ewm;
+}
+
+function embedderActionOptions<
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  options: EmbedderOptions<ConfigSchema>
+): ActionParams<typeof EmbedRequestSchema, typeof EmbedResponseSchema> {
+  return {
+    actionType: 'embedder',
+    name: options.name,
+    inputSchema: EmbedRequestSchema,
+    outputSchema: EmbedResponseSchema,
+    metadata: {
+      type: 'embedder',
+      info: options.info,
+      embedder: {
+        customOptions: options.configSchema
+          ? toJsonSchema({ schema: options.configSchema })
+          : undefined,
+      },
+    },
+  };
+}
+
 /**
  * Creates embedder model for the provided {@link EmbedderFn} model implementation.
  */
@@ -95,39 +164,14 @@ export function defineEmbedder<
   ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  options: {
-    name: string;
-    configSchema?: ConfigSchema;
-    info?: EmbedderInfo;
-  },
+  options: EmbedderOptions<ConfigSchema>,
   runner: EmbedderFn<ConfigSchema>
 ) {
-  const embedder = defineAction(
-    registry,
-    {
-      actionType: 'embedder',
-      name: options.name,
-      inputSchema: options.configSchema
-        ? EmbedRequestSchema.extend({
-            options: options.configSchema.optional(),
-          })
-        : EmbedRequestSchema,
-      outputSchema: EmbedResponseSchema,
-      metadata: {
-        type: 'embedder',
-        info: options.info,
-        embedder: {
-          customOptions: options.configSchema
-            ? toJsonSchema({ schema: options.configSchema })
-            : undefined,
-        },
-      },
-    },
-    (i) =>
-      runner(
-        i.input.map((dd) => new Document(dd)),
-        i.options
-      )
+  const embedder = defineAction(registry, embedderActionOptions(options), (i) =>
+    runner(
+      i.input.map((dd) => new Document(dd)),
+      i.options
+    )
   );
   const ewm = withMetadata(
     embedder as Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
@@ -150,7 +194,7 @@ export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
   registry: Registry,
   params: EmbedderParams<CustomOptions>
 ): Promise<Embedding[]> {
-  let embedder = await resolveEmbedder(registry, params);
+  const embedder = await resolveEmbedder(registry, params);
   if (!embedder.embedderAction) {
     let embedderId: string;
     if (typeof params.embedder === 'string') {
@@ -289,7 +333,41 @@ export interface EmbedderReference<
 export function embedderRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  options: EmbedderReference<CustomOptionsSchema>
+  options: EmbedderReference<CustomOptionsSchema> & {
+    namespace?: string;
+  }
 ): EmbedderReference<CustomOptionsSchema> {
-  return { ...options };
+  let name = options.name;
+  if (options.namespace && !name.startsWith(options.namespace + '/')) {
+    name = `${options.namespace}/${name}`;
+  }
+  return { ...options, name };
+}
+
+/**
+ * Packages embedder information into ActionMetadata object.
+ */
+export function embedderActionMetadata({
+  name,
+  info,
+  configSchema,
+}: {
+  name: string;
+  info?: EmbedderInfo;
+  configSchema?: z.ZodTypeAny;
+}): ActionMetadata {
+  return {
+    actionType: 'embedder',
+    name: name,
+    inputJsonSchema: toJsonSchema({ schema: EmbedRequestSchema }),
+    outputJsonSchema: toJsonSchema({ schema: EmbedResponseSchema }),
+    metadata: {
+      embedder: {
+        ...info,
+        customOptions: configSchema
+          ? toJsonSchema({ schema: configSchema })
+          : undefined,
+      },
+    },
+  } as ActionMetadata;
 }

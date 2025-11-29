@@ -23,7 +23,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 type imageURLInput struct {
@@ -34,21 +34,18 @@ func setup05(g *genkit.Genkit, model ai.Model) error {
 	text := `Extract _all_ of the text, in order, from the following image of a restaurant menu.
 
 {{media url=imageUrl}}`
-	readMenuPrompt, err := genkit.DefinePrompt(
+	readMenuPrompt := genkit.DefinePrompt(
 		g, "s05_readMenu",
 		ai.WithPrompt(text),
 		ai.WithModel(model),
 		ai.WithInputType(imageURLInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.1,
+		ai.WithConfig(&genai.GenerateContentConfig{
+			Temperature: genai.Ptr[float32](0.1),
 		}),
 	)
-	if err != nil {
-		return err
-	}
 
-	textMenuPrompt, err := genkit.DefinePrompt(
+	textMenuPrompt := genkit.DefinePrompt(
 		g, "s05_textMenu",
 		ai.WithPrompt(`
 You are acting as Walt, a helpful AI assistant here at the restaurant.
@@ -64,13 +61,10 @@ Answer this customer's question:
 		ai.WithModel(model),
 		ai.WithInputType(textMenuQuestionInput{}),
 		ai.WithOutputFormat(ai.OutputFormatText),
-		ai.WithConfig(&googlegenai.GeminiConfig{
-			Temperature: 0.3,
+		ai.WithConfig(&genai.GenerateContentConfig{
+			Temperature: genai.Ptr[float32](0.3),
 		}),
 	)
-	if err != nil {
-		return err
-	}
 
 	// Define a flow that takes an image, passes it to Gemini Vision Pro,
 	// and extracts all of the text from the photo of the menu.

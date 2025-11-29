@@ -23,10 +23,10 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import * as assert from 'assert';
-import { Genkit, z } from 'genkit';
-import { GenkitBeta, genkit } from 'genkit/beta';
+import { z, type Genkit } from 'genkit';
+import { genkit, type GenkitBeta } from 'genkit/beta';
 import { appendSpan } from 'genkit/tracing';
 import {
   __forceFlushSpansForTesting,
@@ -143,20 +143,63 @@ describe('GoogleCloudTracing', () => {
         throw new Error('oh no!');
       });
     });
-    try {
+    await assert.rejects(async () => {
       await testFlow();
-    } catch (e) {}
+    });
 
     const spans = await getExportedSpans();
-    assert.equal(spans.length, 2);
-    assert.equal(spans[0].name, 'badStep');
-    assert.equal(spans[0].attributes['genkit/failedSpan'], 'badStep');
-    assert.equal(
-      spans[0].attributes['genkit/failedPath'],
+
+    expect(spans).toHaveLength(2);
+
+    expect(spans[0].name).toEqual('badStep');
+    expect(spans[0].attributes['genkit/failedSpan']).toEqual('badStep');
+    expect(spans[0].attributes['genkit/failedPath']).toEqual(
       '/{badFlow,t:flow}/{badStep,t:flowStep}'
     );
-    assert.equal(spans[1].attributes['genkit/isRoot'], true);
-    assert.equal(spans[1].attributes['genkit/rootState'], 'error');
+
+    expect(spans[1].attributes['genkit/isRoot']).toEqual(true);
+    expect(spans[1].attributes['genkit/rootState']).toEqual('error');
+    expect(spans[1].attributes['genkit/state']).toEqual('error');
+    expect(spans[1].attributes['genkit/failedSpan']).toBeUndefined();
+    expect(spans[1].attributes['genkit/failedPath']).toBeUndefined();
+  });
+
+  it('labels multiple failed spans', async () => {
+    const testFlow = createFlow(ai, 'badFlow', async () => {
+      await Promise.all([
+        ai.run('sub1', async () => {
+          throw new Error('oh no!');
+        }),
+        ai.run('sub2', async () => {
+          throw new Error('oh no!');
+        }),
+      ]);
+      return 'root is ok';
+    });
+    await assert.rejects(async () => {
+      await testFlow();
+    });
+
+    const spans = await getExportedSpans();
+
+    expect(spans).toHaveLength(3);
+
+    const rootSpan = spans.find((s) => s.name === 'badFlow')!;
+    const sub1Span = spans.find((s) => s.name === 'sub1')!;
+    const sub2Span = spans.find((s) => s.name === 'sub2')!;
+
+    expect(rootSpan.attributes['genkit/failedSpan']).toBeUndefined();
+    expect(rootSpan.attributes['genkit/failedPath']).toBeUndefined();
+
+    expect(sub1Span.attributes['genkit/failedSpan']).toEqual('sub1');
+    expect(sub1Span.attributes['genkit/failedPath']).toEqual(
+      '/{badFlow,t:flow}/{sub1,t:flowStep}'
+    );
+
+    expect(sub2Span.attributes['genkit/failedSpan']).toEqual('sub2');
+    expect(sub1Span.attributes['genkit/failedPath']).toEqual(
+      '/{badFlow,t:flow}/{sub1,t:flowStep}'
+    );
   });
 
   it('labels the root feature', async () => {
@@ -175,16 +218,20 @@ describe('GoogleCloudTracing', () => {
 
   it('marks the root feature failed when it is the failure', async () => {
     const testFlow = createFlow(ai, 'failingFlow', async () => {
-      await ai.run('good step', async () => {});
+      await ai.run('good step', async () => {
+        return 'nothing going on here';
+      });
       throw new Error('oops!');
     });
-    try {
+    await assert.rejects(async () => {
       await testFlow();
-    } catch (e) {}
+    });
 
     const spans = await getExportedSpans();
+
     assert.equal(spans.length, 2);
-    assert.equal(spans[1].name, 'failingFlow');
+    assert.equal(spans[0].attributes['genkit/state'], 'success');
+    assert.equal(spans[1].attributes['genkit/name'], 'failingFlow');
     assert.equal(spans[1].attributes['genkit/failedSpan'], 'failingFlow');
     assert.equal(
       spans[1].attributes['genkit/failedPath'],
@@ -318,9 +365,7 @@ describe('GoogleCloudTracing', () => {
   }
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
-  async function getExportedSpans(
-    maxAttempts: number = 200
-  ): Promise<ReadableSpan[]> {
+  async function getExportedSpans(maxAttempts = 200): Promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
     while (attempts++ < maxAttempts) {

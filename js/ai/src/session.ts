@@ -14,18 +14,23 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import { getAsyncContext, type z } from '@genkit-ai/core';
+import type { Registry } from '@genkit-ai/core/registry';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat.js';
 import {
-  ExecutablePrompt,
-  GenerateOptions,
+  Chat,
+  MAIN_THREAD,
+  type ChatOptions,
+  type PromptRenderOptions,
+} from './chat.js';
+import {
   Message,
-  MessageData,
-  PromptGenerateOptions,
   isExecutablePrompt,
   tagAsPreamble,
+  type ExecutablePrompt,
+  type GenerateOptions,
+  type MessageData,
+  type PromptGenerateOptions,
 } from './index.js';
 
 export type BaseGenerateOptions<
@@ -285,14 +290,14 @@ export function runWithSession<S = any, O = any>(
   session: Session<S>,
   fn: () => O
 ): O {
-  return registry.asyncStore.run(sessionAlsKey, session, fn);
+  return getAsyncContext().run(sessionAlsKey, session, fn);
 }
 
 /** Returns the current session. */
 export function getCurrentSession<S = any>(
   registry: Registry
 ): Session<S> | undefined {
-  return registry.asyncStore.getStore(sessionAlsKey);
+  return getAsyncContext().getStore(sessionAlsKey);
 }
 
 /** Throw when session state errors occur, ex. missing state, etc. */

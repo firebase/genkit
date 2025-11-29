@@ -16,7 +16,7 @@
 
 import { EXAMPLE_EVENTS, EXAMPLE_GRADES, getUpcomingHolidays } from './data.js';
 import { ai, z } from './genkit.js';
-import { AgentState } from './types.js';
+import type { AgentState } from './types.js';
 
 export const searchEvents = ai.defineTool(
   {
@@ -97,7 +97,7 @@ export const reportTardy = ai.defineTool(
         ),
       excused: z
         .boolean()
-        .describe('whether the absense is excused by the parent'),
+        .describe('whether the absence is excused by the parent'),
     }),
   },
   async (input) => {

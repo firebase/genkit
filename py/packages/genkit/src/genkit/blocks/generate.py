@@ -56,6 +56,24 @@ StreamingCallback = Callable[[GenerateResponseChunkWrapper], None]
 DEFAULT_MAX_TURNS = 5
 
 
+def define_generate_action(registry: Registry):
+    """Registers generate action in the provided registry."""
+
+    async def generate_action_fn(input: GenerateActionOptions, ctx: ActionRunContext) -> GenerateResponse:
+        return await generate_action(
+            registry=registry,
+            raw_request=input,
+            on_chunk=ctx.send_chunk if ctx.is_streaming else None,
+            context=ctx.context,
+        )
+
+    registry.register_action(
+        kind=ActionKind.UTIL,
+        name='generate',
+        fn=generate_action_fn,
+    )
+
+
 async def generate_action(
     registry: Registry,
     raw_request: GenerateActionOptions,
@@ -699,7 +717,7 @@ async def _resolve_resume_options(
     if len(tool_responses) != len(tool_requests):
         raise GenkitError(
             status='FAILED_PRECONDITION',
-            message=f'Ecxpected {len(tool_requests)} responses, but resolved to {len(tool_responses)}',
+            message=f'Expected {len(tool_requests)} responses, but resolved to {len(tool_responses)}',
         )
 
     tool_message = Message(

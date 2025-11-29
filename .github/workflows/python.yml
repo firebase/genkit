@@ -35,10 +35,13 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
+          #- "pypy-3.10" # TODO: Fix build failures.
+          #- "pypy-3.11" # TODO: Fix build failures.
+          #- "3.14" # TODO: This still fails.
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install system dependencies
         run: |
@@ -55,15 +58,13 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - uses: pnpm/action-setup@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
+      - name: Set up Node
+        uses: actions/setup-node@v6
         with:
-          version: 10.2.0
+          node-version: 20.x
+          cache: 'pnpm'
 
       - name: Install uv and setup Python version
         uses: astral-sh/setup-uv@v5
@@ -98,7 +99,7 @@ jobs:
         run: ./bin/check_license
 
       - name: Run Python tests
-        run: uv run --directory py pytest -xvs --log-level=DEBUG .
+        run: uv run --python ${{ matrix.python-version }} --active --isolated --directory py pytest -xvs --log-level=DEBUG .
 
       - name: Build distributions
         run: ./py/bin/build_dists

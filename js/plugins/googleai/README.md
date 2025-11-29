@@ -14,7 +14,7 @@ import { googleAI, gemini } from '@genkit-ai/googleai';
 
 const ai = genkit({
   plugins: [googleAI()],
-  model: gemini('gemini-1.5-flash'),
+  model: gemini('gemini-2.5-flash'),
 });
 
 async () => {
@@ -25,6 +25,6 @@ async () => {
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 
-Usage information and reference details can be found in [Genkit documentation](https://firebase.google.com/docs/genkit).
+Usage information and reference details can be found in [Genkit documentation](https://genkit.dev/docs/plugins/google-genai/).
 
 License: Apache 2.0

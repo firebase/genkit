@@ -16,8 +16,8 @@
 
 import { GenkitError, stripUndefinedProps } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
-import {
+import type { Registry } from '@genkit-ai/core/registry';
+import type {
   GenerateActionOptions,
   GenerateResponseData,
   MessageData,
@@ -27,11 +27,11 @@ import {
 } from '../model.js';
 import { isPromptAction } from '../prompt.js';
 import {
-  ToolAction,
   ToolInterruptError,
-  ToolRunOptions,
   isToolRequest,
   resolveTools,
+  type ToolAction,
+  type ToolRunOptions,
 } from '../tool.js';
 
 export function toToolMap(tools: ToolAction[]): Record<string, ToolAction> {
@@ -101,7 +101,11 @@ export async function resolveToolRequest(
 
   // if it's a prompt action, go ahead and render the preamble
   if (isPromptAction(tool)) {
-    const preamble = await tool(part.toolRequest.input);
+    const metadata = tool.__action.metadata as Record<string, any>;
+    const preamble = {
+      ...(await tool(part.toolRequest.input)),
+      model: metadata.prompt?.model,
+    };
     const response = {
       toolResponse: {
         name: part.toolRequest.name,
@@ -126,13 +130,18 @@ export async function resolveToolRequest(
 
     return { response };
   } catch (e) {
-    if (e instanceof ToolInterruptError) {
+    if (
+      e instanceof ToolInterruptError ||
+      // There's an inexplicable case when the above type check fails, only in tests.
+      (e as Error).name === 'ToolInterruptError'
+    ) {
+      const ie = e as ToolInterruptError;
       logger.debug(
-        `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${e.metadata ? `: ${JSON.stringify(e.metadata)}` : ''}`
+        `tool '${toolMap[part.toolRequest?.name].__action.name}' triggered an interrupt${ie.metadata ? `: ${JSON.stringify(ie.metadata)}` : ''}`
       );
       const interrupt = {
         toolRequest: part.toolRequest,
-        metadata: { ...part.metadata, interrupt: e.metadata || true },
+        metadata: { ...part.metadata, interrupt: ie.metadata || true },
       };
 
       return { interrupt };
@@ -159,7 +168,7 @@ export async function resolveToolRequests(
   const toolMap = toToolMap(await resolveTools(registry, rawRequest.tools));
 
   const responseParts: ToolResponsePart[] = [];
-  let hasInterrupts: boolean = false;
+  let hasInterrupts = false;
   let transferPreamble: GenerateActionOptions | undefined;
 
   const revisedModelMessage = {

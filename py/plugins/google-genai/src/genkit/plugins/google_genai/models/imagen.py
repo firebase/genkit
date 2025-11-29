@@ -23,7 +23,6 @@ else:  # noqa
     from enum import StrEnum  # noqa
 
 from functools import cached_property
-from typing import Any
 
 from google import genai
 from google.genai import types as genai_types
@@ -46,6 +45,8 @@ from genkit.types import (
 
 
 class ImagenVersion(StrEnum):
+    """Supported text-to-image models."""
+
     IMAGEN3 = 'imagen-3.0-generate-002'
     IMAGEN3_FAST = 'imagen-3.0-fast-generate-001'
     IMAGEN2 = 'imagegeneration@006'
@@ -84,8 +85,38 @@ SUPPORTED_MODELS = {
     ),
 }
 
+DEFAULT_IMAGE_SUPPORT = Supports(
+    media=True,
+    multiturn=False,
+    tools=False,
+    systemRole=False,
+    output=['media'],
+)
+
+
+def vertexai_image_model_info(
+    version: str,
+) -> ModelInfo:
+    """Generates a ModelInfo object.
+
+    This function tries to get the best ModelInfo Supports
+    for the given version.
+
+    Args:
+        version: Version of the model.
+
+    Returns:
+        ModelInfo object.
+    """
+    return ModelInfo(
+        label=f'Vertex AI - {version}',
+        supports=DEFAULT_IMAGE_SUPPORT,
+    )
+
 
 class ImagenModel:
+    """Imagen text-to-image model."""
+
     def __init__(self, version: str | ImagenVersion, client: genai.Client):
         """Initialize Imagen model.
 
@@ -125,7 +156,7 @@ class ImagenModel:
             The model's response to the generation request.
         """
         prompt = self._build_prompt(request)
-        config = self._get_config(request.config) if request.config else None
+        config = self._get_config(request)
 
         with tracer.start_as_current_span('generate_images') as span:
             span.set_attribute(
@@ -148,15 +179,20 @@ class ImagenModel:
             )
         )
 
-    def _get_config(self, config: dict[str, Any]) -> genai_types.GenerateImagesConfigOrDict:
-        ta = TypeAdapter(genai_types.GenerateImagesConfigOrDict)
-        try:
-            result = ta.validate_python(config)
-            return result
-        except ValidationError as e:
-            raise ValueError(
-                'The configuration dictionary is invalid. Refer the documentation for available fields'
-            ) from e
+    def _get_config(self, request: GenerateRequest) -> genai_types.GenerateImagesConfigOrDict:
+        cfg = None
+
+        if request.config:
+            request_config = request.config
+            ta = TypeAdapter(genai_types.GenerateImagesConfigOrDict)
+            try:
+                cfg = ta.validate_python(request_config)
+            except ValidationError as e:
+                raise ValueError(
+                    'The configuration dictionary is invalid. Refer the documentation for available fields'
+                ) from e
+
+        return cfg
 
     def _contents_from_response(self, response: genai_types.GenerateImagesResponse) -> list:
         """Retrieve contents from google-genai response.

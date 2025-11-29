@@ -19,12 +19,12 @@ package firebase
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
 	"firebase.google.com/go/v4/auth"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // AuthContext is the context of an authenticated request.
@@ -39,13 +39,12 @@ type AuthClient interface {
 }
 
 // ContextProvider creates a Firebase context provider for Genkit actions.
-func ContextProvider(ctx context.Context, policy AuthPolicy) (core.ContextProvider, error) {
-	app, err := App(ctx)
-	if err != nil {
-		return nil, err
+func ContextProvider(ctx context.Context, g *genkit.Genkit, policy AuthPolicy) (core.ContextProvider, error) {
+	f, ok := genkit.LookupPlugin(g, provider).(*Firebase)
+	if !ok {
+		return nil, core.NewError(core.NOT_FOUND, "firebase plugin not initialized; did you pass the plugin to genkit.Init()")
 	}
-
-	client, err := app.Auth(ctx)
+	client, err := f.App.Auth(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -53,19 +52,19 @@ func ContextProvider(ctx context.Context, policy AuthPolicy) (core.ContextProvid
 	return func(ctx context.Context, input core.RequestData) (core.ActionContext, error) {
 		authHeader, ok := input.Headers["authorization"]
 		if !ok {
-			return nil, errors.New("authorization header is required but not provided")
+			return nil, core.NewPublicError(core.UNAUTHENTICATED, "authorization header is required but not provided", nil)
 		}
 
 		const bearerPrefix = "bearer "
 
 		if !strings.HasPrefix(strings.ToLower(authHeader), bearerPrefix) {
-			return nil, errors.New("invalid authorization header format")
+			return nil, core.NewPublicError(core.UNAUTHENTICATED, "invalid authorization header format", nil)
 		}
 
 		token := authHeader[len(bearerPrefix):]
 		authCtx, err := client.VerifyIDToken(ctx, token)
 		if err != nil {
-			return nil, fmt.Errorf("error verifying ID token: %v", err)
+			return nil, core.NewPublicError(core.UNAUTHENTICATED, fmt.Sprintf("error verifying ID token: %v", err), nil)
 		}
 
 		if policy != nil {

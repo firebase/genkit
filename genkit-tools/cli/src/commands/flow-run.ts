@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/tools-common/utils';
+import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
 import { runWithManager } from '../utils/manager-utils';
@@ -39,9 +39,9 @@ export const flowRun = new Command('flow:run')
     'name of the output file to store the extracted data'
   )
   .action(async (flowName: string, data: string, options: FlowRunOptions) => {
-    await runWithManager(async (manager) => {
+    await runWithManager(await findProjectRoot(), async (manager) => {
       logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
-      let result = (
+      const result = (
         await manager.runAction(
           {
             key: `/flow/${flowName}`,

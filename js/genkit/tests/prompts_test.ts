@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { ModelMiddleware, modelRef } from '@genkit-ai/ai/model';
+import { modelRef, type ModelMiddleware } from '@genkit-ai/ai/model';
+import { stripUndefinedProps } from '@genkit-ai/core';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { stripUndefinedProps } from '../../core/src';
-import { GenkitBeta, genkit } from '../src/beta';
-import { PromptAction, z } from '../src/index';
+import { genkit, z, type GenkitBeta } from '../src/beta';
+import type { PromptAction } from '../src/index';
 import {
-  ProgrammableModel,
   defineEchoModel,
   defineProgrammableModel,
   defineStaticResponseModel,
+  type ProgrammableModel,
 } from './helpers';
 
 const wrapRequest: ModelMiddleware = async (req, next) => {
@@ -70,6 +70,36 @@ describe('definePrompt', () => {
       model: 'echoModel',
     });
     defineEchoModel(ai);
+  });
+
+  it('should define the prompt', async () => {
+    const prompt = ai.definePrompt({
+      name: 'hi',
+      metadata: { foo: 'bar' },
+      input: {
+        schema: z.object({
+          name: z.string(),
+        }),
+      },
+      messages: async (input) => {
+        return [
+          {
+            role: 'user',
+            content: [{ text: `hi ${input.name}` }],
+          },
+        ];
+      },
+    });
+
+    assert.deepStrictEqual(prompt.ref, {
+      name: 'hi',
+      metadata: { foo: 'bar' },
+    });
+
+    const lookedUpPrompt = ai.prompt('hi');
+    // This is a known limitation -- prompt lookup is async under the hood,
+    // so we can't actually get the metadata...
+    assert.deepStrictEqual(lookedUpPrompt.ref, { name: 'hi' }); // ideally metadata should be: { foo: 'bar' }
   });
 
   it('should apply middleware to a prompt call', async () => {
@@ -662,7 +692,7 @@ describe('definePrompt', () => {
       defineEchoModel(ai);
     });
 
-    it('renderes dotprompt messages', async () => {
+    it('renders dotprompt messages', async () => {
       const hi = ai.definePrompt({
         name: 'hi',
         input: {
@@ -1106,7 +1136,7 @@ describe('prompt', () => {
         {
           content: [
             {
-              text: ' from the prompt file ',
+              text: ' from the prompt file banana',
             },
           ],
           role: 'model',
@@ -1114,8 +1144,87 @@ describe('prompt', () => {
       ],
       returnToolRequests: true,
       toolChoice: 'required',
-      subject: 'banana',
       tools: ['toolA', 'toolB'],
+      metadata: {
+        prompt: {
+          foo: 'bar',
+        },
+      },
+    });
+  });
+
+  it('renders loaded prompt via executable-prompt', async () => {
+    ai.defineModel(
+      { name: 'googleai/gemini-5.0-ultimate-pro-plus' },
+      async () => ({})
+    );
+
+    ai.defineTool(
+      {
+        name: 'toolA',
+        description: 'toolA it is',
+      },
+      async () => {}
+    );
+
+    ai.defineTool(
+      {
+        name: 'toolB',
+        description: 'toolB it is',
+      },
+      async () => {}
+    );
+
+    const generateActionOptions = await (
+      await ai.registry.lookupAction('/executable-prompt/kitchensink')
+    )({ subject: 'banana' });
+
+    assert.deepStrictEqual(stripUndefinedProps(generateActionOptions), {
+      config: {
+        temperature: 11,
+      },
+      model: 'googleai/gemini-5.0-ultimate-pro-plus',
+      maxTurns: 77,
+      messages: [
+        { role: 'system', content: [{ text: ' Hello ' }] },
+        { role: 'model', content: [{ text: ' from the prompt file banana' }] },
+      ],
+      output: {
+        format: 'csv',
+        jsonSchema: {
+          additionalProperties: false,
+          properties: {
+            arr: {
+              description: 'array of objects',
+              items: {
+                additionalProperties: false,
+                properties: {
+                  nest2: {
+                    type: ['boolean', 'null'],
+                  },
+                },
+                type: 'object',
+              },
+              type: 'array',
+            },
+            obj: {
+              additionalProperties: false,
+              description: 'a nested object',
+              properties: {
+                nest1: {
+                  type: ['string', 'null'],
+                },
+              },
+              type: ['object', 'null'],
+            },
+          },
+          required: ['arr'],
+          type: 'object',
+        },
+      },
+      returnToolRequests: true,
+      toolChoice: 'required',
+      tools: ['/tool/toolA', '/tool/toolB'],
     });
   });
 
@@ -1182,15 +1291,15 @@ describe('prompt', () => {
         },
         metadata: {},
         model: undefined,
-        name: 'test.variant',
+        name: 'test',
+        variant: 'variant',
+        template: 'Hello from a variant of the hello prompt',
         raw: {
           config: {
             temperature: 13,
           },
           description: 'a prompt variant in a file',
         },
-        template: 'Hello from a variant of the hello prompt',
-        variant: 'variant',
       },
       type: 'prompt',
     });
@@ -1373,7 +1482,7 @@ describe('asTool', () => {
 
     // transfer to toolPrompt...
 
-    // first response be tools call, the subsequent just text response from agent b.
+    // first response is a tool call, the subsequent responses are just text response from agent b.
     let reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {
@@ -1462,7 +1571,7 @@ describe('asTool', () => {
 
     // transfer back to to agent A...
 
-    // first response be tools call, the subsequent just text response from agent a.
+    // first response is a tool call, the subsequent responses are just text response from agent a.
     reqCounter = 0;
     pm.handleResponse = async (req, sc) => {
       return {

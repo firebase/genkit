@@ -16,7 +16,8 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Runtime } from '../manager/types';
+import type { Runtime } from '../manager/types';
+import { isConnectionRefusedError } from './errors';
 import { logger } from './logger';
 
 export interface DevToolsInfo {
@@ -80,17 +81,15 @@ export async function findProjectRoot(): Promise<string> {
 /**
  * Finds the Genkit hidden directory containing runtime state files.
  */
-export async function findRuntimesDir(projectRoot?: string): Promise<string> {
-  const root = projectRoot ?? (await findProjectRoot());
-  return path.join(root, '.genkit', 'runtimes');
+export async function findRuntimesDir(projectRoot: string): Promise<string> {
+  return path.join(projectRoot, '.genkit', 'runtimes');
 }
 
 /**
  * Finds the Genkit hidden directory containing server (UI server, telemetry server, etc) state files.
  */
-export async function findServersDir(projectRoot?: string): Promise<string> {
-  const root = projectRoot ?? (await findProjectRoot());
-  return path.join(root, '.genkit', 'servers');
+export async function findServersDir(projectRoot: string): Promise<string> {
+  return path.join(projectRoot, '.genkit', 'servers');
 }
 
 /**
@@ -140,15 +139,15 @@ export async function detectRuntime(directory: string): Promise<Runtime> {
 /**
  * Checks the health of a server with a /api/__health endpoint.
  */
-export async function checkServerHealth(url: string): Promise<boolean> {
+export async function checkServerHealth(
+  url: string,
+  id?: string
+): Promise<boolean> {
   try {
-    const response = await fetch(`${url}/api/__health`);
+    const response = await fetch(`${url}/api/__health${id ? `?id=${id}` : ''}`);
     return response.status === 200;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.cause as any).code === 'ECONNREFUSED'
-    ) {
+    if (isConnectionRefusedError(error)) {
       return false;
     }
   }
@@ -189,10 +188,7 @@ export async function waitUntilUnresponsive(
     try {
       const health = await fetch(`${url}/api/__health`);
     } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.cause as any).code === 'ECONNREFUSED'
-      ) {
+      if (isConnectionRefusedError(error)) {
         return true;
       }
     }
@@ -238,7 +234,7 @@ export function isValidDevToolsInfo(data: any): data is DevToolsInfo {
 /**
  * Writes the toolsInfo file to the project root
  */
-export async function writeToolsInfoFile(url: string, projectRoot?: string) {
+export async function writeToolsInfoFile(url: string, projectRoot: string) {
   const serversDir = await findServersDir(projectRoot);
   const toolsJsonPath = path.join(serversDir, `tools-${process.pid}.json`);
   try {
@@ -250,16 +246,19 @@ export async function writeToolsInfoFile(url: string, projectRoot?: string) {
     await fs.writeFile(toolsJsonPath, JSON.stringify(serverInfo, null, 2));
     logger.debug(`Tools Info file written: ${toolsJsonPath}`);
   } catch (error) {
-    logger.info('Error writing tools config', error);
+    logger.error('Error writing tools config', error);
   }
 }
 
 /**
  * Removes the toolsInfo file.
  */
-export async function removeToolsInfoFile(fileName: string) {
+export async function removeToolsInfoFile(
+  fileName: string,
+  projectRoot: string
+) {
   try {
-    const serversDir = await findServersDir();
+    const serversDir = await findServersDir(projectRoot);
     const filePath = path.join(serversDir, fileName);
     await fs.unlink(filePath);
     logger.debug(`Removed unhealthy toolsInfo file ${fileName} from manager.`);

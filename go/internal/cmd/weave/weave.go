@@ -19,7 +19,7 @@
 //
 // Example usage:
 //
-//	$ go run internal/cmd/weave go-types.md > README.md
+//	$ go run internal/cmd/weave go-api.md > README.md
 //
 // The weave command copies lines of the input file to standard output, with two
 // exceptions:
@@ -224,7 +224,7 @@ func cleanListing(text, indent string) string {
 // leadingTabs counts the number of tabs that start s.
 func leadingTabs(s string) int {
 	var i int
-	for i = 0; i < len(s); i++ {
+	for i = range len(s) {
 		if s[i] != '\t' {
 			break
 		}

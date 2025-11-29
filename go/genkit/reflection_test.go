@@ -29,10 +29,8 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/action"
-	"github.com/firebase/genkit/go/internal/atype"
-	"github.com/firebase/genkit/go/internal/registry"
 )
 
 func inc(_ context.Context, x int) (int, error) {
@@ -45,12 +43,10 @@ func dec(_ context.Context, x int) (int, error) {
 
 func TestReflectionServer(t *testing.T) {
 	t.Run("server startup and shutdown", func(t *testing.T) {
-		r, err := registry.New()
-		if err != nil {
-			t.Fatal(err)
-		}
+		g := Init(context.Background())
+
 		tc := tracing.NewTestOnlyTelemetryClient()
-		r.TracingState().WriteTelemetryImmediate(tc)
+		tracing.WriteTelemetryImmediate(tc)
 
 		errCh := make(chan error, 1)
 		serverStartCh := make(chan struct{})
@@ -58,7 +54,7 @@ func TestReflectionServer(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		srv := startReflectionServer(ctx, r, errCh, serverStartCh)
+		srv := startReflectionServer(ctx, g, errCh, serverStartCh)
 		if srv == nil {
 			t.Fatal("failed to start reflection server")
 		}
@@ -86,17 +82,19 @@ func TestReflectionServer(t *testing.T) {
 }
 
 func TestServeMux(t *testing.T) {
-	r, err := registry.New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := Init(context.Background())
+
 	tc := tracing.NewTestOnlyTelemetryClient()
-	r.TracingState().WriteTelemetryImmediate(tc)
+	tracing.WriteTelemetryImmediate(tc)
 
-	core.DefineAction(r, "test", "inc", "custom", nil, inc)
-	core.DefineAction(r, "test", "dec", "custom", nil, dec)
+	core.DefineAction(g.reg, "test/inc", api.ActionTypeCustom, nil, nil, inc)
+	core.DefineAction(g.reg, "test/dec", api.ActionTypeCustom, nil, nil, dec)
 
-	ts := httptest.NewServer(serveMux(r))
+	s := &reflectionServer{
+		Server: &http.Server{},
+	}
+	ts := httptest.NewServer(serveMux(g, s))
+	s.Addr = strings.TrimPrefix(ts.URL, "http://")
 	defer ts.Close()
 
 	t.Parallel()
@@ -110,6 +108,26 @@ func TestServeMux(t *testing.T) {
 		if res.StatusCode != http.StatusOK {
 			t.Errorf("health check failed: got status %d, want %d", res.StatusCode, http.StatusOK)
 		}
+
+		// Test with correct runtime ID
+		res, err = http.Get(ts.URL + "/api/__health?id=" + s.runtimeID())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("health check with correct id failed: got status %d, want %d", res.StatusCode, http.StatusOK)
+		}
+
+		// Test with incorrect runtime ID
+		res, err = http.Get(ts.URL + "/api/__health?id=invalid-id")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusServiceUnavailable {
+			t.Errorf("health check with incorrect id failed: got status %d, want %d", res.StatusCode, http.StatusServiceUnavailable)
+		}
 	})
 
 	t.Run("list actions", func(t *testing.T) {
@@ -119,7 +137,7 @@ func TestServeMux(t *testing.T) {
 		}
 		defer res.Body.Close()
 
-		var actions map[string]action.Desc
+		var actions map[string]api.ActionDesc
 		if err := json.NewDecoder(res.Body).Decode(&actions); err != nil {
 			t.Fatal(err)
 		}
@@ -148,6 +166,12 @@ func TestServeMux(t *testing.T) {
 			{
 				name:       "valid decrement",
 				body:       `{"key": "/custom/test/dec", "input": 3}`,
+				wantStatus: http.StatusOK,
+				wantResult: "2",
+			},
+			{
+				name:       "check telemetry labels",
+				body:       `{"key": "/custom/test/dec", "input": 3,"telemetryLabels":{"test_k":"test_v"}}`,
 				wantStatus: http.StatusOK,
 				wantResult: "2",
 			},
@@ -194,7 +218,7 @@ func TestServeMux(t *testing.T) {
 
 	t.Run("streaming action", func(t *testing.T) {
 		streamingInc := func(_ context.Context, x int, cb streamingCallback[json.RawMessage]) (int, error) {
-			for i := 0; i < x; i++ {
+			for i := range x {
 				msg, _ := json.Marshal(i)
 				if err := cb(context.Background(), msg); err != nil {
 					return 0, err
@@ -202,7 +226,7 @@ func TestServeMux(t *testing.T) {
 			}
 			return x, nil
 		}
-		core.DefineStreamingAction(r, "test", "streaming", atype.Custom, nil, streamingInc)
+		core.DefineStreamingAction(g.reg, "test/streaming", api.ActionTypeCustom, nil, nil, streamingInc)
 
 		body := `{"key": "/custom/test/streaming", "input": 3}`
 		req, err := http.NewRequest("POST", ts.URL+"/api/runAction?stream=true", strings.NewReader(body))
@@ -217,7 +241,7 @@ func TestServeMux(t *testing.T) {
 
 		scanner := bufio.NewScanner(res.Body)
 
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if !scanner.Scan() {
 				t.Fatalf("expected streaming chunk %d", i)
 			}

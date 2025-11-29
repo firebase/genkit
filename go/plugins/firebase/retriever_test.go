@@ -22,13 +22,14 @@ import (
 	"cloud.google.com/go/firestore"
 	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"google.golang.org/api/iterator"
 )
 
 var (
 	testProjectID   = flag.String("test-project-id", "", "GCP Project ID to use for tests")
-	testCollection  = flag.String("test-collection", "testR2", "Firestore collection to use for tests")
+	testCollection  = flag.String("test-collection", "samplecollection", "Firestore collection to use for tests")
 	testVectorField = flag.String("test-vector-field", "embedding", "Field name for vector embeddings")
 )
 
@@ -122,6 +123,8 @@ func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.Emb
 	return &ai.EmbedResponse{Embeddings: embeddings}, nil
 }
 
+func (e *MockEmbedder) Register(r api.Registry) {}
+
 // To run this test you must have a Firestore database initialized in a GCP project, with a vector indexed collection (of dimension 3).
 // Warning: This test will delete all documents in the collection in cleanup.
 
@@ -138,14 +141,10 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	g, err := genkit.Init(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(ctx)
 
 	// Initialize Firebase app
-	conf := &firebasev4.Config{ProjectID: *testProjectID}
-	app, err := firebasev4.NewApp(ctx, conf)
+	app, err := firebasev4.NewApp(ctx, &firebasev4.Config{ProjectID: *testProjectID})
 	if err != nil {
 		t.Fatalf("Failed to create Firebase app: %v", err)
 	}
@@ -167,11 +166,11 @@ func TestFirestoreRetriever(t *testing.T) {
 	testDocs := []struct {
 		ID   string
 		Text string
-		Data map[string]interface{}
+		Data map[string]any
 	}{
-		{"doc1", "This is document one", map[string]interface{}{"metadata": "meta1"}},
-		{"doc2", "This is document two", map[string]interface{}{"metadata": "meta2"}},
-		{"doc3", "This is document three", map[string]interface{}{"metadata": "meta3"}},
+		{"doc1", "This is document one", map[string]any{"metadata": "meta1"}},
+		{"doc2", "This is document two", map[string]any{"metadata": "meta2"}},
+		{"doc3", "This is document three", map[string]any{"metadata": "meta3"}},
 	}
 
 	// Expected document text content in order of relevance for the query
@@ -200,29 +199,22 @@ func TestFirestoreRetriever(t *testing.T) {
 			t.Fatalf("Generated embedding is empty for document %s", doc.ID)
 		}
 
-		// Convert to []float64
-		embedding64 := make([]float64, len(embedding))
-		for i, val := range embedding {
-			embedding64[i] = float64(val)
-		}
-
 		// Store in Firestore
-		_, err = client.Collection(*testCollection).Doc(doc.ID).Set(ctx, map[string]interface{}{
+		_, err = client.Collection(*testCollection).Doc(doc.ID).Set(ctx, map[string]any{
 			"text":           doc.Text,
 			"metadata":       doc.Data["metadata"],
-			*testVectorField: firestore.Vector64(embedding64),
+			*testVectorField: firestore.Vector32(embedding),
 		})
 		if err != nil {
 			t.Fatalf("Failed to insert document %s: %v", doc.ID, err)
 		}
-		t.Logf("Inserted document: %s with embedding: %v", doc.ID, embedding64)
+		t.Logf("Inserted document: %s with embedding: %v", doc.ID, embedding)
 	}
 
 	// Define retriever options
 	retrieverOptions := RetrieverOptions{
 		Name:            "test-retriever",
 		Label:           "Test Retriever",
-		Client:          client,
 		Collection:      *testCollection,
 		Embedder:        embedder,
 		VectorField:     *testVectorField,
@@ -230,11 +222,10 @@ func TestFirestoreRetriever(t *testing.T) {
 		ContentField:    "text",
 		Limit:           2,
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
-		VectorType:      Vector64,
 	}
 
 	// Define the retriever
-	retriever, err := DefineFirestoreRetriever(g, retrieverOptions)
+	retriever, err := defineFirestoreRetriever(g, retrieverOptions, client)
 	if err != nil {
 		t.Fatalf("Failed to define retriever: %v", err)
 	}

@@ -17,13 +17,13 @@
 import * as trpcExpress from '@trpc/server/adapters/express';
 import * as bodyParser from 'body-parser';
 import * as clc from 'colorette';
-import express, { ErrorRequestHandler } from 'express';
-import { Server } from 'http';
+import express, { type ErrorRequestHandler } from 'express';
+import type { Server } from 'http';
 import os from 'os';
 import path from 'path';
-import { GenkitToolsError } from '../manager';
-import { RuntimeManager } from '../manager/manager';
-import { findProjectRoot, writeToolsInfoFile } from '../utils';
+import type { GenkitToolsError } from '../manager';
+import type { RuntimeManager } from '../manager/manager';
+import { writeToolsInfoFile } from '../utils';
 import { logger } from '../utils/logger';
 import { toolsPackage } from '../utils/package';
 import { downloadAndExtractUiAssets } from '../utils/ui-assets';
@@ -98,7 +98,7 @@ export function startServer(manager: RuntimeManager, port: number) {
   });
 
   app.post('/api/__quitquitquit', (_, res) => {
-    logger.info('Shutting down tools API');
+    logger.debug('Shutting down tools API');
     res.status(200).send('Server is shutting down');
     server.close(() => {
       process.exit(0);
@@ -141,7 +141,7 @@ export function startServer(manager: RuntimeManager, port: number) {
 
   server = app.listen(port, async () => {
     const uiUrl = 'http://localhost:' + port;
-    const projectRoot = await findProjectRoot();
+    const projectRoot = manager.projectRoot;
     logger.info(`${clc.green(clc.bold('Project root:'))} ${projectRoot}`);
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
     await writeToolsInfoFile(uiUrl, projectRoot);

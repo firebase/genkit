@@ -16,8 +16,7 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
-import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/google-genai';
 import {
   claude3Sonnet,
   llama31,
@@ -26,7 +25,7 @@ import {
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { pinecone } from 'genkitx-pinecone';
-import { GoogleAuth, IdTokenClient } from 'google-auth-library';
+import { GoogleAuth, type IdTokenClient } from 'google-auth-library';
 
 const auth = new GoogleAuth();
 let authClient: IdTokenClient | undefined = undefined;
@@ -41,10 +40,7 @@ async function getCloudRunAuthClient(aud: string) {
 
 export const ai = genkit({
   plugins: [
-    googleAI({ apiVersion: ['v1'] }),
-    vertexAI({
-      location: 'us-central1',
-    }),
+    googleAI(),
     vertexAIModelGarden({
       location: 'us-central1',
       models: [claude3Sonnet, llama31],
@@ -52,17 +48,17 @@ export const ai = genkit({
     pinecone([
       {
         indexId: 'cat-facts',
-        embedder: textEmbedding004,
+        embedder: googleAI.embedder('text-embedding-004'),
       },
       {
         indexId: 'pdf-chat',
-        embedder: textEmbedding004,
+        embedder: googleAI.embedder('text-embedding-004'),
       },
     ]),
     chroma([
       {
         collectionName: 'dogfacts_collection',
-        embedder: textEmbedding004,
+        embedder: googleAI.embedder('text-embedding-004'),
         createCollectionIfMissing: true,
         clientParams: async () => {
           // Replace this with your Cloud Run Instance URL
@@ -83,15 +79,15 @@ export const ai = genkit({
     devLocalVectorstore([
       {
         indexName: 'dog-facts',
-        embedder: textEmbedding004,
+        embedder: googleAI.embedder('text-embedding-004'),
       },
       {
         indexName: 'pdfQA',
-        embedder: textEmbedding004,
+        embedder: googleAI.embedder('text-embedding-004'),
       },
     ]),
     genkitEval({
-      judge: gemini15Flash,
+      judge: googleAI.model('gemini-2.5-flash'),
       judgeConfig: {
         safetySettings: [
           {
@@ -115,5 +111,5 @@ export const ai = genkit({
       metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
     }),
   ],
-  model: gemini15Flash,
+  model: googleAI.model('gemini-2.5-flash'),
 });

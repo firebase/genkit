@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-export {
-  Document,
-  DocumentDataSchema,
-  type DocumentData,
-  type ToolRequest,
-  type ToolResponse,
-} from './document.js';
+export { checkOperation } from './check-operation.js';
+export { Document, DocumentDataSchema, type DocumentData } from './document.js';
 export {
   embed,
+  embedderActionMetadata,
   embedderRef,
   type EmbedderAction,
   type EmbedderArgument,
@@ -48,13 +44,16 @@ export {
   GenerationBlockedError,
   GenerationResponseError,
   generate,
+  generateOperation,
   generateStream,
   tagAsPreamble,
   toGenerateRequest,
   type GenerateOptions,
   type GenerateStreamOptions,
   type GenerateStreamResponse,
+  type OutputOptions,
   type ResumeOptions,
+  type ToolChoice,
 } from './generate.js';
 export { Message } from './message.js';
 export {
@@ -65,6 +64,8 @@ export {
   ModelResponseSchema,
   PartSchema,
   RoleSchema,
+  modelActionMetadata,
+  modelRef,
   type GenerateRequest,
   type GenerateRequestData,
   type GenerateResponseChunkData,
@@ -81,6 +82,7 @@ export {
   type ToolRequestPart,
   type ToolResponsePart,
 } from './model.js';
+export { type ToolRequest, type ToolResponse } from './parts.js';
 export {
   defineHelper,
   definePartial,
@@ -104,6 +106,20 @@ export {
   type RerankerReference,
 } from './reranker.js';
 export {
+  ResourceInputSchema,
+  ResourceOutputSchema,
+  defineResource,
+  dynamicResource,
+  isDynamicResourceAction,
+  resource,
+  type DynamicResourceAction,
+  type ResourceAction,
+  type ResourceFn,
+  type ResourceInput,
+  type ResourceOptions,
+  type ResourceOutput,
+} from './resource.js';
+export {
   index,
   indexerRef,
   retrieve,
@@ -124,6 +140,7 @@ export {
   asTool,
   defineInterrupt,
   defineTool,
+  interrupt,
   type InterruptConfig,
   type ToolAction,
   type ToolArgument,

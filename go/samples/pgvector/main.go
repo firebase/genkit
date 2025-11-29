@@ -37,6 +37,7 @@ import (
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	_ "github.com/lib/pq"
@@ -52,12 +53,7 @@ var (
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{APIKey: *apiKey}))
 	if err := run(g); err != nil {
 		log.Fatal(err)
 	}
@@ -84,14 +80,20 @@ func run(g *genkit.Genkit) error {
 	defer db.Close()
 
 	if *index {
-		indexer := defineIndexer(g, db, embedder)
-		if err := indexExistingRows(ctx, db, indexer); err != nil {
+		if err := indexExistingRows(ctx, g, db, embedder); err != nil {
 			return err
 		}
 	}
 
 	// [START use-retr]
-	retriever := defineRetriever(g, db, embedder)
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: nil,
+		Label:        "pgVector",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
+		},
+	}
+	retriever := defineRetriever(g, db, embedder, retOpts)
 
 	type input struct {
 		Question string
@@ -99,7 +101,8 @@ func run(g *genkit.Genkit) error {
 	}
 
 	genkit.DefineFlow(g, "askQuestion", func(ctx context.Context, in input) (string, error) {
-		res, err := ai.Retrieve(ctx, retriever,
+		res, err := genkit.Retrieve(ctx, g,
+			ai.WithRetriever(retriever),
 			ai.WithConfig(in.Show),
 			ai.WithTextDocs(in.Question))
 		if err != nil {
@@ -120,9 +123,11 @@ func run(g *genkit.Genkit) error {
 const provider = "pgvector"
 
 // [START retr]
-func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retriever {
+func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder, retOpts *ai.RetrieverOptions) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-		eres, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Query))
+		eres, err := genkit.Embed(ctx, g,
+			ai.WithEmbedder(embedder),
+			ai.WithDocs(req.Query))
 		if err != nil {
 			return nil, err
 		}
@@ -160,12 +165,13 @@ func defineRetriever(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Retr
 		}
 		return res, nil
 	}
-	return genkit.DefineRetriever(g, provider, "shows", f)
+	return genkit.DefineRetriever(g, api.NewName(provider, "shows"), retOpts, f)
 }
 
 // [END retr]
 
-func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexer {
+// Helper function to get started with indexing
+func Index(ctx context.Context, g *genkit.Genkit, db *sql.DB, embedder ai.Embedder, docs []*ai.Document) error {
 	// The indexer assumes that each Document has a single part, to be embedded, and metadata fields
 	// for the table primary key: show_id, season_number, episode_id.
 	const query = `
@@ -173,33 +179,34 @@ func defineIndexer(g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) ai.Indexe
 			SET embedding = $4
 			WHERE show_id = $1 AND season_number = $2 AND episode_id = $3
 		`
-	return genkit.DefineIndexer(g, provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
-		res, err := ai.Embed(ctx, embedder, ai.WithDocs(req.Documents...))
-		if err != nil {
+	res, err := genkit.Embed(ctx, g,
+		ai.WithEmbedder(embedder),
+		ai.WithDocs(docs...))
+	if err != nil {
+		return err
+	}
+	// You may want to use your database's batch functionality to insert the embeddings
+	// more efficiently.
+	for i, emb := range res.Embeddings {
+		doc := docs[i]
+		args := make([]any, 4)
+		for j, k := range []string{"show_id", "season_number", "episode_id"} {
+			if a, ok := doc.Metadata[k]; ok {
+				args[j] = a
+			} else {
+				return fmt.Errorf("doc[%d]: missing metadata key %q", i, k)
+			}
+		}
+		args[3] = pgv.NewVector(emb.Embedding)
+		if _, err := db.ExecContext(ctx, query, args...); err != nil {
 			return err
 		}
-		// You may want to use your database's batch functionality to insert the embeddings
-		// more efficiently.
-		for i, emb := range res.Embeddings {
-			doc := req.Documents[i]
-			args := make([]any, 4)
-			for j, k := range []string{"show_id", "season_number", "episode_id"} {
-				if a, ok := doc.Metadata[k]; ok {
-					args[j] = a
-				} else {
-					return fmt.Errorf("doc[%d]: missing metadata key %q", i, k)
-				}
-			}
-			args[3] = pgv.NewVector(emb.Embedding)
-			if _, err := db.ExecContext(ctx, query, args...); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
+
 }
 
-func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) error {
+func indexExistingRows(ctx context.Context, g *genkit.Genkit, db *sql.DB, embedder ai.Embedder) error {
 	rows, err := db.QueryContext(ctx, `SELECT show_id, season_number, episode_id, chunk FROM embeddings`)
 	if err != nil {
 		return err
@@ -225,5 +232,5 @@ func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) erro
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	return ai.Index(ctx, indexer, ai.WithDocs(docs...))
+	return Index(ctx, g, db, embedder, docs)
 }

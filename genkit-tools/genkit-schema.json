@@ -1,62 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$defs": {
-    "CustomPart": {
-      "type": "object",
-      "properties": {
-        "text": {
-          "not": {}
-        },
-        "media": {
-          "not": {}
-        },
-        "toolRequest": {
-          "not": {}
-        },
-        "toolResponse": {
-          "not": {}
-        },
-        "data": {},
-        "metadata": {
-          "type": "object",
-          "additionalProperties": {}
-        },
-        "custom": {
-          "type": "object",
-          "additionalProperties": {}
-        }
-      },
-      "required": [
-        "custom"
-      ],
-      "additionalProperties": false
-    },
-    "DataPart": {
-      "type": "object",
-      "properties": {
-        "text": {
-          "$ref": "#/$defs/CustomPart/properties/text"
-        },
-        "media": {
-          "$ref": "#/$defs/CustomPart/properties/media"
-        },
-        "toolRequest": {
-          "$ref": "#/$defs/CustomPart/properties/toolRequest"
-        },
-        "toolResponse": {
-          "$ref": "#/$defs/CustomPart/properties/toolResponse"
-        },
-        "data": {},
-        "metadata": {
-          "$ref": "#/$defs/CustomPart/properties/metadata"
-        },
-        "custom": {
-          "type": "object",
-          "additionalProperties": {}
-        }
-      },
-      "additionalProperties": false
-    },
     "DocumentData": {
       "type": "object",
       "properties": {
@@ -85,173 +29,6 @@
           "$ref": "#/$defs/MediaPart"
         }
       ]
-    },
-    "MediaPart": {
-      "type": "object",
-      "properties": {
-        "text": {
-          "$ref": "#/$defs/CustomPart/properties/text"
-        },
-        "media": {
-          "$ref": "#/$defs/Media"
-        },
-        "toolRequest": {
-          "$ref": "#/$defs/CustomPart/properties/toolRequest"
-        },
-        "toolResponse": {
-          "$ref": "#/$defs/CustomPart/properties/toolResponse"
-        },
-        "data": {
-          "$ref": "#/$defs/CustomPart/properties/data"
-        },
-        "metadata": {
-          "$ref": "#/$defs/CustomPart/properties/metadata"
-        },
-        "custom": {
-          "$ref": "#/$defs/DataPart/properties/custom"
-        }
-      },
-      "required": [
-        "media"
-      ],
-      "additionalProperties": false
-    },
-    "Media": {
-      "type": "object",
-      "properties": {
-        "contentType": {
-          "type": "string"
-        },
-        "url": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "url"
-      ],
-      "additionalProperties": false
-    },
-    "TextPart": {
-      "type": "object",
-      "properties": {
-        "text": {
-          "type": "string"
-        },
-        "media": {
-          "$ref": "#/$defs/CustomPart/properties/media"
-        },
-        "toolRequest": {
-          "$ref": "#/$defs/CustomPart/properties/toolRequest"
-        },
-        "toolResponse": {
-          "$ref": "#/$defs/CustomPart/properties/toolResponse"
-        },
-        "data": {
-          "$ref": "#/$defs/CustomPart/properties/data"
-        },
-        "metadata": {
-          "$ref": "#/$defs/CustomPart/properties/metadata"
-        },
-        "custom": {
-          "$ref": "#/$defs/DataPart/properties/custom"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "additionalProperties": false
-    },
-    "ToolRequestPart": {
-      "type": "object",
-      "properties": {
-        "text": {
-          "$ref": "#/$defs/CustomPart/properties/text"
-        },
-        "media": {
-          "$ref": "#/$defs/CustomPart/properties/media"
-        },
-        "toolRequest": {
-          "$ref": "#/$defs/ToolRequest"
-        },
-        "toolResponse": {
-          "$ref": "#/$defs/CustomPart/properties/toolResponse"
-        },
-        "data": {
-          "$ref": "#/$defs/CustomPart/properties/data"
-        },
-        "metadata": {
-          "$ref": "#/$defs/CustomPart/properties/metadata"
-        },
-        "custom": {
-          "$ref": "#/$defs/DataPart/properties/custom"
-        }
-      },
-      "required": [
-        "toolRequest"
-      ],
-      "additionalProperties": false
-    },
-    "ToolRequest": {
-      "type": "object",
-      "properties": {
-        "ref": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "input": {}
-      },
-      "required": [
-        "name"
-      ],
-      "additionalProperties": false
-    },
-    "ToolResponsePart": {
-      "type": "object",
-      "properties": {
-        "text": {
-          "$ref": "#/$defs/CustomPart/properties/text"
-        },
-        "media": {
-          "$ref": "#/$defs/CustomPart/properties/media"
-        },
-        "toolRequest": {
-          "$ref": "#/$defs/CustomPart/properties/toolRequest"
-        },
-        "toolResponse": {
-          "$ref": "#/$defs/ToolResponse"
-        },
-        "data": {
-          "$ref": "#/$defs/CustomPart/properties/data"
-        },
-        "metadata": {
-          "$ref": "#/$defs/CustomPart/properties/metadata"
-        },
-        "custom": {
-          "$ref": "#/$defs/DataPart/properties/custom"
-        }
-      },
-      "required": [
-        "toolResponse"
-      ],
-      "additionalProperties": false
-    },
-    "ToolResponse": {
-      "type": "object",
-      "properties": {
-        "ref": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "output": {}
-      },
-      "required": [
-        "name"
-      ],
-      "additionalProperties": false
     },
     "EmbedRequest": {
       "type": "object",
@@ -544,6 +321,74 @@
       ],
       "additionalProperties": false
     },
+    "CustomPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "not": {}
+        },
+        "media": {
+          "not": {}
+        },
+        "toolRequest": {
+          "not": {}
+        },
+        "toolResponse": {
+          "not": {}
+        },
+        "data": {},
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "custom": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "reasoning": {
+          "not": {}
+        },
+        "resource": {
+          "not": {}
+        }
+      },
+      "required": [
+        "custom"
+      ],
+      "additionalProperties": false
+    },
+    "DataPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/CustomPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/CustomPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
+        },
+        "data": {},
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
+        }
+      },
+      "additionalProperties": false
+    },
     "FinishReason": {
       "type": "string",
       "enum": [
@@ -618,6 +463,9 @@
         },
         "maxTurns": {
           "type": "number"
+        },
+        "stepName": {
+          "type": "string"
         }
       },
       "required": [
@@ -738,6 +586,9 @@
         "request": {
           "$ref": "#/$defs/GenerateRequest"
         },
+        "operation": {
+          "$ref": "#/$defs/Operation"
+        },
         "candidates": {
           "type": "array",
           "items": {
@@ -815,8 +666,50 @@
           "additionalProperties": {
             "type": "number"
           }
+        },
+        "thoughtsTokens": {
+          "type": "number"
+        },
+        "cachedContentTokens": {
+          "type": "number"
         }
       },
+      "additionalProperties": false
+    },
+    "MediaPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/CustomPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/Media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
+        },
+        "data": {
+          "$ref": "#/$defs/CustomPart/properties/data"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
+        }
+      },
+      "required": [
+        "media"
+      ],
       "additionalProperties": false
     },
     "Message": {
@@ -897,6 +790,9 @@
               ]
             },
             "toolChoice": {
+              "type": "boolean"
+            },
+            "longRunning": {
               "type": "boolean"
             }
           },
@@ -992,10 +888,48 @@
         },
         "request": {
           "$ref": "#/$defs/GenerateResponse/properties/request"
+        },
+        "operation": {
+          "$ref": "#/$defs/GenerateResponse/properties/operation"
         }
       },
       "required": [
         "finishReason"
+      ],
+      "additionalProperties": false
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "done": {
+          "type": "boolean"
+        },
+        "output": {},
+        "error": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "message"
+          ],
+          "additionalProperties": true
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id"
       ],
       "additionalProperties": false
     },
@@ -1037,8 +971,95 @@
         },
         {
           "$ref": "#/$defs/CustomPart"
+        },
+        {
+          "$ref": "#/$defs/ReasoningPart"
+        },
+        {
+          "$ref": "#/$defs/ResourcePart"
         }
       ]
+    },
+    "ReasoningPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/CustomPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/CustomPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
+        },
+        "data": {
+          "$ref": "#/$defs/CustomPart/properties/data"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
+        }
+      },
+      "required": [
+        "reasoning"
+      ],
+      "additionalProperties": false
+    },
+    "ResourcePart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/CustomPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/CustomPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
+        },
+        "data": {
+          "$ref": "#/$defs/CustomPart/properties/data"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "type": "object",
+          "properties": {
+            "uri": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "uri"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "resource"
+      ],
+      "additionalProperties": false
     },
     "Role": {
       "type": "string",
@@ -1048,6 +1069,42 @@
         "model",
         "tool"
       ]
+    },
+    "TextPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "media": {
+          "$ref": "#/$defs/CustomPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
+        },
+        "data": {
+          "$ref": "#/$defs/CustomPart/properties/data"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
     },
     "ToolDefinition": {
       "type": "object",
@@ -1093,6 +1150,131 @@
       "required": [
         "name",
         "description"
+      ],
+      "additionalProperties": false
+    },
+    "ToolRequestPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/CustomPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/CustomPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/ToolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/CustomPart/properties/toolResponse"
+        },
+        "data": {
+          "$ref": "#/$defs/CustomPart/properties/data"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
+        }
+      },
+      "required": [
+        "toolRequest"
+      ],
+      "additionalProperties": false
+    },
+    "ToolResponsePart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "$ref": "#/$defs/CustomPart/properties/text"
+        },
+        "media": {
+          "$ref": "#/$defs/CustomPart/properties/media"
+        },
+        "toolRequest": {
+          "$ref": "#/$defs/CustomPart/properties/toolRequest"
+        },
+        "toolResponse": {
+          "$ref": "#/$defs/ToolResponse"
+        },
+        "data": {
+          "$ref": "#/$defs/CustomPart/properties/data"
+        },
+        "metadata": {
+          "$ref": "#/$defs/CustomPart/properties/metadata"
+        },
+        "custom": {
+          "$ref": "#/$defs/DataPart/properties/custom"
+        },
+        "reasoning": {
+          "$ref": "#/$defs/CustomPart/properties/reasoning"
+        },
+        "resource": {
+          "$ref": "#/$defs/CustomPart/properties/resource"
+        }
+      },
+      "required": [
+        "toolResponse"
+      ],
+      "additionalProperties": false
+    },
+    "Media": {
+      "type": "object",
+      "properties": {
+        "contentType": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "ToolRequest": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "input": {},
+        "partial": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "ToolResponse": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "output": {},
+        "content": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
       ],
       "additionalProperties": false
     },

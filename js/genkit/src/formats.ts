@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { type FormatArgument, type Formatter } from '@genkit-ai/ai/formats';
+export type { FormatArgument, Formatter } from '@genkit-ai/ai/formats';

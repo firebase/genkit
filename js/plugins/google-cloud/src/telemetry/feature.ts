@@ -16,15 +16,15 @@
 
 import { ValueType } from '@opentelemetry/api';
 import { hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION, GenkitError } from 'genkit';
 import { logger } from 'genkit/logging';
-import { PathMetadata, toDisplayPath } from 'genkit/tracing';
+import { toDisplayPath } from 'genkit/tracing';
 import {
   MetricCounter,
   MetricHistogram,
-  Telemetry,
   internalMetricNamespaceWrap,
+  type Telemetry,
 } from '../metrics.js';
 import {
   createCommonLogAttributes,
@@ -52,7 +52,6 @@ class FeaturesTelemetry implements Telemetry {
 
   tick(
     span: ReadableSpan,
-    paths: Set<PathMetadata>,
     logInputAndOutput: boolean,
     projectId?: string
   ): void {

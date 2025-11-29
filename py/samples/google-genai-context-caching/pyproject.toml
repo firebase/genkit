@@ -20,6 +20,7 @@ dependencies = [
   "genkit",
   "genkit-plugin-google-genai",
   "pydantic>=2.10.5",
+  "requests>=2.32.3",
   "structlog>=25.2.0",
 ]
 description = "context-caching Genkit sample"

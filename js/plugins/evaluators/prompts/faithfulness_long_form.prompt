@@ -4,6 +4,7 @@ input:
         question: string
         answer: string
 ---
+{{role "system"}}
 Create one or more statements from each sentence in the given answer. 
 Here are some examples:
 
@@ -44,6 +45,7 @@ statements in json:
 
 Now provide your analysis for the following inputs. DO NOT PROVIDE ANY MORE EXAMPLES. Your response must be a valid JSON like you see above.
 
+{{role "user"}}
 question:
 {{question}}
 answer: 

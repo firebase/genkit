@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai/model';
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import type { MessageData } from '@genkit-ai/ai/model';
+import { googleAI } from '@genkit-ai/google-genai';
 import { ai } from '../genkit.js';
-import { MenuItem } from '../types';
+import type { MenuItem } from '../types';
 import {
   ChatHistoryStore,
   ChatSessionInputSchema,
@@ -77,7 +77,7 @@ export const s03_multiTurnChatFlow = ai.defineFlow(
 
     // Generate the response
     const llmResponse = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       messages: history,
       prompt: {
         text: input.question,

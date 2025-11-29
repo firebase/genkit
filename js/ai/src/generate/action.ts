@@ -15,48 +15,53 @@
  */
 
 import {
-  Action,
-  defineAction,
   GenkitError,
-  getStreamingCallback,
-  runWithStreamingCallback,
+  StreamingCallback,
+  defineAction,
   stripUndefinedProps,
-  z,
+  type Action,
+  type z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
-import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
+import type { Registry } from '@genkit-ai/core/registry';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import {
   injectInstructions,
   resolveFormat,
   resolveInstructions,
 } from '../formats/index.js';
-import { Formatter } from '../formats/types.js';
+import type { Formatter } from '../formats/types.js';
 import {
   GenerateResponse,
-  GenerateResponseChunk,
   GenerationResponseError,
   tagAsPreamble,
 } from '../generate.js';
+import { GenerateResponseChunk } from '../generate/chunk.js';
 import {
-  GenerateActionOptions,
   GenerateActionOptionsSchema,
-  GenerateActionOutputConfig,
-  GenerateRequest,
-  GenerateRequestSchema,
-  GenerateResponseChunkData,
   GenerateResponseChunkSchema,
-  GenerateResponseData,
   GenerateResponseSchema,
-  ModelAction,
-  ModelInfo,
-  ModelMiddleware,
-  ModelRequest,
-  Part,
+  MessageData,
   resolveModel,
-  Role,
+  type GenerateActionOptions,
+  type GenerateActionOutputConfig,
+  type GenerateRequest,
+  type GenerateRequestSchema,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
+  type ModelAction,
+  type ModelInfo,
+  type ModelMiddleware,
+  type ModelRequest,
+  type Part,
+  type Role,
 } from '../model.js';
-import { resolveTools, ToolAction, toToolDefinition } from '../tool.js';
+import {
+  findMatchingResource,
+  resolveResources,
+  type ResourceAction,
+} from '../resource.js';
+import { resolveTools, toToolDefinition, type ToolAction } from '../tool.js';
 import {
   assertValidToolNames,
   resolveResumeOption,
@@ -80,20 +85,21 @@ export function defineGenerateAction(registry: Registry): GenerateAction {
       outputSchema: GenerateResponseSchema,
       streamSchema: GenerateResponseChunkSchema,
     },
-    async (request, { sendChunk }) => {
-      const generateFn = () =>
+    async (request, { streamingRequested, sendChunk }) => {
+      const generateFn = (
+        sendChunk?: StreamingCallback<GenerateResponseChunk>
+      ) =>
         generate(registry, {
           rawRequest: request,
           currentTurn: 0,
           messageIndex: 0,
           // Generate util action does not support middleware. Maybe when we add named/registered middleware....
           middleware: [],
+          streamingCallback: sendChunk,
         });
-      return sendChunk
-        ? runWithStreamingCallback(
-            registry,
-            (c: GenerateResponseChunk) => sendChunk(c.toJSON ? c.toJSON() : c),
-            generateFn
+      return streamingRequested
+        ? generateFn((c: GenerateResponseChunk) =>
+            sendChunk(c.toJSON ? c.toJSON() : c)
           )
         : generateFn();
     }
@@ -110,29 +116,33 @@ export async function generateHelper(
     middleware?: ModelMiddleware[];
     currentTurn?: number;
     messageIndex?: number;
+    abortSignal?: AbortSignal;
+    streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   }
 ): Promise<GenerateResponseData> {
-  let currentTurn = options.currentTurn ?? 0;
-  let messageIndex = options.messageIndex ?? 0;
+  const currentTurn = options.currentTurn ?? 0;
+  const messageIndex = options.messageIndex ?? 0;
   // do tracing
   return await runInNewSpan(
     registry,
     {
       metadata: {
-        name: 'generate',
+        name: options.rawRequest.stepName || 'generate',
       },
       labels: {
         [SPAN_TYPE_ATTR]: 'util',
       },
     },
     async (metadata) => {
-      metadata.name = 'generate';
+      metadata.name = options.rawRequest.stepName || 'generate';
       metadata.input = options.rawRequest;
       const output = await generate(registry, {
         rawRequest: options.rawRequest,
         middleware: options.middleware,
         currentTurn,
         messageIndex,
+        abortSignal: options.abortSignal,
+        streamingCallback: options.streamingCallback,
       });
       metadata.output = JSON.stringify(output);
       return output;
@@ -145,14 +155,15 @@ async function resolveParameters(
   registry: Registry,
   request: GenerateActionOptions
 ) {
-  const [model, tools, format] = await Promise.all([
+  const [model, tools, resources, format] = await Promise.all([
     resolveModel(registry, request.model, { warnDeprecated: true }).then(
       (r) => r.modelAction
     ),
     resolveTools(registry, request.tools),
+    resolveResources(registry, request.resources),
     resolveFormat(registry, request.output),
   ]);
-  return { model, tools, format };
+  return { model, tools, resources, format };
 }
 
 /** Given a raw request and a formatter, apply the formatter's logic and instructions to the request. */
@@ -210,6 +221,11 @@ function applyTransferPreamble(
     return rawRequest;
   }
 
+  // if the transfer preamble has a model, use it for the next request
+  if (transferPreamble?.model) {
+    rawRequest.model = transferPreamble.model;
+  }
+
   return stripUndefinedProps({
     ...rawRequest,
     messages: [
@@ -229,18 +245,23 @@ async function generate(
     middleware,
     currentTurn,
     messageIndex,
+    abortSignal,
+    streamingCallback,
   }: {
     rawRequest: GenerateActionOptions;
     middleware: ModelMiddleware[] | undefined;
     currentTurn: number;
     messageIndex: number;
+    abortSignal?: AbortSignal;
+    streamingCallback?: StreamingCallback<GenerateResponseChunk>;
   }
 ): Promise<GenerateResponseData> {
-  const { model, tools, format } = await resolveParameters(
+  const { model, tools, resources, format } = await resolveParameters(
     registry,
     rawRequest
   );
   rawRequest = applyFormat(rawRequest, format);
+  rawRequest = await applyResources(registry, rawRequest, resources);
 
   // check to make sure we don't have overlapping tool names *before* generation
   await assertValidToolNames(tools);
@@ -293,40 +314,53 @@ async function generate(
     });
   };
 
-  const streamingCallback = getStreamingCallback(registry);
-
   // if resolving the 'resume' option above generated a tool message, stream it.
   if (resumedToolMessage && streamingCallback) {
     streamingCallback(makeChunk('tool', resumedToolMessage));
   }
 
-  const response = await runWithStreamingCallback(
-    registry,
-    streamingCallback &&
-      ((chunk: GenerateResponseChunkData) =>
-        streamingCallback(makeChunk('model', chunk))),
-    async () => {
-      const dispatch = async (
-        index: number,
-        req: z.infer<typeof GenerateRequestSchema>
-      ) => {
-        if (!middleware || index === middleware.length) {
-          // end of the chain, call the original model action
-          return await model(req);
-        }
-
-        const currentMiddleware = middleware[index];
-        return currentMiddleware(req, async (modifiedReq) =>
-          dispatch(index + 1, modifiedReq || req)
-        );
-      };
-
-      return new GenerateResponse(await dispatch(0, request), {
-        request,
-        parser: format?.handler(request.output?.schema).parseMessage,
+  var response: GenerateResponse;
+  const dispatch = async (
+    index: number,
+    req: z.infer<typeof GenerateRequestSchema>
+  ) => {
+    if (!middleware || index === middleware.length) {
+      // end of the chain, call the original model action
+      return await model(req, {
+        abortSignal,
+        onChunk:
+          streamingCallback &&
+          (((chunk: GenerateResponseChunkData) =>
+            streamingCallback &&
+            streamingCallback(makeChunk('model', chunk))) as any),
       });
     }
-  );
+
+    const currentMiddleware = middleware[index];
+    return currentMiddleware(req, async (modifiedReq) =>
+      dispatch(index + 1, modifiedReq || req)
+    );
+  };
+
+  const modelResponse = await dispatch(0, request);
+
+  if (model.__action.actionType === 'background-model') {
+    response = new GenerateResponse(
+      { operation: modelResponse },
+      {
+        request,
+        parser: format?.handler(request.output?.schema).parseMessage,
+      }
+    );
+  } else {
+    response = new GenerateResponse(modelResponse, {
+      request,
+      parser: format?.handler(request.output?.schema).parseMessage,
+    });
+  }
+  if (model.__action.actionType === 'background-model') {
+    return response.toJSON();
+  }
 
   // Throw an error if the response is not usable.
   response.assertValid();
@@ -373,8 +407,10 @@ async function generate(
 
   let nextRequest = {
     ...rawRequest,
+
     messages: [...rawRequest.messages, generatedMessage.toJSON(), toolMessage!],
   };
+
   nextRequest = applyTransferPreamble(nextRequest, transferPreamble);
 
   // then recursively call for another loop
@@ -383,6 +419,8 @@ async function generate(
     middleware: middleware,
     currentTurn: currentTurn + 1,
     messageIndex: messageIndex + 1,
+    streamingCallback,
+    abortSignal,
   });
 }
 
@@ -451,4 +489,54 @@ function getRoleFromPart(part: Part): Role {
   if (part.media !== undefined) return 'user';
   if (part.data !== undefined) return 'user';
   throw new Error('No recognized fields in content');
+}
+
+async function applyResources(
+  registry: Registry,
+  rawRequest: GenerateActionOptions,
+  resources: ResourceAction[]
+): Promise<GenerateActionOptions> {
+  // quick check, if no resources bail.
+  if (!rawRequest.messages.find((m) => !!m.content.find((c) => c.resource))) {
+    return rawRequest;
+  }
+
+  const updatedMessages = [] as MessageData[];
+  for (const m of rawRequest.messages) {
+    if (!m.content.find((c) => c.resource)) {
+      updatedMessages.push(m);
+      continue;
+    }
+    const updatedContent = [] as Part[];
+    for (const p of m.content) {
+      if (!p.resource) {
+        updatedContent.push(p);
+        continue;
+      }
+
+      const resource = await findMatchingResource(
+        registry,
+        resources,
+        p.resource
+      );
+      if (!resource) {
+        throw new GenkitError({
+          status: 'NOT_FOUND',
+          message: `failed to find matching resource for ${p.resource.uri}`,
+        });
+      }
+      const resourceParts = await resource(p.resource);
+      updatedContent.push(...resourceParts.content);
+    }
+
+    updatedMessages.push({
+      ...m,
+      content: updatedContent,
+    });
+  }
+
+  return {
+    ...rawRequest,
+    messages: updatedMessages,
+  };
 }

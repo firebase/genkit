@@ -49,15 +49,15 @@ async function testFlowServer() {
     },
     {
       maxRetries: 30,
-      delayMs: 1000,
+      delayMs: 2000,
     }
   );
 
   const t = yaml.parse(readFileSync('flow_server_tests.yaml', 'utf8'));
   for (const test of t.tests) {
     let chunkCount = 0;
-    let expected: string = '';
-    let want: TestResults = {
+    let expected = '';
+    const want: TestResults = {
       message: test.response.message,
       result: test.response.result,
     };
@@ -70,7 +70,7 @@ async function testFlowServer() {
 
       for await (const chunk of response.stream) {
         expected = want.message.replace('{count}', chunkCount.toString());
-        let chunkJSON = JSON.stringify(await chunk);
+        const chunkJSON = JSON.stringify(await chunk);
         if (chunkJSON != expected) {
           throw new Error(
             `unexpected chunk data received, got: ${chunkJSON}, want: ${want.message}`
@@ -83,7 +83,7 @@ async function testFlowServer() {
           `unexpected number of stream chunks received: got ${chunkCount}, want: ${test.post.data}`
         );
       }
-      let out = await response.output;
+      const out = await response.output;
       want.result = want.result.replace(/\{count\}/g, chunkCount.toString());
       if (out != want.result) {
         throw new Error(

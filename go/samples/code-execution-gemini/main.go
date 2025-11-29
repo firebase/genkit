@@ -18,26 +18,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
 func main() {
 	ctx := context.Background()
 
 	// Initialize Genkit with Google AI plugin
-	g, err := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.GoogleAI{}))
 
 	// Define a flow to demonstrate code execution
 	genkit.DefineFlow(g, "codeExecutionFlow", func(ctx context.Context, _ any) (string, error) {
-		m := googlegenai.GoogleAIModel(g, "gemini-1.5-pro")
+		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
 		if m == nil {
 			return "", errors.New("failed to find model")
 		}
@@ -49,9 +46,13 @@ func main() {
 		fmt.Println("Sending request to Gemini...")
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Temperature:   0.2,
-				CodeExecution: true,
+			ai.WithConfig(&genai.GenerateContentConfig{
+				Temperature: genai.Ptr[float32](0.2),
+				Tools: []*genai.Tool{
+					{
+						CodeExecution: &genai.ToolCodeExecution{},
+					},
+				},
 			}),
 			ai.WithPrompt(problem))
 		if err != nil {
@@ -87,8 +88,8 @@ func displayCodeExecution(msg *ai.Message) {
 	if strings.TrimSpace(result.Output) == "" {
 		fmt.Printf("  <no output>\n")
 	} else {
-		lines := strings.Split(result.Output, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(result.Output, "\n")
+		for line := range lines {
 			fmt.Printf("  %s\n", line)
 		}
 	}

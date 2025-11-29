@@ -15,7 +15,7 @@
  */
 
 import * as fs from 'fs';
-import { JSONSchema7 } from 'json-schema';
+import type { JSONSchema7 } from 'json-schema';
 import * as path from 'path';
 import * as z from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -27,6 +27,7 @@ const EXPORTED_TYPE_MODULES = [
   '../common/src/types/evaluator.ts',
   '../common/src/types/error.ts',
   '../common/src/types/model.ts',
+  '../common/src/types/parts.ts',
   '../common/src/types/reranker.ts',
   '../common/src/types/retriever.ts',
   '../common/src/types/trace.ts',

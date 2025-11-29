@@ -31,6 +31,22 @@ from genkit.types import (
 
 
 class PartConverter:
+    """Converts content parts between Genkit's internal representation and Gemini's API format.
+
+    This class provides static methods to facilitate the translation of various
+    content types (text, tool requests/responses, media, custom data) into the
+    `genai.types.Part` format required by the Gemini API, and vice-versa.
+
+    Attributes:
+        EXECUTABLE_CODE (str): Key for executable code within custom parts.
+        CODE_EXECUTION_RESULT (str): Key for code execution results within custom parts.
+        OUTCOME (str): Key for execution outcome within code execution results.
+        OUTPUT (str): Key for output within code execution results.
+        LANGUAGE (str): Key for programming language within executable code.
+        CODE (str): Key for code string within executable code.
+        DATA (str): Prefix used for inline data URLs.
+    """
+
     EXECUTABLE_CODE = 'executableCode'
     CODE_EXECUTION_RESULT = 'codeExecutionResult'
     OUTCOME = 'outcome'
@@ -41,6 +57,19 @@ class PartConverter:
 
     @classmethod
     def to_gemini(cls, part: Part) -> genai.types.Part:
+        """Maps a Genkit Part to a Gemini Part.
+
+        This method inspects the root type of the Genkit Part and converts it
+        into the corresponding `genai.types.Part` structure, which includes
+        text, function calls, function responses, inline media data, or custom
+        parts.
+
+        Args:
+            part: The Genkit Part object to convert.
+
+        Returns:
+            A `genai.types.Part` object representing the converted content.
+        """
         if isinstance(part.root, TextPart):
             return genai.types.Part(text=part.root.text)
         if isinstance(part.root, ToolRequestPart):
@@ -71,6 +100,18 @@ class PartConverter:
 
     @classmethod
     def _to_gemini_custom(cls, part: Part) -> genai.types.Part:
+        """Converts a Genkit CustomPart into a Gemini Part.
+
+        This internal helper method handles the conversion of custom part types,
+        specifically `executableCode` and `codeExecutionResult`, into their
+        corresponding Gemini Part representations.
+
+        Args:
+            part: The Genkit Part object with a CustomPart root to convert.
+
+        Returns:
+            A `genai.types.Part` object representing the converted custom content.
+        """
         if cls.EXECUTABLE_CODE in part.root.custom:
             return genai.types.Part(
                 executable_code=genai.types.ExecutableCode(
@@ -88,6 +129,18 @@ class PartConverter:
 
     @classmethod
     def from_gemini(cls, part: genai.types.Part) -> Part:
+        """Maps a Gemini Part back to a Genkit Part.
+
+        This method inspects the type of the Gemini Part and converts it into
+        the corresponding Genkit Part structure, handling text, function calls,
+        function responses, inline media data, executable code, and code execution results.
+
+        Args:
+            part: The `genai.types.Part` object to convert.
+
+        Returns:
+            A Genkit `Part` object representing the converted content.
+        """
         if part.text:
             return Part(text=part.text)
         if part.function_call:
@@ -114,16 +167,20 @@ class PartConverter:
                 )
             )
         if part.executable_code:
-            return {
-                cls.EXECUTABLE_CODE: {
-                    cls.LANGUAGE: part.executable_code.language,
-                    cls.CODE: part.executable_code.code,
+            return CustomPart(
+                custom={
+                    cls.EXECUTABLE_CODE: {
+                        cls.LANGUAGE: part.executable_code.language,
+                        cls.CODE: part.executable_code.code,
+                    }
                 }
-            }
+            )
         if part.code_execution_result:
-            return {
-                cls.CODE_EXECUTION_RESULT: {
-                    cls.OUTCOME: part.code_execution_result.outcome,
-                    cls.OUTPUT: part.code_execution_result.output,
+            return CustomPart(
+                custom={
+                    cls.CODE_EXECUTION_RESULT: {
+                        cls.OUTCOME: part.code_execution_result.outcome,
+                        cls.OUTPUT: part.code_execution_result.output,
+                    }
                 }
-            }
+            )

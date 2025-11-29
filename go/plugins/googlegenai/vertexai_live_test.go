@@ -18,7 +18,6 @@ package googlegenai_test
 
 import (
 	"context"
-	"flag"
 	"math"
 	"os"
 	"strings"
@@ -27,32 +26,31 @@ import (
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
+	"google.golang.org/genai"
 )
 
-// The tests here only work with a project set to a valid value.
-// The user running these tests must be authenticated, for example by
-// setting a valid GOOGLE_APPLICATION_CREDENTIALS environment variable.
-var (
-	projectID = flag.String("projectid", "", "VertexAI project")
-	location  = flag.String("location", "us-central1", "geographic location")
-)
+// To run this test suite: go test -v -run TestVertexAI
 
 func TestVertexAILive(t *testing.T) {
-	if *projectID == "" {
-		t.Skipf("no -projectid provided")
+	projectID, ok := requireEnv("GOOGLE_CLOUD_PROJECT")
+	if !ok {
+		t.Skipf("GOOGLE_CLOUD_PROJECT env var not set")
 	}
-	ctx := context.Background()
-	g, err := genkit.Init(context.Background(), genkit.WithDefaultModel("vertexai/gemini-1.5-flash"))
-	if err != nil {
-		t.Fatal(err)
+	location, ok := requireEnv("GOOGLE_CLOUD_LOCATION")
+	if !ok {
+		t.Log("GOOGLE_CLOUD_LOCATION env var not set, defaulting to us-central1")
+		location = "us-central1"
 	}
-	err = (&googlegenai.VertexAI{ProjectID: *projectID, Location: *location}).Init(ctx, g)
-	if err != nil {
-		t.Fatal(err)
-	}
-	embedder := googlegenai.VertexAIEmbedder(g, "textembedding-gecko@003")
 
-	gablorkenTool := genkit.DefineTool(g, "gablorken", "use when need to calculate a gablorken",
+	ctx := context.Background()
+	g := genkit.Init(ctx,
+		genkit.WithDefaultModel("vertexai/gemini-2.5-flash"),
+		genkit.WithPlugins(&googlegenai.VertexAI{ProjectID: projectID, Location: location}),
+	)
+
+	embedder := googlegenai.VertexAIEmbedder(g, "gemini-embedding-001")
+
+	gablorkenTool := genkit.DefineTool(g, "gablorken", "use this tool when the user asks to calculate a gablorken",
 		func(ctx *ai.ToolContext, input struct {
 			Value float64
 			Over  float64
@@ -125,7 +123,8 @@ func TestVertexAILive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		res, err := ai.Embed(ctx, embedder,
+		res, err := genkit.Embed(ctx, g,
+			ai.WithEmbedder(embedder),
 			ai.WithTextDocs("time flies like an arrow", "fruit flies like a banana"),
 		)
 		if err != nil {
@@ -160,10 +159,7 @@ func TestVertexAILive(t *testing.T) {
 			ai.WithMessages(
 				ai.NewUserTextMessage(string(textContent)).WithCacheTTL(360),
 			),
-			ai.WithPrompt("write a summary of the content"),
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}))
+			ai.WithPrompt("write a summary of the content"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -183,9 +179,6 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 		resp, err = genkit.Generate(ctx, g,
-			ai.WithConfig(&googlegenai.GeminiConfig{
-				Version: "gemini-1.5-flash-001",
-			}),
 			ai.WithMessages(resp.History()...),
 			ai.WithPrompt("rewrite the previous summary but now talking like a pirate, say Ahoy a lot of times"),
 		)
@@ -212,25 +205,25 @@ func TestVertexAILive(t *testing.T) {
 			t.Fatalf("cache name should be a map but got %T", cache)
 		}
 	})
-	t.Run("media content (unstructured data)", func(t *testing.T) {
+	t.Run("media content (inline data)", func(t *testing.T) {
 		i, err := fetchImgAsBase64()
 		if err != nil {
 			t.Fatal(err)
 		}
 		resp, err := genkit.Generate(ctx, g,
-			ai.WithSystem("You are a pirate expert in TV Shows, your response should include the name of the character in the image provided"),
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the provided image"),
 			ai.WithMessages(
 				ai.NewUserMessage(
-					ai.NewTextPart("do you know who's in the image?"),
-					ai.NewDataPart("data:image/png;base64,"+i),
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewMediaPart("image/jpg", "data:image/jpg;base64,"+i),
 				),
 			),
 		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(resp.Text(), "Bluey") {
-			t.Fatalf("image detection failed, want: Bluey, got: %s", resp.Text())
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
 		}
 	})
 	t.Run("media content", func(t *testing.T) {
@@ -247,6 +240,63 @@ func TestVertexAILive(t *testing.T) {
 		}
 		if !strings.Contains(resp.Text(), "Mario Kart") {
 			t.Fatalf("image detection failed, want: Mario Kart, got: %s", resp.Text())
+		}
+	})
+	t.Run("data content (inline data)", func(t *testing.T) {
+		i, err := fetchImgAsBase64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithSystem("You are a pirate expert in animals, your response should include the name of the animal in the image provided"),
+			ai.WithMessages(
+				ai.NewUserMessage(
+					ai.NewTextPart("do you know which animal is in the image?"),
+					ai.NewDataPart("data:image/jpg;base64,"+i),
+				),
+			),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(strings.ToLower(resp.Text()), "cat") {
+			t.Fatalf("image detection failed, want: cat, got: %s", resp.Text())
+		}
+	})
+	t.Run("image generation", func(t *testing.T) {
+		if location != "global" {
+			t.Skipf("image generation in Vertex AI is only supported in region: global, got: %s", location)
+		}
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash-image")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(genai.GenerateContentConfig{
+				ResponseModalities: []string{"IMAGE", "TEXT"},
+			}),
+			ai.WithMessages(
+				ai.NewUserTextMessage("generate an image of a dog wearing a black tejana while playing the accordion"),
+			),
+			ai.WithModel(m),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(resp.Message.Content) == 0 {
+			t.Fatal("empty response")
+		}
+		foundMediaPart := false
+		for _, part := range resp.Message.Content {
+			if part.ContentType == "image/png" {
+				foundMediaPart = true
+				if part.Kind != ai.PartMedia {
+					t.Errorf("expecting part to be Media type but got: %q", part.Kind)
+				}
+				if part.Text == "" {
+					t.Error("empty response")
+				}
+			}
+		}
+		if !foundMediaPart {
+			t.Error("no media found in the response message")
 		}
 	})
 	t.Run("constrained generation", func(t *testing.T) {
@@ -275,6 +325,70 @@ func TestVertexAILive(t *testing.T) {
 		}
 		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
 			t.Errorf("Empty usage stats %#v", *resp.Usage)
+		}
+	})
+	t.Run("thinking enabled", func(t *testing.T) {
+		if location != "global" && location != "us-central1" {
+			t.Skipf("thinking in Vertex AI is only supported in these regions: [global, us-central1], got: %q", location)
+		}
+
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(
+				genai.GenerateContentConfig{
+					Temperature: genai.Ptr[float32](1),
+					ThinkingConfig: &genai.ThinkingConfig{
+						IncludeThoughts: true,
+						ThinkingBudget:  genai.Ptr[int32](1024),
+					},
+				},
+			),
+			ai.WithPrompt(`how is a black hole born?`),
+			ai.WithModel(m),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.Reasoning() == "" {
+			t.Error("expected reasoning contents but got empty")
+		}
+		if resp.Text() == "" {
+			t.Error("expecting response output, got empty")
+		}
+		if resp.Usage.ThoughtsTokens == 0 {
+			t.Error("expecting thought token count, got 0")
+		}
+	})
+	t.Run("thinking disabled", func(t *testing.T) {
+		if location != "global" && location != "us-central1" {
+			t.Skipf("thinking in Vertex AI is only supported in these regions: [global, us-central1], got: %q", location)
+		}
+
+		m := googlegenai.VertexAIModel(g, "gemini-2.5-flash")
+		resp, err := genkit.Generate(ctx, g,
+			ai.WithConfig(
+				genai.GenerateContentConfig{
+					Temperature: genai.Ptr[float32](1),
+					ThinkingConfig: &genai.ThinkingConfig{
+						IncludeThoughts: false,
+						ThinkingBudget:  genai.Ptr[int32](0),
+					},
+				},
+			),
+			ai.WithPrompt(`how is a black hole born?`),
+			ai.WithModel(m),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.Reasoning() != "" {
+			t.Error("expected reasoning contents but got content")
+		}
+		if resp.Text() == "" {
+			t.Error("expecting response output, got empty")
+		}
+		if resp.Usage.ThoughtsTokens > 0 {
+			t.Errorf("expecting 0 thought tokens, got %d", resp.Usage.ThoughtsTokens)
 		}
 	})
 }

@@ -16,7 +16,10 @@
 
 export {
   asTool,
+  dynamicTool,
+  interrupt,
   toToolDefinition,
+  tool,
   type ToolAction,
   type ToolArgument,
   type ToolConfig,

@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+import { Operation } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
 import {
   GenerationBlockedError,
   GenerationResponseError,
 } from '../generate.js';
-import { Message, MessageParser } from '../message.js';
-import {
+import { Message, type MessageParser } from '../message.js';
+import type {
   GenerateRequest,
   GenerateResponseData,
   GenerationUsage,
@@ -44,8 +45,14 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
   usage: GenerationUsage;
   /** Provider-specific response data. */
   custom: unknown;
+  /** Provider-specific response data. */
+  raw: unknown;
   /** The request that generated this response. */
   request?: GenerateRequest;
+  /** Model generation long running operation. */
+  operation?: Operation<GenerateResponseData>;
+  /** Name of the model used. */
+  model?: string;
   /** The parser for output parsing of this response. */
   parser?: MessageParser<O>;
 
@@ -60,6 +67,20 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     const generatedMessage =
       response.message || response.candidates?.[0]?.message;
     if (generatedMessage) {
+      if (
+        options?.request?.output?.contentType ||
+        options?.request?.output?.format
+      ) {
+        generatedMessage.metadata = {
+          ...generatedMessage.metadata,
+          generate: {
+            output: {
+              contentType: options?.request?.output?.contentType,
+              format: options?.request?.output?.format,
+            },
+          },
+        };
+      }
       this.message = new Message<O>(generatedMessage, {
         parser: options?.parser,
       });
@@ -70,7 +91,9 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       response.finishMessage || response.candidates?.[0]?.finishMessage;
     this.usage = response.usage || {};
     this.custom = response.custom || {};
+    this.raw = response.raw || this.custom;
     this.request = options?.request;
+    this.operation = response?.operation;
   }
 
   /**
@@ -84,7 +107,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       );
     }
 
-    if (!this.message) {
+    if (!this.message && !this.operation) {
       throw new GenerationResponseError(
         this,
         `Model did not generate a message. Finish reason: '${this.finishReason}': ${this.finishMessage}`
@@ -131,6 +154,14 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    */
   get text(): string {
     return this.message?.text || '';
+  }
+
+  /**
+   * Concatenates all `reasoning` parts present in the generated message with no delimiter.
+   * @returns A string of all concatenated reasoning parts.
+   */
+  get reasoning(): string {
+    return this.message?.reasoning || '';
   }
 
   /**
@@ -184,10 +215,6 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     return [...this.request?.messages, this.message.toJSON()];
   }
 
-  get raw(): unknown {
-    return this.raw ?? this.custom;
-  }
-
   toJSON(): ModelResponseData {
     const out = {
       message: this.message?.toJSON(),
@@ -196,9 +223,11 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
       usage: this.usage,
       custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
       request: this.request,
+      operation: this.operation,
     };
     if (!out.finishMessage) delete out.finishMessage;
     if (!out.request) delete out.request;
+    if (!out.operation) delete out.operation;
     return out;
   }
 }

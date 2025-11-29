@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -50,32 +51,32 @@ type Pinecone struct {
 	initted bool       // Whether the plugin has been initialized.
 }
 
+// Name returns the name of the plugin.
+func (p *Pinecone) Name() string {
+	return provider
+}
+
 // Init initializes the Pinecone plugin.
 // If apiKey is the empty string, it is read from the PINECONE_API_KEY
 // environment variable.
-func (p *Pinecone) Init(ctx context.Context, g *genkit.Genkit) (err error) {
+func (p *Pinecone) Init(ctx context.Context) []api.Action {
 	// Init initializes the Pinecone plugin.
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.initted {
 		panic("pinecone.Init already called")
 	}
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("pinecone.Init: %w", err)
-		}
-	}()
 
 	client, err := newClient(ctx, p.APIKey)
 	if err != nil {
-		return err
+		panic(fmt.Errorf("pinecone.Init: %w", err))
 	}
 	p.client = client
 	p.initted = true
-	return nil
+	return []api.Action{}
 }
 
-// Config provides configuration options for [DefineIndexer] and [DefineRetriever].
+// Config provides configuration options for [DefineRetriever].
 type Config struct {
 	IndexID         string      // The index ID to use.
 	Embedder        ai.Embedder // Embedder to use. Required.
@@ -83,45 +84,38 @@ type Config struct {
 	TextKey         string      // Metadata key to use to store document text in Pinecone; the default is "_content".
 }
 
-// DefineIndexer defines an Indexer with the given configuration.
-func DefineIndexer(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Indexer, error) {
-	p := genkit.LookupPlugin(g, provider).(*Pinecone)
-	if p == nil {
-		return nil, errors.New("pinecone plugin not found; did you call genkit.Init with the pinecone plugin?")
-	}
+type SparseVector struct {
+	Indices []int     `json:"indices"`
+	Values  []float32 `json:"values"`
+}
 
-	ds, err := p.newDocStore(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return genkit.DefineIndexer(g, provider, cfg.IndexID, ds.Index), nil
+type PineconeRetrieverOptions struct {
+	K            int            `json:"k"`
+	Namespace    string         `json:"namespace,omitempty"`
+	Filter       map[string]any `json:"filter,omitempty"`
+	SparseVector *SparseVector  `json:"sparseVector,omitempty"`
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config) (ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, g *genkit.Genkit, cfg Config, opts *ai.RetrieverOptions) (*Docstore, ai.Retriever, error) {
 	p := genkit.LookupPlugin(g, provider).(*Pinecone)
 	if p == nil {
-		return nil, errors.New("pinecone plugin not found; did you call genkit.Init with the pinecone plugin?")
+		return nil, nil, errors.New("pinecone plugin not found; did you call genkit.Init with the pinecone plugin")
 	}
 
-	ds, err := p.newDocStore(ctx, cfg)
+	ds, err := p.newDocstore(ctx, cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return genkit.DefineRetriever(g, provider, cfg.IndexID, ds.Retrieve), nil
-}
-
-// IsDefinedIndexer reports whether the named [Indexer] is defined by this plugin.
-func IsDefinedIndexer(g *genkit.Genkit, name string) bool {
-	return genkit.LookupIndexer(g, provider, name) != nil
+	return ds, genkit.DefineRetriever(g, api.NewName(provider, cfg.IndexID), opts, ds.Retrieve), nil
 }
 
 // IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
 func IsDefinedRetriever(g *genkit.Genkit, name string) bool {
-	return genkit.LookupRetriever(g, provider, name) != nil
+	return genkit.LookupRetriever(g, api.NewName(provider, name)) != nil
 }
 
-func (p *Pinecone) newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
+func (p *Pinecone) newDocstore(ctx context.Context, cfg Config) (*Docstore, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if !p.initted {
@@ -133,7 +127,7 @@ func (p *Pinecone) newDocStore(ctx context.Context, cfg Config) (*docStore, erro
 	if cfg.Embedder == nil {
 		return nil, errors.New("Embedder required")
 	}
-	// TODO: cache these calls so we don't make them twice for the indexer and retriever.
+	// TODO: cache these calls so we don't make them twice for the retriever.
 	indexData, err := p.client.indexData(ctx, cfg.IndexID)
 	if err != nil {
 		return nil, err
@@ -145,77 +139,45 @@ func (p *Pinecone) newDocStore(ctx context.Context, cfg Config) (*docStore, erro
 	if cfg.TextKey == "" {
 		cfg.TextKey = defaultTextKey
 	}
-	return &docStore{
-		index:           index,
-		embedder:        cfg.Embedder,
-		embedderOptions: cfg.EmbedderOptions,
-		textKey:         cfg.TextKey,
+	return &Docstore{
+		Index:           index,
+		Embedder:        cfg.Embedder,
+		EmbedderOptions: cfg.EmbedderOptions,
+		TextKey:         cfg.TextKey,
 	}, nil
-}
-
-// Indexer returns the indexer with the given index name.
-func Indexer(g *genkit.Genkit, name string) ai.Indexer {
-	return genkit.LookupIndexer(g, provider, name)
 }
 
 // Retriever returns the retriever with the given index name.
 func Retriever(g *genkit.Genkit, name string) ai.Retriever {
-	return genkit.LookupRetriever(g, provider, name)
+	return genkit.LookupRetriever(g, api.NewName(provider, name))
 }
 
-// IndexerOptions may be passed in the Options field
-// of [ai.IndexerRequest] to pass options to Pinecone.
-// The Options field should be either nil or a value of type *IndexerOptions.
-type IndexerOptions struct {
-	Namespace string `json:"namespace,omitempty"` // Pinecone namespace to use
+// Docstore implements the genkit [ai.DocumentStore] interface.
+type Docstore struct {
+	Index           *index
+	Embedder        ai.Embedder
+	EmbedderOptions any
+	TextKey         string
 }
 
-// RetrieverOptions may be passed in the Options field
-// of [ai.RetrieverRequest] to pass options to Pinecone.
-// The Options field should be either nil or a value of type *RetrieverOptions.
-type RetrieverOptions struct {
-	Namespace string `json:"namespace,omitempty"` // Pinecone namespace to use
-	Count     int    `json:"count,omitempty"`     // maximum number of values to retrieve
-}
-
-// docStore implements the genkit [ai.DocumentStore] interface.
-type docStore struct {
-	index           *index
-	embedder        ai.Embedder
-	embedderOptions any
-	textKey         string
-}
-
-// Index implements the genkit Retriever.Index method.
-func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
-	if len(req.Documents) == 0 {
+// Helper function to get started with indexing
+func Index(ctx context.Context, docs []*ai.Document, ds *Docstore, namespace string) error {
+	if len(docs) == 0 {
 		return nil
 	}
 
-	namespace := ""
-	if req.Options != nil {
-		// TODO: This is plausible when called directly
-		// from Go code, but what will it look like when
-		// run from a resumed flow?
-		options, ok := req.Options.(*IndexerOptions)
-		if !ok {
-			return fmt.Errorf("pinecone.Index options have type %T, want %T", req.Options, &IndexerOptions{})
-		}
-		namespace = options.Namespace
-	}
-
 	// Use the embedder to convert each Document into a vector.
-	vecs := make([]vector, 0, len(req.Documents))
+	vecs := make([]vector, 0, len(docs))
 	ereq := &ai.EmbedRequest{
-		Input:   req.Documents,
-		Options: ds.embedderOptions,
+		Input:   docs,
+		Options: ds.EmbedderOptions,
 	}
-	eres, err := ds.embedder.Embed(ctx, ereq)
+	eres, err := ds.Embedder.Embed(ctx, ereq)
 	if err != nil {
 		return fmt.Errorf("pinecone index embedding failed: %v", err)
 	}
 	for i, de := range eres.Embeddings {
-		doc := req.Documents[i]
+		doc := docs[i]
 		id, err := docID(doc)
 		if err != nil {
 			return err
@@ -233,7 +195,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		for _, p := range doc.Content {
 			sb.WriteString(p.Text)
 		}
-		metadata[ds.textKey] = sb.String()
+		metadata[ds.TextKey] = sb.String()
 
 		v := vector{
 			ID:       id,
@@ -243,7 +205,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		vecs = append(vecs, v)
 	}
 
-	if err := ds.index.upsert(ctx, vecs, namespace); err != nil {
+	if err := ds.Index.upsert(ctx, vecs, namespace); err != nil {
 		return err
 	}
 
@@ -251,8 +213,8 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	// Wait until the vectors are visible.
 	wait := func() (bool, error) {
 		delay := 10 * time.Millisecond
-		for i := 0; i < 20; i++ {
-			vec, err := ds.index.queryByID(ctx, vecs[0].ID, wantValues, namespace)
+		for range 20 {
+			vec, err := ds.Index.queryByID(ctx, vecs[0].ID, wantValues, namespace)
 			if err != nil {
 				return false, err
 			}
@@ -283,7 +245,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 }
 
 // Retrieve implements the genkit Retriever.Retrieve method.
-func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+func (ds *Docstore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 	var (
 		namespace string
 		count     int
@@ -292,37 +254,37 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		// TODO: This is plausible when called directly
 		// from Go code, but what will it look like when
 		// run from a resumed flow?
-		ropt, ok := req.Options.(*RetrieverOptions)
+		ropt, ok := req.Options.(*PineconeRetrieverOptions)
 		if !ok {
-			return nil, fmt.Errorf("pinecone.Retrieve options have type %T, want %T", req.Options, &RetrieverOptions{})
+			return nil, fmt.Errorf("pinecone.Retrieve options have type %T, want %T", req.Options, &PineconeRetrieverOptions{})
 		}
 		namespace = ropt.Namespace
-		count = ropt.Count
+		count = ropt.K
 	}
 
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
 		Input:   []*ai.Document{req.Query},
-		Options: ds.embedderOptions,
+		Options: ds.EmbedderOptions,
 	}
-	eres, err := ds.embedder.Embed(ctx, ereq)
+	eres, err := ds.Embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("pinecone retrieve embedding failed: %v", err)
 	}
 
-	results, err := ds.index.query(ctx, eres.Embeddings[0].Embedding, count, wantMetadata, namespace)
+	results, err := ds.Index.query(ctx, eres.Embeddings[0].Embedding, count, wantMetadata, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	var docs []*ai.Document
 	for _, result := range results {
-		text, _ := result.Metadata[ds.textKey].(string)
+		text, _ := result.Metadata[ds.TextKey].(string)
 		if text == "" {
 			return nil, errors.New("Pinecone retrieve failed to fetch original document text")
 		}
-		delete(result.Metadata, ds.textKey)
+		delete(result.Metadata, ds.TextKey)
 		// TODO: This is what the TypeScript code does,
 		// but it loses information for multimedia documents.
 		d := ai.DocumentFromText(text, result.Metadata)

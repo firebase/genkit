@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
@@ -39,10 +40,7 @@ func TestGenkit(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(context.Background(), genkit.WithPlugins(&Pinecone{APIKey: *testAPIKey}))
 
 	// Get information about the index.
 
@@ -80,28 +78,35 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 
-	if err := (&Pinecone{APIKey: *testAPIKey}).Init(ctx, g); err != nil {
-		t.Fatal(err)
-	}
-	cfg := Config{
-		IndexID:  *testIndex,
-		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
-	}
-	indexer, err := DefineIndexer(ctx, g, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	retriever, err := DefineRetriever(ctx, g, cfg)
-	if err != nil {
-		t.Fatal(err)
+	emdOpts := &ai.EmbedderOptions{
+		Dimensions: 768,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
+		},
+		ConfigSchema: nil,
 	}
 
-	indexerOptions := &IndexerOptions{
-		Namespace: namespace,
+	cfg := Config{
+		IndexID:  *testIndex,
+		Embedder: genkit.DefineEmbedder(g, "fake/embedder3", emdOpts, embedder.Embed),
+	}
+
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: core.InferSchemaMap(PineconeRetrieverOptions{}),
+		Label:        "embedder3",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
+		},
+	}
+
+	ds, retriever, err := DefineRetriever(ctx, g, cfg, retOpts)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	t.Logf("index flag = %q, indexData.Host = %q", *testIndex, indexData.Host)
-	err = ai.Index(ctx, indexer, ai.WithConfig(indexerOptions), ai.WithDocs(d1, d2, d3))
+	err = Index(ctx, []*ai.Document{d1, d2, d3}, ds, "")
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -129,11 +134,12 @@ func TestGenkit(t *testing.T) {
 		}
 	}()
 
-	retrieverOptions := &RetrieverOptions{
-		Count:     2,
+	retrieverOptions := &PineconeRetrieverOptions{
+		K:         2,
 		Namespace: namespace,
 	}
-	retrieverResp, err := ai.Retrieve(ctx, retriever,
+	retrieverResp, err := genkit.Retrieve(ctx, g,
+		ai.WithRetriever(retriever),
 		ai.WithDocs(d1),
 		ai.WithConfig(retrieverOptions))
 	if err != nil {

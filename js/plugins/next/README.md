@@ -1,5 +1,7 @@
 # Genkit Next.js Plugin
 
+See [official documentation](https://genkit.dev/docs/frameworks/nextjs/) for more.
+
 This plugin provides utilities for conveninetly exposing Genkit flows and actions via Next.js app routs for REST APIs.
 
 ```ts
@@ -8,7 +10,7 @@ const simpleFlow = ai.defineFlow(
   'simpleFlow',
   async (input, streamingCallback) => {
     const { text } = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       prompt: input,
       streamingCallback: (chunk) => streamingCallback(chunk.text),
     });
@@ -20,15 +22,15 @@ const simpleFlow = ai.defineFlow(
 ```ts
 // /app/api/simpleFlow/route.ts
 import { simpleFlow } from '@/genkit/simpleFlow';
-import { appRoute } from '@genkit-ai/nextjs';
+import { appRoute } from '@genkit-ai/next';
 
 export const POST = appRoute(simpleFlow);
 ```
 
-APIs can be called with the generic `genkit/beta/client` library, or `@genkit-ai/nextjs/client`
+APIs can be called with the generic `genkit/beta/client` library, or `@genkit-ai/next/client`
 
 ```ts
-import { runFlow, streamFlow } from '@genkit-ai/nextjs/client';
+import { runFlow, streamFlow } from '@genkit-ai/next/client';
 import { simpleFlow } from '@/genkit/simpleFlow';
 
 const result = await runFlow<typeof simpleFlow>({
@@ -50,18 +52,18 @@ const result = await runFlow<typeof simpleFlow>({
 console.log(result); // hello
 
 // and streamed
-const result = streamFlow<typeof simpleFlow>({
+const { stream, output } = streamFlow<typeof simpleFlow>({
   url: '/api/simpleFlow',
   input: 'say hello',
 });
-for await (const chunk of result.stream()) {
+for await (const chunk of stream) {
   console.log(chunk.output);
 }
-console.log(await result.output());
+console.log(await output); // output is a promise, must be awaited
 ```
 
 The sources for this package are in the main [Genkit](https://github.com/firebase/genkit) repo. Please file issues and pull requests against that repo.
 
-Usage information and reference details can be found in [Genkit documentation](https://firebase.google.com/docs/genkit).
+Usage information and reference details can be found in [official Genkit documentation](https://genkit.dev/docs/get-started/).
 
 License: Apache 2.0

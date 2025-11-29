@@ -15,8 +15,8 @@
  */
 
 import { stringify } from 'yaml';
-import { MessageData, Part } from '../types/model';
-import { PromptFrontmatter } from '../types/prompt';
+import type { MessageData, Part } from '../types/model';
+import type { PromptFrontmatter } from '../types/prompt';
 
 export function fromMessages(
   frontmatter: PromptFrontmatter,

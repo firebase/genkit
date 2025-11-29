@@ -15,10 +15,10 @@
  */
 
 import { Message } from '@genkit-ai/ai';
-import { SessionStore } from '@genkit-ai/ai/session';
+import type { SessionStore } from '@genkit-ai/ai/session';
 import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
-import { GenkitBeta, genkit } from '../src/beta';
+import { genkit, type GenkitBeta } from '../src/beta';
 import { TestMemorySessionStore, defineEchoModel } from './helpers';
 
 describe('session', () => {
@@ -96,7 +96,7 @@ describe('session', () => {
       },
     });
 
-    let mainChat = session.chat();
+    const mainChat = session.chat();
     let response = await mainChat.send('hi main');
     assert.strictEqual(response.text, 'Echo: hi main; config: {}');
 
@@ -286,7 +286,7 @@ describe('session', () => {
           role: 'model',
         },
       ]);
-      let response = await mainChat.send('hi again');
+      const response = await mainChat.send('hi again');
       assert.strictEqual(
         response.text,
         'Echo: hi,Echo: hi,; config: {"temperature":1},bye,Echo: hi,Echo: hi,; config: {"temperature":1},bye,; config: {"temperature":1},hi again; config: {}'
@@ -370,8 +370,8 @@ describe('session', () => {
 
     const session = ai.createSession();
     const chat = session.chat(agent);
-    const respose = await chat.send('hi');
-    assert.deepStrictEqual(respose.messages, [
+    const response = await chat.send('hi');
+    assert.deepStrictEqual(response.messages, [
       {
         role: 'system',
         content: [{ text: 'hello from template' }],
@@ -405,8 +405,8 @@ describe('session', () => {
         name: 'Genkit',
       },
     });
-    const respose = await chat.send('hi');
-    assert.deepStrictEqual(respose.messages, [
+    const response = await chat.send('hi');
+    assert.deepStrictEqual(response.messages, [
       {
         role: 'system',
         content: [{ text: 'hello Genkit from template' }],
@@ -481,8 +481,8 @@ describe('session', () => {
       },
     });
     const chat = session.chat(agent);
-    const respose = await chat.send('hi');
-    assert.deepStrictEqual(respose.messages, [
+    const response = await chat.send('hi');
+    assert.deepStrictEqual(response.messages, [
       {
         role: 'system',
         content: [{ text: 'foo=bar' }],

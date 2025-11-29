@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
@@ -30,10 +31,7 @@ import (
 func TestLocalVec(t *testing.T) {
 	ctx := context.Background()
 
-	g, err := genkit.Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(context.Background())
 
 	// Make two very similar vectors and one different vector.
 	// Arrange for a fake embedder to return those vector
@@ -58,16 +56,21 @@ func TestLocalVec(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := genkit.DefineEmbedder(g, "fake", "embedder1", embedder.Embed)
+	emdOpts := &ai.EmbedderOptions{
+		Dimensions: 32,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
+		},
+		ConfigSchema: nil,
+	}
+	embedAction := genkit.DefineEmbedder(g, "fake/embedder1", emdOpts, embedder.Embed)
 	ds, err := newDocStore(t.TempDir(), "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	indexerReq := &ai.IndexerRequest{
-		Documents: []*ai.Document{d1, d2, d3},
-	}
-	err = ds.index(ctx, indexerReq)
+	err = Index(ctx, []*ai.Document{d1, d2, d3}, ds)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -100,10 +103,7 @@ func TestLocalVec(t *testing.T) {
 func TestPersistentIndexing(t *testing.T) {
 	ctx := context.Background()
 
-	g, err := genkit.Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(context.Background())
 
 	const dim = 32
 	v1 := make([]float32, dim)
@@ -123,7 +123,16 @@ func TestPersistentIndexing(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := genkit.DefineEmbedder(g, "fake", "embedder2", embedder.Embed)
+
+	emdOpts := &ai.EmbedderOptions{
+		Dimensions: 32,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
+		},
+		ConfigSchema: nil,
+	}
+	embedAction := genkit.DefineEmbedder(g, "fake/embedder2", emdOpts, embedder.Embed)
 
 	tDir := t.TempDir()
 
@@ -132,10 +141,7 @@ func TestPersistentIndexing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	indexerReq := &ai.IndexerRequest{
-		Documents: []*ai.Document{d1, d2},
-	}
-	err = ds.index(ctx, indexerReq)
+	err = Index(ctx, []*ai.Document{d1, d2}, ds)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -163,10 +169,7 @@ func TestPersistentIndexing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	indexerReq = &ai.IndexerRequest{
-		Documents: []*ai.Document{d3},
-	}
-	err = dsAnother.index(ctx, indexerReq)
+	err = Index(ctx, []*ai.Document{d3}, dsAnother)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -201,23 +204,32 @@ func TestSimilarity(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	g, err := genkit.Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
+	g := genkit.Init(context.Background())
+	emdOpts := &ai.EmbedderOptions{
+		Dimensions: 768,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
+		},
+		ConfigSchema: nil,
 	}
-	embedder := genkit.DefineEmbedder(g, "fake", "e", fakeembedder.New().Embed)
+	embedder := genkit.DefineEmbedder(g, "fake/embedder3", emdOpts, fakeembedder.New().Embed)
 	if err := Init(); err != nil {
 		t.Fatal(err)
 	}
 	const name = "mystore"
-	ind, ret, err := DefineIndexerAndRetriever(g, name, Config{Embedder: embedder})
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: core.InferSchemaMap(RetrieverOptions{}),
+		Label:        name,
+		Supports: &ai.RetrieverSupports{
+			Media: false,
+		},
+	}
+	_, ret, err := DefineRetriever(g, name, Config{Embedder: embedder}, retOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := "devLocalVectorStore/" + name
-	if g := ind.Name(); g != want {
-		t.Errorf("got %q, want %q", g, want)
-	}
 	if g := ret.Name(); g != want {
 		t.Errorf("got %q, want %q", g, want)
 	}

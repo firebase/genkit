@@ -18,10 +18,11 @@ import {
   LocalFileTraceStore,
   startTelemetryServer,
 } from '@genkit-ai/telemetry-server';
-import { Status } from '@genkit-ai/tools-common';
+import type { Status } from '@genkit-ai/tools-common';
 import {
-  GenkitToolsError,
+  ProcessManager,
   RuntimeManager,
+  type GenkitToolsError,
 } from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import getPort, { makeRange } from 'get-port';
@@ -31,7 +32,9 @@ import getPort, { makeRange } from 'get-port';
  *
  * This function is not idempotent. Typically you want to make sure it's called only once per cli instance.
  */
-export async function resolveTelemetryServer(): Promise<string> {
+export async function resolveTelemetryServer(
+  projectRoot: string
+): Promise<string> {
   let telemetryServerUrl = process.env.GENKIT_TELEMETRY_SERVER;
   if (!telemetryServerUrl) {
     const telemetryPort = await getPort({ port: makeRange(4033, 4999) });
@@ -39,7 +42,8 @@ export async function resolveTelemetryServer(): Promise<string> {
     await startTelemetryServer({
       port: telemetryPort,
       traceStore: new LocalFileTraceStore({
-        useIndex: process.env['GENKIT_USE_TRACE_STORE_INDEX'] === 'true',
+        storeRoot: projectRoot,
+        indexRoot: projectRoot,
       }),
     });
   }
@@ -50,38 +54,66 @@ export async function resolveTelemetryServer(): Promise<string> {
  * Starts the runtime manager and its dependencies.
  */
 export async function startManager(
+  projectRoot: string,
   manageHealth?: boolean
 ): Promise<RuntimeManager> {
-  const telemetryServerUrl = await resolveTelemetryServer();
-  const manager = RuntimeManager.create({ telemetryServerUrl, manageHealth });
+  const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
+  const manager = RuntimeManager.create({
+    telemetryServerUrl,
+    manageHealth,
+    projectRoot,
+  });
   return manager;
+}
+
+export async function startDevProcessManager(
+  projectRoot: string,
+  command: string,
+  args: string[]
+): Promise<{ manager: RuntimeManager; processPromise: Promise<void> }> {
+  const telemetryServerUrl = await resolveTelemetryServer(projectRoot);
+  const processManager = new ProcessManager(command, args, {
+    GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
+    GENKIT_ENV: 'dev',
+  });
+  const manager = await RuntimeManager.create({
+    telemetryServerUrl,
+    manageHealth: true,
+    projectRoot,
+    processManager,
+  });
+  const processPromise = processManager.start();
+  return { manager, processPromise };
 }
 
 /**
  * Runs the given function with a runtime manager.
  */
 export async function runWithManager(
+  projectRoot: string,
   fn: (manager: RuntimeManager) => Promise<void>
 ) {
   let manager: RuntimeManager;
   try {
-    manager = await startManager(false); // Don't manage health in this case.
+    manager = await startManager(projectRoot, false); // Don't manage health in this case.
   } catch (e) {
     process.exit(1);
   }
   try {
     await fn(manager);
   } catch (err) {
-    logger.info('Command exited with an Error:');
+    logger.error('Command exited with an Error:');
     const error = err as GenkitToolsError;
     if (typeof error.data === 'object') {
       const errorStatus = error.data as Status;
       const { code, details, message } = errorStatus;
-      logger.info(`\tCode: ${code}`);
-      logger.info(`\tMessage: ${message}`);
-      logger.info(`\tTrace: http://localhost:4200/traces/${details.traceId}\n`);
+      logger.error(`\tCode: ${code}`);
+      logger.error(`\tMessage: ${message}`);
+      logger.error(
+        `\tTrace: http://localhost:4200/traces/${details.traceId}\n`
+      );
     } else {
-      logger.info(`\tMessage: ${error.data}\n`);
+      logger.error(`\tMessage: ${error.data}\n`);
     }
     logger.error('Stack trace:');
     logger.error(`${error.stack}`);

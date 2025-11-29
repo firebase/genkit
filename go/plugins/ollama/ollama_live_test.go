@@ -42,17 +42,8 @@ func TestLive(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	o := &ollamaPlugin.Ollama{ServerAddress: *serverAddress}
-
-	// Initialize the Ollama plugin
-	if err = o.Init(ctx, g); err != nil {
-		t.Fatalf("failed to initialize Ollama plugin: %s", err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(o))
 
 	// Define the model
 	o.DefineModel(g, ollamaPlugin.ModelDefinition{Name: *modelName}, nil)

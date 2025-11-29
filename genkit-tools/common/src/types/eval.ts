@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { JSONSchema7 } from 'json-schema';
+import type { JSONSchema7 } from 'json-schema';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
-import {
+import type {
   CreateDatasetRequest,
   ListEvalKeysRequest,
   ListEvalKeysResponse,
   UpdateDatasetRequest,
 } from './apis';
-import { GenerateRequestSchema } from './model';
+import { GenerateActionOptionsSchema, GenerateRequestSchema } from './model';
 
 /**
  * This file defines schema and types that are used by the Eval store.
@@ -50,6 +50,17 @@ export const ModelInferenceInputJSONSchema = zodToJsonSchema(
  */
 export const GenerateRequestJSONSchema = zodToJsonSchema(
   GenerateRequestSchema,
+  {
+    $refStrategy: 'none',
+    removeAdditionalStrategy: 'strict',
+  }
+) as JSONSchema7;
+
+/**
+ * Combined GenerateInput JSON schema to support eval-inference using models
+ */
+export const GenerateInputJSONSchema = zodToJsonSchema(
+  z.union([GenerateRequestSchema, GenerateActionOptionsSchema]),
   {
     $refStrategy: 'none',
     removeAdditionalStrategy: 'strict',
@@ -123,6 +134,7 @@ export const EvalInputSchema = z.object({
   error: z.string().optional(),
   context: z.array(z.any()).optional(),
   reference: z.any().optional(),
+  custom: z.record(z.string(), z.any()).optional(),
   traceIds: z.array(z.string()),
 });
 export type EvalInput = z.infer<typeof EvalInputSchema>;
@@ -131,6 +143,12 @@ export const EvalInputDatasetSchema = z.array(EvalInputSchema);
 export type EvalInputDataset = z.infer<typeof EvalInputDatasetSchema>;
 
 const EvalStatusEnumSchema = z.enum(['UNKNOWN', 'PASS', 'FAIL']);
+/** Enum that indicates if an evaluation has passed or failed */
+export enum EvalStatusEnum {
+  UNKNOWN = 'UNKNOWN',
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+}
 
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
@@ -164,6 +182,7 @@ export const EvalRunKeySchema = z.object({
   evalRunId: z.string(),
   createdAt: z.string(),
   actionConfig: z.any().optional(),
+  metricSummaries: z.array(z.record(z.string(), z.any())).optional(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
@@ -233,7 +252,12 @@ export const DatasetSchemaSchema = z.object({
 });
 
 /** Type of dataset, useful for UI niceties. */
-export const DatasetTypeSchema = z.enum(['UNKNOWN', 'FLOW', 'MODEL']);
+export const DatasetTypeSchema = z.enum([
+  'UNKNOWN',
+  'FLOW',
+  'MODEL',
+  'EXECUTABLE_PROMPT',
+]);
 export type DatasetType = z.infer<typeof DatasetTypeSchema>;
 
 /**
@@ -246,6 +270,7 @@ export const DatasetMetadataSchema = z.object({
   schema: DatasetSchemaSchema.optional(),
   datasetType: DatasetTypeSchema,
   targetAction: z.string().optional(),
+  metricRefs: z.array(z.string()).default([]),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
   createTime: z.string(),

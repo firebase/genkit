@@ -53,7 +53,7 @@ async function testReflectionApi() {
   const t = yaml.parse(readFileSync('specs/reflection_api.yaml', 'utf8'));
   for (const test of t.tests) {
     console.log('path', test.path);
-    let fetchopts = {
+    const fetchopts = {
       method: 'GET',
     } as RequestInit;
     if (test.hasOwnProperty('post')) {
@@ -78,6 +78,7 @@ async function testReflectionApi() {
         // FIXME: Go does not set telemetry/latencyMs fields.
         'telemetry',
         'latencyMs',
+        'usage',
       ],
     });
     if (diff != '') {

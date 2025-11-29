@@ -15,20 +15,9 @@
  */
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import {
-  gemini15Flash,
-  gemini15Pro,
-  googleAI,
-  textEmbeddingGecko001,
-} from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
-import {
-  vertexAIEvaluation,
-  VertexAIEvaluationMetricType,
-} from '@genkit-ai/vertexai/evaluation';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
+import { googleAI } from '@genkit-ai/googleai';
 import { genkit } from 'genkit';
-import { EvalStatusEnum } from 'genkit/evaluator';
 import { langchain } from 'genkitx-langchain';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
@@ -61,45 +50,27 @@ export const ai = genkit({
       metrics: [
         {
           type: GenkitMetric.MALICIOUSNESS,
-          judge: gemini15Pro,
+          judge: googleAI.model('gemini-2.5-pro'),
           judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-          statusOverrideFn: ({ score: Score }) => {
-            // Always set to fail to test override
-            return EvalStatusEnum.FAIL;
-          },
         },
-      ],
-    }),
-    vertexAI({
-      location: 'us-central1',
-    }),
-    vertexAIEvaluation({
-      location: 'us-central1',
-      metrics: [
-        VertexAIEvaluationMetricType.BLEU,
-        VertexAIEvaluationMetricType.GROUNDEDNESS,
-        VertexAIEvaluationMetricType.SAFETY,
         {
-          type: VertexAIEvaluationMetricType.ROUGE,
-          metricSpec: {
-            rougeType: 'rougeLsum',
-            useStemmer: true,
-            splitSummaries: 'true',
-          },
+          type: GenkitMetric.ANSWER_ACCURACY,
+          judge: googleAI.model('gemini-2.5-pro'),
+          judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
         },
       ],
     }),
     devLocalVectorstore([
       {
         indexName: 'pdfQA',
-        embedder: textEmbeddingGecko001,
+        embedder: googleAI.embedder('text-embedding-004'),
       },
     ]),
     langchain({
       evaluators: {
         criteria: ['coherence'],
         labeledCriteria: ['correctness'],
-        judge: gemini15Flash,
+        judge: googleAI.model('gemini-2.5-pro'),
       },
     }),
   ],

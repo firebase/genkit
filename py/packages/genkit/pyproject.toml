@@ -20,7 +20,6 @@ dependencies = [
   "opentelemetry-api>=1.29.0",
   "opentelemetry-sdk>=1.29.0",
   "pydantic>=2.10.5",
-  "requests>=2.32.3",
   "partial-json-parser>=0.2.1.1.post5",
   "json5>=0.10.0",
   "structlog>=25.2.0",
@@ -39,7 +38,7 @@ license = { text = "Apache-2.0" }
 name = "genkit"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.3.1"
+version = "0.4.0"
 
 [project.optional-dependencies]
 dev-local-vectorstore = ["genkit-plugin-dev-local-vectorstore"]
@@ -47,6 +46,8 @@ flask                 = ["genkit-plugin-flask"]
 google-genai          = ["genkit-plugin-google-genai"]
 ollama                = ["genkit-plugin-ollama"]
 openai                = ["genkit-plugin-compat-oai"]
+google-cloud          = ["genkit-plugin-google-cloud"]
+vertex-ai             = ["genkit-plugin-vertex-ai"]
 
 [build-system]
 build-backend = "hatchling.build"

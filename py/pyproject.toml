@@ -37,6 +37,8 @@ dev = [
   "pip>=25.0.1",
   "tox>=4.25.0",
   "tox-uv>=1.25.0",
+  "nox>=2025.2.9",
+  "nox-uv>=0.2.2",
 ]
 
 lint = ["mypy>=1.15", "ruff>=0.9"]
@@ -227,12 +229,14 @@ authorized_licenses = [
   "apache",
   "apache-2.0",
   "bsd license",
+  "bsd-3-clause",
   "bsd",
   "cmu license (mit-cmu)",
   "isc license (iscl)",
   "isc license",
   "mit license",
   "mit",
+  "mit-cmu",
   "new bsd license",
   "new bsd",
   "psf-2.0",
@@ -250,5 +254,6 @@ unauthorized_licenses = [
 ]
 
 [tool.liccheck.authorized_packages]
-certifi      = "2025.1.31" # TODO: Verify.
+certifi      = "2025.4.26" # TODO: Verify.
 dependencies = true
+ollama       = "0.5.1"     # MIT "https://github.com/ollama/ollama-python/blob/main/LICENSE"

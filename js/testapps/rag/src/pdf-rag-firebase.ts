@@ -15,8 +15,7 @@
  */
 
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
-import { gemini15Flash } from '@genkit-ai/googleai';
-import { textEmbedding004 } from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/google-genai';
 import { FieldValue } from '@google-cloud/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -28,7 +27,7 @@ import pdf from 'pdf-parse';
 import { ai } from './genkit';
 
 const app = initializeApp();
-let firestore = getFirestore(app);
+const firestore = getFirestore(app);
 
 // There's a race condition in initializing the Firestore singleton.
 // To avoid that, explicitly create an instance using the service account
@@ -63,7 +62,7 @@ export const pdfChatRetrieverFirebase = defineFirestoreRetriever(ai, {
   collection: 'pdf-qa',
   contentField: 'facts',
   vectorField: 'embedding',
-  embedder: textEmbedding004,
+  embedder: googleAI.embedder('text-embedding-004'),
   //distanceMeasure: 'COSINE', // optional
   //distanceResultField: 'vector_distance', // optional
   //distanceThreshold: 0.8,  // optional
@@ -125,13 +124,13 @@ export const pdfQAFirebase = ai.defineFlow(
       context: docs.map((d) => d.text).join('\n\n'),
     });
     const llmResponse = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       prompt: augmentedPrompt,
     });
 
     let distances: Array<number> = [];
-    let maxDistance = NaN;
-    let minDistance = NaN;
+    let maxDistance = Number.NaN;
+    let minDistance = Number.NaN;
     if (distanceResultField) {
       // Note: if you change the default distanceResultField by setting it in
       // defineFirestoreRetriever, then you need to change this code to look
@@ -161,7 +160,7 @@ const indexConfig = {
   collection: 'pdf-qa',
   contentField: 'facts',
   vectorField: 'embedding',
-  embedder: textEmbedding004,
+  embedder: googleAI.embedder('text-embedding-004'),
 };
 
 const chunkingConfig = {

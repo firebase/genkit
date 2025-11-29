@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { ChildProcess, execSync, spawn } from 'child_process';
+import { execSync, spawn, type ChildProcess } from 'child_process';
 import fs from 'fs';
-import { DiffStringOptions, diffString } from 'json-diff';
+import { diffString, type DiffStringOptions } from 'json-diff';
 import os from 'os';
 import path from 'path';
-import puppeteer, { Page } from 'puppeteer';
+import puppeteer, { type Page } from 'puppeteer';
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder';
 import terminate from 'terminate';
 
@@ -136,7 +136,7 @@ export async function genkitStart(
 
     appProcess.stdout?.on('data', (data) => {
       console.log('stdout: ' + data.toString());
-      const match = data.toString().match(/Genkit Developer UI:[^ ]*([^ ]*)/);
+      const match = data.toString().match(/Genkit Developer UI:\w*([^ ]*)/);
       if (match && match.length > 1) {
         console.log('Developer UI ready, launching test ' + match[1]);
         if (done) {

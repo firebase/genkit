@@ -16,10 +16,10 @@
 
 import { z, type Action, type ActionContext } from 'genkit';
 import {
-  RequestData,
   getCallableJSON,
   getHttpStatus,
   type ContextProvider,
+  type RequestData,
 } from 'genkit/context';
 import { NextRequest, NextResponse } from 'next/server.js';
 export { NextRequest, NextResponse, z, type Action, type ActionContext };
@@ -32,7 +32,7 @@ async function getContext<C extends ActionContext, T>(
 ): Promise<C> {
   // Type cast is necessary because there is no runtime way to generate a context if C is provided to appRoute
   // but contextProvider is missing. When I'm less sleepy/busy I'll see if I can make this a type error.
-  let context = {} as C;
+  const context = {} as C;
   if (!provider) {
     return context;
   }
@@ -73,7 +73,10 @@ function appRoute<
         );
       }
       try {
-        const resp = await action.run(input, { context });
+        const resp = await action.run(input, {
+          context,
+          abortSignal: req.signal,
+        });
         return NextResponse.json({ result: resp.result });
       } catch (e) {
         // For security reasons, log the error rather than responding with it.
@@ -94,7 +97,10 @@ function appRoute<
         { status: getHttpStatus(e) }
       );
     }
-    const { output, stream } = action.stream(input, { context });
+    const { output, stream } = action.stream(input, {
+      context,
+      abortSignal: req.signal,
+    });
     const encoder = new TextEncoder();
     const { readable, writable } = new TransformStream();
 

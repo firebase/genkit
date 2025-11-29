@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import { TraceData } from '@genkit-ai/tools-common';
+import type { TraceData, TraceQueryFilter } from '@genkit-ai/tools-common';
 import * as assert from 'assert';
+import fs from 'fs';
 import getPort from 'get-port';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import os from 'os';
 import path from 'path';
+import { Index } from '../src/file-trace-store';
 import {
   LocalFileTraceStore,
   startTelemetryServer,
   stopTelemetryApi,
 } from '../src/index';
-import { Index } from '../src/localFileTraceStore';
-import { TraceQueryFilter } from '../src/types';
 import { sleep, span } from './utils';
 
 const TRACE_ID = '1234';
@@ -38,10 +38,10 @@ const SPAN_B = 'bcd';
 const SPAN_C = 'cde';
 
 describe('local-file-store', () => {
-  let port;
-  let storeRoot;
-  let indexRoot;
-  let url;
+  let port: number;
+  let storeRoot: string;
+  let indexRoot: string;
+  let url: string;
 
   beforeEach(async () => {
     port = await getPort();
@@ -60,7 +60,6 @@ describe('local-file-store', () => {
       traceStore: new LocalFileTraceStore({
         storeRoot,
         indexRoot,
-        useIndex: true,
       }),
     });
   });
@@ -278,16 +277,20 @@ describe('local-file-store', () => {
 });
 
 describe('index', () => {
-  let indexRoot;
+  let indexRoot: string;
   let index: Index;
 
   beforeEach(async () => {
     indexRoot = path.resolve(
       os.tmpdir(),
-      `./telemetry-server-api-test-${Date.now()}/traces_idx`
+      `./telemetry-server-api-test-${Date.now()}-${Math.floor(Math.random() * 1000)}/traces_idx`
     );
 
     index = new Index(indexRoot);
+  });
+
+  afterEach(() => {
+    fs.rmSync(indexRoot, { recursive: true, force: true });
   });
 
   it('should index and search spans', () => {
@@ -321,6 +324,7 @@ describe('index', () => {
         name: 'spanB',
         start: 2345,
         end: 3456,
+        status: 0,
       },
       {
         id: TRACE_ID_1,
@@ -328,6 +332,7 @@ describe('index', () => {
         name: 'spanA',
         start: 1234,
         end: 2345,
+        status: 0,
       },
     ]);
   });
@@ -376,6 +381,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
         {
           id: TRACE_ID_1,
@@ -383,6 +389,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
       ]
     );
@@ -401,6 +408,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
       ]
     );
@@ -420,6 +428,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
       ]
     );
@@ -471,6 +480,7 @@ describe('index', () => {
           name: 'flowA',
           start: 1,
           end: 2,
+          status: 0,
         },
       ]
     );
@@ -525,5 +535,399 @@ describe('index', () => {
       ['trace_1', 'trace_0']
     );
     assert.strictEqual(result4.pageLastIndex, undefined);
+  });
+});
+
+describe('otlp-endpoint', () => {
+  let port: number;
+  let storeRoot: string;
+  let indexRoot: string;
+  let url: string;
+
+  beforeEach(async () => {
+    port = await getPort();
+    url = `http://localhost:${port}`;
+    storeRoot = path.resolve(
+      os.tmpdir(),
+      `./telemetry-server-api-test-${Date.now()}/traces`
+    );
+    indexRoot = path.resolve(
+      os.tmpdir(),
+      `./telemetry-server-api-test-${Date.now()}/traces_idx`
+    );
+
+    await startTelemetryServer({
+      port,
+      traceStore: new LocalFileTraceStore({
+        storeRoot,
+        indexRoot,
+      }),
+    });
+  });
+
+  afterEach(async () => {
+    await stopTelemetryApi();
+  });
+
+  it('saves a single trace', async () => {
+    const traceId = 'childTraceId';
+    const otlpPayload = {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: 'test' } },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: { name: 'test-scope' },
+              spans: [
+                {
+                  traceId,
+                  spanId: 'childSpanId1',
+                  name: 'span1',
+                  startTimeUnixNano: '1000000',
+                  endTimeUnixNano: '2000000',
+                  kind: 1,
+                  attributes: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const res = await fetch(`${url}/api/otlp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(otlpPayload),
+    });
+    assert.strictEqual(res.status, 200);
+
+    const getResp = await fetch(`${url}/api/traces/${traceId}`);
+    assert.strictEqual(getResp.status, 200);
+    const trace = await getResp.json();
+    assert.strictEqual(trace.traceId, traceId);
+    assert.strictEqual(Object.keys(trace.spans).length, 1);
+    const span = Object.values(trace.spans)[0] as any;
+    assert.strictEqual(span.traceId, traceId);
+    assert.strictEqual(span.spanId, 'childSpanId1');
+  });
+
+  it('saves a trace with multiple spans', async () => {
+    const traceId = 'childTraceId';
+    const otlpPayload = {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: 'test' } },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: { name: 'test-scope' },
+              spans: [
+                {
+                  traceId,
+                  spanId: 'childSpanId1',
+                  name: 'span1',
+                  startTimeUnixNano: '1000000',
+                  endTimeUnixNano: '2000000',
+                  kind: 1,
+                  attributes: [],
+                },
+                {
+                  traceId,
+                  spanId: 'childSpanId2',
+                  name: 'span2',
+                  startTimeUnixNano: '3000000',
+                  endTimeUnixNano: '4000000',
+                  kind: 1,
+                  attributes: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const res = await fetch(`${url}/api/otlp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(otlpPayload),
+    });
+    assert.strictEqual(res.status, 200);
+
+    const getResp = await fetch(`${url}/api/traces/${traceId}`);
+    assert.strictEqual(getResp.status, 200);
+    const trace = await getResp.json();
+    assert.strictEqual(trace.traceId, traceId);
+    assert.strictEqual(Object.keys(trace.spans).length, 2);
+    const span1 = trace.spans['childSpanId1'];
+    assert.strictEqual(span1.traceId, traceId);
+    const span2 = trace.spans['childSpanId2'];
+    assert.strictEqual(span2.traceId, traceId);
+  });
+
+  it('handles errors', async () => {
+    const res = await fetch(`${url}/api/otlp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'invalid json',
+    });
+    assert.strictEqual(res.status, 500);
+  });
+});
+
+describe('otlp-endpoint (with parent)', () => {
+  let port: number;
+  let storeRoot: string;
+  let indexRoot: string;
+  let url: string;
+
+  beforeEach(async () => {
+    port = await getPort();
+    url = `http://localhost:${port}`;
+    storeRoot = path.resolve(
+      os.tmpdir(),
+      `./telemetry-server-api-test-${Date.now()}/traces`
+    );
+    indexRoot = path.resolve(
+      os.tmpdir(),
+      `./telemetry-server-api-test-${Date.now()}/traces_idx`
+    );
+
+    await startTelemetryServer({
+      port,
+      traceStore: new LocalFileTraceStore({
+        storeRoot,
+        indexRoot,
+      }),
+    });
+  });
+
+  afterEach(async () => {
+    await stopTelemetryApi();
+  });
+
+  it('saves a single trace', async () => {
+    const parentTraceId = 'parentTraceId';
+    const parentSpanId = 'parentSpanId';
+    const otlpPayload = {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: 'test' } },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: { name: 'test-scope' },
+              spans: [
+                {
+                  traceId: 'childTraceId',
+                  spanId: 'childSpanId1',
+                  name: 'span1',
+                  startTimeUnixNano: '1000000',
+                  endTimeUnixNano: '2000000',
+                  kind: 1,
+                  attributes: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const res = await fetch(
+      `${url}/api/otlp/${parentTraceId}/${parentSpanId}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(otlpPayload),
+      }
+    );
+    assert.strictEqual(res.status, 200);
+
+    const getResp = await fetch(`${url}/api/traces/${parentTraceId}`);
+    assert.strictEqual(getResp.status, 200);
+    const trace = await getResp.json();
+    assert.strictEqual(trace.traceId, parentTraceId);
+    assert.strictEqual(Object.keys(trace.spans).length, 1);
+    const span = Object.values(trace.spans)[0] as any;
+    assert.strictEqual(span.traceId, parentTraceId);
+    assert.strictEqual(span.parentSpanId, parentSpanId);
+    assert.strictEqual(span.spanId, 'childSpanId1');
+    assert.strictEqual(span.attributes['genkit:otlp-traceId'], 'childTraceId');
+  });
+
+  it('saves a trace with multiple spans', async () => {
+    const parentTraceId = 'parentTraceId';
+    const parentSpanId = 'parentSpanId';
+    const otlpPayload = {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: 'test' } },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: { name: 'test-scope' },
+              spans: [
+                {
+                  traceId: 'childTraceId', // this will be overwritten
+                  spanId: 'childSpanId1',
+                  name: 'span1',
+                  startTimeUnixNano: '1000000',
+                  endTimeUnixNano: '2000000',
+                  kind: 1,
+                  attributes: [],
+                },
+                {
+                  traceId: 'childTraceId', // this will be overwritten
+                  spanId: 'childSpanId2',
+                  name: 'span2',
+                  startTimeUnixNano: '3000000',
+                  endTimeUnixNano: '4000000',
+                  kind: 1,
+                  attributes: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const res = await fetch(
+      `${url}/api/otlp/${parentTraceId}/${parentSpanId}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(otlpPayload),
+      }
+    );
+    assert.strictEqual(res.status, 200);
+
+    const getResp = await fetch(`${url}/api/traces/${parentTraceId}`);
+    assert.strictEqual(getResp.status, 200);
+    const trace = await getResp.json();
+    assert.strictEqual(trace.traceId, parentTraceId);
+    assert.strictEqual(Object.keys(trace.spans).length, 2);
+    const span1 = trace.spans['childSpanId1'];
+    assert.strictEqual(span1.traceId, parentTraceId);
+    assert.strictEqual(span1.parentSpanId, parentSpanId);
+    const span2 = trace.spans['childSpanId2'];
+    assert.strictEqual(span2.traceId, parentTraceId);
+    assert.strictEqual(span2.parentSpanId, parentSpanId);
+  });
+
+  it('saves multiple batches of traces', async () => {
+    const parentTraceId = 'parentTraceId';
+    const parentSpanId = 'parentSpanId';
+    const otlpPayload1 = {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: 'test' } },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: { name: 'test-scope' },
+              spans: [
+                {
+                  traceId: 'childTraceId',
+                  spanId: 'childSpanId1',
+                  name: 'span1',
+                  startTimeUnixNano: '1000000',
+                  endTimeUnixNano: '2000000',
+                  kind: 1,
+                  attributes: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const otlpPayload2 = {
+      resourceSpans: [
+        {
+          resource: {
+            attributes: [
+              { key: 'service.name', value: { stringValue: 'test' } },
+            ],
+          },
+          scopeSpans: [
+            {
+              scope: { name: 'test-scope' },
+              spans: [
+                {
+                  traceId: 'childTraceId',
+                  spanId: 'childSpanId2',
+                  name: 'span2',
+                  startTimeUnixNano: '3000000',
+                  endTimeUnixNano: '4000000',
+                  kind: 1,
+                  attributes: [],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const res1 = await fetch(
+      `${url}/api/otlp/${parentTraceId}/${parentSpanId}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(otlpPayload1),
+      }
+    );
+    assert.strictEqual(res1.status, 200);
+
+    const res2 = await fetch(
+      `${url}/api/otlp/${parentTraceId}/${parentSpanId}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(otlpPayload2),
+      }
+    );
+    assert.strictEqual(res2.status, 200);
+
+    const getResp = await fetch(`${url}/api/traces/${parentTraceId}`);
+    assert.strictEqual(getResp.status, 200);
+    const trace = await getResp.json();
+    assert.strictEqual(trace.traceId, parentTraceId);
+    assert.strictEqual(Object.keys(trace.spans).length, 2);
+    assert.ok(trace.spans['childSpanId1']);
+    assert.ok(trace.spans['childSpanId2']);
+  });
+
+  it('handles errors', async () => {
+    const parentTraceId = 'parentTraceId';
+    const parentSpanId = 'parentSpanId';
+    const res = await fetch(
+      `${url}/api/otlp/${parentTraceId}/${parentSpanId}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: 'invalid json',
+      }
+    );
+    assert.strictEqual(res.status, 500);
   });
 });

@@ -15,22 +15,23 @@
  */
 
 import {
-  Action,
-  Dataset,
-  DatasetMetadata,
   DatasetSchema,
+  type Action,
+  type Dataset,
+  type DatasetMetadata,
 } from '@genkit-ai/tools-common';
 import {
-  EvalExporter,
   getAllEvaluatorActions,
   getDatasetStore,
   getExporterForString,
   getMatchingEvaluatorActions,
   runEvaluation,
   runInference,
+  type EvalExporter,
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
+  findProjectRoot,
   hasAction,
   loadInferenceDatasetFile,
   logger,
@@ -45,6 +46,7 @@ interface EvalFlowRunCliOptions {
   context?: string;
   evaluators?: string;
   force?: boolean;
+  batchSize?: number;
   outputFormat: string;
 }
 
@@ -81,10 +83,15 @@ export const evalFlow = new Command('eval:flow')
     '-e, --evaluators <evaluators>',
     'comma separated list of evaluators to use (by default uses all)'
   )
+  .option(
+    '--batchSize <batchSize>',
+    'batch size to use for parallel evals (default to 1, no parallelization)',
+    Number.parseInt
+  )
   .option('-f, --force', 'Automatically accept all interactive prompts')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunCliOptions) => {
-      await runWithManager(async (manager) => {
+      await runWithManager(await findProjectRoot(), async (manager) => {
         const actionRef = `/flow/${flowName}`;
         if (!data && !options.input) {
           throw new Error(
@@ -153,6 +160,7 @@ export const evalFlow = new Command('eval:flow')
           manager,
           evaluatorActions,
           evalDataset,
+          batchSize: options.batchSize,
           augments: {
             actionRef: `/flow/${flowName}`,
             datasetId:

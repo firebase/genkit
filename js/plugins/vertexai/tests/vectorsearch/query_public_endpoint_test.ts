@@ -15,7 +15,7 @@
  */
 
 import assert from 'assert';
-import { describe, it, Mock } from 'node:test';
+import { describe, it, type Mock } from 'node:test';
 import { queryPublicEndpoint } from '../../src/vectorsearch/vector_search/query_public_endpoint';
 
 describe('queryPublicEndpoint', () => {

@@ -23,8 +23,10 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/internal/fakeembedder"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -44,10 +46,7 @@ func TestGenkit(t *testing.T) {
 
 	ctx := context.Background()
 
-	g, err := genkit.Init(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := genkit.Init(context.Background())
 
 	// Make two very similar vectors and one different vector.
 	// Arrange for a fake embedder to return those vectors
@@ -80,25 +79,40 @@ func TestGenkit(t *testing.T) {
 		APIKey: *testAPIKey,
 	}
 
-	if err := w.Init(ctx, g); err != nil {
-		t.Fatal(err)
-	}
+	actions := w.Init(ctx)
+	assert.Empty(t, actions)
 
 	// Delete our test class so that earlier runs don't mess us up.
 	if err := w.client.Schema().ClassDeleter().WithClassName(*testClass).Do(ctx); err != nil {
 		t.Fatal(err)
 	}
 
+	emdOpts := &ai.EmbedderOptions{
+		Dimensions: 768,
+		Label:      "",
+		Supports: &ai.EmbedderSupports{
+			Input: []string{"text"},
+		},
+		ConfigSchema: nil,
+	}
+
 	classCfg := ClassConfig{
 		Class:    *testClass,
-		Embedder: genkit.DefineEmbedder(g, "fake", "embedder3", embedder.Embed),
+		Embedder: genkit.DefineEmbedder(g, "fake/embedder3", emdOpts, embedder.Embed),
 	}
-	indexer, retriever, err := DefineIndexerAndRetriever(ctx, g, classCfg)
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: core.InferSchemaMap(RetrieverOptions{}),
+		Label:        "weaviate",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
+		},
+	}
+	ds, retriever, err := DefineRetriever(ctx, g, classCfg, retOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = ai.Index(ctx, indexer, ai.WithDocs(d1, d2, d3))
+	err = Index(ctx, []*ai.Document{d1, d2, d3}, ds)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -107,7 +121,8 @@ func TestGenkit(t *testing.T) {
 		Count:        2,
 		MetadataKeys: []string{"name"},
 	}
-	retrieverResp, err := ai.Retrieve(ctx, retriever,
+	retrieverResp, err := genkit.Retrieve(ctx, g,
+		ai.WithRetriever(retriever),
 		ai.WithDocs(d1),
 		ai.WithConfig(retrieverOptions))
 	if err != nil {

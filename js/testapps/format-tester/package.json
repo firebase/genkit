@@ -15,9 +15,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/google-genai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
-    "@opentelemetry/sdk-trace-base": "^1.25.0",
+    "@opentelemetry/sdk-trace-base": "~1.25.0",
     "genkit": "workspace:*"
   },
   "devDependencies": {

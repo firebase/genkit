@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-import {
+import type {
   EvalInput,
   EvalInputDataset,
   TraceData,
 } from '@genkit-ai/tools-common';
 import {
+  findProjectRoot,
   generateTestCaseId,
   getEvalExtractors,
   logger,
@@ -45,20 +46,20 @@ export const evalExtractData = new Command('eval:extractData')
   .option('--maxRows <maxRows>', 'maximum number of rows', '100')
   .option('--label [label]', 'label flow run in this batch')
   .action(async (flowName: string, options: EvalDatasetOptions) => {
-    await runWithManager(async (manager) => {
+    await runWithManager(await findProjectRoot(), async (manager) => {
       const extractors = await getEvalExtractors(`/flow/${flowName}`);
 
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
       let dataset: EvalInputDataset = [];
       let continuationToken = undefined;
-      while (dataset.length < parseInt(options.maxRows)) {
+      while (dataset.length < Number.parseInt(options.maxRows)) {
         const response = await manager.listTraces({
-          limit: parseInt(options.maxRows),
+          limit: Number.parseInt(options.maxRows),
           continuationToken,
         });
         continuationToken = response.continuationToken;
         const traces = response.traces;
-        let batch: EvalInput[] = traces
+        const batch: EvalInput[] = traces
           .map((t) => {
             const rootSpan = Object.values(t.spans).find(
               (s) =>
@@ -88,8 +89,8 @@ export const evalExtractData = new Command('eval:extractData')
           })
           .filter((result): result is EvalInput => !!result);
         batch.forEach((d) => dataset.push(d));
-        if (dataset.length > parseInt(options.maxRows)) {
-          dataset = dataset.splice(0, parseInt(options.maxRows));
+        if (dataset.length > Number.parseInt(options.maxRows)) {
+          dataset = dataset.splice(0, Number.parseInt(options.maxRows));
           break;
         }
         if (!continuationToken) {
@@ -105,7 +106,7 @@ export const evalExtractData = new Command('eval:extractData')
         );
       } else {
         logger.info(`Results will not be written to file.`);
-        console.log(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
+        logger.info(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
       }
     });
   });

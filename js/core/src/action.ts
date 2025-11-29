@@ -14,28 +14,31 @@
  * limitations under the License.
  */
 
-import { type JSONSchema7 } from 'json-schema';
-import * as z from 'zod';
+import type { JSONSchema7 } from 'json-schema';
+import type * as z from 'zod';
+import { getAsyncContext } from './async-context.js';
 import { lazy } from './async.js';
-import { ActionContext, getContext, runWithContext } from './context.js';
-import { ActionType, Registry } from './registry.js';
+import { getContext, runWithContext, type ActionContext } from './context.js';
+import type { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
   SPAN_TYPE_ATTR,
-  newTrace,
+  runInNewSpan,
   setCustomMetadataAttributes,
 } from './tracing.js';
 
 export { StatusCodes, StatusSchema, type Status } from './statusTypes.js';
-export { JSONSchema7 };
+export type { JSONSchema7 };
+
+const makeNoopAbortSignal = () => new AbortController().signal;
 
 /**
  * Action metadata.
  */
 export interface ActionMetadata<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   actionType?: ActionType;
   name: string;
@@ -77,12 +80,22 @@ export interface ActionRunOptions<S> {
    * Additional span attributes to apply to OT spans.
    */
   telemetryLabels?: Record<string, string>;
+
+  /**
+   * Abort signal for the action request.
+   */
+  abortSignal?: AbortSignal;
 }
 
 /**
  * Options (side channel) data to pass to the model.
  */
 export interface ActionFnArg<S> {
+  /**
+   * Whether the caller of the action requested streaming.
+   */
+  streamingRequested: boolean;
+
   /**
    * Streaming callback (optional).
    */
@@ -92,6 +105,21 @@ export interface ActionFnArg<S> {
    * Additional runtime context data (ex. auth context data).
    */
   context?: ActionContext;
+
+  /**
+   * Trace context containing trace and span IDs.
+   */
+  trace: {
+    traceId: string;
+    spanId: string;
+  };
+
+  /**
+   * Abort signal for the action request.
+   */
+  abortSignal: AbortSignal;
+
+  registry?: Registry;
 }
 
 /**
@@ -117,7 +145,7 @@ export type Action<
   RunOptions extends ActionRunOptions<S> = ActionRunOptions<S>,
 > = ((input?: z.infer<I>, options?: RunOptions) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, S>;
-  __registry: Registry;
+  __registry?: Registry;
   run(
     input?: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
@@ -194,11 +222,13 @@ export function actionWithMiddleware<
   action: Action<I, O, S>,
   middleware: Middleware<z.infer<I>, z.infer<O>, z.infer<S>>[]
 ): Action<I, O, S> {
-  const wrapped = (async (req: z.infer<I>) => {
-    return (await wrapped.run(req)).result;
+  const wrapped = (async (
+    req: z.infer<I>,
+    options?: ActionRunOptions<z.infer<S>>
+  ) => {
+    return (await wrapped.run(req, options)).result;
   }) as Action<I, O, S>;
   wrapped.__action = action.__action;
-  wrapped.__registry = action.__registry;
   wrapped.run = async (
     req: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
@@ -248,7 +278,6 @@ export function action<
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  registry: Registry,
   config: ActionParams<I, O, S>,
   fn: (
     input: z.infer<I>,
@@ -259,14 +288,7 @@ export function action<
     typeof config.name === 'string'
       ? config.name
       : `${config.name.pluginId}/${config.name.actionId}`;
-  const actionFn = async (
-    input?: I,
-    options?: ActionRunOptions<z.infer<S>>
-  ) => {
-    return (await actionFn.run(input, options)).result;
-  };
-  actionFn.__registry = registry;
-  actionFn.__action = {
+  const actionMetadata = {
     name: actionName,
     description: config.description,
     inputSchema: config.inputSchema,
@@ -275,7 +297,17 @@ export function action<
     outputJsonSchema: config.outputJsonSchema,
     streamSchema: config.streamSchema,
     metadata: config.metadata,
+    actionType: config.actionType,
   } as ActionMetadata<I, O, S>;
+
+  const actionFn = (async (
+    input?: I,
+    options?: ActionRunOptions<z.infer<S>>
+  ) => {
+    return (await actionFn.run(input, options)).result;
+  }) as Action<I, O, z.infer<S>>;
+  actionFn.__action = { ...actionMetadata };
+
   actionFn.run = async (
     input: z.infer<I>,
     options?: ActionRunOptions<z.infer<S>>
@@ -286,10 +318,11 @@ export function action<
     });
     let traceId;
     let spanId;
-    let output = await newTrace(
-      registry,
+    let output = await runInNewSpan(
       {
-        name: actionName,
+        metadata: {
+          name: actionName,
+        },
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
           'genkit:metadata:subtype': config.actionType,
@@ -297,9 +330,11 @@ export function action<
         },
       },
       async (metadata, span) => {
-        setCustomMetadataAttributes(registry, { subtype: config.actionType });
+        setCustomMetadataAttributes({
+          subtype: config.actionType,
+        });
         if (options?.context) {
-          setCustomMetadataAttributes(registry, {
+          setCustomMetadataAttributes({
             context: JSON.stringify(options.context),
           });
         }
@@ -310,20 +345,28 @@ export function action<
         metadata.input = input;
 
         try {
-          const actionFn = () =>
+          const actFn = () =>
             fn(input, {
               ...options,
               // Context can either be explicitly set, or inherited from the parent action.
-              context: options?.context ?? getContext(registry),
+              context: {
+                ...actionFn.__registry?.context,
+                ...(options?.context ?? getContext()),
+              },
+              streamingRequested:
+                !!options?.onChunk &&
+                options.onChunk !== sentinelNoopStreamingCallback,
               sendChunk: options?.onChunk ?? sentinelNoopStreamingCallback,
+              trace: {
+                traceId,
+                spanId,
+              },
+              registry: actionFn.__registry,
+              abortSignal: options?.abortSignal ?? makeNoopAbortSignal(),
             });
           // if context is explicitly passed in, we run action with the provided context,
           // otherwise we let upstream context carry through.
-          const output = await runWithContext(
-            registry,
-            options?.context,
-            actionFn
-          );
+          const output = await runWithContext(options?.context, actFn);
 
           metadata.output = JSON.stringify(output);
           return output;
@@ -366,7 +409,12 @@ export function action<
         onChunk: ((chunk: z.infer<S>) => {
           chunkStreamController.enqueue(chunk);
         }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
-        context: opts?.context,
+        context: {
+          ...actionFn.__registry?.context,
+          ...(opts?.context ?? getContext()),
+        },
+        abortSignal: opts?.abortSignal,
+        telemetryLabels: opts?.telemetryLabels,
       })
       .then((s) => s.result)
       .finally(() => {
@@ -397,6 +445,10 @@ export function action<
   return actionFn;
 }
 
+export function isAction(a: unknown): a is Action {
+  return typeof a === 'function' && '__action' in a;
+}
+
 /**
  * Defines an action with the given config and registers it in the registry.
  */
@@ -412,20 +464,16 @@ export function defineAction<
     options: ActionFnArg<z.infer<S>>
   ) => Promise<z.infer<O>>
 ): Action<I, O, S> {
-  if (isInRuntimeContext(registry)) {
+  if (isInRuntimeContext()) {
     throw new Error(
       'Cannot define new actions at runtime.\n' +
         'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
     );
   }
-  const act = action(
-    registry,
-    config,
-    async (i: I, options): Promise<z.infer<O>> => {
-      await registry.initializeAllPlugins();
-      return await runInActionRuntimeContext(registry, () => fn(i, options));
-    }
-  );
+  const act = action(config, async (i: I, options): Promise<z.infer<O>> => {
+    await registry.initializeAllPlugins();
+    return await runInActionRuntimeContext(() => fn(i, options));
+  });
   act.__action.actionType = config.actionType;
   registry.registerAction(config.actionType, act);
   return act;
@@ -455,11 +503,10 @@ export function defineActionAsync<
   const actionPromise = lazy(() =>
     config.then((resolvedConfig) => {
       const act = action(
-        registry,
         resolvedConfig,
         async (i: I, options): Promise<z.infer<O>> => {
           await registry.initializeAllPlugins();
-          return await runInActionRuntimeContext(registry, () =>
+          return await runInActionRuntimeContext(() =>
             resolvedConfig.fn(i, options)
           );
         }
@@ -484,11 +531,10 @@ export const sentinelNoopStreamingCallback = () => null;
  * using {@link getStreamingCallback}.
  */
 export function runWithStreamingCallback<S, O>(
-  registry: Registry,
   streamingCallback: StreamingCallback<S> | undefined,
   fn: () => O
 ): O {
-  return registry.asyncStore.run(
+  return getAsyncContext().run(
     streamingAlsKey,
     streamingCallback || sentinelNoopStreamingCallback,
     fn
@@ -500,11 +546,8 @@ export function runWithStreamingCallback<S, O>(
  *
  * @hidden
  */
-export function getStreamingCallback<S>(
-  registry: Registry
-): StreamingCallback<S> | undefined {
-  const cb =
-    registry.asyncStore.getStore<StreamingCallback<S>>(streamingAlsKey);
+export function getStreamingCallback<S>(): StreamingCallback<S> | undefined {
+  const cb = getAsyncContext().getStore<StreamingCallback<S>>(streamingAlsKey);
   if (cb === sentinelNoopStreamingCallback) {
     return undefined;
   }
@@ -516,23 +559,20 @@ const runtimeContextAslKey = 'core.action.runtimeContext';
 /**
  * Checks whether the caller is currently in the runtime context of an action.
  */
-export function isInRuntimeContext(registry: Registry) {
-  return registry.asyncStore.getStore(runtimeContextAslKey) === 'runtime';
+export function isInRuntimeContext() {
+  return getAsyncContext().getStore(runtimeContextAslKey) === 'runtime';
 }
 
 /**
  * Execute the provided function in the action runtime context.
  */
-export function runInActionRuntimeContext<R>(registry: Registry, fn: () => R) {
-  return registry.asyncStore.run(runtimeContextAslKey, 'runtime', fn);
+export function runInActionRuntimeContext<R>(fn: () => R) {
+  return getAsyncContext().run(runtimeContextAslKey, 'runtime', fn);
 }
 
 /**
  * Execute the provided function outside the action runtime context.
  */
-export function runOutsideActionRuntimeContext<R>(
-  registry: Registry,
-  fn: () => R
-) {
-  return registry.asyncStore.run(runtimeContextAslKey, 'outside', fn);
+export function runOutsideActionRuntimeContext<R>(fn: () => R) {
+  return getAsyncContext().run(runtimeContextAslKey, 'outside', fn);
 }

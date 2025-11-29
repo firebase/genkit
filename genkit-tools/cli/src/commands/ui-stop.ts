@@ -15,11 +15,12 @@
  */
 
 import {
-  DevToolsInfo,
+  findProjectRoot,
   findServersDir,
   isValidDevToolsInfo,
   logger,
   waitUntilUnresponsive,
+  type DevToolsInfo,
 } from '@genkit-ai/tools-common/utils';
 import axios from 'axios';
 import * as clc from 'colorette';
@@ -31,7 +32,7 @@ import path from 'path';
 export const uiStop = new Command('ui:stop')
   .description('stops any running Genkit Developer UI in this directory')
   .action(async () => {
-    const serversDir = await findServersDir();
+    const serversDir = await findServersDir(await findProjectRoot());
     const toolsJsonPath = path.join(serversDir, 'tools.json');
     try {
       const toolsJsonContent = await fs.readFile(toolsJsonPath, 'utf-8');

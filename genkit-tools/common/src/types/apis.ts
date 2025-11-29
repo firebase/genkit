@@ -33,9 +33,17 @@ import { TraceDataSchema } from './trace';
  * It's used directly in the generation of the Reflection API OpenAPI spec.
  */
 
+export const TraceQueryFilterSchema = z.object({
+  eq: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+  neq: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
+});
+
+export type TraceQueryFilter = z.infer<typeof TraceQueryFilterSchema>;
+
 export const ListTracesRequestSchema = z.object({
   limit: z.number().optional(),
   continuationToken: z.string().optional(),
+  filter: TraceQueryFilterSchema.optional(),
 });
 
 export type ListTracesRequest = z.infer<typeof ListTracesRequestSchema>;
@@ -53,7 +61,26 @@ export const GetTraceRequestSchema = z.object({
 
 export type GetTraceRequest = z.infer<typeof GetTraceRequestSchema>;
 
+export const ListActionsRequestSchema = z
+  .object({
+    runtimeId: z
+      .string()
+      .optional()
+      .describe(
+        'ID of the Genkit runtime to run the action on. Typically $pid-$port.'
+      ),
+  })
+  .optional();
+
+export type ListActionsRequest = z.infer<typeof ListActionsRequestSchema>;
+
 export const RunActionRequestSchema = z.object({
+  runtimeId: z
+    .string()
+    .optional()
+    .describe(
+      'ID of the Genkit runtime to run the action on. Typically $pid-$port.'
+    ),
   key: z
     .string()
     .describe('Action key that consists of the action type and ID.'),
@@ -123,6 +150,7 @@ export const CreateDatasetRequestSchema = z.object({
   datasetId: z.string().optional(),
   datasetType: DatasetTypeSchema,
   schema: DatasetSchemaSchema.optional(),
+  metricRefs: z.array(z.string()).default([]),
   targetAction: z.string().optional(),
 });
 
@@ -132,6 +160,8 @@ export const UpdateDatasetRequestSchema = z.object({
   datasetId: z.string(),
   data: InferenceDatasetSchema.optional(),
   schema: DatasetSchemaSchema.optional(),
+  // Set to undefined if no changes in `metricRefs`.
+  metricRefs: z.array(z.string()).optional(),
   targetAction: z.string().optional(),
 });
 export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
@@ -149,6 +179,12 @@ export const RunNewEvaluationRequestSchema = z.object({
       actionConfig: z
         .any()
         .describe('addition parameters required for inference')
+        .optional(),
+      batchSize: z
+        .number()
+        .describe(
+          'Batch the dataset into smaller segments that are run in parallel'
+        )
         .optional(),
     })
     .optional(),

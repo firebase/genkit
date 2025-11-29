@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { StreamingCallback } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import type { StreamingCallback } from '@genkit-ai/core';
+import type { Registry } from '@genkit-ai/core/registry';
 import {
-  GenerateRequest,
-  GenerateResponseChunkData,
-  GenerateResponseData,
-  ModelAction,
-  ModelInfo,
   defineModel,
+  type GenerateRequest,
+  type GenerateResponseChunkData,
+  type GenerateResponseData,
+  type ModelAction,
+  type ModelInfo,
 } from '../src/model';
 
 export async function runAsync<O>(fn: () => O): Promise<O> {
@@ -38,24 +38,29 @@ export type ProgrammableModel = ModelAction & {
   ) => Promise<GenerateResponseData>;
 
   lastRequest?: GenerateRequest;
+  requestCount: number;
 };
 
 export function defineProgrammableModel(
   registry: Registry,
-  info?: ModelInfo
+  info?: ModelInfo,
+  name?: string
 ): ProgrammableModel {
   const pm = defineModel(
     registry,
     {
-      ...info,
-      name: 'programmableModel',
+      apiVersion: 'v2',
+      ...(info as any),
+      name: name ?? 'programmableModel',
     },
-    async (request, streamingCallback) => {
+    async (request, { sendChunk }) => {
+      pm.requestCount++;
       pm.lastRequest = JSON.parse(JSON.stringify(request));
-      return pm.handleResponse(request, streamingCallback);
+      return pm.handleResponse(request, sendChunk);
     }
   ) as ProgrammableModel;
 
+  pm.requestCount = 0;
   return pm;
 }
 

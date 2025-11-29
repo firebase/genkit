@@ -14,93 +14,198 @@
  * limitations under the License.
  */
 
-import type { StdioServerParameters } from '@modelcontextprotocol/sdk/client/stdio.js' with { 'resolution-mode': 'import' };
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js' with { 'resolution-mode': 'import' };
-import { Genkit, GenkitError } from 'genkit';
-import { genkitPlugin } from 'genkit/plugin';
-import { registerAllPrompts } from './client/prompts.js';
-import { registerResourceTools } from './client/resources.js';
-import { registerAllTools } from './client/tools.js';
+import type { Genkit } from 'genkit';
+import {
+  GenkitMcpClient,
+  McpClientOptions,
+  McpClientOptionsWithCache,
+  McpServerConfig,
+  McpStdioServerConfig,
+} from './client/client.js';
+import {
+  GenkitMcpHost,
+  McpHostOptions,
+  McpHostOptionsWithCache,
+} from './client/index.js';
 import { GenkitMcpServer } from './server.js';
-
-export interface McpClientOptions {
-  /** Provide a name for this client which will be its namespace for all tools and prompts. */
-  name: string;
-  /** Provide a version number for this client (defaults to 1.0.0). */
-  version?: string;
-  /** If you already have an MCP transport you'd like to use, pass it here to connect to the server. */
-  transport?: Transport;
-  /** Start a local server process using the stdio MCP transport. */
-  serverProcess?: StdioServerParameters;
-  /** Connect to a remote server process using the SSE MCP transport. */
-  serverUrl?: string;
-  /** Connect to a remote server process using the WebSocket MCP transport. */
-  serverWebsocketUrl?: string | URL;
-  /** Return tool responses in raw MCP form instead of processing them for Genkit compatibility. */
-  rawToolResponses?: boolean;
-}
-
-async function transportFrom(params: McpClientOptions): Promise<Transport> {
-  if (params.transport) return params.transport;
-  if (params.serverUrl) {
-    const { SSEClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/sse.js'
-    );
-    return new SSEClientTransport(new URL(params.serverUrl));
-  }
-  if (params.serverProcess) {
-    const { StdioClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/stdio.js'
-    );
-    return new StdioClientTransport(params.serverProcess);
-  }
-  if (params.serverWebsocketUrl) {
-    const { WebSocketClientTransport } = await import(
-      '@modelcontextprotocol/sdk/client/websocket.js'
-    );
-    let url = params.serverWebsocketUrl;
-    if (typeof url === 'string') url = new URL(url);
-    return new WebSocketClientTransport(url);
-  }
-
-  throw new GenkitError({
-    status: 'INVALID_ARGUMENT',
-    message:
-      'Unable to create a server connection with supplied options. Must provide transport, stdio, or sseUrl.',
-  });
-}
-
-export function mcpClient(params: McpClientOptions) {
-  return genkitPlugin(params.name, async (ai: Genkit) => {
-    const { Client } = await import(
-      '@modelcontextprotocol/sdk/client/index.js'
-    );
-
-    const transport = await transportFrom(params);
-    ai.options.model;
-    const client = new Client(
-      { name: params.name, version: params.version || '1.0.0' },
-      { capabilities: {} }
-    );
-    await client.connect(transport);
-    const capabilties = await client.getServerCapabilities();
-    const promises: Promise<any>[] = [];
-    if (capabilties?.tools) promises.push(registerAllTools(ai, client, params));
-    if (capabilties?.prompts)
-      promises.push(registerAllPrompts(ai, client, params));
-    if (capabilties?.resources)
-      promises.push(registerResourceTools(ai, client, params));
-    await Promise.all(promises);
-  });
-}
+export {
+  GenkitMcpClient,
+  GenkitMcpHost,
+  type McpClientOptions,
+  type McpClientOptionsWithCache,
+  type McpHostOptions,
+  type McpHostOptionsWithCache,
+  type McpServerConfig,
+  type McpStdioServerConfig,
+};
 
 export interface McpServerOptions {
   /** The name you want to give your server for MCP inspection. */
   name: string;
-  /** The version you want the server to advertise to clients. Defaults to 1.0.0. */
+  /** The version you want the server to advertise to clients. Defaults to
+   * 1.0.0. */
   version?: string;
 }
 
-export function mcpServer(ai: Genkit, options: McpServerOptions) {
+/**
+ * Creates an MCP Client Host that connects to one or more MCP servers.
+ * Each server is defined in the `mcpClients` option, where the key is a
+ * client-side name for the server and the value is the server's configuration.
+ *
+ * By default, all servers in the config will be attempted to connect unless
+ * their configuration includes `{disabled: true}`.
+ *
+ * ```ts
+ * const clientHost = createMcpHost({
+ *   name: "my-mcp-client-host", // Name for the host itself
+ *   mcpServers: {
+ *     // Each key is a name for this client/server configuration
+ *     // Each value is an McpServerConfig object
+ *     gitToolServer: { command: "uvx", args: ["mcp-server-git"] },
+ *     customApiServer: { url: "http://localhost:1234/mcp" }
+ *   }
+ * });
+ * ```
+ *
+ * @param options Configuration for the MCP Client Host, including the definitions of MCP servers to connect to.
+ * @returns A new instance of GenkitMcpHost.
+ */
+export function createMcpHost(options: McpHostOptions) {
+  return new GenkitMcpHost(options);
+}
+
+/**
+ * Creates an MCP Client Host that connects to one or more MCP servers.
+ * Each server is defined in the `mcpClients` option, where the key is a
+ * client-side name for the server and the value is the server's configuration.
+ *
+ * By default, all servers in the config will be attempted to connect unless
+ * their configuration includes `{disabled: true}`.
+ *
+ * ```ts
+ * const clientHost = defineMcpHost(ai, {
+ *   name: "my-mcp-client-host", // Name for the host itself
+ *   mcpServers: {
+ *     // Each key is a name for this client/server configuration
+ *     // Each value is an McpServerConfig object
+ *     gitToolServer: { command: "uvx", args: ["mcp-server-git"] },
+ *     customApiServer: { url: "http://localhost:1234/mcp" }
+ *   }
+ * });
+ * ```
+ *
+ * @param options Configuration for the MCP Client Host, including the definitions of MCP servers to connect to.
+ * @returns A new instance of GenkitMcpHost.
+ */
+export function defineMcpHost(ai: Genkit, options: McpHostOptionsWithCache) {
+  const mcpHost = new GenkitMcpHost(options);
+  const dap = ai.defineDynamicActionProvider(
+    {
+      name: options.name,
+      cacheConfig: {
+        ttlMillis: options.cacheTTLMillis,
+      },
+    },
+    async () => ({
+      tool: await mcpHost.getActiveTools(ai),
+      resource: await mcpHost.getActiveResources(ai),
+    })
+  );
+  mcpHost.dynamicActionProvider = dap;
+  return mcpHost;
+}
+
+/**
+ * Creates an MCP Client that connects to a single MCP server.
+ * This is useful when you only need to interact with one MCP server,
+ * or if you want to manage client instances individually.
+ *
+ * ```ts
+ * const client = createMcpClient({
+ *   name: "mySingleMcpClient", // A name for this client instance
+ *   command: "npx", // Example: Launching a local server
+ *   args: ["-y", "@modelcontextprotocol/server-everything", "/path/to/allowed/dir"],
+ * });
+ *
+ * // To get tools from this client:
+ * // const tools = await client.getActiveTools(ai);
+ * ```
+ *
+ * @param options Configuration for the MCP Client, defining how it connects
+ *                to the MCP server and its behavior.
+ * @returns A new instance of GenkitMcpClient.
+ */
+export function createMcpClient(options: McpClientOptions) {
+  return new GenkitMcpClient(options);
+}
+
+/**
+ * Defines an MCP Client that connects to a single MCP server.
+ * This is useful when you only need to interact with one MCP server,
+ * or if you want to manage client instances individually.
+ *
+ * ```ts
+ * const client = defineMcpClient(ai, {
+ *   name: "mySingleMcpClient", // A name for this client instance
+ *   command: "npx", // Example: Launching a local server
+ *   args: ["-y", "@modelcontextprotocol/server-everything", "/path/to/allowed/dir"],
+ * });
+ *
+ * // To get tools from this client:
+ * // const tools = await client.getActiveTools(ai);
+ *
+ * // Or in a generate call you can use:
+ * ai.generate({
+    prompt: `<a prompt requiring tools>`,
+    tools: ['mySingleMcpClient:tool/*'],
+  });
+ * ```
+ *
+ * @param options Configuration for the MCP Client, defining how it connects
+ *                to the MCP server and its behavior.
+ * @returns A new instance of GenkitMcpClient.
+ */
+export function defineMcpClient(
+  ai: Genkit,
+  options: McpClientOptionsWithCache
+) {
+  const mcpClient = new GenkitMcpClient(options);
+  const dap = ai.defineDynamicActionProvider(
+    {
+      name: options.name,
+      cacheConfig: {
+        ttlMillis: options.cacheTtlMillis,
+      },
+    },
+    async () => {
+      return {
+        tool: await mcpClient.getActiveTools(ai),
+        resource: await mcpClient.getActiveResources(ai),
+      };
+    }
+  );
+  mcpClient.dynamicActionProvider = dap;
+  return mcpClient;
+}
+
+/**
+ * Creates an MCP server based on the supplied Genkit instance. All tools and prompts
+ * will be automatically converted to MCP compatibility.
+ *
+ * ```ts
+ * const mcpServer = createMcpServer(ai, {name: 'my-mcp-server', version: '0.1.0'});
+ *
+ * await mcpServer.start(); // starts a stdio transport, OR
+ * await mcpServer.start(customMcpTransport); // starts server using supplied transport
+ * ```
+ *
+ * @param ai Your Genkit instance with registered tools and prompts.
+ * @param options Configuration metadata for the server.
+ * @returns GenkitMcpServer instance.
+ */
+export function createMcpServer(
+  ai: Genkit,
+  options: McpServerOptions
+): GenkitMcpServer {
   return new GenkitMcpServer(ai, options);
 }

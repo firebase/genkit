@@ -16,26 +16,26 @@
 
 import {
   ChromaClient,
-  Collection,
-  CollectionMetadata,
-  Embeddings,
-  IEmbeddingFunction,
   IncludeEnum,
-  Metadata,
-  ChromaClientParams as NativeChromaClientParams,
-  Where,
-  WhereDocument,
+  type Collection,
+  type CollectionMetadata,
+  type Embeddings,
+  type IEmbeddingFunction,
+  type Metadata,
+  type ChromaClientParams as NativeChromaClientParams,
+  type Where,
+  type WhereDocument,
 } from 'chromadb';
 import {
   Document,
-  EmbedderArgument,
-  Embedding,
-  Genkit,
   indexerRef,
   retrieverRef,
   z,
+  type EmbedderArgument,
+  type Embedding,
+  type Genkit,
 } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 import { CommonRetrieverOptionsSchema } from 'genkit/retriever';
 import { Md5 } from 'ts-md5';
 

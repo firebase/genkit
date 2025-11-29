@@ -26,6 +26,7 @@ import structlog
 
 from genkit.aio.loop import create_loop, run_async
 from genkit.blocks.formats import built_in_formats
+from genkit.blocks.generate import define_generate_action
 from genkit.core.environment import is_dev_environment
 from genkit.core.reflection import make_reflection_server
 from genkit.web.manager import find_free_port_sync
@@ -59,6 +60,7 @@ class GenkitBase(GenkitRegistry):
         super().__init__()
         self._initialize_server(reflection_server_spec)
         self._initialize_registry(model, plugins)
+        define_generate_action(self.registry)
 
     def run_main(self, coro: Coroutine[Any, Any, T] | None = None) -> T:
         """Runs the provided coroutine on an event loop.
@@ -115,7 +117,14 @@ class GenkitBase(GenkitRegistry):
                     def resolver(kind, name, plugin=plugin):
                         return plugin.resolve_action(self, kind, name)
 
+                    def action_resolver(plugin=plugin):
+                        if isinstance(plugin.list_actions, list):
+                            return plugin.list_actions
+                        else:
+                            return plugin.list_actions()
+
                     self.registry.register_action_resolver(plugin.plugin_name(), resolver)
+                    self.registry.register_list_actions_resolver(plugin.plugin_name(), action_resolver)
                 else:
                     raise ValueError(f'Invalid {plugin=} provided to Genkit: must be of type `genkit.ai.Plugin`')
 

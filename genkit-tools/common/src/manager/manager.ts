@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-import axios, { AxiosError } from 'axios';
+import axios, { type AxiosError } from 'axios';
 import chokidar from 'chokidar';
 import EventEmitter from 'events';
+import * as fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 import {
-  Action,
-  RunActionResponse,
   RunActionResponseSchema,
+  type Action,
+  type RunActionResponse,
 } from '../types/action';
 import * as apis from '../types/apis';
-import { GenkitError } from '../types/error';
-import { TraceData } from '../types/trace';
+import type { GenkitError } from '../types/error';
+import type { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import {
-  DevToolsInfo,
   checkServerHealth,
   findRuntimesDir,
   findServersDir,
@@ -37,12 +37,14 @@ import {
   projectNameFromGenkitFilePath,
   removeToolsInfoFile,
   retriable,
+  type DevToolsInfo,
 } from '../utils/utils';
+import { ProcessManager } from './process-manager';
 import {
   GenkitToolsError,
   RuntimeEvent,
-  RuntimeInfo,
-  StreamingCallback,
+  type RuntimeInfo,
+  type StreamingCallback,
 } from './types';
 
 const STREAM_DELIMITER = '\n';
@@ -54,18 +56,27 @@ interface RuntimeManagerOptions {
   telemetryServerUrl?: string;
   /** Whether to clean up unhealthy runtimes. */
   manageHealth?: boolean;
+  /** Project root dir. If not provided will be inferred from CWD. */
+  projectRoot: string;
+  /** An optional process manager for the main application process. */
+  processManager?: ProcessManager;
 }
 
 export class RuntimeManager {
+  readonly processManager?: ProcessManager;
   private filenameToRuntimeMap: Record<string, RuntimeInfo> = {};
   private filenameToDevUiMap: Record<string, DevToolsInfo> = {};
   private idToFileMap: Record<string, string> = {};
   private eventEmitter = new EventEmitter();
 
   private constructor(
-    readonly telemetryServerUrl?: string,
-    private manageHealth: boolean = true
-  ) {}
+    readonly telemetryServerUrl: string | undefined,
+    private manageHealth: boolean,
+    readonly projectRoot: string,
+    processManager?: ProcessManager
+  ) {
+    this.processManager = processManager;
+  }
 
   /**
    * Creates a new runtime manager.
@@ -73,7 +84,9 @@ export class RuntimeManager {
   static async create(options: RuntimeManagerOptions) {
     const manager = new RuntimeManager(
       options.telemetryServerUrl,
-      options.manageHealth ?? true
+      options.manageHealth ?? true,
+      options.projectRoot,
+      options.processManager
     );
     await manager.setupRuntimesWatcher();
     await manager.setupDevUiWatcher();
@@ -87,15 +100,10 @@ export class RuntimeManager {
   }
 
   /**
-   * Lists all active runtimes.
+   * Lists all active runtimes
    */
-  listRuntimes(): Record<string, RuntimeInfo> {
-    return Object.fromEntries(
-      Object.values(this.filenameToRuntimeMap).map((runtime) => [
-        runtime.id,
-        runtime,
-      ])
-    );
+  listRuntimes(): RuntimeInfo[] {
+    return Object.values(this.filenameToRuntimeMap);
   }
 
   /**
@@ -150,11 +158,18 @@ export class RuntimeManager {
   /**
    * Retrieves all runnable actions.
    */
-  async listActions(): Promise<Record<string, Action>> {
-    // TODO: Allow selecting a runtime by pid.
-    const runtime = this.getMostRecentRuntime();
+  async listActions(
+    input?: apis.ListActionsRequest
+  ): Promise<Record<string, Action>> {
+    const runtime = input?.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
     if (!runtime) {
-      throw new Error('No runtimes found');
+      throw new Error(
+        input?.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+      );
     }
     const response = await axios
       .get(`${runtime.reflectionServerUrl}/api/actions`)
@@ -169,10 +184,15 @@ export class RuntimeManager {
     input: apis.RunActionRequest,
     streamingCallback?: StreamingCallback<any>
   ): Promise<RunActionResponse> {
-    // TODO: Allow selecting a runtime by pid.
-    const runtime = this.getMostRecentRuntime();
+    const runtime = input.runtimeId
+      ? this.getRuntimeById(input.runtimeId)
+      : this.getMostRecentRuntime();
     if (!runtime) {
-      throw new Error('No runtimes found');
+      throw new Error(
+        input.runtimeId
+          ? `No runtime found with ID ${input.runtimeId}.`
+          : 'No runtimes found. Make sure your app is running using `genkit start -- ...`. See getting started documentation.'
+      );
     }
     if (streamingCallback) {
       const response = await axios
@@ -268,7 +288,7 @@ export class RuntimeManager {
   async listTraces(
     input: apis.ListTracesRequest
   ): Promise<apis.ListTracesResponse> {
-    const { limit, continuationToken } = input;
+    const { limit, continuationToken, filter } = input;
     let query = '';
     if (limit) {
       query += `limit=${limit}`;
@@ -278,6 +298,12 @@ export class RuntimeManager {
         query += '&';
       }
       query += `continuationToken=${continuationToken}`;
+    }
+    if (filter) {
+      if (query !== '') {
+        query += '&';
+      }
+      query += `filter=${encodeURI(JSON.stringify(filter))}`;
     }
 
     const response = await axios
@@ -307,6 +333,17 @@ export class RuntimeManager {
   }
 
   /**
+   * Adds a trace to the trace store
+   */
+  async addTrace(input: TraceData): Promise<void> {
+    await axios
+      .post(`${this.telemetryServerUrl}/api/traces/`, input)
+      .catch((err) =>
+        this.httpErrorHandler(err, 'Error writing trace to store.')
+      );
+  }
+
+  /**
    * Notifies the runtime of dependencies it may need (e.g. telemetry server URL).
    */
   private async notifyRuntime(runtime: RuntimeInfo) {
@@ -325,7 +362,7 @@ export class RuntimeManager {
    */
   private async setupRuntimesWatcher() {
     try {
-      const runtimesDir = await findRuntimesDir();
+      const runtimesDir = await findRuntimesDir(this.projectRoot);
       await fs.mkdir(runtimesDir, { recursive: true });
       const watcher = chokidar.watch(runtimesDir, {
         persistent: true,
@@ -349,7 +386,7 @@ export class RuntimeManager {
    */
   private async setupDevUiWatcher() {
     try {
-      const serversDir = await findServersDir();
+      const serversDir = await findServersDir(this.projectRoot);
       await fs.mkdir(serversDir, { recursive: true });
       const watcher = chokidar.watch(serversDir, {
         persistent: true,
@@ -373,6 +410,10 @@ export class RuntimeManager {
    */
   private async handleNewDevUi(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, toolsInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -388,13 +429,13 @@ export class RuntimeManager {
           this.filenameToDevUiMap[fileName] = toolsInfo;
         } else {
           logger.debug('Found an unhealthy tools config file', fileName);
-          await removeToolsInfoFile(fileName);
+          await removeToolsInfoFile(fileName, this.projectRoot);
         }
       } else {
         logger.error(`Unexpected file in the servers directory: ${content}`);
       }
     } catch (error) {
-      logger.info('Error reading tools config', error);
+      logger.error('Error reading tools config', error);
       return undefined;
     }
   }
@@ -416,6 +457,10 @@ export class RuntimeManager {
    */
   private async handleNewRuntime(filePath: string) {
     try {
+      if (!fsSync.existsSync(filePath)) {
+        // file already got deleted, ignore...
+        return;
+      }
       const { content, runtimeInfo } = await retriable(
         async () => {
           const content = await fs.readFile(filePath, 'utf-8');
@@ -427,8 +472,16 @@ export class RuntimeManager {
       );
 
       if (isValidRuntimeInfo(runtimeInfo)) {
+        if (!runtimeInfo.name) {
+          runtimeInfo.name = runtimeInfo.id;
+        }
         const fileName = path.basename(filePath);
-        if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
+        if (
+          await checkServerHealth(
+            runtimeInfo.reflectionServerUrl,
+            runtimeInfo.id
+          )
+        ) {
           if (
             runtimeInfo.reflectionApiSpecVersion !=
             GENKIT_REFLECTION_API_SPEC_VERSION
@@ -509,7 +562,9 @@ export class RuntimeManager {
   private async performHealthChecks() {
     const healthCheckPromises = Object.entries(this.filenameToRuntimeMap).map(
       async ([fileName, runtime]) => {
-        if (!(await checkServerHealth(runtime.reflectionServerUrl))) {
+        if (
+          !(await checkServerHealth(runtime.reflectionServerUrl, runtime.id))
+        ) {
           await this.removeRuntime(fileName);
         }
       }
@@ -521,19 +576,14 @@ export class RuntimeManager {
    * Removes the runtime file which will trigger the removal watcher.
    */
   private async removeRuntime(fileName: string) {
-    const runtime = this.filenameToRuntimeMap[fileName];
-    if (runtime) {
-      try {
-        const runtimesDir = await findRuntimesDir();
-        const runtimeFilePath = path.join(runtimesDir, fileName);
-        await fs.unlink(runtimeFilePath);
-      } catch (error) {
-        logger.debug(`Failed to delete runtime file: ${error}`);
-      }
-      logger.debug(
-        `Removed unhealthy runtime with ID ${runtime.id} from manager.`
-      );
+    try {
+      const runtimesDir = await findRuntimesDir(this.projectRoot);
+      const runtimeFilePath = path.join(runtimesDir, fileName);
+      await fs.unlink(runtimeFilePath);
+    } catch (error) {
+      logger.debug(`Failed to delete runtime file: ${error}`);
     }
+    logger.debug(`Removed unhealthy runtime ${fileName} from manager.`);
   }
 }
 
@@ -541,12 +591,21 @@ export class RuntimeManager {
  * Checks if the runtime file is valid.
  */
 function isValidRuntimeInfo(data: any): data is RuntimeInfo {
+  let timestamp = '';
+  // runtime filename might come with underscores due OS filename restrictions
+  // revert the underscores so the timestamp gets parsed correctly
+  if (typeof data.timestamp === 'string') {
+    timestamp = data.timestamp.replaceAll('_', ':');
+  }
+
   return (
     typeof data === 'object' &&
+    data !== null &&
     typeof data.id === 'string' &&
     typeof data.pid === 'number' &&
     typeof data.reflectionServerUrl === 'string' &&
     typeof data.timestamp === 'string' &&
-    !isNaN(Date.parse(data.timestamp))
+    !isNaN(Date.parse(timestamp)) &&
+    (data.name === undefined || typeof data.name === 'string')
   );
 }

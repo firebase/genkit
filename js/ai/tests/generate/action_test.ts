@@ -15,23 +15,26 @@
  */
 
 import { stripUndefinedProps, z } from '@genkit-ai/core';
+import { initNodeFeatures } from '@genkit-ai/core/node';
 import { Registry } from '@genkit-ai/core/registry';
 import * as assert from 'assert';
 import { readFileSync } from 'fs';
 import { beforeEach, describe, it } from 'node:test';
 import { parse } from 'yaml';
 import {
-  GenerateAction,
   defineGenerateAction,
+  type GenerateAction,
 } from '../../src/generate/action.js';
 import {
   GenerateActionOptionsSchema,
-  GenerateResponseChunkData,
   GenerateResponseChunkSchema,
   GenerateResponseSchema,
+  type GenerateResponseChunkData,
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
-import { ProgrammableModel, defineProgrammableModel } from '../helpers.js';
+import { defineProgrammableModel, type ProgrammableModel } from '../helpers.js';
+
+initNodeFeatures();
 
 const SpecSuiteSchema = z
   .object({

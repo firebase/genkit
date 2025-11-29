@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, z } from '@genkit-ai/core';
+import { action, z, type Action } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import { randomUUID } from 'crypto';
@@ -136,6 +136,18 @@ export interface EvaluatorParams<
   options?: z.infer<CustomOptions>;
 }
 
+export interface EvaluatorOptions<
+  DataPoint extends typeof BaseDataPointSchema,
+  EvaluatorOpts extends z.ZodTypeAny,
+> {
+  name: string;
+  displayName: string;
+  definition: string;
+  dataPointType?: DataPoint;
+  configSchema?: EvaluatorOpts;
+  isBilled?: boolean;
+}
+
 /**
  * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
  */
@@ -143,19 +155,31 @@ export function defineEvaluator<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   EvalDataPoint extends
     typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
-  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  EvaluatorOpts extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   registry: Registry,
-  options: {
-    name: string;
-    displayName: string;
-    definition: string;
-    dataPointType?: DataPoint;
-    configSchema?: EvaluatorOptions;
-    isBilled?: boolean;
-  },
-  runner: EvaluatorFn<EvalDataPoint, EvaluatorOptions>
-) {
+  options: EvaluatorOptions<DataPoint, EvaluatorOpts>,
+  runner: EvaluatorFn<EvalDataPoint, EvaluatorOpts>
+): EvaluatorAction {
+  const e = evaluator(options, runner);
+
+  registry.registerAction('evaluator', e);
+
+  return e;
+}
+
+/**
+ * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
+ */
+export function evaluator<
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  EvalDataPoint extends
+    typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
+  EvaluatorOpts extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  options: EvaluatorOptions<DataPoint, EvaluatorOpts>,
+  runner: EvaluatorFn<EvalDataPoint, EvaluatorOpts>
+): EvaluatorAction {
   const evalMetadata = {};
   evalMetadata[EVALUATOR_METADATA_KEY_IS_BILLED] =
     options.isBilled == undefined ? true : options.isBilled;
@@ -166,8 +190,7 @@ export function defineEvaluator<
       schema: options.configSchema,
     });
   }
-  const evaluator = defineAction(
-    registry,
+  const evaluator = action(
     {
       actionType: 'evaluator',
       name: options.name,
@@ -177,6 +200,7 @@ export function defineEvaluator<
           : z.array(BaseDataPointSchema),
         options: options.configSchema ?? z.unknown(),
         evalRunId: z.string(),
+        batchSize: z.number().optional(),
       }),
       outputSchema: EvalResponsesSchema,
       metadata: {
@@ -185,18 +209,19 @@ export function defineEvaluator<
       },
     },
     async (i) => {
-      let evalResponses: EvalResponses = [];
-      for (let index = 0; index < i.dataset.length; index++) {
-        const datapoint: BaseEvalDataPoint = {
-          ...i.dataset[index],
-          testCaseId: i.dataset[index].testCaseId ?? randomUUID(),
-        };
+      const evalResponses: EvalResponses = [];
+      // This also populates missing testCaseIds
+      const batches = getBatchedArray(i.dataset, i.batchSize);
+
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
         try {
           await runInNewSpan(
-            registry,
             {
               metadata: {
-                name: `Test Case ${datapoint.testCaseId}`,
+                name: i.batchSize
+                  ? `Batch ${batchIndex}`
+                  : `Test Case ${batch[0].testCaseId}`,
                 metadata: { 'evaluator:evalRunId': i.evalRunId },
               },
               labels: {
@@ -206,38 +231,48 @@ export function defineEvaluator<
             async (metadata, otSpan) => {
               const spanId = otSpan.spanContext().spanId;
               const traceId = otSpan.spanContext().traceId;
-              try {
+              const evalRunPromises = batch.map((d, index) => {
+                const sampleIndex = i.batchSize
+                  ? i.batchSize * batchIndex + index
+                  : batchIndex;
+                const datapoint = d as BaseEvalDataPoint;
                 metadata.input = {
                   input: datapoint.input,
                   output: datapoint.output,
                   context: datapoint.context,
                 };
-                const testCaseOutput = await runner(datapoint, i.options);
-                testCaseOutput.sampleIndex = index;
-                testCaseOutput.spanId = spanId;
-                testCaseOutput.traceId = traceId;
-                metadata.output = testCaseOutput;
-                evalResponses.push(testCaseOutput);
-                return testCaseOutput;
-              } catch (e) {
-                evalResponses.push({
-                  sampleIndex: index,
-                  spanId,
-                  traceId,
-                  testCaseId: datapoint.testCaseId,
-                  evaluation: {
-                    error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`,
-                    status: EvalStatusEnum.FAIL,
-                  },
-                });
-                // Throw to mark the span as failed.
-                throw e;
-              }
+                const evalOutputPromise = runner(datapoint, i.options)
+                  .then((result) => ({
+                    ...result,
+                    traceId,
+                    spanId,
+                    sampleIndex,
+                  }))
+                  .catch((error) => {
+                    return {
+                      sampleIndex,
+                      spanId,
+                      traceId,
+                      testCaseId: datapoint.testCaseId,
+                      evaluation: {
+                        error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${error}`,
+                      },
+                    };
+                  });
+                return evalOutputPromise;
+              });
+
+              const allResults = await Promise.all(evalRunPromises);
+              metadata.output =
+                allResults.length === 1 ? allResults[0] : allResults;
+              allResults.map((result) => {
+                evalResponses.push(result);
+              });
             }
           );
         } catch (e) {
           logger.error(
-            `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`
+            `Evaluation of batch ${batchIndex} failed: \n${(e as Error).stack}`
           );
           continue;
         }
@@ -316,4 +351,32 @@ export function evaluatorRef<
   options: EvaluatorReference<CustomOptionsSchema>
 ): EvaluatorReference<CustomOptionsSchema> {
   return { ...options };
+}
+
+/**
+ * Helper method to generated batched array. Also ensures each testCase has a
+ * testCaseId
+ */
+function getBatchedArray<T extends { testCaseId?: string }>(
+  arr: T[],
+  batchSize?: number
+): T[][] {
+  let size: number;
+  if (!batchSize) {
+    size = 1;
+  } else {
+    size = batchSize;
+  }
+
+  const batches: T[][] = [];
+  for (var i = 0; i < arr.length; i += size) {
+    batches.push(
+      arr.slice(i, i + size).map((d) => ({
+        ...d,
+        testCaseId: d.testCaseId ?? randomUUID(),
+      }))
+    );
+  }
+
+  return batches;
 }

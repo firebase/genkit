@@ -6,7 +6,9 @@
     "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",
     "format": "(prettier . --write) && (tsx scripts/copyright.ts)",
     "format:check": "(prettier . --check) && (tsx scripts/copyright.ts --check)",
-    "format:todo": "pnpm dlx @biomejs/biome format --write .",
+    "format:biome": "pnpm dlx @biomejs/biome check --formatter-enabled=true --linter-enabled=false --organize-imports-enabled=true --fix . && bin/add_license",
+    "lint:biome": "pnpm dlx @biomejs/biome lint --fix . && bin/add_license",
+    "format:biome-check": "pnpm dlx @biomejs/biome ci --linter-enabled=false --formatter-enabled=true --organize-imports-enabled=false . && bin/check_license",
     "build": "pnpm build:js && pnpm build:genkit-tools",
     "build:js": "cd js && pnpm i && pnpm build",
     "build:genkit-tools": "cd genkit-tools && pnpm i && pnpm build",
@@ -30,16 +32,17 @@
     "format:check"
   ],
   "devDependencies": {
-    "inquirer": "^8.0.0",
+    "@types/node": "22.10.5",
+    "inquirer": "^8.2.6",
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
     "pre-commit": "^1.2.2",
-    "prettier": "^3.2.5",
+    "prettier": "^3.5.3",
     "prettier-plugin-css-order": "2.0.1",
     "prettier-plugin-organize-imports": "^3.2.4",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
-    "tsx": "^4.19.2"
+    "tsx": "^4.20.3"
   },
   "pnpm": {
     "overrides": {
@@ -47,7 +50,7 @@
       "genkit": "link:js/genkit"
     }
   },
-  "packageManager": "pnpm@10.6.5+sha512.cdf928fca20832cd59ec53826492b7dc25dc524d4370b6b4adbf65803d32efaa6c1c88147c0ae4e8d579a6c9eec715757b50d4fa35eea179d868eada4ed043af",
+  "packageManager": "pnpm@10.23.0+sha512.21c4e5698002ade97e4efe8b8b4a89a8de3c85a37919f957e7a0f30f38fbc5bbdd05980ffe29179b2fb6e6e691242e098d945d1601772cad0fef5fb6411e2a4b",
   "dependencies": {
     "genkit": "link:js/genkit"
   }

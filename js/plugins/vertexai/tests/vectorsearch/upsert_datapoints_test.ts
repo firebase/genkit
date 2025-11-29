@@ -15,9 +15,9 @@
  */
 
 import assert from 'assert';
-import { GoogleAuth } from 'google-auth-library';
-import { describe, it, Mock } from 'node:test';
-import { IIndexDatapoint } from '../../src/vectorsearch/vector_search/types';
+import type { GoogleAuth } from 'google-auth-library';
+import { describe, it, type Mock } from 'node:test';
+import type { IIndexDatapoint } from '../../src/vectorsearch/vector_search/types';
 import { upsertDatapoints } from '../../src/vectorsearch/vector_search/upsert_datapoints';
 
 describe('upsertDatapoints', () => {

@@ -15,15 +15,15 @@
  */
 
 import {
-  CreateIndexOptions,
   Pinecone,
-  PineconeConfiguration,
-  RecordMetadata,
+  type CreateIndexOptions,
+  type PineconeConfiguration,
+  type RecordMetadata,
 } from '@pinecone-database/pinecone';
-import { Genkit, z } from 'genkit';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { z, type Genkit } from 'genkit';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
 
-import { EmbedderArgument, Embedding } from 'genkit/embedder';
+import type { EmbedderArgument, Embedding } from 'genkit/embedder';
 import {
   CommonRetrieverOptionsSchema,
   Document,
@@ -200,10 +200,12 @@ export function configurePineconeRetriever<
             return Document.fromData(
               metadata[contentKey] as string,
               metadata[CONTENT_TYPE] as string,
-              JSON.parse(metadata.docMetadata as string) as Record<
-                string,
-                unknown
-              >
+              metadata.docMetadata
+                ? (JSON.parse(metadata.docMetadata as string) as Record<
+                    string,
+                    unknown
+                  >)
+                : undefined
             );
           }),
       };
@@ -356,7 +358,7 @@ function getDefaultConfig() {
   if (!maybeApiKey)
     throw new Error(
       'Please pass in the API key or set PINECONE_API_KEY environment variable.\n' +
-        'For more details see https://firebase.google.com/docs/genkit/plugins/pinecone'
+        'For more details see https://genkit.dev/docs/plugins/pinecone'
     );
   return { apiKey: maybeApiKey } as PineconeConfiguration;
 }

@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-import { Genkit, z } from 'genkit';
+import { z, type Genkit } from 'genkit';
 import {
-  BaseEvalDataPoint,
-  EvalResponse,
-  EvalStatusEnum,
-  Score,
   evaluatorRef,
+  type BaseEvalDataPoint,
+  type EvalResponse,
+  type EvalStatusEnum,
+  type Score,
 } from 'genkit/evaluator';
-import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { genkitPlugin, type GenkitPlugin } from 'genkit/plugin';
+import { answerAccuracyScore } from './metrics/answer_accuracy.js';
 import {
   answerRelevancyScore,
   deepEqual,
@@ -32,12 +33,12 @@ import {
   regexp,
 } from './metrics/index.js';
 import {
-  AnswerRelevancyGenkitMetricConfig,
   GenkitMetric,
-  ResolvedConfig,
   isGenkitMetricConfig,
+  type AnswerRelevancyGenkitMetricConfig,
   type GenkitMetricConfig,
   type PluginOptions,
+  type ResolvedConfig,
 } from './types.js';
 export { GenkitMetric, type GenkitMetricConfig, type PluginOptions };
 
@@ -94,7 +95,7 @@ export function genkitEvaluators<
   ai: Genkit,
   params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>
 ) {
-  let { metrics } = params;
+  const { metrics } = params;
   if (metrics.length === 0) {
     throw new Error('No metrics configured in genkitEval plugin');
   }
@@ -185,6 +186,30 @@ export function genkitEvaluators<
               judgeConfig
             );
             return fillScores(datapoint, maliciousness, statusOverrideFn);
+          }
+        );
+      }
+      case GenkitMetric.ANSWER_ACCURACY: {
+        if (!judge) {
+          throw new Error(
+            'Judge llms must be specified if computing answer accuracy'
+          );
+        }
+        return ai.defineEvaluator(
+          {
+            name: evaluator,
+            displayName: 'Answer Accuracy',
+            definition:
+              'Measures how accurately the generated output matches against the reference output',
+          },
+          async (datapoint: BaseEvalDataPoint) => {
+            const answerAccuracy = await answerAccuracyScore(
+              ai,
+              judge!,
+              datapoint,
+              judgeConfig
+            );
+            return fillScores(datapoint, answerAccuracy, statusOverrideFn);
           }
         );
       }

@@ -14,30 +14,32 @@
  * limitations under the License.
  */
 
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
-import {
-  gemini15Flash,
-  gemini20Flash,
-  gemini20FlashExp,
-  googleAI,
-  gemini10Pro as googleGemini10Pro,
-} from '@genkit-ai/googleai';
-import {
-  textEmbedding004,
-  vertexAI,
-  gemini15Flash as vertexGemini15Flash,
-} from '@genkit-ai/vertexai';
+import { googleAI, vertexAI } from '@genkit-ai/google-genai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { GenerateResponseData, genkit, MessageSchema, z } from 'genkit/beta';
+import fs from 'fs';
+import {
+  MediaPart,
+  MessageSchema,
+  dynamicTool,
+  genkit,
+  z,
+  type GenerateResponseData,
+} from 'genkit/beta';
 import { logger } from 'genkit/logging';
-import { ModelMiddleware, simulateConstrainedGeneration } from 'genkit/model';
-import { PluginProvider } from 'genkit/plugin';
+import {
+  simulateConstrainedGeneration,
+  type ModelMiddleware,
+} from 'genkit/model';
+import type { PluginProvider } from 'genkit/plugin';
+import { Readable } from 'node:stream';
 import { Allow, parse } from 'partial-json';
+import wav from 'wav';
 
 logger.setLogLevel('debug');
 
@@ -70,6 +72,7 @@ const ai = genkit({
       ],
     }),
   ],
+  model: googleAI.model('gemini-2.5-flash'),
 });
 
 const math: PluginProvider = {
@@ -104,9 +107,9 @@ export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.object({
-      modelName: z.string(),
-      modelVersion: z.string().optional(),
-      subject: z.string(),
+      modelName: z.string().default('vertexai/gemini-2.5-pro'),
+      modelVersion: z.string().optional().default('gemini-2.5-pro'),
+      subject: z.string().default('bananas'),
     }),
     outputSchema: z.string(),
   },
@@ -139,16 +142,36 @@ export const drawPictureFlow = ai.defineFlow(
   }
 );
 
-export const streamFlow = ai.defineFlow(
+export const streamFlowVertex = ai.defineFlow(
   {
-    name: 'streamFlow',
+    name: 'streamFlowVertex',
     inputSchema: z.string(),
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
   async (prompt, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: gemini15Flash,
+      model: vertexAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
+      prompt,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk.content[0].text!);
+    }
+
+    return (await response).text;
+  }
+);
+export const streamFlowGemini = ai.defineFlow(
+  {
+    name: 'streamFlowGemini',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (prompt, { sendChunk }) => {
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.0-flash-001', { temperature: 0.77 }),
       prompt,
     });
 
@@ -178,13 +201,13 @@ const GameCharactersSchema = z.object({
 export const streamJsonFlow = ai.defineFlow(
   {
     name: 'streamJsonFlow',
-    inputSchema: z.number(),
+    inputSchema: z.number().default(3),
     outputSchema: z.string(),
     streamSchema: GameCharactersSchema,
   },
   async (count, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.0-flash'),
       output: {
         schema: GameCharactersSchema,
       },
@@ -231,14 +254,14 @@ export const jokeWithToolsFlow = ai.defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
-      modelName: z.enum([gemini15Flash.name, googleGemini10Pro.name]),
+      modelName: z.enum(['gemini-2.5-flash', 'gemini-2.5-pro']),
       subject: z.string(),
     }),
     outputSchema: z.object({ model: z.string(), joke: z.string() }),
   },
   async (input) => {
     const llmResponse = await ai.generate({
-      model: input.modelName as string,
+      model: googleAI.model(input.modelName as string),
       tools,
       output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,
@@ -255,14 +278,14 @@ export const jokeWithOutputFlow = ai.defineFlow(
   {
     name: 'jokeWithOutputFlow',
     inputSchema: z.object({
-      modelName: z.enum([gemini15Flash.name]),
+      modelName: z.enum(['gemini-2.5-flash']),
       subject: z.string(),
     }),
     outputSchema,
   },
   async (input, { sendChunk }) => {
     const llmResponse = await ai.generate({
-      model: input.modelName,
+      model: googleAI.model(input.modelName),
       output: {
         format: 'json',
         schema: outputSchema,
@@ -284,7 +307,7 @@ export const vertexStreamer = ai.defineFlow(
   async (input, { sendChunk }) => {
     return await ai.run('call-llm', async () => {
       const llmResponse = await ai.generate({
-        model: gemini15Flash,
+        model: googleAI.model('gemini-2.5-flash'),
         prompt: `Tell me a very long joke about ${input}.`,
         onChunk: (c) => sendChunk(c.text),
       });
@@ -317,7 +340,7 @@ const destinationsRetriever = defineFirestoreRetriever(ai, {
   firestore: getFirestore(app),
   collection: 'destinations',
   contentField: 'knownFor',
-  embedder: textEmbedding004,
+  embedder: googleAI.embedder('text-embedding-004'),
   vectorField: 'embedding',
 });
 
@@ -335,7 +358,7 @@ export const searchDestinations = ai.defineFlow(
     });
 
     const result = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       prompt: `Give me a list of vacation options based on the provided context. Use only the options provided below, and describe how it fits with my query.
 
 Query: ${input}
@@ -441,12 +464,54 @@ export const toolCaller = ai.defineFlow(
   },
   async (_, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       config: {
         temperature: 1,
       },
       tools: [jokeSubjectGenerator],
       prompt: `tell me a joke`,
+    });
+
+    for await (const chunk of stream) {
+      sendChunk(chunk);
+    }
+
+    return (await response).text;
+  }
+);
+
+export const dynamicToolCaller = ai.defineFlow(
+  {
+    name: 'dynamicToolCaller',
+    inputSchema: z.number().default(5),
+    outputSchema: z.string(),
+    streamSchema: z.any(),
+  },
+  async (input, { sendChunk }) => {
+    const dynamicGablorkenTool = dynamicTool(
+      {
+        name: 'dynamicGablorkenTool',
+        inputSchema: z.object({
+          value: z
+            .number()
+            .describe(
+              'always add 1 to the value (it is 1 based, but upstream it is zero based)'
+            ),
+        }),
+        description: 'can be used to calculate gablorken value',
+      },
+      async (input) => {
+        return input.value * 3 - 4;
+      }
+    );
+
+    const { response, stream } = ai.generateStream({
+      model: googleAI.model('gemini-2.0-flash'),
+      config: {
+        temperature: 1,
+      },
+      tools: [dynamicGablorkenTool],
+      prompt: `what is a gablorken of ${input}`,
     });
 
     for await (const chunk of stream) {
@@ -478,7 +543,7 @@ export const forcedToolCaller = ai.defineFlow(
   },
   async (input, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: vertexGemini15Flash,
+      model: vertexAI.model('gemini-2.5-flash'),
       config: {
         temperature: 1,
       },
@@ -503,7 +568,7 @@ export const toolCallerCharacterGenerator = ai.defineFlow(
   },
   async (input, { sendChunk }) => {
     const { response, stream } = ai.generateStream({
-      model: vertexGemini15Flash,
+      model: vertexAI.model('gemini-2.5-flash'),
       config: {
         temperature: 1,
       },
@@ -530,7 +595,7 @@ export const invalidOutput = ai.defineFlow(
   },
   async () => {
     const result = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       output: {
         schema: z.object({
           name: z.string(),
@@ -563,7 +628,7 @@ export const fileApi = ai.defineFlow(
     console.log(uploadResult.file);
 
     const result = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       prompt: [
         { text: 'Describe this image:' },
         {
@@ -606,7 +671,7 @@ export const toolTester = ai.defineFlow(
   },
   async (query) => {
     const result = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       prompt: query,
       tools: testTools,
     });
@@ -617,14 +682,14 @@ export const toolTester = ai.defineFlow(
 export const arrayStreamTester = ai.defineFlow(
   {
     name: 'arrayStreamTester',
-    inputSchema: z.string().nullish(),
+    inputSchema: z.string().default('Futurama'),
     outputSchema: z.any(),
     streamSchema: z.any(),
   },
   async (input, { sendChunk }) => {
     try {
       const { stream, response } = ai.generateStream({
-        model: gemini15Flash,
+        model: googleAI.model('gemini-2.5-flash'),
         config: {
           safetySettings: [
             {
@@ -680,7 +745,7 @@ ai.defineFlow(
   },
   async (query, { sendChunk }) => {
     const { text } = await ai.generate({
-      model: gemini15Flash,
+      model: googleAI.model('gemini-2.5-flash'),
       prompt: query,
       tools: ['math/add', 'math/subtract'],
       onChunk: sendChunk,
@@ -719,7 +784,7 @@ ai.defineFlow('blockingMiddleware', async () => {
 
 ai.defineFlow('formatJson', async (input, { sendChunk }) => {
   const { output, text } = await ai.generate({
-    model: gemini15Flash,
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: `generate an RPG game character of type ${input || 'archer'}`,
     output: {
       constrained: true,
@@ -738,9 +803,9 @@ ai.defineFlow('formatJson', async (input, { sendChunk }) => {
 
 ai.defineFlow('formatJsonManualSchema', async (input, { sendChunk }) => {
   const { output, text } = await ai.generate({
-    model: gemini15Flash,
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: `generate one RPG game character of type ${input || 'archer'} and generated JSON must match this interface
-    
+
     \`\`\`typescript
     interface Character {
       name: string;
@@ -777,7 +842,7 @@ ai.defineFlow('testArray', async (input, { sendChunk }) => {
 
 ai.defineFlow('formatEnum', async (input, { sendChunk }) => {
   const { output } = await ai.generate({
-    prompt: `classify the denger level of sky diving`,
+    prompt: `classify the danger level of sky diving`,
     output: {
       format: 'enum',
       schema: z.enum(['safe', 'dangerous', 'medium']),
@@ -789,7 +854,7 @@ ai.defineFlow('formatEnum', async (input, { sendChunk }) => {
 
 ai.defineFlow('formatJsonl', async (input, { sendChunk }) => {
   const { output } = await ai.generate({
-    prompt: `generate 5 randon persons`,
+    prompt: `generate 5 random persons`,
     output: {
       format: 'jsonl',
       schema: z.array(
@@ -801,19 +866,25 @@ ai.defineFlow('formatJsonl', async (input, { sendChunk }) => {
   return output;
 });
 
-ai.defineFlow('simpleDataExtractor', async (input) => {
-  const { output } = await ai.generate({
-    model: gemini15Flash,
-    prompt: `extract data from:\n\n${input}`,
-    output: {
-      schema: z.object({
-        name: z.string(),
-        age: z.number(),
-      }),
-    },
-  });
-  return output;
-});
+ai.defineFlow(
+  {
+    name: 'simpleDataExtractor',
+    inputSchema: z.string().default('Glorb is 42 years old'),
+  },
+  async (input) => {
+    const { output } = await ai.generate({
+      model: googleAI.model('gemini-2.5-flash'),
+      prompt: `extract data from:\n\n${input}`,
+      output: {
+        schema: z.object({
+          name: z.string(),
+          age: z.number(),
+        }),
+      },
+    });
+    return output;
+  }
+);
 
 ai.defineFlow('echo', async (input) => {
   return input;
@@ -837,27 +908,24 @@ ai.defineFlow(
   }
 );
 
-ai.defineFlow(
-  {
-    name: 'geminiImages',
-    inputSchema: z.string().optional(),
-  },
-  async (setting) => {
-    const { message } = await ai.generate({
-      model: gemini20FlashExp,
-      prompt: `Generate a choose your own adventure intro${setting ? ` in ${setting}` : ''}, then generate a first-person image as if I'm in the story.`,
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
-
-    return message?.content;
+ai.defineFlow('geminiImages', async (_, { sendChunk }) => {
+  const { response, stream } = ai.generateStream({
+    model: googleAI.model('gemini-2.5-flash-image'),
+    prompt: `generate an image of a banana riding a bicycle`,
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+    },
+  });
+  for await (const c of stream) {
+    sendChunk(c);
   }
-);
 
-ai.defineFlow('geminiEnum', async (thing) => {
-  const { output } = await ai.generate({
-    model: gemini20Flash,
+  return await response;
+});
+
+ai.defineFlow('geminiEnum', async (thing, { sendChunk }) => {
+  const { response, stream } = await ai.generateStream({
+    model: googleAI.model('gemini-2.5-flash'),
     prompt: `What type of thing is ${thing || 'a banana'}?`,
     output: {
       schema: z.object({
@@ -866,5 +934,354 @@ ai.defineFlow('geminiEnum', async (thing) => {
     },
   });
 
-  return output;
+  for await (const c of stream) {
+    sendChunk(c.output);
+  }
+
+  return (await response).output;
+});
+
+ai.defineFlow('embedders-tester', async () => {
+  console.log(
+    await ai.embed({
+      content: 'hello world',
+      embedder: googleAI.embedder('text-embedding-004'),
+    })
+  );
+  console.log(
+    await ai.embed({
+      content: 'hello world',
+      embedder: vertexAI.embedder('text-embedding-004'),
+    })
+  );
+});
+
+ai.defineFlow('reasoning', async (_, { sendChunk }) => {
+  const { message } = await ai.generate({
+    prompt: 'whats heavier, one kilo of steel or or one kilo of feathers',
+    model: googleAI.model('gemini-2.5-flash'),
+    config: {
+      thinkingConfig: {
+        thinkingBudget: 1024,
+        includeThoughts: true,
+      },
+    },
+    onChunk: sendChunk,
+  });
+
+  return message;
+});
+
+ai.defineFlow(
+  {
+    name: 'audioSimple',
+    inputSchema: z.string().default('AI can be fun, eh?'),
+    outputSchema: z.object({ media: z.string() }),
+  },
+  async (query) => {
+    const { media } = await ai.generate({
+      // For all available options see https://ai.google.dev/gemini-api/docs/speech-generation#javascript
+      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Algenib' },
+          },
+        },
+      },
+      prompt: query,
+    });
+    if (!media) {
+      throw new Error('no media returned');
+    }
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    return {
+      media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
+    };
+  }
+);
+
+async function toWav(
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.Writer({
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    let bufs = [] as any[];
+    writer.on('error', reject);
+    writer.on('data', function (d) {
+      bufs.push(d);
+    });
+    writer.on('end', function () {
+      resolve(Buffer.concat(bufs).toString('base64'));
+    });
+
+    writer.write(pcmData);
+    writer.end();
+  });
+}
+
+ai.defineFlow(
+  {
+    name: 'audioMultipleSpeakers',
+    inputSchema: z
+      .string()
+      .default(
+        "Genkit (pronounced as Gen Kit). here's the dialog:\n\n" +
+          'Speaker1: "Genkit is an amazing Gen AI **library**!"\n' +
+          'Speaker2: "Library? I thought it was a **framework**."\n' +
+          'Speaker1: "No, it\'s definitely a library. You just import components and use functions. It\'s a toolkit, not a prescriptive structure for your whole app."\n' +
+          'Speaker2: "But it defines how you *structure* your Gen AI application. It has its own lifecycle, handles models and prompts. You build *on top* of it, which is framework-like."\n' +
+          "Speaker1: \"It doesn't dictate your *entire* app's architecture. You can use it for just one feature. Like NumPy, it's powerful functions, not an overall design.\"\n" +
+          'Speaker2: "Yet it orchestrates your Gen AI pipeline, managing things from data to output. That\'s more than just functions; it\'s an integrated system, providing the structure and conventions. That sounds like a framework."\n' +
+          'Speaker1: "It\'s an opinionated library then, or a specialized toolkit."\n' +
+          'Speaker2: "And that is why the line often blurs."'
+      ),
+    outputSchema: z.void(),
+  },
+  async (query) => {
+    const { media } = await ai.generate({
+      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              {
+                speaker: 'Speaker1',
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                },
+              },
+              {
+                speaker: 'Speaker2',
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: 'Achernar' },
+                },
+              },
+            ],
+          },
+        },
+      },
+      prompt: query,
+    });
+    if (!media) {
+      return;
+    }
+    const audioBuffer = Buffer.from(
+      media.url.substring(media.url.indexOf(',') + 1),
+      'base64'
+    );
+    const fileName = 'out_multi.wav';
+    await saveWaveFile(fileName, audioBuffer);
+  }
+);
+
+async function saveWaveFile(
+  filename: string,
+  pcmData: Buffer,
+  channels = 1,
+  rate = 24000,
+  sampleWidth = 2
+) {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.FileWriter(filename, {
+      channels,
+      sampleRate: rate,
+      bitDepth: sampleWidth * 8,
+    });
+
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+
+    writer.write(pcmData);
+    writer.end();
+  });
+}
+
+ai.defineFlow('googleSearch', async (thing) => {
+  const { text } = await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt: `What is a banana?`,
+    config: { tools: [{ googleSearch: {} }] },
+  });
+
+  return text;
+});
+
+ai.defineFlow('googleSearchRetrieval', async (thing) => {
+  const { text } = await ai.generate({
+    model: vertexAI.model('gemini-2.0-flash'),
+    prompt: `What is a banana?`,
+    config: { googleSearchRetrieval: {} },
+  });
+
+  return text;
+});
+
+ai.defineFlow('googleai-imagen', async (thing) => {
+  const { message } = await ai.generate({
+    model: googleAI.model('imagen-3.0-generate-002'),
+    prompt:
+      thing ??
+      `Dark but cozy room. A programmer happily programming an AI library.`,
+    config: { numberOfImages: 4, aspectRatio: '16:9' },
+  });
+
+  return message;
+});
+
+ai.defineFlow('meme-of-the-day', async () => {
+  const { text: script } = await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt:
+      'Write a detailed script for a 8 second video. The video should be a meme of the day. ' +
+      'A Silly DIY FAIL situation like a: broken tools, or bad weather or crooked assembly, etc. Be creative. The FAIL should be very obvious. ' +
+      'Always include some text for the meme, very short 2-3 words, but relevant to the meme. ' +
+      'Describe how things should look, camera angles, lighting, mood. Who is in the shot and what they do.' +
+      'Output should be a prompt for in a Veo 2 video generator model. Return only the prompt, NOTHING else. No preamble, no post-production instructions, etc.',
+  });
+
+  console.log(script);
+
+  let { operation } = await ai.generate({
+    model: googleAI.model('veo-2.0-generate-001'),
+    prompt: script,
+    config: {
+      durationSeconds: 8,
+      aspectRatio: '16:9',
+      personGeneration: 'allow_adult',
+    },
+  });
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    console.log('check status', operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  if (operation.error) {
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
+
+  // operation done, download generated video to disk
+  const video = operation.output?.message?.content.find((p) => !!p.media);
+  if (!video) {
+    throw new Error('Failed to find the generated video');
+  }
+  await downloadVideo(video, 'meme-of-the-day.mp4');
+
+  return operation;
+});
+
+ai.defineFlow('photo-move-veo', async () => {
+  const startingImage = fs.readFileSync('photo.jpg', { encoding: 'base64' });
+
+  let { operation } = await ai.generate({
+    model: googleAI.model('veo-2.0-generate-001'),
+    prompt: [
+      {
+        text: 'make it move',
+      },
+      {
+        media: {
+          contentType: 'image/jpeg',
+          url: `data:image/jpeg;base64,${startingImage}`,
+        },
+      },
+    ],
+    config: {
+      durationSeconds: 5,
+      aspectRatio: '9:16',
+      personGeneration: 'allow_adult',
+    },
+  });
+
+  if (!operation) {
+    throw new Error('Expected the model to return an operation');
+  }
+
+  while (!operation.done) {
+    console.log('check status', operation.id);
+    operation = await ai.checkOperation(operation);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+
+  if (operation.error) {
+    throw new Error('failed to generate video: ' + operation.error.message);
+  }
+
+  // operation done, download generated video to disk
+  const video = operation.output?.message?.content.find((p) => !!p.media);
+  if (!video) {
+    throw new Error('Failed to find the generated video');
+  }
+
+  await downloadVideo(video, 'photo.mp4');
+
+  return operation;
+});
+
+async function downloadVideo(video: MediaPart, path: string) {
+  const fetch = (await import('node-fetch')).default;
+  const videoDownloadResponse = await fetch(
+    `${video.media!.url}&key=${process.env.GEMINI_API_KEY}`
+  );
+  if (
+    !videoDownloadResponse ||
+    videoDownloadResponse.status !== 200 ||
+    !videoDownloadResponse.body
+  ) {
+    throw new Error('Failed to fetch video');
+  }
+
+  Readable.from(videoDownloadResponse.body).pipe(fs.createWriteStream(path));
+}
+
+ai.defineResource(
+  {
+    name: 'myResource',
+    template: 'my://resource/{param}',
+    description: 'provides my resource',
+  },
+  async (input) => {
+    return { content: [{ text: `resource ${input.uri}` }] };
+  }
+);
+
+ai.defineFlow('resource', async () => {
+  return await ai.generate({
+    model: googleAI.model('gemini-2.0-flash'),
+    prompt: [
+      { text: 'analyze this: ' },
+      { resource: { uri: 'my://resource/value' } },
+    ],
+  });
+});
+
+ai.defineFlow('abort-signal', async (_, { sendChunk }) => {
+  const abort = new AbortController();
+  const signal = abort.signal;
+  setTimeout(() => abort.abort(), 2000);
+  return await ai.generate({
+    model: googleAI.model('gemini-2.5-flash'),
+    prompt: [{ text: 'tell me a long joke' }],
+    onChunk: sendChunk,
+    abortSignal: signal,
+  });
 });

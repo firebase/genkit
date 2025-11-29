@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { ModelMiddleware } from 'genkit/model';
-import { GoogleAuth } from 'google-auth-library';
+import type { ModelMiddleware } from 'genkit/model';
+import type { GoogleAuth } from 'google-auth-library';
 import { Guardrails } from './guardrails';
-import { ChecksEvaluationMetric } from './metrics';
+import type { ChecksEvaluationMetric } from './metrics';
 
 export function checksMiddleware(options: {
   auth: GoogleAuth;

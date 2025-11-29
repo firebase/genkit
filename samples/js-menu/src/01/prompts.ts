@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { GenerateRequest } from '@genkit-ai/ai/model';
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import type { GenerateRequest } from '@genkit-ai/ai/model';
+import { googleAI } from '@genkit-ai/google-genai';
 import { ai } from '../genkit.js';
-import { MenuQuestionInput, MenuQuestionInputSchema } from '../types';
+import { MenuQuestionInputSchema, type MenuQuestionInput } from '../types';
 
 // Define a prompt to handle a customer question about the menu.
 // This prompt uses definePrompt directly.
@@ -48,7 +48,7 @@ export const s01_vanillaPrompt = ai.definePrompt(
 export const s01_staticMenuDotPrompt = ai.definePrompt(
   {
     name: 's01_staticMenuDotPrompt',
-    model: gemini15Flash,
+    model: googleAI.model('gemini-2.5-flash'),
     input: { schema: MenuQuestionInputSchema },
     output: { format: 'text' },
   },

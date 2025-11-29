@@ -30,7 +30,7 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 )
 
 type testFile struct {
@@ -197,6 +197,18 @@ func compare1(path []string, got, want any, add func([]string, string, ...any)) 
 				add(path, "got number %s, want %d (%[2]T)", n, w)
 			}
 			if g != int64(w) {
+				add(path, "got %d, want %d", g, w)
+			}
+		} else {
+			check()
+		}
+	case uint64:
+		if n, ok := got.(json.Number); ok {
+			g, err := n.Int64()
+			if err != nil {
+				add(path, "got number %s, want %d (%[2]T)", n, w)
+			}
+			if uint64(g) != w {
 				add(path, "got %d, want %d", g, w)
 			}
 		} else {

@@ -15,7 +15,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // A simple, self-contained code generator for JSON Schema.
-// It converts a JSON Schema to equivalent Go types.
+// It converts a JSON Schema to equivalent Go api.
 package main
 
 import (
@@ -95,13 +95,13 @@ func run(infile, defaultPkgPath, configFile, outRoot string) error {
 	}
 
 	// The defs field of the top-level schema is the only interesting part.
-	// It is a map from type name to JSON schema for that type.
+	// It is a map from type name to JSON schema for that api.
 	schemas := schema.Defs
 
 	// Many of the types are anonymous, used directly as the type of fields.
 	// We would end up generating something like
 	//     someField struct { x int; y bool}
-	// While that is legal Go, it is hard to construct values of those types.
+	// While that is legal Go, it is hard to construct values of those api.
 	// Hoist all anonymous types to top level and name them.
 	// We do this as a transformation on the map of schemas.
 	nameAnonymousTypes(schemas)
@@ -454,6 +454,9 @@ func (g *generator) generateDoc(s *Schema, ic *itemConfig) {
 // typeExpr returns a Go type expression denoting the type represented by the schema.
 func (g *generator) typeExpr(s *Schema) (string, error) {
 	// A reference to another type refers to that type by name. Use the name.
+	if s == nil {
+		return "any", nil
+	}
 	if s.Ref != "" {
 		name, ok := strings.CutPrefix(s.Ref, refPrefix)
 		if !ok {
@@ -521,7 +524,7 @@ func (g *generator) typeExpr(s *Schema) (string, error) {
 	case "number":
 		return "float64", nil
 	case "":
-		// Assume the empty schema, which means any type.
+		// Assume the empty schema, which means any api.
 		return "any", nil
 	default:
 		return "", fmt.Errorf("typeExpr can't handle type %q", typ)
@@ -586,7 +589,7 @@ type itemConfig struct {
 // The config file is line-oriented. Empty lines and lines beginning
 // with '#' are ignored.
 // Other lines start with a word which names either a package, a type or the
-// field of a type (as TYPE.FIELD).
+// field of a type (as api.FIELD).
 // Except for packages, the names are always the original JSONSchema names, not Go names.
 // The rest of the line is a directive; one of
 //

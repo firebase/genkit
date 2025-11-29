@@ -22,10 +22,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // A Flow is a user-defined Action. A Flow[In, Out, Stream] represents a function from In to Out. The Stream parameter is for flows that support streaming: providing their results incrementally.
@@ -41,15 +40,17 @@ type StreamingFlowValue[Out, Stream any] struct {
 // flowContextKey is a context key that indicates whether the current context is a flow context.
 var flowContextKey = base.NewContextKey[*flowContext]()
 
-// flowContext is a context that contains the tracing state for a flow.
+// flowContext is a context that contains flow-specific information.
 type flowContext struct {
-	tracingState *tracing.State
+	flowName string
 }
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action. fn takes an input of type In and returns an output of type Out.
-func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]) *Flow[In, Out, struct{}] {
-	return (*Flow[In, Out, struct{}])(DefineAction(r, "", name, atype.Flow, nil, func(ctx context.Context, input In) (Out, error) {
-		fc := &flowContext{tracingState: r.TracingState()}
+func DefineFlow[In, Out any](r api.Registry, name string, fn Func[In, Out]) *Flow[In, Out, struct{}] {
+	return (*Flow[In, Out, struct{}])(DefineAction(r, name, api.ActionTypeFlow, nil, nil, func(ctx context.Context, input In) (Out, error) {
+		fc := &flowContext{
+			flowName: name,
+		}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input)
 	}))
@@ -64,9 +65,11 @@ func DefineFlow[In, Out any](r *registry.Registry, name string, fn Func[In, Out]
 // stream the results by invoking the callback periodically, ultimately returning
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
-func DefineStreamingFlow[In, Out, Stream any](r *registry.Registry, name string, fn StreamingFunc[In, Out, Stream]) *Flow[In, Out, Stream] {
-	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, "", name, atype.Flow, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
-		fc := &flowContext{tracingState: r.TracingState()}
+func DefineStreamingFlow[In, Out, Stream any](r api.Registry, name string, fn StreamingFunc[In, Out, Stream]) *Flow[In, Out, Stream] {
+	return (*Flow[In, Out, Stream])(DefineStreamingAction(r, name, api.ActionTypeFlow, nil, nil, func(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
+		fc := &flowContext{
+			flowName: name,
+		}
 		ctx = flowContextKey.NewContext(ctx, fc)
 		return fn(ctx, input, cb)
 	}))
@@ -85,9 +88,12 @@ func Run[Out any](ctx context.Context, name string, fn func() (Out, error)) (Out
 		var z Out
 		return z, fmt.Errorf("flow.Run(%q): must be called from a flow", name)
 	}
-	return tracing.RunInNewSpan(ctx, fc.tracingState, name, "flowStep", false, nil, func(ctx context.Context, _ any) (Out, error) {
-		tracing.SetCustomMetadataAttr(ctx, "genkit:name", name)
-		tracing.SetCustomMetadataAttr(ctx, "genkit:type", "flowStep")
+	spanMetadata := &tracing.SpanMetadata{
+		Name:    name,
+		Type:    "flowStep",
+		Subtype: "flowStep",
+	}
+	return tracing.RunInNewSpan(ctx, spanMetadata, nil, func(ctx context.Context, _ any) (Out, error) {
 		o, err := fn()
 		if err != nil {
 			return base.Zero[Out](), err
@@ -104,6 +110,16 @@ func (f *Flow[In, Out, Stream]) Name() string {
 // RunJSON runs the flow with JSON input and streaming callback and returns the output as JSON.
 func (f *Flow[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (json.RawMessage, error) {
 	return (*ActionDef[In, Out, Stream])(f).RunJSON(ctx, input, cb)
+}
+
+// RunJSON runs the flow with JSON input and streaming callback and returns the output as JSON.
+func (f *Flow[In, Out, Stream]) RunJSONWithTelemetry(ctx context.Context, input json.RawMessage, cb StreamCallback[json.RawMessage]) (*api.ActionRunResult[json.RawMessage], error) {
+	return (*ActionDef[In, Out, Stream])(f).RunJSONWithTelemetry(ctx, input, cb)
+}
+
+// Desc returns the descriptor of the flow.
+func (f *Flow[In, Out, Stream]) Desc() api.ActionDesc {
+	return (*ActionDef[In, Out, Stream])(f).Desc()
 }
 
 // Run runs the flow in the context of another flow.
@@ -143,4 +159,17 @@ func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In) func(func(
 	}
 }
 
+// Register registers the flow with the given registry.
+func (f *Flow[In, Out, Stream]) Register(r api.Registry) {
+	(*ActionDef[In, Out, Stream])(f).Register(r)
+}
+
 var errStop = errors.New("stop")
+
+// FlowNameFromContext returns the flow name from context if we're in a flow, empty string otherwise.
+func FlowNameFromContext(ctx context.Context) string {
+	if fc := flowContextKey.FromContext(ctx); fc != nil {
+		return fc.flowName
+	}
+	return ""
+}

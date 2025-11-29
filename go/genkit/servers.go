@@ -22,14 +22,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync/atomic"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
-	"github.com/firebase/genkit/go/internal/base"
 )
 
 type HandlerOption interface {
@@ -62,10 +63,10 @@ func WithContextProviders(ctxProviders ...core.ContextProvider) HandlerOption {
 //
 // Example:
 //
-//	genkit.Handler(g, genkit.WithContextProviders(func(ctx context.Context, req core.RequestData) (core.ActionContext, error) {
-//		return core.ActionContext{"myKey": "myValue"}, nil
+//	genkit.Handler(g, genkit.WithContextProviders(func(ctx context.Context, req core.RequestData) (api.ActionContext, error) {
+//		return api.ActionContext{"myKey": "myValue"}, nil
 //	}))
-func Handler(a core.Action, opts ...HandlerOption) http.HandlerFunc {
+func Handler(a api.Action, opts ...HandlerOption) http.HandlerFunc {
 	params := &handlerParams{}
 	for _, opt := range opts {
 		opt.apply(params)
@@ -90,9 +91,9 @@ func wrapHandler(h func(http.ResponseWriter, *http.Request) error) http.HandlerF
 		}()
 
 		if err = h(w, r); err != nil {
-			var herr *base.HTTPError
+			var herr *core.GenkitError
 			if errors.As(err, &herr) {
-				http.Error(w, herr.Error(), herr.Code)
+				http.Error(w, herr.Error(), core.HTTPStatusCode(herr.Status))
 			} else {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
@@ -101,7 +102,7 @@ func wrapHandler(h func(http.ResponseWriter, *http.Request) error) http.HandlerF
 }
 
 // handler returns an HTTP handler function that serves the action with the provided params. Responses are written in server-sent events (SSE) format.
-func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *http.Request) error {
+func handler(a api.Action, params *handlerParams) func(http.ResponseWriter, *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		if a == nil {
 			return errors.New("action is nil; cannot serve")
@@ -113,7 +114,7 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 		if r.Body != nil && r.ContentLength > 0 {
 			defer r.Body.Close()
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-				return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+				return core.NewPublicError(core.INVALID_ARGUMENT, err.Error(), nil)
 			}
 		}
 
@@ -125,7 +126,9 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 
 		var callback streamingCallback[json.RawMessage]
 		if stream {
-			w.Header().Set("Content-Type", "text/plain")
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
 			w.Header().Set("Transfer-Encoding", "chunked")
 			callback = func(ctx context.Context, msg json.RawMessage) error {
 				_, err := fmt.Fprintf(w, "data: {\"message\": %s}\n\n", msg)
@@ -137,6 +140,8 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 				}
 				return nil
 			}
+		} else {
+			w.Header().Set("Content-Type", "application/json")
 		}
 
 		ctx := r.Context()
@@ -154,13 +159,11 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 				})
 				if err != nil {
 					logger.FromContext(ctx).Error("error providing action context from request", "err", err)
-					return &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
+					return err
 				}
 
 				if existing := core.FromContext(ctx); existing != nil {
-					for k, v := range actionCtx {
-						existing[k] = v
-					}
+					maps.Copy(existing, actionCtx)
 					actionCtx = existing
 				}
 				ctx = core.WithActionContext(ctx, actionCtx)
@@ -180,7 +183,7 @@ func handler(a core.Action, params *handlerParams) func(http.ResponseWriter, *ht
 			return err
 		}
 
-		_, err = fmt.Fprintf(w, `{"result": %s}\n`, out)
+		_, err = fmt.Fprintf(w, "{\"result\": %s}\n", out)
 		return err
 	}
 }
@@ -191,7 +194,7 @@ func parseBoolQueryParam(r *http.Request, name string) (bool, error) {
 		var err error
 		b, err = strconv.ParseBool(s)
 		if err != nil {
-			return false, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return false, core.NewPublicError(core.INVALID_ARGUMENT, err.Error(), nil)
 		}
 	}
 	return b, nil

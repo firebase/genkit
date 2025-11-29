@@ -15,38 +15,32 @@
  */
 
 import {
-  Action,
-  ActionContext,
-  ActionRunOptions,
+  action,
   assertUnstable,
   defineAction,
-  JSONSchema7,
+  isAction,
   stripUndefinedProps,
   z,
+  type Action,
+  type ActionContext,
+  type ActionRunOptions,
+  type JSONSchema7,
 } from '@genkit-ai/core';
-import { Registry } from '@genkit-ai/core/registry';
+import type { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
-import {
+import type {
   Part,
   ToolDefinition,
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-import { ExecutablePrompt } from './prompt.js';
+import { isExecutablePrompt, type ExecutablePrompt } from './prompt.js';
 
-/**
- * An action with a `tool` type.
- */
-export type ToolAction<
+export interface Resumable<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<I, O, z.ZodTypeAny, ToolRunOptions> & {
-  __action: {
-    metadata: {
-      type: 'tool';
-    };
-  };
+> {
   /**
    * respond constructs a tool response corresponding to the provided interrupt tool request
    * using the provided reply data, validating it against the output schema of the tool if
@@ -89,7 +83,39 @@ export type ToolAction<
       replaceInput?: z.infer<I>;
     }
   ): ToolRequestPart;
-};
+}
+
+/**
+ * An action with a `tool` type.
+ */
+export type ToolAction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> = Action<I, O, z.ZodTypeAny, ToolRunOptions> &
+  Resumable<I, O> & {
+    __action: {
+      metadata: {
+        type: 'tool';
+      };
+    };
+  };
+
+/**
+ * A dynamic action with a `tool` type. Dynamic tools are detached actions -- not associated with any registry.
+ */
+export type DynamicToolAction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> = Action<I, O, z.ZodTypeAny, ToolRunOptions> & {
+  /** @deprecated no-op, for backwards compatibility only. */
+  attach(registry: Registry): ToolAction<I, O>;
+} & Resumable<I, O> & {
+    __action: {
+      metadata: {
+        type: 'tool';
+      };
+    };
+  };
 
 export interface ToolRunOptions extends ActionRunOptions<z.ZodTypeAny> {
   /**
@@ -141,7 +167,7 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   }
 
   const fn = ((input) => {
-    setCustomMetadataAttributes(registry, { subtype: 'tool' });
+    setCustomMetadataAttributes({ subtype: 'tool' });
     return action(input);
   }) as ToolAction<I, O>;
   fn.__action = {
@@ -169,14 +195,15 @@ export async function resolveTools<
     tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
         return await lookupToolByName(registry, ref);
-      } else if ((ref as Action).__action) {
-        return asTool(registry, ref as Action);
-      } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
-        return await (ref as ExecutablePrompt).asTool();
-      } else if (ref.name) {
+      } else if (isAction(ref)) {
+        return asTool(registry, ref);
+      } else if (isExecutablePrompt(ref)) {
+        return await ref.asTool();
+      } else if ((ref as ToolDefinition).name) {
         return await lookupToolByName(
           registry,
-          (ref as ToolDefinition).metadata?.originalName || ref.name
+          (ref as ToolDefinition).metadata?.originalName ||
+            (ref as ToolDefinition).name
         );
       }
       throw new Error('Tools must be strings, tool definitions, or actions.');
@@ -188,10 +215,11 @@ export async function lookupToolByName(
   registry: Registry,
   name: string
 ): Promise<ToolAction> {
-  let tool =
+  const tool =
     (await registry.lookupAction(name)) ||
     (await registry.lookupAction(`/tool/${name}`)) ||
-    (await registry.lookupAction(`/prompt/${name}`));
+    (await registry.lookupAction(`/prompt/${name}`)) ||
+    (await registry.lookupAction(`/dynamic-action-provider/${name}`));
   if (!tool) {
     throw new Error(`Tool ${name} not found`);
   }
@@ -270,12 +298,23 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       });
     }
   );
+  implementTool(a as ToolAction<I, O>, config, registry);
+  return a as ToolAction<I, O>;
+}
+
+function implementTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  a: ToolAction<I, O>,
+  config: ToolConfig<I, O>,
+  registry?: Registry
+) {
   (a as ToolAction<I, O>).respond = (interrupt, responseData, options) => {
-    assertUnstable(
-      registry,
-      'beta',
-      "The 'tool.reply' method is part of the 'interrupts' beta feature."
-    );
+    if (registry) {
+      assertUnstable(
+        registry,
+        'beta',
+        "The 'tool.reply' method is part of the 'interrupts' beta feature."
+      );
+    }
     parseSchema(responseData, {
       jsonSchema: config.outputJsonSchema,
       schema: config.outputSchema,
@@ -293,11 +332,13 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   };
 
   (a as ToolAction<I, O>).restart = (interrupt, resumedMetadata, options) => {
-    assertUnstable(
-      registry,
-      'beta',
-      "The 'tool.restart' method is part of the 'interrupts' beta feature."
-    );
+    if (registry) {
+      assertUnstable(
+        registry,
+        'beta',
+        "The 'tool.restart' method is part of the 'interrupts' beta feature."
+      );
+    }
     let replaceInput = options?.replaceInput;
     if (replaceInput) {
       replaceInput = parseSchema(replaceInput, {
@@ -319,7 +360,6 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       }),
     };
   };
-  return a as ToolAction<I, O>;
 }
 
 /** InterruptConfig defines the options for configuring an interrupt. */
@@ -343,22 +383,30 @@ export function isToolResponse(part: Part): part is ToolResponsePart {
   return !!part.toolResponse;
 }
 
-export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  registry: Registry,
+export function isDynamicTool(t: unknown): t is ToolAction {
+  return isAction(t) && !t.__registry;
+}
+
+export function interrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: InterruptConfig<I, O>
 ): ToolAction<I, O> {
   const { requestMetadata, ...toolConfig } = config;
 
-  return defineTool<I, O>(
-    registry,
-    toolConfig,
-    async (input, { interrupt }) => {
-      if (!config.requestMetadata) interrupt();
-      else if (typeof config.requestMetadata === 'object')
-        interrupt(config.requestMetadata);
-      else interrupt(await Promise.resolve(config.requestMetadata(input)));
-    }
-  );
+  return tool<I, O>(toolConfig, async (input, { interrupt }) => {
+    if (!config.requestMetadata) interrupt();
+    else if (typeof config.requestMetadata === 'object')
+      interrupt(config.requestMetadata);
+    else interrupt(await Promise.resolve(config.requestMetadata(input)));
+  });
+}
+
+export function defineInterrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  registry: Registry,
+  config: InterruptConfig<I, O>
+): ToolAction<I, O> {
+  const i = interrupt(config);
+  registry.registerAction('tool', i);
+  return i;
 }
 
 /**
@@ -375,9 +423,55 @@ export class ToolInterruptError extends Error {
  * Interrupts current tool execution causing tool request to be returned in the generation response.
  * Should only be called within a tool.
  */
-function interruptTool(registry: Registry) {
+function interruptTool(registry?: Registry) {
   return (metadata?: Record<string, any>): never => {
-    assertUnstable(registry, 'beta', 'Tool interrupts are a beta feature.');
+    if (registry) {
+      assertUnstable(registry, 'beta', 'Tool interrupts are a beta feature.');
+    }
     throw new ToolInterruptError(metadata);
   };
+}
+
+/**
+ * Defines a dynamic tool. Dynamic tools are just like regular tools but will not be registered in the
+ * Genkit registry and can be defined dynamically at runtime.
+ */
+export function tool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  config: ToolConfig<I, O>,
+  fn?: ToolFn<I, O>
+): ToolAction<I, O> {
+  return dynamicTool(config, fn);
+}
+
+/**
+ * Defines a dynamic tool. Dynamic tools are just like regular tools but will not be registered in the
+ * Genkit registry and can be defined dynamically at runtime.
+ *
+ * @deprecated renamed to {@link tool}.
+ */
+export function dynamicTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  config: ToolConfig<I, O>,
+  fn?: ToolFn<I, O>
+): DynamicToolAction<I, O> {
+  const a = action(
+    {
+      ...config,
+      actionType: 'tool',
+      metadata: { ...(config.metadata || {}), type: 'tool', dynamic: true },
+    },
+    (i, runOptions) => {
+      const interrupt = interruptTool(runOptions.registry);
+      if (fn) {
+        return fn(i, {
+          ...runOptions,
+          context: { ...runOptions.context },
+          interrupt,
+        });
+      }
+      return interrupt();
+    }
+  ) as DynamicToolAction<I, O>;
+  implementTool(a as any, config);
+  a.attach = (_: Registry) => a;
+  return a;
 }

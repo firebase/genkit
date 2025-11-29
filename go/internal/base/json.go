@@ -75,6 +75,7 @@ func ReadJSONFile(filename string, pvalue any) error {
 	return json.NewDecoder(f).Decode(pvalue)
 }
 
+// InferJSONSchema infers a JSON schema from a Go value.
 func InferJSONSchema(x any) (s *jsonschema.Schema) {
 	r := jsonschema.Reflector{
 		DoNotReference: true,
@@ -93,8 +94,8 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 		},
 	}
 	s = r.Reflect(x)
-	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
 	s.Version = ""
+	s.ID = ""
 	return s
 }
 
@@ -104,6 +105,12 @@ func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	if err != nil {
 		log.Panicf("failed to marshal schema: %v", err)
 	}
+
+	// Check if the marshaled JSON is "true" (indicates an empty schema)
+	if string(jsb) == "true" {
+		return make(map[string]any)
+	}
+
 	var m map[string]any
 	err = json.Unmarshal(jsb, &m)
 	if err != nil {
@@ -112,22 +119,23 @@ func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 	return m
 }
 
-var jsonMarkdownRegex = regexp.MustCompile("```(json)?((\n|.)*?)```")
+// jsonMarkdownRegex specifically looks for "json" language identifier
+var jsonMarkdownRegex = regexp.MustCompile("(?s)```json(.*?)```")
 
 // ExtractJSONFromMarkdown returns the contents of the first fenced code block in
 // the markdown text md. If there is none, it returns md.
 func ExtractJSONFromMarkdown(md string) string {
-	// TODO: improve this
 	matches := jsonMarkdownRegex.FindStringSubmatch(md)
-	if matches == nil {
+	if len(matches) < 2 {
 		return md
 	}
-	return matches[2]
+	// capture group 1 matches the actual fenced JSON block
+	return strings.TrimSpace(matches[1])
 }
 
-// GetJsonObjectLines splits a string by newlines, trims whitespace from each line,
+// GetJSONObjectLines splits a string by newlines, trims whitespace from each line,
 // and returns a slice containing only the lines that start with '{'.
-func GetJsonObjectLines(text string) []string {
+func GetJSONObjectLines(text string) []string {
 	jsonText := ExtractJSONFromMarkdown(text)
 
 	// Handle both actual "\n" newline strings, as well as newline bytes

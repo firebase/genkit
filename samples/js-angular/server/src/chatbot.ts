@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai/model';
-import { gemini20Flash } from '@genkit-ai/googleai';
-import { z } from 'zod';
-import { defineAgent, HistoryStore } from './agent.js';
+import type { MessageData } from '@genkit-ai/ai/model';
+import { googleAI } from '@genkit-ai/google-genai';
+import { z } from 'genkit';
+import { defineAgent, type HistoryStore } from './agent.js';
 import { ai } from './genkit.js';
 
 const weatherTool = ai.defineTool(
@@ -50,7 +50,7 @@ const datePicker = ai.defineTool(
 
 export const chatbotFlow = defineAgent(ai, {
   name: 'chatbotFlow',
-  model: gemini20Flash,
+  model: googleAI.model('gemini-2.5-flash'),
   tools: [weatherTool, datePicker],
   returnToolRequests: true,
   systemPrompt:

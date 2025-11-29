@@ -19,9 +19,12 @@ import * as assert from 'assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, run } from '../src/flow.js';
 import { defineAction, getContext, z } from '../src/index.js';
+import { initNodeFeatures } from '../src/node.js';
 import { Registry } from '../src/registry.js';
 import { enableTelemetry } from '../src/tracing.js';
 import { TestSpanExporter } from './utils.js';
+
+initNodeFeatures();
 
 const spanExporter = new TestSpanExporter();
 enableTelemetry({
@@ -60,6 +63,23 @@ describe('flow', () => {
       assert.equal(result, 'bar foo');
     });
 
+    it('should set metadata on the flow action', async () => {
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+          metadata: { foo: 'bar' },
+        },
+        async (input) => {
+          return `bar ${input}`;
+        }
+      );
+
+      assert.deepStrictEqual(testFlow.__action.metadata, { foo: 'bar' });
+    });
+
     it('should run simple sync flow', async () => {
       const testFlow = defineFlow(registry, 'testFlow', (input) => {
         return `bar ${input}`;
@@ -68,6 +88,16 @@ describe('flow', () => {
       const result = await testFlow('foo');
 
       assert.equal(result, 'bar foo');
+    });
+
+    it('should include trace info in the context', async () => {
+      const testFlow = defineFlow(registry, 'testFlow', (_, ctx) => {
+        return `traceId=${!!ctx.trace.traceId} spanId=${!!ctx.trace.spanId}`;
+      });
+
+      const result = await testFlow('foo');
+
+      assert.equal(result, 'traceId=true spanId=true');
     });
 
     it('should rethrow the error', async () => {
@@ -129,8 +159,8 @@ describe('flow', () => {
           inputSchema: z.string(),
           outputSchema: z.string(),
         },
-        async (input) => {
-          return `bar ${input} ${JSON.stringify(getContext(registry))}`;
+        async (input, ctx) => {
+          return `bar ${input} ${JSON.stringify(ctx.context)}`;
         }
       );
 
@@ -156,7 +186,7 @@ describe('flow', () => {
               streamingCallback({ count: i });
             }
           }
-          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getContext(registry))}`;
+          return `bar ${input} ${!!streamingCallback} ${JSON.stringify(getContext())}`;
         }
       );
 
@@ -184,7 +214,7 @@ describe('flow', () => {
           outputSchema: z.string(),
         },
         async (input) => {
-          return `bar ${input} ${JSON.stringify(getContext(registry))}`;
+          return `bar ${input} ${JSON.stringify(getContext())}`;
         }
       );
 
@@ -276,6 +306,56 @@ describe('flow', () => {
       assert.equal(await response.output, 'bar 3 true {"user":"test-user"}');
       assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
     });
+
+    it('aborts flow via signal', async () => {
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'testFlow',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+        },
+        async (input, { abortSignal }) => {
+          let done = false;
+          abortSignal.onabort = () => {
+            done = true;
+          };
+          while (!done) {
+            await new Promise((r) => setTimeout(r, 1));
+          }
+          return 'done ' + input;
+        }
+      );
+
+      const ctrl = new AbortController();
+      const responsePromise = testFlow('foo', {
+        abortSignal: ctrl.signal,
+      });
+
+      await new Promise((r) => setTimeout(r, 4));
+      console.log('abort');
+      ctrl.abort();
+
+      assert.equal(await responsePromise, 'done foo');
+    });
+  });
+
+  describe('run', () => {
+    it('should run the action', async () => {
+      const act = async () => 'bar';
+
+      const result = await run('action', act, registry);
+
+      assert.equal(result, 'bar');
+    });
+
+    it('should run the action with input', async () => {
+      const act = async (input: string) => `${input} bar`;
+
+      const result = await run('action', 'foo', act, registry);
+
+      assert.equal(result, 'foo bar');
+    });
   });
 
   describe('telemetry', async () => {
@@ -286,7 +366,9 @@ describe('flow', () => {
     it('should create a trace', async () => {
       const testFlow = createTestFlow(registry);
 
-      const result = await testFlow('foo');
+      const result = await testFlow('foo', {
+        telemetryLabels: { custom: 'label' },
+      });
 
       assert.equal(result, 'bar foo');
       assert.strictEqual(spanExporter.exportedSpans.length, 1);
@@ -300,6 +382,32 @@ describe('flow', () => {
         'genkit:path': '/{testFlow,t:flow}',
         'genkit:state': 'success',
         'genkit:type': 'action',
+        custom: 'label',
+      });
+    });
+
+    it('should create a trace when streaming', async () => {
+      const testFlow = createTestFlow(registry);
+
+      const { output } = testFlow.stream('foo', {
+        telemetryLabels: { custom: 'label' },
+      });
+      const result = await output;
+
+      assert.equal(result, 'bar foo');
+      assert.strictEqual(spanExporter.exportedSpans.length, 1);
+      assert.strictEqual(spanExporter.exportedSpans[0].displayName, 'testFlow');
+      assert.deepStrictEqual(spanExporter.exportedSpans[0].attributes, {
+        'genkit:input': '"foo"',
+        'genkit:isRoot': true,
+        'genkit:metadata:subtype': 'flow',
+        'genkit:metadata:context': '{}',
+        'genkit:name': 'testFlow',
+        'genkit:output': '"bar foo"',
+        'genkit:path': '/{testFlow,t:flow}',
+        'genkit:state': 'success',
+        'genkit:type': 'action',
+        custom: 'label',
       });
     });
 
@@ -333,7 +441,9 @@ describe('flow', () => {
           );
         }
       );
-      const result = await testFlow('foo', { context: { user: 'pavel' } });
+      const result = await testFlow('foo', {
+        context: { user: 'pavel' },
+      });
 
       assert.equal(result, 'foo bar');
       assert.strictEqual(spanExporter.exportedSpans.length, 3);

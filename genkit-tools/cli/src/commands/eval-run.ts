@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-import { Action, EvalInputDataset } from '@genkit-ai/tools-common';
+import type { Action, EvalInputDataset } from '@genkit-ai/tools-common';
 import {
-  EvalExporter,
   getAllEvaluatorActions,
   getExporterForString,
   getMatchingEvaluatorActions,
   runEvaluation,
+  type EvalExporter,
 } from '@genkit-ai/tools-common/eval';
 import {
   confirmLlmUse,
+  findProjectRoot,
   loadEvaluationDatasetFile,
   logger,
 } from '@genkit-ai/tools-common/utils';
@@ -35,6 +36,7 @@ interface EvalRunCliOptions {
   output?: string;
   evaluators?: string;
   force?: boolean;
+  batchSize?: number;
   outputFormat: string;
 }
 
@@ -58,9 +60,14 @@ export const evalRun = new Command('eval:run')
     '--evaluators <evaluators>',
     'comma separated list of evaluators to use (by default uses all)'
   )
+  .option(
+    '--batchSize <batchSize>',
+    'batch size to use for parallel evals (default to 1, no parallelization)',
+    Number.parseInt
+  )
   .option('--force', 'Automatically accept all interactive prompts')
   .action(async (dataset: string, options: EvalRunCliOptions) => {
-    await runWithManager(async (manager) => {
+    await runWithManager(await findProjectRoot(), async (manager) => {
       if (!dataset) {
         throw new Error(
           'No input data passed. Specify input data using [data] argument'
@@ -105,6 +112,7 @@ export const evalRun = new Command('eval:run')
         manager,
         evaluatorActions,
         evalDataset,
+        batchSize: options.batchSize,
       });
 
       if (options.output) {

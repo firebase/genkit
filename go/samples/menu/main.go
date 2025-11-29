@@ -19,8 +19,9 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/googlegenai"
 	"github.com/firebase/genkit/go/plugins/localvec"
@@ -59,14 +60,9 @@ type textMenuQuestionInput struct {
 
 func main() {
 	ctx := context.Background()
-	g, err := genkit.Init(ctx,
-		genkit.WithPlugins(&googlegenai.VertexAI{Location: os.Getenv("GCLOUD_LOCATION")}),
-	)
-	if err != nil {
-		log.Fatalf("failed to create Genkit: %v", err)
-	}
+	g := genkit.Init(ctx, genkit.WithPlugins(&googlegenai.VertexAI{}))
 
-	model := googlegenai.VertexAIModel(g, "gemini-2.0-flash")
+	model := googlegenai.VertexAIModel(g, "gemini-2.5-flash")
 	embedder := googlegenai.VertexAIEmbedder(g, "text-embedding-004")
 
 	if err := setup01(g, model); err != nil {
@@ -79,17 +75,24 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = localvec.Init()
-	if err != nil {
+	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineIndexerAndRetriever(g, "go-menu_items", localvec.Config{
+
+	retOpts := &ai.RetrieverOptions{
+		ConfigSchema: core.InferSchemaMap(localvec.RetrieverOptions{}),
+		Label:        "go-menu_items",
+		Supports: &ai.RetrieverSupports{
+			Media: false,
+		},
+	}
+	docStore, retriever, err := localvec.DefineRetriever(g, "go-menu_items", localvec.Config{
 		Embedder: embedder,
-	})
+	}, retOpts)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(g, indexer, retriever, model); err != nil {
+	if err := setup04(ctx, g, docStore, retriever, model); err != nil {
 		log.Fatal(err)
 	}
 

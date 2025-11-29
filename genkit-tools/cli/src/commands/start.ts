@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { RuntimeManager } from '@genkit-ai/tools-common/manager';
+import type { RuntimeManager } from '@genkit-ai/tools-common/manager';
 import { startServer } from '@genkit-ai/tools-common/server';
-import { logger } from '@genkit-ai/tools-common/utils';
-import { spawn } from 'child_process';
+import { findProjectRoot, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import getPort, { makeRange } from 'get-port';
 import open from 'open';
-import { startManager } from '../utils/manager-utils';
+import { startDevProcessManager, startManager } from '../utils/manager-utils';
 
 interface RunOptions {
   noui?: boolean;
@@ -36,8 +35,28 @@ export const start = new Command('start')
   .option('-p, --port <port>', 'port for the Dev UI')
   .option('-o, --open', 'Open the browser on UI start up')
   .action(async (options: RunOptions) => {
+    const projectRoot = await findProjectRoot();
+    if (projectRoot.includes('/.Trash/')) {
+      logger.warn(
+        'It appears your current project root is in the trash folder. ' +
+          'Please make sure that you current working directory is correct.'
+      );
+    }
     // Always start the manager.
-    let managerPromise: Promise<RuntimeManager> = startManager(true);
+    let manager: RuntimeManager;
+    let processPromise: Promise<void> | undefined;
+    if (start.args.length > 0) {
+      const result = await startDevProcessManager(
+        projectRoot,
+        start.args[0],
+        start.args.slice(1)
+      );
+      manager = result.manager;
+      processPromise = result.processPromise;
+    } else {
+      manager = await startManager(projectRoot, true);
+      processPromise = new Promise(() => {});
+    }
     if (!options.noui) {
       let port: number;
       if (options.port) {
@@ -49,51 +68,10 @@ export const start = new Command('start')
       } else {
         port = await getPort({ port: makeRange(4000, 4099) });
       }
-      managerPromise = managerPromise.then((manager) => {
-        startServer(manager, port);
-        return manager;
-      });
+      startServer(manager, port);
       if (options.open) {
         open(`http://localhost:${port}`);
       }
     }
-    await managerPromise.then((manager: RuntimeManager) => {
-      const telemetryServerUrl = manager?.telemetryServerUrl;
-      return startRuntime(telemetryServerUrl);
-    });
+    await processPromise;
   });
-
-async function startRuntime(telemetryServerUrl?: string) {
-  if (start.args.length > 0) {
-    return new Promise((urlResolver, reject) => {
-      const appProcess = spawn(start.args[0], start.args.slice(1), {
-        env: {
-          ...process.env,
-          GENKIT_TELEMETRY_SERVER: telemetryServerUrl,
-          GENKIT_ENV: 'dev',
-        },
-        shell: process.platform === 'win32',
-      });
-
-      const originalStdIn = process.stdin;
-      appProcess.stderr?.pipe(process.stderr);
-      appProcess.stdout?.pipe(process.stdout);
-      process.stdin?.pipe(appProcess.stdin);
-
-      appProcess.on('error', (error): void => {
-        console.log(`Error in app process: ${error}`);
-        reject(error);
-        process.exitCode = 1;
-      });
-      appProcess.on('exit', (code) => {
-        process.stdin?.pipe(originalStdIn);
-        if (code === 0) {
-          urlResolver(undefined);
-        } else {
-          reject(new Error(`app process exited with code ${code}`));
-        }
-      });
-    });
-  }
-  return new Promise(() => {}); // no runtime, return a hanging promise.
-}

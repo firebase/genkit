@@ -19,208 +19,302 @@ package registry
 import (
 	"fmt"
 	"log/slog"
-	"os"
-	"slices"
+	"maps"
 	"sync"
 
-	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/action"
-	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/core/api"
 	"github.com/google/dotprompt/go/dotprompt"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"golang.org/x/exp/maps"
 )
 
 // This file implements registries of actions and other values.
 
-const (
-	DefaultModelKey = "genkit/defaultModel"
-	PromptDirKey    = "genkit/promptDir"
-)
-
+// Registry holds all registered actions and associated types,
+// and provides methods to register, query, and look up actions.
 type Registry struct {
-	tstate    *tracing.State
-	mu        sync.Mutex
-	frozen    bool // when true, no more additions
-	actions   map[string]action.Action
-	plugins   map[string]any // Values are of type genkit.Plugin but we can't reference it here.
+	mu        sync.RWMutex
+	resolveMu sync.RWMutex
+	parent    api.Registry
+	actions   map[string]api.Action
+	plugins   map[string]api.Plugin
 	values    map[string]any // Values can truly be anything.
-	Dotprompt *dotprompt.Dotprompt
+	dotprompt *dotprompt.Dotprompt
 }
 
-func New() (*Registry, error) {
+// New creates a new root registry.
+func New() *Registry {
 	r := &Registry{
-		actions: map[string]action.Action{},
-		plugins: map[string]any{},
+		actions: map[string]api.Action{},
+		plugins: map[string]api.Plugin{},
 		values:  map[string]any{},
 	}
-	r.tstate = tracing.NewState()
-	if os.Getenv("GENKIT_TELEMETRY_SERVER") != "" {
-		r.tstate.WriteTelemetryImmediate(tracing.NewHTTPTelemetryClient(os.Getenv("GENKIT_TELEMETRY_SERVER")))
-	}
-	r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
+	r.dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
 		Helpers:  make(map[string]any),
 		Partials: make(map[string]string),
 	})
-	return r, nil
+	return r
 }
 
-func (r *Registry) TracingState() *tracing.State { return r.tstate }
+// NewChild creates a new child registry that inherits from this registry.
+// Child registries are cheap to create and will fall back to the parent
+// for lookups if a value is not found in the child.
+func (r *Registry) NewChild() api.Registry {
+	child := &Registry{
+		parent:    r,
+		actions:   map[string]api.Action{},
+		plugins:   map[string]api.Plugin{},
+		values:    map[string]any{},
+		dotprompt: r.dotprompt,
+	}
+	return child
+}
+
+// IsChild returns true if the registry is a child of another registry.
+func (r *Registry) IsChild() bool {
+	return r.parent != nil
+}
 
 // RegisterPlugin records the plugin in the registry.
 // It panics if a plugin with the same name is already registered.
-func (r *Registry) RegisterPlugin(name string, p any) {
+func (r *Registry) RegisterPlugin(name string, p api.Plugin) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.frozen {
-		panic(fmt.Sprintf("attempt to register plugin %s in a frozen registry. Register before calling genkit.Init", name))
-	}
 	if _, ok := r.plugins[name]; ok {
 		panic(fmt.Sprintf("plugin %q is already registered", name))
 	}
 	r.plugins[name] = p
-	slog.Debug("RegisterPlugin",
-		"name", name)
+	slog.Debug("RegisterPlugin", "name", name)
 }
 
 // RegisterAction records the action in the registry.
 // It panics if an action with the same type, provider and name is already
 // registered.
-func (r *Registry) RegisterAction(typ atype.ActionType, a action.Action) {
-	key := fmt.Sprintf("/%s/%s", typ, a.Name())
+func (r *Registry) RegisterAction(key string, action api.Action) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.frozen {
-		panic(fmt.Sprintf("attempt to register action %s in a frozen registry. Register before calling genkit.Init", key))
-	}
 	if _, ok := r.actions[key]; ok {
 		panic(fmt.Sprintf("action %q is already registered", key))
 	}
-	r.actions[key] = a
-	slog.Debug("RegisterAction",
-		"type", typ,
-		"name", a.Name())
+	r.actions[key] = action
+	slog.Debug("RegisterAction", "key", key)
 }
 
-func (r *Registry) Freeze() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.frozen = true
-}
+// LookupPlugin returns the plugin for the given name.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the plugin is not found in the registry hierarchy.
+func (r *Registry) LookupPlugin(name string) api.Plugin {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
-// LookupPlugin returns the plugin for the given name, or nil if there is none.
-func (r *Registry) LookupPlugin(name string) any {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.plugins[name]
+	if plugin, ok := r.plugins[name]; ok {
+		return plugin
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupPlugin(name)
+	}
+
+	return nil
 }
 
 // RegisterValue records an arbitrary value in the registry.
 // It panics if a value with the same name is already registered.
-func (r *Registry) RegisterValue(name string, v any) {
+func (r *Registry) RegisterValue(name string, value any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.frozen {
-		panic(fmt.Sprintf("attempt to register value %s in a frozen registry. Register before calling genkit.Init", name))
-	}
 	if _, ok := r.values[name]; ok {
 		panic(fmt.Sprintf("value %q is already registered", name))
 	}
-	r.values[name] = v
-	slog.Debug("RegisterValue",
-		"name", name)
+	r.values[name] = value
+	slog.Debug("RegisterValue", "name", name)
 }
 
-// LookupValue returns the value for the given name, or nil if there is none.
+// LookupValue returns the value for the given name.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the value is not found in the registry hierarchy.
 func (r *Registry) LookupValue(name string) any {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.values[name]
-}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
-// LookupAction returns the action for the given key, or nil if there is none.
-func (r *Registry) LookupAction(key string) action.Action {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.actions[key]
-}
-
-// ListActions returns a list of descriptions of all registered actions.
-// The list is sorted by action name.
-func (r *Registry) ListActions() []action.Desc {
-	var ads []action.Desc
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	keys := maps.Keys(r.actions)
-	slices.Sort(keys)
-	for _, key := range keys {
-		a := r.actions[key]
-		ad := a.Desc()
-		ad.Key = key
-		ads = append(ads, ad)
+	if value, ok := r.values[name]; ok {
+		return value
 	}
-	return ads
+
+	if r.parent != nil {
+		return r.parent.LookupValue(name)
+	}
+
+	return nil
 }
 
-func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	r.tstate.RegisterSpanProcessor(sp)
+// LookupAction returns the action for the given key.
+// It first checks the current registry, then falls back to the parent if not found.
+func (r *Registry) LookupAction(key string) api.Action {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if action, ok := r.actions[key]; ok {
+		return action
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupAction(key)
+	}
+
+	return nil
+}
+
+// ResolveAction looks up an action by key. If the action is not found, it attempts dynamic resolution.
+// Returns the action if found, or nil if not found.
+// This method is safe to call concurrently and uses a single mutex to serialize all resolution operations.
+func (r *Registry) ResolveAction(key string) api.Action {
+	action := r.LookupAction(key)
+	if action != nil {
+		return action
+	}
+
+	r.resolveMu.Lock()
+	defer r.resolveMu.Unlock()
+
+	action = r.LookupAction(key)
+	if action != nil {
+		return action
+	}
+
+	typ, provider, name := api.ParseKey(key)
+	if typ == "" || name == "" {
+		slog.Debug("ResolveAction: failed to parse action key", "key", key)
+		return nil
+	}
+
+	plugins := r.ListPlugins()
+	for _, plugin := range plugins {
+		if dp, ok := plugin.(api.DynamicPlugin); ok && dp.Name() == provider {
+			resolvedAction := dp.ResolveAction(typ, name)
+			if resolvedAction != nil {
+				resolvedAction.Register(r)
+			}
+			break
+		}
+	}
+
+	return r.LookupAction(key)
+}
+
+// ListActions returns a list of all registered actions.
+// This includes actions from both the current registry and its parent hierarchy.
+// Child registry actions take precedence over parent actions with the same key.
+func (r *Registry) ListActions() []api.Action {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var actions []api.Action
+
+	// recursively check all the registry parents
+	if r.parent != nil {
+		parentValues := r.parent.ListActions()
+		for _, pv := range parentValues {
+			found := false
+			for _, cv := range r.actions {
+				if pv.Name() == cv.Name() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				actions = append(actions, pv)
+			}
+		}
+	}
+	for _, v := range r.actions {
+		actions = append(actions, v)
+	}
+	return actions
+}
+
+// ListPlugins returns a list of all registered plugins.
+// This includes plugins from both the current registry and its parent hierarchy.
+// Child registry plugins take precedence over parent plugins with the same key.
+func (r *Registry) ListPlugins() []api.Plugin {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var plugins []api.Plugin
+
+	// recursively check all the registry parents
+	if r.parent != nil {
+		parentValues := r.parent.ListPlugins()
+		for _, pv := range parentValues {
+			found := false
+			for _, cv := range r.plugins {
+				if pv.Name() == cv.Name() {
+					found = true
+					break
+				}
+			}
+			if !found {
+				plugins = append(plugins, pv)
+			}
+		}
+	}
+
+	for _, p := range r.plugins {
+		plugins = append(plugins, p)
+	}
+	return plugins
 }
 
 // ListValues returns a list of values of all registered values.
+// This includes values from both the current registry and its parent hierarchy.
+// Child registry values take precedence over parent values with the same key.
 func (r *Registry) ListValues() map[string]any {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	allValues := make(map[string]any)
+
+	if r.parent != nil {
+		parentValues := r.parent.ListValues()
+		maps.Copy(allValues, parentValues)
+	}
+
+	maps.Copy(allValues, r.values)
+
+	return allValues
+}
+
+// RegisterPartial adds the partial to the list of partials to the dotprompt instance
+func (r *Registry) RegisterPartial(name string, source string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.values
+	if r.dotprompt == nil {
+		r.dotprompt = dotprompt.NewDotprompt(nil)
+	}
+	if r.dotprompt.Partials == nil {
+		r.dotprompt.Partials = make(map[string]string)
+	}
+	if r.dotprompt.Partials[name] != "" {
+		panic(fmt.Sprintf("partial %q is already defined", name))
+	}
+	r.dotprompt.Partials[name] = source
 }
 
-// An Environment is the execution context in which the program is running.
-type Environment string
-
-const (
-	EnvironmentDev  Environment = "dev"  // development: testing, debugging, etc.
-	EnvironmentProd Environment = "prod" // production: user data, SLOs, etc.
-)
-
-// CurentEnvironment returns the currently active environment.
-func CurrentEnvironment() Environment {
-	if v := os.Getenv("GENKIT_ENV"); v != "" {
-		return Environment(v)
+// RegisterHelper adds a helper function to the dotprompt instance
+func (r *Registry) RegisterHelper(name string, fn any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.dotprompt == nil {
+		r.dotprompt = dotprompt.NewDotprompt(nil)
 	}
-	return EnvironmentProd
+	if r.dotprompt.Helpers == nil {
+		r.dotprompt.Helpers = make(map[string]any)
+	}
+	if r.dotprompt.Helpers[name] != nil {
+		panic(fmt.Sprintf("helper %q is already defined", name))
+	}
+	r.dotprompt.Helpers[name] = fn
 }
 
-// DefinePartial adds the partial to the list of partials to the dotprompt instance
-func (r *Registry) DefinePartial(name string, source string) error {
-	if r.Dotprompt == nil {
-		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
-			Partials: map[string]string{},
-		})
-	}
-	if r.Dotprompt.Partials == nil {
-		r.Dotprompt.Partials = make(map[string]string)
-	}
-
-	if r.Dotprompt.Partials[name] != "" {
-		return fmt.Errorf("partial %q is already defined", name)
-	}
-	r.Dotprompt.Partials[name] = source
-	return nil
-}
-
-// DefineHelper adds a helper function to the dotprompt instance
-func (r *Registry) DefineHelper(name string, fn any) error {
-	if r.Dotprompt == nil {
-		r.Dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
-			Helpers: map[string]any{},
-		})
-	}
-	if r.Dotprompt.Helpers == nil {
-		r.Dotprompt.Helpers = make(map[string]any)
-	}
-
-	if r.Dotprompt.Helpers[name] != nil {
-		return fmt.Errorf("helper %q is already defined", name)
-	}
-	r.Dotprompt.Helpers[name] = fn
-	return nil
+// Dotprompt returns a clone of the Dotprompt instance.
+func (r *Registry) Dotprompt() *dotprompt.Dotprompt {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.dotprompt.Clone()
 }

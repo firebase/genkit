@@ -18,13 +18,13 @@ import fs from 'fs';
 import { readFile, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateDatasetRequest, UpdateDatasetRequest } from '../types/apis';
+import type { CreateDatasetRequest, UpdateDatasetRequest } from '../types/apis';
 import {
-  Dataset,
-  DatasetMetadata,
   DatasetSchema,
-  DatasetStore,
-  InferenceDataset,
+  type Dataset,
+  type DatasetMetadata,
+  type DatasetStore,
+  type InferenceDataset,
 } from '../types/eval';
 import { generateTestCaseId } from '../utils';
 import { logger } from '../utils/logger';
@@ -46,7 +46,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!fs.existsSync(this.indexFile)) {
       fs.writeFileSync(path.resolve(this.indexFile), JSON.stringify({}));
     }
-    logger.info(
+    logger.debug(
       `Initialized local file dataset store at root: ${this.storeRoot}`
     );
   }
@@ -82,7 +82,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       );
     }
     const dataset = this.getDatasetFromInferenceDataset(data);
-    logger.info(`Saving Dataset to ` + filePath);
+    logger.debug(`Saving Dataset to ` + filePath);
     await writeFile(filePath, JSON.stringify(dataset));
 
     const now = new Date().toString();
@@ -90,6 +90,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: id,
       schema,
       targetAction,
+      metricRefs: req.metricRefs,
       size: dataset.length,
       version: 1,
       datasetType: req.datasetType,
@@ -97,7 +98,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       updateTime: now,
     };
 
-    let metadataMap = await this.getMetadataMap();
+    const metadataMap = await this.getMetadataMap();
     metadataMap[id] = metadata;
 
     logger.debug(
@@ -109,7 +110,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async updateDataset(req: UpdateDatasetRequest): Promise<DatasetMetadata> {
-    const { datasetId, data, schema, targetAction } = req;
+    const { datasetId, data, schema, targetAction, metricRefs } = req;
     const filePath = path.resolve(
       this.storeRoot,
       this.generateFileName(datasetId)
@@ -118,7 +119,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       throw new Error(`Update dataset failed: dataset not found`);
     }
 
-    let metadataMap = await this.getMetadataMap();
+    const metadataMap = await this.getMetadataMap();
     const prevMetadata = metadataMap[datasetId];
     if (!prevMetadata) {
       throw new Error(`Update dataset failed: dataset metadata not found`);
@@ -126,7 +127,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     const patch = this.getDatasetFromInferenceDataset(data ?? []);
     let newSize = prevMetadata.size;
     if (patch.length > 0) {
-      logger.info(`Updating Dataset at ` + filePath);
+      logger.debug(`Updating Dataset at ` + filePath);
       newSize = await this.patchDataset(datasetId, patch, filePath);
     }
 
@@ -138,6 +139,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       targetAction: targetAction ? targetAction : prevMetadata.targetAction,
       version: data ? prevMetadata.version + 1 : prevMetadata.version,
       datasetType: prevMetadata.datasetType,
+      metricRefs: metricRefs ? metricRefs : prevMetadata.metricRefs,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
@@ -168,7 +170,7 @@ export class LocalFileDatasetStore implements DatasetStore {
 
   async listDatasets(): Promise<DatasetMetadata[]> {
     return this.getMetadataMap().then((metadataMap) => {
-      let metadatas = [];
+      const metadatas = [];
 
       for (var key in metadataMap) {
         metadatas.push(metadataMap[key]);
@@ -184,7 +186,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     );
     await rm(filePath);
 
-    let metadataMap = await this.getMetadataMap();
+    const metadataMap = await this.getMetadataMap();
     delete metadataMap[datasetId];
 
     logger.debug(
