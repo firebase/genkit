@@ -212,9 +212,13 @@ func TestGoogleAILive(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	t.Run("api and custom tools", func(t *testing.T) {
+	t.Run("api and custom tools with GoogleSearch", func(t *testing.T) {
+		// Note: The Gemini API does not support combining GoogleSearch with function calling.
+		// This test verifies that tools are properly merged (not silently dropped),
+		// even though the API will reject this specific combination.
+		// See: https://github.com/google/adk-python/issues/53
 		m := googlegenai.GoogleAIModel(g, "gemini-2.5-flash")
-		resp, err := genkit.Generate(ctx, g,
+		_, err := genkit.Generate(ctx, g,
 			ai.WithConfig(&genai.GenerateContentConfig{
 				Tools: []*genai.Tool{
 					{GoogleSearch: &genai.GoogleSearch{}},
@@ -223,15 +227,13 @@ func TestGoogleAILive(t *testing.T) {
 			ai.WithModel(m),
 			ai.WithTools(gablorkenTool, answerOfEverythingTool),
 			ai.WithPrompt("What is the answer of life?"))
-		if err != nil {
-			t.Fatal(err)
+		// Expect API error because GoogleSearch + function calling is unsupported
+		if err == nil {
+			t.Fatal("expected error combining GoogleSearch with function calling, but got none")
 		}
-		// api tools should not be used when custom tools are present
-		if len(resp.Request.Tools) != 2 {
-			t.Fatalf("got %d tools, want: 2", len(resp.Request.Tools))
-		}
-		if !strings.Contains(resp.Text(), "42") {
-			t.Fatalf("got %s, want: 42", resp.Text())
+		if !strings.Contains(err.Error(), "Tool use with function calling is unsupported") &&
+			!strings.Contains(err.Error(), "INVALID_ARGUMENT") {
+			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 	t.Run("tool with json output", func(t *testing.T) {
