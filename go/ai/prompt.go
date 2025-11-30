@@ -30,6 +30,7 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
 )
@@ -49,6 +50,18 @@ type prompt struct {
 	core.ActionDef[any, *GenerateActionOptions, struct{}]
 	promptOptions
 	registry api.Registry
+}
+
+// SchemaRef is a reference to a prompt schema
+type SchemaRef interface {
+	Name() string
+}
+
+type SchemaName string
+
+// Name returns the name of the prompt schema
+func (s SchemaName) Name() string {
+	return (string)(s)
 }
 
 // DefinePrompt creates a new [Prompt] and registers it.
@@ -120,6 +133,12 @@ func LookupPrompt(r api.Registry, name string) Prompt {
 		ActionDef: *action,
 		registry:  r,
 	}
+}
+
+// DefineSchema defines a schema in the registry
+// It panics if an error was encountered
+func DefineSchema(r *registry.Registry, name string, schema any) {
+	// TODO: marshal the schema and store it into the registry
 }
 
 // Execute renders a prompt, does variable substitution and
@@ -246,6 +265,8 @@ func (p *prompt) Render(ctx context.Context, input any) (*GenerateActionOptions,
 	if input == nil {
 		input = p.Desc().Metadata["prompt"].(map[string]any)["defaultInput"]
 	}
+
+	// TODO: should we consider output atp?
 
 	return p.Run(ctx, input, nil)
 }
@@ -604,6 +625,8 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 	for i, tool := range metadata.Tools {
 		toolRefs[i] = ToolName(tool)
 	}
+
+	// TODO: get input/output schemas from metadata
 
 	promptMetadata := map[string]any{
 		"template": parsedPrompt.Template,
