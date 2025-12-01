@@ -26,11 +26,11 @@ import { type ExportResult } from '@opentelemetry/core';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
-import { Resource } from '@opentelemetry/resources';
+import { Resource, resourceFromAttributes } from '@opentelemetry/resources';
 import {
+  AggregationOption,
   AggregationTemporality,
-  DefaultAggregation,
-  ExponentialHistogramAggregation,
+  AggregationType,
   InMemoryMetricExporter,
   InstrumentType,
   PeriodicExportingMetricReader,
@@ -73,9 +73,12 @@ export class GcpOpenTelemetry {
 
   constructor(config: GcpTelemetryConfig) {
     this.config = config;
-    this.resource = new Resource({ type: 'global' }).merge(
-      new GcpDetectorSync().detect()
-    );
+
+    const detectedResource = new GcpDetectorSync().detect();
+    this.resource = resourceFromAttributes({
+      type: 'global',
+      ...detectedResource.attributes,
+    });
   }
 
   /**
@@ -237,11 +240,11 @@ class MetricExporterWrapper extends MetricExporter {
     });
   }
 
-  selectAggregation(instrumentType: InstrumentType) {
+  selectAggregation(instrumentType: InstrumentType): AggregationOption {
     if (instrumentType === InstrumentType.HISTOGRAM) {
-      return new ExponentialHistogramAggregation();
+      return { type: AggregationType.EXPONENTIAL_HISTOGRAM };
     }
-    return new DefaultAggregation();
+    return { type: AggregationType.DEFAULT };
   }
 
   selectAggregationTemporality(instrumentType: InstrumentType) {
