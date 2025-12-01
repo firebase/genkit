@@ -420,6 +420,23 @@ ai.defineFlow('gemini-image-editing', async (_) => {
   return media;
 });
 
+// Nano banana pro config
+ai.defineFlow('nano-banana-pro', async (_) => {
+  const { media } = await ai.generate({
+    model: vertexAI.model('gemini-3-pro-image-preview'),
+    prompt: 'Generate a picture of a sunset in the mountains by a lake',
+    config: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: {
+        aspectRatio: '21:9',
+        imageSize: '4K',
+      },
+    },
+  });
+
+  return media;
+});
+
 // A simple example of image generation with Gemini.
 ai.defineFlow('imagen-image-generation', async (_) => {
   const { media } = await ai.generate({
