@@ -36,20 +36,20 @@ func main() {
 	g := genkit.Init(ctx,
 		genkit.WithDefaultModel("googleai/gemini-2.5-flash"),
 		genkit.WithPlugins(&googlegenai.GoogleAI{}),
-		genkit.WithPromptDir("prompts"),
+		genkit.WithPromptDir("./prompts"),
 	)
 
-	SimplePrompt(ctx, g)
-	PromptWithMultiMessage(ctx, g)
-	PromptWithInput(ctx, g)
-	PromptWithOutputType(ctx, g)
-	PromptWithComplexOutputType(ctx, g)
-	PromptWithTool(ctx, g)
-	PromptWithMessageHistory(ctx, g)
-	PromptWithExecuteOverrides(ctx, g)
-	PromptWithFunctions(ctx, g)
-	PromptWithOutputTypeDotprompt(ctx, g)
-	PromptWithMediaType(ctx, g)
+	// SimplePrompt(ctx, g)
+	// PromptWithMultiMessage(ctx, g)
+	// PromptWithInput(ctx, g)
+	// PromptWithOutputType(ctx, g)
+	// PromptWithComplexOutputType(ctx, g)
+	// PromptWithTool(ctx, g)
+	// PromptWithMessageHistory(ctx, g)
+	// PromptWithExecuteOverrides(ctx, g)
+	// PromptWithFunctions(ctx, g)
+	// PromptWithOutputTypeDotprompt(ctx, g)
+	// PromptWithMediaType(ctx, g)
 	PromptWithSchema(ctx, g)
 
 	mux := http.NewServeMux()
@@ -366,7 +366,7 @@ type RecipeSchema struct {
 
 func PromptWithSchema(ctx context.Context, g *genkit.Genkit) {
 	// prompt schemas can be referenced at any time
-	genkit.DefineSchema(g, "recipe", RecipeSchema{})
+	genkit.DefineSchema(g, "Recipe", RecipeSchema{})
 
 	prompt := genkit.LoadPrompt(g, "./prompts/recipe.prompt", "recipes")
 	if prompt == nil {
@@ -374,7 +374,7 @@ func PromptWithSchema(ctx context.Context, g *genkit.Genkit) {
 	}
 
 	resp, err := prompt.Execute(ctx,
-		ai.WithModelName("vertexai/gemini-2.0-flash"),
+		ai.WithInput(map[string]any{"food": "success", "ingredients": []string{"lamb", "shrimp"}}),
 		ai.WithOutput(RecipeSchema{}),
 	)
 	if err != nil {

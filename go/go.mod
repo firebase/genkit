@@ -19,7 +19,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
 	github.com/anthropics/anthropic-sdk-go v1.9.1
 	github.com/blues/jsonata-go v1.5.4
-	github.com/goccy/go-yaml v1.17.1
+	github.com/goccy/go-yaml v1.18.0
 	github.com/google/dotprompt/go v0.0.0-20251014011017-8d056e027254
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
@@ -43,6 +43,8 @@ require (
 	google.golang.org/api v0.236.0
 	google.golang.org/genai v1.30.0
 )
+
+replace github.com/google/dotprompt/go => github.com/google/dotprompt/go v0.0.0-20251127225713-4dcb3d3849d7
 
 require (
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
@@ -109,7 +111,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.14.2
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/mailru/easyjson v0.9.0 // indirect
+	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/mbleigh/raymond v0.0.0-20250414171441-6b3a58ab9e0a // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect

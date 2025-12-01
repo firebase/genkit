@@ -260,10 +260,13 @@ type promptOptions struct {
 	commonGenOptions
 	promptingOptions
 	outputOptions
-	Description  string         // Description of the prompt.
-	InputSchema  map[string]any // Schema of the input.
-	DefaultInput map[string]any // Default input that will be used if no input is provided.
-	Metadata     map[string]any // Arbitrary metadata.
+	Description      string         // Description of the prompt.
+	InputSchema      map[string]any // Schema of the input.
+	inputSchemaName  string
+	OutputSchema     map[string]any // Schema of the output.
+	outputSchemaName string
+	DefaultInput     map[string]any // Default input that will be used if no input is provided.
+	Metadata         map[string]any // Arbitrary metadata.
 }
 
 // PromptOption is an option for defining a prompt.

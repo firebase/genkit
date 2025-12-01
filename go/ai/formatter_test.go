@@ -242,6 +242,8 @@ func TestConstrainedGenerate(t *testing.T) {
 			},
 			Output: &ModelOutputConfig{
 				Format:      OutputFormatJSON,
+				Schema:      base.SchemaAsMap(base.InferJSONSchema(struct{ Foo string `json:"foo"` }{})),
+				Constrained: false, // Because we are using custom constrained output
 				ContentType: "application/json",
 			},
 			Config: &GenerationCommonConfig{Temperature: 1},
@@ -282,29 +284,30 @@ func TestConstrainedGenerate(t *testing.T) {
 
 	t.Run("works with prompts", func(t *testing.T) {
 		wantText := JSON
-		wantRequest := &ModelRequest{
-			Messages: []*Message{
-				{
-					Role: RoleUser,
-					Content: []*Part{
-						NewTextPart("generate json"),
-						{
-							Kind:        PartText,
-							ContentType: "plain/text",
-							Text:        "Output should be in JSON format and conform to the following schema:\n\n```{\"additionalProperties\":false,\"properties\":{\"foo\":{\"type\":\"string\"}},\"required\":[\"foo\"],\"type\":\"object\"}```",
-							Metadata:    map[string]any{"purpose": "output"},
-						},
-					},
-				},
-			},
-			Output: &ModelOutputConfig{
-				Format:      OutputFormatJSON,
-				ContentType: "application/json",
-			},
-			Config: &GenerationCommonConfig{Temperature: 1},
-			Tools:  []*ToolDefinition{},
-		}
-
+		        wantRequest := &ModelRequest{
+		            Messages: []*Message{
+		                {
+		                    Role: RoleUser,
+		                    Content: []*Part{
+		                        NewTextPart("generate json"),
+		                        {
+		                            Kind:        PartText,
+		                            ContentType: "plain/text",
+		                            Text:        "Output should be in JSON format and conform to the following schema:\n\n```{\"additionalProperties\":false,\"properties\":{\"foo\":{\"type\":\"string\"}},\"required\":[\"foo\"],\"type\":\"object\"}```",
+		                            Metadata:    map[string]any{"purpose": "output"},
+		                        },
+		                    },
+		                },
+		            },
+		            Output: &ModelOutputConfig{
+		                Format:      OutputFormatJSON,
+		                Schema:      base.SchemaAsMap(base.InferJSONSchema(struct{ Foo string `json:"foo"` }{})),
+		                Constrained: false, // Because we are using custom constrained output
+		                ContentType: "application/json",
+		            },
+		            Config: &GenerationCommonConfig{Temperature: 1},
+		            Tools:  []*ToolDefinition{},
+		        }
 		p := DefinePrompt(r, "formatPrompt",
 			WithPrompt("generate json"),
 			WithModel(formatModel),

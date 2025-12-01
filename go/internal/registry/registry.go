@@ -17,6 +17,7 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/google/dotprompt/go/dotprompt"
+	"github.com/invopop/jsonschema"
 )
 
 // This file implements registries of actions and other values.
@@ -36,7 +38,8 @@ type Registry struct {
 	parent    api.Registry
 	actions   map[string]api.Action
 	plugins   map[string]api.Plugin
-	values    map[string]any // Values can truly be anything.
+	values    map[string]any             // Values can truly be anything.
+	schemas   map[string]json.RawMessage // New field to store schemas
 	dotprompt *dotprompt.Dotprompt
 }
 
@@ -46,10 +49,36 @@ func New() *Registry {
 		actions: map[string]api.Action{},
 		plugins: map[string]api.Plugin{},
 		values:  map[string]any{},
+		schemas: make(map[string]json.RawMessage),
 	}
 	r.dotprompt = dotprompt.NewDotprompt(&dotprompt.DotpromptOptions{
 		Helpers:  make(map[string]any),
 		Partials: make(map[string]string),
+		// Schemas:  make(map[string]*jsonschema.Schema),
+		SchemaResolver: func(schemaName string) (*jsonschema.Schema, error) {
+			s := r.LookupSchema(schemaName)
+			if s == nil {
+				return nil, nil // Let dotprompt handle the "not found" case.
+			}
+			var schema jsonschema.Schema
+			if err := json.Unmarshal(s, &schema); err != nil {
+				slog.Error("failed to unmarshal schema from registry", "name", schemaName, "error", err)
+				return nil, fmt.Errorf("failed to unmarshal schema (%q) from registry", schemaName)
+			}
+			return &schema, nil
+		},
+	})
+	r.dotprompt.RegisterExternalSchemaLookup(func(name string) any {
+		s := r.LookupSchema(name)
+		if s == nil {
+			return nil // Let dotprompt handle the "not found" case.
+		}
+		var schemaMap map[string]any
+		if err := json.Unmarshal(s, &schemaMap); err != nil {
+			slog.Error("failed to unmarshal schema from registry", "name", name, "error", err)
+			return nil
+		}
+		return schemaMap
 	})
 	return r
 }
@@ -63,9 +92,41 @@ func (r *Registry) NewChild() api.Registry {
 		actions:   map[string]api.Action{},
 		plugins:   map[string]api.Plugin{},
 		values:    map[string]any{},
+		schemas:   map[string]json.RawMessage{},
 		dotprompt: r.dotprompt,
 	}
 	return child
+}
+
+// RegisterSchema records a JSON schema in the registry.
+// It panics if a schema with the same name is already registered.
+func (r *Registry) RegisterSchema(name string, schema json.RawMessage) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.schemas[name]; ok {
+		panic(fmt.Sprintf("schema %q is already registered", name))
+	}
+	r.schemas[name] = schema
+	fmt.Printf("schema registered: %q\n", name)
+	slog.Debug("RegisterSchema", "name", name)
+}
+
+// LookupSchema returns a JSON schema for the given name.
+// It first checks the current registry, then falls back to the parent if not found.
+// Returns nil if the schema is not found in the registry hierarchy.
+func (r *Registry) LookupSchema(name string) json.RawMessage {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if schema, ok := r.schemas[name]; ok {
+		return schema
+	}
+
+	if r.parent != nil {
+		return r.parent.LookupSchema(name)
+	}
+
+	return nil
 }
 
 // IsChild returns true if the registry is a child of another registry.

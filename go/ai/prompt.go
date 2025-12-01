@@ -30,7 +30,6 @@ import (
 	"github.com/firebase/genkit/go/core/api"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/dotprompt/go/dotprompt"
 	"github.com/invopop/jsonschema"
 )
@@ -137,8 +136,14 @@ func LookupPrompt(r api.Registry, name string) Prompt {
 
 // DefineSchema defines a schema in the registry
 // It panics if an error was encountered
-func DefineSchema(r *registry.Registry, name string, schema any) {
-	// TODO: marshal the schema and store it into the registry
+func DefineSchema(r api.Registry, name string, schema any) {
+	reflector := &jsonschema.Reflector{}
+	s := reflector.Reflect(schema)
+	b, err := json.Marshal(s)
+	if err != nil {
+		panic(fmt.Errorf("ai.DefineSchema: failed to marshal schema %q: %w", name, err))
+	}
+	r.RegisterSchema(name, b)
 }
 
 // Execute renders a prompt, does variable substitution and
@@ -338,6 +343,8 @@ fieldLoop:
 // buildRequest prepares a [GenerateActionOptions] based on the prompt,
 // using the input variables and other information in the [prompt].
 func (p *prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOptions, error) {
+	outputSchema := p.OutputSchema
+	outputFormat := p.OutputFormat
 	m, err := buildVariables(input)
 	if err != nil {
 		return nil, err
@@ -383,8 +390,8 @@ func (p *prompt) buildRequest(ctx context.Context, input any) (*GenerateActionOp
 		Messages:           messages,
 		Tools:              tools,
 		Output: &GenerateActionOutputConfig{
-			Format:       p.OutputFormat,
-			JsonSchema:   p.OutputSchema,
+			Format:       outputFormat,
+			JsonSchema:   outputSchema,
 			Instructions: p.OutputInstructions,
 			Constrained:  !p.CustomConstrained,
 		},
@@ -664,11 +671,21 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		opts.ReturnToolRequests = &returnToolRequests
 	}
 
-	if inputSchema, ok := metadata.Input.Schema.(*jsonschema.Schema); ok {
+	if schemaRef, ok := metadata.Input.Schema.(string); ok {
+		s := r.LookupSchema(schemaRef)
+		if s != nil {
+			var schemaMap map[string]any
+			if err := json.Unmarshal(s, &schemaMap); err == nil {
+				opts.InputSchema = schemaMap
+			} else {
+				slog.Error("failed to unmarshal input schema from registry", "name", schemaRef, "error", err)
+			}
+		} else {
+			opts.inputSchemaName = schemaRef
+		}
+	} else if inputSchema, ok := metadata.Input.Schema.(*jsonschema.Schema); ok {
 		opts.InputSchema = base.SchemaAsMap(inputSchema)
-	}
-
-	if inputSchema, ok := metadata.Input.Schema.(map[string]any); ok {
+	} else if inputSchema, ok := metadata.Input.Schema.(map[string]any); ok {
 		opts.InputSchema = inputSchema
 	}
 
@@ -676,8 +693,28 @@ func LoadPrompt(r api.Registry, dir, filename, namespace string) Prompt {
 		opts.OutputFormat = metadata.Output.Format
 	}
 
-	if outputSchema, ok := metadata.Output.Schema.(*jsonschema.Schema); ok {
+	if schemaRef, ok := metadata.Output.Schema.(string); ok {
+		s := r.LookupSchema(schemaRef)
+		if s != nil {
+			var schemaMap map[string]any
+			if err := json.Unmarshal(s, &schemaMap); err == nil {
+				opts.OutputSchema = schemaMap
+				if opts.OutputFormat == "" {
+					opts.OutputFormat = OutputFormatJSON
+				}
+			} else {
+				slog.Error("failed to unmarshal output schema from registry", "name", schemaRef, "error", err)
+			}
+		} else {
+			opts.outputSchemaName = schemaRef
+		}
+	} else if outputSchema, ok := metadata.Output.Schema.(*jsonschema.Schema); ok {
 		opts.OutputSchema = base.SchemaAsMap(outputSchema)
+		if opts.OutputFormat == "" {
+			opts.OutputFormat = OutputFormatJSON
+		}
+	} else if outputSchema, ok := metadata.Output.Schema.(map[string]any); ok {
+		opts.OutputSchema = outputSchema
 		if opts.OutputFormat == "" {
 			opts.OutputFormat = OutputFormatJSON
 		}
