@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -364,13 +365,6 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 	if gcc.SystemInstruction != nil {
 		return nil, errors.New("system instruction must be set using Genkit feature: ai.WithSystemPrompt()")
 	}
-	if gcc.Tools != nil {
-		for _, t := range gcc.Tools {
-			if t.FunctionDeclarations != nil {
-				return nil, errors.New("tool functions must be set using Genkit feature: ai.WithTools()")
-			}
-		}
-	}
 	if gcc.CachedContent != "" {
 		return nil, errors.New("cached content must be set using Genkit feature: ai.WithCacheTTL()")
 	}
@@ -400,21 +394,20 @@ func toGeminiRequest(input *ai.ModelRequest, cache *genai.CachedContent) (*genai
 	}
 
 	// Add tool configuration from input.Tools and input.ToolChoice directly
-	// This overrides any functionCallingConfig in the passed config
+	// Merge with existing tools to preserve Gemini-specific tools (Retrieval, GoogleSearch, CodeExecution)
 	if len(input.Tools) > 0 {
 		// First convert the tools
 		tools, err := toGeminiTools(input.Tools)
 		if err != nil {
 			return nil, err
 		}
-		gcc.Tools = tools
+		gcc.Tools = mergeTools(append(gcc.Tools, tools...))
 
 		// Then set up the tool configuration based on ToolChoice
 		tc, err := toGeminiToolChoice(input.ToolChoice, input.Tools)
 		if err != nil {
 			return nil, err
 		}
-
 		gcc.ToolConfig = tc
 	}
 
@@ -471,6 +464,41 @@ func toGeminiTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	}
 
 	return outTools, nil
+}
+
+// mergeTools consolidates all FunctionDeclarations into a single Tool
+// while preserving non-function tools (Retrieval, GoogleSearch, CodeExecution, etc.)
+func mergeTools(ts []*genai.Tool) []*genai.Tool {
+	var decls []*genai.FunctionDeclaration
+	var out []*genai.Tool
+
+	for _, t := range ts {
+		if t == nil {
+			continue
+		}
+		if len(t.FunctionDeclarations) == 0 {
+			out = append(out, t)
+			continue
+		}
+		decls = append(decls, t.FunctionDeclarations...)
+		if cpy := cloneToolWithoutFunctions(t); cpy != nil && !reflect.ValueOf(*cpy).IsZero() {
+			out = append(out, cpy)
+		}
+	}
+
+	if len(decls) > 0 {
+		out = append([]*genai.Tool{{FunctionDeclarations: decls}}, out...)
+	}
+	return out
+}
+
+func cloneToolWithoutFunctions(t *genai.Tool) *genai.Tool {
+	if t == nil {
+		return nil
+	}
+	clone := *t
+	clone.FunctionDeclarations = nil
+	return &clone
 }
 
 // toGeminiSchema translates a map representing a standard JSON schema to a more
