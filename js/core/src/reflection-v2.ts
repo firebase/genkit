@@ -79,7 +79,6 @@ export class ReflectionServerV2 {
     this.ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString()) as JsonRpcMessage;
-        console.log('ws message', JSON.stringify(message));
         if ('method' in message) {
           await this.handleRequest(message as JsonRpcRequest);
         }

@@ -111,7 +111,7 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
     this.wss = new WebSocketServer({ port });
 
     this._port = port;
-    console.log(`Starting WebSocket server on port ${port}`);
+    console.error(`Starting reflection server: ws://localhost:${port}`);
 
     this.wss.on('connection', (ws) => {
       ws.on('error', console.error);
@@ -119,7 +119,6 @@ export class RuntimeManagerV2 extends BaseRuntimeManager {
       ws.on('message', (data) => {
         try {
           const message = JSON.parse(data.toString()) as JsonRpcMessage;
-          console.log('cli message', JSON.stringify(message));
           this.handleMessage(ws, message);
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);

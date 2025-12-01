@@ -27,6 +27,7 @@ interface RunOptions {
   port?: string;
   open?: boolean;
   experimentalReflectionV2?: boolean;
+  allowedTelemetryCorsHostnames?: string[];
 }
 
 /** Command to run code in dev mode and/or the Dev UI. */
@@ -38,6 +39,11 @@ export const start = new Command('start')
   .option(
     '--experimental-reflection-v2',
     'start the experimental reflection server (WebSocket)'
+  )
+  .option(
+    '--allowed-telemetry-cors-hostnames <hostnames>',
+    'comma separated list of allowed telemetry CORS hostnames',
+    (value) => value.split(',')
   )
   .action(async (options: RunOptions) => {
     const projectRoot = await findProjectRoot();
@@ -55,7 +61,8 @@ export const start = new Command('start')
         projectRoot,
         start.args[0],
         start.args.slice(1),
-        options.experimentalReflectionV2
+        options.experimentalReflectionV2,
+        options.allowedTelemetryCorsHostnames
       );
       manager = result.manager;
       processPromise = result.processPromise;
@@ -63,7 +70,8 @@ export const start = new Command('start')
       manager = await startManager(
         projectRoot,
         true,
-        options.experimentalReflectionV2
+        options.experimentalReflectionV2,
+        options.allowedTelemetryCorsHostnames
       );
       processPromise = new Promise(() => {});
     }
