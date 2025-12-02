@@ -112,6 +112,44 @@ describe('defineInterrupt', () => {
       type: 'string',
     });
   });
+
+  describe('multipart tools', () => {
+    it('should define a multipart tool', async () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test', multipart: true },
+        async () => {
+          return {
+            output: 'main output',
+            content: [{ text: 'part 1' }],
+          };
+        }
+      );
+      assert.equal(t.__action.metadata.type, 'tool.v2');
+      assert.equal(t.__action.actionType, 'tool.v2');
+      const result = await t({});
+      assert.deepStrictEqual(result, {
+        output: 'main output',
+        content: [{ text: 'part 1' }],
+      });
+    });
+
+    it('should handle fallback output', async () => {
+      const t = defineTool(
+        registry,
+        { name: 'test', description: 'test', multipart: true },
+        async () => {
+          return {
+            content: [{ text: 'part 1' }],
+          };
+        }
+      );
+      const result = await t({});
+      assert.deepStrictEqual(result, {
+        content: [{ text: 'part 1' }],
+      });
+    });
+  });
 });
 
 describe('isDynamicTool', () => {
@@ -317,5 +355,33 @@ describe('defineTool', () => {
         }
       );
     });
+  });
+
+  it('should register a v1 tool as v2 as well', async () => {
+    defineTool(registry, { name: 'test', description: 'test' }, async () => {});
+    assert.ok(await registry.lookupAction('/tool/test'));
+    assert.ok(await registry.lookupAction('/tool.v2/test'));
+  });
+
+  it('should only register a multipart tool as v2', async () => {
+    defineTool(
+      registry,
+      { name: 'test', description: 'test', multipart: true },
+      async () => {}
+    );
+    assert.ok(await registry.lookupAction('/tool.v2/test'));
+    assert.equal(await registry.lookupAction('/tool/test'), undefined);
+  });
+
+  it('should wrap v1 tool output when called as v2', async () => {
+    defineTool(
+      registry,
+      { name: 'test', description: 'test' },
+      async () => 'foo'
+    );
+    const action = await registry.lookupAction('/tool.v2/test');
+    assert.ok(action);
+    const result = await action!({});
+    assert.deepStrictEqual(result, { output: 'foo' });
   });
 });

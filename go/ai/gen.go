@@ -278,6 +278,11 @@ type ModelResponseChunk struct {
 	Role       Role    `json:"role,omitempty"`
 }
 
+type MultipartToolResponse struct {
+	Content []*Part `json:"content,omitempty"`
+	Output  any     `json:"output,omitempty"`
+}
+
 type Operation struct {
 	Action   string          `json:"action,omitempty"`
 	Done     bool            `json:"done,omitempty"`
