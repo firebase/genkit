@@ -14,41 +14,6 @@ This document provides rules and examples for building with the Genkit API in No
 
 NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but you should follow the user's preference as mentioned above.
 
-## Core Setup
-
-1.  **Initialize Project**
-
-    ```bash
-    mkdir my-genkit-app && cd my-genkit-app
-    npm init -y
-    npm install -D typescript tsx \@types/node
-    ```
-
-2.  **Install Dependencies**
-
-    ```bash
-    npm install genkit \@genkit-ai/google-genai data-urls node-fetch
-    ```
-
-3.  **Install Genkit CLI**
-
-    ```bash
-    npm install -g genkit-cli
-    ```
-
-4.  **Configure Genkit**
-
-    All code should be in a single `src/index.ts` file.
-
-    ```ts
-    // src/index.ts
-    import { genkit, z } from 'genkit';
-    import { googleAI } from '@genkit-ai/google-genai';
-
-    export const ai = genkit({
-      plugins: [googleAI()],
-    });
-    ```
 
 ## Best Practices
 

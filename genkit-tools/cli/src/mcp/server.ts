@@ -20,6 +20,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { defineDocsTool } from '../mcp/docs';
 import { defineFlowTools } from './flows';
 import { defineTraceTools } from './trace';
+import {defineInitPrompt } from './prompts/init';
 import { defineUsageGuideTool } from './usage';
 import { lazyLoadManager } from './util';
 
@@ -33,6 +34,8 @@ export async function startMcpServer(projectRoot: string) {
 
   await defineDocsTool(server);
   await defineUsageGuideTool(server);
+  defineInitPrompt(server);
+
   defineFlowTools(server, manager);
   defineTraceTools(server, manager);
 
