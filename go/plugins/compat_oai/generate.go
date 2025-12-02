@@ -266,8 +266,8 @@ func (g *ModelGenerator) generateStream(ctx context.Context, handleChunk func(co
 		modelChunk := &ai.ModelResponseChunk{}
 
 		// Handle content delta
-		if content, ok := acc.JustFinishedContent(); ok {
-			modelChunk.Content = append(modelChunk.Content, ai.NewTextPart(content))
+		if _, ok := acc.JustFinishedContent(); ok {
+			// modelChunk.Content = append(modelChunk.Content, ai.NewTextPart(content))
 		} else if chunk.Choices[0].Delta.Content != "" {
 			modelChunk.Content = append(modelChunk.Content, ai.NewTextPart(chunk.Choices[0].Delta.Content))
 		}
