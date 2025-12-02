@@ -16,6 +16,7 @@
 
 import { ActionMetadata, GenkitError, modelActionMetadata, z } from 'genkit';
 import {
+  CandidateData,
   GenerationCommonConfigDescriptions,
   GenerationCommonConfigSchema,
   ModelAction,
@@ -52,13 +53,16 @@ import {
   SafetySetting,
   Tool,
   ToolConfig,
+  UrlContextTool,
 } from './types.js';
 import {
   calculateApiKey,
+  calculateRequestOptions,
   checkApiKey,
   checkModelName,
   cleanSchema,
   extractVersion,
+  removeClientOptionOverrides,
 } from './utils.js';
 
 /**
@@ -140,6 +144,18 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
     .string()
     .describe('Overrides the plugin-configured API key, if specified.')
     .optional(),
+  baseUrl: z
+    .string()
+    .describe(
+      'Overrides the plugin-configured or default baseUrl, if specified.'
+    )
+    .optional(),
+  apiVersion: z
+    .string()
+    .describe(
+      'Overrides the plugin-configured or default apiVersion, if specified.'
+    )
+    .optional(),
   safetySettings: z
     .array(SafetySettingsSchema)
     .describe(
@@ -186,6 +202,31 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
       'Retrieve public web data for grounding, powered by Google Search.'
     )
     .optional(),
+  fileSearch: z
+    .object({
+      fileSearchStoreNames: z
+        .array(z.string())
+        .describe(
+          'The names of the fileSearchStores to retrieve from. ' +
+            'Example: fileSearchStores/my-file-search-store-123'
+        ),
+      metadataFilter: z
+        .string()
+        .optional()
+        .describe(
+          'Metadata filter to apply to the semantic retrieval documents and chunks.'
+        ),
+      topK: z
+        .number()
+        .optional()
+        .describe('The number of semantic retrieval chunks to retrieve.'),
+    })
+    .passthrough()
+    .optional(),
+  urlContext: z
+    .union([z.boolean(), z.object({}).passthrough()])
+    .describe('Return grounding metadata from links included in the query')
+    .optional(),
   temperature: z
     .number()
     .min(0)
@@ -218,13 +259,21 @@ export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
         .min(0)
         .max(24576)
         .describe(
-          'Indicates the thinking budget in tokens. 0 is DISABLED. ' +
+          'For Gemini 2.5 - Indicates the thinking budget in tokens. 0 is DISABLED. ' +
             '-1 is AUTOMATIC. The default values and allowed ranges are model ' +
             'dependent. The thinking budget parameter gives the model guidance ' +
             'on the number of thinking tokens it can use when generating a ' +
             'response. A greater number of tokens is typically associated with ' +
             'more detailed thinking, which is needed for solving more complex ' +
             'tasks. '
+        )
+        .optional(),
+      thinkingLevel: z
+        .enum(['LOW', 'MEDIUM', 'HIGH'])
+        .describe(
+          'For Gemini 3.0 - Indicates the thinking level. A higher level ' +
+            'is associated with more detailed thinking, which is needed for solving ' +
+            'more complex tasks.'
         )
         .optional(),
     })
@@ -265,6 +314,31 @@ export const GeminiTtsConfigSchema = GeminiConfigSchema.extend({
 export type GeminiTtsConfigSchemaType = typeof GeminiTtsConfigSchema;
 export type GeminiTtsConfig = z.infer<GeminiTtsConfigSchemaType>;
 
+export const GeminiImageConfigSchema = GeminiConfigSchema.extend({
+  imageConfig: z
+    .object({
+      aspectRatio: z
+        .enum([
+          '1:1',
+          '2:3',
+          '3:2',
+          '3:4',
+          '4:3',
+          '4:5',
+          '5:4',
+          '9:16',
+          '16:9',
+          '21:9',
+        ])
+        .optional(),
+      imageSize: z.enum(['1K', '2K', '4K']).optional(),
+    })
+    .passthrough()
+    .optional(),
+}).passthrough();
+export type GeminiImageConfigSchemaType = typeof GeminiImageConfigSchema;
+export type GeminiImageConfig = z.infer<GeminiImageConfigSchemaType>;
+
 export const GemmaConfigSchema = GeminiConfigSchema.extend({
   temperature: z
     .number()
@@ -283,7 +357,9 @@ export type GemmaConfig = z.infer<GemmaConfigSchemaType>;
 type ConfigSchemaType =
   | GeminiConfigSchemaType
   | GeminiTtsConfigSchemaType
+  | GeminiImageConfigSchemaType
   | GemmaConfigSchemaType;
+type ConfigSchema = z.infer<ConfigSchemaType>;
 
 function commonRef(
   name: string,
@@ -322,6 +398,20 @@ const GENERIC_TTS_MODEL = commonRef(
   },
   GeminiTtsConfigSchema
 );
+const GENERIC_IMAGE_MODEL = commonRef(
+  'gemini-image',
+  {
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      toolChoice: true,
+      systemRole: true,
+      constrained: 'no-tools',
+    },
+  },
+  GeminiImageConfigSchema
+);
 const GENERIC_GEMMA_MODEL = commonRef(
   'gemma-generic',
   undefined,
@@ -329,21 +419,21 @@ const GENERIC_GEMMA_MODEL = commonRef(
 );
 
 const KNOWN_GEMINI_MODELS = {
+  'gemini-3-pro-preview': commonRef('gemini-3-pro-preview'),
   'gemini-2.5-pro': commonRef('gemini-2.5-pro'),
   'gemini-2.5-flash': commonRef('gemini-2.5-flash'),
   'gemini-2.5-flash-lite': commonRef('gemini-2.5-flash-lite'),
-  'gemini-2.5-flash-image-preview': commonRef('gemini-2.5-flash-image-preview'),
-  'gemini-2.5-flash-image': commonRef('gemini-2.5-flash-image'),
   'gemini-2.0-flash': commonRef('gemini-2.0-flash'),
-  'gemini-2.0-flash-preview-image-generation': commonRef(
-    'gemini-2.0-flash-preview-image-generation'
-  ),
   'gemini-2.0-flash-lite': commonRef('gemini-2.0-flash-lite'),
 };
 export type KnownGeminiModels = keyof typeof KNOWN_GEMINI_MODELS;
 export type GeminiModelName = `gemini-${string}`;
 export function isGeminiModelName(value: string): value is GeminiModelName {
-  return value.startsWith('gemini-') && !value.endsWith('-tts');
+  return (
+    value.startsWith('gemini-') &&
+    !value.endsWith('-tts') &&
+    !value.includes('-image')
+  );
 }
 
 const KNOWN_TTS_MODELS = {
@@ -364,6 +454,29 @@ export function isTTSModelName(value: string): value is TTSModelName {
   return value.startsWith('gemini-') && value.endsWith('-tts');
 }
 
+const KNOWN_IMAGE_MODELS = {
+  'gemini-3-pro-image-preview': commonRef(
+    'gemini-3-pro-image-preview',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema
+  ),
+  'gemini-2.5-flash-image-preview': commonRef(
+    'gemini-2.5-flash-image-preview',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema
+  ),
+  'gemini-2.5-flash-image': commonRef(
+    'gemini-2.5-flash-image',
+    { ...GENERIC_IMAGE_MODEL.info },
+    GeminiImageConfigSchema
+  ),
+} as const;
+export type KnownImageModels = keyof typeof KNOWN_IMAGE_MODELS;
+export type ImageModelName = `gemini-${string}-image${string}`;
+export function isImageModelName(value: string): value is ImageModelName {
+  return value.startsWith('gemini-') && value.includes('-image');
+}
+
 const KNOWN_GEMMA_MODELS = {
   'gemma-3-12b-it': commonRef('gemma-3-12b-it', undefined, GemmaConfigSchema),
   'gemma-3-1b-it': commonRef('gemma-3-1b-it', undefined, GemmaConfigSchema),
@@ -380,12 +493,13 @@ export function isGemmaModelName(value: string): value is GemmaModelName {
 const KNOWN_MODELS = {
   ...KNOWN_GEMINI_MODELS,
   ...KNOWN_TTS_MODELS,
+  ...KNOWN_IMAGE_MODELS,
   ...KNOWN_GEMMA_MODELS,
 };
 
 export function model(
   version: string,
-  config: GeminiConfig | GeminiTtsConfig | GemmaConfig = {}
+  config: ConfigSchema = {}
 ): ModelReference<ConfigSchemaType> {
   const name = checkModelName(version);
 
@@ -395,6 +509,15 @@ export function model(
       config,
       configSchema: GeminiTtsConfigSchema,
       info: { ...GENERIC_TTS_MODEL.info },
+    });
+  }
+
+  if (isImageModelName(name)) {
+    return modelRef({
+      name: `googleai/${name}`,
+      config,
+      configSchema: GeminiImageConfigSchema,
+      info: { ...GENERIC_IMAGE_MODEL.info },
     });
   }
 
@@ -489,7 +612,10 @@ export function defineModel(
       use: middleware,
     },
     async (request, { streamingRequested, sendChunk, abortSignal }) => {
-      const clientOpt = { ...clientOptions, signal: abortSignal };
+      const clientOpt = calculateRequestOptions(
+        { ...clientOptions, signal: abortSignal },
+        request.config
+      );
 
       // Make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
@@ -512,7 +638,7 @@ export function defineModel(
         });
       }
 
-      const requestOptions: z.infer<ConfigSchemaType> = {
+      const requestOptions: ConfigSchema = {
         ...request.config,
       };
       const {
@@ -522,6 +648,8 @@ export function defineModel(
         version: versionFromConfig,
         functionCallingConfig,
         googleSearchRetrieval,
+        fileSearch,
+        urlContext,
         tools: toolsFromConfig,
         ...restOfConfigOptions
       } = requestOptions;
@@ -542,6 +670,18 @@ export function defineModel(
           googleSearch:
             googleSearchRetrieval === true ? {} : googleSearchRetrieval,
         } as GoogleSearchRetrievalTool);
+      }
+
+      if (fileSearch) {
+        tools.push({
+          fileSearch,
+        });
+      }
+
+      if (urlContext) {
+        tools.push({
+          urlContext: urlContext === true ? {} : urlContext,
+        } as UrlContextTool);
       }
 
       let toolConfig: ToolConfig | undefined;
@@ -567,13 +707,17 @@ export function defineModel(
           tools.length === 0);
 
       const generationConfig: GenerationConfig = {
-        ...restOfConfigOptions,
+        ...removeClientOptionOverrides(restOfConfigOptions),
         candidateCount: request.candidates || undefined,
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
 
       if (request.output?.constrained && jsonMode) {
-        generationConfig.responseSchema = cleanSchema(request.output.schema);
+        if (pluginOptions?.legacyResponseSchema) {
+          generationConfig.responseSchema = cleanSchema(request.output.schema);
+        } else {
+          generationConfig.responseJsonSchema = request.output.schema;
+        }
       }
 
       const msg = toGeminiMessage(messages[messages.length - 1], ref);
@@ -606,10 +750,11 @@ export function defineModel(
             generateContentRequest,
             clientOpt
           );
-
+          const chunks: CandidateData[] = [];
           for await (const item of result.stream) {
             item.candidates?.forEach((candidate) => {
-              const c = fromGeminiCandidate(candidate);
+              const c = fromGeminiCandidate(candidate, chunks);
+              chunks.push(c);
               sendChunk({
                 index: c.index,
                 content: c.message.content,
@@ -637,7 +782,8 @@ export function defineModel(
           });
         }
 
-        const candidateData = candidates.map(fromGeminiCandidate) || [];
+        const candidateData =
+          candidates.map((c) => fromGeminiCandidate(c)) || [];
 
         return {
           candidates: candidateData,

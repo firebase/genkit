@@ -35,7 +35,7 @@ fi
 
 TOP_DIR=$(git rev-parse --show-toplevel)
 
-PNPM_VERSION="10.2.0"
+PNPM_VERSION="10.11.0"
 NODE_VERSION="23"
 NVM_VERSION="0.40.1"
 GOLANGCI_LINT_VERSION="2.0.2"

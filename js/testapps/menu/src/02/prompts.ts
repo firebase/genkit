@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { googleAI } from '@genkit-ai/google-genai';
 import { ai } from '../genkit.js';
 import { MenuQuestionInputSchema } from '../types.js';
 import { menuTool } from './tools.js';
@@ -24,7 +24,7 @@ import { menuTool } from './tools.js';
 
 export const s02_dataMenuPrompt = ai.definePrompt({
   name: 's02_dataMenu',
-  model: gemini15Flash,
+  model: googleAI.model('gemini-2.5-flash'),
   input: { schema: MenuQuestionInputSchema },
   output: { format: 'text' },
   tools: [menuTool],

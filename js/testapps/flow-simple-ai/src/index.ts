@@ -17,20 +17,19 @@
 import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
-import { googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { googleAI, vertexAI } from '@genkit-ai/google-genai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import {
-  MediaPart,
   MessageSchema,
   dynamicTool,
   genkit,
   z,
   type GenerateResponseData,
+  type MediaPart,
 } from 'genkit/beta';
 import { logger } from 'genkit/logging';
 import {
@@ -255,17 +254,14 @@ export const jokeWithToolsFlow = ai.defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
-      modelName: z.enum([
-        googleAI.model('gemini-2.5-flash').name,
-        googleAI.model('gemini-2.5-pro').name,
-      ]),
+      modelName: z.enum(['gemini-2.5-flash', 'gemini-2.5-pro']),
       subject: z.string(),
     }),
     outputSchema: z.object({ model: z.string(), joke: z.string() }),
   },
   async (input) => {
     const llmResponse = await ai.generate({
-      model: input.modelName as string,
+      model: googleAI.model(input.modelName as string),
       tools,
       output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,
@@ -282,14 +278,14 @@ export const jokeWithOutputFlow = ai.defineFlow(
   {
     name: 'jokeWithOutputFlow',
     inputSchema: z.object({
-      modelName: z.enum([googleAI.model('gemini-2.5-flash').name]),
+      modelName: z.enum(['gemini-2.5-flash']),
       subject: z.string(),
     }),
     outputSchema,
   },
   async (input, { sendChunk }) => {
     const llmResponse = await ai.generate({
-      model: input.modelName,
+      model: googleAI.model(input.modelName),
       output: {
         format: 'json',
         schema: outputSchema,
@@ -914,7 +910,7 @@ ai.defineFlow(
 
 ai.defineFlow('geminiImages', async (_, { sendChunk }) => {
   const { response, stream } = ai.generateStream({
-    model: googleAI.model('gemini-2.0-flash-preview-image-generation'),
+    model: googleAI.model('gemini-2.5-flash-image'),
     prompt: `generate an image of a banana riding a bicycle`,
     config: {
       responseModalities: ['TEXT', 'IMAGE'],

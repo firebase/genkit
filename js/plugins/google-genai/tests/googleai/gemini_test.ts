@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import * as sinon from 'sinon';
 import {
   GeminiConfigSchema,
+  GeminiImageConfigSchema,
   GeminiTtsConfigSchema,
   defineModel,
   model,
@@ -93,7 +94,10 @@ describe('Google AI Gemini', () => {
 
   const mockCandidate = {
     index: 0,
-    content: { role: 'model', parts: [{ text: 'Hi there' }] },
+    content: {
+      role: 'model',
+      parts: [{ text: 'Hi there', thoughtSignature: 'test-signature' }],
+    },
     finishReason: 'STOP' as FinishReason,
   };
 
@@ -204,7 +208,12 @@ describe('Google AI Gemini', () => {
         const chunkArg = sendChunkSpy.lastCall.args[0];
         assert.deepStrictEqual(chunkArg, {
           index: 0,
-          content: [{ text: 'Hi there' }],
+          content: [
+            {
+              text: 'Hi there',
+              metadata: { thoughtSignature: 'test-signature' },
+            },
+          ],
         });
       });
 
@@ -271,6 +280,10 @@ describe('Google AI Gemini', () => {
           config: {
             codeExecution: true,
             googleSearchRetrieval: {},
+            fileSearch: {
+              fileSearchStoreNames: ['foo'],
+            },
+            urlContext: {},
           },
         };
         await model.run(request);
@@ -279,10 +292,90 @@ describe('Google AI Gemini', () => {
           fetchStub.lastCall.args[1].body
         );
         assert.ok(Array.isArray(apiRequest.tools));
-        assert.strictEqual(apiRequest.tools?.length, 3);
+        assert.strictEqual(apiRequest.tools?.length, 5);
         assert.deepStrictEqual(apiRequest.tools?.[1], { codeExecution: {} });
         assert.deepStrictEqual(apiRequest.tools?.[2], {
           googleSearch: {},
+        });
+        assert.deepStrictEqual(apiRequest.tools?.[3], {
+          fileSearch: {
+            fileSearchStoreNames: ['foo'],
+          },
+        });
+        assert.deepStrictEqual(apiRequest.tools?.[4], {
+          urlContext: {},
+        });
+      });
+
+      it('uses baseUrl and apiVersion from call config', async () => {
+        const model = defineModel('gemini-2.5-flash', {
+          ...defaultPluginOptions,
+          baseUrl: 'https://my.custom.base.path',
+          apiVersion: 'v1custom',
+        });
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+        };
+        await model.run(request);
+        sinon.assert.calledOnce(fetchStub);
+
+        const fetchArgs = fetchStub.lastCall.args;
+        const url = fetchArgs[0];
+        assert.ok(
+          url.startsWith('https://my.custom.base.path/v1custom/models'),
+          `Expected URL to start with "https://my.custom.base.path/v1custom/models", but it was "${url}"`
+        );
+      });
+
+      it('passes thinkingLevel to the API', async () => {
+        const model = defineModel('gemini-3-pro-preview', defaultPluginOptions);
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            thinkingConfig: {
+              thinkingLevel: 'HIGH',
+            },
+          },
+        };
+        await model.run(request);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(apiRequest.generationConfig, {
+          thinkingConfig: {
+            thinkingLevel: 'HIGH',
+          },
+        });
+      });
+
+      it('passes imageConfig to the API', async () => {
+        const model = defineModel(
+          'gemini-2.5-flash-image',
+          defaultPluginOptions
+        );
+        mockFetchResponse(defaultApiResponse);
+        const request: GenerateRequest<typeof GeminiImageConfigSchema> = {
+          ...minimalRequest,
+          config: {
+            imageConfig: {
+              aspectRatio: '16:9',
+              imageSize: '2K',
+            },
+          },
+        };
+        await model.run(request);
+
+        const apiRequest: GenerateContentRequest = JSON.parse(
+          fetchStub.lastCall.args[1].body
+        );
+        assert.deepStrictEqual(apiRequest.generationConfig, {
+          imageConfig: {
+            aspectRatio: '16:9',
+            imageSize: '2K',
+          },
         });
       });
     });
@@ -351,11 +444,11 @@ describe('Google AI Gemini', () => {
       const modelRef = model(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);
-      assert.strictEqual(modelRef.configSchema, GeminiConfigSchema);
+      assert.strictEqual(modelRef.configSchema, GeminiImageConfigSchema);
     });
 
     it('returns a ModelReference for an unknown model string', () => {
-      const name = 'gemini-3.0-flash';
+      const name = 'gemini-42.0-flash';
       const modelRef = model(name);
       assert.strictEqual(modelRef.name, `googleai/${name}`);
       assert.strictEqual(modelRef.info?.supports?.multiturn, true);

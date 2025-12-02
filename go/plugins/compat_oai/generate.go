@@ -79,7 +79,6 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 		case ai.RoleSystem:
 			oaiMessages = append(oaiMessages, openai.SystemMessage(content))
 		case ai.RoleModel:
-
 			am := openai.ChatCompletionAssistantMessageParam{}
 			am.Content.OfString = param.NewOpt(content)
 			toolCalls, err := convertToolCalls(msg.Content)
@@ -113,10 +112,11 @@ func (g *ModelGenerator) WithMessages(messages []*ai.Message) *ModelGenerator {
 				oaiMessages = append(oaiMessages, tm)
 			}
 		case ai.RoleUser:
-			oaiMessages = append(oaiMessages, openai.UserMessage(content))
-
 			parts := []openai.ChatCompletionContentPartUnionParam{}
 			for _, p := range msg.Content {
+				if p.IsText() {
+					parts = append(parts, openai.TextContentPart(p.Text))
+				}
 				if p.IsMedia() {
 					part := openai.ImageContentPart(
 						openai.ChatCompletionContentPartImageImageURLParam{

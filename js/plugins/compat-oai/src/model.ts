@@ -26,10 +26,17 @@ import type {
   StreamingCallback,
   ToolRequestPart,
 } from 'genkit';
-import { GenerationCommonConfigSchema, Message, modelRef, z } from 'genkit';
+import {
+  GenerationCommonConfigSchema,
+  GenkitError,
+  Message,
+  StatusName,
+  modelRef,
+  z,
+} from 'genkit';
 import type { ModelAction, ModelInfo, ToolDefinition } from 'genkit/model';
 import { model } from 'genkit/plugin';
-import type OpenAI from 'openai';
+import OpenAI, { APIError } from 'openai';
 import type {
   ChatCompletion,
   ChatCompletionChunk,
@@ -277,19 +284,36 @@ export function fromOpenAIChoice(
   const toolRequestParts = choice.message.tool_calls?.map((toolCall) =>
     fromOpenAIToolCall(toolCall, choice)
   );
+
+  // Build content array based on what's present in the message
+  let content: Part[] = [];
+
+  if (toolRequestParts) {
+    content = toolRequestParts as ToolRequestPart[];
+  } else {
+    // Handle reasoning_content if present
+    if (
+      'reasoning_content' in choice.message &&
+      choice.message.reasoning_content
+    ) {
+      content.push({ reasoning: choice.message.reasoning_content as string });
+    }
+
+    // Handle regular content if present
+    if (choice.message.content) {
+      content.push(
+        jsonMode
+          ? { data: JSON.parse(choice.message.content!) }
+          : { text: choice.message.content! }
+      );
+    }
+  }
+
   return {
     finishReason: finishReasonMap[choice.finish_reason] || 'other',
     message: {
       role: 'model',
-      content: toolRequestParts
-        ? // Note: Not sure why I have to cast here exactly.
-          // Otherwise it thinks toolRequest must be 'undefined' if provided
-          (toolRequestParts as ToolRequestPart[])
-        : [
-            jsonMode
-              ? { data: JSON.parse(choice.message.content!) }
-              : { text: choice.message.content! },
-          ],
+      content,
     },
   };
 }
@@ -308,21 +332,35 @@ export function fromOpenAIChunkChoice(
   const toolRequestParts = choice.delta.tool_calls?.map((toolCall) =>
     fromOpenAIToolCall(toolCall, choice)
   );
+
+  // Build content array based on what's present in the delta
+  let content: Part[] = [];
+
+  if (toolRequestParts) {
+    content = toolRequestParts as ToolRequestPart[];
+  } else {
+    // Handle reasoning_content if present
+    if ('reasoning_content' in choice.delta && choice.delta.reasoning_content) {
+      content.push({ reasoning: choice.delta.reasoning_content as string });
+    }
+
+    // Handle regular content if present
+    if (choice.delta.content) {
+      content.push(
+        jsonMode
+          ? { data: JSON.parse(choice.delta.content!) }
+          : { text: choice.delta.content! }
+      );
+    }
+  }
+
   return {
     finishReason: choice.finish_reason
       ? finishReasonMap[choice.finish_reason] || 'other'
       : 'unknown',
     message: {
       role: 'model',
-      content: toolRequestParts
-        ? // Note: Not sure why I have to cast here exactly.
-          // Otherwise it thinks toolRequest must be 'undefined' if provided
-          (toolRequestParts as ToolRequestPart[])
-        : [
-            jsonMode
-              ? { data: JSON.parse(choice.delta.content!) }
-              : { text: choice.delta.content! },
-          ],
+      content,
     },
   };
 }
@@ -383,9 +421,19 @@ export function toOpenAIRequestBody(
   }
   const response_format = request.output?.format;
   if (response_format === 'json') {
-    body.response_format = {
-      type: 'json_object',
-    };
+    if (request.output?.schema) {
+      body.response_format = {
+        type: 'json_schema',
+        json_schema: {
+          name: 'output',
+          schema: request.output!.schema,
+        },
+      };
+    } else {
+      body.response_format = {
+        type: 'json_object',
+      };
+    }
   } else if (response_format === 'text') {
     body.response_format = {
       type: 'text',
@@ -418,50 +466,75 @@ export function openAIModelRunner(
       abortSignal?: AbortSignal;
     }
   ): Promise<GenerateResponseData> => {
-    let response: ChatCompletion;
-    const body = toOpenAIRequestBody(name, request, requestBuilder);
-    if (options?.streamingRequested) {
-      const stream = client.beta.chat.completions.stream(
-        {
-          ...body,
-          stream: true,
-          stream_options: {
-            include_usage: true,
+    try {
+      let response: ChatCompletion;
+      const body = toOpenAIRequestBody(name, request, requestBuilder);
+      if (options?.streamingRequested) {
+        const stream = client.beta.chat.completions.stream(
+          {
+            ...body,
+            stream: true,
+            stream_options: {
+              include_usage: true,
+            },
           },
-        },
-        { signal: options?.abortSignal }
-      );
-      for await (const chunk of stream) {
-        chunk.choices?.forEach((chunk) => {
-          const c = fromOpenAIChunkChoice(chunk);
-          options?.sendChunk!({
-            index: chunk.index,
-            content: c.message?.content ?? [],
+          { signal: options?.abortSignal }
+        );
+        for await (const chunk of stream) {
+          chunk.choices?.forEach((chunk) => {
+            const c = fromOpenAIChunkChoice(chunk);
+            options?.sendChunk!({
+              index: chunk.index,
+              content: c.message?.content ?? [],
+            });
           });
+        }
+        response = await stream.finalChatCompletion();
+      } else {
+        response = await client.chat.completions.create(body, {
+          signal: options?.abortSignal,
         });
       }
-      response = await stream.finalChatCompletion();
-    } else {
-      response = await client.chat.completions.create(body, {
-        signal: options?.abortSignal,
-      });
-    }
-    const standardResponse: GenerateResponseData = {
-      usage: {
-        inputTokens: response.usage?.prompt_tokens,
-        outputTokens: response.usage?.completion_tokens,
-        totalTokens: response.usage?.total_tokens,
-      },
-      raw: response,
-    };
-    if (response.choices.length === 0) {
-      return standardResponse;
-    } else {
-      const choice = response.choices[0];
-      return {
-        ...fromOpenAIChoice(choice, request.output?.format === 'json'),
-        ...standardResponse,
+      const standardResponse: GenerateResponseData = {
+        usage: {
+          inputTokens: response.usage?.prompt_tokens,
+          outputTokens: response.usage?.completion_tokens,
+          totalTokens: response.usage?.total_tokens,
+        },
+        raw: response,
       };
+      if (response.choices.length === 0) {
+        return standardResponse;
+      } else {
+        const choice = response.choices[0];
+        return {
+          ...fromOpenAIChoice(choice, request.output?.format === 'json'),
+          ...standardResponse,
+        };
+      }
+    } catch (e) {
+      if (e instanceof APIError) {
+        let status: StatusName = 'UNKNOWN';
+        switch (e.status) {
+          case 429:
+            status = 'RESOURCE_EXHAUSTED';
+            break;
+          case 400:
+            status = 'INVALID_ARGUMENT';
+            break;
+          case 500:
+            status = 'INTERNAL';
+            break;
+          case 503:
+            status = 'UNAVAILABLE';
+            break;
+        }
+        throw new GenkitError({
+          status,
+          message: e.message,
+        });
+      }
+      throw e;
     }
   };
 }
