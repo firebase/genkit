@@ -19,8 +19,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { defineDocsTool } from '../mcp/docs';
 import { defineFlowTools } from './flows';
+import { defineInitPrompt } from './prompts/init';
+import { defineRuntimeTools } from './runtime';
 import { defineTraceTools } from './trace';
-import {defineInitPrompt } from './prompts/init';
 import { defineUsageGuideTool } from './usage';
 import { lazyLoadManager } from './util';
 
@@ -35,6 +36,7 @@ export async function startMcpServer(projectRoot: string) {
   await defineDocsTool(server);
   await defineUsageGuideTool(server);
   defineInitPrompt(server);
+  defineRuntimeTools(server, manager);
 
   defineFlowTools(server, manager);
   defineTraceTools(server, manager);

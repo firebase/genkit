@@ -172,24 +172,24 @@ func main() {
 
 ## Running and Inspecting Flows
 
-1.  **Start Genkit**: Run this command from your terminal to start the Genkit Developer UI.
+**Start Genkit**: Genkit can be started locally by using the `genkit start` command, along with the process startup command:
 
-    ```bash
-    genkit start -- <command to run your code>
-    ```
+```bash
+genkit start --  <command to run your code>
+```
 
-    For Go applications:
+For e.g.:
 
-    ```bash
-    # Running a Go application directly
-    genkit start -- go run main.go
+```bash
+genkit start -- go run main.go
+```
 
-    # Running a compiled binary
-    genkit start -- ./my-genkit-app
-    ```
+You can can automate starting genkit using the following steps:
 
-    The command should output a URL for the Genkit Dev UI. Direct the user to visit this URL to run and inspect their Genkit app.
-
+1. Identify the command to start the user's project's (e.g., `go run main.go`)
+2. Use the `start_runtime` tool to start the runtime process. This is required for Genkit to discover flows.
+   - Example: If the project uses `go run main.go`, call `start_runtime` with `{ command: "go", args: ["run", "main.go"] }`.
+3. After starting the runtime, instruct the user to run `genkit start` in their terminal to launch the Developer UI.
 ## Suggested Models
 
 Here are suggested models to use for various task types. This is NOT an exhaustive list.

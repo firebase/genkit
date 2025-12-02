@@ -15,7 +15,7 @@
  */
 
 import { RuntimeManager } from '@genkit-ai/tools-common/manager';
-import { startManager } from '../utils/manager-utils';
+import { startDevProcessManager, startManager } from '../utils/manager-utils';
 
 /** Lazy loader for RuntimeManager to defer `.genkit/` creation. */
 export function lazyLoadManager(projectRoot: string) {
@@ -23,8 +23,20 @@ export function lazyLoadManager(projectRoot: string) {
   return {
     async getManager() {
       if (!manager) {
-        manager = await startManager(projectRoot, true);
+        manager = await startManager(projectRoot, true /* manageHealth */);
       }
+      return manager;
+    },
+    async initManagerWithDevProcess(command: string, args: string[]) {
+      if (manager) {
+        await manager.processManager?.kill();
+      }
+      const devManager = await startDevProcessManager(
+        projectRoot,
+        command,
+        args
+      );
+      manager = devManager.manager;
       return manager;
     },
   };

@@ -14,7 +14,6 @@ This document provides rules and examples for building with the Genkit API in No
 
 NOTE: For the sake of brevity, the snippets below use the Google AI plugin, but you should follow the user's preference as mentioned above.
 
-
 ## Best Practices
 
 1.  **Single File Structure**: All Genkit code, including plugin initialization, flows, and helpers, must be placed in a single `src/index.ts` file. This ensures all components are correctly registered with the Genkit runtime.
@@ -254,29 +253,24 @@ export const videoGenerationFlow = ai.defineFlow(
 
 ## Running and Inspecting Flows
 
-1.  **Start Genkit**: Run this command from your terminal to start the Genkit Developer UI.
+**Start Genkit**: Genkit can be started locally by using the `genkit start` command, along with the process startup command:
 
-    ```bash
-    genkit start --  <command to run your code>
-    ```
+```bash
+genkit start --  <command to run your code>
+```
 
-    The <command to run your code> will vary based on the project’s setup and
-    the file you want to execute. For e.g.:
+For e.g.:
 
-    ```bash
-    # Running a typical development server
-    genkit start -- npm run dev
+```bash
+genkit start -- npm run dev
+```
 
-    # Running a TypeScript file directly
-    genkit start -- npx tsx --watch src/index.ts
+You can can automate starting genkit using the following steps:
 
-    # Running a JavaScript file directly
-    genkit start -- node --watch src/index.js
-    ```
-
-    Analyze the users project and build tools to use the right command for the
-    project. The command should output a URL for the Genkit Dev UI. Direct the
-    user to visit this URL to run and inspect their Genkit app.
+1. Identify the command to start the user's project's (e.g., `npm run dev`)
+2. Use the `start_runtime` tool to start the runtime process. This is required for Genkit to discover flows.
+   - Example: If the project uses `npm run dev`, call `start_runtime` with `{ command: "npm", args: ["run", "dev"] }`.
+3. After starting the runtime, instruct the user to run `genkit start` in their terminal to launch the Developer UI.
 
 ## Suggested Models
 

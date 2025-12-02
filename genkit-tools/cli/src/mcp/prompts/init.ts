@@ -113,6 +113,13 @@ func main() {
 	<-ctx.Done()
 }
 \`\`\`
+
+## Running the Project
+After setting up the project:
+1. Identify the command to run the project's runtime (e.g., \`npm run dev\`, \`go run main.go\`).
+2. Use the \`start_runtime\` tool to start the runtime process. This is required for Genkit to discover flows.
+   - Example: If the project uses \`npm run dev\`, call \`start_runtime\` with \`{ command: "npm", args: ["run", "dev"] }\`.
+3. After starting the runtime, instruct the user to run \`genkit start\` in their terminal to launch the Developer UI.
 `,
           },
         },
